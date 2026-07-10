@@ -13,8 +13,7 @@ export const useFilterConditions = (excludeColumnId?: string) => {
     useStore(
       (state) =>
         state.transcriptsTableState.columnFilters as
-          | Record<string, ColumnFilter>
-          | undefined
+          Record<string, ColumnFilter> | undefined
     ) ?? {};
 
   // Get conditions, optionally excluding a specific column

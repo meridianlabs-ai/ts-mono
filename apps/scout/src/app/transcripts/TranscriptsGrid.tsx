@@ -2,7 +2,7 @@ import { FC, useEffect, useMemo, useRef } from "react";
 
 import { ScalarValue } from "../../api/api";
 import { transcriptRoute } from "../../router/url";
-import { useStore } from "../../state/store";
+import { TranscriptsTableState, useStore } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import { DataGrid } from "../components/dataGrid";
 

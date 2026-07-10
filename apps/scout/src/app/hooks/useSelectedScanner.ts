@@ -28,8 +28,7 @@ export const useSelectedScanner = (): AsyncData<string> => {
 const _get_default_scanner = (s: Status): string => {
   // Server responses may omit scanners despite the generated type
   const scanners = s.summary.scanners as
-    | Status["summary"]["scanners"]
-    | undefined;
+    Status["summary"]["scanners"] | undefined;
   const result = scanners ? Object.keys(scanners)[0] : undefined;
   if (!result) {
     throw new Error("Scan must have a scanner");

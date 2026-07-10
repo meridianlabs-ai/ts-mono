@@ -23,13 +23,9 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
   // Parsed from arrow columns; may be null/undefined at runtime despite the
   // declared type
   const scanModelUsage = resultData?.scanModelUsage as
-    | ScanResultData["scanModelUsage"]
-    | null
-    | undefined;
+    ScanResultData["scanModelUsage"] | null | undefined;
   const scanMetadata = resultData?.scanMetadata as
-    | ScanResultData["scanMetadata"]
-    | null
-    | undefined;
+    ScanResultData["scanMetadata"] | null | undefined;
   return (
     resultData && (
       <div className={clsx(styles.container)}>

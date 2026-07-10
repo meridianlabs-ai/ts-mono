@@ -189,18 +189,20 @@ const referenceTable = (
     // despite the generated type
     const events = inputData.input.events as Transcript["events"] | undefined;
     const messages = inputData.input.messages as
-      | Transcript["messages"]
-      | undefined;
-    const eventRefs = (events || []).reduce<
-      Record<string, () => ReactNode>
-    >((acc, event) => {
-      if (event.uuid) {
-        acc[event.uuid] = () => {
-          return <TranscriptView id={"input-event-preview"} events={[event]} />;
-        };
-      }
-      return acc;
-    }, {});
+      Transcript["messages"] | undefined;
+    const eventRefs = (events || []).reduce<Record<string, () => ReactNode>>(
+      (acc, event) => {
+        if (event.uuid) {
+          acc[event.uuid] = () => {
+            return (
+              <TranscriptView id={"input-event-preview"} events={[event]} />
+            );
+          };
+        }
+        return acc;
+      },
+      {}
+    );
 
     const messageRefs = (messages || []).reduce<
       Record<string, () => ReactNode>

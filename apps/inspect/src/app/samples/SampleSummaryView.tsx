@@ -14,6 +14,7 @@ import {
   EvalSampleTarget,
   EvalSampleWorkingTime,
 } from "../../@types/extraInspect";
+import { ScoreLabel } from "../../app/types";
 import { SampleSummary } from "../../client/api/types";
 import {
   resolveScorePanelView,
@@ -23,7 +24,6 @@ import {
   useSelectedLogDetails,
   useSelectedScores,
 } from "../../state/hooks";
-import { ScoreLabel } from "../../app/types";
 import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";

@@ -586,9 +586,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           },
           Messages: () => {
             const messages = sample.messages as
-              | EvalSample["messages"]
-              | null
-              | undefined;
+              EvalSample["messages"] | null | undefined;
             if (messages && messages.length > 0) {
               void api.download_file(
                 `${sampleId}-messages.txt`,
@@ -1132,13 +1130,9 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
   // Usage maps are read from serialized logs; older logs can omit them
   // despite the generated type.
   const modelUsage = sample.model_usage as
-    | EvalSample["model_usage"]
-    | null
-    | undefined;
+    EvalSample["model_usage"] | null | undefined;
   const roleUsage = sample.role_usage as
-    | EvalSample["role_usage"]
-    | null
-    | undefined;
+    EvalSample["role_usage"] | null | undefined;
 
   return (
     <UsagePanel
@@ -1166,13 +1160,9 @@ const usageViewsForSample = (
   // Usage maps are read from serialized logs; older logs can omit them
   // despite the generated type.
   const modelUsage = sample.model_usage as
-    | EvalSample["model_usage"]
-    | null
-    | undefined;
+    EvalSample["model_usage"] | null | undefined;
   const roleUsage = sample.role_usage as
-    | EvalSample["role_usage"]
-    | null
-    | undefined;
+    EvalSample["role_usage"] | null | undefined;
 
   if (
     (modelUsage && Object.keys(modelUsage).length > 0) ||
@@ -1226,9 +1216,7 @@ const metadataViewsForSample = (
     // Invalidation records are read from serialized logs; `metadata` can be
     // absent despite the generated type.
     const invalidationMetadata = sample.invalidation.metadata as
-      | Record<string, unknown>
-      | null
-      | undefined;
+      Record<string, unknown> | null | undefined;
     if (invalidationMetadata && Object.keys(invalidationMetadata).length > 0) {
       invalidationRecord["Metadata"] = invalidationMetadata;
     }

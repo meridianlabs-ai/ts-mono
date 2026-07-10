@@ -326,16 +326,13 @@ interface APIViewProps {
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {
   const requestCode = useMemo(() => {
-    // request is required in the generated type but the call comes from
-    // serialized logs, so tolerate its absence at runtime
-    const request = call.request as ModelCall["request"] | undefined;
-    return request === undefined ? "" : JSON.stringify(request, undefined, 2);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for values with no JSON representation, despite lib.es5 typing it string
+    return JSON.stringify(call.request, undefined, 2) ?? "";
   }, [call.request]);
 
   const responseCode = useMemo(() => {
-    return call.response === undefined
-      ? ""
-      : JSON.stringify(call.response, undefined, 2);
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for values with no JSON representation, despite lib.es5 typing it string
+    return JSON.stringify(call.response, undefined, 2) ?? "";
   }, [call.response]);
 
   return (

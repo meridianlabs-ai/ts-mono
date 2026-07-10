@@ -131,9 +131,7 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
     for (const evalScore of details.results.scores) {
       // Older logs can omit `metrics` despite the generated type.
       const metrics = evalScore.metrics as
-        | EvalScore["metrics"]
-        | null
-        | undefined;
+        EvalScore["metrics"] | null | undefined;
       if (metrics) {
         for (const [metricName, metric] of Object.entries(metrics)) {
           row[`score_${evalScore.name}/${metricName}`] = metric.value;

@@ -94,7 +94,8 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
           // Server responses may omit total_tokens despite the generated type
-          (sum, usage) => sum + ((usage.total_tokens as number | undefined) ?? 0),
+          (sum, usage) =>
+            sum + ((usage.total_tokens as number | undefined) ?? 0),
           0
         )
       : 0;
