@@ -531,6 +531,7 @@ export function viewServerApi(
 
   const get_user_info = async (): Promise<UserInfo> => {
     const result = await requestApi.fetchString("GET", "/user-info");
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- parsed body comes from network JSON and can be null/absent despite the cast
     return (result.parsed as UserInfo) ?? {};
   };
 

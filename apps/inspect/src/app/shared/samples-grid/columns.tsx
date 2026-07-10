@@ -254,10 +254,8 @@ export function buildSampleColumns(
     header: "Id",
     size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
-    // sampleId originates in log data, which can omit it at runtime
-    // despite the declared type
-    accessorFn: (row) =>
-      String((row.sampleId as string | number | undefined) ?? ""),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- sampleId is required in the declared type but can be absent in rows built from log data
+    accessorFn: (row) => String(row.sampleId ?? ""),
     cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 

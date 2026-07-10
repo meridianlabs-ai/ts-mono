@@ -104,6 +104,7 @@ const isPaletteName = (s: string): s is ScoreColorPalette =>
 // categorical branch and producing a nonsense `{ kind: "categorical",
 // colors: { palette: undefined } }` shape).
 const isScaleObject = (s: WireScoreColorScale): s is ScoreColorScaleObject =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- wire data from logs can carry null despite the static type
   typeof s === "object" && s !== null && "palette" in s;
 
 /**
