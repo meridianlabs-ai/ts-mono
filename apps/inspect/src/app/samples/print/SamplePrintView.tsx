@@ -120,7 +120,7 @@ export const SamplePrintView: FC = () => {
     );
   }
 
-  const sampleMessages = sample.messages || [];
+  const sampleMessages = sample.messages;
 
   return (
     <div className={styles.container} ref={contentRef}>
@@ -193,10 +193,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    if (
-      sample.invalidation.metadata &&
-      Object.keys(sample.invalidation.metadata).length > 0
-    ) {
+    if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
     sampleMetadatas.push(
@@ -209,7 +206,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
+  if (Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
         <CardHeader label="Usage" />
@@ -241,23 +238,23 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  if (Object.keys(sample?.metadata).length > 0) {
+  if (Object.keys(sample.metadata).length > 0) {
     sampleMetadatas.push(
       <Card key="print-metadata">
         <CardHeader label="Metadata" />
         <CardBody>
-          <MetaDataGrid entries={sample?.metadata} />
+          <MetaDataGrid entries={sample.metadata} />
         </CardBody>
       </Card>
     );
   }
 
-  if (Object.keys(sample?.store).length > 0) {
+  if (Object.keys(sample.store).length > 0) {
     sampleMetadatas.push(
       <Card key="print-store">
         <CardHeader label="Store" />
         <CardBody>
-          <MetaDataGrid entries={sample?.store} />
+          <MetaDataGrid entries={sample.store} />
         </CardBody>
       </Card>
     );

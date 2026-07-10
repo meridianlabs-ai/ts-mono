@@ -359,8 +359,8 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             const trimmedName = newSetName.trim();
             const extensionError = getExtensionError(trimmedName);
             const displayError = validationError || extensionError;
-            const displayDir = appConfig?.project_dir?.startsWith("file://")
-              ? appConfig?.project_dir.slice(7)
+            const displayDir = appConfig?.project_dir.startsWith("file://")
+              ? appConfig.project_dir.slice(7)
               : appConfig?.project_dir;
 
             // Show hint only if no error and we have a name and projectDir

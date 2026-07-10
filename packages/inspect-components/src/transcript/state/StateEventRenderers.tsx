@@ -120,7 +120,9 @@ const human_baseline_session: ChangeType = {
     const answer = state[humanAgentKey("answer")] as string;
     const completed = !!answer;
     const running = state[humanAgentKey("running_state")] as boolean;
-    const rawSessions = state[humanAgentKey("logs")] as Record<string, unknown>;
+    const rawSessions = state[humanAgentKey("logs")] as
+      | Record<string, unknown>
+      | undefined;
 
     // Tweak the date value
     const startedDate = started ? new Date(started * 1000) : undefined;

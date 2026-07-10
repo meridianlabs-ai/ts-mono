@@ -104,7 +104,12 @@ export const pickActiveView = (
  * stale `true` lifted from a previous eval.
  */
 export const resolveSamplesView = (
-  stored: SamplesViewState | undefined,
+  // Persisted slots written before `userOverrides` landed lack the field,
+  // so accept it as absent here even though the runtime type requires it.
+  stored:
+    | (Omit<SamplesViewState, "userOverrides"> &
+        Partial<Pick<SamplesViewState, "userOverrides">>)
+    | undefined,
   evalDefault: TaskSamplesView | undefined | null
 ): SamplesViewState => {
   if (!stored) return liftEvalView(evalDefault);
@@ -112,6 +117,7 @@ export const resolveSamplesView = (
   const overrides = stored.userOverrides ?? {};
   return {
     ...stored,
+    userOverrides: overrides,
     multiline: overrides.multiline ?? lifted.multiline,
     compactScores: overrides.compactScores ?? lifted.compactScores,
     colorScalesEnabled:
