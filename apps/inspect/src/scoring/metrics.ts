@@ -22,11 +22,14 @@ export const firstMetric = (results: EvalResults) => {
   // runtime despite the generated types (old or hand-edited logs)
   const scores = (results.scores as EvalScore[] | undefined) ?? [];
   const firstScore = scores.length > 0 ? scores[0] : undefined;
-  const metrics = firstScore?.metrics as EvalScore["metrics"] | undefined;
-  if (firstScore === undefined || metrics === undefined) {
+  if (firstScore === undefined) {
     return undefined;
   }
 
+  const metrics = firstScore.metrics as EvalScore["metrics"] | undefined;
+  if (metrics === undefined) {
+    return undefined;
+  }
   if (Object.keys(metrics).length === 0) {
     return undefined;
   }

@@ -213,7 +213,13 @@ export function initializeEditedConfig(
 ): Partial<ProjectConfigInput> {
   return {
     transcripts: serverConfig.transcripts ?? null,
-    filter: serverConfig.filter,
+    // Server responses may omit filter despite the generated type; normalize
+    // to null like every other field
+    filter:
+      (serverConfig.filter as
+        | ProjectConfigInput["filter"]
+        | null
+        | undefined) ?? null,
     scans: serverConfig.scans ?? null,
     max_transcripts: serverConfig.max_transcripts ?? null,
     max_processes: serverConfig.max_processes ?? null,

@@ -690,6 +690,14 @@ const extractInput = (
     return `${key}: ${quotedValue}`;
   };
 
+  // No args (tool arguments come from serialized logs, where they can be
+  // absent despite the declared type)
+  if (!(args as Record<string, unknown> | null | undefined)) {
+    return {
+      args: [],
+    };
+  }
+
   // Use the input descriptor to snip apart args
   if (inputDescriptor) {
     const filterKeys = new Set<string>();

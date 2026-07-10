@@ -120,7 +120,10 @@ export const SamplePrintView: FC = () => {
     );
   }
 
-  const sampleMessages = sample.messages;
+  // messages can be absent at runtime despite the generated type
+  // (old or hand-edited logs)
+  const sampleMessages =
+    (sample.messages as EvalSample["messages"] | undefined) || [];
 
   return (
     <div className={styles.container} ref={contentRef}>

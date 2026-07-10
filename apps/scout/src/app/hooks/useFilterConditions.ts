@@ -1,6 +1,6 @@
 import { Condition } from "../../query";
 import { SimpleCondition } from "../../query/types";
-import { useStore } from "../../state/store";
+import { ColumnFilter, useStore } from "../../state/store";
 
 /**
  * Build a combined filter condition from column filters.
@@ -8,9 +8,14 @@ import { useStore } from "../../state/store";
  */
 export const useFilterConditions = (excludeColumnId?: string) => {
   // The applied filters
-  const columnFilters = useStore(
-    (state) => state.transcriptsTableState.columnFilters
-  );
+  // (persisted table state from older app versions may lack columnFilters)
+  const columnFilters =
+    useStore(
+      (state) =>
+        state.transcriptsTableState.columnFilters as
+          | Record<string, ColumnFilter>
+          | undefined
+    ) ?? {};
 
   // Get conditions, optionally excluding a specific column
   const filterConditions = Object.values(columnFilters)
