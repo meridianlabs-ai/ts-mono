@@ -228,7 +228,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const setSelectedScores = useStore(
     (state) => state.logActions.setSelectedScores
   );
-  const epochs = selectedLogDetails?.eval.config?.epochs || 1;
+  const epochs = selectedLogDetails?.eval.config.epochs || 1;
 
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
@@ -435,7 +435,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     return sampleSummaries.map((sample): SampleRow => {
       const tokens = sample.model_usage
         ? Object.values(sample.model_usage).reduce(
-            (sum, u) => sum + (u.total_tokens ?? 0),
+            (sum, u) => sum + u.total_tokens,
             0
           )
         : undefined;

@@ -156,11 +156,7 @@ export const createLogSlice = (
 
 // Initialize app slice with StoreState
 export const initalializeLogSlice = (
-  set: (fn: (state: StoreState) => void) => void
+  _set: (fn: (state: StoreState) => void) => void
 ) => {
-  set((state) => {
-    if (!state.log) {
-      state.log = initialState;
-    }
-  });
+  // log state is fully populated by createLogSlice; nothing to restore
 };

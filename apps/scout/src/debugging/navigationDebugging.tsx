@@ -15,7 +15,7 @@ const navigationLoggingEnabled = (): boolean => false;
 const timestamp = () => new Date().toISOString().slice(11, 23);
 
 export const navigationLog = (description: string) => {
-  if (NAVIGATION_LOGGING_ENABLED) {
+  if (navigationLoggingEnabled()) {
     console.log(`[${timestamp()}] ${description}`);
   }
 };
