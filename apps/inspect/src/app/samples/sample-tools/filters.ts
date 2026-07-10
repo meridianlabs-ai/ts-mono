@@ -176,10 +176,10 @@ const totalTokens = (sample: SampleSummary): number | null => {
 
 // target originates in log data, which can hold null at runtime despite
 // the generated type
-const targetString = (target: SampleSummary["target"]): string =>
-  Array.isArray(target)
-    ? target.join(", ")
-    : ((target as string | null | undefined) ?? "");
+const targetString = (target: SampleSummary["target"]): string => {
+  const value = target as string | string[] | null | undefined;
+  return Array.isArray(value) ? value.join(", ") : (value ?? "");
+};
 
 export const sampleVariables = (
   sample: SampleSummary,

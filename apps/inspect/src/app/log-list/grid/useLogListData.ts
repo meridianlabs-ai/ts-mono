@@ -30,8 +30,8 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   const log = rowForItem(item);
   const details = log?.header;
   // Headers are read from serialized logs; partial or older headers can
-  // omit `eval` despite the generated type.
-  const evalSpec = details?.eval as EvalSpec | undefined;
+  // omit `eval` despite the generated type, so keep accesses behind `?.`.
+  const evalSpec: EvalSpec | undefined = details?.eval;
 
   // Compute total tokens across all models
   let totalTokens: number | undefined;

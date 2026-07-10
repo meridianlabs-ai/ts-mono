@@ -733,8 +733,7 @@ const SearchResult: FC<{
     const refs: MarkdownReference[] = [];
     // the result arrives from the search API, so references can be absent
     // and ref.type can hold values beyond the declared union
-    const references = result.references as
-      typeof result.references | undefined;
+    const references = result.references as Result["references"] | undefined;
     for (const ref of references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);

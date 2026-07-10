@@ -156,7 +156,14 @@ export const createLogSlice = (
 
 // Initialize app slice with StoreState
 export const initalializeLogSlice = (
-  _set: (fn: (state: StoreState) => void) => void
+  set: (fn: (state: StoreState) => void) => void
 ) => {
-  // log state is fully populated by createLogSlice; nothing to restore
+  set((state) => {
+    // Rehydrated persisted state replaces the slice wholesale, so an old or
+    // corrupt blob can leave it unset despite the declared type.
+    const log = state.log as LogState | undefined;
+    if (!log) {
+      state.log = initialState;
+    }
+  });
 };

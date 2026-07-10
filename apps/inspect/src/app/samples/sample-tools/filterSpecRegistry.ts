@@ -6,7 +6,7 @@ import {
   kScoreTypePassFail,
 } from "../../../constants";
 import { perScorerFieldKey } from "../../shared/samples-grid/columns";
-import { EvalDescriptor } from "../descriptor/types";
+import { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
 
 import { bannedShortScoreNames, builtinFilterVariables } from "./filters";
 
@@ -81,10 +81,14 @@ export const buildSampleFilterSpecRegistry = (
       }
       const variable =
         name === scorer || !banned.has(name) ? name : `${scorer}.${name}`;
-      const scoreType = evalDescriptor.scoreDescriptor({
-        name,
-        scorer,
-      }).scoreType;
+      // `scoreDescriptor` is an unchecked map lookup — scores whose values
+      // defy categorization have no descriptor despite the declared type.
+      const scoreType = (
+        evalDescriptor.scoreDescriptor({
+          name,
+          scorer,
+        }) as ScoreDescriptor | undefined
+      )?.scoreType;
       // Only sync score column filters where the column's text/number
       // filter operates on values that match the runtime filtrex
       // variable type. Booleans (filtrex sees `true`/`false`, the

@@ -90,13 +90,11 @@ export const toClipboardJson = (value: unknown): string => {
     if (typeof v === "function") return `ƒ ${v.name || "anonymous"}()`;
     return v;
   };
-  // string | undefined: despite lib.es5 typing it string, JSON.stringify
-  // returns undefined for top-level values with no JSON representation
-  // (undefined, symbols).
-  const stringify = (v: unknown): string | undefined =>
-    JSON.stringify(v, (_key, x: unknown) => replace(x), 2);
   try {
-    return stringify(value) ?? "undefined";
+    return (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- JSON.stringify returns undefined for top-level values with no JSON representation (undefined, symbols), despite lib.es5 typing it string
+      JSON.stringify(value, (_key, v: unknown) => replace(v), 2) ?? "undefined"
+    );
   } catch (error) {
     return `<unserializable: ${error instanceof Error ? error.message : String(error)}>`;
   }

@@ -78,8 +78,10 @@ export const headerFromLogStart = (start: LogStart): EvalHeader => ({
   status: "started",
   eval: start.eval,
   plan: start.plan,
-  tags: start.eval.tags ?? [],
-  metadata: start.eval.metadata ?? {},
+  // start.json is a remote artifact; a partial or old write can omit `eval`
+  // despite the declared type.
+  tags: (start.eval as EvalSpec | undefined)?.tags ?? [],
+  metadata: (start.eval as EvalSpec | undefined)?.metadata ?? {},
 });
 
 /**

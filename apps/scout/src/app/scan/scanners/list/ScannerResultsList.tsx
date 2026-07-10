@@ -484,7 +484,10 @@ const optimalColumnLayout = (
         }, 0);
         return Math.max(max, len);
       } else {
-        const valStr = s.value !== null ? valueAsString(s.value) : "";
+        // Arrow row data may surface undefined despite the declared type
+        const value = s.value as ScanResultSummary["value"] | undefined;
+        const valStr =
+          value !== undefined && value !== null ? valueAsString(value) : "";
         return Math.max(max, valStr.length);
       }
     }, 0);

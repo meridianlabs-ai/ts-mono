@@ -80,9 +80,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some((name) => {
     // Server responses may omit entries despite the generated type
-    const entries = summary.scanners[name]?.validation?.entries as
-      | ValidationResults["entries"]
-      | undefined;
+    const entries = summary.scanners[name]?.validation?.entries;
     return (entries?.length ?? 0) > 0;
   });
   const hasMetrics = info.scanner_names.some(

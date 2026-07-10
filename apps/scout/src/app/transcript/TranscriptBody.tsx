@@ -581,6 +581,13 @@ const CopyToolbarButton: FC<{
     setTimeout(() => setIcon(ApplicationIcons.copy), 1250);
   }, []);
 
+  // The transcript is deserialized from disk, so it (and fields the schema
+  // marks required) can still be missing at runtime.
+  const maybeTranscript = transcript as Transcript | undefined;
+  if (!maybeTranscript) {
+    return undefined;
+  }
+
   return (
     <ToolDropdownButton
       key="sample-copy"
@@ -598,10 +605,13 @@ const CopyToolbarButton: FC<{
           }
         },
         Transcript: () => {
-          void navigator.clipboard.writeText(
-            messagesToStr(transcript.messages)
-          );
-          showCopyConfirmation();
+          const messages = transcript.messages as
+            | Transcript["messages"]
+            | undefined;
+          if (messages) {
+            void navigator.clipboard.writeText(messagesToStr(messages));
+            showCopyConfirmation();
+          }
         },
       }}
     />

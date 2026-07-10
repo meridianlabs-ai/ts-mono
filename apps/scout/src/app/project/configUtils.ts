@@ -211,15 +211,13 @@ export function computeConfigToSave(
 export function initializeEditedConfig(
   serverConfig: ProjectConfigInput
 ): Partial<ProjectConfigInput> {
+  // Server responses may omit filter despite the generated type; normalize it
+  // to null like every other field (the final assertion mirrors the declared
+  // type, which does not admit null)
+  const filter: string | string[] | null | undefined = serverConfig.filter;
   return {
     transcripts: serverConfig.transcripts ?? null,
-    // Server responses may omit filter despite the generated type; normalize
-    // to null like every other field
-    filter:
-      (serverConfig.filter as
-        | ProjectConfigInput["filter"]
-        | null
-        | undefined) ?? null,
+    filter: (filter ?? null) as string | string[],
     scans: serverConfig.scans ?? null,
     max_transcripts: serverConfig.max_transcripts ?? null,
     max_processes: serverConfig.max_processes ?? null,

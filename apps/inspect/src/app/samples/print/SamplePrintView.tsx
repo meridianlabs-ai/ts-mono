@@ -199,8 +199,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     // metadata can be absent at runtime despite the generated type
     // (old or hand-edited logs)
     const invalidationMetadata = sample.invalidation.metadata as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (invalidationMetadata && Object.keys(invalidationMetadata).length > 0) {
       invalidationRecord["Metadata"] = invalidationMetadata;
     }
@@ -217,8 +216,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
   // model_usage can be absent at runtime despite the generated type
   // (old or hand-edited logs)
   const modelUsage = sample.model_usage as
-    | EvalSample["model_usage"]
-    | undefined;
+    EvalSample["model_usage"] | undefined;
   if (modelUsage && Object.keys(modelUsage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">

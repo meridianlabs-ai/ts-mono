@@ -49,11 +49,19 @@ export const liftEvalView = (
   if (!wire) return fallback;
   return {
     name: wire.name,
+    // Wire views written before `visible` / `dir` had server-side defaults
+    // can omit them despite the generated type.
     columns: wire.columns
-      ? wire.columns.map((c) => ({ id: c.id, visible: c.visible }))
+      ? wire.columns.map((c) => ({
+          id: c.id,
+          visible: (c.visible as boolean | null | undefined) ?? true,
+        }))
       : fallback.columns,
     sort: wire.sort
-      ? wire.sort.map((s) => ({ colId: s.column, dir: s.dir }))
+      ? wire.sort.map((s) => ({
+          colId: s.column,
+          dir: (s.dir as "asc" | "desc" | null | undefined) ?? "asc",
+        }))
       : fallback.sort,
     filters: { dsl: "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,

@@ -157,15 +157,19 @@ export const SettingsContent: FC<SettingsContentProps> = ({
 
   // Tags field - use local state to allow typing commas/spaces freely
   // but also update config on input so Ctrl+S saves correctly
+  // Config is deserialized user data: tags may arrive as a bare string, so
+  // fall back to the raw value rather than assuming the declared type.
   const [tagsText, setTagsText] = useState(() =>
-    Array.isArray(config.tags) ? config.tags.join(", ") : ""
+    Array.isArray(config.tags)
+      ? config.tags.join(", ")
+      : ((config.tags as string | null | undefined) ?? "")
   );
 
   // Sync local state when config changes externally (e.g., after save)
   useEffect(() => {
     const configValue = Array.isArray(config.tags)
       ? config.tags.join(", ")
-      : "";
+      : ((config.tags as string | null | undefined) ?? "");
     // Only sync if the parsed values differ (avoids cursor jump while typing)
     const currentParsed = tagsText
       .split(",")

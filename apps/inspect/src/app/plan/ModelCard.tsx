@@ -44,8 +44,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
             // config originates in log data, which can omit it at runtime
             // despite the generated type
             const modelConfig = modelInfo.config as
-              | ModelConfig["config"]
-              | undefined;
+              ModelConfig["config"] | undefined;
             return (
               <div
                 key={modelKey}
