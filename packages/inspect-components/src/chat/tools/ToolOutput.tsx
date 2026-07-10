@@ -65,7 +65,9 @@ export const ToolOutput: FC<ToolOutputProps> = ({
         // data can be absent in logs despite the generated type
         const data = out.data as typeof out.data | undefined;
         if (data) {
-          outputs.push(<ToolTextOutput text={JSON.stringify(data)} key={key} />);
+          outputs.push(
+            <ToolTextOutput text={JSON.stringify(data)} key={key} />
+          );
         }
       }
     });

@@ -731,15 +731,21 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
-    for (const ref of result.references) {
+    // the result arrives from the search API, so references can be absent
+    // and ref.type can hold values beyond the declared union
+    const references = result.references as typeof result.references | undefined;
+    for (const ref of references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
+        const refType = ref.type as string;
         const route =
-          ref.type === "message"
+          refType === "message"
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : getEventUrl(ref.id);
+            : refType === "event"
+              ? getEventUrl(ref.id)
+              : undefined;
         refs.push({
           id: ref.id,
           cite: ref.cite,

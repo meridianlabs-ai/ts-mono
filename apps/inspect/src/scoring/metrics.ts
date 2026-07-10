@@ -1,4 +1,4 @@
-import { EvalResults } from "@tsmono/inspect-common/types";
+import { EvalResults, EvalScore } from "@tsmono/inspect-common/types";
 
 import { EvalScores } from "../@types/extraInspect";
 
@@ -18,13 +18,15 @@ export const metricDisplayName = (metric: MetricSummary): string => {
 };
 
 export const firstMetric = (results: EvalResults) => {
-  const scores = results.scores;
+  // scores/metrics come from serialized logs, which can omit them at
+  // runtime despite the generated types (old or hand-edited logs)
+  const scores = (results.scores as EvalScore[] | undefined) ?? [];
   const firstScore = scores.length > 0 ? scores[0] : undefined;
-  if (firstScore === undefined) {
+  const metrics = firstScore?.metrics as EvalScore["metrics"] | undefined;
+  if (firstScore === undefined || metrics === undefined) {
     return undefined;
   }
 
-  const metrics = firstScore.metrics;
   if (Object.keys(metrics).length === 0) {
     return undefined;
   }

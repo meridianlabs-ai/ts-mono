@@ -117,7 +117,8 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["function", toolEvent.function]);
       }
       // Tool arguments (can be absent in logs despite the generated type)
-      const args = toolEvent.arguments as typeof toolEvent.arguments | undefined;
+      const args = toolEvent.arguments as
+        typeof toolEvent.arguments | undefined;
       if (args) {
         fields.push(["arguments", JSON.stringify(args)]);
       }
@@ -154,7 +155,8 @@ export const extractEventFields = (event: EventType): [string, string][] => {
     case "logger": {
       const loggerEvent = event;
       // message can be absent in logs despite the generated type
-      const message = loggerEvent.message as typeof loggerEvent.message | undefined;
+      const message = loggerEvent.message as
+        typeof loggerEvent.message | undefined;
       if (message?.message) {
         fields.push(["message", message.message]);
       }
@@ -270,8 +272,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       }
       // value can be absent in logs despite the generated type
       const val = scoreEvent.score.value as
-        | typeof scoreEvent.score.value
-        | undefined;
+        typeof scoreEvent.score.value | undefined;
       if (val !== undefined) {
         fields.push([
           "value",
@@ -333,8 +334,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       }
       // type can be absent in logs despite the generated type
       const limitType = sampleLimitEvent.type as
-        | typeof sampleLimitEvent.type
-        | undefined;
+        typeof sampleLimitEvent.type | undefined;
       if (limitType) {
         fields.push(["type", limitType]);
       }
@@ -372,8 +372,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const approvalEvent = event;
       // decision can be absent in logs despite the generated type
       const decision = approvalEvent.decision as
-        | typeof approvalEvent.decision
-        | undefined;
+        typeof approvalEvent.decision | undefined;
       if (decision) {
         fields.push(["decision", decision]);
       }
@@ -390,8 +389,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const sandboxEvent = event;
       // action can be absent in logs despite the generated type
       const action = sandboxEvent.action as
-        | typeof sandboxEvent.action
-        | undefined;
+        typeof sandboxEvent.action | undefined;
       if (action) {
         fields.push(["action", action]);
       }

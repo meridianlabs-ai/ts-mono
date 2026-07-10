@@ -145,7 +145,8 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
     if (!stored) return undefined;
     return {
       column: stored.column ?? null,
-      dir: stored.dir,
+      // Log data may omit dir despite the static type.
+      dir: (stored.dir as ScorePanelSortState["dir"] | undefined) ?? "asc",
     };
   }, [stored]);
 };

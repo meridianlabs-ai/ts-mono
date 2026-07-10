@@ -24,7 +24,8 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
 }) => {
   const event = eventNode.event;
   // metadata can be absent in logs despite the generated type
-  const metadata = event.edit.metadata as typeof event.edit.metadata | undefined;
+  const metadata = event.edit.metadata as
+    typeof event.edit.metadata | undefined;
 
   const subtitle = event.edit.provenance
     ? `[${event.edit.provenance.timestamp ? formatDateTime(new Date(event.edit.provenance.timestamp)) : undefined}] ${event.edit.provenance.author}: ${event.edit.provenance.reason || ""}`
