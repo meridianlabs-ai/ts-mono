@@ -214,7 +214,7 @@ export const ValidationPanel: FC = () => {
   }
 
   // Check for empty state (no validation sets available)
-  const hasNoValidationSets = !setsError && validationSets?.length === 0;
+  const hasNoValidationSets = !setsError && validationSets.length === 0;
 
   if (hasNoValidationSets) {
     return (
@@ -259,7 +259,7 @@ export const ValidationPanel: FC = () => {
           </div>
         ) : (
           <ValidationSetSelector
-            validationSets={validationSets ?? []}
+            validationSets={validationSets}
             selectedUri={selectedUri}
             onSelect={handleSelectSet}
             autoSize={true}
@@ -338,7 +338,7 @@ export const ValidationPanel: FC = () => {
               <div className={styles.error}>
                 Error loading cases: {casesError.message}
               </div>
-            ) : cases ? (
+            ) : (
               <ValidationCasesList
                 cases={cases}
                 transcriptsDir={transcriptsDir}
@@ -350,11 +350,11 @@ export const ValidationPanel: FC = () => {
                 isUpdating={updateMutation.isPending}
                 isDeleting={deleteCasesMutation.isPending}
               />
-            ) : null}
+            )}
           </>
         )}
 
-        {!selectedUri && !setsLoading && (
+        {!selectedUri && (
           <div className={styles.emptyState}>
             Select a validation set to view its cases.
           </div>

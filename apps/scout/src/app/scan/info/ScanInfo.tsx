@@ -43,17 +43,13 @@ const ScanInfoCard: FC<ScanInfoCardProps> = ({ selectedScan, className }) => {
     record["Source File"] = selectedScan.spec.scan_file;
   }
   if (selectedScan.spec.revision?.origin) {
-    record["Origin"] = selectedScan.spec.revision?.origin;
+    record["Origin"] = selectedScan.spec.revision.origin;
   }
   if (selectedScan.spec.revision?.commit) {
-    record["Commit"] = selectedScan.spec.revision?.commit;
+    record["Commit"] = selectedScan.spec.revision.commit;
   }
-  if (selectedScan.spec.packages) {
-    record["Packages"] = selectedScan.spec.packages;
-  }
-  if (selectedScan.spec.options) {
-    record["Options"] = selectedScan.spec.options;
-  }
+  record["Packages"] = selectedScan.spec.packages;
+  record["Options"] = selectedScan.spec.options;
 
   return (
     <InfoCard

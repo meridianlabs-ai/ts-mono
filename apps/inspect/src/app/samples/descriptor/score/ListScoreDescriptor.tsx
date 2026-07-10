@@ -14,18 +14,19 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
         (b.value as unknown as unknown[]).length
       );
     },
-    render: (score) => {
+    render: (score: ScoreValue | null | undefined) => {
       if (score === null || score === undefined) {
         return "[null]";
       }
 
+      if (!Array.isArray(score)) {
+        throw new Error(
+          "Unexpected use of list score descriptor for non-lisß object"
+        );
+      }
+
       const formattedScores: string[] = [];
-      (score as []).forEach((value) => {
-        if (!Array.isArray(score)) {
-          throw new Error(
-            "Unexpected use of list score descriptor for non-lisß object"
-          );
-        }
+      score.forEach((value) => {
         const formattedValue =
           value && isNumeric(value)
             ? formatPrettyDecimal(

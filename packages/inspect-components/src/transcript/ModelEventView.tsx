@@ -327,11 +327,13 @@ interface APIViewProps {
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {
   const requestCode = useMemo(() => {
-    return JSON.stringify(call.request, undefined, 2) ?? "";
+    return JSON.stringify(call.request, undefined, 2);
   }, [call.request]);
 
   const responseCode = useMemo(() => {
-    return JSON.stringify(call.response, undefined, 2) ?? "";
+    return call.response === undefined
+      ? ""
+      : JSON.stringify(call.response, undefined, 2);
   }, [call.response]);
 
   return (

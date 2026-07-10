@@ -33,7 +33,7 @@ export const objectScoreDescriptor = (
     compare: () => {
       return 0;
     },
-    render: (score) => {
+    render: (score: ScoreValue | null | undefined) => {
       if (score === null || score === undefined) {
         return "[null]";
       }

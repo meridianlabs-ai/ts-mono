@@ -817,7 +817,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     }
     if (bulkCollapse === "expand") {
       onSetTranscriptCollapsed({});
-    } else if (bulkCollapse === "collapse") {
+    } else {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
     }
@@ -830,7 +830,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
       if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      if (!collapseState?.transcript) {
+      if (!collapseState.transcript) {
         // First toggle — seed defaults then apply the toggle
         onSetTranscriptCollapsed({
           ...defaultCollapsedIds,
@@ -854,7 +854,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
-      const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
+      const next = { ...(collapseState.transcript ?? defaultCollapsedIds) };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);
     },

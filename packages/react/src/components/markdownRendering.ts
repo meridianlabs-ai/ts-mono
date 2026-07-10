@@ -67,9 +67,8 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
     return `<a href="${md.utils.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapedLabel}</a>`;
   };
 
-  if (renderer === "full" || renderer === "fragment") {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
-    md.use(markdownitMathjax3);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
+  md.use(markdownitMathjax3);
 
     // Wrap math renderers to unescape HTML entities in TeX content
     // before MathJax processes them. HTML chars in LaTeX blocks are
@@ -97,7 +96,6 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
         return origBlock(tokens, idx, options, env, self);
       };
     }
-  }
   mdInstanceCache[renderer] = md;
 
   return md;

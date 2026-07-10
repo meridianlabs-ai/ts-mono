@@ -40,7 +40,7 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
 
   // Compute duration in seconds
   let duration: number | undefined;
-  if (details?.stats?.started_at && details?.stats?.completed_at) {
+  if (details?.stats?.started_at && details.stats.completed_at) {
     const start = new Date(details.stats.started_at).getTime();
     const end = new Date(details.stats.completed_at).getTime();
     if (start && end && end > start) {
@@ -52,7 +52,7 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // actually supplied at the call site) over `task_args` (which
   // would also include defaulted values).
   const taskArgsSource =
-    details?.eval?.task_args_passed ?? details?.eval?.task_args;
+    details?.eval.task_args_passed ?? details?.eval.task_args;
   let taskArgs: string | undefined;
   if (taskArgsSource) {
     const entries = Object.entries(taskArgsSource);
@@ -106,10 +106,10 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
     path: item.type === "file" ? item.name : undefined,
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
-    sandbox: details?.eval?.sandbox?.type,
+    sandbox: details?.eval.sandbox?.type,
     totalTokens,
     duration,
-    taskFile: details?.eval?.task_file ?? undefined,
+    taskFile: details?.eval.task_file ?? undefined,
     taskArgs,
     taskArgsRaw: taskArgsSource ?? undefined,
     tags: details?.tags,
@@ -126,10 +126,8 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
   // same column since the underlying computation is identical.
   if (details?.results?.scores) {
     for (const evalScore of details.results.scores) {
-      if (evalScore.metrics) {
-        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-          row[`score_${evalScore.name}/${metricName}`] = metric.value;
-        }
+      for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+        row[`score_${evalScore.name}/${metricName}`] = metric.value;
       }
     }
   }
