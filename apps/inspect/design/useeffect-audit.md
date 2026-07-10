@@ -111,8 +111,8 @@ Working doc: check items off (and note the commit) as fixes land. Line numbers a
 
 - [x] `src/components/FindBand.tsx:174` (fixed: eaac7d22) — cleanup captures `scrollTimeoutRef.current` at effect setup (always
       null); later scroll timeout never cleared on unmount. Fix: read ref in cleanup.
-- [ ] `src/components/MorePopOver.tsx:20` — deps `[title, customClass]`; popover keeps stale cloned children
-      when children re-render.
+- [x] `src/components/MorePopOver.tsx:20` (deleted) — deps `[title, customClass]`; popover kept stale cloned children
+      when children re-render. Moot: component had zero callers since its 2024 introduction — deleted instead of fixed.
 - [ ] `src/app/log-list/LogsPanel.tsx:334` — single-log auto-redirect can fire on transient length-1 listing
       mid-sync; safer as `<Navigate>` on settled data.
 - [x] `src/app/log-list/LogsPanel.tsx:290` (fixed: e3cc661b) — same full-map persist hazard as cb9edcb1:
