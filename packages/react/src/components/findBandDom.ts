@@ -1,3 +1,7 @@
+/**
+ * Finds the nearest scrollable ancestor with enough overflow to benefit from
+ * programmatic scrolling.
+ */
 export function findScrollableParent(
   element: Element | null,
   options?: { minScrollBuffer?: number }
@@ -19,6 +23,10 @@ export function findScrollableParent(
   return null;
 }
 
+/**
+ * Centers the selected text range rather than its containing element, which
+ * keeps matches in large elements such as code blocks correctly positioned.
+ */
 export function scrollRangeToCenter(
   range: Range,
   options?: { behavior?: ScrollBehavior; fallbackToScrollIntoView?: boolean }
