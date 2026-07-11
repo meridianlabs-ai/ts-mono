@@ -158,6 +158,17 @@ describe("FindBand", () => {
     );
   });
 
+  it("shows No results when a counter reports matches but the find misses", async () => {
+    const { input } = renderFindBand(vi.fn(), <MatchCounter count={3} />);
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(screen.getByText("No results").style.visibility).toBe("visible")
+    );
+    expect(screen.queryByText("0 of 3")).toBeNull();
+  });
+
   it("shows the registered match count and current index", async () => {
     windowFind.mockImplementation(() => {
       const textNode = screen.getByTestId("search-content").firstChild;

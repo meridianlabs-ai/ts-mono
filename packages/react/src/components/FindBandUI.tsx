@@ -50,8 +50,11 @@ export const FindBandUI: FC<FindBandUIProps> = ({
 
   const hasCount = matchCount !== undefined && matchIndex !== undefined;
   const showStatus = noResults || (hasCount && matchCount > 0);
+  // noResults wins over the counter: a registered source can report
+  // matches that the DOM find can't reach (unsearchable or unrendered
+  // content), which would otherwise display as "0 of N".
   const statusText =
-    hasCount && matchCount > 0
+    !noResults && hasCount && matchCount > 0
       ? `${matchIndex + 1} of ${matchCount}`
       : "No results";
 
