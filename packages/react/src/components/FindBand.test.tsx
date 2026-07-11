@@ -158,6 +158,38 @@ describe("FindBand", () => {
     );
   });
 
+  it("skips searching when the typed term extends a known miss", async () => {
+    const { input } = renderFindBand();
+
+    fireEvent.change(input, { target: { value: "needles" } });
+    await waitFor(() =>
+      expect(screen.getByText("No results").style.visibility).toBe("visible")
+    );
+    const callsAfterMiss = windowFind.mock.calls.length;
+
+    fireEvent.change(input, { target: { value: "needlesX" } });
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    expect(windowFind.mock.calls.length).toBe(callsAfterMiss);
+    expect(screen.getByText("No results").style.visibility).toBe("visible");
+  });
+
+  it("re-searches a known miss on explicit Enter", async () => {
+    const { input } = renderFindBand();
+
+    fireEvent.change(input, { target: { value: "needles" } });
+    await waitFor(() =>
+      expect(screen.getByText("No results").style.visibility).toBe("visible")
+    );
+    const callsAfterMiss = windowFind.mock.calls.length;
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(windowFind.mock.calls.length).toBeGreaterThan(callsAfterMiss)
+    );
+  });
+
   it("shows No results when a counter reports matches but the find misses", async () => {
     const { input } = renderFindBand(vi.fn(), <MatchCounter count={3} />);
 

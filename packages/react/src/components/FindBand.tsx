@@ -44,6 +44,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const cachedCount = useRef<{ term: string; version: number; count: number }>(
     { term: "", version: -1, count: 0 }
   );
+  const lastNoResult = useRef<{ term: string; version: number } | null>(null);
   const [matchCount, setMatchCount] = useState<number | null>(null);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   // Tracks whether the most recent search returned no result, separate
@@ -53,7 +54,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const [noResults, setNoResults] = useState(false);
 
   const handleSearch = useCallback(
-    async (back = false) => {
+    async (back = false, skipKnownMiss = false) => {
       const thisSearchId = ++searchIdRef.current;
 
       const searchTerm = searchBoxRef.current?.value ?? "";
@@ -62,6 +63,23 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         setCurrentMatchIndex(0);
         setNoResults(false);
         setFindTarget(null);
+        return;
+      }
+
+      const countersVersion = getMatchCountersVersion();
+
+      // Typing more characters onto a term already known to miss can't
+      // produce a match, so debounced auto-searches skip the (expensive)
+      // full-document scans. Explicit searches (Enter, next/prev) always
+      // run, which also re-checks content the version can't track.
+      if (
+        skipKnownMiss &&
+        lastNoResult.current &&
+        lastNoResult.current.version === countersVersion &&
+        searchTerm.startsWith(lastNoResult.current.term)
+      ) {
+        setMatchCount(null);
+        setNoResults(true);
         return;
       }
 
@@ -80,7 +98,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       // index-1-of-unknown UI; if it doesn't, the post-search "no result"
       // branch handles it.
       let total: number;
-      const countersVersion = getMatchCountersVersion();
       if (
         cachedCount.current.term === searchTerm &&
         cachedCount.current.version === countersVersion
@@ -121,6 +138,9 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
 
       setNoResults(!result);
+      lastNoResult.current = result
+        ? null
+        : { term: searchTerm, version: countersVersion };
       if (!result && savedRange) {
         const sel = window.getSelection();
         if (sel) {
@@ -243,7 +263,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
 
   const runDebouncedSearch = useCallback(async () => {
     if (!searchBoxRef.current) return;
-    await handleSearch(false);
+    await handleSearch(false, true);
     // Mark for cursor restore on next keypress (keeps find highlight visible)
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
