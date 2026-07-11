@@ -7,7 +7,9 @@ import {
   useState,
 } from "react";
 
-import { debounce, isEditableTarget } from "@tsmono/util";
+import { isEditableTarget } from "@tsmono/util";
+
+import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
@@ -268,28 +270,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  // The debounced fn is created once (below, lazily in the change handler)
-  // wrapping this latest-callback ref, so a recreated runDebouncedSearch never
-  // leaves a superseded debounce pending. Nulling on cleanup cancels any
-  // pending run at unmount.
-  const latestRunSearchRef = useRef<(() => Promise<void>) | null>(
-    runDebouncedSearch
-  );
-  useEffect(() => {
-    latestRunSearchRef.current = runDebouncedSearch;
-    return () => {
-      latestRunSearchRef.current = null;
-    };
-  }, [runDebouncedSearch]);
-
-  const debouncedSearchRef = useRef<(() => void) | null>(null);
-  const handleInputChange = useCallback(() => {
-    debouncedSearchRef.current ??= debounce(
-      () => void latestRunSearchRef.current?.(),
-      100
-    );
-    debouncedSearchRef.current();
-  }, []);
+  const handleInputChange = useDebouncedCallback(runDebouncedSearch, 100);
 
   const restoreCursorIfNeeded = useCallback(() => {
     const input = searchBoxRef.current;
