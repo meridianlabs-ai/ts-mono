@@ -158,6 +158,20 @@ describe("FindBand", () => {
     );
   });
 
+  it("degrades to No results when window.find is unavailable", async () => {
+    Object.defineProperty(window, "find", {
+      configurable: true,
+      value: undefined,
+    });
+    const { input } = renderFindBand();
+
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(screen.getByText("No results").style.visibility).toBe("visible")
+    );
+  });
+
   it("skips searching when the typed term extends a known miss", async () => {
     const { input } = renderFindBand();
 

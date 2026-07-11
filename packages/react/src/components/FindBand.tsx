@@ -401,9 +401,11 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   );
 };
 // `Window.find` is a non-standard but widely-supported API not in lib.dom.
+// Typed optional so hosts without it degrade to "No results" (via the
+// extended-find path) instead of throwing mid-search.
 declare global {
   interface Window {
-    find(
+    find?(
       searchTerm?: string,
       caseSensitive?: boolean,
       backwards?: boolean,
@@ -416,14 +418,16 @@ declare global {
 }
 
 function windowFind(searchTerm: string, back: boolean): boolean {
-  return window.find(
-    searchTerm,
-    findConfig.caseSensitive,
-    back,
-    findConfig.wrapAround,
-    findConfig.wholeWord,
-    findConfig.searchInFrames,
-    findConfig.showDialog
+  return (
+    window.find?.(
+      searchTerm,
+      findConfig.caseSensitive,
+      back,
+      findConfig.wrapAround,
+      findConfig.wholeWord,
+      findConfig.searchInFrames,
+      findConfig.showDialog
+    ) ?? false
   );
 }
 
