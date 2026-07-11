@@ -5,6 +5,7 @@ import {
   ExtendedFindProvider,
   FindBand,
   FindTargetProvider,
+  useFindBandShortcut,
 } from "@tsmono/react/components";
 
 import { useSelectedEvalSampleData } from "../../state/hooks";
@@ -120,7 +121,10 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
     }
   }, [tabId, setSampleTab]);
 
-  // Global keydown handler for keyboard shortcuts
+  const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+  useFindBandShortcut(openFind, { onClose: hideFind, enabled: !nativeFind });
+
+  // Global keydown handler for sample navigation shortcuts
   const handleKeyDown = useCallback(
     (e: globalThis.KeyboardEvent) => {
       // Don't handle keyboard events if focus is on an input, textarea, or
@@ -137,41 +141,21 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
           activeElement.tagName === "SELECT" ||
           (activeElement instanceof HTMLElement &&
             activeElement.isContentEditable));
+      if (isInputFocused) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        if (!nativeFind) {
+      if (e.key === "ArrowLeft") {
+        if (hasPrevious) {
           e.preventDefault();
-          e.stopPropagation();
-          setShowFind(true);
+          onPrevious();
         }
-      } else if (e.key === "Escape") {
-        if (!nativeFind) {
-          hideFind();
-        }
-      } else if (!isInputFocused) {
-        // Navigation shortcuts (only when not in an input field)
-        if (e.key === "ArrowLeft") {
-          if (hasPrevious) {
-            e.preventDefault();
-            onPrevious();
-          }
-        } else if (e.key === "ArrowRight") {
-          if (hasNext) {
-            e.preventDefault();
-            onNext();
-          }
+      } else if (e.key === "ArrowRight") {
+        if (hasNext) {
+          e.preventDefault();
+          onNext();
         }
       }
     },
-    [
-      setShowFind,
-      hideFind,
-      hasPrevious,
-      hasNext,
-      nativeFind,
-      onPrevious,
-      onNext,
-    ]
+    [hasPrevious, hasNext, onPrevious, onNext]
   );
 
   useEffect(() => {

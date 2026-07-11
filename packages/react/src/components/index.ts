@@ -43,4 +43,5 @@ export * from "./ComponentNavigationContext";
 export * from "./FindTargetContext";
 export * from "./FindBand";
 export * from "./FindBandUI";
+export * from "./useFindBandShortcut";
 export * from "./MarkdownDivWithReferences";

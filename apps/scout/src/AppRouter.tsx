@@ -1,4 +1,4 @@
-import { FC, useEffect, useMemo } from "react";
+import { FC, useCallback, useEffect, useMemo } from "react";
 import {
   createHashRouter,
   Outlet,
@@ -9,6 +9,7 @@ import {
 import {
   ComponentNavigationProvider,
   FindBand,
+  useFindBandShortcut,
 } from "@tsmono/react/components";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
@@ -60,20 +61,16 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     const navigate = useLoggingNavigate("AppLayout");
     const componentNavigation = useMemo(() => ({ navigate }), [navigate]);
 
-    useFindBandShortcut();
+    const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+    const closeFind = useCallback(() => setShowFind(false), [setShowFind]);
+    useFindBandShortcut(openFind, { onClose: closeFind });
     useWindowMessaging();
     useRoutingInitializer(config.scans.dir);
 
     const content = <Outlet />;
     return (
       <ComponentNavigationProvider navigation={componentNavigation}>
-        {showFind && (
-          <FindBand
-            onClose={() => {
-              setShowFind(false);
-            }}
-          />
-        )}
+        {showFind && <FindBand onClose={closeFind} />}
 
         {routerConfig.mode === "workbench" && !singleFileMode ? (
           <ActivityBarLayout config={config}>{content}</ActivityBarLayout>
@@ -233,24 +230,6 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
     serverScansDir,
     userScansDir,
   ]);
-};
-
-// Global keyboard shortcut to open FindBand
-const useFindBandShortcut = () => {
-  const setShowFind = useStore((state) => state.setShowFind);
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault();
-        setShowFind(true);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [setShowFind]);
 };
 
 // Guard against redirecting when a navigation is already in-flight
