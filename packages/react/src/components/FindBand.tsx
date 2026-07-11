@@ -263,15 +263,26 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
     debouncedSearchRef.current();
   }, []);
 
-  const handleBeforeInput = useCallback(() => {
+  const restoreCursorIfNeeded = useCallback(() => {
     const input = searchBoxRef.current;
-    if (input) {
-      const hasSelection = input.selectionStart !== input.selectionEnd;
-      if (!hasSelection) {
-        restoreCursor();
-      }
+    if (!input) return;
+    // Only restore when the caret sits collapsed at position 0 — the
+    // telltale of window.find() having stolen the selection. A caret the
+    // user placed mid-text (or a selection they made) must stay put.
+    if (
+      input.selectionStart === 0 &&
+      input.selectionEnd === 0 &&
+      input.value.length > 0
+    ) {
+      restoreCursor();
+    } else {
+      needsCursorRestoreRef.current = false;
     }
   }, [restoreCursor]);
+
+  const handleBeforeInput = useCallback(() => {
+    restoreCursorIfNeeded();
+  }, [restoreCursorIfNeeded]);
 
   // Consolidated global keyboard handler
   useEffect(() => {
@@ -325,15 +336,14 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
           active instanceof HTMLTextAreaElement ||
           (active instanceof HTMLElement && active.isContentEditable);
         if (isEditable) return;
-      }
 
-      const hasSelection = input.selectionStart !== input.selectionEnd;
-      if (!hasSelection) {
+        // Typing from outside the input appends, so an unconditional
+        // restore-to-end is right here; a caret inside the focused input
+        // gets the position-0 guard instead.
         restoreCursor();
-      }
-
-      if (document.activeElement !== input) {
         input.focus();
+      } else {
+        restoreCursorIfNeeded();
       }
     };
 
@@ -341,7 +351,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
     return () => {
       document.removeEventListener("keydown", handleGlobalKeyDown, true);
     };
-  }, [handleSearch, restoreCursor]);
+  }, [handleSearch, restoreCursor, restoreCursorIfNeeded]);
 
   return (
     <FindBandUI

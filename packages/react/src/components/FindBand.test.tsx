@@ -117,6 +117,37 @@ describe("FindBand", () => {
     expect(document.activeElement).toBe(input);
   });
 
+  // Runs a debounced search to completion, which arms the cursor-restore flag
+  const armCursorRestore = async (input: HTMLInputElement) => {
+    fireEvent.change(input, { target: { value: "needles" } });
+    await waitFor(() =>
+      expect(screen.getByText("No results").style.visibility).toBe("visible")
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  };
+
+  it("restores the caret to the end when the browser reset it to 0", async () => {
+    const { input } = renderFindBand();
+    await armCursorRestore(input);
+
+    input.focus();
+    input.setSelectionRange(0, 0);
+    fireEvent.keyDown(input, { key: "x" });
+
+    expect(input.selectionStart).toBe(input.value.length);
+  });
+
+  it("respects a user-placed mid-text caret after a search", async () => {
+    const { input } = renderFindBand();
+    await armCursorRestore(input);
+
+    input.focus();
+    input.setSelectionRange(2, 2);
+    fireEvent.keyDown(input, { key: "x" });
+
+    expect(input.selectionStart).toBe(2);
+  });
+
   it("shows no-results state when DOM and extended search both miss", async () => {
     const { input } = renderFindBand();
 
