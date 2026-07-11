@@ -89,6 +89,34 @@ describe("FindBand", () => {
     }
   );
 
+  it("finds previous on Cmd+Shift+G when focus is outside the input", async () => {
+    renderFindBand(vi.fn(), <div data-testid="outside">content</div>);
+
+    // Shift makes e.key uppercase; the global handler must still match
+    fireEvent.keyDown(document.body, {
+      key: "G",
+      metaKey: true,
+      shiftKey: true,
+    });
+
+    await waitFor(() => expect(windowFind).toHaveBeenCalled());
+    expect(windowFind.mock.calls.every((call) => call[2] === true)).toBe(true);
+  });
+
+  it("intercepts Cmd+F with CapsLock (uppercase key) instead of native find", () => {
+    const { input } = renderFindBand();
+    input.blur();
+
+    const event = fireEvent.keyDown(document.body, {
+      key: "F",
+      metaKey: true,
+    });
+
+    // preventDefault called → returns false; native browser find is blocked
+    expect(event).toBe(false);
+    expect(document.activeElement).toBe(input);
+  });
+
   it("shows no-results state when DOM and extended search both miss", async () => {
     const { input } = renderFindBand();
 

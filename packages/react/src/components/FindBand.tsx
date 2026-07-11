@@ -284,8 +284,9 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         return;
       }
 
-      // Ctrl/Cmd+F: Focus search box (block browser find)
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+      // Ctrl/Cmd+F: Focus search box (block browser find).
+      // toLowerCase: Shift yields "G", CapsLock yields "F"/"G".
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         e.preventDefault();
         e.stopPropagation();
         searchBoxRef.current?.focus();
@@ -294,7 +295,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
 
       // Ctrl/Cmd+G: Find next/previous
-      if ((e.ctrlKey || e.metaKey) && e.key === "g") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
         e.preventDefault();
         e.stopPropagation();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
