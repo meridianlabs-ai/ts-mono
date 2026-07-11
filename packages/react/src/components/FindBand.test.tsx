@@ -148,6 +148,23 @@ describe("FindBand", () => {
     expect(input.selectionStart).toBe(2);
   });
 
+  it("doesn't steal keystrokes from a focused select", () => {
+    const { input } = renderFindBand(
+      vi.fn(),
+      <select data-testid="dropdown">
+        <option>alpha</option>
+        <option>beta</option>
+      </select>
+    );
+    const dropdown = screen.getByTestId("dropdown");
+    (dropdown as HTMLSelectElement).focus();
+
+    fireEvent.keyDown(dropdown, { key: "b" });
+
+    expect(document.activeElement).toBe(dropdown);
+    expect(document.activeElement).not.toBe(input);
+  });
+
   it("shows no-results state when DOM and extended search both miss", async () => {
     const { input } = renderFindBand();
 

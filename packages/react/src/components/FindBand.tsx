@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { debounce } from "@tsmono/util";
+import { debounce, isEditableTarget } from "@tsmono/util";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
@@ -359,11 +359,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         while (active?.shadowRoot?.activeElement) {
           active = active.shadowRoot.activeElement;
         }
-        const isEditable =
-          active instanceof HTMLInputElement ||
-          active instanceof HTMLTextAreaElement ||
-          (active instanceof HTMLElement && active.isContentEditable);
-        if (isEditable) return;
+        if (isEditableTarget(active)) return;
 
         // Typing from outside the input appends, so an unconditional
         // restore-to-end is right here; a caret inside the focused input
