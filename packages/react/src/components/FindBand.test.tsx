@@ -9,14 +9,39 @@ import {
 import { FC, ReactNode, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  ComponentIconProvider,
+  ComponentIcons,
+} from "./ComponentIconContext";
 import { ExtendedFindProvider, useExtendedFind } from "./ExtendedFindContext";
 import { FindBand } from "./FindBand";
 import { FindTargetProvider } from "./FindTargetContext";
 
+const testIcons: ComponentIcons = {
+  arrowDown: "icon-arrowDown",
+  arrowUp: "icon-arrowUp",
+  chevronDown: "icon-chevronDown",
+  chevronUp: "icon-chevronUp",
+  clearText: "icon-clearText",
+  close: "icon-close",
+  code: "icon-code",
+  confirm: "icon-confirm",
+  copy: "icon-copy",
+  error: "icon-error",
+  menu: "icon-menu",
+  next: "icon-next",
+  noSamples: "icon-noSamples",
+  play: "icon-play",
+  previous: "icon-previous",
+  toggleRight: "icon-toggleRight",
+};
+
 const Providers: FC<{ children: ReactNode }> = ({ children }) => (
-  <ExtendedFindProvider>
-    <FindTargetProvider>{children}</FindTargetProvider>
-  </ExtendedFindProvider>
+  <ComponentIconProvider icons={testIcons}>
+    <ExtendedFindProvider>
+      <FindTargetProvider>{children}</FindTargetProvider>
+    </ExtendedFindProvider>
+  </ComponentIconProvider>
 );
 
 const MatchCounter: FC<{ count: number }> = ({ count }) => {
