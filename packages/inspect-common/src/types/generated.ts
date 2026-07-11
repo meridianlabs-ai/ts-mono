@@ -1655,6 +1655,10 @@ export interface components {
             target: string | string[];
             /** Timelines */
             timelines?: components["schemas"]["Timeline"][] | null;
+            /** Token Limit */
+            token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
             /** Token Limit Usage */
             token_limit_usage?: number | null;
             /** Total Time */
@@ -1763,6 +1767,10 @@ export interface components {
             started_at?: string | null;
             /** Target */
             target: string | string[];
+            /** Token Limit */
+            token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
             /** Token Limit Usage */
             token_limit_usage?: number | null;
             /** Total Time */
