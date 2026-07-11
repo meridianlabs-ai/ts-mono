@@ -1655,8 +1655,12 @@ export interface components {
             target: string | string[];
             /** Timelines */
             timelines?: components["schemas"]["Timeline"][] | null;
+            /** Token Limit Usage */
+            token_limit_usage?: number | null;
             /** Total Time */
             total_time?: number | null;
+            /** Turn Count */
+            turn_count?: number | null;
             /** Uuid */
             uuid?: string | null;
             /** Working Time */
@@ -1759,8 +1763,12 @@ export interface components {
             started_at?: string | null;
             /** Target */
             target: string | string[];
+            /** Token Limit Usage */
+            token_limit_usage?: number | null;
             /** Total Time */
             total_time?: number | null;
+            /** Turn Count */
+            turn_count?: number | null;
             /** Uuid */
             uuid?: string | null;
             /** Working Time */
