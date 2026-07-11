@@ -169,6 +169,39 @@ describe("FindBand", () => {
     expect(screen.queryByText("0 of 3")).toBeNull();
   });
 
+  it("refreshes the match count after counters re-register", async () => {
+    windowFind.mockImplementation(() => {
+      const textNode = screen.getByTestId("search-content").firstChild;
+      if (!textNode) return false;
+      const range = document.createRange();
+      range.setStart(textNode, 0);
+      range.setEnd(textNode, 6);
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      return true;
+    });
+    const ui = (count: number) => (
+      <Providers>
+        <FindBand onClose={vi.fn()} />
+        <MatchCounter count={count} />
+        <div data-testid="search-content">needle needle</div>
+      </Providers>
+    );
+    const { rerender } = render(ui(2));
+    const input = screen.getByPlaceholderText<HTMLInputElement>("Find");
+    input.value = "needle";
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    await waitFor(() => expect(screen.getByText("1 of 2")).toBeTruthy());
+
+    // Content changed: the counter re-registers with a new total
+    rerender(ui(5));
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => expect(screen.getByText(/of 5/)).toBeTruthy());
+  });
+
   it("shows the registered match count and current index", async () => {
     windowFind.mockImplementation(() => {
       const textNode = screen.getByTestId("search-content").firstChild;

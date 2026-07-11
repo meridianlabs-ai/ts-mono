@@ -28,7 +28,8 @@ interface FindBandProps {
 
 export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
-  const { extendedFindTerm, countAllMatches } = useExtendedFind();
+  const { extendedFindTerm, countAllMatches, getMatchCountersVersion } =
+    useExtendedFind();
   const setFindTarget = useFindTargetSetter();
   const lastFoundItem = useRef<{
     text: string;
@@ -40,10 +41,9 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   const scrollTimeoutRef = useRef<number | null>(null);
   const focusTimeoutRef = useRef<number | null>(null);
   const searchIdRef = useRef(0);
-  const cachedCount = useRef<{ term: string; count: number }>({
-    term: "",
-    count: 0,
-  });
+  const cachedCount = useRef<{ term: string; version: number; count: number }>(
+    { term: "", version: -1, count: 0 }
+  );
   const [matchCount, setMatchCount] = useState<number | null>(null);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   // Tracks whether the most recent search returned no result, separate
@@ -80,11 +80,19 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       // index-1-of-unknown UI; if it doesn't, the post-search "no result"
       // branch handles it.
       let total: number;
-      if (cachedCount.current.term === searchTerm) {
+      const countersVersion = getMatchCountersVersion();
+      if (
+        cachedCount.current.term === searchTerm &&
+        cachedCount.current.version === countersVersion
+      ) {
         total = cachedCount.current.count;
       } else {
         total = countAllMatches(searchTerm);
-        cachedCount.current = { term: searchTerm, count: total };
+        cachedCount.current = {
+          term: searchTerm,
+          version: countersVersion,
+          count: total,
+        };
       }
       setMatchCount(total > 0 ? total : null);
 
@@ -170,7 +178,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
 
       focusedElement?.focus();
     },
-    [setFindTarget, extendedFindTerm, countAllMatches]
+    [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
   );
 
   useEffect(() => {
