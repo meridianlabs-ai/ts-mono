@@ -113,7 +113,8 @@ export const useCreateValidationSet = () => {
     },
 
     onSuccess: () => {
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.sets(),
       });
     },
@@ -141,10 +142,12 @@ export const useUpdateValidationCase = (uri: string) => {
 
     onMutate: ({ caseId, data }) => {
       // Cancel any outgoing refetches to avoid overwriting optimistic update
-      void queryClient.cancelQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.cancelQueries({
         queryKey: validationQueryKeys.case({ url: uri, caseId }),
       });
-      void queryClient.cancelQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.cancelQueries({
         queryKey: validationQueryKeys.cases(uri),
       });
 
@@ -193,10 +196,12 @@ export const useUpdateValidationCase = (uri: string) => {
       // Invalidate both queries to sync with server.
       // Since we've already optimistically updated both caches, the invalidation
       // will refetch in the background without causing UI flicker.
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.case({ url: uri, caseId }),
       });
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.cases(uri),
       });
     },
@@ -212,7 +217,8 @@ export const useDeleteValidationCase = (uri: string) => {
   return useMutation<void, Error, string>({
     mutationFn: (caseId) => api.deleteValidationCase(uri, caseId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.cases(uri),
       });
     },
@@ -237,7 +243,8 @@ export const useBulkDeleteValidationCases = (uri: string) => {
 
       // Always invalidate cache if at least one succeeded
       if (succeeded > 0) {
-        void queryClient.invalidateQueries({
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        queryClient.invalidateQueries({
           queryKey: validationQueryKeys.cases(uri),
         });
       }
@@ -264,7 +271,8 @@ export const useDeleteValidationSet = () => {
   return useMutation<void, Error, string>({
     mutationFn: (uri) => api.deleteValidationSet(uri),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.sets(),
       });
     },
@@ -280,7 +288,8 @@ export const useRenameValidationSet = () => {
   return useMutation<string, Error, { uri: string; newName: string }>({
     mutationFn: ({ uri, newName }) => api.renameValidationSet(uri, newName),
     onSuccess: () => {
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.sets(),
       });
     },

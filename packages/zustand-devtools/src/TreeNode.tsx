@@ -44,7 +44,8 @@ export const TreeNode: FC<TreeNodeProps> = memo(
     };
 
     const copy = () => {
-      void navigator.clipboard.writeText(toClipboardJson(value)).then(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigator.clipboard.writeText(toClipboardJson(value)).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), COPIED_FEEDBACK_MS);
       });

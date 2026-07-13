@@ -70,7 +70,8 @@ export const useCreateSearch = ({
   return useMutation<SearchResponse, Error, SearchRequest>({
     mutationFn: (request) => api.createSearch(request),
     onSuccess: (_response, request) => {
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: searchQueryKeys.searches({ searchType: request.type }),
       });
     },

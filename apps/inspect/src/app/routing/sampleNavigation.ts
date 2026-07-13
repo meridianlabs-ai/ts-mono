@@ -162,7 +162,8 @@ export const useSampleNavigationActions = () => {
         );
 
         // Navigate to the sample URL (now goes to LogSampleDetailView)
-        void navigate(url);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(url);
       }
     },
     [resolveLogPath, navigate, sampleTabId, prefix]
@@ -233,7 +234,8 @@ export const useSampleNavigationActions = () => {
     const resolvedPath = resolveLogPath();
     if (resolvedPath) {
       const url = logsUrlRaw(resolvedPath, tabId, prefix);
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [resolveLogPath, navigate, tabId, prefix]);
 
@@ -285,7 +287,8 @@ export const useSamplesGridNavigationAction = () => {
         // Open in new window/tab
         openInNewTab(url);
       } else {
-        void navigate(url);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(url);
       }
     },
     [navigate, logDirectory]
@@ -352,7 +355,8 @@ export const useLogSampleNavigationActions = () => {
         sampleTabId,
         prefix
       );
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [
     hasPrevious,
@@ -378,7 +382,8 @@ export const useLogSampleNavigationActions = () => {
         sampleTabId,
         prefix
       );
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [
     hasNext,

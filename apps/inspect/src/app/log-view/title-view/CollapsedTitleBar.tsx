@@ -19,7 +19,7 @@ import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./CollapsedTitleBar.module.css";
 import { displayScorersFromRunningMetrics } from "./ResultsPanel";
-import { ScoreAgGrid } from "./ScoreAgGrid";
+import { ScoreGrid } from "./ScoreGrid";
 
 const kInlineMetricLimit = 2;
 
@@ -207,7 +207,7 @@ const MetricsLink: FC<MetricsLinkProps> = ({ scorers }) => {
           </button>
         }
       >
-        <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
+        <ScoreGrid scoreGroups={grouped} showReducer={showReducer} />
       </Modal>
     </>
   );

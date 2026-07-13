@@ -251,7 +251,8 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
       }
 
       // Invalidate target set cache to show new cases
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         queryKey: validationQueryKeys.cases(finalTargetUri),
       });
 

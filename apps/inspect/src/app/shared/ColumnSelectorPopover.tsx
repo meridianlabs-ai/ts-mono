@@ -1,20 +1,19 @@
-import { ColDef } from "ag-grid-community";
 import { clsx } from "clsx";
 import { FC, useMemo } from "react";
 
 import { PopOver, SegmentedControl } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../appearance/icons";
-import { getFieldKey } from "../shared/gridUtils";
+import { getFieldKey, type PickerColumn } from "../shared/gridUtils";
 
 import styles from "./ColumnSelectorPopover.module.css";
 
 export type ColumnScoresViewMode = "by-metric" | "per-scorer";
 
-interface ColumnSelectorPopoverProps<T> {
+interface ColumnSelectorPopoverProps {
   showing: boolean;
   setShowing: (showing: boolean) => void;
-  columns: ColDef<T>[];
+  columns: PickerColumn[];
   /** Optional explicit visibility map. When provided, the popover reads
    *  current state from here rather than from each column's `hide`. Use
    *  this when the grid applies visibility via `applyColumnState`
@@ -48,7 +47,7 @@ interface ColumnSelectorPopoverProps<T> {
 const isScoreField = (field: string): boolean =>
   field.startsWith("score_") || field.startsWith("metric_");
 
-export const ColumnSelectorPopover = <T,>({
+export const ColumnSelectorPopover: FC<ColumnSelectorPopoverProps> = ({
   showing,
   setShowing,
   columns,
@@ -62,7 +61,7 @@ export const ColumnSelectorPopover = <T,>({
   scoresViewMode = "by-metric",
   onScoresViewModeChange,
   onResetToDefault,
-}: ColumnSelectorPopoverProps<T>): ReturnType<FC> => {
+}) => {
   // Read current visibility from the explicit prop when supplied,
   // otherwise fall back to each column's `hide`.
   const currentVisibility = useMemo(
@@ -85,7 +84,7 @@ export const ColumnSelectorPopover = <T,>({
   // Group columns by category - merge optional into base for this dialog.
   // When `splitScores` is false, all columns are shown as a single list.
   const columnGroups = useMemo(() => {
-    if (!splitScores) return { base: columns, scores: [] as ColDef<T>[] };
+    if (!splitScores) return { base: columns, scores: [] };
     return {
       base: columns.filter((col) => !isScoreField(getFieldKey(col))),
       scores: columns.filter((col) => isScoreField(getFieldKey(col))),
@@ -125,7 +124,7 @@ export const ColumnSelectorPopover = <T,>({
     });
   };
 
-  const renderColumnCheckbox = (col: ColDef<T>) => {
+  const renderColumnCheckbox = (col: PickerColumn) => {
     const field = getFieldKey(col);
     const hasFilter = filteredFields.includes(field);
     return (

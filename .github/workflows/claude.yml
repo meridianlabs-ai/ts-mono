@@ -1,0 +1,82 @@
+# Copy this file to .github/workflows/claude.yml in any Meridian repo
+# (or run scripts/enable-claude.sh <org/repo> to open a PR that adds it).
+#
+# Requires only that the Claude GitHub App is installed on the repo
+# (org-level install covers this). Auth uses Workload Identity Federation —
+# no secrets needed, but `id-token: write` below is required for the OIDC
+# exchange.
+
+name: Claude
+
+# Trigger-resolution caveat: GitHub runs issue_comment / issues workflows from
+# the DEFAULT branch, but pull_request_review_comment / pull_request_review
+# (the pull_request family) from the PR's OWN branches. So the latter two only
+# fire where this file exists on the PR's base/head branch. On a pristine-base
+# mirror like the inspect_ai fork — where the Claude workflows live only on the
+# default branch and PRs target an upstream-mirror base that lacks them — those
+# two never fire; only top-level @claude comments (issue_comment) and the
+# `claude` label (issues) work. Drop the two review triggers in that setup so
+# the surface matches reality (the fork's deployed stub does).
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  claude:
+    # Cheap gate to avoid spending runner minutes on unrelated events; the
+    # action does its own authoritative trigger check.
+    if: |
+      contains(github.event.comment.body, '@claude') ||
+      contains(github.event.review.body, '@claude') ||
+      contains(github.event.issue.body, '@claude') ||
+      contains(github.event.issue.title, '@claude') ||
+      github.event.label.name == 'claude'
+    uses: meridianlabs-ai/agents/.github/workflows/claude.yml@main
+    # Pass the machine-account PAT (MARVIN_TOKEN, an org secret) through to the
+    # reusable workflow so agent-opened PRs trigger CI and @review. Passed
+    # explicitly — NOT via `secrets: inherit` — so this repo's other secrets
+    # aren't exposed to an external workflow pinned to a mutable @main ref
+    # (least privilege; the reusable workflow consumes only this one secret).
+    # An absent MARVIN_TOKEN resolves to empty: the agent still runs, just with
+    # issue-triggered PR creation degraded (see the reusable workflow's
+    # secrets.MARVIN_TOKEN and design/auto-agent.md).
+    secrets:
+      MARVIN_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+
+  # @auto kickoff (distinct from the one-shot `claude` above). An `auto` label or
+  # `@auto` mention drives the issue autonomously: the dev agent opens a PR, the
+  # PR inherits the `auto` label (so the loop in claude-auto.yml engages), and it
+  # runs to a human handoff. Same reusable dev workflow, different trigger — the
+  # action's trigger_phrase/label_trigger are single-valued, so `auto` needs its
+  # own invocation. Needs MARVIN_TOKEN (the PR must trigger CI/@review).
+  claude-auto:
+    if: |
+      contains(github.event.comment.body, '@auto') ||
+      contains(github.event.review.body, '@auto') ||
+      contains(github.event.issue.body, '@auto') ||
+      contains(github.event.issue.title, '@auto') ||
+      github.event.label.name == 'auto'
+    uses: meridianlabs-ai/agents/.github/workflows/claude.yml@main
+    secrets:
+      MARVIN_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read
+    with:
+      trigger_phrase: "@auto"
+      label_trigger: "auto"

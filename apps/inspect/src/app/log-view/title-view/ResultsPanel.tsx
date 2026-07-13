@@ -15,7 +15,7 @@ import { groupScorers } from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ResultsPanel.module.css";
-import { ScoreAgGrid } from "./ScoreAgGrid";
+import { ScoreGrid } from "./ScoreGrid";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
 const kMaxPrimaryScoreRows = 3;
@@ -141,7 +141,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
 
     return (
       <div className={clsx(styles.metricsSummary)}>
-        <ScoreAgGrid
+        <ScoreGrid
           scoreGroups={[primaryResults]}
           showReducer={showReducer}
           compact
@@ -167,7 +167,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
                 </button>
               }
             >
-              <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
+              <ScoreGrid scoreGroups={grouped} showReducer={showReducer} />
             </Modal>
             <LinkButton
               className={styles.moreButton}

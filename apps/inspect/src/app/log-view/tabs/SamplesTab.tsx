@@ -1,5 +1,4 @@
 import type { SortingState } from "@tanstack/react-table";
-import type { ColDef } from "ag-grid-community";
 import {
   FC,
   Fragment,
@@ -61,6 +60,7 @@ import {
 } from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
+import { type PickerColumn } from "../../shared/gridUtils.ts";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {
   buildSampleColumns,
@@ -89,11 +89,11 @@ const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
 // Stable empty fallback for logs with no persisted column widths.
 const kNoColumnSizing: Record<string, number> = Object.freeze({});
 
-// AG-shaped shim of the column list for the still-AG `useSamplesView` /
+// Picker-column shim of the column list for `useSamplesView` /
 // `ColumnSelectorPopover`, which key off `colId` / `headerName`.
 const toPickerColumns = (
   columns: ExtendedColumnDef<SampleRow>[]
-): ColDef<SampleRow>[] =>
+): PickerColumn[] =>
   columns.map((col) => ({
     colId: col.id,
     headerName: typeof col.header === "string" ? col.header : "",
@@ -313,7 +313,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // SamplesPanel behavior.
   const shape = samplesDescriptor?.messageShape;
   const defaultsForUnseededColumns = useCallback(
-    (col: ColDef<SampleRow>) => {
+    (col: PickerColumn) => {
       const id = col.colId;
       if (id === "epoch") return epochs > 1;
       if (id === "limit") return !!shape?.limitSize;
@@ -332,7 +332,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     setColumnVisibility,
     patchView,
     resetColumns,
-  } = useSamplesView<SampleRow>(pickerColumns, {
+  } = useSamplesView(pickerColumns, {
     seedDefaultVisibility: defaultsForUnseededColumns,
   });
 

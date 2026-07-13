@@ -59,7 +59,8 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
       }
     );
 
-    void player.play();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    player.play();
 
     return () => {
       player.dispose();
