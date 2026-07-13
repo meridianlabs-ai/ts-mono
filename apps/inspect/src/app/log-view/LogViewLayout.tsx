@@ -43,7 +43,11 @@ export const LogViewLayout: FC = () => {
   const mainAppRef = useRef<HTMLDivElement>(null);
 
   const openFind = useCallback(() => setShowFind(true), [setShowFind]);
-  useFindBandShortcut(openFind, { onClose: hideFind, enabled: !nativeFind });
+  useFindBandShortcut(openFind, {
+    onClose: hideFind,
+    isOpen: showFind,
+    enabled: !nativeFind,
+  });
 
   return (
     <ExtendedFindProvider>

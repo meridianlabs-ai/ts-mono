@@ -267,7 +267,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
     setTimeout(() => findInputRef.current?.focus(), 100);
   }, []);
   useFindBandShortcut(openFind, {
-    onClose: showFind ? closeFind : undefined,
+    onClose: closeFind,
+    isOpen: showFind,
   });
 
   return (

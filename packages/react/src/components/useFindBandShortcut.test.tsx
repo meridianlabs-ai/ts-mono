@@ -8,9 +8,10 @@ import { useFindBandShortcut } from "./useFindBandShortcut";
 const Harness: FC<{
   onOpen: () => void;
   onClose?: () => void;
+  isOpen?: boolean;
   enabled?: boolean;
-}> = ({ onOpen, onClose, enabled }) => {
-  useFindBandShortcut(onOpen, { onClose, enabled });
+}> = ({ onOpen, onClose, isOpen, enabled }) => {
+  useFindBandShortcut(onOpen, { onClose, isOpen, enabled });
   return null;
 };
 
@@ -36,15 +37,25 @@ describe("useFindBandShortcut", () => {
     expect(bubbled).toBe(false);
   });
 
-  it("closes on Escape when onClose is provided", () => {
+  it("closes on Escape when open", () => {
     const onOpen = vi.fn();
     const onClose = vi.fn();
-    render(<Harness onOpen={onOpen} onClose={onClose} />);
+    render(<Harness onOpen={onOpen} onClose={onClose} isOpen={true} />);
 
     fireEvent.keyDown(document.body, { key: "Escape" });
 
     expect(onClose).toHaveBeenCalledOnce();
     expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("ignores Escape when not open", () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+    render(<Harness onOpen={onOpen} onClose={onClose} isOpen={false} />);
+
+    fireEvent.keyDown(document.body, { key: "Escape" });
+
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("ignores Escape without onClose", () => {
@@ -60,7 +71,9 @@ describe("useFindBandShortcut", () => {
   it("does nothing when disabled", () => {
     const onOpen = vi.fn();
     const onClose = vi.fn();
-    render(<Harness onOpen={onOpen} onClose={onClose} enabled={false} />);
+    render(
+      <Harness onOpen={onOpen} onClose={onClose} isOpen={true} enabled={false} />
+    );
 
     fireEvent.keyDown(document.body, { key: "f", metaKey: true });
     fireEvent.keyDown(document.body, { key: "Escape" });

@@ -63,7 +63,9 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
 
     const openFind = useCallback(() => setShowFind(true), [setShowFind]);
     const closeFind = useCallback(() => setShowFind(false), [setShowFind]);
-    useFindBandShortcut(openFind, { onClose: closeFind });
+    // No onClose: scout has never had a global Escape handler — the band
+    // closes via its own input's Escape or the close button.
+    useFindBandShortcut(openFind);
     useWindowMessaging();
     useRoutingInitializer(config.scans.dir);
 

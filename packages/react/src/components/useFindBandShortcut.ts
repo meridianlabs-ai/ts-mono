@@ -3,8 +3,11 @@ import { useEffect } from "react";
 import { isFindShortcut } from "./findShortcuts";
 
 interface UseFindBandShortcutOptions {
-  // Escape handler; omit to leave Escape untouched (e.g. band not open)
+  // Escape handler; omit to leave Escape untouched
   onClose?: () => void;
+  // Whether the band is currently open. Escape only closes while open —
+  // gated here so call sites don't each have to conditionally pass onClose.
+  isOpen?: boolean;
   // Disable entirely, e.g. when the host defers to native browser find
   enabled?: boolean;
 }
@@ -18,7 +21,7 @@ export function useFindBandShortcut(
   onOpen: () => void,
   options?: UseFindBandShortcutOptions
 ): void {
-  const { onClose, enabled = true } = options ?? {};
+  const { onClose, isOpen = false, enabled = true } = options ?? {};
 
   useEffect(() => {
     if (!enabled) return;
@@ -28,7 +31,7 @@ export function useFindBandShortcut(
         e.preventDefault();
         e.stopPropagation();
         onOpen();
-      } else if (e.key === "Escape" && onClose) {
+      } else if (e.key === "Escape" && isOpen && onClose) {
         onClose();
       }
     };
@@ -36,5 +39,5 @@ export function useFindBandShortcut(
     // Capture phase so the shortcut wins before the browser's own find.
     document.addEventListener("keydown", handleKeyDown, true);
     return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [enabled, onOpen, onClose]);
+  }, [enabled, onOpen, onClose, isOpen]);
 }
