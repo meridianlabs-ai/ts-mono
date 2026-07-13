@@ -29,8 +29,9 @@ import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
   makeLogsPath,
+  routeFromFullUrl,
   sampleEventUrl,
-  toFullUrl,
+  toFullUrlMaybe,
   useLogOrSampleRouteParams,
   useLogRouteParams,
   useSampleUrlBuilder,
@@ -286,29 +287,26 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
   );
 
-  // Absolute variant for the copy-link buttons: shared components treat
-  // `getEventUrl` as a shareable URL (see Scout's getFullEventUrl), so it
-  // must include the host page's origin/path, not just the hash route.
+  // The shared `getEventUrl` prop is dual-purpose: the copy button copies it
+  // verbatim (needs an absolute, shareable URL), while the outline feeds it to
+  // `renderLink` below (which strips the origin back off for in-app nav). So
+  // the value handed to the layout must be absolute.
   const getFullEventUrl = useCallback(
-    (eventId: string) => {
-      const route = getEventUrl(eventId);
-      return route ? toFullUrl(route) : undefined;
-    },
+    (eventId: string) => toFullUrlMaybe(getEventUrl(eventId)),
     [getEventUrl]
   );
 
   // Outline link clicks are in-view navigation (jumping to an event in the
   // same transcript), so recover the hash route from the absolute URL and
   // use `replace` to keep the back button clean.
-  const renderLink = useCallback((url: string, children: ReactNode) => {
-    const hashIndex = url.indexOf("#");
-    const route = hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
-    return (
-      <Link to={route} replace>
+  const renderLink = useCallback(
+    (url: string, children: ReactNode) => (
+      <Link to={routeFromFullUrl(url)} replace>
         {children}
       </Link>
-    );
-  }, []);
+    ),
+    []
+  );
 
   // ---------------------------------------------------------------------------
   // Marker navigation (branch markers, error markers, etc.)

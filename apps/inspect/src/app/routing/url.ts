@@ -534,18 +534,18 @@ export const useFullSampleMessageUrlBuilder = () => {
   } = useLogOrSampleRouteParams();
 
   return useCallback(
-    (messageId: string) => {
-      const route = urlLogPath
-        ? sampleMessageUrl(
-            builder,
-            messageId,
-            urlLogPath,
-            urlSampleId,
-            urlEpoch
-          )
-        : undefined;
-      return route ? toFullUrl(route) : undefined;
-    },
+    (messageId: string) =>
+      toFullUrlMaybe(
+        urlLogPath
+          ? sampleMessageUrl(
+              builder,
+              messageId,
+              urlLogPath,
+              urlSampleId,
+              urlEpoch
+            )
+          : undefined
+      ),
     [builder, urlLogPath, urlSampleId, urlEpoch]
   );
 };
