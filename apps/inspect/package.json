@@ -20,7 +20,6 @@
   "scripts": {
     "build": "vite build",
     "build:lib": "vite build --mode library",
-    "prepare": "pnpm run build:lib",
     "build:app": "vite build --mode development",
     "watch": "vite build --watch",
     "dev-watch": "NODE_ENV=development vite build --mode development --watch",
