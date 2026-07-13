@@ -6,9 +6,10 @@ interface FindShortcutKeyEvent {
   key: string;
 }
 
-// toLowerCase: CapsLock yields "F".
+// toLowerCase: CapsLock yields "F". !shiftKey: Ctrl/Cmd+Shift+F is a distinct
+// chord (e.g. VS Code's search-in-files) that must pass through to the host.
 export function isFindShortcut(e: FindShortcutKeyEvent): boolean {
-  return (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f";
+  return (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "f";
 }
 
 // Shift is deliberately not checked: Shift+G means find-previous, so callers

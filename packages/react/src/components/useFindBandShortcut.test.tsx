@@ -69,6 +69,20 @@ describe("useFindBandShortcut", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("lets Ctrl/Cmd+Shift+F pass through (host search-in-files)", () => {
+    const onOpen = vi.fn();
+    render(<Harness onOpen={onOpen} />);
+
+    const bubbled = fireEvent.keyDown(document.body, {
+      key: "F",
+      metaKey: true,
+      shiftKey: true,
+    });
+
+    expect(onOpen).not.toHaveBeenCalled();
+    expect(bubbled).toBe(true);
+  });
+
   it("ignores plain f without a modifier", () => {
     const onOpen = vi.fn();
     render(<Harness onOpen={onOpen} />);
