@@ -13,6 +13,7 @@ import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
+import { isFindNextShortcut, isFindShortcut } from "./findShortcuts";
 import { FindBandUI } from "./FindBandUI";
 import { useFindTargetSetter } from "./FindTargetContext";
 
@@ -231,11 +232,11 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       } else if (e.key === "Enter") {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      } else if (isFindNextShortcut(e)) {
         e.preventDefault();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+      } else if (isFindShortcut(e)) {
         searchBoxRef.current?.focus();
         searchBoxRef.current?.select();
       }
@@ -305,8 +306,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
 
       // Ctrl/Cmd+F: Focus search box (block browser find).
-      // toLowerCase: Shift yields "G", CapsLock yields "F"/"G".
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+      if (isFindShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
         searchBoxRef.current?.focus();
@@ -315,7 +315,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       }
 
       // Ctrl/Cmd+G: Find next/previous
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      if (isFindNextShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises

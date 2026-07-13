@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { isFindShortcut } from "./findShortcuts";
+
 interface UseFindBandShortcutOptions {
   // Escape handler; omit to leave Escape untouched (e.g. band not open)
   onClose?: () => void;
@@ -22,8 +24,7 @@ export function useFindBandShortcut(
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // toLowerCase: CapsLock yields "F"
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+      if (isFindShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
         onOpen();
