@@ -11,10 +11,15 @@ import { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 
-import { toFullUrl, useFullSampleMessageUrlBuilder } from "./url";
+import {
+  routeFromFullUrl,
+  toFullUrl,
+  useFullSampleMessageUrlBuilder,
+} from "./url";
 
-// Must match the @vitest-environment-options url above.
-const kHostPage = "https://eval.example.org/eval-set/abc123?token=t";
+// Host page the viewer is embedded in, from the @vitest-environment-options
+// URL above (a non-root path with a query, like Hawk's /eval-set/<id>).
+const kHostPage = `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
 const wrapperAt = (route: string) => {
   const Wrapper = ({ children }: { children: ReactNode }) => (
@@ -27,6 +32,17 @@ describe("toFullUrl", () => {
   it("prepends the host page's origin, path and query to a hash route", () => {
     const route = "/logs/dir/file.eval/samples/sample/s1/1/transcript?event=e";
     expect(toFullUrl(route)).toBe(`${kHostPage}#${route}`);
+  });
+});
+
+describe("routeFromFullUrl", () => {
+  it("round-trips a route through toFullUrl", () => {
+    const route = "/logs/dir/file.eval/samples/sample/s1/1/transcript?event=e";
+    expect(routeFromFullUrl(toFullUrl(route))).toBe(route);
+  });
+
+  it("returns the input unchanged when there is no hash", () => {
+    expect(routeFromFullUrl("/logs/plain/route")).toBe("/logs/plain/route");
   });
 });
 

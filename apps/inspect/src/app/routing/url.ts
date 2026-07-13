@@ -641,3 +641,13 @@ export const supportsLinking = () => {
 export const toFullUrl = (path: string) => {
   return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
 };
+
+export const toFullUrlMaybe = (route: string | undefined) =>
+  route ? toFullUrl(route) : undefined;
+
+// Inverse of `toFullUrl`: recover the hash route from an absolute URL. Safe to
+// split on the first `#` — origin/pathname/search never contain a raw `#`.
+export const routeFromFullUrl = (url: string) => {
+  const hashIndex = url.indexOf("#");
+  return hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
+};
