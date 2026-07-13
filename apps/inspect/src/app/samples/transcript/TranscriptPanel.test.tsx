@@ -9,16 +9,18 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { isHostedEnvironment } from "@tsmono/util";
 
 import type { StoreState } from "../../../state/store";
 
 import { TranscriptPanel } from "./TranscriptPanel";
 
-// Must match the @vitest-environment-options url above: the page hosting the
-// viewer, whose path is *not* "/" (e.g. Hawk embeds the viewer under
-// /eval-set/<id>), so a missing origin/path prefix is visible in assertions.
-const kHostPage = "https://eval.example.org/eval-set/abc123?token=t";
+// Host page the viewer is embedded in, from the @vitest-environment-options
+// URL above: a non-root path with a query (e.g. Hawk's /eval-set/<id>), so a
+// missing origin/path/query prefix is visible in assertions.
+const kHostPage = `${window.location.origin}${window.location.pathname}${window.location.search}`;
 
 const kSampleRoute = "/logs/dir/file.eval/samples/sample/s1/1/transcript";
 const kEventRoute = `${kSampleRoute}?event=event-1`;
@@ -52,6 +54,11 @@ vi.mock("../../../state/store", async (importOriginal) => {
   };
 });
 
+vi.mock("@tsmono/util", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tsmono/util")>();
+  return { ...actual, isHostedEnvironment: vi.fn(() => true) };
+});
+
 // Stub the layout with a probe that exercises the three link paths exactly
 // the way the real shared components do: `getEventUrl` feeds the copy button
 // verbatim, the outline renders `renderLink(getEventUrl(id), ...)`, and
@@ -62,12 +69,18 @@ vi.mock("@tsmono/inspect-components/transcript", async (importOriginal) => {
       typeof import("@tsmono/inspect-components/transcript")
     >();
   const TranscriptLayout: typeof actual.TranscriptLayout = (props) => {
-    const url = props.getEventUrl?.("event-1");
+    // Mirror the real components: EventPanel gates the copy button on
+    // `linkingEnabled`; the outline consumes `getEventUrl` ungated.
+    const copyUrl =
+      props.linkingEnabled && props.getEventUrl
+        ? props.getEventUrl("event-1")
+        : undefined;
+    const outlineUrl = props.getEventUrl?.("event-1");
     return (
       <div>
-        <div data-testid="copy-url">{url}</div>
-        {url && props.outline?.renderLink
-          ? props.outline.renderLink(url, <span>outline link</span>)
+        <div data-testid="copy-url">{copyUrl}</div>
+        {outlineUrl && props.outline?.renderLink
+          ? props.outline.renderLink(outlineUrl, <span>outline link</span>)
           : null}
         <button onClick={() => props.onMarkerNavigate?.("event-1")}>
           marker
@@ -101,6 +114,10 @@ const renderPanel = () =>
   );
 
 describe("TranscriptPanel linking", () => {
+  beforeEach(() => {
+    vi.mocked(isHostedEnvironment).mockReturnValue(true);
+  });
+
   afterEach(() => cleanup());
 
   it("hands the copy button an absolute URL including the host page prefix", () => {
@@ -120,5 +137,14 @@ describe("TranscriptPanel linking", () => {
     renderPanel();
     fireEvent.click(screen.getByText("marker"));
     expect(screen.getByTestId("router-location").textContent).toBe(kEventRoute);
+  });
+
+  it("hides the event copy link outside hosted environments", () => {
+    vi.mocked(isHostedEnvironment).mockReturnValue(false);
+    renderPanel();
+    // Copy button gets no URL (EventPanel gates it on linkingEnabled)...
+    expect(screen.getByTestId("copy-url").textContent).toBe("");
+    // ...but in-app outline navigation still works.
+    expect(screen.getByRole("link").getAttribute("href")).toBe(kEventRoute);
   });
 });

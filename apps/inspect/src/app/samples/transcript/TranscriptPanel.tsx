@@ -23,6 +23,7 @@ import {
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useScrollDirection } from "@tsmono/react/hooks";
+import { isHostedEnvironment } from "@tsmono/util";
 
 import { Events } from "../../../@types/extraInspect";
 import { useStore } from "../../../state/store";
@@ -360,7 +361,10 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       initialEventId={initialEventId}
       initialMessageId={initialMessageId}
       getEventUrl={getFullEventUrl}
-      linkingEnabled={true}
+      // Only surface the copy-link button where a shared absolute URL is
+      // meaningful — not in VS Code webviews or localhost. Matches the message
+      // copy-link (SampleDisplay's `enabled: isHostedEnvironment()`).
+      linkingEnabled={isHostedEnvironment()}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       eventsListRef={eventsListRef}
