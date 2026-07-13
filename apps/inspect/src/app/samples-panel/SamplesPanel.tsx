@@ -1,5 +1,4 @@
 import type { SortingState } from "@tanstack/react-table";
-import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -36,6 +35,7 @@ import { samplesUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
+import { type PickerColumn } from "../shared/gridUtils";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -62,11 +62,11 @@ const sampleRowId = (
   epoch: number
 ) => `${logFile}-${sampleId}-${epoch}`.replace(/\s+/g, "_");
 
-// AG-shaped shim of the column list for the still-AG `useSampleGridState` /
+// Picker-column shim of the column list for `useSampleGridState` /
 // `ColumnSelectorPopover`, which key off `colId` / `headerName`.
 const toPickerColumns = (
   columns: ExtendedColumnDef<SampleRow>[]
-): ColDef<SampleRow>[] =>
+): PickerColumn[] =>
   columns.map((col) => ({
     colId: col.id,
     headerName: typeof col.header === "string" ? col.header : "",
@@ -203,7 +203,7 @@ export const SamplesPanel: FC = () => {
   }, [scopedSamples]);
 
   const defaultsForUnseededColumns = useCallback(
-    (col: ColDef<SampleRow>) => {
+    (col: PickerColumn) => {
       const id = col.colId;
       if (id === "error") return optionalHasData.error;
       if (id === "limit") return optionalHasData.limit;
@@ -224,7 +224,7 @@ export const SamplesPanel: FC = () => {
     columnFilters: persistedFilters,
     columnSizing: persistedSizing,
     patchGridState,
-  } = useSampleGridState<SampleRow>("samplesPanel", pickerColumns, {
+  } = useSampleGridState("samplesPanel", pickerColumns, {
     defaultsForUnseededColumns,
   });
 

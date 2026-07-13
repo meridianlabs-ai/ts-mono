@@ -1,4 +1,3 @@
-import type { ColDef } from "ag-grid-community";
 import clsx from "clsx";
 import { useCallback, useMemo } from "react";
 
@@ -22,6 +21,7 @@ import {
   ExtendedColumnDef,
 } from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
+import { type PickerColumn } from "../../../shared/gridUtils";
 
 import localStyles from "./columns.module.css";
 import { dateCompare, numberCompare } from "./comparators";
@@ -86,10 +86,9 @@ export const useLogListColumns = (
   /** Visibility map keyed by column id — passed to the DataGrid. */
   visibility: Record<string, boolean>;
   /** Subset passed to the ColumnSelectorPopover so the picker only lists
-   *  checkboxes for the currently active view mode. A lightweight AG-shaped
-   *  shim (`colId` + `headerName`) so the still-AG ColumnSelectorPopover is
-   *  untouched during the migration. */
-  pickerColumns: ColDef<LogListRow>[];
+   *  checkboxes for the currently active view mode. A lightweight shim
+   *  (`colId` + `headerName`) of the full column defs. */
+  pickerColumns: PickerColumn[];
   /** Reads a row's raw value for a column id (for client-side filter/sort). */
   getValue: (row: LogListRow, columnId: string) => unknown;
   /** Per-column value comparator (from column meta) for client-side sort. */
@@ -831,7 +830,7 @@ export const useLogListColumns = (
   // Columns to show in the ColumnSelectorPopover. The grid needs both score
   // column sets registered for layout stability, but the picker should only
   // list the checkboxes relevant to the current view mode.
-  const pickerColumns = useMemo((): ColDef<LogListRow>[] => {
+  const pickerColumns = useMemo((): PickerColumn[] => {
     return allColumns
       .filter((col) => matchesActiveMode(col.id as string))
       .map((col) => ({

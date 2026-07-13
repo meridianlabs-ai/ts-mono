@@ -45,11 +45,10 @@ import { SampleRow } from "./types";
 export type SampleGridViewMode = "list" | "grid";
 
 // Value comparators for client-side sorting (deferred — kept on column meta
-// for later wiring). `gridComparators` follows the AG contract
-// (`isDescending` flips the missing-value sentinel so missing sorts last in
-// both directions).
+// for later wiring). `gridComparators` pins missing values last in both
+// directions (`isDescending` flips the missing-value sentinel).
 const numberCompare: ColumnComparator = (a, b, isDescending) =>
-  comparators.number(a, b, undefined, undefined, isDescending);
+  comparators.number(a, b, isDescending);
 const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
 const stringCompare: ColumnComparator = (a, b) =>
   valueAsString(a ?? "").localeCompare(valueAsString(b ?? ""));

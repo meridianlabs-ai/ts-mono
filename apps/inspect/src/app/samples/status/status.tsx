@@ -33,7 +33,7 @@ export const isCancelled = (sample: SampleSummary | EvalSample): boolean => {
   return false;
 };
 
-/** Sortable string value for use as ag-grid valueGetter.
+/** Sortable string value for status columns.
  *  Prefix gives desired sort order (started → error → cancelled → success);
  *  error rows additionally include the error type for sub-sorting. */
 export const kDefaultSampleSortValue = "3:ok";
