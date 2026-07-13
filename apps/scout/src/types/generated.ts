@@ -703,7 +703,7 @@ export interface components {
             max: number;
             /**
              * Min
-             * @default 4
+             * @default 10
              */
             min: number;
             /**
@@ -1119,6 +1119,10 @@ export interface components {
              * @enum {string}
              */
             trigger: "time" | "turn" | "manual" | "token" | "cost" | "budget" | "agent_complete";
+            /** Trigger Metadata */
+            trigger_metadata?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
             /** Turn */
             turn: number;
             /** Uuid */
@@ -1168,6 +1172,8 @@ export interface components {
             } | null;
             /** Pending */
             pending?: boolean | null;
+            /** Role */
+            role?: string | null;
             /** Source */
             source?: string | null;
             /** Span Id */
@@ -1603,6 +1609,8 @@ export interface components {
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
             reasoning_history?: ("none" | "all" | "last" | "auto") | null;
+            /** Reasoning Mode */
+            reasoning_mode?: ("standard" | "pro") | null;
             /** Reasoning Summary */
             reasoning_summary?: ("none" | "concise" | "detailed" | "auto") | null;
             /** Reasoning Tokens */
@@ -1688,6 +1696,8 @@ export interface components {
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
             reasoning_history?: ("none" | "all" | "last" | "auto") | null;
+            /** Reasoning Mode */
+            reasoning_mode?: ("standard" | "pro") | null;
             /** Reasoning Summary */
             reasoning_summary?: ("none" | "concise" | "detailed" | "auto") | null;
             /** Reasoning Tokens */
@@ -2749,7 +2759,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "message" | "time" | "working" | "token" | "cost" | "operator" | "custom";
+            type: "message" | "time" | "working" | "token" | "turn" | "cost" | "operator" | "custom";
             /** Uuid */
             uuid?: string | null;
             /** Working Start */
