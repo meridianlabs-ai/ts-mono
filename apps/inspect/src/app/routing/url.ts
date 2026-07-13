@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
 import {
@@ -516,6 +516,38 @@ export const sampleMessageUrl = (
 ) => {
   const baseUrl = builder(logPath, sampleId, sampleEpoch, tab);
   return `${baseUrl}?message=${messageId}`;
+};
+
+/**
+ * Returns a builder for *shareable* message links: the relative hash route
+ * from `sampleMessageUrl` wrapped with the host page's origin/path via
+ * `toFullUrl`. Copy-to-clipboard consumers (ChatMessage's copy button) must
+ * use this rather than the bare route, which only works for in-app router
+ * navigation.
+ */
+export const useFullSampleMessageUrlBuilder = () => {
+  const builder = useSampleUrlBuilder();
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+
+  return useCallback(
+    (messageId: string) => {
+      const route = urlLogPath
+        ? sampleMessageUrl(
+            builder,
+            messageId,
+            urlLogPath,
+            urlSampleId,
+            urlEpoch
+          )
+        : undefined;
+      return route ? toFullUrl(route) : undefined;
+    },
+    [builder, urlLogPath, urlSampleId, urlEpoch]
+  );
 };
 
 export const tasksUrl = (log_file: string, log_dir?: string) => {
