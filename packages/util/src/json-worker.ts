@@ -247,7 +247,7 @@ const repairNonFiniteJson = (
     while (j < n) {
       const w = source.charCodeAt(j);
       if (w === 32 || w === 9 || w === 10 || w === 13) j++;
-      else return w === 58 /* : */;
+      else return w === 58; /* : */
     }
     return false;
   };

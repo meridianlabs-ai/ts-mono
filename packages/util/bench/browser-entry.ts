@@ -9,13 +9,7 @@ import JSON5 from "json5";
 import { asyncJsonParse, asyncJsonParseBytes } from "../src/json-worker";
 
 type PayloadKind =
-  | "flat"
-  | "evalLog"
-  | "numbers"
-  | "deep"
-  | "json5"
-  | "nonfinite"
-  | "jsonstr";
+  "flat" | "evalLog" | "numbers" | "deep" | "json5" | "nonfinite" | "jsonstr";
 type ApiName = "syncParse" | "asyncJsonParse" | "asyncJsonParseBytes";
 
 interface IterationStats {
