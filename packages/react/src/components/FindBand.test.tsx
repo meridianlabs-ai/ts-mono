@@ -9,10 +9,7 @@ import {
 import { FC, ReactNode, useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ComponentIconProvider,
-  ComponentIcons,
-} from "./ComponentIconContext";
+import { ComponentIconProvider, ComponentIcons } from "./ComponentIconContext";
 import { ExtendedFindProvider, useExtendedFind } from "./ExtendedFindContext";
 import { FindBand } from "./FindBand";
 import { FindTargetProvider } from "./FindTargetContext";

@@ -1,14 +1,13 @@
 import clsx from "clsx";
 import React, { FC, useCallback, useEffect, useMemo } from "react";
 
-import { deepActiveElement, isEditableTarget } from "@tsmono/util";
-
 import {
   ExtendedFindProvider,
   FindBand,
   FindTargetProvider,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";

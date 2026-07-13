@@ -72,7 +72,12 @@ describe("useFindBandShortcut", () => {
     const onOpen = vi.fn();
     const onClose = vi.fn();
     render(
-      <Harness onOpen={onOpen} onClose={onClose} isOpen={true} enabled={false} />
+      <Harness
+        onOpen={onOpen}
+        onClose={onClose}
+        isOpen={true}
+        enabled={false}
+      />
     );
 
     fireEvent.keyDown(document.body, { key: "f", metaKey: true });

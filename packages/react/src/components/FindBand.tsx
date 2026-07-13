@@ -13,8 +13,8 @@ import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
 import { useExtendedFind } from "./ExtendedFindContext";
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
-import { isFindNextShortcut, isFindShortcut } from "./findShortcuts";
 import { FindBandUI } from "./FindBandUI";
+import { isFindNextShortcut, isFindShortcut } from "./findShortcuts";
 import { useFindTargetSetter } from "./FindTargetContext";
 
 const findConfig = {
@@ -47,9 +47,11 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   const scrollTimeoutRef = useRef<number | null>(null);
   const focusTimeoutRef = useRef<number | null>(null);
   const searchIdRef = useRef(0);
-  const cachedCount = useRef<{ term: string; version: number; count: number }>(
-    { term: "", version: -1, count: 0 }
-  );
+  const cachedCount = useRef<{ term: string; version: number; count: number }>({
+    term: "",
+    version: -1,
+    count: 0,
+  });
   const lastNoResult = useRef<{ term: string; version: number } | null>(null);
   const [matchCount, setMatchCount] = useState<number | null>(null);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
@@ -274,7 +276,10 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  const handleInputChange = useDebouncedCallback(runDebouncedSearch, debounceMs);
+  const handleInputChange = useDebouncedCallback(
+    runDebouncedSearch,
+    debounceMs
+  );
 
   const restoreCursorIfNeeded = useCallback(() => {
     const input = searchBoxRef.current;
