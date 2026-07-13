@@ -61,8 +61,9 @@ vi.mock("@tsmono/util", async (importOriginal) => {
 
 // Stub the layout with a probe that exercises the three link paths exactly
 // the way the real shared components do: `getEventUrl` feeds the copy button
-// verbatim, the outline renders `renderLink(getEventUrl(id), ...)`, and
-// markers call `onMarkerNavigate(id)`.
+// verbatim (gated on `linkingEnabled`), the outline renders
+// `renderLink(getEventUrl(id), ...)` ungated, and markers call
+// `onMarkerNavigate(id)`.
 vi.mock("@tsmono/inspect-components/transcript", async (importOriginal) => {
   const actual =
     await importOriginal<
