@@ -4,8 +4,14 @@ import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
-import { Log, LogHeader, SampleSummary } from "../client/api/types";
+import {
+  Log,
+  LogHeader,
+  SampleDerived,
+  SampleSummary,
+} from "../client/api/types";
 import { SampleSummariesScope } from "../client/database";
+import { deriveSampleFields } from "../client/utils/derive";
 import { queryClient } from "../state/queryClient";
 
 import { getDatabaseService } from "./databaseServiceInstance";
@@ -36,6 +42,7 @@ export interface SamplesListingLogContext {
 export interface SamplesListingRow {
   logFile: string;
   summary: SampleSummary;
+  derived: SampleDerived;
   log: SamplesListingLogContext;
 }
 
@@ -90,6 +97,7 @@ export const toSamplesListingRows = (
   summaries.map((summary) => ({
     logFile,
     summary,
+    derived: deriveSampleFields(summary),
     log: logContext(header),
   }));
 
@@ -128,6 +136,7 @@ const readSamplesListing = async (
     records.map((record) => ({
       logFile: record.file_path,
       summary: record.summary,
+      derived: record.derived,
       log: contexts.get(record.file_path) ?? {},
     })),
     params

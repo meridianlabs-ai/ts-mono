@@ -2,6 +2,7 @@ import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
 import { Log, LogDetails, LogFetchState, LogPreview } from "../api/types";
+import { deriveSampleFields } from "../utils/derive";
 import {
   detailTier,
   maxDepth,
@@ -245,6 +246,7 @@ export class DatabaseService {
             id: summary.id,
             epoch: summary.epoch,
             summary,
+            derived: deriveSampleFields(summary),
             cached_at: now,
           }))
         )

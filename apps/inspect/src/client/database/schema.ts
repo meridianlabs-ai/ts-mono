@@ -1,6 +1,6 @@
 import Dexie from "dexie";
 
-import { Log, SampleSummary } from "../api/types";
+import { Log, SampleDerived, SampleSummary } from "../api/types";
 
 // Logs Table — THE Log entity row: identity + attribute columns at
 // progressive depth + retrieval facts (see
@@ -36,12 +36,16 @@ export interface SampleSummaryRecord {
   epoch: number;
 
   summary: SampleSummary;
+  derived: SampleDerived;
 
   cached_at: string;
 }
 
-// Current database schema version
-export const DB_VERSION = 12;
+// Current database schema version. Bump on any schema change AND on any
+// behavior change in `deriveLogFields`/`deriveSampleFields` — stored rows
+// carry derived values and are only recomputed via the recreate-on-mismatch
+// wipe.
+export const DB_VERSION = 13;
 
 // Resolves a log dir into a database name
 function resolveDBName(databaseHandle: string): string {

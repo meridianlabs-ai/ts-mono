@@ -9,6 +9,8 @@ import {
   LogPreview,
 } from "../api/types";
 
+import { deriveLogFields } from "./derive";
+
 const kDepthOrder: Record<LogDepth, number> = {
   listed: 0,
   previewed: 1,
@@ -40,13 +42,14 @@ export const previewTier = (
 });
 
 /** The detailed-tier attributes: the flat columns re-derived from the header
- *  plus the header itself. */
+ *  plus the header itself and the derived listing columns. */
 export const detailTier = (
   header: LogHeader
 ): Partial<Log> & { depth: LogDepth } => ({
   ...previewTier(toLogPreview(header)),
   depth: "detailed",
   header,
+  derived: deriveLogFields(header),
 });
 
 /** Split a details payload into its stored header form: everything but the

@@ -1,0 +1,119 @@
+import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
+
+import {
+  LogDerived,
+  LogHeader,
+  SampleDerived,
+  SampleSummary,
+} from "../api/types";
+
+/**
+ * Derivation of stored listing columns (`LogDerived` / `SampleDerived`).
+ *
+ * These run once at ingestion — the write paths (`detailTier`, the details
+ * sink) attach the result to the stored row, and the listing grids read the
+ * stored values without computing. Grid columns must never re-derive these
+ * fields at read time; that would let displayed values drift from what the
+ * store (and eventually the database query layer) sees.
+ *
+ * Any behavior change here requires a `DB_VERSION` bump: persisted rows carry
+ * values computed by the old logic and are only recomputed via the
+ * recreate-on-mismatch wipe.
+ */
+
+export const deriveLogFields = (header: LogHeader): LogDerived => {
+  let total_tokens: number | undefined;
+  if (header.stats?.model_usage) {
+    total_tokens = 0;
+    for (const usage of Object.values(header.stats.model_usage)) {
+      total_tokens += usage.total_tokens;
+    }
+  }
+
+  let duration: number | undefined;
+  if (header.stats?.started_at && header.stats?.completed_at) {
+    const start = new Date(header.stats.started_at).getTime();
+    const end = new Date(header.stats.completed_at).getTime();
+    if (start && end && end > start) {
+      duration = (end - start) / 1000;
+    }
+  }
+
+  // Prefer `task_args_passed` (the args the user actually supplied at the
+  // call site) over `task_args` (which would also include defaulted values).
+  const taskArgsSource = header.eval.task_args_passed ?? header.eval.task_args;
+  let task_args: string | undefined;
+  if (taskArgsSource) {
+    const entries = Object.entries(taskArgsSource);
+    if (entries.length > 0) {
+      task_args = entries
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join(", ");
+    }
+  }
+
+  let percent_completed: number | undefined;
+  const total = header.results?.total_samples;
+  const completed = header.results?.completed_samples;
+  if (total && total > 0 && completed !== undefined) {
+    percent_completed = (completed / total) * 100;
+  }
+
+  const sample_limits =
+    header.sampleLimits.length > 0 ? header.sampleLimits.join(", ") : undefined;
+
+  // Key by (scorer, metric) so distinct scorers emitting the same metric name
+  // each get their own entry. Reducer is omitted: `reducer=null` (default,
+  // silently mean) and `reducer="mean"` (explicit) land in the same slot
+  // since the underlying computation is identical.
+  let scores: Record<string, Record<string, number>> | undefined;
+  if (header.results?.scores) {
+    for (const evalScore of header.results.scores) {
+      if (evalScore.metrics) {
+        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+          scores ??= {};
+          (scores[evalScore.name] ??= {})[metricName] = metric.value;
+        }
+      }
+    }
+  }
+
+  return {
+    total_tokens,
+    duration,
+    task_args,
+    percent_completed,
+    sample_limits,
+    scores,
+  };
+};
+
+export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
+  const tokens = summary.model_usage
+    ? Object.values(summary.model_usage).reduce(
+        (sum, u) => sum + (u.total_tokens ?? 0),
+        0
+      )
+    : undefined;
+
+  let scores: Record<string, unknown> | undefined;
+  if (summary.scores) {
+    scores = {};
+    for (const [scoreName, score] of Object.entries(summary.scores)) {
+      scores[scoreName] = score.value;
+    }
+  }
+
+  // Tolerate partial summaries (e.g. a running log's provisional rows):
+  // ingestion of a whole payload must not fail on one malformed sample.
+  return {
+    tokens,
+    input:
+      summary.input !== undefined ? inputString(summary.input).join("\n") : "",
+    target: Array.isArray(summary.target)
+      ? summary.target.join(", ")
+      : (summary.target ?? ""),
+    fallbacks: totalModelFallbacks(summary.model_fallbacks) || undefined,
+    scores,
+  };
+};

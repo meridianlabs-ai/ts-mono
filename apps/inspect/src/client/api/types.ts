@@ -461,6 +461,48 @@ export interface LogHeader extends EvalHeader {
 export type LogDepth = "listed" | "previewed" | "detailed";
 
 /**
+ * Listing columns derived from a details payload once at ingestion (see
+ * `deriveLogFields`) and stored on the row, so listing reads never compute —
+ * the same fields the log-list grid sorts/filters on, in query-ready form.
+ * Arrives at `detailed` depth; an mtime invalidation drops it with the rest
+ * of the row's content.
+ */
+export interface LogDerived {
+  /** Total tokens summed across all models. */
+  total_tokens?: number;
+  /** Wall-clock duration in seconds (stats.completed_at − stats.started_at). */
+  duration?: number;
+  /** Task args formatted as `k=v, ...` (prefers `task_args_passed`). */
+  task_args?: string;
+  /** Percent of samples completed (0–100). */
+  percent_completed?: number;
+  /** Distinct sample limit kinds, sorted and comma-joined. */
+  sample_limits?: string;
+  /** Score metric values keyed scorer → metric. */
+  scores?: Record<string, Record<string, number>>;
+}
+
+/**
+ * Sample listing columns derived from a summary once at ingestion (see
+ * `deriveSampleFields`) and stored beside it — the sample-intrinsic fields
+ * the samples grid sorts/filters on. Log-level context (task/model/status)
+ * is deliberately NOT denormalized here: it would go stale when the log row
+ * changes tier, so it stays a read-time join.
+ */
+export interface SampleDerived {
+  /** Total tokens summed across all models. */
+  tokens?: number;
+  /** Input as displayable/filterable text. */
+  input: string;
+  /** Target as displayable/filterable text. */
+  target: string;
+  /** Total model fallbacks (undefined when none). */
+  fallbacks?: number;
+  /** Raw score values keyed by score name. */
+  scores?: Record<string, unknown>;
+}
+
+/**
  * The Log entity row — identity plus header attributes at progressive
  * depth, plus retrieval facts. The one shape the store, the cache, and the
  * listing share (see design/migration/log-data-summaries-entity.md, phase
@@ -483,6 +525,7 @@ export interface Log extends LogHandle {
   primary_metric?: EvalMetric;
 
   header?: LogHeader;
+  derived?: LogDerived;
 
   // Retrieval (fetch) facts about the row — a domain separate from eval
   // status/error. Attempts gate backfill retries; the settled seq is the

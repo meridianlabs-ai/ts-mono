@@ -10,6 +10,7 @@ import {
   SampleDataResponse,
   SampleSummary,
 } from "../client/api/types";
+import { deriveSampleFields } from "../client/utils/derive";
 import { queryClient } from "../state/queryClient";
 
 import { pendingSamplesKey } from "./pendingSamples";
@@ -67,7 +68,12 @@ const makeHandle = (logFile: string): SampleHandle => ({
 const seedLogDetails = (logFile: string, summaries: SampleSummary[]) => {
   queryClient.setQueryData<SamplesListingRow[]>(
     samplesListingKey({ logDir: LOG_DIR, scope: { file: logFile } }),
-    summaries.map((summary) => ({ logFile, summary, log: {} }))
+    summaries.map((summary) => ({
+      logFile,
+      summary,
+      derived: deriveSampleFields(summary),
+      log: {},
+    }))
   );
 };
 
