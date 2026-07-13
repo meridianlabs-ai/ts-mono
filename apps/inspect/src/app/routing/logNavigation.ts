@@ -24,11 +24,13 @@ export const useLogNavigationAction = () => {
       if (loadedLog && logPath) {
         // We already have the logPath from params, just navigate to the tab
         const url = logsUrlRaw(logPath, tabId, prefix);
-        void navigate(url);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(url);
       } else if (loadedLog) {
         // Fallback to constructing the path if needed
         const url = logsUrl(loadedLog, logDir, tabId, prefix);
-        void navigate(url);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(url);
       }
     },
     [loadedLog, logPath, logDir, navigate, prefix]

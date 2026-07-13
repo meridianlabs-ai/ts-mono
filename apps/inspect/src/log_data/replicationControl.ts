@@ -90,7 +90,8 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
     }
   })();
   pendingActivation = { logDir, promise };
-  void promise.finally(() => {
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  promise.finally(() => {
     if (pendingActivation?.promise === promise) {
       pendingActivation = null;
     }

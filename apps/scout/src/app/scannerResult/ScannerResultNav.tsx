@@ -46,7 +46,8 @@ export const ScannerResultNav: FC = () => {
       previousResult?.identifier,
       searchParams
     );
-    void navigate(route);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    navigate(route);
   };
 
   const handleNext = () => {
@@ -63,7 +64,8 @@ export const ScannerResultNav: FC = () => {
       nextResult?.identifier,
       searchParams
     );
-    void navigate(route);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    navigate(route);
   };
 
   const result =

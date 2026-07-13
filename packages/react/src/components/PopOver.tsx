@@ -380,7 +380,8 @@ export const PopOver: React.FC<PopOverProps> = ({
   useEffect(() => {
     if (update && isOpen && shouldShowPopover) {
       const timer = setTimeout(() => {
-        void update();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        update();
       }, 10);
       return () => clearTimeout(timer);
     }

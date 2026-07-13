@@ -66,7 +66,8 @@ export const LogViewContainer: FC = () => {
         prefix
       );
       clearInitialState();
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 

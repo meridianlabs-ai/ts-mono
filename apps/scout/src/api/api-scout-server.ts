@@ -506,7 +506,8 @@ const connectTopicUpdatesViaPolling = (
         }
       });
 
-  void poll();
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  poll();
   const intervalId = setInterval(() => void poll(), 10000);
 
   return () => {

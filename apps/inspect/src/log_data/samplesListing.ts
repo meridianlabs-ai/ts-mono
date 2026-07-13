@@ -202,7 +202,8 @@ export const pushFileSamples = async (
 /** Mark every samples listing under the dir stale and refetch the observed
  *  ones (Dexie-backed, so a refetch is a local read). */
 export const invalidateSamplesListings = (logDir: string): void => {
-  void queryClient.invalidateQueries({
+  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+  queryClient.invalidateQueries({
     queryKey: samplesListingDirKey(logDir),
   });
 };

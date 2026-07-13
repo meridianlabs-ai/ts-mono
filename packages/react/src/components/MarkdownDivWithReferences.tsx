@@ -67,7 +67,8 @@ export const MarkdownDivWithReferences = forwardRef<
         // so use replace to avoid filling history with each click.
         if (href?.startsWith("#/")) {
           e.preventDefault();
-          void navigate(href.slice(1), { replace: true });
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          navigate(href.slice(1), { replace: true });
         }
       }
     },

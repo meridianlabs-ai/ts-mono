@@ -312,7 +312,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      void navigate(url, { replace: true });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );

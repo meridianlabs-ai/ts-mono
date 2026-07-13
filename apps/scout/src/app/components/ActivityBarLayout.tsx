@@ -42,7 +42,8 @@ export const ActivityBarLayout: FC<ActivityBarLayoutProps> = ({
       if (options?.openInNewTab) {
         openRouteInNewTab(activity.route);
       } else {
-        void navigate(activity.route);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(activity.route);
       }
     }
   };

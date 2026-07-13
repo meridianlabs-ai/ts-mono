@@ -251,7 +251,8 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
           return;
         }
 
-        void navigator.clipboard.writeText(text);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigator.clipboard.writeText(text);
         setIcon(ApplicationIcons.confirm);
         setTimeout(() => {
           setIcon(ApplicationIcons.copy);

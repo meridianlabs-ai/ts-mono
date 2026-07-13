@@ -80,7 +80,8 @@ export const SampleDetailView: FC = () => {
         prev.epoch,
         tabId
       );
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
@@ -103,7 +104,8 @@ export const SampleDetailView: FC = () => {
         next.epoch,
         tabId
       );
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 

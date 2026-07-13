@@ -243,7 +243,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       // Use navigation hook to update URL with tab
       if (id !== sampleTabId && urlLogPath) {
         const url = sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, id);
-        void navigate(url);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(url);
       }
     },
     [
@@ -522,7 +523,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       items={{
         UUID: () => {
           if (sample?.uuid) {
-            void navigator.clipboard.writeText(sample.uuid);
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            navigator.clipboard.writeText(sample.uuid);
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
               setIcon(ApplicationIcons.copy);
@@ -531,7 +533,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         },
         Messages: () => {
           if (sample?.messages) {
-            void navigator.clipboard.writeText(messagesToStr(sample.messages));
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            navigator.clipboard.writeText(messagesToStr(sample.messages));
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
               setIcon(ApplicationIcons.copy);
@@ -540,7 +543,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         },
         Transcript: () => {
           if (sampleEvents && sampleEvents.length > 0) {
-            void navigator.clipboard.writeText(eventsToStr(sampleEvents));
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            navigator.clipboard.writeText(eventsToStr(sampleEvents));
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
               setIcon(ApplicationIcons.copy);
@@ -562,14 +566,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         dropdownClassName="text-size-smallest"
         items={{
           "Sample JSON": () => {
-            void api.download_file(
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
+            api.download_file(
               `${sampleId}.json`,
               JSON.stringify(sample, null, 2)
             );
           },
           Messages: () => {
             if (sample.messages && sample.messages.length > 0) {
-              void api.download_file(
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              api.download_file(
                 `${sampleId}-messages.txt`,
                 messagesToStr(sample.messages)
               );
@@ -577,7 +583,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           },
           Transcript: () => {
             if (sampleEvents && sampleEvents.length > 0) {
-              void api.download_file(
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              api.download_file(
                 `${sampleId}-transcript.txt`,
                 eventsToStr(sampleEvents)
               );

@@ -140,7 +140,8 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
         e.stopPropagation();
         const back = e.shiftKey;
         // Find next / previous
-        void handleSearch(back);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(back);
       }
     };
 
@@ -158,10 +159,12 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
           onClose();
         }
       } else if (e.key === "Enter") {
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
         e.preventDefault();
-        void handleSearch(!e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(!e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         searchBoxRef.current?.focus();
         searchBoxRef.current?.select();
@@ -171,11 +174,13 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
   );
 
   const findPrevious = useCallback(() => {
-    void handleSearch(true);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(true);
   }, [handleSearch]);
 
   const findNext = useCallback(() => {
-    void handleSearch(false);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(false);
   }, [handleSearch]);
 
   const restoreCursor = useCallback(() => {
@@ -216,7 +221,8 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
       if (!searchBoxRef.current) {
         return;
       }
-      void handleSearch(false).then(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      handleSearch(false).then(() => {
         // Mark for cursor restore on next keypress (keeps find highlight visible)
         needsCursorRestoreRef.current = true;
       });
@@ -231,7 +237,8 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === "F3") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 

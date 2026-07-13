@@ -100,7 +100,8 @@ export class WorkQueue<TInput, TOutput> {
       }
 
       // Run the worker
-      void this.runWorker();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.runWorker();
     }
   }
 
@@ -143,7 +144,8 @@ export class WorkQueue<TInput, TOutput> {
           }
         }
         if (settledResults.length > 0) {
-          void this.options.onComplete(settledResults, settledInputs);
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.options.onComplete(settledResults, settledInputs);
         }
 
         // Delay between batches

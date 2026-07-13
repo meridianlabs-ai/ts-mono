@@ -369,7 +369,8 @@ describe("FetchEngine.ensure (detailed)", () => {
       priority: "user",
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
 
     await Promise.all([first, second]);
     expect(fake.detailCalls.length).toBe(1);
@@ -463,7 +464,8 @@ describe("FetchEngine.ensure (detailed)", () => {
       depth: "detailed",
       priority: "user",
     });
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await Promise.all([blocker, background, user]);
 
     expect(fake.detailCalls.map((call) => call.file)).toEqual([
@@ -499,7 +501,8 @@ describe("FetchEngine.ensure (detailed)", () => {
       priority: "user",
     });
     expect(cAgain).toBe(c);
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await Promise.all([blocker, c, d]);
 
     expect(fake.detailCalls.map((call) => call.file)).toEqual([
@@ -645,7 +648,8 @@ describe("FetchEngine.applyListing", () => {
       persistListing: true,
     });
 
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
 
     // The re-enqueued invalidation fetch must be fresh — the older attempt's
     // settle must not have consumed the flag the invalidation just set.
@@ -698,7 +702,8 @@ describe("FetchEngine.applyListing", () => {
     });
 
     await expect(doomed).rejects.toThrow("Log file deleted: doomed.eval");
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await blocker;
     expect(fake.detailCalls.map((call) => call.file)).toEqual(["blocker.eval"]);
   });
@@ -795,12 +800,14 @@ describe("FetchEngine.applyListing", () => {
     // Enqueued AFTER the details backfill: both are Medium, ties break by
     // insertion order, so the details fetch claims first and the coalesce
     // has this still-queued preview to remove.
-    void engine.ensure("a.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("a.eval", {
       depth: "previewed",
       priority: "background",
     });
 
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await blocker;
 
     await vi.waitFor(() => {
@@ -947,7 +954,8 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    void engine.ensure("backfill.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("backfill.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -956,7 +964,8 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       priority: "user",
     });
 
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await Promise.all([blocker, user]);
     await vi.waitFor(() => expect(fake.summaryCalls.length).toBeGreaterThan(0));
 
@@ -1015,7 +1024,8 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    void engine.ensure("a.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("a.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1024,7 +1034,8 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       priority: "user",
     });
 
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await Promise.all([blocker, details]);
     await tick();
 
@@ -1051,9 +1062,11 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       deleted: [],
       persistListing: true,
     });
-    void engine.ensure("a.eval", { depth: "previewed", priority: "user" });
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("a.eval", { depth: "previewed", priority: "user" });
 
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await blocker;
     await vi.waitFor(() => expect(fake.summaryCalls.length).toBeGreaterThan(0));
 
@@ -1076,7 +1089,8 @@ describe("FetchEngine status", () => {
       priority: "user",
     });
     await vi.waitFor(() => expect(engine.getStatus().syncing).toBe(true));
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await fetching;
     await tick();
 
@@ -1105,7 +1119,8 @@ describe("FetchEngine.stop", () => {
     });
 
     engine.stop();
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
 
     await expect(blocker).rejects.toThrow("Fetch engine stopped");
     await expect(queued).rejects.toThrow("Fetch engine stopped");
@@ -1122,7 +1137,8 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    void engine.ensure("bad.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("bad.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1145,7 +1161,8 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    void engine.ensure("flaky.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("flaky.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1154,7 +1171,8 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
 
     failing = false;
-    void engine.ensure("flaky.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("flaky.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1196,7 +1214,8 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
 
     for (let i = 0; i < 5; i++) {
-      void engine.ensure("bad.eval", {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      engine.ensure("bad.eval", {
         depth: "previewed",
         priority: "background",
       });
@@ -1416,7 +1435,8 @@ describe("FetchEngine passive vs active demand (F2)", () => {
       depth: "detailed",
       priority: "user",
     });
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
 
     await Promise.all([passive, active]);
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq).toBe(1);
@@ -1472,7 +1492,8 @@ describe("FetchEngine clears stale preview fetch-state on details success (F4)",
     });
 
     for (let i = 0; i < 5; i++) {
-      void engine.ensure("bad.eval", {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      engine.ensure("bad.eval", {
         depth: "previewed",
         priority: "background",
       });
@@ -1755,14 +1776,16 @@ describe("FetchEngine batched flush trailing coalesce (F7)", () => {
     await engine.start({ api: fake.api, database: null, sink: gatedSink });
 
     // a.eval's preview settles → its flush starts and blocks on the gate.
-    void engine.ensure("a.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("a.eval", {
       depth: "previewed",
       priority: "background",
     });
     await vi.waitFor(() => expect(firstWrite).toBe(false));
 
     // b.eval's preview settles while that flush is in flight.
-    void engine.ensure("b.eval", {
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    engine.ensure("b.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1803,7 +1826,8 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
       fresh: true,
     });
 
-    void fake.releaseAll();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fake.releaseAll();
     await Promise.all([first, second]);
 
     expect(fake.detailCalls.length).toBe(1);
