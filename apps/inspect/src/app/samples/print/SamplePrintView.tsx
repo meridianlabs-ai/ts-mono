@@ -25,10 +25,11 @@ import {
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { useSampleData } from "../../../state/hooks";
-import { useStore } from "../../../state/store";
-import { useLoadSample } from "../../../state/useLoadSample";
-import { usePollSample } from "../../../state/usePollSample";
+import { selectLogFile, selectSample } from "../../../state/actions";
+import {
+  useSelectedEvalSampleData,
+  useSelectedLogDetails,
+} from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { SampleJSONView } from "../SampleJSONView";
@@ -47,49 +48,22 @@ export const SamplePrintView: FC = () => {
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
 
-  // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
-  useLoadSample();
-  usePollSample();
-
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
   useEffect(() => {
-    const loadLogAndSample = async () => {
-      if (logPath && sampleId && epoch) {
-        await initLogDir();
-        setSelectedLogFile(logPath);
-        void syncLogs();
+    if (logPath && sampleId && epoch) {
+      selectLogFile(logPath);
 
-        const targetEpoch = parseInt(epoch, 10);
-        if (!isNaN(targetEpoch)) {
-          selectSample(sampleId, targetEpoch, logPath);
-        }
+      const targetEpoch = parseInt(epoch, 10);
+      if (!isNaN(targetEpoch)) {
+        selectSample(sampleId, targetEpoch, logPath);
       }
-    };
-    void loadLogAndSample();
-  }, [
-    logPath,
-    sampleId,
-    epoch,
-    initLogDir,
-    setSelectedLogFile,
-    syncLogs,
-    selectSample,
-  ]);
+    }
+  }, [logPath, sampleId, epoch]);
 
   // Get sample data
-  const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
+  const sample = useSelectedEvalSampleData().sample;
 
-  const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
+  const evalSpec = useSelectedLogDetails()?.eval;
 
   // Transcript: process events through the same pipeline, all expanded
   const sampleEvents = sample?.events || [];

@@ -1,10 +1,8 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
-import { useLoadLog } from "../../state/useLoadLog";
-import { useLoadSample } from "../../state/useLoadSample";
-import { usePollSample } from "../../state/usePollSample";
 import { directoryRelativeUrl } from "../../utils/uri";
 import {
   samplesSampleUrl,
@@ -12,14 +10,12 @@ import {
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
-import { isSingleFileMode } from "../singleFileMode";
 
 /**
  * Component that displays a single sample in detail view within the samples route.
  * This is shown when navigating to /samples/path/to/file.eval/sample/id/epoch
  *
  * This component handles:
- * - Loading hooks (useLoadLog, useLoadSample, usePollSample)
  * - Navigation state calculation using displayedSamples from samples grid
  * - Navigation callbacks (handlePrevious, handleNext)
  * - Cleanup on unmount (clears log state since this is a standalone view)
@@ -27,10 +23,7 @@ import { isSingleFileMode } from "../singleFileMode";
  * Rendering is delegated to SampleDetailComponent.
  */
 export const SampleDetailView: FC = () => {
-  // Load sample data
-  useLoadLog();
-  useLoadSample();
-  usePollSample();
+  const { singleFileMode } = useAppConfig();
 
   // Get route params
   const {
@@ -43,15 +36,12 @@ export const SampleDetailView: FC = () => {
 
   // Get store state for navigation
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const displayedSamples = useStore(
     (state) => state.logs.samplesListState.displayedSamples
   );
 
   // Cleanup actions
-  const clearSelectedLogDetails = useStore(
-    (state) => state.logActions.clearSelectedLogDetails
-  );
   const clearLog = useStore((state) => state.logActions.clearLog);
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
 
@@ -90,7 +80,8 @@ export const SampleDetailView: FC = () => {
         prev.epoch,
         tabId
       );
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
@@ -113,18 +104,18 @@ export const SampleDetailView: FC = () => {
         next.epoch,
         tabId
       );
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
   // Cleanup on unmount - clear log state since this is a standalone view
   useEffect(() => {
     return () => {
-      clearSelectedLogDetails();
       clearLog();
       clearSampleTab();
     };
-  }, [clearLog, clearSampleTab, clearSelectedLogDetails]);
+  }, [clearLog, clearSampleTab]);
 
   return (
     <SampleDetailComponent
@@ -141,7 +132,7 @@ export const SampleDetailView: FC = () => {
         currentPath: routeLogPath,
         fnNavigationUrl: samplesUrl,
         bordered: true,
-        breadcrumbsEnabled: !isSingleFileMode,
+        breadcrumbsEnabled: !singleFileMode,
       }}
     />
   );

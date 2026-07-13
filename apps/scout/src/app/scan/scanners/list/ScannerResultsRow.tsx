@@ -158,7 +158,8 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
     if (!scanResultUrl) {
       return;
     }
-    void navigate(scanResultUrl);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    navigate(scanResultUrl);
   };
 
   return isNavigable ? (

@@ -997,6 +997,8 @@ export interface components {
             } | null;
             /** Pending */
             pending?: boolean | null;
+            /** Role */
+            role?: string | null;
             /** Source */
             source?: string | null;
             /** Span Id */
@@ -1029,11 +1031,8 @@ export interface components {
             new_limit: number;
             /** Old Limit */
             old_limit: number;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "slow_start" | "steady_state_up" | "rate_limit";
+            /** Reason */
+            reason: ("slow_start" | "steady_state_up" | "rate_limit") | "manual";
             /** Timestamp */
             timestamp: number;
         };
@@ -1400,6 +1399,8 @@ export interface components {
             time_limit?: number | null;
             /** Token Limit */
             token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
             /** Turn Limit */
             turn_limit?: number | null;
             /** Working Limit */
@@ -1656,8 +1657,16 @@ export interface components {
             target: string | string[];
             /** Timelines */
             timelines?: components["schemas"]["Timeline"][] | null;
+            /** Token Limit */
+            token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
+            /** Token Limit Usage */
+            token_limit_usage?: number | null;
             /** Total Time */
             total_time?: number | null;
+            /** Turn Count */
+            turn_count?: number | null;
             /** Uuid */
             uuid?: string | null;
             /** Working Time */
@@ -1760,8 +1769,16 @@ export interface components {
             started_at?: string | null;
             /** Target */
             target: string | string[];
+            /** Token Limit */
+            token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
+            /** Token Limit Usage */
+            token_limit_usage?: number | null;
             /** Total Time */
             total_time?: number | null;
+            /** Turn Count */
+            turn_count?: number | null;
             /** Uuid */
             uuid?: string | null;
             /** Working Time */
@@ -2041,6 +2058,8 @@ export interface components {
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
             reasoning_history?: ("none" | "all" | "last" | "auto") | null;
+            /** Reasoning Mode */
+            reasoning_mode?: ("standard" | "pro") | null;
             /** Reasoning Summary */
             reasoning_summary?: ("none" | "concise" | "detailed" | "auto") | null;
             /** Reasoning Tokens */

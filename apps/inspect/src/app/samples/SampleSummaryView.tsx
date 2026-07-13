@@ -20,9 +20,9 @@ import {
   useEvalScorePanelView,
   useSampleDescriptor,
   useScorePanelView,
+  useSelectedLogDetails,
   useSelectedScores,
 } from "../../state/hooks";
-import { useStore } from "../../state/store";
 import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
@@ -32,7 +32,7 @@ import { SampleErrorView } from "./error/SampleErrorView";
 import { ScorePanel } from "./header-v2/ScorePanel";
 import { ScoreValueDisplay } from "./header-v2/ScoreValueDisplay";
 import styles from "./SampleSummaryView.module.css";
-import { isCancelled } from "./status/sampleStatus";
+import { isCancelled } from "./status/status";
 
 // Generous truncation for Input/Answer so the value can actually fill
 // the available width before the CSS line-clamp kicks in. Target stays
@@ -155,10 +155,9 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 }) => {
   const sampleDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
-  const taskName = useStore((state) => state.log.selectedLogDetails?.eval.task);
-  const modelText = useStore((state) =>
-    formatModelText(state.log.selectedLogDetails?.eval)
-  );
+  const selectedLogDetails = useSelectedLogDetails();
+  const taskName = selectedLogDetails?.eval.task;
+  const modelText = formatModelText(selectedLogDetails?.eval);
   const [storedScoreView] = useScorePanelView();
   const evalScoreView = useEvalScorePanelView();
   if (!sampleDescriptor) {

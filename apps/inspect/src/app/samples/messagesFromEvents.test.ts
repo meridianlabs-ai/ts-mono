@@ -253,7 +253,7 @@ describe("messagesFromEvents", () => {
     });
 
     it("rebuilds when a tail event is replaced at the same index", () => {
-      // samplePolling replaces an event at its existing index when streaming
+      // The streaming session replaces an event at its existing index when
       // updates arrive (e.g., the model output completes after a partial).
       // The new event reference at the same index must trigger a rebuild.
       const e1 = makeModelEvent({ inputId: "u1", outputId: "a1" });

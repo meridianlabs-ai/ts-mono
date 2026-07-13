@@ -26,3 +26,5 @@ storybook-static/
 
 # Real-payload benchmark fixtures (large, local-only)
 packages/util/bench/fixtures/
+
+.superpowers/

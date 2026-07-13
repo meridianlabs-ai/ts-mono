@@ -93,8 +93,7 @@ function client_events(): Promise<string[]> {
 
 async function get_log_root() {
   const response = (await vscodeClient(kMethodEvalLogs, [])) as
-    | string
-    | undefined;
+    string | undefined;
   if (response) {
     const parsed: unknown = JSON5.parse(response);
     if (Array.isArray(parsed)) {
@@ -113,8 +112,7 @@ async function get_log_root() {
 
 const get_log_dir = async () => {
   const response = (await vscodeClient(kMethodEvalLogDir, [])) as
-    | string
-    | undefined;
+    string | undefined;
   if (response) {
     const parsed = JSON5.parse<{ log_dir?: string }>(response);
     return parsed.log_dir;
@@ -200,8 +198,7 @@ async function get_log_bytes(
 
 async function get_log_summaries(files: string[]) {
   const response = (await vscodeClient(kMethodEvalLogHeaders, [files])) as
-    | string
-    | undefined;
+    string | undefined;
   if (response) {
     return JSON5.parse<LogPreview[]>(response);
   } else {

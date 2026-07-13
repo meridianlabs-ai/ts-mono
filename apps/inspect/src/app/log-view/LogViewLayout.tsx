@@ -7,12 +7,13 @@ import {
   FindTargetProvider,
 } from "@tsmono/react/components";
 
+import { useAppConfig } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
 import { FindBand } from "../../components/FindBand";
+import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
-import { isSingleFileMode } from "../singleFileMode";
 
 import { LogView } from "./LogView";
 
@@ -20,8 +21,8 @@ import { LogView } from "./LogView";
  * AppContent component with the main UI layout
  */
 export const LogViewLayout: FC = () => {
-  // App layout and state
-  const appStatus = useStore((state) => state.app.status);
+  // Loading/error for the open log derive from the selected log's details.
+  const { loading: logLoading, error: logError } = useSelectedLogDetail();
 
   // Find
   const showFind = useStore((state) => state.app.showFind);
@@ -29,9 +30,7 @@ export const LogViewLayout: FC = () => {
   const nativeFind = useStore((state) => state.app.nativeFind);
   const hideFind = useStore((state) => state.appActions.hideFind);
 
-  // Logs Data
-  const logDir = useStore((state) => state.logs.logDir);
-  const logFiles = useStore((state) => state.logs.logs);
+  const { singleFileMode } = useAppConfig();
 
   // Route params
   const { logPath } = useLogRouteParams();
@@ -41,10 +40,6 @@ export const LogViewLayout: FC = () => {
 
   // The main application reference
   const mainAppRef = useRef<HTMLDivElement>(null);
-
-  // Configure an app envelope specific to the current state
-  // if there are no log files, then don't show sidebar
-  const fullScreen = logFiles.length === 1 && !logDir;
 
   // Global keydown handler for keyboard shortcuts
   useEffect(() => {
@@ -79,26 +74,24 @@ export const LogViewLayout: FC = () => {
           ref={mainAppRef}
           className={clsx(
             "app-main-grid",
-            fullScreen ? "full-screen" : undefined,
-            isSingleFileMode ? "single-file-mode" : undefined,
+            singleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
           tabIndex={0}
         >
           {showFind ? <FindBand /> : ""}
-          {!isSingleFileMode ? (
+          {!singleFileMode ? (
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}
               currentPath={logPath}
-              showActivity="log"
             />
           ) : (
-            <ActivityBar animating={!!appStatus.loading} />
+            <ActivityBar animating={logLoading} />
           )}
-          {appStatus.error ? (
+          {logError ? (
             <ErrorPanel
               title="An error occurred while loading this task."
-              error={appStatus.error}
+              error={logError}
             />
           ) : (
             <LogView />

@@ -1,29 +1,25 @@
-import type { ColDef, GridState } from "ag-grid-community";
 import { useCallback, useEffect, useMemo } from "react";
 
 import { type TaskSamplesView } from "@tsmono/inspect-common/types";
 
+import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
-import { getFieldKey } from "../../shared/gridUtils";
+import { getFieldKey, type PickerColumn } from "../../shared/gridUtils";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
 
 import { type SamplesViewState } from "./samplesView";
 import {
-  gridStateToView,
   liftEvalView,
   pickActiveView,
   resolveSamplesView,
-  viewToGridState,
 } from "./samplesView.converters";
 
 /** Single subscription to the eval-author-supplied `task_samples_view`
  *  descriptor (after picking an active variant from a multi-view list).
  *  Backs every hook that reads from the wire side. */
 function useEvalDefaultSamplesView(): TaskSamplesView | undefined {
-  const evalDefaultField = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.task_samples_view ?? null
-  );
+  const evalDefaultField =
+    useSelectedLogDetails()?.eval.viewer?.task_samples_view ?? null;
   return useMemo(() => pickActiveView(evalDefaultField), [evalDefaultField]);
 }
 
@@ -95,11 +91,9 @@ export function useSamplesViewCompactScores(): boolean {
 export interface UseSamplesViewResult {
   view: SamplesViewState;
   columnVisibility: Record<string, boolean>;
-  gridState: GridState | undefined;
   setView: (next: SamplesViewState) => void;
   patchView: (partial: Partial<SamplesViewState>) => void;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
-  setGridState: (gs: GridState) => void;
   setMultiline: (multiline: boolean) => void;
   setCompactScores: (compactScores: boolean) => void;
   setColorScalesEnabled: (enabled: boolean) => void;
@@ -113,15 +107,15 @@ export interface UseSamplesViewResult {
 /**
  * Window onto the SampleList scope's `TaskSamplesView` descriptor. Resolves
  * stored > eval-author default > built-in default; seeds visibility for
- * unseeded columns; folds ag-grid `GridState` updates back into the view.
+ * unseeded columns.
  *
  * Selected-scores projection (the `score__*` ↔ `selectedScores` split)
  * stays in `SamplesTab` for now.
  */
-export function useSamplesView<TRow>(
-  allColumns?: ColDef<TRow>[],
+export function useSamplesView(
+  allColumns?: PickerColumn[],
   options?: {
-    seedDefaultVisibility?: (col: ColDef<TRow>) => boolean;
+    seedDefaultVisibility?: (col: PickerColumn) => boolean;
   }
 ): UseSamplesViewResult {
   const { seedDefaultVisibility } = options ?? {};
@@ -144,24 +138,11 @@ export function useSamplesView<TRow>(
     [logFile, setSampleListViewAction]
   );
 
-  const availableColIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (allColumns) {
-      for (const col of allColumns) ids.add(getFieldKey(col));
-    }
-    return ids;
-  }, [allColumns]);
-
   const columnVisibility = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of view.columns) v[col.id] = col.visible;
     return v;
   }, [view.columns]);
-
-  const gridState = useMemo(
-    () => (allColumns ? viewToGridState(view, availableColIds) : undefined),
-    [allColumns, view, availableColIds]
-  );
 
   // Seeding writes the resolved view (not just the diff) so eval-author
   // defaults for sort/filter/multiline land in the stored slot the first
@@ -204,13 +185,6 @@ export function useSamplesView<TRow>(
       patchView({ columns: nextColumns });
     },
     [view.columns, patchView]
-  );
-
-  const setGridState = useCallback(
-    (gs: GridState) => {
-      setSampleListView(gridStateToView(view, gs, availableColIds));
-    },
-    [view, availableColIds, setSampleListView]
   );
 
   // Toggle setters write the value into `userOverrides` so future renders
@@ -271,11 +245,9 @@ export function useSamplesView<TRow>(
   return {
     view,
     columnVisibility,
-    gridState,
     setView,
     patchView,
     setColumnVisibility,
-    setGridState,
     setMultiline,
     setCompactScores,
     setColorScalesEnabled,

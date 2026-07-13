@@ -2,14 +2,15 @@ import { createRoot } from "react-dom/client";
 
 import { getVscodeApi } from "@tsmono/util";
 
+import { getApi } from "./app_config";
 import { App } from "./app/App";
-import api from "./client/api/index";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";
 
-// Resolve the api
-const applicationApi = api;
+// The api backend is a sync bootstrap fact (resolved from the invocation-time
+// log source) — needed here, above the gate, before the full config resolves.
+const applicationApi = getApi();
 const applicationStorage = storage;
 
 // Application capabilities
@@ -19,7 +20,6 @@ const capabilities: Capabilities = {
   downloadLogs: !!applicationApi.download_log,
   webWorkers: true,
   streamSamples: !!applicationApi.get_log_pending_samples,
-  streamSampleData: !!applicationApi.get_log_sample_data,
 };
 
 // Initial state / storage
@@ -39,7 +39,7 @@ if (vscode) {
 }
 
 // Inititialize the application store
-initializeStore(applicationApi, capabilities, applicationStorage);
+initializeStore(capabilities, applicationStorage);
 
 // Determine whether we need to restore a stored hash
 restoreHash();
@@ -56,7 +56,7 @@ if (!container) {
 
 // Render into the root
 const root = createRoot(container);
-root.render(<App api={applicationApi} />);
+root.render(<App />);
 
 function restoreHash() {
   // Check if we need to restore a route

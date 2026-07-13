@@ -6,6 +6,7 @@ import { CopyButton } from "@tsmono/react/components";
 import { filename } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
+import { useAbsLogDir, useLogDir } from "../../../app_config";
 import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
@@ -38,9 +39,9 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
 }) => {
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
-  const absLogDir = useStore((state) => state.logs.absLogDir);
+  const absLogDir = useAbsLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
   const tagList = tags ?? [];

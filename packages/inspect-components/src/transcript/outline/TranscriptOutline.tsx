@@ -17,7 +17,7 @@ import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
-import { OutlineRow } from "./OutlineRow";
+import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
 import {
   collapseScoring,
@@ -31,10 +31,22 @@ import { useOutlineWidth } from "./useOutlineWidth";
 
 const kFramesToStabilize = 10;
 
+export const outlineNodeRunning = ({
+  running,
+  backfilling,
+  isLast,
+}: {
+  running: boolean;
+  backfilling: boolean;
+  isLast: boolean;
+}): boolean => running && !backfilling && isLast;
+
 interface TranscriptOutlineProps {
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, boolean>;
   running?: boolean;
+  /** Whether the sample's event backlog is still loading (live sample). */
+  backfilling?: boolean;
   className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** The element that actually scrolls the outline (its own overflow
@@ -90,10 +102,16 @@ const EventPaddingNode: EventNode = {
   children: [],
 };
 
+// Sentinel appended as the final list item while backfilling so the loading
+// affordance renders flush after the last outline row (a sibling would sit
+// below Virtuoso's trailing padding node).
+const OutlineLoadingNode: EventNode = { ...EventPaddingNode, id: "loading" };
+
 export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   eventNodes,
   defaultCollapsedIds,
   running,
+  backfilling,
   className,
   scrollRef,
   outlineScrollEl,
@@ -263,12 +281,18 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
             style={{ height: "2em" }}
           ></div>
         );
+      } else if (node === OutlineLoadingNode) {
+        return <OutlineLoadingRow key={node.id} />;
       } else {
         return (
           <OutlineRow
             node={node}
             key={node.id}
-            running={running && index === outlineNodeList.length - 1}
+            running={outlineNodeRunning({
+              running: running === true,
+              backfilling: backfilling === true,
+              isLast: index === outlineNodeList.length - 1,
+            })}
             selected={
               selectedOutlineId ? selectedOutlineId === node.id : index === 0
             }
@@ -285,6 +309,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     [
       outlineNodeList,
       running,
+      backfilling,
       selectedOutlineId,
       getEventUrl,
       handleOutlineSelect,
@@ -312,7 +337,11 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         ref={listHandle}
         customScrollParent={outlineScrollEl ?? undefined}
         id={id}
-        data={[...outlineNodeList, EventPaddingNode]}
+        data={
+          backfilling
+            ? [...outlineNodeList, OutlineLoadingNode, EventPaddingNode]
+            : [...outlineNodeList, EventPaddingNode]
+        }
         defaultItemHeight={50}
         itemContent={renderRow}
         atBottomThreshold={30}

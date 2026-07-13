@@ -25,11 +25,7 @@ const fmtConfigVal = (v: unknown): string => {
 };
 
 type CategoryKey =
-  | "input"
-  | "cacheRead"
-  | "cacheWrite"
-  | "output"
-  | "reasoning";
+  "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
 
 const CAT_ORDER: CategoryKey[] = [
   "input",

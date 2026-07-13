@@ -25,6 +25,7 @@ import {
 import { useScrollDirection } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
+import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
@@ -44,6 +45,7 @@ interface TranscriptPanelProps {
 
   // The sample
   running?: boolean;
+  backfilling?: boolean;
 
   // The transcript data
   events: Events;
@@ -70,6 +72,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     scrollRef,
     events,
     running,
+    backfilling,
     initialEventId,
     initialMessageId,
     offsetTop,
@@ -265,7 +268,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     epoch: urlEpoch,
   } = useLogOrSampleRouteParams();
   const logFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
   const getEventUrl = useCallback(
     (eventId: string) => {
@@ -309,7 +312,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      void navigate(url, { replace: true });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );
@@ -333,6 +337,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       events={events}
       hiddenEventTypes={filteredEventTypes}
       running={running}
+      backfilling={backfilling}
       scrollRef={scrollRef}
       offsetTop={offsetTop}
       timelineSelection={timelineSelection}
@@ -368,13 +373,15 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
         setSelectedId: setSelectedOutlineId,
       }}
       emptyText={
-        running && isDefaultFilter
-          ? "Sample is starting"
-          : filteredEventTypes.length > 0
-            ? "The currently applied filter hides all events."
-            : undefined
+        backfilling && isDefaultFilter
+          ? "Loading events"
+          : running && isDefaultFilter
+            ? "Sample is starting"
+            : filteredEventTypes.length > 0
+              ? "The currently applied filter hides all events."
+              : undefined
       }
-      emptyBusy={running && isDefaultFilter}
+      emptyBusy={(running || backfilling) && isDefaultFilter}
     />
   );
 });

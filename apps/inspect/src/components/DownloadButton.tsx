@@ -1,6 +1,6 @@
 import { FC } from "react";
 
-import { useApi } from "../state/store";
+import { getApi } from "../app_config";
 
 import "./DownloadButton.css";
 
@@ -15,12 +15,13 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
   fileName,
   fileContents,
 }) => {
-  const api = useApi();
+  const api = getApi();
   return (
     <button
       className={"btn btn-outline-primary download-button"}
       onClick={() => {
-        void api.download_file(fileName, fileContents);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        api.download_file(fileName, fileContents);
       }}
     >
       {label}

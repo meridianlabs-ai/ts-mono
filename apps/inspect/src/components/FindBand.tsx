@@ -177,12 +177,13 @@ export const FindBand: FC = () => {
       searchBoxRef.current?.select();
     }, 10);
 
-    const scrollTimeout = scrollTimeoutRef.current;
     const focusTimeout = focusTimeoutRef.current;
 
     return () => {
-      if (scrollTimeout !== null) {
-        window.clearTimeout(scrollTimeout);
+      // Read at teardown, not setup: handleSearch schedules the scroll
+      // timeout long after mount, so a setup-time capture is always null.
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
       }
       if (focusTimeout !== null) {
         window.clearTimeout(focusTimeout);
@@ -196,10 +197,12 @@ export const FindBand: FC = () => {
       if (e.key === "Escape") {
         storeHideFind();
       } else if (e.key === "Enter") {
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         searchBoxRef.current?.focus();
         searchBoxRef.current?.select();
@@ -209,11 +212,13 @@ export const FindBand: FC = () => {
   );
 
   const findPrevious = useCallback(() => {
-    void handleSearch(true);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(true);
   }, [handleSearch]);
 
   const findNext = useCallback(() => {
-    void handleSearch(false);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(false);
   }, [handleSearch]);
 
   const restoreCursor = useCallback(() => {
@@ -233,15 +238,27 @@ export const FindBand: FC = () => {
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  // Created in an effect (not useMemo) because runDebouncedSearch reads refs,
-  // and the compiler can't prove debounce() won't invoke it during render.
-  const debouncedSearchRef = useRef<(() => void) | null>(null);
+  // The debounced fn is created once (below, lazily in the change handler)
+  // wrapping this latest-callback ref, so a recreated runDebouncedSearch never
+  // leaves a superseded debounce pending. Nulling on cleanup cancels any
+  // pending run at unmount.
+  const latestRunSearchRef = useRef<(() => Promise<void>) | null>(
+    runDebouncedSearch
+  );
   useEffect(() => {
-    debouncedSearchRef.current = debounce(() => void runDebouncedSearch(), 100);
+    latestRunSearchRef.current = runDebouncedSearch;
+    return () => {
+      latestRunSearchRef.current = null;
+    };
   }, [runDebouncedSearch]);
 
+  const debouncedSearchRef = useRef<(() => void) | null>(null);
   const handleInputChange = useCallback(() => {
-    debouncedSearchRef.current?.();
+    debouncedSearchRef.current ??= debounce(
+      () => void latestRunSearchRef.current?.(),
+      100
+    );
+    debouncedSearchRef.current();
   }, []);
 
   const handleBeforeInput = useCallback(() => {
@@ -260,7 +277,8 @@ export const FindBand: FC = () => {
       // F3: Find next/previous
       if (e.key === "F3") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 
@@ -277,7 +295,8 @@ export const FindBand: FC = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === "g") {
         e.preventDefault();
         e.stopPropagation();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 

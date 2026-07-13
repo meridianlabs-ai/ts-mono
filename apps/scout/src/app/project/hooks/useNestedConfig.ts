@@ -92,8 +92,7 @@ export function useBatchConfig<T extends Record<string, unknown>>(
   const currentBatchSize = useMemo(() => {
     if (typeof configValue === "object" && configValue !== null) {
       return (configValue as Record<string, unknown>).size as
-        | number
-        | undefined;
+        number | undefined;
     }
     return simpleBatchSize ?? undefined;
   }, [configValue, simpleBatchSize]);

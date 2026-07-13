@@ -54,7 +54,8 @@ export const DownloadScanButton = ({
         className
       )}
       onClick={() => {
-        void handleClick();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleClick();
       }}
       aria-label="Download scan results"
       disabled={state !== "idle"}

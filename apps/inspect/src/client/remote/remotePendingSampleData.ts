@@ -5,11 +5,8 @@ import { ApiError } from "../api/view-server/request";
 
 import { openZipFileFromBuffer } from "./remoteZipFile";
 
-// Cap segments per call so the poll loop can yield between chunks (via the
-// polling helper's "immediate" setTimeout(0)) — without this, long-running
-// evals with thousands of segments starve the renderer. 25 keeps each chunk
-// under ~1s at typical segment sizes.
-const SEGMENT_CAP_PER_CALL = 25;
+// Exported for the poll loop/tests. Raised from 25: the browser caps concurrent connections per host, so this trades fewer presigned-URL round trips for less frequent renderer yields, not more parallelism.
+export const SEGMENT_CAP_PER_CALL = 100;
 
 // The browser reached the view server for presigned URLs but couldn't fetch the
 // segment bytes directly from storage (e.g. missing bucket CORS on the viewer

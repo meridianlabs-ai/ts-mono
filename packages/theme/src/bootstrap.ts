@@ -267,6 +267,14 @@ const installBodyClassObserver = (): void => {
   });
 };
 
+const setDocumentBaseScheme = (isDark: boolean): void => {
+  const scheme = isDark ? "dark" : "light";
+  document.documentElement.setAttribute("data-bs-theme", scheme);
+  // Set before the stylesheet loads so the UA canvas, scrollbars, and form
+  // controls do not flash white while the dark app background is still loading.
+  document.documentElement.style.colorScheme = scheme;
+};
+
 /**
  * Build (do not run) the apply-theme function. The returned function is
  * idempotent and safe to call repeatedly (e.g. on a matchMedia change or a
@@ -296,19 +304,13 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
         document.documentElement.removeAttribute("data-theme-variant");
       }
       if (result.hostIsDark !== null) {
-        document.documentElement.setAttribute(
-          "data-bs-theme",
-          result.hostIsDark ? "dark" : "light"
-        );
+        setDocumentBaseScheme(result.hostIsDark);
       }
     } else if (result.kind === "apply") {
       // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
       // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
       // Splitting elements here is deliberate — keep them in lockstep.
-      document.documentElement.setAttribute(
-        "data-bs-theme",
-        result.isDark ? "dark" : "light"
-      );
+      setDocumentBaseScheme(result.isDark);
 
       // The readable skin is a small token-override block keyed on this
       // attribute (see base.css); absent attribute = the design-consistent

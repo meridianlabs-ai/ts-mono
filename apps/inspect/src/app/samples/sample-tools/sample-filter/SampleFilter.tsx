@@ -18,7 +18,11 @@ import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
 import { debounce } from "@tsmono/util";
 
-import { useEvalDescriptor } from "../../../../state/hooks";
+import { SampleSummary } from "../../../../client/api/types";
+import {
+  useEvalDescriptor,
+  useSelectedSampleSummaries,
+} from "../../../../state/hooks";
 import { useStore } from "../../../../state/store";
 import { FilterError } from "../../../types";
 import { sampleFilterItems } from "../filters";
@@ -28,6 +32,8 @@ import styles from "./SampleFilter.module.css";
 import { language } from "./tokenize";
 
 // Constants
+const kNoSamples: SampleSummary[] = [];
+
 const FILTER_TOOLTIP = `
 Filter samples by:
   • Scores
@@ -156,9 +162,9 @@ export const SampleFilter: FC = () => {
 
   const filter = useStore((state) => state.log.filter);
   const filterError = useStore((state) => state.log.filterError);
-  const samples = useStore(
-    (state) => state.log.selectedLogDetails?.sampleSummaries
-  );
+  // Settled rows only — autocompletion over whatever has loaded; the samples
+  // tab owns the loading/error surface.
+  const samples = useSelectedSampleSummaries().data ?? kNoSamples;
   const setFilter = useStore((state) => state.logActions.setFilter);
 
   const handleFocus = useCallback((event: FocusEvent, view: EditorView) => {
