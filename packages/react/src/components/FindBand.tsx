@@ -27,9 +27,12 @@ const findConfig = {
 
 interface FindBandProps {
   onClose: () => void;
+  // Type-ahead debounce. Defaults preserve each app's pre-unification value
+  // (inspect 100ms; scout passes 300ms).
+  debounceMs?: number;
 }
 
-export const FindBand: FC<FindBandProps> = ({ onClose }) => {
+export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const { extendedFindTerm, countAllMatches, getMatchCountersVersion } =
     useExtendedFind();
@@ -271,7 +274,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose }) => {
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  const handleInputChange = useDebouncedCallback(runDebouncedSearch, 100);
+  const handleInputChange = useDebouncedCallback(runDebouncedSearch, debounceMs);
 
   const restoreCursorIfNeeded = useCallback(() => {
     const input = searchBoxRef.current;

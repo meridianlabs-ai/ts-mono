@@ -72,7 +72,7 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     const content = <Outlet />;
     return (
       <ComponentNavigationProvider navigation={componentNavigation}>
-        {showFind && <FindBand onClose={closeFind} />}
+        {showFind && <FindBand onClose={closeFind} debounceMs={300} />}
 
         {routerConfig.mode === "workbench" && !singleFileMode ? (
           <ActivityBarLayout config={config}>{content}</ActivityBarLayout>
