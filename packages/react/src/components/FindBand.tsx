@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 
-import { isEditableTarget } from "@tsmono/util";
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
 import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
@@ -337,13 +337,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       if (document.activeElement !== input) {
         // Don't steal focus from another editable surface — users typing
         // into a textarea/input/contenteditable should keep their keystrokes.
-        // Pierce shadow roots: document.activeElement only returns the shadow
-        // host, so walk down to find the real focused element.
-        let active: Element | null = document.activeElement;
-        while (active?.shadowRoot?.activeElement) {
-          active = active.shadowRoot.activeElement;
-        }
-        if (isEditableTarget(active)) return;
+        if (isEditableTarget(deepActiveElement())) return;
 
         // Typing from outside the input appends, so an unconditional
         // restore-to-end is right here; a caret inside the focused input
