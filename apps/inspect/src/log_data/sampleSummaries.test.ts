@@ -1,5 +1,6 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
+import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
@@ -9,7 +10,11 @@ import {
   PendingSampleResponse,
   SampleSummary,
 } from "../client/api/types";
-import { createDatabaseService, DatabaseService } from "../client/database";
+import {
+  createDatabaseService,
+  DatabaseService,
+  DB_NAME,
+} from "../client/database";
 import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
@@ -154,12 +159,13 @@ describe("useSampleSummaries during a running eval", () => {
     db = createDatabaseService();
     holder.service = db;
     holder.api = api;
-    await db.openDatabase(`sample-summaries-test-${crypto.randomUUID()}`);
+    await db.openDatabase();
   });
 
   afterEach(async () => {
     fetchEngine.stop();
     await db.closeDatabase();
+    await Dexie.delete(DB_NAME);
     holder.service = null;
     holder.api = null;
     queryClient.clear();

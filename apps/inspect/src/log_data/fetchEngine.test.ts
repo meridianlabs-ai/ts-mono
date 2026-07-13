@@ -332,6 +332,7 @@ const createEngine = async (
     api: deps.api,
     database: deps.database ?? null,
     sink: deps.sink ?? sink,
+    logDir: deps.logDir ?? "dir/logs",
   });
   return { engine, sinkCalls: calls };
 };
@@ -827,7 +828,7 @@ describe("FetchEngine.applyListing epoch fencing", () => {
 
     // Dir switch: restart binds the next session's sink.
     const { sink, calls } = createFakeSink();
-    await engine.start({ api: fake.api, database: null, sink });
+    await engine.start({ api: fake.api, database: null, sink, logDir: "dir/logs" });
     const before = engine.listing();
 
     const result = await engine.applyListing({
@@ -858,7 +859,12 @@ describe("FetchEngine.applyListing epoch fencing", () => {
       },
     };
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
-    await engine.start({ api: fake.api, database: null, sink: gatedSink });
+    await engine.start({
+      api: fake.api,
+      database: null,
+      sink: gatedSink,
+      logDir: "dir/logs",
+    });
 
     const applied = engine.applyListing({
       listing: [handle("old-dir.eval", 1)],
@@ -869,7 +875,12 @@ describe("FetchEngine.applyListing epoch fencing", () => {
     });
 
     const { sink: secondSink, calls: secondCalls } = createFakeSink();
-    await engine.start({ api: fake.api, database: null, sink: secondSink });
+    await engine.start({
+      api: fake.api,
+      database: null,
+      sink: secondSink,
+      logDir: "dir/logs",
+    });
     gate.resolve();
 
     // The in-flight delete drains into the old session's sink; everything
@@ -895,7 +906,7 @@ describe("FetchEngine.applyListing epoch fencing", () => {
 
     // Dir switch while the server read is in flight.
     const { sink, calls } = createFakeSink();
-    await engine.start({ api, database: null, sink });
+    await engine.start({ api, database: null, sink, logDir: "dir/logs" });
     gate.resolve({
       files: [handle("old-dir.eval", 1)],
       response_type: "full",
@@ -1290,7 +1301,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const db = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink, calls } = createFakeSink(db);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
-    await engine.start({ api: fake.api, database: db, sink });
+    await engine.start({ api: fake.api, database: db, sink, logDir: "dir/logs" });
 
     await expect(
       engine.ensure("a.eval", { depth: "detailed", priority: "user" })
@@ -1301,7 +1312,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
 
     engine.stop();
-    await engine.start({ api: fake.api, database: db, sink });
+    await engine.start({ api: fake.api, database: db, sink, logDir: "dir/logs" });
 
     expect(calls.fetchStates["a.eval"]).toMatchObject({
       details_fetch_error: "fetch failed: a.eval",
@@ -1467,7 +1478,7 @@ describe("FetchEngine details settle seq persistence (F3)", () => {
     const db = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink, calls } = createFakeSink(db);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
-    await engine.start({ api: fake.api, database: db, sink });
+    await engine.start({ api: fake.api, database: db, sink, logDir: "dir/logs" });
 
     await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
@@ -1528,7 +1539,12 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
     const dbA = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink: sinkA } = createFakeSink(dbA);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
-    await engine.start({ api: fakeA.api, database: dbA, sink: sinkA });
+    await engine.start({
+      api: fakeA.api,
+      database: dbA,
+      sink: sinkA,
+      logDir: "dir/logs",
+    });
 
     const inFlight = engine.ensure("a.eval", {
       depth: "detailed",
@@ -1542,7 +1558,12 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
     const fakeB = createFakeApi();
     const dbB = createFakeDb([listedRow(handle("b.eval"))]);
     const { sink: sinkB, calls: callsB } = createFakeSink(dbB);
-    await engine.start({ api: fakeB.api, database: dbB, sink: sinkB });
+    await engine.start({
+      api: fakeB.api,
+      database: dbB,
+      sink: sinkB,
+      logDir: "dir/logs",
+    });
 
     await expect(inFlight).rejects.toThrow("Fetch engine stopped");
 
@@ -1722,7 +1743,12 @@ describe("FetchEngine batched flush trailing coalesce (F7)", () => {
       statsDelayMs: 0,
       concurrency: 1,
     });
-    await engine.start({ api: fake.api, database: null, sink: gatedSink });
+    await engine.start({
+      api: fake.api,
+      database: null,
+      sink: gatedSink,
+      logDir: "dir/logs",
+    });
 
     await engine.applyListing({
       listing: [handle("a.eval"), handle("b.eval")],
@@ -1773,7 +1799,12 @@ describe("FetchEngine batched flush trailing coalesce (F7)", () => {
       statsDelayMs: 0,
       concurrency: 1,
     });
-    await engine.start({ api: fake.api, database: null, sink: gatedSink });
+    await engine.start({
+      api: fake.api,
+      database: null,
+      sink: gatedSink,
+      logDir: "dir/logs",
+    });
 
     // a.eval's preview settles → its flush starts and blocks on the gate.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises

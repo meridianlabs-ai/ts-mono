@@ -16,6 +16,8 @@ import {
   fromLogRecord,
   LogRecord,
   SampleSummaryRecord,
+  scopePrefix,
+  SyncScopeRecord,
   toLogRecord,
 } from "./schema";
 
@@ -24,6 +26,11 @@ const log = createLogger("DatabaseService");
 /** Scope of a sample-summaries read: one log file, or every file under a
  *  path prefix. */
 export type SampleSummariesScope = { file: string } | { prefix: string };
+
+/** Scope of a log-rows read/clear: every file under a dir. The database is
+ *  unified across log dirs, so whole-table reads are never correct — every
+ *  listing-level operation names its scope. */
+export type LogScope = { prefix: string };
 
 const newRow = (handle: LogHandle): Log => ({
   ...handle,
@@ -61,10 +68,10 @@ export class DatabaseService {
   }
 
   /**
-   * Open a database for the specified log directory.
+   * Open the (unified) database.
    */
-  async openDatabase(databaseHandle: string): Promise<void> {
-    await this.manager.openDatabase(databaseHandle);
+  async openDatabase(): Promise<void> {
+    await this.manager.openDatabase();
   }
 
   /**
@@ -72,13 +79,6 @@ export class DatabaseService {
    */
   async closeDatabase(): Promise<void> {
     await this.manager.close();
-  }
-
-  /**
-   * Get the current log directory.
-   */
-  getDatabaseHandle(): string | null {
-    return this.manager.getDatabaseHandle();
   }
 
   // === LOG ROWS ===
@@ -92,7 +92,10 @@ export class DatabaseService {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    const existingRecords = await db.logs.toArray();
+    const existingRecords = await db.logs
+      .where("file_path")
+      .anyOf(handles.map((handle) => handle.name))
+      .toArray();
     const existingByPath = new Map(
       existingRecords.map((record) => [record.file_path, record])
     );
@@ -114,7 +117,7 @@ export class DatabaseService {
     await db.logs.bulkPut(records);
   }
 
-  async readLogs(): Promise<Log[] | null> {
+  async readLogs(scope: LogScope): Promise<Log[] | null> {
     try {
       if (!this.opened()) {
         log.debug("Database not open");
@@ -122,7 +125,10 @@ export class DatabaseService {
       }
 
       const db = this.getDb();
-      const records = await db.logs.toArray();
+      const records = await db.logs
+        .where("file_path")
+        .startsWith(scopePrefix(scope.prefix))
+        .toArray();
 
       // Sort by mtime (descending) if present, otherwise maintain insertion
       // order. Note: != null (not !==) catches both null and undefined.
@@ -261,7 +267,9 @@ export class DatabaseService {
     const collection =
       "file" in scope
         ? db.sample_summaries.where("file_path").equals(scope.file)
-        : db.sample_summaries.where("file_path").startsWith(scope.prefix);
+        : db.sample_summaries
+            .where("file_path")
+            .startsWith(scopePrefix(scope.prefix));
     return collection.toArray();
   }
 
@@ -319,33 +327,74 @@ export class DatabaseService {
   }
 
   /**
-   * Clear all cached data from all tables.
+   * Clear all cached data under a scope: its log rows, their sample
+   * summaries, and the scope's sync record. Other scopes' rows are untouched.
    */
-  async clearAllCaches(): Promise<void> {
+  async clearScope(scope: LogScope): Promise<void> {
     const db = this.getDb();
+    const prefix = scopePrefix(scope.prefix);
 
-    log.debug("Clearing all caches");
-    await Promise.all([db.logs.clear(), db.sample_summaries.clear()]);
+    log.debug(`Clearing caches under: ${prefix}`);
+    await Promise.all([
+      db.logs.where("file_path").startsWith(prefix).delete(),
+      db.sample_summaries.where("file_path").startsWith(prefix).delete(),
+      db.sync_scopes.delete(scope.prefix),
+    ]);
+  }
+
+  // === SYNC SCOPES ===
+
+  /** Record that a scope is active (creating its row on first contact). */
+  async touchSyncScope(prefix: string): Promise<void> {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+    const existing = await db.sync_scopes.get(prefix);
+    await db.sync_scopes.put({ ...existing, prefix, last_accessed: now });
+  }
+
+  /** Read a scope's sync record (undefined when never activated). */
+  async getSyncScope(prefix: string): Promise<SyncScopeRecord | undefined> {
+    const db = this.getDb();
+    return db.sync_scopes.get(prefix);
+  }
+
+  /** Record that a listing sync persisted under a scope. */
+  async markScopeSynced(prefix: string): Promise<void> {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+    const existing = await db.sync_scopes.get(prefix);
+    await db.sync_scopes.put({
+      prefix,
+      last_accessed: existing?.last_accessed ?? now,
+      last_synced: now,
+    });
   }
 
   /**
-   * Get cache statistics.
+   * Get cache statistics for a scope.
    */
-  async getCacheStats(): Promise<{
+  async getCacheStats(scope: LogScope): Promise<{
     logFiles: number;
     logSummaries: number;
     logHeaders: number;
     sampleSummaries: number;
-    logHandle: string | null;
   }> {
     const db = this.getDb();
+    const prefix = scopePrefix(scope.prefix);
 
+    // Depth breakdowns can't compose a second index with the file_path
+    // range — filter in JS (debug/advisory stats only).
+    const scoped = () => db.logs.where("file_path").startsWith(prefix);
     const [logFiles, logSummaries, logHeaders, sampleSummaries] =
       await Promise.all([
-        db.logs.count(),
-        db.logs.where("depth").anyOf(["previewed", "detailed"]).count(),
-        db.logs.where("depth").equals("detailed").count(),
-        db.sample_summaries.count(),
+        scoped().count(),
+        scoped()
+          .filter((record) => record.depth !== "listed")
+          .count(),
+        scoped()
+          .filter((record) => record.depth === "detailed")
+          .count(),
+        db.sample_summaries.where("file_path").startsWith(prefix).count(),
       ]);
 
     return {
@@ -353,7 +402,6 @@ export class DatabaseService {
       logSummaries,
       logHeaders,
       sampleSummaries,
-      logHandle: this.manager.getDatabaseHandle(),
     };
   }
 }

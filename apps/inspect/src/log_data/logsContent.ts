@@ -209,7 +209,8 @@ export const writeListing = async (
 ): Promise<Log[]> => {
   if (db?.opened()) {
     await db.writeLogs(handles);
-    const all = await db.readLogs();
+    await db.markScopeSynced(logDir);
+    const all = await db.readLogs({ prefix: logDir });
     if (all) {
       setRows(logDir, all);
       return all;
@@ -348,7 +349,7 @@ export const clearAll = async (
 ): Promise<void> => {
   clearCache(logDir);
   if (db?.opened()) {
-    await db.clearAllCaches();
+    await db.clearScope({ prefix: logDir });
   }
 };
 

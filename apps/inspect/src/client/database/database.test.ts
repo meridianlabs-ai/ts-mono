@@ -8,6 +8,7 @@
  * - sample_summaries: sample summaries split out of details payloads
  */
 
+import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
@@ -19,6 +20,7 @@ import {
   SampleSummary,
 } from "../api/types";
 
+import { DB_NAME } from "./schema";
 import { createDatabaseService, DatabaseService } from "./service";
 
 // Helper function to create test LogSummary
@@ -111,18 +113,19 @@ describe("Database Service", () => {
   beforeEach(async () => {
     // Create a new database service for each test
     databaseService = createDatabaseService();
-    // Open database with test log directory
-    await databaseService.openDatabase("/test/logs");
+    await databaseService.openDatabase();
   });
 
   afterEach(async () => {
-    // Clean up after each test (only if database is still open)
+    // Clean up after each test (only if database is still open). The
+    // database name is a constant, so cross-test isolation comes from
+    // deleting it outright.
     try {
-      await databaseService.clearAllCaches();
       await databaseService.closeDatabase();
     } catch {
       // Database might already be closed in error handling tests
     }
+    await Dexie.delete(DB_NAME);
   });
 
   describe("Log Rows (identity tier)", () => {
@@ -146,7 +149,7 @@ describe("Database Service", () => {
       await databaseService.writeLogs(testLogRoot);
 
       // Retrieve cached files
-      const files = await databaseService.readLogs();
+      const files = await databaseService.readLogs({ prefix: "/test/logs" });
 
       expect(files).not.toBeNull();
       expect(files).toHaveLength(2);
@@ -169,7 +172,7 @@ describe("Database Service", () => {
         { name: "/test/logs/eval2.json", task: "additional-task" },
       ];
       await databaseService.writeLogs(updatedFiles);
-      const files = await databaseService.readLogs();
+      const files = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(files).toHaveLength(2);
       expect(files?.find((f) => f.name === "/test/logs/eval1.json")?.task).toBe(
         "updated-task"
@@ -372,13 +375,14 @@ describe("Database Service", () => {
 
   describe("Cache Statistics and Management", () => {
     test("should return cache statistics", async () => {
-      const stats = await databaseService.getCacheStats();
+      const stats = await databaseService.getCacheStats({
+        prefix: "/test/logs",
+      });
 
       expect(stats.logFiles).toBe(0);
       expect(stats.logSummaries).toBe(0);
       expect(stats.logHeaders).toBe(0);
       expect(stats.sampleSummaries).toBe(0);
-      expect(stats.logHandle).toBe("/test/logs");
     });
 
     test("should clear all caches", async () => {
@@ -397,7 +401,9 @@ describe("Database Service", () => {
         }),
       });
 
-      const stats1 = await databaseService.getCacheStats();
+      const stats1 = await databaseService.getCacheStats({
+        prefix: "/test/logs",
+      });
       // One unified row, now at detailed depth: it counts as a log file, as
       // previewed-or-deeper (logSummaries) and as detailed (logHeaders).
       expect(stats1.logFiles).toBe(1);
@@ -406,9 +412,11 @@ describe("Database Service", () => {
       expect(stats1.sampleSummaries).toBe(1);
 
       // Clear all caches
-      await databaseService.clearAllCaches();
+      await databaseService.clearScope({ prefix: "/test/logs" });
 
-      const stats2 = await databaseService.getCacheStats();
+      const stats2 = await databaseService.getCacheStats({
+        prefix: "/test/logs",
+      });
       expect(stats2.logFiles).toBe(0);
       expect(stats2.logSummaries).toBe(0);
       expect(stats2.logHeaders).toBe(0);
@@ -424,7 +432,9 @@ describe("Database Service", () => {
         "/test/logs/detailed.json": createTestLogInfo(),
       });
 
-      const stats = await databaseService.getCacheStats();
+      const stats = await databaseService.getCacheStats({
+        prefix: "/test/logs",
+      });
       expect(stats.logFiles).toBe(3);
       expect(stats.logSummaries).toBe(2); // previewed + detailed
       expect(stats.logHeaders).toBe(1); // detailed only
@@ -448,7 +458,9 @@ describe("Database Service", () => {
         }),
       });
 
-      const stats = await databaseService.getCacheStats();
+      const stats = await databaseService.getCacheStats({
+        prefix: "/test/logs",
+      });
       expect(stats.sampleSummaries).toBe(5); // Total samples across both files
     });
   });
@@ -535,10 +547,63 @@ describe("Database Service", () => {
         "/test/logs/b.json": createTestFetchState(),
       });
 
-      await databaseService.clearAllCaches();
+      await databaseService.clearScope({ prefix: "/test/logs" });
 
-      const files = await databaseService.readLogs();
+      const files = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(files).toHaveLength(0);
+    });
+  });
+
+  describe("Unified Database Scoping", () => {
+    test("reads and clears are isolated per scope", async () => {
+      await databaseService.writeLogs([
+        { name: "/logs/a.eval" },
+        { name: "/logs/important/b.eval" },
+        { name: "/other/c.eval" },
+      ]);
+
+      // A nested dir's rows are visible to both the parent and the nested
+      // scope — replicated once, shared.
+      expect(await databaseService.readLogs({ prefix: "/logs" })).toHaveLength(
+        2
+      );
+      expect(
+        await databaseService.readLogs({ prefix: "/logs/important" })
+      ).toHaveLength(1);
+
+      await databaseService.clearScope({ prefix: "/logs" });
+      expect(await databaseService.readLogs({ prefix: "/logs" })).toHaveLength(
+        0
+      );
+      expect(await databaseService.readLogs({ prefix: "/other" })).toHaveLength(
+        1
+      );
+    });
+
+    test("scope prefixes are boundary-safe", async () => {
+      await databaseService.writeLogs([
+        { name: "/logs/important/a.eval" },
+        { name: "/logs/important-2/b.eval" },
+      ]);
+
+      const files = await databaseService.readLogs({
+        prefix: "/logs/important",
+      });
+      expect(files?.map((f) => f.name)).toEqual(["/logs/important/a.eval"]);
+    });
+
+    test("sync scopes record activation and listing syncs", async () => {
+      await databaseService.touchSyncScope("/logs");
+      let stats = await databaseService.getSyncScope("/logs");
+      expect(stats?.last_accessed).toBeDefined();
+      expect(stats?.last_synced).toBeUndefined();
+
+      await databaseService.markScopeSynced("/logs");
+      stats = await databaseService.getSyncScope("/logs");
+      expect(stats?.last_synced).toBeDefined();
+
+      await databaseService.clearScope({ prefix: "/logs" });
+      expect(await databaseService.getSyncScope("/logs")).toBeUndefined();
     });
   });
 
@@ -585,7 +650,7 @@ describe("Database Service", () => {
       await databaseService.closeDatabase();
 
       // Should return null when database is closed (graceful error handling)
-      const result = await databaseService.readLogs();
+      const result = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(result).toBeNull();
     });
   });
