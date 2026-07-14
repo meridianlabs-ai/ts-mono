@@ -59,6 +59,14 @@ vi.mock("@tsmono/util", async (importOriginal) => {
   return { ...actual, isHostedEnvironment: vi.fn(() => true) };
 });
 
+// TranscriptPanel calls `useLogDir()` (→ app config → react-query) only to
+// build a fallback log path; the sample route here already carries one, so the
+// value is unused. Stub it so rendering doesn't require a QueryClientProvider.
+vi.mock("../../../app_config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../app_config")>();
+  return { ...actual, useLogDir: () => "dir" };
+});
+
 // Stub the layout with a probe that exercises the three link paths exactly
 // the way the real shared components do: `getEventUrl` feeds the copy button
 // verbatim (gated on `linkingEnabled`), the outline renders
