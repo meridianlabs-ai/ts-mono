@@ -632,14 +632,6 @@ export const logsUrlRaw = (
   }
 };
 
-export const supportsLinking = () => {
-  return (
-    location.hostname !== "localhost" &&
-    location.hostname !== "127.0.0.1" &&
-    location.protocol !== "vscode-webview:"
-  );
-};
-
 export const toFullUrl = (path: string) => {
   return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
 };
