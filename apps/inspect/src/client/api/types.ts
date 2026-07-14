@@ -547,6 +547,11 @@ export type LogFetchState = Pick<
 export interface LogRoot {
   logs: LogHandle[];
   log_dir?: string;
+  /** The dir in the same canonical URI namespace as file names (a local
+   *  view server aliases `log_dir` for display, e.g. `~/logs`, while names
+   *  are `file://` URIs). Prefix scoping needs this form; older servers
+   *  don't send it. */
+  log_dir_uri?: string;
   abs_log_dir?: string;
 }
 

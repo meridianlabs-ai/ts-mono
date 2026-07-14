@@ -1,6 +1,6 @@
 import { LogHandle } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
+import { AsyncData, createLogger } from "@tsmono/util";
 
 import {
   Log,
@@ -8,7 +8,7 @@ import {
   LogFetchState,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { DatabaseService, scopePrefix } from "../client/database";
 import {
   maxDepth,
   prepareLogDetails,
@@ -38,6 +38,8 @@ import {
  * `set*`/`merge*`/`seed*` primitives) are allowed; the invariant is
  * one-directional (db ⟹ cache).
  */
+
+const log = createLogger("logsContent");
 
 const EMPTY_LOGS: Log[] = [];
 
@@ -196,6 +198,27 @@ const clearCache = (logDir: string): void => {
 // ---------------------------------------------------------------------------
 
 /**
+ * The store scopes every read by `file_path.startsWith(scopePrefix(logDir))`,
+ * so persistence requires the listing's names to live in `logDir`'s
+ * namespace. A server can violate that (e.g. an older view server hands out
+ * an aliased local path as log_dir while names are `file://` URIs) —
+ * persisting under such a scope would strand the rows where no scoped read,
+ * clear, or seed can reach them, and the empty read-back would blank the
+ * just-synced listing. Degrade to cache-only instead.
+ */
+const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
+  const prefix = scopePrefix(logDir);
+  const misnamed = handles.find((handle) => !handle.name.startsWith(prefix));
+  if (misnamed !== undefined) {
+    log.warn(
+      `Listing names (e.g. ${misnamed.name}) are outside the log dir's namespace (${prefix}); skipping persistence for this scope.`
+    );
+    return false;
+  }
+  return true;
+};
+
+/**
  * Persist the listing identity tier and cache the resulting full row list.
  * The db write is a merge-upsert (rows keep depth/content) and the cache
  * holds the full re-read, so the full list is read back and returned for the
@@ -206,7 +229,7 @@ export const writeListing = async (
   logDir: string,
   handles: LogHandle[]
 ): Promise<Log[]> => {
-  if (db?.opened()) {
+  if (db?.opened() && namesInScope(logDir, handles)) {
     await db.writeLogs(handles);
     await db.markScopeSynced(logDir);
     const all = await db.readLogs({ prefix: logDir });

@@ -119,14 +119,18 @@ export const loadResolvedAppConfig = async (
     bs.api.get_app_config(),
     resolveLogRoot(bs),
   ]);
-  if (!logRoot.log_dir) {
+  // Prefer the canonical URI form — the namespace file names live in — so
+  // prefix scoping (IndexedDB reads, samples scopes) holds. log_dir alone is
+  // a display form on local view servers (aliased/relative path).
+  const logDir = logRoot.log_dir_uri ?? logRoot.log_dir;
+  if (!logDir) {
     throw new Error("Log dir not resolved");
   }
   return {
     ...bs,
     inspect_version: versions.inspect_version,
     scout_version: versions.scout_version ?? null,
-    logDir: logRoot.log_dir,
+    logDir,
     absLogDir: logRoot.abs_log_dir,
   };
 };
