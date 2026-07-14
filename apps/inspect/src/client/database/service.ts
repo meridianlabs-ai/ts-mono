@@ -1,13 +1,11 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import { Log, LogDetails, LogFetchState, LogPreview } from "../api/types";
-import { deriveSampleFields } from "../utils/derive";
+import { Log, LogFetchState, LogPreview } from "../api/types";
 import {
-  detailTier,
   maxDepth,
+  PreparedLogDetails,
   previewTier,
-  toLogHeader,
 } from "../utils/type-utils";
 
 import { DatabaseManager } from "./manager";
@@ -223,12 +221,15 @@ export class DatabaseService {
   // === DETAILED TIER ===
 
   /**
-   * Ingest details payloads: merge the detailed tier into each log row and
-   * replace the file's sample summary rows, in one transaction per call so a
-   * reader never sees a header whose summary rows are from an older
-   * ingestion.
+   * Ingest prepared details payloads (`prepareLogDetails` — the seam
+   * normalizes once for both stores): merge the detailed tier into each log
+   * row and replace the file's sample summary rows, in one transaction per
+   * call so a reader never sees a header whose summary rows are from an
+   * older ingestion.
    */
-  async writeLogDetails(details: Record<string, LogDetails>): Promise<void> {
+  async writeLogDetails(
+    details: Record<string, PreparedLogDetails>
+  ): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
@@ -236,23 +237,18 @@ export class DatabaseService {
     log.debug(`Ingesting ${entries.length} log details (split)`);
     await db.transaction("rw", db.logs, db.sample_summaries, async () => {
       await this.mergeRows(
-        Object.fromEntries(
-          entries.map(([file, payload]) => [
-            file,
-            detailTier(toLogHeader(payload)),
-          ])
-        )
+        Object.fromEntries(entries.map(([file, { patch }]) => [file, patch]))
       );
       const files = entries.map(([filePath]) => filePath);
       await db.sample_summaries.where("file_path").anyOf(files).delete();
       await db.sample_summaries.bulkPut(
-        entries.flatMap(([filePath, payload]) =>
-          payload.sampleSummaries.map<SampleSummaryRecord>((summary) => ({
+        entries.flatMap(([filePath, { summaries }]) =>
+          summaries.map<SampleSummaryRecord>(({ summary, derived }) => ({
             file_path: filePath,
             id: summary.id,
             epoch: summary.epoch,
             summary,
-            derived: deriveSampleFields(summary),
+            derived,
             cached_at: now,
           }))
         )

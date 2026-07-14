@@ -10,10 +10,9 @@ import {
 } from "../client/api/types";
 import { DatabaseService } from "../client/database";
 import {
-  detailTier,
   maxDepth,
+  prepareLogDetails,
   previewTier,
-  toLogHeader,
 } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
@@ -251,35 +250,24 @@ export const writeDetails = async (
   logDir: string,
   details: Record<string, LogDetails>
 ): Promise<void> => {
-  const headers = Object.fromEntries(
-    Object.entries(details).map(([name, payload]) => [
-      name,
-      toLogHeader(payload),
-    ])
+  const prepared = Object.entries(details).map(
+    ([name, payload]) => [name, prepareLogDetails(payload)] as const
   );
   await Promise.all(
-    Object.entries(details).map(([name, payload]) => {
-      const header = headers[name];
-      return header === undefined
-        ? Promise.resolve()
-        : pushFileSamples(
-            logDir,
-            name,
-            toSamplesListingRows(name, header, payload.sampleSummaries)
-          );
-    })
+    prepared.map(([name, file]) =>
+      pushFileSamples(
+        logDir,
+        name,
+        toSamplesListingRows(name, file.header, file.summaries)
+      )
+    )
   );
   mergePatches(
     logDir,
-    Object.fromEntries(
-      Object.entries(headers).map(([name, header]) => [
-        name,
-        detailTier(header),
-      ])
-    )
+    Object.fromEntries(prepared.map(([name, file]) => [name, file.patch]))
   );
   if (db?.opened()) {
-    await db.writeLogDetails(details);
+    await db.writeLogDetails(Object.fromEntries(prepared));
     invalidateSamplesListings(logDir);
   }
 };

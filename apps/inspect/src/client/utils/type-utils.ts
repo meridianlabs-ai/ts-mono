@@ -7,9 +7,11 @@ import {
   LogDetails,
   LogHeader,
   LogPreview,
+  SampleDerived,
+  SampleSummary,
 } from "../api/types";
 
-import { deriveLogFields } from "./derive";
+import { deriveLogFields, deriveSampleFields } from "./derive";
 
 const kDepthOrder: Record<LogDepth, number> = {
   listed: 0,
@@ -67,6 +69,34 @@ export const toLogHeader = (details: LogDetails): LogHeader => {
     sampleCount: sampleSummaries.length,
     sampleErrorCount: errorCount,
     sampleLimits: [...limits].sort(),
+  };
+};
+
+export interface PreparedSampleSummary {
+  summary: SampleSummary;
+  derived: SampleDerived;
+}
+
+/** A details payload normalized once at ingestion: the header split out, its
+ *  detailed-tier row patch, and each summary paired with its derived columns.
+ *  Both stores (the query cache's pushes and the IndexedDB write) consume
+ *  this single computation, so they can't disagree — and `deriveSampleFields`
+ *  never runs twice for one payload. */
+export interface PreparedLogDetails {
+  header: LogHeader;
+  patch: Partial<Log> & { depth: LogDepth };
+  summaries: PreparedSampleSummary[];
+}
+
+export const prepareLogDetails = (details: LogDetails): PreparedLogDetails => {
+  const header = toLogHeader(details);
+  return {
+    header,
+    patch: detailTier(header),
+    summaries: details.sampleSummaries.map((summary) => ({
+      summary,
+      derived: deriveSampleFields(summary),
+    })),
   };
 };
 

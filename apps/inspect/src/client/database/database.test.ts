@@ -20,6 +20,8 @@ import {
   SampleSummary,
 } from "../api/types";
 
+import { prepareLogDetails } from "../utils/type-utils";
+
 import { DB_NAME } from "./schema";
 import { createDatabaseService, DatabaseService } from "./service";
 
@@ -109,6 +111,18 @@ function createTestSampleSummary(
 
 describe("Database Service", () => {
   let databaseService: DatabaseService;
+
+  // The service ingests seam-prepared payloads; tests write raw LogDetails
+  // through the same normalization.
+  const writeLogDetails = (details: Record<string, LogDetails>) =>
+    databaseService.writeLogDetails(
+      Object.fromEntries(
+        Object.entries(details).map(([file, payload]) => [
+          file,
+          prepareLogDetails(payload),
+        ])
+      )
+    );
 
   beforeEach(async () => {
     // Create a new database service for each test
@@ -266,7 +280,7 @@ describe("Database Service", () => {
       });
 
       // Ingest the payload (split: detailed row tier + summary rows)
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": logInfo,
       });
 
@@ -303,7 +317,7 @@ describe("Database Service", () => {
         createTestSampleSummary({ id: 3, error: "timeout" }),
       ];
 
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: samples,
         }),
@@ -327,7 +341,7 @@ describe("Database Service", () => {
     });
 
     test("should read sample summaries across files by prefix", async () => {
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [
             createTestSampleSummary({ id: 1 }),
@@ -352,7 +366,7 @@ describe("Database Service", () => {
     });
 
     test("re-ingestion replaces a file's summary rows", async () => {
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [
             createTestSampleSummary({ id: 1 }),
@@ -360,7 +374,7 @@ describe("Database Service", () => {
           ],
         }),
       });
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [createTestSampleSummary({ id: 1 })],
         }),
@@ -395,7 +409,7 @@ describe("Database Service", () => {
         "/test/logs/eval1.json": createTestLogSummary(),
       });
 
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [createTestSampleSummary()],
         }),
@@ -428,7 +442,7 @@ describe("Database Service", () => {
       await databaseService.writeLogPreviews({
         "/test/logs/previewed.json": createTestLogSummary(),
       });
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/detailed.json": createTestLogInfo(),
       });
 
@@ -442,7 +456,7 @@ describe("Database Service", () => {
 
     test("should count sample summaries correctly", async () => {
       // Cache multiple log info with different number of samples
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [
             createTestSampleSummary({ id: 1 }),
@@ -629,7 +643,7 @@ describe("Database Service", () => {
       await databaseService.writeLogs([
         { name: "/test/logs/eval1.json", task: "task-1", mtime: 42 },
       ]);
-      await databaseService.writeLogDetails({
+      await writeLogDetails({
         "/test/logs/eval1.json": createTestLogInfo({
           sampleSummaries: [createTestSampleSummary()],
         }),

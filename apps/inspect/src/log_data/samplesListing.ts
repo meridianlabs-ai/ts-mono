@@ -11,7 +11,7 @@ import {
   SampleSummary,
 } from "../client/api/types";
 import { SampleSummariesScope } from "../client/database";
-import { deriveSampleFields } from "../client/utils/derive";
+import { PreparedSampleSummary } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { getDatabaseService } from "./databaseServiceInstance";
@@ -87,17 +87,17 @@ const rowContext = (row: Log | undefined): SamplesListingLogContext =>
         status: row.status,
       };
 
-/** Assemble listing rows from an ingested payload's parts (the sink's push
+/** Assemble listing rows from a prepared payload's parts (the sink's push
  *  path — the db read below produces the same shape). */
 export const toSamplesListingRows = (
   logFile: string,
   header: LogHeader,
-  summaries: SampleSummary[]
+  summaries: PreparedSampleSummary[]
 ): SamplesListingRow[] =>
-  summaries.map((summary) => ({
+  summaries.map(({ summary, derived }) => ({
     logFile,
     summary,
-    derived: deriveSampleFields(summary),
+    derived,
     log: logContext(header),
   }));
 
