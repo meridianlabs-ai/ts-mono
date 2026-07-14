@@ -46,8 +46,9 @@ export interface SampleSummaryRecord {
 // by that scope's listing syncs; the timestamps exist so future
 // eviction/cleanup policies can reason about scope staleness.
 export interface SyncScopeRecord {
-  /** The scope's directory prefix (a `file_path` prefix), as the app names
-   *  it — see `scopePrefix` for boundary-safe matching. */
+  /** The scope's directory prefix (a `file_path` prefix), stored in
+   *  boundary-safe `scopePrefix` form so `clearScope` can sweep a scope and
+   *  everything nested under it with one prefix match. */
   prefix: string;
   /** Last time a listing sync persisted under this scope. */
   last_synced?: string;
@@ -59,7 +60,7 @@ export interface SyncScopeRecord {
 // behavior change in `deriveLogFields`/`deriveSampleFields` — stored rows
 // carry derived values and are only recomputed via the recreate-on-mismatch
 // wipe.
-export const DB_VERSION = 14;
+export const DB_VERSION = 15;
 
 // One database per origin (not per log dir): `file_path` is a full path/URI,
 // so rows from overlapping dirs (e.g. /logs and /logs/important) share

@@ -335,38 +335,60 @@ export class DatabaseService {
     const prefix = scopePrefix(scope.prefix);
 
     log.debug(`Clearing caches under: ${prefix}`);
-    await Promise.all([
-      db.logs.where("file_path").startsWith(prefix).delete(),
-      db.sample_summaries.where("file_path").startsWith(prefix).delete(),
-      db.sync_scopes.delete(scope.prefix),
-    ]);
+    // One transaction: a partial failure must not leave rows deleted while a
+    // sync record still claims the scope is replicated. The sync_scopes sweep
+    // is prefix-based so nested scopes' records go with their rows.
+    await db.transaction(
+      "rw",
+      [db.logs, db.sample_summaries, db.sync_scopes],
+      () =>
+        Promise.all([
+          db.logs.where("file_path").startsWith(prefix).delete(),
+          db.sample_summaries.where("file_path").startsWith(prefix).delete(),
+          db.sync_scopes.where("prefix").startsWith(prefix).delete(),
+        ])
+    );
   }
 
   // === SYNC SCOPES ===
+  // Keys are stored in boundary-safe `scopePrefix` form. The get-then-put
+  // upserts run in single transactions: the per-origin database is shared
+  // across tabs, and an unfenced read-modify-write can overwrite another
+  // tab's just-written timestamp.
 
   /** Record that a scope is active (creating its row on first contact). */
   async touchSyncScope(prefix: string): Promise<void> {
     const db = this.getDb();
+    const key = scopePrefix(prefix);
     const now = new Date().toISOString();
-    const existing = await db.sync_scopes.get(prefix);
-    await db.sync_scopes.put({ ...existing, prefix, last_accessed: now });
+    await db.transaction("rw", db.sync_scopes, async () => {
+      const existing = await db.sync_scopes.get(key);
+      await db.sync_scopes.put({
+        ...existing,
+        prefix: key,
+        last_accessed: now,
+      });
+    });
   }
 
   /** Read a scope's sync record (undefined when never activated). */
   async getSyncScope(prefix: string): Promise<SyncScopeRecord | undefined> {
     const db = this.getDb();
-    return db.sync_scopes.get(prefix);
+    return db.sync_scopes.get(scopePrefix(prefix));
   }
 
   /** Record that a listing sync persisted under a scope. */
   async markScopeSynced(prefix: string): Promise<void> {
     const db = this.getDb();
+    const key = scopePrefix(prefix);
     const now = new Date().toISOString();
-    const existing = await db.sync_scopes.get(prefix);
-    await db.sync_scopes.put({
-      prefix,
-      last_accessed: existing?.last_accessed ?? now,
-      last_synced: now,
+    await db.transaction("rw", db.sync_scopes, async () => {
+      const existing = await db.sync_scopes.get(key);
+      await db.sync_scopes.put({
+        prefix: key,
+        last_accessed: existing?.last_accessed ?? now,
+        last_synced: now,
+      });
     });
   }
 

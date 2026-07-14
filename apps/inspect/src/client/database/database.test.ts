@@ -605,6 +605,23 @@ describe("Database Service", () => {
       await databaseService.clearScope({ prefix: "/logs" });
       expect(await databaseService.getSyncScope("/logs")).toBeUndefined();
     });
+
+    test("clearScope sweeps nested scopes' sync records with their rows", async () => {
+      await databaseService.markScopeSynced("/logs");
+      await databaseService.markScopeSynced("/logs/important");
+      await databaseService.markScopeSynced("/logs-other");
+
+      await databaseService.clearScope({ prefix: "/logs" });
+
+      expect(await databaseService.getSyncScope("/logs")).toBeUndefined();
+      expect(
+        await databaseService.getSyncScope("/logs/important")
+      ).toBeUndefined();
+      // Boundary-safe: a sibling '-suffix' scope survives.
+      expect(
+        (await databaseService.getSyncScope("/logs-other"))?.last_synced
+      ).toBeDefined();
+    });
   });
 
   describe("Depth Reset (invalidation)", () => {
