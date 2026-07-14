@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
 import {
@@ -518,38 +518,6 @@ export const sampleMessageUrl = (
   return `${baseUrl}?message=${messageId}`;
 };
 
-/**
- * Returns a builder for *shareable* message links: the relative hash route
- * from `sampleMessageUrl` wrapped with the host page's origin/path via
- * `toFullUrl`. Copy-to-clipboard consumers (ChatMessage's copy button) must
- * use this rather than the bare route, which only works for in-app router
- * navigation.
- */
-export const useFullSampleMessageUrlBuilder = () => {
-  const builder = useSampleUrlBuilder();
-  const {
-    logPath: urlLogPath,
-    id: urlSampleId,
-    epoch: urlEpoch,
-  } = useLogOrSampleRouteParams();
-
-  return useCallback(
-    (messageId: string) =>
-      toFullUrlMaybe(
-        urlLogPath
-          ? sampleMessageUrl(
-              builder,
-              messageId,
-              urlLogPath,
-              urlSampleId,
-              urlEpoch
-            )
-          : undefined
-      ),
-    [builder, urlLogPath, urlSampleId, urlEpoch]
-  );
-};
-
 export const tasksUrl = (log_file: string, log_dir?: string) => {
   const path = makeLogsPath(log_file, log_dir);
   const decodedLogSegment = decodeUrlParam(path) || path;
@@ -638,16 +606,11 @@ export const supportsLinking = () => {
   );
 };
 
+/**
+ * Convert a hash route into an absolute shareable URL, preserving the host
+ * page's path and query (which, when the viewer is embedded, is not just "/").
+ * Passed as `toShareUrl` to shared components that surface copyable links.
+ */
 export const toFullUrl = (path: string) => {
   return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
-};
-
-export const toFullUrlMaybe = (route: string | undefined) =>
-  route ? toFullUrl(route) : undefined;
-
-// Inverse of `toFullUrl`: recover the hash route from an absolute URL. Safe to
-// split on the first `#` — origin/pathname/search never contain a raw `#`.
-export const routeFromFullUrl = (url: string) => {
-  const hashIndex = url.indexOf("#");
-  return hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
 };

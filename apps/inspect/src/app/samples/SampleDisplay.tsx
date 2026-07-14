@@ -80,7 +80,8 @@ import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
-  useFullSampleMessageUrlBuilder,
+  sampleMessageUrl,
+  toFullUrl,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
@@ -253,15 +254,29 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const setNativeFind = useStore((state) => state.appActions.setNativeFind);
 
-  // Absolute URL (origin + host path + hash route): ChatMessage copies this
-  // value to the clipboard as a shareable link.
-  const getMessageUrl = useFullSampleMessageUrlBuilder();
+  const getMessageUrl = useCallback(
+    (messageId: string) =>
+      urlLogPath
+        ? sampleMessageUrl(
+            sampleUrlBuilder,
+            messageId,
+            urlLogPath,
+            urlSampleId,
+            urlEpoch
+          )
+        : undefined,
+    [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
+  );
 
   // Stable option objects so memoized ChatMessageRow rows don't re-render on
   // every streaming poll just because these were fresh literals each render.
   const chatDisplay = useMemo(() => ({ indented: true, formatDateTime }), []);
   const chatLinking = useMemo(
-    () => ({ enabled: isHostedEnvironment(), getMessageUrl }),
+    () => ({
+      enabled: isHostedEnvironment(),
+      getMessageUrl,
+      toShareUrl: toFullUrl,
+    }),
     [getMessageUrl]
   );
   const chatTools = useMemo(() => ({ callStyle: "complete" as const }), []);

@@ -30,9 +30,8 @@ import { useStore } from "../../../state/store";
 import { ApplicationIcons } from "../../appearance/icons";
 import {
   makeLogsPath,
-  routeFromFullUrl,
   sampleEventUrl,
-  toFullUrlMaybe,
+  toFullUrl,
   useLogOrSampleRouteParams,
   useLogRouteParams,
   useSampleUrlBuilder,
@@ -288,21 +287,11 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
   );
 
-  // The shared `getEventUrl` prop is dual-purpose: the copy button copies it
-  // verbatim (needs an absolute, shareable URL), while the outline feeds it to
-  // `renderLink` below (which strips the origin back off for in-app nav). So
-  // the value handed to the layout must be absolute.
-  const getFullEventUrl = useCallback(
-    (eventId: string) => toFullUrlMaybe(getEventUrl(eventId)),
-    [getEventUrl]
-  );
-
   // Outline link clicks are in-view navigation (jumping to an event in the
-  // same transcript), so recover the hash route from the absolute URL and
-  // use `replace` to keep the back button clean.
+  // same transcript), so use `replace` to keep the back button clean.
   const renderLink = useCallback(
     (url: string, children: ReactNode) => (
-      <Link to={routeFromFullUrl(url)} replace>
+      <Link to={url} replace>
         {children}
       </Link>
     ),
@@ -360,7 +349,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       listId={id}
       initialEventId={initialEventId}
       initialMessageId={initialMessageId}
-      getEventUrl={getFullEventUrl}
+      getEventUrl={getEventUrl}
+      toShareUrl={toFullUrl}
       // Only surface the copy-link button where a shared absolute URL is
       // meaningful — not in VS Code webviews or localhost. Matches the message
       // copy-link (SampleDisplay's `enabled: isHostedEnvironment()`).

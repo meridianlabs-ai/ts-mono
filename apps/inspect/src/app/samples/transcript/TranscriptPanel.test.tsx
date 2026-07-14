@@ -2,10 +2,11 @@
 // @vitest-environment-options {"url": "https://eval.example.org/eval-set/abc123?token=t"}
 //
 // Regression tests for the transcript copy-link URLs (the "copy link" button
-// next to an event title). The shared components treat `getEventUrl` as a
-// *shareable* URL and copy it to the clipboard verbatim, so TranscriptPanel
-// must pass an absolute URL (origin + host path + hash route), while router
-// navigation (markers, outline links) must still use the bare hash route.
+// next to an event title). The contract with the shared layout: `getEventUrl`
+// returns the router route (in-app navigation — outline links, markers), and
+// `toShareUrl` converts a route into an absolute URL wherever it leaves the
+// router (the copy button). TranscriptPanel must wire both, or copied links
+// are bare routes that don't work outside the app.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { MemoryRouter, useLocation } from "react-router-dom";
@@ -60,9 +61,9 @@ vi.mock("@tsmono/util", async (importOriginal) => {
 });
 
 // Stub the layout with a probe that exercises the three link paths exactly
-// the way the real shared components do: `getEventUrl` feeds the copy button
-// verbatim (gated on `linkingEnabled`), the outline renders
-// `renderLink(getEventUrl(id), ...)` ungated, and markers call
+// the way the real shared components do: EventPanel copies
+// `toShareUrl(getEventUrl(id))` gated on `linkingEnabled`, the outline
+// renders `renderLink(getEventUrl(id), ...)` ungated, and markers call
 // `onMarkerNavigate(id)`.
 vi.mock("@tsmono/inspect-components/transcript", async (importOriginal) => {
   const actual =
@@ -70,18 +71,16 @@ vi.mock("@tsmono/inspect-components/transcript", async (importOriginal) => {
       typeof import("@tsmono/inspect-components/transcript")
     >();
   const TranscriptLayout: typeof actual.TranscriptLayout = (props) => {
-    // Mirror the real components: EventPanel gates the copy button on
-    // `linkingEnabled`; the outline consumes `getEventUrl` ungated.
+    const route = props.getEventUrl?.("event-1");
     const copyUrl =
-      props.linkingEnabled && props.getEventUrl
-        ? props.getEventUrl("event-1")
+      props.linkingEnabled && route
+        ? (props.toShareUrl?.(route) ?? route)
         : undefined;
-    const outlineUrl = props.getEventUrl?.("event-1");
     return (
       <div>
         <div data-testid="copy-url">{copyUrl}</div>
-        {outlineUrl && props.outline?.renderLink
-          ? props.outline.renderLink(outlineUrl, <span>outline link</span>)
+        {route && props.outline?.renderLink
+          ? props.outline.renderLink(route, <span>outline link</span>)
           : null}
         <button onClick={() => props.onMarkerNavigate?.("event-1")}>
           marker
@@ -128,7 +127,7 @@ describe("TranscriptPanel linking", () => {
     );
   });
 
-  it("outline links recover the relative hash route for in-app navigation", () => {
+  it("outline links use the relative hash route for in-app navigation", () => {
     renderPanel();
     const link = screen.getByRole("link");
     expect(link.getAttribute("href")).toBe(kEventRoute);
