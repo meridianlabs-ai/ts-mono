@@ -130,7 +130,6 @@ describe("useSampleSummaries during a running eval", () => {
     }) as unknown as LogDetails;
 
   const api = {
-    get_log_dir_handle: (dir: string) => `test-${dir}`,
     get_log_details: vi.fn(() => Promise.resolve(serverDetails)),
     get_log_info: vi.fn(() => Promise.resolve(serverInfo)),
     get_log_pending_samples: vi.fn(
