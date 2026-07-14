@@ -185,7 +185,8 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
 
   // Search backwards from maxLength to find a word boundary
   for (let i = maxLength - 1; i >= 0; i--) {
-    if (/\s/.test(text[i])) {
+    const char = text[i];
+    if (char !== undefined && /\s/.test(char)) {
       lastSpace = i;
       break;
     }
@@ -198,7 +199,8 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
 
   // Otherwise, look for other breaking characters
   for (let i = maxLength - 1; i >= 0; i--) {
-    if (/[.!?,;:\-—]/.test(text[i])) {
+    const char = text[i];
+    if (char !== undefined && /[.!?,;:\-—]/.test(char)) {
       return text.slice(0, i + 1);
     }
   }

@@ -86,7 +86,8 @@ const useThemePreferenceSync = () => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SETTINGS_STORAGE_KEY) {
         window.__APPLY_BROWSER_THEME__?.();
-        void useUserSettings.persist.rehydrate();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        useUserSettings.persist.rehydrate();
       }
     };
     window.addEventListener("storage", onStorage);

@@ -193,7 +193,8 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
   const handleNavigateToTranscript = () => {
     const singleId = Array.isArray(id) ? id[0] : id;
     if (transcriptsDir && singleId) {
-      void navigate(
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(
         transcriptRoute(transcriptsDir, singleId, undefined, validationSetUri)
       );
     }

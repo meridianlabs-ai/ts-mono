@@ -4,9 +4,11 @@
  * so the new tab doesn't steal focus.
  */
 export function openInNewTab(hashRoute: string): void {
+  const hash = hashRoute.startsWith("#") ? hashRoute : `#${hashRoute}`;
   const newWin = window.open(
-    `${window.location.pathname}#${hashRoute}`,
-    "_blank"
+    `${window.location.pathname}${hash}`,
+    "_blank",
+    "noopener,noreferrer"
   );
   if (newWin) {
     newWin.blur();

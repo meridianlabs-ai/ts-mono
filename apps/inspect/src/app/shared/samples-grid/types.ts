@@ -11,7 +11,7 @@ export type SampleGridScope = "samplesPanel" | "logViewSamples";
  * (single-log, log-view tab). Single-log mode populates `data`, `answer`,
  * and `completed`; cross-log mode populates `displayIndex`, `task`,
  * `model`, `created`. Identity fields and flat scalars are populated in
- * both modes so ag-grid filter/sort work consistently.
+ * both modes so grid filter/sort work consistently.
  *
  * Score columns are added as dynamic fields. Field-name format depends on
  * the mode (`raw_<name>` vs `score__<scorer>__<metric>`) — see

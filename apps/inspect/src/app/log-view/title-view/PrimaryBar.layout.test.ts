@@ -45,10 +45,11 @@ function ruleBlock(file: string, name: string): string {
   // a hand-written stylesheet with one rule per class.
   const re = new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`);
   const m = stripped.match(re);
-  if (!m) {
+  const body = m?.[1];
+  if (body === undefined) {
     throw new Error(`Could not find .${name} rule in ${path.basename(file)}`);
   }
-  return m[1];
+  return body;
 }
 
 describe("TagStrip base layout contract", () => {
@@ -86,8 +87,11 @@ describe("PrimaryBar wrapper sizing contract", () => {
   test("wrapper grid lets the body absorb the space the results panel doesn't claim", () => {
     const wrapper = ruleBlock(PRIMARY_BAR_CSS, "wrapper");
     const cols = wrapper.match(/grid-template-columns\s*:\s*([^;]+);/);
-    expect(cols).not.toBeNull();
-    const value = cols![1].trim();
+    const colsValue = cols?.[1];
+    if (colsValue === undefined) {
+      throw new Error("grid-template-columns not found in .wrapper rule");
+    }
+    const value = colsValue.trim();
     // Right-hand column must not be a fixed fr share.
     expect(value).not.toMatch(/\b1fr\s*$/);
     // It should be one of the natural-sizing keywords. Accept `auto`

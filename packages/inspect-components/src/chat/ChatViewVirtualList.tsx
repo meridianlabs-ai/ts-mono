@@ -24,6 +24,7 @@ import {
   isLivePlaceholderMessage,
   isToolExecutingMessage,
 } from "../indicators/livePlaceholder";
+import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
 
 import { ChatMessageRow, countRowBlocks } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
@@ -64,6 +65,7 @@ export interface ChatViewVirtualListProps {
   offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
+  backfilling?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
@@ -80,6 +82,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     className,
     scrollRef,
     running,
+    backfilling,
     onNativeFindChanged,
     display,
     labels,
@@ -152,7 +155,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         ) {
           return (
             <div className={styles.generatingRow}>
-              <GeneratingIndicator />
+              {backfilling ? (
+                <LoadingEventsIndicator label="Loading messages" />
+              ) : (
+                <GeneratingIndicator />
+              )}
             </div>
           );
         }
@@ -175,7 +182,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
             />
             {toolExecuting ? (
               <div className={styles.generatingRow}>
-                <GeneratingIndicator label="running" />
+                {backfilling ? (
+                  <LoadingEventsIndicator label="Loading messages" />
+                ) : (
+                  <GeneratingIndicator label="running" />
+                )}
               </div>
             ) : null}
           </>
@@ -184,6 +195,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
       [
         id,
         running,
+        backfilling,
         lastIndex,
         display,
         labels,
@@ -199,6 +211,9 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     // message event arrives), and a finished one may be empty (e.g. an early
     // error, or messages cleared due to size limits).
     if (collapsedMessages.length === 0) {
+      if (backfilling) {
+        return <LoadingEventsIndicator label="Loading messages" />;
+      }
       return running ? (
         <NoContentsPanel text="Waiting for messages" busy />
       ) : (

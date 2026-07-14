@@ -40,7 +40,7 @@ export const RunningPanel: FC<StatusProps> = ({ sampleCount }) => {
 };
 
 export interface StatusPanelProps {
-  icon: string;
+  icon: string | undefined;
   status: string;
   sampleCount: number;
 }

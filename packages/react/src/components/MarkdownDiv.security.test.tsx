@@ -40,7 +40,45 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.innerHTML).not.toContain("javascript:");
   });
 
-  it("allows data image URLs without allowing non-image data links", async () => {
+  it.each(["_blank", "_BLANK", "_BlAnK"])(
+    "adds opener protection to %s new-context links",
+    async (target) => {
+      const { container } = render(
+        <MarkdownDiv
+          markdown="safe"
+          postProcess={() =>
+            `<a href="https://example.com" target="${target}">external</a>`
+          }
+        />
+      );
+
+      await waitFor(() => {
+        expect(container.querySelector("a")).not.toBeNull();
+      });
+
+      expect(container.querySelector("a")?.getAttribute("rel")).toBe(
+        "noopener noreferrer"
+      );
+    }
+  );
+
+  it("replaces remote markdown images with external links", async () => {
+    const { container } = render(
+      <MarkdownDiv markdown="![pixel](https://example.com/pixel.png)" />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("a")).not.toBeNull();
+    });
+
+    const anchor = container.querySelector("a");
+    expect(container.querySelector("img")).toBeNull();
+    expect(anchor?.getAttribute("href")).toBe("https://example.com/pixel.png");
+    expect(anchor?.getAttribute("target")).toBe("_blank");
+    expect(anchor?.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("does not render data-image markdown or post-processed image tags", async () => {
     const dataImage =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
     const dataLink =
@@ -48,16 +86,17 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     const { container } = render(
       <MarkdownDiv
         markdown={`![pixel](${dataImage})`}
-        postProcess={(html) => `${html}<a href="${dataLink}">unsafe</a>`}
+        postProcess={(html) =>
+          `${html}<img src="${dataImage}"><a href="${dataLink}">unsafe</a>`
+        }
       />
     );
 
     await waitFor(() => {
-      expect(container.querySelector("img")).not.toBeNull();
       expect(container.querySelector("a")).not.toBeNull();
     });
 
-    expect(container.querySelector("img")?.getAttribute("src")).toBe(dataImage);
+    expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
   });
 });

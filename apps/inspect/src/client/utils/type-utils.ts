@@ -1,6 +1,71 @@
 import { EvalMetric, EvalResults } from "@tsmono/inspect-common/types";
 
-import { EvalHeader, LogDetails, LogPreview } from "../api/types";
+import {
+  EvalHeader,
+  Log,
+  LogDepth,
+  LogDetails,
+  LogHeader,
+  LogPreview,
+} from "../api/types";
+
+const kDepthOrder: Record<LogDepth, number> = {
+  listed: 0,
+  previewed: 1,
+  detailed: 2,
+};
+
+/** Depth only ratchets up within a row's lifetime (resets are explicit). */
+export const maxDepth = (a: LogDepth, b: LogDepth): LogDepth =>
+  kDepthOrder[a] >= kDepthOrder[b] ? a : b;
+
+/** The previewed-tier attribute columns a preview payload contributes. */
+export const previewTier = (
+  preview: LogPreview
+): Partial<Log> & { depth: LogDepth } => ({
+  depth: "previewed",
+  status: preview.status,
+  error: preview.error,
+  version: preview.version,
+  eval_id: preview.eval_id,
+  run_id: preview.run_id,
+  task: preview.task,
+  task_id: preview.task_id,
+  task_version: preview.task_version,
+  model: preview.model,
+  model_roles: preview.model_roles,
+  started_at: preview.started_at,
+  completed_at: preview.completed_at,
+  primary_metric: preview.primary_metric,
+});
+
+/** The detailed-tier attributes: the flat columns re-derived from the header
+ *  plus the header itself. */
+export const detailTier = (
+  header: LogHeader
+): Partial<Log> & { depth: LogDepth } => ({
+  ...previewTier(toLogPreview(header)),
+  depth: "detailed",
+  header,
+});
+
+/** Split a details payload into its stored header form: everything but the
+ *  sample summaries, plus the sample facts derived from them. */
+export const toLogHeader = (details: LogDetails): LogHeader => {
+  const { sampleSummaries, ...header } = details;
+  const limits = new Set<string>();
+  let errorCount = 0;
+  for (const sample of sampleSummaries) {
+    if (sample.error) errorCount += 1;
+    if (sample.limit) limits.add(sample.limit);
+  }
+  return {
+    ...header,
+    sampleCount: sampleSummaries.length,
+    sampleErrorCount: errorCount,
+    sampleLimits: [...limits].sort(),
+  };
+};
 
 export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
   const model_roles = header.eval.model_roles
@@ -37,9 +102,9 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
 const primaryMetric = (
   evalResults?: EvalResults | null
 ): EvalMetric | undefined => {
-  if (evalResults?.scores && evalResults?.scores.length > 0) {
-    const evalMetrics = evalResults.scores[0].metrics;
-    const metrics = Object.values(evalMetrics);
+  const firstScore = evalResults?.scores?.[0];
+  if (firstScore) {
+    const metrics = Object.values(firstScore.metrics);
     if (metrics.length > 0) {
       return metrics[0];
     }

@@ -385,7 +385,8 @@ export function DataGrid<
         }
       } else {
         // Normal click: Navigate to row
-        void navigate(getRowRoute(row.original));
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(getRowRoute(row.original));
       }
     },
     [rows, rowSelection, onStateChange, navigate, getRowRoute]
@@ -435,7 +436,8 @@ export function DataGrid<
           if (focusedIndex !== -1) {
             const row = rows[focusedIndex];
             if (row) {
-              void navigate(getRowRoute(row.original));
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              navigate(getRowRoute(row.original));
             }
           }
           return;

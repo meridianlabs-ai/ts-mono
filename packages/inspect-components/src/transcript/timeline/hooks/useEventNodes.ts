@@ -116,10 +116,7 @@ export const useEventNodes = (
           collapseFilters.some((filter) =>
             filter(
               node.event as
-                | StepEvent
-                | SpanBeginEvent
-                | ToolEvent
-                | SubtaskEvent
+                StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent
             )
           )
         ) {

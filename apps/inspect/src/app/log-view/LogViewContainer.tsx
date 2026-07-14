@@ -1,16 +1,17 @@
 import { FC, useEffect, useLayoutEffect, useRef } from "react";
-import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Navigate,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 
 import { kLogViewSamplesTabId } from "../../constants";
-import { useEvalSpec, useSampleSummaries } from "../../state/hooks";
-import { useUnloadLog } from "../../state/log";
+import { selectLogFile, unloadLog } from "../../state/actions";
+import { useEvalSpec } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import {
-  baseUrl,
-  logSamplesUrl,
-  useLogRouteParams,
-  type RoutePrefix,
-} from "../routing/url";
+import { useSampleUuidRedirectUrl } from "../routing/sampleNavigation";
+import { baseUrl, useLogRouteParams, type RoutePrefix } from "../routing/url";
 
 import { LogViewLayout } from "./LogViewLayout";
 
@@ -28,14 +29,6 @@ export const LogViewContainer: FC = () => {
   const evalSpec = useEvalSpec();
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-
-  const clearSelectedLogSummary = useStore(
-    (state) => state.logActions.clearSelectedLogDetails
-  );
-
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
@@ -45,48 +38,24 @@ export const LogViewContainer: FC = () => {
   const prefix: RoutePrefix = location.pathname.startsWith("/tasks/")
     ? "/tasks"
     : "/logs";
-  const sampleSummaries = useSampleSummaries();
   const [searchParams] = useSearchParams();
+
+  // Canonicalize a sampleUuid route to its id/epoch URL once resolvable.
+  const sampleUuidRedirectUrl = useSampleUuidRedirectUrl({
+    logPath,
+    sampleUuid,
+    sampleTabId,
+    prefix,
+  });
 
   // Unload the log when this is mounted. This prevents the old log
   // data from being displayed when navigating back to the logs panel
   // and also ensures that we reload logs when freshly navigating to them.
-  const { unloadLog } = useUnloadLog();
   useEffect(() => {
     return () => {
       unloadLog();
     };
-  }, [unloadLog]);
-
-  useEffect(() => {
-    // Redirect to an id/epoch url if a sampleUuid is provided
-    if (logPath && sampleUuid && sampleSummaries) {
-      // Find the sample with the matching UUID
-      const sample = sampleSummaries.find((s) => s.uuid === sampleUuid);
-      if (sample) {
-        const url = logSamplesUrl(
-          logPath,
-          sample.id,
-          sample.epoch,
-          sampleTabId,
-          prefix
-        );
-        const finalUrl = searchParams.toString()
-          ? `${url}?${searchParams.toString()}`
-          : url;
-        void navigate(finalUrl);
-        return;
-      }
-    }
-  }, [
-    sampleSummaries,
-    logPath,
-    sampleUuid,
-    searchParams,
-    sampleTabId,
-    navigate,
-    prefix,
-  ]);
+  }, []);
 
   useEffect(() => {
     if (initialState && !evalSpec) {
@@ -97,25 +66,25 @@ export const LogViewContainer: FC = () => {
         prefix
       );
       clearInitialState();
-      void navigate(url);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(url);
     }
   }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPathRef = useRef<string | undefined>(undefined);
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
 
   // Clear the previous eval's data before paint when the route changes, so the
   // old eval doesn't flash while the new one loads. A useEffect would run after
-  // the browser has already painted the stale eval.
+  // the browser has already painted the stale eval. (Details and pending
+  // summaries are query-keyed per log file, so the selected sample handle is
+  // the only cross-log store state to clear.)
   useLayoutEffect(() => {
     const prevLogPath = prevLogPathRef.current;
     prevLogPathRef.current = logPath;
     if (prevLogPath && logPath && logPath !== prevLogPath) {
       clearSelectedSample();
-      clearSelectedLogSummary();
     }
-  }, [logPath, clearSelectedSample, clearSelectedLogSummary]);
+  }, [logPath, clearSelectedSample]);
 
   // Sync the workspace tab from the URL synchronously. Kept separate from
   // the async log-loading effect below so a tab click can't race with a
@@ -126,16 +95,22 @@ export const LogViewContainer: FC = () => {
   }, [logPath, tabId, setWorkspaceTab]);
 
   useEffect(() => {
-    const loadLogFromPath = async () => {
-      if (logPath) {
-        await initLogDir();
-        setSelectedLogFile(logPath);
-        void syncLogs();
-      }
-    };
+    if (logPath) {
+      selectLogFile(logPath);
+    }
+  }, [logPath]);
 
-    void loadLogFromPath();
-  }, [logPath, setSelectedLogFile, initLogDir, syncLogs]);
+  if (sampleUuidRedirectUrl) {
+    const search = searchParams.toString();
+    return (
+      <Navigate
+        to={
+          search ? `${sampleUuidRedirectUrl}?${search}` : sampleUuidRedirectUrl
+        }
+        replace
+      />
+    );
+  }
 
   return <LogViewLayout />;
 };

@@ -10,12 +10,23 @@ import {
   useRef,
 } from "react";
 
-import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
+import {
+  EmptyPanel,
+  PulsingDots,
+  TabPanel,
+  TabSet,
+} from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
-import { useEvalSpec, useRefreshLog } from "../../state/hooks";
+import { refreshLog } from "../../state/actions";
+import {
+  useEvalSpec,
+  useSelectedLogDetails,
+  useSelectedRunningMetrics,
+} from "../../state/hooks";
+import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
-import { useLogNavigation } from "../routing/logNavigation";
+import { useLogNavigationAction } from "../routing/logNavigation";
 
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
@@ -30,14 +41,14 @@ import { TabDescriptor } from "./types";
 export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
-  const refreshLog = useRefreshLog();
-  const navigation = useLogNavigation();
+  const navigation = useLogNavigationAction();
 
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
+  const logLoading = useSelectedLogLoading();
   const evalSpec = useEvalSpec();
-  const runningMetrics = useStore(
-    (state) => state.log.pendingSampleSummaries?.metrics
-  );
+  // Settled metrics only: the title view is decorative here — poll
+  // loading/error surface through the samples tab's summaries instead.
+  const runningMetrics = useSelectedRunningMetrics().data;
 
   // Use individual tab config hooks
   const samplesTabConfig = useSamplesTabConfig(
@@ -88,7 +99,7 @@ export const LogView: FC = () => {
   const scrollRefs = useMemo(() => {
     const refs: RefObject<HTMLElement | null>[] = [];
     for (const key of Object.keys(tabs)) {
-      const ref = tabs[key].scrollRef;
+      const ref = tabs[key]?.scrollRef;
       if (ref) refs.push(ref);
     }
     return refs;
@@ -116,13 +127,14 @@ export const LogView: FC = () => {
   );
 
   if (evalSpec === undefined) {
-    return <EmptyPanel />;
+    return (
+      <EmptyPanel>
+        {logLoading ? <PulsingDots size="large" text="Loading log…" /> : null}
+      </EmptyPanel>
+    );
   } else {
-    const tabTools = Object.keys(tabs)
-      .map((key) => {
-        const tab = tabs[key];
-        return tab;
-      })
+    const tabTools = Object.values(tabs)
+      .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;
       })
@@ -159,6 +171,7 @@ export const LogView: FC = () => {
             >
               {Object.keys(tabs).map((key) => {
                 const tab = tabs[key];
+                if (tab === undefined) return null;
                 return (
                   <TabPanel
                     key={tab.id}

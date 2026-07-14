@@ -77,7 +77,9 @@ describe("viewServerApi mutation requests", () => {
     await api.log_message("log.eval", "hello");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("fetch was not called");
+    const [url, init] = call;
     expect(url).toContain("/log-message?");
     expect(init).toMatchObject({
       method: "POST",
@@ -110,12 +112,67 @@ describe("viewServerApi mutation requests", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [, init] = fetchMock.mock.calls[0];
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("fetch was not called");
+    const [, init] = call;
     expect(init).toMatchObject({
       method: "POST",
       headers: {
         [VIEW_REQUEST_HEADER]: VIEW_REQUEST_HEADER_VALUE,
       },
     });
+  });
+});
+
+describe("viewServerApi.get_eval_set", () => {
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  const okJson = () =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers(),
+      text: () => Promise.resolve("{}"),
+    } as unknown as Response);
+
+  test("sends no dir param at the listing root", async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      okJson()
+    );
+    globalThis.fetch = fetchMock;
+
+    const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
+    await api.get_eval_set("");
+
+    // The test only ever calls fetch with a string URL.
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toBe("https://viewer.test/eval-set");
+  });
+
+  test("sends the subdir as dir alongside the configured log_dir", async () => {
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      okJson()
+    );
+    globalThis.fetch = fetchMock;
+
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
+    await api.get_eval_set("sub/inner");
+
+    // The test only ever calls fetch with a string URL.
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toBe(
+      "https://viewer.test/eval-set?log_dir=file%3A%2F%2F%2Fx%2Flogs&dir=sub%2Finner"
+    );
   });
 });

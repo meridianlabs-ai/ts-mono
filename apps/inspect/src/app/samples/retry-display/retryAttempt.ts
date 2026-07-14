@@ -25,11 +25,11 @@ export function deriveErrorType(retry: EvalRetryError): string | null {
 }
 
 /**
- * Best-effort attempt duration in seconds, derived ONLY from the event
- * timestamps. `EvalRetryError` carries no top-level duration; never fabricate
- * one. Returns null when it can't be computed.
+ * Best-effort attempt start time — the earliest event timestamp. `EvalRetryError`
+ * carries no top-level timing, so the events are the only source; never
+ * fabricate one. Returns null when no event carries a parseable timestamp.
  */
-export function attemptDuration(retry: EvalRetryError): number | null {
+export function attemptStartTime(retry: EvalRetryError): Date | null {
   const events = retry.events;
   if (!events || events.length === 0) return null;
 
@@ -39,7 +39,6 @@ export function attemptDuration(retry: EvalRetryError): number | null {
     .map((t) => Date.parse(t))
     .filter((n) => Number.isFinite(n));
 
-  if (times.length < 2) return null;
-  const span = (Math.max(...times) - Math.min(...times)) / 1000;
-  return span >= 0 ? span : null;
+  if (times.length === 0) return null;
+  return new Date(Math.min(...times));
 }

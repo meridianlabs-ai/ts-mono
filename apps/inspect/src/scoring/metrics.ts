@@ -29,7 +29,11 @@ export const firstMetric = (results: EvalResults) => {
     return undefined;
   }
 
-  const metric = metrics[Object.keys(metrics)[0]];
+  const firstKey = Object.keys(metrics)[0];
+  if (firstKey === undefined) {
+    return undefined;
+  }
+  const metric = metrics[firstKey];
   if (metric === undefined) {
     return undefined;
   }
@@ -80,8 +84,7 @@ export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
     return {
       scorer: score.name,
       reducer: score.reducer === null ? undefined : score.reducer,
-      metrics: Object.keys(score.metrics).map((key) => {
-        const metric = score.metrics[key];
+      metrics: Object.values(score.metrics).map((metric) => {
         return {
           name: metric.name,
           group: metric.group,

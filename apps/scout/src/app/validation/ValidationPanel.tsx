@@ -119,7 +119,8 @@ export const ValidationPanel: FC = () => {
           );
         }
       };
-      void updateCases();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      updateCases();
     },
     [selectedUri, cases, updateMutation]
   );

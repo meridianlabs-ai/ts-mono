@@ -57,13 +57,15 @@ export function viewServerApi(
     logDir?: string;
     apiBaseUrl?: string;
     headerProvider?: HeaderProvider;
+    customFetch?: typeof fetch;
   } = {}
 ): LogViewAPI {
-  const { apiBaseUrl, logDir, headerProvider } = options;
+  const { apiBaseUrl, logDir, headerProvider, customFetch } = options;
 
   const requestApi = serverRequestApi(
     apiBaseUrl || __VIEW_SERVER_API_URL__,
-    headerProvider
+    headerProvider,
+    customFetch
   );
 
   const client_events = async () => {
@@ -202,7 +204,7 @@ export function viewServerApi(
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
     const scores: EvalScores = Object.values(header.results?.scores || {});
-    const metric = scores.length > 0 ? scores[0].metrics : undefined;
+    const metric = scores[0]?.metrics;
     const evalMetrics = Object.values(metric || {});
     const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;
 
@@ -502,7 +504,7 @@ export function viewServerApi(
       })()
     );
 
-    const response = await fetch(url, {
+    const response = await (customFetch ?? fetch)(url, {
       method: "POST",
       headers,
       body: JSON.stringify(update),

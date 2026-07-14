@@ -271,7 +271,8 @@ export const ScannerResultPanel: FC = () => {
       if (e.metaKey || e.ctrlKey) {
         openRouteInNewTab(route);
       } else {
-        void navigate(route);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(route);
       }
     },
     [navigate, resolvedTranscriptsDir, selectedResult?.transcriptId]

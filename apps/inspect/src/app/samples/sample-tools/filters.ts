@@ -36,13 +36,44 @@ const isFilteringSupportedForValue = (value: unknown): boolean =>
   ["string", "number", "boolean"].includes(typeof value) || value === null;
 
 /**
- * Returns the names of scores that are not allowed to be used as short names in
- * filter expressions because they are not unique. This should be applied only to
- * the nested scores, not to the top-level scorer names.
+ * Names the per-sample namespace always defines (see `sampleVariables`).
+ * A score sharing one of these short names must be addressed by its
+ * qualified `scorer.name` form: binding the bare name would shadow the
+ * built-in — both for hand-typed expressions and for the column funnels
+ * that compile through the same namespace (the epoch column's funnel
+ * would silently filter on the score). Kept in sync with
+ * `sampleVariables` by test.
+ */
+export const builtinFilterVariables: ReadonlySet<string> = new Set([
+  "epoch",
+  "has_error",
+  "has_limit",
+  "has_retries",
+  "has_fallbacks",
+  "completed",
+  "id",
+  "uuid",
+  "input",
+  "target",
+  "answer",
+  "error",
+  "limit",
+  "retries",
+  "fallbacks",
+  "tokens",
+  "duration",
+  "metadata",
+]);
+
+/**
+ * Returns the names of scores that are not allowed to be used as short names
+ * in filter expressions because they are not unique, or because they collide
+ * with a built-in sample variable. This should be applied only to the nested
+ * scores, not to the top-level scorer names.
  */
 export const bannedShortScoreNames = (scores: ScoreLabel[]): Set<string> => {
   const used: Set<string> = new Set();
-  const banned: Set<string> = new Set();
+  const banned: Set<string> = new Set(builtinFilterVariables);
   for (const { scorer, name } of scores) {
     banned.add(scorer);
     if (used.has(name)) {
@@ -92,7 +123,11 @@ const scoreVariables = (
   };
 
   for (const [scorer, score] of Object.entries(sampleScores || {})) {
-    addScore(scorer, { scorer, name: scorer }, score.value);
+    // A scorer named after a built-in has no qualified fallback — skip the
+    // binding rather than shadow the sample variable.
+    if (!builtinFilterVariables.has(scorer)) {
+      addScore(scorer, { scorer, name: scorer }, score.value);
+    }
     if (typeof score.value === "object") {
       for (const [name, value] of Object.entries(score.value)) {
         addScore(`${scorer}.${name}`, { scorer, name }, value);
@@ -129,7 +164,7 @@ const totalTokens = (sample: SampleSummary): number | null => {
 const targetString = (target: SampleSummary["target"]): string =>
   Array.isArray(target) ? target.join(", ") : (target ?? "");
 
-const sampleVariables = (
+export const sampleVariables = (
   sample: SampleSummary,
   samplesDescriptor: SamplesDescriptor | undefined
 ): Record<string, unknown> => {
@@ -225,6 +260,11 @@ export const sampleFilterItems = (
   };
 
   for (const { name, scorer } of evalDescriptor.scores) {
+    // A top-level scorer named after a built-in has no addressable form at
+    // all (no qualified fallback) — nothing to suggest.
+    if (name === scorer && builtinFilterVariables.has(name)) {
+      continue;
+    }
     const hasShortName = name === scorer || !bannedShortNames.has(name);
     const hasQualifiedName = name !== scorer;
     const shortName = hasShortName ? name : undefined;

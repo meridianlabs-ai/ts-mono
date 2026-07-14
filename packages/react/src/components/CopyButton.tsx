@@ -48,7 +48,8 @@ export const CopyButton: FC<CopyButtonProps> = ({
       type="button"
       className={clsx("copy-button", styles.copyButton, className)}
       onClick={() => {
-        void handleClick();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleClick();
       }}
       aria-label={ariaLabel}
       disabled={isCopied}

@@ -38,6 +38,9 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
         <div className={styles.container}>
           {Object.keys(modelsInfo || {}).map((modelKey) => {
             const modelInfo = modelsInfo[modelKey];
+            if (modelInfo === undefined) {
+              return null;
+            }
             return (
               <div
                 key={modelKey}

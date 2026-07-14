@@ -113,13 +113,39 @@ describe("codexToolMarkdown", () => {
     );
   });
 
-  it("handles close_agent previous_status and strips content-internal", () => {
+  it("strips a valid trailing content-internal envelope", () => {
     const output = JSON.stringify({
       previous_status: {
         completed: "answer<content-internal>eyJ4IjoxfQ==</content-internal>",
       },
     });
     expect(codexToolMarkdown("close_agent", output)).toBe("answer");
+  });
+
+  it.each([
+    [
+      "non-trailing envelope",
+      "answer<content-internal>eyJ4IjoxfQ==</content-internal>after",
+    ],
+    [
+      "invalid base64",
+      "answer<content-internal>not-base64!</content-internal>",
+    ],
+    ["invalid JSON", "answer<content-internal>bm90IGpzb24=</content-internal>"],
+    [
+      "repeated envelopes",
+      "answer<content-internal>eyJ4IjoxfQ==</content-internal>" +
+        "<content-internal>eyJ5IjoyfQ==</content-internal>",
+    ],
+  ])("preserves %s in a Codex answer", (_name, completed) => {
+    const output = JSON.stringify({ previous_status: { completed } });
+    expect(codexToolMarkdown("close_agent", output)).toBe(completed);
+  });
+
+  it("preserves trailing whitespace when no valid envelope is present", () => {
+    const completed = "answer  \n";
+    const output = JSON.stringify({ previous_status: { completed } });
+    expect(codexToolMarkdown("close_agent", output)).toBe(completed);
   });
 
   it("returns undefined for non-codex tools and non-JSON", () => {

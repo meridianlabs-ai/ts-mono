@@ -60,8 +60,7 @@ describe("messagesFromEvents", () => {
       makeModelEvent({ inputId: "msg-1", outputId: "msg-2" }),
     ]);
     expect(messages).toHaveLength(2);
-    expect(messages[0].id).toBe("msg-1");
-    expect(messages[1].id).toBe("msg-2");
+    expect(messages.map((m) => m.id)).toEqual(["msg-1", "msg-2"]);
   });
 
   it("skips model events with error set", () => {
@@ -74,8 +73,7 @@ describe("messagesFromEvents", () => {
       makeModelEvent({ inputId: "msg-1", outputId: "msg-2" }),
     ]);
     expect(messages).toHaveLength(2);
-    expect(messages[0].id).toBe("msg-1");
-    expect(messages[1].id).toBe("msg-2");
+    expect(messages.map((m) => m.id)).toEqual(["msg-1", "msg-2"]);
   });
 
   it("includes the latest event's output when not yet folded into a later input", () => {
@@ -255,7 +253,7 @@ describe("messagesFromEvents", () => {
     });
 
     it("rebuilds when a tail event is replaced at the same index", () => {
-      // samplePolling replaces an event at its existing index when streaming
+      // The streaming session replaces an event at its existing index when
       // updates arrive (e.g., the model output completes after a partial).
       // The new event reference at the same index must trigger a rebuild.
       const e1 = makeModelEvent({ inputId: "u1", outputId: "a1" });

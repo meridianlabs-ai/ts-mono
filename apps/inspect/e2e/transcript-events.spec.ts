@@ -59,6 +59,12 @@ async function openTranscript(
   const logDetails = createLogDetails(evalLog);
 
   network.use(
+    // get_log_root — the dir-mode gate blocks on this; without it the app
+    // stays on "Loading logs…" and never renders the transcript.
+    http.get("*/api/logs", () => {
+      return HttpResponse.json({ log_dir: "/logs" });
+    }),
+
     http.get("*/api/log-files*", () => {
       return HttpResponse.json({
         files: [{ name: LOG_FILE, task: "chat-test", task_id: "chat-test" }],

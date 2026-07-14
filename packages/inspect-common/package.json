@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/types/index.ts",
     "./types": "./src/types/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./query": "./src/query/index.ts"
   },
   "scripts": {
     "types:generate": "node scripts/generate-types.js",
@@ -27,7 +28,7 @@
     "eslint": "^9.39.4",
     "openapi-typescript": "^7.10.1",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1",
-    "vitest": "^4.1.9"
+    "typescript-eslint": "^8.63.0",
+    "vitest": "^4.1.10"
   }
 }

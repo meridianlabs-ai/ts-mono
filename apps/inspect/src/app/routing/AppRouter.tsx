@@ -12,12 +12,13 @@ import {
   ComponentNavigationProvider,
 } from "@tsmono/react/components";
 
+import { useAppConfig } from "../../app_config";
 import { storeImplementation } from "../../state/store";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
-import { isSingleFileMode } from "../singleFileMode";
 
+import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
 import { TasksRouter } from "./TasksRouter";
@@ -51,26 +52,25 @@ const AppLayout = () => {
   // Get route params to check for sample detail routes
   const { sampleId, epoch, sampleUuid } = useLogRouteParams();
 
-  // Single file mode is a legacy mode that is used when an explicit
-  // file is passed via URL (task_file or log_file params) or via
-  // embedded state (VSCode)
-  if (isSingleFileMode) {
-    // Check if this is a sample detail URL
-    const isSampleDetail = (sampleId && epoch) || sampleUuid;
-
-    return (
-      <ComponentNavigationProvider navigation={componentNavigation}>
-        <AppErrorBoundary>
-          {isSampleDetail ? <LogSampleDetailView /> : <LogViewContainer />}
-        </AppErrorBoundary>
-      </ComponentNavigationProvider>
-    );
-  }
+  // Single file mode is a legacy mode that is used when an explicit file is
+  // passed via URL (the log_file param) or via embedded state (VSCode). It
+  // renders the log/sample view directly rather than through the child route
+  // table (which is oriented around the collection).
+  const isSampleDetail = (sampleId && epoch) || sampleUuid;
+  const content = useAppConfig().singleFileMode ? (
+    isSampleDetail ? (
+      <LogSampleDetailView />
+    ) : (
+      <LogViewContainer />
+    )
+  ) : (
+    <Outlet />
+  );
 
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <Outlet />
+        <LoaderMounts>{content}</LoaderMounts>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );

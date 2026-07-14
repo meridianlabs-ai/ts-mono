@@ -1,29 +1,25 @@
 import { FC, useCallback, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 
+import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
-import { useSampleSummaries } from "../../state/hooks";
+import { selectLogFile, selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
-import { useLoadSample } from "../../state/useLoadSample";
-import { usePollSample } from "../../state/usePollSample";
-import { useLogSampleNavigation } from "../routing/sampleNavigation";
 import {
-  logSamplesUrl,
-  logsUrl,
-  useLogRouteParams,
-  useRoutePrefix,
-} from "../routing/url";
+  useLogSampleNavigationActions,
+  useSampleUuidRedirectUrl,
+} from "../routing/sampleNavigation";
+import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
-import { isSingleFileMode } from "../singleFileMode";
 
 /**
  * Component that displays a single sample in detail view within the logs route.
  * This is shown when navigating to /logs/path/to/file.eval/samples/sample/id/epoch
  *
  * This component handles:
- * - Log loading (initLogDir, setSelectedLogFile, syncLogs)
- * - Sample selection and loading (useLoadSample, usePollSample)
- * - Navigation state via useLogSampleNavigation (respects log filters)
+ * - Log + sample selection from route params (fetching rides the details and
+ *   sample queries)
+ * - Navigation state via useLogSampleNavigationActions (respects log filters)
  *
  * Unlike SampleDetailView, this component:
  * - Does NOT clear log state on unmount (user expects to return to same log state)
@@ -42,21 +38,9 @@ export const LogSampleDetailView: FC = () => {
     sampleUuid,
   } = useLogRouteParams();
 
-  // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
-  useLoadSample();
-  usePollSample();
+  const { singleFileMode } = useAppConfig();
 
-  const navigate = useNavigate();
   const prefix = useRoutePrefix();
-
-  // Get store state and actions for log loading
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
-  const sampleSummaries = useSampleSummaries();
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Fall back to state for VSCode restored state scenario
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -72,63 +56,28 @@ export const LogSampleDetailView: FC = () => {
   // Load the log and select the sample when route params change
   // Only run this effect when we have route params (not state fallback)
   useEffect(() => {
-    const loadLogAndSample = async () => {
-      if (routeLogPath && routeSampleId && routeEpoch) {
-        // Initialize log directory if needed
-        await initLogDir();
+    if (routeLogPath && routeSampleId && routeEpoch) {
+      selectLogFile(routeLogPath);
 
-        // Set the selected log file
-        setSelectedLogFile(routeLogPath);
-
-        // Sync logs to ensure we have the latest data
-        void syncLogs();
-
-        // Select the sample
-        const targetEpoch = parseInt(routeEpoch, 10);
-        if (isNaN(targetEpoch)) {
-          return;
-        }
-
-        selectSample(routeSampleId, targetEpoch, routeLogPath);
+      const targetEpoch = parseInt(routeEpoch, 10);
+      if (isNaN(targetEpoch)) {
+        return;
       }
-    };
-
-    void loadLogAndSample();
-  }, [
-    routeLogPath,
-    routeSampleId,
-    routeEpoch,
-    initLogDir,
-    setSelectedLogFile,
-    syncLogs,
-    selectSample,
-  ]);
-
-  // Handle UUID routes by redirecting to id/epoch URL
-  useEffect(() => {
-    if (
-      logPath &&
-      sampleUuid &&
-      sampleSummaries &&
-      sampleSummaries.length > 0
-    ) {
-      // Find the sample with the matching UUID
-      const sample = sampleSummaries.find((s) => s.uuid === sampleUuid);
-      if (sample) {
-        const url = logSamplesUrl(
-          logPath,
-          sample.id,
-          sample.epoch,
-          sampleTabId,
-          prefix
-        );
-        void navigate(url, { replace: true });
-      }
+      selectSample(routeSampleId, targetEpoch, routeLogPath);
     }
-  }, [logPath, sampleUuid, sampleSummaries, sampleTabId, navigate, prefix]);
+  }, [routeLogPath, routeSampleId, routeEpoch]);
+
+  // Canonicalize a sampleUuid route to its id/epoch URL once resolvable.
+  const sampleUuidRedirectUrl = useSampleUuidRedirectUrl({
+    logPath,
+    sampleUuid,
+    sampleTabId,
+    prefix,
+  });
 
   // Get navigation handlers from the hook
-  const { onPrevious, onNext, hasPrevious, hasNext } = useLogSampleNavigation();
+  const { onPrevious, onNext, hasPrevious, hasNext } =
+    useLogSampleNavigationActions();
 
   // Custom navigation URL function for breadcrumbs and back button.
   // We use currentPath = `${logPath}/sample` so the log file becomes clickable.
@@ -161,6 +110,10 @@ export const LogSampleDetailView: FC = () => {
     [logPath, prefix]
   );
 
+  if (sampleUuidRedirectUrl) {
+    return <Navigate to={sampleUuidRedirectUrl} replace />;
+  }
+
   return (
     <SampleDetailComponent
       sampleId={sampleId}
@@ -178,7 +131,7 @@ export const LogSampleDetailView: FC = () => {
         currentPath: logPath ? `${logPath}/sample` : undefined,
         fnNavigationUrl,
         bordered: true,
-        breadcrumbsEnabled: !isSingleFileMode,
+        breadcrumbsEnabled: !singleFileMode,
       }}
     />
   );

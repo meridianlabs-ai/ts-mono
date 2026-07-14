@@ -19,14 +19,11 @@ import {
 const LOG_FILE = "test-virtual.json";
 
 function generateMessages(count: number): ChatMessage[] {
-  return Array.from(
-    { length: count },
-    (_, i): ChatMessage => ({
-      role: i % 2 === 0 ? "user" : "assistant",
-      content: `message-${i}`,
-      source: i % 2 === 0 ? "input" : "generate",
-    })
-  );
+  return Array.from({ length: count }, (_, i): ChatMessage => ({
+    role: i % 2 === 0 ? "user" : "assistant",
+    content: `message-${i}`,
+    source: i % 2 === 0 ? "input" : "generate",
+  }));
 }
 
 async function openSample(
@@ -43,6 +40,8 @@ async function openSample(
   const logDetails = createLogDetails(evalLog);
 
   network.use(
+    // get_log_root — the dir-mode gate blocks on this.
+    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
     http.get("*/api/log-files*", () =>
       HttpResponse.json({
         files: [{ name: LOG_FILE, task: "chat-test", task_id: "chat-test" }],
@@ -93,6 +92,8 @@ async function openTwoSamples(
   const logDetails = createLogDetails(evalLog);
 
   network.use(
+    // get_log_root — the dir-mode gate blocks on this.
+    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
     http.get("*/api/log-files*", () =>
       HttpResponse.json({
         files: [{ name: LOG_FILE, task: "chat-test", task_id: "chat-test" }],

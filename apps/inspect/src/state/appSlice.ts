@@ -11,7 +11,6 @@ export interface AppSlice {
   app: AppState;
   capabilities: Capabilities;
   appActions: {
-    setLoading: (loading: boolean, error?: Error) => void;
     setShowFind: (show: boolean) => void;
     hideFind: () => void;
     setNativeFind: (nativeFind: boolean) => void;
@@ -75,7 +74,6 @@ const kDefaultWorkspaceTab = kLogViewSamplesTabId;
 const kDefaultSampleTab = kSampleTranscriptTabId;
 
 const initialState: AppState = {
-  status: { loading: 0, syncing: false },
   showFind: false,
   dialogs: {
     transcriptFilter: false,
@@ -99,14 +97,14 @@ export const createAppSlice = (
   set: (fn: (state: StoreState) => void) => void,
   get: () => StoreState,
   _store: unknown
-): [AppSlice, () => void] => {
+): AppSlice => {
   const getBoolRecord = (
     record: Record<string, boolean>,
     name: string,
     defaultValue?: boolean
   ) => {
-    if (Object.keys(record).includes(name)) {
-      return record[name];
+    if (Object.hasOwn(record, name)) {
+      return record[name] ?? false;
     } else {
       return defaultValue || false;
     }
@@ -119,15 +117,6 @@ export const createAppSlice = (
 
     // Actions
     appActions: {
-      setLoading: (loading: boolean, error?: Error) =>
-        set((state) => {
-          state.app.status.loading = Math.max(
-            state.app.status.loading + (loading ? 1 : -1),
-            0
-          );
-          state.app.status.error = error;
-        }),
-
       setShowFind: (show: boolean) =>
         set((state) => {
           state.app.showFind = show;
@@ -239,8 +228,14 @@ export const createAppSlice = (
       },
       getVisibleRange: (name: string) => {
         const state = get();
-        if (Object.keys(state.app.visibleRanges).includes(name)) {
-          return state.app.visibleRanges[name];
+        if (Object.hasOwn(state.app.visibleRanges, name)) {
+          return (
+            state.app.visibleRanges[name] ?? {
+              startIndex: 0,
+              endIndex: 0,
+              totalCount: 0,
+            }
+          );
         } else {
           return { startIndex: 0, endIndex: 0, totalCount: 0 };
         }
@@ -379,9 +374,7 @@ export const createAppSlice = (
     },
   } as const;
 
-  const cleanup = () => {};
-
-  return [slice, cleanup];
+  return slice;
 };
 
 export const initializeAppSlice = (

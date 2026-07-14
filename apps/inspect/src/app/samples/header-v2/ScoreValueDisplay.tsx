@@ -127,21 +127,21 @@ export const ScoreChipValueDisplay: FC<ScoreValueDisplayProps> = ({
   );
 };
 
-function toneCircleClass(tone: Tone): string {
+function toneCircleClass(tone: Tone): string | undefined {
   if (tone === "pass") return styles.circlePass;
   if (tone === "fail") return styles.circleFail;
   if (tone === "warn") return styles.circleWarn;
   return styles.circleNeutral;
 }
 
-function toneTextClass(tone: Tone): string {
+function toneTextClass(tone: Tone): string | undefined {
   if (tone === "pass") return styles.textPass;
   if (tone === "fail") return styles.textFail;
   if (tone === "warn") return styles.textWarn;
   return styles.textNeutral;
 }
 
-function toneMiniPillClass(tone: Tone): string {
+function toneMiniPillClass(tone: Tone): string | undefined {
   if (tone === "pass") return styles.miniPillPass;
   if (tone === "fail") return styles.miniPillFail;
   if (tone === "warn") return styles.miniPillWarn;

@@ -88,6 +88,7 @@ const fetchBytesParallel = async (
     while (nextChunk < chunks.length) {
       const idx = nextChunk++;
       const chunk = chunks[idx];
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       results[idx] = await fetchFn(url, chunk.start, chunk.end);
       if (onProgress) {
         bytesLoaded += results[idx].length;
@@ -243,6 +244,7 @@ export const openRemoteZipFile = async (
       if (fileData.length < headerSize) {
         throw new Error(`File entry header is truncated for ${file}`);
       }
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       const actualExtraFieldLength = fileData[28] + (fileData[29] << 8);
       const actualTotal =
         headerSize +
@@ -333,6 +335,7 @@ export const openZipFileFromBuffer = (
         throw new Error(`File entry header is truncated for ${file}`);
       }
       const extraFieldLength =
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         bytes[entry.fileOffset + 28] + (bytes[entry.fileOffset + 29] << 8);
       const totalSize =
         headerSize +

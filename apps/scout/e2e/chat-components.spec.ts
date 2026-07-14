@@ -25,6 +25,7 @@ import {
 
 const TRANSCRIPTS_DIR = "/home/test/project/.transcripts";
 const TRANSCRIPT_ID = "t-chat-001";
+const MEDIA_ORIGIN = "https://media.invalid";
 
 /** Navigate to a transcript detail page with the given mock data. */
 async function openTranscript(
@@ -226,6 +227,83 @@ test.describe("chat message rendering", () => {
     await expect(page.getByText("Describe this image:")).toBeVisible();
     // Image should render as an img element
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
+  });
+
+  test("does not automatically load remote message media", async ({
+    page,
+    network,
+  }) => {
+    const mediaRequests: string[] = [];
+    await page.context().route(`${MEDIA_ORIGIN}/**`, async (route) => {
+      mediaRequests.push(route.request().url());
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<title>media</title>",
+      });
+    });
+
+    await openMessages(
+      page,
+      network,
+      createMessagesEventsResponse({
+        messages: [
+          {
+            role: "assistant",
+            id: null,
+            content: [
+              {
+                type: "text",
+                text: `![markdown image](${MEDIA_ORIGIN}/markdown.png)`,
+                refusal: null,
+                internal: null,
+                citations: null,
+              },
+              {
+                type: "image",
+                image: `${MEDIA_ORIGIN}/image.png`,
+                detail: "auto",
+              },
+              {
+                type: "audio",
+                audio: `${MEDIA_ORIGIN}/audio.mp3`,
+                format: "mp3",
+              },
+              {
+                type: "video",
+                video: `${MEDIA_ORIGIN}/video.mp4`,
+                format: "mp4",
+              },
+              {
+                type: "document",
+                document: `${MEDIA_ORIGIN}/document.png`,
+                filename: "document.png",
+                mime_type: "image/png",
+              },
+            ],
+          },
+        ],
+        events: [],
+      })
+    );
+
+    const markdownLink = page.locator(`a[href="${MEDIA_ORIGIN}/markdown.png"]`);
+    await expect(markdownLink).toBeVisible();
+    await expect(page.locator(`a[href^="${MEDIA_ORIGIN}/"]`)).toHaveCount(5);
+    await expect(
+      page.locator(
+        `img[src^="${MEDIA_ORIGIN}/"], audio source[src^="${MEDIA_ORIGIN}/"], video source[src^="${MEDIA_ORIGIN}/"]`
+      )
+    ).toHaveCount(0);
+    expect(mediaRequests).toEqual([]);
+
+    const popupPromise = page.waitForEvent("popup");
+    await markdownLink.click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState("domcontentloaded");
+
+    expect(mediaRequests).toEqual([`${MEDIA_ORIGIN}/markdown.png`]);
+    await popup.close();
   });
 });
 
@@ -622,7 +700,10 @@ test.describe("message content types", () => {
     ).toBeVisible();
   });
 
-  test("strips internal tags from text content", async ({ page, network }) => {
+  test("renders internal tags as literal text content", async ({
+    page,
+    network,
+  }) => {
     await openMessages(
       page,
       network,
@@ -632,7 +713,9 @@ test.describe("message content types", () => {
           {
             role: "assistant",
             content:
-              "Visible text <internal>hidden internal content</internal> more visible text.",
+              "Visible text <internal>internal evidence</internal> " +
+              "<content-internal>provider metadata evidence</content-internal> " +
+              "more visible text.",
             id: null,
           },
         ],
@@ -643,7 +726,9 @@ test.describe("message content types", () => {
             endSec: 1,
             tokens: 20,
             content:
-              "Visible text <internal>hidden internal content</internal> more visible text.",
+              "Visible text <internal>internal evidence</internal> " +
+              "<content-internal>provider metadata evidence</content-internal> " +
+              "more visible text.",
           }),
         ],
       })
@@ -651,8 +736,8 @@ test.describe("message content types", () => {
 
     await expect(page.getByText("Visible text")).toBeVisible();
     await expect(page.getByText("more visible text")).toBeVisible();
-    // Internal content should NOT be visible
-    await expect(page.getByText("hidden internal content")).not.toBeVisible();
+    await expect(page.getByText("internal evidence")).toBeVisible();
+    await expect(page.getByText("provider metadata evidence")).toBeVisible();
   });
 
   test("renders ANSI codes in tool output", async ({ page, network }) => {
@@ -852,11 +937,11 @@ test.describe("label and numbering system", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Think tag stripping
+// Literal think tags
 // ---------------------------------------------------------------------------
 
-test.describe("think tag stripping", () => {
-  test("strips <think> tags from assistant text content", async ({
+test.describe("literal think tags", () => {
+  test("renders <think> tags as assistant text content", async ({
     page,
     network,
   }) => {
@@ -869,7 +954,7 @@ test.describe("think tag stripping", () => {
           {
             role: "assistant",
             content:
-              "Before thinking <think>internal reasoning that should be hidden</think> after thinking visible.",
+              "Before thinking <think>literal reasoning evidence</think> after thinking visible.",
             id: null,
           },
         ],
@@ -880,7 +965,7 @@ test.describe("think tag stripping", () => {
             endSec: 1,
             tokens: 20,
             content:
-              "Before thinking <think>internal reasoning that should be hidden</think> after thinking visible.",
+              "Before thinking <think>literal reasoning evidence</think> after thinking visible.",
           }),
         ],
       })
@@ -888,10 +973,7 @@ test.describe("think tag stripping", () => {
 
     await expect(page.getByText("Before thinking")).toBeVisible();
     await expect(page.getByText("after thinking visible")).toBeVisible();
-    // Think content must NOT be visible
-    await expect(
-      page.getByText("internal reasoning that should be hidden")
-    ).not.toBeVisible();
+    await expect(page.getByText("literal reasoning evidence")).toBeVisible();
   });
 });
 

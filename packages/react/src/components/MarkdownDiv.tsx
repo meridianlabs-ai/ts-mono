@@ -189,7 +189,8 @@ class MarkdownRenderQueue {
       };
 
       this.queue.push(queueTask);
-      void this.processQueue();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.processQueue();
     });
 
     const cancel = () => {
@@ -229,7 +230,8 @@ class MarkdownRenderQueue {
       await queueTask.task();
     } finally {
       this.activeCount--;
-      void this.processQueue();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.processQueue();
     }
   }
 }
