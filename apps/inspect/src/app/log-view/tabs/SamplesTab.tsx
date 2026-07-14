@@ -23,6 +23,7 @@ import {
 } from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
+import { totalSampleTokens } from "../../../client/utils/derive.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import { parseFilterSpecs } from "../../../app/samples/sample-tools/astToSpecs.ts";
@@ -433,12 +434,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const items: SampleRow[] = useMemo(() => {
     if (!samplesDescriptor || !selectedLogFile) return [];
     return sampleSummaries.map((sample): SampleRow => {
-      const tokens = sample.model_usage
-        ? Object.values(sample.model_usage).reduce(
-            (sum, u) => sum + (u.total_tokens ?? 0),
-            0
-          )
-        : undefined;
+      const tokens = totalSampleTokens(sample.model_usage);
       return {
         logFile: selectedLogFile,
         sampleId: sample.id,

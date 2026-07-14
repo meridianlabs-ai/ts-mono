@@ -1,4 +1,5 @@
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
+import { arrayToString } from "@tsmono/util";
 
 import {
   LogDerived,
@@ -88,14 +89,20 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
   };
 };
 
-export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
-  const tokens = summary.model_usage
-    ? Object.values(summary.model_usage).reduce(
+/** A sample's total token spend across models (undefined before any usage).
+ *  The single home for this sum — the stored `derived.tokens` column and
+ *  read-time consumers (filter variables, sample rows) must agree. */
+export const totalSampleTokens = (
+  modelUsage: SampleSummary["model_usage"]
+): number | undefined =>
+  modelUsage
+    ? Object.values(modelUsage).reduce(
         (sum, u) => sum + (u.total_tokens ?? 0),
         0
       )
     : undefined;
 
+export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
   let scores: Record<string, unknown> | undefined;
   if (summary.scores) {
     scores = {};
@@ -107,12 +114,10 @@ export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
   // Tolerate partial summaries (e.g. a running log's provisional rows):
   // ingestion of a whole payload must not fail on one malformed sample.
   return {
-    tokens,
+    tokens: totalSampleTokens(summary.model_usage),
     input:
       summary.input !== undefined ? inputString(summary.input).join("\n") : "",
-    target: Array.isArray(summary.target)
-      ? summary.target.join(", ")
-      : (summary.target ?? ""),
+    target: arrayToString(summary.target ?? ""),
     fallbacks: totalModelFallbacks(summary.model_fallbacks) || undefined,
     scores,
   };
