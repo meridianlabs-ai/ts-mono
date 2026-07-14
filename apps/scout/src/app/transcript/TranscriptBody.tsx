@@ -48,7 +48,10 @@ import { ValidationCaseEditor } from "../validation/components/ValidationCaseEdi
 
 import { useSearchReferenceLabels } from "./hooks/useSearchReferenceLabels";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
-import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
+import {
+  toFullUrl,
+  useTranscriptNavigation,
+} from "./hooks/useTranscriptNavigation";
 import { SearchPanel } from "./SearchPanel";
 import styles from "./TranscriptBody.module.css";
 import { TranscriptFilterPopover } from "./TranscriptFilterPopover";
@@ -93,8 +96,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl, getFullEventUrl, getFullMessageUrl } =
-    useTranscriptNavigation();
+  const { getEventUrl, getMessageUrl } = useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
@@ -410,7 +412,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
               labels={messagesReferenceLabels}
               linking={{
                 enabled: isHostedEnvironment(),
-                getMessageUrl: getFullMessageUrl,
+                getMessageUrl,
+                toShareUrl: toFullUrl,
               }}
             />
           </div>
@@ -470,7 +473,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         timelines={transcript.timelines}
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
-        getEventUrl={getFullEventUrl}
+        getEventUrl={getEventUrl}
+        toShareUrl={toFullUrl}
         linkingEnabled={isHostedEnvironment()}
         messageLabels={eventsReferenceLabels?.messageLabels}
         eventLabels={eventsReferenceLabels?.eventLabels}

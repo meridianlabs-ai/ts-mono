@@ -58,8 +58,11 @@ interface TimelineEventsViewProps {
   /** Reset the headroom anchor before a layout shift or programmatic scroll.
    *  Pass `true` to debounce (keeps lock alive while scrolling continues). */
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
-  /** Callback to generate a full deep-link URL for an event. */
+  /** Callback to generate the router route for an event deep link. */
   getEventUrl?: (eventId: string) => string | undefined;
+  /** Convert a route from `getEventUrl` into an absolute shareable URL
+   *  (copy buttons, raw outline hrefs). */
+  toShareUrl?: (route: string) => string;
   /** Whether deep-link copy buttons are enabled. */
   linkingEnabled?: boolean;
   /** Per-message labels rendered in model-call message gutters. */
@@ -92,6 +95,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   headroomHidden,
   onHeadroomResetAnchor,
   getEventUrl,
+  toShareUrl,
   linkingEnabled,
   messageLabels,
   eventLabels,
@@ -244,6 +248,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       initialMessageId={initialMessageId}
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
+      toShareUrl={toShareUrl}
       linkingEnabled={linkingEnabled}
       eventNodeContext={eventNodeContext}
       bulkCollapse={bulkCollapse}

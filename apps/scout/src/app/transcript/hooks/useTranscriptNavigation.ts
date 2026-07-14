@@ -4,9 +4,10 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { parseTranscriptParams, transcriptRoute } from "../../../router/url";
 
 /**
- * Converts a hash-router relative URL to a full absolute URL.
+ * Converts a hash-router route to an absolute shareable URL. Passed as
+ * `toShareUrl` to shared components that surface copyable links.
  */
-const toFullUrl = (route: string): string => {
+export const toFullUrl = (route: string): string => {
   return `${window.location.origin}${window.location.pathname}#${route}`;
 };
 
@@ -61,38 +62,9 @@ export const useTranscriptNavigation = () => {
     [transcriptsDir, transcriptId, searchParams]
   );
 
-  // TODO: seems like these "full" urls don't work in vscode
-  // is this a foot gun? an existing bug?
-  const getFullEventUrl = useCallback(
-    (eventId: string): string | undefined => {
-      const route = getEventUrl(eventId);
-      return route ? toFullUrl(route) : undefined;
-    },
-    [getEventUrl]
-  );
-
-  const getFullMessageUrl = useCallback(
-    (messageId: string): string | undefined => {
-      const route = getMessageUrl(messageId);
-      return route ? toFullUrl(route) : undefined;
-    },
-    [getMessageUrl]
-  );
-
-  const getFullEventMessageUrl = useCallback(
-    (messageId: string): string | undefined => {
-      const route = getEventMessageUrl(messageId);
-      return route ? toFullUrl(route) : undefined;
-    },
-    [getEventMessageUrl]
-  );
-
   return {
     getEventUrl,
     getMessageUrl,
     getEventMessageUrl,
-    getFullEventUrl,
-    getFullMessageUrl,
-    getFullEventMessageUrl,
   };
 };
