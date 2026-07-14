@@ -23,7 +23,6 @@ import {
 } from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
-import { totalSampleTokens } from "../../../client/utils/derive.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
 import { parseFilterSpecs } from "../../../app/samples/sample-tools/astToSpecs.ts";
@@ -33,6 +32,7 @@ import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
+import { totalSampleTokens } from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
 import { selectSample } from "../../../state/actions.ts";
 import {

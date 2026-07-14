@@ -19,7 +19,6 @@ import {
   LogPreview,
   SampleSummary,
 } from "../api/types";
-
 import { prepareLogDetails } from "../utils/type-utils";
 
 import { DB_NAME } from "./schema";

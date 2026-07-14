@@ -828,7 +828,12 @@ describe("FetchEngine.applyListing epoch fencing", () => {
 
     // Dir switch: restart binds the next session's sink.
     const { sink, calls } = createFakeSink();
-    await engine.start({ api: fake.api, database: null, sink, logDir: "dir/logs" });
+    await engine.start({
+      api: fake.api,
+      database: null,
+      sink,
+      logDir: "dir/logs",
+    });
     const before = engine.listing();
 
     const result = await engine.applyListing({
@@ -1301,7 +1306,12 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const db = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink, calls } = createFakeSink(db);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
-    await engine.start({ api: fake.api, database: db, sink, logDir: "dir/logs" });
+    await engine.start({
+      api: fake.api,
+      database: db,
+      sink,
+      logDir: "dir/logs",
+    });
 
     await expect(
       engine.ensure("a.eval", { depth: "detailed", priority: "user" })
@@ -1312,7 +1322,12 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
 
     engine.stop();
-    await engine.start({ api: fake.api, database: db, sink, logDir: "dir/logs" });
+    await engine.start({
+      api: fake.api,
+      database: db,
+      sink,
+      logDir: "dir/logs",
+    });
 
     expect(calls.fetchStates["a.eval"]).toMatchObject({
       details_fetch_error: "fetch failed: a.eval",
@@ -1478,7 +1493,12 @@ describe("FetchEngine details settle seq persistence (F3)", () => {
     const db = createFakeDb([listedRow(handle("a.eval"))]);
     const { sink, calls } = createFakeSink(db);
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
-    await engine.start({ api: fake.api, database: db, sink, logDir: "dir/logs" });
+    await engine.start({
+      api: fake.api,
+      database: db,
+      sink,
+      logDir: "dir/logs",
+    });
 
     await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 

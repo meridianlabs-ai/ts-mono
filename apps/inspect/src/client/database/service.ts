@@ -2,11 +2,7 @@ import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
 import { Log, LogFetchState, LogPreview } from "../api/types";
-import {
-  maxDepth,
-  PreparedLogDetails,
-  previewTier,
-} from "../utils/type-utils";
+import { maxDepth, PreparedLogDetails, previewTier } from "../utils/type-utils";
 
 import { DatabaseManager } from "./manager";
 import {
@@ -408,14 +404,12 @@ export class DatabaseService {
         .where("[depth+file_path]")
         .between([depth, prefix], [depth, prefix + "\uffff"])
         .count();
-    const [logFiles, previewed, detailed, sampleSummaries] = await Promise.all(
-      [
-        db.logs.where("file_path").startsWith(prefix).count(),
-        depthCount("previewed"),
-        depthCount("detailed"),
-        db.sample_summaries.where("file_path").startsWith(prefix).count(),
-      ]
-    );
+    const [logFiles, previewed, detailed, sampleSummaries] = await Promise.all([
+      db.logs.where("file_path").startsWith(prefix).count(),
+      depthCount("previewed"),
+      depthCount("detailed"),
+      db.sample_summaries.where("file_path").startsWith(prefix).count(),
+    ]);
 
     return {
       logFiles,
