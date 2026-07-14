@@ -9,18 +9,23 @@ import {
 } from "../api/types";
 
 /**
- * Derivation of stored listing columns (`LogDerived` / `SampleDerived`).
+ * Derivation of stored listing columns (`LogDerived` / `SampleDerived` /
+ * the sample facts on `LogHeader`).
  *
- * These run once at ingestion — the write paths (`detailTier`, the details
- * sink) attach the result to the stored row, and the listing grids read the
- * stored values without computing. Grid columns must never re-derive these
- * fields at read time; that would let displayed values drift from what the
- * store (and eventually the database query layer) sees.
- *
- * Any behavior change here requires a `DB_VERSION` bump: persisted rows carry
- * values computed by the old logic and are only recomputed via the
- * recreate-on-mismatch wipe.
+ * These run once at ingestion — the write paths (`prepareLogDetails`) attach
+ * the result to the stored row, and the listing grids read the stored values
+ * without computing. Grid columns must never re-derive these fields at read
+ * time; that would let displayed values drift from what the store (and
+ * eventually the database query layer) sees.
  */
+
+/**
+ * Version of the derivation behavior in this module, folded into the
+ * database version (see `DB_VERSION` in schema.ts). Bump it on ANY behavior
+ * change here: persisted rows carry values computed by the old logic and are
+ * only recomputed via the recreate-on-mismatch wipe.
+ */
+export const DERIVE_VERSION = 1;
 
 export const deriveLogFields = (header: LogHeader): LogDerived => {
   let total_tokens: number | undefined;
@@ -86,6 +91,25 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
     percent_completed,
     sample_limits,
     scores,
+  };
+};
+
+/** The sample facts baked onto the stored `LogHeader` by `toLogHeader` —
+ *  persisted derivation like the fields above, so it lives under
+ *  `DERIVE_VERSION` with them. */
+export const deriveSampleFacts = (
+  summaries: SampleSummary[]
+): Pick<LogHeader, "sampleCount" | "sampleErrorCount" | "sampleLimits"> => {
+  const limits = new Set<string>();
+  let errorCount = 0;
+  for (const sample of summaries) {
+    if (sample.error) errorCount += 1;
+    if (sample.limit) limits.add(sample.limit);
+  }
+  return {
+    sampleCount: summaries.length,
+    sampleErrorCount: errorCount,
+    sampleLimits: [...limits].sort(),
   };
 };
 

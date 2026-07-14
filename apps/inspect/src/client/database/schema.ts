@@ -1,6 +1,7 @@
 import Dexie from "dexie";
 
 import { Log, SampleDerived, SampleSummary } from "../api/types";
+import { DERIVE_VERSION } from "../utils/derive";
 
 // Logs Table — THE Log entity row: identity + attribute columns at
 // progressive depth + retrieval facts (see
@@ -56,11 +57,14 @@ export interface SyncScopeRecord {
   last_accessed: string;
 }
 
-// Current database schema version. Bump on any schema change AND on any
-// behavior change in `deriveLogFields`/`deriveSampleFields` — stored rows
-// carry derived values and are only recomputed via the recreate-on-mismatch
-// wipe.
-export const DB_VERSION = 16;
+// The schema's shape version — bump on any table/index change.
+const SCHEMA_VERSION = 16;
+
+// The stored-data version: schema shape composed with derivation behavior,
+// so a derive.ts change can't ship without invalidating rows that carry
+// values from the old logic. DERIVE_VERSION lives beside the derivation
+// functions it versions.
+export const DB_VERSION = SCHEMA_VERSION * 100 + DERIVE_VERSION;
 
 // One database per origin (not per log dir): `file_path` is a full path/URI,
 // so rows from overlapping dirs (e.g. /logs and /logs/important) share

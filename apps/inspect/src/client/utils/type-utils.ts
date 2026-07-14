@@ -11,7 +11,11 @@ import {
   SampleSummary,
 } from "../api/types";
 
-import { deriveLogFields, deriveSampleFields } from "./derive";
+import {
+  deriveLogFields,
+  deriveSampleFacts,
+  deriveSampleFields,
+} from "./derive";
 
 const kDepthOrder: Record<LogDepth, number> = {
   listed: 0,
@@ -58,18 +62,7 @@ export const detailTier = (
  *  sample summaries, plus the sample facts derived from them. */
 export const toLogHeader = (details: LogDetails): LogHeader => {
   const { sampleSummaries, ...header } = details;
-  const limits = new Set<string>();
-  let errorCount = 0;
-  for (const sample of sampleSummaries) {
-    if (sample.error) errorCount += 1;
-    if (sample.limit) limits.add(sample.limit);
-  }
-  return {
-    ...header,
-    sampleCount: sampleSummaries.length,
-    sampleErrorCount: errorCount,
-    sampleLimits: [...limits].sort(),
-  };
+  return { ...header, ...deriveSampleFacts(sampleSummaries) };
 };
 
 export interface PreparedSampleSummary {
