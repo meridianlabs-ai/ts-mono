@@ -58,7 +58,7 @@ export interface SyncScopeRecord {
 }
 
 // The schema's shape version — bump on any table/index change.
-const SCHEMA_VERSION = 16;
+const SCHEMA_VERSION = 13;
 
 // The stored-data version: schema shape composed with derivation behavior,
 // so a derive.ts change can't ship without invalidating rows that carry
