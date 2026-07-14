@@ -330,21 +330,28 @@ export type SampleUrlBuilder = (
 
 export const useSampleUrlBuilder = () => {
   const location = useLocation();
-  const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
-    ? "/tasks"
-    : "/logs";
-  return (
-    logPath: string,
-    sampleId?: string | number,
-    sampleEpoch?: string | number,
-    sampleTabId?: string
-  ) => {
-    if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
-      return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
-    } else {
-      return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
-    }
-  };
+  // Memoize on pathname so the returned builder keeps a stable identity across
+  // renders (e.g. streaming polls). Downstream memos (SampleDisplay's
+  // `messageOptions`, TranscriptPanel's event-url chain) key on this builder,
+  // so an unstable identity would defeat their memoization.
+  return useCallback(
+    (
+      logPath: string,
+      sampleId?: string | number,
+      sampleEpoch?: string | number,
+      sampleTabId?: string
+    ) => {
+      const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
+        ? "/tasks"
+        : "/logs";
+      if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
+        return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
+      } else {
+        return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
+      }
+    },
+    [location.pathname]
+  );
 };
 
 export const logSamplesUrl = (
