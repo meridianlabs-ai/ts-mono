@@ -404,25 +404,27 @@ export class DatabaseService {
     const db = this.getDb();
     const prefix = scopePrefix(scope.prefix);
 
-    // Depth breakdowns can't compose a second index with the file_path
-    // range — filter in JS (debug/advisory stats only).
-    const scoped = () => db.logs.where("file_path").startsWith(prefix);
-    const [logFiles, logSummaries, logHeaders, sampleSummaries] =
-      await Promise.all([
-        scoped().count(),
-        scoped()
-          .filter((record) => record.depth !== "listed")
-          .count(),
-        scoped()
-          .filter((record) => record.depth === "detailed")
-          .count(),
+    // Index-only counts: this runs throttled but repeatedly during active
+    // replication, and a cursor over the range would structured-clone every
+    // record (full header included) just to count it.
+    const depthCount = (depth: LogRecord["depth"]) =>
+      db.logs
+        .where("[depth+file_path]")
+        .between([depth, prefix], [depth, prefix + "\uffff"])
+        .count();
+    const [logFiles, previewed, detailed, sampleSummaries] = await Promise.all(
+      [
+        db.logs.where("file_path").startsWith(prefix).count(),
+        depthCount("previewed"),
+        depthCount("detailed"),
         db.sample_summaries.where("file_path").startsWith(prefix).count(),
-      ]);
+      ]
+    );
 
     return {
       logFiles,
-      logSummaries,
-      logHeaders,
+      logSummaries: previewed + detailed,
+      logHeaders: detailed,
       sampleSummaries,
     };
   }

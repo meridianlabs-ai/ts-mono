@@ -60,7 +60,7 @@ export interface SyncScopeRecord {
 // behavior change in `deriveLogFields`/`deriveSampleFields` — stored rows
 // carry derived values and are only recomputed via the recreate-on-mismatch
 // wipe.
-export const DB_VERSION = 15;
+export const DB_VERSION = 16;
 
 // One database per origin (not per log dir): `file_path` is a full path/URI,
 // so rows from overlapping dirs (e.g. /logs and /logs/important) share
@@ -121,8 +121,10 @@ export class AppDatabase extends Dexie {
     this.version(DB_VERSION)
       .stores({
         // The Log entity rows. depth is indexed for backfill discovery
-        // (missing previews/details); mtime for listing order.
-        logs: "++id, &file_path, mtime, task, task_id, depth, cached_at",
+        // (missing previews/details); mtime for listing order;
+        // [depth+file_path] serves scoped per-depth counts without
+        // materializing rows (see getCacheStats).
+        logs: "++id, &file_path, mtime, task, task_id, depth, cached_at, [depth+file_path]",
 
         // Sample summaries split out of details payloads. file_path serves
         // scope reads (equals / startsWith); summary.completed_at serves the
