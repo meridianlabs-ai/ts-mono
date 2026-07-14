@@ -9,13 +9,43 @@
 import { renderHook } from "@testing-library/react";
 import { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type { StoreState } from "../../state/store";
 
 import {
   routeFromFullUrl,
   toFullUrl,
   useFullSampleMessageUrlBuilder,
 } from "./url";
+
+// `useFullSampleMessageUrlBuilder` reads `selectedLogFile` from the store and
+// the log dir from app config (react-query, below <AppConfigGate/>). Mock both:
+// a hoisted holder makes `selectedLogFile` controllable per test; the log dir
+// is a fixed stub (its value doesn't affect these assertions).
+const mockStore = vi.hoisted(() => ({
+  selectedLogFile: undefined as string | undefined,
+}));
+
+vi.mock("../../state/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../state/store")>();
+  return {
+    ...actual,
+    useStore: (selector: (s: StoreState) => unknown) =>
+      selector({
+        logs: { selectedLogFile: mockStore.selectedLogFile },
+      } as unknown as StoreState),
+  };
+});
+
+vi.mock("../../app_config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../app_config")>();
+  return { ...actual, useLogDir: () => "" };
+});
+
+afterEach(() => {
+  mockStore.selectedLogFile = undefined;
+});
 
 // Host page the viewer is embedded in, from the @vitest-environment-options
 // URL above (a non-root path with a query, like Hawk's /eval-set/<id>).
@@ -62,5 +92,15 @@ describe("useFullSampleMessageUrlBuilder", () => {
     });
 
     expect(result.current("msg-1")).toBeUndefined();
+  });
+
+  it("falls back to the store's selectedLogFile when the route has no log path", () => {
+    mockStore.selectedLogFile = "dir/file.eval";
+    const { result } = renderHook(() => useFullSampleMessageUrlBuilder(), {
+      wrapper: wrapperAt("/"),
+    });
+
+    const expectedRoute = `/logs/dir/file.eval/samples/messages?message=msg-1`;
+    expect(result.current("msg-1")).toBe(`${kHostPage}#${expectedRoute}`);
   });
 });

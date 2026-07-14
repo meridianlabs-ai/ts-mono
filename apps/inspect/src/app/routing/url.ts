@@ -542,20 +542,28 @@ export const useFullSampleMessageUrlBuilder = () => {
     epoch: urlEpoch,
   } = useLogOrSampleRouteParams();
 
+  const log_file = useStore((state) => state.logs.selectedLogFile);
+  const log_dir = useLogDir();
+
+  let targetLogPath = urlLogPath;
+  if (!targetLogPath && log_file) {
+    targetLogPath = makeLogsPath(log_file, log_dir);
+  }
+
   return useCallback(
     (messageId: string) =>
       toFullUrlMaybe(
-        urlLogPath
+        targetLogPath
           ? sampleMessageUrl(
               builder,
               messageId,
-              urlLogPath,
+              targetLogPath,
               urlSampleId,
               urlEpoch
             )
           : undefined
       ),
-    [builder, urlLogPath, urlSampleId, urlEpoch]
+    [builder, targetLogPath, urlSampleId, urlEpoch]
   );
 };
 
