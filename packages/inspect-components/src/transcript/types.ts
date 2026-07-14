@@ -139,7 +139,12 @@ export class EventNode<T extends EventType = EventType> {
 export interface EventPanelCallbacks {
   onCollapse?: (id: string, collapsed: boolean) => void;
   getCollapsed?: (id: string) => boolean;
+  /** Build the router route for an event id (in-app navigation). */
   getEventUrl?: (eventId: string) => string | undefined;
+  /** Convert a route from `getEventUrl` into an absolute shareable URL.
+   *  Applied where the URL leaves the router (copy-to-clipboard, raw hrefs);
+   *  hash-router apps pass e.g. `(route) => \`${origin}${pathname}#${route}\``. */
+  toShareUrl?: (route: string) => string;
   linkingEnabled?: boolean;
 }
 

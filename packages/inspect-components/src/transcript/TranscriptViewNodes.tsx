@@ -57,6 +57,7 @@ export interface TranscriptViewNodesProps {
   renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
   turnMap?: Map<string, { turnNumber: number; totalTurns: number }>;
   getEventUrl?: (eventId: string) => string | undefined;
+  toShareUrl?: (route: string) => string;
   linkingEnabled?: boolean;
 
   // Collapse state (app provides via its store, already scope-specific)
@@ -229,6 +230,7 @@ export const TranscriptViewNodes = forwardRef<
     renderAgentCard,
     turnMap,
     getEventUrl,
+    toShareUrl,
     linkingEnabled,
     collapsedTranscript,
     collapsedOutline,
@@ -252,9 +254,10 @@ export const TranscriptViewNodes = forwardRef<
       onCollapse: onCollapseTranscript,
       getCollapsed,
       getEventUrl,
+      toShareUrl,
       linkingEnabled,
     }),
-    [onCollapseTranscript, getCollapsed, getEventUrl, linkingEnabled]
+    [onCollapseTranscript, getCollapsed, getEventUrl, toShareUrl, linkingEnabled]
   );
 
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView

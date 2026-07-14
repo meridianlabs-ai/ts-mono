@@ -170,7 +170,11 @@ export interface TranscriptLayoutProps {
    *  Used for citation navigation — resolves against selected span first, then root. */
   initialMessageId?: string | null;
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
+  /** Build the router route for an event id (in-app navigation). */
   getEventUrl?: (eventId: string) => string | undefined;
+  /** Convert a route from `getEventUrl` into an absolute shareable URL —
+   *  applied where the URL leaves the router (copy button, raw hrefs). */
+  toShareUrl?: (route: string) => string;
   linkingEnabled?: boolean;
 
   // --- Collapse state (from app store) ---
@@ -311,6 +315,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   initialMessageId,
   eventsListRef,
   getEventUrl,
+  toShareUrl,
   linkingEnabled,
   bulkCollapse,
   collapseState,
@@ -1150,6 +1155,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                           selectedOutlineId={outline.selectedId}
                           setSelectedOutlineId={outline.setSelectedId}
                           getEventUrl={getEventUrl}
+                          toShareUrl={toShareUrl}
                           renderLink={outline.renderLink}
                           onNavigateToEvent={outline.onNavigateToEvent}
                           onHasNodesChange={handleOutlineHasNodesChange}
@@ -1197,6 +1203,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   scrollRef={scrollRef}
                   renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
                   getEventUrl={getEventUrl}
+                  toShareUrl={toShareUrl}
                   linkingEnabled={linkingEnabled}
                   collapsedTranscript={collapseState?.transcript}
                   collapsedOutline={collapseState?.outline}

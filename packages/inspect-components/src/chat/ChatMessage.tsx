@@ -54,9 +54,14 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   const formatDateTime = display?.formatDateTime;
   const linkingEnabled = linking?.enabled ?? false;
   const getMessageUrl = linking?.getMessageUrl;
+  const toShareUrl = linking?.toShareUrl;
   const linkIcon = linking?.icon ?? "bi bi-link-45deg";
 
-  const messageUrl = getMessageUrl?.(message.id || "");
+  // The copy button copies this verbatim, so make the route shareable.
+  const messageRoute = getMessageUrl?.(message.id || "");
+  const messageUrl = messageRoute
+    ? (toShareUrl?.(messageRoute) ?? messageRoute)
+    : undefined;
 
   const [mouseOver, setMouseOver] = useState(false);
 

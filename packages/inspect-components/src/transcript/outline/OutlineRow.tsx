@@ -16,6 +16,10 @@ export interface OutlineRowProps {
   running?: boolean;
   selected?: boolean;
   getEventUrl?: (eventId: string) => string | undefined;
+  /** Convert a route from `getEventUrl` into an absolute shareable URL.
+   *  Used for the raw `<a href>` fallback when no `renderLink` is given
+   *  (a bare route in an href would escape the hash router). */
+  toShareUrl?: (route: string) => string;
   onSelect?: (nodeId: string) => void;
   /** Called when a URL isn't available but the user clicks to navigate to an event. */
   onNavigateToEvent?: (eventId: string) => void;
@@ -31,6 +35,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
   running,
   selected,
   getEventUrl,
+  toShareUrl,
   onSelect,
   onNavigateToEvent,
   getCollapsed,
@@ -41,7 +46,7 @@ export const OutlineRow: FC<OutlineRowProps> = ({
   const icon = iconForNode(node);
   const toggle = toggleIcon(node, collapsed);
 
-  // Generate URL for deep linking to this event
+  // Router route for deep linking to this event
   const eventUrl = getEventUrl?.(node.id);
 
   const labelText = parsePackageName(labelForNode(node)).module;
@@ -87,7 +92,10 @@ export const OutlineRow: FC<OutlineRowProps> = ({
                 {renderLink(eventUrl, labelText)}
               </span>
             ) : (
-              <a href={eventUrl} className={clsx(styles.eventLink)}>
+              <a
+                href={toShareUrl?.(eventUrl) ?? eventUrl}
+                className={clsx(styles.eventLink)}
+              >
                 {labelText}
               </a>
             )

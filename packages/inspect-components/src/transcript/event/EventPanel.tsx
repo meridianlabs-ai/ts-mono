@@ -73,7 +73,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   headerExtra,
   eventCallbacks,
 }) => {
-  const { onCollapse, getCollapsed, getEventUrl, linkingEnabled } =
+  const { onCollapse, getCollapsed, getEventUrl, toShareUrl, linkingEnabled } =
     eventCallbacks ?? {};
   const eventLabel = useContext(EventLabelContext);
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
@@ -89,8 +89,10 @@ export const EventPanel: FC<EventPanelProps> = ({
   const isCollapsible = (childIds || []).length > 0 || collapsibleContent;
   const useBottomDongle = isCollapsible && collapseControl === "bottom";
 
-  const url =
+  // The copy button copies this verbatim, so make the route shareable.
+  const route =
     linkingEnabled && getEventUrl ? getEventUrl(eventNodeId) : undefined;
+  const shareUrl = route ? (toShareUrl?.(route) ?? route) : undefined;
 
   const pillId = (index: number) => `${eventNodeId}-nav-pill-${index}`;
 
@@ -206,10 +208,10 @@ export const EventPanel: FC<EventPanelProps> = ({
               {headerExtra}
             </span>
           ) : null}
-          {url ? (
+          {shareUrl ? (
             <span onClick={(e) => e.stopPropagation()}>
               <CopyButton
-                value={url}
+                value={shareUrl}
                 icon={kLinkIcon}
                 className={clsx(styles.copyLink)}
               />

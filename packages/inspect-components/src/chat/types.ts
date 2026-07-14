@@ -25,8 +25,11 @@ export interface ChatViewLabelOptions {
 export interface ChatViewLinkingOptions {
   /** Show link UI on messages. Default: false. */
   enabled?: boolean;
-  /** Build a shareable URL for a message id. */
+  /** Build the router route for a message id. */
   getMessageUrl?: (messageId: string) => string | undefined;
+  /** Convert a route from `getMessageUrl` into an absolute shareable URL
+   *  for the copy button (a bare route only works for in-app navigation). */
+  toShareUrl?: (route: string) => string;
   /** Icon class for the link button. Default: "bi bi-link-45deg". */
   icon?: string;
 }

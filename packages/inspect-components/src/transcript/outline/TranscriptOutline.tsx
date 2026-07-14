@@ -54,8 +54,11 @@ interface TranscriptOutlineProps {
   scrollTrackOffset?: number;
 
   // --- Callback props replacing store hooks ---
-  /** URL generator for deep linking to events. */
+  /** Router route generator for deep linking to events. */
   getEventUrl?: (eventId: string) => string | undefined;
+  /** Convert a route from `getEventUrl` into an absolute shareable URL.
+   *  Used for the raw `<a href>` fallback when no `renderLink` is given. */
+  toShareUrl?: (route: string) => string;
   /** Get collapsed state for an outline node. */
   getCollapsed?: (id: string) => boolean;
   /** Set collapsed state for an outline node. */
@@ -104,6 +107,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   onNavigateToEvent,
   scrollTrackOffset,
   getEventUrl,
+  toShareUrl,
   getCollapsed,
   setCollapsed,
   collapsedEvents,
@@ -273,6 +277,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
               selectedOutlineId ? selectedOutlineId === node.id : index === 0
             }
             getEventUrl={getEventUrl}
+            toShareUrl={toShareUrl}
             onSelect={handleOutlineSelect}
             onNavigateToEvent={onNavigateToEvent}
             getCollapsed={getCollapsed}
@@ -287,6 +292,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       running,
       selectedOutlineId,
       getEventUrl,
+      toShareUrl,
       handleOutlineSelect,
       onNavigateToEvent,
       getCollapsed,
