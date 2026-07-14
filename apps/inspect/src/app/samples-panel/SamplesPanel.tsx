@@ -10,6 +10,7 @@ import type {
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
+import { scopePrefix } from "../../client/database";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
@@ -137,7 +138,7 @@ export const SamplesPanel: FC = () => {
   const currentDirLogFiles = useMemo(() => {
     const files = [];
     for (const logFile of logFiles) {
-      const inCurrentDir = logFile.name.startsWith(currentDir);
+      const inCurrentDir = logFile.name.startsWith(scopePrefix(currentDir));
       const skipped = !showRetriedLogs && logFile.retried;
       if (inCurrentDir && !skipped) {
         files.push(logFile);
