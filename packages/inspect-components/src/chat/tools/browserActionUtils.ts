@@ -17,6 +17,15 @@ export interface ToolAnnotation {
   scrollDirection?: string | undefined;
 }
 
+/**
+ * Tools whose actions can be annotated onto a screenshot. Membership requires
+ * the tool's coordinate arguments to be in screenshot-pixel space and its
+ * results to carry post-action screenshots (element-based browser tools like
+ * web_browser_* don't qualify). The set plays two roles: it gates which calls
+ * get a selfAnnotation, and the before-state scan in computeVisualActionContext
+ * stops at the first tool call outside it — so adding a tool here also changes
+ * which screenshots earlier actions may pair with.
+ */
 export const BROWSER_TOOL_FUNCTIONS = new Set(["browser", "computer"]);
 
 export const CLICK_ACTIONS = new Set([
