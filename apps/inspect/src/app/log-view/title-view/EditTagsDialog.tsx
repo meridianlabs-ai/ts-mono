@@ -4,7 +4,7 @@ import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { TagsEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
-import { useApi } from "../../../state/store";
+import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { ChangeSummary } from "./ChangeSummary";
@@ -29,7 +29,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useApi();
+  const api = getApi();
 
   const [tags, setTags] = useState<string[]>(currentTags);
   const [pending, setPending] = useState("");
@@ -189,7 +189,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}

@@ -1,6 +1,6 @@
 declare let Prism: {
-  languages: any;
-  highlight(contents: any, tokens: any, type: any): string;
+  languages: Record<string, unknown>;
+  highlight(contents: string, tokens: unknown, type: string): string;
   highlightElement(
     element: HTMLElement,
     async?: boolean,

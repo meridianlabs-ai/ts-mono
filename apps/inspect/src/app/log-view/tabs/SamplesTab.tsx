@@ -1,5 +1,4 @@
-import type { ColDef, GridApi } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import type { SortingState } from "@tanstack/react-table";
 import {
   FC,
   Fragment,
@@ -12,26 +11,45 @@ import {
 } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { NoContentsPanel, ToolButton } from "@tsmono/react/components";
+import type {
+  ColumnFilter,
+  FilterSpec,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
+import {
+  ErrorPanel,
+  NoContentsPanel,
+  ToolButton,
+} from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect.ts";
 import { InlineSampleDisplay } from "../../../app/samples/InlineSampleDisplay.tsx";
 import { SampleList } from "../../../app/samples/list/SampleList.tsx";
+import { parseFilterSpecs } from "../../../app/samples/sample-tools/astToSpecs.ts";
+import { buildSampleFilterSpecRegistry } from "../../../app/samples/sample-tools/filterSpecRegistry.ts";
+import { specsToFilterText } from "../../../app/samples/sample-tools/specsToFilterText.ts";
 import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
+import { selectSample } from "../../../state/actions.ts";
 import {
   useFilteredSamples,
   useSampleDescriptor,
   useScores,
+  useSelectedLogDetails,
+  useSelectedSampleSummaries,
   useSelectedScores,
   useTotalSampleCount,
 } from "../../../state/hooks.ts";
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
+import {
+  sortingToViewSort,
+  viewSortToSorting,
+} from "../../samples/list/samplesView.converters.ts";
 import {
   useSamplesView,
   useSamplesViewColorScalesEnabled,
@@ -40,21 +58,15 @@ import {
   useSamplesViewScoreColorScales,
   useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
-import {
-  astToFilterModel,
-  FilterModel,
-} from "../../samples/sample-tools/astToFilterModel.ts";
-import { parseFilter } from "../../samples/sample-tools/filterAst.ts";
-import { filterModelToText } from "../../samples/sample-tools/filterModelToText.ts";
-import { buildSampleFilterRegistry } from "../../samples/sample-tools/filterRegistry.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
-import { getFieldKey } from "../../shared/gridUtils.ts";
+import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
+import { type PickerColumn } from "../../shared/gridUtils.ts";
+import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
 import {
   buildSampleColumns,
   perScorerFieldKey,
 } from "../../shared/samples-grid/columns.tsx";
 import { SampleRow } from "../../shared/samples-grid/types.ts";
-import { clearFiltersForHiddenColumns } from "../../shared/samples-grid/useSampleGridState.ts";
 
 import { RunningNoSamples } from "./RunningNoSamples.tsx";
 
@@ -63,6 +75,29 @@ interface SamplesTabExtraProps {
   setShowColumnSelector: (showing: boolean) => void;
   columnButtonEl: HTMLButtonElement | null;
 }
+
+// Stable empty fallback: a fresh `{}` per render would invalidate the
+// `allColumns` memo every render (and tear down score-cell DOM).
+const kNoScoreColorScales: Record<string, WireScoreColorScale> = Object.freeze(
+  {}
+);
+
+// Stable empty fallback: a fresh `{}` per render (while the representability
+// gate is active) would defeat SampleList's memo.
+const kNoColumnFilters: Record<string, ColumnFilter> = Object.freeze({});
+
+// Stable empty fallback for logs with no persisted column widths.
+const kNoColumnSizing: Record<string, number> = Object.freeze({});
+
+// Picker-column shim of the column list for `useSamplesView` /
+// `ColumnSelectorPopover`, which key off `colId` / `headerName`.
+const toPickerColumns = (
+  columns: ExtendedColumnDef<SampleRow>[]
+): PickerColumn[] =>
+  columns.map((col) => ({
+    colId: col.id,
+    headerName: typeof col.header === "string" ? col.header : "",
+  }));
 
 // Individual hook for Samples tab
 export const useSamplesTabConfig = (
@@ -133,11 +168,9 @@ export const useSamplesTabConfig = (
                 ),
               ],
     };
-    // `scrollRef` and `setShowColumnSelector` are intentionally omitted —
-    // refs and React state setters have stable identity across renders, so
-    // including them only churns the memo without changing behavior. If
-    // `componentProps` ever gains a non-stable value, add it to the deps
-    // list.
+    // `setShowColumnSelector` is intentionally omitted — React state setters
+    // have stable identity across renders, so including it only churns the
+    // memo without changing behavior.
   }, [
     evalStatus,
     refreshLog,
@@ -163,7 +196,10 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   columnButtonEl,
 }) => {
   const sampleSummaries = useFilteredSamples();
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  // The summaries' loading/error surface — the derivation hooks above all
+  // compute over the settled rows this AsyncData carries.
+  const summariesState = useSelectedSampleSummaries();
+  const selectedLogDetails = useSelectedLogDetails();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
   const evalSampleCount = useMemo(() => {
@@ -194,11 +230,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   );
   const epochs = selectedLogDetails?.eval.config?.epochs || 1;
 
-  const selectSample = useStore((state) => state.logActions.selectSample);
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
-
-  const sampleListHandle = useRef<AgGridReact<SampleRow> | null>(null);
-
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
   // currently selected) is applied via the column-visibility map below.
@@ -209,9 +240,40 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const scoreLabels = useSamplesViewScoreLabels();
   const wireScoreColorScales = useSamplesViewScoreColorScales();
   const colorScalesEnabled = useSamplesViewColorScalesEnabled();
+  // Gate the heat-map colours behind the user-facing toggle: pass the
+  // resolved scales through only when enabled, else nothing.
   const scoreColorScales = useMemo(
-    () => (colorScalesEnabled ? wireScoreColorScales : {}),
+    () => (colorScalesEnabled ? wireScoreColorScales : kNoScoreColorScales),
     [colorScalesEnabled, wireScoreColorScales]
+  );
+
+  const filter = useStore((state) => state.log.filter);
+  const setFilter = useStore((state) => state.logActions.setFilter);
+
+  const filterSpecRegistry = useMemo(
+    () => buildSampleFilterSpecRegistry(samplesDescriptor?.evalDescriptor),
+    [samplesDescriptor?.evalDescriptor]
+  );
+
+  // Column funnels are a projection of the FILTER string: derive their state
+  // by parsing it, and hide them entirely when the expression isn't
+  // representable as per-column filters (so a funnel edit can't clobber a
+  // richer hand-typed expression).
+  const columnFilterSpecs = useMemo(
+    () => parseFilterSpecs(filter, filterSpecRegistry),
+    [filter, filterSpecRegistry]
+  );
+
+  const handleColumnFilterChange = useCallback(
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
+      if (columnFilterSpecs === null) return;
+      const next = { ...columnFilterSpecs };
+      if (spec === null) delete next[columnId];
+      else next[columnId] = { columnId, filterType, spec };
+      const text = specsToFilterText(next, filterSpecRegistry);
+      if (text !== null) setFilter(text);
+    },
+    [columnFilterSpecs, filterSpecRegistry, setFilter]
   );
 
   const allColumns = useMemo(
@@ -222,19 +284,26 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         descriptor: samplesDescriptor,
         scores,
         epochs,
-        compactScores,
         scoreLabels,
         scoreColorScales,
+        compactScores,
+        filterSpecRegistry,
       }),
     [
       multiline,
       samplesDescriptor,
       scores,
       epochs,
-      compactScores,
       scoreLabels,
       scoreColorScales,
+      compactScores,
+      filterSpecRegistry,
     ]
+  );
+
+  const pickerColumns = useMemo(
+    () => toPickerColumns(allColumns),
+    [allColumns]
   );
 
   // Default visibility for unseeded columns. Core text columns
@@ -244,11 +313,8 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // SamplesPanel behavior.
   const shape = samplesDescriptor?.messageShape;
   const defaultsForUnseededColumns = useCallback(
-    (col: ColDef<SampleRow>) => {
+    (col: PickerColumn) => {
       const id = col.colId;
-      // Mirror the col.hide for epoch so the seeded visibility matches
-      // and we don't get a flash of "visible → hidden" once seeding
-      // persists `epoch: true` into the store.
       if (id === "epoch") return epochs > 1;
       if (id === "limit") return !!shape?.limitSize;
       if (id === "retries") return !!shape?.retriesSize;
@@ -263,13 +329,45 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const {
     view,
     columnVisibility,
-    gridState,
     setColumnVisibility,
-    setGridState,
+    patchView,
     resetColumns,
-  } = useSamplesView<SampleRow>(allColumns, {
+  } = useSamplesView(pickerColumns, {
     seedDefaultVisibility: defaultsForUnseededColumns,
   });
+
+  // Apply the eval-author's initial column order + row sort from
+  // `task_samples_view` (the AG grid did this via `initialState`). Columns are
+  // reordered to follow `view.columns`; any not listed keep their builder
+  // order at the end. Default sort seeds the grid from `view.sort`.
+  const orderedColumns = useMemo<ExtendedColumnDef<SampleRow>[]>(() => {
+    if (view.columns.length === 0) return allColumns;
+    const orderIndex = new Map(view.columns.map((c, i) => [c.id, i]));
+    const rankOf = (col: ExtendedColumnDef<SampleRow>) => {
+      const i = col.id !== undefined ? orderIndex.get(col.id) : undefined;
+      return i ?? Number.MAX_SAFE_INTEGER;
+    };
+    return allColumns
+      .map((col, i) => ({ col, i }))
+      .sort((a, b) => rankOf(a.col) - rankOf(b.col) || a.i - b.i)
+      .map((x) => x.col);
+  }, [allColumns, view.columns]);
+
+  // Controlled sort/widths, persisted per log in the samples-view descriptor
+  // so they survive the grid unmounting (opening a sample, switching tabs).
+  const sorting = useMemo<SortingState>(
+    () => viewSortToSorting(view.sort),
+    [view.sort]
+  );
+  const handleSortingChange = useCallback(
+    (next: SortingState) => patchView({ sort: sortingToViewSort(next) }),
+    [patchView]
+  );
+  const columnSizing = view.columnWidths ?? kNoColumnSizing;
+  const handleColumnSizingChange = useCallback(
+    (next: Record<string, number>) => patchView({ columnWidths: next }),
+    [patchView]
+  );
 
   // Score column visibility comes from `selectedScores` (so toggling a
   // scorer in the column popover stays consistent with the rest of the
@@ -280,15 +378,13 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     [selectedScores]
   );
 
-  // Visibility map applied via the grid's api so column defs stay
-  // stable across visibility/score-selection changes — necessary for
-  // user-driven width and reorder to persist.
+  // Controlled visibility map keyed by column id, consumed by the DataGrid.
   const visibilityForGrid = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of allColumns) {
-      const key = getFieldKey(col);
+      const key = col.id ?? "";
       const seeded = columnVisibility[key];
-      v[key] = seeded === undefined ? !col.hide : seeded;
+      v[key] = seeded === undefined ? true : seeded;
     }
     for (const label of scores) {
       const id = perScorerFieldKey(label);
@@ -307,13 +403,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // column visibility.
   const handleVisibilityChange = useCallback(
     (next: Record<string, boolean>) => {
-      // Clear filters for ANY column being hidden — including score
-      // columns, whose visibility lives in `selectedScores` rather than
-      // the persisted columnVisibility map. (The setColumnVisibility
-      // wrapper below would otherwise only see the non-score subset.)
-      const api = sampleListHandle.current?.api;
-      if (api) clearFiltersForHiddenColumns(api, next);
-
       const newSelected = scores.filter(
         (label) => next[perScorerFieldKey(label)] !== false
       );
@@ -373,145 +462,28 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
 
   useEffect(() => {
-    if (sampleSummaries.length === 1 && selectedLogFile) {
-      const sample = sampleSummaries[0];
+    const sample =
+      sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;
+    if (sample && selectedLogFile) {
       selectSample(sample.id, sample.epoch, selectedLogFile);
     }
-  }, [sampleSummaries, selectSample, selectedLogFile]);
+  }, [sampleSummaries, selectedLogFile]);
 
-  // Tracked here so the column selector can mark filtered columns.
-  // Updated via the grid's onFilterChanged callback.
-  const [filteredFields, setFilteredFields] = useState<string[]>([]);
-
-  // Bidirectional filter sync (phases 2b + 2c). The toolbar text filter
-  // and the column `FilterModel` describe the same logical narrowing;
-  // this block keeps them in lock-step:
-  //
-  //   columns →  text:  on every grid filter change, synthesize a filtrex
-  //                     expression from the FilterModel and push to text.
-  //   text    → columns: when the text changes (and is round-trippable),
-  //                     parse it into a FilterModel and apply it to the
-  //                     grid. Non-round-trippable text clears the column
-  //                     filters so they don't double-narrow.
-  //
-  // The feedback loop is broken at each boundary by comparing the value
-  // we'd write against the value already there — the two sides are the
-  // canonical state, no separate trackers needed.
-  const filterRegistry = useMemo(
-    () => buildSampleFilterRegistry(samplesDescriptor?.evalDescriptor),
-    [samplesDescriptor]
-  );
-  const setFilter = useStore((state) => state.logActions.setFilter);
-  const currentFilter = useStore((state) => state.log.filter);
-  const currentFilterRef = useRef(currentFilter);
-  useEffect(() => {
-    currentFilterRef.current = currentFilter;
-  }, [currentFilter]);
-
-  /** Parse `text` and project it to the FilterModel the column UI
-   *  should be holding — `{}` for empty or non-round-trippable text. */
-  const filterModelFromText = useCallback(
-    (text: string): FilterModel => {
-      const { ast } = parseFilter(text);
-      return ast ? (astToFilterModel(ast, filterRegistry) ?? {}) : {};
-    },
-    [filterRegistry]
-  );
-
-  const handleFilterChanged = useCallback(
-    (api: GridApi<SampleRow>) => {
-      const model = api.getFilterModel() ?? {};
-      setFilteredFields(Object.keys(model));
-
-      // If `currentFilter` already projects to the model we're seeing,
-      // the two sides are aligned — no echo needed. This covers both the
-      // round-trippable case (`tokens > 50` ↔ `{tokens: gt 50}`) and the
-      // expression-only case where text stays put while columns are `{}`.
-      const fromText = filterModelFromText(currentFilterRef.current);
-      if (JSON.stringify(fromText) === JSON.stringify(model)) return;
-
-      const synthesized = filterModelToText(model, filterRegistry);
-      // Columns are filtered but none are representable — leave text alone.
-      if (synthesized === null) return;
-      if (synthesized !== currentFilterRef.current) setFilter(synthesized);
-    },
-    [filterRegistry, filterModelFromText, setFilter]
-  );
-
-  useEffect(() => {
-    const api = sampleListHandle.current?.api;
-    if (!api) return;
-    const desired = filterModelFromText(currentFilter);
-    const current: FilterModel = api.getFilterModel() ?? {};
-    // Preserve current model entries that the synthesizer would have
-    // skipped — they live only in the column UI and must not be wiped
-    // by a text-driven update. Entries the user can express in text
-    // (round-trippable ones) are governed by `desired`.
-    const merged: FilterModel = { ...desired };
-    for (const [colId, filter] of Object.entries(current)) {
-      const isRepresentable =
-        filterModelToText({ [colId]: filter }, filterRegistry) !== null;
-      if (!isRepresentable && !(colId in desired)) {
-        merged[colId] = filter;
-      }
-    }
-    if (JSON.stringify(current) === JSON.stringify(merged)) return;
-    api.setFilterModel(merged);
-  }, [currentFilter, filterModelFromText, filterRegistry]);
-
-  // Snap score columns to their target width when `compactScores`
-  // toggles. ag-grid ignores `initialWidth` once a column has been
-  // sized, so we apply `width = initialWidth` explicitly. Flex
-  // columns (input/target/answer) redistribute on their own as the
-  // score columns shrink/grow, so we leave them alone — that also
-  // preserves any user resize on those columns.
-  useEffect(() => {
-    const api = sampleListHandle.current?.api;
-    if (!api) return;
-    const cols = api.getColumns();
-    if (!cols) return;
-    const state = cols.flatMap((c) => {
-      const colId = c.getColId();
-      if (!colId.startsWith("score_")) return [];
-      const w = c.getColDef().initialWidth;
-      return w === undefined ? [] : [{ colId, width: w, flex: null }];
-    });
-    if (state.length > 0) api.applyColumnState({ state });
-  }, [compactScores]);
-
-  // ag-grid caches `cellStyle` output as inline styles; the new
-  // column def alone doesn't clear them. `redrawRows` does.
-  useEffect(() => {
-    const api = sampleListHandle.current?.api;
-    if (!api) return;
-    api.redrawRows();
-  }, [colorScalesEnabled, scoreColorScales]);
-
-  // When the toolbar text is a non-round-trippable expression, hide the
-  // column-header filter buttons. Using one would overwrite the typed
-  // text with a much narrower synthesized version. Empty text and
-  // round-trippable text both leave the headers usable.
-  const columnFilteringAllowed = useMemo(() => {
-    if (!currentFilter.trim()) return true;
-    const { ast } = parseFilter(currentFilter);
-    if (!ast) return false;
-    return astToFilterModel(ast, filterRegistry) !== null;
-  }, [currentFilter, filterRegistry]);
-
-  const gridColumns = useMemo(
-    () =>
-      columnFilteringAllowed
-        ? allColumns
-        : allColumns.map((col) => ({
-            ...col,
-            suppressHeaderFilterButton: true,
-          })),
-    [allColumns, columnFilteringAllowed]
-  );
+  if (summariesState.error) {
+    return (
+      <ErrorPanel
+        title="An error occurred while loading samples."
+        error={summariesState.error}
+      />
+    );
+  }
 
   if (totalSampleCount === 0) {
     if (running) {
       return <RunningNoSamples />;
+    } else if (summariesState.loading) {
+      // Not "No samples" yet — the summaries haven't settled.
+      return null;
     } else {
       return <NoContentsPanel text="No samples" />;
     }
@@ -522,39 +494,34 @@ export const SamplesTab: FC<SamplesTabProps> = ({
 
   return (
     <Fragment>
-      {inlineDisplay ? (
-        <InlineSampleDisplay
-          showActivity={
-            sampleStatus === "loading" || sampleStatus === "streaming"
-          }
-          scrollRef={scrollRef}
-        />
-      ) : null}
+      {inlineDisplay ? <InlineSampleDisplay scrollRef={scrollRef} /> : null}
       {listDisplay ? (
         <SampleList
-          listHandle={sampleListHandle}
           items={items}
-          columns={gridColumns}
+          columns={orderedColumns}
           columnVisibility={visibilityForGrid}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          columnSizing={columnSizing}
+          onColumnSizingChange={handleColumnSizingChange}
           earlyStopping={selectedLogDetails?.results?.early_stopping}
           totalItemCount={evalSampleCount}
           running={running}
-          scrollRef={scrollRef}
-          gridState={gridState}
-          onGridStateChange={setGridState}
-          onFilterChanged={handleFilterChanged}
           multiline={view.multiline}
+          scrollRef={scrollRef}
+          columnFilters={columnFilterSpecs ?? kNoColumnFilters}
+          onColumnFilterChange={handleColumnFilterChange}
+          hideColumnFilters={columnFilterSpecs === null}
         />
       ) : null}
       {listDisplay ? (
         <ColumnSelectorPopover
           showing={showColumnSelector}
           setShowing={setShowColumnSelector}
-          columns={allColumns}
+          columns={pickerColumns}
           visibility={visibilityForGrid}
           onVisibilityChange={handleVisibilityChange}
           positionEl={columnButtonEl}
-          filteredFields={filteredFields}
           scoresHeading="Scores"
           onResetToDefault={resetColumns}
         />

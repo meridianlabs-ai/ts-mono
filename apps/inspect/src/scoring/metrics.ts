@@ -29,7 +29,11 @@ export const firstMetric = (results: EvalResults) => {
     return undefined;
   }
 
-  const metric = metrics[Object.keys(metrics)[0]];
+  const firstKey = Object.keys(metrics)[0];
+  if (firstKey === undefined) {
+    return undefined;
+  }
+  const metric = metrics[firstKey];
   if (metric === undefined) {
     return undefined;
   }
@@ -45,9 +49,7 @@ const clusterMetricModifier: MetricModifier = (
     return undefined;
   }
 
-  const clusterValue = ((metric.params || {}) as Record<string, unknown>)[
-    "cluster"
-  ];
+  const clusterValue = metric.params?.["cluster"];
   if (clusterValue === undefined || typeof clusterValue !== "string") {
     return undefined;
   }
@@ -55,15 +57,11 @@ const clusterMetricModifier: MetricModifier = (
 };
 
 const groupMetricModifier: MetricModifier = (metric: MetricSummary) => {
-  const groupKey = ((metric.params || {}) as Record<string, unknown>)[
-    "group_key"
-  ];
+  const groupKey = metric.params?.["group_key"];
   if (groupKey === undefined || typeof groupKey !== "string") {
     return undefined;
   }
-  const metricRaw = ((metric.params || {}) as Record<string, unknown>)[
-    "metric"
-  ];
+  const metricRaw = metric.params?.["metric"];
   if (metricRaw === undefined || typeof metricRaw !== "object") {
     return undefined;
   }
@@ -86,8 +84,7 @@ export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
     return {
       scorer: score.name,
       reducer: score.reducer === null ? undefined : score.reducer,
-      metrics: Object.keys(score.metrics).map((key) => {
-        const metric = score.metrics[key];
+      metrics: Object.values(score.metrics).map((metric) => {
         return {
           name: metric.name,
           group: metric.group,
@@ -107,7 +104,7 @@ const isGroupedMetric = (metric: MetricSummary): boolean => {
   if (!metric.params) {
     return false;
   }
-  const params = metric.params as Record<string, unknown>;
+  const params = metric.params;
   return params["group_key"] !== undefined && params["metric"] !== undefined;
 };
 
@@ -115,7 +112,7 @@ const getBaseMetricName = (metric: MetricSummary): string | undefined => {
   if (!metric.params) {
     return undefined;
   }
-  const params = metric.params as Record<string, unknown>;
+  const params = metric.params;
   const metricObj = params["metric"] as Record<string, unknown> | undefined;
   if (!metricObj || typeof metricObj !== "object") {
     return undefined;

@@ -1,5 +1,12 @@
 import clsx from "clsx";
-import { FC, ReactNode, RefObject, useEffect, useRef } from "react";
+import {
+  FC,
+  KeyboardEventHandler,
+  ReactNode,
+  RefObject,
+  useEffect,
+  useRef,
+} from "react";
 
 import { StickyScrollProvider } from "@tsmono/react/components";
 
@@ -26,7 +33,7 @@ interface LargeModalProps {
   showProgress: boolean;
   footer?: ReactNode;
   visible: boolean;
-  onkeyup: (e: any) => void;
+  onkeyup: KeyboardEventHandler<HTMLDivElement>;
   onHide: () => void;
   scrollRef: RefObject<HTMLDivElement | null>;
   children: ReactNode;

@@ -7,6 +7,8 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
 
+import { useDisplayMode } from "../../content/DisplayModeContext";
+
 import styles from "./ClientToolCall.module.css";
 import { getDefaultCustomToolView } from "./customToolRendering";
 import { iconForTool } from "./tool";
@@ -54,6 +56,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   className,
   getCustomToolView,
 }) => {
+  const displayMode = useDisplayMode();
+
   // Custom views render the call and its result as one self-contained UI —
   // give them the block frame without the header.
   const viewProps: ToolCallViewProps = {
@@ -69,7 +73,9 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     inputScreenshot,
   };
   const customView =
-    getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps);
+    displayMode === "rendered"
+      ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
+      : undefined;
   if (customView) {
     return <div className={clsx(styles.custom, className)}>{customView}</div>;
   }

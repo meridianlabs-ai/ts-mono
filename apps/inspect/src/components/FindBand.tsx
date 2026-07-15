@@ -15,8 +15,6 @@ import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
 
 import { FindBandUI } from "./FindBandUI";
 
-interface FindBandProps {}
-
 const findConfig = {
   caseSensitive: false,
   wrapAround: false,
@@ -25,7 +23,7 @@ const findConfig = {
   showDialog: false,
 };
 
-export const FindBand: FC<FindBandProps> = () => {
+export const FindBand: FC = () => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const storeHideFind = useStore((state) => state.appActions.hideFind);
   const { extendedFindTerm, countAllMatches } = useExtendedFind();
@@ -179,12 +177,13 @@ export const FindBand: FC<FindBandProps> = () => {
       searchBoxRef.current?.select();
     }, 10);
 
-    const scrollTimeout = scrollTimeoutRef.current;
     const focusTimeout = focusTimeoutRef.current;
 
     return () => {
-      if (scrollTimeout !== null) {
-        window.clearTimeout(scrollTimeout);
+      // Read at teardown, not setup: handleSearch schedules the scroll
+      // timeout long after mount, so a setup-time capture is always null.
+      if (scrollTimeoutRef.current !== null) {
+        window.clearTimeout(scrollTimeoutRef.current);
       }
       if (focusTimeout !== null) {
         window.clearTimeout(focusTimeout);
@@ -198,10 +197,12 @@ export const FindBand: FC<FindBandProps> = () => {
       if (e.key === "Escape") {
         storeHideFind();
       } else if (e.key === "Enter") {
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
         searchBoxRef.current?.focus();
         searchBoxRef.current?.select();
@@ -211,11 +212,13 @@ export const FindBand: FC<FindBandProps> = () => {
   );
 
   const findPrevious = useCallback(() => {
-    void handleSearch(true);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(true);
   }, [handleSearch]);
 
   const findNext = useCallback(() => {
-    void handleSearch(false);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    handleSearch(false);
   }, [handleSearch]);
 
   const restoreCursor = useCallback(() => {
@@ -235,15 +238,27 @@ export const FindBand: FC<FindBandProps> = () => {
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  // Created in an effect (not useMemo) because runDebouncedSearch reads refs,
-  // and the compiler can't prove debounce() won't invoke it during render.
-  const debouncedSearchRef = useRef<(() => void) | null>(null);
+  // The debounced fn is created once (below, lazily in the change handler)
+  // wrapping this latest-callback ref, so a recreated runDebouncedSearch never
+  // leaves a superseded debounce pending. Nulling on cleanup cancels any
+  // pending run at unmount.
+  const latestRunSearchRef = useRef<(() => Promise<void>) | null>(
+    runDebouncedSearch
+  );
   useEffect(() => {
-    debouncedSearchRef.current = debounce(runDebouncedSearch, 300);
+    latestRunSearchRef.current = runDebouncedSearch;
+    return () => {
+      latestRunSearchRef.current = null;
+    };
   }, [runDebouncedSearch]);
 
+  const debouncedSearchRef = useRef<(() => void) | null>(null);
   const handleInputChange = useCallback(() => {
-    debouncedSearchRef.current?.();
+    debouncedSearchRef.current ??= debounce(
+      () => void latestRunSearchRef.current?.(),
+      100
+    );
+    debouncedSearchRef.current();
   }, []);
 
   const handleBeforeInput = useCallback(() => {
@@ -262,7 +277,8 @@ export const FindBand: FC<FindBandProps> = () => {
       // F3: Find next/previous
       if (e.key === "F3") {
         e.preventDefault();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 
@@ -279,7 +295,8 @@ export const FindBand: FC<FindBandProps> = () => {
       if ((e.ctrlKey || e.metaKey) && e.key === "g") {
         e.preventDefault();
         e.stopPropagation();
-        void handleSearch(e.shiftKey);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
         return;
       }
 
@@ -342,8 +359,22 @@ export const FindBand: FC<FindBandProps> = () => {
     />
   );
 };
+// `Window.find` is a non-standard but widely-supported API not in lib.dom.
+declare global {
+  interface Window {
+    find(
+      searchTerm?: string,
+      caseSensitive?: boolean,
+      backwards?: boolean,
+      wrapAround?: boolean,
+      wholeWord?: boolean,
+      searchInFrames?: boolean,
+      showDialog?: boolean
+    ): boolean;
+  }
+}
+
 function windowFind(searchTerm: string, back: boolean): boolean {
-  // @ts-expect-error: `Window.find` is non-standard
   return window.find(
     searchTerm,
     findConfig.caseSensitive,
@@ -352,7 +383,7 @@ function windowFind(searchTerm: string, back: boolean): boolean {
     findConfig.wholeWord,
     findConfig.searchInFrames,
     findConfig.showDialog
-  ) as boolean;
+  );
 }
 
 function positionSelectionForWrap(back: boolean): void {

@@ -62,9 +62,7 @@ export const LlmScannerParams: FC<Props> = ({ value, onChange }) => {
             onChange={(e) =>
               update({
                 answerType: getSelectValue(e) as
-                  | "boolean"
-                  | "numeric"
-                  | "string",
+                  "boolean" | "numeric" | "string",
               })
             }
           >

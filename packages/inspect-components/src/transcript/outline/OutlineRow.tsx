@@ -107,6 +107,23 @@ export const OutlineRow: FC<OutlineRowProps> = ({
   );
 };
 
+/** A row rendered below the last outline item while events are still loading. */
+export const OutlineLoadingRow: FC = () => (
+  <div
+    className={clsx(styles.eventRow, styles.loadingRow, "text-size-smaller")}
+    style={{ paddingLeft: 0 }}
+    data-unsearchable={true}
+  >
+    <div className={styles.toggle} />
+    <div className={clsx(styles.label)} role="status" aria-live="polite">
+      <span className={styles.iconSlot}>
+        <span className={styles.spinner} aria-hidden="true" />
+      </span>
+      <span>loading</span>
+    </div>
+  </div>
+);
+
 const toggleIcon = (
   node: EventNode,
   collapsed: boolean

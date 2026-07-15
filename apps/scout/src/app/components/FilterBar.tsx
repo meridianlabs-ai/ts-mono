@@ -7,6 +7,7 @@ import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../icons";
 import type { SimpleCondition } from "../../query/types";
 import type { ColumnFilter } from "../../state/store";
+import { valueAsString } from "../utils/format";
 
 import { AddFilterButton, type AddFilterPopoverState } from "./AddFilterButton";
 import { Chip } from "./Chip";
@@ -250,7 +251,8 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
           return;
         }
 
-        void navigator.clipboard.writeText(text);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigator.clipboard.writeText(text);
         setIcon(ApplicationIcons.confirm);
         setTimeout(() => {
           setIcon(ApplicationIcons.copy);
@@ -286,7 +288,7 @@ const formatRepresentativeType = (value: unknown): string => {
   } else if (typeof value === "string") {
     return `'${value}'`;
   } else {
-    return String(value);
+    return valueAsString(value);
   }
 };
 

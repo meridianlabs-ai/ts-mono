@@ -1,17 +1,17 @@
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
-import { useLogs } from "../../state/hooks";
-import { useStore } from "../../state/store";
+import { useLogDir } from "../../app_config";
+import { useLogsSync } from "../../log_data";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowPanel.module.css";
-import { useFlowServerData } from "./hooks";
+import { useFlowQuery } from "./hooks";
 
 export const FlowPanel: FC = () => {
   const location = useLocation();
@@ -20,16 +20,12 @@ export const FlowPanel: FC = () => {
   // Get the path from route params (handles both logs and samples context)
   const { logPath: currentPath } = useLogOrSampleRouteParams();
   const flowDir = dirname(currentPath || "");
+  const logDir = useLogDir();
 
-  // Get the logs from the store
-  const { loadLogs } = useLogs();
-  useEffect(() => {
-    loadLogs(flowDir);
-  }, [loadLogs, flowDir]);
+  // The navbar renders from the listing collections; subscribe so they sync.
+  useLogsSync(logDir, flowDir);
 
-  // Retrieve flow data
-  useFlowServerData(flowDir || "");
-  const flow = useStore((state) => state.logs.flow);
+  const flow = useFlowQuery(flowDir || "").data;
 
   // Syntax highlighting
   const codeContainerRef = useRef<HTMLDivElement>(null);

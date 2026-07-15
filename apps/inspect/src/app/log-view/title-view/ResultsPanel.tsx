@@ -15,7 +15,7 @@ import { groupScorers } from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ResultsPanel.module.css";
-import { ScoreAgGrid } from "./ScoreAgGrid";
+import { ScoreGrid } from "./ScoreGrid";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
 const kMaxPrimaryScoreRows = 3;
@@ -80,18 +80,20 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
   const expandedScorers = expandGroupedMetrics(scorers);
 
   // Get the display scorers
-  if (expandedScorers.length === 1) {
-    const showReducer = !!expandedScorers[0].reducer;
-    const metrics = expandedScorers[0].metrics;
-    const unscoredSamples = expandedScorers[0].unscoredSamples || 0;
-    const scoredSamples = expandedScorers[0].scoredSamples || 0;
+  const onlyScorer =
+    expandedScorers.length === 1 ? expandedScorers[0] : undefined;
+  if (onlyScorer) {
+    const showReducer = !!onlyScorer.reducer;
+    const metrics = onlyScorer.metrics;
+    const unscoredSamples = onlyScorer.unscoredSamples || 0;
+    const scoredSamples = onlyScorer.scoredSamples || 0;
     return (
       <div className={styles.simpleMetricsRows}>
         {metrics.map((metric, i) => {
           return (
             <VerticalMetric
               key={`simple-metric-${i}`}
-              reducer={expandedScorers[0].reducer}
+              reducer={onlyScorer.reducer}
               metric={metric}
               isFirst={i === 0}
               showReducer={showReducer}
@@ -139,7 +141,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
 
     return (
       <div className={clsx(styles.metricsSummary)}>
-        <ScoreAgGrid
+        <ScoreGrid
           scoreGroups={[primaryResults]}
           showReducer={showReducer}
           compact
@@ -165,7 +167,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
                 </button>
               }
             >
-              <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
+              <ScoreGrid scoreGroups={grouped} showReducer={showReducer} />
             </Modal>
             <LinkButton
               className={styles.moreButton}

@@ -3,12 +3,14 @@
  * Composes apiScoutServer (for HTTP calls via JSON-RPC proxy) with VS Code storage.
  */
 
-import { VSCodeApi } from "@tsmono/util";
+import {
+  createJsonRpcFetch,
+  VSCodeApi,
+  webViewJsonRpcClient,
+} from "@tsmono/util";
 
 import { ScoutApiV2 } from "./api";
 import { apiScoutServer } from "./api-scout-server";
-import { webViewJsonRpcClient } from "./jsonrpc";
-import { createJsonRpcFetch } from "./jsonrpc-fetch";
 import { createVSCodeStore } from "./vscode-storage";
 
 export const apiVscode = (vscodeApi: VSCodeApi): ScoutApiV2 => {

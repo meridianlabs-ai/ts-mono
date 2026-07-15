@@ -27,11 +27,7 @@ interface ModelUsageProps {
 }
 
 type CategoryKey =
-  | "input"
-  | "cacheRead"
-  | "cacheWrite"
-  | "output"
-  | "reasoning";
+  "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
 
 interface Category {
   key: CategoryKey;

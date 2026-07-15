@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EvalSample, EvalSpec, LogHandle } from "@tsmono/inspect-common/types";
-import { createLogger } from "@tsmono/util";
+import { EvalSample } from "@tsmono/inspect-common/types";
+import { AsyncData, createLogger } from "@tsmono/util";
 
-import { EvalLogStatus, Events } from "../@types/extraInspect";
+import { getApi, useLogDir } from "../app_config";
 import {
   createEvalDescriptor,
   createSamplesDescriptor,
@@ -11,12 +11,19 @@ import {
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
-import { SampleSummary } from "../client/api/types";
-import { prettyDirUri } from "../utils/uri";
+import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
+import {
+  useEvalSampleData,
+  useLogHeader,
+  usePassiveEvalSampleData,
+  useRunningMetrics,
+  useSampleSummaries,
+  type EvalSampleData,
+} from "../log_data";
 
+import { refreshLog } from "./actions";
 import { getAvailableScorers } from "./scoring";
-import { useApi, useStore } from "./store";
-import { mergeSampleSummaries } from "./utils";
+import { useStore } from "./store";
 
 const kScorePanelViewBag = "score-panel-view";
 const kScorePanelViewKey = "view";
@@ -46,8 +53,7 @@ export const useScorePanelView = (): [
   const stored = useStore(
     (state) =>
       state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey] as
-        | ScoreView
-        | undefined
+        ScoreView | undefined
   );
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
@@ -84,8 +90,7 @@ export const useScorePanelSort = (): [
   const stored = useStore(
     (state) =>
       state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey] as
-        | ScorePanelSortState
-        | undefined
+        ScorePanelSortState | undefined
   );
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
@@ -114,9 +119,7 @@ export const resolveScorePanelSort = (
 // count-based default downstream.
 export const readEvalScorePanelView = (
   panel:
-    | { default?: ScoreView | null; view?: ScoreView | null }
-    | null
-    | undefined
+    { default?: ScoreView | null; view?: ScoreView | null } | null | undefined
 ): ScoreView | undefined => panel?.default ?? panel?.view ?? undefined;
 
 /**
@@ -125,10 +128,8 @@ export const readEvalScorePanelView = (
  * Returns a primitive so Zustand's reference equality is stable.
  */
 export const useEvalScorePanelView = (): ScoreView | undefined =>
-  useStore((state) =>
-    readEvalScorePanelView(
-      state.log.selectedLogDetails?.eval.viewer?.sample_score_view
-    )
+  readEvalScorePanelView(
+    useSelectedLogDetails()?.eval.viewer?.sample_score_view
   );
 
 /**
@@ -139,10 +140,7 @@ export const useEvalScorePanelView = (): ScoreView | undefined =>
  * back into Zustand on every render.
  */
 export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
-  const stored = useStore(
-    (state) =>
-      state.log.selectedLogDetails?.eval.viewer?.sample_score_view?.sort
-  );
+  const stored = useSelectedLogDetails()?.eval.viewer?.sample_score_view?.sort;
   return useMemo(() => {
     if (!stored) return undefined;
     return {
@@ -154,30 +152,32 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
 
 const log = createLogger("hooks");
 
-export const useEvalSpec = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
-  return selectedLogDetails?.eval;
+/**
+ * The details for the currently selected log. Returns the settled value (or
+ * `undefined` while loading / when no log is selected) — the drop-in for the
+ * retired `log.selectedLogDetails`. Use `useLogHeader` directly for the
+ * loading/error surface.
+ */
+export const useSelectedLogDetails = (): LogHeader | undefined => {
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return useLogHeader(logDir, selectedLogFile, { demand: "passive" }).data;
 };
 
-export const useRefreshLog = () => {
-  const setLoading = useStore((state) => state.appActions.setLoading);
-  const refreshLog = useStore((state) => state.logActions.refreshLog);
-  const resetFiltering = useStore((state) => state.logActions.resetFiltering);
+export const useEvalSpec = () => {
+  return useSelectedLogDetails()?.eval;
+};
 
-  return useCallback(() => {
-    try {
-      setLoading(true);
-
-      refreshLog();
-      resetFiltering();
-
-      setLoading(false);
-    } catch (e) {
-      // Show an error
-      console.log(e);
-      setLoading(false, e as Error);
-    }
-  }, [refreshLog, resetFiltering, setLoading]);
+/**
+ * The selected log's running metrics — the selection binding over the
+ * param-driven `useRunningMetrics` acquisition hook.
+ */
+export const useSelectedRunningMetrics = (): AsyncData<
+  RunningMetric[] | undefined
+> => {
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return useRunningMetrics(logDir, selectedLogFile);
 };
 
 export interface LogEditAffordance {
@@ -200,11 +200,10 @@ export interface LogEditAffordance {
  * on save is worse than not offering it.
  */
 export const useLogEditAffordance = (): LogEditAffordance => {
-  const api = useApi();
+  const api = getApi();
   const hasEditApi = Boolean(api.edit_log);
   const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
-  const logStatus = useStore((s) => s.log.selectedLogDetails?.status);
-  const refreshLog = useRefreshLog();
+  const logStatus = useSelectedLogDetails()?.status;
   const isInProgress = logStatus === "started";
   return {
     canEdit: hasEditApi && !!selectedLogFile && !isInProgress,
@@ -213,25 +212,28 @@ export const useLogEditAffordance = (): LogEditAffordance => {
   };
 };
 
-// Fetches all samples summaries (both completed and incomplete)
-// without applying any filtering
-export const useSampleSummaries = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
-  const pendingSampleSummaries = useStore(
-    (state) => state.log.pendingSampleSummaries
-  );
-
-  return useMemo(() => {
-    return mergeSampleSummaries(
-      selectedLogDetails?.sampleSummaries || [],
-      pendingSampleSummaries?.samples || []
-    );
-  }, [selectedLogDetails, pendingSampleSummaries]);
+/**
+ * The selected log's sample summaries (completed and incomplete, unfiltered)
+ * — the selection binding over the param-driven `useSampleSummaries`
+ * acquisition hook.
+ */
+export const useSelectedSampleSummaries = (): AsyncData<SampleSummary[]> => {
+  const logDir = useLogDir();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  return useSampleSummaries(logDir, selectedLogFile);
 };
+
+const kNoSummaries: SampleSummary[] = [];
+
+// The settled rows for the derivation hooks below — pure computations over
+// whatever has settled (loading/error render in SamplesTab, which reads the
+// AsyncData binding directly).
+const useSelectedSampleSummariesData = (): SampleSummary[] =>
+  useSelectedSampleSummaries().data ?? kNoSummaries;
 
 // Counts the total number of unfiltered sample summaries (both complete and incomplete)
 export const useTotalSampleCount = () => {
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
     return sampleSummaries.length;
   }, [sampleSummaries]);
@@ -241,8 +243,8 @@ export const useTotalSampleCount = () => {
 // based upon the configuration (eval + summaries) if no scorer has been
 // selected
 export const useSelectedScores = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
-  const sampleSummaries = useSampleSummaries();
+  const selectedLogDetails = useSelectedLogDetails();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const selected = useStore((state) => state.log.selectedScores);
   return useMemo(() => {
     if (selected !== undefined) {
@@ -259,8 +261,8 @@ export const useSelectedScores = () => {
 // to determine scores (even for in progress evals that don't yet have final
 // metrics)
 export const useScores = () => {
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
-  const sampleSummaries = useSampleSummaries();
+  const selectedLogDetails = useSelectedLogDetails();
+  const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
     if (!selectedLogDetails) {
       return [];
@@ -275,7 +277,7 @@ export const useScores = () => {
 // Provides the eval descriptor
 export const useEvalDescriptor = () => {
   const scores = useScores();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
     return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
   }, [scores, sampleSummaries]);
@@ -283,7 +285,7 @@ export const useEvalDescriptor = () => {
 
 export const useSampleDescriptor = () => {
   const evalDescriptor = useEvalDescriptor();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const selectedScores = useSelectedScores();
   return useMemo(() => {
     return evalDescriptor
@@ -292,10 +294,34 @@ export const useSampleDescriptor = () => {
   }, [evalDescriptor, sampleSummaries, selectedScores]);
 };
 
+// Sort key: sample id ascending (numeric when both numeric, else
+// lexicographic), then epoch ascending. Extracted so the already-sorted
+// pre-check shares the exact comparison the sort uses.
+export const compareSamples = (a: SampleSummary, b: SampleSummary): number => {
+  let idCompare: number;
+  if (typeof a.id === "number" && typeof b.id === "number") {
+    idCompare = a.id - b.id;
+  } else {
+    idCompare = String(a.id).localeCompare(String(b.id));
+  }
+  if (idCompare !== 0) {
+    return idCompare;
+  }
+  return a.epoch - b.epoch;
+};
+
+// Server summaries usually arrive already sorted; this lets useFilteredSamples
+// skip an O(n log n) clone + sort on every filter/store change.
+export const samplesAreSorted = (samples: SampleSummary[]): boolean =>
+  samples.every((curr, i) => {
+    const prev = samples[i - 1];
+    return prev === undefined || compareSamples(prev, curr) <= 0;
+  });
+
 // Provides the list of filtered and sorted samples
 export const useFilteredSamples = () => {
   const samplesDescriptor = useSampleDescriptor();
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const filter = useStore((state) => state.log.filter);
   const setFilterError = useStore((state) => state.logActions.setFilterError);
   const clearFilterError = useStore(
@@ -318,21 +344,12 @@ export const useFilteredSamples = () => {
     const filtered =
       error === undefined || !allErrors ? result : sampleSummaries;
 
-    // Sort samples by sample ID (asc) then epoch (asc)
-    const sorted = [...filtered].sort((a, b) => {
-      // Compare by ID first
-      let idCompare: number;
-      if (typeof a.id === "number" && typeof b.id === "number") {
-        idCompare = a.id - b.id;
-      } else {
-        idCompare = String(a.id).localeCompare(String(b.id));
-      }
-      if (idCompare !== 0) return idCompare;
-      // Then by epoch
-      return a.epoch - b.epoch;
-    });
+    // Skip the clone + sort when the list is already ordered (the common case).
+    if (filtered.length < 2 || samplesAreSorted(filtered)) {
+      return filtered;
+    }
 
-    return sorted;
+    return [...filtered].sort(compareSamples);
   }, [
     samplesDescriptor,
     sampleSummaries,
@@ -344,7 +361,7 @@ export const useFilteredSamples = () => {
 
 // Provides the currently selected sample summary
 export const useSelectedSampleSummary = (): SampleSummary | undefined => {
-  const sampleSummaries = useSampleSummaries();
+  const sampleSummaries = useSelectedSampleSummariesData();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -360,56 +377,27 @@ export const useSelectedSampleSummary = (): SampleSummary | undefined => {
   }, [selectedSampleHandle, sampleSummaries]);
 };
 
-export const useSampleData = () => {
-  const sampleStatus = useStore((state) => state.sample.sampleStatus);
-  const sampleError = useStore((state) => state.sample.sampleError);
-  const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample
-  );
-  const selectedSampleIdentifier = useStore(
-    (state) => state.sample.sample_identifier
-  );
-  const sampleNeedsReload = useStore((state) => state.sample.sampleNeedsReload);
-  const eventsCleared = useStore((state) => state.sample.eventsCleared);
-  const runningEvents = useStore(
-    (state) => state.sample.runningEvents
-  ) as Events;
-  const downloadProgress = useStore((state) => state.sample.downloadProgress);
-  return useMemo(() => {
-    return {
-      selectedSampleIdentifier,
-      status: sampleStatus,
-      sampleNeedsReload,
-      error: sampleError,
-      getSelectedSample,
-      eventsCleared,
-      running: runningEvents,
-      downloadProgress,
-    };
-  }, [
-    sampleStatus,
-    sampleError,
-    getSelectedSample,
-    selectedSampleIdentifier,
-    sampleNeedsReload,
-    eventsCleared,
-    runningEvents,
-    downloadProgress,
-  ]);
+/**
+ * The selected sample's data — the selection binding over the param-driven
+ * `useEvalSampleData` acquisition hook.
+ */
+export const useSelectedEvalSampleData = (): EvalSampleData => {
+  const logDir = useLogDir();
+  const handle = useStore((state) => state.log.selectedSampleHandle);
+  return useEvalSampleData(logDir, handle);
 };
 
-// Returns the invalidation data for the currently selected sample, if any.
-// Returns a tuple of [invalidation, sampleIdentifier]
-export const useSampleInvalidation = () => {
-  const getSelectedSample = useStore(
-    (state) => state.sampleActions.getSelectedSample
-  );
-  const sampleIdentifier = useStore((state) => state.sample.sample_identifier);
-  return useMemo(() => {
-    const sample = getSelectedSample();
-    return [sample?.invalidation || null, sampleIdentifier] as const;
-  }, [getSelectedSample, sampleIdentifier]);
-};
+/**
+ * The selected sample's invalidation record (if any) — the selection binding
+ * projecting from the param-driven `usePassiveEvalSampleData` acquisition
+ * hook.
+ */
+export const useSelectedSampleInvalidation = ():
+  EvalSample["invalidation"] | undefined =>
+  usePassiveEvalSampleData(
+    useLogDir(),
+    useStore((state) => state.log.selectedSampleHandle)
+  ).data?.sample?.invalidation ?? undefined;
 
 export const useLogSelection = () => {
   const selectedSampleSummary = useSelectedSampleSummary();
@@ -497,40 +485,6 @@ export const useMessageVisibility = (
   }, [visible, setVisible, id]);
 };
 
-export const useSetSelectedLogIndex = () => {
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-  const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample
-  );
-  const clearSelectedLogDetails = useStore(
-    (state) => state.logActions.clearSelectedLogDetails
-  );
-  const clearCollapsedEvents = useStore(
-    (state) => state.sampleActions.clearCollapsedEvents
-  );
-  const allLogFiles = useStore((state) => state.logs.logs);
-
-  return useCallback(
-    (index: number) => {
-      clearCollapsedEvents();
-      clearSelectedSample();
-      clearSelectedLogDetails();
-
-      const logHandle = allLogFiles[index];
-      setSelectedLogFile(logHandle.name);
-    },
-    [
-      allLogFiles,
-      setSelectedLogFile,
-      clearSelectedLogDetails,
-      clearSelectedSample,
-      clearCollapsedEvents,
-    ]
-  );
-};
-
 export const useSamplePopover = (id: string) => {
   const setVisiblePopover = useStore(
     (store) => store.sampleActions.setVisiblePopover
@@ -587,178 +541,20 @@ export const useSamplePopover = (id: string) => {
   };
 };
 
-export const useLogs = () => {
-  // Loading logs and eval set info
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const syncEvalSetInfo = useStore(
-    (state) => state.logsActions.syncEvalSetInfo
-  );
-  const setLoading = useStore((state) => state.appActions.setLoading);
-
-  const loadLogs = useCallback(
-    async (logPath?: string) => {
-      // load in parallel to display Show Retried Logs button as soon as we know current directory is an eval set without awaiting all logs
-      await Promise.all([syncEvalSetInfo(logPath), syncLogs()]).catch((e) => {
-        log.error("Error loading logs", e);
-        setLoading(false, e as Error);
-      });
-    },
-    [syncLogs, setLoading, syncEvalSetInfo]
-  );
-
-  // Loading overviews
-  const syncLogPreviews = useStore(
-    (state) => state.logsActions.syncLogPreviews
-  );
-  const logPreviews = useStore((state) => state.logs.logPreviews);
-  const allLogFiles = useStore((state) => state.logs.logs);
-
-  const loadLogOverviews = useCallback(
-    async (logs: LogHandle[] = allLogFiles) => {
-      await syncLogPreviews(logs);
-    },
-    [syncLogPreviews, allLogFiles]
-  );
-
-  const loadAllLogOverviews = useCallback(async () => {
-    const logsToLoad = allLogFiles.filter((logFile) => {
-      const existingHeader = logPreviews[logFile.name];
-      return !existingHeader || existingHeader.status === "started";
-    });
-
-    if (logsToLoad.length > 0) {
-      await loadLogOverviews(logsToLoad);
-    }
-  }, [loadLogOverviews, allLogFiles, logPreviews]);
-
-  return { loadLogs, loadLogOverviews, loadAllLogOverviews };
-};
-
 export const useLogsListing = () => {
-  const filteredCount = useStore((state) => state.logs.listing.filteredCount);
-  const setFilteredCount = useStore(
-    (state) => state.logsActions.setFilteredCount
-  );
-
   const gridStateByScope = useStore(
     (state) => state.logs.listing.gridStateByScope
   );
-  const setGridState = useStore((state) => state.logsActions.setLogsGridState);
+  const patchGridState = useStore(
+    (state) => state.logsActions.patchLogsGridState
+  );
   const clearGridState = useStore(
     (state) => state.logsActions.clearLogsGridState
   );
 
   return {
-    filteredCount,
-    setFilteredCount,
     gridStateByScope,
-    setGridState,
+    patchGridState,
     clearGridState,
   };
-};
-
-export interface TitleContext {
-  logDir?: string;
-  evalSpec?: EvalSpec;
-  sample?: EvalSample;
-}
-
-export const useDocumentTitle = () => {
-  const setDocumentTitle = (context: TitleContext) => {
-    const title: string[] = [];
-
-    if (context.sample) {
-      title.push(`${context.sample.id}_${context.sample.epoch}`);
-    }
-
-    if (context.evalSpec) {
-      title.push(`${context.evalSpec.model} - ${context.evalSpec.task}`);
-    }
-
-    if (context.logDir) {
-      title.push(prettyDirUri(context.logDir));
-    }
-
-    if (title.length === 0) {
-      title.push("Inspect View");
-    }
-
-    document.title = title.join(" - ");
-  };
-  return { setDocumentTitle };
-};
-
-const isActiveStatus = (status: EvalLogStatus | undefined) =>
-  status === "started" || status === "success";
-
-export type LogHandleWithretried = LogHandle & { retried?: boolean };
-
-type LogPreviewStatusMap = Record<
-  string,
-  { status?: EvalLogStatus } | undefined
->;
-
-/**
- * Pure dedup logic for {@link useLogsWithretried}.
- *
- * Groups logs by (parent directory, task_id) so that logs sharing a task_id
- * across different folders (e.g. copied log directories under a shared parent)
- * are not treated as retries of each other. Within each group, logs whose
- * status is `started` or `success` rank above other statuses; ties are
- * broken by filename descending so the newest run wins. The winner is
- * marked `retried: false`; the rest are marked `retried: true`.
- */
-export const computeLogsWithRetried = (
-  logs: LogHandle[],
-  logPreviews: LogPreviewStatusMap
-): LogHandleWithretried[] => {
-  const logsByGroup = logs.reduce(
-    (acc: Record<string, LogHandleWithretried[]>, log) => {
-      const taskId = log.task_id;
-      if (taskId) {
-        const slash = log.name.lastIndexOf("/");
-        const parent = slash >= 0 ? log.name.substring(0, slash) : "";
-        const key = `${parent}|${taskId}`;
-        if (!(key in acc)) acc[key] = [];
-        acc[key].push(log);
-      }
-      return acc;
-    },
-    {}
-  );
-  // For each group, select the best item: prefer logs whose status is
-  // started or success (treated as equivalent — both mean "not failed"),
-  // then break ties by filename descending so the newest run wins.
-  // An older `started` log is treated as orphaned once a newer log exists.
-  const bestByName: Record<string, LogHandleWithretried> = {};
-  for (const items of Object.values(logsByGroup)) {
-    items.sort((a, b) => {
-      const aActive = isActiveStatus(logPreviews[a.name]?.status);
-      const bActive = isActiveStatus(logPreviews[b.name]?.status);
-      if (aActive !== bActive) return aActive ? -1 : 1;
-      return b.name.localeCompare(a.name);
-    });
-    const { name } = items[0];
-    bestByName[name] = { ...items[0], retried: false };
-  }
-
-  // Rebuild logs maintaining order, marking duplicates as skippable
-  return logs.map(
-    (log) =>
-      bestByName[log.name] ?? {
-        ...log,
-        // task_id is optional for backward compatibility, only new logs files can be skippable
-        retried: log.task_id ? true : undefined,
-      }
-  );
-};
-
-export const useLogsWithretried = (): LogHandleWithretried[] => {
-  const logs = useStore((state) => state.logs.logs);
-  const logPreviews = useStore((state) => state.logs.logPreviews);
-
-  return useMemo(
-    () => computeLogsWithRetried(logs, logPreviews),
-    [logs, logPreviews]
-  );
 };

@@ -1,5 +1,6 @@
 import { ScoreValue } from "../../../@types/extraInspect";
 import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
+import { valueAsString } from "../../../utils/format";
 
 export type Tone = "pass" | "fail" | "warn" | "neutral";
 
@@ -19,7 +20,7 @@ export function scoreTone(
   if (value === undefined || value === null) return "neutral";
 
   if (scoreType === kScoreTypePassFail) {
-    const s = String(value).toUpperCase();
+    const s = valueAsString(value).toUpperCase();
     if (s === "C" || s === "A" || s === "B") return "pass";
     if (s === "I" || s === "F" || s === "N") return "fail";
     if (s === "P") return "warn";

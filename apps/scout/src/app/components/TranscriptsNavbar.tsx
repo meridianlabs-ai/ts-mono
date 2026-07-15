@@ -32,8 +32,8 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
   const singleFileMode = useStore((state) => state.singleFileMode);
   const [searchParams] = useSearchParams();
 
-  const params = useParams<{ "*": string }>();
-  const transcriptId = params["transcriptId"];
+  const params = useParams<{ transcriptId: string }>();
+  const transcriptId = params.transcriptId;
 
   // Check if we're on a scan result page and calculate the appropriate back URL
   const backUrl = !singleFileMode ? transcriptsRoute(searchParams) : undefined;

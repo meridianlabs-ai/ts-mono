@@ -2,17 +2,22 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ApiError } from "../api/view-server/request";
 
-import { fetchPendingSampleDataDirect } from "./remotePendingSampleData";
+import {
+  fetchPendingSampleDataDirect,
+  SEGMENT_CAP_PER_CALL,
+} from "./remotePendingSampleData";
 
 vi.mock("./remoteZipFile", () => ({
-  openZipFileFromBuffer: vi.fn(async (bytes: Uint8Array) => ({
-    readFile: async (_member: string) => bytes,
-  })),
+  openZipFileFromBuffer: vi.fn((bytes: Uint8Array) =>
+    Promise.resolve({
+      readFile: (_member: string) => Promise.resolve(bytes),
+    })
+  ),
 }));
 
 vi.mock("../../utils/json-worker", () => ({
-  asyncJsonParseBytes: vi.fn(async (bytes: Uint8Array) =>
-    JSON.parse(new TextDecoder().decode(bytes))
+  asyncJsonParseBytes: vi.fn((bytes: Uint8Array) =>
+    Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)))
   ),
 }));
 
@@ -22,6 +27,8 @@ describe("fetchPendingSampleDataDirect", () => {
 
     beforeEach(() => {
       globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        // The test only ever calls fetch with a string URL.
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         const url = String(input);
         // Segment N encodes one event with id=N*10. Delay is inverse to N so
         // higher-id segments resolve first, stressing arrival-order merging.
@@ -50,7 +57,7 @@ describe("fetchPendingSampleDataDirect", () => {
           ok: true,
           status: 200,
           statusText: "OK",
-          arrayBuffer: async () => body.buffer,
+          arrayBuffer: () => Promise.resolve(body.buffer),
         } as unknown as Response;
       });
     });
@@ -174,5 +181,41 @@ describe("fetchPendingSampleDataDirect", () => {
     expect(result).toBeDefined();
     expect(result!.complete).toBe(false);
     expect(result!.has_more).toBe(false);
+  });
+
+  test("requests up to SEGMENT_CAP_PER_CALL segments", async () => {
+    const getUrls = vi.fn().mockResolvedValue({
+      segments: [],
+      has_more: false,
+      complete: true,
+    });
+    await fetchPendingSampleDataDirect(getUrls, "log", "s1", 1, {});
+    expect(getUrls).toHaveBeenCalledWith(
+      "log",
+      "s1",
+      1,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      SEGMENT_CAP_PER_CALL
+    );
+  });
+
+  test("reports has_more/complete from the response on the empty fast path", async () => {
+    const getUrls = vi.fn().mockResolvedValue({
+      segments: [],
+      has_more: true,
+      complete: false,
+    });
+    const result = await fetchPendingSampleDataDirect(
+      getUrls,
+      "log",
+      "s1",
+      1,
+      {}
+    );
+    expect(result?.has_more).toBe(true);
+    expect(result?.complete).toBe(false);
   });
 });

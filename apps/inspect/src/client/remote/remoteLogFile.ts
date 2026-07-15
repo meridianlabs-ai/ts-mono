@@ -188,19 +188,24 @@ export const openRemoteLogFile = async (
   /**
    * Lists all samples in the zip file.
    */
-  const listSamples = async (): Promise<SampleEntry[]> => {
-    return Array.from(remoteZipFile.centralDirectory.keys())
-      .filter(
-        (filename) =>
-          filename.startsWith("samples/") && filename.endsWith(".json")
-      )
-      .map((filename) => {
-        const [sampleId, epochStr] = filename.split("/")[1].split("_epoch_");
-        return {
-          sampleId,
-          epoch: parseInt(epochStr.split(".")[0], 10),
-        };
-      });
+  const listSamples = (): Promise<SampleEntry[]> => {
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+    return Promise.resolve(
+      Array.from(remoteZipFile.centralDirectory.keys())
+        .filter(
+          (filename) =>
+            filename.startsWith("samples/") && filename.endsWith(".json")
+        )
+        .map((filename) => {
+          // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+          const [sampleId, epochStr] = filename.split("/")[1].split("_epoch_");
+          return {
+            sampleId,
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+            epoch: parseInt(epochStr.split(".")[0], 10),
+          };
+        })
+    );
   };
 
   /**

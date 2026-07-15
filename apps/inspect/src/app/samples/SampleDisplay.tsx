@@ -57,6 +57,7 @@ import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
+import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -69,18 +70,19 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
+import { setDocumentTitle } from "../../state/actions";
 import {
-  useDocumentTitle,
-  useSampleData,
+  useSelectedEvalSampleData,
+  useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
-import { useApi, useStore } from "../../state/store";
+import { useStore } from "../../state/store";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
-  sampleMessageUrl,
+  useFullSampleMessageUrlBuilder,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
@@ -110,7 +112,6 @@ interface SampleDisplayProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
   showActivity: boolean;
-  progress?: number;
   focusOnLoad?: boolean;
 }
 
@@ -123,30 +124,35 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,
-  progress,
   focusOnLoad,
 }) => {
   // Tab ids
   const baseId = `sample-display`;
 
   const prefix = useRoutePrefix();
-  const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
+  const sampleData = useSelectedEvalSampleData();
+  const sample = sampleData.sample;
   const eventsCleared = sampleData.eventsCleared;
 
   const runningSampleData = sampleData.running;
+  const backfilling = sampleData.backfilling;
 
-  const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
-  const { setDocumentTitle } = useDocumentTitle();
+  const evalSpec = useSelectedLogDetails()?.eval;
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
-  }, [setDocumentTitle, sample, evalSpec]);
+  }, [sample, evalSpec]);
 
   // Selected tab handling
   const selectedTab = useStore((state) => state.app.tabs.sample);
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
+
+  // A sample with no events has no transcript to show; default to the
+  // messages tab when its body settles.
+  useEffect(() => {
+    if (sample !== undefined && sample.events.length < 1) {
+      setSelectedTab(kSampleMessagesTabId);
+    }
+  }, [sample, setSelectedTab]);
 
   // Per-tab scroll positions persist while tabbing within a sample (each tab's
   // VirtualList snapshot is keyed by sample id). Clear them when leaving this
@@ -237,6 +243,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       // Use navigation hook to update URL with tab
       if (id !== sampleTabId && urlLogPath) {
         const url = sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, id);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(url);
       }
     },
@@ -253,20 +260,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const setNativeFind = useStore((state) => state.appActions.setNativeFind);
 
-  const getMessageUrl = useCallback(
-    (messageId: string) => {
-      return urlLogPath
-        ? sampleMessageUrl(
-            sampleUrlBuilder,
-            messageId,
-            urlLogPath,
-            urlSampleId,
-            urlEpoch
-          )
-        : undefined;
-    },
-    [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
-  );
+  // Absolute URL (origin + host path + hash route): ChatMessage copies this
+  // value to the clipboard as a shareable link.
+  const getMessageUrl = useFullSampleMessageUrlBuilder();
 
   // Stable option objects so memoized ChatMessageRow rows don't re-render on
   // every streaming poll just because these were fresh literals each render.
@@ -365,7 +361,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter();
 
-  const api = useApi();
+  const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);
@@ -383,7 +379,22 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ? value
       : undefined;
   });
-  const rightDock = storedDock ?? "none";
+  // Scanner scores power the docked Scans panel (and the transcript cite
+  // labels). `open` gates the label computation to when the panel is showing;
+  // it's phrased on storedDock (a superset of the derived `rightDock ===
+  // "scans"` below) to avoid a circular dependency on `scans.hasScans` — the
+  // hook yields no labels for a sample without scans anyway.
+  const scans = useSampleScans({
+    allScores: sample?.scores ?? null,
+    sampleId: sample?.id ?? undefined,
+    sampleEpoch: sample?.epoch ?? undefined,
+    open: storedDock === undefined || storedDock === "scans",
+  });
+  // Default the dock to Scans when the sample has them and this log has no
+  // stored choice — including "none": a user who closed the dock shouldn't
+  // have it forced back open. Derived rather than persisted; nothing is
+  // written until the user acts.
+  const rightDock = storedDock ?? (scans.hasScans ? "scans" : "none");
   const setRightDock = useCallback(
     (value: "none" | "search" | "scans") =>
       setPropertyValue("rail-dock", dockKey, value),
@@ -417,15 +428,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [setPropertyValue]
   );
 
-  // Scanner scores power the docked Scans panel (and the transcript cite
-  // labels). `open` gates the label computation to when the panel is showing.
-  const scans = useSampleScans({
-    allScores: sample?.scores ?? null,
-    sampleId: sample?.id ?? undefined,
-    sampleEpoch: sample?.epoch ?? undefined,
-    open: rightDock === "scans",
-  });
-
   // Search cites label the transcript the same way scanner cites do; the
   // hook follows the active tab's scope and yields nothing until a search
   // runs. Rail panels are mutually exclusive, so in practice only one of
@@ -446,21 +448,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       ),
     [scans.eventNodeContext, transcriptSearchLabels]
   );
-
-  // Open the Scans panel by default the first time a sample with scans loads
-  // *for a given log*, unless that log already has a persisted dock choice
-  // (including "none" — a user who closed the dock shouldn't have it forced
-  // back open). Keyed by dockKey because SampleDisplay stays mounted while the
-  // cross-log Samples browser navigates between logs.
-  const scansDefaultedForKeyRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    if (scans.hasScans && scansDefaultedForKeyRef.current !== dockKey) {
-      scansDefaultedForKeyRef.current = dockKey;
-      if (storedDock === undefined) {
-        setRightDock("scans");
-      }
-    }
-  }, [scans.hasScans, storedDock, setRightDock, dockKey]);
 
   // Build the toolbar in left-to-right groups separated by thin dividers:
   //   [tab-specific view controls] | [shared sample actions] | [Search]
@@ -525,6 +512,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       items={{
         UUID: () => {
           if (sample?.uuid) {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigator.clipboard.writeText(sample.uuid);
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
@@ -534,6 +522,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         },
         Messages: () => {
           if (sample?.messages) {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigator.clipboard.writeText(messagesToStr(sample.messages));
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
@@ -543,6 +532,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         },
         Transcript: () => {
           if (sampleEvents && sampleEvents.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigator.clipboard.writeText(eventsToStr(sampleEvents));
             setIcon(ApplicationIcons.confirm);
             setTimeout(() => {
@@ -565,6 +555,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         dropdownClassName="text-size-smallest"
         items={{
           "Sample JSON": () => {
+            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             api.download_file(
               `${sampleId}.json`,
               JSON.stringify(sample, null, 2)
@@ -572,6 +563,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           },
           Messages: () => {
             if (sample.messages && sample.messages.length > 0) {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               api.download_file(
                 `${sampleId}-messages.txt`,
                 messagesToStr(sample.messages)
@@ -580,6 +572,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           },
           Transcript: () => {
             if (sampleEvents && sampleEvents.length > 0) {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
               api.download_file(
                 `${sampleId}-transcript.txt`,
                 eventsToStr(sampleEvents)
@@ -769,7 +762,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             </div>
           </StickyScroll>
         ) : undefined}
-        <ActivityBar animating={showActivity} progress={progress} />
+        <ActivityBar animating={showActivity} />
 
         <div style={tabsContainerStyle}>
           <TabSet
@@ -820,6 +813,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scrollRef={scrollRef}
                     offsetTop={stickyOffsetTop}
                     running={running}
+                    backfilling={backfilling}
                     events={sampleEvents}
                     timelines={sample?.timelines ?? undefined}
                     eventNodeContext={transcriptEventNodeContext}
@@ -867,6 +861,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   scrollRef={scrollRef}
                   tools={chatTools}
                   running={running}
+                  backfilling={backfilling}
                   className={styles.fullWidth}
                 />
               </RailSidebarHost>
@@ -1245,10 +1240,10 @@ const metadataViewsForSample = (
 const isRunning = (
   sampleSummary?: SampleSummary,
   runningSampleData?: Events,
-  sampleStatus?: string
+  status?: string
 ): boolean => {
   // If a completed sample has been loaded, it's not running
-  if (sampleStatus === "ok") {
+  if (status === "ok") {
     return false;
   }
 

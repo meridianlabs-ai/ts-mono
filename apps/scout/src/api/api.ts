@@ -125,7 +125,10 @@ export interface ScoutApiV2 {
     scope: SearchResultScope
   ): Promise<Result | null>;
 
-  downloadScan?(scansDir: string, scanPath: string): Promise<Blob>;
+  // Declared as a function-typed property (not a method) because it is passed
+  // around as a value (destructured, used as a prop) rather than invoked on the
+  // api object; this keeps @typescript-eslint/unbound-method satisfied.
+  downloadScan?: (scansDir: string, scanPath: string) => Promise<Blob>;
 
   storage: ClientStorage;
   capability: "scans" | "workbench";

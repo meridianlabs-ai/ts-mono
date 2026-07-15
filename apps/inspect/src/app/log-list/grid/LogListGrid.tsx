@@ -1,22 +1,9 @@
-import type {
-  CellMouseDownEvent,
-  ColDef,
-  GridColumnsChangedEvent,
-  GridReadyEvent,
-  IRowNode,
-  ModelUpdatedEvent,
-  RowClickedEvent,
-  StateUpdatedEvent,
-} from "ag-grid-community";
-import { themeBalham } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import {
   FC,
   KeyboardEvent as ReactKeyboardEvent,
-  RefObject,
   useCallback,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -24,23 +11,21 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
+import type {
+  ColumnFilter,
+  FilterSpec,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { LogDetails } from "../../../client/api/types";
 import { FindBandUI } from "../../../components/FindBandUI";
-import { useLogs, useLogsListing } from "../../../state/hooks";
-import { useStore } from "../../../state/store";
-import { useKeyedMemo } from "../../shared/useKeyedMemo";
-
-import "../../shared/agGrid";
-
-import styles from "../../shared/gridCells.module.css";
-import { createGridKeyboardHandler } from "../../shared/gridKeyboardNavigation";
-import { openInNewTab } from "../../shared/openInNewTab";
-import gridChromeStyles from "../../shared/samples-grid/SamplesGrid.module.css";
-import { useApplyColumnVisibility } from "../../shared/useApplyColumnVisibility";
-import { useGridColumnRefit } from "../../shared/useGridColumnRefit";
-import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
+import { useLogsListing } from "../../../state/hooks";
+import { DataGrid } from "../../shared/data-grid/DataGrid";
+import {
+  buildSearchIndex,
+  findMatches,
+} from "../../shared/data-grid/findMatches";
+import gridStyles from "../../shared/gridCells.module.css";
 
 import {
   useLogListColumns,
@@ -50,207 +35,41 @@ import {
 import { LogListRow } from "./columns/types";
 
 interface LogListGridProps {
-  items: Array<FileLogItem | FolderLogItem | PendingTaskItem>;
+  /** Display rows from `useLogListData` (folders pinned, files
+   *  filtered+sorted). */
+  rows: LogListRow[];
+  /** Pre-filter row count (drives the empty-state loading indicator, which
+   *  shouldn't show when filters merely matched nothing). */
+  totalRowCount: number;
+  /** The sorting/filters the rows were produced under (controlled DataGrid
+   *  state; changes persist via `setGridState`). */
+  sorting: SortingState;
+  columnFilters?: Record<string, ColumnFilter>;
   currentPath?: string;
-  // Identifies the data scope of the current view (mode + directory).
-  // Reset of filter+sort is keyed on this — same scope across renders
-  // means "preserve gridState"; a change means "fresh grid". `undefined`
-  // means logDir is still hydrating and we shouldn't compare yet.
+  // Identifies the data scope of the current view (mode + directory). The
+  // grid is keyed on this so switching scope (folder/tasks) gets a fresh
+  // grid (scroll + selection reset). `undefined` means logDir is still
+  // hydrating.
   scopeKey?: string;
-  gridRef?: RefObject<AgGridReact<LogListRow> | null>;
   mode?: LogListMode;
+  /** The listing is still being brought up to date (drives the empty-state
+   *  loading indicator). */
+  busy: boolean;
 }
 
-type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
-
-const detailsForItem = (
-  item: LogListItem,
-  logDetails: Record<string, LogDetails>
-): LogDetails | undefined =>
-  item.type === "file" && item.log ? logDetails[item.log.name] : undefined;
-
-const buildLogListRow = (
-  item: LogListItem,
-  details: LogDetails | undefined
-): LogListRow => {
-  const preview = item.type === "file" ? item.logPreview : undefined;
-
-  // Compute total tokens across all models
-  let totalTokens: number | undefined;
-  if (details?.stats?.model_usage) {
-    totalTokens = 0;
-    for (const usage of Object.values(details.stats.model_usage)) {
-      totalTokens += usage.total_tokens;
-    }
-  }
-
-  // Compute duration in seconds
-  let duration: number | undefined;
-  if (details?.stats?.started_at && details?.stats?.completed_at) {
-    const start = new Date(details.stats.started_at).getTime();
-    const end = new Date(details.stats.completed_at).getTime();
-    if (start && end && end > start) {
-      duration = (end - start) / 1000;
-    }
-  }
-
-  // Format task args. Prefer `task_args_passed` (the args the user
-  // actually supplied at the call site) over `task_args` (which
-  // would also include defaulted values).
-  const taskArgsSource =
-    details?.eval?.task_args_passed ?? details?.eval?.task_args;
-  let taskArgs: string | undefined;
-  if (taskArgsSource) {
-    const entries = Object.entries(taskArgsSource);
-    if (entries.length > 0) {
-      taskArgs = entries
-        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
-        .join(", ");
-    }
-  }
-
-  // Percent of samples completed
-  let percentCompleted: number | undefined;
-  const total = details?.results?.total_samples;
-  const completed = details?.results?.completed_samples;
-  if (total && total > 0 && completed !== undefined) {
-    percentCompleted = (completed / total) * 100;
-  }
-
-  // Count of sample errors
-  let sampleErrors: number | undefined;
-  if (details?.sampleSummaries) {
-    sampleErrors = details.sampleSummaries.filter((s) => s.error).length;
-  }
-
-  // Distinct limit types across samples in this task, comma-joined.
-  // Empty when no sample ended with a limit. Sorted for stable
-  // text-filtering and predictable display order.
-  let sampleLimits: string | undefined;
-  if (details?.sampleSummaries) {
-    const limits = new Set<string>();
-    for (const s of details.sampleSummaries) {
-      if (s.limit) limits.add(s.limit);
-    }
-    if (limits.size > 0) {
-      sampleLimits = Array.from(limits).sort().join(", ");
-    }
-  }
-
-  const row: LogListRow = {
-    id: item.id,
-    name: item.name,
-    displayIndex:
-      item.type === "file" || item.type === "pending-task"
-        ? item.displayIndex
-        : undefined,
-    type: item.type,
-    url: item.url,
-    task: item.type === "file" ? preview?.task : item.name,
-    model:
-      item.type === "file"
-        ? preview?.model
-        : item.type === "pending-task"
-          ? item.model
-          : undefined,
-    modelRoles:
-      item.type === "file" ? (preview?.model_roles ?? undefined) : undefined,
-    score: preview?.primary_metric?.value,
-    status: preview?.status,
-    completedAt: preview?.completed_at,
-    itemCount: item.type === "folder" ? item.itemCount : undefined,
-    log: item.type === "file" ? item.log : undefined,
-    path: item.type === "file" ? item.name : undefined,
-    totalSamples: details?.results?.total_samples,
-    completedSamples: details?.results?.completed_samples,
-    sandbox: details?.eval?.sandbox?.type,
-    totalTokens,
-    duration,
-    taskFile: details?.eval?.task_file ?? undefined,
-    taskArgs,
-    taskArgsRaw: taskArgsSource ?? undefined,
-    tags: details?.tags,
-    percentCompleted,
-    sampleErrors,
-    sampleLimits,
-    errorMessage: details?.error?.message,
-  };
-
-  // Add individual scorer columns from results. Key by (scorer, metric)
-  // so distinct scorers emitting the same metric name each get their own
-  // column. Reducer is omitted from the key: `reducer=null` (default,
-  // silently mean) and `reducer="mean"` (explicit) should land in the
-  // same column since the underlying computation is identical.
-  if (details?.results?.scores) {
-    for (const evalScore of details.results.scores) {
-      if (evalScore.metrics) {
-        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-          row[`score_${evalScore.name}/${metricName}`] = metric.value;
-        }
-      }
-    }
-  }
-
-  return row;
-};
-
 export const LogListGrid: FC<LogListGridProps> = ({
-  items,
+  rows,
+  totalRowCount,
+  sorting,
+  columnFilters,
   currentPath,
   scopeKey,
-  gridRef: externalGridRef,
   mode = "logs",
+  busy,
 }) => {
-  const { gridStateByScope, setGridState, setFilteredCount } = useLogsListing();
-  const gridState = scopeKey ? gridStateByScope[scopeKey] : undefined;
+  const { gridStateByScope, patchGridState } = useLogsListing();
 
-  const { loadAllLogOverviews } = useLogs();
-
-  const loading = useStore((state) => state.app.status.loading);
-  const syncing = useStore((state) => state.app.status.syncing);
-  const setWatchedLogs = useStore((state) => state.logsActions.setWatchedLogs);
-
-  const logDetails = useStore((state) => state.logs.logDetails);
-  // Defer the detail map so a burst of detail flushes during initial sync
-  // can't block click/scroll input — the grid renders from the prior value
-  // and catches up when the main thread is idle.
-  const deferredLogDetails = useDeferredValue(logDetails);
   const navigate = useNavigate();
-  const gridRef = useRef<AgGridReact<LogListRow>>(null);
-  // Bridge the grid instance to the optional external ref while keeping a
-  // true local ref. A conditional `external ?? internal` expression isn't
-  // recognized as a ref by the React Compiler, which would force
-  // `gridRef.current` into every callback's inferred dependencies.
-  const attachGridRef = useCallback(
-    (instance: AgGridReact<LogListRow> | null) => {
-      gridRef.current = instance;
-      if (externalGridRef) externalGridRef.current = instance;
-    },
-    [externalGridRef]
-  );
-  const gridContainerRef = useRef<HTMLDivElement>(null);
-
-  // Find functionality state - store row IDs instead of IRowNode references to avoid memory leaks
-  const [showFind, setShowFind] = useState(false);
-  const [findTerm, setFindTerm] = useState("");
-  const [matchIds, setMatchIds] = useState<string[]>([]);
-  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
-  const findInputRef = useRef<HTMLInputElement>(null);
-
-  // Helper to close find bar and reset state
-  const closeFind = useCallback(() => {
-    setShowFind(false);
-    setFindTerm("");
-    setMatchIds([]);
-    setCurrentMatchIndex(0);
-  }, []);
-
-  const logFiles = useMemo(() => {
-    return items
-      .filter((item) => item.type === "file")
-      .map((item) => item.log)
-      .filter((file) => file !== undefined);
-  }, [items]);
 
   // Scope the column list to the current folder's logs in folder (logs) mode.
   const scopePrefix = mode === "logs" ? currentPath : undefined;
@@ -267,268 +86,180 @@ export const LogListGrid: FC<LogListGridProps> = ({
     scoresViewMode
   );
 
-  // Each scope (mode + dir) has its own gridState in the store, so the
-  // initial state is just the entry for the current scope. Switching to a
-  // different scope hits a different key — typically `undefined` if the
-  // scope hasn't been visited yet, which lets AG-Grid initialise with
-  // column defaults. The `key={scopeKey}` on AgGridReact remounts the
-  // grid on scope change so this initial state is actually re-applied.
-  const initialGridState = gridState;
-
-  useEffect(() => {
-    gridContainerRef.current?.focus();
-  }, []);
-
-  // Reuse the prior row object for any item whose display inputs (preview,
-  // details, structural fields) are unchanged. AG-Grid's immutable diff then
-  // leaves those rows' DOM untouched, so a sync flush mid-click can't replace
-  // the node under the pointer and swallow the click — and only changed rows
-  // get the expensive per-row rebuild. Keyed on store references (which stay
-  // stable across flushes for unchanged logs) rather than the `item` object,
-  // so it works even though `items` is rebuilt each flush upstream.
-  const data: LogListRow[] = useKeyedMemo(
-    items,
-    (item) => item.id,
-    (item) => [
-      item.id,
-      item.type,
-      item.url,
-      item.name,
-      item.displayIndex,
-      item.type === "file" ? item.logPreview : undefined,
-      item.type === "folder" ? item.itemCount : undefined,
-      item.type === "pending-task" ? item.model : undefined,
-      detailsForItem(item, deferredLogDetails),
-    ],
-    (item) => buildLogListRow(item, detailsForItem(item, deferredLogDetails))
-  );
-
-  const handleRowClick = useCallback(
-    (e: RowClickedEvent<LogListRow>) => {
-      if (e.data && e.node && gridRef.current?.api) {
-        gridRef.current.api.deselectAll();
-        e.node.setSelected(true);
-
-        const mouseEvent = e.event as MouseEvent | undefined;
-        // Modifier clicks are handled by the <a> overlay in the cell renderer
-        if (
-          mouseEvent?.metaKey ||
-          mouseEvent?.ctrlKey ||
-          mouseEvent?.shiftKey ||
-          mouseEvent?.button === 1
-        ) {
-          return;
-        }
-
-        const url = e.data.url;
-        if (url) {
-          setTimeout(() => {
-            navigate(url);
-          }, 10);
-        }
-      }
+  const handleRowActivate = useCallback(
+    (row: LogListRow) => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      if (row.url) navigate(row.url);
     },
     [navigate]
   );
 
-  const handleOpenRow = useCallback(
-    (rowNode: IRowNode<LogListRow>, e: KeyboardEvent) => {
-      if (!rowNode.data?.url) {
-        return;
-      }
-      const openInNewWindow = e.metaKey || e.ctrlKey || e.shiftKey;
-      if (openInNewWindow) {
-        openInNewTab(rowNode.data.url);
+  // Per-scope persisted column widths.
+  const columnSizing = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.columnSizing : undefined),
+    [gridStateByScope, scopeKey]
+  );
+
+  // Per-scope persisted column order (drag-to-reorder).
+  const columnOrder = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.columnOrder : undefined),
+    [gridStateByScope, scopeKey]
+  );
+
+  // Per-scope persisted row selection — restored on remount (e.g. after
+  // navigating into a log and back) so the highlight and the arrow-key
+  // anchor survive, matching the prior AG grid.
+  const persistedSelectedId = useMemo(
+    () => (scopeKey ? gridStateByScope[scopeKey]?.selectedRowId : undefined),
+    [gridStateByScope, scopeKey]
+  );
+
+  const handleSortingChange = useCallback(
+    (next: SortingState) => {
+      if (scopeKey) patchGridState(scopeKey, { sorting: next });
+    },
+    [scopeKey, patchGridState]
+  );
+
+  const handleColumnFilterChange = useCallback(
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
+      if (!scopeKey) return;
+      const next: Record<string, ColumnFilter> = { ...columnFilters };
+      if (spec === null) {
+        delete next[columnId];
       } else {
-        navigate(rowNode.data.url);
+        next[columnId] = { columnId, filterType, spec };
       }
+      patchGridState(scopeKey, { columnFilters: next });
     },
-    [navigate]
+    [scopeKey, patchGridState, columnFilters]
   );
 
-  // The handler is created inside the effect because it closes over the
-  // grid ref, which render-phase code must not touch.
-  useEffect(() => {
-    const gridElement = gridContainerRef.current;
-    if (!gridElement) return;
-
-    const handleKeyDown = createGridKeyboardHandler<LogListRow>({
-      gridRef,
-      onOpenRow: handleOpenRow,
-    });
-    gridElement.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      gridElement.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleOpenRow]);
-
-  const handleCellMouseDown = useCallback(
-    (_e: CellMouseDownEvent<LogListRow>) => {
-      // Middle-click and modifier clicks are handled by the <a> overlay
-      // in the cell renderer for native background-tab behavior
+  const handleColumnSizingChange = useCallback(
+    (next: Record<string, number>) => {
+      if (scopeKey) patchGridState(scopeKey, { columnSizing: next });
     },
-    []
+    [scopeKey, patchGridState]
   );
 
-  useEffect(() => {
-    setWatchedLogs(logFiles);
-  }, [logFiles, setWatchedLogs]);
-
-  const applyVisibility = useApplyColumnVisibility(
-    gridRef,
-    columns,
-    visibility
-  );
-
-  // Dev-only test hook: expose AG-Grid api so Playwright tests can drive
-  // filter/sort programmatically. Vite strips this branch in production.
-  const handleGridReady = useCallback(
-    (e: GridReadyEvent<LogListRow>) => {
-      if (import.meta.env.DEV) {
-        (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi =
-          e.api;
-      }
-      // The visibility effect above ran before the api was ready; apply
-      // now that it is.
-      applyVisibility();
+  const handleColumnOrderChange = useCallback(
+    (next: string[]) => {
+      if (scopeKey) patchGridState(scopeKey, { columnOrder: next });
     },
-    [applyVisibility]
+    [scopeKey, patchGridState]
   );
 
-  const handleSortChanged = useCallback(async () => {
-    await loadAllLogOverviews();
-    setWatchedLogs(logFiles);
-  }, [loadAllLogOverviews, setWatchedLogs, logFiles]);
-
-  const handleFilterChanged = useCallback(async () => {
-    await loadAllLogOverviews();
-    setWatchedLogs(logFiles);
-  }, [loadAllLogOverviews, setWatchedLogs, logFiles]);
-
-  const handleModelUpdated = useCallback(
-    (e: ModelUpdatedEvent<LogListRow>) => {
-      setFilteredCount(e.api.getDisplayedRowCount());
+  const persistSelectedId = useCallback(
+    (id: string | undefined) => {
+      if (scopeKey) patchGridState(scopeKey, { selectedRowId: id });
     },
-    [setFilteredCount]
+    [scopeKey, patchGridState]
   );
 
-  const maxColCount = useRef(0);
+  // Armed while the find band is open with an active match; closing the band
+  // or unmounting persists it as the selection (see below). An explicit row
+  // selection disarms it so the stale match can't clobber the user's click —
+  // navigating matches again re-arms via the sync effect.
+  const openBandMatchIdRef = useRef<string | undefined>(undefined);
 
-  // Auto-fit defers to the user: once they manually resize a column, all
-  // subsequent auto-fits below are suppressed so their widths stick.
-  const { refitColumns, handleColumnResized } = useGridColumnRefit(gridRef);
-
-  // Refit when the column set changes (e.g. the scores view-mode toggle
-  // swaps the score column set). `columns` is content-stable across
-  // logDetails flushes (see useLogListColumns), so this no longer fires —
-  // and wipes user-dragged widths — on every detail flush while loading.
-  useEffect(() => {
-    refitColumns();
-  }, [columns, refitColumns]);
-
-  const handleGridColumnsChanged = useCallback(
-    (e: GridColumnsChangedEvent<LogListRow>) => {
-      const cols = e.api.getColumnDefs();
-      if (cols && cols.length > maxColCount.current) {
-        maxColCount.current = cols.length;
-        refitColumns();
-      }
+  const handleSelectedRowChange = useCallback(
+    (row: LogListRow) => {
+      openBandMatchIdRef.current = undefined;
+      persistSelectedId(row.id);
     },
-    [refitColumns]
+    [persistSelectedId]
   );
 
-  // Find functionality - searches across the currently visible columns.
-  // Formatted cell values are cached per (data, columns) so only keystrokes
-  // after a data/visibility change pay the formatter cost.
-  const searchCacheRef = useRef<{
-    data: LogListRow[] | null;
-    columns: ColDef<LogListRow>[] | null;
-    cache: Map<string, string>;
-  }>({ data: null, columns: null, cache: new Map() });
+  // Find (Cmd/Ctrl+F) — data-level search so matches include rows outside
+  // the virtualized window. The active match drives `selectedRowId`, which
+  // the DataGrid keeps scrolled into view.
+  const [showFind, setShowFind] = useState(false);
+  const [findTerm, setFindTerm] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const findInputRef = useRef<HTMLInputElement>(null);
 
-  const performSearch = useCallback(
-    (term: string) => {
-      const api = gridRef.current?.api;
-      if (!api || !term) {
-        setMatchIds([]);
-        setCurrentMatchIndex(0);
-        return;
-      }
-
-      // Rebuild cache if data or visible columns changed since last search
-      const cached = searchCacheRef.current;
-      let cache = cached.cache;
-      if (cached.data !== data || cached.columns !== columns) {
-        cache = new Map();
-        const displayedColumns = api.getAllDisplayedColumns();
-        api.forEachNode((node) => {
-          if (!node.data) return;
-          const parts: string[] = [];
-          for (const col of displayedColumns) {
-            const value = api.getCellValue({
-              rowNode: node,
-              colKey: col,
-              useFormatter: true,
-            });
-            if (value) parts.push(String(value));
-          }
-          cache.set(node.data.id, parts.join(" ").toLowerCase());
-        });
-        searchCacheRef.current = { data, columns, cache };
-      }
-
-      const lowerTerm = term.toLowerCase();
-      const foundIds: string[] = [];
-      api.forEachNode((node) => {
-        if (!node.data) return;
-        const text = cache.get(node.data.id);
-        if (text && text.includes(lowerTerm)) {
-          foundIds.push(node.data.id);
-        }
-      });
-      setMatchIds(foundIds);
-      setCurrentMatchIndex(0);
-      if (foundIds.length > 0) {
-        const firstNode = api.getRowNode(foundIds[0]);
-        if (firstNode) {
-          api.deselectAll();
-          api.ensureNodeVisible(firstNode, "middle");
-          firstNode.setSelected(true, true);
-        }
-      }
-    },
-    [data, columns]
+  const searchColumns = useMemo(
+    () => columns.filter((col) => col.id !== undefined && visibility[col.id]),
+    [columns, visibility]
   );
+
+  // Built only while the band is open; per-row text is then cached across
+  // keystrokes (each keystroke just re-scans the index).
+  const searchIndex = useMemo(
+    () =>
+      showFind
+        ? buildSearchIndex(rows, searchColumns, (row) => row.id)
+        : undefined,
+    [showFind, rows, searchColumns]
+  );
+  const matchIds = useMemo(
+    () => (searchIndex ? findMatches(searchIndex, findTerm) : []),
+    [searchIndex, findTerm]
+  );
+
+  const handleFindTermChange = useCallback(() => {
+    setFindTerm(findInputRef.current?.value ?? "");
+    // New term: jump back to the first match.
+    setCurrentMatchIndex(0);
+  }, []);
 
   const goToMatch = useCallback(
     (index: number) => {
       if (matchIds.length === 0) return;
-      const idx =
-        ((index % matchIds.length) + matchIds.length) % matchIds.length;
-      setCurrentMatchIndex(idx);
-      const api = gridRef.current?.api;
-      if (!api) return;
-      const node = api.getRowNode(matchIds[idx]);
-      if (node) {
-        api.deselectAll();
-        api.ensureNodeVisible(node, "middle");
-        node.setSelected(true, true);
-      }
+      setCurrentMatchIndex(
+        ((index % matchIds.length) + matchIds.length) % matchIds.length
+      );
     },
-    [matchIds]
+    [matchIds.length]
   );
 
-  const handleInputKeyDown = useCallback(
+  // Clamp: a data flush can shrink the match list under a stale index.
+  const activeMatchIndex = Math.min(
+    currentMatchIndex,
+    Math.max(matchIds.length - 1, 0)
+  );
+  const activeMatchId =
+    matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
+
+  const closeFind = useCallback(() => {
+    // Persist the armed match as the selection so closing the band doesn't
+    // snap back to the prior row (matches the AG grid). Display prefers
+    // `activeMatchId` while the band is open, so the persisted value only
+    // matters from this point on. Reads the ref (not `activeMatchId`) so a
+    // row click since the last match navigation wins instead.
+    const id = openBandMatchIdRef.current;
+    if (id !== undefined) persistSelectedId(id);
+    openBandMatchIdRef.current = undefined;
+    setShowFind(false);
+    setFindTerm("");
+    setCurrentMatchIndex(0);
+  }, [persistSelectedId]);
+
+  // Same persistence for the leave-without-closing path: unmounting (e.g.
+  // navigating away) with the band still open. Ref carries the latest match
+  // so the cleanup — which runs long after this render — doesn't act on a
+  // stale closure.
+  useEffect(() => {
+    openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
+  }, [showFind, activeMatchId]);
+  useEffect(
+    () => () => {
+      const id = openBandMatchIdRef.current;
+      if (id !== undefined) persistSelectedId(id);
+    },
+    [persistSelectedId]
+  );
+
+  const handleFindInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
         closeFind();
       } else if (e.key === "Enter") {
         e.preventDefault();
-        goToMatch(currentMatchIndex + (e.shiftKey ? -1 : 1));
+        goToMatch(activeMatchIndex + (e.shiftKey ? -1 : 1));
       }
     },
-    [goToMatch, currentMatchIndex, closeFind]
+    [goToMatch, activeMatchIndex, closeFind]
   );
 
   useEffect(() => {
@@ -543,83 +274,50 @@ export const LogListGrid: FC<LogListGridProps> = ({
         closeFind();
       }
     };
+    // Capture phase so the shortcut wins before the browser's own find.
     document.addEventListener("keydown", handleFindKeyDown, true);
     return () =>
       document.removeEventListener("keydown", handleFindKeyDown, true);
   }, [closeFind, showFind]);
 
-  // performSearch handles the empty term by clearing match state, so a
-  // single call covers both the search and reset paths.
-  useEffect(() => {
-    performSearch(findTerm);
-  }, [findTerm, performSearch]);
-
   return (
-    <div className={clsx(styles.gridWrapper)}>
+    <div className={clsx(gridStyles.gridWrapper)}>
       {showFind && (
         <FindBandUI
           inputRef={findInputRef}
           value={findTerm}
-          onChange={() => setFindTerm(findInputRef.current?.value ?? "")}
-          onKeyDown={handleInputKeyDown}
+          onChange={handleFindTermChange}
+          onKeyDown={handleFindInputKeyDown}
           onClose={closeFind}
-          onPrevious={() => goToMatch(currentMatchIndex - 1)}
-          onNext={() => goToMatch(currentMatchIndex + 1)}
+          onPrevious={() => goToMatch(activeMatchIndex - 1)}
+          onNext={() => goToMatch(activeMatchIndex + 1)}
           disableNav={matchIds.length === 0}
           noResults={!!findTerm && matchIds.length === 0}
           matchCount={findTerm ? matchIds.length : undefined}
-          matchIndex={findTerm ? currentMatchIndex : undefined}
+          matchIndex={findTerm ? activeMatchIndex : undefined}
         />
       )}
-      <div
-        ref={gridContainerRef}
-        className={clsx(styles.gridContainer, gridChromeStyles.gridChrome)}
-        tabIndex={0}
-      >
-        <AgGridReact<LogListRow>
-          // Remount on scope change so filter/sort/column state get a clean
-          // slate. AG-Grid's `initialState` is one-shot at mount, so a key
-          // change is the cleanest way to reset everything declaratively.
+      <div className={clsx(gridStyles.gridContainer)}>
+        <DataGrid<LogListRow>
           key={scopeKey ?? "pending"}
-          ref={attachGridRef}
-          rowData={data}
-          animateRows={false}
-          suppressColumnMoveAnimation={true}
-          columnDefs={columns}
-          maintainColumnOrder={true}
-          defaultColDef={{
-            sortable: true,
-            filter: true,
-            resizable: true,
-          }}
-          tooltipShowDelay={2000}
-          tooltipInteraction={true}
-          popupParent={document.body}
-          autoSizeStrategy={{ type: "fitGridWidth" }}
-          headerHeight={25}
-          rowSelection={{ mode: "singleRow", checkboxes: false }}
-          getRowId={(params) => params.data.id}
-          onGridColumnsChanged={handleGridColumnsChanged}
-          onGridSizeChanged={refitColumns}
-          onColumnResized={handleColumnResized}
-          theme={themeBalham}
-          enableCellTextSelection={true}
-          initialState={initialGridState}
-          suppressCellFocus={true}
-          onStateUpdated={(e: StateUpdatedEvent<LogListRow>) => {
-            // Don't write under an unhydrated scope — we'd lose track of
-            // which scope this state belongs to.
-            if (scopeKey !== undefined) {
-              setGridState(scopeKey, e.state);
-            }
-          }}
-          onGridReady={handleGridReady}
-          onRowClicked={handleRowClick}
-          onCellMouseDown={handleCellMouseDown}
-          onSortChanged={handleSortChanged}
-          onFilterChanged={handleFilterChanged}
-          onModelUpdated={handleModelUpdated}
-          loading={data.length === 0 && (loading > 0 || syncing)}
+          data={rows}
+          columns={columns}
+          columnVisibility={visibility}
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
+          columnFilters={columnFilters}
+          onColumnFilterChange={handleColumnFilterChange}
+          columnSizing={columnSizing}
+          onColumnSizingChange={handleColumnSizingChange}
+          columnOrder={columnOrder}
+          onColumnOrderChange={handleColumnOrderChange}
+          getRowId={(row) => row.id}
+          selectedRowId={activeMatchId ?? persistedSelectedId}
+          onSelectedRowChange={handleSelectedRowChange}
+          onRowActivate={handleRowActivate}
+          autoFocus
+          ariaLabel="Evaluation logs"
+          loading={totalRowCount === 0 && busy}
         />
       </div>
     </div>

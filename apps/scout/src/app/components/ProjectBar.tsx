@@ -47,7 +47,8 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
             className={styles.navButton}
             onClick={() => {
               if (currentActivity) {
-                void navigate(currentActivity.route);
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                navigate(currentActivity.route);
               }
             }}
             aria-label="Home"

@@ -11,6 +11,8 @@ import {
 } from "@tsmono/react/components";
 import { formatNumber, isJson } from "@tsmono/util";
 
+import { isRenderableImageSource } from "../media/mediaSource";
+
 import { useContentRenderers } from "./ContentRenderersContext";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
@@ -312,7 +314,7 @@ const contentRenderers: (
       canRender: (entry) => {
         return (
           typeof entry.value === "string" &&
-          entry.value.startsWith("data:image/")
+          isRenderableImageSource(entry.value)
         );
       },
       render: (_id, entry, _options) => {

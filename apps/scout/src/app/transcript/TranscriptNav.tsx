@@ -35,13 +35,15 @@ export const TranscriptNav: FC<TranscriptNavProps> = ({
 
   const handlePrevious = () => {
     if (prevId) {
-      void navigate(transcriptRoute(transcriptsDir, prevId, cleanParams));
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(transcriptRoute(transcriptsDir, prevId, cleanParams));
     }
   };
 
   const handleNext = () => {
     if (nextId) {
-      void navigate(transcriptRoute(transcriptsDir, nextId, cleanParams));
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(transcriptRoute(transcriptsDir, nextId, cleanParams));
     }
   };
 

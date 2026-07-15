@@ -75,8 +75,9 @@ export const SelectScorer: FC<SelectScorerProps> = ({
               !allScoresSelected ? styles.selected : undefined
             )}
             onClick={() => {
-              if (scores.length > 0) {
-                setSelectedScores([scores[0]]);
+              const firstScore = scores[0];
+              if (firstScore !== undefined) {
+                setSelectedScores([firstScore]);
               }
             }}
           >

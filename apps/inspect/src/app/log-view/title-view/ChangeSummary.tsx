@@ -39,11 +39,11 @@ export const ChangeSummary: FC<ChangeSummaryProps> = ({
   );
 };
 
-const Line: FC<{ label: string; accent: string; items: string[] }> = ({
-  label,
-  accent,
-  items,
-}) => {
+const Line: FC<{
+  label: string;
+  accent: string | undefined;
+  items: string[];
+}> = ({ label, accent, items }) => {
   const joined = items.join(", ");
   return (
     // The full list lives in the `title` attribute so a truncated line

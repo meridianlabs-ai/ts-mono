@@ -51,6 +51,7 @@ export function scrollRangeToCenter(
   if (rects.length === 0) return;
 
   const selectionRect = rects[0];
+  if (selectionRect === undefined) return;
   const scrollableParent = findScrollableParent(
     range.startContainer.parentElement
   );

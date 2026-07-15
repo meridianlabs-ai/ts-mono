@@ -46,6 +46,8 @@ export interface TranscriptViewNodesProps {
   defaultCollapsedIds: Record<string, boolean>;
   /** Whether events are still being streamed (enables auto-follow scroll). */
   running?: boolean;
+  /** Whether the sample's event backlog is still loading (live sample). */
+  backfilling?: boolean;
   scrollRef?: React.RefObject<HTMLDivElement | null>;
   initialEventId?: string | null;
   /** Optional message ID — after scrolling to the containing event, also
@@ -221,6 +223,7 @@ export const TranscriptViewNodes = forwardRef<
     eventNodes,
     defaultCollapsedIds,
     running,
+    backfilling,
     scrollRef,
     initialEventId,
     initialMessageId,
@@ -504,6 +507,7 @@ export const TranscriptViewNodes = forwardRef<
           eventNodes={flattenedNodes}
           scrollRef={scrollRef}
           running={running}
+          backfilling={backfilling}
           offsetTop={offsetTop}
           className={clsx(className)}
           initialEventId={scrollEventId}

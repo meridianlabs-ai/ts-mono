@@ -18,6 +18,33 @@ export const sampleIdsEqual = (
   return String(id) === String(otherId);
 };
 
+export const isCurrentSample = (
+  handle: SampleHandle | undefined,
+  id: string | number,
+  epoch: number
+): boolean =>
+  handle !== undefined &&
+  handle.epoch === epoch &&
+  sampleIdsEqual(handle.id, id);
+
+/**
+ * Whether a row is the sample currently open in the detail route.
+ *
+ * Keyed off the route (undefined id/epoch means the log list is showing), not
+ * the persisted selectedSampleHandle — that lingers after navigating back to
+ * the log, so using it would wrongly skip re-opening the same sample.
+ */
+export const isSampleOpenInRoute = (
+  routeSampleId: string | undefined,
+  routeEpoch: string | undefined,
+  rowSampleId: string | number,
+  rowEpoch: number
+): boolean =>
+  routeSampleId !== undefined &&
+  routeEpoch !== undefined &&
+  sampleIdsEqual(routeSampleId, rowSampleId) &&
+  Number(routeEpoch) === rowEpoch;
+
 export const sampleHandlesEqual = (
   sample1?: SampleHandle,
   sample2?: SampleHandle

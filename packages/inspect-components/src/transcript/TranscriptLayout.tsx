@@ -131,6 +131,8 @@ export interface TranscriptLayoutProps {
   hiddenEventTypes?: readonly string[];
   /** Whether events are still being streamed (enables running indicators). */
   running?: boolean;
+  /** Whether the sample's event backlog is still loading (live sample). */
+  backfilling?: boolean;
 
   // --- Scroll & positioning ---
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -292,6 +294,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   events,
   hiddenEventTypes,
   running = false,
+  backfilling = false,
   scrollRef,
   offsetTop = 0,
   embedded = false,
@@ -1131,6 +1134,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                           scrollRef={scrollRef}
                           outlineScrollEl={outlineScrollEl}
                           running={running}
+                          backfilling={backfilling}
                           agentName={
                             outline.name ??
                             (showSwimlanes ? selectedRowName : undefined)
@@ -1190,6 +1194,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   eventNodes={eventNodes}
                   defaultCollapsedIds={defaultCollapsedIds}
                   running={running}
+                  backfilling={backfilling}
                   initialEventId={effectiveInitialEventId}
                   initialMessageId={initialMessageId}
                   offsetTop={effectiveOffsetTop}

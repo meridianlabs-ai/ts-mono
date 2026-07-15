@@ -620,10 +620,37 @@ const extractCodexAgentAnswers = (output: unknown): string | undefined => {
   return nonEmpty.length > 0 ? nonEmpty.join("\n\n---\n\n") : undefined;
 };
 
-// Strip Codex's internal `<content-internal>…</content-internal>` bookkeeping
-// tag (base64 message metadata) that trails the visible answer text.
-const cleanCodexAnswer = (text: string): string =>
-  text.replace(/<content-internal>[\s\S]*?<\/content-internal>/g, "").trimEnd();
+// Strip one valid trailing Codex bookkeeping envelope from the rendered
+// projection. Arbitrary or malformed tag-like answer text remains evidence.
+const cleanCodexAnswer = (text: string): string => {
+  const match =
+    /<content-internal>([A-Za-z0-9+/]+={0,2})<\/content-internal>\s*$/.exec(
+      text
+    );
+  const payload = match?.[1];
+  if (!match || payload === undefined) {
+    return text;
+  }
+
+  const visibleAnswer = text.slice(0, match.index);
+  if (
+    visibleAnswer.includes("<content-internal>") ||
+    visibleAnswer.includes("</content-internal>")
+  ) {
+    return text;
+  }
+
+  try {
+    const decoded = Uint8Array.from(atob(payload), (char) =>
+      char.charCodeAt(0)
+    );
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded));
+  } catch {
+    return text;
+  }
+
+  return visibleAnswer.trimEnd();
+};
 
 /**
  * Substitutes `{{param_name}}` placeholders in tool call content

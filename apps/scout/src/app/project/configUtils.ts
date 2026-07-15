@@ -39,7 +39,7 @@ export function filterNullValues<T extends Record<string, unknown>>(
  * Loses functions, Symbols, undefined values. Circular references will throw.
  */
 export function deepCopy<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+  return JSON.parse(JSON.stringify(obj)) as T;
 }
 
 /**
@@ -125,17 +125,9 @@ function cleanGenerateConfig(
     if (key === "cache" || key === "batch") {
       const cleanedNested = cleanNestedConfig(
         editedValue as
-          | Record<string, unknown>
-          | boolean
-          | number
-          | null
-          | undefined,
+          Record<string, unknown> | boolean | number | null | undefined,
         originalValue as
-          | Record<string, unknown>
-          | boolean
-          | number
-          | null
-          | undefined
+          Record<string, unknown> | boolean | number | null | undefined
       );
       if (cleanedNested !== undefined) {
         result[key] = cleanedNested;

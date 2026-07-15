@@ -27,7 +27,8 @@ export const useTopicInvalidation = (): boolean => {
     );
     for (const [topic] of changedTopics) {
       const invKey = `${topic}-inv`;
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         predicate: (query) => query.queryKey.includes(invKey),
       });
     }

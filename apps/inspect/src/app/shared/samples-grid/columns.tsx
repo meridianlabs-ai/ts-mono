@@ -1,30 +1,36 @@
-import type {
-  ColDef,
-  ICellRendererParams,
-  ValueFormatterParams,
-  ValueGetterParams,
-} from "ag-grid-community";
 import clsx from "clsx";
+import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
+import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { arrayToString, filename, formatNumber } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
-import { LogDetails } from "../../../client/api/types";
+import { SampleSummary } from "../../../client/api/types";
 import {
   kScoreTypeBoolean,
   kScoreTypeNumeric,
   kScoreTypePassFail,
 } from "../../../constants";
-import { formatDateTime, formatTime } from "../../../utils/format";
+import {
+  formatDateTime,
+  formatTime,
+  valueAsString,
+} from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
-  kDefaultSampleSortValue,
-  sampleStatus,
+  samplesOperatorsForKind,
+  type SampleFilterSpecRegistry,
+} from "../../samples/sample-tools/filterSpecRegistry";
+import {
+  deriveSampleStatus,
   SampleStatusIcon,
-  sampleStatusSortValue,
-} from "../../samples/status/sampleStatus";
-import gridCellsStyles from "../gridCells.module.css";
+  statusSortValue,
+} from "../../samples/status/status";
+import {
+  ColumnComparator,
+  ExtendedColumnDef,
+} from "../../shared/data-grid/columnTypes";
 import { comparators } from "../gridComparators";
 
 import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
@@ -33,11 +39,19 @@ import {
   resolveScale,
   type WireScoreColorScale,
 } from "./colorScale";
-import { RotatedHeader } from "./RotatedHeader";
 import styles from "./SamplesGrid.module.css";
 import { SampleRow } from "./types";
 
 export type SampleGridViewMode = "list" | "grid";
+
+// Value comparators for client-side sorting (deferred — kept on column meta
+// for later wiring). `gridComparators` pins missing values last in both
+// directions (`isDescending` flips the missing-value sentinel).
+const numberCompare: ColumnComparator = (a, b, isDescending) =>
+  comparators.number(a, b, isDescending);
+const dateCompare: ColumnComparator = (a, b) => comparators.date(a, b);
+const stringCompare: ColumnComparator = (a, b) =>
+  valueAsString(a ?? "").localeCompare(valueAsString(b ?? ""));
 
 export interface SampleGridContext {
   viewMode: SampleGridViewMode;
@@ -51,10 +65,7 @@ export interface SampleGridContext {
   scores?: ScoreLabel[];
   epochs?: number;
   /** Cross-log only — used to discover all distinct score names. */
-  logDetails?: Record<string, LogDetails>;
-  /** When true, score columns render compact: narrow widths with
-   *  rotated 45° headers. Off by default. */
-  compactScores?: boolean;
+  samples?: SampleSummary[];
   /** Per-metric display label overrides, e.g. `{ "ascii-art": "ASCII
    *  Art" }`. Falls through to the raw metric name when a key isn't
    *  present. Sourced from the eval-author's `task_samples_view`. */
@@ -66,7 +77,18 @@ export interface SampleGridContext {
    *  boolean metrics ignore this — their pills already carry the
    *  semantic. */
   scoreColorScales?: Record<string, WireScoreColorScale>;
+  /** When true, score columns render compact: narrow widths with rotated
+   *  45° headers so many scorers fit horizontally. Off by default;
+   *  eval authors opt in via `task_samples_view.compact_scores`. */
+  compactScores?: boolean;
+  /** When set, only columns in the registry are filterable, with operator
+   *  lists narrowed to what round-trips through the filtrex bridge
+   *  (samples-tab mode). Absent → every column is filterable with default
+   *  operators (cross-log mode). */
+  filterSpecRegistry?: SampleFilterSpecRegistry;
 }
+
+type SampleColumn = ExtendedColumnDef<SampleRow>;
 
 const EmptyCell = () => <div>-</div>;
 
@@ -79,249 +101,200 @@ export const perScorerFieldKey = (label: ScoreLabel): string =>
 const rawScoreFieldKey = (name: string): string =>
   `${SCORE_FIELD_RAW_PREFIX}${name}`;
 
-/** Build the superset of sample columns. Visibility is *not* applied here
- *  — the caller (via `useSampleGridState`) controls `hide`. */
+const statusValue = (row: SampleRow): string => {
+  const completed = row.completed ?? row.data?.completed;
+  const error = row.error ?? row.data?.error;
+  return statusSortValue(deriveSampleStatus(completed, error), error);
+};
+
+const inputText = (row: SampleRow): string => {
+  if (row.input !== undefined) return row.input;
+  if (row.data) return inputString(row.data.input).join(" ");
+  return "";
+};
+
+const targetText = (row: SampleRow): string => {
+  if (row.target !== undefined) return row.target;
+  if (row.data?.target != null) return arrayToString(row.data.target);
+  return "";
+};
+
+/** Build the superset of sample columns. Visibility is *not* applied here —
+ *  the caller controls it via the DataGrid `columnVisibility` map. */
 export function buildSampleColumns(
   ctx: SampleGridContext
-): ColDef<SampleRow>[] {
-  const { viewMode, multiLog, descriptor, epochs } = ctx;
+): ExtendedColumnDef<SampleRow>[] {
+  const { viewMode, multiLog, descriptor } = ctx;
   const isList = viewMode === "list";
   const shape = descriptor?.messageShape;
 
-  const cols: ColDef<SampleRow>[] = [];
+  const cols: SampleColumn[] = [];
 
-  // # column — pinned-left index. Cross-log only (single-log doesn't
-  // benefit from a separate index since rows are naturally ordered).
+  // # column — pinned-left index. Cross-log only (single-log doesn't benefit
+  // from a separate index since rows are naturally ordered).
   if (multiLog) {
     cols.push({
-      colId: "displayIndex",
-      headerName: "#",
-      initialWidth: 80,
-      minWidth: 50,
-      maxWidth: 80,
-      sortable: false,
-      filter: false,
-      resizable: false,
+      id: "displayIndex",
+      header: "#",
+      // 65 matches what the AG grid actually rendered (its declared 80 was
+      // always squeezed by the initial fit-to-grid pass).
+      size: 65,
+      minSize: 50,
+      maxSize: 80,
+      enableSorting: false,
+      enableResizing: false,
       pinned: "left",
-      cellRenderer: (params: ICellRendererParams<SampleRow>) => {
-        if (params.data?.displayIndex === undefined) return "";
-        return (
-          <div className={gridCellsStyles.numberCell}>
-            {params.data.displayIndex}
-          </div>
-        );
+      accessorFn: (row) => row.displayIndex,
+      cell: ({ row }) => {
+        const value = row.original.displayIndex;
+        if (value === undefined) return "";
+        return <div>{value}</div>;
       },
     });
   }
 
-  // sample-level status icon (always)
+  // sample-level status icon (always). The id is a wire contract — eval
+  // authors reference it as `TaskSamplesColumnId` "sampleStatus" from
+  // `Task(viewer=...)` (see `viewer/_config.py`) — so it must not track
+  // internal helper naming.
   cols.push({
-    colId: "sampleStatus",
-    field: "sampleStatus",
-    headerName: isList ? "" : "Sample Status",
-    headerTooltipValueGetter: () => "Sample Status",
-    initialWidth: isList ? 28 : 100,
-    minWidth: isList ? 28 : 80,
-    valueGetter: (params: ValueGetterParams<SampleRow>) => {
-      const row = params.data;
-      if (!row) return kDefaultSampleSortValue;
+    id: "sampleStatus",
+    header: isList ? "" : "Sample Status",
+    headerTitle: "Sample Status",
+    size: isList ? 28 : 100,
+    minSize: isList ? 28 : 80,
+    enableResizing: false,
+    accessorFn: (row) => statusValue(row),
+    titleValue: (row) => {
       const completed = row.completed ?? row.data?.completed;
       const error = row.error ?? row.data?.error;
-      const s = sampleStatus(completed, error);
-      return sampleStatusSortValue(s, error);
+      return error ? error : deriveSampleStatus(completed, error);
     },
-    cellRenderer: (params: ICellRendererParams<SampleRow>) => {
-      if (!params.data) return null;
-      const row = params.data;
-      const completed = row.completed ?? row.data?.completed;
-      const error = row.error ?? row.data?.error;
-      const s = sampleStatus(completed, error);
-      return <SampleStatusIcon status={s} />;
-    },
-    tooltipValueGetter: (params) => {
-      const row = params.data;
-      if (!row) return null;
-      const completed = row.completed ?? row.data?.completed;
-      const error = row.error ?? row.data?.error;
-      return error ? error : sampleStatus(completed, error);
+    cell: ({ row }) => {
+      const item = row.original;
+      const completed = item.completed ?? item.data?.completed;
+      const error = item.error ?? item.data?.error;
+      return <SampleStatusIcon status={deriveSampleStatus(completed, error)} />;
     },
   });
 
-  // task / model / logFile / log status — cross-log only.
+  // task / model / logFile / eval status — cross-log only.
   if (multiLog) {
     cols.push(
       {
-        colId: "status",
-        field: "status",
-        headerName: "Eval Status",
-        initialWidth: 110,
-        minWidth: 80,
-        sortable: true,
-        filter: true,
-        resizable: true,
+        id: "status",
+        header: "Eval Status",
+        size: 110,
+        minSize: 80,
+        accessorFn: (row) => row.status,
+        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
       {
-        colId: "task",
-        field: "task",
-        headerName: "Task",
-        initialFlex: 1,
-        minWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
+        id: "task",
+        header: "Task",
+        size: 160,
+        minSize: 100,
+        flex: 1,
+        accessorFn: (row) => row.task,
+        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
       {
-        colId: "model",
-        field: "model",
-        headerName: "Model",
-        initialFlex: 1,
-        minWidth: 100,
-        sortable: true,
-        filter: true,
-        resizable: true,
+        id: "model",
+        header: "Model",
+        size: 160,
+        minSize: 100,
+        flex: 1,
+        accessorFn: (row) => row.model,
+        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
       {
-        colId: "logFile",
-        field: "logFile",
-        headerName: "Log File",
-        initialFlex: 1,
-        minWidth: 150,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-          filename(params.value),
-      },
-      {
-        colId: "completed_at",
-        headerName: "Completed",
-        initialWidth: 140,
-        minWidth: 80,
-        maxWidth: 160,
-        sortable: true,
-        filter: true,
-        resizable: true,
-        cellDataType: "date",
-        valueGetter: (params: ValueGetterParams<SampleRow>) =>
-          params.data?.data?.completed_at ?? undefined,
-        filterValueGetter: (params: ValueGetterParams<SampleRow>) => {
-          const v = params.data?.data?.completed_at;
-          if (!v) return undefined;
-          const d = new Date(v);
-          return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        id: "logFile",
+        header: "Log File",
+        size: 200,
+        minSize: 150,
+        flex: 1,
+        accessorFn: (row) => row.logFile,
+        cell: ({ getValue }) => {
+          const value = getValue<string | undefined>();
+          return <div>{value ? filename(value) : ""}</div>;
         },
-        valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-          params.value ? formatDateTime(new Date(params.value)) : "",
-        comparator: comparators.date,
+      },
+      {
+        id: "completed_at",
+        header: "Completed",
+        size: 140,
+        minSize: 80,
+        maxSize: 160,
+        meta: { sortComparator: dateCompare },
+        accessorFn: (row) => row.data?.completed_at ?? undefined,
+        cell: ({ getValue }) => {
+          const value = getValue<string | undefined>();
+          return <div>{value ? formatDateTime(new Date(value)) : ""}</div>;
+        },
       }
     );
   }
 
   // id (sample id)
   cols.push({
-    colId: "sampleId",
-    field: "sampleId",
-    headerName: "Id",
-    initialWidth: shape ? Math.max(35, (shape.idSize ?? 2) * 16) : 120,
-    minWidth: 35,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    valueGetter: (params: ValueGetterParams<SampleRow>) =>
-      String(params.data?.sampleId ?? ""),
+    id: "sampleId",
+    header: "Id",
+    size: shape ? Math.max(35, (shape.idSize ?? 2) * 16) : 120,
+    minSize: 35,
+    accessorFn: (row) => String(row.sampleId ?? ""),
+    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
-  // sample uuid — opt-in via column selector. Visibility is driven by
-  // the per-scope visibility map (defaulted off via
-  // `defaultsForUnseededColumns`); we don't set `hide: true` here so the
-  // column behaves like other optional columns (`created`, etc.).
+  // sample uuid — opt-in via column selector.
   cols.push({
-    colId: "sampleUuid",
-    headerName: "UUID",
-    initialWidth: 280,
-    minWidth: 80,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    valueGetter: (params: ValueGetterParams<SampleRow>) =>
-      params.data?.data?.uuid ?? "",
+    id: "sampleUuid",
+    header: "UUID",
+    size: 280,
+    minSize: 80,
+    accessorFn: (row) => row.data?.uuid ?? "",
+    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // epoch
   cols.push({
-    colId: "epoch",
-    field: "epoch",
-    headerName: "Epoch",
-    initialWidth: 60,
-    minWidth: 40,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    cellStyle: { textAlign: "center" },
-    comparator: comparators.number,
-    // Hide when single-log and epochs ≤ 1 (no meaningful data).
-    hide: !multiLog && epochs !== undefined && epochs <= 1,
+    id: "epoch",
+    header: "Epoch",
+    size: 60,
+    minSize: 40,
+    meta: { align: "center", sortComparator: numberCompare },
+    accessorFn: (row) => row.epoch,
+    cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
   });
 
   // input
   cols.push({
-    colId: "input",
-    field: "input",
-    headerName: "Input",
-    initialFlex: shape?.inputSize ? shape.inputSize : 3,
-    minWidth: 240,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    cellStyle: isList
-      ? undefined
-      : { overflow: "hidden", textOverflow: "ellipsis" },
-    valueGetter: (params: ValueGetterParams<SampleRow>) => {
-      const row = params.data;
-      if (!row) return "";
-      if (row.input !== undefined) return row.input;
-      if (row.data) return inputString(row.data.input).join(" ");
-      return "";
-    },
-    cellRenderer: isList
-      ? (params: ICellRendererParams<SampleRow>) => {
-          const row = params.data;
-          if (!row) return null;
-          const text =
-            row.input ??
-            (row.data ? inputString(row.data.input).join(" ") : "");
-          return <MarkdownCellDiv semanticClass="sample-input" text={text} />;
-        }
-      : undefined,
+    id: "input",
+    header: "Input",
+    size: 360,
+    minSize: 240,
+    flex: shape?.inputSize ? shape.inputSize : 3,
+    accessorFn: (row) => inputText(row),
+    cell: isList
+      ? ({ row }) => (
+          <MarkdownCellDiv
+            semanticClass="sample-input"
+            text={inputText(row.original)}
+          />
+        )
+      : ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // target
   cols.push({
-    colId: "target",
-    field: "target",
-    headerName: "Target",
-    initialFlex: shape?.targetSize ? shape.targetSize : 1,
-    minWidth: 120,
-    sortable: true,
-    filter: true,
-    resizable: true,
-    cellStyle: isList
-      ? undefined
-      : { overflow: "hidden", textOverflow: "ellipsis" },
-    valueGetter: (params: ValueGetterParams<SampleRow>) => {
-      const row = params.data;
-      if (!row) return "";
-      if (row.target !== undefined) return row.target;
-      if (row.data?.target != null) return arrayToString(row.data.target);
-      return "";
-    },
-    cellRenderer: isList
-      ? (params: ICellRendererParams<SampleRow>) => {
-          const row = params.data;
-          if (!row) return null;
-          const text =
-            row.target ??
-            (row.data?.target != null ? arrayToString(row.data.target) : "");
+    id: "target",
+    header: "Target",
+    size: 200,
+    minSize: 120,
+    flex: shape?.targetSize ? shape.targetSize : 1,
+    accessorFn: (row) => targetText(row),
+    cell: isList
+      ? ({ row }) => {
+          const text = targetText(row.original);
           if (!text) return null;
           return (
             <MarkdownCellDiv
@@ -331,108 +304,85 @@ export function buildSampleColumns(
             />
           );
         }
-      : undefined,
+      : ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // answer (only meaningful when descriptor present)
   if (descriptor) {
     cols.push({
-      colId: "answer",
-      field: "answer",
-      headerName: "Answer",
-      initialFlex: shape?.answerSize ? shape.answerSize : 1,
-      minWidth: 120,
-      sortable: true,
-      filter: true,
-      resizable: true,
-      cellStyle: isList
-        ? undefined
-        : { overflow: "hidden", textOverflow: "ellipsis" },
-      valueGetter: (params: ValueGetterParams<SampleRow>) =>
-        params.data?.answer ?? "",
-      cellRenderer: isList
-        ? (params: ICellRendererParams<SampleRow>) => {
-            if (!params.data) return null;
-            return (
-              <MarkdownCellDiv
-                semanticClass="sample-answer"
-                text={params.data.answer || ""}
-                trimRenderedText
-              />
-            );
-          }
-        : undefined,
+      id: "answer",
+      header: "Answer",
+      size: 200,
+      minSize: 120,
+      flex: shape?.answerSize ? shape.answerSize : 1,
+      accessorFn: (row) => row.answer ?? "",
+      cell: isList
+        ? ({ row }) => (
+            <MarkdownCellDiv
+              semanticClass="sample-answer"
+              text={row.original.answer || ""}
+              trimRenderedText
+            />
+          )
+        : ({ getValue }) => <div>{getValue<string>()}</div>,
     });
   }
 
   // tokens
   cols.push({
-    colId: "tokens",
-    field: "tokens",
-    headerName: "Tokens",
-    initialWidth: 100,
-    minWidth: 60,
-    maxWidth: 140,
-    sortable: true,
-    filter: "agNumberColumnFilter",
-    resizable: true,
-    cellRenderer: (params: ICellRendererParams<SampleRow>) =>
-      params.value === undefined || params.value === null ? (
+    id: "tokens",
+    header: "Tokens",
+    size: 100,
+    minSize: 60,
+    maxSize: 140,
+    meta: { sortComparator: numberCompare },
+    accessorFn: (row) => row.tokens,
+    cell: ({ getValue }) => {
+      const value = getValue<number | undefined>();
+      return value === undefined || value === null ? (
         <EmptyCell />
       ) : (
-        <div>{formatNumber(params.value)}</div>
-      ),
+        <div>{formatNumber(value)}</div>
+      );
+    },
   });
 
   // duration
   cols.push({
-    colId: "duration",
-    field: "duration",
-    headerName: "Duration",
-    initialWidth: 120,
-    minWidth: 70,
-    maxWidth: 160,
-    sortable: true,
-    filter: "agNumberColumnFilter",
-    resizable: true,
-    valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-      params.value === undefined || params.value === null
-        ? ""
-        : formatTime(params.value),
-    cellRenderer: (params: ICellRendererParams<SampleRow>) =>
-      params.value === undefined || params.value === null ? (
+    id: "duration",
+    header: "Duration",
+    size: 120,
+    minSize: 70,
+    maxSize: 160,
+    meta: { sortComparator: numberCompare },
+    accessorFn: (row) => row.duration,
+    titleValue: (row) =>
+      row.duration === undefined || row.duration === null
+        ? undefined
+        : formatTime(row.duration),
+    cell: ({ getValue }) => {
+      const value = getValue<number | undefined>();
+      return value === undefined || value === null ? (
         <EmptyCell />
       ) : (
-        <div>{formatTime(params.value)}</div>
-      ),
-    tooltipValueGetter: (params) =>
-      params.value === undefined || params.value === null
-        ? undefined
-        : formatTime(params.value),
+        <div>{formatTime(value)}</div>
+      );
+    },
   });
 
   // OPTIONAL columns kept before scores so a scrolling user sees
   // halted/limited/retried-sample signals without scrolling past the
-  // (often wide) score-column block. Default visibility is seeded by
-  // `useSampleGridState`.
+  // (often wide) score-column block.
   cols.push(
     {
-      colId: "error",
-      field: "error",
-      headerName: "Error",
-      initialFlex: 1,
-      minWidth: 100,
-      sortable: true,
-      filter: true,
-      resizable: true,
-      cellStyle: isList
-        ? undefined
-        : { overflow: "hidden", textOverflow: "ellipsis" },
-      valueGetter: (params: ValueGetterParams<SampleRow>) =>
-        params.data?.error ?? params.data?.data?.error ?? "",
-      cellRenderer: isList
-        ? (params: ICellRendererParams<SampleRow>) => {
-            const text = params.value as string;
+      id: "error",
+      header: "Error",
+      size: 200,
+      minSize: 100,
+      accessorFn: (row) => row.error ?? row.data?.error ?? "",
+      cell: isList
+        ? ({ getValue }) => {
+            const text = getValue<string>();
             if (!text) return null;
             return (
               <div
@@ -447,52 +397,38 @@ export function buildSampleColumns(
               </div>
             );
           }
-        : undefined,
+        : ({ getValue }) => <div>{getValue<string>()}</div>,
     },
     {
-      colId: "limit",
-      field: "limit",
-      headerName: "Limit",
-      initialWidth: shape ? (shape.limitSize ?? 1) * 16 : 100,
-      minWidth: 28,
-      sortable: true,
-      filter: true,
-      resizable: true,
-      valueGetter: (params: ValueGetterParams<SampleRow>) =>
-        params.data?.limit ?? params.data?.data?.limit,
+      id: "limit",
+      header: "Limit",
+      size: shape ? (shape.limitSize ?? 1) * 16 : 100,
+      minSize: 28,
+      accessorFn: (row) => row.limit ?? row.data?.limit,
+      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
     },
     {
-      colId: "retries",
-      field: "retries",
-      headerName: "Retries",
-      initialWidth: shape ? (shape.retriesSize ?? 1) * 16 : 80,
-      minWidth: 28,
-      sortable: true,
-      filter: "agNumberColumnFilter",
-      resizable: true,
-      cellStyle: { textAlign: "center" },
-      comparator: comparators.number,
-      valueGetter: (params: ValueGetterParams<SampleRow>) =>
-        params.data?.retries ?? params.data?.data?.retries,
+      id: "retries",
+      header: "Retries",
+      size: shape ? (shape.retriesSize ?? 1) * 16 : 80,
+      minSize: 28,
+      meta: { align: "center", sortComparator: numberCompare },
+      accessorFn: (row) => row.retries ?? row.data?.retries,
+      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
     },
     {
-      colId: "fallbacks",
-      field: "fallbacks",
-      headerName: "Fallbacks",
+      id: "fallbacks",
+      header: "Fallbacks",
       // size for the header text — the cell value is just a small count
-      initialWidth: 95,
-      minWidth: 28,
-      sortable: true,
-      filter: "agNumberColumnFilter",
-      resizable: true,
-      cellStyle: { textAlign: "center" },
-      comparator: comparators.number,
-      valueGetter: (params: ValueGetterParams<SampleRow>) =>
-        params.data?.fallbacks,
-      tooltipValueGetter: (params) => {
-        const lines = modelFallbackLines(params.data?.data?.model_fallbacks);
+      size: 95,
+      minSize: 28,
+      meta: { align: "center", sortComparator: numberCompare },
+      accessorFn: (row) => row.fallbacks,
+      titleValue: (row) => {
+        const lines = modelFallbackLines(row.data?.model_fallbacks);
         return lines.length > 0 ? lines.join("\n") : undefined;
       },
+      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
     }
   );
 
@@ -501,85 +437,96 @@ export function buildSampleColumns(
 
   if (multiLog) {
     cols.push({
-      colId: "created",
-      field: "created",
-      headerName: "Eval Created",
-      initialWidth: 140,
-      minWidth: 80,
-      maxWidth: 160,
-      sortable: true,
-      filter: true,
-      resizable: true,
-      cellDataType: "date",
-      filterValueGetter: (params: ValueGetterParams<SampleRow>) => {
-        if (!params.data?.created) return undefined;
-        const d = new Date(params.data.created);
-        return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      id: "created",
+      header: "Eval Created",
+      size: 140,
+      minSize: 80,
+      maxSize: 160,
+      meta: { sortComparator: dateCompare },
+      accessorFn: (row) => row.created,
+      cell: ({ getValue }) => {
+        const value = getValue<string | undefined>();
+        return <div>{value ? formatDateTime(new Date(value)) : ""}</div>;
       },
-      valueFormatter: (params: ValueFormatterParams<SampleRow>) =>
-        params.value ? formatDateTime(new Date(params.value)) : "",
     });
   }
 
-  // Phantom spacer at the right end — only in compact mode. Compact
-  // mode's rotated labels extend ~92px past the rightmost score
-  // column. Without trailing room, max horizontal scroll leaves the
-  // last label clipped (or visually right at the viewport edge with
-  // no breathing room). A real ag-grid column is the cleanest way
-  // to extend the scrollable extent because the body, header, and
-  // bottom scrollbar all see it natively, so they stay in lock-step.
-  if (ctx.compactScores) {
-    cols.push({
-      colId: "compactSpacer",
-      headerName: "",
-      headerClass: styles.spacerHeader,
-      width: 95,
-      minWidth: 95,
-      maxWidth: 95,
-      sortable: false,
-      filter: false,
-      resizable: false,
-      suppressMovable: true,
-      suppressNavigable: true,
-      lockVisible: true,
-      lockPosition: "right",
-    });
+  // Mark columns filterable and derive the filter editor type from the sort
+  // comparator (mirrors the log list). The status-icon column sorts but has no
+  // useful filter editor, and the index column is purely presentational — so
+  // both are skipped here.
+  for (const col of cols) {
+    if (col.id === "sampleStatus" || col.id === "displayIndex") continue;
+    const cmp = col.meta?.sortComparator;
+    const filterType: FilterType =
+      cmp === numberCompare
+        ? "number"
+        : cmp === dateCompare
+          ? "date"
+          : "string";
+    if (ctx.filterSpecRegistry) {
+      const mapping = col.id
+        ? ctx.filterSpecRegistry.byColId.get(col.id)
+        : undefined;
+      if (!mapping) continue; // not representable in filtrex — no funnel
+      col.meta = {
+        ...col.meta,
+        filterable: true,
+        filterType,
+        operators: samplesOperatorsForKind(mapping.kind),
+      };
+    } else {
+      col.meta = { ...col.meta, filterable: true, filterType };
+    }
   }
 
   return cols;
 }
 
 /** Score columns — emitted in one of two modes. */
-function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
+function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
   const {
     descriptor,
     scores,
-    logDetails,
-    compactScores,
+    samples,
     scoreLabels,
     scoreColorScales,
+    compactScores,
   } = ctx;
+
+  // Compact mode: score columns shrink and their headers rotate 45° so many
+  // scorers fit horizontally. Numeric scores render a short number (~40px);
+  // non-numeric render small pills needing a touch more room (~55px).
+  // Returns null when compact is off so each mode keeps its own wide-column
+  // defaults.
+  const compactSizing = (
+    isNumeric: boolean
+  ): Pick<SampleColumn, "size" | "minSize"> | null => {
+    if (!compactScores) return null;
+    const w = isNumeric ? 40 : 55;
+    return { size: w, minSize: w - 4 };
+  };
 
   // Resolve a metric name through the eval-author's label overrides,
   // falling back to the raw name. Used for the visible header text;
-  // colId / field are still keyed off the raw name so filter / sort
-  // / persistence stay stable across label changes.
+  // the column `id` is still keyed off the raw name so filter / sort /
+  // visibility stay stable across label changes.
   const labelFor = (name: string): string => scoreLabels?.[name] ?? name;
 
-  // Build an ag-grid `cellStyle` callback for the score column whose
-  // metric is `name`, given its descriptor bounds. Returns undefined
-  // when no scale is configured (or it can't be resolved against the
-  // bounds), so the cell renders with no background.
+  // Build a value→style resolver for the score column whose metric is
+  // `name`, given its bounds. Returns undefined when no scale is
+  // configured (or it can't be resolved against the bounds), so the cell
+  // renders with no background.
   const cellStyleFor = (
     name: string,
     bounds: { min?: number; max?: number }
-  ): ColDef<SampleRow>["cellStyle"] | undefined => {
+  ): ((value: unknown) => CSSProperties | undefined) | undefined => {
     const wire = scoreColorScales?.[name];
     if (!wire) return undefined;
     const resolved = resolveScale(wire, bounds);
     if (!resolved) return undefined;
-    return (params) => {
-      const c = colorForValue(resolved, params.value);
+    return (value) => {
+      const c = colorForValue(resolved, value);
       return c ? { backgroundColor: c } : undefined;
     };
   };
@@ -589,73 +536,57 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
   // so the unified column chooser can toggle scorers on and off.
   if (descriptor && scores && scores.length > 0) {
     const useLabelHeader = scores.length !== 1;
-    return scores.map((label) => {
+    return scores.map((label): SampleColumn => {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
       const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
       const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
       // Pass/fail and boolean already render as semantically-coloured
-      // pills via the descriptor; painting a background under them
-      // would clash. Only opt the *other* score types into the
-      // configured colour scale.
+      // pills via the descriptor; painting a background under them would
+      // clash. Only opt the *other* score types into the colour scale.
       const acceptsColorScale =
         scoreType !== kScoreTypePassFail && scoreType !== kScoreTypeBoolean;
-      const cellStyle = acceptsColorScale
+      const valueToStyle = acceptsColorScale
         ? cellStyleFor(label.name, {
             min: scoreDesc?.min,
             max: scoreDesc?.max,
           })
         : undefined;
-      // Compact mode collapses to ~40px (numeric) / ~55px (non-numeric)
-      // and lets the rotated label fan up-right out of the cell.
-      // Numeric scores render as a short formatted number; non-numeric
-      // scores render as one or two coloured "C/I"-style pills which
-      // need more room. Horizontal mode sizes to fit the header text:
-      // 6.2px/char + 40px covers sort icon, filter icon, padding,
-      // gutter under the Balham theme. `initialWidth` (not `width`) so
-      // user resize persists; SamplesTab forces a re-fit explicitly
-      // when `compactScores` toggles.
-      const compactWidth = isNumeric ? 40 : 55;
-      const headerCols: Partial<ColDef<SampleRow>> = compactScores
-        ? {
-            headerComponent: RotatedHeader,
-            headerClass: styles.rotatedHeader,
-            initialWidth: compactWidth,
-            minWidth: compactWidth - 4,
-          }
-        : {
-            initialWidth: Math.max(
-              70,
-              Math.round(headerName.length * 6.2) + 40
-            ),
-            minWidth: 60,
-            maxWidth: 120,
-          };
       return {
-        colId,
-        field: colId,
-        headerName,
-        ...headerCols,
-        sortable: true,
-        filter: isNumeric ? "agNumberColumnFilter" : "agTextColumnFilter",
-        resizable: true,
-        cellStyle,
-        comparator: isNumeric
-          ? comparators.number
-          : (a: unknown, b: unknown) =>
-              String(a ?? "").localeCompare(String(b ?? "")),
-        valueGetter: (params: ValueGetterParams<SampleRow>) => {
-          const data = params.data?.data;
+        id: colId,
+        header: headerName,
+        ...(compactSizing(isNumeric) ?? {
+          size: Math.max(70, Math.round(headerName.length * 6.2) + 40),
+          minSize: 60,
+          maxSize: 120,
+        }),
+        meta: {
+          align: "center",
+          rotateHeader: compactScores,
+          sortComparator: isNumeric ? numberCompare : stringCompare,
+          cellStyle: valueToStyle
+            ? (row) => {
+                if (!row.data) return undefined;
+                const value = descriptor.evalDescriptor.score(
+                  row.data,
+                  label
+                )?.value;
+                return valueToStyle(value);
+              }
+            : undefined,
+        },
+        accessorFn: (row) => {
+          const data = row.data;
           if (!data) return undefined;
           return descriptor.evalDescriptor.score(data, label)?.value;
         },
-        cellRenderer: (params: ICellRendererParams<SampleRow>) => {
-          const row = params.data;
-          if (!row?.data) return null;
-          const completed = row.completed ?? row.data.completed;
+        cell: ({ row }) => {
+          const item = row.original;
+          if (!item.data) return null;
+          const completed = item.completed ?? item.data.completed;
           const rendered = descriptor.evalDescriptor
-            .score(row.data, label)
+            .score(item.data, label)
             ?.render();
           if (completed && rendered !== undefined) {
             return <ScoreCellDiv>{rendered}</ScoreCellDiv>;
@@ -666,68 +597,59 @@ function buildScoreColumns(ctx: SampleGridContext): ColDef<SampleRow>[] {
     });
   }
 
-  // Raw mode — discover score names across the supplied logDetails. Detect
+  // Raw mode — discover score names across the supplied samples. Detect
   // type collisions so a name with mixed value types falls back to text.
-  // Also tally numeric min/max per column so colour-scale gradients
-  // have something to anchor against (no descriptor exists in raw mode).
+  // Also tally numeric min/max per column so colour-scale gradients have
+  // something to anchor against (no descriptor exists in raw mode).
   const types: Record<string, Set<string>> = {};
   const ranges: Record<string, { min: number; max: number }> = {};
-  for (const details of Object.values(logDetails ?? {})) {
-    for (const sample of details.sampleSummaries) {
-      if (!sample.scores) continue;
-      for (const [name, score] of Object.entries(sample.scores)) {
-        if (!types[name]) types[name] = new Set();
-        types[name].add(typeof score.value);
-        if (typeof score.value === "number" && Number.isFinite(score.value)) {
-          const r = ranges[name];
-          if (!r) ranges[name] = { min: score.value, max: score.value };
-          else {
-            if (score.value < r.min) r.min = score.value;
-            if (score.value > r.max) r.max = score.value;
-          }
+  for (const sample of samples ?? []) {
+    if (!sample.scores) continue;
+    for (const [name, score] of Object.entries(sample.scores)) {
+      if (!types[name]) types[name] = new Set();
+      types[name].add(typeof score.value);
+      if (typeof score.value === "number" && Number.isFinite(score.value)) {
+        const r = ranges[name];
+        if (!r) ranges[name] = { min: score.value, max: score.value };
+        else {
+          if (score.value < r.min) r.min = score.value;
+          if (score.value > r.max) r.max = score.value;
         }
       }
     }
   }
   const scoreNames = Object.keys(types).sort((a, b) => a.localeCompare(b));
-  return scoreNames.map((name) => {
-    const isUniformNumber = types[name].size === 1 && types[name].has("number");
-    const compactWidth = isUniformNumber ? 40 : 55;
-    // Numeric raw scores can use a colour-scale gradient against the
-    // observed min/max; non-numeric raw scores accept categorical maps
-    // only. Boolean would already be a "boolean" typeof — passes through
-    // to categorical handling, where the resolver matches `"true"` /
-    // `"false"` keys.
-    const cellStyle = cellStyleFor(name, ranges[name] ?? {});
-    const headerCols: Partial<ColDef<SampleRow>> = compactScores
-      ? {
-          headerComponent: RotatedHeader,
-          headerClass: styles.rotatedHeader,
-          initialWidth: compactWidth,
-          minWidth: compactWidth - 4,
-        }
-      : { initialWidth: 100, minWidth: 60 };
+  return scoreNames.map((name): SampleColumn => {
+    const nameTypes = types[name];
+    const isUniformNumber = nameTypes?.size === 1 && nameTypes.has("number");
+    const valueToStyle = cellStyleFor(name, ranges[name] ?? {});
     return {
-      colId: rawScoreFieldKey(name),
-      field: rawScoreFieldKey(name),
-      headerName: labelFor(name),
-      ...headerCols,
-      sortable: true,
-      filter: isUniformNumber ? "agNumberColumnFilter" : "agTextColumnFilter",
-      resizable: true,
-      cellStyle,
-      valueFormatter: (params: ValueFormatterParams<SampleRow>) => {
-        const v = params.value;
-        if (v === "" || v === null || v === undefined) return "";
-        if (Array.isArray(v)) return v.join(", ");
-        if (typeof v === "object") return JSON.stringify(v);
-        if (typeof v === "number") return v.toFixed(3);
-        return String(v);
+      id: rawScoreFieldKey(name),
+      header: labelFor(name),
+      ...(compactSizing(isUniformNumber) ?? { size: 100, minSize: 60 }),
+      meta: {
+        align: "center",
+        rotateHeader: compactScores,
+        sortComparator: isUniformNumber ? numberCompare : stringCompare,
+        cellStyle: valueToStyle
+          ? (row) => valueToStyle(row[rawScoreFieldKey(name)])
+          : undefined,
       },
-      comparator: isUniformNumber
-        ? comparators.number
-        : (a: unknown, b: unknown) =>
-            String(a ?? "").localeCompare(String(b ?? "")),
+      accessorFn: (row) => row[rawScoreFieldKey(name)],
+      cell: ({ getValue }) => {
+        const v = getValue<
+          string | number | boolean | object | null | undefined
+        >();
+        if (v === "" || v === null || v === undefined) return <ScoreCellDiv />;
+        const text = Array.isArray(v)
+          ? v.join(", ")
+          : typeof v === "object"
+            ? JSON.stringify(v)
+            : typeof v === "number"
+              ? v.toFixed(3)
+              : String(v);
+        return <ScoreCellDiv>{text}</ScoreCellDiv>;
+      },
     };
   });
 }

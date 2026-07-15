@@ -28,5 +28,5 @@ export interface LogListRow {
   sampleErrors?: number;
   sampleLimits?: string;
   errorMessage?: string;
-  [key: string]: any; // For dynamic score columns
+  [key: string]: unknown; // For dynamic score columns
 }
