@@ -60,6 +60,22 @@ export interface SyncScopeRecord {
 // The schema's shape version — bump on any table/index change.
 const SCHEMA_VERSION = 13;
 
+// Runtime backstop for derive.ts's DeriveVersion type constraint: at 100 the
+// composition below aliases into the next schema version's namespace, and an
+// exact collision with a previously-deployed DB_VERSION would keep stale rows
+// without a wipe. Throwing at module load fails the whole app, loudly.
+if (
+  !Number.isInteger(DERIVE_VERSION) ||
+  DERIVE_VERSION < 0 ||
+  DERIVE_VERSION >= 100
+) {
+  throw new Error(
+    `DERIVE_VERSION must be an integer in [0, 100), got ${DERIVE_VERSION}: ` +
+      `it occupies the two low decimal digits of DB_VERSION, so values >= 100 ` +
+      `collide with other schema versions' namespaces`
+  );
+}
+
 // The stored-data version: schema shape composed with derivation behavior,
 // so a derive.ts change can't ship without invalidating rows that carry
 // values from the old logic. DERIVE_VERSION lives beside the derivation

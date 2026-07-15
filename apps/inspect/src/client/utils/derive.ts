@@ -19,13 +19,24 @@ import {
  * eventually the database query layer) sees.
  */
 
+type LessThan<
+  N extends number,
+  Acc extends number[] = [],
+> = Acc["length"] extends N ? Acc[number] : LessThan<N, [...Acc, Acc["length"]]>;
+
+/** The valid range for `DERIVE_VERSION`: `DB_VERSION` (schema.ts) packs it
+ *  into the two low decimal digits of `SCHEMA_VERSION * 100`, so a value of
+ *  100 would silently alias into the next schema version's namespace. */
+type DeriveVersion = LessThan<100>;
+
 /**
  * Version of the derivation behavior in this module, folded into the
  * database version (see `DB_VERSION` in schema.ts). Bump it on ANY behavior
  * change here: persisted rows carry values computed by the old logic and are
- * only recomputed via the recreate-on-mismatch wipe.
+ * only recomputed via the recreate-on-mismatch wipe. Must stay below 100
+ * (enforced by `DeriveVersion`; schema.ts asserts it again at runtime).
  */
-export const DERIVE_VERSION = 1;
+export const DERIVE_VERSION: number = 1 satisfies DeriveVersion;
 
 export const deriveLogFields = (header: LogHeader): LogDerived => {
   let total_tokens: number | undefined;
