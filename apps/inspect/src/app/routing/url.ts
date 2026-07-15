@@ -344,10 +344,20 @@ export const useSampleUrlBuilder = () => {
       const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
         ? "/tasks"
         : "/logs";
-      if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
+      if (
+        sampleId &&
+        sampleEpoch &&
+        location.pathname.startsWith("/samples/")
+      ) {
         return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
       } else {
-        return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
+        return logSamplesUrl(
+          logPath,
+          sampleId,
+          sampleEpoch,
+          sampleTabId,
+          prefix
+        );
       }
     },
     [location.pathname]
