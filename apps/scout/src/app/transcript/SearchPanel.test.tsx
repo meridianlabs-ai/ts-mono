@@ -72,6 +72,8 @@ const transcriptDir = "/tmp/transcripts";
 const transcriptId = "sample-transcript";
 
 const minimalIcons = {
+  arrowDown: ApplicationIcons.arrows.down,
+  arrowUp: ApplicationIcons.arrows.up,
   chevronDown: ApplicationIcons.chevron.down,
   chevronUp: ApplicationIcons.collapse.up,
   clearText: ApplicationIcons["clear-text"],

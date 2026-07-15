@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode, useEffect } from "react";
 
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
+
 import { ApplicationIcons } from "../../icons";
 
 import styles from "./NextPreviousNav.module.css";
@@ -29,21 +31,7 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
     }
 
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-      // Walk shadow roots so custom elements like
-      // <vscode-textarea> (whose real <textarea> lives in shadow DOM) count.
-      let activeElement: Element | null = document.activeElement;
-      while (activeElement?.shadowRoot?.activeElement) {
-        activeElement = activeElement.shadowRoot.activeElement;
-      }
-      const isInputFocused =
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.tagName === "SELECT" ||
-          (activeElement instanceof HTMLElement &&
-            activeElement.isContentEditable));
-
-      if (isInputFocused) {
+      if (isEditableTarget(deepActiveElement())) {
         return;
       }
 
