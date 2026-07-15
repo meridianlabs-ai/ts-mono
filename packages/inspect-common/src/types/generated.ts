@@ -2434,6 +2434,8 @@ export interface components {
             files: components["schemas"]["LogHandle"][];
             /** Log Dir */
             log_dir: string;
+            /** Log Dir Uri */
+            log_dir_uri?: string | null;
         };
         /**
          * LogUpdate
