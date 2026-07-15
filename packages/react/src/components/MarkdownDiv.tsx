@@ -66,12 +66,11 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       // If already cached, apply post-processing and use cached content
       if (cachedHtml) {
         const finalHtml = applyPostProcess(cachedHtml);
-        // Only update state if it's different (avoid unnecessary re-render)
-        if (renderedHtml !== finalHtml) {
-          startTransition(() => {
-            setRenderedHtml(finalHtml);
-          });
-        }
+        startTransition(() => {
+          // Functional update keeps renderedHtml out of the effect deps,
+          // avoiding cancel/re-enqueue churn on every async completion
+          setRenderedHtml((prev) => (prev === finalHtml ? prev : finalHtml));
+        });
         return;
       }
 
@@ -106,10 +105,6 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         // Cancel rendering if component unmounts
         cancel();
       };
-      // The effect must re-run only when source inputs change, not when its own
-      // async output updates; reading current renderedHtml in the cached branch
-      // without subscribing here is intentional.
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally excludes renderedHtml; see comment above
     }, [markdown, rendererName, cachedHtml, cacheKey, applyPostProcess]);
 
     return (
