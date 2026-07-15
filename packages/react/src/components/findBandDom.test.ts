@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { findScrollableParent, scrollRangeToCenter } from "./dom";
+import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
 
 describe("findScrollableParent", () => {
   let container: HTMLDivElement;

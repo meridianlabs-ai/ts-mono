@@ -31,6 +31,8 @@ const stateHooks: ComponentStateHooks = {
 };
 
 const icons: ComponentIcons = {
+  arrowDown: "icon-arrow-down",
+  arrowUp: "icon-arrow-up",
   chevronDown: "icon-chevron-down",
   chevronUp: "icon-chevron-up",
   clearText: "icon-clear-text",

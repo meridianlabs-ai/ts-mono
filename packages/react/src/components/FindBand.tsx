@@ -7,13 +7,15 @@ import {
   useState,
 } from "react";
 
-import { useExtendedFind, useFindTargetSetter } from "@tsmono/react/components";
-import { debounce } from "@tsmono/util";
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
-import { useStore } from "../state/store";
-import { findScrollableParent, scrollRangeToCenter } from "../utils/dom";
+import { useDebouncedCallback } from "../hooks/useDebouncedCallback";
 
+import { useExtendedFind } from "./ExtendedFindContext";
+import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
 import { FindBandUI } from "./FindBandUI";
+import { isFindNextShortcut, isFindShortcut } from "./findShortcuts";
+import { useFindTargetSetter } from "./FindTargetContext";
 
 const findConfig = {
   caseSensitive: false,
@@ -23,10 +25,17 @@ const findConfig = {
   showDialog: false,
 };
 
-export const FindBand: FC = () => {
+interface FindBandProps {
+  onClose: () => void;
+  // Type-ahead debounce. Defaults preserve each app's pre-unification value
+  // (inspect 100ms; scout passes 300ms).
+  debounceMs?: number;
+}
+
+export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
-  const storeHideFind = useStore((state) => state.appActions.hideFind);
-  const { extendedFindTerm, countAllMatches } = useExtendedFind();
+  const { extendedFindTerm, countAllMatches, getMatchCountersVersion } =
+    useExtendedFind();
   const setFindTarget = useFindTargetSetter();
   const lastFoundItem = useRef<{
     text: string;
@@ -38,10 +47,12 @@ export const FindBand: FC = () => {
   const scrollTimeoutRef = useRef<number | null>(null);
   const focusTimeoutRef = useRef<number | null>(null);
   const searchIdRef = useRef(0);
-  const cachedCount = useRef<{ term: string; count: number }>({
+  const cachedCount = useRef<{ term: string; version: number; count: number }>({
     term: "",
+    version: -1,
     count: 0,
   });
+  const lastNoResult = useRef<{ term: string; version: number } | null>(null);
   const [matchCount, setMatchCount] = useState<number | null>(null);
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   // Tracks whether the most recent search returned no result, separate
@@ -51,7 +62,7 @@ export const FindBand: FC = () => {
   const [noResults, setNoResults] = useState(false);
 
   const handleSearch = useCallback(
-    async (back = false) => {
+    async (back = false, skipKnownMiss = false) => {
       const thisSearchId = ++searchIdRef.current;
 
       const searchTerm = searchBoxRef.current?.value ?? "";
@@ -60,6 +71,23 @@ export const FindBand: FC = () => {
         setCurrentMatchIndex(0);
         setNoResults(false);
         setFindTarget(null);
+        return;
+      }
+
+      const countersVersion = getMatchCountersVersion();
+
+      // Typing more characters onto a term already known to miss can't
+      // produce a match, so debounced auto-searches skip the (expensive)
+      // full-document scans. Explicit searches (Enter, next/prev) always
+      // run, which also re-checks content the version can't track.
+      if (
+        skipKnownMiss &&
+        lastNoResult.current &&
+        lastNoResult.current.version === countersVersion &&
+        searchTerm.startsWith(lastNoResult.current.term)
+      ) {
+        setMatchCount(null);
+        setNoResults(true);
         return;
       }
 
@@ -78,11 +106,18 @@ export const FindBand: FC = () => {
       // index-1-of-unknown UI; if it doesn't, the post-search "no result"
       // branch handles it.
       let total: number;
-      if (cachedCount.current.term === searchTerm) {
+      if (
+        cachedCount.current.term === searchTerm &&
+        cachedCount.current.version === countersVersion
+      ) {
         total = cachedCount.current.count;
       } else {
         total = countAllMatches(searchTerm);
-        cachedCount.current = { term: searchTerm, count: total };
+        cachedCount.current = {
+          term: searchTerm,
+          version: countersVersion,
+          count: total,
+        };
       }
       setMatchCount(total > 0 ? total : null);
 
@@ -111,6 +146,9 @@ export const FindBand: FC = () => {
       }
 
       setNoResults(!result);
+      lastNoResult.current = result
+        ? null
+        : { term: searchTerm, version: countersVersion };
       if (!result && savedRange) {
         const sel = window.getSelection();
         if (sel) {
@@ -168,7 +206,7 @@ export const FindBand: FC = () => {
 
       focusedElement?.focus();
     },
-    [setFindTarget, extendedFindTerm, countAllMatches]
+    [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
   );
 
   useEffect(() => {
@@ -195,20 +233,20 @@ export const FindBand: FC = () => {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
-        storeHideFind();
+        onClose();
       } else if (e.key === "Enter") {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g") {
+      } else if (isFindNextShortcut(e)) {
         e.preventDefault();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         handleSearch(e.shiftKey);
-      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") {
+      } else if (isFindShortcut(e)) {
         searchBoxRef.current?.focus();
         searchBoxRef.current?.select();
       }
     },
-    [storeHideFind, handleSearch]
+    [onClose, handleSearch]
   );
 
   const findPrevious = useCallback(() => {
@@ -233,43 +271,36 @@ export const FindBand: FC = () => {
 
   const runDebouncedSearch = useCallback(async () => {
     if (!searchBoxRef.current) return;
-    await handleSearch(false);
+    await handleSearch(false, true);
     // Mark for cursor restore on next keypress (keeps find highlight visible)
     needsCursorRestoreRef.current = true;
   }, [handleSearch]);
 
-  // The debounced fn is created once (below, lazily in the change handler)
-  // wrapping this latest-callback ref, so a recreated runDebouncedSearch never
-  // leaves a superseded debounce pending. Nulling on cleanup cancels any
-  // pending run at unmount.
-  const latestRunSearchRef = useRef<(() => Promise<void>) | null>(
-    runDebouncedSearch
+  const handleInputChange = useDebouncedCallback(
+    runDebouncedSearch,
+    debounceMs
   );
-  useEffect(() => {
-    latestRunSearchRef.current = runDebouncedSearch;
-    return () => {
-      latestRunSearchRef.current = null;
-    };
-  }, [runDebouncedSearch]);
 
-  const debouncedSearchRef = useRef<(() => void) | null>(null);
-  const handleInputChange = useCallback(() => {
-    debouncedSearchRef.current ??= debounce(
-      () => void latestRunSearchRef.current?.(),
-      100
-    );
-    debouncedSearchRef.current();
-  }, []);
-
-  const handleBeforeInput = useCallback(() => {
+  const restoreCursorIfNeeded = useCallback(() => {
     const input = searchBoxRef.current;
-    if (input) {
-      const hasSelection = input.selectionStart !== input.selectionEnd;
-      if (!hasSelection) {
-        restoreCursor();
-      }
+    if (!input) return;
+    // Only restore when the caret sits collapsed at position 0 — the
+    // telltale of window.find() having stolen the selection. A caret the
+    // user placed mid-text (or a selection they made) must stay put.
+    if (
+      input.selectionStart === 0 &&
+      input.selectionEnd === 0 &&
+      input.value.length > 0
+    ) {
+      restoreCursor();
+    } else {
+      needsCursorRestoreRef.current = false;
     }
   }, [restoreCursor]);
+
+  const handleBeforeInput = useCallback(() => {
+    restoreCursorIfNeeded();
+  }, [restoreCursorIfNeeded]);
 
   // Consolidated global keyboard handler
   useEffect(() => {
@@ -282,8 +313,8 @@ export const FindBand: FC = () => {
         return;
       }
 
-      // Ctrl/Cmd+F: Focus search box (block browser find)
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
+      // Ctrl/Cmd+F: Focus search box (block browser find).
+      if (isFindShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
         searchBoxRef.current?.focus();
@@ -292,7 +323,7 @@ export const FindBand: FC = () => {
       }
 
       // Ctrl/Cmd+G: Find next/previous
-      if ((e.ctrlKey || e.metaKey) && e.key === "g") {
+      if (isFindNextShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -311,26 +342,15 @@ export const FindBand: FC = () => {
       if (document.activeElement !== input) {
         // Don't steal focus from another editable surface — users typing
         // into a textarea/input/contenteditable should keep their keystrokes.
-        // Pierce shadow roots: document.activeElement only returns the shadow
-        // host, so walk down to find the real focused element.
-        let active: Element | null = document.activeElement;
-        while (active?.shadowRoot?.activeElement) {
-          active = active.shadowRoot.activeElement;
-        }
-        const isEditable =
-          active instanceof HTMLInputElement ||
-          active instanceof HTMLTextAreaElement ||
-          (active instanceof HTMLElement && active.isContentEditable);
-        if (isEditable) return;
-      }
+        if (isEditableTarget(deepActiveElement())) return;
 
-      const hasSelection = input.selectionStart !== input.selectionEnd;
-      if (!hasSelection) {
+        // Typing from outside the input appends, so an unconditional
+        // restore-to-end is right here; a caret inside the focused input
+        // gets the position-0 guard instead.
         restoreCursor();
-      }
-
-      if (document.activeElement !== input) {
         input.focus();
+      } else {
+        restoreCursorIfNeeded();
       }
     };
 
@@ -338,12 +358,12 @@ export const FindBand: FC = () => {
     return () => {
       document.removeEventListener("keydown", handleGlobalKeyDown, true);
     };
-  }, [handleSearch, restoreCursor]);
+  }, [handleSearch, restoreCursor, restoreCursorIfNeeded]);
 
   return (
     <FindBandUI
       inputRef={searchBoxRef}
-      onClose={storeHideFind}
+      onClose={onClose}
       onNext={findNext}
       onPrevious={findPrevious}
       onKeyDown={handleKeyDown}
@@ -360,9 +380,11 @@ export const FindBand: FC = () => {
   );
 };
 // `Window.find` is a non-standard but widely-supported API not in lib.dom.
+// Typed optional so hosts without it degrade to "No results" (via the
+// extended-find path) instead of throwing mid-search.
 declare global {
   interface Window {
-    find(
+    find?(
       searchTerm?: string,
       caseSensitive?: boolean,
       backwards?: boolean,
@@ -375,14 +397,16 @@ declare global {
 }
 
 function windowFind(searchTerm: string, back: boolean): boolean {
-  return window.find(
-    searchTerm,
-    findConfig.caseSensitive,
-    back,
-    findConfig.wrapAround,
-    findConfig.wholeWord,
-    findConfig.searchInFrames,
-    findConfig.showDialog
+  return (
+    window.find?.(
+      searchTerm,
+      findConfig.caseSensitive,
+      back,
+      findConfig.wrapAround,
+      findConfig.wholeWord,
+      findConfig.searchInFrames,
+      findConfig.showDialog
+    ) ?? false
   );
 }
 
