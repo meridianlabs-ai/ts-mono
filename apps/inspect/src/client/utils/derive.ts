@@ -22,7 +22,9 @@ import {
 type LessThan<
   N extends number,
   Acc extends number[] = [],
-> = Acc["length"] extends N ? Acc[number] : LessThan<N, [...Acc, Acc["length"]]>;
+> = Acc["length"] extends N
+  ? Acc[number]
+  : LessThan<N, [...Acc, Acc["length"]]>;
 
 /** The valid range for `DERIVE_VERSION`: `DB_VERSION` (schema.ts) packs it
  *  into the two low decimal digits of `SCHEMA_VERSION * 100`, so a value of
