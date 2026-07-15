@@ -1,94 +1,52 @@
-// Re-export from generated types (they're in components.schemas)
+/**
+ * Query types shared with inspect via `@tsmono/inspect-common/query`.
+ *
+ * The query builder (`Column`, `ConditionBuilder`) and its types live in
+ * `inspect-common` so scout and inspect stay in sync. This module re-exports
+ * them and asserts, at compile time, that scout's generated OpenAPI schema
+ * still matches the shared hand-written types — if the scout server's query
+ * contract drifts, the assertions below fail to compile.
+ */
+import type {
+  ConditionModel,
+  LogicalOperatorModel,
+  OperatorModel,
+  OrderByModel,
+} from "@tsmono/inspect-common/query";
+
 import type { components } from "../types/generated";
 
-/** SQL comparison operators. */
-export type OperatorModel = components["schemas"]["Operator"];
+export type {
+  OperatorModel,
+  LogicalOperatorModel,
+  ConditionModel,
+  OrderByModel,
+  ScalarValue,
+  ConditionValue,
+  Condition,
+  SimpleCondition,
+  CompoundCondition,
+  ConditionBase,
+} from "@tsmono/inspect-common/query";
+export {
+  isSimpleCondition,
+  isCompoundCondition,
+  isScalarArray,
+  isTuple,
+} from "@tsmono/inspect-common/query";
 
-/** Logical operators for combining conditions. */
-export type LogicalOperatorModel = components["schemas"]["LogicalOperator"];
+// Compile-time tripwire: each shared type must stay bidirectionally assignable
+// with scout's generated schema. `AssertExact` resolves to `false` on any
+// mismatch, so assigning `true` to that slot below fails to compile.
+type AssertExact<A, B> = [A] extends [B]
+  ? [B] extends [A]
+    ? true
+    : false
+  : false;
 
-/** JSON representation of a Condition (matches Python Pydantic schema). */
-export type ConditionModel = components["schemas"]["Condition"];
-
-/** Scalar values that can be used in conditions (matching Python). */
-export type ScalarValue = string | number | boolean | null;
-
-/**
- * Base interface with shared methods for all conditions.
- */
-export interface ConditionBase {
-  /** Combine conditions with AND. */
-  and(other: Condition): Condition;
-  /** Combine conditions with OR. */
-  or(other: Condition): Condition;
-  /** Negate a condition with NOT. */
-  not(): Condition;
-  /** Serialize to JSON format (called automatically by JSON.stringify()). */
-  toJSON(): ConditionModel;
-}
-
-/**
- * Simple condition: column comparison (e.g., model = "gpt-4").
- */
-export interface SimpleCondition extends ConditionBase {
-  /** Discriminant for simple conditions. */
-  readonly compound: false;
-  /** Column name. */
-  readonly left: string;
-  /** Comparison operator. */
-  readonly operator: OperatorModel;
-  /** Comparison value. */
-  readonly right: Exclude<ConditionValue, Condition> | null;
-}
-
-/**
- * Compound condition: logical combination (e.g., AND, OR, NOT).
- */
-export interface CompoundCondition extends ConditionBase {
-  /** Discriminant for compound conditions. */
-  readonly compound: true;
-  /** Left operand. */
-  readonly left: Condition;
-  /** Logical operator. */
-  readonly operator: LogicalOperatorModel;
-  /** Right operand (null for NOT). */
-  readonly right: Condition | null;
-}
-
-/**
- * WHERE clause condition that can be combined with others.
- *
- * Discriminated union enables TypeScript to automatically narrow types
- * based on the `compound` property without requiring type assertions.
- */
-export type Condition = SimpleCondition | CompoundCondition;
-
-// Internal builder types
-export type ConditionValue =
-  | ScalarValue
-  | ScalarValue[]
-  | [ScalarValue, ScalarValue] // BETWEEN tuple
-  | Condition; // Nested condition
-
-// Type guards for narrowing (optional with discriminated union, kept for semantic clarity)
-export function isSimpleCondition(
-  condition: Condition
-): condition is SimpleCondition {
-  return !condition.compound;
-}
-
-export function isCompoundCondition(
-  condition: Condition
-): condition is CompoundCondition {
-  return condition.compound;
-}
-
-// Type guard utilities
-export const isScalarArray = (val: unknown): val is ScalarValue[] =>
-  Array.isArray(val) && !isTuple(val);
-
-export const isTuple = (val: unknown): val is [ScalarValue, ScalarValue] =>
-  Array.isArray(val) && val.length === 2;
-
-/** Sort column specification for ORDER BY clauses (matches Python Pydantic schema). */
-export type OrderByModel = components["schemas"]["OrderBy"];
+export const __assertQuerySchemaCompat: [
+  AssertExact<OperatorModel, components["schemas"]["Operator"]>,
+  AssertExact<LogicalOperatorModel, components["schemas"]["LogicalOperator"]>,
+  AssertExact<ConditionModel, components["schemas"]["Condition"]>,
+  AssertExact<OrderByModel, components["schemas"]["OrderBy"]>,
+] = [true, true, true, true];
