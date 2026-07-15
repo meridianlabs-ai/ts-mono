@@ -233,7 +233,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // In the folder view, scope the Metrics list to logs under the current
   // directory so descending into a subfolder shows only that folder's metrics.
   // The flat tasks view shows columns across the whole set.
-  const scopePrefix = mode === "logs" ? currentDir : undefined;
+  const scopeDir = mode === "logs" ? currentDir : undefined;
 
   // Shared view-mode state for the scorer columns. The same useProperty
   // scope/key is read by LogListGrid so the grid and popover stay in sync,
@@ -254,7 +254,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
-  } = useLogListColumns(mode, scopePrefix, scoresViewMode);
+  } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
   const listData = useLogListData({
     items: logItems,
