@@ -87,6 +87,7 @@ interface ExpectedBranch {
   branched_from: string;
   event_uuids?: string[];
   branches?: ExpectedBranch[];
+  children?: ExpectedAgent[];
 }
 
 interface ExpectedAgent {
@@ -358,6 +359,14 @@ function assertBranchMatches(
       .filter((uuid): uuid is string => uuid !== null && uuid !== undefined);
     expect(uuids).toEqual(expected.event_uuids);
   }
+  if (expected.children !== undefined) {
+    const childSpans = getChildSpans(actual);
+    expect(childSpans.length).toBe(expected.children.length);
+    for (let i = 0; i < expected.children.length; i++) {
+      assertSpanMatches(childSpans[i] ?? null, expected.children[i] ?? null);
+    }
+  }
+
   if (expected.branches !== undefined) {
     expect(actual.branches.length).toBe(expected.branches.length);
     for (let i = 0; i < expected.branches.length; i++) {

@@ -1274,19 +1274,25 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
   if (!input) return null;
   for (const msg of input) {
     if (msg.role === "system") {
+      let raw: string;
       if (typeof msg.content === "string") {
-        return normalizeSystemPrompt(msg.content);
-      }
-      if (Array.isArray(msg.content)) {
+        raw = msg.content;
+      } else if (Array.isArray(msg.content)) {
         const parts: string[] = [];
         for (const c of msg.content) {
           if ("text" in c && typeof c.text === "string") {
             parts.push(c.text);
           }
         }
-        const raw = parts.length > 0 ? parts.join("\n") : null;
-        return raw ? normalizeSystemPrompt(raw) : null;
+        raw = parts.join("\n");
+      } else {
+        return null;
       }
+      // Null rather than "" for prompts that are empty after normalization
+      // (e.g. only the billing header) — keeps empty prompts out of
+      // primary-trajectory comparisons and prompt inheritance.
+      const normalized = normalizeSystemPrompt(raw);
+      return normalized ? normalized : null;
     }
   }
   return null;
@@ -1337,40 +1343,38 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     }
   }
 
+  // Fall back to a position-derived id for uuid-less (legacy) events so
+  // ids stay unique and deterministic across rebuilds.
+  const utilityWrapper = (item: TimelineEvent, index: number) => {
+    const wrapper = createTimelineSpan(
+      `utility-${item.event.uuid ?? `${agent.id}-${index}`}`,
+      "utility",
+      "agent",
+      [item]
+    );
+    wrapper.utility = true;
+    return wrapper;
+  };
+
   // --- Scan and wrap utility candidates ---
   const originalSpans = agent.content.filter(
     (item): item is TimelineSpan => item.type === "span"
   );
   const newContent: (TimelineEvent | TimelineSpan)[] = [];
-  for (const item of agent.content) {
+  for (const [index, item] of agent.content.entries()) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
 
       // Warmup/cache-priming call (max_tokens=1)
       if (isWarmupCall(modelEvt)) {
-        const wrapper = createTimelineSpan(
-          `utility-${item.event.uuid ?? "unknown"}`,
-          "utility",
-          "agent",
-          [item]
-        );
-        wrapper.utility = true;
-        newContent.push(wrapper);
+        newContent.push(utilityWrapper(item, index));
         continue;
       }
 
       if (primaryPrompt !== null && !hasToolCalls(modelEvt)) {
         const evtPrompt = getSystemPromptForEvent(modelEvt);
         if (evtPrompt !== null && evtPrompt !== primaryPrompt) {
-          // Wrap in a synthetic utility span
-          const wrapper = createTimelineSpan(
-            `utility-${item.event.uuid ?? "unknown"}`,
-            "utility",
-            "agent",
-            [item]
-          );
-          wrapper.utility = true;
-          newContent.push(wrapper);
+          newContent.push(utilityWrapper(item, index));
           continue;
         }
       }
@@ -1416,34 +1420,13 @@ function isWarmupCall(event: ModelEvent): boolean {
 // =============================================================================
 
 /**
- * Extract system prompt from the first ModelEvent in span's direct content.
+ * Extract the normalized system prompt from the first ModelEvent in span's
+ * direct content (see getSystemPromptForEvent).
  */
 function getSystemPrompt(span: TimelineSpan): string | null {
   for (const item of span.content) {
     if (item.type === "event" && item.event.event === "model") {
-      const input = item.event.input;
-      if (input) {
-        for (const msg of input) {
-          if (msg.role === "system") {
-            if (typeof msg.content === "string") {
-              return normalizeSystemPrompt(msg.content);
-            }
-            if (Array.isArray(msg.content)) {
-              const parts: string[] = [];
-              for (const c of msg.content) {
-                if ("text" in c && typeof c.text === "string") {
-                  parts.push(c.text);
-                }
-              }
-              if (parts.length > 0) {
-                return normalizeSystemPrompt(parts.join("\n"));
-              }
-              return null;
-            }
-          }
-        }
-      }
-      return null; // ModelEvent found but no system message
+      return getSystemPromptForEvent(item.event);
     }
   }
   return null; // No ModelEvent found
