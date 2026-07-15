@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import React, { FC, KeyboardEvent, RefObject, useRef } from "react";
 
-import { ApplicationIcons } from "../app/appearance/icons";
+import { useComponentIcons } from "./ComponentIconContext";
 
 import "./FindBand.css";
 
@@ -34,10 +34,10 @@ export const FindBandUI: FC<FindBandUIProps> = ({
   disableNav,
   inputRef: externalRef,
 }) => {
+  const icons = useComponentIcons();
   const internalRef = useRef<HTMLInputElement>(null);
   const inputRef = externalRef ?? internalRef;
 
-  // Build input props — only include `value` when controlled
   const inputProps: React.InputHTMLAttributes<HTMLInputElement> = {
     type: "text",
     placeholder: "Find",
@@ -51,8 +51,11 @@ export const FindBandUI: FC<FindBandUIProps> = ({
 
   const hasCount = matchCount !== undefined && matchIndex !== undefined;
   const showStatus = noResults || (hasCount && matchCount > 0);
+  // noResults wins over the counter: a registered source can report
+  // matches that the DOM find can't reach (unsearchable or unrendered
+  // content), which would otherwise display as "0 of N".
   const statusText =
-    hasCount && matchCount > 0
+    !noResults && hasCount && matchCount > 0
       ? `${matchIndex + 1} of ${matchCount}`
       : "No results";
 
@@ -75,7 +78,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
         onClick={onPrevious}
         disabled={disableNav}
       >
-        <i className={ApplicationIcons.arrows.up} />
+        <i className={icons.arrowUp} />
       </button>
       <button
         type="button"
@@ -84,7 +87,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
         onClick={onNext}
         disabled={disableNav}
       >
-        <i className={ApplicationIcons.arrows.down} />
+        <i className={icons.arrowDown} />
       </button>
       <button
         type="button"
@@ -92,7 +95,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
         className="btn close"
         onClick={onClose}
       >
-        <i className={ApplicationIcons.close} />
+        <i className={icons.close} />
       </button>
     </div>
   );

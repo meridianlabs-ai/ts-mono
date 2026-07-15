@@ -3,10 +3,12 @@ import React, { FC, useCallback, useEffect, useMemo } from "react";
 
 import {
   ExtendedFindProvider,
+  FindBand,
   FindTargetProvider,
+  useFindBandShortcut,
 } from "@tsmono/react/components";
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
-import { FindBand } from "../../components/FindBand";
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { ApplicationIcons } from "../appearance/icons";
@@ -120,58 +122,31 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
     }
   }, [tabId, setSampleTab]);
 
-  // Global keydown handler for keyboard shortcuts
+  const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+  useFindBandShortcut(openFind, {
+    onClose: hideFind,
+    isOpen: showFind,
+    enabled: !nativeFind,
+  });
+
+  // Global keydown handler for sample navigation shortcuts
   const handleKeyDown = useCallback(
     (e: globalThis.KeyboardEvent) => {
-      // Don't handle keyboard events if focus is on an input, textarea, or
-      // select element. Walk shadow roots so custom elements like
-      // <vscode-textarea> (whose real <textarea> lives in shadow DOM) count.
-      let activeElement: Element | null = document.activeElement;
-      while (activeElement?.shadowRoot?.activeElement) {
-        activeElement = activeElement.shadowRoot.activeElement;
-      }
-      const isInputFocused =
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.tagName === "SELECT" ||
-          (activeElement instanceof HTMLElement &&
-            activeElement.isContentEditable));
+      if (isEditableTarget(deepActiveElement())) return;
 
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        if (!nativeFind) {
+      if (e.key === "ArrowLeft") {
+        if (hasPrevious) {
           e.preventDefault();
-          e.stopPropagation();
-          setShowFind(true);
+          onPrevious();
         }
-      } else if (e.key === "Escape") {
-        if (!nativeFind) {
-          hideFind();
-        }
-      } else if (!isInputFocused) {
-        // Navigation shortcuts (only when not in an input field)
-        if (e.key === "ArrowLeft") {
-          if (hasPrevious) {
-            e.preventDefault();
-            onPrevious();
-          }
-        } else if (e.key === "ArrowRight") {
-          if (hasNext) {
-            e.preventDefault();
-            onNext();
-          }
+      } else if (e.key === "ArrowRight") {
+        if (hasNext) {
+          e.preventDefault();
+          onNext();
         }
       }
     },
-    [
-      setShowFind,
-      hideFind,
-      hasPrevious,
-      hasNext,
-      nativeFind,
-      onPrevious,
-      onNext,
-    ]
+    [hasPrevious, hasNext, onPrevious, onNext]
   );
 
   useEffect(() => {
@@ -197,7 +172,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   return (
     <ExtendedFindProvider>
       <FindTargetProvider>
-        {showFind ? <FindBand /> : ""}
+        {showFind ? <FindBand onClose={hideFind} /> : ""}
         <div className={styles.detail}>
           <ApplicationNavbar
             currentPath={currentPath}

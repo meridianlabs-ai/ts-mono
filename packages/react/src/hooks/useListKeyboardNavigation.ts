@@ -1,6 +1,6 @@
 import { RefObject, useEffect } from "react";
 
-import { isEditableTarget } from "@tsmono/util";
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
 import type { VirtualListHandle } from "../virtual/types";
 
@@ -28,7 +28,7 @@ export function useListKeyboardNavigation({
         (event.key === "End" && hasModifier);
       if (!isUp && !isDown) return;
 
-      if (isEditableTarget(document.activeElement)) return;
+      if (isEditableTarget(deepActiveElement())) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();

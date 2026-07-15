@@ -16,9 +16,9 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { FindBandUI } from "../../../components/FindBandUI";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {
@@ -262,23 +262,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [goToMatch, activeMatchIndex, closeFind]
   );
 
-  useEffect(() => {
-    const handleFindKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "f") {
-        e.preventDefault();
-        e.stopPropagation();
-        setShowFind(true);
-        setTimeout(() => findInputRef.current?.focus(), 100);
-      }
-      if (e.key === "Escape" && showFind) {
-        closeFind();
-      }
-    };
-    // Capture phase so the shortcut wins before the browser's own find.
-    document.addEventListener("keydown", handleFindKeyDown, true);
-    return () =>
-      document.removeEventListener("keydown", handleFindKeyDown, true);
-  }, [closeFind, showFind]);
+  const openFind = useCallback(() => {
+    setShowFind(true);
+    setTimeout(() => findInputRef.current?.focus(), 100);
+  }, []);
+  useFindBandShortcut(openFind, {
+    onClose: closeFind,
+    isOpen: showFind,
+  });
 
   return (
     <div className={clsx(gridStyles.gridWrapper)}>

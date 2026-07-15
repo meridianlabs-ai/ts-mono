@@ -40,6 +40,8 @@ import { scoutStateHooks } from "./state/componentStateAdapter";
 import { SETTINGS_STORAGE_KEY, useUserSettings } from "./state/userSettings";
 
 const componentIcons: ComponentIcons = {
+  arrowDown: ApplicationIcons.arrows.down,
+  arrowUp: ApplicationIcons.arrows.up,
   chevronDown: ApplicationIcons.chevron.down,
   chevronUp: ApplicationIcons.collapse.up,
   clearText: ApplicationIcons["clear-text"],
