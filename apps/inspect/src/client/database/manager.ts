@@ -35,8 +35,11 @@ export class DatabaseManager {
       await this.database.open();
       log.debug("Successfully opened database");
       // Pre-unification per-dir databases are dead weight; sweep them in the
-      // background.
-      void deleteLegacyDatabases().catch(() => {});
+      // background. Genuine fire-and-forget: it cannot reject (fully
+      // try/caught), and a legacy database held open by an older tab would
+      // block its delete until that tab closes.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      void deleteLegacyDatabases();
       return this.database;
     } catch (error) {
       log.error("Failed to open database:", error);
