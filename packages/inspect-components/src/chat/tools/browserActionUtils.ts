@@ -1,4 +1,21 @@
-import type { ToolAnnotation } from "./AnnotatedToolOutput";
+import type {
+  ContentAudio,
+  ContentImage,
+  ContentText,
+  ContentVideo,
+} from "@tsmono/inspect-common/types";
+
+/** Tool-result content usable as an action's before-state screenshot. */
+export type ScreenshotContent =
+  ContentText | ContentImage | ContentAudio | ContentVideo;
+
+/** A visual browser action's arguments, narrowed for annotation rendering. */
+export interface ToolAnnotation {
+  action: string;
+  coordinate?: [number, number] | undefined;
+  text?: string | undefined;
+  scrollDirection?: string | undefined;
+}
 
 export const BROWSER_TOOL_FUNCTIONS = new Set(["browser", "computer"]);
 

@@ -22,10 +22,8 @@ import { MessageContent } from "../MessageContent";
 import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
 
-import {
-  AnnotatedToolOutput,
-  type ToolAnnotation,
-} from "./AnnotatedToolOutput";
+import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
+import type { ScreenshotContent, ToolAnnotation } from "./browserActionUtils";
 import { getDefaultCustomToolView } from "./customToolRendering";
 import { codexToolMarkdown } from "./tool";
 import styles from "./ToolCallView.module.css";
@@ -63,12 +61,7 @@ export interface ToolCallViewProps {
         | ContentDocument
       )[];
   selfAnnotation?: ToolAnnotation;
-  inputScreenshot?: (
-    | ContentText
-    | ContentImage
-    | ContentAudio
-    | ContentVideo
-  )[];
+  inputScreenshot?: ScreenshotContent[];
   mode?: "compact";
   collapsible?: boolean;
   /** Render the whole view, just the call (title + input), or just the output. */
@@ -235,9 +228,11 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   const showAnnotation = !!selfAnnotation && !!inputScreenshot;
   const actionElement =
     selfAnnotation && inputScreenshot ? (
-      <AnnotatedToolOutput annotation={selfAnnotation}>
-        <MessageContent contents={inputScreenshot} context={context} />
-      </AnnotatedToolOutput>
+      <AnnotatedScreenshotOutput
+        contents={inputScreenshot}
+        annotation={selfAnnotation}
+        context={context}
+      />
     ) : null;
 
   return (

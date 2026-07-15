@@ -1,27 +1,17 @@
-import type {
-  ContentAudio,
-  ContentImage,
-  ContentText,
-  ContentVideo,
-  ToolEvent,
-} from "@tsmono/inspect-common/types";
+import type { ToolEvent } from "@tsmono/inspect-common/types";
 
-import type { ToolAnnotation } from "../chat/tools/AnnotatedToolOutput";
 import {
   BROWSER_TOOL_FUNCTIONS,
   buildSelfAnnotation,
   isVisualBrowserAction,
+  type ScreenshotContent,
+  type ToolAnnotation,
 } from "../chat/tools/browserActionUtils";
 
 import type { EventNode } from "./types";
 
 export interface VisualActionContext {
-  inputScreenshot?: (
-    | ContentText
-    | ContentImage
-    | ContentAudio
-    | ContentVideo
-  )[];
+  inputScreenshot?: ScreenshotContent[];
   selfAnnotation?: ToolAnnotation;
 }
 
@@ -63,13 +53,10 @@ export function computeVisualActionContext(
 
 export function normalizeScreenshotResult(
   result: ToolEvent["result"]
-): (ContentText | ContentImage | ContentAudio | ContentVideo)[] | undefined {
+): ScreenshotContent[] | undefined {
   if (Array.isArray(result)) {
     const filtered = result.filter(
-      (
-        item
-      ): item is ContentText | ContentImage | ContentAudio | ContentVideo =>
-        item.type !== "document"
+      (item): item is ScreenshotContent => item.type !== "document"
     );
     return filtered.length > 0 ? filtered : undefined;
   }
