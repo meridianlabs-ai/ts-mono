@@ -104,7 +104,7 @@
     "@vscode-elements/react-elements": "^2.4.0",
     "@vscode/codicons": "^0.0.45",
     "ag-grid-community": "^36.0.0",
-    "ag-grid-react": "^34.3.1",
+    "ag-grid-react": "^36.0.0",
     "ansi-output": "^0.0.9",
     "arquero": "^8.0.3",
     "bootstrap": "^5.3.8",
