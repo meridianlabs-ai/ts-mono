@@ -14,10 +14,3 @@ minimumReleaseAge: 10080
 # has aged 7 days; the advisory fix is the reason we want them early.
 minimumReleaseAgeExclude:
   - dompurify
-  # TypeScript 7.0 (native compiler) adoption: typescript@7.0.2, its
-  # @typescript/typescript-* platform binaries, and the @typescript/typescript6
-  # JS-API compatibility package were all published within the soak window.
-  # Publisher is Microsoft's TypeScript team. Remove after 2026-07-15.
-  - typescript
-  - "@typescript/typescript6"
-  - "@typescript/typescript-*"
