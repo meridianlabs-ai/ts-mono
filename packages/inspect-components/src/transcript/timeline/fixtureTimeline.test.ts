@@ -1,13 +1,14 @@
 /**
  * Fixture-driven tests for buildTimeline().
  *
- * Uses the same JSON fixtures as the Python tests (tests/transcript/nodes/fixtures/events/)
- * to ensure cross-language consistency between the Python and TypeScript timeline
- * implementations.
+ * Uses the same JSON fixtures as the Python tests to ensure cross-language
+ * consistency between the Python and TypeScript timeline implementations.
+ * Fixtures live in the embedding parent repo: inspect_scout keeps them in
+ * tests/transcript/nodes/fixtures/events/, inspect_ai in
+ * tests/timeline/fixtures/events/.
  *
- * These tests only run when ts-mono is embedded inside inspect_scout (the fixtures
- * live in the parent repo). When ts-mono is used from inspect_ai or standalone,
- * the fixtures directory won't exist and the test suite is skipped.
+ * These tests only run when ts-mono is embedded inside a parent repo that
+ * provides fixtures; when used standalone the suite is skipped.
  */
 
 /// <reference types="node" />
@@ -60,11 +61,20 @@ interface JsonEvent {
       output_tokens?: number;
     };
     choices?: Array<{
-      message: { role: string; content: string };
+      message: {
+        role: string;
+        content: string;
+        tool_calls?: Array<{
+          id: string;
+          function: string;
+          arguments: Record<string, unknown>;
+        }>;
+      };
       stop_reason?: string;
     }>;
   };
   events?: JsonEvent[];
+  arguments?: Record<string, unknown>;
 }
 
 interface ExpectedAgentSource {
@@ -122,25 +132,35 @@ interface FixtureData {
 // Fixture Loading
 // =============================================================================
 
-const FIXTURES_DIR = join(
-  __dirname,
-  "../../../../../../../../../tests/transcript/nodes/fixtures/events"
-);
+// Candidate fixture locations in the embedding parent repo (relative to
+// this file, nine levels up to the parent repo root): inspect_scout keeps
+// fixtures in tests/transcript/nodes/, inspect_ai in tests/timeline/.
+const PARENT_REPO_ROOT = join(__dirname, "../../../../../../../../..");
+const FIXTURE_DIR_CANDIDATES = [
+  join(PARENT_REPO_ROOT, "tests/transcript/nodes/fixtures/events"),
+  join(PARENT_REPO_ROOT, "tests/timeline/fixtures/events"),
+];
 
-const FIXTURES_AVAILABLE = existsSync(FIXTURES_DIR);
+const FIXTURE_DIRS = FIXTURE_DIR_CANDIDATES.filter((dir) => existsSync(dir));
+const FIXTURES_AVAILABLE = FIXTURE_DIRS.length > 0;
 
 function loadFixture(name: string): FixtureData {
-  const filePath = join(FIXTURES_DIR, `${name}.json`);
-  const content = readFileSync(filePath, "utf-8");
-  return JSON.parse(content) as FixtureData;
+  for (const dir of FIXTURE_DIRS) {
+    const filePath = join(dir, `${name}.json`);
+    if (existsSync(filePath)) {
+      const content = readFileSync(filePath, "utf-8");
+      return JSON.parse(content) as FixtureData;
+    }
+  }
+  throw new Error(`Fixture not found: ${name}`);
 }
 
 function getFixtureNames(): string[] {
-  if (!FIXTURES_AVAILABLE) return [];
-  const files = readdirSync(FIXTURES_DIR);
-  return files
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(".json", ""));
+  return FIXTURE_DIRS.flatMap((dir) =>
+    readdirSync(dir)
+      .filter((f) => f.endsWith(".json"))
+      .map((f) => f.replace(".json", ""))
+  );
 }
 
 // =============================================================================
@@ -176,6 +196,7 @@ function createEvent(data: JsonEvent): Event | null {
         event: "model",
         model: data.model ?? "unknown",
         completed: data.completed ?? null,
+        span_id: data.span_id ?? null,
         input: inputMsgs,
         output: data.output
           ? {
@@ -184,6 +205,7 @@ function createEvent(data: JsonEvent): Event | null {
                     message: {
                       role: c.message.role,
                       content: c.message.content,
+                      tool_calls: c.message.tool_calls ?? null,
                     },
                     stop_reason: c.stop_reason ?? "stop",
                   }))
@@ -209,6 +231,7 @@ function createEvent(data: JsonEvent): Event | null {
         id: data.id ?? "",
         function: data.function ?? "",
         completed: data.completed ?? null,
+        span_id: data.span_id ?? null,
         agent: data.agent ?? null,
         events: nestedEvents ?? [],
       };
@@ -629,7 +652,8 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
   });
 
   it("computes startTime and endTime correctly", () => {
-    const fixture = loadFixture("simple_agent");
+    // Any fixture works here — which ones exist depends on the parent repo.
+    const fixture = loadFixture(fixtures[0]!);
     const events = eventsFromJson(fixture);
     const result = buildTimeline(events);
 
