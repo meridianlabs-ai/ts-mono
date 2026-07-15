@@ -12,9 +12,18 @@ type MarkdownItPlugin = (md: MarkdownIt) => void;
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
 const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
-    mathjaxPluginPromise = import("markdown-it-mathjax3").then(
+    const loading = import("markdown-it-mathjax3").then(
       (m) => m.default as MarkdownItPlugin
     );
+    // Reset on rejection so a transient chunk-load failure (network blip,
+    // redeploy invalidating the hashed chunk) retries on the next math render
+    // instead of disabling math for the rest of the session.
+    loading.catch(() => {
+      if (mathjaxPluginPromise === loading) {
+        mathjaxPluginPromise = null;
+      }
+    });
+    mathjaxPluginPromise = loading;
   }
   return mathjaxPluginPromise;
 };
