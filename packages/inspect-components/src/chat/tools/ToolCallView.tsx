@@ -225,7 +225,6 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
       <MessageContent contents={normalizedContent} context={context} />
     ) : null;
 
-  const showAnnotation = !!selfAnnotation && !!inputScreenshot;
   const actionElement =
     selfAnnotation && inputScreenshot ? (
       <AnnotatedScreenshotOutput
@@ -235,23 +234,22 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
       />
     ) : null;
 
+  let outputContent = outputSection;
+  if (actionElement) {
+    outputContent = hasContent ? (
+      <NavPills id={`${id}-browser-action`}>
+        <div title="Result">{outputSection}</div>
+        <div title="Action">{actionElement}</div>
+      </NavPills>
+    ) : (
+      actionElement
+    );
+  }
+
   return (
     <div className={clsx(styles.toolCallView)}>
       {section !== "output" ? callSection : null}
-      {section !== "call" ? (
-        showAnnotation ? (
-          hasContent ? (
-            <NavPills id={`${id}-browser-action`}>
-              <div title="Result">{outputSection}</div>
-              <div title="Action">{actionElement}</div>
-            </NavPills>
-          ) : (
-            actionElement
-          )
-        ) : (
-          outputSection
-        )
-      ) : null}
+      {section !== "call" ? outputContent : null}
     </div>
   );
 };
