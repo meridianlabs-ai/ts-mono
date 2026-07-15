@@ -8,7 +8,9 @@ import type {
 import { ExpandablePanel } from "@tsmono/react/components";
 
 import { useDisplayMode } from "../../content/DisplayModeContext";
+import { defaultContext } from "../MessageContents";
 
+import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
 import { getDefaultCustomToolView } from "./customToolRendering";
 import { iconForTool } from "./tool";
@@ -28,6 +30,8 @@ export interface ClientToolCallProps {
   contentType?: string;
   view?: ToolCallContent;
   output: ToolCallViewProps["output"];
+  selfAnnotation?: ToolCallViewProps["selfAnnotation"];
+  inputScreenshot?: ToolCallViewProps["inputScreenshot"];
   error?: ToolCallError;
   className?: string | string[];
   getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
@@ -48,6 +52,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   contentType,
   view,
   output,
+  selfAnnotation,
+  inputScreenshot,
   error,
   className,
   getCustomToolView,
@@ -65,6 +71,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     contentType,
     view,
     output,
+    selfAnnotation,
+    inputScreenshot,
   };
   const customView =
     displayMode === "rendered"
@@ -77,7 +85,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   const hasInput =
     (input !== undefined && input !== null && input !== "") || !!view?.content;
   const showError = !!error;
-  const showOutput = !showError && hasOutputContent(output);
+  const showAnnotation = !!selfAnnotation && !!inputScreenshot;
+  const showOutput = !showError && (hasOutputContent(output) || showAnnotation);
 
   return (
     <ToolBlock
@@ -107,6 +116,16 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       {showError ? (
         <ToolBlockOutput>
           <ToolCallErrorView error={error} />
+          {/* A failed action is when seeing where the agent tried to act
+              matters most, so the annotated screenshot renders with the
+              error rather than being replaced by it. */}
+          {selfAnnotation && inputScreenshot ? (
+            <AnnotatedScreenshotOutput
+              contents={inputScreenshot}
+              annotation={selfAnnotation}
+              context={defaultContext()}
+            />
+          ) : null}
         </ToolBlockOutput>
       ) : showOutput ? (
         <ToolBlockOutput>
