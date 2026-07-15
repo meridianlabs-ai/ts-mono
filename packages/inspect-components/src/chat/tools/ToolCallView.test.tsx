@@ -115,3 +115,32 @@ describe("ToolCallView display modes", () => {
     expect(container.querySelector("code")?.textContent).toBe(output);
   });
 });
+
+describe("ClientToolCall errors", () => {
+  it("shows the annotated screenshot alongside a tool error", () => {
+    const { container } = render(
+      <ComponentStateProvider hooks={stateHooks}>
+        <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
+          <ClientToolCall
+            id="failed-click"
+            tool="computer"
+            functionCall="computer"
+            output=""
+            error={{ type: "timeout", message: "click timed out" }}
+            selfAnnotation={{ action: "left_click", coordinate: [10, 20] }}
+            inputScreenshot={[
+              {
+                type: "image",
+                image: "data:image/png;base64,abc123",
+                detail: "auto",
+              },
+            ]}
+          />
+        </DisplayModeContext.Provider>
+      </ComponentStateProvider>
+    );
+
+    expect(container.textContent).toContain("click timed out");
+    expect(container.querySelector("img")).not.toBeNull();
+  });
+});

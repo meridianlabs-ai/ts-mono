@@ -8,7 +8,9 @@ import type {
 import { ExpandablePanel } from "@tsmono/react/components";
 
 import { useDisplayMode } from "../../content/DisplayModeContext";
+import { defaultContext } from "../MessageContents";
 
+import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
 import { getDefaultCustomToolView } from "./customToolRendering";
 import { iconForTool } from "./tool";
@@ -114,6 +116,16 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       {showError ? (
         <ToolBlockOutput>
           <ToolCallErrorView error={error} />
+          {/* A failed action is when seeing where the agent tried to act
+              matters most, so the annotated screenshot renders with the
+              error rather than being replaced by it. */}
+          {selfAnnotation && inputScreenshot ? (
+            <AnnotatedScreenshotOutput
+              contents={inputScreenshot}
+              annotation={selfAnnotation}
+              context={defaultContext()}
+            />
+          ) : null}
         </ToolBlockOutput>
       ) : showOutput ? (
         <ToolBlockOutput>
