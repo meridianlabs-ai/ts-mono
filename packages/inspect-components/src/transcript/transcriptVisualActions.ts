@@ -37,9 +37,16 @@ export function computeVisualActionContext(
   // is the correct before-state — not just an explicit `screenshot` action.
   // Gating on `screenshot` alone made consecutive actions all reuse the last
   // standalone screenshot, showing a stale image for every action after it.
+  // The flat list inlines subtask/span children, so restrict the scan to the
+  // action's own branch: deeper nodes are children of an earlier sibling
+  // (a different agent/browser session), and a shallower node means we've
+  // left the action's enclosing branch entirely.
   for (let i = index - 1; i >= 0; i--) {
     const candidate = eventNodes[i];
-    if (!candidate || candidate.event.event !== "tool") continue;
+    if (!candidate) continue;
+    if (candidate.depth > node.depth) continue;
+    if (candidate.depth < node.depth) break;
+    if (candidate.event.event !== "tool") continue;
     const candEvent = candidate.event;
     if (!BROWSER_TOOL_FUNCTIONS.has(candEvent.function)) break;
     const inputScreenshot = normalizeScreenshotResult(candEvent.result);

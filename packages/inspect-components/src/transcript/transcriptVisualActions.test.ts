@@ -31,7 +31,8 @@ function toolNode(
   id: string,
   fn: string,
   args: ToolEvent["arguments"],
-  result: ToolEvent["result"]
+  result: ToolEvent["result"],
+  depth = 0
 ): EventNode {
   const event: ToolEvent = {
     event: "tool",
@@ -46,7 +47,7 @@ function toolNode(
     type: "function",
     working_start: 0,
   };
-  return new EventNode(id, event, 0);
+  return new EventNode(id, event, depth);
 }
 
 function infoNode(id: string): EventNode {
@@ -198,5 +199,59 @@ describe("computeVisualActionContext", () => {
       text: undefined,
       scrollDirection: undefined,
     });
+  });
+
+  it("skips a screenshot from a deeper branch (inlined subtask children)", () => {
+    const nodes = [
+      toolNode("s0", "browser", visualActionArgs("screenshot"), [IMAGE]),
+      toolNode(
+        "sub",
+        "browser",
+        visualActionArgs("screenshot"),
+        [{ ...IMAGE, image: "data:image/png;base64,subtask" }],
+        1
+      ),
+      toolNode(
+        "c1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [1, 1] }),
+        ""
+      ),
+    ];
+    const ctx = computeVisualActionContext(nodes, 2);
+    expect(ctx.inputScreenshot).toEqual([IMAGE]);
+  });
+
+  it("stops at a shallower node instead of pairing across branches", () => {
+    // a1's screenshot belongs to subtask A; b1's click is in subtask B.
+    // B's own events start after a depth-0 boundary node, so the scan must
+    // not reach back into A.
+    const nodes = [
+      toolNode("a1", "browser", visualActionArgs("screenshot"), [IMAGE], 1),
+      infoNode("boundary"),
+      toolNode(
+        "b1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [1, 1] }),
+        "",
+        1
+      ),
+    ];
+    expect(computeVisualActionContext(nodes, 2)).toEqual({});
+  });
+
+  it("pairs within the same nested branch", () => {
+    const nodes = [
+      toolNode("s1", "browser", visualActionArgs("screenshot"), [IMAGE], 1),
+      toolNode(
+        "c1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [2, 2] }),
+        "",
+        1
+      ),
+    ];
+    const ctx = computeVisualActionContext(nodes, 1);
+    expect(ctx.inputScreenshot).toEqual([IMAGE]);
   });
 });
