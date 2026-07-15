@@ -17,6 +17,7 @@ import type {
 
 import {
   convertServerTimeline,
+  countUtilitySpans,
   filterEmptyBranches,
   isEmptyBranch,
   spanHasBranches,
@@ -646,5 +647,50 @@ describe("convertServerTimeline", () => {
       expect(result.root.outline!.nodes).toHaveLength(1);
       expect(result.root.outline!.nodes[0]!.event).toBe("evt-1");
     });
+  });
+});
+
+// =============================================================================
+// countUtilitySpans
+// =============================================================================
+
+describe("countUtilitySpans", () => {
+  const span = (
+    id: string,
+    options?: { utility?: boolean; content?: TimelineSpan[] }
+  ) =>
+    new TimelineSpan({
+      id,
+      name: id,
+      spanType: "agent",
+      content: options?.content ?? [],
+      utility: options?.utility ?? false,
+    });
+
+  it("returns 0 for a tree with no utility spans", () => {
+    const root = span("root", { content: [span("child")] });
+    expect(countUtilitySpans(root)).toBe(0);
+  });
+
+  it("counts utility spans across nesting levels", () => {
+    const root = span("root", {
+      content: [
+        span("u1", { utility: true }),
+        span("child", { content: [span("u2", { utility: true })] }),
+      ],
+    });
+    expect(countUtilitySpans(root)).toBe(2);
+  });
+
+  it("counts utility spans inside branches", () => {
+    const branch = span("branch", { content: [span("u1", { utility: true })] });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "root",
+      spanType: "agent",
+      content: [],
+      branches: [branch],
+    });
+    expect(countUtilitySpans(root)).toBe(1);
   });
 });

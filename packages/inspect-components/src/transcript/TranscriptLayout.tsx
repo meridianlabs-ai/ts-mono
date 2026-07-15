@@ -53,7 +53,11 @@ import {
 } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { spanHasBranches, type TimelineSpan } from "./timeline/core";
+import {
+  countUtilitySpans,
+  spanHasBranches,
+  type TimelineSpan,
+} from "./timeline/core";
 import {
   useEventNodes,
   useTimelineConfig,
@@ -537,6 +541,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor, scrubTo]
   );
 
+  const hiddenUtilityCount = useMemo(
+    () => countUtilitySpans(timelineData.root),
+    [timelineData.root]
+  );
+
   const swimlaneHeader = useMemo(
     () => ({
       rootLabel: timelineData.root.name,
@@ -549,6 +558,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         onScrub: handleScrub,
       },
       timelineConfig,
+      hiddenUtilityCount,
       timelineSelector:
         timelines.length > 1
           ? {
@@ -568,6 +578,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       scrubberProgress,
       handleScrub,
       timelineConfig,
+      hiddenUtilityCount,
       timelines,
       activeTimelineIndex,
       setActiveTimeline,

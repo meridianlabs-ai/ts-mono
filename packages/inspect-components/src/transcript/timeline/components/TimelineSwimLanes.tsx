@@ -89,6 +89,10 @@ export interface TimelineHeaderProps {
   minimap?: TimelineMinimapProps;
   /** Timeline config for the options popover. When provided, shows the options button. */
   timelineConfig?: UseTimelineConfigResult;
+  /** Number of utility agents elided from display. When > 0 (and utility
+   *  agents are off), a small indicator renders next to the options button
+   *  so hidden model calls never disappear without a trace. */
+  hiddenUtilityCount?: number;
   /** Timeline selector for switching between multiple timelines. */
   timelineSelector?: TimelineSelectorProps;
   /** Called when the branches toggle is clicked (handles selection cleanup). */
@@ -760,6 +764,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
   breadcrumbs,
   onBreadcrumbSelect,
   timelineConfig,
+  hiddenUtilityCount,
   timelineSelector,
   onToggleBranches,
   viewStack,
@@ -833,6 +838,19 @@ const HeaderRow: FC<HeaderRowProps> = ({
           <i className={icons.threeDots} />
         </button>
       )}
+      {timelineConfig &&
+        !timelineConfig.includeUtility &&
+        (hiddenUtilityCount ?? 0) > 0 && (
+          <button
+            type="button"
+            className={styles.hiddenUtility}
+            onClick={() => timelineConfig.setIncludeUtility(true)}
+            title="Show utility agents"
+          >
+            {hiddenUtilityCount} utility{" "}
+            {hiddenUtilityCount === 1 ? "agent" : "agents"} hidden
+          </button>
+        )}
       {minimap && <TimelineMinimap {...minimap} />}
       {timelineConfig && onToggleBranches && (
         <TimelineOptionsPopover

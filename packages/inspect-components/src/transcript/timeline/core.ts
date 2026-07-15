@@ -232,6 +232,23 @@ export function spanHasBranches(span: TimelineSpan): boolean {
 }
 
 /**
+ * Count utility spans in `span`'s tree (content and branches).
+ *
+ * Used to surface how many utility agents are elided from display when the
+ * "Utility agents" option is off, so they never disappear without a trace.
+ */
+export function countUtilitySpans(span: TimelineSpan): number {
+  let count = 0;
+  for (const item of [...span.content, ...span.branches]) {
+    if (item.type === "span") {
+      if (item.utility) count++;
+      count += countUtilitySpans(item);
+    }
+  }
+  return count;
+}
+
+/**
  * Creates a display-ready TimelineSpan from a branch span.
  *
  * If the branch has exactly one child span, returns that span directly.
