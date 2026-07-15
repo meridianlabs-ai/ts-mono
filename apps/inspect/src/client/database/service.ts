@@ -319,6 +319,26 @@ export class DatabaseService {
   }
 
   /**
+   * Wipe every table — the "Clear Local Database" escape hatch. Unlike
+   * `clearScope`, this reaches rows persisted under names outside any synced
+   * scope's namespace (see `namesInScope` in logsContent).
+   */
+  async clearAllData(): Promise<void> {
+    const db = this.getDb();
+    log.debug("Clearing all cached data");
+    await db.transaction(
+      "rw",
+      [db.logs, db.sample_summaries, db.sync_scopes],
+      () =>
+        Promise.all([
+          db.logs.clear(),
+          db.sample_summaries.clear(),
+          db.sync_scopes.clear(),
+        ])
+    );
+  }
+
+  /**
    * Clear all cached data under a scope: its log rows, their sample
    * summaries, and the scope's sync record. Other scopes' rows are untouched.
    */

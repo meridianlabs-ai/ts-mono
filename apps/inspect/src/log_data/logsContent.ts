@@ -205,14 +205,24 @@ const clearCache = (logDir: string): void => {
  * persisting under such a scope would strand the rows where no scoped read,
  * clear, or seed can reach them, and the empty read-back would blank the
  * just-synced listing. Degrade to cache-only instead.
+ *
+ * Only listing persistence is gated: the keyed writes below (previews,
+ * details, fetch states) still persist out-of-namespace rows, which serve
+ * exact-path reads but which no listing sync governs and no scoped clear can
+ * remove. "Clear Local Database" (`clearAll`) wipes them along with
+ * everything else.
  */
+const warnedScopes = new Set<string>();
 const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
   const prefix = scopePrefix(logDir);
   const misnamed = handles.find((handle) => !handle.name.startsWith(prefix));
   if (misnamed !== undefined) {
-    log.warn(
-      `Listing names (e.g. ${misnamed.name}) are outside the log dir's namespace (${prefix}); skipping persistence for this scope.`
-    );
+    if (!warnedScopes.has(prefix)) {
+      warnedScopes.add(prefix);
+      log.warn(
+        `Listing names (e.g. ${misnamed.name}) are outside the log dir's namespace (${prefix}); skipping persistence for this scope.`
+      );
+    }
     return false;
   }
   return true;
@@ -360,7 +370,11 @@ export const clearAll = async (
 ): Promise<void> => {
   clearCache(logDir);
   if (db?.opened()) {
-    await db.clearScope({ prefix: logDir });
+    // The whole database, not just this scope: the button this backs says
+    // "Clear Local Database", and a scoped clear can't reach rows persisted
+    // under out-of-namespace names (see namesInScope). It's all a cache —
+    // other scopes re-sync on their next listing.
+    await db.clearAllData();
   }
 };
 

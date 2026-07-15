@@ -619,6 +619,24 @@ describe("Database Service", () => {
       expect(await databaseService.getSyncScope("/logs")).toBeUndefined();
     });
 
+    test("clearAllData wipes every scope's rows and sync records", async () => {
+      await databaseService.writeLogs([
+        { name: "/logs/a.eval" },
+        { name: "/other/b.eval" },
+      ]);
+      await databaseService.markScopeSynced("/logs");
+
+      await databaseService.clearAllData();
+
+      expect(await databaseService.readLogs({ prefix: "/logs" })).toHaveLength(
+        0
+      );
+      expect(await databaseService.readLogs({ prefix: "/other" })).toHaveLength(
+        0
+      );
+      expect(await databaseService.getSyncScope("/logs")).toBeUndefined();
+    });
+
     test("clearScope sweeps nested scopes' sync records with their rows", async () => {
       await databaseService.markScopeSynced("/logs");
       await databaseService.markScopeSynced("/logs/important");
