@@ -682,13 +682,13 @@ describe("countUtilitySpans", () => {
     expect(countUtilitySpans(root)).toBe(2);
   });
 
-  it("counts utility spans inside branches", () => {
+  it("excludes utility spans inside branches (not revealed by the utility toggle)", () => {
     const branch = span("branch", { content: [span("u1", { utility: true })] });
     const root = new TimelineSpan({
       id: "root",
       name: "root",
       spanType: "agent",
-      content: [],
+      content: [span("u2", { utility: true })],
       branches: [branch],
     });
     expect(countUtilitySpans(root)).toBe(1);

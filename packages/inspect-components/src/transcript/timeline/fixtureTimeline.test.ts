@@ -75,6 +75,7 @@ interface JsonEvent {
   };
   events?: JsonEvent[];
   arguments?: Record<string, unknown>;
+  config?: Record<string, unknown>;
 }
 
 interface ExpectedAgentSource {
@@ -142,7 +143,6 @@ const FIXTURE_DIR_CANDIDATES = [
 ];
 
 const FIXTURE_DIRS = FIXTURE_DIR_CANDIDATES.filter((dir) => existsSync(dir));
-const FIXTURES_AVAILABLE = FIXTURE_DIRS.length > 0;
 
 function loadFixture(name: string): FixtureData {
   for (const dir of FIXTURE_DIRS) {
@@ -155,13 +155,19 @@ function loadFixture(name: string): FixtureData {
   throw new Error(`Fixture not found: ${name}`);
 }
 
-function getFixtureNames(): string[] {
-  return FIXTURE_DIRS.flatMap((dir) =>
-    readdirSync(dir)
-      .filter((f) => f.endsWith(".json"))
-      .map((f) => f.replace(".json", ""))
-  );
-}
+// Names are deduped across candidate dirs; loadFixture resolves a name from
+// the first dir that has it. Gate on names (not dir existence) so an
+// existing-but-empty fixtures dir skips the suite instead of failing it.
+const FIXTURE_NAMES = [
+  ...new Set(
+    FIXTURE_DIRS.flatMap((dir) =>
+      readdirSync(dir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => f.replace(".json", ""))
+    )
+  ),
+];
+const FIXTURES_AVAILABLE = FIXTURE_NAMES.length > 0;
 
 // =============================================================================
 // Event Deserialization
@@ -197,6 +203,7 @@ function createEvent(data: JsonEvent): Event | null {
         model: data.model ?? "unknown",
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
+        config: data.config ?? {},
         input: inputMsgs,
         output: data.output
           ? {
@@ -635,7 +642,7 @@ function assertTimelineMatches(
 // =============================================================================
 
 describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
-  const fixtures = getFixtureNames();
+  const fixtures = FIXTURE_NAMES;
 
   it.each(fixtures)("fixture: %s", (fixtureName) => {
     const fixture = loadFixture(fixtureName);

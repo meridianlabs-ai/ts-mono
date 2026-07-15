@@ -232,14 +232,17 @@ export function spanHasBranches(span: TimelineSpan): boolean {
 }
 
 /**
- * Count utility spans in `span`'s tree (content and branches).
+ * Count utility spans in `span`'s content tree.
  *
  * Used to surface how many utility agents are elided from display when the
  * "Utility agents" option is off, so they never disappear without a trace.
+ * Branches are deliberately excluded: the indicator's contract is "what the
+ * utility toggle reveals", and branch content stays hidden behind the
+ * separate branches option regardless of the utility setting.
  */
 export function countUtilitySpans(span: TimelineSpan): number {
   let count = 0;
-  for (const item of [...span.content, ...span.branches]) {
+  for (const item of span.content) {
     if (item.type === "span") {
       if (item.utility) count++;
       count += countUtilitySpans(item);
@@ -1335,6 +1338,9 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
   }
 
   // --- Scan and wrap utility candidates ---
+  const originalSpans = agent.content.filter(
+    (item): item is TimelineSpan => item.type === "span"
+  );
   const newContent: (TimelineEvent | TimelineSpan)[] = [];
   for (const item of agent.content) {
     if (item.type === "event" && item.event.event === "model") {
@@ -1353,23 +1359,20 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
         continue;
       }
 
-      const evtPrompt = getSystemPromptForEvent(modelEvt);
-      if (
-        primaryPrompt !== null &&
-        evtPrompt !== null &&
-        evtPrompt !== primaryPrompt &&
-        !hasToolCalls(modelEvt)
-      ) {
-        // Wrap in a synthetic utility span
-        const wrapper = createTimelineSpan(
-          `utility-${item.event.uuid ?? "unknown"}`,
-          "utility",
-          "agent",
-          [item]
-        );
-        wrapper.utility = true;
-        newContent.push(wrapper);
-        continue;
+      if (primaryPrompt !== null && !hasToolCalls(modelEvt)) {
+        const evtPrompt = getSystemPromptForEvent(modelEvt);
+        if (evtPrompt !== null && evtPrompt !== primaryPrompt) {
+          // Wrap in a synthetic utility span
+          const wrapper = createTimelineSpan(
+            `utility-${item.event.uuid ?? "unknown"}`,
+            "utility",
+            "agent",
+            [item]
+          );
+          wrapper.utility = true;
+          newContent.push(wrapper);
+          continue;
+        }
       }
     }
     newContent.push(item);
@@ -1377,19 +1380,15 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 
   agent.content = newContent;
 
-  // --- Recurse into child spans and branches ---
-  for (const item of agent.content) {
-    if (item.type === "span") {
-      wrapUtilityEvents(item);
-    }
+  // Recurse into the span's original children only — not the synthetic
+  // wrappers created above: a wrapper holds a single already-processed
+  // event, and re-entering it would wrap a warmup call again, forever.
+  // wrapUtilityEvents(branch) recurses into the branch's own children.
+  for (const item of originalSpans) {
+    wrapUtilityEvents(item);
   }
   for (const branch of agent.branches) {
     wrapUtilityEvents(branch);
-    for (const item of branch.content) {
-      if (item.type === "span") {
-        wrapUtilityEvents(item);
-      }
-    }
   }
 }
 
