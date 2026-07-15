@@ -139,7 +139,8 @@ interface QueueTask {
   cancelled: boolean;
 }
 
-class MarkdownRenderQueue {
+// Exported for tests only
+export class MarkdownRenderQueue {
   private queue: QueueTask[] = [];
   private activeCount = 0;
   private readonly maxConcurrent: number;
@@ -153,6 +154,7 @@ class MarkdownRenderQueue {
     cancel: () => void;
   } {
     let cancelled = false;
+    let queueTask: QueueTask | undefined;
 
     const promise = new Promise<T>((resolve, reject) => {
       const wrappedTask = async () => {
@@ -173,7 +175,7 @@ class MarkdownRenderQueue {
         }
       };
 
-      const queueTask: QueueTask = {
+      queueTask = {
         task: wrappedTask,
         cancelled: false,
       };
@@ -185,10 +187,9 @@ class MarkdownRenderQueue {
 
     const cancel = () => {
       cancelled = true;
-      // Mark task as cancelled in queue
-      const index = this.queue.findIndex((t) => !t.cancelled);
-      if (index !== -1 && this.queue[index]) {
-        this.queue[index].cancelled = true;
+      // Mark our own task so processQueue skips it without running it
+      if (queueTask) {
+        queueTask.cancelled = true;
       }
     };
 
