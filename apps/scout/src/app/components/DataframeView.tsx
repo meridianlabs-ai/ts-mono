@@ -15,6 +15,7 @@ import { centerTruncate } from "@tsmono/util";
 
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
+import { valueAsString } from "../utils/format";
 
 import "./agGridSetup";
 
@@ -67,7 +68,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             if (!col) {
               return undefined;
             }
-            const sampleValue = col?.at(0);
+            const sampleValue = col?.at(0) as unknown;
 
             // Create value formatter based on truncation options and data type
             const valueFormatter = options
@@ -81,7 +82,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
                     return centerTruncate(params.value, options.maxStrLen);
                   }
 
-                  return String(params.value);
+                  return valueAsString(params.value);
                 }
               : undefined;
 
@@ -133,7 +134,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
                 if (params.rowIndex !== null && params.rowIndex !== undefined) {
                   setSelectedDataframeRow(params.rowIndex);
                 }
-                onRowDoubleClicked(params.data);
+                onRowDoubleClicked(params.data as object);
               }
             },
           },
@@ -201,7 +202,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
       const selectedNode =
         gridRef.current.api.getDisplayedRowAtIndex(selectedDataframeRow);
       if (selectedNode?.data) {
-        onRowDoubleClicked(selectedNode.data);
+        onRowDoubleClicked(selectedNode.data as object);
       }
     }
   }, [selectedDataframeRow, onRowDoubleClicked]);

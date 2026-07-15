@@ -303,7 +303,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     setOriginalConfig(null);
     // Reset expected etag so the init effect will re-initialize from server
     lastSavedEtagRef.current = null;
-    void queryClient.invalidateQueries({ queryKey: ["project-config-inv"] });
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    queryClient.invalidateQueries({ queryKey: ["project-config-inv"] });
   };
 
   return (
@@ -400,7 +401,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         footer={
           <>
             <VscodeButton secondary onClick={() => blocker.proceed?.()}>
-              Don't Save
+              Don&apos;t Save
             </VscodeButton>
             <VscodeButton secondary onClick={() => blocker.reset?.()}>
               Cancel

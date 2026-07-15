@@ -7,13 +7,7 @@ import "fake-indexeddb/auto";
 global.TextDecoder = TextDecoder;
 global.TextEncoder = TextEncoder;
 
-// Mock build-time constants used by logger
+// Mock build-time constants (injected via vite `define` in production builds).
 (global as Record<string, unknown>).__LOGGING_FILTER__ = "";
 (global as Record<string, unknown>).__DEV_WATCH__ = false;
-
-// Polyfill structuredClone for Node.js versions that don't have it
-if (typeof global.structuredClone === "undefined") {
-  global.structuredClone = (obj) => {
-    return JSON.parse(JSON.stringify(obj));
-  };
-}
+(global as Record<string, unknown>).__VIEW_SERVER_API_URL__ = "/api";

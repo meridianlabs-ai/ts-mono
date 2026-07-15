@@ -77,7 +77,8 @@ function processAppMessage(
   switch (message.type) {
     case "updateRoute": {
       // This is the route used by the most recent version of Inspect Scout. It allows the extension to specify an exact route to navigate to.
-      void context.navigate(message.route, { replace: true });
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      context.navigate(message.route, { replace: true });
       context.setSingleFileMode(message.mode === "single-file");
       return true;
     }
@@ -100,7 +101,8 @@ function processAppMessage(
       }
 
       if (scan) {
-        void context.navigate(scanRoute(context.scansDir, scan), {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        context.navigate(scanRoute(context.scansDir, scan), {
           replace: true,
         });
         return true;

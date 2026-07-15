@@ -1,5 +1,6 @@
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeCategorical } from "../../../../constants";
+import { valueAsString } from "../../../../utils/format";
 import { ScoreDescriptor } from "../types";
 
 export const categoricalScoreDescriptor = (
@@ -9,10 +10,10 @@ export const categoricalScoreDescriptor = (
     scoreType: kScoreTypeCategorical,
     categories: values,
     compare: (a, b) => {
-      return String(a.value).localeCompare(String(b.value));
+      return valueAsString(a.value).localeCompare(valueAsString(b.value));
     },
     render: (score) => {
-      return String(score);
+      return valueAsString(score);
     },
   };
 };

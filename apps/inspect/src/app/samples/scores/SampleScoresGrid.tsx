@@ -76,8 +76,11 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
           return undefined;
         }
         const scoreData = evalSample.scores[scorer];
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const explanation = scoreData.explanation || "(No Explanation)";
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const answer = scoreData.answer;
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const metadata = scoreData.metadata || {};
 
         return (
@@ -86,7 +89,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
             <div className={clsx(styles.cell, "text-size-base")}>{answer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>
               <SampleScores
-                sample={evalSample as any as SampleSummary}
+                sample={evalSample as unknown as SampleSummary}
                 scorer={scorer}
               />
             </div>

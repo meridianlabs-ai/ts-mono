@@ -39,10 +39,13 @@ export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
         const path = logPath || samplesPath || tasksPath || "";
 
         if (segment === "logs") {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           navigate(logsUrl(path));
         } else if (segment === "tasks") {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           navigate(tasksUrl(path));
         } else {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
           navigate(samplesUrl(path));
         }
       }}

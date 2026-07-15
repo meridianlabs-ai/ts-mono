@@ -1,56 +1,48 @@
 import { enableMapSet } from "immer";
-import { createContext, useContext } from "react";
-import { create, StoreApi, UseBoundStore } from "zustand";
+import { create, Mutate, StoreApi, UseBoundStore } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
 import { createLogger, debounce } from "@tsmono/util";
 
-import { Capabilities, ClientAPI, ClientStorage } from "../client/api/types";
-import { createDatabaseService, DatabaseService } from "../client/database";
+import { Capabilities, ClientStorage } from "../client/api/types";
 
 import { AppSlice, createAppSlice, initializeAppSlice } from "./appSlice";
 import { createLogSlice, initalializeLogSlice, LogSlice } from "./logSlice";
 import { createLogsSlice, initializeLogsSlice, LogsSlice } from "./logsSlice";
-import { setSamplePollingApi } from "./samplePollingInstance";
 import {
   createSampleSlice,
-  handleRehydrate,
   initializeSampleSlice,
   SampleSlice,
 } from "./sampleSlice";
 import { createSearchSlice, SearchSlice } from "./searchSlice";
-import { filterState } from "./store_filter";
-import { ReplicationService } from "./sync/replicationService";
 
 const log = createLogger("store");
 
 export interface StoreState
   extends AppSlice, LogsSlice, LogSlice, SampleSlice, SearchSlice {
-  // The shared database service
-  databaseService?: DatabaseService | null;
-
-  // The shared replication service
-  replicationService?: ReplicationService | null;
-
   // Global actions
   initialize: (capabilities: Capabilities) => void;
-  cleanup: () => void;
 }
 
-export let storeImplementation: UseBoundStore<StoreApi<StoreState>> | null =
-  null;
+// The store is immer-wrapped, so its `setState` accepts an immer recipe
+// `(state) => void`. Reflect that in the exported type so non-react callers
+// can drive setState with a recipe.
+export type ImmerStore = UseBoundStore<
+  Mutate<StoreApi<StoreState>, [["zustand/immer", never]]>
+>;
+
+export let storeImplementation: ImmerStore | null = null;
 
 // The data that will actually be persisted
 export type PersistedState = {
   app: AppSlice["app"];
   log: LogSlice["log"];
   logs: LogsSlice["logs"];
-  sample: SampleSlice["sample"];
 };
 
 // Create a proxy store that forwards calls to the real store once initialized
-export const useStore = ((selector?: any) => {
+export const useStore = ((selector?: (state: StoreState) => unknown) => {
   if (!storeImplementation) {
     throw new Error(
       "Store accessed before initialization. Call initializeStore first."
@@ -61,7 +53,6 @@ export const useStore = ((selector?: any) => {
 
 // Initialize the store
 export const initializeStore = (
-  api: ClientAPI,
   capabilities: Capabilities,
   storage?: ClientStorage
 ) => {
@@ -74,12 +65,7 @@ export const initializeStore = (
     },
     setItem: debounce(<T>(name: string, value: T): void => {
       if (storage) {
-        const wrapper = value as { state: PersistedState; version: number };
-        const filtered = {
-          state: filterState(wrapper.state),
-          version: wrapper.version,
-        };
-        storage.setItem(name, filtered);
+        storage.setItem(name, value);
       }
     }, 1000),
     removeItem: (name: string): void => {
@@ -93,86 +79,23 @@ export const initializeStore = (
   const store = create<StoreState>()(
     devtools(
       persist(
-        immer((set, get, store) => {
-          const [appSlice, appCleanup] = createAppSlice(
-            set as (fn: (state: StoreState) => void) => void,
-            get,
-            store
-          );
-          const [logsSlice, logsCleanup] = createLogsSlice(
-            set as (fn: (state: StoreState) => void) => void,
-            get,
-            store,
-            api
-          );
-          const [logSlice, logCleanup] = createLogSlice(
-            set as (fn: (state: StoreState) => void) => void,
-            get,
-            store,
-            api
-          );
-          const [sampleSlice, sampleCleanup] = createSampleSlice(
-            set as (fn: (state: StoreState) => void) => void,
-            get,
-            store
-          );
-          const [searchSlice, searchCleanup] = createSearchSlice(
-            set as (fn: (state: StoreState) => void) => void
-          );
+        immer((set, get, store) => ({
+          // Initialize
+          initialize: (capabilities) => {
+            // Initialize application slices
+            initializeAppSlice(set, capabilities);
+            initializeLogsSlice(set);
+            initalializeLogSlice(set);
+            initializeSampleSlice(set);
+          },
 
-          // Create a shared database service instance
-          const databaseService = createDatabaseService();
-
-          // The replication service
-          const replicationService = new ReplicationService();
-
-          return {
-            // Shared state
-            databaseService,
-            replicationService,
-
-            // Initialize
-            initialize: (capabilities) => {
-              set((state) => {
-                state.databaseService = databaseService;
-                state.replicationService = replicationService;
-              });
-
-              // Initialize application slices
-              initializeAppSlice(
-                set as (fn: (state: StoreState) => void) => void,
-                capabilities
-              );
-              initializeLogsSlice(
-                set as (fn: (state: StoreState) => void) => void
-              );
-              initalializeLogSlice(
-                set as (fn: (state: StoreState) => void) => void
-              );
-              initializeSampleSlice(
-                set as (fn: (state: StoreState) => void) => void
-              );
-            },
-
-            // Create the slices and merge them in
-            ...appSlice,
-            ...logsSlice,
-            ...logSlice,
-            ...sampleSlice,
-            ...searchSlice,
-
-            cleanup: async () => {
-              // Close database before cleaning up slices
-              await databaseService.closeDatabase();
-
-              appCleanup();
-              logsCleanup();
-              logCleanup();
-              sampleCleanup();
-              searchCleanup();
-            },
-          };
-        }),
+          // Create the slices and merge them in
+          ...createAppSlice(set, get, store),
+          ...createLogsSlice(set, get, store),
+          ...createLogSlice(set, get, store),
+          ...createSampleSlice(set, get, store),
+          ...createSearchSlice(set),
+        })),
         {
           name: "app-storage",
           storage: storageImplementation,
@@ -181,12 +104,10 @@ export const initializeStore = (
               app: { ...state.app, rehydrated: true },
               log: state.log,
               logs: state.logs,
-              sample: state.sample,
             }) as unknown as StoreState,
           version: 4,
           onRehydrateStorage: (state: StoreState) => {
             return (hydrationState, error) => {
-              handleRehydrate(state);
               log.debug("REHYDRATING STATE");
               if (error) {
                 log.debug("ERROR", { error });
@@ -201,17 +122,6 @@ export const initializeStore = (
   );
 
   // Set the implementation and initialize it
-  storeImplementation = store as UseBoundStore<StoreApi<StoreState>>;
-  setSamplePollingApi(api);
+  storeImplementation = store;
   store.getState().initialize(capabilities);
-};
-
-const ApiContext = createContext<ClientAPI | null>(null);
-
-export const ApiProvider = ApiContext.Provider;
-
-export const useApi = (): ClientAPI => {
-  const api = useContext(ApiContext);
-  if (!api) throw new Error("useApi must be used within ApiProvider");
-  return api;
 };

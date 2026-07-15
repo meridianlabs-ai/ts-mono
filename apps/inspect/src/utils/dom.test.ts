@@ -185,7 +185,7 @@ describe("scrollRangeToCenter", () => {
     scrollRangeToCenter(range);
 
     expect(scrollToMock).toHaveBeenCalledWith({
-      top: expect.any(Number),
+      top: expect.any(Number) as number,
       behavior: "auto",
     });
   });
@@ -211,7 +211,7 @@ describe("scrollRangeToCenter", () => {
     scrollRangeToCenter(range, { behavior: "smooth" });
 
     expect(scrollToMock).toHaveBeenCalledWith({
-      top: expect.any(Number),
+      top: expect.any(Number) as number,
       behavior: "smooth",
     });
   });

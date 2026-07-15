@@ -17,6 +17,7 @@ import {
   renderMarkdown,
   type MarkdownRenderer,
 } from "./markdownRendering";
+import { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
 
 export type { MarkdownRenderer } from "./markdownRendering";
 
@@ -37,14 +38,18 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
   ({ markdown, renderer, style, className, postProcess, onClick }, ref) => {
     const rendererName = renderer ?? defaultMarkdownRenderer;
 
-    // Check cache for rendered content (before post-processing)
+    // Check cache for sanitized rendered content (before post-processing)
     const cacheKey = `${rendererName}:${markdown}`;
     const cachedHtml = renderCache.get(cacheKey);
 
-    // Apply post-processing to get final HTML
+    // Apply post-processing to get final HTML. The sanitizer runs after
+    // post-processing because injected reference links are HTML too.
     const applyPostProcess = useCallback(
       (html: string): string => {
-        return postProcess ? postProcess(html) : html;
+        if (!postProcess) {
+          return html;
+        }
+        return sanitizeRenderedHtml(postProcess(html));
       },
       [postProcess]
     );
@@ -82,8 +87,9 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
               renderCache.delete(firstKey);
             }
           }
-          renderCache.set(cacheKey, result);
-          setRenderedHtml(applyPostProcess(result));
+          const sanitizedResult = sanitizeRenderedHtml(result);
+          renderCache.set(cacheKey, sanitizedResult);
+          setRenderedHtml(applyPostProcess(sanitizedResult));
         }
       );
 
@@ -164,7 +170,8 @@ class MarkdownRenderQueue {
       };
 
       this.queue.push(queueTask);
-      void this.processQueue();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.processQueue();
     });
 
     const cancel = () => {
@@ -204,7 +211,8 @@ class MarkdownRenderQueue {
       await queueTask.task();
     } finally {
       this.activeCount--;
-      void this.processQueue();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.processQueue();
     }
   }
 }

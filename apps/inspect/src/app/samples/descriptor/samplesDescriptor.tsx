@@ -6,6 +6,7 @@ import { arrayToString } from "@tsmono/util";
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
+import { valueAsString } from "../../../utils/format";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";
@@ -50,16 +51,20 @@ export const createEvalDescriptor = (
     if (
       scoreLabel.scorer !== scoreLabel.name &&
       sample.scores[scoreLabel.scorer] &&
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       sample.scores[scoreLabel.scorer].value
     ) {
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
-        return (
-          sample.scores[scoreLabel.scorer].value as Record<string, ScoreValue>
-        )[scoreLabel.name];
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+        const temp = sample.scores[scoreLabel.scorer].value;
+        return (temp as Record<string, ScoreValue>)[scoreLabel.name];
       } else {
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         return sample.scores[scoreLabel.scorer].value;
       }
     } else if (sample.scores[scoreLabel.name]) {
+      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
       return sample.scores[scoreLabel.name].value;
     } else {
       return undefined;
@@ -127,6 +132,7 @@ export const createEvalDescriptor = (
             if (scoreLabel.scorer !== scoreLabel.name) {
               return (
                 Object.keys(sample.scores).includes(scoreLabel.scorer) &&
+                // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
                 Object.keys(sample.scores[scoreLabel.scorer].value).includes(
                   scoreLabel.name
                 )
@@ -167,6 +173,7 @@ export const createEvalDescriptor = (
   }
 
   const scoreDescriptor = (scoreLabel: ScoreLabel): ScoreDescriptor => {
+    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     return scoreDescriptorMap[scoreLabelKey(scoreLabel)];
   };
 
@@ -185,7 +192,7 @@ export const createEvalDescriptor = (
     } else if (descriptor && descriptor.render) {
       return descriptor.render(score);
     } else {
-      return <span>{String(score)}</span>;
+      return <span>{valueAsString(score)}</span>;
     }
   };
 
@@ -220,6 +227,7 @@ export const createEvalDescriptor = (
           return score.name;
         });
         const sampleScorer = sample.scores[scoreLabel.scorer];
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const scoreVal = sampleScorer.value;
 
         if (typeof scoreVal === "object") {
@@ -313,6 +321,7 @@ export const createSamplesDescriptor = (
         shape.answerSize = Math.min(
           Math.max(
             shape.answerSize,
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
             evalDescriptor.scoreAnswer(sample, selectedScores[0])?.length ?? 0
           ),
           300

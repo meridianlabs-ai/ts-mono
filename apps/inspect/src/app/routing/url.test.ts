@@ -133,6 +133,7 @@ function parseLogRouteParams(splatPath: string) {
 
   for (let i = pathSegments.length - 1; i >= 0; i--) {
     const segment = pathSegments[i];
+    if (segment === undefined) continue;
     const decodedSegment = decodeUrlParam(segment) || segment;
 
     if (validTabIds.has(decodedSegment)) {
@@ -757,7 +758,11 @@ describe("sample IDs with slashes", () => {
       "transcript"
     );
     // Extract the path portion after /logs/, stripping query params
-    const path = url.split("?")[0].replace(/^\/logs\//, "");
+    const pathWithoutQuery = url.split("?")[0];
+    if (pathWithoutQuery === undefined) {
+      throw new Error(`unexpected url with no path: ${url}`);
+    }
+    const path = pathWithoutQuery.replace(/^\/logs\//, "");
     const result = parseLogRouteParams(path);
     expect(result.sampleId).toBe("ascii/car");
     expect(result.epoch).toBe("1");

@@ -10,8 +10,8 @@ import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
+import { getApi } from "../../../app_config";
 import { kLogViewTaskTabId } from "../../../constants";
-import { useApi } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
 import { TagsField } from "../title-view/TagsField";
 
@@ -56,7 +56,7 @@ export const TaskTab: FC<TaskTabProps> = ({
   // Only used to decide whether to include the "tags" row in the
   // metadata grid for an empty log — TagsField owns the actual gating
   // (in-progress, dialog state, save flow, refresh).
-  const api = useApi();
+  const api = getApi();
   const canEditTags = Boolean(api.edit_log);
   const tagList = tags ?? [];
 
@@ -76,15 +76,11 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
-    taskInformation[
-      `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`
-    ] = {
-      _html: (
-        <a href={ghCommitUrl(revision.origin, revision.commit)}>
-          {revision.commit}
-        </a>
-      ),
-    };
+    const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
+    const commitUrl = ghCommitUrl(revision.origin, revision.commit);
+    taskInformation[revisionKey] = commitUrl
+      ? { _html: <a href={commitUrl}>{revision.commit}</a> }
+      : revision.commit;
   }
   if (packages) {
     const names = Object.keys(packages).map((key) => {

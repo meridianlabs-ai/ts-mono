@@ -13,7 +13,7 @@ import {
 import { MetadataEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
-import { useApi } from "../../../state/store";
+import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { AutogrowText } from "./AutogrowText";
@@ -143,7 +143,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useApi();
+  const api = getApi();
 
   const initialEntries = useMemo<MetaEntry[]>(
     () =>
@@ -376,7 +376,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={handleSave}
+              onClick={() => void handleSave()}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}

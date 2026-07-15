@@ -8,7 +8,7 @@
  * pipeline assumptions are verified and any version upgrades that change
  * behavior are caught.
  */
-import openapiTS, { astToString } from "openapi-typescript";
+import openapiTS, { astToString, type OpenAPI3 } from "openapi-typescript";
 import { describe, expect, it } from "vitest";
 
 import { openapiTSOptions } from "../../scripts/openapi-ts-options.js";
@@ -149,8 +149,7 @@ async function classifyField(
   schema: Record<string, unknown>,
   defaultNonNullable: boolean
 ): Promise<"required" | "optional"> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any
-  const ast = await openapiTS(schema as any, {
+  const ast = await openapiTS(schema as unknown as OpenAPI3, {
     ...openapiTSOptions,
     defaultNonNullable,
   });

@@ -82,6 +82,14 @@ export const extractEventFields = (event: EventType): [string, string][] => {
           }
         }
       }
+      // API-call errors / tracebacks surfaced on the model event itself
+      // (e.g. provider 5xx) — make them searchable like the rendered view.
+      if (modelEvent.error) {
+        fields.push(["error", modelEvent.error]);
+      }
+      if (modelEvent.traceback) {
+        fields.push(["traceback", modelEvent.traceback]);
+      }
       break;
     }
 
@@ -113,7 +121,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         if (typeof toolEvent.result === "string") {
           fields.push(["result", toolEvent.result]);
         } else {
-          fields.push(["result", sanitizeStringify(toolEvent.result)]);
+          for (const text of extractToolResultText(toolEvent.result)) {
+            fields.push(["result", text]);
+          }
         }
       }
       // Tool error
@@ -473,4 +483,60 @@ const extractContentText = (content: string | Array<Content>): string[] => {
     }
   }
   return texts;
+};
+
+const extractToolResultText = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => extractToolResultItemText(item));
+  }
+  return [sanitizeStringify(value)];
+};
+
+const extractToolResultItemText = (item: unknown): string[] => {
+  if (typeof item === "string") {
+    return [item];
+  }
+  if (item == null) {
+    return [];
+  }
+  if (
+    typeof item === "number" ||
+    typeof item === "boolean" ||
+    typeof item === "bigint"
+  ) {
+    return [item.toString()];
+  }
+  if (typeof item === "symbol") {
+    return [String(item)];
+  }
+  if (typeof item !== "object") {
+    return [];
+  }
+  if (!("type" in item)) {
+    return [sanitizeStringify(item)];
+  }
+
+  switch (item.type) {
+    case "text":
+      return "text" in item && typeof item.text === "string" ? [item.text] : [];
+    case "image":
+      return "image" in item &&
+        typeof item.image === "string" &&
+        !item.image.startsWith("data:")
+        ? [item.image]
+        : [];
+    case "document":
+      return "filename" in item && typeof item.filename === "string"
+        ? [item.filename]
+        : [];
+    case "audio":
+    case "video":
+      return [];
+    case "tool":
+      return "content" in item && Array.isArray(item.content)
+        ? item.content.flatMap((inner) => extractToolResultItemText(inner))
+        : [sanitizeStringify(item)];
+    default:
+      return [sanitizeStringify(item)];
+  }
 };

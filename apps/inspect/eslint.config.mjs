@@ -1,6 +1,7 @@
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { barrelOnly } from "@tsmono/eslint-config/barrel-only";
 import reactConfig from "@tsmono/eslint-config/react";
 
 export default tseslint.config(
@@ -18,6 +19,7 @@ export default tseslint.config(
     ],
   },
   ...reactConfig,
+  ...barrelOnly(["app_config", "log_data"]),
   {
     languageOptions: {
       globals: {
@@ -35,21 +37,12 @@ export default tseslint.config(
       },
     },
   },
-  // Legacy code overrides — disabled rules that haven't been fixed yet
   {
     files: ["**/*.{ts,tsx}"],
     rules: {
+      // The base rule is replaced by @typescript-eslint/no-unused-vars below
+      // (the canonical typescript-eslint pairing).
       "no-unused-vars": "off",
-      "@typescript-eslint/no-base-to-string": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
-      "@typescript-eslint/no-explicit-any": "off",
-      "@typescript-eslint/no-floating-promises": "off",
-      "@typescript-eslint/no-misused-promises": "off",
-      "@typescript-eslint/no-unsafe-argument": "off",
-      "@typescript-eslint/no-unsafe-assignment": "off",
-      "@typescript-eslint/no-unsafe-call": "off",
-      "@typescript-eslint/no-unsafe-member-access": "off",
-      "@typescript-eslint/no-unsafe-return": "off",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -59,8 +52,6 @@ export default tseslint.config(
           destructuredArrayIgnorePattern: "^_",
         },
       ],
-      "@typescript-eslint/require-await": "off",
-      "react/display-name": "off",
     },
   }
 );

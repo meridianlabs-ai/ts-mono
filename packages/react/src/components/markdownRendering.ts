@@ -5,6 +5,8 @@
 
 import MarkdownIt from "markdown-it";
 
+import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
+
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
@@ -61,6 +63,31 @@ export const getMarkdownInstance = async (
   }
 
   const md = new MarkdownIt({ breaks: true, html: true });
+  md.renderer.rules.image = (tokens, idx) => {
+    const token = tokens[idx];
+    if (!token) {
+      return "";
+    }
+
+    const source = token.attrGet("src") ?? "";
+    const href = parseAbsoluteHttpUrl(source);
+    const dataUri = parseDataUri(source);
+    const visibleSource =
+      href ??
+      (dataUri
+        ? `data:${dataUri.mimeType}${dataUri.base64 ? ";base64" : ""},...`
+        : source);
+    const alt = token.content.trim();
+    const label = alt ? `${alt} (${visibleSource})` : visibleSource;
+    const escapedLabel = md.utils.escapeHtml(label);
+
+    if (!href) {
+      return escapedLabel;
+    }
+
+    return `<a href="${md.utils.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapedLabel}</a>`;
+  };
+
   if (useMath) {
     const mathjaxPlugin = await getMathjaxPlugin();
     md.use(mathjaxPlugin);
@@ -91,9 +118,6 @@ export const getMarkdownInstance = async (
         return origBlock(tokens, idx, options, env, self);
       };
     }
-  }
-  if (renderer === "fragment") {
-    md.disable(["image"]);
   }
   mdInstanceCache[cacheKey] = md;
 

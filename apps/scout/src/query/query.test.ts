@@ -215,7 +215,7 @@ describe("JSON serialization", () => {
 
     // JSON.stringify() should automatically call .toJSON()
     const serialized = JSON.stringify({ filter });
-    const parsed = JSON.parse(serialized);
+    const parsed = JSON.parse(serialized) as { filter: unknown };
 
     expect(parsed.filter).toEqual({
       is_compound: true,

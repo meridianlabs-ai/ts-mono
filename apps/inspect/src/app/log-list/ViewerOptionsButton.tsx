@@ -35,3 +35,5 @@ export const ViewerOptionsButton = forwardRef<
     </div>
   );
 });
+
+ViewerOptionsButton.displayName = "ViewerOptionsButton";

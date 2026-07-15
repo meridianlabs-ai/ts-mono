@@ -164,11 +164,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Api Log Delete */
-        get: operations["api_log_delete_log_delete__log__get"];
+        get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /** Api Log Delete */
+        delete: operations["api_log_delete_log_delete__log__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -283,10 +283,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Api Log Message */
-        get: operations["api_log_message_log_message_get"];
+        get?: never;
         put?: never;
-        post?: never;
+        /** Api Log Message */
+        post: operations["api_log_message_log_message_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -997,6 +997,8 @@ export interface components {
             } | null;
             /** Pending */
             pending?: boolean | null;
+            /** Role */
+            role?: string | null;
             /** Source */
             source?: string | null;
             /** Span Id */
@@ -1029,11 +1031,8 @@ export interface components {
             new_limit: number;
             /** Old Limit */
             old_limit: number;
-            /**
-             * Reason
-             * @enum {string}
-             */
-            reason: "slow_start" | "steady_state_up" | "rate_limit";
+            /** Reason */
+            reason: ("slow_start" | "steady_state_up" | "rate_limit") | "manual";
             /** Timestamp */
             timestamp: number;
         };
@@ -1400,6 +1399,8 @@ export interface components {
             time_limit?: number | null;
             /** Token Limit */
             token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
             /** Turn Limit */
             turn_limit?: number | null;
             /** Working Limit */
@@ -1656,8 +1657,16 @@ export interface components {
             target: string | string[];
             /** Timelines */
             timelines?: components["schemas"]["Timeline"][] | null;
+            /** Token Limit */
+            token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
+            /** Token Limit Usage */
+            token_limit_usage?: number | null;
             /** Total Time */
             total_time?: number | null;
+            /** Turn Count */
+            turn_count?: number | null;
             /** Uuid */
             uuid?: string | null;
             /** Working Time */
@@ -1760,8 +1769,16 @@ export interface components {
             started_at?: string | null;
             /** Target */
             target: string | string[];
+            /** Token Limit */
+            token_limit?: number | null;
+            /** Token Limit Type */
+            token_limit_type?: string | null;
+            /** Token Limit Usage */
+            token_limit_usage?: number | null;
             /** Total Time */
             total_time?: number | null;
+            /** Turn Count */
+            turn_count?: number | null;
             /** Uuid */
             uuid?: string | null;
             /** Working Time */
@@ -2041,6 +2058,8 @@ export interface components {
             reasoning_effort?: ("none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Reasoning History */
             reasoning_history?: ("none" | "all" | "last" | "auto") | null;
+            /** Reasoning Mode */
+            reasoning_mode?: ("standard" | "pro") | null;
             /** Reasoning Summary */
             reasoning_summary?: ("none" | "concise" | "detailed" | "auto") | null;
             /** Reasoning Tokens */
@@ -2415,6 +2434,8 @@ export interface components {
             files: components["schemas"]["LogHandle"][];
             /** Log Dir */
             log_dir: string;
+            /** Log Dir Uri */
+            log_dir_uri?: string | null;
         };
         /**
          * LogUpdate
@@ -4167,7 +4188,7 @@ export interface operations {
             };
         };
     };
-    api_log_delete_log_delete__log__get: {
+    api_log_delete_log_delete__log__delete: {
         parameters: {
             query?: never;
             header?: never;
@@ -4325,7 +4346,7 @@ export interface operations {
             };
         };
     };
-    api_log_message_log_message_get: {
+    api_log_message_log_message_post: {
         parameters: {
             query: {
                 log_file: string;

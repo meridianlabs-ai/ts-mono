@@ -19,10 +19,7 @@ import type {
  * (used by inspect for displaying message timestamps).
  */
 export type Message = (
-  | ChatMessageAssistant
-  | ChatMessageSystem
-  | ChatMessageUser
-  | ChatMessageTool
+  ChatMessageAssistant | ChatMessageSystem | ChatMessageUser | ChatMessageTool
 ) & {
   timestamp?: string | null;
 };

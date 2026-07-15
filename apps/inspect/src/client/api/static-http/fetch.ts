@@ -63,21 +63,29 @@ export const fetchLogFile = async (
     const log = await asyncJsonParse<EvalLog>(text);
     if (log.version === 1) {
       if (log.results) {
+        // v1 logs stored a single `results.scorer` object instead of a
+        // `scores` array, and samples carried a single `score` field; both
+        // reshapes touch fields that don't exist on the current EvalLog type,
+        // so this migration block works against `any`.
+        /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
         const untypedLog = log as any;
         log.results.scores = [];
         untypedLog.results.scorer.scorer = untypedLog.results.scorer.name;
         log.results.scores.push(untypedLog.results.scorer);
         delete untypedLog.results.scorer;
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         log.results.scores[0].metrics = untypedLog.results.metrics;
         delete untypedLog.results.metrics;
 
         // migrate samples
+        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const scorerName = log.results.scores[0].name;
         log.samples?.forEach((sample) => {
           const untypedSample = sample as any;
           sample.scores = { [scorerName]: untypedSample.score };
           delete untypedSample.score;
         });
+        /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
       }
     }
     return {

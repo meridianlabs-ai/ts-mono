@@ -21,8 +21,7 @@ export function useVirtualListState(
   );
 
   const getRestoreSnapshot = useCallback(():
-    | VirtualListStateSnapshot
-    | undefined => {
+    VirtualListStateSnapshot | undefined => {
     if (!stored) return undefined;
     if (stored.version !== CURRENT_VERSION) return undefined;
     return stored;

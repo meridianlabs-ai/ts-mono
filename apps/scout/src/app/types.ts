@@ -96,27 +96,13 @@ export interface SortColumn {
 }
 
 export type ErrorScope =
-  | "scans"
-  | "scanner"
-  | "dataframe"
-  | "dataframe_input"
-  | "transcripts";
+  "scans" | "scanner" | "dataframe" | "dataframe_input" | "transcripts";
 
 export type ResultGroup =
-  | "source"
-  | "label"
-  | "id"
-  | "epoch"
-  | "model"
-  | "none";
+  "source" | "label" | "id" | "epoch" | "model" | "none";
 
 export type ScanResultValueType =
-  | "boolean"
-  | "number"
-  | "string"
-  | "array"
-  | "object"
-  | "null";
+  "boolean" | "number" | "string" | "array" | "object" | "null";
 
 // Type guard functions for value types
 export function isStringValue(

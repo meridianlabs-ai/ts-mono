@@ -1,7 +1,7 @@
 export interface MetricSummary {
   name: string;
   group?: string | null;
-  params?: {};
+  params?: Record<string, unknown>;
   value: number;
 }
 

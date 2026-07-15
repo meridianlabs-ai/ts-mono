@@ -9,7 +9,7 @@ export const errorType = (message?: string): string => {
   }
 
   if (message.includes("(")) {
-    return message.split("(")[0];
+    return message.split("(")[0] ?? "Error";
   }
   return "Error";
 };

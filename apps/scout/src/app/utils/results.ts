@@ -8,6 +8,8 @@ import {
   SortColumn,
 } from "../types";
 
+import { valueAsString } from "./format";
+
 export interface IdentifierInfo {
   taskSet?: string;
   id: string | number;
@@ -110,10 +112,13 @@ export const stringifyValue = (s: ScanResultSummary): string => {
   if (isArrayValue(s)) return s.value.map(String).join(" ");
   if (isObjectValue(s)) {
     return Object.entries(s.value)
-      .map(([k, v]) => `${k} ${v !== null && v !== undefined ? String(v) : ""}`)
+      .map(
+        ([k, v]) =>
+          `${k} ${v !== null && v !== undefined ? valueAsString(v) : ""}`
+      )
       .join(" ");
   }
-  return String(s.value);
+  return valueAsString(s.value);
 };
 
 // Type-aware comparison for ScanResultSummary values.
@@ -157,7 +162,7 @@ export const sortValue = (
   }
 
   // Different types: fall back to string comparison
-  return String(a.value).localeCompare(String(b.value));
+  return valueAsString(a.value).localeCompare(valueAsString(b.value));
 };
 
 // Sorts scan results by multiple columns and directions.

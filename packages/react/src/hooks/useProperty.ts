@@ -28,8 +28,7 @@ export function useProperty<T>(
   const defaultValue = options?.defaultValue;
 
   const propertyValue = useValue(id, propertyName, defaultValue) as
-    | T
-    | undefined;
+    T | undefined;
 
   const setPropertyValueFn = useSetValue();
   const removePropertyValueFn = useRemoveValue();

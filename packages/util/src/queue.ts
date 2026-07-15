@@ -44,7 +44,8 @@ export class AsyncQueue {
       const task = this.queue.shift();
       if (task) {
         this.runningCount++;
-        void task();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        task();
       }
     }
   }

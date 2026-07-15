@@ -9,7 +9,7 @@
  */
 
 // Main React App Component
-export { App, type AppProps } from "./app/App";
+export { App } from "./app/App";
 
 // Client APIs
 export { clientApi } from "./client/api/client-api";

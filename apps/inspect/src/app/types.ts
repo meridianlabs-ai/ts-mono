@@ -1,4 +1,4 @@
-import { GridState } from "ag-grid-community";
+import { SortingState } from "@tanstack/react-table";
 
 import {
   ApprovalEvent,
@@ -9,13 +9,10 @@ import {
   ContentImage,
   ContentText,
   ErrorEvent,
-  EvalSample,
-  EvalSet,
   EventData,
   InfoEvent,
   InputEvent,
   LoggerEvent,
-  LogHandle,
   ModelEvent,
   SampleInitEvent,
   SampleLimitEvent,
@@ -27,20 +24,14 @@ import {
   SubtaskEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
 
-import {
-  EvalHeader,
-  LogDetails,
-  LogPreview,
-  PendingSamples,
-  SampleSummary,
-} from "../client/api/types";
+import { SampleSummary } from "../client/api/types";
 
 import type { SamplesViewState } from "./samples/list/samplesView";
 
 export interface AppState {
-  status: AppStatus;
   nativeFind?: boolean;
   showFind: boolean;
   tabs: {
@@ -78,20 +69,8 @@ export interface DisplayedSample {
 }
 
 export interface LogsState {
-  logDir?: string;
-  absLogDir?: string;
-  logs: LogHandle[];
-  logPreviews: Record<string, LogPreview>;
-  logDetails: Record<string, LogDetails>;
-  evalSet?: EvalSet;
   selectedLogFile?: string;
   listing: LogsListing;
-  pendingRequests: Map<string, Promise<EvalHeader | null>>;
-  dbStats: {
-    logCount: number;
-    previewCount: number;
-    detailsCount: number;
-  };
   samplesListState: {
     // samplesPanel is cross-log by nature (lists samples from many logs in
     // a directory); it keeps the single-bucket shape. The single-log view
@@ -100,8 +79,7 @@ export interface LogsState {
     byScope: {
       samplesPanel: {
         columnVisibility: Record<string, boolean>;
-        gridState?: GridState;
-      };
+      } & SamplesPanelGridState;
     };
     /** Per-log TaskSamplesView descriptors keyed by log file path. Missing
      *  entries fall through to the eval-author default and then the
@@ -110,18 +88,40 @@ export interface LogsState {
     displayedSamples?: Array<DisplayedSample>;
     previousSamplesPath?: string;
   };
-  flow?: string;
-  flowDir?: string;
+}
+
+/** Persisted cross-log samples-panel grid state (TanStack). All fields are
+ *  optional so a fresh (or pre-refactor rehydrated) scope entry means "no
+ *  customization yet" and the panel's defaults apply. */
+export interface SamplesPanelGridState {
+  sorting?: SortingState;
+  /** Active per-column filters, keyed by column id. */
+  columnFilters?: Record<string, ColumnFilter>;
+  /** User-resized column widths, keyed by column id. */
+  columnSizing?: Record<string, number>;
+}
+
+/** Per-scope log-list grid state (TanStack). */
+export interface LogListGridState {
+  sorting: SortingState;
+  /** Active per-column filters, keyed by column id. */
+  columnFilters?: Record<string, ColumnFilter>;
+  /** User-resized column widths, keyed by column id. */
+  columnSizing?: Record<string, number>;
+  /** User-reordered column ids (drag-to-reorder). Columns missing from the
+   *  list render after it in definition order. */
+  columnOrder?: string[];
+  /** Id of the last-selected row. Persisted so the highlight (and the
+   *  arrow-key anchor) survives navigating into a log and back. */
+  selectedRowId?: string;
 }
 
 export interface LogsListing {
-  filteredCount?: number;
-  watchedLogs?: LogHandle[];
   selectedRowIndex?: number | null;
-  // AG-Grid state stored independently per scope (Tasks vs Folders, each
-  // folder, etc.). Switching between scopes loads that scope's own state;
-  // switching back restores it. Keyed by `${mode}::${currentDir}`.
-  gridStateByScope: Record<string, GridState>;
+  // Grid state stored independently per scope (Tasks vs Folders, each folder,
+  // etc.). Switching between scopes loads that scope's own state; switching
+  // back restores it. Keyed by `${mode}::${currentDir}`.
+  gridStateByScope: Record<string, LogListGridState>;
   columnVisibility: Record<string, boolean>;
 }
 
@@ -135,8 +135,6 @@ export interface LogState {
   loadedLog?: string;
 
   selectedSampleHandle?: SampleHandle;
-  selectedLogDetails?: LogDetails;
-  pendingSampleSummaries?: PendingSamples;
 
   filter: string;
   filterError?: FilterError;
@@ -149,29 +147,13 @@ export interface LogState {
 
 export type SampleStatus = "ok" | "loading" | "streaming" | "error";
 
-export interface Progress {
-  complete: number;
-  total: number;
-}
-
 export interface EventFilter {
   filteredTypes: string[];
 }
 
 export interface SampleState {
-  sample_identifier: SampleHandle | undefined;
-  sampleInState: boolean;
-  selectedSampleObject?: EvalSample;
-  sampleStatus: SampleStatus;
-  sampleError: Error | undefined;
-  sampleNeedsReload: number;
-  eventsCleared: boolean;
-  downloadProgress?: Progress;
-
   visiblePopover?: string;
 
-  // Events and attachments
-  runningEvents: Event[];
   collapsedEvents: Record<string, Record<string, boolean>> | null;
   collapsedIdBuckets: Record<string, Record<string, boolean>>;
   collapsedMode: "collapsed" | "expanded" | null;
@@ -202,20 +184,6 @@ export type Event =
   | InfoEvent
   | StepEvent
   | SubtaskEvent;
-
-export interface AppStatus {
-  // Waiting while loading data, show large form of progress
-  loading: number;
-
-  // Background syncing data, show small form of activity
-  syncing: boolean;
-  error?: Error;
-}
-
-export interface CurrentLog {
-  name: string;
-  contents: LogDetails;
-}
 
 export interface Logs {
   log_dir: string;

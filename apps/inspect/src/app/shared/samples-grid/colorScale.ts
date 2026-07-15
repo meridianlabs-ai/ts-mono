@@ -19,11 +19,10 @@
  * `colorForValue` API stays the same.
  */
 
+import { valueAsString } from "../../../utils/format";
+
 export type ScoreColorPalette =
-  | "good-high"
-  | "good-low"
-  | "neutral"
-  | "diverging";
+  "good-high" | "good-low" | "neutral" | "diverging";
 
 export type ScoreColorRole = "good" | "bad" | "warn" | "info" | "muted";
 
@@ -39,9 +38,7 @@ export interface ScoreColorScaleObject {
 
 /** Wire shape — one entry of the `score_color_scales` map. */
 export type WireScoreColorScale =
-  | ScoreColorPalette
-  | ScoreColorScaleObject
-  | Record<string, ScoreColorRole>;
+  ScoreColorPalette | ScoreColorScaleObject | Record<string, ScoreColorRole>;
 
 /** Internal resolved form. The `kind` tag tells the renderer how to
  *  pick a colour for a given cell value. */
@@ -197,7 +194,7 @@ export function colorForValue(
   // Categorical: stringify scalar values so booleans/numbers can match
   // string-keyed map entries (e.g. `{"true": "good"}`).
   if (value === null || value === undefined) return undefined;
-  const key = typeof value === "string" ? value : String(value);
+  const key = typeof value === "string" ? value : valueAsString(value);
   return scale.colors[key];
 }
 

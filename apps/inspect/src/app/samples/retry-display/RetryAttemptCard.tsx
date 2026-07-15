@@ -11,9 +11,9 @@ import {
   ExpandablePanel,
   SegmentedControl,
 } from "@tsmono/react/components";
-import { formatTime } from "@tsmono/util";
+import { formatDateTime } from "@tsmono/util";
 
-import { attemptDuration, deriveErrorType } from "./retryAttempt";
+import { attemptStartTime, deriveErrorType } from "./retryAttempt";
 import styles from "./RetryAttemptCard.module.css";
 
 export type RetryView = "error" | "events";
@@ -41,7 +41,7 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
   scrollRef,
 }) => {
   const errorType = useMemo(() => deriveErrorType(retry), [retry]);
-  const durationSec = useMemo(() => attemptDuration(retry), [retry]);
+  const startTime = useMemo(() => attemptStartTime(retry), [retry]);
   const hasEvents = !!retry.events?.length;
   const [view, setView] = useState<RetryView>("error");
 
@@ -72,54 +72,57 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
         {retry.message && (
           <span className={styles.message}>{retry.message}</span>
         )}
-        <div className={styles.headerRight}>
-          {isOpen && hasEvents && (
-            // Stop propagation so toggling the view doesn't collapse the card.
-            <div
-              className={styles.headerToggle}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <SegmentedControl
-                segments={kViewSegments}
-                selectedId={view}
-                onSegmentChange={(id) => setView(id as RetryView)}
-              />
-            </div>
+        {startTime && (
+          <span className={styles.timestamp}>{formatDateTime(startTime)}</span>
+        )}
+        <i
+          className={clsx(
+            "bi",
+            isOpen ? "bi-chevron-down" : "bi-chevron-right",
+            styles.chevron
           )}
-          {durationSec != null && (
-            <span className={styles.duration}>{formatTime(durationSec)}</span>
-          )}
-          <i
-            className={clsx(
-              "bi",
-              isOpen ? "bi-chevron-down" : "bi-chevron-right",
-              styles.chevron
-            )}
-            aria-hidden="true"
-          />
-        </div>
+          aria-hidden="true"
+        />
       </div>
 
       {isOpen && (
         <div className={styles.body}>
-          {view === "error" || !hasEvents ? (
-            <ExpandablePanel
-              id={`retry-error-${listId}`}
-              collapse={true}
-              className={styles.errorPanel}
-            >
-              <ANSIDisplay
-                output={retry.traceback_ansi}
-                className={styles.ansi}
-              />
-            </ExpandablePanel>
-          ) : (
-            <RetryEventsView
-              retry={retry}
-              listId={listId}
-              scrollRef={scrollRef}
-            />
+          {hasEvents && (
+            // Error/Events control lives on a hairline divider band at the top
+            // of the body (not the header) so it stays put under a long
+            // traceback instead of scrolling away.
+            <div className={styles.dividerBand}>
+              <span className={styles.hairline} aria-hidden="true" />
+              <div className={styles.toggle}>
+                <SegmentedControl
+                  segments={kViewSegments}
+                  selectedId={view}
+                  onSegmentChange={(id) => setView(id as RetryView)}
+                />
+              </div>
+              <span className={styles.hairline} aria-hidden="true" />
+            </div>
           )}
+          <div className={styles.content}>
+            {view === "error" || !hasEvents ? (
+              <ExpandablePanel
+                id={`retry-error-${listId}`}
+                collapse={true}
+                className={styles.errorPanel}
+              >
+                <ANSIDisplay
+                  output={retry.traceback_ansi}
+                  className={styles.ansi}
+                />
+              </ExpandablePanel>
+            ) : (
+              <RetryEventsView
+                retry={retry}
+                listId={listId}
+                scrollRef={scrollRef}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>

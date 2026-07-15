@@ -3,9 +3,7 @@ import { FC } from "react";
 
 import styles from "./RunningNoSamples.module.css";
 
-interface RunningNoSamplesProps {}
-
-export const RunningNoSamples: FC<RunningNoSamplesProps> = () => {
+export const RunningNoSamples: FC = () => {
   return (
     <div className={clsx(styles.panel)}>
       <div className={clsx(styles.container, "text-size-smaller")}>

@@ -13,9 +13,9 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -24,7 +24,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -42,9 +42,9 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -53,7 +53,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -68,9 +68,9 @@ jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -79,7 +79,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -94,9 +94,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -105,7 +105,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -120,9 +120,9 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -131,7 +131,7 @@ jobs:
           cache: pnpm
 
       - name: Cache Turbo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
@@ -143,13 +143,60 @@ jobs:
       - name: Run tests
         run: pnpm test
 
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      e2e-apps: ${{ steps.apps.outputs.apps }}
+    steps:
+      # An app's e2e tests are implicated by any change outside the *other*
+      # app (its own code, shared packages, tooling, lockfile, workflows),
+      # excluding docs.
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          predicate-quantifier: every
+          filters: |
+            scout:
+              - '!apps/inspect/**'
+              - '!docs/**'
+              - '!**/*.md'
+            inspect:
+              - '!apps/scout/**'
+              - '!docs/**'
+              - '!**/*.md'
+
+      - name: Compute affected apps
+        id: apps
+        env:
+          EVENT: ${{ github.event_name }}
+          SCOUT: ${{ steps.filter.outputs.scout }}
+          INSPECT: ${{ steps.filter.outputs.inspect }}
+        run: |
+          apps=()
+          if [[ "$EVENT" != "pull_request" ]]; then
+            apps=(scout inspect)
+          else
+            if [[ "$SCOUT" == "true" ]]; then apps+=(scout); fi
+            if [[ "$INSPECT" == "true" ]]; then apps+=(inspect); fi
+          fi
+          echo "apps=$(jq -nc '$ARGS.positional' --args -- "${apps[@]}")" >> "$GITHUB_OUTPUT"
+
   e2e:
+    needs: changes
+    if: needs.changes.outputs.e2e-apps != '[]'
     continue-on-error: true  # TODO: remove once e2e tests prove stable
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJSON(needs.changes.outputs.e2e-apps) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
       - name: Install Node.js
         uses: actions/setup-node@v6
@@ -162,30 +209,49 @@ jobs:
 
       - name: Get Playwright version
         id: pw-version
-        run: echo "version=$(pnpm --filter scout exec playwright --version)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(pnpm --filter ./apps/${{ matrix.app }} exec playwright --version)" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         id: pw-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
 
       - name: Install Playwright browsers
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter scout exec playwright install --with-deps chromium
+        run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install --with-deps chromium
 
       - name: Install Playwright system deps (on cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter scout exec playwright install-deps chromium
+        run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install-deps chromium
 
       - name: Run e2e tests
-        run: pnpm --filter scout e2e
+        run: pnpm --filter ./apps/${{ matrix.app }} e2e
 
       - name: Upload test results
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
-          path: apps/scout/playwright-report/
+          name: playwright-report-${{ matrix.app }}
+          path: apps/${{ matrix.app }}/playwright-report/
           retention-days: 7
+
+  # Fan-in for branch protection: the required check is named "e2e", but the
+  # matrix reports per-app checks whose names (and presence) vary with the
+  # paths filter. This job always runs and reports a single stable status.
+  e2e-status:
+    name: e2e
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check e2e matrix result
+        env:
+          RESULT: ${{ needs.e2e.result }}
+        run: |
+          echo "e2e matrix result: $RESULT"
+          if [[ "$RESULT" == "success" || "$RESULT" == "skipped" ]]; then
+            exit 0
+          fi
+          exit 1

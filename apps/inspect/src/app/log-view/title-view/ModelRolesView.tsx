@@ -23,7 +23,7 @@ export const ModelRolesView: FC<ModelRolesViewProps> = ({ roles }) => {
   const modelEls = Object.keys(modelRoles).map((key) => {
     const role = key;
     const roleData = modelRoles[role];
-    const model = roleData.model;
+    const model = roleData?.model;
     return (
       <div
         className={clsx(

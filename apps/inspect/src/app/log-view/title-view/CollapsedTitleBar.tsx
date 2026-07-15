@@ -19,7 +19,7 @@ import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./CollapsedTitleBar.module.css";
 import { displayScorersFromRunningMetrics } from "./ResultsPanel";
-import { ScoreAgGrid } from "./ScoreAgGrid";
+import { ScoreGrid } from "./ScoreGrid";
 
 const kInlineMetricLimit = 2;
 
@@ -159,7 +159,7 @@ const StatusBadge: FC<StatusBadgeProps> = ({ status, sampleCount }) => {
 
 const statusDisplay = (
   status?: EvalLogStatus
-): { icon: string; label: string } | undefined => {
+): { icon: string | undefined; label: string } | undefined => {
   switch (status) {
     case "started":
       return { icon: ApplicationIcons.running, label: "Running" };
@@ -207,7 +207,7 @@ const MetricsLink: FC<MetricsLinkProps> = ({ scorers }) => {
           </button>
         }
       >
-        <ScoreAgGrid scoreGroups={grouped} showReducer={showReducer} />
+        <ScoreGrid scoreGroups={grouped} showReducer={showReducer} />
       </Modal>
     </>
   );

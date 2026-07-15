@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
+import { useLogDir } from "../../app_config";
 import {
   kSampleMessagesTabId,
   kSampleTabIds,
@@ -38,7 +39,9 @@ export const useDecodedParams = <
   const decodedParams = useMemo(() => {
     const decoded = {} as T;
     Object.entries(params).forEach(([key, value]) => {
-      (decoded as any)[key] = decodeUrlParam(value as string);
+      (decoded as Record<string, string | undefined>)[key] = decodeUrlParam(
+        value as string
+      );
     });
     return decoded;
   }, [params]);
@@ -102,7 +105,7 @@ export const useLogRouteParams = () => {
 
     // Extract the splat path (everything after /logs/ or /tasks/)
     const logsMatch = rawPath.match(/^\/(logs|tasks)\/(.*)$/);
-    const splatPath = logsMatch ? logsMatch[2] : "";
+    const splatPath = logsMatch?.[2] ?? "";
 
     // Check for sample UUID route pattern
     const sampleUuidMatch = splatPath.match(
@@ -203,6 +206,7 @@ export const useLogRouteParams = () => {
 
     for (let i = pathSegments.length - 1; i >= 0; i--) {
       const segment = pathSegments[i];
+      if (segment === undefined) continue;
       const decodedSegment = decodeUrlParam(segment) || segment;
 
       if (validTabIds.has(decodedSegment)) {
@@ -261,7 +265,7 @@ export const useSamplesRouteParams = () => {
 
     // Extract the splat path (everything after /samples/)
     const samplesMatch = rawPath.match(/^\/samples\/(.*)$/);
-    const splatPath = samplesMatch ? samplesMatch[1] : "";
+    const splatPath = samplesMatch?.[1] ?? "";
 
     const sampleMatch = splatPath.match(
       /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
@@ -326,21 +330,38 @@ export type SampleUrlBuilder = (
 
 export const useSampleUrlBuilder = () => {
   const location = useLocation();
-  const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
-    ? "/tasks"
-    : "/logs";
-  return (
-    logPath: string,
-    sampleId?: string | number,
-    sampleEpoch?: string | number,
-    sampleTabId?: string
-  ) => {
-    if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
-      return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
-    } else {
-      return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
-    }
-  };
+  // Memoize on pathname so the returned builder keeps a stable identity across
+  // renders (e.g. streaming polls). Downstream memos (SampleDisplay's
+  // `messageOptions`, TranscriptPanel's event-url chain) key on this builder,
+  // so an unstable identity would defeat their memoization.
+  return useCallback(
+    (
+      logPath: string,
+      sampleId?: string | number,
+      sampleEpoch?: string | number,
+      sampleTabId?: string
+    ) => {
+      const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
+        ? "/tasks"
+        : "/logs";
+      if (
+        sampleId &&
+        sampleEpoch &&
+        location.pathname.startsWith("/samples/")
+      ) {
+        return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
+      } else {
+        return logSamplesUrl(
+          logPath,
+          sampleId,
+          sampleEpoch,
+          sampleTabId,
+          prefix
+        );
+      }
+    },
+    [location.pathname]
+  );
 };
 
 export const logSamplesUrl = (
@@ -427,7 +448,7 @@ export const useSampleMessageUrl = (
   const builder = useSampleUrlBuilder();
 
   const log_file = useStore((state) => state.logs.selectedLogFile);
-  const log_dir = useStore((state) => state.logs.logDir);
+  const log_dir = useLogDir();
 
   let targetLogPath = urlLogPath;
   if (!targetLogPath && log_file) {
@@ -469,7 +490,7 @@ export const useSampleEventUrl = (
   const builder = useSampleUrlBuilder();
 
   const log_file = useStore((state) => state.logs.selectedLogFile);
-  const log_dir = useStore((state) => state.logs.logDir);
+  const log_dir = useLogDir();
 
   let targetLogPath = urlLogPath;
   if (!targetLogPath && log_file) {
@@ -516,6 +537,46 @@ export const sampleMessageUrl = (
   return `${baseUrl}?message=${messageId}`;
 };
 
+/**
+ * Returns a builder for *shareable* message links: the relative hash route
+ * from `sampleMessageUrl` wrapped with the host page's origin/path via
+ * `toFullUrl`. Copy-to-clipboard consumers (ChatMessage's copy button) must
+ * use this rather than the bare route, which only works for in-app router
+ * navigation.
+ */
+export const useFullSampleMessageUrlBuilder = () => {
+  const builder = useSampleUrlBuilder();
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+
+  const log_file = useStore((state) => state.logs.selectedLogFile);
+  const log_dir = useLogDir();
+
+  let targetLogPath = urlLogPath;
+  if (!targetLogPath && log_file) {
+    targetLogPath = makeLogsPath(log_file, log_dir);
+  }
+
+  return useCallback(
+    (messageId: string) =>
+      toFullUrlMaybe(
+        targetLogPath
+          ? sampleMessageUrl(
+              builder,
+              messageId,
+              targetLogPath,
+              urlSampleId,
+              urlEpoch
+            )
+          : undefined
+      ),
+    [builder, targetLogPath, urlSampleId, urlEpoch]
+  );
+};
+
 export const tasksUrl = (log_file: string, log_dir?: string) => {
   const path = makeLogsPath(log_file, log_dir);
   const decodedLogSegment = decodeUrlParam(path) || path;
@@ -534,7 +595,7 @@ export const useTasksRouteParams = () => {
 
     // Extract the splat path (everything after /tasks/)
     const tasksMatch = rawPath.match(/^\/tasks\/(.*)$/);
-    const splatPath = tasksMatch ? tasksMatch[1] : "";
+    const splatPath = tasksMatch?.[1] ?? "";
 
     // Check for sample detail route: /tasks/path/to/file.eval/sample/id/epoch/tabId
     const sampleMatch = splatPath.match(
@@ -596,14 +657,16 @@ export const logsUrlRaw = (
   }
 };
 
-export const supportsLinking = () => {
-  return (
-    location.hostname !== "localhost" &&
-    location.hostname !== "127.0.0.1" &&
-    location.protocol !== "vscode-webview:"
-  );
-};
-
 export const toFullUrl = (path: string) => {
   return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
+};
+
+export const toFullUrlMaybe = (route: string | undefined) =>
+  route ? toFullUrl(route) : undefined;
+
+// Inverse of `toFullUrl`: recover the hash route from an absolute URL. Safe to
+// split on the first `#` — origin/pathname/search never contain a raw `#`.
+export const routeFromFullUrl = (url: string) => {
+  const hashIndex = url.indexOf("#");
+  return hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
 };
