@@ -10,7 +10,6 @@ import type { ToolAnnotation } from "../chat/tools/AnnotatedToolOutput";
 import {
   BROWSER_TOOL_FUNCTIONS,
   buildSelfAnnotation,
-  isBrowserScreenshot,
   isVisualBrowserAction,
 } from "../chat/tools/browserActionUtils";
 
@@ -42,14 +41,20 @@ export function computeVisualActionContext(
     toolEvent.arguments
   );
 
+  // The "before" state for this action is the most recent screenshot the model
+  // saw. In computer-use every action (click, type, …) returns a post-action
+  // screenshot, so the nearest preceding browser result that contains an image
+  // is the correct before-state — not just an explicit `screenshot` action.
+  // Gating on `screenshot` alone made consecutive actions all reuse the last
+  // standalone screenshot, showing a stale image for every action after it.
   for (let i = index - 1; i >= 0; i--) {
     const candidate = eventNodes[i];
     if (!candidate || candidate.event.event !== "tool") continue;
     const candEvent = candidate.event;
     if (!BROWSER_TOOL_FUNCTIONS.has(candEvent.function)) break;
-    if (isBrowserScreenshot(candEvent.function, candEvent.arguments)) {
-      const inputScreenshot = normalizeScreenshotResult(candEvent.result);
-      return inputScreenshot ? { inputScreenshot, selfAnnotation } : {};
+    const inputScreenshot = normalizeScreenshotResult(candEvent.result);
+    if (inputScreenshot && inputScreenshot.some((c) => c.type === "image")) {
+      return { inputScreenshot, selfAnnotation };
     }
   }
 

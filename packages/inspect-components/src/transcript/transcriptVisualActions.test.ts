@@ -131,6 +131,50 @@ describe("computeVisualActionContext", () => {
     expect(computeVisualActionContext([infoNode("m1")], 0)).toEqual({});
   });
 
+  it("uses the immediately preceding action's screenshot, not an older standalone screenshot", () => {
+    const nodes = [
+      toolNode("s1", "computer", visualActionArgs("screenshot"), [IMAGE]),
+      toolNode(
+        "c1",
+        "computer",
+        visualActionArgs("left_click", { coordinate: [10, 20] }),
+        [{ ...IMAGE, image: "data:image/png;base64,after-click-1" }]
+      ),
+      toolNode(
+        "c2",
+        "computer",
+        visualActionArgs("triple_click", { coordinate: [30, 40] }),
+        [{ ...IMAGE, image: "data:image/png;base64,after-click-2" }]
+      ),
+    ];
+    // triple_click's before-state is left_click's result, not the initial screenshot
+    const ctx = computeVisualActionContext(nodes, 2);
+    expect(ctx.inputScreenshot).toEqual([
+      { ...IMAGE, image: "data:image/png;base64,after-click-1" },
+    ]);
+    expect(ctx.selfAnnotation).toEqual({
+      action: "triple_click",
+      coordinate: [30, 40],
+      text: undefined,
+      scrollDirection: undefined,
+    });
+  });
+
+  it("skips a preceding browser result that has no image", () => {
+    const nodes = [
+      toolNode("s1", "browser", visualActionArgs("screenshot"), [IMAGE]),
+      toolNode("t1", "browser", visualActionArgs("get_text"), [TEXT]),
+      toolNode(
+        "c1",
+        "browser",
+        visualActionArgs("left_click", { coordinate: [5, 6] }),
+        ""
+      ),
+    ];
+    const ctx = computeVisualActionContext(nodes, 2);
+    expect(ctx.inputScreenshot).toEqual([IMAGE]);
+  });
+
   it("pairs across many intervening non-tool events (no lookback cap)", () => {
     const nodes: EventNode[] = [
       toolNode("s1", "browser", visualActionArgs("screenshot"), [IMAGE]),
