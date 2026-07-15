@@ -19,12 +19,16 @@ export interface ToolAnnotation {
 
 export const BROWSER_TOOL_FUNCTIONS = new Set(["browser", "computer"]);
 
-export const VISUAL_BROWSER_ACTIONS = new Set([
+export const CLICK_ACTIONS = new Set([
   "left_click",
   "right_click",
   "middle_click",
   "double_click",
   "triple_click",
+]);
+
+export const VISUAL_BROWSER_ACTIONS = new Set([
+  ...CLICK_ACTIONS,
   "scroll",
   "type",
   "key",

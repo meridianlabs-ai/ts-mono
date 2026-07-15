@@ -6,7 +6,11 @@ import { MessageContent } from "../MessageContent";
 import { MessagesContext } from "../MessageContents";
 
 import styles from "./AnnotatedScreenshot.module.css";
-import type { ScreenshotContent, ToolAnnotation } from "./browserActionUtils";
+import {
+  CLICK_ACTIONS,
+  type ScreenshotContent,
+  type ToolAnnotation,
+} from "./browserActionUtils";
 
 interface AnnotatedScreenshotOutputProps {
   contents: ScreenshotContent[];
@@ -87,14 +91,6 @@ export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = ({
     </div>
   );
 };
-
-const CLICK_ACTIONS = new Set([
-  "left_click",
-  "right_click",
-  "middle_click",
-  "double_click",
-  "triple_click",
-]);
 
 export function renderSvgAnnotation(annotation: ToolAnnotation): ReactNode {
   const { action, coordinate } = annotation;
