@@ -48,32 +48,18 @@ function asCoordinate(value: unknown): [number, number] | undefined {
   return undefined;
 }
 
-export function isVisualBrowserAction(
-  functionName: string,
-  args: Record<string, unknown>
-): boolean {
-  if (!BROWSER_TOOL_FUNCTIONS.has(functionName)) return false;
-  const action = asString(args.action);
-  return action !== undefined && VISUAL_BROWSER_ACTIONS.has(action);
-}
-
-export function isBrowserScreenshot(
-  functionName: string,
-  args: Record<string, unknown>
-): boolean {
-  return (
-    BROWSER_TOOL_FUNCTIONS.has(functionName) &&
-    asString(args.action) === "screenshot"
-  );
-}
-
+/**
+ * Narrows a tool call's arguments into a renderable annotation, or undefined
+ * when the call is not a visual browser action (or its args are malformed).
+ */
 export function buildSelfAnnotation(
   functionName: string,
   args: Record<string, unknown>
 ): ToolAnnotation | undefined {
-  if (!isVisualBrowserAction(functionName, args)) return undefined;
+  if (!BROWSER_TOOL_FUNCTIONS.has(functionName)) return undefined;
   const action = asString(args.action);
-  if (action === undefined) return undefined;
+  if (action === undefined || !VISUAL_BROWSER_ACTIONS.has(action))
+    return undefined;
   return {
     action,
     coordinate: asCoordinate(args.coordinate),

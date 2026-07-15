@@ -3,7 +3,6 @@ import type { ToolEvent } from "@tsmono/inspect-common/types";
 import {
   BROWSER_TOOL_FUNCTIONS,
   buildSelfAnnotation,
-  isVisualBrowserAction,
   type ScreenshotContent,
   type ToolAnnotation,
 } from "../chat/tools/browserActionUtils";
@@ -23,13 +22,11 @@ export function computeVisualActionContext(
   if (!node || node.event.event !== "tool") return {};
 
   const toolEvent = node.event;
-  if (!isVisualBrowserAction(toolEvent.function, toolEvent.arguments))
-    return {};
-
   const selfAnnotation = buildSelfAnnotation(
     toolEvent.function,
     toolEvent.arguments
   );
+  if (!selfAnnotation) return {};
 
   // The "before" state for this action is the most recent screenshot the model
   // saw. In computer-use every action (click, type, …) returns a post-action

@@ -1,43 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildSelfAnnotation,
-  isBrowserScreenshot,
-  isVisualBrowserAction,
-} from "./browserActionUtils";
-
-describe("isVisualBrowserAction", () => {
-  it("is true for browser/computer visual actions", () => {
-    expect(isVisualBrowserAction("browser", { action: "left_click" })).toBe(
-      true
-    );
-    expect(isVisualBrowserAction("computer", { action: "scroll" })).toBe(true);
-    expect(isVisualBrowserAction("computer", { action: "type" })).toBe(true);
-  });
-
-  it("is false for screenshots, non-browser tools, and missing actions", () => {
-    expect(isVisualBrowserAction("browser", { action: "screenshot" })).toBe(
-      false
-    );
-    expect(isVisualBrowserAction("bash", { action: "left_click" })).toBe(false);
-    expect(isVisualBrowserAction("browser", {})).toBe(false);
-  });
-});
-
-describe("isBrowserScreenshot", () => {
-  it("is true only for a browser/computer screenshot action", () => {
-    expect(isBrowserScreenshot("browser", { action: "screenshot" })).toBe(true);
-    expect(isBrowserScreenshot("computer", { action: "screenshot" })).toBe(
-      true
-    );
-    expect(isBrowserScreenshot("browser", { action: "left_click" })).toBe(
-      false
-    );
-    expect(isBrowserScreenshot("bash", { action: "screenshot" })).toBe(false);
-  });
-});
+import { buildSelfAnnotation } from "./browserActionUtils";
 
 describe("buildSelfAnnotation", () => {
+  it("recognizes browser/computer visual actions", () => {
+    expect(
+      buildSelfAnnotation("browser", { action: "left_click" })
+    ).toBeDefined();
+    expect(buildSelfAnnotation("computer", { action: "scroll" })).toBeDefined();
+    expect(buildSelfAnnotation("computer", { action: "type" })).toBeDefined();
+  });
+
+  it("returns undefined for missing actions", () => {
+    expect(buildSelfAnnotation("browser", {})).toBeUndefined();
+  });
+
   it("maps click coordinates", () => {
     expect(
       buildSelfAnnotation("browser", {
@@ -87,7 +64,6 @@ describe("buildSelfAnnotation", () => {
 
 describe("argument narrowing (malformed args)", () => {
   it("treats a non-string action as not a visual action", () => {
-    expect(isVisualBrowserAction("browser", { action: 123 })).toBe(false);
     expect(buildSelfAnnotation("browser", { action: 123 })).toBeUndefined();
   });
 
