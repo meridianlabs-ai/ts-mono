@@ -25,60 +25,16 @@ export type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
 const rowForItem = (item: LogListItem): LogListingRow | undefined =>
   item.type === "file" ? item.log : undefined;
 
+// A projection, not a computation: every derived value is read off the row
+// (attached at ingestion by `detailTier`/`deriveLogFields`) so the grid can
+// never disagree with what the store holds.
 const buildLogListRow = (item: LogListItem): LogListRow => {
   const log = rowForItem(item);
   const details = log?.header;
+  const derived = log?.derived;
 
-  // Compute total tokens across all models
-  let totalTokens: number | undefined;
-  if (details?.stats?.model_usage) {
-    totalTokens = 0;
-    for (const usage of Object.values(details.stats.model_usage)) {
-      totalTokens += usage.total_tokens;
-    }
-  }
-
-  // Compute duration in seconds
-  let duration: number | undefined;
-  if (details?.stats?.started_at && details?.stats?.completed_at) {
-    const start = new Date(details.stats.started_at).getTime();
-    const end = new Date(details.stats.completed_at).getTime();
-    if (start && end && end > start) {
-      duration = (end - start) / 1000;
-    }
-  }
-
-  // Format task args. Prefer `task_args_passed` (the args the user
-  // actually supplied at the call site) over `task_args` (which
-  // would also include defaulted values).
   const taskArgsSource =
     details?.eval?.task_args_passed ?? details?.eval?.task_args;
-  let taskArgs: string | undefined;
-  if (taskArgsSource) {
-    const entries = Object.entries(taskArgsSource);
-    if (entries.length > 0) {
-      taskArgs = entries
-        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
-        .join(", ");
-    }
-  }
-
-  // Percent of samples completed
-  let percentCompleted: number | undefined;
-  const total = details?.results?.total_samples;
-  const completed = details?.results?.completed_samples;
-  if (total && total > 0 && completed !== undefined) {
-    percentCompleted = (completed / total) * 100;
-  }
-
-  // Sample facts are derived at ingestion and carried on the header.
-  const sampleErrors = details?.sampleErrorCount;
-  // Distinct limit types across samples in this task, comma-joined (already
-  // sorted for stable text-filtering). Empty when no sample hit a limit.
-  const sampleLimits =
-    details !== undefined && details.sampleLimits.length > 0
-      ? details.sampleLimits.join(", ")
-      : undefined;
 
   const row: LogListRow = {
     id: item.id,
@@ -107,29 +63,23 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
     sandbox: details?.eval?.sandbox?.type,
-    totalTokens,
-    duration,
+    totalTokens: derived?.total_tokens,
+    duration: derived?.duration,
     taskFile: details?.eval?.task_file ?? undefined,
-    taskArgs,
+    taskArgs: derived?.task_args,
     taskArgsRaw: taskArgsSource ?? undefined,
     tags: details?.tags,
-    percentCompleted,
-    sampleErrors,
-    sampleLimits,
+    percentCompleted: derived?.percent_completed,
+    sampleErrors: details?.sampleErrorCount,
+    sampleLimits: derived?.sample_limits,
     errorMessage: details?.error?.message,
   };
 
-  // Add individual scorer columns from results. Key by (scorer, metric)
-  // so distinct scorers emitting the same metric name each get their own
-  // column. Reducer is omitted from the key: `reducer=null` (default,
-  // silently mean) and `reducer="mean"` (explicit) should land in the
-  // same column since the underlying computation is identical.
-  if (details?.results?.scores) {
-    for (const evalScore of details.results.scores) {
-      if (evalScore.metrics) {
-        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-          row[`score_${evalScore.name}/${metricName}`] = metric.value;
-        }
+  // Individual scorer columns, keyed `score_<scorer>/<metric>`.
+  if (derived?.scores) {
+    for (const [scorerName, metrics] of Object.entries(derived.scores)) {
+      for (const [metricName, value] of Object.entries(metrics)) {
+        row[`score_${scorerName}/${metricName}`] = value;
       }
     }
   }

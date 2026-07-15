@@ -72,7 +72,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const navigate = useNavigate();
 
   // Scope the column list to the current folder's logs in folder (logs) mode.
-  const scopePrefix = mode === "logs" ? currentPath : undefined;
+  const scopeDir = mode === "logs" ? currentPath : undefined;
   // Read the same shared view-mode property LogsPanel writes to, so the
   // grid's column set always matches the picker's current selection.
   const [scoresViewMode] = useProperty<ScoresViewMode>(
@@ -82,7 +82,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   );
   const { columns, visibility } = useLogListColumns(
     mode,
-    scopePrefix,
+    scopeDir,
     scoresViewMode
   );
 

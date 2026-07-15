@@ -32,6 +32,7 @@ import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
+import { totalSampleTokens } from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
 import { selectSample } from "../../../state/actions.ts";
 import {
@@ -433,12 +434,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const items: SampleRow[] = useMemo(() => {
     if (!samplesDescriptor || !selectedLogFile) return [];
     return sampleSummaries.map((sample): SampleRow => {
-      const tokens = sample.model_usage
-        ? Object.values(sample.model_usage).reduce(
-            (sum, u) => sum + (u.total_tokens ?? 0),
-            0
-          )
-        : undefined;
+      const tokens = totalSampleTokens(sample.model_usage);
       return {
         logFile: selectedLogFile,
         sampleId: sample.id,

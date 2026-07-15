@@ -5,6 +5,7 @@ import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
+import { scopePrefix } from "../../../../client/database";
 import { kModelNone } from "../../../../constants";
 import {
   useLogListing,
@@ -66,11 +67,11 @@ export type ScoresViewMode = "by-metric" | "per-scorer";
 export const useLogListColumns = (
   mode: LogListMode = "logs",
   /**
-   * When set, scorer columns are computed only from logs whose name starts
-   * with this prefix. Used by the folder view so descending into a subfolder
+   * When set, scorer columns are computed only from logs under this
+   * directory. Used by the folder view so descending into a subfolder
    * recomputes the Metrics list to match the contents of that folder.
    */
-  scopePrefix?: string,
+  scopeDir?: string,
   /**
    * View mode for scorer columns:
    *   - "by-metric" (default): one synthetic column per unique metric name,
@@ -107,7 +108,7 @@ export const useLogListColumns = (
   // Settled schema only: column defs are decorative config — while the
   // listing loads there are simply no scorer columns yet, and listing errors
   // render in LogsPanel's error surface.
-  const scorerMap = useScoreSchema(logDir, scopePrefix).data ?? kNoScorerMap;
+  const scorerMap = useScoreSchema(logDir, scopeDir).data ?? kNoScorerMap;
 
   const allColumns = useMemo((): LogListColumn[] => {
     const baseColumns: LogListColumn[] = [
@@ -768,15 +769,14 @@ export const useLogListColumns = (
   // Auto-promote `sampleLimits` to default-visible when any in-scope log
   // has a sample that ended with a limit (an ingestion-derived header fact).
   const listingRows = useLogListing(logDir).data ?? kNoListingRows;
-  const hasSampleLimits = useMemo(
-    () =>
-      listingRows.some(
-        (row) =>
-          (!scopePrefix || row.name.startsWith(scopePrefix)) &&
-          (row.header?.sampleLimits.length ?? 0) > 0
-      ),
-    [listingRows, scopePrefix]
-  );
+  const hasSampleLimits = useMemo(() => {
+    const prefix = scopeDir ? scopePrefix(scopeDir) : undefined;
+    return listingRows.some(
+      (row) =>
+        (!prefix || row.name.startsWith(prefix)) &&
+        (row.header?.sampleLimits.length ?? 0) > 0
+    );
+  }, [listingRows, scopeDir]);
 
   // Default hidden columns per mode
   const defaultHiddenFields = useMemo(() => {
