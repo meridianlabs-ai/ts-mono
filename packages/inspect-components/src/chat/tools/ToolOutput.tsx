@@ -55,7 +55,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
             <img
               className={clsx(styles.toolImage)}
               src={out.image}
-              alt="Tool output image"
+              alt="Tool output"
               key={key}
             />
           );
