@@ -14,6 +14,7 @@ export * from "./JsonPanel";
 export * from "./LabeledValue";
 export * from "./LoadingBar";
 export * from "./MarkdownDiv";
+export { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
 export * from "./MenuActionButton";
 export * from "./Modal";
 export * from "./NoContentsPanel";

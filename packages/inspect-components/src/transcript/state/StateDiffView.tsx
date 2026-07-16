@@ -3,6 +3,8 @@ import { diff } from "jsondiffpatch";
 import { format } from "jsondiffpatch/formatters/html";
 import { FC } from "react";
 
+import { sanitizeRenderedHtml } from "@tsmono/react/components";
+
 interface StateDiffViewProps {
   before: object;
   after: object;
@@ -23,7 +25,9 @@ export const StateDiffView: FC<StateDiffViewProps> = ({
   const html_result = format(state_diff) || "Unable to render differences";
   return (
     <div
-      dangerouslySetInnerHTML={{ __html: unescapeNewlines(html_result) }}
+      dangerouslySetInnerHTML={{
+        __html: sanitizeRenderedHtml(unescapeNewlines(html_result)),
+      }}
       className={clsx(className)}
     ></div>
   );
