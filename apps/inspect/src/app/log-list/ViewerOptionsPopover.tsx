@@ -115,6 +115,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
         <div className={clsx()}>
           {" "}
           <button
+            type="button"
             onClick={handleClearDatabase}
             disabled={isClearing}
             className={clsx(

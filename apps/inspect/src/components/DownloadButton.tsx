@@ -18,6 +18,7 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
   const api = getApi();
   return (
     <button
+      type="button"
       className={"btn btn-outline-primary download-button"}
       onClick={() => {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises

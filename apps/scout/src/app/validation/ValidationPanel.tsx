@@ -272,6 +272,7 @@ export const ValidationPanel: FC = () => {
         {selectedUri && (
           <div className={styles.headerActions}>
             <button
+              type="button"
               className={styles.iconButton}
               onClick={handleOpenRename}
               title="Rename validation set"
@@ -280,6 +281,7 @@ export const ValidationPanel: FC = () => {
               <i className={ApplicationIcons.rename} />
             </button>
             <button
+              type="button"
               className={styles.iconButton}
               onClick={() => setShowDeleteModal(true)}
               title="Delete validation set"
