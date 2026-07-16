@@ -17,8 +17,16 @@
  * @module query
  */
 
-// Shared query builder, types, and guards.
-export * from "@tsmono/inspect-common/query";
+export { Column, ConditionBuilder } from "@tsmono/inspect-common/query";
+export type {
+  Condition,
+  ConditionModel,
+  ConditionValue,
+  LogicalOperatorModel,
+  OperatorModel,
+  OrderByModel,
+  ScalarValue,
+} from "@tsmono/inspect-common/query";
+export { isScalarArray, isTuple } from "@tsmono/inspect-common/query";
 
-// Scout-specific transcript column definitions.
 export { TranscriptColumns, transcriptColumns } from "./transcriptColumns";
