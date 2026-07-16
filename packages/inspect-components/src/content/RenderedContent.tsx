@@ -319,7 +319,7 @@ const contentRenderers: (
       },
       render: (_id, entry, _options) => {
         return {
-          rendered: <img src={entry.value} />,
+          rendered: <img src={entry.value} alt="Image" />,
         };
       },
     },

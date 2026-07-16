@@ -52,7 +52,12 @@ export const ToolOutput: FC<ToolOutputProps> = ({
       } else if (out.type === "image") {
         if (isRenderableImageSource(out.image)) {
           outputs.push(
-            <img className={clsx(styles.toolImage)} src={out.image} key={key} />
+            <img
+              className={clsx(styles.toolImage)}
+              src={out.image}
+              alt="Tool output image"
+              key={key}
+            />
           );
         } else {
           outputs.push(<MediaReference source={out.image} key={key} />);
