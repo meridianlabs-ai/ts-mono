@@ -28,6 +28,7 @@ type ReadListing = (
 const holder = vi.hoisted(() => ({
   opened: true,
   read: vi.fn<ReadListing>(),
+  invalidate: vi.fn(),
 }));
 
 vi.mock("../../../log_data", () => ({
@@ -39,6 +40,9 @@ vi.mock("../../../log_data", () => ({
     ...parts,
   ],
   databaseLogsOpened: () => holder.opened,
+  invalidateDatabaseLogsListings: () => {
+    holder.invalidate();
+  },
   readDatabaseLogsListing: (...args: Parameters<ReadListing>) =>
     holder.read(...args),
 }));
@@ -60,6 +64,7 @@ describe("useDatabaseLogsListingQuery", () => {
       defaultOptions: { queries: { retry: false } },
     });
     holder.read.mockReset();
+    holder.invalidate.mockReset();
     getLogsListing = holder.read.mockImplementation(
       (
         _scope: unknown,
@@ -164,6 +169,52 @@ describe("useDatabaseLogsListingQuery", () => {
     );
 
     await waitFor(() => expect(getLogsListing).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(result.current.items.map((row) => row.name)).toEqual([
+        "/logs/a.eval",
+        "/logs/b.eval",
+      ])
+    );
+  });
+
+  test("refetches against fresh rows when the row set changes without a db write", async () => {
+    holder.invalidate.mockImplementation(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
+        queryKey: ["log_data", "dexie-listing", "logs"],
+      });
+    });
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const makeProps = (viewRows: Row[]) => ({
+      rows: viewRows,
+      filter: new Column("model").ilike("%"),
+      orderBy: [{ column: "name", direction: "ASC" as const }],
+      getValue,
+      getComparator: () => undefined,
+      database: {
+        scope: { prefix: "/logs" },
+        syncedPrefix: "/logs",
+        view: "logs::/logs",
+        rowKey: (row: Row) => row.name,
+      },
+    });
+    const { result, rerender } = renderHook(
+      (props) => useDatabaseLogsListingQuery(props),
+      { wrapper, initialProps: makeProps([rows[0]!]) }
+    );
+    await waitFor(() =>
+      expect(result.current.items.map((row) => row.name)).toEqual([
+        "/logs/a.eval",
+      ])
+    );
+
+    // Same view + filter (same query key), new row set with no db write —
+    // e.g. a pending task arriving. The hook must invalidate so the cached
+    // result isn't served from the old rows.
+    rerender(makeProps(rows));
+    await waitFor(() => expect(holder.invalidate).toHaveBeenCalled());
     await waitFor(() =>
       expect(result.current.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",

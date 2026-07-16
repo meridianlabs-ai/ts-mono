@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import type {
   Condition,
@@ -14,6 +14,7 @@ import {
   databaseLogsListingKey,
   databaseLogsListingKeyRoot,
   databaseLogsOpened,
+  invalidateDatabaseLogsListings,
   readDatabaseLogsListing,
 } from "../../../log_data";
 
@@ -152,6 +153,21 @@ export function useDatabaseLogsListingQuery<TRow>({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+
+  // The query result is computed from `rows`, but `rows` isn't in the query
+  // key and only db writes fire the write-path invalidation. Cache-only row
+  // changes (retried-log toggling, pending tasks arriving, the post-write
+  // cache re-read) would otherwise serve a result built from stale rows, so
+  // nudge the shared invalidation whenever the row set changes. Declared
+  // after useQuery: react-query applies the observer's options (the fresh
+  // queryFn closure) in its own effect, and effects run in declaration
+  // order — before it, the refetch would still see the old rows.
+  const seenRows = useRef(rows);
+  useEffect(() => {
+    if (seenRows.current === rows) return;
+    seenRows.current = rows;
+    invalidateDatabaseLogsListings();
+  }, [rows]);
 
   const databaseResult = databaseEnabled
     ? (dexieResult.data ?? undefined)

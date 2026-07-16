@@ -96,6 +96,7 @@ export {
   databaseLogsListingKey,
   databaseLogsListingKeyRoot,
   databaseLogsOpened,
+  invalidateDatabaseLogsListings,
   readDatabaseLogsListing,
 } from "./databaseListings";
 export { useLogHeader, useLogFetchState } from "./log";
