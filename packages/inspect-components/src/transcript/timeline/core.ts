@@ -956,6 +956,19 @@ function unwrapSolverSpan(span: SpanNode): SpanNode {
     if (agentChildren.length !== 1) {
       break;
     }
+    // Only collapse the redundant solver→agent nesting when the solver carries
+    // no displayable events of its own. If it logged info/intermediate-score
+    // events, keep the solver span so those survive in the lane (state/store
+    // are structural bookkeeping and safe to drop). Non-span children are raw
+    // Events, so their type is `c.event` (a string), matching the existing
+    // `!isSpanNode(child) && child.event === "branch"` idiom in this file.
+    if (
+      span.children.some(
+        (c) => !isSpanNode(c) && c.event !== "state" && c.event !== "store"
+      )
+    ) {
+      break;
+    }
     span = agentChildren[0]!;
   }
   return span;
