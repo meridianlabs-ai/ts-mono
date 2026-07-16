@@ -262,7 +262,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
-    databaseScope: { prefix: currentDir, syncedPrefix: logDir },
+    // Match the row universe: folder mode lists the current directory, the
+    // flat tasks view lists the whole log dir (like `scopeDir` above) — a
+    // narrower Dexie scope would silently drop matching rows outside it.
+    databaseScope: {
+      prefix: mode === "logs" ? currentDir : logDir,
+      syncedPrefix: logDir,
+    },
   });
 
   const currentColumnVisibility = useStore(
