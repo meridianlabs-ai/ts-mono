@@ -243,7 +243,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
         return (
           <img
             src={c.image}
-            alt="Message image"
+            alt="Message attachment"
             className={styles.contentImage}
             key={key}
           />
