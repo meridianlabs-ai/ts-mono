@@ -136,7 +136,7 @@ export const LargeModal: FC<LargeModalProps> = ({
               onClick={onHide}
               aria-label="Close"
             >
-              <HtmlEntity html={"&times;"} />
+              ×
             </button>
           </div>
           <ActivityBar animating={showProgress} />
@@ -154,14 +154,6 @@ export const LargeModal: FC<LargeModalProps> = ({
     </div>
   );
 };
-
-interface HtmlEntityProps {
-  html: string;
-}
-
-const HtmlEntity: FC<HtmlEntityProps> = ({ html }) => (
-  <span dangerouslySetInnerHTML={{ __html: html }} />
-);
 
 interface TitleToolProps {
   label: string;
