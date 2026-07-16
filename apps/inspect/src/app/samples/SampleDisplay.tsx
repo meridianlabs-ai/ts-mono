@@ -225,11 +225,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Focus the panel when it loads
   useEffect(() => {
-    const id = setTimeout(() => {
-      if (focusOnLoad) {
-        scrollRef.current?.focus();
-      }
-    }, 10);
+    if (!focusOnLoad) return;
+    const id = setTimeout(() => scrollRef.current?.focus(), 10);
     return () => clearTimeout(id);
   }, [focusOnLoad, scrollRef]);
 
