@@ -225,11 +225,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Focus the panel when it loads
   useEffect(() => {
-    setTimeout(() => {
+    const id = setTimeout(() => {
       if (focusOnLoad) {
         scrollRef.current?.focus();
       }
     }, 10);
+    return () => clearTimeout(id);
   }, [focusOnLoad, scrollRef]);
 
   // Tab selection

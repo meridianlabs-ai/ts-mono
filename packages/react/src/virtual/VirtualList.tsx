@@ -172,7 +172,11 @@ export function VirtualList<T>({
       const el = getScrollElement();
       if (el) {
         setFollowOutput(false);
-        setTimeout(() => el.scrollTo({ top: 0, behavior: "auto" }), 100);
+        const id = setTimeout(
+          () => el.scrollTo({ top: 0, behavior: "auto" }),
+          100
+        );
+        return () => clearTimeout(id);
       }
     }
   }, [
