@@ -1,6 +1,6 @@
 import type { Pagination } from "@tsmono/inspect-common/query";
 
-import { compareByOrderBy, evaluateCondition } from "./evaluator";
+import { createListingPlan } from "./planner";
 import type { Cursor, ListingQuery, LogsListingResult } from "./types";
 
 const paginate = <TRow>(
@@ -30,31 +30,11 @@ export function applyListingQuery<TRow>(
   rows: TRow[],
   query: ListingQuery<TRow>
 ): LogsListingResult<TRow> {
-  const {
-    filter,
-    orderBy,
-    pagination,
-    getValue,
-    getComparator,
-    getFilterType,
-  } = query;
-
-  let result = filter
-    ? rows.filter((row) =>
-        evaluateCondition(row, filter, getValue, getFilterType)
-      )
-    : rows;
-
-  if (orderBy) {
-    const orderArr = Array.isArray(orderBy) ? orderBy : [orderBy];
-    if (orderArr.length > 0) {
-      result = [...result].sort(
-        compareByOrderBy(orderArr, getValue, getComparator)
-      );
-    }
-  }
+  const plan = createListingPlan(query);
+  let result = rows.filter(plan.matches);
+  if (plan.compare) result = [...result].sort(plan.compare);
 
   const total_count = result.length;
-  const { page, next_cursor } = paginate(result, pagination);
+  const { page, next_cursor } = paginate(result, plan.pagination);
   return { items: page, total_count, next_cursor };
 }

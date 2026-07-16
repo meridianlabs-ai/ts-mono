@@ -4,6 +4,11 @@ import { createLogger } from "@tsmono/util";
 import { Log, LogFetchState, LogPreview } from "../api/types";
 import { maxDepth, PreparedLogDetails, previewTier } from "../utils/type-utils";
 
+import {
+  DatabaseListingPlan,
+  DatabaseListingResult,
+  queryDexieCollection,
+} from "./listing";
 import { DatabaseManager } from "./manager";
 import {
   AppDatabase,
@@ -138,6 +143,21 @@ export class DatabaseService {
       log.error("Error retrieving log rows:", error);
       return null;
     }
+  }
+
+  async getLogsListing<TRow>(
+    scope: LogScope,
+    toRow: (log: Log) => TRow | undefined,
+    plan: DatabaseListingPlan<TRow>
+  ): Promise<DatabaseListingResult<TRow>> {
+    const records = this.getDb()
+      .logs.where("file_path")
+      .startsWith(scopePrefix(scope.prefix));
+    return queryDexieCollection(
+      records,
+      (record) => toRow(fromLogRecord(record)),
+      plan
+    );
   }
 
   async readLogRow(filePath: string): Promise<Log | null> {
