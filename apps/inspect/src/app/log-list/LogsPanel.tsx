@@ -262,6 +262,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
+    databaseScope: { prefix: currentDir, syncedPrefix: logDir },
   });
 
   const currentColumnVisibility = useStore(

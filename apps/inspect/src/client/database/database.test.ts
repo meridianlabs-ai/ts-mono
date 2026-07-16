@@ -254,10 +254,14 @@ describe("Database Service", () => {
       };
 
       const expected = applyListingQuery(source, query);
+      const position = new Map(source.map((row, index) => [row.name, index]));
       const actual = await databaseService.getLogsListing(
         { prefix: "/test/logs" },
         (row) => row,
-        createListingPlan(query)
+        createListingPlan(
+          query,
+          (row) => position.get(row.name) ?? Number.MAX_SAFE_INTEGER
+        )
       );
 
       expect(actual).toEqual(expected);

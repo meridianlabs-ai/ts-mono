@@ -7,7 +7,8 @@ import type { ListingQuery } from "./types";
 
 /** Compile the wire filter and ordering into record-level listing operations. */
 export const createListingPlan = <TRow>(
-  query: ListingQuery<TRow>
+  query: ListingQuery<TRow>,
+  stablePosition?: (row: TRow) => number
 ): DatabaseListingPlan<TRow> => {
   const { filter, getValue, getFilterType, getComparator, pagination } = query;
   const orderBy: OrderByModel[] = query.orderBy
@@ -16,14 +17,19 @@ export const createListingPlan = <TRow>(
       : [query.orderBy]
     : [];
 
+  const compare =
+    orderBy.length > 0
+      ? compareByOrderBy(orderBy, getValue, getComparator)
+      : undefined;
+
   return {
     matches: filter
       ? (row) => evaluateCondition(row, filter, getValue, getFilterType)
       : () => true,
-    compare:
-      orderBy.length > 0
-        ? compareByOrderBy(orderBy, getValue, getComparator)
-        : undefined,
+    compare: stablePosition
+      ? (a, b) =>
+          (compare?.(a, b) ?? 0) || stablePosition(a) - stablePosition(b)
+      : compare,
     pagination,
   };
 };

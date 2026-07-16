@@ -14,7 +14,7 @@ import type {
 } from "../listing/types";
 import {
   sortingStateToOrderBy,
-  useLogsListingQuery,
+  useDatabaseLogsListingQuery,
 } from "../listing/useLogsListingQuery";
 import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 
@@ -95,6 +95,7 @@ interface UseLogListDataParams {
   getValue: ValueAccessor<LogListRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
+  databaseScope: { prefix: string; syncedPrefix: string };
 }
 
 export interface LogListData {
@@ -124,6 +125,7 @@ export const useLogListData = ({
   getValue,
   getComparator,
   getFilterType,
+  databaseScope,
 }: UseLogListDataParams): LogListData => {
   const { gridStateByScope } = useLogsListing();
 
@@ -173,13 +175,20 @@ export const useLogListData = ({
     return { folders, files };
   }, [data]);
 
-  const { items: sortedFiles, total_count } = useLogsListingQuery({
+  const database = {
+    scope: { prefix: databaseScope.prefix },
+    syncedPrefix: databaseScope.syncedPrefix,
+    rowKey: (row: LogListRow) =>
+      row.type === "file" ? row.log?.name : undefined,
+  };
+  const { items: sortedFiles, total_count } = useDatabaseLogsListingQuery({
     rows: files,
     filter,
     orderBy,
     getValue,
     getComparator,
     getFilterType,
+    database,
   });
 
   const rows = useMemo(

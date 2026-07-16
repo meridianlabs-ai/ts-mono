@@ -16,6 +16,7 @@ import {
 } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
+import { invalidateDatabaseLogsListings } from "./databaseListings";
 import type { LogsContentSink } from "./fetchEngine";
 import {
   invalidateSamplesListings,
@@ -242,6 +243,7 @@ export const writeListing = async (
   if (db?.opened() && namesInScope(logDir, handles)) {
     await db.writeLogs(handles);
     await db.markScopeSynced(logDir);
+    invalidateDatabaseLogsListings();
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
       setRows(logDir, all);
@@ -264,6 +266,7 @@ export const writePreviews = async (
   mergePreviews(logDir, previews);
   if (db?.opened()) {
     await db.writeLogPreviews(previews);
+    invalidateDatabaseLogsListings();
   }
 };
 
@@ -301,6 +304,7 @@ export const writeDetails = async (
   );
   if (db?.opened()) {
     await db.writeLogDetails(Object.fromEntries(prepared));
+    invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   }
 };
@@ -346,6 +350,7 @@ export const resetDepth = async (
   }
   if (db?.opened()) {
     await db.resetDepth(names);
+    invalidateDatabaseLogsListings();
   }
   invalidateSamplesListings(logDir);
 };
@@ -358,6 +363,7 @@ export const clearFile = async (
   evictFile(logDir, name);
   if (db?.opened()) {
     await db.clearCacheForFile(name);
+    invalidateDatabaseLogsListings();
   }
   // After the rows are gone (db) — or cache-only (db-less), where a refetch
   // correctly reads empty — refresh any samples listing that carried them.
@@ -375,6 +381,7 @@ export const clearAll = async (
     // under out-of-namespace names (see namesInScope). It's all a cache —
     // other scopes re-sync on their next listing.
     await db.clearAllData();
+    invalidateDatabaseLogsListings();
   }
 };
 
