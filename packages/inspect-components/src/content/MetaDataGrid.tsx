@@ -131,6 +131,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
       {isCollapsible && (
         <div className={styles.toggleContainer}>
           <button
+            type="button"
             className={clsx(styles.toggleButton, "text-size-smallest")}
             onClick={() => setExpanded((prev) => !prev)}
           >

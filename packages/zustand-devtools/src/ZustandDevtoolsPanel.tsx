@@ -83,6 +83,7 @@ export const ZustandDevtoolsPanel: FC<ZustandDevtoolsPanelProps> = ({
               <div className={styles.sidebar}>
                 {topEntries.map((entry) => (
                   <button
+                    type="button"
                     key={entry.key}
                     className={
                       entry.key === selected.key

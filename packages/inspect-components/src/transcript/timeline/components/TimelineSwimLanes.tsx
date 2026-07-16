@@ -436,6 +436,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
 
       {/* Collapse toggle on bottom border */}
       <button
+        type="button"
         className={styles.collapseToggle}
         onClick={toggleCollapsed}
         title={isCollapsed ? "Expand swimlanes" : "Collapse swimlanes"}
@@ -783,6 +784,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
       {viewStack && viewStack.length > 0 && (
         <>
           <button
+            type="button"
             className={styles.viewStackBack}
             onClick={onPopView}
             title="Back to branch overview"
@@ -806,6 +808,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
                   </span>
                 ) : (
                   <button
+                    type="button"
                     className={styles.breadcrumbLink}
                     onClick={() => onBreadcrumbSelect?.(segment.key)}
                   >
@@ -817,7 +820,11 @@ const HeaderRow: FC<HeaderRowProps> = ({
           })}
         </div>
       ) : (
-        <button className={styles.breadcrumbCurrent} onClick={onScrollToTop}>
+        <button
+          type="button"
+          className={styles.breadcrumbCurrent}
+          onClick={onScrollToTop}
+        >
           {rootDisplay}
         </button>
       )}

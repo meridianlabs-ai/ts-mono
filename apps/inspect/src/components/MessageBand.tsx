@@ -35,6 +35,7 @@ export const MessageBand: FC<MessageBandProps> = ({
       <i className={ApplicationIcons.logging[type]} />
       {message}
       <button
+        type="button"
         className={clsx("btn", "message-band-btn", type)}
         title="Close"
         onClick={handleClick}
