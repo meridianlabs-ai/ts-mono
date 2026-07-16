@@ -243,10 +243,15 @@ export const writeListing = async (
   if (db?.opened() && namesInScope(logDir, handles)) {
     await db.writeLogs(handles);
     await db.markScopeSynced(logDir);
-    invalidateDatabaseLogsListings();
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
       setRows(logDir, all);
+    }
+    // Invalidate only after the re-read rows land in the cache: a listing
+    // refetch scheduled between the write and setRows would run against the
+    // pre-write rows and drop the newly written files from its result.
+    invalidateDatabaseLogsListings();
+    if (all) {
       return all;
     }
   }
