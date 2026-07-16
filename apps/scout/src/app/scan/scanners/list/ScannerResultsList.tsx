@@ -360,13 +360,14 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   }, [selectedScanResult, filteredSummaries]);
 
   useEffect(() => {
-    setTimeout(() => {
+    const id = setTimeout(() => {
       listHandle.current?.scrollToIndex({
         index: selectedItemIndex ?? 0,
         align: "center",
         behavior: "auto",
       });
     }, 5);
+    return () => clearTimeout(id);
   }, [selectedItemIndex]);
 
   const renderRow = useCallback(
