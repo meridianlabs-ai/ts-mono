@@ -21,14 +21,14 @@ export const databaseLogsListingKeyRoot = [
 ] as const;
 
 export const databaseLogsListingKey = (
-  prefix: string,
+  view: string | undefined,
   filter: Condition,
   orderBy?: OrderByModel[],
   pagination?: Pagination
 ) =>
   [
     ...databaseLogsListingKeyRoot,
-    prefix,
+    view ?? null,
     filter,
     orderBy ?? null,
     pagination ?? null,

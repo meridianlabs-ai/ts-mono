@@ -98,6 +98,7 @@ describe("useDatabaseLogsListingQuery", () => {
           database: {
             scope: { prefix: "/logs" },
             syncedPrefix: "/logs",
+            view: "logs::/logs",
             rowKey: (row) => row.name,
           },
         }),
@@ -128,6 +129,7 @@ describe("useDatabaseLogsListingQuery", () => {
           database: {
             scope: { prefix: "/aliased" },
             syncedPrefix: "/aliased",
+            view: "logs::/aliased",
             rowKey: (row) => row.name,
           },
         }),
@@ -154,6 +156,7 @@ describe("useDatabaseLogsListingQuery", () => {
           database: {
             scope: { prefix: "/logs" },
             syncedPrefix: "/logs",
+            view: "logs::/logs",
             rowKey: (row) => row.name,
           },
         }),
@@ -161,6 +164,50 @@ describe("useDatabaseLogsListingQuery", () => {
     );
 
     await waitFor(() => expect(getLogsListing).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(result.current.items.map((row) => row.name)).toEqual([
+        "/logs/a.eval",
+        "/logs/b.eval",
+      ])
+    );
+  });
+
+  test("does not serve one view's cached rows to another view at the same prefix", async () => {
+    const wrapper = ({ children }: PropsWithChildren) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const makeProps = (view: string, viewRows: Row[]) => ({
+      rows: viewRows,
+      filter: new Column("model").ilike("%"),
+      orderBy: [{ column: "name", direction: "ASC" as const }],
+      getValue,
+      getComparator: () => undefined,
+      database: {
+        scope: { prefix: "/logs" },
+        syncedPrefix: "/logs",
+        view,
+        rowKey: (row: Row) => row.name,
+      },
+    });
+    const { result, rerender } = renderHook(
+      (props) => useDatabaseLogsListingQuery(props),
+      { wrapper, initialProps: makeProps("logs::/logs", [rows[0]!]) }
+    );
+    await waitFor(() =>
+      expect(result.current.items.map((row) => row.name)).toEqual([
+        "/logs/a.eval",
+      ])
+    );
+
+    // Same prefix + filter, different view: the folder view's cache entry
+    // must not leak into the flat view — the synchronous fallback answers
+    // until this view's own read lands.
+    rerender(makeProps("tasks::/logs", rows));
+    expect(result.current.items.map((row) => row.name)).toEqual([
+      "/logs/a.eval",
+      "/logs/b.eval",
+    ]);
+    await waitFor(() => expect(getLogsListing).toHaveBeenCalledTimes(2));
     await waitFor(() =>
       expect(result.current.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",

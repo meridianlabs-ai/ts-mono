@@ -76,6 +76,10 @@ interface UseDatabaseLogsListingParams<
   database: {
     scope: LogScope;
     syncedPrefix: string;
+    /** Cache identity of the row universe (view mode + directory). Distinct
+     *  views can share a scope prefix, so the prefix alone can't key the
+     *  cache. `undefined` while the scope is still hydrating. */
+    view: string | undefined;
     rowKey: (row: TRow) => string | undefined;
   };
 }
@@ -106,12 +110,7 @@ export function useDatabaseLogsListingQuery<TRow>({
 
   const dexieResult = useQuery({
     queryKey: filter
-      ? databaseLogsListingKey(
-          database.scope.prefix,
-          filter,
-          orderBy,
-          pagination
-        )
+      ? databaseLogsListingKey(database.view, filter, orderBy, pagination)
       : [...databaseLogsListingKeyRoot, "disabled"],
     queryFn: async (): Promise<LogsListingResult<TRow> | null> => {
       if (!filter) return null;
@@ -145,7 +144,8 @@ export function useDatabaseLogsListingQuery<TRow>({
     },
     enabled: databaseEnabled,
     placeholderData: (previousData, previousQuery) =>
-      previousQuery?.queryKey[3] === database.scope.prefix
+      database.view !== undefined &&
+      previousQuery?.queryKey[3] === database.view
         ? previousData
         : undefined,
     staleTime: 0,

@@ -178,6 +178,7 @@ export const useLogListData = ({
   const database = {
     scope: { prefix: databaseScope.prefix },
     syncedPrefix: databaseScope.syncedPrefix,
+    view: scopeKey,
     rowKey: (row: LogListRow) =>
       row.type === "file" ? row.log?.name : undefined,
   };
