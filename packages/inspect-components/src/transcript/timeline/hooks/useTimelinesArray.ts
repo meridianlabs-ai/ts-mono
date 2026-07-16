@@ -214,17 +214,18 @@ function buildOrphanContent(
 }
 
 /**
- * Merge orphaned events into a host timeline's root, preserving time order.
+ * Keep orphaned events visible without distorting server-authored timelines.
  *
  * When server-provided timelines don't reference every event (e.g. scorer
- * events), the unreferenced events are collected, wrapped in their minimal
- * parent span tree, and inserted into the host timeline's root content in
- * chronological order. The host is the first timeline whose root is not a
- * branch tree, falling back to the first timeline.
+ * events), a small orphan set is inserted into the host timeline's root in
+ * chronological order. When orphans outnumber referenced events, the full
+ * built timeline is exposed as an Overall view and the server timelines remain
+ * untouched.
  */
 function attachOrphanedEvents(
   timelines: Timeline[],
-  events: Event[]
+  events: Event[],
+  builtTimeline: Timeline
 ): Timeline[] {
   if (timelines.length === 0 || events.length === 0) return timelines;
 
@@ -239,15 +240,31 @@ function attachOrphanedEvents(
 
   // Find orphaned events: have a UUID, not referenced, not span bookkeeping
   const orphanEvents: Event[] = [];
+  const referencedEventUuids = new Set<string>();
   for (const event of events) {
     if (event.event === "span_begin" || event.event === "span_end") continue;
     const uuid = (event as { uuid?: string | null }).uuid;
-    if (uuid && !referencedUuids.has(uuid)) {
-      orphanEvents.push(event);
+    if (uuid) {
+      if (referencedUuids.has(uuid)) {
+        referencedEventUuids.add(uuid);
+      } else {
+        orphanEvents.push(event);
+      }
     }
   }
 
   if (orphanEvents.length === 0) return timelines;
+
+  if (orphanEvents.length > referencedEventUuids.size) {
+    return [
+      {
+        name: "Overall",
+        description: "Full sample transcript",
+        root: builtTimeline.root,
+      },
+      ...timelines,
+    ];
+  }
 
   // Build span lookup for parent-chain resolution
   const spanLookup = buildSpanLookup(events);
@@ -320,9 +337,9 @@ export function useTimelinesArray(
   const withOrphans = useMemo(
     () =>
       convertedTimelines
-        ? attachOrphanedEvents(convertedTimelines, events)
+        ? attachOrphanedEvents(convertedTimelines, events, builtTimeline)
         : null,
-    [convertedTimelines, events]
+    [convertedTimelines, events, builtTimeline]
   );
   const resolved = useMemo(
     () => withOrphans ?? [builtTimeline],
