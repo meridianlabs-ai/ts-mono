@@ -5,7 +5,7 @@ import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../icons";
-import type { SimpleCondition } from "../../query/types";
+import type { SimpleCondition } from "../../query";
 import type { ColumnFilter } from "../../state/store";
 import { valueAsString } from "../utils/format";
 

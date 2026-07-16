@@ -7,7 +7,7 @@
  *
  * @example
  * ```typescript
- * import { transcriptColumns } from "@/query";
+ * import { transcriptColumns } from "./query";
  *
  * const filter = transcriptColumns.model.eq("gpt-4")
  *   .and(transcriptColumns.score.gt(0.8));
@@ -22,11 +22,20 @@ export type {
   Condition,
   ConditionModel,
   ConditionValue,
+  CompoundCondition,
+  ConditionBase,
   LogicalOperatorModel,
   OperatorModel,
   OrderByModel,
+  Pagination,
   ScalarValue,
+  SimpleCondition,
 } from "@tsmono/inspect-common/query";
-export { isScalarArray, isTuple } from "@tsmono/inspect-common/query";
+export {
+  isCompoundCondition,
+  isScalarArray,
+  isSimpleCondition,
+  isTuple,
+} from "@tsmono/inspect-common/query";
 
 export { TranscriptColumns, transcriptColumns } from "./transcriptColumns";
