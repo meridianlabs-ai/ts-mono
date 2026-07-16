@@ -3,6 +3,7 @@ import type {
   OrderByModel,
   Pagination,
 } from "@tsmono/inspect-common/query";
+import { throttle } from "@tsmono/util";
 
 import type { Log } from "../client/api/types";
 import type { LogScope } from "../client/database";
@@ -49,14 +50,19 @@ export const readDatabaseLogsListing = async <TRow>(
     : null;
 };
 
-let invalidationTimer: ReturnType<typeof setTimeout> | undefined;
-
-/** Coalesce replication bursts into one refetch of observed Dexie listings. */
-export const invalidateDatabaseLogsListings = (): void => {
-  if (invalidationTimer !== undefined) clearTimeout(invalidationTimer);
-  invalidationTimer = setTimeout(() => {
-    invalidationTimer = undefined;
+/**
+ * Coalesce replication bursts into at most one refetch of observed Dexie
+ * listings per 100ms. A throttle, not a debounce: the flush loops can write
+ * back-to-back for a whole sync, and a trailing-only debounce would postpone
+ * the invalidation for the entire burst instead of updating incrementally.
+ */
+export const invalidateDatabaseLogsListings: () => void = throttle(
+  () => {
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    queryClient.invalidateQueries({ queryKey: databaseLogsListingKeyRoot });
-  }, 100);
-};
+    queryClient.invalidateQueries({
+      queryKey: databaseLogsListingKeyRoot,
+    });
+  },
+  100,
+  { leading: false }
+);
