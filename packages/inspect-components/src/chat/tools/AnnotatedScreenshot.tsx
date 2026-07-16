@@ -70,6 +70,7 @@ export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = ({
     <div className={styles.container}>
       <img
         src={src}
+        alt="Annotated screenshot"
         className={styles.screenshot}
         onLoad={(e) =>
           setNaturalSize({
