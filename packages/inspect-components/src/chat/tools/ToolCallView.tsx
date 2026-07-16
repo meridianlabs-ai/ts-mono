@@ -238,8 +238,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   if (actionElement) {
     outputContent = hasContent ? (
       <NavPills id={`${id}-browser-action`}>
-        <div title="Result">{outputSection}</div>
         <div title="Action">{actionElement}</div>
+        <div title="Result">{outputSection}</div>
       </NavPills>
     ) : (
       actionElement
