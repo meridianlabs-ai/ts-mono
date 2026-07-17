@@ -20,10 +20,51 @@ export interface FileLogItemView {
 const rootName = (relativePath: string) => relativePath.split("/")[0] ?? "";
 
 /**
+ * The path-derived part of a file item — id, display name, and url — or
+ * `undefined` when the path isn't a file row of the view (folder mode: not
+ * directly in the current directory; it displays through its folder
+ * instead). Pure path logic: display toggles like retried-hiding live in
+ * {@link fileLogItem}, so overview facts that need pre-hide membership (and
+ * URL derivations that have only a name) can use this directly.
+ */
+export const fileLogIdentity = (
+  name: string,
+  view: FileLogItemView
+): { id: string; name: string; url: string } | undefined => {
+  if (view.mode === "tasks") {
+    const relativePath = directoryRelativeUrl(name, view.logDir);
+    const decodedPath = decodeURIComponent(relativePath);
+    return {
+      id: name,
+      name: decodedPath,
+      url: tasksUrl(decodedPath, view.logDir),
+    };
+  }
+
+  const cleanDir = view.currentDir.endsWith("/")
+    ? view.currentDir.slice(0, -1)
+    : view.currentDir;
+  if (!isInDirectory(name, cleanDir)) return undefined;
+
+  const dirName = directoryRelativeUrl(view.currentDir, view.logDir);
+  const relativePath = directoryRelativeUrl(name, view.currentDir);
+  const fileOrFolderName = decodeURIComponent(rootName(relativePath));
+  const path = join(
+    decodeURIComponent(relativePath),
+    decodeURIComponent(dirName)
+  );
+  return {
+    id: fileOrFolderName,
+    name: fileOrFolderName,
+    url: logsUrl(path, view.logDir),
+  };
+};
+
+/**
  * Map a listing row to the file item it displays as under `view`, or
  * `undefined` when the view has no file row for it: a retried run while
  * retried logs are hidden, or (folder mode) a file that isn't directly in
- * the current directory (it displays through its folder instead).
+ * the current directory.
  *
  * This is the row-universe membership + identity function for the log list:
  * LogsPanel builds its items through it, and the listing query applies it to
@@ -34,36 +75,8 @@ export const fileLogItem = (
   view: FileLogItemView
 ): FileLogItem | undefined => {
   if (!view.showRetriedLogs && logFile.retried) return undefined;
-
-  if (view.mode === "tasks") {
-    const relativePath = directoryRelativeUrl(logFile.name, view.logDir);
-    const decodedPath = decodeURIComponent(relativePath);
-    return {
-      id: logFile.name,
-      name: decodedPath,
-      type: "file",
-      url: tasksUrl(decodedPath, view.logDir),
-      log: logFile,
-    };
-  }
-
-  const cleanDir = view.currentDir.endsWith("/")
-    ? view.currentDir.slice(0, -1)
-    : view.currentDir;
-  if (!isInDirectory(logFile.name, cleanDir)) return undefined;
-
-  const dirName = directoryRelativeUrl(view.currentDir, view.logDir);
-  const relativePath = directoryRelativeUrl(logFile.name, view.currentDir);
-  const fileOrFolderName = decodeURIComponent(rootName(relativePath));
-  const path = join(
-    decodeURIComponent(relativePath),
-    decodeURIComponent(dirName)
-  );
-  return {
-    id: fileOrFolderName,
-    name: fileOrFolderName,
-    type: "file",
-    url: logsUrl(path, view.logDir),
-    log: logFile,
-  };
+  const identity = fileLogIdentity(logFile.name, view);
+  return identity === undefined
+    ? undefined
+    : { ...identity, type: "file", log: logFile };
 };

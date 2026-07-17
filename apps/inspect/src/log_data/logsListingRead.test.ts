@@ -21,7 +21,7 @@ import {
 
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
 import { setRows } from "./logsContent";
-import { readLogsListing } from "./logsListingRead";
+import { readLogsListing, readLogsOverview } from "./logsListingRead";
 
 const holder = vi.hoisted(() => {
   const state: { service: DatabaseService | null } = { service: null };
@@ -162,5 +162,72 @@ describe("readLogsListing", () => {
     );
     // Scoped by boundary-safe prefix: the sibling dir's row is excluded.
     expect(result.items.map((row) => row.name)).toEqual(["/cache/logs/a.json"]);
+  });
+});
+
+describe("readLogsOverview", () => {
+  let databaseService: DatabaseService;
+
+  beforeEach(async () => {
+    databaseService = createDatabaseService();
+    holder.service = databaseService;
+    await databaseService.openDatabase();
+  });
+
+  afterEach(async () => {
+    await databaseService.closeDatabase();
+    await Dexie.delete(DB_NAME);
+  });
+
+  const directChildOf =
+    (dir: string) =>
+    (log: LogListingRow): boolean =>
+      new RegExp(`^${dir}/[^/]+$`).test(log.name);
+
+  test("aggregates folders, counts, and task ids in one scan", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task_id: "t-a", status: "started" }),
+      "/test/logs/b.json": preview({ task_id: "t-b" }),
+      "/test/logs/sub/c.json": preview({ task_id: "t-c" }),
+      "/test/logs/sub/d.json": preview({ task_id: "t-d" }),
+    });
+
+    const overview = await readLogsOverview("/test/logs", {
+      folderDir: "/test/logs",
+      showRetriedLogs: false,
+      isCandidate: directChildOf("/test/logs"),
+    });
+
+    expect(overview.taskIds.sort()).toEqual(["t-a", "t-b", "t-c", "t-d"]);
+    expect(overview.fileCount).toBe(2);
+    expect(overview.startedCount).toBe(1);
+    expect(overview.retriedCount).toBe(0);
+    expect(overview.soleFileName).toBeUndefined();
+    expect(overview.folders).toEqual([{ name: "sub", itemCount: 2 }]);
+  });
+
+  test("counts retried runs and applies retried-hiding to file facts", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/2024-01-01_task.json": preview({ task_id: "shared" }),
+      "/test/logs/2024-01-02_task.json": preview({ task_id: "shared" }),
+    });
+    const view = {
+      showRetriedLogs: false,
+      isCandidate: directChildOf("/test/logs"),
+    };
+
+    const hidden = await readLogsOverview("/test/logs", view);
+    expect(hidden.fileCount).toBe(1);
+    expect(hidden.retriedCount).toBe(1);
+    expect(hidden.soleFileName).toBe("/test/logs/2024-01-02_task.json");
+    expect(hidden.folders).toEqual([]);
+
+    const shown = await readLogsOverview("/test/logs", {
+      ...view,
+      showRetriedLogs: true,
+    });
+    expect(shown.fileCount).toBe(2);
+    expect(shown.retriedCount).toBe(1);
+    expect(shown.soleFileName).toBeUndefined();
   });
 });

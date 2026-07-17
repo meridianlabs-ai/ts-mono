@@ -95,10 +95,10 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
 };
 
 interface UseLogListDataParams {
-  /** Presentation items: folders (pinned) and pending tasks (merged in as an
-   *  overlay — they have no database record). File items here are used only
-   *  for counts; file ROWS come from the listing query below. */
-  items: LogListItem[];
+  /** Presentation rows with no database record: folders (pinned) and
+   *  pending tasks (merged into the queried page as a sorted overlay).
+   *  File rows come from the listing query below. */
+  overlayItems: Array<FolderLogItem | PendingTaskItem>;
   /** Per-scope sorting/filters are read under this key (`undefined` while
    *  logDir is still hydrating — defaults apply, nothing is written). */
   scopeKey?: string;
@@ -117,9 +117,6 @@ interface UseLogListDataParams {
 export interface LogListData {
   /** Display rows: folders pinned on top, then the filtered+sorted files. */
   rows: LogListRow[];
-  /** Pre-filter row count — distinguishes "no items yet" (loading
-   *  empty-state) from "filters matched nothing". */
-  totalRowCount: number;
   /** Folders + matching files (reflects any active filter) — the footer
    *  count. */
   filteredCount: number;
@@ -139,7 +136,7 @@ export interface LogListData {
  * result.
  */
 export const useLogListData = ({
-  items,
+  overlayItems,
   scopeKey,
   getValue,
   getComparator,
@@ -151,10 +148,6 @@ export const useLogListData = ({
   // Folders and pending tasks are presentation-only rows with no database
   // record; shape them here. Reuse the prior row object for any item whose
   // display inputs are unchanged, so only changed rows pay the rebuild.
-  const overlayItems = useMemo(
-    () => items.filter((item) => item.type !== "file"),
-    [items]
-  );
   const overlayData: LogListRow[] = useKeyedMemo(
     overlayItems,
     (item) => item.id,
@@ -248,7 +241,6 @@ export const useLogListData = ({
 
   return {
     rows,
-    totalRowCount: items.length,
     filteredCount:
       folders.length + (result?.total_count ?? 0) + (overlay?.total_count ?? 0),
     sorting,
