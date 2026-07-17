@@ -9,14 +9,14 @@ import { useMemo } from "react";
 
 import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
 
-import { computeDefaultCollapsedIds } from "../../transform/collapse";
-import { fixupEventStream } from "../../transform/fixups";
-import { filterEmptySpans, treeifyEvents } from "../../transform/treeify";
-import { EventNode } from "../../types";
-import type { TimelineSpan } from "../core";
-import { groupRetryAttempts } from "../retryGrouping";
-import { correctRetryTimestamps } from "../retryOrdering";
-import { attachSourceSpans } from "../timelineEventNodes";
+import type { TimelineSpan } from "../timeline/core";
+import { groupRetryAttempts } from "../timeline/retryGrouping";
+import { correctRetryTimestamps } from "../timeline/retryOrdering";
+import { attachSourceSpans } from "../timeline/timelineEventNodes";
+import { computeDefaultCollapsedIds } from "../transform/collapse";
+import { fixupEventStream } from "../transform/fixups";
+import { filterEmptySpans, treeifyEvents } from "../transform/treeify";
+import { EventNode } from "../types";
 
 export const useEventNodes = (
   events: Event[],

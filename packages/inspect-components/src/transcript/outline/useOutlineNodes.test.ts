@@ -132,9 +132,9 @@ describe("useOutlineNodes", () => {
       [modelNode()]
     );
     const eventNodes = [span];
-    const defaultCollapsedIds = {};
+    const collapsedIds = {};
     const { result, rerender } = renderHook(() =>
-      useOutlineNodes(eventNodes, undefined, defaultCollapsedIds)
+      useOutlineNodes(eventNodes, collapsedIds)
     );
     const firstOutlineNodeList = result.current.outlineNodeList;
     const firstAllNodesList = result.current.allNodesList;
