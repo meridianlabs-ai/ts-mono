@@ -20,6 +20,9 @@ export {
 } from "./useTimelineConfig";
 export {
   useTranscriptTimeline,
+  type MultiTimelineNav,
+  type TimelineMinimapData,
+  type TimelineViewStack,
   type TranscriptTimelineResult,
   type UseTranscriptTimelineOptions,
 } from "./useTranscriptTimeline";

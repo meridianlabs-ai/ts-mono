@@ -20,10 +20,7 @@ import {
   ReactNode,
   RefObject,
   useCallback,
-  useEffect,
-  useMemo,
   useRef,
-  useState,
 } from "react";
 
 import type {
@@ -35,7 +32,7 @@ import {
   RailDock,
   StickyScroll,
 } from "@tsmono/react/components";
-import { useElementHeight, useScrubberProgress } from "@tsmono/react/hooks";
+import { useElementHeight } from "@tsmono/react/hooks";
 
 import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
@@ -44,9 +41,13 @@ import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
 import { useSelectionActions } from "./hooks/useSelectionActions";
 import { useSidebarScrollCoupling } from "./hooks/useSidebarScrollCoupling";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+import { useSwimlaneHeader } from "./hooks/useSwimlaneHeader";
 import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
 import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
-import { TranscriptOutline } from "./outline/TranscriptOutline";
+import {
+  OutlineSidebar,
+  type TranscriptLayoutOutlineProps,
+} from "./OutlineSidebar";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { type TimelineSpan } from "./timeline/core";
@@ -75,21 +76,7 @@ import {
 // Types
 // =============================================================================
 
-export interface TranscriptLayoutOutlineProps {
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
-  toggleDisabled?: boolean;
-  toggleTitle?: string;
-  toggleIcon: string;
-  /** Header title shown next to the toggle icon when expanded. */
-  title?: string;
-  /** Name of the agent/subagent currently displayed. Shown as a header in the outline. */
-  name?: string;
-  renderLink?: (url: string, children: ReactNode) => ReactNode;
-  onNavigateToEvent?: (eventId: string) => void;
-  selectedId?: string | null;
-  setSelectedId?: (id: string) => void;
-}
+export { type TranscriptLayoutOutlineProps } from "./OutlineSidebar";
 
 export interface TranscriptLayoutRightRailProps {
   /** Always-visible rail content (the vertical activity bar). */
@@ -192,6 +179,12 @@ export interface TranscriptLayoutProps {
 // =============================================================================
 // Component
 // =============================================================================
+
+function renderAgentCard(node: EventNode, agentCardClassName?: string) {
+  const span = node.sourceSpan as TimelineSpan | undefined;
+  if (!span) return null;
+  return <AgentCardView span={span} className={agentCardClassName} />;
+}
 
 export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   events,
@@ -312,39 +305,18 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Scrubber progress
+  // Swimlane header
   // ---------------------------------------------------------------------------
 
-  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
-
-  const handleScrub = useCallback(
-    (progress: number) => {
-      onHeadroomResetAnchor?.(true);
-      scrubTo(progress);
-    },
-    [onHeadroomResetAnchor, scrubTo]
-  );
-
-  const swimlaneHeader = useMemo(
-    () => ({
-      onScrollToTop,
-      minimap,
-      scrubberProgress,
-      onScrub: handleScrub,
-      timelineConfig,
-      multiTimeline,
-      views,
-    }),
-    [
-      onScrollToTop,
-      minimap,
-      scrubberProgress,
-      handleScrub,
-      timelineConfig,
-      multiTimeline,
-      views,
-    ]
-  );
+  const swimlaneHeader = useSwimlaneHeader({
+    scrollRef,
+    onScrollToTop,
+    onHeadroomResetAnchor,
+    timelineConfig,
+    minimap,
+    multiTimeline,
+    views,
+  });
 
   // ---------------------------------------------------------------------------
   // Deep-link resolution
@@ -357,19 +329,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     spanSelectKeys,
     showSwimlanes,
     nodeFeedEvents: nodeFeed.events,
+    onHeadroomResetAnchor,
   });
-
-  // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
-  // — fires for any change to the effective scroll target (URL `?event=`,
-  // resolved message, branch switch). The reset-anchor uses a debounced
-  // lock that stays active while the imperative scroll's retry loop keeps
-  // emitting scroll events, so the swimlane doesn't flicker open/closed
-  // during the multi-pass settling.
-  useEffect(() => {
-    if (effectiveInitialEventId) {
-      onHeadroomResetAnchor?.(true);
-    }
-  }, [effectiveInitialEventId, onHeadroomResetAnchor]);
 
   // ---------------------------------------------------------------------------
   // Collapse state & outline auto-hide
@@ -390,32 +351,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       outlineCollapsed: outline?.collapsed,
     });
 
-  const outlineCollapse = useMemo(
-    () =>
-      collapseState
-        ? {
-            collapsed: collapseState.outline,
-            onCollapse: collapseState.onCollapseOutline,
-            onSetCollapsed: collapseState.onSetOutlineCollapsed,
-          }
-        : undefined,
-    [collapseState]
-  );
-
   const hasMatchingEvents = eventNodes.length > 0;
-
-  // ---------------------------------------------------------------------------
-  // Agent card rendering
-  // ---------------------------------------------------------------------------
-
-  const renderAgentCard = useCallback(
-    (node: EventNode, agentCardClassName?: string) => {
-      const span = node.sourceSpan as TimelineSpan | undefined;
-      if (!span) return null;
-      return <AgentCardView span={span} className={agentCardClassName} />;
-    },
-    []
-  );
 
   // ---------------------------------------------------------------------------
   // Headroom reset anchor
@@ -446,24 +382,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       },
     ],
   });
-
-  // Capture the outline's own scroll container (the StickyScroll div, which
-  // has overflow-y:auto) into state so the outline's Virtuoso can use it as
-  // its scroll parent. Resolving into state (rather than reading a ref during
-  // render) guarantees a re-render once the element mounts. Also mirror it
-  // into the optional external ref callers pass for wheel forwarding.
-  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
-    null
-  );
-  const handleOutlineScrollRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      setOutlineScrollEl(el);
-      if (outlineScrollRef) {
-        outlineScrollRef.current = el;
-      }
-    },
-    [outlineScrollRef]
-  );
 
   // Track the scroll container's visible height so sticky sidebars can cap
   // their max-height to the actually-visible area (100vh would include the
@@ -521,85 +439,25 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               }
             >
               {outline && (
-                <>
-                  <StickyScroll
-                    ref={handleOutlineScrollRef}
-                    scrollRef={scrollRef}
-                    className={styles.outline}
-                    offsetTop={effectiveOffsetTop}
-                  >
-                    {!isOutlineCollapsed ? (
-                      <>
-                        {outline.title && (
-                          <div className={styles.sidebarHeader}>
-                            <span
-                              className={clsx(
-                                styles.sidebarHeaderTitle,
-                                "text-size-smaller"
-                              )}
-                            >
-                              {outline.title}
-                            </span>
-                          </div>
-                        )}
-                        <div className={styles.sidebarHeaderCloseAnchor}>
-                          <button
-                            type="button"
-                            className={styles.sidebarHeaderClose}
-                            onClick={() => outline.onCollapsedChange(true)}
-                            aria-label="Hide outline"
-                            title={outline.toggleTitle ?? "Hide outline"}
-                          >
-                            <i className="bi bi-x" />
-                          </button>
-                        </div>
-                        <TranscriptOutline
-                          eventNodes={eventNodes}
-                          defaultCollapsedIds={defaultCollapsedIds}
-                          scrollRef={scrollRef}
-                          outlineScrollEl={outlineScrollEl}
-                          running={running}
-                          backfilling={backfilling}
-                          agentName={
-                            outline.name ??
-                            (showSwimlanes ? selectedRowName : undefined)
-                          }
-                          scrollTrackOffset={effectiveOffsetTop}
-                          collapse={outlineCollapse}
-                          selectedOutlineId={outline.selectedId}
-                          setSelectedOutlineId={outline.setSelectedId}
-                          getEventUrl={getEventUrl}
-                          renderLink={outline.renderLink}
-                          onNavigateToEvent={outline.onNavigateToEvent}
-                          onHasNodesChange={onOutlineHasNodesChange}
-                        />
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className={styles.outlineToggle}
-                        onClick={
-                          outlineHasNodes && !outline.toggleDisabled
-                            ? () => outline.onCollapsedChange(false)
-                            : undefined
-                        }
-                        aria-disabled={
-                          outline.toggleDisabled || !outlineHasNodes
-                        }
-                        title={
-                          outline.toggleTitle ??
-                          (!outlineHasNodes
-                            ? "No outline available for the current filter"
-                            : undefined)
-                        }
-                        aria-label="Show outline"
-                      >
-                        <i className={outline.toggleIcon} />
-                      </button>
-                    )}
-                  </StickyScroll>
-                  <div className={styles.separator} />
-                </>
+                <OutlineSidebar
+                  outline={outline}
+                  isCollapsed={isOutlineCollapsed}
+                  hasNodes={outlineHasNodes}
+                  onHasNodesChange={onOutlineHasNodesChange}
+                  eventNodes={eventNodes}
+                  defaultCollapsedIds={defaultCollapsedIds}
+                  scrollRef={scrollRef}
+                  outlineScrollRef={outlineScrollRef}
+                  running={running}
+                  backfilling={backfilling}
+                  agentName={
+                    outline.name ??
+                    (showSwimlanes ? selectedRowName : undefined)
+                  }
+                  offsetTop={effectiveOffsetTop}
+                  collapseState={collapseState}
+                  getEventUrl={getEventUrl}
+                />
               )}
               {hasMatchingEvents ? (
                 <TranscriptViewNodes

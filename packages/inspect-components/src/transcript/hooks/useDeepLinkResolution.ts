@@ -45,6 +45,9 @@ export interface UseDeepLinkResolutionOptions {
   showSwimlanes: boolean;
   /** The events currently in the node feed (to detect visible targets). */
   nodeFeedEvents: Event[];
+  /** Headroom anchor reset, fired (debounced) whenever the effective scroll
+   *  target changes — see the effect below for why. */
+  onHeadroomResetAnchor?: (debounce?: boolean) => void;
 }
 
 export interface DeepLinkResolution {
@@ -72,6 +75,7 @@ export function useDeepLinkResolution(
     spanSelectKeys,
     showSwimlanes,
     nodeFeedEvents,
+    onHeadroomResetAnchor,
   } = options;
 
   // ---------------------------------------------------------------------------
@@ -244,6 +248,18 @@ export function useDeepLinkResolution(
 
   const effectiveInitialEventId =
     initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
+
+  // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
+  // — fires for any change to the effective scroll target (URL `?event=`,
+  // resolved message, branch switch). The reset-anchor uses a debounced
+  // lock that stays active while the imperative scroll's retry loop keeps
+  // emitting scroll events, so the swimlane doesn't flicker open/closed
+  // during the multi-pass settling.
+  useEffect(() => {
+    if (effectiveInitialEventId) {
+      onHeadroomResetAnchor?.(true);
+    }
+  }, [effectiveInitialEventId, onHeadroomResetAnchor]);
 
   return { effectiveInitialEventId };
 }

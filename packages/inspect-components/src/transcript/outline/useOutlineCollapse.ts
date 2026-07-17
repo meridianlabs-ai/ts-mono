@@ -10,6 +10,8 @@
 
 import { useEffect, useMemo } from "react";
 
+import { type TranscriptCollapseState } from "../types";
+
 export interface OutlineCollapseState {
   /** Current collapsed node IDs for the outline scope. */
   collapsed?: Record<string, boolean>;
@@ -17,6 +19,19 @@ export interface OutlineCollapseState {
   onCollapse?: (nodeId: string, collapsed: boolean) => void;
   /** Bulk-set outline collapsed state (for initialization). */
   onSetCollapsed?: (ids: Record<string, boolean>) => void;
+}
+
+/** Project the transcript-level collapse store down to the outline scope. */
+export function outlineCollapseState(
+  collapseState: TranscriptCollapseState | undefined
+): OutlineCollapseState | undefined {
+  return collapseState
+    ? {
+        collapsed: collapseState.outline,
+        onCollapse: collapseState.onCollapseOutline,
+        onSetCollapsed: collapseState.onSetOutlineCollapsed,
+      }
+    : undefined;
 }
 
 export interface OutlineCollapse {
