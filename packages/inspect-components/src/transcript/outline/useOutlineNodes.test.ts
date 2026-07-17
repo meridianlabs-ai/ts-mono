@@ -1,8 +1,10 @@
+// @vitest-environment jsdom
+import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { EventNode, type EventType } from "../types";
 
-import { buildOutlineNodeList } from "./useOutlineNodes";
+import { buildOutlineNodeList, useOutlineNodes } from "./useOutlineNodes";
 
 // =============================================================================
 // Fixtures
@@ -89,5 +91,29 @@ describe("buildOutlineNodeList", () => {
     expect(collapsed.map((n) => (n.event as { type?: string }).type)).toEqual([
       "agent",
     ]);
+  });
+});
+
+// =============================================================================
+// useOutlineNodes
+// =============================================================================
+
+describe("useOutlineNodes", () => {
+  it("preserves derived list identities when inputs are unchanged", () => {
+    const span = node({ event: "span_begin", name: "agent", type: "agent" }, [
+      modelNode(),
+    ]);
+    const eventNodes = [span];
+    const defaultCollapsedIds = {};
+    const { result, rerender } = renderHook(() =>
+      useOutlineNodes(eventNodes, undefined, defaultCollapsedIds)
+    );
+    const firstOutlineNodeList = result.current.outlineNodeList;
+    const firstAllNodesList = result.current.allNodesList;
+
+    rerender();
+
+    expect(result.current.outlineNodeList).toBe(firstOutlineNodeList);
+    expect(result.current.allNodesList).toBe(firstAllNodesList);
   });
 });

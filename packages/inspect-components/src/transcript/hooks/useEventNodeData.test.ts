@@ -85,4 +85,23 @@ describe("useEventNodeData", () => {
     // Caller extras pass through the merge.
     expect(context.inlineExpansionUX).toBe(true);
   });
+
+  it("preserves derived identities when feed and context are unchanged", () => {
+    const extraContext = {
+      inlineExpansionUX: true,
+      messageLabels: { m1: "A", m2: "B" },
+    };
+    const { result, rerender } = renderHook(() =>
+      useEventNodeData(feed, false, extraContext)
+    );
+    const firstEventNodes = result.current.eventNodes;
+    const firstDefaultCollapsedIds = result.current.defaultCollapsedIds;
+    const firstEventNodeContext = result.current.eventNodeContext;
+
+    rerender();
+
+    expect(result.current.eventNodes).toBe(firstEventNodes);
+    expect(result.current.defaultCollapsedIds).toBe(firstDefaultCollapsedIds);
+    expect(result.current.eventNodeContext).toBe(firstEventNodeContext);
+  });
 });

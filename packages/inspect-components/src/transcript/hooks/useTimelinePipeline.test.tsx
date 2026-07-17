@@ -161,6 +161,27 @@ describe("useTimelinePipeline", () => {
     ]);
   });
 
+  it("preserves feed and search identities when inputs are unchanged", () => {
+    const hiddenEventTypes = ["info"];
+    const { result, rerender } = renderHook(
+      () =>
+        useTimelinePipeline({
+          events: flatEvents,
+          hiddenEventTypes,
+        }),
+      { wrapper: InMemoryStateWrapper }
+    );
+    const firstNodeFeed = result.current.nodeFeed;
+    const firstFeedEvents = result.current.nodeFeed.events;
+    const firstSearchableEvents = result.current.searchableEvents;
+
+    rerender();
+
+    expect(result.current.nodeFeed).toBe(firstNodeFeed);
+    expect(result.current.nodeFeed.events).toBe(firstFeedEvents);
+    expect(result.current.searchableEvents).toBe(firstSearchableEvents);
+  });
+
   it("always returns the full timeline pipeline result", () => {
     const { result } = renderHook(
       () => useTimelinePipeline({ events: flatEvents }),
