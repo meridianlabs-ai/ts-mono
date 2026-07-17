@@ -126,10 +126,10 @@ describe("useTimelinePipeline", () => {
       () => useTimelinePipeline({ events: flatEvents }),
       { wrapper: InMemoryStateWrapper }
     );
-    expect(result.current.timeline.timelines).toHaveLength(1);
+    expect(result.current.timeline.multiTimeline.timelines).toHaveLength(1);
     // Identity is not preserved here: the timeline pipeline re-sorts via
     // correctRetryTimestamps, so compare by value.
-    expect(result.current.timeline.selectedEvents).toEqual(flatEvents);
+    expect(result.current.timeline.selection.events).toEqual(flatEvents);
     expect(result.current.timelineConfig.markerConfig).toBeDefined();
   });
 });

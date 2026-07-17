@@ -253,18 +253,15 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const {
     timeline: timelineData,
     state: timelineState,
-    layouts: timelineLayouts,
-    rootTimeMapping,
-    minimapSelection,
-    timelines,
-    activeTimelineIndex,
-    setActiveTimeline,
-    regionCounts,
-    highlightedKeys,
-    selectedRowName,
-    viewStack,
-    pushView,
-    popView,
+    swimlanes: { layouts: timelineLayouts, regionCounts, highlightedKeys },
+    minimap: { mapping: rootTimeMapping, selection: minimapSelection },
+    multiTimeline: {
+      timelines,
+      activeIndex: activeTimelineIndex,
+      setActive: setActiveTimeline,
+    },
+    views: { stack: viewStack, push: pushView, pop: popView },
+    selection: { rowName: selectedRowName },
   } = transcriptTimeline;
 
   const {

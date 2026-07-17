@@ -60,48 +60,73 @@ const PHASE_SPAN_TYPES = new Set(["init", "scorers"]);
 const emptySourceSpans: ReadonlyMap<string, TimelineSpan> = new Map();
 const emptyHighlightedKeys: ReadonlyMap<string, number> = new Map();
 
+export interface TimelineSwimlanesData {
+  /** Computed row layouts for the swimlane UI. */
+  layouts: RowLayout[];
+  /** Map from row key -> number of compaction regions (only for rows with compactions). */
+  regionCounts: ReadonlyMap<string, number>;
+  /** Row key -> highlight clip percentage (0-100) within the bar area. */
+  highlightedKeys: ReadonlyMap<string, number>;
+  /** Time mapping for the current node (may compress gaps). */
+  timeMapping: TimeMapping;
+}
+
+export interface TimelineMinimapData {
+  /** Time mapping for the root node. */
+  mapping: TimeMapping;
+  /** Minimap selection for the breadcrumb row. */
+  selection: MinimapSelection | undefined;
+}
+
+export interface MultiTimelineNav {
+  /** All available timelines (may be 1 or more). */
+  timelines: Timeline[];
+  /** Index of the currently active timeline. */
+  activeIndex: number;
+  /** Switch the active timeline by index. Resets selection. */
+  setActive: (index: number) => void;
+}
+
+export interface TimelineViewStack {
+  /** Punched-down view stack (each entry is a spliced standalone timeline). */
+  stack: ReadonlyArray<{ label: string; timeline: Timeline }>;
+  /** Drill into `branch` — splice it against the base timeline's root and push onto the view stack. */
+  push: (branch: TimelineSpan, label: string) => void;
+  /** Pop the top of the view stack (back to the previous view). */
+  pop: () => void;
+}
+
+export interface TimelineSelectionData {
+  /** Events scoped to the selected swimlane row (or all events if no child selected). */
+  events: Event[];
+  /** Agent spans keyed by span ID, for attaching to EventNodes. */
+  sourceSpans: ReadonlyMap<string, TimelineSpan>;
+  /** Event ID to scroll to when a branch is selected (the branch separator). Null for non-branch selections. */
+  branchScrollTarget: string | null;
+  /** Name of the currently selected swimlane row, or the root name when nothing is selected. */
+  rowName: string;
+}
+
 export interface TranscriptTimelineResult {
   /** The built Timeline. Always present (even for root-only timelines). */
   timeline: Timeline;
   /** Full useTimeline state (node, rows, navigation). */
   state: TimelineState;
-  /** Computed row layouts for the swimlane UI. */
-  layouts: RowLayout[];
-  /** Time mapping for the current node (may compress gaps). */
-  timeMapping: TimeMapping;
-  /** Time mapping for the root node (for minimap). */
-  rootTimeMapping: TimeMapping;
-  /** Events scoped to the selected swimlane row (or all events if no child selected). */
-  selectedEvents: Event[];
-  /** Agent spans keyed by span ID, for attaching to EventNodes. */
-  sourceSpans: ReadonlyMap<string, TimelineSpan>;
-  /** Minimap selection for the breadcrumb row. */
-  minimapSelection: MinimapSelection | undefined;
   /** Whether the timeline has meaningful structure (non-empty root with children). */
   hasTimeline: boolean;
   /** Whether the timeline has agent sub-structure worth expanding (a child lane
    *  beyond the lifecycle phases init/scoring). */
   hasAgentTimeline: boolean;
-  /** All available timelines (may be 1 or more). */
-  timelines: Timeline[];
-  /** Index of the currently active timeline. */
-  activeTimelineIndex: number;
-  /** Switch the active timeline by index. Resets selection. */
-  setActiveTimeline: (index: number) => void;
-  /** Map from row key -> number of compaction regions (only for rows with compactions). */
-  regionCounts: ReadonlyMap<string, number>;
-  /** Event ID to scroll to when a branch is selected (the branch separator). Null for non-branch selections. */
-  branchScrollTarget: string | null;
-  /** Row key -> highlight clip percentage (0-100) within the bar area. */
-  highlightedKeys: ReadonlyMap<string, number>;
-  /** Name of the currently selected swimlane row, or the root name when nothing is selected. */
-  selectedRowName: string;
-  /** Punched-down view stack (each entry is a spliced standalone timeline). */
-  viewStack: ReadonlyArray<{ label: string; timeline: Timeline }>;
-  /** Drill into `branch` — splice it against the base timeline's root and push onto the view stack. */
-  pushView: (branch: TimelineSpan, label: string) => void;
-  /** Pop the top of the view stack (back to the previous view). */
-  popView: () => void;
+  /** Swimlane rendering data. */
+  swimlanes: TimelineSwimlanesData;
+  /** Minimap data for the breadcrumb row. */
+  minimap: TimelineMinimapData;
+  /** Multi-timeline navigation. */
+  multiTimeline: MultiTimelineNav;
+  /** Punch-down view navigation. */
+  views: TimelineViewStack;
+  /** Data derived from the current swimlane selection. */
+  selection: TimelineSelectionData;
 }
 
 export interface UseTranscriptTimelineOptions {
@@ -358,27 +383,52 @@ export function useTranscriptTimeline(
     return row?.name ?? timeline.root.name;
   }, [state.selected, state.rows, timeline.root.name]);
 
+  // Group into cohesive sub-objects with memoized identities so consumers
+  // can depend on a group without spurious recomputes.
+  const swimlanes = useMemo(
+    () => ({ layouts, regionCounts, highlightedKeys, timeMapping }),
+    [layouts, regionCounts, highlightedKeys, timeMapping]
+  );
+
+  const minimap = useMemo(
+    () => ({ mapping: rootTimeMapping, selection: minimapSelection }),
+    [rootTimeMapping, minimapSelection]
+  );
+
+  const multiTimeline = useMemo(
+    () => ({
+      timelines,
+      activeIndex: activeTimelineIndex,
+      setActive: setActiveTimeline,
+    }),
+    [timelines, activeTimelineIndex, setActiveTimeline]
+  );
+
+  const views = useMemo(
+    () => ({ stack: viewStack, push: pushView, pop: popView }),
+    [viewStack, pushView, popView]
+  );
+
+  const selection = useMemo(
+    () => ({
+      events: selectedEvents,
+      sourceSpans,
+      branchScrollTarget,
+      rowName: selectedRowName,
+    }),
+    [selectedEvents, sourceSpans, branchScrollTarget, selectedRowName]
+  );
+
   return {
     timeline,
     state,
-    layouts,
-    timeMapping,
-    rootTimeMapping,
-    selectedEvents,
-    sourceSpans,
-    minimapSelection,
     hasTimeline,
     hasAgentTimeline,
-    timelines,
-    activeTimelineIndex,
-    setActiveTimeline,
-    regionCounts,
-    branchScrollTarget,
-    highlightedKeys,
-    selectedRowName,
-    viewStack,
-    pushView,
-    popView,
+    swimlanes,
+    minimap,
+    multiTimeline,
+    views,
+    selection,
   };
 }
 
