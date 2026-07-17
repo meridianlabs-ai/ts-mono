@@ -1,9 +1,8 @@
 import type { SortingState } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 
-import { LogListingRow } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
 import {
@@ -20,79 +19,14 @@ import type {
 import {
   sortingStateToOrderBy,
   useDatabaseLogsListingQuery,
+  type LogsListingDescriptor,
 } from "../listing/useLogsListingQuery";
-import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
+import { FolderLogItem, PendingTaskItem } from "../LogItem";
 
 import { LogListRow } from "./columns/types";
-
-export type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
+import { buildLogListRow } from "./logListRow";
 
 const kNoRows: LogListRow[] = [];
-
-const rowForItem = (item: LogListItem): LogListingRow | undefined =>
-  item.type === "file" ? item.log : undefined;
-
-// A projection, not a computation: every derived value is read off the row
-// (attached at ingestion by `detailTier`/`deriveLogFields`) so the grid can
-// never disagree with what the store holds.
-const buildLogListRow = (item: LogListItem): LogListRow => {
-  const log = rowForItem(item);
-  const details = log?.header;
-  const derived = log?.derived;
-
-  const taskArgsSource =
-    details?.eval?.task_args_passed ?? details?.eval?.task_args;
-
-  const row: LogListRow = {
-    id: item.id,
-    name: item.name,
-    displayIndex:
-      item.type === "file" || item.type === "pending-task"
-        ? item.displayIndex
-        : undefined,
-    type: item.type,
-    url: item.url,
-    task: item.type === "file" ? (log?.task ?? undefined) : item.name,
-    model:
-      item.type === "file"
-        ? log?.model
-        : item.type === "pending-task"
-          ? item.model
-          : undefined,
-    modelRoles:
-      item.type === "file" ? (log?.model_roles ?? undefined) : undefined,
-    score: log?.primary_metric?.value,
-    status: log?.status,
-    completedAt: log?.completed_at,
-    itemCount: item.type === "folder" ? item.itemCount : undefined,
-    log: item.type === "file" ? item.log : undefined,
-    path: item.type === "file" ? item.name : undefined,
-    totalSamples: details?.results?.total_samples,
-    completedSamples: details?.results?.completed_samples,
-    sandbox: details?.eval?.sandbox?.type,
-    totalTokens: derived?.total_tokens,
-    duration: derived?.duration,
-    taskFile: details?.eval?.task_file ?? undefined,
-    taskArgs: derived?.task_args,
-    taskArgsRaw: taskArgsSource ?? undefined,
-    tags: details?.tags,
-    percentCompleted: derived?.percent_completed,
-    sampleErrors: details?.sampleErrorCount,
-    sampleLimits: derived?.sample_limits,
-    errorMessage: details?.error?.message,
-  };
-
-  // Individual scorer columns, keyed `score_<scorer>/<metric>`.
-  if (derived?.scores) {
-    for (const [scorerName, metrics] of Object.entries(derived.scores)) {
-      for (const [metricName, value] of Object.entries(metrics)) {
-        row[`score_${scorerName}/${metricName}`] = value;
-      }
-    }
-  }
-
-  return row;
-};
 
 interface UseLogListDataParams {
   /** Presentation rows with no database record: folders (pinned) and
@@ -105,13 +39,7 @@ interface UseLogListDataParams {
   getValue: ValueAccessor<LogListRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
-  /** The listing query's source description — see `useDatabaseLogsListingQuery`. */
-  listing: {
-    logDir: string;
-    prefix: string;
-    universe: string | undefined;
-    toItem: (log: LogListingRow) => FileLogItem | undefined;
-  };
+  listing: LogsListingDescriptor<LogListRow>;
 }
 
 export interface LogListData {
@@ -185,27 +113,13 @@ export const useLogListData = ({
   );
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
-  const toItem = listing.toItem;
-  const toRow = useCallback(
-    (log: LogListingRow): LogListRow | undefined => {
-      const item = toItem(log);
-      return item === undefined ? undefined : buildLogListRow(item);
-    },
-    [toItem]
-  );
-
   const { result, pending } = useDatabaseLogsListingQuery<LogListRow>({
     filter,
     orderBy,
     getValue,
     getComparator,
     getFilterType,
-    listing: {
-      logDir: listing.logDir,
-      prefix: listing.prefix,
-      universe: listing.universe,
-      toRow,
-    },
+    listing,
   });
 
   // Pending tasks have no database record: run the same query over them in

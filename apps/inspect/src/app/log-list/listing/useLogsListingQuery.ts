@@ -65,6 +65,24 @@ export function useLogsListingQuery<TRow>({
   );
 }
 
+/** The listing source a view queries — shared by the row query, the find
+ *  band's match query, and (eventually) the offset lookup, so they can
+ *  never disagree about the row universe. */
+export interface LogsListingDescriptor<TRow> {
+  /** The synced directory whose rows are the source (see `readLogsListing`
+   *  for where they're read from). */
+  logDir: string;
+  /** Row-universe scan prefix (folder mode lists a subdirectory). */
+  prefix: string;
+  /** Cache identity of the row universe: everything `toRow` reads beyond
+   *  the record itself (view mode, directory, display toggles).
+   *  `undefined` while the scope is still hydrating — disables queries. */
+  universe: string | undefined;
+  /** Shape a source record into the view's row, or `undefined` when the
+   *  view has no row for it (row-universe membership). */
+  toRow: (log: LogListingRow) => TRow | undefined;
+}
+
 interface UseDatabaseLogsListingParams<TRow> {
   filter?: Condition;
   orderBy?: OrderByModel[];
@@ -72,20 +90,7 @@ interface UseDatabaseLogsListingParams<TRow> {
   getValue: ValueAccessor<TRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
-  listing: {
-    /** The synced directory whose rows are the source (see `readLogsListing`
-     *  for where they're read from). */
-    logDir: string;
-    /** Row-universe scan prefix (folder mode lists a subdirectory). */
-    prefix: string;
-    /** Cache identity of the row universe: everything `toRow` reads beyond
-     *  the record itself (view mode, directory, display toggles).
-     *  `undefined` while the scope is still hydrating — disables the query. */
-    universe: string | undefined;
-    /** Shape a source record into the view's row, or `undefined` when the
-     *  view has no row for it (row-universe membership). */
-    toRow: (log: LogListingRow) => TRow | undefined;
-  };
+  listing: LogsListingDescriptor<TRow>;
 }
 
 export interface DatabaseLogsListing<TRow> {

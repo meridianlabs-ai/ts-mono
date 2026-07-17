@@ -33,8 +33,11 @@ import {
   type FileLogItemView,
 } from "./fileLogItem";
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
+import type { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
+import { buildLogListRow } from "./grid/logListRow";
 import { useLogListData } from "./grid/useLogListData";
+import type { LogsListingDescriptor } from "./listing/useLogsListingQuery";
 import { FolderLogItem, PendingTaskItem } from "./LogItem";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
@@ -169,9 +172,27 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getFilterType,
   } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
-  const toItem = useCallback(
-    (log: LogListingRow) => fileLogItem(log, itemView),
+  const toRow = useCallback(
+    (log: LogListingRow) => {
+      const item = fileLogItem(log, itemView);
+      return item === undefined ? undefined : buildLogListRow(item);
+    },
     [itemView]
+  );
+
+  // One descriptor shared by the row query (useLogListData) and the grid's
+  // find-band match query, so they can never disagree about the universe.
+  const listing = useMemo<LogsListingDescriptor<LogListRow>>(
+    () => ({
+      logDir,
+      // Match the row universe: folder mode lists the current directory, the
+      // flat tasks view lists the whole log dir (like `scopeDir` above) — a
+      // narrower scan prefix would silently drop matching rows outside it.
+      prefix: mode === "logs" ? currentDir : logDir,
+      universe,
+      toRow,
+    }),
+    [logDir, mode, currentDir, universe, toRow]
   );
 
   const listData = useLogListData({
@@ -180,15 +201,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
-    listing: {
-      logDir,
-      // Match the row universe: folder mode lists the current directory, the
-      // flat tasks view lists the whole log dir (like `scopeDir` above) — a
-      // narrower scan prefix would silently drop matching rows outside it.
-      prefix: mode === "logs" ? currentDir : logDir,
-      universe,
-      toItem,
-    },
+    listing,
   });
 
   // Pre-filter row count — distinguishes "no items yet" (loading
@@ -354,6 +367,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               scopeKey={scopeKey}
               mode={mode}
               busy={listBusy}
+              listing={listing}
             />
           </div>
           <LogListFooter

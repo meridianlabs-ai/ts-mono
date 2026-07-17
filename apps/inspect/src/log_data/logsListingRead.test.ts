@@ -21,7 +21,11 @@ import {
 
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
 import { setRows } from "./logsContent";
-import { readLogsListing, readLogsOverview } from "./logsListingRead";
+import {
+  readLogsListing,
+  readLogsListingMatches,
+  readLogsOverview,
+} from "./logsListingRead";
 
 const holder = vi.hoisted(() => {
   const state: { service: DatabaseService | null } = { service: null };
@@ -229,5 +233,58 @@ describe("readLogsOverview", () => {
     expect(shown.fileCount).toBe(2);
     expect(shown.retriedCount).toBe(1);
     expect(shown.soleFileName).toBeUndefined();
+  });
+});
+
+describe("readLogsListingMatches", () => {
+  let databaseService: DatabaseService;
+
+  beforeEach(async () => {
+    databaseService = createDatabaseService();
+    holder.service = databaseService;
+    await databaseService.openDatabase();
+  });
+
+  afterEach(async () => {
+    await databaseService.closeDatabase();
+    await Dexie.delete(DB_NAME);
+  });
+
+  test("returns matching row ids in listing order under the active plan", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task: "alpha", task_id: "t-a" }),
+      "/test/logs/b.json": preview({
+        task: "beta",
+        task_id: "t-b",
+        model: "gpt-4o",
+      }),
+      "/test/logs/c.json": preview({ task: "alphabet", task_id: "t-c" }),
+      // Text matches the term but the plan's filter excludes it: matches
+      // must respect the same filter as the row query.
+      "/test/logs/d.json": preview({
+        task: "alpha",
+        task_id: "t-d",
+        model: "claude",
+      }),
+    });
+
+    const matches = await readLogsListingMatches(
+      "/test/logs",
+      "/test/logs",
+      (log: LogListingRow) => log as Log,
+      createListingPlan({
+        filter: new Column("model").ilike("gpt%"),
+        orderBy: [{ column: "name", direction: "DESC" as const }],
+        getValue,
+        getComparator: () => undefined,
+      }),
+      {
+        term: "ALPHA",
+        getRowId: (row) => row.name,
+        rowText: (row) => `${row.name}\n${row.task ?? ""}`,
+      }
+    );
+
+    expect(matches).toEqual(["/test/logs/c.json", "/test/logs/a.json"]);
   });
 });

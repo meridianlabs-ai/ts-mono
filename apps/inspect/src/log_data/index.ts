@@ -99,6 +99,7 @@ export {
 } from "./databaseListings";
 export {
   readLogsListing,
+  readLogsListingMatches,
   readLogsOverview,
   logsListingSource,
   type LogsListingSource,

@@ -208,3 +208,32 @@ export const readLogsOverview = async (
       view.folderDir === undefined ? [] : deriveFolders(rows, view.folderDir),
   };
 };
+
+/**
+ * Ids of the rows whose searchable text contains `term`
+ * (case-insensitive), in listing order under the same universe + plan as
+ * the row query — the find band's data-level backing. Runs over the scan
+ * today; under keys-first pagination it becomes a snapshot projection, so
+ * matches keep covering rows outside the loaded pages.
+ */
+export const readLogsListingMatches = async <TRow>(
+  logDir: string,
+  prefix: string,
+  toRow: (log: LogListingRow) => TRow | undefined,
+  plan: DatabaseListingPlan<TRow>,
+  find: {
+    term: string;
+    getRowId: (row: TRow) => string;
+    rowText: (row: TRow) => string;
+  }
+): Promise<string[]> => {
+  const rows = await scanListingRows(logDir, prefix, toRow, plan);
+  const term = find.term.toLowerCase();
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (find.rowText(row).toLowerCase().includes(term)) {
+      ids.push(find.getRowId(row));
+    }
+  }
+  return ids;
+};

@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import {
@@ -19,13 +20,24 @@ import type {
 import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
+import {
+  databaseLogsListingKeyRoot,
+  readLogsListingMatches,
+} from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {
   buildSearchIndex,
   findMatches,
+  rowSearchText,
 } from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
+import { combineFilters } from "../listing/combineFilters";
+import { createListingPlan } from "../listing/planner";
+import {
+  sortingStateToOrderBy,
+  type LogsListingDescriptor,
+} from "../listing/useLogsListingQuery";
 
 import {
   useLogListColumns,
@@ -55,6 +67,10 @@ interface LogListGridProps {
   /** The listing is still being brought up to date (drives the empty-state
    *  loading indicator). */
   busy: boolean;
+  /** The listing source the rows were queried from — the find band runs its
+   *  match query against the same universe (so matches cover rows beyond
+   *  the loaded page once the listing paginates). */
+  listing: LogsListingDescriptor<LogListRow>;
 }
 
 export const LogListGrid: FC<LogListGridProps> = ({
@@ -66,6 +82,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   scopeKey,
   mode = "logs",
   busy,
+  listing,
 }) => {
   const { gridStateByScope, patchGridState } = useLogsListing();
 
@@ -80,11 +97,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns, visibility } = useLogListColumns(
-    mode,
-    scopeDir,
-    scoresViewMode
-  );
+  const { columns, visibility, getValue, getComparator, getFilterType } =
+    useLogListColumns(mode, scopeDir, scoresViewMode);
 
   const handleRowActivate = useCallback(
     (row: LogListRow) => {
@@ -183,19 +197,72 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [columns, visibility]
   );
 
-  // Built only while the band is open; per-row text is then cached across
-  // keystrokes (each keystroke just re-scans the index).
-  const searchIndex = useMemo(
+  // Match membership is data-level, computed against the listing source
+  // under the same universe + filter + sort as the rows — so matches keep
+  // covering rows outside the loaded page once the listing paginates.
+  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
+  const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
+  const rowText = useCallback(
+    (row: LogListRow) => rowSearchText(row, searchColumns),
+    [searchColumns]
+  );
+  const fileMatches = useQuery({
+    queryKey: [
+      ...databaseLogsListingKeyRoot,
+      "find",
+      listing.universe ?? null,
+      filter ?? null,
+      orderBy,
+      findTerm,
+      searchColumns.map((col) => col.id),
+    ],
+    queryFn: (): Promise<string[]> =>
+      readLogsListingMatches(
+        listing.logDir,
+        listing.prefix,
+        listing.toRow,
+        createListingPlan({
+          filter,
+          orderBy,
+          getValue,
+          getComparator,
+          getFilterType,
+        }),
+        { term: findTerm, getRowId: (row: LogListRow) => row.id, rowText }
+      ),
+    enabled: showFind && findTerm !== "" && listing.universe !== undefined,
+    // Keep the previous matches while a keystroke's refetch is in flight.
+    placeholderData: (previousData: string[] | undefined) => previousData,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  // Folders and pending tasks have no listing record; match them locally
+  // over the (small) overlay slice of the display rows.
+  const overlayIndex = useMemo(
     () =>
       showFind
-        ? buildSearchIndex(rows, searchColumns, (row) => row.id)
+        ? buildSearchIndex(
+            rows.filter((row) => row.type !== "file"),
+            searchColumns,
+            (row) => row.id
+          )
         : undefined,
     [showFind, rows, searchColumns]
   );
-  const matchIds = useMemo(
-    () => (searchIndex ? findMatches(searchIndex, findTerm) : []),
-    [searchIndex, findTerm]
-  );
+
+  // Display-order match list: membership from the queries, order from the
+  // rendered rows. (Under pagination the ordering piece moves to the
+  // snapshot key list; membership stays as-is.)
+  const matchIds = useMemo(() => {
+    if (!findTerm) return [];
+    const matchSet = new Set([
+      ...(fileMatches.data ?? []),
+      ...(overlayIndex ? findMatches(overlayIndex, findTerm) : []),
+    ]);
+    return rows.filter((row) => matchSet.has(row.id)).map((row) => row.id);
+  }, [findTerm, fileMatches.data, overlayIndex, rows]);
 
   const handleFindTermChange = useCallback(() => {
     setFindTerm(findInputRef.current?.value ?? "");
@@ -283,7 +350,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onPrevious={() => goToMatch(activeMatchIndex - 1)}
           onNext={() => goToMatch(activeMatchIndex + 1)}
           disableNav={matchIds.length === 0}
-          noResults={!!findTerm && matchIds.length === 0}
+          noResults={
+            !!findTerm && matchIds.length === 0 && !fileMatches.isPending
+          }
           matchCount={findTerm ? matchIds.length : undefined}
           matchIndex={findTerm ? activeMatchIndex : undefined}
         />
