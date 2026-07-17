@@ -39,16 +39,22 @@ describe("scopeMessageLabels", () => {
     expect(scopeMessageLabels([modelEvent([])], undefined)).toBeUndefined();
   });
 
-  it("keeps labels for messages present in the events", () => {
-    const events = [
-      modelEvent([{ id: "m1", role: "user" }], ["m2"]),
-      toolEvent("t1", "m3"),
-    ];
-    const labels = { m1: "A", m2: "B", m3: "C", m4: "D" };
-    expect(scopeMessageLabels(events, labels)).toEqual({
+  it.each([
+    {
+      desc: "model input message",
+      events: [modelEvent([{ id: "m1", role: "user" }])],
+    },
+    {
+      desc: "model output choice",
+      events: [modelEvent([], ["m1"])],
+    },
+    {
+      desc: "tool event message_id",
+      events: [toolEvent("t1", "m1")],
+    },
+  ])("keeps labels for a $desc, drops absent ones", ({ events }) => {
+    expect(scopeMessageLabels(events, { m1: "A", absent: "B" })).toEqual({
       m1: "A",
-      m2: "B",
-      m3: "C",
     });
   });
 
