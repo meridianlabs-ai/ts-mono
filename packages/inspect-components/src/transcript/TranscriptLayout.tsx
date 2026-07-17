@@ -42,6 +42,7 @@ import { useEventNodeData } from "./hooks/useEventNodeData";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
 import { useSelectionActions } from "./hooks/useSelectionActions";
+import { useSidebarScrollCoupling } from "./hooks/useSidebarScrollCoupling";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
 import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
@@ -425,109 +426,30 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor]
   );
 
-  // When a sidebar toggles, the layout reflows but no scroll/resize event
-  // fires — so sticky-state observers (useStickyObserver, StickyScroll)
-  // keep stale state. Dispatch a synthetic scroll event after the DOM has
-  // settled to force them to re-measure.
+  // The rail panel pins directly below the toolbar (offsetTop), alongside
+  // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
+  // Each needs its own sticky-detection threshold. The remount keys re-attach
+  // listeners when collapse state changes (the scroll elements may have
+  // unmounted/remounted via the conditional render).
   const outlineCollapsedFlag = outline?.collapsed ?? null;
   const railPanelOpenFlag = rightRail?.panel != null;
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const timer = setTimeout(() => {
-      el.dispatchEvent(new Event("scroll"));
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [outlineCollapsedFlag, railPanelOpenFlag, scrollRef]);
-
-  // Forward wheel events from the sidebars to the main scroll container
-  // only while the header above the tabs is still visible. Once the sidebar
-  // is stuck at its sticky top (header fully out), wheel events stop chaining
-  // so the main transcript doesn't scroll along with the sidebar.
-  const effectiveOffsetTopRef = useRef(effectiveOffsetTop);
-  useEffect(() => {
-    effectiveOffsetTopRef.current = effectiveOffsetTop;
-  }, [effectiveOffsetTop]);
-  const offsetTopRef = useRef(offsetTop);
-  useEffect(() => {
-    offsetTopRef.current = offsetTop;
-  }, [offsetTop]);
-
-  useEffect(() => {
-    const main = scrollRef.current;
-    const outlineEl = outlineScrollRef?.current ?? null;
-    const railPanelEl = rightRailPanelScrollRef?.current ?? null;
-    if (!main) return;
-
-    const makeHandler =
-      (sidebar: HTMLDivElement, stickyTopRef: { current: number }) =>
-      (e: WheelEvent) => {
-        const mainMaxTop = main.scrollHeight - main.clientHeight;
-        // Is the sidebar currently stuck at its sticky top? If so, the header
-        // above the tabs has already scrolled off — don't chain further main
-        // scrolling or the transcript itself would move with the sidebar.
-        const mainRect = main.getBoundingClientRect();
-        const sidebarRect = sidebar.getBoundingClientRect();
-        const sidebarTopInScroller = sidebarRect.top - mainRect.top;
-        const sidebarIsSticky =
-          sidebarTopInScroller <= stickyTopRef.current + 1;
-
-        if (!sidebarIsSticky) {
-          // Header still visible — forward all wheel input to the main
-          // scroller so that the header collapses/expands. Suppress the
-          // sidebar's default scroll for this step.
-          const canMain =
-            (e.deltaY > 0 && main.scrollTop < mainMaxTop - 0.5) ||
-            (e.deltaY < 0 && main.scrollTop > 0.5);
-          if (canMain) {
-            e.preventDefault();
-            main.scrollBy({ top: e.deltaY, behavior: "auto" });
-          }
-        } else if (
-          e.deltaY < 0 &&
-          sidebar.scrollTop <= 0 &&
-          main.scrollTop > 0
-        ) {
-          // Sidebar is sticky and already at its own top — wheeling up should
-          // bring the header back, so forward to main.
-          e.preventDefault();
-          main.scrollBy({ top: e.deltaY, behavior: "auto" });
-        }
-        // Otherwise let the sidebar's native wheel scroll proceed.
-      };
-
-    // The rail panel pins directly below the toolbar (offsetTop), alongside
-    // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
-    // Each needs its own sticky-detection threshold.
-    const targets: {
-      el: HTMLDivElement;
-      stickyTopRef: { current: number };
-    }[] = [];
-    if (outlineEl)
-      targets.push({ el: outlineEl, stickyTopRef: effectiveOffsetTopRef });
-    if (railPanelEl)
-      targets.push({ el: railPanelEl, stickyTopRef: offsetTopRef });
-
-    const entries = targets.map(({ el, stickyTopRef }) => {
-      const handler = makeHandler(el, stickyTopRef);
-      // passive: false so we can preventDefault when taking over the scroll.
-      el.addEventListener("wheel", handler, { passive: false });
-      return { el, handler };
-    });
-    return () => {
-      for (const { el, handler } of entries) {
-        el.removeEventListener("wheel", handler);
-      }
-    };
-  }, [
-    scrollRef,
-    outlineScrollRef,
-    rightRailPanelScrollRef,
-    // Re-attach when collapse state changes (the scroll elements may have
-    // unmounted/remounted via the conditional render).
-    outlineCollapsedFlag,
-    railPanelOpenFlag,
-  ]);
+  const sidebarTargets = useMemo(
+    () => [
+      { scrollRef: outlineScrollRef, remountKey: outlineCollapsedFlag },
+      { scrollRef: rightRailPanelScrollRef, remountKey: railPanelOpenFlag },
+    ],
+    [
+      outlineScrollRef,
+      rightRailPanelScrollRef,
+      outlineCollapsedFlag,
+      railPanelOpenFlag,
+    ]
+  );
+  useSidebarScrollCoupling({
+    mainScrollRef: scrollRef,
+    sidebars: sidebarTargets,
+    stickyTops: [effectiveOffsetTop, offsetTop],
+  });
 
   // Capture the outline's own scroll container (the StickyScroll div, which
   // has overflow-y:auto) into state so the outline's Virtuoso can use it as
