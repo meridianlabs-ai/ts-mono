@@ -52,14 +52,15 @@ function renderCoupling(
   stickyTop: number
 ) {
   const sidebars: SidebarScrollTarget[] = [
-    { scrollRef: ref(sidebar), remountKey: null },
+    { scrollRef: ref(sidebar), stickyTop, remountKey: null },
   ];
+  // Stable across renders, like the component's scrollRef prop.
+  const mainScrollRef = ref(main);
   return renderHook(
     (p: { sidebars: SidebarScrollTarget[] }) =>
       useSidebarScrollCoupling({
-        mainScrollRef: ref(main),
+        mainScrollRef,
         sidebars: p.sidebars,
-        stickyTops: [stickyTop],
       }),
     { initialProps: { sidebars } }
   );
@@ -135,9 +136,39 @@ describe("useSidebarScrollCoupling", () => {
 
     // A remount-key change (sidebar toggled) re-measures again.
     view.rerender({
-      sidebars: [{ scrollRef: ref(sidebar), remountKey: "collapsed" }],
+      sidebars: [
+        { scrollRef: ref(sidebar), stickyTop: 40, remountKey: "collapsed" },
+      ],
     });
     vi.advanceTimersByTime(0);
     expect(onScroll).toHaveBeenCalledTimes(2);
+  });
+
+  it("applies sticky-offset changes without re-attaching or re-measuring", () => {
+    const { el: main, scrollBy } = makeScroller({ scrollTop: 100 });
+    // Sidebar at 60: sticky under a 100 threshold, not sticky under 40.
+    const { el: sidebar } = makeScroller({ top: 60, scrollTop: 50 });
+    const onScroll = vi.fn();
+    main.addEventListener("scroll", onScroll);
+
+    const view = renderCoupling(main, sidebar, 40);
+    vi.advanceTimersByTime(0);
+    expect(onScroll).toHaveBeenCalledTimes(1);
+
+    // Not sticky under the initial threshold: wheel input forwards to main.
+    expect(wheel(sidebar, 10).defaultPrevented).toBe(true);
+    expect(scrollBy).toHaveBeenCalledTimes(1);
+
+    // Raise the threshold (same remount key): the fresh offset applies at
+    // wheel time — the sidebar now counts as sticky and stops chaining —
+    // and no extra synthetic re-measure fires.
+    view.rerender({
+      sidebars: [{ scrollRef: ref(sidebar), stickyTop: 100, remountKey: null }],
+    });
+    vi.advanceTimersByTime(0);
+    expect(onScroll).toHaveBeenCalledTimes(1);
+
+    expect(wheel(sidebar, 10).defaultPrevented).toBe(false);
+    expect(scrollBy).toHaveBeenCalledTimes(1);
   });
 });

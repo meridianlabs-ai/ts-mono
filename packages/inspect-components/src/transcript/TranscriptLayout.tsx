@@ -431,24 +431,20 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Each needs its own sticky-detection threshold. The remount keys re-attach
   // listeners when collapse state changes (the scroll elements may have
   // unmounted/remounted via the conditional render).
-  const outlineCollapsedFlag = outline?.collapsed ?? null;
-  const railPanelOpenFlag = rightRail?.panel != null;
-  const sidebarTargets = useMemo(
-    () => [
-      { scrollRef: outlineScrollRef, remountKey: outlineCollapsedFlag },
-      { scrollRef: rightRailPanelScrollRef, remountKey: railPanelOpenFlag },
-    ],
-    [
-      outlineScrollRef,
-      rightRailPanelScrollRef,
-      outlineCollapsedFlag,
-      railPanelOpenFlag,
-    ]
-  );
   useSidebarScrollCoupling({
     mainScrollRef: scrollRef,
-    sidebars: sidebarTargets,
-    stickyTops: [effectiveOffsetTop, offsetTop],
+    sidebars: [
+      {
+        scrollRef: outlineScrollRef,
+        stickyTop: effectiveOffsetTop,
+        remountKey: outline?.collapsed ?? null,
+      },
+      {
+        scrollRef: rightRailPanelScrollRef,
+        stickyTop: offsetTop,
+        remountKey: rightRail?.panel != null,
+      },
+    ],
   });
 
   // Capture the outline's own scroll container (the StickyScroll div, which

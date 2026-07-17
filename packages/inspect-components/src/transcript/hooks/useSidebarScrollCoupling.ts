@@ -15,32 +15,40 @@
 import { useEffect, useRef, type RefObject } from "react";
 
 export interface SidebarScrollTarget {
-  /** The sidebar's sticky scroll container. */
+  /** The sidebar's sticky scroll container. Assumed stable across renders. */
   scrollRef?: RefObject<HTMLDivElement | null>;
-  /** Changes when the sidebar mounts/unmounts (conditional render), forcing
-   *  listener re-attachment and a sticky re-measure. */
-  remountKey: unknown;
+  /** Offset at which the sidebar sticks (px from the scroller top). Read at
+   *  wheel time, so changes take effect without re-attaching listeners. */
+  stickyTop: number;
+  /** Identity token that changes when the sidebar mounts/unmounts
+   *  (conditional render), forcing listener re-attachment and a sticky
+   *  re-measure. */
+  remountKey: string | number | boolean | null | undefined;
 }
 
 export interface UseSidebarScrollCouplingOptions {
   /** The main scroll container. */
   mainScrollRef: RefObject<HTMLDivElement | null>;
-  /** Sidebars to couple. Memoize — identity changes drive re-attachment. */
+  /** Sidebars to couple. Pass a fresh array each render — re-attachment is
+   *  driven by the remount keys, not array identity. */
   sidebars: ReadonlyArray<SidebarScrollTarget>;
-  /** Per-sidebar sticky offsets in px (parallel to `sidebars`). Read at
-   *  wheel time through a ref, so offset changes don't re-attach listeners. */
-  stickyTops: ReadonlyArray<number>;
 }
 
 export function useSidebarScrollCoupling(
   options: UseSidebarScrollCouplingOptions
 ): void {
-  const { mainScrollRef, sidebars, stickyTops } = options;
+  const { mainScrollRef, sidebars } = options;
 
-  const stickyTopsRef = useRef(stickyTops);
+  // Mirror the latest targets so wheel handlers read current sticky offsets.
+  // Declared before the effects below so the mirror updates first in a flush.
+  const sidebarsRef = useRef(sidebars);
   useEffect(() => {
-    stickyTopsRef.current = stickyTops;
-  }, [stickyTops]);
+    sidebarsRef.current = sidebars;
+  });
+
+  // Value-stable re-attachment signal: changes only when a sidebar's remount
+  // key does, never when offsets do.
+  const structureKey = sidebars.map((s) => String(s.remountKey)).join("|");
 
   // Synthetic scroll on sidebar mount/unmount, after the DOM has settled.
   useEffect(() => {
@@ -50,7 +58,7 @@ export function useSidebarScrollCoupling(
       el.dispatchEvent(new Event("scroll"));
     }, 0);
     return () => clearTimeout(timer);
-  }, [sidebars, mainScrollRef]);
+  }, [structureKey, mainScrollRef]);
 
   useEffect(() => {
     const main = mainScrollRef.current;
@@ -65,7 +73,7 @@ export function useSidebarScrollCoupling(
         const mainRect = main.getBoundingClientRect();
         const sidebarRect = sidebar.getBoundingClientRect();
         const sidebarTopInScroller = sidebarRect.top - mainRect.top;
-        const stickyTop = stickyTopsRef.current[index] ?? 0;
+        const stickyTop = sidebarsRef.current[index]?.stickyTop ?? 0;
         const sidebarIsSticky = sidebarTopInScroller <= stickyTop + 1;
 
         if (!sidebarIsSticky) {
@@ -92,7 +100,7 @@ export function useSidebarScrollCoupling(
         // Otherwise let the sidebar's native wheel scroll proceed.
       };
 
-    const entries = sidebars.flatMap((target, index) => {
+    const entries = sidebarsRef.current.flatMap((target, index) => {
       const el = target.scrollRef?.current;
       if (!el) return [];
       const handler = makeHandler(el, index);
@@ -105,5 +113,5 @@ export function useSidebarScrollCoupling(
         el.removeEventListener("wheel", handler);
       }
     };
-  }, [mainScrollRef, sidebars]);
+  }, [mainScrollRef, structureKey]);
 }
