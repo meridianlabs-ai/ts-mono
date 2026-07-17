@@ -24,6 +24,7 @@ import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
+import { fileLogItem, type FileLogItemView } from "./fileLogItem";
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
 import { LogListGrid } from "./grid/LogListGrid";
 import { useLogListData } from "./grid/useLogListData";
@@ -92,6 +93,11 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     });
   }, [logDir]);
 
+  const itemView: FileLogItemView = useMemo(
+    () => ({ mode, logDir, currentDir, showRetriedLogs }),
+    [mode, logDir, currentDir, showRetriedLogs]
+  );
+
   const [logItems, hasRetriedLogs]: [
     Array<FileLogItem | FolderLogItem | PendingTaskItem>,
     boolean,
@@ -111,17 +117,9 @@ export const LogsPanel: FC<LogsPanelProps> = ({
           _hasRetriedLogs = true;
         }
 
-        if (showRetriedLogs || !logFile.retried) {
-          const relativePath = directoryRelativeUrl(logFile.name, logDir);
-          const decodedPath = decodeURIComponent(relativePath);
-
-          fileItems.push({
-            id: logFile.name,
-            name: decodedPath,
-            type: "file",
-            url: tasksUrl(decodedPath, logDir),
-            log: logFile,
-          });
+        const item = fileLogItem(logFile, itemView);
+        if (item) {
+          fileItems.push(item);
         }
       }
 
@@ -177,27 +175,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         : currentDir;
 
       if (isInDirectory(name, cleanDir)) {
-        const dirName = directoryRelativeUrl(currentDir, logDir);
-        const relativePath = directoryRelativeUrl(name, currentDir);
-
-        const fileOrFolderName = decodeURIComponent(rootName(relativePath));
-        const path = join(
-          decodeURIComponent(relativePath),
-          decodeURIComponent(dirName)
-        );
-
         if (logFile.retried) {
           _hasRetriedLogs = true;
         }
 
-        if (showRetriedLogs || !logFile.retried) {
-          fileItems.push({
-            id: fileOrFolderName,
-            name: fileOrFolderName,
-            type: "file",
-            url: logsUrl(path, logDir),
-            log: logFile,
-          });
+        const item = fileLogItem(logFile, itemView);
+        if (item) {
+          fileItems.push(item);
         }
       } else if (name.startsWith(dirWithSlash)) {
         // This is file that is next level (or deeper) child of the current directory
@@ -228,7 +212,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     );
 
     return [_logFiles, _hasRetriedLogs];
-  }, [mode, evalSet, logFiles, currentDir, logDir, showRetriedLogs]);
+  }, [mode, evalSet, logFiles, currentDir, logDir, itemView]);
 
   // In the folder view, scope the Metrics list to logs under the current
   // directory so descending into a subfolder shows only that folder's metrics.
