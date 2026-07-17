@@ -40,8 +40,10 @@ import { useElementHeight, useScrubberProgress } from "@tsmono/react/hooks";
 import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
 import { useListPositionManager } from "./hooks/useListPositionManager";
+import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
+import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
@@ -62,7 +64,6 @@ import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
 } from "./TranscriptViewNodes";
-import { collectAllCollapsibleIds } from "./transform/collapse";
 import {
   EventNode,
   type EventNodeContext,
@@ -455,94 +456,25 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   }, [effectiveInitialEventId, onHeadroomResetAnchor]);
 
   // ---------------------------------------------------------------------------
-  // Bulk collapse/expand
+  // Collapse state & outline auto-hide
   // ---------------------------------------------------------------------------
 
-  const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
-  useEffect(() => {
-    if (events.length <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
-      return;
-    }
-    if (bulkCollapse === "expand") {
-      onSetTranscriptCollapsed({});
-    } else if (bulkCollapse === "collapse") {
-      const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
-      onSetTranscriptCollapsed(allCollapsibleIds);
-    }
-  }, [eventNodes, bulkCollapse, onSetTranscriptCollapsed, events.length]);
+  const { onCollapseTranscript, onExpandNodes } = useTranscriptCollapse({
+    eventNodes,
+    defaultCollapsedIds,
+    collapseState,
+    bulkCollapse,
+    eventCount: events.length,
+  });
 
-  // Lazy-seed: when the user toggles an individual node for the first time
-  // (store scope is empty), seed the store with defaults before applying the
-  // toggle so that all other nodes retain their default collapsed state.
-  const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
-  const onCollapseTranscript = useCallback(
-    (nodeId: string, collapsed: boolean) => {
-      if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      if (!collapseState?.transcript) {
-        // First toggle — seed defaults then apply the toggle
-        onSetTranscriptCollapsed({
-          ...defaultCollapsedIds,
-          [nodeId]: collapsed,
-        });
-      } else {
-        onCollapseTranscriptRaw(nodeId, collapsed);
-      }
-    },
-    [
-      onCollapseTranscriptRaw,
-      onSetTranscriptCollapsed,
-      collapseState?.transcript,
-      defaultCollapsedIds,
-    ]
-  );
-
-  // Bulk-expand for deep links into collapsed regions. One batched update —
-  // sequential onCollapseTranscript calls would each re-seed defaults and
-  // clobber the previous call's expansion while the store is unseeded.
-  const onExpandNodes = useCallback(
-    (nodeIds: string[]) => {
-      if (!onSetTranscriptCollapsed) return;
-      const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
-      for (const id of nodeIds) next[id] = false;
-      onSetTranscriptCollapsed(next);
-    },
-    [onSetTranscriptCollapsed, collapseState?.transcript, defaultCollapsedIds]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Outline auto-hide
-  // ---------------------------------------------------------------------------
-  //
-  // Track whether the outline component reports displayable nodes. When the
-  // outline is collapsed (unmounted), it can't report, so we optimistically
-  // fall back to eventNodes.length > 0 to keep the toggle enabled.
-  //
-  // Auto-hide the outline when content has no nodes (e.g. utility agent)
-  // without touching the user's persistent preference. When the user navigates
-  // back to an agent with outline content, the preference is still intact.
-
-  const [reportedHasNodes, setReportedHasNodes] = useState(true);
-
-  // Reset to optimistic when eventNodes change (e.g. agent selection changes).
-  // Uses "adjust state during render" pattern to avoid an extra effect cycle.
-  const [prevEventNodes, setPrevEventNodes] = useState(eventNodes);
-  if (prevEventNodes !== eventNodes) {
-    setPrevEventNodes(eventNodes);
-    if (!reportedHasNodes) {
-      setReportedHasNodes(true);
-    }
-  }
+  const { isOutlineCollapsed, outlineHasNodes, onOutlineHasNodesChange } =
+    useOutlineAutoHide({
+      eventNodes,
+      hasOutline: !!outline,
+      outlineCollapsed: outline?.collapsed,
+    });
 
   const hasMatchingEvents = eventNodes.length > 0;
-  const autoHidden = outline ? !reportedHasNodes && !outline.collapsed : false;
-  const isOutlineCollapsed = !outline || outline.collapsed || autoHidden;
-
-  const outlineHasNodes = isOutlineCollapsed
-    ? hasMatchingEvents
-    : reportedHasNodes;
-  const handleOutlineHasNodesChange = useCallback((hasNodes: boolean) => {
-    setReportedHasNodes(hasNodes);
-  }, []);
 
   // ---------------------------------------------------------------------------
   // Agent card rendering
@@ -804,7 +736,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                           getEventUrl={getEventUrl}
                           renderLink={outline.renderLink}
                           onNavigateToEvent={outline.onNavigateToEvent}
-                          onHasNodesChange={handleOutlineHasNodesChange}
+                          onHasNodesChange={onOutlineHasNodesChange}
                         />
                       </>
                     ) : (
@@ -854,9 +786,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   collapsedTranscript={collapseState?.transcript}
                   collapsedOutline={collapseState?.outline}
                   onCollapseTranscript={onCollapseTranscript}
-                  onExpandNodes={
-                    onSetTranscriptCollapsed ? onExpandNodes : undefined
-                  }
+                  onExpandNodes={onExpandNodes}
                   eventNodeContext={mergedEventNodeContext}
                 />
               ) : emptyText !== null ? (
