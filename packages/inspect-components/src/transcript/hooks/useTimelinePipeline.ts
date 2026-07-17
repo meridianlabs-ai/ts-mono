@@ -33,7 +33,7 @@ import { type MarkerConfig } from "../timeline/markers";
 
 /** The events (and optional agent spans) that feed the EventNode tree. */
 export interface EventNodeFeed {
-  /** Events scoped to the swimlane selection, with hidden types removed. */
+  /** Events for the node tree: scoped to the swimlane selection when swimlanes are shown, with hidden types removed. */
   events: Event[];
   /** Agent spans for card rendering; undefined when swimlanes are hidden. */
   sourceSpans: ReadonlyMap<string, TimelineSpan> | undefined;

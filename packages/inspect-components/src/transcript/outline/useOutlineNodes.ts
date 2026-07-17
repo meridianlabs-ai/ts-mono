@@ -55,10 +55,7 @@ export const useOutlineNodes = (
 ): OutlineNodes => {
   const outlineNodeList = useMemo(
     () =>
-      buildOutlineNodeList(
-        eventNodes,
-        (collapsedEvents ? collapsedEvents : undefined) || defaultCollapsedIds
-      ),
+      buildOutlineNodeList(eventNodes, collapsedEvents ?? defaultCollapsedIds),
     [eventNodes, collapsedEvents, defaultCollapsedIds]
   );
 
