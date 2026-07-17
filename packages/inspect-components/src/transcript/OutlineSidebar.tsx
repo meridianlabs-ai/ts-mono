@@ -38,6 +38,9 @@ export interface TranscriptLayoutOutlineProps {
   onNavigateToEvent?: (eventId: string) => void;
   selectedId?: string | null;
   setSelectedId?: (id: string) => void;
+  /** Optional ref to the outline's sticky scroll container. Useful when the
+   *  caller wants to observe its scroll events (e.g. headroom direction). */
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }
 
 export interface OutlineSidebarProps {
@@ -51,9 +54,6 @@ export interface OutlineSidebarProps {
   defaultCollapsedIds: Record<string, boolean>;
   /** The main scroll container. */
   scrollRef: RefObject<HTMLDivElement | null>;
-  /** Optional external mirror of the sidebar's own scroll container (wheel
-   *  forwarding / headroom observers). */
-  outlineScrollRef?: RefObject<HTMLDivElement | null>;
   running: boolean;
   backfilling: boolean;
   /** Resolved agent name header (outline.name or the selected row). */
@@ -72,7 +72,6 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
   eventNodes,
   defaultCollapsedIds,
   scrollRef,
-  outlineScrollRef,
   running,
   backfilling,
   agentName,
@@ -88,14 +87,15 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
   const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
     null
   );
+  const { scrollRef: externalScrollRef } = outline;
   const handleOutlineScrollRef = useCallback(
     (el: HTMLDivElement | null) => {
       setOutlineScrollEl(el);
-      if (outlineScrollRef) {
-        outlineScrollRef.current = el;
+      if (externalScrollRef) {
+        externalScrollRef.current = el;
       }
     },
-    [outlineScrollRef]
+    [externalScrollRef]
   );
 
   const collapse: OutlineCollapseState | undefined = useMemo(

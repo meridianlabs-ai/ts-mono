@@ -739,6 +739,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       label: railLabel,
       panelWidth: railPanelWidth,
       onPanelWidthChange: setRailPanelWidth,
+      panelScrollRef: railPanelScrollRef,
     }),
     [railNode, railPanel, railLabel, railPanelWidth, setRailPanelWidth]
   );
@@ -820,7 +821,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
                     rightRail={hasRail ? transcriptRail : undefined}
-                    rightRailPanelScrollRef={railPanelScrollRef}
                   />
                 </div>
               )}
