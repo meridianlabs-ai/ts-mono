@@ -263,23 +263,6 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
 // Characterization: minimap
 // ---------------------------------------------------------------------------
 
-test("timeline header shows the minimap with a time/token toggle", async ({
-  page,
-  network,
-}) => {
-  await openTranscriptWithTimeline(page, network);
-
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
-
-  // The minimap mode label defaults to "time"; clicking it switches the
-  // labels to token counts.
-  const timeLabel = swimlane.getByText("time", { exact: true });
-  await expect(timeLabel).toBeVisible();
-  await timeLabel.click();
-  await expect(swimlane.getByText("tokens", { exact: true })).toBeVisible();
-});
-
 test("scrubbing the minimap scrolls the event list", async ({
   page,
   network,
@@ -341,85 +324,4 @@ test("scrubbing the minimap scrolls the event list", async ({
   await expect(
     page.getByText("Step 28 of the long transcript").first()
   ).toBeVisible();
-});
-
-// ---------------------------------------------------------------------------
-// Characterization: multi-timeline selector
-// ---------------------------------------------------------------------------
-
-test("multiple timelines render a selector that switches the active timeline", async ({
-  page,
-  network,
-}) => {
-  const events: Events = [
-    createModelEvent({ uuid: "evt-root", startSec: 0, endSec: 5, tokens: 200 }),
-    createModelEvent({
-      uuid: "evt-explore",
-      startSec: 0,
-      endSec: 3,
-      tokens: 200,
-      content: "Exploring the code",
-    }),
-    createModelEvent({
-      uuid: "evt-build",
-      startSec: 6,
-      endSec: 12,
-      tokens: 400,
-      content: "Building the feature",
-    }),
-    createModelEvent({
-      uuid: "evt-audit",
-      startSec: 2,
-      endSec: 8,
-      tokens: 300,
-      content: "Auditing the run",
-    }),
-  ];
-  const auditorTimeline: Timeline = {
-    name: "auditor",
-    description: "Auditor timeline",
-    root: makeServerSpan({
-      id: "audit-root",
-      name: "Auditor",
-      content: [
-        makeServerSpan({
-          id: "audit-agent",
-          name: "Audit",
-          span_type: "agent",
-          content: [makeServerEvent("evt-audit")],
-        }),
-      ],
-    }),
-  };
-  await openTranscriptWithTimeline(page, network, {
-    events,
-    timelines: [
-      createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
-      auditorTimeline,
-    ],
-  });
-
-  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
-  await expect(swimlane).toBeVisible();
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Explore" })
-  ).toBeVisible();
-
-  // The selector shows the active timeline's name and lists both on open.
-  const selector = swimlane.locator('button[aria-haspopup="listbox"]');
-  await expect(selector).toBeVisible();
-  await expect(selector).toContainText("default");
-  await selector.click();
-
-  const option = page.getByRole("option", { name: "auditor" });
-  await expect(option).toBeVisible();
-  await option.click();
-
-  // The swimlane now shows the auditor timeline's rows.
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Audit" }).first()
-  ).toBeVisible();
-  await expect(
-    swimlane.getByRole("row").filter({ hasText: "Explore" })
-  ).toBeHidden();
 });

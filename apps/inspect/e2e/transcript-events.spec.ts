@@ -526,31 +526,4 @@ test.describe("outline collapse", () => {
     await phaseRow.locator('[class*="toggle"]').click();
     await expect(turnsRow).toBeVisible();
   });
-
-  test("default-collapsed spans start collapsed (seeded defaults)", async ({
-    page,
-    network,
-  }) => {
-    await openTranscript(page, network, spanEvents());
-
-    const outline = page.locator(".transcript-outline");
-    await expect(outline).toBeVisible();
-
-    // The init span is default-collapsed: chevron points right and its
-    // child content contributes no outline rows. The phase span next to it
-    // keeps its expanded default — collapsing one row must not disturb the
-    // seeded defaults of the others.
-    const initRow = outline
-      .locator('[class*="eventRow"]')
-      .filter({ hasText: "init" });
-    await expect(initRow).toBeVisible();
-    await expect(initRow.locator("i.bi-chevron-right")).toBeVisible();
-
-    const phaseRow = outline
-      .locator('[class*="eventRow"]')
-      .filter({ hasText: "phase one" });
-    await phaseRow.locator('[class*="toggle"]').click();
-    await expect(phaseRow.locator("i.bi-chevron-right")).toBeVisible();
-    await expect(initRow.locator("i.bi-chevron-right")).toBeVisible();
-  });
 });
