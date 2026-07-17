@@ -132,6 +132,8 @@ async function openTranscriptWithTimeline(
   options?: {
     messages?: ChatMessage[];
     sampleId?: number | string;
+    events?: Events;
+    timelines?: Timeline[];
   }
 ) {
   const sampleId = options?.sampleId ?? 1;
@@ -140,7 +142,7 @@ async function openTranscriptWithTimeline(
     { role: "assistant", content: "Hi there", source: "generate" },
   ];
 
-  const events: Events = [
+  const events: Events = options?.events ?? [
     createModelEvent({ uuid: "evt-root", startSec: 0, endSec: 5, tokens: 200 }),
     createModelEvent({
       uuid: "evt-explore",
@@ -160,7 +162,7 @@ async function openTranscriptWithTimeline(
 
   const sample = createEvalSample({ id: sampleId, epoch: 1, messages });
   (sample as { events: Events }).events = events;
-  (sample as { timelines: Timeline[] }).timelines = [
+  (sample as { timelines: Timeline[] }).timelines = options?.timelines ?? [
     createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
   ];
 
@@ -255,4 +257,169 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
 
   // The Explore agent's content should no longer be visible
   await expect(page.getByText("Exploring the code")).not.toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// Characterization: minimap
+// ---------------------------------------------------------------------------
+
+test("timeline header shows the minimap with a time/token toggle", async ({
+  page,
+  network,
+}) => {
+  await openTranscriptWithTimeline(page, network);
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+
+  // The minimap mode label defaults to "time"; clicking it switches the
+  // labels to token counts.
+  const timeLabel = swimlane.getByText("time", { exact: true });
+  await expect(timeLabel).toBeVisible();
+  await timeLabel.click();
+  await expect(swimlane.getByText("tokens", { exact: true })).toBeVisible();
+});
+
+test("scrubbing the minimap scrolls the event list", async ({
+  page,
+  network,
+}) => {
+  // Enough events that the list overflows and scrubbing has somewhere to go.
+  const events: Events = Array.from({ length: 30 }, (_, i) =>
+    createModelEvent({
+      uuid: `evt-${i}`,
+      content: `Step ${i} of the long transcript`,
+      startSec: i * 2,
+      endSec: i * 2 + 1,
+      tokens: 100,
+    })
+  );
+  // A child agent span is required for the swimlane section (and thus the
+  // minimap) to render at all.
+  const timeline: Timeline = {
+    name: "default",
+    description: "Long timeline",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [
+        ...events.slice(0, 29).map((e) => makeServerEvent(e.uuid!)),
+        makeServerSpan({
+          id: "deep",
+          name: "Deep",
+          span_type: "agent",
+          content: [makeServerEvent(events[29]!.uuid!)],
+        }),
+      ],
+    }),
+  };
+  await openTranscriptWithTimeline(page, network, {
+    events,
+    timelines: [timeline],
+  });
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+
+  // Early content is on screen, late content is virtualized away.
+  await expect(
+    page.getByText("Step 0 of the long transcript").first()
+  ).toBeVisible();
+  await expect(
+    page.getByText("Step 28 of the long transcript")
+  ).not.toBeVisible();
+
+  // Click near the right edge of the minimap's selection region: onScrub
+  // receives ~1.0 and the main scroller jumps to the end of the list.
+  const region = swimlane.locator('[class*="selectionRegion"]');
+  await expect(region).toBeVisible();
+  const box = (await region.boundingBox())!;
+  await page.mouse.click(box.x + box.width - 2, box.y + box.height / 2);
+
+  // Step 29 lives inside the agent span (it renders as an agent card at
+  // root selection), so the last root-level event is the scroll target.
+  await expect(
+    page.getByText("Step 28 of the long transcript").first()
+  ).toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// Characterization: multi-timeline selector
+// ---------------------------------------------------------------------------
+
+test("multiple timelines render a selector that switches the active timeline", async ({
+  page,
+  network,
+}) => {
+  const events: Events = [
+    createModelEvent({ uuid: "evt-root", startSec: 0, endSec: 5, tokens: 200 }),
+    createModelEvent({
+      uuid: "evt-explore",
+      startSec: 0,
+      endSec: 3,
+      tokens: 200,
+      content: "Exploring the code",
+    }),
+    createModelEvent({
+      uuid: "evt-build",
+      startSec: 6,
+      endSec: 12,
+      tokens: 400,
+      content: "Building the feature",
+    }),
+    createModelEvent({
+      uuid: "evt-audit",
+      startSec: 2,
+      endSec: 8,
+      tokens: 300,
+      content: "Auditing the run",
+    }),
+  ];
+  const auditorTimeline: Timeline = {
+    name: "auditor",
+    description: "Auditor timeline",
+    root: makeServerSpan({
+      id: "audit-root",
+      name: "Auditor",
+      content: [
+        makeServerSpan({
+          id: "audit-agent",
+          name: "Audit",
+          span_type: "agent",
+          content: [makeServerEvent("evt-audit")],
+        }),
+      ],
+    }),
+  };
+  await openTranscriptWithTimeline(page, network, {
+    events,
+    timelines: [
+      createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
+      auditorTimeline,
+    ],
+  });
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeVisible();
+
+  // The selector shows the active timeline's name and lists both on open.
+  const selector = swimlane.locator('button[aria-haspopup="listbox"]');
+  await expect(selector).toBeVisible();
+  await expect(selector).toContainText("default");
+  await selector.click();
+
+  const option = page.getByRole("option", { name: "auditor" });
+  await expect(option).toBeVisible();
+  await option.click();
+
+  // The swimlane now shows the auditor timeline's rows.
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Audit" }).first()
+  ).toBeVisible();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeHidden();
 });

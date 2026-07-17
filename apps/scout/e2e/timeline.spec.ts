@@ -11,7 +11,11 @@ import type {
 
 import { expect, test } from "./fixtures/app";
 import {
+  createMessagesEventsResponse,
+  createModelEvent,
+  createTimeline,
   createTimelineScenario,
+  createTimelineSpan,
   createTranscriptInfo,
   createTranscriptsResponse,
 } from "./fixtures/test-data";
@@ -219,4 +223,190 @@ test("transcript without timeline data renders without swimlane rows", async ({
   const rowCount = await swimlane.getByRole("row").count();
   // At most the root row (or 0 if completely hidden)
   expect(rowCount).toBeLessThanOrEqual(1);
+});
+
+// ---------------------------------------------------------------------------
+// Characterization: punch-down view stack
+// ---------------------------------------------------------------------------
+
+// NOTE: punch-down only supports branches reachable through the root span's
+// branch tree whose fork anchor is a direct content event of the parent
+// (`spliceToTimeline`/`ancestorChain` walk `branches`, not `content`) — a
+// branch attached to a nested agent span crashes on punch-down. This
+// scenario therefore attaches the branch (and its anchor) to the root span.
+function createRootBranchScenario(): MessagesEventsResponse {
+  const rootEvt = createModelEvent({
+    uuid: "evt-root-1",
+    startSec: 0,
+    endSec: 2,
+    tokens: 100,
+    content: "Planning the work",
+    spanId: "transcript",
+  });
+  const evt1 = createModelEvent({
+    uuid: "evt-explore-1",
+    startSec: 2,
+    endSec: 5,
+    tokens: 200,
+    content: "Exploring the codebase",
+    spanId: "explore",
+  });
+  const evt2 = createModelEvent({
+    uuid: "evt-build-1",
+    startSec: 8,
+    endSec: 14,
+    tokens: 400,
+    content: "Building the feature",
+    spanId: "build",
+  });
+  // splice() cuts the parent's stream at the AnchorEvent matching the
+  // branch's branched_from — the fork point must be an anchor event in the
+  // parent's direct content.
+  const anchorEvt = {
+    event: "anchor",
+    anchor_id: "fork-1",
+    uuid: "evt-anchor-1",
+    timestamp: "2025-01-15T10:00:06Z",
+    working_start: 6,
+    span_id: "transcript",
+    metadata: null,
+    pending: null,
+    source: null,
+  } as unknown as MessagesEventsResponse["events"][number];
+  const branchEvt = createModelEvent({
+    uuid: "evt-branch-1",
+    startSec: 10,
+    endSec: 12,
+    tokens: 150,
+    content: "Branch attempt",
+    spanId: "branch-1",
+  });
+  // The branch carries an agent span in its event stream so the spliced
+  // standalone timeline has swimlane structure (otherwise the header — and
+  // with it the back button — would not render).
+  type ScoutEvent = MessagesEventsResponse["events"][number];
+  const branchSpanBegin = {
+    event: "span_begin",
+    id: "retry",
+    name: "Retry",
+    type: "agent",
+    parent_id: null,
+    span_id: "branch-1",
+    uuid: "evt-sb-retry",
+    timestamp: "2025-01-15T10:00:11Z",
+    working_start: 11,
+    metadata: null,
+    pending: null,
+  } as unknown as ScoutEvent;
+  const branchInnerEvt = {
+    ...createModelEvent({
+      uuid: "evt-retry-1",
+      startSec: 11,
+      endSec: 12,
+      tokens: 100,
+      content: "Retrying the approach",
+      spanId: "retry",
+    }),
+  } as unknown as ScoutEvent;
+  const branchSpanEnd = {
+    event: "span_end",
+    id: "retry",
+    span_id: "branch-1",
+    uuid: "evt-se-retry",
+    timestamp: "2025-01-15T10:00:12Z",
+    working_start: 12,
+    metadata: null,
+    pending: null,
+  } as unknown as ScoutEvent;
+
+  const rootSpan = createTimelineSpan({
+    id: "transcript",
+    name: "Transcript",
+    span_type: "agent",
+    content: [
+      { type: "event", event: "evt-root-1" },
+      { type: "event", event: "evt-anchor-1" },
+      createTimelineSpan({
+        id: "explore",
+        name: "Explore",
+        span_type: "agent",
+        content: [{ type: "event", event: "evt-explore-1" }],
+      }),
+      createTimelineSpan({
+        id: "build",
+        name: "Build",
+        span_type: "agent",
+        content: [{ type: "event", event: "evt-build-1" }],
+      }),
+    ],
+    branches: [
+      createTimelineSpan({
+        id: "branch-1",
+        name: "branch",
+        span_type: "branch",
+        branched_from: "fork-1",
+        content: [
+          { type: "event", event: "evt-branch-1" },
+          { type: "event", event: "evt-sb-retry" },
+          { type: "event", event: "evt-retry-1" },
+          { type: "event", event: "evt-se-retry" },
+        ],
+      }),
+    ],
+  });
+
+  return createMessagesEventsResponse({
+    messages: [{ role: "user", content: "Help me refactor this code" }],
+    events: [
+      rootEvt,
+      anchorEvt,
+      evt1,
+      evt2,
+      branchEvt,
+      branchSpanBegin,
+      branchInnerEvt,
+      branchSpanEnd,
+    ],
+    timelines: [createTimeline(rootSpan)],
+  });
+}
+
+test("punch-down opens a branch as a standalone timeline and back returns", async ({
+  page,
+  network,
+}) => {
+  setupTranscriptWithTimeline(network, createRootBranchScenario());
+  await page.goto(transcriptUrl());
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+
+  // Reveal the branch row via the root row's branch marker.
+  const branchMarker = swimlane
+    .getByRole("button", { name: "Toggle branches" })
+    .first();
+  await branchMarker.click();
+  const branchRow = swimlane.getByRole("row").filter({ hasText: "Branch 1" });
+  await expect(branchRow).toBeVisible();
+
+  // Punch down into the branch (button appears on row hover).
+  await branchRow.hover();
+  await branchRow
+    .locator('button[title="Open as standalone timeline"]')
+    .click();
+
+  // Standalone view: the back button shows and the sibling agent rows are
+  // replaced by the branch's own view.
+  const backButton = page.locator('button[title="Back to branch overview"]');
+  await expect(backButton).toBeVisible();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeHidden();
+
+  // Pop back to the full timeline.
+  await backButton.click();
+  await expect(backButton).toBeHidden();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeVisible();
 });
