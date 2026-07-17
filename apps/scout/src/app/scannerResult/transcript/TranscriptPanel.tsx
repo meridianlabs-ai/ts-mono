@@ -74,7 +74,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = ({
         events={events}
         scrollRef={scrollRef}
         listId={id}
-        showSwimlanes={false}
+        timeline={{ showSwimlanes: false }}
         collapseState={{
           transcript: collapsedEvents[kTranscriptCollapseScope],
           onCollapseTranscript,

@@ -353,18 +353,21 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       backfilling={backfilling}
       scrollRef={scrollRef}
       offsetTop={offsetTop}
-      timelineSelection={timelineSelection}
-      activeTimeline={activeTimeline}
-      serverTimelines={serverTimelines}
-      showSwimlanes="auto"
-      onMarkerNavigate={onMarkerNavigate}
-      headroomHidden={headroomHidden}
-      onHeadroomResetAnchor={onHeadroomResetAnchor}
-      onHeadroomSetHidden={setHeadroomHidden}
+      timeline={{
+        selection: timelineSelection,
+        active: activeTimeline,
+        serverTimelines,
+        showSwimlanes: "auto",
+        onMarkerNavigate,
+      }}
+      headroom={{
+        hidden: headroomHidden,
+        onSetHidden: setHeadroomHidden,
+        onResetAnchor: onHeadroomResetAnchor,
+      }}
       eventNodeContext={eventNodeContext}
       listId={id}
-      initialEventId={initialEventId}
-      initialMessageId={initialMessageId}
+      deepLink={{ eventId: initialEventId, messageId: initialMessageId }}
       getEventUrl={getFullEventUrl}
       // Only surface the copy-link button where a shared absolute URL is
       // meaningful — not in VS Code webviews or localhost. Matches the message
@@ -388,16 +391,17 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,
       }}
-      emptyText={
-        backfilling && isDefaultFilter
-          ? "Loading events"
-          : running && isDefaultFilter
-            ? "Sample is starting"
-            : filteredEventTypes.length > 0
-              ? "The currently applied filter hides all events."
-              : undefined
-      }
-      emptyBusy={(running || backfilling) && isDefaultFilter}
+      empty={{
+        text:
+          backfilling && isDefaultFilter
+            ? "Loading events"
+            : running && isDefaultFilter
+              ? "Sample is starting"
+              : filteredEventTypes.length > 0
+                ? "The currently applied filter hides all events."
+                : undefined,
+        busy: (running || backfilling) && isDefaultFilter,
+      }}
     />
   );
 });
