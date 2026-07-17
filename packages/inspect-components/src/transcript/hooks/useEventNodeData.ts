@@ -5,10 +5,10 @@
 
 import { useMemo } from "react";
 
-import { useEventNodes } from "../timeline/hooks";
 import { buildToolLabels, scopeMessageLabels } from "../transform/labels";
 import type { EventNode, EventNodeContext } from "../types";
 
+import { useEventNodes } from "./useEventNodes";
 import type { EventNodeFeed } from "./useTimelinePipeline";
 
 export interface EventNodeData {

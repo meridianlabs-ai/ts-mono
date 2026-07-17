@@ -49,8 +49,6 @@ interface TranscriptOutlineProps {
   agentName?: string;
   /** Reports whether the outline has displayable nodes after filtering. */
   onHasNodesChange?: (hasNodes: boolean) => void;
-  /** Reports the ideal width (in px) for the outline column. */
-  onWidthChange?: (width: number) => void;
   /** Called when user clicks an outline item but URL-based navigation is unavailable. */
   onNavigateToEvent?: (eventId: string) => void;
   /** Offset from the top of the scroll container where visible content begins. */
@@ -103,7 +101,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   style,
   agentName,
   onHasNodesChange,
-  onWidthChange,
   onNavigateToEvent,
   scrollTrackOffset,
   getEventUrl,
@@ -141,9 +138,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
 
   // Measure the ideal width for the outline column from label text
   const outlineWidth = useOutlineWidth(outlineNodeList, undefined, agentName);
-  useEffect(() => {
-    onWidthChange?.(outlineWidth);
-  }, [outlineWidth, onWidthChange]);
 
   // Set --outline-width on the nearest grid ancestor so the column resizes
   // automatically without each app needing to wire up the CSS variable.

@@ -168,6 +168,7 @@ export {
 } from "./outline/useOutlineWidth";
 
 // Timeline utilities
+export { useEventNodes } from "./hooks/useEventNodes";
 export * from "./timeline";
 
 // Search utilities

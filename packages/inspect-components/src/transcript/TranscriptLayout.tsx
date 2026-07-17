@@ -41,6 +41,7 @@ import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
+import { useSelectionActions } from "./hooks/useSelectionActions";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
 import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
 import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
@@ -54,7 +55,6 @@ import {
   type UseTimelineProps,
 } from "./timeline/hooks";
 import { type MarkerConfig } from "./timeline/markers";
-import { buildSpanSelectKeys } from "./timeline/timelineEventNodes";
 import {
   TimelineRowSelectContext,
   TimelineSelectContext,
@@ -292,29 +292,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const effectiveOffsetTop = offsetTop + stickySwimLaneHeight;
 
   // ---------------------------------------------------------------------------
-  // Per-agent list position management
+  // Selection actions + per-agent list position management
   // ---------------------------------------------------------------------------
 
-  // Suppress the scroll-to-top on selection change when an active deep-link
-  // target is in URL. The URL-driven case is sync (the URL update lands
-  // before the row-click effects fire, so a top reset would clobber the
-  // about-to-fire imperative scroll). For pure swimlane row clicks (URL
-  // bare, only `branchScrollTarget` set), keeping the top reset is
-  // desirable — it clears the previous branch's deep scroll position
-  // before the imperative scroll lands on the new branch separator.
-  // The imperative scroll runs in rAF and re-scrolls to its target after
-  // the sync top reset.
-  // Scroll-anchor for inline fork-navigator clicks: the prefix above the
-  // clicked navigator is unchanged across the selection, so capturing and
-  // restoring scrollTop keeps the navigator at the same viewport position.
-  const [scrollAnchor, setScrollAnchor] = useState<{
-    scrollTop: number;
-  } | null>(null);
-  const hasScrollTarget = !!(
-    initialEventId ||
-    initialMessageId ||
-    scrollAnchor
-  );
+  const { spanSelectKeys, selectBySpanId, selectByRowKey, hasScrollTarget } =
+    useSelectionActions({
+      timelineState,
+      scrollRef,
+      initialEventId,
+      initialMessageId,
+    });
+
   const { effectiveListId } = useListPositionManager(
     listId,
     timelineState.selected,
@@ -358,34 +346,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Span selection context (agent card clicks → swimlane selection)
-  // ---------------------------------------------------------------------------
-
-  const spanSelectKeys = useMemo(
-    () => buildSpanSelectKeys(timelineState.rows),
-    [timelineState.rows]
-  );
-
-  const selectBySpanId = useCallback(
-    (spanId: string) => {
-      const key = spanSelectKeys.get(spanId);
-      if (!key) return;
-      timelineState.select(key.key);
-    },
-    [spanSelectKeys, timelineState]
-  );
-
-  const selectByRowKey = useCallback(
-    (rowKey: string, anchorEl?: HTMLElement) => {
-      if (anchorEl && scrollRef.current) {
-        setScrollAnchor({ scrollTop: scrollRef.current.scrollTop });
-      }
-      timelineState.select(rowKey, { preserveScroll: true });
-    },
-    [timelineState, scrollRef]
-  );
-
-  // ---------------------------------------------------------------------------
   // Deep-link resolution
   // ---------------------------------------------------------------------------
 
@@ -397,16 +357,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     showSwimlanes,
     nodeFeedEvents: nodeFeed.events,
   });
-
-  // Branch selections share one effectiveListId (no remount), so the prefix
-  // above the clicked navigator is laid out identically — restoring scrollTop
-  // keeps it at the same viewport position.
-  useEffect(() => {
-    if (!scrollAnchor) return;
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: scrollAnchor.scrollTop });
-    });
-  }, [scrollAnchor, scrollRef]);
 
   // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
   // — fires for any change to the effective scroll target (URL `?event=`,
