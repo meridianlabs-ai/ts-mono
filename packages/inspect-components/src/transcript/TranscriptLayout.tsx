@@ -94,8 +94,6 @@ export interface TranscriptLayoutRightRailProps {
   panelMaxWidth?: number;
   /** aria-label root for the panel region. */
   label?: string;
-  /** Optional ref to the rail panel's sticky scroll container (wheel forwarding). */
-  panelScrollRef?: RefObject<HTMLDivElement | null>;
 }
 
 /** Timeline data, selection adapters, and swimlane behavior
@@ -395,6 +393,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor]
   );
 
+  // The rail panel's scroll container is written by RailDock and read only by
+  // the wheel coupling below — no caller sees it, so the layout owns the ref.
+  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
+
   // The rail panel pins directly below the toolbar (offsetTop), alongside
   // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
   // Each needs its own sticky-detection threshold. The remount keys re-attach
@@ -409,7 +411,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
         remountKey: outline?.collapsed ?? null,
       },
       {
-        scrollRef: rightRail?.panelScrollRef,
+        scrollRef: railPanelScrollRef,
         stickyTop: offsetTop,
         remountKey: rightRail?.panel != null,
       },
@@ -530,7 +532,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               scrollRef={scrollRef}
               scrollerHeight={scrollerHeight}
               offsetTop={offsetTop}
-              panelScrollRef={rightRail.panelScrollRef}
+              panelScrollRef={railPanelScrollRef}
               railWidth={rightRail.railWidth}
               panelWidth={rightRail.panelWidth}
               onPanelWidthChange={rightRail.onPanelWidthChange}
