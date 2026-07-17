@@ -62,10 +62,12 @@ export function useDeepLinkResolution(
     timeline: {
       timeline: timelineData,
       state: timelineState,
-      timelines,
-      activeTimelineIndex,
-      setActiveTimeline,
-      branchScrollTarget,
+      multiTimeline: {
+        timelines,
+        activeIndex: activeTimelineIndex,
+        setActive: setActiveTimeline,
+      },
+      selection: { branchScrollTarget },
     },
     spanSelectKeys,
     showSwimlanes,

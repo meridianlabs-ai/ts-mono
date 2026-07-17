@@ -131,14 +131,10 @@ export function useTimelinePipeline(
     activeTimelineProps: activeTimeline,
   });
 
-  const {
-    hasTimeline,
-    hasAgentTimeline,
-    regionCounts,
-    timelines,
-    selectedEvents,
-    sourceSpans,
-  } = timeline;
+  const { hasTimeline, hasAgentTimeline } = timeline;
+  const { regionCounts } = timeline.swimlanes;
+  const { timelines } = timeline.multiTimeline;
+  const { events: selectedEvents, sourceSpans } = timeline.selection;
 
   const showSwimlanes = useMemo(() => {
     if (showSwimlanesOption === "auto") {

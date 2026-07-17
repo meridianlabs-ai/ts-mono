@@ -165,7 +165,7 @@ describe("useTranscriptTimeline", () => {
     );
 
     // Default selection is root — all events should be returned
-    expect(result.current.selectedEvents.length).toBeGreaterThanOrEqual(
+    expect(result.current.selection.events.length).toBeGreaterThanOrEqual(
       events.length
     );
   });
@@ -179,7 +179,7 @@ describe("useTranscriptTimeline", () => {
     );
 
     // Should have layouts for root + agent rows
-    expect(result.current.layouts.length).toBeGreaterThan(0);
+    expect(result.current.swimlanes.layouts.length).toBeGreaterThan(0);
   });
 
   it("reports hasTimeline false for flat events without structure", () => {
@@ -245,8 +245,8 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.timelines).toHaveLength(1);
-    expect(result.current.activeTimelineIndex).toBe(0);
+    expect(result.current.multiTimeline.timelines).toHaveLength(1);
+    expect(result.current.multiTimeline.activeIndex).toBe(0);
   });
 
   it("selectedRowName defaults to root name", () => {
@@ -257,7 +257,7 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.selectedRowName).toBe("Transcript");
+    expect(result.current.selection.rowName).toBe("Transcript");
   });
 
   it("highlightedKeys is empty when no branch is selected", () => {
@@ -268,7 +268,7 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.highlightedKeys.size).toBe(0);
+    expect(result.current.swimlanes.highlightedKeys.size).toBe(0);
   });
 
   it("branchScrollTarget is null when no branch is selected", () => {
@@ -279,14 +279,14 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.branchScrollTarget).toBeNull();
+    expect(result.current.selection.branchScrollTarget).toBeNull();
   });
 
   it("builds timeline from raw events without server timelines", () => {
     const { result } = renderHook(() => useTranscriptTimeline({ events }));
 
     expect(result.current.timeline).toBeDefined();
-    expect(result.current.timelines).toHaveLength(1);
-    expect(result.current.selectedEvents.length).toBeGreaterThan(0);
+    expect(result.current.multiTimeline.timelines).toHaveLength(1);
+    expect(result.current.selection.events.length).toBeGreaterThan(0);
   });
 });
