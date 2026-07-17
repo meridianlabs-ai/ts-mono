@@ -5,15 +5,7 @@ import type {
 } from "@tsmono/inspect-common/query";
 import { throttle } from "@tsmono/util";
 
-import type { Log } from "../client/api/types";
-import type { LogScope } from "../client/database";
-import type {
-  DatabaseListingPlan,
-  DatabaseListingResult,
-} from "../client/database/listing";
 import { queryClient } from "../state/queryClient";
-
-import { getDatabaseService } from "./databaseServiceInstance";
 
 export const databaseLogsListingKeyRoot = [
   "log_data",
@@ -22,33 +14,18 @@ export const databaseLogsListingKeyRoot = [
 ] as const;
 
 export const databaseLogsListingKey = (
-  view: string | undefined,
-  filter: Condition,
+  universe: string | undefined,
+  filter?: Condition,
   orderBy?: OrderByModel[],
   pagination?: Pagination
 ) =>
   [
     ...databaseLogsListingKeyRoot,
-    view ?? null,
-    filter,
+    universe ?? null,
+    filter ?? null,
     orderBy ?? null,
     pagination ?? null,
   ] as const;
-
-export const databaseLogsOpened = (): boolean => getDatabaseService().opened();
-
-export const readDatabaseLogsListing = async <TRow>(
-  scope: LogScope,
-  syncedPrefix: string,
-  toRow: (log: Log) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>
-): Promise<DatabaseListingResult<TRow> | null> => {
-  const database = getDatabaseService();
-  const synced = await database.getSyncScope(syncedPrefix);
-  return synced?.last_synced
-    ? database.getLogsListing(scope, toRow, plan)
-    : null;
-};
 
 /**
  * Coalesce replication bursts into at most one refetch of observed Dexie

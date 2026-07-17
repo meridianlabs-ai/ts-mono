@@ -1,5 +1,3 @@
-import type { Collection } from "dexie";
-
 import type { Pagination } from "@tsmono/inspect-common/query";
 
 export interface DatabaseListingPlan<TRow> {
@@ -14,7 +12,8 @@ export interface DatabaseListingResult<TRow> {
   next_cursor: { offset: number; [key: string]: unknown } | null;
 }
 
-const pageRows = <TRow>(
+/** Slice one page (with its continuation cursor) off filtered+sorted rows. */
+export const pageRows = <TRow>(
   rows: TRow[],
   pagination?: Pagination
 ): Pick<DatabaseListingResult<TRow>, "items" | "next_cursor"> => {
@@ -28,26 +27,4 @@ const pageRows = <TRow>(
     items: rows.slice(offset, end),
     next_cursor: end < rows.length ? { offset: end } : null,
   };
-};
-
-/** Execute a listing plan while the scoped Dexie cursor is active. */
-export const queryDexieCollection = async <TRecord, TKey, TRow>(
-  collection: Collection<TRecord, TKey>,
-  toRow: (record: TRecord) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>
-): Promise<DatabaseListingResult<TRow>> => {
-  const records = await collection
-    .filter((record) => {
-      const row = toRow(record);
-      return row !== undefined && plan.matches(row);
-    })
-    .toArray();
-  const rows = records
-    .map(toRow)
-    .filter((row): row is TRow => row !== undefined);
-
-  if (plan.compare) rows.sort(plan.compare);
-
-  const total_count = rows.length;
-  return { ...pageRows(rows, plan.pagination), total_count };
 };

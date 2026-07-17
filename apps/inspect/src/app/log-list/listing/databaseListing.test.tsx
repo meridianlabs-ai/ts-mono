@@ -4,31 +4,33 @@ import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { Column } from "@tsmono/inspect-common/query";
+import type { Condition } from "@tsmono/inspect-common/query";
 
-import type { Log } from "../../../client/api/types";
-import type {
-  DatabaseListingPlan,
-  DatabaseListingResult,
-} from "../../../client/database/listing";
+import type { DatabaseListingPlan } from "../../../client/database/listing";
+import type { LogListingRow } from "../../../log_data";
 
 import { useDatabaseLogsListingQuery } from "./useLogsListingQuery";
 
 interface Row {
   name: string;
   model: string;
+  [k: string]: unknown;
 }
 
-type ReadListing = (
-  scope: unknown,
-  syncedPrefix: string,
-  toRow: (log: Log) => Row | undefined,
-  plan: DatabaseListingPlan<Row>
-) => Promise<DatabaseListingResult<Row> | null>;
+type ReadListing = <TRow>(
+  logDir: string,
+  prefix: string,
+  toRow: (log: LogListingRow) => TRow | undefined,
+  plan: DatabaseListingPlan<TRow>
+) => Promise<{
+  items: TRow[];
+  total_count: number;
+  next_cursor: null;
+}>;
 
 const holder = vi.hoisted(() => ({
-  opened: true,
-  read: vi.fn<ReadListing>(),
-  invalidate: vi.fn(),
+  records: [] as { name: string; model?: string }[],
+  read: vi.fn(),
 }));
 
 vi.mock("../../../log_data", () => ({
@@ -37,233 +39,174 @@ vi.mock("../../../log_data", () => ({
     "log_data",
     "dexie-listing",
     "logs",
-    ...parts,
+    ...parts.map((part) => part ?? null),
   ],
-  databaseLogsOpened: () => holder.opened,
-  invalidateDatabaseLogsListings: () => {
-    holder.invalidate();
-  },
-  readDatabaseLogsListing: (...args: Parameters<ReadListing>) =>
-    holder.read(...args),
+  readLogsListing: (
+    ...args: Parameters<ReadListing>
+  ): ReturnType<ReadListing> => holder.read(...args) as ReturnType<ReadListing>,
 }));
 
-const logs = [
-  { name: "/logs/a.eval", model: "gpt-4" },
+const records = [
   { name: "/logs/b.eval", model: "claude" },
-] as Log[];
-const rows: Row[] = logs.map(({ name, model }) => ({ name, model: model! }));
-const getValue = (row: Row, column: string): unknown =>
-  row[column as keyof Row];
+  { name: "/logs/a.eval", model: "gpt-4" },
+];
+
+const getValue = (row: Row, column: string): unknown => row[column];
+const toRow = (log: LogListingRow): Row | undefined =>
+  log.model === undefined
+    ? undefined
+    : { name: log.name, model: log.model ?? "" };
+
+const listingParams = (overrides?: {
+  filter?: Condition;
+  orderBy?: { column: string; direction: "ASC" | "DESC" }[];
+  universe?: string | undefined;
+}) => ({
+  filter: overrides?.filter,
+  orderBy: overrides?.orderBy,
+  getValue,
+  getComparator: () => undefined,
+  listing: {
+    logDir: "/logs",
+    prefix: "/logs",
+    universe:
+      overrides && "universe" in overrides ? overrides.universe : "logs::/logs",
+    toRow,
+  },
+});
 
 describe("useDatabaseLogsListingQuery", () => {
   let queryClient: QueryClient;
-  let getLogsListing: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
+    holder.records = records;
     holder.read.mockReset();
-    holder.invalidate.mockReset();
-    getLogsListing = holder.read.mockImplementation(
+    // The seam double: run the plan over the fake records like
+    // readLogsListing runs it over the scanned rows.
+    holder.read.mockImplementation(
       (
-        _scope: unknown,
-        _syncedPrefix: string,
-        toRow: (log: Log) => Row | undefined,
+        _logDir: string,
+        _prefix: string,
+        rowFor: (log: LogListingRow) => Row | undefined,
         plan: DatabaseListingPlan<Row>
-      ): Promise<DatabaseListingResult<Row>> => {
-        const items = [...logs]
-          .reverse()
-          .map(toRow)
+      ) => {
+        const rows = holder.records
+          .map((record) => rowFor(record as LogListingRow))
           .filter((row): row is Row => row !== undefined)
           .filter(plan.matches);
-        if (plan.compare) items.sort(plan.compare);
+        if (plan.compare) rows.sort(plan.compare);
         return Promise.resolve({
-          items,
-          total_count: items.length,
+          items: rows,
+          total_count: rows.length,
           next_cursor: null,
         });
       }
     );
-    holder.opened = true;
   });
 
-  test("runs active conditions through the Dexie listing service", async () => {
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  test("shapes and queries source records through the listing seam", async () => {
     const { result } = renderHook(
       () =>
-        useDatabaseLogsListingQuery({
-          rows,
+        useDatabaseLogsListingQuery<Row>(
+          listingParams({
+            filter: new Column("model").eq("gpt-4"),
+            orderBy: [{ column: "name", direction: "ASC" }],
+          })
+        ),
+      { wrapper }
+    );
+
+    expect(result.current.pending).toBe(true);
+    await waitFor(() =>
+      expect(result.current.result?.items.map((row) => row.name)).toEqual([
+        "/logs/a.eval",
+      ])
+    );
+    expect(result.current.pending).toBe(false);
+  });
+
+  test("queries the seam even without an active filter", async () => {
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+
+    // Source (listing) order is preserved when no sort is active.
+    await waitFor(() =>
+      expect(result.current.result?.items.map((row) => row.name)).toEqual([
+        "/logs/b.eval",
+        "/logs/a.eval",
+      ])
+    );
+  });
+
+  test("stays disabled (pending) while the universe is hydrating", async () => {
+    const { result } = renderHook(
+      () =>
+        useDatabaseLogsListingQuery<Row>(
+          listingParams({ universe: undefined })
+        ),
+      { wrapper }
+    );
+
+    await Promise.resolve();
+    expect(holder.read).not.toHaveBeenCalled();
+    expect(result.current.pending).toBe(true);
+    expect(result.current.result).toBeUndefined();
+  });
+
+  test("keeps the previous result across re-filters within one universe", async () => {
+    const { result, rerender } = renderHook(
+      (props) => useDatabaseLogsListingQuery<Row>(props),
+      {
+        wrapper,
+        initialProps: listingParams({
           filter: new Column("model").eq("gpt-4"),
-          orderBy: [{ column: "name", direction: "ASC" }],
-          getValue,
-          getComparator: () => undefined,
-          database: {
-            scope: { prefix: "/logs" },
-            syncedPrefix: "/logs",
-            view: "logs::/logs",
-            rowKey: (row) => row.name,
-          },
         }),
-      { wrapper }
-    );
-
-    await waitFor(() => expect(getLogsListing).toHaveBeenCalledOnce());
-    await waitFor(() =>
-      expect(result.current.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
-      ])
-    );
-  });
-
-  test("keeps the in-memory fallback for scopes that were not persisted", async () => {
-    const read = vi.fn().mockResolvedValue(null);
-    holder.read.mockImplementation(read);
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-    const { result } = renderHook(
-      () =>
-        useDatabaseLogsListingQuery({
-          rows,
-          filter: new Column("model").eq("claude"),
-          getValue,
-          getComparator: () => undefined,
-          database: {
-            scope: { prefix: "/aliased" },
-            syncedPrefix: "/aliased",
-            view: "logs::/aliased",
-            rowKey: (row) => row.name,
-          },
-        }),
-      { wrapper }
-    );
-
-    await waitFor(() => expect(read).toHaveBeenCalledOnce());
-    expect(result.current.items.map((row) => row.name)).toEqual([
-      "/logs/b.eval",
-    ]);
-  });
-
-  test("preserves source order when no explicit sort is active", async () => {
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-    const { result } = renderHook(
-      () =>
-        useDatabaseLogsListingQuery({
-          rows,
-          filter: new Column("model").ilike("%"),
-          getValue,
-          getComparator: () => undefined,
-          database: {
-            scope: { prefix: "/logs" },
-            syncedPrefix: "/logs",
-            view: "logs::/logs",
-            rowKey: (row) => row.name,
-          },
-        }),
-      { wrapper }
-    );
-
-    await waitFor(() => expect(getLogsListing).toHaveBeenCalledOnce());
-    await waitFor(() =>
-      expect(result.current.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
-        "/logs/b.eval",
-      ])
-    );
-  });
-
-  test("refetches against fresh rows when the row set changes without a db write", async () => {
-    holder.invalidate.mockImplementation(() => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      queryClient.invalidateQueries({
-        queryKey: ["log_data", "dexie-listing", "logs"],
-      });
-    });
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-    const makeProps = (viewRows: Row[]) => ({
-      rows: viewRows,
-      filter: new Column("model").ilike("%"),
-      orderBy: [{ column: "name", direction: "ASC" as const }],
-      getValue,
-      getComparator: () => undefined,
-      database: {
-        scope: { prefix: "/logs" },
-        syncedPrefix: "/logs",
-        view: "logs::/logs",
-        rowKey: (row: Row) => row.name,
-      },
-    });
-    const { result, rerender } = renderHook(
-      (props) => useDatabaseLogsListingQuery(props),
-      { wrapper, initialProps: makeProps([rows[0]!]) }
+      }
     );
     await waitFor(() =>
-      expect(result.current.items.map((row) => row.name)).toEqual([
+      expect(result.current.result?.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",
       ])
     );
 
-    // Same view + filter (same query key), new row set with no db write —
-    // e.g. a pending task arriving. The hook must invalidate so the cached
-    // result isn't served from the old rows.
-    rerender(makeProps(rows));
-    await waitFor(() => expect(holder.invalidate).toHaveBeenCalled());
-    await waitFor(() =>
-      expect(result.current.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
-        "/logs/b.eval",
-      ])
-    );
-  });
-
-  test("does not serve one view's cached rows to another view at the same prefix", async () => {
-    const wrapper = ({ children }: PropsWithChildren) => (
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    );
-    const makeProps = (view: string, viewRows: Row[]) => ({
-      rows: viewRows,
-      filter: new Column("model").ilike("%"),
-      orderBy: [{ column: "name", direction: "ASC" as const }],
-      getValue,
-      getComparator: () => undefined,
-      database: {
-        scope: { prefix: "/logs" },
-        syncedPrefix: "/logs",
-        view,
-        rowKey: (row: Row) => row.name,
-      },
-    });
-    const { result, rerender } = renderHook(
-      (props) => useDatabaseLogsListingQuery(props),
-      { wrapper, initialProps: makeProps("logs::/logs", [rows[0]!]) }
-    );
-    await waitFor(() =>
-      expect(result.current.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
-      ])
-    );
-
-    // Same prefix + filter, different view: the folder view's cache entry
-    // must not leak into the flat view — the synchronous fallback answers
-    // until this view's own read lands.
-    rerender(makeProps("tasks::/logs", rows));
-    expect(result.current.items.map((row) => row.name)).toEqual([
+    // Re-filter: the prior page keeps showing (no pending flash) until the
+    // new read lands.
+    rerender(listingParams({ filter: new Column("model").eq("claude") }));
+    expect(result.current.pending).toBe(false);
+    expect(result.current.result?.items.map((row) => row.name)).toEqual([
       "/logs/a.eval",
-      "/logs/b.eval",
     ]);
-    await waitFor(() => expect(getLogsListing).toHaveBeenCalledTimes(2));
     await waitFor(() =>
-      expect(result.current.items.map((row) => row.name)).toEqual([
-        "/logs/a.eval",
+      expect(result.current.result?.items.map((row) => row.name)).toEqual([
         "/logs/b.eval",
       ])
     );
+  });
+
+  test("does not serve one universe's rows to another", async () => {
+    const { result, rerender } = renderHook(
+      (props) => useDatabaseLogsListingQuery<Row>(props),
+      {
+        wrapper,
+        initialProps: listingParams({ universe: "logs::/logs" }),
+      }
+    );
+    await waitFor(() => expect(result.current.result).toBeDefined());
+
+    // A different universe (e.g. the flat tasks view at the same prefix)
+    // must not show the folder view's rows while its own read is in flight.
+    rerender(listingParams({ universe: "tasks::/logs" }));
+    expect(result.current.result).toBeUndefined();
+    expect(result.current.pending).toBe(true);
+    await waitFor(() => expect(result.current.result).toBeDefined());
   });
 });

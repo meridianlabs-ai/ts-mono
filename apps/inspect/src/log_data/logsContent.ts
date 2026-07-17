@@ -213,13 +213,23 @@ const clearCache = (logDir: string): void => {
  * remove. "Clear Local Database" (`clearAll`) wipes them along with
  * everything else.
  */
-const warnedScopes = new Set<string>();
+const cacheOnlyScopes = new Set<string>();
+
+/**
+ * Whether `logDir`'s listing degraded to cache-only persistence
+ * (out-of-namespace names — see `namesInScope`). Session-sticky: once a
+ * listing sync detects the degrade, listing reads for the dir serve from
+ * the react-query cache instead of the database.
+ */
+export const isCacheOnlyListingScope = (logDir: string): boolean =>
+  cacheOnlyScopes.has(scopePrefix(logDir));
+
 const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
   const prefix = scopePrefix(logDir);
   const misnamed = handles.find((handle) => !handle.name.startsWith(prefix));
   if (misnamed !== undefined) {
-    if (!warnedScopes.has(prefix)) {
-      warnedScopes.add(prefix);
+    if (!cacheOnlyScopes.has(prefix)) {
+      cacheOnlyScopes.add(prefix);
       log.warn(
         `Listing names (e.g. ${misnamed.name}) are outside the log dir's namespace (${prefix}); skipping persistence for this scope.`
       );
@@ -256,6 +266,10 @@ export const writeListing = async (
     }
   }
   setListing(logDir, handles);
+  // Cache-backed scopes (the out-of-namespace degrade, db-less sessions)
+  // have no db write to fire the listing invalidation, so fire it once the
+  // cache write lands — listing queries reading from the cache refetch here.
+  invalidateDatabaseLogsListings();
   return currentLogs(logDir);
 };
 
@@ -404,7 +418,10 @@ export const createLogsContentSink = (
     // A warm session coming online must refresh samples listings: a listing
     // query mounted before the db opened settled empty (staleTime: Infinity)
     // and a no-change boot performs none of the writes that would otherwise
-    // invalidate it — so /#/samples as the entry route stayed blank.
+    // invalidate it — so /#/samples as the entry route stayed blank. Log
+    // listings need the same nudge: one mounted before the db opened read
+    // nothing, and a no-change boot never writes.
+    invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   },
   setListing: (handles) => setListing(logDir, handles),

@@ -12,12 +12,8 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
-import { Column } from "@tsmono/inspect-common/query";
 
-import { applyListingQuery } from "../../app/log-list/listing/applyListingQuery";
-import { createListingPlan } from "../../app/log-list/listing/planner";
 import {
-  Log,
   LogDetails,
   LogFetchState,
   LogPreview,
@@ -213,63 +209,6 @@ describe("Database Service", () => {
       expect(row?.task).toBe("renamed-task");
       expect(row?.depth).toBe("previewed");
       expect(row?.status).toBe("success");
-    });
-
-    test("Dexie listings match the in-memory filter, sort, and pagination", async () => {
-      await databaseService.writeLogPreviews({
-        "/test/logs/a.json": createTestLogSummary({
-          model: "gpt-4",
-          status: "success",
-        }),
-        "/test/logs/b.json": createTestLogSummary({
-          model: "claude",
-          status: "success",
-        }),
-        "/test/logs/c.json": createTestLogSummary({
-          model: "gpt-4o",
-          status: "error",
-        }),
-        "/test/logs/d.json": createTestLogSummary({
-          model: "gpt-5",
-          status: "success",
-        }),
-        "/other/e.json": createTestLogSummary({
-          model: "gpt-5",
-          status: "success",
-        }),
-      });
-      const source = (await databaseService.readLogs({
-        prefix: "/test/logs",
-      })) as Log[];
-      const getValue = (row: Log, column: string): unknown =>
-        row[column as keyof Log];
-      const query = {
-        filter: new Column("model")
-          .ilike("gpt%")
-          .and(new Column("status").ne("error")),
-        orderBy: [{ column: "name", direction: "DESC" as const }],
-        pagination: { limit: 1, cursor: null, direction: "forward" as const },
-        getValue,
-        getComparator: () => undefined,
-      };
-
-      const expected = applyListingQuery(source, query);
-      const position = new Map(source.map((row, index) => [row.name, index]));
-      const actual = await databaseService.getLogsListing(
-        { prefix: "/test/logs" },
-        (row) => row,
-        createListingPlan(
-          query,
-          (row) => position.get(row.name) ?? Number.MAX_SAFE_INTEGER
-        )
-      );
-
-      expect(actual).toEqual(expected);
-      expect(actual.items.map((row) => row.name)).toEqual([
-        "/test/logs/d.json",
-      ]);
-      expect(actual.total_count).toBe(2);
-      expect(actual.next_cursor).toEqual({ offset: 1 });
     });
   });
 

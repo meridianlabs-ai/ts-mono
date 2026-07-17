@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 
 import type {
   Condition,
@@ -8,15 +8,8 @@ import type {
   Pagination,
 } from "@tsmono/inspect-common/query";
 
-import type { Log } from "../../../client/api/types";
-import type { LogScope } from "../../../client/database";
-import {
-  databaseLogsListingKey,
-  databaseLogsListingKeyRoot,
-  databaseLogsOpened,
-  invalidateDatabaseLogsListings,
-  readDatabaseLogsListing,
-} from "../../../log_data";
+import type { LogListingRow } from "../../../log_data";
+import { databaseLogsListingKey, readLogsListing } from "../../../log_data";
 
 import { applyListingQuery } from "./applyListingQuery";
 import { createListingPlan } from "./planner";
@@ -43,10 +36,11 @@ interface UseLogsListingParams<TRow> {
 }
 
 /**
- * The log listing query: filter + sort + paginate over the rows. Mirrors
- * scout's `getTranscripts(filter, orderBy, pagination)` tail and response shape.
- *
- * The generic in-memory path is retained for samples and db-less listings.
+ * The generic in-memory listing query: filter + sort + paginate over the
+ * rows. Mirrors scout's `getTranscripts(filter, orderBy, pagination)` tail
+ * and response shape. Retained for samples listings, which don't have a
+ * database-backed path yet — the log list uses
+ * {@link useDatabaseLogsListingQuery}.
  */
 export function useLogsListingQuery<TRow>({
   rows,
@@ -71,111 +65,83 @@ export function useLogsListingQuery<TRow>({
   );
 }
 
-interface UseDatabaseLogsListingParams<
-  TRow,
-> extends UseLogsListingParams<TRow> {
-  database: {
-    scope: LogScope;
-    syncedPrefix: string;
-    /** Cache identity of the row universe (view mode + directory). Distinct
-     *  views can share a scope prefix, so the prefix alone can't key the
-     *  cache. `undefined` while the scope is still hydrating. */
-    view: string | undefined;
-    rowKey: (row: TRow) => string | undefined;
+interface UseDatabaseLogsListingParams<TRow> {
+  filter?: Condition;
+  orderBy?: OrderByModel[];
+  pagination?: Pagination;
+  getValue: ValueAccessor<TRow>;
+  getComparator: (columnId: string) => ValueComparator | undefined;
+  getFilterType?: FilterTypeAccessor;
+  listing: {
+    /** The synced directory whose rows are the source (see `readLogsListing`
+     *  for where they're read from). */
+    logDir: string;
+    /** Row-universe scan prefix (folder mode lists a subdirectory). */
+    prefix: string;
+    /** Cache identity of the row universe: everything `toRow` reads beyond
+     *  the record itself (view mode, directory, display toggles).
+     *  `undefined` while the scope is still hydrating — disables the query. */
+    universe: string | undefined;
+    /** Shape a source record into the view's row, or `undefined` when the
+     *  view has no row for it (row-universe membership). */
+    toRow: (log: LogListingRow) => TRow | undefined;
   };
 }
 
-/** Use Dexie for conditioned log listings, with the in-memory path as fallback. */
+export interface DatabaseLogsListing<TRow> {
+  /** The latest result for this universe (a placeholder from the previous
+   *  filter/sort while a refetch is in flight); `undefined` until the
+   *  universe's first read lands. */
+  result: LogsListingResult<TRow> | undefined;
+  /** No result to show yet — the universe is hydrating or its first read is
+   *  in flight. Rows stream in via write-path invalidation after that. */
+  pending: boolean;
+}
+
+/**
+ * The log listing query: rows are read from the listing source (IndexedDB
+ * in dir mode — see `readLogsListing`) and shaped per view inside the
+ * queryFn, so the full row list never has to live in memory for the grid's
+ * sake. Results are asynchronous by design: the first read shows whatever
+ * has replicated so far, and the write path's throttled invalidation
+ * streams further rows in as they land.
+ */
 export function useDatabaseLogsListingQuery<TRow>({
-  rows,
   filter,
   orderBy,
   pagination,
   getValue,
   getComparator,
   getFilterType,
-  database,
-}: UseDatabaseLogsListingParams<TRow>): LogsListingResult<TRow> {
-  const databaseEnabled = filter !== undefined && databaseLogsOpened();
-  const query = useMemo(
-    () => ({
-      filter,
-      orderBy,
-      pagination,
-      getValue,
-      getComparator,
-      getFilterType,
-    }),
-    [filter, orderBy, pagination, getValue, getComparator, getFilterType]
-  );
-
-  const dexieResult = useQuery({
-    queryKey: filter
-      ? databaseLogsListingKey(database.view, filter, orderBy, pagination)
-      : [...databaseLogsListingKeyRoot, "disabled"],
-    queryFn: async (): Promise<LogsListingResult<TRow> | null> => {
-      if (!filter) return null;
-      const byKey = new Map<string, TRow>();
-      const transient: TRow[] = [];
-      const position = new Map<TRow, number>();
-      for (const [index, row] of rows.entries()) {
-        position.set(row, index);
-        const key = database.rowKey(row);
-        if (key === undefined) transient.push(row);
-        else byKey.set(key, row);
-      }
-
-      const plan = createListingPlan(
-        transient.length > 0 ? { ...query, pagination: undefined } : query,
-        (row) => position.get(row) ?? Number.MAX_SAFE_INTEGER
-      );
-      const result = await readDatabaseLogsListing(
-        database.scope,
-        database.syncedPrefix,
-        (log: Log) => byKey.get(log.name),
-        plan
-      );
-      if (result === null) return null;
-      if (transient.length === 0) return result;
-      const included = new Set([...result.items, ...transient]);
-      return applyListingQuery(
-        rows.filter((row) => included.has(row)),
-        query
-      );
-    },
-    enabled: databaseEnabled,
+  listing,
+}: UseDatabaseLogsListingParams<TRow>): DatabaseLogsListing<TRow> {
+  const { logDir, prefix, universe, toRow } = listing;
+  const query = useQuery({
+    queryKey: databaseLogsListingKey(universe, filter, orderBy, pagination),
+    queryFn: (): Promise<LogsListingResult<TRow>> =>
+      readLogsListing(
+        logDir,
+        prefix,
+        toRow,
+        createListingPlan({
+          filter,
+          orderBy,
+          pagination,
+          getValue,
+          getComparator,
+          getFilterType,
+        })
+      ),
+    enabled: universe !== undefined,
+    // Keep showing the previous result across re-filters/sorts within one
+    // universe; a different universe's rows must not leak in.
     placeholderData: (previousData, previousQuery) =>
-      database.view !== undefined &&
-      previousQuery?.queryKey[3] === database.view
+      universe !== undefined && previousQuery?.queryKey[3] === universe
         ? previousData
         : undefined,
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-
-  // The query result is computed from `rows`, but `rows` isn't in the query
-  // key and only db writes fire the write-path invalidation. Cache-only row
-  // changes (retried-log toggling, pending tasks arriving, the post-write
-  // cache re-read) would otherwise serve a result built from stale rows, so
-  // nudge the shared invalidation whenever the row set changes. Declared
-  // after useQuery: react-query applies the observer's options (the fresh
-  // queryFn closure) in its own effect, and effects run in declaration
-  // order — before it, the refetch would still see the old rows.
-  const seenRows = useRef(rows);
-  useEffect(() => {
-    if (seenRows.current === rows) return;
-    seenRows.current = rows;
-    invalidateDatabaseLogsListings();
-  }, [rows]);
-
-  const databaseResult = databaseEnabled
-    ? (dexieResult.data ?? undefined)
-    : undefined;
-  const fallbackResult = useMemo(
-    () =>
-      databaseResult === undefined ? applyListingQuery(rows, query) : undefined,
-    [databaseResult, rows, query]
-  );
-  return databaseResult ?? fallbackResult!;
+  return { result: query.data, pending: query.isPending };
 }

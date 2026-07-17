@@ -240,20 +240,37 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getFilterType,
   } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
+  const toItem = useCallback(
+    (log: LogListingRow) => fileLogItem(log, itemView),
+    [itemView]
+  );
+
   const listData = useLogListData({
     items: logItems,
     scopeKey,
     getValue,
     getComparator,
     getFilterType,
-    // Match the row universe: folder mode lists the current directory, the
-    // flat tasks view lists the whole log dir (like `scopeDir` above) — a
-    // narrower Dexie scope would silently drop matching rows outside it.
-    databaseScope: {
+    listing: {
+      logDir,
+      // Match the row universe: folder mode lists the current directory, the
+      // flat tasks view lists the whole log dir (like `scopeDir` above) — a
+      // narrower scan prefix would silently drop matching rows outside it.
       prefix: mode === "logs" ? currentDir : logDir,
-      syncedPrefix: logDir,
+      // The query result depends on everything toItem reads, so its cache
+      // identity carries the display toggle along with the view scope.
+      universe:
+        scopeKey === undefined
+          ? undefined
+          : `${scopeKey}::retried=${showRetriedLogs}`,
+      toItem,
     },
   });
+
+  // The listing query is asynchronous by design: fold its first-read window
+  // into the busy indication so the grid shows "syncing" rather than a
+  // silently empty list.
+  const listBusy = busy || listData.pending;
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
@@ -413,13 +430,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               currentPath={currentDir}
               scopeKey={scopeKey}
               mode={mode}
-              busy={busy}
+              busy={listBusy}
             />
           </div>
           <LogListFooter
             itemCount={logItems.length}
             filteredCount={listData.filteredCount}
-            progressText={busy ? "Syncing data" : undefined}
+            progressText={listBusy ? "Syncing data" : undefined}
             progressBar={
               progress.total !== progress.complete ? (
                 <ProgressBar

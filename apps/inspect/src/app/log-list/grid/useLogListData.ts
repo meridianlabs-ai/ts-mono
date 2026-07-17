@@ -1,12 +1,17 @@
 import type { SortingState } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 
 import { LogListingRow } from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
+import {
+  applyListingQuery,
+  mergeSortedRows,
+} from "../listing/applyListingQuery";
 import { combineFilters } from "../listing/combineFilters";
+import { compareByOrderBy } from "../listing/evaluator";
 import type {
   FilterTypeAccessor,
   ValueAccessor,
@@ -21,6 +26,8 @@ import { FileLogItem, FolderLogItem, PendingTaskItem } from "../LogItem";
 import { LogListRow } from "./columns/types";
 
 export type LogListItem = FileLogItem | FolderLogItem | PendingTaskItem;
+
+const kNoRows: LogListRow[] = [];
 
 const rowForItem = (item: LogListItem): LogListingRow | undefined =>
   item.type === "file" ? item.log : undefined;
@@ -88,6 +95,9 @@ const buildLogListRow = (item: LogListItem): LogListRow => {
 };
 
 interface UseLogListDataParams {
+  /** Presentation items: folders (pinned) and pending tasks (merged in as an
+   *  overlay — they have no database record). File items here are used only
+   *  for counts; file ROWS come from the listing query below. */
   items: LogListItem[];
   /** Per-scope sorting/filters are read under this key (`undefined` while
    *  logDir is still hydrating — defaults apply, nothing is written). */
@@ -95,7 +105,13 @@ interface UseLogListDataParams {
   getValue: ValueAccessor<LogListRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
-  databaseScope: { prefix: string; syncedPrefix: string };
+  /** The listing query's source description — see `useDatabaseLogsListingQuery`. */
+  listing: {
+    logDir: string;
+    prefix: string;
+    universe: string | undefined;
+    toItem: (log: LogListingRow) => FileLogItem | undefined;
+  };
 }
 
 export interface LogListData {
@@ -111,13 +127,16 @@ export interface LogListData {
    *  passed through so grid and query can't diverge. */
   sorting: SortingState;
   columnFilters?: Record<string, ColumnFilter>;
+  /** The listing query has no result to show yet (first read in flight). */
+  pending: boolean;
 }
 
 /**
- * The log-list data pipeline: shape items into rows, apply the scope's
- * persisted sorting/filters via the listing query, and pin folders on top.
- * Called by LogsPanel (the panel owns shaping — see `useLogsListingQuery`);
- * the grid just renders the result.
+ * The log-list data pipeline: run the scope's persisted sorting/filters as a
+ * listing query against the listing source (IndexedDB in dir mode), shape the
+ * resulting records into grid rows, merge in transient rows (pending tasks),
+ * and pin folders on top. Called by LogsPanel; the grid just renders the
+ * result.
  */
 export const useLogListData = ({
   items,
@@ -125,17 +144,19 @@ export const useLogListData = ({
   getValue,
   getComparator,
   getFilterType,
-  databaseScope,
+  listing,
 }: UseLogListDataParams): LogListData => {
   const { gridStateByScope } = useLogsListing();
 
-  // Reuse the prior row object for any item whose display inputs (the Log
-  // row, structural fields) are unchanged, so only changed rows pay the
-  // per-row rebuild. Keyed on store references (which stay stable across
-  // flushes for unchanged logs) rather than the `item` object, so it works
-  // even though `items` is rebuilt each flush upstream.
-  const data: LogListRow[] = useKeyedMemo(
-    items,
+  // Folders and pending tasks are presentation-only rows with no database
+  // record; shape them here. Reuse the prior row object for any item whose
+  // display inputs are unchanged, so only changed rows pay the rebuild.
+  const overlayItems = useMemo(
+    () => items.filter((item) => item.type !== "file"),
+    [items]
+  );
+  const overlayData: LogListRow[] = useKeyedMemo(
+    overlayItems,
     (item) => item.id,
     (item) => [
       item.id,
@@ -143,12 +164,19 @@ export const useLogListData = ({
       item.url,
       item.name,
       item.displayIndex,
-      rowForItem(item),
       item.type === "folder" ? item.itemCount : undefined,
       item.type === "pending-task" ? item.model : undefined,
     ],
     (item) => buildLogListRow(item)
   );
+  const { folders, pendingRows } = useMemo(() => {
+    const folders: LogListRow[] = [];
+    const pendingRows: LogListRow[] = [];
+    for (const row of overlayData) {
+      (row.type === "folder" ? folders : pendingRows).push(row);
+    }
+    return { folders, pendingRows };
+  }, [overlayData]);
 
   // Persisted sort for this scope drives the listing query's orderBy.
   const sorting = useMemo<SortingState>(
@@ -164,44 +192,67 @@ export const useLogListData = ({
   );
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
-  // Folders (logs mode) are presentation: pinned on top, independent of sort.
-  // Sort/filter/paginate runs over the file rows only.
-  const { folders, files } = useMemo(() => {
-    const folders: LogListRow[] = [];
-    const files: LogListRow[] = [];
-    for (const row of data) {
-      (row.type === "folder" ? folders : files).push(row);
-    }
-    return { folders, files };
-  }, [data]);
+  const toItem = listing.toItem;
+  const toRow = useCallback(
+    (log: LogListingRow): LogListRow | undefined => {
+      const item = toItem(log);
+      return item === undefined ? undefined : buildLogListRow(item);
+    },
+    [toItem]
+  );
 
-  const database = {
-    scope: { prefix: databaseScope.prefix },
-    syncedPrefix: databaseScope.syncedPrefix,
-    view: scopeKey,
-    rowKey: (row: LogListRow) =>
-      row.type === "file" ? row.log?.name : undefined,
-  };
-  const { items: sortedFiles, total_count } = useDatabaseLogsListingQuery({
-    rows: files,
+  const { result, pending } = useDatabaseLogsListingQuery<LogListRow>({
     filter,
     orderBy,
     getValue,
     getComparator,
     getFilterType,
-    database,
+    listing: {
+      logDir: listing.logDir,
+      prefix: listing.prefix,
+      universe: listing.universe,
+      toRow,
+    },
   });
 
+  // Pending tasks have no database record: run the same query over them in
+  // memory and merge the (small) result into the query's page.
+  const overlay = useMemo(
+    () =>
+      pendingRows.length === 0
+        ? undefined
+        : applyListingQuery(pendingRows, {
+            filter,
+            orderBy,
+            getValue,
+            getComparator,
+            getFilterType,
+          }),
+    [pendingRows, filter, orderBy, getValue, getComparator, getFilterType]
+  );
+
+  const files = useMemo(() => {
+    const base = result?.items ?? kNoRows;
+    if (!overlay) return base;
+    const compare =
+      orderBy.length > 0
+        ? compareByOrderBy(orderBy, getValue, getComparator)
+        : undefined;
+    return mergeSortedRows(base, overlay.items, compare);
+  }, [result, overlay, orderBy, getValue, getComparator]);
+
   const rows = useMemo(
-    () => (folders.length > 0 ? [...folders, ...sortedFiles] : sortedFiles),
-    [folders, sortedFiles]
+    () => (folders.length > 0 ? [...folders, ...files] : files),
+    [folders, files]
   );
 
   return {
     rows,
-    totalRowCount: data.length,
-    filteredCount: folders.length + total_count,
+    totalRowCount: items.length,
+    filteredCount:
+      folders.length + (result?.total_count ?? 0) + (overlay?.total_count ?? 0),
     sorting,
     columnFilters,
+    pending,
   };
 };

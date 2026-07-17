@@ -95,10 +95,13 @@ export { imperativeLogData } from "./imperativeLogData";
 export {
   databaseLogsListingKey,
   databaseLogsListingKeyRoot,
-  databaseLogsOpened,
   invalidateDatabaseLogsListings,
-  readDatabaseLogsListing,
 } from "./databaseListings";
+export {
+  readLogsListing,
+  logsListingSource,
+  type LogsListingSource,
+} from "./logsListingRead";
 export { useLogHeader, useLogFetchState } from "./log";
 export { type LogListingRow, useLogListing } from "./logListing";
 export { resolveLogKey } from "./logsContent";
