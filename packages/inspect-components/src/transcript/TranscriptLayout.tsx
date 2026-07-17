@@ -97,7 +97,7 @@ export interface TranscriptLayoutRightRailProps {
 }
 
 /** Timeline data, selection adapters, and swimlane behavior
- *  (consumed by useTimelinePipeline). */
+ *  (consumed by the timeline pipeline + swimlane header). */
 export interface TranscriptLayoutTimelineProps {
   /** Row selection state adapter. */
   selection?: UseTimelineProps;

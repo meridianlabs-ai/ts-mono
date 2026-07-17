@@ -102,6 +102,10 @@ export {
   type TranscriptLayoutProps,
   type TranscriptLayoutOutlineProps,
   type TranscriptLayoutRightRailProps,
+  type TranscriptLayoutTimelineProps,
+  type TranscriptLayoutDeepLinkProps,
+  type TranscriptLayoutHeadroomProps,
+  type TranscriptLayoutEmptyProps,
 } from "./TranscriptLayout";
 
 // Icons
