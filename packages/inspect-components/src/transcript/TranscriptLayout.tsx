@@ -42,8 +42,10 @@ import {
   findTimelineIndexForMessage,
   timelineContainsEvent,
 } from "./findTimelineForDeepLink";
+import { useEventNodeData } from "./hooks/useEventNodeData";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import {
   resolveEventInBranches,
@@ -53,12 +55,8 @@ import {
 } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { spanHasBranches, type TimelineSpan } from "./timeline/core";
+import { type TimelineSpan } from "./timeline/core";
 import {
-  useEventNodes,
-  useTimelineConfig,
-  useTimelinesArray,
-  useTranscriptTimeline,
   type TimelineOptions,
   type UseActiveTimelineProps,
   type UseTimelineProps,
@@ -77,10 +75,9 @@ import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
 } from "./TranscriptViewNodes";
+import { collectAllCollapsibleIds } from "./transform/collapse";
 import {
   EventNode,
-  kCollapsibleEventTypes,
-  kContentCollapsibleEventTypes,
   type EventNodeContext,
   type TranscriptCollapseState,
 } from "./types";
@@ -204,89 +201,6 @@ export interface TranscriptLayoutProps {
 }
 
 // =============================================================================
-// Helpers
-// =============================================================================
-
-const collectAllCollapsibleIds = (
-  nodes: EventNode[]
-): Record<string, boolean> => {
-  const result: Record<string, boolean> = {};
-  const traverse = (nodeList: EventNode[]) => {
-    for (const node of nodeList) {
-      if (
-        kCollapsibleEventTypes.includes(node.event.event) ||
-        kContentCollapsibleEventTypes.includes(node.event.event)
-      ) {
-        result[node.id] = true;
-      }
-      if (node.children.length > 0) {
-        traverse(node.children);
-      }
-    }
-  };
-  traverse(nodes);
-  return result;
-};
-
-const buildToolLabels = (
-  events: Event[],
-  messageLabels: Record<string, string> | undefined
-): Record<string, string> | undefined => {
-  if (!messageLabels) return undefined;
-
-  const toolLabels: Record<string, string> = {};
-  for (const event of events) {
-    if (event.event === "tool") {
-      const label = event.message_id
-        ? messageLabels[event.message_id]
-        : undefined;
-      if (label) toolLabels[event.id] = label;
-    } else if (event.event === "model") {
-      for (const message of event.input ?? []) {
-        if (message.role !== "tool" || !message.id) continue;
-        const label = messageLabels[message.id];
-        if (label && message.tool_call_id) {
-          toolLabels[message.tool_call_id] = label;
-        }
-      }
-    }
-  }
-
-  return Object.keys(toolLabels).length > 0 ? toolLabels : undefined;
-};
-
-// Restrict the message-label map to messages actually present in `events`.
-// The map is shared across the whole sample, but timelines (e.g. auditor vs
-// target) show different events — without this an unlabeled timeline would
-// reserve label-column space just because another timeline is labeled.
-const scopeMessageLabels = (
-  events: Event[],
-  messageLabels: Record<string, string> | undefined
-): Record<string, string> | undefined => {
-  if (!messageLabels) return undefined;
-
-  const present = new Set<string>();
-  for (const event of events) {
-    if (event.event === "model") {
-      for (const message of event.input ?? []) {
-        if (message.id) present.add(message.id);
-      }
-      for (const choice of event.output?.choices ?? []) {
-        if (choice.message?.id) present.add(choice.message.id);
-      }
-    } else if (event.event === "tool" && event.message_id) {
-      present.add(event.message_id);
-    }
-  }
-
-  const scoped: Record<string, string> = {};
-  for (const [id, label] of Object.entries(messageLabels)) {
-    if (present.has(id)) scoped[id] = label;
-  }
-  return Object.keys(scoped).length > 0 ? scoped : undefined;
-};
-
-// =============================================================================
 // Component
 // =============================================================================
 
@@ -327,146 +241,50 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   className,
 }) => {
   // ---------------------------------------------------------------------------
-  // Timeline-pipeline events
-  // ---------------------------------------------------------------------------
-
-  // Apply the user's event-type filter to the timeline pipeline so hidden
-  // types don't leave behind empty swimlane rows (e.g. an "init" span whose
-  // only content was a filtered `sample_init`). `anchor` events are always
-  // preserved — they're structural references used by `convertServerTimeline`
-  // to position fork navigators, not display content.
-  const eventsForTimeline = useMemo(() => {
-    if (!hiddenEventTypes || hiddenEventTypes.length === 0) return events;
-    return events.filter(
-      (e) => e.event === "anchor" || !hiddenEventTypes.includes(e.event)
-    );
-  }, [events, hiddenEventTypes]);
-
-  // ---------------------------------------------------------------------------
-  // Timeline config (persistent user preferences)
-  // ---------------------------------------------------------------------------
-
-  // Detect whether any timeline in this sample contains branches so the
-  // config hook can default `showBranches` on (when the user has not
-  // explicitly toggled it). `useTimelinesArray` is memoized, so the redundant
-  // call inside `useTranscriptTimeline` below reuses the same result.
-  const timelinesForBranchDetection = useTimelinesArray(
-    eventsForTimeline,
-    serverTimelines
-  );
-  const branchesPresent = useMemo(
-    () => timelinesForBranchDetection.some((tl) => spanHasBranches(tl.root)),
-    [timelinesForBranchDetection]
-  );
-
-  const timelineConfig = useTimelineConfig({ branchesPresent });
-  const resolvedMarkerConfig =
-    markerConfigOverride ?? timelineConfig.markerConfig;
-  const resolvedAgentConfig = agentConfigOverride ?? timelineConfig.agentConfig;
-
-  // ---------------------------------------------------------------------------
-  // Timeline pipeline
+  // Timeline pipeline + event nodes
   // ---------------------------------------------------------------------------
 
   const {
-    timeline: timelineData,
-    state: timelineState,
-    layouts: timelineLayouts,
-    rootTimeMapping,
-    selectedEvents,
-    sourceSpans,
-    minimapSelection,
-    hasTimeline,
-    hasAgentTimeline,
-    timelines,
-    activeTimelineIndex,
-    setActiveTimeline,
-    regionCounts,
-    branchScrollTarget,
-    highlightedKeys,
-    selectedRowName,
-    viewStack,
-    pushView,
-    popView,
-  } = useTranscriptTimeline({
-    events: eventsForTimeline,
-    markerConfig: resolvedMarkerConfig,
-    timelineOptions: resolvedAgentConfig,
+    timeline: {
+      timeline: timelineData,
+      state: timelineState,
+      layouts: timelineLayouts,
+      rootTimeMapping,
+      minimapSelection,
+      timelines,
+      activeTimelineIndex,
+      setActiveTimeline,
+      regionCounts,
+      branchScrollTarget,
+      highlightedKeys,
+      selectedRowName,
+      viewStack,
+      pushView,
+      popView,
+    },
+    timelineConfig,
+    showSwimlanes,
+    swimlanesDefaultCollapsed,
+    nodeFeed,
+    searchableEvents,
+  } = useTimelinePipeline({
+    events,
+    hiddenEventTypes,
     serverTimelines,
-    timelineProps: timelineSelection,
-    activeTimelineProps: activeTimeline,
+    markerConfig: markerConfigOverride,
+    agentConfig: agentConfigOverride,
+    showSwimlanes: showSwimlanesOption,
+    timelineSelection,
+    activeTimeline,
   });
 
-  // ---------------------------------------------------------------------------
-  // Swimlane visibility
-  // ---------------------------------------------------------------------------
-
-  const showSwimlanes = useMemo(() => {
-    if (showSwimlanesOption === "auto") {
-      return hasTimeline || regionCounts.size > 0 || timelines.length > 1;
-    }
-    return showSwimlanesOption;
-  }, [showSwimlanesOption, hasTimeline, regionCounts, timelines.length]);
-
-  const swimlanesDefaultCollapsed = useMemo(() => {
-    if (
-      showSwimlanesOption === "auto" &&
-      !hasTimeline &&
-      regionCounts.size === 0
-    ) {
-      return true;
-    }
-    if (hasTimeline) {
-      // Expand by default only when there's agent sub-structure to drill into.
-      // A bare main + scoring (or init) timeline has nothing to expand, so
-      // default it collapsed.
-      return hasAgentTimeline ? false : true;
-    }
-    return undefined;
-  }, [showSwimlanesOption, hasTimeline, hasAgentTimeline, regionCounts]);
-
-  // ---------------------------------------------------------------------------
-  // Event nodes
-  // ---------------------------------------------------------------------------
-
-  const rawEventsForNodes = showSwimlanes ? selectedEvents : events;
-  const eventsForNodes = useMemo(
-    () =>
-      hiddenEventTypes && hiddenEventTypes.length > 0
-        ? rawEventsForNodes.filter((e) => !hiddenEventTypes.includes(e.event))
-        : rawEventsForNodes,
-    [rawEventsForNodes, hiddenEventTypes]
-  );
-  const { eventNodes, defaultCollapsedIds, retryAttempts } = useEventNodes(
-    eventsForNodes,
-    running,
-    showSwimlanes ? sourceSpans : undefined
-  );
-
-  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(() => {
-    const messageLabels = scopeMessageLabels(
-      eventsForNodes,
-      eventNodeContext?.messageLabels
-    );
-    const toolLabels = buildToolLabels(eventsForNodes, messageLabels);
-    return {
-      ...eventNodeContext,
-      messageLabels,
-      retryAttempts,
-      ...(toolLabels ? { toolLabels } : {}),
-    };
-  }, [eventsForNodes, eventNodeContext, retryAttempts]);
+  const {
+    eventNodes,
+    defaultCollapsedIds,
+    eventNodeContext: mergedEventNodeContext,
+  } = useEventNodeData(nodeFeed, running, eventNodeContext);
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
-
-  // Honor the same event-type filter the renderer uses. State/store events
-  // carry huge JSON payloads but aren't surfaced in the transcript tree;
-  // matching their fields would inflate the counter with unreachable results.
-  const searchableEvents = useMemo(() => {
-    if (!hiddenEventTypes || hiddenEventTypes.length === 0) return events;
-    const hidden = new Set(hiddenEventTypes);
-    return events.filter((e) => !hidden.has(e.event));
-  }, [events, hiddenEventTypes]);
 
   useTranscriptSearchSource({
     id: listId,
@@ -746,7 +564,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // selected. The event-id analogue of the message side-effect above.
   const resolvedEventSpan = useMemo(() => {
     if (!initialEventId || !showSwimlanes) return undefined;
-    const present = eventsForNodes.some(
+    const present = nodeFeed.events.some(
       (e) => (e as { uuid?: string | null }).uuid === initialEventId
     );
     if (present) return undefined;
@@ -754,7 +572,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       resolveEventToSpan(initialEventId, timelineData.root) ??
       resolveEventInBranches(initialEventId, timelineData.root)
     );
-  }, [initialEventId, showSwimlanes, eventsForNodes, timelineData.root]);
+  }, [initialEventId, showSwimlanes, nodeFeed.events, timelineData.root]);
 
   const prevEventIdRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {

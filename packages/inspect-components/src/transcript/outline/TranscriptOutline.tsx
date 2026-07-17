@@ -5,7 +5,6 @@ import {
   RefObject,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
@@ -13,20 +12,11 @@ import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 import { useScrollTrack } from "@tsmono/react/hooks";
 
 import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
-import { kSandboxSignalName } from "../transform/fixups";
-import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
 import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
-import {
-  collapseScoring,
-  collapseTurns,
-  makeTurns,
-  noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
-} from "./tree-visitors";
+import { useOutlineNodes } from "./useOutlineNodes";
 import { useOutlineWidth } from "./useOutlineWidth";
 
 const kFramesToStabilize = 10;
@@ -174,25 +164,11 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     [setSelectedOutlineId, beginProgrammaticScroll]
   );
 
-  const outlineNodeList = useMemo(() => {
-    const nodeList = flatTree(
-      eventNodes,
-      (collapsedEvents ? collapsedEvents : undefined) || defaultCollapsedIds,
-      [
-        removeNodeVisitor("logger"),
-        removeNodeVisitor("info"),
-        removeNodeVisitor("state"),
-        removeNodeVisitor("store"),
-        removeNodeVisitor("approval"),
-        removeNodeVisitor("input"),
-        removeNodeVisitor("sandbox"),
-        removeStepSpanNameVisitor(kSandboxSignalName),
-        noScorerChildren(),
-      ]
-    );
-
-    return collapseScoring(collapseTurns(makeTurns(nodeList)));
-  }, [eventNodes, collapsedEvents, defaultCollapsedIds]);
+  const { outlineNodeList, allNodesList } = useOutlineNodes(
+    eventNodes,
+    collapsedEvents,
+    defaultCollapsedIds
+  );
 
   const hasOutlineNodes = outlineNodeList.length > 0;
   useEffect(() => {
@@ -220,11 +196,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       ancestor = ancestor.parentElement;
     }
   }, [outlineWidth]);
-
-  // All event nodes for scroll tracking
-  const allNodesList = useMemo(() => {
-    return flatTree(eventNodes, null);
-  }, [eventNodes]);
 
   const elementIds = allNodesList.map((node) => node.id);
   const findNearestOutlineAbove = useCallback(
