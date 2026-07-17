@@ -14,6 +14,10 @@ import { EventNode } from "../types";
 
 import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
+import {
+  useOutlineCollapse,
+  type OutlineCollapseState,
+} from "./useOutlineCollapse";
 import { useOutlineNodes } from "./useOutlineNodes";
 import { useOutlineScrollSync } from "./useOutlineScrollSync";
 import { useOutlineWidth } from "./useOutlineWidth";
@@ -55,14 +59,8 @@ interface TranscriptOutlineProps {
   // --- Callback props replacing store hooks ---
   /** URL generator for deep linking to events. */
   getEventUrl?: (eventId: string) => string | undefined;
-  /** Get collapsed state for an outline node. */
-  getCollapsed?: (id: string) => boolean;
-  /** Set collapsed state for an outline node. */
-  setCollapsed?: (id: string, collapsed: boolean) => void;
-  /** Current collapsed events for the outline scope. */
-  collapsedEvents?: Record<string, boolean>;
-  /** Set multiple collapsed events at once (for initialization). */
-  setCollapsedEvents?: (collapsed: Record<string, boolean>) => void;
+  /** Collapse state and callbacks for the outline scope. */
+  collapse?: OutlineCollapseState;
   /** Currently selected outline node ID. */
   selectedOutlineId?: string | null;
   /** Set the selected outline node ID. */
@@ -109,10 +107,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   onNavigateToEvent,
   scrollTrackOffset,
   getEventUrl,
-  getCollapsed,
-  setCollapsed,
-  collapsedEvents,
-  setCollapsedEvents,
+  collapse,
   selectedOutlineId,
   setSelectedOutlineId,
   renderLink,
@@ -121,10 +116,14 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   const listHandle = useRef<VirtuosoHandle | null>(null);
   const { getRestoreState } = useVirtuosoState(listHandle, id);
 
+  const { collapsedIds, getCollapsed, setCollapsed } = useOutlineCollapse(
+    defaultCollapsedIds,
+    collapse
+  );
+
   const { outlineNodeList, allNodesList } = useOutlineNodes(
     eventNodes,
-    collapsedEvents,
-    defaultCollapsedIds
+    collapsedIds
   );
 
   const { onOutlineSelect } = useOutlineScrollSync({
@@ -161,13 +160,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       ancestor = ancestor.parentElement;
     }
   }, [outlineWidth]);
-
-  // Initialize collapsed events from defaults
-  useEffect(() => {
-    if (!collapsedEvents && Object.keys(defaultCollapsedIds).length > 0) {
-      setCollapsedEvents?.(defaultCollapsedIds);
-    }
-  }, [defaultCollapsedIds, collapsedEvents, setCollapsedEvents]);
 
   const renderRow = useCallback(
     (index: number, node: EventNode) => {

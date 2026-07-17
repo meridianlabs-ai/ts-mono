@@ -251,16 +251,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   });
 
   const {
-    timeline: timelineData,
     state: timelineState,
     swimlanes: { layouts: timelineLayouts, regionCounts, highlightedKeys },
-    minimap: { mapping: rootTimeMapping, selection: minimapSelection },
-    multiTimeline: {
-      timelines,
-      activeIndex: activeTimelineIndex,
-      setActive: setActiveTimeline,
-    },
-    views: { stack: viewStack, push: pushView, pop: popView },
+    minimap,
+    multiTimeline,
+    views,
     selection: { rowName: selectedRowName },
   } = transcriptTimeline;
 
@@ -343,50 +338,23 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const swimlaneHeader = useMemo(
     () => ({
-      rootLabel: timelineData.root.name,
       onScrollToTop,
-      minimap: {
-        root: timelineData.root,
-        selection: minimapSelection,
-        mapping: rootTimeMapping,
-        scrubberProgress,
-        onScrub: handleScrub,
-      },
+      minimap,
+      scrubberProgress,
+      onScrub: handleScrub,
       timelineConfig,
-      timelineSelector:
-        timelines.length > 1
-          ? {
-              timelines,
-              activeIndex: activeTimelineIndex,
-              onSelect: setActiveTimeline,
-            }
-          : undefined,
-      viewStack,
-      onPopView: popView,
+      multiTimeline,
+      views,
     }),
     [
-      timelineData.root,
       onScrollToTop,
-      minimapSelection,
-      rootTimeMapping,
+      minimap,
       scrubberProgress,
       handleScrub,
       timelineConfig,
-      timelines,
-      activeTimelineIndex,
-      setActiveTimeline,
-      viewStack,
-      popView,
+      multiTimeline,
+      views,
     ]
-  );
-
-  const handlePunchDown = useCallback(
-    (rowKey: string, label: string) => {
-      const row = timelineState.rows.find((r) => r.key === rowKey);
-      const span = row?.spans[0];
-      if (span && "agent" in span) pushView(span.agent, label);
-    },
-    [timelineState.rows, pushView]
   );
 
   // ---------------------------------------------------------------------------
@@ -470,6 +438,18 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
       hasOutline: !!outline,
       outlineCollapsed: outline?.collapsed,
     });
+
+  const outlineCollapse = useMemo(
+    () =>
+      collapseState
+        ? {
+            collapsed: collapseState.outline,
+            onCollapse: collapseState.onCollapseOutline,
+            onSetCollapsed: collapseState.onSetOutlineCollapsed,
+          }
+        : undefined,
+    [collapseState]
+  );
 
   const hasMatchingEvents = eventNodes.length > 0;
 
@@ -651,7 +631,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     defaultCollapsed={swimlanesDefaultCollapsed}
                     regionCounts={regionCounts}
                     highlightedKeys={highlightedKeys}
-                    onPunchDown={handlePunchDown}
+                    onPunchDown={views.pushByRowKey}
                   />
                 </div>
               </StickyScroll>
@@ -717,17 +697,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                             (showSwimlanes ? selectedRowName : undefined)
                           }
                           scrollTrackOffset={effectiveOffsetTop}
-                          getCollapsed={
-                            collapseState?.outline
-                              ? (nodeId: string) =>
-                                  collapseState.outline?.[nodeId] === true
-                              : undefined
-                          }
-                          setCollapsed={collapseState?.onCollapseOutline}
-                          collapsedEvents={collapseState?.outline}
-                          setCollapsedEvents={
-                            collapseState?.onSetOutlineCollapsed
-                          }
+                          collapse={outlineCollapse}
                           selectedOutlineId={outline.selectedId}
                           setSelectedOutlineId={outline.setSelectedId}
                           getEventUrl={getEventUrl}
