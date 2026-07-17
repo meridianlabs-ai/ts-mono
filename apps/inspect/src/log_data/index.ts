@@ -100,6 +100,7 @@ export {
 export {
   readLogsListing,
   readLogsListingMatches,
+  readLogsListingOffset,
   readLogsOverview,
   logsListingSource,
   type LogsListingSource,

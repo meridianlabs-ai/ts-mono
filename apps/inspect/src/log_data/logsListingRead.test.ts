@@ -24,6 +24,7 @@ import { setRows } from "./logsContent";
 import {
   readLogsListing,
   readLogsListingMatches,
+  readLogsListingOffset,
   readLogsOverview,
 } from "./logsListingRead";
 
@@ -286,5 +287,50 @@ describe("readLogsListingMatches", () => {
     );
 
     expect(matches).toEqual(["/test/logs/c.json", "/test/logs/a.json"]);
+  });
+});
+
+describe("readLogsListingOffset", () => {
+  let databaseService: DatabaseService;
+
+  beforeEach(async () => {
+    databaseService = createDatabaseService();
+    holder.service = databaseService;
+    await databaseService.openDatabase();
+  });
+
+  afterEach(async () => {
+    await databaseService.closeDatabase();
+    await Dexie.delete(DB_NAME);
+  });
+
+  test("locates a row id within the filtered+sorted universe", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task_id: "t-a" }),
+      "/test/logs/b.json": preview({ task_id: "t-b", model: "claude" }),
+      "/test/logs/c.json": preview({ task_id: "t-c" }),
+    });
+    const plan = createListingPlan({
+      filter: new Column("model").ilike("gpt%"),
+      orderBy: [{ column: "name", direction: "DESC" as const }],
+      getValue,
+      getComparator: () => undefined,
+    });
+    const target = (id: string) => ({
+      id,
+      getRowId: (row: Log) => row.name,
+    });
+    const toRow = (log: LogListingRow) => log as Log;
+
+    // Universe after filter+sort: [c, a] (b is filtered out).
+    await expect(
+      readLogsListingOffset("/test/logs", "/test/logs", toRow, plan, target("/test/logs/a.json"))
+    ).resolves.toBe(1);
+    await expect(
+      readLogsListingOffset("/test/logs", "/test/logs", toRow, plan, target("/test/logs/b.json"))
+    ).resolves.toBeUndefined();
+    await expect(
+      readLogsListingOffset("/test/logs", "/test/logs", toRow, plan, target("/test/logs/c.json"))
+    ).resolves.toBe(0);
   });
 });

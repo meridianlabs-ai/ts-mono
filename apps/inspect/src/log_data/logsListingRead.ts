@@ -237,3 +237,24 @@ export const readLogsListingMatches = async <TRow>(
   }
   return ids;
 };
+
+/**
+ * Offset of the row with id `id` within the filtered+sorted universe, or
+ * `undefined` when no such row exists (filtered out, or not a row of the
+ * view). This is the restore-by-offset seam: when the listing paginates,
+ * selected-row restore resolves the persisted selection to its offset
+ * here, fetches pages through that offset, then scrolls — instead of
+ * assuming the row is already in the rendered rows. Runs over the scan
+ * today; under keys-first pagination it becomes a key-list lookup.
+ */
+export const readLogsListingOffset = async <TRow>(
+  logDir: string,
+  prefix: string,
+  toRow: (log: LogListingRow) => TRow | undefined,
+  plan: DatabaseListingPlan<TRow>,
+  target: { id: string; getRowId: (row: TRow) => string }
+): Promise<number | undefined> => {
+  const rows = await scanListingRows(logDir, prefix, toRow, plan);
+  const index = rows.findIndex((row) => target.getRowId(row) === target.id);
+  return index === -1 ? undefined : index;
+};
