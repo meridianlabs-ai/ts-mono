@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { EventNode, type EventType } from "../types";
 
-import { collectAllCollapsibleIds, computeDefaultCollapsedIds } from "./collapse";
+import {
+  collectAllCollapsibleIds,
+  computeDefaultCollapsedIds,
+} from "./collapse";
 
 // =============================================================================
 // Fixtures
@@ -50,10 +53,9 @@ describe("computeDefaultCollapsedIds", () => {
 
   it("collapses subtasks and traverses children", () => {
     const subtask = node({ event: "subtask" });
-    const span = node(
-      { event: "span_begin", name: "agent", type: "agent" },
-      [subtask]
-    );
+    const span = node({ event: "span_begin", name: "agent", type: "agent" }, [
+      subtask,
+    ]);
     expect(computeDefaultCollapsedIds([span])).toEqual({
       [subtask.id]: true,
     });

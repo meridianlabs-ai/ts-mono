@@ -14,10 +14,7 @@ interface FixtureMessage {
   tool_call_id?: string;
 }
 
-function modelEvent(
-  input: FixtureMessage[],
-  choiceIds: string[] = []
-): Event {
+function modelEvent(input: FixtureMessage[], choiceIds: string[] = []): Event {
   return {
     event: "model",
     input,

@@ -71,11 +71,11 @@ import {
   TimelineSelectContext,
 } from "./TimelineSelectContext";
 import styles from "./TranscriptLayout.module.css";
-import { collectAllCollapsibleIds } from "./transform/collapse";
 import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
 } from "./TranscriptViewNodes";
+import { collectAllCollapsibleIds } from "./transform/collapse";
 import {
   EventNode,
   type EventNodeContext,

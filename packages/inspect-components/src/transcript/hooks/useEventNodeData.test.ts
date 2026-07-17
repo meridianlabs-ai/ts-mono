@@ -63,10 +63,7 @@ function makeToolEvent(id: string, messageId: string): Event {
 // =============================================================================
 
 describe("useEventNodeData", () => {
-  const events = [
-    makeModelEvent("e1", "m1"),
-    makeToolEvent("t1", "m2"),
-  ];
+  const events = [makeModelEvent("e1", "m1"), makeToolEvent("t1", "m2")];
   const feed = { events, sourceSpans: undefined };
 
   it("builds event nodes from the feed", () => {
