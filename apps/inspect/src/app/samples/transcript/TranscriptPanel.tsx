@@ -59,7 +59,6 @@ interface TranscriptPanelProps {
 
   /** Always-visible right rail + optional panel (Search / Scans). */
   rightRail?: TranscriptLayoutRightRailProps;
-  rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
@@ -82,7 +81,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     timelines: serverTimelines,
     eventNodeContext,
     rightRail,
-    rightRailPanelScrollRef,
   } = props;
 
   // ---------------------------------------------------------------------------
@@ -376,9 +374,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       eventsListRef={eventsListRef}
-      outlineScrollRef={outlineScrollRef}
       rightRail={rightRail}
-      rightRailPanelScrollRef={rightRailPanelScrollRef}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
@@ -390,6 +386,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
         onNavigateToEvent: onOutlineNavigate,
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,
+        scrollRef: outlineScrollRef,
       }}
       empty={{
         text:

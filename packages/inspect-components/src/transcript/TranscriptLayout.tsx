@@ -186,15 +186,10 @@ export interface TranscriptLayoutProps {
   // --- Outline ---
   /** Outline panel configuration. When omitted, the outline column is hidden entirely. */
   outline?: TranscriptLayoutOutlineProps;
-  /** Optional ref to the outline's sticky scroll container. Useful when the
-   *  caller wants to observe its scroll events (e.g. headroom direction). */
-  outlineScrollRef?: RefObject<HTMLDivElement | null>;
 
   // --- Right rail ---
   /** Optional always-visible right rail + optional panel. */
   rightRail?: TranscriptLayoutRightRailProps;
-  /** Optional ref to the rail panel's sticky scroll container (wheel forwarding). */
-  rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
 
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
@@ -230,9 +225,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   bulkCollapse,
   collapseState,
   outline,
-  outlineScrollRef,
   rightRail,
-  rightRailPanelScrollRef,
   eventNodeContext,
   className,
 }) => {
@@ -400,6 +393,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor]
   );
 
+  // The rail panel's scroll container is written by RailDock and read only by
+  // the wheel coupling below — no caller sees it, so the layout owns the ref.
+  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
+
   // The rail panel pins directly below the toolbar (offsetTop), alongside
   // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
   // Each needs its own sticky-detection threshold. The remount keys re-attach
@@ -409,12 +406,12 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     mainScrollRef: scrollRef,
     sidebars: [
       {
-        scrollRef: outlineScrollRef,
+        scrollRef: outline?.scrollRef,
         stickyTop: effectiveOffsetTop,
         remountKey: outline?.collapsed ?? null,
       },
       {
-        scrollRef: rightRailPanelScrollRef,
+        scrollRef: railPanelScrollRef,
         stickyTop: offsetTop,
         remountKey: rightRail?.panel != null,
       },
@@ -485,7 +482,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   eventNodes={eventNodes}
                   defaultCollapsedIds={defaultCollapsedIds}
                   scrollRef={scrollRef}
-                  outlineScrollRef={outlineScrollRef}
                   running={running}
                   backfilling={backfilling}
                   agentName={
@@ -536,7 +532,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               scrollRef={scrollRef}
               scrollerHeight={scrollerHeight}
               offsetTop={offsetTop}
-              panelScrollRef={rightRailPanelScrollRef}
+              panelScrollRef={railPanelScrollRef}
               railWidth={rightRail.railWidth}
               panelWidth={rightRail.panelWidth}
               onPanelWidthChange={rightRail.onPanelWidthChange}
