@@ -1,8 +1,8 @@
 /**
- * Regression tests for the timeline dropping solver-level info/intermediate
- * score events when a solver wraps an agent (e.g. react_with_gated_submit).
- * See the "solver child events" bug: unwrapSolverSpan used to descend into the
- * inner agent span and discard the solver's own event children.
+ * Regression tests for the timeline dropping solver-level events when a solver
+ * wraps an agent (e.g. as_solver): unwrapSolverSpan used to descend into the
+ * inner agent span and discard sibling events in the parent solver, even of
+ * types that were likely to be relevant (model, tool, score, info etc.).
  */
 import { describe, expect, it } from "vitest";
 
