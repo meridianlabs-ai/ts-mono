@@ -77,7 +77,12 @@ const scoreEvent = (span_id: string, sec: number, intermediate: boolean) =>
   }) as unknown as Event;
 
 const stateEvent = (span_id: string, sec: number) =>
-  ({ event: "state", span_id, changes: [], timestamp: at(sec) }) as unknown as Event;
+  ({
+    event: "state",
+    span_id,
+    changes: [],
+    timestamp: at(sec),
+  }) as unknown as Event;
 
 // --- assertion helper: collect every leaf event type in the built tree ------
 function collectEventTypes(span: TimelineSpan): string[] {
@@ -137,7 +142,9 @@ describe("timeline solver child events", () => {
     // and agent SpanNodes (see core.ts), so a kept (non-collapsed) solver span
     // surfaces with spanType "agent", not "solver" — count "agent" spans to
     // detect the double-nesting instead.
-    expect(countSubSpansOfType(timeline.root, "agent")).toBeGreaterThanOrEqual(1);
+    expect(countSubSpansOfType(timeline.root, "agent")).toBeGreaterThanOrEqual(
+      1
+    );
   });
 
   it("B: still flattens solver→agent to a single lane when extras are only state/store", () => {
