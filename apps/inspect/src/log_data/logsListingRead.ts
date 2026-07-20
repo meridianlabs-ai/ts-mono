@@ -1,4 +1,4 @@
-import { dirname, isInDirectory } from "@tsmono/util";
+import { ensureTrailingSlash, isInDirectory } from "@tsmono/util";
 
 import type { Log } from "../client/api/types";
 import { scopePrefix } from "../client/database";
@@ -124,17 +124,12 @@ export interface LogsOverview {
 
 const rootName = (relativePath: string) => relativePath.split("/")[0] ?? "";
 
-/** Immediate subdirectories of `currentDir` with per-folder log counts —
- *  the same derivation LogsPanel's items loop used, preserved verbatim
- *  (including counting by the first-seen file's parent prefix). */
+/** Immediate subdirectories of `currentDir` with per-folder log counts. */
 const deriveFolders = (
   rows: LogListingRow[],
   currentDir: string
 ): { name: string; itemCount: number }[] => {
-  const cleanDir = currentDir.endsWith("/")
-    ? currentDir.slice(0, -1)
-    : currentDir;
-  const dirWithSlash = currentDir.endsWith("/") ? currentDir : currentDir + "/";
+  const dirWithSlash = ensureTrailingSlash(currentDir);
 
   // Count logs under a path prefix via binary search rather than a full
   // scan per folder. Names sort into contiguous ranges, so a prefix count
@@ -158,14 +153,23 @@ const deriveFolders = (
   const seen = new Set<string>();
   for (const row of rows) {
     const name = row.name;
-    if (isInDirectory(name, cleanDir) || !name.startsWith(dirWithSlash)) {
+    if (isInDirectory(name, currentDir) || !name.startsWith(dirWithSlash)) {
       continue;
     }
     const relativePath = directoryRelativeUrl(name, currentDir);
+    // encodeURIComponent/decodeURIComponent round-trip, so this is the raw
+    // first path segment under `currentDir` — the folder's own directory.
     const dirName = decodeURIComponent(rootName(relativePath));
     if (seen.has(dirName)) continue;
     seen.add(dirName);
-    folders.push({ name: dirName, itemCount: countWithPrefix(dirname(name)) });
+    // Count under the folder's path, slash-terminated: an unterminated
+    // prefix would also span sibling folders sharing the name as a prefix
+    // (sub vs sub2), and the first-seen file's parent dir would miss logs
+    // outside its own subtree when that file is nested deeper.
+    folders.push({
+      name: dirName,
+      itemCount: countWithPrefix(dirWithSlash + dirName + "/"),
+    });
   }
   return folders;
 };

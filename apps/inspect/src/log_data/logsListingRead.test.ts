@@ -233,6 +233,33 @@ describe("readLogsOverview", () => {
     expect(overview.folders).toEqual([{ name: "sub", itemCount: 2 }]);
   });
 
+  test("folder counts don't bleed into prefix-sharing siblings or clip to a nested subtree", async () => {
+    await databaseService.writeLogPreviews({
+      // "sub" is a name-prefix of "sub2": each must count only its own logs.
+      "/test/logs/sub/nested/a.json": preview({ task_id: "t-a" }),
+      "/test/logs/sub/b.json": preview({ task_id: "t-b" }),
+      "/test/logs/sub2/c.json": preview({ task_id: "t-c" }),
+      "/test/logs/sub2/d.json": preview({ task_id: "t-d" }),
+      "/test/logs/sub2/e.json": preview({ task_id: "t-e" }),
+    });
+
+    const overview = await readLogsOverview("/test/logs", {
+      folderDir: "/test/logs",
+      showRetriedLogs: false,
+      isCandidate: directChildOf("/test/logs"),
+    });
+
+    // "sub" counts its whole subtree even when first seen via the nested
+    // file; "sub2" isn't inflated by "sub" rows (nor vice versa).
+    const folders = [...overview.folders].sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
+    expect(folders).toEqual([
+      { name: "sub", itemCount: 2 },
+      { name: "sub2", itemCount: 3 },
+    ]);
+  });
+
   test("counts retried runs and applies retried-hiding to file facts", async () => {
     await databaseService.writeLogPreviews({
       "/test/logs/2024-01-01_task.json": preview({ task_id: "shared" }),
