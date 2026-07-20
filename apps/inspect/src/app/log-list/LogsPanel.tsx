@@ -170,6 +170,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
   } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
   const toRow = useCallback(
@@ -201,6 +202,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
     listing,
   });
 

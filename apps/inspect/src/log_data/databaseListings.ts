@@ -15,6 +15,7 @@ export const databaseLogsListingKeyRoot = [
 
 export const databaseLogsListingKey = (
   universe: string | undefined,
+  accessorsKey: string,
   filter?: Condition,
   orderBy?: OrderByModel[],
   pagination?: Pagination
@@ -22,10 +23,16 @@ export const databaseLogsListingKey = (
   [
     ...databaseLogsListingKeyRoot,
     universe ?? null,
+    accessorsKey,
     filter ?? null,
     orderBy ?? null,
     pagination ?? null,
   ] as const;
+
+/** The universe slot of a {@link databaseLogsListingKey} — for same-universe
+ *  checks (placeholders) without hard-coding the key shape at call sites. */
+export const listingKeyUniverse = (queryKey: readonly unknown[]): unknown =>
+  queryKey[databaseLogsListingKeyRoot.length];
 
 /**
  * Coalesce replication bursts into at most one refetch of observed Dexie

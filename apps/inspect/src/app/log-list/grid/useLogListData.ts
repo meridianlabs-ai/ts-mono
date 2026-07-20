@@ -39,6 +39,8 @@ interface UseLogListDataParams {
   getValue: ValueAccessor<LogListRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
+  /** Cache identity of the accessors (see `useLogListColumns`). */
+  accessorsKey: string;
   listing: LogsListingDescriptor<LogListRow>;
 }
 
@@ -69,6 +71,7 @@ export const useLogListData = ({
   getValue,
   getComparator,
   getFilterType,
+  accessorsKey,
   listing,
 }: UseLogListDataParams): LogListData => {
   const { gridStateByScope } = useLogsListing();
@@ -119,6 +122,7 @@ export const useLogListData = ({
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
     listing,
   });
 

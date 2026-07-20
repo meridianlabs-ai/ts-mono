@@ -9,7 +9,11 @@ import type {
 } from "@tsmono/inspect-common/query";
 
 import type { LogListingRow } from "../../../log_data";
-import { databaseLogsListingKey, readLogsListing } from "../../../log_data";
+import {
+  databaseLogsListingKey,
+  listingKeyUniverse,
+  readLogsListing,
+} from "../../../log_data";
 
 import { applyListingQuery } from "./applyListingQuery";
 import { createListingPlan } from "./planner";
@@ -90,6 +94,10 @@ interface UseDatabaseLogsListingParams<TRow> {
   getValue: ValueAccessor<TRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
+  /** Cache identity of the accessors above (see `useLogListColumns`) — the
+   *  score-column schema lands asynchronously and changes what the plan
+   *  computes, so it must key the query alongside filter/orderBy. */
+  accessorsKey: string;
   listing: LogsListingDescriptor<TRow>;
 }
 
@@ -118,11 +126,18 @@ export function useDatabaseLogsListingQuery<TRow>({
   getValue,
   getComparator,
   getFilterType,
+  accessorsKey,
   listing,
 }: UseDatabaseLogsListingParams<TRow>): DatabaseLogsListing<TRow> {
   const { logDir, prefix, universe, toRow } = listing;
   const query = useQuery({
-    queryKey: databaseLogsListingKey(universe, filter, orderBy, pagination),
+    queryKey: databaseLogsListingKey(
+      universe,
+      accessorsKey,
+      filter,
+      orderBy,
+      pagination
+    ),
     queryFn: (): Promise<LogsListingResult<TRow>> =>
       readLogsListing(
         logDir,
@@ -138,13 +153,20 @@ export function useDatabaseLogsListingQuery<TRow>({
         })
       ),
     enabled: universe !== undefined,
-    // Keep showing the previous result across re-filters/sorts within one
-    // universe; a different universe's rows must not leak in.
+    // Keep showing the previous result across re-filters/sorts — and schema
+    // arrivals — within one universe (same row set, possibly re-evaluated);
+    // a different universe's rows must not leak in.
     placeholderData: (previousData, previousQuery) =>
-      universe !== undefined && previousQuery?.queryKey[3] === universe
+      universe !== undefined &&
+      previousQuery !== undefined &&
+      listingKeyUniverse(previousQuery.queryKey) === universe
         ? previousData
         : undefined,
     staleTime: 0,
+    // Transitional (pre-pagination): each key holds the full shaped row
+    // list, so the default 5-minute gc would keep a full copy per recent
+    // (schema, filter, orderBy) combination. Drop unobserved copies fast.
+    gcTime: 30_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });

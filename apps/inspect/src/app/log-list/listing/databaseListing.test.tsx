@@ -41,6 +41,7 @@ vi.mock("../../../log_data", () => ({
     "logs",
     ...parts.map((part) => part ?? null),
   ],
+  listingKeyUniverse: (queryKey: readonly unknown[]) => queryKey[3],
   readLogsListing: (
     ...args: Parameters<ReadListing>
   ): ReturnType<ReadListing> => holder.read(...args) as ReturnType<ReadListing>,
@@ -61,11 +62,13 @@ const listingParams = (overrides?: {
   filter?: Condition;
   orderBy?: { column: string; direction: "ASC" | "DESC" }[];
   universe?: string | undefined;
+  accessorsKey?: string;
 }) => ({
   filter: overrides?.filter,
   orderBy: overrides?.orderBy,
   getValue,
   getComparator: () => undefined,
+  accessorsKey: overrides?.accessorsKey ?? "",
   listing: {
     logDir: "/logs",
     prefix: "/logs",
@@ -190,6 +193,26 @@ describe("useDatabaseLogsListingQuery", () => {
         "/logs/b.eval",
       ])
     );
+  });
+
+  test("re-queries when the accessor schema lands, keeping the rows as placeholder", async () => {
+    const { result, rerender } = renderHook(
+      (props) => useDatabaseLogsListingQuery<Row>(props),
+      {
+        wrapper,
+        initialProps: listingParams({ accessorsKey: "" }),
+      }
+    );
+    await waitFor(() => expect(result.current.result).toBeDefined());
+    expect(holder.read).toHaveBeenCalledTimes(1);
+
+    // The scorer schema arriving changes what the plan computes without any
+    // other query input changing — same universe, so the previous rows keep
+    // showing while the re-evaluated read is in flight.
+    rerender(listingParams({ accessorsKey: "grader/accuracy:number" }));
+    expect(result.current.pending).toBe(false);
+    expect(result.current.result).toBeDefined();
+    await waitFor(() => expect(holder.read).toHaveBeenCalledTimes(2));
   });
 
   test("does not serve one universe's rows to another", async () => {
