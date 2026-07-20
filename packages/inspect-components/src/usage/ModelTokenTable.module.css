@@ -216,8 +216,13 @@
   vertical-align: top;
 }
 
+.table thead th.connectionsHead,
+.table tbody td.connectionsCell {
+  padding-left: 2rem;
+}
+
 .table tbody tr.connectionsStripRow td {
-  padding: 0 0 18px;
+  padding: 6px 0 18px;
   border-top: 0;
 }
 

@@ -16,6 +16,10 @@ const kChartHeight = 70;
 const kPlotTop = 6;
 const kBaselineY = 52;
 const kTickLabelY = 66;
+const kAngledLabelY = 62;
+const kLabelAngle = -30;
+// rough 9px-font char width, used to reserve room below angled labels
+const kApproxCharPx = 5;
 const kNiceIntervals = [
   60, 300, 900, 1800, 3600, 7200, 14400, 21600, 43200, 86400,
 ];
@@ -36,6 +40,7 @@ interface Tick {
   x: number;
   label: string;
   anchor: "start" | "middle" | "end";
+  angled?: boolean;
 }
 
 const buildTicks = (
@@ -69,13 +74,14 @@ const buildTicks = (
     t += interval
   ) {
     const px = x(t);
-    // keep clear of the (wider) dated first label and the last label
-    if (px < 80 || px > width - 45) continue;
+    // keep clear of the (wider) dated first label and the last label —
+    // angled interior labels descend down-left from their anchor
+    if (px < 90 || px > width - 45) continue;
     const date = fmtTickDate(t);
     const label =
       date !== prevDate ? `${date}, ${fmtTickTime(t)}` : fmtTickTime(t);
     prevDate = date;
-    interior.push({ x: px, label, anchor: "middle" });
+    interior.push({ x: px, label, anchor: "end", angled: true });
   }
   return [first, ...interior, last];
 };
@@ -113,6 +119,16 @@ export const ConnectionsLane: FC<ConnectionsLaneProps> = ({
   path += ` L ${width} ${y(prev)}`;
 
   const ticks = width > 0 ? buildTicks(timeWindow, width, x) : [];
+  // angled labels descend ~half their width below the axis (sin 30°), so
+  // grow the chart to fit the widest one
+  const maxAngledPx = ticks.reduce(
+    (m, t) => (t.angled ? Math.max(m, t.label.length * kApproxCharPx) : m),
+    0
+  );
+  const chartHeight = Math.max(
+    kChartHeight,
+    Math.ceil(kAngledLabelY + maxAngledPx / 2 + 4)
+  );
 
   return (
     <div className={styles.lane}>
@@ -155,12 +171,16 @@ export const ConnectionsLane: FC<ConnectionsLaneProps> = ({
           </button>
         )}
       </div>
-      <div ref={chartRef} className={styles.chart}>
+      <div
+        ref={chartRef}
+        className={styles.chart}
+        style={{ height: chartHeight }}
+      >
         {width > 0 && (
           <svg
             className={styles.svg}
             width={width}
-            height={kChartHeight}
+            height={chartHeight}
             role="img"
             aria-label={`Connection limit over time for ${data.model}`}
           >
@@ -204,8 +224,13 @@ export const ConnectionsLane: FC<ConnectionsLaneProps> = ({
                 <text
                   className={styles.tickLabel}
                   x={tick.x}
-                  y={kTickLabelY}
+                  y={tick.angled ? kAngledLabelY : kTickLabelY}
                   textAnchor={tick.anchor}
+                  transform={
+                    tick.angled
+                      ? `rotate(${kLabelAngle} ${tick.x} ${kAngledLabelY})`
+                      : undefined
+                  }
                 >
                   {tick.label}
                 </text>

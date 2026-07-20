@@ -134,7 +134,9 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                 <th>Breakdown</th>
               </>
             )}
-            {showConnectionsColumn && <th>Connections</th>}
+            {showConnectionsColumn && (
+              <th className={styles.connectionsHead}>Connections</th>
+            )}
             {showPerSample && <th className={styles.num}>Per sample</th>}
           </tr>
         </thead>

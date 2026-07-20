@@ -61,13 +61,21 @@
   color: var(--bs-body-color);
 }
 
+/* The svg is absolutely positioned so its fixed pixel width (set from the
+   measured container) never feeds back into table layout — otherwise the
+   table cell's min-content width is pinned to the last rendered width and
+   the table can never shrink below it when the viewport narrows. */
 .chart {
   margin-top: 6px;
   width: 100%;
+  position: relative;
 }
 
 .svg {
   display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .series {
