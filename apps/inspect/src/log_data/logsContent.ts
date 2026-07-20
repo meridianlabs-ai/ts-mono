@@ -256,14 +256,13 @@ export const writeListing = async (
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
       setRows(logDir, all);
-    }
-    // Invalidate only after the re-read rows land in the cache: a listing
-    // refetch scheduled between the write and setRows would run against the
-    // pre-write rows and drop the newly written files from its result.
-    invalidateDatabaseLogsListings();
-    if (all) {
+      // Invalidate only after the re-read rows land in the cache: a listing
+      // refetch scheduled between the write and setRows would run against
+      // the pre-write rows and drop the newly written files from its result.
+      invalidateDatabaseLogsListings();
       return all;
     }
+    // A failed read-back degrades to the cache-only listing write below.
   }
   setListing(logDir, handles);
   // Cache-backed scopes (the out-of-namespace degrade, db-less sessions)
@@ -285,8 +284,11 @@ export const writePreviews = async (
   mergePreviews(logDir, previews);
   if (db?.opened()) {
     await db.writeLogPreviews(previews);
-    invalidateDatabaseLogsListings();
   }
+  // Unconditional (after the db write, so a refetch reads committed rows):
+  // cache-backed listings serve the merge above and refetch on the same
+  // nudge — a db-less session's preview columns must not stay blank.
+  invalidateDatabaseLogsListings();
 };
 
 /**
@@ -295,10 +297,11 @@ export const writePreviews = async (
  * own store. Cache updates land synchronously; samples rows land BEFORE the
  * row merge (the status flip is what drops a running log's pending-buffer
  * rows, so a render between the two updates must already have the settled
- * rows). Persistence is one transaction per call; the invalidation sweep
- * then refreshes prefix-scope listings from the committed rows. In db-less
- * sessions the pushes are the only landing spot, and invalidating would
- * clobber them with an empty read — so the sweep is persistence-gated.
+ * rows). Persistence is one transaction per call. The samples sweep is
+ * persistence-gated: samples listings read from the database, and in db-less
+ * sessions invalidating would clobber the pushes — the only landing spot —
+ * with an empty read. Log listings have a cache-backed read path, so their
+ * invalidation is unconditional.
  */
 export const writeDetails = async (
   db: DatabaseService | null | undefined,
@@ -323,9 +326,9 @@ export const writeDetails = async (
   );
   if (db?.opened()) {
     await db.writeLogDetails(Object.fromEntries(prepared));
-    invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   }
+  invalidateDatabaseLogsListings();
 };
 
 export const writeFetchStates = async (
@@ -369,8 +372,8 @@ export const resetDepth = async (
   }
   if (db?.opened()) {
     await db.resetDepth(names);
-    invalidateDatabaseLogsListings();
   }
+  invalidateDatabaseLogsListings();
   invalidateSamplesListings(logDir);
 };
 
@@ -382,8 +385,8 @@ export const clearFile = async (
   evictFile(logDir, name);
   if (db?.opened()) {
     await db.clearCacheForFile(name);
-    invalidateDatabaseLogsListings();
   }
+  invalidateDatabaseLogsListings();
   // After the rows are gone (db) — or cache-only (db-less), where a refetch
   // correctly reads empty — refresh any samples listing that carried them.
   invalidateSamplesListings(logDir);
@@ -400,8 +403,8 @@ export const clearAll = async (
     // under out-of-namespace names (see namesInScope). It's all a cache —
     // other scopes re-sync on their next listing.
     await db.clearAllData();
-    invalidateDatabaseLogsListings();
   }
+  invalidateDatabaseLogsListings();
 };
 
 /**
