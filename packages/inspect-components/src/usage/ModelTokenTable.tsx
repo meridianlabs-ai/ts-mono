@@ -1,8 +1,14 @@
 import clsx from "clsx";
-import { FC, Fragment } from "react";
+import { FC, Fragment, useCallback, useState } from "react";
 
+import { useResizeObserver } from "@tsmono/react/hooks";
 import { formatNumber } from "@tsmono/util";
 
+import type {
+  ConnectionLaneData,
+  ConnectionWindow,
+} from "./connectionHistory";
+import { ConnectionsLane } from "./ConnectionsLane";
 import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
 
@@ -15,6 +21,9 @@ interface ModelTokenTableProps {
   model_aliases?: Record<string, string>;
   rowKeys?: string[];
   showTokenColumns?: boolean;
+  connections_by_row?: Record<string, ConnectionLaneData>;
+  connections_window?: ConnectionWindow;
+  onShowConnectionLog?: (model: string) => void;
 }
 
 const fmtConfigVal = (v: unknown): string => {
@@ -81,7 +90,19 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   model_aliases,
   rowKeys,
   showTokenColumns = true,
+  connections_by_row,
+  connections_window,
+  onShowConnectionLog,
 }) => {
+  const [containerWidth, setContainerWidth] = useState(0);
+  const wrapperRef = useResizeObserver(
+    useCallback(
+      (entry: ResizeObserverEntry) =>
+        setContainerWidth(entry.contentRect.width),
+      []
+    )
+  );
+
   const models =
     rowKeys ??
     (model_usage ? Object.keys(model_usage).filter((k) => model_usage[k]) : []);
@@ -90,8 +111,22 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   const showPerSample =
     showTokenColumns && samples !== undefined && samples > 0;
 
+  const hasConnections =
+    !!connections_window &&
+    !!connections_by_row &&
+    models.some((m) => connections_by_row[m]);
+  // Below ~1000px the lane leaves the column and becomes a full-width strip
+  // row under its model's row.
+  const narrow = containerWidth > 0 && containerWidth < 1000;
+  const showConnectionsColumn = hasConnections && !narrow;
+  const columnCount =
+    1 +
+    (showTokenColumns ? 2 : 0) +
+    (showConnectionsColumn ? 1 : 0) +
+    (showPerSample ? 1 : 0);
+
   return (
-    <div className={clsx(styles.wrapper, className)}>
+    <div ref={wrapperRef} className={clsx(styles.wrapper, className)}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -102,12 +137,14 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                 <th>Breakdown</th>
               </>
             )}
+            {showConnectionsColumn && <th>Connections</th>}
             {showPerSample && <th className={styles.num}>Per sample</th>}
           </tr>
         </thead>
         <tbody>
           {models.map((modelId) => {
             const usage = model_usage?.[modelId];
+            const lane = connections_by_row?.[modelId];
             const composeSum = usage ? compositionTotal(usage) : 0;
             const total = usage ? usageTotal(usage) : 0;
             const cacheRate =
@@ -121,117 +158,153 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                 ? Math.round(((usage.output_tokens ?? 0) / total) * 100)
                 : 0;
             return (
-              <tr key={modelId} className={styles.modelRow}>
-                <td className={styles.modelCell}>
-                  <span className={styles.modelName}>{modelId}</span>
-                  {model_aliases?.[modelId] && (
-                    <span className={styles.modelAlias}>
-                      {model_aliases[modelId]}
-                    </span>
-                  )}
-                  {showTokenColumns && (
-                    <span className={styles.modelTotal}>
-                      {formatNumber(total)}
-                      <small>tokens</small>
-                    </span>
-                  )}
-                  {(() => {
-                    const cfg = model_configs?.[modelId];
-                    const args = model_args?.[modelId];
-                    const cfgEntries = cfg
-                      ? Object.entries(cfg).filter(([, v]) => v != null)
-                      : [];
-                    const argEntries = args
-                      ? Object.entries(args).filter(([, v]) => v != null)
-                      : [];
-                    if (cfgEntries.length === 0 && argEntries.length === 0)
-                      return null;
-                    const renderSection = (
-                      label: string,
-                      entries: [string, unknown][]
-                    ) => (
-                      <>
-                        <div className={styles.configSectionLabel}>{label}</div>
-                        <dl className={styles.configTable}>
-                          {entries.map(([k, v]) => (
-                            <Fragment key={k}>
-                              <dt className={styles.configKey}>{k}</dt>
-                              <dd className={styles.configVal}>
-                                {fmtConfigVal(v)}
-                              </dd>
-                            </Fragment>
-                          ))}
-                        </dl>
-                      </>
-                    );
-                    return (
-                      <div className={styles.configSection}>
-                        {cfgEntries.length > 0 &&
-                          renderSection("config", cfgEntries)}
-                        {argEntries.length > 0 &&
-                          renderSection("args", argEntries)}
-                      </div>
-                    );
-                  })()}
-                </td>
-                {showTokenColumns && usage && (
-                  <>
-                    <td className={styles.composeCell}>
-                      <div className={styles.stack}>
-                        {composeSum > 0 &&
-                          CAT_ORDER.map((k) => {
+              <Fragment key={modelId}>
+                <tr className={styles.modelRow}>
+                  <td className={styles.modelCell}>
+                    <span className={styles.modelName}>{modelId}</span>
+                    {model_aliases?.[modelId] && (
+                      <span className={styles.modelAlias}>
+                        {model_aliases[modelId]}
+                      </span>
+                    )}
+                    {showTokenColumns && (
+                      <span className={styles.modelTotal}>
+                        {formatNumber(total)}
+                        <small>tokens</small>
+                      </span>
+                    )}
+                    {(() => {
+                      const cfg = model_configs?.[modelId];
+                      const args = model_args?.[modelId];
+                      const cfgEntries = cfg
+                        ? Object.entries(cfg).filter(([, v]) => v != null)
+                        : [];
+                      const argEntries = args
+                        ? Object.entries(args).filter(([, v]) => v != null)
+                        : [];
+                      if (cfgEntries.length === 0 && argEntries.length === 0)
+                        return null;
+                      const renderSection = (
+                        label: string,
+                        entries: [string, unknown][]
+                      ) => (
+                        <>
+                          <div className={styles.configSectionLabel}>
+                            {label}
+                          </div>
+                          <dl className={styles.configTable}>
+                            {entries.map(([k, v]) => (
+                              <Fragment key={k}>
+                                <dt className={styles.configKey}>{k}</dt>
+                                <dd className={styles.configVal}>
+                                  {fmtConfigVal(v)}
+                                </dd>
+                              </Fragment>
+                            ))}
+                          </dl>
+                        </>
+                      );
+                      return (
+                        <div className={styles.configSection}>
+                          {cfgEntries.length > 0 &&
+                            renderSection("config", cfgEntries)}
+                          {argEntries.length > 0 &&
+                            renderSection("args", argEntries)}
+                        </div>
+                      );
+                    })()}
+                  </td>
+                  {showTokenColumns && usage && (
+                    <>
+                      <td className={styles.composeCell}>
+                        <div className={styles.stack}>
+                          {composeSum > 0 &&
+                            CAT_ORDER.map((k) => {
+                              const v = categoryValue(usage, k);
+                              if (!v) return null;
+                              return (
+                                <span
+                                  key={k}
+                                  className={CAT_SWATCH[k]}
+                                  style={{
+                                    width: `${(v / composeSum) * 100}%`,
+                                  }}
+                                />
+                              );
+                            })}
+                        </div>
+                        <div className={styles.pcts}>
+                          <span>{cacheRate}% cache read</span>
+                          <span>{outputRate}% output</span>
+                        </div>
+                      </td>
+                      <td>
+                        <dl className={styles.breakdown}>
+                          {CAT_ORDER.map((k) => {
                             const v = categoryValue(usage, k);
                             if (!v) return null;
                             return (
-                              <span
-                                key={k}
-                                className={CAT_SWATCH[k]}
-                                style={{
-                                  width: `${(v / composeSum) * 100}%`,
-                                }}
-                              />
+                              <Fragment key={k}>
+                                <dt className={styles.breakdownLabel}>
+                                  <span
+                                    className={clsx(
+                                      styles.swatchSmall,
+                                      CAT_SWATCH[k]
+                                    )}
+                                  />
+                                  {CAT_LABEL[k]}
+                                </dt>
+                                <dd className={styles.breakdownLeader} />
+                                <dd className={styles.breakdownValue}>
+                                  {formatNumber(v)}
+                                </dd>
+                              </Fragment>
                             );
                           })}
-                      </div>
-                      <div className={styles.pcts}>
-                        <span>{cacheRate}% cache read</span>
-                        <span>{outputRate}% output</span>
-                      </div>
+                        </dl>
+                      </td>
+                    </>
+                  )}
+                  {showConnectionsColumn && (
+                    <td className={styles.connectionsCell}>
+                      {lane && connections_window && (
+                        <ConnectionsLane
+                          data={lane}
+                          window={connections_window}
+                          variant="column"
+                          onShowLog={
+                            onShowConnectionLog
+                              ? () => onShowConnectionLog(lane.model)
+                              : undefined
+                          }
+                        />
+                      )}
                     </td>
-                    <td>
-                      <dl className={styles.breakdown}>
-                        {CAT_ORDER.map((k) => {
-                          const v = categoryValue(usage, k);
-                          if (!v) return null;
-                          return (
-                            <Fragment key={k}>
-                              <dt className={styles.breakdownLabel}>
-                                <span
-                                  className={clsx(
-                                    styles.swatchSmall,
-                                    CAT_SWATCH[k]
-                                  )}
-                                />
-                                {CAT_LABEL[k]}
-                              </dt>
-                              <dd className={styles.breakdownLeader} />
-                              <dd className={styles.breakdownValue}>
-                                {formatNumber(v)}
-                              </dd>
-                            </Fragment>
-                          );
-                        })}
-                      </dl>
+                  )}
+                  {showPerSample && usage && (
+                    <td className={clsx(styles.num, styles.perSampleCell)}>
+                      {formatNumber(Math.round(total / samples))}
+                      <span className={styles.perSampleSub}>avg / sample</span>
                     </td>
-                  </>
+                  )}
+                </tr>
+                {hasConnections && narrow && lane && connections_window && (
+                  <tr className={styles.connectionsStripRow}>
+                    <td colSpan={columnCount}>
+                      <ConnectionsLane
+                        data={lane}
+                        window={connections_window}
+                        variant="strip"
+                        onShowLog={
+                          onShowConnectionLog
+                            ? () => onShowConnectionLog(lane.model)
+                            : undefined
+                        }
+                      />
+                    </td>
+                  </tr>
                 )}
-                {showPerSample && usage && (
-                  <td className={clsx(styles.num, styles.perSampleCell)}>
-                    {formatNumber(Math.round(total / samples))}
-                    <span className={styles.perSampleSub}>avg / sample</span>
-                  </td>
-                )}
-              </tr>
+              </Fragment>
             );
           })}
         </tbody>
