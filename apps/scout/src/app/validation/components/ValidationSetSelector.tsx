@@ -293,6 +293,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
       <div ref={containerRef} className={styles.container}>
         {/* Trigger button - shows selected item */}
         <button
+          type="button"
           ref={triggerRef}
           className={styles.trigger}
           onClick={() => setIsOpen(!isOpen)}
@@ -334,10 +335,15 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
         title="Create New Validation Set"
         footer={
           <>
-            <button className={styles.modalButton} onClick={handleModalClose}>
+            <button
+              type="button"
+              className={styles.modalButton}
+              onClick={handleModalClose}
+            >
               Cancel
             </button>
             <button
+              type="button"
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleCreateSubmit}
               disabled={!newSetName.trim() || createPending}

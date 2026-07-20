@@ -313,6 +313,7 @@ const InlinePresets: FC<{
               <span className={styles.presetLabel}>{preset.name}</span>
             </a>
             <button
+              type="button"
               className={styles.presetDelete}
               onClick={(e) => handleDelete(index, e)}
               title={`Delete "${preset.name}"`}
@@ -347,7 +348,11 @@ const InlinePresets: FC<{
                 }
               }}
             />
-            <button className={styles.saveButton} onClick={handleSave}>
+            <button
+              type="button"
+              className={styles.saveButton}
+              onClick={handleSave}
+            >
               Save
             </button>
             <a
@@ -372,6 +377,7 @@ const InlinePresets: FC<{
         <>
           {" | "}
           <button
+            type="button"
             className={clsx(styles.saveLink, "text-size-small")}
             onClick={startSaving}
           >

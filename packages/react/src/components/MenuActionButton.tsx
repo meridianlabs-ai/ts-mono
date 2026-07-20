@@ -34,6 +34,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
   return (
     <div className={styles.wrapper}>
       <button
+        type="button"
         className={styles.iconButton}
         onClick={() => setShowMenu((prev) => !prev)}
         title={title}
@@ -47,6 +48,7 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
           <div className={styles.menu}>
             {items.map((item) => (
               <button
+                type="button"
                 key={item.value}
                 className={styles.menuItem}
                 onClick={() => handleSelect(item.value)}

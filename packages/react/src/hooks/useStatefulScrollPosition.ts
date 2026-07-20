@@ -68,6 +68,8 @@ export function useStatefulScrollPosition<
     }
     log.debug(`Restore Scroll Hook`, elementKey);
 
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
+
     // Restore scroll position on mount
     const savedPosition = scrollPositionRef.current;
     if (savedPosition !== undefined) {
@@ -99,10 +101,10 @@ export function useStatefulScrollPosition<
           }
 
           attempts++;
-          setTimeout(pollForRender, 100);
+          pollTimer = setTimeout(pollForRender, 100);
         };
 
-        setTimeout(pollForRender, 100);
+        pollTimer = setTimeout(pollForRender, 100);
       }
     }
 
@@ -113,6 +115,9 @@ export function useStatefulScrollPosition<
     }
 
     return () => {
+      if (pollTimer !== undefined) {
+        clearTimeout(pollTimer);
+      }
       if (element.removeEventListener) {
         element.removeEventListener("scroll", handleScroll);
       } else {

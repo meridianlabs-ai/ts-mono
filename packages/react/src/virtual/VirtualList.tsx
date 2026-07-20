@@ -167,12 +167,19 @@ export function VirtualList<T>({
   }, [followOutput, live, setFollowOutput]);
 
   const prevLive = usePreviousValue(live);
+  // Timer lives in a ref cleared on unmount only: setFollowOutput(false)
+  // re-runs this effect immediately, so a per-run cleanup would cancel the
+  // scroll before it fires.
+  const scrollTopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (scrollToTopOnFinish && !live && prevLive && followOutput) {
       const el = getScrollElement();
       if (el) {
         setFollowOutput(false);
-        setTimeout(() => el.scrollTo({ top: 0, behavior: "auto" }), 100);
+        scrollTopTimerRef.current = setTimeout(
+          () => el.scrollTo({ top: 0, behavior: "auto" }),
+          100
+        );
       }
     }
   }, [
@@ -183,6 +190,11 @@ export function VirtualList<T>({
     getScrollElement,
     setFollowOutput,
   ]);
+  useEffect(() => {
+    return () => {
+      if (scrollTopTimerRef.current) clearTimeout(scrollTopTimerRef.current);
+    };
+  }, []);
 
   const handleScroll = useRafThrottle(() => {
     if (!live) return;

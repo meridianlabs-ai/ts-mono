@@ -241,6 +241,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
       {/* Transcript column (ID + details) */}
       <div className={styles.transcriptCell}>
         <button
+          type="button"
           className={styles.idLink}
           onClick={handleNavigateToTranscript}
           disabled={!transcriptsDir}
@@ -285,6 +286,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
       {/* Actions column */}
       <div className={styles.actions}>
         <button
+          type="button"
           className={styles.actionButton}
           onClick={handleNavigateToTranscript}
           disabled={!transcriptsDir}
@@ -294,6 +296,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
         </button>
         {onDelete && (
           <button
+            type="button"
             className={styles.actionButton}
             onClick={() => setShowDeleteModal(true)}
             disabled={isDeleting}
@@ -313,12 +316,14 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
         footer={
           <>
             <button
+              type="button"
               className={styles.modalButton}
               onClick={() => setShowDeleteModal(false)}
             >
               Cancel
             </button>
             <button
+              type="button"
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleDelete}
               disabled={isDeleting}

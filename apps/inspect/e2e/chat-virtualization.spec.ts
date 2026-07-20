@@ -72,7 +72,7 @@ async function openSample(
   );
 }
 
-async function openTwoSamples(
+function openTwoSamples(
   _page: Parameters<Parameters<typeof test>[2]>[0]["page"],
   network: Parameters<Parameters<typeof test>[2]>[0]["network"],
   messagesA: ChatMessage[],
@@ -215,7 +215,7 @@ test.describe("scroll position", () => {
     const messagesA = generateMessages(200);
     const messagesB = generateMessages(50);
 
-    await openTwoSamples(page, network, messagesA, messagesB);
+    openTwoSamples(page, network, messagesA, messagesB);
 
     // Open sample A
     const encodedFile = encodeURIComponent(LOG_FILE);
