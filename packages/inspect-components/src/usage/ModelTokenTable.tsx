@@ -4,10 +4,7 @@ import { FC, Fragment, useCallback, useState } from "react";
 import { useResizeObserver } from "@tsmono/react/hooks";
 import { formatNumber } from "@tsmono/util";
 
-import type {
-  ConnectionLaneData,
-  ConnectionWindow,
-} from "./connectionHistory";
+import type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
 import { ConnectionsLane } from "./ConnectionsLane";
 import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
@@ -34,7 +31,11 @@ const fmtConfigVal = (v: unknown): string => {
 };
 
 type CategoryKey =
-  "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
+  | "input"
+  | "cacheRead"
+  | "cacheWrite"
+  | "output"
+  | "reasoning";
 
 const CAT_ORDER: CategoryKey[] = [
   "input",

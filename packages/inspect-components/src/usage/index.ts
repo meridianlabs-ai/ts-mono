@@ -14,8 +14,5 @@ export {
   buildConnectionLanes,
   connectionWindow,
 } from "./connectionHistory";
-export type {
-  ConnectionLaneData,
-  ConnectionWindow,
-} from "./connectionHistory";
+export type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
 export { fmtClock, fmtCompactDuration } from "./timeFormat";

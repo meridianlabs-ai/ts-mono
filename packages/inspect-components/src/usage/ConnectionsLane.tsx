@@ -2,10 +2,7 @@ import { FC, useCallback, useState } from "react";
 
 import { useResizeObserver } from "@tsmono/react/hooks";
 
-import type {
-  ConnectionLaneData,
-  ConnectionWindow,
-} from "./connectionHistory";
+import type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
 import styles from "./ConnectionsLane.module.css";
 
 interface ConnectionsLaneProps {
