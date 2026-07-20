@@ -35,11 +35,25 @@
 >   key-list lookup on the snapshot (step 5 below), so re-derive from the
 >   snapshot service rather than restoring the scan version verbatim.
 >
+> Keys-first pagination (steps 2–4) is landed for the logs listing:
+> `readLogsListingSnapshot` builds the tier-1 snapshot (ordered PK list +
+> `total_count`, the scan's retried marks per key, the first page shaped
+> inline), `readLogsListingPage` composes pages over it per decision 3 —
+> `fetchQuery` with `staleTime: Infinity` rather than `ensureQueryData`,
+> which would resolve with stale keys after an invalidation and only
+> rebuild in the background, so a final sync write would never reach the
+> grid — and `useDatabaseLogsListingQuery` is a real `useInfiniteQuery`
+> (500-row pages, `maxPages`, same-universe placeholders) feeding the
+> shared DataGrid's scroll-near-end trigger (scout's 2,000px threshold).
+> Parity tests in `log_data/logsListingRead.test.ts` hold the paged path
+> equal to `applyListingQuery` page-by-page.
+>
 > Still open: chunked listing *ingestion* (scoped in its own section below
-> — the dominant cost of a cold load on a huge dir), keys-first snapshots +
-> `useInfiniteQuery` paging (phases below; snapshot placement is settled —
-> decision 3), the samples listing (still the in-memory
-> `useLogsListingQuery`), the columns schema (`useScoreSchema` /
+> — the dominant cost of a cold load on a huge dir), the samples listing
+> (still the in-memory `useLogsListingQuery`), the step-5 long tail
+> (find-match ordering / adjacency / restore from the snapshot key list —
+> until then a `maxPages` trim beyond 10k scrolled rows shifts the window,
+> the accepted cost), the columns schema (`useScoreSchema` /
 > `hasSampleLimits` in `grid/columns/hooks.tsx`) — the last full-list
 > subscriber on the list page, a candidate for another overview-style
 > aggregate — and demoting the react-query logs mirror (step 7 below).
