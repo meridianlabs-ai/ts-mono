@@ -8,7 +8,12 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  Link,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
@@ -22,7 +27,10 @@ import {
   type TranscriptLayoutRightRailProps,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import { useScrollDirection } from "@tsmono/react/hooks";
+import {
+  useChromeNavOwnershipRelease,
+  useScrollDirection,
+} from "@tsmono/react/hooks";
 import { isHostedEnvironment } from "@tsmono/util";
 
 import { Events } from "../../../@types/extraInspect";
@@ -36,6 +44,7 @@ import {
   toFullUrlMaybe,
   useLogOrSampleRouteParams,
   useLogRouteParams,
+  useSampleEventFocusUrlBuilder,
   useSampleUrlBuilder,
 } from "../../routing/url";
 
@@ -44,11 +53,27 @@ import { useTranscriptFilter } from "./hooks";
 interface TranscriptPanelProps {
   id: string;
   scrollRef: RefObject<HTMLDivElement | null>;
+  /** Reset the sample header's scroll-direction anchor (so programmatic scrolls
+   *  — j/k, h/l — don't open/collapse the header), folded into the headroom
+   *  suppression alongside the swimlane's own anchor. */
+  onHeaderResetAnchor?: (debounce?: boolean) => void;
+  /** Force the sample header shown/hidden, folded into the transcript's
+   *  set-hidden alongside the swimlane headroom (turn-nav landings collapse
+   *  both; `k` back past turn 1 re-expands both). */
+  onHeaderSetHidden?: (hidden: boolean) => void;
+  /** Chrome ownership flag shared with the host's header hook: true while
+   *  navigation (deep links, f/h/j/k/l) owns the chrome state — the
+   *  natural-scroll detection is fully suppressed until the user physically
+   *  scrolls (wheel/touch/pointer), which hands ownership back. */
+  chromeNavOwnsRef?: RefObject<boolean>;
   offsetTop?: number;
 
   // The sample
   running?: boolean;
   backfilling?: boolean;
+  /** Whether a live→finished transition may scroll the view to the top —
+   *  false for unsuccessful finishes (error/cancelled). */
+  scrollToTopOnFinish?: boolean;
 
   // The transcript data
   events: Events;
@@ -62,6 +87,8 @@ interface TranscriptPanelProps {
 
   initialEventId?: string | null;
   initialMessageId?: string | null;
+  /** Explicit `follow=1` URL param — arm the transcript's live-tail at mount. */
+  followRequested?: boolean;
 }
 
 /**
@@ -72,11 +99,16 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const {
     id,
     scrollRef,
+    onHeaderResetAnchor,
+    onHeaderSetHidden,
+    chromeNavOwnsRef,
     events,
     running,
     backfilling,
+    scrollToTopOnFinish,
     initialEventId,
     initialMessageId,
+    followRequested,
     offsetTop,
     timelines: serverTimelines,
     eventNodeContext,
@@ -212,15 +244,71 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   const scrollRefs = useMemo(() => [scrollRef, outlineScrollRef], [scrollRef]);
 
+  // While the find band is open it scrolls matches into view (Ctrl+F → next /
+  // prev); those programmatic scrolls would otherwise read as user direction
+  // changes and flicker the swimlanes open/closed. Freeze headroom detection
+  // while find is active (a ref so the scroll handler sees the live value).
+  const showFind = useStore((state) => state.app.showFind);
+  const findActiveRef = useRef(showFind);
+  findActiveRef.current = showFind;
+
+  // Chrome ownership: two separate worlds, no interaction. Navigation (deep
+  // links, f/h/j/k/l, go-to-turn) FORCES the chrome state and, while it owns
+  // it, the natural-scroll detection below is fully suppressed — j/k can
+  // never flicker the chrome, and once collapsed it stays collapsed until
+  // `kkk` reaches the very top (which forces expand). A physical user gesture
+  // (wheel / touch / pointer on the scroller) hands ownership back to the
+  // natural world, which resumes fresh from the current position (the hook
+  // resets its anchor when suppression ends).
+  const localNavOwnsRef = useRef(!!(initialEventId || initialMessageId));
+  const navOwnsRef = chromeNavOwnsRef ?? localNavOwnsRef;
+  const suppressRef = useMemo(
+    () => ({
+      get current() {
+        return findActiveRef.current || navOwnsRef.current;
+      },
+    }),
+    [navOwnsRef]
+  );
+  useChromeNavOwnershipRelease(navOwnsRef, scrollRef);
+
   const {
     hidden: headroomHidden,
     resetAnchor: headroomResetAnchor,
     setHidden: setHeadroomHidden,
-  } = useScrollDirection(scrollRefs);
+  } = useScrollDirection(scrollRefs, {
+    suppressRef,
+    // A deep-linked mount (?event= or ?message=) lands scrolled down — start
+    // collapsed instead of painting the swimlane headroom expanded for a frame
+    // and blinking away. Bare mounts start expanded, statically (no state
+    // flip, so no transition runs on load).
+    initialHidden: !!(initialEventId || initialMessageId),
+  });
 
   const onHeadroomResetAnchor = useCallback(
-    (debounce?: boolean) => headroomResetAnchor(debounce),
-    [headroomResetAnchor]
+    (debounce?: boolean) => {
+      // Suppress BOTH the swimlane headroom and the sample header headroom, so a
+      // programmatic scroll (j/k, h/l, deep-link) doesn't flicker either open.
+      headroomResetAnchor(debounce);
+      onHeaderResetAnchor?.(debounce);
+    },
+    [headroomResetAnchor, onHeaderResetAnchor]
+  );
+  const onHeadroomSetHidden = useCallback(
+    (hidden: boolean) => {
+      // Every force claims ownership (suppressing natural detection) and sets
+      // both chromes.
+      navOwnsRef.current = true;
+      setHeadroomHidden(hidden);
+      // The sample header only ever re-expands at the very top (its hook runs
+      // stayHiddenOnUpScroll), so honor that here: collapse follows every
+      // caller (nav landing, find-forward), but expand only when the scroll
+      // really is at the top (`k` past turn 1) — not on find-prev mid-log.
+      if (hidden || (scrollRef.current?.scrollTop ?? 0) <= 0) {
+        onHeaderSetHidden?.(hidden);
+      }
+    },
+    [navOwnsRef, setHeadroomHidden, onHeaderSetHidden, scrollRef]
   );
 
   // ---------------------------------------------------------------------------
@@ -298,6 +386,28 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     [getEventUrl]
   );
 
+  const getEventFocusUrl = useSampleEventFocusUrlBuilder();
+
+  // Reflect an explicit turn navigation (j/k, the turn chevrons, the editable
+  // number) in the URL via ?event= so the position is shareable — the keyboard
+  // analogue of an outline-link click. `replace` keeps the back button clean;
+  // ?message= is cleared (turn nav isn't message-scoped). Not called on passive
+  // scroll, so the scroll-spy-driven turn label never churns the URL.
+  const onNavigatedToEvent = useCallback(
+    (eventId: string) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set("event", eventId);
+          next.delete("message");
+          return next;
+        },
+        { replace: true }
+      );
+    },
+    [setSearchParams]
+  );
+
   // Outline link clicks are in-view navigation (jumping to an event in the
   // same transcript), so recover the hash route from the absolute URL and
   // use `replace` to keep the back button clean.
@@ -315,6 +425,19 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // focus-mode entry: plain click navigates in-window; modified clicks use the href
+  const onOpenEventFocus = useCallback(
+    (focusRoute: string) => {
+      // Idempotent: a double-click / f-key repeat must not push the same focus
+      // URL twice (the first Back would then be a same-URL no-op).
+      if (focusRoute === `${location.pathname}${location.search}`) return;
+      const result = navigate(focusRoute);
+      if (result instanceof Promise) result.catch(() => undefined);
+    },
+    [navigate, location.pathname, location.search]
+  );
 
   const onMarkerNavigate = useCallback(
     (eventId: string, selectedKey?: string) => {
@@ -349,6 +472,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       hiddenEventTypes={filteredEventTypes}
       running={running}
       backfilling={backfilling}
+      scrollToTopOnFinish={scrollToTopOnFinish}
       scrollRef={scrollRef}
       offsetTop={offsetTop}
       timeline={{
@@ -360,13 +484,21 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       }}
       headroom={{
         hidden: headroomHidden,
-        onSetHidden: setHeadroomHidden,
+        onSetHidden: onHeadroomSetHidden,
         onResetAnchor: onHeadroomResetAnchor,
       }}
       eventNodeContext={eventNodeContext}
       listId={id}
-      deepLink={{ eventId: initialEventId, messageId: initialMessageId }}
+      deepLink={{
+        eventId: initialEventId,
+        messageId: initialMessageId,
+        follow: followRequested,
+      }}
       getEventUrl={getFullEventUrl}
+      getEventFocusUrl={getEventFocusUrl}
+      onOpenEventFocus={onOpenEventFocus}
+      onNavigatedToEvent={onNavigatedToEvent}
+      keyboardNavDisabled={showFind}
       // Only surface the copy-link button where a shared absolute URL is
       // meaningful — not in VS Code webviews or localhost. Matches the message
       // copy-link (SampleDisplay's `enabled: isHostedEnvironment()`).

@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { useLogDir } from "../../app_config";
 import { selectSample } from "../../state/actions";
@@ -16,6 +16,7 @@ import {
   logSamplesUrl,
   logsUrlRaw,
   samplesSampleUrl,
+  useLogOrSampleRouteParams,
   useLogRouteParams,
   useRoutePrefix,
   type RoutePrefix,
@@ -256,9 +257,13 @@ export const useSampleDetailNavigation = () => {
   const [searchParams, _setSearchParams] = useSearchParams();
   const message = searchParams.get("message");
   const event = searchParams.get("event");
+  // Explicit `follow=1` arms the transcript's live-tail at mount (a shareable
+  // "following the live sample" URL), overriding the deep-link stand-down.
+  const follow = searchParams.get("follow") === "1";
   return {
     message,
     event,
+    follow,
   };
 };
 
@@ -309,11 +314,24 @@ export const useSamplesGridNavigationAction = () => {
 export const useLogSampleNavigationActions = () => {
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
-  const { logPath: routeLogPath, sampleTabId } = useLogRouteParams();
+  const location = useLocation();
+  // Keep prev/next on the originating surface (the focus page is also mounted
+  // under /samples); logSamplesUrl would otherwise force a /logs URL.
+  const isSamplesSurface = location.pathname.startsWith("/samples/");
+  const logDirectory = useLogDir();
+  // Parse from whichever surface we're on: on /samples the route path is
+  // log-dir-relative and sampleTabId carries the current view (e.g. "event"
+  // for the focus page); useLogRouteParams only matches /logs|/tasks.
+  const { logPath: routeLogPath, sampleTabId } = useLogOrSampleRouteParams();
 
   // Fall back to selectedLogFile for VSCode single-file mode where route params aren't available
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logPath = routeLogPath || selectedLogFile;
+  // samples routes are log-dir-relative, so relativize the absolute fallback.
+  const fallbackLogPath =
+    selectedLogFile && isSamplesSurface
+      ? directoryRelativeUrl(selectedLogFile, logDirectory)
+      : selectedLogFile;
+  const logPath = routeLogPath || fallbackLogPath;
 
   // Get filtered samples for navigation
   const sampleSummaries = useFilteredSamples();
@@ -348,13 +366,20 @@ export const useLogSampleNavigationActions = () => {
       if (!prevSample) return;
       // Update store state before navigation
       selectSample(prevSample.id, prevSample.epoch, logPath);
-      const url = logSamplesUrl(
-        logPath,
-        prevSample.id,
-        prevSample.epoch,
-        sampleTabId,
-        prefix
-      );
+      const url = isSamplesSurface
+        ? samplesSampleUrl(
+            logPath,
+            prevSample.id,
+            prevSample.epoch,
+            sampleTabId
+          )
+        : logSamplesUrl(
+            logPath,
+            prevSample.id,
+            prevSample.epoch,
+            sampleTabId,
+            prefix
+          );
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigate(url);
     }
@@ -366,6 +391,7 @@ export const useLogSampleNavigationActions = () => {
     sampleTabId,
     navigate,
     prefix,
+    isSamplesSurface,
   ]);
 
   // Navigate to next sample
@@ -375,13 +401,20 @@ export const useLogSampleNavigationActions = () => {
       if (!nextSample) return;
       // Update store state before navigation
       selectSample(nextSample.id, nextSample.epoch, logPath);
-      const url = logSamplesUrl(
-        logPath,
-        nextSample.id,
-        nextSample.epoch,
-        sampleTabId,
-        prefix
-      );
+      const url = isSamplesSurface
+        ? samplesSampleUrl(
+            logPath,
+            nextSample.id,
+            nextSample.epoch,
+            sampleTabId
+          )
+        : logSamplesUrl(
+            logPath,
+            nextSample.id,
+            nextSample.epoch,
+            sampleTabId,
+            prefix
+          );
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigate(url);
     }
@@ -393,6 +426,7 @@ export const useLogSampleNavigationActions = () => {
     sampleTabId,
     navigate,
     prefix,
+    isSamplesSurface,
   ]);
 
   return {

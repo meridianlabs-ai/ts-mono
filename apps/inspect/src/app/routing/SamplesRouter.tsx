@@ -1,8 +1,10 @@
 import { FC } from "react";
 
+import { kSampleEventTabId } from "../../constants";
 import { FlowPanel } from "../flow/FlowPanel";
 import { SampleDetailView } from "../samples-panel/SampleDetailView";
 import { SamplesPanel } from "../samples-panel/SamplesPanel";
+import { SampleEventView } from "../samples/event/SampleEventView";
 
 import { SampleRouteSelectionController } from "./loaders/SampleRouteSelectionController";
 import { useSamplesRouteParams } from "./url";
@@ -12,7 +14,7 @@ import { useSamplesRouteParams } from "./url";
  * based on the URL parameters. If the path ends with .yaml/.yml, it shows the FlowPanel.
  */
 export const SamplesRouter: FC = () => {
-  const { samplesPath, sampleId, epoch } = useSamplesRouteParams();
+  const { samplesPath, sampleId, epoch, tabId } = useSamplesRouteParams();
 
   // Check if the path ends with .yaml or .yml (indicating it's a flow file)
   if (samplesPath) {
@@ -27,6 +29,9 @@ export const SamplesRouter: FC = () => {
 
   // If we have both sampleId and epoch, show the detail view
   if (sampleId && epoch) {
+    if (tabId === kSampleEventTabId) {
+      return <SampleEventView />;
+    }
     return (
       <>
         <SampleRouteSelectionController />
