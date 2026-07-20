@@ -35,13 +35,14 @@
 >   key-list lookup on the snapshot (step 5 below), so re-derive from the
 >   snapshot service rather than restoring the scan version verbatim.
 >
-> Still open: chunked listing *ingestion* (the server listing lands in one
-> shot, so a cold first sync on a huge dir still waits on that fetch),
-> keys-first snapshots + `useInfiniteQuery` paging (phases below), the
-> samples listing (still the in-memory `useLogsListingQuery`), and the
-> columns schema (`useScoreSchema` / `hasSampleLimits` in
-> `grid/columns/hooks.tsx`) — the last full-list subscriber on the list
-> page, a candidate for another overview-style aggregate.
+> Still open: chunked listing *ingestion* (scoped in its own section below
+> — the dominant cost of a cold load on a huge dir), keys-first snapshots +
+> `useInfiniteQuery` paging (phases below; snapshot placement is settled —
+> decision 3), the samples listing (still the in-memory
+> `useLogsListingQuery`), the columns schema (`useScoreSchema` /
+> `hasSampleLimits` in `grid/columns/hooks.tsx`) — the last full-list
+> subscriber on the list page, a candidate for another overview-style
+> aggregate — and demoting the react-query logs mirror (step 7 below).
 
 The `/tasks`, `/logs`, and `/samples` pages sort and filter via `Condition` /
 `OrderBy` types copied from scout. Scout ships the condition to its server,
@@ -53,7 +54,17 @@ client interface unchanged (the query layer sits *above* the api, unlike
 scout's). Target UX: scout's transcripts page — cursor-paged rows, a filtered
 `total_count` in the footer, `keepPreviousData` across re-filters.
 
-Two design decisions are already settled from prior discussion:
+**Finish line.** IndexedDB is the store; steady-state memory holds only the
+snapshot key lists and the loaded pages (plus the eager presentation
+overlays). And the streaming invariant must survive every phase: reads are
+never gated on sync state — a cold sync renders partial results
+immediately, and the write path's coalesced invalidation streams the rest
+in while `keepPreviousData` keeps rows on screen across refetches. People
+point this UI at very large S3 buckets; the cold-load budget there is
+dominated by listing ingestion (its own section below), not by the read
+path.
+
+Three design decisions are already settled from prior discussion:
 
 1. **Keys-first snapshots** (not scout-style keyset cursors): one scan per
    `(scope, filter, orderBy)` produces an ordered primary-key list; the count
@@ -64,6 +75,24 @@ Two design decisions are already settled from prior discussion:
 2. **Dexie's limits are acceptable.** We are not chasing SQL-grade query
    planning; the win is ordered index iteration, early exit, not
    materializing every record into JS rows, and correct counts.
+3. **Two-tier react-query snapshot placement** (not a module-level LRU).
+   Tier 1 is a *snapshot query* — the ordered key list + `total_count` —
+   keyed by the existing `databaseLogsListingKey` builder plus a
+   `"snapshot"` suffix, so the universe slot, `listingKeyUniverse`, and
+   the throttled root-key invalidation all keep working unchanged. Tier 2
+   is the `useInfiniteQuery` pages, whose queryFn obtains the snapshot via
+   `queryClient.ensureQueryData(...)`: concurrent page fetches dedupe into
+   one build, later pages reuse it, and lifecycle is plain `gcTime` rather
+   than hand-rolled eviction. Invalidation stays the one existing seam — a
+   write burst marks both tiers stale, the snapshot rebuilds once, pages
+   re-derive as cheap `bulkGet`s. (A module-level LRU avoids the
+   query-inside-query pattern but re-creates singleton-state test pain and
+   needs its own eviction + invalidation coupling.) Two requirements ride
+   on this decision: the snapshot build **returns the first page inline**
+   (it shaped those rows anyway), so the read path adds no waterfall over
+   today's one-read flow; and the page queries set **`maxPages`**, so a
+   long scroll doesn't reassemble the full list in memory — bidirectional
+   refetch on scroll-back is the accepted cost.
 
 ## Foundation already landed
 
@@ -203,6 +232,19 @@ nested map (`score_<scorer>/<metric>` column ids); you can't index a
 wildcard path. Sorting/filtering on score columns is always residual — the
 scan reads records anyway under keys-first, so this costs nothing extra.
 
+**Retried marking forces the whole-scope scan.** `retried` is a cross-row
+*derivation* (`computeLogsWithRetried` over the scan), not a stored column —
+the one thing preventing an index-backed walk from producing the key list
+without materializing every record. So the snapshot build starts as the
+current scan, with transient O(scope) memory per rebuild (if that hurts at
+target scale, a Dexie cursor (`each()`) retaining only `(key, sort values)`
+tuples bounds it). The endgame is persisting `retried` at write time (a
+`DERIVE_VERSION`-style bump wipes/recomputes stored rows), after which the
+planner's full form (index choice + residual predicate, step 1) can build
+snapshots without full materialization. None of this changes the two-tier
+shape — only tier 1's queryFn internals evolve: scan → streaming cursor →
+index-backed walk.
+
 **Sample scans join the logs table.** Filters on task/model/status/created
 in `/samples` refer to log-level context that is deliberately not
 denormalized. The scan prefetches the scope's log rows (small — one per
@@ -221,9 +263,11 @@ the service layer can own; column defs consume it rather than restating it.
 during a cold sync, and invalidating an infinite query refetches **every
 loaded page**. Debounce/coalesce invalidation per scope (adopt scout's
 `-inv` key-sentinel convention with a prefix-match predicate: invalidate
-listing queries whose scope contains the written file_path), and consider
-`maxPages`. Snapshots make refetch cheap-ish (pages are bulkGets) but the
-snapshot scan itself reruns per invalidation — coalescing matters.
+listing queries whose scope contains the written file_path); `maxPages` is
+settled (decision 3). Snapshots make refetch cheap-ish (pages are bulkGets)
+but the snapshot scan itself reruns per invalidation — coalescing matters,
+and at true huge-dir scale consider backing the throttle off during sync
+bursts (measure first).
 
 **Stable tiebreakers.** Every orderBy gets a forced final tiebreaker so
 order is total: `file_path` for logs, `[file_path, id, epoch]` for samples
@@ -265,11 +309,11 @@ which arrives with step 2's snapshots). Parity tests live in
 2. **Snapshot listing service** on `DatabaseService`:
    `getLogsListing(scope, filter, orderBy, pagination)` and
    `getSamplesListing(...)` returning `{ items, total_count, next_cursor }`;
-   snapshot = ordered PK list cached per query-key hash (decide: two-tier
-   react-query design — a keys+count query that page queries depend on — vs
-   a module-level LRU keyed by the query hash; two-tier is more idiomatic).
-   Handle snapshot staleness (a key deleted between scan and `bulkGet` →
-   drop the hole).
+   snapshot = ordered PK list as a tier-1 query per decision 3 (keyed off
+   `databaseLogsListingKey` + `"snapshot"`, pages composing via
+   `ensureQueryData`), with the first page seeded from the build. Handle
+   snapshot staleness (a key deleted between scan and `bulkGet` → drop the
+   hole).
 3. **Hook swap**: `useLogsListingQuery` becomes a real `useInfiniteQuery`
    mirroring scout's hook (filter/orderBy/scope in the key, skipToken
    support, `keepPreviousData`); a samples sibling replaces
@@ -280,8 +324,8 @@ which arrives with step 2's snapshots). Parity tests live in
    the sink.
 4. **Grid + pages**: port scout's `checkScrollNearEnd` into inspect's
    `DataGrid`, `pages.flatMap(p => p.items)` in `useLogListData` /
-   `SamplesGrid`, footer counts from `total_count` + scoped `count()`,
-   folders eager.
+   `SamplesGrid`, `maxPages` per decision 3, footer counts from
+   `total_count` + scoped `count()`, folders eager.
 5. **Long tail**: Cmd/F backing swap, snapshot-based adjacent-sample nav,
    selected-row restore, samples progress aggregates.
 6. **Cleanup**: `applyListingQuery` shrinks to the fallback path;
@@ -289,19 +333,43 @@ which arrives with step 2's snapshots). Parity tests live in
    predicate); revisit which indexes earn their keep (e.g. is
    `summary.completed_at` the default samples sort index or is the scan +
    JS sort fine at target scale — measure first).
+7. **Mirror demotion** (the last full-list holder): the react-query logs
+   collection (`logsKey(logDir)`) still mirrors every row — headers
+   included as details land — via the db ⟹ cache invariant, so memory
+   stays O(dir) no matter how the read path paginates. In db-backed
+   sessions, slim the mirror to what its remaining consumers actually need
+   (the identity tier), keeping the full mirror only where it *is* the row
+   source (db-less and out-of-namespace cache-only scopes — full-in-memory
+   is unavoidable and correct there). Audit consumers first:
+   `resolveLogKey`, slice/routing reads (`getLogRows`), `useLogs`,
+   single-file mode seeding, and the samples paths.
 
 Phase 1→2 order matters less than it looks: 1 and 2 land invisible behind
-parity tests; 3+4 flip the pages over; 5 can trail.
+parity tests; 3+4 flip the pages over; 5 can trail; 7 lands once nothing
+on the paginated path reads the full mirror.
+
+## Chunked listing ingestion (separate workstream, server-dependent)
+
+The cold-load budget on a huge dir — the point-the-UI-at-a-big-S3-bucket
+case — is dominated by the front of the pipe, not the read path: the view
+server enumerates the whole listing and returns it in one shot,
+`writeListing` lands it in one round, and no cold-scope rows render until
+that round-trip completes (a warm replica renders instantly; the cost is
+cold or heavily-changed scopes). Paging/streaming the listing response is
+a view-server API change, so scope it early and independently of the
+read-path phases above. Client-side consequences once it exists:
+`writeListing` ingests chunks (and drops its whole-dir re-read-after-write,
+itself O(dir) per sync round), sync diffing works per chunk, and the
+existing throttled invalidation already streams partial results to the
+grid as chunks land — no read-path changes required.
 
 ## Open questions for the implementer
 
-- Snapshot cache placement (two-tier queries vs side cache) — see step 2.
 - Page size / fetch threshold: start with scout's 500 / 2000px and measure.
-- `maxPages` on the infinite queries, given invalidation refetches all
-  loaded pages.
 - Whether any hot sort column deserves denormalization to a top-level
   indexed field later (e.g. `summary.completed_at` already is one) — only
-  after measuring; keys-first makes most of this moot.
+  after measuring; keys-first makes most of this moot. (`retried` is the
+  known exception — see the retried-marking constraint.)
 - Scout reconciliation: `apps/scout/src/query/` still duplicates
   `packages/inspect-common/src/query/` (a noted follow-up, orthogonal to
   this work).
