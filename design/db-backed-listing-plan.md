@@ -28,9 +28,12 @@
 > - Restore-by-offset (decided over restore-by-loaded-rows): resolve the
 >   persisted `selectedRowId` to its offset in the filtered+sorted
 >   universe, fetch pages through it, then scroll. A `readLogsListingOffset`
->   seam was pinned here and later removed as dead code while unwired
->   (DataGrid's `rows.findIndex` restore is correct while pages are
->   complete); re-add it from git history with the paging work.
+>   seam was pinned here (`a30188e8`, with signature + tests) and later
+>   removed as dead code while unwired (DataGrid's `rows.findIndex` restore
+>   is correct while pages are complete). Under keys-first snapshots the
+>   scan-based implementation is superseded anyway — the offset becomes a
+>   key-list lookup on the snapshot (step 5 below), so re-derive from the
+>   snapshot service rather than restoring the scan version verbatim.
 >
 > Still open: chunked listing *ingestion* (the server listing lands in one
 > shot, so a cold first sync on a huge dir still waits on that fetch),
