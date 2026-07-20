@@ -1,4 +1,8 @@
-import { useVirtualizer, type Virtualizer } from "@tanstack/react-virtual";
+import {
+  useVirtualizer,
+  type VirtualItem,
+  type Virtualizer,
+} from "@tanstack/react-virtual";
 import { useCallback, useMemo, useRef } from "react";
 
 import { computeScale, SAFE_MAX_SPACER } from "./scale-coordinate-space";
@@ -8,6 +12,7 @@ export type ScaledVirtualizerOptions = {
   estimateSize: () => number;
   getScrollElement: () => HTMLElement | null;
   overscan?: number;
+  scrollPaddingStart?: number;
 };
 
 export type ScaledVirtualizerResult = {
@@ -82,9 +87,28 @@ export function useScaledVirtualizer(
     estimateSize: opts.estimateSize,
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
+    scrollPaddingStart: opts.scrollPaddingStart ?? 0,
     observeElementOffset: scaledObserveElementOffset,
     scrollToFn: scaledScrollToFn,
   });
+
+  // TanStack's default adjusts scroll for any resized item whose START is
+  // above the viewport top — which misclassifies a row the viewport is
+  // scrolled INTO (sticky header pinned, content changing below it, e.g. a
+  // tab swap): the full height delta lands on scrollTop and the view jumps
+  // to the new content's tail. Only compensate for rows ENTIRELY above the
+  // viewport (end <= offset instead of the default's start < offset). The
+  // default's pending-adjustments term and backward-scroll re-measure guard
+  // are deliberately omitted: the deep-link path settles by re-issuing the
+  // jump until the scroll holds still (VirtualList.settleScrollToIndex),
+  // which covers the mid-jump cases those guards target. This is an
+  // ASSIGNABLE INSTANCE HOOK in virtual-core 3.17 (not an option — nothing
+  // copies it from options), hence the post-construction assignment.
+  virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (
+    item: VirtualItem,
+    _delta: number,
+    instance: Virtualizer<HTMLElement, Element>
+  ) => item.end <= (instance.scrollOffset ?? 0);
 
   const contentTotal = virtualizer.getTotalSize();
   const scale = computeScale(contentTotal, SAFE_MAX_SPACER);

@@ -1,21 +1,82 @@
-import { RefObject, useCallback, useEffect, useRef } from "react";
+import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+
+// How far (px) below the detection line an element's top may sit and still
+// count as "reached the top", so a jump/scroll that lands a hair short registers
+// the target, not the element above it.
+const kScrollTrackTolerancePx = 24;
+
+interface TrackedRect {
+  id: string;
+  top: number;
+  bottom: number;
+}
+
+export function scrollTrackDetectionPoint(
+  viewportTop: number,
+  viewportBottom: number,
+  remainingScroll?: number
+): number {
+  if (remainingScroll === undefined) return viewportTop;
+  const viewportHeight = viewportBottom - viewportTop;
+  return (
+    viewportTop + Math.max(0, viewportHeight - Math.max(0, remainingScroll))
+  );
+}
+
+export function selectTrackedElement(
+  rects: TrackedRect[],
+  elementIds: ReadonlySet<string>,
+  viewportTop: number,
+  viewportBottom: number,
+  detectionPoint: number
+): string | null {
+  let crossedId: string | null = null;
+  let firstVisibleId: string | null = null;
+  for (const rect of rects) {
+    if (!elementIds.has(rect.id)) continue;
+    if (rect.bottom < viewportTop || rect.top > viewportBottom) continue;
+    firstVisibleId ??= rect.id;
+    if (rect.top <= detectionPoint + kScrollTrackTolerancePx) {
+      crossedId = rect.id;
+    }
+  }
+  return crossedId ?? firstVisibleId;
+}
 
 /**
- * Track which element is currently visible in a scroll container.
+ * Track which element is currently at the top of a scroll container.
  *
- * Calls `onElementVisible` when the topmost visible element changes.
- * Uses a detection point that slides toward the bottom of the viewport
- * as the user scrolls near the end, so every item can be selected.
+ * Calls `onElementVisible` when the element at the detection point (the top of
+ * the viewport, just below any sticky chrome) changes. An element whose top
+ * sits up to kScrollTrackTolerancePx below the line still counts as reached, so
+ * a jump that lands a hair short registers the target, not the element above it.
+ * In the final viewport, where rows can no longer reach the top line, the
+ * detection point advances through the viewport as scrolling approaches the
+ * end. This lets each tail row become current instead of jumping directly from
+ * an earlier row to the last one.
  */
 export function useScrollTrack(
   elementIds: string[],
   onElementVisible: (id: string) => void,
   scrollRef?: RefObject<HTMLElement | null>,
-  options?: { topOffset?: number; checkInterval?: number }
+  options?: {
+    topOffset?: number;
+    checkInterval?: number;
+    /**
+     * When false, the detection point stays at the true viewport top instead
+     * of advancing into the viewport as the scroll nears the end. The advance
+     * (default) lets each short tail row read as "current" for a highlight
+     * (the outline); a consumer that needs the row actually pinned at the top
+     * (transcript j/k stepping) turns it off, so it never reports a LATER row
+     * than the one at the top near the end of the log.
+     */
+    advanceDetectionPointAtEnd?: boolean;
+  }
 ) {
   const currentVisibleRef = useRef<string | null>(null);
   const lastCheckRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
+  const elementIdSet = useMemo(() => new Set(elementIds), [elementIds]);
 
   const findTopmostVisibleElement = useCallback(() => {
     const container = scrollRef?.current;
@@ -29,64 +90,42 @@ export function useScrollTrack(
     const viewportBottom = containerRect
       ? containerRect.bottom
       : window.innerHeight;
-    const viewportHeight = viewportBottom - viewportTop;
 
-    // Calculate dynamic threshold based on scroll position
-    let detectionPoint = viewportTop;
-
-    if (container) {
-      const scrollHeight = container.scrollHeight;
-      const scrollTop = container.scrollTop;
-      const clientHeight = container.clientHeight;
-      const maxScroll = scrollHeight - clientHeight;
-
-      // Calculate how close we are to the bottom (0 = at top, 1 = at bottom)
-      const scrollProgress = maxScroll > 0 ? scrollTop / maxScroll : 0;
-
-      // Start sliding only in the last 20% of scroll
-      const slideThreshold = 0.8;
-      if (scrollProgress > slideThreshold) {
-        const slideProgress =
-          (scrollProgress - slideThreshold) / (1 - slideThreshold);
-        const easedProgress = Math.pow(slideProgress, 3);
-        detectionPoint = viewportTop + viewportHeight * 0.9 * easedProgress;
-      }
-
-      // When fully scrolled to bottom, use bottom of viewport
-      if (scrollProgress >= 0.99) {
-        detectionPoint = viewportBottom - 50;
-      }
-    }
-
-    let closestId: string | null = null;
-    let closestDistance = Infinity;
-
-    const elementIdSet = new Set(elementIds);
+    const advanceAtEnd = options?.advanceDetectionPointAtEnd ?? true;
+    const remainingScroll =
+      advanceAtEnd && container
+        ? container.scrollHeight - container.clientHeight - container.scrollTop
+        : undefined;
+    const detectionPoint = scrollTrackDetectionPoint(
+      viewportTop,
+      viewportBottom,
+      remainingScroll
+    );
 
     const elements = container
       ? container.querySelectorAll("[id]")
       : document.querySelectorAll("[id]");
-
+    // Measure ONLY tracked elements — rect reads force layout, and containers
+    // hold many more [id] nodes (panels, messages) than tracked rows.
+    const rects: TrackedRect[] = [];
     for (const element of elements) {
-      const id = element.id;
-
-      if (elementIdSet.has(id)) {
-        const rect = element.getBoundingClientRect();
-
-        if (rect.bottom >= viewportTop && rect.top <= viewportBottom) {
-          const elementCenter = rect.top + rect.height / 2;
-          const distance = Math.abs(elementCenter - detectionPoint);
-
-          if (distance < closestDistance) {
-            closestDistance = distance;
-            closestId = id;
-          }
-        }
-      }
+      if (!elementIdSet.has(element.id)) continue;
+      const rect = element.getBoundingClientRect();
+      rects.push({ id: element.id, top: rect.top, bottom: rect.bottom });
     }
-
-    return closestId;
-  }, [elementIds, scrollRef, options?.topOffset]);
+    return selectTrackedElement(
+      rects,
+      elementIdSet,
+      viewportTop,
+      viewportBottom,
+      detectionPoint
+    );
+  }, [
+    elementIdSet,
+    scrollRef,
+    options?.topOffset,
+    options?.advanceDetectionPointAtEnd,
+  ]);
 
   const checkVisibility = useCallback(() => {
     const now = Date.now();
@@ -118,11 +157,35 @@ export function useScrollTrack(
     });
   }, [checkVisibility]);
 
+  // The elementIds CONTENT the last report was issued against. When the
+  // tracked set changes (collapse/filter), consumers that derive state from
+  // the id AND the array (e.g. the transcript maps the top event to a
+  // turn-anchor index) need a fresh report even if the SAME element is still
+  // on top — so drop the cached current id and the throttle stamp, letting
+  // the effect's synchronous check below re-report. Compared by content, not
+  // identity: some consumers rebuild the array every render, and an identity
+  // reset would bypass the throttle into rect reads (forced layout) per
+  // render. A single re-check, not a retry loop — this must not reintroduce
+  // the reverted first-report bootstrap (fresh mounts keep their existing
+  // single checkVisibility; the scroll listener and 1s interval remain the
+  // fallback for rows that haven't mounted yet).
+  const reportedIdsRef = useRef<string[] | null>(null);
+
   useEffect(() => {
     if (elementIds.length === 0) return;
 
     const scrollElement = scrollRef?.current || window;
 
+    const prevIds = reportedIdsRef.current;
+    const idsChanged =
+      prevIds === null ||
+      prevIds.length !== elementIds.length ||
+      prevIds.some((id, i) => id !== elementIds[i]);
+    if (idsChanged) {
+      reportedIdsRef.current = elementIds;
+      currentVisibleRef.current = null;
+      lastCheckRef.current = 0;
+    }
     checkVisibility();
 
     scrollElement.addEventListener("scroll", handleScroll, { passive: true });
