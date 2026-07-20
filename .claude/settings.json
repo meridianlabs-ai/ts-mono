@@ -3,10 +3,10 @@
     "allow": [
       "Bash(pnpm install)",
       "Bash(pnpm install --frozen-lockfile)",
-      "Bash(pnpm run:*)",
       "Bash(pnpm turbo run:*)",
       "Bash(pnpm build:*)",
       "Bash(pnpm check:*)",
+      "Bash(pnpm manypkg:check)",
       "Bash(pnpm lint:*)",
       "Bash(pnpm typecheck:*)",
       "Bash(pnpm test:*)",
