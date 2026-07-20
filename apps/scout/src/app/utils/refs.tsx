@@ -248,6 +248,7 @@ const TranscriptView: FC<{ id: string; events: Event[] }> = ({
       defaultCollapsedIds={defaultCollapsedIds}
       collapsedTranscript={collapsedTranscript}
       onCollapseTranscript={onCollapseTranscript}
+      keyboardNavDisabled={true}
     />
   );
 };

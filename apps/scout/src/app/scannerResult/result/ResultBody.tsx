@@ -1,10 +1,13 @@
 import clsx from "clsx";
-import { FC, useRef } from "react";
+import { FC, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
-import { useScrollDirection } from "@tsmono/react/hooks";
+import {
+  useChromeNavOwnershipRelease,
+  useScrollDirection,
+} from "@tsmono/react/hooks";
 
 import { useStore } from "../../../state/store";
 import { ScannerInput } from "../../../types/api-types";
@@ -30,13 +33,36 @@ export const ResultBody: FC<ResultBodyProps> = ({ resultData, inputData }) => {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [searchParams] = useSearchParams();
 
-  // Headroom: collapse swimlanes on scroll-down, expand on scroll-up.
-  const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
-    useScrollDirection(scrollRef);
-
   // Get message or event ID from query params
   const initialMessageId = searchParams.get("message");
   const initialEventId = searchParams.get("event");
+
+  // Headroom with the chrome-ownership contract (same as the transcript
+  // page): deep-link mounts render collapsed from the first frame; landings
+  // force the state via onHeadroomSetHidden; a real wheel/touch gesture on
+  // the scroller hands ownership back to natural scroll detection.
+  const navOwnsRef = useRef(!!(initialEventId || initialMessageId));
+  const {
+    hidden: headroomHidden,
+    resetAnchor: headroomResetAnchor,
+    setHidden: headroomSetHidden,
+  } = useScrollDirection(scrollRef, {
+    initialHidden: !!(initialEventId || initialMessageId),
+    suppressRef: navOwnsRef,
+  });
+  useChromeNavOwnershipRelease(navOwnsRef, scrollRef);
+  const onHeadroomSetHidden = useCallback(
+    (hidden: boolean) => {
+      navOwnsRef.current = true;
+      if (hidden) {
+        headroomSetHidden(true);
+        return;
+      }
+      const el = scrollRef.current;
+      if (el && el.scrollTop <= 0) headroomSetHidden(false);
+    },
+    [headroomSetHidden]
+  );
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
 
@@ -53,6 +79,7 @@ export const ResultBody: FC<ResultBodyProps> = ({ resultData, inputData }) => {
           highlightLabeled={highlightLabeled}
           headroomHidden={headroomHidden}
           onHeadroomResetAnchor={headroomResetAnchor}
+          onHeadroomSetHidden={onHeadroomSetHidden}
         />
       </div>
     </div>
@@ -68,6 +95,7 @@ interface InputRendererProps {
   initialEventId?: string | null;
   highlightLabeled?: boolean;
   headroomHidden?: boolean;
+  onHeadroomSetHidden?: (hidden: boolean) => void;
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
 }
 
@@ -92,6 +120,7 @@ const InputRenderer: FC<InputRendererProps> = ({
   initialEventId,
   highlightLabeled,
   headroomHidden,
+  onHeadroomSetHidden,
   onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
@@ -124,6 +153,7 @@ const InputRenderer: FC<InputRendererProps> = ({
           initialEventId={initialEventId}
           initialMessageId={initialMessageId}
           headroomHidden={headroomHidden}
+          onHeadroomSetHidden={onHeadroomSetHidden}
           onHeadroomResetAnchor={onHeadroomResetAnchor}
         />
       );
@@ -162,6 +192,7 @@ const InputRenderer: FC<InputRendererProps> = ({
         initialMessageId={initialMessageId}
         timeline={false}
         headroomHidden={headroomHidden}
+        onHeadroomSetHidden={onHeadroomSetHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
       />
     );
@@ -175,6 +206,7 @@ const InputRenderer: FC<InputRendererProps> = ({
         initialMessageId={initialMessageId}
         timeline={false}
         headroomHidden={headroomHidden}
+        onHeadroomSetHidden={onHeadroomSetHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
       />
     );

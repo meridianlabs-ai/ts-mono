@@ -74,4 +74,13 @@ export const defaultHandlers = [
       createMessagesEventsResponse()
     );
   }),
+
+  // Fail any /api request no handler above (or a spec's network.use) matched,
+  // the way CI does: no backend listens behind the vite proxy there. Locally
+  // a developer's live `scout view` server would otherwise answer through the
+  // proxy and poison specs with real project data. Anchored to the origin
+  // root so vite's own module URLs (src/**/api/**) aren't swallowed.
+  http.all(/^https?:\/\/[^/]+\/api\//, () => {
+    return new HttpResponse(null, { status: 502 });
+  }),
 ];

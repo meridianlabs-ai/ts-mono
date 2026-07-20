@@ -6,6 +6,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist/",
+      "lib/",
       "node_modules/",
       "build/",
       "scripts/",
