@@ -7,7 +7,7 @@ import styles from "./ConnectionsLane.module.css";
 
 interface ConnectionsLaneProps {
   data: ConnectionLaneData;
-  window: ConnectionWindow;
+  timeWindow: ConnectionWindow;
   variant: "column" | "strip";
   onShowLog?: () => void;
 }
@@ -39,21 +39,21 @@ interface Tick {
 }
 
 const buildTicks = (
-  window: ConnectionWindow,
+  timeWindow: ConnectionWindow,
   width: number,
   x: (t: number) => number
 ): Tick[] => {
-  const span = window.end - window.start;
+  const span = timeWindow.end - timeWindow.start;
   if (span <= 0 || width <= 0) return [];
 
   const first: Tick = {
     x: 0,
-    label: `${fmtTickDate(window.start)}, ${fmtTickTime(window.start)}`,
+    label: `${fmtTickDate(timeWindow.start)}, ${fmtTickTime(timeWindow.start)}`,
     anchor: "start",
   };
   const last: Tick = {
     x: width,
-    label: fmtTickTime(window.end),
+    label: fmtTickTime(timeWindow.end),
     anchor: "end",
   };
 
@@ -61,10 +61,10 @@ const buildTicks = (
     kNiceIntervals.find((i) => (i / span) * width >= 55) ??
     kNiceIntervals[kNiceIntervals.length - 1]!;
   const interior: Tick[] = [];
-  let prevDate = fmtTickDate(window.start);
+  let prevDate = fmtTickDate(timeWindow.start);
   for (
-    let t = Math.ceil(window.start / interval) * interval;
-    t < window.end;
+    let t = Math.ceil(timeWindow.start / interval) * interval;
+    t < timeWindow.end;
     t += interval
   ) {
     const px = x(t);
@@ -81,7 +81,7 @@ const buildTicks = (
 
 export const ConnectionsLane: FC<ConnectionsLaneProps> = ({
   data,
-  window,
+  timeWindow,
   variant,
   onShowLog,
 }) => {
@@ -93,16 +93,16 @@ export const ConnectionsLane: FC<ConnectionsLaneProps> = ({
     )
   );
 
-  const span = window.end - window.start;
+  const span = timeWindow.end - timeWindow.start;
   const yMax = Math.max(data.configuredMax ?? 0, data.peak) * 1.08 || 1;
   const x = (t: number): number => {
-    const clamped = Math.min(Math.max(t, window.start), window.end);
-    return span > 0 ? ((clamped - window.start) / span) * width : 0;
+    const clamped = Math.min(Math.max(t, timeWindow.start), timeWindow.end);
+    return span > 0 ? ((clamped - timeWindow.start) / span) * width : 0;
   };
   const y = (v: number): number =>
     kBaselineY - (v / yMax) * (kBaselineY - kPlotTop);
 
-  let path = `M ${x(window.start)} ${y(data.start)}`;
+  let path = `M ${x(timeWindow.start)} ${y(data.start)}`;
   let prev = data.start;
   for (const e of data.events) {
     const ex = x(e.timestamp);
@@ -111,7 +111,7 @@ export const ConnectionsLane: FC<ConnectionsLaneProps> = ({
   }
   path += ` L ${width} ${y(prev)}`;
 
-  const ticks = width > 0 ? buildTicks(window, width, x) : [];
+  const ticks = width > 0 ? buildTicks(timeWindow, width, x) : [];
 
   return (
     <div className={styles.lane}>

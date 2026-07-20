@@ -154,6 +154,10 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
               usage && total > 0
                 ? Math.round(((usage.output_tokens ?? 0) / total) * 100)
                 : 0;
+            const showLog =
+              onShowConnectionLog && lane
+                ? () => onShowConnectionLog(lane.model)
+                : undefined;
             return (
               <Fragment key={modelId}>
                 <tr className={styles.modelRow}>
@@ -211,6 +215,9 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                       );
                     })()}
                   </td>
+                  {/* rows with connection history but no usage still need
+                      cells here to keep later columns aligned */}
+                  {showTokenColumns && !usage && <td colSpan={2} />}
                   {showTokenColumns && usage && (
                     <>
                       <td className={styles.composeCell}>
@@ -267,17 +274,14 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                       {lane && connections_window && (
                         <ConnectionsLane
                           data={lane}
-                          window={connections_window}
+                          timeWindow={connections_window}
                           variant="column"
-                          onShowLog={
-                            onShowConnectionLog
-                              ? () => onShowConnectionLog(lane.model)
-                              : undefined
-                          }
+                          onShowLog={showLog}
                         />
                       )}
                     </td>
                   )}
+                  {showPerSample && !usage && <td />}
                   {showPerSample && usage && (
                     <td className={clsx(styles.num, styles.perSampleCell)}>
                       {formatNumber(Math.round(total / samples))}
@@ -290,13 +294,9 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                     <td colSpan={columnCount}>
                       <ConnectionsLane
                         data={lane}
-                        window={connections_window}
+                        timeWindow={connections_window}
                         variant="strip"
-                        onShowLog={
-                          onShowConnectionLog
-                            ? () => onShowConnectionLog(lane.model)
-                            : undefined
-                        }
+                        onShowLog={showLog}
                       />
                     </td>
                   </tr>
