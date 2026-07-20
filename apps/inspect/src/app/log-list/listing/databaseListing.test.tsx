@@ -6,8 +6,11 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { Column } from "@tsmono/inspect-common/query";
 import type { Condition } from "@tsmono/inspect-common/query";
 
-import type { DatabaseListingPlan } from "../../../client/database/listing";
-import type { LogListingRow } from "../../../log_data";
+import type {
+  Cursor,
+  DatabaseListingPlan,
+} from "../../../client/database/listing";
+import type { LogListingRow, LogsListingPageQuery } from "../../../log_data";
 
 import {
   useDatabaseLogsListingQuery,
@@ -20,15 +23,13 @@ interface Row {
   [k: string]: unknown;
 }
 
-type ReadListing = <TRow>(
-  logDir: string,
-  prefix: string,
-  toRow: (log: LogListingRow) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>
+type ReadListingPage = <TRow>(
+  query: LogsListingPageQuery<TRow>,
+  page: { cursor?: Cursor | null; limit?: number }
 ) => Promise<{
   items: TRow[];
   total_count: number;
-  next_cursor: null;
+  next_cursor: Cursor | null;
 }>;
 
 const holder = vi.hoisted(() => ({
@@ -46,9 +47,10 @@ vi.mock("../../../log_data", () => ({
     ...parts.map((part) => part ?? null),
   ],
   listingKeyUniverse: (queryKey: readonly unknown[]) => queryKey[3],
-  readLogsListing: (
-    ...args: Parameters<ReadListing>
-  ): ReturnType<ReadListing> => holder.read(...args) as ReturnType<ReadListing>,
+  readLogsListingPage: (
+    ...args: Parameters<ReadListingPage>
+  ): ReturnType<ReadListingPage> =>
+    holder.read(...args) as ReturnType<ReadListingPage>,
   readLogsListingMatches: (...args: unknown[]): Promise<string[]> =>
     holder.readMatches(...args) as Promise<string[]>,
 }));
@@ -93,24 +95,26 @@ describe("useDatabaseLogsListingQuery", () => {
     });
     holder.records = records;
     holder.read.mockReset();
-    // The seam double: run the plan over the fake records like
-    // readLogsListing runs it over the scanned rows.
+    // The seam double: run the plan over the fake records and slice the
+    // requested page, like readLogsListingPage over the snapshot.
     holder.read.mockImplementation(
       (
-        _logDir: string,
-        _prefix: string,
-        rowFor: (log: LogListingRow) => Row | undefined,
-        plan: DatabaseListingPlan<Row>
+        query: LogsListingPageQuery<Row>,
+        page: { cursor?: Cursor | null; limit?: number }
       ) => {
         const rows = holder.records
-          .map((record) => rowFor(record as LogListingRow))
+          .map((record) => query.toRow(record as LogListingRow))
           .filter((row): row is Row => row !== undefined)
-          .filter(plan.matches);
-        if (plan.compare) rows.sort(plan.compare);
+          .filter(query.plan.matches);
+        if (query.plan.compare) rows.sort(query.plan.compare);
+        const offset =
+          typeof page.cursor?.offset === "number" ? page.cursor.offset : 0;
+        const end =
+          page.limit === undefined ? rows.length : offset + page.limit;
         return Promise.resolve({
-          items: rows,
+          items: rows.slice(offset, end),
           total_count: rows.length,
-          next_cursor: null,
+          next_cursor: end < rows.length ? { offset: end } : null,
         });
       }
     );

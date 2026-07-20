@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import type { InfiniteData } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -7,18 +8,16 @@ import type {
   OrderByModel,
   Pagination,
 } from "@tsmono/inspect-common/query";
-import {
-  useAsyncDataFromQuery,
-  useDebouncedCallback,
-} from "@tsmono/react/hooks";
-import type { AsyncData } from "@tsmono/util";
+import { useDebouncedCallback } from "@tsmono/react/hooks";
+import { loading, type AsyncData } from "@tsmono/util";
 
+import type { Cursor } from "../../../client/database/listing";
 import type { LogListingRow } from "../../../log_data";
 import {
   databaseLogsListingKey,
   listingKeyUniverse,
-  readLogsListing,
   readLogsListingMatches,
+  readLogsListingPage,
 } from "../../../log_data";
 
 import { applyListingQuery } from "./applyListingQuery";
@@ -96,7 +95,6 @@ export interface LogsListingDescriptor<TRow> {
 interface UseDatabaseLogsListingParams<TRow> {
   filter?: Condition;
   orderBy?: OrderByModel[];
-  pagination?: Pagination;
   getValue: ValueAccessor<TRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
@@ -108,19 +106,41 @@ interface UseDatabaseLogsListingParams<TRow> {
 }
 
 /**
- * The log listing query: rows are read from the listing source (IndexedDB
- * in dir mode — see `readLogsListing`) and shaped per view inside the
- * queryFn, so the full row list never has to live in memory for the grid's
- * sake. Results are asynchronous by design: the first read shows whatever
- * has replicated so far, and the write path's throttled invalidation
- * streams further rows in as they land. `loading` covers hydration and the
- * universe's first read; within one universe a re-filter/sort reports the
- * previous result as `data` (no loading flash) until the new read lands.
+ * Rows per page. `undefined` is the transitional setting: every listing is
+ * served as a single full-size page, so behavior is identical to the
+ * pre-infinite-query hook while the two-tier snapshot machinery carries the
+ * reads. The grid work (scroll-near-end fetch trigger, footer counts off
+ * `total_count`) flips this to a real page size.
+ */
+const kLogsListingPageSize: number | undefined = undefined;
+
+/**
+ * Retained-page cap (react-query `maxPages`, decision 3): a long scroll
+ * must not reassemble the full list in memory — pages beyond the cap drop
+ * off the front, and refetch-on-scroll-back is the accepted cost. Inert
+ * while `kLogsListingPageSize` serves everything as one page.
+ */
+const kLogsListingMaxPages = 20;
+
+/**
+ * The log listing query: a react-query `useInfiniteQuery` over
+ * `readLogsListingPage` — pages compose over the tier-1 key-list snapshot
+ * (built once per (universe, accessors, filter, orderBy), shared by every
+ * page, invalidated by the write path's throttled root-key invalidation).
+ * Rows are read from the listing source (IndexedDB in dir mode; db-less and
+ * cache-only scopes fall back to the react-query cache inside the same
+ * queryFn) and shaped per view inside the queryFn, so the full row list
+ * never has to live in memory for the grid's sake. Results are asynchronous
+ * by design: the first read shows whatever has replicated so far, and the
+ * write path's throttled invalidation streams further rows in as they land
+ * (refetching both tiers; `placeholderData` prevents blanking). `loading`
+ * covers hydration and the universe's first read; within one universe a
+ * re-filter/sort reports the previous result as `data` (no loading flash)
+ * until the new read lands.
  */
 export function useDatabaseLogsListingQuery<TRow>({
   filter,
   orderBy,
-  pagination,
   getValue,
   getComparator,
   getFilterType,
@@ -128,28 +148,56 @@ export function useDatabaseLogsListingQuery<TRow>({
   listing,
 }: UseDatabaseLogsListingParams<TRow>): AsyncData<LogsListingResult<TRow>> {
   const { logDir, prefix, universe, toRow } = listing;
-  return useAsyncDataFromQuery({
-    queryKey: databaseLogsListingKey(
-      universe,
-      accessorsKey,
-      filter,
-      orderBy,
-      pagination
-    ),
-    queryFn: (): Promise<LogsListingResult<TRow>> =>
-      readLogsListing(
-        logDir,
-        prefix,
-        toRow,
-        createListingPlan({
+
+  // Flatten the page window into the result shape consumers already read.
+  // Every page reports the snapshot's total_count; page 0 is the freshest
+  // after a partial refetch. Passed as a stable `select` so react-query
+  // memoizes the flattening (a per-render flatMap would give consumers a
+  // fresh items identity every render).
+  const select = useCallback(
+    (
+      data: InfiniteData<LogsListingResult<TRow>, Cursor | null>
+    ): LogsListingResult<TRow> => ({
+      items:
+        data.pages.length === 1
+          ? (data.pages[0]?.items ?? [])
+          : data.pages.flatMap((page) => page.items),
+      total_count: data.pages[0]?.total_count ?? 0,
+      next_cursor: data.pages.at(-1)?.next_cursor ?? null,
+    }),
+    []
+  );
+
+  const { data, isPending, isError, error } = useInfiniteQuery({
+    queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
+    queryFn: ({
+      pageParam,
+    }: {
+      pageParam: Cursor | null;
+    }): Promise<LogsListingResult<TRow>> =>
+      readLogsListingPage(
+        {
+          logDir,
+          prefix,
+          toRow,
+          universe,
+          accessorsKey,
           filter,
           orderBy,
-          pagination,
-          getValue,
-          getComparator,
-          getFilterType,
-        })
+          plan: createListingPlan({
+            filter,
+            orderBy,
+            getValue,
+            getComparator,
+            getFilterType,
+          }),
+        },
+        { cursor: pageParam, limit: kLogsListingPageSize }
       ),
+    initialPageParam: null as Cursor | null,
+    getNextPageParam: (lastPage) => lastPage.next_cursor,
+    maxPages: kLogsListingMaxPages,
+    select,
     enabled: universe !== undefined,
     // Keep showing the previous result across re-filters/sorts — and schema
     // arrivals — within one universe (same row set, possibly re-evaluated);
@@ -161,13 +209,19 @@ export function useDatabaseLogsListingQuery<TRow>({
         ? previousData
         : undefined,
     staleTime: 0,
-    // Transitional (pre-pagination): each key holds the full shaped row
-    // list, so the default 5-minute gc would keep a full copy per recent
-    // (schema, filter, orderBy) combination. Drop unobserved copies fast.
+    // The page window is a bounded copy per recent (schema, filter, orderBy)
+    // combination; drop unobserved ones fast (the snapshot has its own short
+    // gcTime — see readLogsListingPage).
     gcTime: 30_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+
+  return useMemo<AsyncData<LogsListingResult<TRow>>>(() => {
+    if (isPending) return loading;
+    if (isError) return { error, loading: false };
+    return { data, loading: false };
+  }, [data, isPending, isError, error]);
 }
 
 interface UseLogsListingMatchesParams<TRow> {

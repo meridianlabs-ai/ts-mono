@@ -185,7 +185,9 @@ export interface LogsListingPageQuery<TRow> {
   logDir: string;
   prefix: string;
   toRow: (log: LogListingRow) => TRow | undefined;
-  universe: string;
+  /** `undefined` only while the scope hydrates — queries are disabled then,
+   *  so a page read never actually runs without a universe. */
+  universe: string | undefined;
   accessorsKey: string;
   filter?: Condition;
   orderBy?: OrderByModel[];
