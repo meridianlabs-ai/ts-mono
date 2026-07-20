@@ -20,7 +20,7 @@ import {
 } from "../client/database/service";
 
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
-import { setRows } from "./logsContent";
+import { setRows, writeListing } from "./logsContent";
 import {
   readLogsListing,
   readLogsListingMatches,
@@ -167,6 +167,28 @@ describe("readLogsListing", () => {
     );
     // Scoped by boundary-safe prefix: the sibling dir's row is excluded.
     expect(result.items.map((row) => row.name)).toEqual(["/cache/logs/a.json"]);
+  });
+
+  test("serves every cache row for an out-of-namespace (cache-only) scope", async () => {
+    // An older view server can report an aliased local path as log_dir while
+    // the listing names are file:// URIs; writeListing degrades the scope to
+    // cache-only. Those names never match the scope prefix, so the cache
+    // read must not prefix-filter them away.
+    await writeListing(databaseService, "/alias/logs", [
+      { name: "file:///real/logs/a.json" },
+      { name: "file:///real/logs/b.json" },
+    ]);
+
+    const result = await readLogsListing(
+      "/alias/logs",
+      "/alias/logs",
+      (log: LogListingRow) => log,
+      createListingPlan({ getValue, getComparator: () => undefined })
+    );
+    expect(result.items.map((row) => row.name).sort()).toEqual([
+      "file:///real/logs/a.json",
+      "file:///real/logs/b.json",
+    ]);
   });
 });
 
@@ -324,13 +346,31 @@ describe("readLogsListingOffset", () => {
 
     // Universe after filter+sort: [c, a] (b is filtered out).
     await expect(
-      readLogsListingOffset("/test/logs", "/test/logs", toRow, plan, target("/test/logs/a.json"))
+      readLogsListingOffset(
+        "/test/logs",
+        "/test/logs",
+        toRow,
+        plan,
+        target("/test/logs/a.json")
+      )
     ).resolves.toBe(1);
     await expect(
-      readLogsListingOffset("/test/logs", "/test/logs", toRow, plan, target("/test/logs/b.json"))
+      readLogsListingOffset(
+        "/test/logs",
+        "/test/logs",
+        toRow,
+        plan,
+        target("/test/logs/b.json")
+      )
     ).resolves.toBeUndefined();
     await expect(
-      readLogsListingOffset("/test/logs", "/test/logs", toRow, plan, target("/test/logs/c.json"))
+      readLogsListingOffset(
+        "/test/logs",
+        "/test/logs",
+        toRow,
+        plan,
+        target("/test/logs/c.json")
+      )
     ).resolves.toBe(0);
   });
 });

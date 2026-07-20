@@ -37,6 +37,10 @@ const scanRows = async (logDir: string, prefix: string): Promise<Log[]> => {
     if (logs !== null) return logs;
     // A failed db read degrades to the cache for this query only.
   }
+  // An out-of-namespace scope's names never start with the scope prefix —
+  // that mismatch is what degraded it (see `namesInScope`) — so filtering
+  // would drop every row. Serve the whole listing; `toRow` owns membership.
+  if (isCacheOnlyListingScope(logDir)) return getLogRows(logDir);
   const scope = scopePrefix(prefix);
   return getLogRows(logDir).filter((row) => row.name.startsWith(scope));
 };
