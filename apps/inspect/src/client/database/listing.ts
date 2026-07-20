@@ -6,10 +6,22 @@ export interface DatabaseListingPlan<TRow> {
   pagination?: Pagination;
 }
 
+/**
+ * Opaque pagination cursor for the client-side listing query. Mirrors scout's
+ * cursor shape (`Pagination.cursor` is `{ [k]: unknown } | null`); we store a
+ * simple offset.
+ */
+export interface Cursor {
+  offset: number;
+  // Index signature so a Cursor satisfies the generated `Pagination.cursor`
+  // (`{ [key: string]: unknown } | null`).
+  [key: string]: unknown;
+}
+
 export interface DatabaseListingResult<TRow> {
   items: TRow[];
   total_count: number;
-  next_cursor: { offset: number; [key: string]: unknown } | null;
+  next_cursor: Cursor | null;
 }
 
 /** Slice one page (with its continuation cursor) off filtered+sorted rows. */
