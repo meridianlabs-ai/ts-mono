@@ -4,7 +4,6 @@
 
 import { useMemo } from "react";
 
-import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
@@ -13,8 +12,7 @@ import {
   collapseTurns,
   makeTurns,
   noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
+  outlineFilterVisitors,
 } from "./tree-visitors";
 
 /**
@@ -27,14 +25,7 @@ export const buildOutlineNodeList = (
   collapsedIds: Record<string, boolean>
 ): EventNode[] => {
   const nodeList = flatTree(eventNodes, collapsedIds, [
-    removeNodeVisitor("logger"),
-    removeNodeVisitor("info"),
-    removeNodeVisitor("state"),
-    removeNodeVisitor("store"),
-    removeNodeVisitor("approval"),
-    removeNodeVisitor("input"),
-    removeNodeVisitor("sandbox"),
-    removeStepSpanNameVisitor(kSandboxSignalName),
+    ...outlineFilterVisitors(),
     noScorerChildren(),
   ]);
 

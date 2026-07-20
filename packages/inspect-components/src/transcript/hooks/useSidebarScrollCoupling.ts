@@ -6,8 +6,8 @@
  * sticky top (header fully out), wheel events stop chaining so the main
  * content doesn't scroll along with the sidebar. Also dispatches a synthetic
  * scroll event when a sidebar mounts/unmounts: the layout reflows but no
- * scroll/resize event fires, so sticky-state observers (useStickyObserver,
- * StickyScroll) would otherwise keep stale state.
+ * scroll/resize event fires, so the StickyScroll component would otherwise
+ * keep stale state.
  *
  * Nothing here is transcript-specific; candidate for @tsmono/react/hooks.
  */

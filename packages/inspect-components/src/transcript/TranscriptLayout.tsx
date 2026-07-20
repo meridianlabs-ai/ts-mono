@@ -1,16 +1,7 @@
 /**
- * Shared layout component for transcript views.
- *
- * Encapsulates the full visual structure: timeline swimlanes, transcript
- * outline, and virtualized event list. Apps provide events, selection
- * state adapters, and store-backed collapse callbacks.
- *
- * General behaviors that both apps benefit from:
- * - Message ID → event resolution (citation navigation)
- * - Bulk collapse/expand of all collapsible events
- * - Outline auto-hide when no displayable nodes exist
- * - Branch scroll target handling
- * - Empty state display
+ * Shared layout for transcript views: timeline swimlanes, transcript outline,
+ * and the virtualized event list. Apps provide events, selection state
+ * adapters, and store-backed collapse callbacks.
  */
 
 import clsx from "clsx";
@@ -20,6 +11,7 @@ import {
   ReactNode,
   RefObject,
   useCallback,
+  useMemo,
   useRef,
 } from "react";
 
@@ -36,6 +28,7 @@ import { useElementHeight } from "@tsmono/react/hooks";
 
 import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
+import { deriveFocusLanes, type FocusLane } from "./hooks/useFocusLaneScope";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
 import { useSelectionActions } from "./hooks/useSelectionActions";
@@ -48,15 +41,18 @@ import {
   OutlineSidebar,
   type TranscriptLayoutOutlineProps,
 } from "./OutlineSidebar";
+import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { type TimelineSpan } from "./timeline/core";
 import {
+  type SelectOptions,
   type TimelineOptions,
   type UseActiveTimelineProps,
   type UseTimelineProps,
 } from "./timeline/hooks";
 import { type MarkerConfig } from "./timeline/markers";
+import { getAgents } from "./timeline/swimlaneRows";
 import {
   TimelineRowSelectContext,
   TimelineSelectContext,
@@ -123,6 +119,9 @@ export interface TranscriptLayoutDeepLinkProps {
   /** Deep-link to a message ID, resolved to the best matching event.
    *  Used for citation navigation — resolves against selected span first, then root. */
   messageId?: string | null;
+  /** Explicit `follow=1` URL param: arm live-tail at mount even though the
+   *  event/message deep link also makes this a nav-owned mount. */
+  follow?: boolean;
 }
 
 /** Adapter for the host's headroom (collapsing chrome above the transcript). */
@@ -153,6 +152,9 @@ export interface TranscriptLayoutProps {
   running?: boolean;
   /** Whether the sample's event backlog is still loading (live sample). */
   backfilling?: boolean;
+  /** Whether a live→finished transition may scroll the view to the top —
+   *  false for unsuccessful finishes (error/cancelled). */
+  scrollToTopOnFinish?: boolean;
 
   // --- Scroll & positioning ---
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -177,6 +179,21 @@ export interface TranscriptLayoutProps {
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  /** Builds the focus-mode entry href for the header's focus control
+   *  (plain click enters in-window; modified clicks open a new tab). Omit to
+   *  hide that control. */
+  getEventFocusUrl?: (
+    eventId: string,
+    selectedTab?: string
+  ) => string | undefined;
+  /** Navigate to a focus URL in the current window. */
+  onOpenEventFocus?: (focusRoute: string) => void;
+  /** Reflect an explicit turn navigation (j/k, chevrons, editable number) in
+   *  the URL (`?event=`, replace) — like an outline click. Not called on scroll. */
+  onNavigatedToEvent?: (eventId: string) => void;
+  /** Disable transcript keyboard nav (j/k/h/l/gg/G) while find-in-page owns the
+   *  keyboard, so its keys reach the find box instead of navigating turns. */
+  keyboardNavDisabled?: boolean;
 
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
@@ -211,6 +228,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   hiddenEventTypes,
   running = false,
   backfilling = false,
+  scrollToTopOnFinish,
   scrollRef,
   offsetTop = 0,
   embedded = false,
@@ -222,6 +240,10 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   eventsListRef,
   getEventUrl,
   linkingEnabled,
+  getEventFocusUrl,
+  onOpenEventFocus,
+  onNavigatedToEvent,
+  keyboardNavDisabled,
   bulkCollapse,
   collapseState,
   outline,
@@ -242,8 +264,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     onMarkerNavigate,
     onScrollToTop,
   } = timeline ?? {};
-  const { eventId: initialEventId, messageId: initialMessageId } =
-    deepLink ?? {};
+  const {
+    eventId: initialEventId,
+    messageId: initialMessageId,
+    follow: initialFollowRequested,
+  } = deepLink ?? {};
   const {
     hidden: headroomHidden,
     onSetHidden: onHeadroomSetHidden,
@@ -276,6 +301,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   });
 
   const {
+    timeline: timelineData,
     state: timelineState,
     swimlanes: { layouts: timelineLayouts, regionCounts, highlightedKeys },
     minimap,
@@ -283,6 +309,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     views,
     selection: { rowName: selectedRowName },
   } = transcriptTimeline;
+  const { timelines, activeIndex: activeTimelineIndex } = multiTimeline;
 
   const {
     eventNodes,
@@ -320,13 +347,16 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Selection actions + per-agent list position management
   // ---------------------------------------------------------------------------
 
-  const { spanSelectKeys, selectBySpanId, selectByRowKey, hasScrollTarget } =
-    useSelectionActions({
-      timelineState,
-      scrollRef,
-      initialEventId,
-      initialMessageId,
-    });
+  const {
+    spanSelectKeys,
+    selectByRowKey: baseSelectByRowKey,
+    hasScrollTarget,
+  } = useSelectionActions({
+    timelineState,
+    scrollRef,
+    initialEventId,
+    initialMessageId,
+  });
 
   const { effectiveListId } = useListPositionManager(
     listId,
@@ -339,6 +369,213 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Swimlane header
   // ---------------------------------------------------------------------------
 
+  // Only agent lanes (root + subagents) are h/l-navigable — skip scoring/tool
+  // rows so lane stepping matches the focus page, which is agent-only.
+  const agentLaneKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const row of timelineState.rows) {
+      if (
+        row.depth === 0 ||
+        row.spans.some((s) => getAgents(s).some((a) => a.spanType === "agent"))
+      ) {
+        keys.add(row.key);
+      }
+    }
+    return keys;
+  }, [timelineState.rows]);
+  const laneKeys = useMemo(
+    () =>
+      timelineLayouts.filter((l) => agentLaneKeys.has(l.key)).map((l) => l.key),
+    [timelineLayouts, agentLaneKeys]
+  );
+
+  // First turn-anchor per agent lane: a lane switch parks `?event=` on the
+  // lane's first turn so the lane never lives only in selection state.
+  const laneFirstAnchor = useMemo(() => {
+    const byAgentSpan = computeLaneFirstAnchors(timelineData.root);
+    const byLaneKey = new Map<string, string>();
+    const rootKey = laneKeys[0];
+    for (const [agentSpanId, eventId] of byAgentSpan) {
+      const laneKey =
+        agentSpanId === null ? rootKey : spanSelectKeys.get(agentSpanId)?.key;
+      if (laneKey) byLaneKey.set(laneKey, eventId);
+    }
+    return byLaneKey;
+  }, [timelineData.root, spanSelectKeys, laneKeys]);
+
+  // Switch to an agent lane (by swimlane row key), parking `?event=` on its
+  // first turn so the lane stays derivable from the URL (like j/k). Shared by
+  // h/l, the swimlane row clicks, and the in-stream agent cards.
+  const selectLaneByKey = useCallback(
+    (laneKey: string) => {
+      // Skip only when this lane is genuinely the active one. A non-lane
+      // selection (branch/scoring) maps to currentLaneIndex 0 but is NOT "on
+      // main", so clicking main from there must still clear + park.
+      const current = timelineState.selected;
+      const alreadyActive =
+        laneKey === laneKeys[0]
+          ? current === null || current === laneKeys[0]
+          : current === laneKey;
+      if (alreadyActive) return;
+      onHeadroomResetAnchor?.(true); // don't flicker headroom during the scroll
+      const targetEvent = laneFirstAnchor.get(laneKey);
+      if (laneKey === laneKeys[0]) {
+        timelineState.clearSelection();
+      } else {
+        // No anchor (branch/multi-span lane): don't preserve, else the previous
+        // lane's stale `?event=` survives and mislabels the lane.
+        timelineState.select(laneKey, {
+          preserveDeepLink: targetEvent !== undefined,
+        });
+      }
+      if (targetEvent) onNavigatedToEvent?.(targetEvent);
+    },
+    [
+      laneKeys,
+      onHeadroomResetAnchor,
+      laneFirstAnchor,
+      timelineState,
+      onNavigatedToEvent,
+    ]
+  );
+  // select() for the swimlane + agent cards: agent-lane keys park the URL,
+  // span/region/non-agent keys fall through to plain selection.
+  const laneAwareSelect = useCallback(
+    (key: string | null, options?: SelectOptions) => {
+      if (key !== null && laneKeys.includes(key)) {
+        selectLaneByKey(key);
+      } else {
+        timelineState.select(key, options);
+      }
+    },
+    [laneKeys, selectLaneByKey, timelineState]
+  );
+  const swimlaneNav = useMemo(
+    () => ({
+      node: timelineState.node,
+      selected: timelineState.selected,
+      select: laneAwareSelect,
+      clearSelection: timelineState.clearSelection,
+    }),
+    [
+      timelineState.node,
+      timelineState.selected,
+      timelineState.clearSelection,
+      laneAwareSelect,
+    ]
+  );
+  // Cross-timeline lane list shared with the focus page (deriveFocusLanes),
+  // so both views navigate lanes — including across root timelines — identically.
+  const navLanes = useMemo(
+    () =>
+      deriveFocusLanes(
+        timelineState.rows,
+        timelineData.root,
+        timelines,
+        activeTimelineIndex,
+        timelineState.selected
+      ),
+    [
+      timelineState.rows,
+      timelineData.root,
+      timelines,
+      activeTimelineIndex,
+      timelineState.selected,
+    ]
+  );
+  // Within the active timeline, select the swimlane row (existing path). A lane
+  // in another root timeline is reached by parking `?event=` on its first
+  // anchor — the deep-link effect then switches the active timeline.
+  const goToNavLane = useCallback(
+    (lane: FocusLane | undefined) => {
+      if (!lane) return;
+      if (lane.timelineIndex === activeTimelineIndex && lane.laneKey) {
+        selectLaneByKey(lane.laneKey);
+      } else if (lane.firstAnchorId) {
+        onHeadroomResetAnchor?.(true);
+        onNavigatedToEvent?.(lane.firstAnchorId);
+      }
+    },
+    [
+      activeTimelineIndex,
+      selectLaneByKey,
+      onHeadroomResetAnchor,
+      onNavigatedToEvent,
+    ]
+  );
+  const adjacentNavLane = useCallback(
+    (delta: 1 | -1): FocusLane | undefined => {
+      for (
+        let i = navLanes.laneIndex + delta;
+        i >= 0 && i < navLanes.lanes.length;
+        i += delta
+      ) {
+        const lane = navLanes.lanes[i];
+        if (
+          lane?.firstAnchorId ||
+          (lane?.timelineIndex === activeTimelineIndex && lane.laneKey)
+        ) {
+          return lane;
+        }
+      }
+      return undefined;
+    },
+    [activeTimelineIndex, navLanes]
+  );
+  const prevNavLane = adjacentNavLane(-1);
+  const nextNavLane = adjacentNavLane(1);
+  const onLanePrev = useCallback(
+    () => goToNavLane(prevNavLane),
+    [goToNavLane, prevNavLane]
+  );
+  const onLaneNext = useCallback(
+    () => goToNavLane(nextNavLane),
+    [goToNavLane, nextNavLane]
+  );
+  // Rendered even for single-lane transcripts (both chevrons disabled) so the
+  // control is discoverable rather than appearing only on multi-agent logs.
+  const laneNav = useMemo(
+    () => ({
+      index: navLanes.laneIndex,
+      count: navLanes.lanes.length,
+      name: navLanes.lanes[navLanes.laneIndex]?.label ?? selectedRowName,
+      hasPrev: prevNavLane !== undefined,
+      hasNext: nextNavLane !== undefined,
+      onPrev: onLanePrev,
+      onNext: onLaneNext,
+    }),
+    [
+      navLanes,
+      selectedRowName,
+      prevNavLane,
+      nextNavLane,
+      onLanePrev,
+      onLaneNext,
+    ]
+  );
+
+  // Lane-aware wrappers over the selection actions: agent-lane keys park the
+  // URL via selectLaneByKey; non-lane keys fall through to the base actions.
+  const selectBySpanId = useCallback(
+    (spanId: string) => {
+      const key = spanSelectKeys.get(spanId);
+      if (key) laneAwareSelect(key.key);
+    },
+    [spanSelectKeys, laneAwareSelect]
+  );
+
+  const selectByRowKey = useCallback(
+    (rowKey: string, anchorEl?: HTMLElement) => {
+      if (laneKeys.includes(rowKey)) {
+        selectLaneByKey(rowKey);
+        return;
+      }
+      // Non-lane rows scope without parking the URL, keeping scroll position.
+      baseSelectByRowKey(rowKey, anchorEl);
+    },
+    [laneKeys, selectLaneByKey, baseSelectByRowKey]
+  );
+
   const swimlaneHeader = useSwimlaneHeader({
     scrollRef,
     onScrollToTop,
@@ -347,6 +584,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     minimap,
     multiTimeline,
     views,
+    laneNav,
   });
 
   // ---------------------------------------------------------------------------
@@ -397,11 +635,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // the wheel coupling below — no caller sees it, so the layout owns the ref.
   const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // The rail panel pins directly below the toolbar (offsetTop), alongside
-  // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
-  // Each needs its own sticky-detection threshold. The remount keys re-attach
-  // listeners when collapse state changes (the scroll elements may have
-  // unmounted/remounted via the conditional render).
+  // Rail and outline pin at different offsets, so each needs its own sticky
+  // threshold; the remount keys re-attach listeners across conditional renders.
   useSidebarScrollCoupling({
     mainScrollRef: scrollRef,
     sidebars: [
@@ -443,11 +678,13 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 <div ref={swimLaneStickyContentRef}>
                   <TimelineSwimLanes
                     layouts={timelineLayouts}
-                    timeline={timelineState}
+                    timeline={swimlaneNav}
                     header={swimlaneHeader}
                     onMarkerNavigate={onMarkerNavigate}
                     isSticky={isSwimLaneSticky}
-                    headroomCollapsed={!!headroomHidden && isSwimLaneSticky}
+                    // NOT gated on stickiness: StickyScroll's first report is
+                    // async, which made the initial state timing-dependent.
+                    headroomCollapsed={!!headroomHidden}
                     onLayoutShift={handleLayoutShift}
                     defaultCollapsed={swimlanesDefaultCollapsed}
                     regionCounts={regionCounts}
@@ -502,19 +739,35 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   defaultCollapsedIds={defaultCollapsedIds}
                   running={running}
                   backfilling={backfilling}
+                  scrollToTopOnFinish={scrollToTopOnFinish}
                   initialEventId={effectiveInitialEventId}
                   initialMessageId={initialMessageId}
+                  followRequested={initialFollowRequested}
                   offsetTop={effectiveOffsetTop}
                   className={styles.eventsList}
                   scrollRef={scrollRef}
                   renderAgentCard={showSwimlanes ? renderAgentCard : undefined}
                   getEventUrl={getEventUrl}
                   linkingEnabled={linkingEnabled}
+                  getEventFocusUrl={getEventFocusUrl}
+                  onOpenEventFocus={onOpenEventFocus}
                   collapsedTranscript={collapseState?.transcript}
-                  collapsedOutline={collapseState?.outline}
                   onCollapseTranscript={onCollapseTranscript}
                   onExpandNodes={onExpandNodes}
                   eventNodeContext={mergedEventNodeContext}
+                  onProgrammaticScroll={onHeadroomResetAnchor}
+                  onHeadroomSetHidden={onHeadroomSetHidden}
+                  // Wired only with real lanes so h/l aren't swallowed for a
+                  // no-op on single-lane transcripts (the header chevrons
+                  // still render, disabled).
+                  onPrevAgent={
+                    navLanes.lanes.length > 1 ? onLanePrev : undefined
+                  }
+                  onNextAgent={
+                    navLanes.lanes.length > 1 ? onLaneNext : undefined
+                  }
+                  onNavigatedToEvent={onNavigatedToEvent}
+                  keyboardNavDisabled={keyboardNavDisabled}
                 />
               ) : emptyText !== null ? (
                 <NoContentsPanel text={emptyText} busy={emptyBusy} />
