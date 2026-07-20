@@ -1,4 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { AsyncData } from "@tsmono/util";
 
 import {
   databaseLogsListingKeyRoot,
@@ -16,13 +17,6 @@ interface UseLogsOverviewParams {
   view: LogsOverviewView;
 }
 
-export interface LogsOverviewResult {
-  overview: LogsOverview | undefined;
-  /** No overview to show yet (hydrating or first read in flight). */
-  pending: boolean;
-  error: Error | undefined;
-}
-
 /**
  * The page-level aggregates beside the row query (see `readLogsOverview`).
  * Keyed under the listing root so the write path's throttled invalidation
@@ -32,8 +26,8 @@ export const useLogsOverview = ({
   logDir,
   universe,
   view,
-}: UseLogsOverviewParams): LogsOverviewResult => {
-  const query = useQuery({
+}: UseLogsOverviewParams): AsyncData<LogsOverview> => {
+  return useAsyncDataFromQuery({
     queryKey: [...databaseLogsListingKeyRoot, "overview", logDir, universe],
     queryFn: () => readLogsOverview(logDir, view),
     enabled: universe !== undefined,
@@ -41,9 +35,4 @@ export const useLogsOverview = ({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  return {
-    overview: query.data,
-    pending: query.isPending,
-    error: query.error ?? undefined,
-  };
 };
