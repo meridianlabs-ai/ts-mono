@@ -48,6 +48,11 @@ import { resolveKeyboardNavTarget } from "./keyboardNav";
 const kRowHeight = 30;
 const kPageJump = 10;
 const kHeaderHeight = 25;
+// Infinite-scroll fetch distance. Scout's tuning (rationale in
+// apps/scout/src/app/transcripts/constants.ts): threshold ≥ scroll_speed ×
+// fetch_duration, so at a fast 1500px/s scroll a worst-case 1s page fetch
+// still lands before the user reaches the bottom.
+const kFetchThreshold = 2000;
 // Tall enough to host a rotated score-column label (≈92px of vertical
 // extent for a 130px label at 45°) plus breathing room.
 const kRotatedHeaderHeight = 115;
@@ -183,6 +188,16 @@ export interface DataGridProps<TRow> {
   loading?: boolean;
   emptyMessage?: string;
   className?: string;
+  /** More rows exist beyond `data` (infinite scroll) — gates
+   *  `onScrollNearEnd`. */
+  hasMore?: boolean;
+  /** Called when the scroll position comes within `fetchThreshold` px of
+   *  the bottom while `hasMore` — the caller loads the next page. May fire
+   *  repeatedly during a scroll burst; the caller is expected to be
+   *  in-flight-safe (e.g. react-query's `fetchNextPage`). */
+  onScrollNearEnd?: () => void;
+  /** Distance from the bottom (px) at which to trigger `onScrollNearEnd`. */
+  fetchThreshold?: number;
   /** Focus the grid container on mount so arrow-key navigation works
    *  immediately — e.g. the log list, where returning from a log should
    *  land you on the restored selection ready to arrow up/down. */
@@ -228,6 +243,9 @@ export function DataGrid<TRow>({
   loading = false,
   emptyMessage = "No matching items",
   className,
+  hasMore = false,
+  onScrollNearEnd,
+  fetchThreshold = kFetchThreshold,
   autoFocus = false,
   ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
@@ -721,6 +739,24 @@ export function DataGrid<TRow>({
   const virtualItems = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
 
+  // Infinite scroll (ported from scout's DataGrid): ask for the next page
+  // when the viewport nears the bottom of the loaded rows.
+  const checkScrollNearEnd = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || !hasMore || !onScrollNearEnd) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < fetchThreshold) onScrollNearEnd();
+  }, [hasMore, onScrollNearEnd, fetchThreshold]);
+  const handleScroll = useCallback(() => {
+    checkScrollNearEnd();
+  }, [checkScrollNearEnd]);
+  // Also check outside scroll events: on mount, and whenever a page lands
+  // (`data.length`) — a page that doesn't out-run the threshold (or fill
+  // the viewport at all) must chain the next fetch without user input.
+  useEffect(() => {
+    checkScrollNearEnd();
+  }, [checkScrollNearEnd, data.length]);
+
   // Polite live-region text. ag-grid maintained its own off-screen live region
   // that spoke row-count/sort changes; reproduce a concise equivalent so a
   // screen-reader user hears the result of filtering, sorting, and loading
@@ -753,6 +789,7 @@ export function DataGrid<TRow>({
       aria-busy={loading || undefined}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onScroll={handleScroll}
     >
       <div className={styles.srStatus} role="status" aria-live="polite">
         {statusMessage}

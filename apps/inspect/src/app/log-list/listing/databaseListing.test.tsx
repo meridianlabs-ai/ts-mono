@@ -136,13 +136,13 @@ describe("useDatabaseLogsListingQuery", () => {
       { wrapper }
     );
 
-    expect(result.current.loading).toBe(true);
+    expect(result.current.result.loading).toBe(true);
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",
       ])
     );
-    expect(result.current.loading).toBe(false);
+    expect(result.current.result.loading).toBe(false);
   });
 
   test("queries the seam even without an active filter", async () => {
@@ -153,7 +153,7 @@ describe("useDatabaseLogsListingQuery", () => {
 
     // Source (listing) order is preserved when no sort is active.
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
         "/logs/b.eval",
         "/logs/a.eval",
       ])
@@ -171,8 +171,8 @@ describe("useDatabaseLogsListingQuery", () => {
 
     await Promise.resolve();
     expect(holder.read).not.toHaveBeenCalled();
-    expect(result.current.loading).toBe(true);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current.result.loading).toBe(true);
+    expect(result.current.result.data).toBeUndefined();
   });
 
   test("keeps the previous result across re-filters within one universe", async () => {
@@ -186,7 +186,7 @@ describe("useDatabaseLogsListingQuery", () => {
       }
     );
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",
       ])
     );
@@ -194,12 +194,12 @@ describe("useDatabaseLogsListingQuery", () => {
     // Re-filter: the prior page keeps showing (no pending flash) until the
     // new read lands.
     rerender(listingParams({ filter: new Column("model").eq("claude") }));
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data?.items.map((row) => row.name)).toEqual([
+    expect(result.current.result.loading).toBe(false);
+    expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
       "/logs/a.eval",
     ]);
     await waitFor(() =>
-      expect(result.current.data?.items.map((row) => row.name)).toEqual([
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
         "/logs/b.eval",
       ])
     );
@@ -213,15 +213,15 @@ describe("useDatabaseLogsListingQuery", () => {
         initialProps: listingParams({ accessorsKey: "" }),
       }
     );
-    await waitFor(() => expect(result.current.data).toBeDefined());
+    await waitFor(() => expect(result.current.result.data).toBeDefined());
     expect(holder.read).toHaveBeenCalledTimes(1);
 
     // The scorer schema arriving changes what the plan computes without any
     // other query input changing — same universe, so the previous rows keep
     // showing while the re-evaluated read is in flight.
     rerender(listingParams({ accessorsKey: "grader/accuracy:number" }));
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeDefined();
+    expect(result.current.result.loading).toBe(false);
+    expect(result.current.result.data).toBeDefined();
     await waitFor(() => expect(holder.read).toHaveBeenCalledTimes(2));
   });
 
@@ -232,10 +232,55 @@ describe("useDatabaseLogsListingQuery", () => {
       { wrapper }
     );
 
-    await waitFor(() => expect(result.current.error).toBeDefined());
-    expect(result.current.error?.message).toBe("scan failed");
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeUndefined();
+    await waitFor(() => expect(result.current.result.error).toBeDefined());
+    expect(result.current.result.error?.message).toBe("scan failed");
+    expect(result.current.result.loading).toBe(false);
+    expect(result.current.result.data).toBeUndefined();
+  });
+
+  test("accumulates pages via fetchNextPage and reports the universe total", async () => {
+    // Page by 1 regardless of the requested limit so the fixture exercises
+    // the multi-page path without 500+ records.
+    holder.read.mockImplementation(
+      (
+        query: LogsListingPageQuery<Row>,
+        page: { cursor?: Cursor | null; limit?: number }
+      ) => {
+        const rows = holder.records
+          .map((record) => query.toRow(record as LogListingRow))
+          .filter((row): row is Row => row !== undefined);
+        const offset =
+          typeof page.cursor?.offset === "number" ? page.cursor.offset : 0;
+        const end = offset + 1;
+        return Promise.resolve({
+          items: rows.slice(offset, end),
+          total_count: rows.length,
+          next_cursor: end < rows.length ? { offset: end } : null,
+        });
+      }
+    );
+
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+    await waitFor(() =>
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
+        "/logs/b.eval",
+      ])
+    );
+    // The footer count covers the whole filtered universe, not loaded rows.
+    expect(result.current.result.data?.total_count).toBe(2);
+    expect(result.current.hasNextPage).toBe(true);
+
+    result.current.fetchNextPage();
+    await waitFor(() =>
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
+        "/logs/b.eval",
+        "/logs/a.eval",
+      ])
+    );
+    expect(result.current.hasNextPage).toBe(false);
   });
 
   test("does not serve one universe's rows to another", async () => {
@@ -246,14 +291,14 @@ describe("useDatabaseLogsListingQuery", () => {
         initialProps: listingParams({ universe: "logs::/logs" }),
       }
     );
-    await waitFor(() => expect(result.current.data).toBeDefined());
+    await waitFor(() => expect(result.current.result.data).toBeDefined());
 
     // A different universe (e.g. the flat tasks view at the same prefix)
     // must not show the folder view's rows while its own read is in flight.
     rerender(listingParams({ universe: "tasks::/logs" }));
-    expect(result.current.data).toBeUndefined();
-    expect(result.current.loading).toBe(true);
-    await waitFor(() => expect(result.current.data).toBeDefined());
+    expect(result.current.result.data).toBeUndefined();
+    expect(result.current.result.loading).toBe(true);
+    await waitFor(() => expect(result.current.result.data).toBeDefined());
   });
 });
 

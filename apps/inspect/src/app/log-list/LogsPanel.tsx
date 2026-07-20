@@ -376,6 +376,8 @@ export const LogsPanel: FC<LogsPanelProps> = ({
               mode={mode}
               busy={listBusy}
               listing={listing}
+              hasMoreRows={listData.hasMoreRows}
+              fetchMoreRows={listData.fetchMoreRows}
             />
           </div>
           <LogListFooter

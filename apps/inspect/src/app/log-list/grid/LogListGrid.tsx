@@ -70,6 +70,10 @@ interface LogListGridProps {
    *  match query against the same universe (so matches cover rows beyond
    *  the loaded page once the listing paginates). */
   listing: LogsListingDescriptor<LogListRow>;
+  /** More file rows exist beyond the loaded pages (from `useLogListData`). */
+  hasMoreRows: boolean;
+  /** Load the next page of file rows (in-flight-safe). */
+  fetchMoreRows: () => void;
 }
 
 export const LogListGrid: FC<LogListGridProps> = ({
@@ -84,6 +88,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
   mode = "logs",
   busy,
   listing,
+  hasMoreRows,
+  fetchMoreRows,
 }) => {
   const { gridStateByScope, patchGridState } = useLogsListing();
 
@@ -372,6 +378,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
           selectedRowId={activeMatchId ?? persistedSelectedId}
           onSelectedRowChange={handleSelectedRowChange}
           onRowActivate={handleRowActivate}
+          hasMore={hasMoreRows}
+          onScrollNearEnd={fetchMoreRows}
           autoFocus
           ariaLabel="Evaluation logs"
           loading={totalRowCount === 0 && busy}

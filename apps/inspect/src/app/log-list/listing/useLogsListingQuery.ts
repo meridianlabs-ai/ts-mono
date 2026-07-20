@@ -106,13 +106,13 @@ interface UseDatabaseLogsListingParams<TRow> {
 }
 
 /**
- * Rows per page. `undefined` is the transitional setting: every listing is
- * served as a single full-size page, so behavior is identical to the
- * pre-infinite-query hook while the two-tier snapshot machinery carries the
- * reads. The grid work (scroll-near-end fetch trigger, footer counts off
- * `total_count`) flips this to a real page size.
+ * Rows per page. Scout's tuning (see `apps/scout/src/app/transcripts/
+ * constants.ts` for the full derivation): page-fetch duration is mostly
+ * fixed overhead, so large pages mean fewer fetches and fewer stall
+ * opportunities — 500 rows ≈ 14,500px ≈ 10s of fast scrolling per page,
+ * against the grid's 2,000px fetch threshold.
  */
-const kLogsListingPageSize: number | undefined = undefined;
+const kLogsListingPageSize = 500;
 
 /**
  * Retained-page cap (react-query `maxPages`, decision 3): a long scroll
@@ -121,6 +121,17 @@ const kLogsListingPageSize: number | undefined = undefined;
  * while `kLogsListingPageSize` serves everything as one page.
  */
 const kLogsListingMaxPages = 20;
+
+/** {@link useDatabaseLogsListingQuery}'s result: the flattened page window
+ *  plus the paging controls the grid's scroll trigger drives. */
+export interface DatabaseLogsListing<TRow> {
+  result: AsyncData<LogsListingResult<TRow>>;
+  /** More pages exist beyond the loaded window. */
+  hasNextPage: boolean;
+  /** Load the next page. In-flight-safe: a scroll burst never restarts an
+   *  ongoing page fetch (`cancelRefetch: false`, like scout). */
+  fetchNextPage: () => void;
+}
 
 /**
  * The log listing query: a react-query `useInfiniteQuery` over
@@ -146,7 +157,7 @@ export function useDatabaseLogsListingQuery<TRow>({
   getFilterType,
   accessorsKey,
   listing,
-}: UseDatabaseLogsListingParams<TRow>): AsyncData<LogsListingResult<TRow>> {
+}: UseDatabaseLogsListingParams<TRow>): DatabaseLogsListing<TRow> {
   const { logDir, prefix, universe, toRow } = listing;
 
   // Flatten the page window into the result shape consumers already read.
@@ -168,60 +179,72 @@ export function useDatabaseLogsListingQuery<TRow>({
     []
   );
 
-  const { data, isPending, isError, error } = useInfiniteQuery({
-    queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
-    queryFn: ({
-      pageParam,
-    }: {
-      pageParam: Cursor | null;
-    }): Promise<LogsListingResult<TRow>> =>
-      readLogsListingPage(
-        {
-          logDir,
-          prefix,
-          toRow,
-          universe,
-          accessorsKey,
-          filter,
-          orderBy,
-          plan: createListingPlan({
+  const { data, isPending, isError, error, hasNextPage, fetchNextPage } =
+    useInfiniteQuery({
+      queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
+      queryFn: ({
+        pageParam,
+      }: {
+        pageParam: Cursor | null;
+      }): Promise<LogsListingResult<TRow>> =>
+        readLogsListingPage(
+          {
+            logDir,
+            prefix,
+            toRow,
+            universe,
+            accessorsKey,
             filter,
             orderBy,
-            getValue,
-            getComparator,
-            getFilterType,
-          }),
-        },
-        { cursor: pageParam, limit: kLogsListingPageSize }
-      ),
-    initialPageParam: null as Cursor | null,
-    getNextPageParam: (lastPage) => lastPage.next_cursor,
-    maxPages: kLogsListingMaxPages,
-    select,
-    enabled: universe !== undefined,
-    // Keep showing the previous result across re-filters/sorts — and schema
-    // arrivals — within one universe (same row set, possibly re-evaluated);
-    // a different universe's rows must not leak in.
-    placeholderData: (previousData, previousQuery) =>
-      universe !== undefined &&
-      previousQuery !== undefined &&
-      listingKeyUniverse(previousQuery.queryKey) === universe
-        ? previousData
-        : undefined,
-    staleTime: 0,
-    // The page window is a bounded copy per recent (schema, filter, orderBy)
-    // combination; drop unobserved ones fast (the snapshot has its own short
-    // gcTime — see readLogsListingPage).
-    gcTime: 30_000,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-  });
+            plan: createListingPlan({
+              filter,
+              orderBy,
+              getValue,
+              getComparator,
+              getFilterType,
+            }),
+          },
+          { cursor: pageParam, limit: kLogsListingPageSize }
+        ),
+      initialPageParam: null as Cursor | null,
+      getNextPageParam: (lastPage) => lastPage.next_cursor,
+      maxPages: kLogsListingMaxPages,
+      select,
+      enabled: universe !== undefined,
+      // Keep showing the previous result across re-filters/sorts — and schema
+      // arrivals — within one universe (same row set, possibly re-evaluated);
+      // a different universe's rows must not leak in.
+      placeholderData: (previousData, previousQuery) =>
+        universe !== undefined &&
+        previousQuery !== undefined &&
+        listingKeyUniverse(previousQuery.queryKey) === universe
+          ? previousData
+          : undefined,
+      staleTime: 0,
+      // The page window is a bounded copy per recent (schema, filter, orderBy)
+      // combination; drop unobserved ones fast (the snapshot has its own short
+      // gcTime — see readLogsListingPage).
+      gcTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    });
 
-  return useMemo<AsyncData<LogsListingResult<TRow>>>(() => {
+  const fetchNext = useCallback(() => {
+    // Fire-and-forget: page arrival/errors surface through the query state.
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetchNextPage({ cancelRefetch: false });
+  }, [fetchNextPage]);
+
+  const result = useMemo<AsyncData<LogsListingResult<TRow>>>(() => {
     if (isPending) return loading;
     if (isError) return { error, loading: false };
     return { data, loading: false };
   }, [data, isPending, isError, error]);
+
+  return useMemo(
+    () => ({ result, hasNextPage, fetchNextPage: fetchNext }),
+    [result, hasNextPage, fetchNext]
+  );
 }
 
 interface UseLogsListingMatchesParams<TRow> {

@@ -81,6 +81,11 @@ export interface LogListData {
   /** The listing read failed — `rows` carries only the overlay items, so
    *  render this rather than an empty-looking list. */
   error: Error | undefined;
+  /** More file rows exist beyond the loaded pages — gates the grid's
+   *  scroll-near-end fetch trigger. */
+  hasMoreRows: boolean;
+  /** Load the next page of file rows (in-flight-safe). */
+  fetchMoreRows: () => void;
 }
 
 /**
@@ -142,9 +147,9 @@ export const useLogListData = ({
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
   const {
-    data: result,
-    loading: pending,
-    error,
+    result: { data: result, loading: pending, error },
+    hasNextPage,
+    fetchNextPage,
   } = useDatabaseLogsListingQuery<LogListRow>({
     filter,
     orderBy,
@@ -205,6 +210,8 @@ export const useLogListData = ({
 
   return {
     rows,
+    // Footer count over the whole filtered universe, not the loaded pages:
+    // total_count comes from the snapshot's key list.
     filteredCount:
       folders.length + (result?.total_count ?? 0) + (overlay?.total_count ?? 0),
     sorting,
@@ -213,5 +220,7 @@ export const useLogListData = ({
     orderBy,
     pending,
     error,
+    hasMoreRows: hasNextPage,
+    fetchMoreRows: fetchNextPage,
   };
 };
