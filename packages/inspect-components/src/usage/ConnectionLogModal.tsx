@@ -43,7 +43,11 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
       width="min(560px, 90vw)"
       padded={false}
       footer={
-        <button type="button" className="btn btn-secondary" onClick={onHide}>
+        <button
+          type="button"
+          className={clsx("btn", "btn-secondary", "text-size-smaller")}
+          onClick={onHide}
+        >
           Close
         </button>
       }
