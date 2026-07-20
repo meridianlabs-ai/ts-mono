@@ -1,12 +1,16 @@
+import { useQuery } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type {
   Condition,
   OrderByModel,
   Pagination,
 } from "@tsmono/inspect-common/query";
-import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import {
+  useAsyncDataFromQuery,
+  useDebouncedCallback,
+} from "@tsmono/react/hooks";
 import type { AsyncData } from "@tsmono/util";
 
 import type { LogListingRow } from "../../../log_data";
@@ -14,6 +18,7 @@ import {
   databaseLogsListingKey,
   listingKeyUniverse,
   readLogsListing,
+  readLogsListingMatches,
 } from "../../../log_data";
 
 import { applyListingQuery } from "./applyListingQuery";
@@ -163,4 +168,128 @@ export function useDatabaseLogsListingQuery<TRow>({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+}
+
+interface UseLogsListingMatchesParams<TRow> {
+  /** The same query inputs the row query ran under (pass them through from
+   *  `useLogListData` rather than re-deriving — the match membership must
+   *  never disagree with the rendered rows). */
+  filter?: Condition;
+  orderBy?: OrderByModel[];
+  getValue: ValueAccessor<TRow>;
+  getComparator: (columnId: string) => ValueComparator | undefined;
+  getFilterType?: FilterTypeAccessor;
+  accessorsKey: string;
+  listing: LogsListingDescriptor<TRow>;
+  /** The live find term. The query runs under a debounced copy: every
+   *  distinct term is a fresh scan of the listing source, so keystrokes
+   *  coalesce here while the input (and cheap overlay matching) stay live. */
+  term: string;
+  /** Whether the find band is open — the query never runs while closed. */
+  enabled: boolean;
+  getRowId: (row: TRow) => string;
+  /** A row's searchable text, already lowercased (see `rowSearchText`). */
+  rowText: (row: TRow) => string;
+  /** Cache identity of `rowText` — the searchable (visible) column ids. */
+  searchKey: readonly string[];
+}
+
+export interface LogsListingMatches {
+  /** Ids of the file rows matching the debounced term — membership only;
+   *  display order comes from the rendered rows. */
+  ids: string[] | undefined;
+  /** `ids` is a real result for the live term under the current universe —
+   *  debounce flushed, not pending, not another key's placeholder, not an
+   *  error. Only then may the UI claim "no results". */
+  settled: boolean;
+  /** Cancel the pending debounce and clear the match term (band closed). */
+  reset: () => void;
+}
+
+/**
+ * The find band's data-level match query, beside the row query so the two
+ * share key shape and universe semantics: the key is the row query's key
+ * (same universe slot, so `listingKeyUniverse` and the root invalidation
+ * cover both) extended with the find-only inputs, and the placeholder keeps
+ * previous matches only within one universe — folder-mode row ids are
+ * basenames, so another directory's ids could otherwise mark unrelated
+ * same-named rows as matches while a scope change's refetch is in flight.
+ */
+export function useLogsListingMatches<TRow>({
+  filter,
+  orderBy,
+  getValue,
+  getComparator,
+  getFilterType,
+  accessorsKey,
+  listing,
+  term,
+  enabled,
+  getRowId,
+  rowText,
+  searchKey,
+}: UseLogsListingMatchesParams<TRow>): LogsListingMatches {
+  const [matchTerm, setMatchTerm] = useState("");
+  // Same 100ms as the shared FindBand's debounce. The debounced callback
+  // always runs the latest closure, so the flush reads the current term.
+  const syncMatchTerm = useDebouncedCallback(() => setMatchTerm(term), 100);
+  useEffect(() => {
+    syncMatchTerm();
+  }, [term, syncMatchTerm]);
+  const reset = useCallback(() => {
+    syncMatchTerm.cancel();
+    setMatchTerm("");
+  }, [syncMatchTerm]);
+
+  const { logDir, prefix, universe, toRow } = listing;
+  const query = useQuery({
+    queryKey: [
+      ...databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
+      "find",
+      matchTerm,
+      searchKey,
+    ],
+    queryFn: (): Promise<string[]> =>
+      readLogsListingMatches(
+        logDir,
+        prefix,
+        toRow,
+        createListingPlan({
+          filter,
+          orderBy,
+          getValue,
+          getComparator,
+          getFilterType,
+        }),
+        { term: matchTerm, getRowId, rowText }
+      ),
+    enabled: enabled && matchTerm !== "" && universe !== undefined,
+    // Keep the previous matches while a keystroke's refetch is in flight —
+    // within one universe only (see the docstring above).
+    placeholderData: (previousData: string[] | undefined, previousQuery) =>
+      universe !== undefined &&
+      previousQuery !== undefined &&
+      listingKeyUniverse(previousQuery.queryKey) === universe
+        ? previousData
+        : undefined,
+    staleTime: 0,
+    // Transitional (pre-pagination): every distinct term parks a full id
+    // list per key; drop unobserved ones fast, like the row query.
+    gcTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+
+  return {
+    ids: query.data,
+    // `isPending` alone can't gate "no results": a key change served from
+    // the placeholder reads as success while the new term's scan is still
+    // in flight, and an errored query reads as not-pending with no data.
+    settled:
+      term === matchTerm &&
+      !query.isPending &&
+      !query.isPlaceholderData &&
+      !query.isError,
+    reset,
+  };
 }

@@ -9,7 +9,10 @@ import type { Condition } from "@tsmono/inspect-common/query";
 import type { DatabaseListingPlan } from "../../../client/database/listing";
 import type { LogListingRow } from "../../../log_data";
 
-import { useDatabaseLogsListingQuery } from "./useLogsListingQuery";
+import {
+  useDatabaseLogsListingQuery,
+  useLogsListingMatches,
+} from "./useLogsListingQuery";
 
 interface Row {
   name: string;
@@ -31,6 +34,7 @@ type ReadListing = <TRow>(
 const holder = vi.hoisted(() => ({
   records: [] as { name: string; model?: string }[],
   read: vi.fn(),
+  readMatches: vi.fn(),
 }));
 
 vi.mock("../../../log_data", () => ({
@@ -45,6 +49,8 @@ vi.mock("../../../log_data", () => ({
   readLogsListing: (
     ...args: Parameters<ReadListing>
   ): ReturnType<ReadListing> => holder.read(...args) as ReturnType<ReadListing>,
+  readLogsListingMatches: (...args: unknown[]): Promise<string[]> =>
+    holder.readMatches(...args) as Promise<string[]>,
 }));
 
 const records = [
@@ -244,5 +250,114 @@ describe("useDatabaseLogsListingQuery", () => {
     expect(result.current.data).toBeUndefined();
     expect(result.current.loading).toBe(true);
     await waitFor(() => expect(result.current.data).toBeDefined());
+  });
+});
+
+describe("useLogsListingMatches", () => {
+  let queryClient: QueryClient;
+
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    holder.records = records;
+    holder.readMatches.mockReset();
+    // The seam double: lowercase-contains over the shaped records, like
+    // readLogsListingMatches over the scanned rows.
+    holder.readMatches.mockImplementation(
+      (
+        _logDir: string,
+        _prefix: string,
+        rowFor: (log: LogListingRow) => Row | undefined,
+        plan: DatabaseListingPlan<Row>,
+        find: {
+          term: string;
+          getRowId: (row: Row) => string;
+          rowText: (row: Row) => string;
+        }
+      ) => {
+        const rows = holder.records
+          .map((record) => rowFor(record as LogListingRow))
+          .filter((row): row is Row => row !== undefined)
+          .filter(plan.matches);
+        return Promise.resolve(
+          rows
+            .filter((row) =>
+              find.rowText(row).includes(find.term.toLowerCase())
+            )
+            .map(find.getRowId)
+        );
+      }
+    );
+  });
+
+  const wrapper = ({ children }: PropsWithChildren) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+
+  const matchesParams = (overrides?: {
+    term?: string;
+    enabled?: boolean;
+    universe?: string;
+  }) => ({
+    ...listingParams({ universe: overrides?.universe ?? "logs::/logs" }),
+    term: overrides?.term ?? "",
+    enabled: overrides?.enabled ?? true,
+    getRowId: (row: Row) => row.name,
+    rowText: (row: Row) => `${row.name}\n${row.model}`.toLowerCase(),
+    searchKey: ["name", "model"],
+  });
+
+  test("reports ids as settled only after the debounced term's result lands", async () => {
+    const { result, rerender } = renderHook(
+      (props) => useLogsListingMatches<Row>(props),
+      { wrapper, initialProps: matchesParams() }
+    );
+
+    rerender(matchesParams({ term: "claude" }));
+    // Debounce not flushed: no ids for the live term yet, and no
+    // "no results" claim may be made.
+    expect(result.current.ids).toBeUndefined();
+    expect(result.current.settled).toBe(false);
+
+    await waitFor(() => expect(result.current.settled).toBe(true));
+    expect(result.current.ids).toEqual(["/logs/b.eval"]);
+  });
+
+  test("keeps the previous term's ids as a placeholder but reports unsettled", async () => {
+    const { result, rerender } = renderHook(
+      (props) => useLogsListingMatches<Row>(props),
+      { wrapper, initialProps: matchesParams({ term: "claude" }) }
+    );
+    await waitFor(() => expect(result.current.settled).toBe(true));
+
+    // New term: the previous ids keep showing (no flash to empty), but the
+    // result must not read as settled — a "no results" gate on pending
+    // alone would fire here while the new term's scan is in flight.
+    rerender(matchesParams({ term: "zzz" }));
+    expect(result.current.ids).toEqual(["/logs/b.eval"]);
+    expect(result.current.settled).toBe(false);
+
+    await waitFor(() => expect(result.current.settled).toBe(true));
+    expect(result.current.ids).toEqual([]);
+  });
+
+  test("does not serve one universe's ids to another", async () => {
+    const { result, rerender } = renderHook(
+      (props) => useLogsListingMatches<Row>(props),
+      {
+        wrapper,
+        initialProps: matchesParams({ term: "claude" }),
+      }
+    );
+    await waitFor(() => expect(result.current.settled).toBe(true));
+    expect(result.current.ids).toEqual(["/logs/b.eval"]);
+
+    // Folder-mode ids are basenames, so another scope's ids could mark
+    // unrelated same-named rows as matches — they must not carry over.
+    rerender(matchesParams({ term: "claude", universe: "tasks::/logs" }));
+    expect(result.current.ids).toBeUndefined();
+    expect(result.current.settled).toBe(false);
+    await waitFor(() => expect(result.current.settled).toBe(true));
   });
 });

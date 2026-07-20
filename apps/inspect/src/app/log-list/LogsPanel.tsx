@@ -360,11 +360,17 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       ) : (
         <>
           <div className={clsx(styles.list, "text-size-smaller")}>
+            {/* Keyed on the scope so switching folder/mode resets the grid
+                wholesale — scroll, selection, and the find band's state
+                (term + matches) belong to one scope and reset together. */}
             <LogListGrid
+              key={scopeKey ?? "pending"}
               rows={listData.rows}
               totalRowCount={totalRowCount}
               sorting={listData.sorting}
               columnFilters={listData.columnFilters}
+              filter={listData.filter}
+              orderBy={listData.orderBy}
               currentPath={currentDir}
               scopeKey={scopeKey}
               mode={mode}

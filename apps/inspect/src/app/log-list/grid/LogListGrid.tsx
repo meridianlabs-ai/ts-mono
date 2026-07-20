@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import {
@@ -12,18 +11,15 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 
+import type { Condition, OrderByModel } from "@tsmono/inspect-common/query";
 import type {
   ColumnFilter,
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
-import { useDebouncedCallback, useProperty } from "@tsmono/react/hooks";
+import { useProperty } from "@tsmono/react/hooks";
 
-import {
-  databaseLogsListingKeyRoot,
-  readLogsListingMatches,
-} from "../../../log_data";
 import { useLogsListing } from "../../../state/hooks";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {
@@ -32,10 +28,8 @@ import {
   rowSearchText,
 } from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
-import { combineFilters } from "../listing/combineFilters";
-import { createListingPlan } from "../listing/planner";
 import {
-  sortingStateToOrderBy,
+  useLogsListingMatches,
   type LogsListingDescriptor,
 } from "../listing/useLogsListingQuery";
 
@@ -57,11 +51,16 @@ interface LogListGridProps {
    *  state; changes persist via `setGridState`). */
   sorting: SortingState;
   columnFilters?: Record<string, ColumnFilter>;
+  /** The compiled query inputs the rows were produced under (from
+   *  `useLogListData`) — the find band's match query runs under the same
+   *  ones rather than re-deriving them. */
+  filter?: Condition;
+  orderBy?: OrderByModel[];
   currentPath?: string;
-  // Identifies the data scope of the current view (mode + directory). The
-  // grid is keyed on this so switching scope (folder/tasks) gets a fresh
-  // grid (scroll + selection reset). `undefined` means logDir is still
-  // hydrating.
+  // Identifies the data scope of the current view (mode + directory).
+  // LogsPanel keys this component on it, so switching scope (folder/tasks)
+  // gets a fresh grid: scroll, selection, and find state reset together.
+  // `undefined` means logDir is still hydrating.
   scopeKey?: string;
   mode?: LogListMode;
   /** The listing is still being brought up to date (drives the empty-state
@@ -78,6 +77,8 @@ export const LogListGrid: FC<LogListGridProps> = ({
   totalRowCount,
   sorting,
   columnFilters,
+  filter,
+  orderBy,
   currentPath,
   scopeKey,
   mode = "logs",
@@ -195,63 +196,41 @@ export const LogListGrid: FC<LogListGridProps> = ({
   // the DataGrid keeps scrolled into view.
   const [showFind, setShowFind] = useState(false);
   const [findTerm, setFindTerm] = useState("");
-  // The term the DB match query runs under, trailing `findTerm` by a
-  // type-ahead debounce: every distinct term is a fresh scan of the listing
-  // source, so keystrokes coalesce here while the input (and the cheap
-  // overlay match) stay live. Same 100ms as the shared FindBand's debounce.
-  const [matchTerm, setMatchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const findInputRef = useRef<HTMLInputElement>(null);
-  const syncMatchTerm = useDebouncedCallback(() => {
-    setMatchTerm(findInputRef.current?.value ?? "");
-  }, 100);
 
   const searchColumns = useMemo(
     () => columns.filter((col) => col.id !== undefined && visibility[col.id]),
     [columns, visibility]
   );
-
-  // Match membership is data-level, computed against the listing source
-  // under the same universe + filter + sort as the rows — so matches keep
-  // covering rows outside the loaded page once the listing paginates.
-  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
-  const orderBy = useMemo(() => sortingStateToOrderBy(sorting), [sorting]);
+  const searchKey = useMemo(
+    () => searchColumns.map((col) => col.id ?? ""),
+    [searchColumns]
+  );
   const rowText = useCallback(
     (row: LogListRow) => rowSearchText(row, searchColumns),
     [searchColumns]
   );
-  const fileMatches = useQuery({
-    queryKey: [
-      ...databaseLogsListingKeyRoot,
-      "find",
-      listing.universe ?? null,
-      accessorsKey,
-      filter ?? null,
-      orderBy,
-      matchTerm,
-      searchColumns.map((col) => col.id),
-    ],
-    queryFn: (): Promise<string[]> =>
-      readLogsListingMatches(
-        listing.logDir,
-        listing.prefix,
-        listing.toRow,
-        createListingPlan({
-          filter,
-          orderBy,
-          getValue,
-          getComparator,
-          getFilterType,
-        }),
-        { term: matchTerm, getRowId: (row: LogListRow) => row.id, rowText }
-      ),
-    enabled: showFind && matchTerm !== "" && listing.universe !== undefined,
-    // Keep the previous matches while a keystroke's refetch is in flight.
-    placeholderData: (previousData: string[] | undefined) => previousData,
-    staleTime: 0,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
+  const getRowId = useCallback((row: LogListRow) => row.id, []);
+
+  // Match membership is data-level, computed against the listing source
+  // under the same universe + filter + sort as the rows — so matches keep
+  // covering rows outside the loaded page once the listing paginates.
+  const fileMatches = useLogsListingMatches({
+    filter,
+    orderBy,
+    getValue,
+    getComparator,
+    getFilterType,
+    accessorsKey,
+    listing,
+    term: findTerm,
+    enabled: showFind,
+    getRowId,
+    rowText,
+    searchKey,
   });
+  const { reset: resetMatches } = fileMatches;
 
   // Folders and pending tasks have no listing record; match them locally
   // over the (small) overlay slice of the display rows.
@@ -273,18 +252,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const matchIds = useMemo(() => {
     if (!findTerm) return [];
     const matchSet = new Set([
-      ...(fileMatches.data ?? []),
+      ...(fileMatches.ids ?? []),
       ...(overlayIndex ? findMatches(overlayIndex, findTerm) : []),
     ]);
     return rows.filter((row) => matchSet.has(row.id)).map((row) => row.id);
-  }, [findTerm, fileMatches.data, overlayIndex, rows]);
+  }, [findTerm, fileMatches.ids, overlayIndex, rows]);
 
   const handleFindTermChange = useCallback(() => {
     setFindTerm(findInputRef.current?.value ?? "");
-    syncMatchTerm();
     // New term: jump back to the first match.
     setCurrentMatchIndex(0);
-  }, [syncMatchTerm]);
+  }, []);
 
   const goToMatch = useCallback(
     (index: number) => {
@@ -315,10 +293,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
     openBandMatchIdRef.current = undefined;
     setShowFind(false);
     setFindTerm("");
-    syncMatchTerm.cancel();
-    setMatchTerm("");
+    resetMatches();
     setCurrentMatchIndex(0);
-  }, [persistSelectedId, syncMatchTerm]);
+  }, [persistSelectedId, resetMatches]);
 
   // Same persistence for the leave-without-closing path: unmounting (e.g.
   // navigating away) with the band still open. Ref carries the latest match
@@ -370,14 +347,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
           disableNav={matchIds.length === 0}
           noResults={
             // Only claim "no results" once membership for the *displayed*
-            // term has landed: the debounce hasn't flushed yet while the
-            // terms differ, and a disabled/in-flight match query reads as
-            // pending (a disabled query stays pending — that's what
-            // suppresses the flash while the band hydrates).
-            !!findTerm &&
-            findTerm === matchTerm &&
-            matchIds.length === 0 &&
-            !fileMatches.isPending
+            // term has settled — debounce flushed and a real result (not a
+            // stale placeholder, not an error) landed for it.
+            !!findTerm && matchIds.length === 0 && fileMatches.settled
           }
           matchCount={findTerm ? matchIds.length : undefined}
           matchIndex={findTerm ? activeMatchIndex : undefined}
@@ -385,7 +357,6 @@ export const LogListGrid: FC<LogListGridProps> = ({
       )}
       <div className={clsx(gridStyles.gridContainer)}>
         <DataGrid<LogListRow>
-          key={scopeKey ?? "pending"}
           data={rows}
           columns={columns}
           columnVisibility={visibility}

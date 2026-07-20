@@ -1,6 +1,7 @@
 import type { SortingState } from "@tanstack/react-table";
 import { useMemo } from "react";
 
+import type { Condition, OrderByModel } from "@tsmono/inspect-common/query";
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 
 import { useLogsListing } from "../../../state/hooks";
@@ -70,6 +71,11 @@ export interface LogListData {
    *  passed through so grid and query can't diverge. */
   sorting: SortingState;
   columnFilters?: Record<string, ColumnFilter>;
+  /** The compiled query inputs derived from them — passed through for the
+   *  find band's match query, so its membership can't drift from the rows
+   *  via a second derivation. */
+  filter?: Condition;
+  orderBy: OrderByModel[];
   /** The listing query has no result to show yet (first read in flight). */
   pending: boolean;
   /** The listing read failed — `rows` carries only the overlay items, so
@@ -203,6 +209,8 @@ export const useLogListData = ({
       folders.length + (result?.total_count ?? 0) + (overlay?.total_count ?? 0),
     sorting,
     columnFilters,
+    filter,
+    orderBy,
     pending,
     error,
   };
