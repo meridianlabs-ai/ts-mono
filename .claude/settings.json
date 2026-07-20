@@ -11,6 +11,7 @@
       "Bash(pnpm typecheck:*)",
       "Bash(pnpm test:*)",
       "Bash(pnpm format:*)",
+      "Bash(pnpm format:check)",
       "Bash(pnpm e2e:*)"
     ]
   }
