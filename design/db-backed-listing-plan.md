@@ -25,10 +25,12 @@
 >   Folders/pending match locally; display *ordering* of matches still
 >   comes from rendered rows and moves to the snapshot key list with
 >   pagination.
-> - `readLogsListingOffset` — the restore-by-offset seam (decided over
->   restore-by-loaded-rows): resolve the persisted `selectedRowId` to its
->   offset, fetch pages through it, then scroll. Not yet wired — DataGrid's
->   `rows.findIndex` restore is correct while pages are complete.
+> - Restore-by-offset (decided over restore-by-loaded-rows): resolve the
+>   persisted `selectedRowId` to its offset in the filtered+sorted
+>   universe, fetch pages through it, then scroll. A `readLogsListingOffset`
+>   seam was pinned here and later removed as dead code while unwired
+>   (DataGrid's `rows.findIndex` restore is correct while pages are
+>   complete); re-add it from git history with the paging work.
 >
 > Still open: chunked listing *ingestion* (the server listing lands in one
 > shot, so a cold first sync on a huge dir still waits on that fetch),

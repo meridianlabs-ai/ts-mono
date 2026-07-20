@@ -7,13 +7,11 @@ import {
   type DatabaseListingPlan,
   type DatabaseListingResult,
 } from "../client/database/listing";
-import { directoryRelativeUrl } from "../utils/uri";
+import { directoryRelativeUrl, rootName } from "../utils/uri";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
 import { getLogRows, isCacheOnlyListingScope } from "./logsContent";
-
-export type LogsListingSource = "database" | "cache";
 
 /**
  * Where listing queries for `logDir` read their rows — an explicit,
@@ -26,7 +24,7 @@ export type LogsListingSource = "database" | "cache";
  *   `namesInScope` in logsContent) and db-less sessions (the database
  *   failed to open; single-file mode renders no log list at all).
  */
-export const logsListingSource = (logDir: string): LogsListingSource =>
+const logsListingSource = (logDir: string): "database" | "cache" =>
   getDatabaseService().opened() && !isCacheOnlyListingScope(logDir)
     ? "database"
     : "cache";
@@ -121,8 +119,6 @@ export interface LogsOverview {
   /** Folder-mode: the current directory's immediate subdirectories. */
   folders: { name: string; itemCount: number }[];
 }
-
-const rootName = (relativePath: string) => relativePath.split("/")[0] ?? "";
 
 /** Immediate subdirectories of `currentDir` with per-folder log counts. */
 const deriveFolders = (
@@ -232,6 +228,8 @@ export const readLogsListingMatches = async <TRow>(
   find: {
     term: string;
     getRowId: (row: TRow) => string;
+    /** A row's searchable text, already lowercased (`rowSearchText`'s
+     *  contract) — the scan must not pay a second per-row lowering. */
     rowText: (row: TRow) => string;
   }
 ): Promise<string[]> => {
@@ -239,30 +237,9 @@ export const readLogsListingMatches = async <TRow>(
   const term = find.term.toLowerCase();
   const ids: string[] = [];
   for (const row of rows) {
-    if (find.rowText(row).toLowerCase().includes(term)) {
+    if (find.rowText(row).includes(term)) {
       ids.push(find.getRowId(row));
     }
   }
   return ids;
-};
-
-/**
- * Offset of the row with id `id` within the filtered+sorted universe, or
- * `undefined` when no such row exists (filtered out, or not a row of the
- * view). This is the restore-by-offset seam: when the listing paginates,
- * selected-row restore resolves the persisted selection to its offset
- * here, fetches pages through that offset, then scrolls — instead of
- * assuming the row is already in the rendered rows. Runs over the scan
- * today; under keys-first pagination it becomes a key-list lookup.
- */
-export const readLogsListingOffset = async <TRow>(
-  logDir: string,
-  prefix: string,
-  toRow: (log: LogListingRow) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>,
-  target: { id: string; getRowId: (row: TRow) => string }
-): Promise<number | undefined> => {
-  const rows = await scanListingRows(logDir, prefix, toRow, plan);
-  const index = rows.findIndex((row) => target.getRowId(row) === target.id);
-  return index === -1 ? undefined : index;
 };

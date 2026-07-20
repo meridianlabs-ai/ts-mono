@@ -1,7 +1,7 @@
 import { isInDirectory } from "@tsmono/util";
 
 import type { LogListingRow } from "../../log_data";
-import { directoryRelativeUrl, join } from "../../utils/uri";
+import { directoryRelativeUrl, join, rootName } from "../../utils/uri";
 import { logsUrl, tasksUrl } from "../routing/url";
 
 import type { FileLogItem } from "./LogItem";
@@ -16,8 +16,6 @@ export interface FileLogItemView {
   currentDir: string;
   showRetriedLogs: boolean;
 }
-
-const rootName = (relativePath: string) => relativePath.split("/")[0] ?? "";
 
 /**
  * The path-derived part of a file item — id, display name, and url — or
@@ -41,10 +39,7 @@ export const fileLogIdentity = (
     };
   }
 
-  const cleanDir = view.currentDir.endsWith("/")
-    ? view.currentDir.slice(0, -1)
-    : view.currentDir;
-  if (!isInDirectory(name, cleanDir)) return undefined;
+  if (!isInDirectory(name, view.currentDir)) return undefined;
 
   const dirName = directoryRelativeUrl(view.currentDir, view.logDir);
   const relativePath = directoryRelativeUrl(name, view.currentDir);
