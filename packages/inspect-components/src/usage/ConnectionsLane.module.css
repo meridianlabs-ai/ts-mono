@@ -97,3 +97,17 @@
   font-size: 9px;
   fill: var(--bs-secondary);
 }
+
+/* Dark mode — the light-theme series blue and rate-limit red are tuned for a
+   white surface and lose contrast on a dark one. */
+:global([data-bs-theme="dark"]) .rateLimits {
+  color: #d98d7d;
+}
+
+:global([data-bs-theme="dark"]) .series {
+  stroke: #6ba0e0;
+}
+
+:global([data-bs-theme="dark"]) .rateLimitDot {
+  fill: #d98d7d;
+}

@@ -57,9 +57,10 @@ const buildTicks = (
     anchor: "end",
   };
 
+  // day-multiple fallback preserves the 55px spacing rule on long windows
   const interval =
     kNiceIntervals.find((i) => (i / span) * width >= 55) ??
-    kNiceIntervals[kNiceIntervals.length - 1]!;
+    Math.ceil((55 * span) / width / 86400) * 86400;
   const interior: Tick[] = [];
   let prevDate = fmtTickDate(timeWindow.start);
   for (
