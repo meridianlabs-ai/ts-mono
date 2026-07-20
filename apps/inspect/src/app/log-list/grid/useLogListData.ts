@@ -56,6 +56,9 @@ export interface LogListData {
   columnFilters?: Record<string, ColumnFilter>;
   /** The listing query has no result to show yet (first read in flight). */
   pending: boolean;
+  /** The listing read failed — `rows` carries only the overlay items, so
+   *  render this rather than an empty-looking list. */
+  error: Error | undefined;
 }
 
 /**
@@ -116,7 +119,11 @@ export const useLogListData = ({
   );
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
-  const { result, pending } = useDatabaseLogsListingQuery<LogListRow>({
+  const {
+    data: result,
+    loading: pending,
+    error,
+  } = useDatabaseLogsListingQuery<LogListRow>({
     filter,
     orderBy,
     getValue,
@@ -164,5 +171,6 @@ export const useLogListData = ({
     sorting,
     columnFilters,
     pending,
+    error,
   };
 };

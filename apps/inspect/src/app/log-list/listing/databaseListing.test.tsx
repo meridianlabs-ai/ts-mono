@@ -126,13 +126,13 @@ describe("useDatabaseLogsListingQuery", () => {
       { wrapper }
     );
 
-    expect(result.current.pending).toBe(true);
+    expect(result.current.loading).toBe(true);
     await waitFor(() =>
-      expect(result.current.result?.items.map((row) => row.name)).toEqual([
+      expect(result.current.data?.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",
       ])
     );
-    expect(result.current.pending).toBe(false);
+    expect(result.current.loading).toBe(false);
   });
 
   test("queries the seam even without an active filter", async () => {
@@ -143,7 +143,7 @@ describe("useDatabaseLogsListingQuery", () => {
 
     // Source (listing) order is preserved when no sort is active.
     await waitFor(() =>
-      expect(result.current.result?.items.map((row) => row.name)).toEqual([
+      expect(result.current.data?.items.map((row) => row.name)).toEqual([
         "/logs/b.eval",
         "/logs/a.eval",
       ])
@@ -161,8 +161,8 @@ describe("useDatabaseLogsListingQuery", () => {
 
     await Promise.resolve();
     expect(holder.read).not.toHaveBeenCalled();
-    expect(result.current.pending).toBe(true);
-    expect(result.current.result).toBeUndefined();
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
   });
 
   test("keeps the previous result across re-filters within one universe", async () => {
@@ -176,7 +176,7 @@ describe("useDatabaseLogsListingQuery", () => {
       }
     );
     await waitFor(() =>
-      expect(result.current.result?.items.map((row) => row.name)).toEqual([
+      expect(result.current.data?.items.map((row) => row.name)).toEqual([
         "/logs/a.eval",
       ])
     );
@@ -184,12 +184,12 @@ describe("useDatabaseLogsListingQuery", () => {
     // Re-filter: the prior page keeps showing (no pending flash) until the
     // new read lands.
     rerender(listingParams({ filter: new Column("model").eq("claude") }));
-    expect(result.current.pending).toBe(false);
-    expect(result.current.result?.items.map((row) => row.name)).toEqual([
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data?.items.map((row) => row.name)).toEqual([
       "/logs/a.eval",
     ]);
     await waitFor(() =>
-      expect(result.current.result?.items.map((row) => row.name)).toEqual([
+      expect(result.current.data?.items.map((row) => row.name)).toEqual([
         "/logs/b.eval",
       ])
     );
@@ -203,16 +203,29 @@ describe("useDatabaseLogsListingQuery", () => {
         initialProps: listingParams({ accessorsKey: "" }),
       }
     );
-    await waitFor(() => expect(result.current.result).toBeDefined());
+    await waitFor(() => expect(result.current.data).toBeDefined());
     expect(holder.read).toHaveBeenCalledTimes(1);
 
     // The scorer schema arriving changes what the plan computes without any
     // other query input changing — same universe, so the previous rows keep
     // showing while the re-evaluated read is in flight.
     rerender(listingParams({ accessorsKey: "grader/accuracy:number" }));
-    expect(result.current.pending).toBe(false);
-    expect(result.current.result).toBeDefined();
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toBeDefined();
     await waitFor(() => expect(holder.read).toHaveBeenCalledTimes(2));
+  });
+
+  test("surfaces a failed read as an error, not an empty listing", async () => {
+    holder.read.mockRejectedValue(new Error("scan failed"));
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+
+    await waitFor(() => expect(result.current.error).toBeDefined());
+    expect(result.current.error?.message).toBe("scan failed");
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toBeUndefined();
   });
 
   test("does not serve one universe's rows to another", async () => {
@@ -223,13 +236,13 @@ describe("useDatabaseLogsListingQuery", () => {
         initialProps: listingParams({ universe: "logs::/logs" }),
       }
     );
-    await waitFor(() => expect(result.current.result).toBeDefined());
+    await waitFor(() => expect(result.current.data).toBeDefined());
 
     // A different universe (e.g. the flat tasks view at the same prefix)
     // must not show the folder view's rows while its own read is in flight.
     rerender(listingParams({ universe: "tasks::/logs" }));
-    expect(result.current.result).toBeUndefined();
-    expect(result.current.pending).toBe(true);
-    await waitFor(() => expect(result.current.result).toBeDefined());
+    expect(result.current.data).toBeUndefined();
+    expect(result.current.loading).toBe(true);
+    await waitFor(() => expect(result.current.data).toBeDefined());
   });
 });

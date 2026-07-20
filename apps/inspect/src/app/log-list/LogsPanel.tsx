@@ -123,7 +123,6 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // The navbar bar tracks the sync round-trip only — engine background
   // fetching (`busy`) stays in the footer/overlay indications.
   const navbarLoading = sync.loading || overviewQuery.loading;
-  const error = sync.error ?? overviewQuery.error;
 
   // Presentation items with no database record: folders (pinned) and the
   // eval set's not-yet-run tasks. File rows come from the listing query.
@@ -214,6 +213,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // first-read window into the busy indication so the grid shows "syncing"
   // rather than a silently empty list.
   const listBusy = busy || listData.pending || overviewQuery.loading;
+  const error = sync.error ?? overviewQuery.error ?? listData.error;
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility

@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
 import { useMemo } from "react";
 
@@ -7,6 +6,8 @@ import type {
   OrderByModel,
   Pagination,
 } from "@tsmono/inspect-common/query";
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import type { AsyncData } from "@tsmono/util";
 
 import type { LogListingRow } from "../../../log_data";
 import {
@@ -101,23 +102,15 @@ interface UseDatabaseLogsListingParams<TRow> {
   listing: LogsListingDescriptor<TRow>;
 }
 
-export interface DatabaseLogsListing<TRow> {
-  /** The latest result for this universe (a placeholder from the previous
-   *  filter/sort while a refetch is in flight); `undefined` until the
-   *  universe's first read lands. */
-  result: LogsListingResult<TRow> | undefined;
-  /** No result to show yet — the universe is hydrating or its first read is
-   *  in flight. Rows stream in via write-path invalidation after that. */
-  pending: boolean;
-}
-
 /**
  * The log listing query: rows are read from the listing source (IndexedDB
  * in dir mode — see `readLogsListing`) and shaped per view inside the
  * queryFn, so the full row list never has to live in memory for the grid's
  * sake. Results are asynchronous by design: the first read shows whatever
  * has replicated so far, and the write path's throttled invalidation
- * streams further rows in as they land.
+ * streams further rows in as they land. `loading` covers hydration and the
+ * universe's first read; within one universe a re-filter/sort reports the
+ * previous result as `data` (no loading flash) until the new read lands.
  */
 export function useDatabaseLogsListingQuery<TRow>({
   filter,
@@ -128,9 +121,9 @@ export function useDatabaseLogsListingQuery<TRow>({
   getFilterType,
   accessorsKey,
   listing,
-}: UseDatabaseLogsListingParams<TRow>): DatabaseLogsListing<TRow> {
+}: UseDatabaseLogsListingParams<TRow>): AsyncData<LogsListingResult<TRow>> {
   const { logDir, prefix, universe, toRow } = listing;
-  const query = useQuery({
+  return useAsyncDataFromQuery({
     queryKey: databaseLogsListingKey(
       universe,
       accessorsKey,
@@ -170,5 +163,4 @@ export function useDatabaseLogsListingQuery<TRow>({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
-  return { result: query.data, pending: query.isPending };
 }
