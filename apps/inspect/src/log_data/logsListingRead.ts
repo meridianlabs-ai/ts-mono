@@ -1,14 +1,18 @@
+import type { Condition, OrderByModel } from "@tsmono/inspect-common/query";
 import { ensureTrailingSlash, isInDirectory } from "@tsmono/util";
 
 import type { Log } from "../client/api/types";
 import { scopePrefix } from "../client/database";
 import {
   pageRows,
+  type Cursor,
   type DatabaseListingPlan,
   type DatabaseListingResult,
 } from "../client/database/listing";
+import { queryClient } from "../state/queryClient";
 import { directoryRelativeUrl, rootName } from "../utils/uri";
 
+import { databaseLogsListingSnapshotKey } from "./databaseListings";
 import { getDatabaseService } from "./databaseServiceInstance";
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
 import { getLogRows, isCacheOnlyListingScope } from "./logsContent";
@@ -47,7 +51,9 @@ const scanRows = async (logDir: string, prefix: string): Promise<Log[]> => {
  * Run a listing plan over `logDir`'s rows: scan the source, mark retried
  * runs (a cross-row derivation, so it runs over the scan, before `toRow`),
  * shape each record through `toRow` (which owns row-universe membership —
- * it drops records the view has no row for), then filter, sort, paginate.
+ * it drops records the view has no row for), then filter and sort. Each
+ * surviving row is returned beside its source record: the snapshot build
+ * needs the record's key and retried mark, the row readers just the rows.
  *
  * Deliberately NOT gated on the scope's sync state: results reflect
  * whatever has replicated so far — a warm cache from a prior session, or a
@@ -60,22 +66,35 @@ const scanRows = async (logDir: string, prefix: string): Promise<Log[]> => {
  * prefix scan never splits a group and the marking matches a whole-dir
  * scan's.
  */
+const scanListingEntries = async <TRow>(
+  logDir: string,
+  prefix: string,
+  toRow: (log: LogListingRow) => TRow | undefined,
+  plan: DatabaseListingPlan<TRow>
+): Promise<{ log: LogListingRow; row: TRow }[]> => {
+  const scanned = await scanRows(logDir, prefix);
+  const entries: { log: LogListingRow; row: TRow }[] = [];
+  for (const log of computeLogsWithRetried(scanned)) {
+    const row = toRow(log);
+    if (row !== undefined && plan.matches(row)) entries.push({ log, row });
+  }
+  // Stable sort over the scan's listing order (mtime-descending), so ties —
+  // and the unsorted listing — keep that order without a position tiebreak.
+  if (plan.compare) {
+    const compare = plan.compare;
+    entries.sort((a, b) => compare(a.row, b.row));
+  }
+  return entries;
+};
+
 const scanListingRows = async <TRow>(
   logDir: string,
   prefix: string,
   toRow: (log: LogListingRow) => TRow | undefined,
   plan: DatabaseListingPlan<TRow>
 ): Promise<TRow[]> => {
-  const scanned = await scanRows(logDir, prefix);
-  const rows: TRow[] = [];
-  for (const log of computeLogsWithRetried(scanned)) {
-    const row = toRow(log);
-    if (row !== undefined && plan.matches(row)) rows.push(row);
-  }
-  // Stable sort over the scan's listing order (mtime-descending), so ties —
-  // and the unsorted listing — keep that order without a position tiebreak.
-  if (plan.compare) rows.sort(plan.compare);
-  return rows;
+  const entries = await scanListingEntries(logDir, prefix, toRow, plan);
+  return entries.map((entry) => entry.row);
 };
 
 export const readLogsListing = async <TRow>(
@@ -87,6 +106,161 @@ export const readLogsListing = async <TRow>(
   const rows = await scanListingRows(logDir, prefix, toRow, plan);
   const total_count = rows.length;
   return { ...pageRows(rows, plan.pagination), total_count };
+};
+
+/**
+ * The tier-1 snapshot (keys-first pagination): one scan's ordered result as
+ * primary keys, so the count comes free and each page is a cheap `bulkGet`
+ * of a key slice — pages are mutually consistent under concurrent
+ * replication writes because they all slice the same frozen ordering.
+ */
+export interface LogsListingSnapshot<TRow> {
+  /** Ordered record keys (`file_path`) of the filtered+sorted row universe. */
+  keys: string[];
+  /** `keys.length` — the scan that orders also counts. */
+  total_count: number;
+  /** The scan's retried marks by key. A cross-row derivation
+   *  (`computeLogsWithRetried`): a page's key-slice `bulkGet` cannot
+   *  re-derive it, so pages re-attach these to their records. */
+  retried: Record<string, boolean>;
+  /** Shaped rows for the first page, seeded by the build (decision 3): the
+   *  scan shaped them anyway, so serving page one adds no second read over
+   *  today's one-read flow. Sized by the build's `firstPageSize`
+   *  (unbounded when unset). */
+  firstPage: TRow[];
+}
+
+/** Build a {@link LogsListingSnapshot} with today's scan pipeline (the
+ *  transitional form — see the retried-marking constraint in the plan doc;
+ *  an index-backed walk can replace the internals later without changing
+ *  the snapshot shape). */
+export const readLogsListingSnapshot = async <TRow>(
+  logDir: string,
+  prefix: string,
+  toRow: (log: LogListingRow) => TRow | undefined,
+  plan: DatabaseListingPlan<TRow>,
+  firstPageSize?: number
+): Promise<LogsListingSnapshot<TRow>> => {
+  const entries = await scanListingEntries(logDir, prefix, toRow, plan);
+  const keys: string[] = [];
+  const retried: Record<string, boolean> = {};
+  for (const { log } of entries) {
+    keys.push(log.name);
+    if (log.retried !== undefined) retried[log.name] = log.retried;
+  }
+  const firstPage = (
+    firstPageSize === undefined ? entries : entries.slice(0, firstPageSize)
+  ).map((entry) => entry.row);
+  return { keys, total_count: keys.length, retried, firstPage };
+};
+
+/** One page of records by key slice: `bulkGet`, re-attach the snapshot's
+ *  retried marks, shape via `toRow`. A key deleted (or reshaped out of the
+ *  universe) between snapshot and read is a dropped hole — the page runs
+ *  short rather than erroring; the next invalidation rebuilds the keys. */
+const readSnapshotPageRows = async <TRow>(
+  snapshot: LogsListingSnapshot<TRow>,
+  toRow: (log: LogListingRow) => TRow | undefined,
+  offset: number,
+  limit: number
+): Promise<TRow[]> => {
+  const keys = snapshot.keys.slice(offset, offset + limit);
+  if (keys.length === 0) return [];
+  const records = await getDatabaseService().readLogRows(keys);
+  const rows: TRow[] = [];
+  for (const key of keys) {
+    const record = records[key];
+    if (record === undefined) continue;
+    const row = toRow({ ...record, retried: snapshot.retried[key] });
+    if (row !== undefined) rows.push(row);
+  }
+  return rows;
+};
+
+/** The query inputs a paged listing read composes over: the listing source
+ *  (`logDir`/`prefix`/`toRow`), the snapshot's cache identity (the row
+ *  query's own key slots), and the compiled plan (pagination unset — paging
+ *  slices the snapshot's key list, not the plan). */
+export interface LogsListingPageQuery<TRow> {
+  logDir: string;
+  prefix: string;
+  toRow: (log: LogListingRow) => TRow | undefined;
+  universe: string;
+  accessorsKey: string;
+  filter?: Condition;
+  orderBy?: OrderByModel[];
+  plan: DatabaseListingPlan<TRow>;
+}
+
+/**
+ * Serve one page of the listing via the two-tier snapshot scheme
+ * (decision 3): the snapshot is itself a react-query entry — obtained
+ * exclusively here, so concurrent page fetches dedupe into one build,
+ * later pages reuse it, and lifecycle is plain `gcTime`. `fetchQuery`
+ * with `staleTime: Infinity` rather than `ensureQueryData`: both dedupe,
+ * but after the write path invalidates the (observer-less) snapshot,
+ * `ensureQueryData` would resolve with the stale keys and only rebuild in
+ * the background — a final sync write would then never reach the grid,
+ * breaking the streaming invariant. `fetchQuery` awaits the rebuild
+ * exactly when the snapshot has been invalidated and serves it from cache
+ * otherwise.
+ *
+ * `limit` unset serves the whole listing as a single page. Cache-only
+ * scopes (db-less sessions, out-of-namespace dirs) don't take the snapshot
+ * path at all — their rows already live in memory, so one scan per read
+ * stays the simpler and equally-cheap form.
+ */
+export const readLogsListingPage = async <TRow>(
+  query: LogsListingPageQuery<TRow>,
+  page: { cursor?: Cursor | null; limit?: number }
+): Promise<DatabaseListingResult<TRow>> => {
+  const { logDir, prefix, toRow, plan } = query;
+  if (logsListingSource(logDir) === "cache") {
+    return readLogsListing(logDir, prefix, toRow, plan);
+  }
+  const snapshot = await queryClient.fetchQuery({
+    queryKey: databaseLogsListingSnapshotKey(
+      query.universe,
+      query.accessorsKey,
+      query.filter,
+      query.orderBy
+    ),
+    queryFn: () =>
+      readLogsListingSnapshot(logDir, prefix, toRow, plan, page.limit),
+    // Fresh until invalidated (see above); short gcTime because the key
+    // list + inline first page are per-(filter, orderBy) copies and the
+    // query has no observers to keep it active.
+    staleTime: Infinity,
+    gcTime: 30_000,
+  });
+
+  const offset =
+    page.cursor && typeof page.cursor.offset === "number"
+      ? page.cursor.offset
+      : 0;
+  const { total_count } = snapshot;
+  if (page.limit === undefined) {
+    // Single full page: the build shaped every row inline.
+    const items = offset === 0 ? snapshot.firstPage : [];
+    return { items, total_count, next_cursor: null };
+  }
+  // The inline first page covers offset 0 whenever it holds `limit` rows —
+  // or the whole (shorter) universe. A cached snapshot built under another
+  // limit falls through to the bulkGet path.
+  const items =
+    offset === 0 &&
+    (snapshot.firstPage.length >= page.limit ||
+      snapshot.firstPage.length === total_count)
+      ? snapshot.firstPage.slice(0, page.limit)
+      : await readSnapshotPageRows(snapshot, toRow, offset, page.limit);
+  const end = offset + page.limit;
+  return {
+    items,
+    total_count,
+    // Cursors index the snapshot's key list (not served-row counts), so a
+    // dropped hole never desyncs subsequent pages.
+    next_cursor: end < total_count ? { offset: end } : null,
+  };
 };
 
 /** View inputs for {@link readLogsOverview}. */
