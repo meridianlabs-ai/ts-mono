@@ -28,6 +28,22 @@ import { buildLogListRow } from "./logListRow";
 
 const kNoRows: LogListRow[] = [];
 
+/** Pending rows minus the tasks that already have a file row in `fileRows`
+ *  (pending row ids are task ids; file rows carry their record's task_id). */
+export const dropSettledPendingRows = (
+  pendingRows: LogListRow[],
+  fileRows: LogListRow[]
+): LogListRow[] => {
+  if (pendingRows.length === 0 || fileRows.length === 0) return pendingRows;
+  const fileTaskIds = new Set<string>();
+  for (const row of fileRows) {
+    const taskId = row.log?.task_id;
+    if (taskId) fileTaskIds.add(taskId);
+  }
+  if (fileTaskIds.size === 0) return pendingRows;
+  return pendingRows.filter((row) => !fileTaskIds.has(row.id));
+};
+
 interface UseLogListDataParams {
   /** Presentation rows with no database record: folders (pinned) and
    *  pending tasks (merged into the queried page as a sorted overlay).
@@ -133,20 +149,37 @@ export const useLogListData = ({
     listing,
   });
 
+  // The pending anti-join input (overview.taskIds) and the file rows are two
+  // independent async reads of the same store, so a settle-order skew can
+  // briefly keep a task's pending row while its first log file already
+  // renders. Re-derive against the queried page: a task with a file row is
+  // not pending, whatever the overview's snapshot said.
+  const visiblePendingRows = useMemo(
+    () => dropSettledPendingRows(pendingRows, result?.items ?? kNoRows),
+    [pendingRows, result]
+  );
+
   // Pending tasks have no database record: run the same query over them in
   // memory and merge the (small) result into the query's page.
   const overlay = useMemo(
     () =>
-      pendingRows.length === 0
+      visiblePendingRows.length === 0
         ? undefined
-        : applyListingQuery(pendingRows, {
+        : applyListingQuery(visiblePendingRows, {
             filter,
             orderBy,
             getValue,
             getComparator,
             getFilterType,
           }),
-    [pendingRows, filter, orderBy, getValue, getComparator, getFilterType]
+    [
+      visiblePendingRows,
+      filter,
+      orderBy,
+      getValue,
+      getComparator,
+      getFilterType,
+    ]
   );
 
   const files = useMemo(() => {
