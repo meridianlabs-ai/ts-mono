@@ -18,7 +18,7 @@ import type {
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import { useDebouncedCallback, useProperty } from "@tsmono/react/hooks";
 
 import {
   databaseLogsListingKeyRoot,
@@ -97,8 +97,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
     "mode",
     { defaultValue: "by-metric" }
   );
-  const { columns, visibility, getValue, getComparator, getFilterType } =
-    useLogListColumns(mode, scopeDir, scoresViewMode);
+  const {
+    columns,
+    visibility,
+    getValue,
+    getComparator,
+    getFilterType,
+    accessorsKey,
+  } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
   const handleRowActivate = useCallback(
     (row: LogListRow) => {
@@ -189,8 +195,16 @@ export const LogListGrid: FC<LogListGridProps> = ({
   // the DataGrid keeps scrolled into view.
   const [showFind, setShowFind] = useState(false);
   const [findTerm, setFindTerm] = useState("");
+  // The term the DB match query runs under, trailing `findTerm` by a
+  // type-ahead debounce: every distinct term is a fresh scan of the listing
+  // source, so keystrokes coalesce here while the input (and the cheap
+  // overlay match) stay live. Same 100ms as the shared FindBand's debounce.
+  const [matchTerm, setMatchTerm] = useState("");
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
   const findInputRef = useRef<HTMLInputElement>(null);
+  const syncMatchTerm = useDebouncedCallback(() => {
+    setMatchTerm(findInputRef.current?.value ?? "");
+  }, 100);
 
   const searchColumns = useMemo(
     () => columns.filter((col) => col.id !== undefined && visibility[col.id]),
@@ -211,9 +225,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
       ...databaseLogsListingKeyRoot,
       "find",
       listing.universe ?? null,
+      accessorsKey,
       filter ?? null,
       orderBy,
-      findTerm,
+      matchTerm,
       searchColumns.map((col) => col.id),
     ],
     queryFn: (): Promise<string[]> =>
@@ -228,9 +243,9 @@ export const LogListGrid: FC<LogListGridProps> = ({
           getComparator,
           getFilterType,
         }),
-        { term: findTerm, getRowId: (row: LogListRow) => row.id, rowText }
+        { term: matchTerm, getRowId: (row: LogListRow) => row.id, rowText }
       ),
-    enabled: showFind && findTerm !== "" && listing.universe !== undefined,
+    enabled: showFind && matchTerm !== "" && listing.universe !== undefined,
     // Keep the previous matches while a keystroke's refetch is in flight.
     placeholderData: (previousData: string[] | undefined) => previousData,
     staleTime: 0,
@@ -266,9 +281,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const handleFindTermChange = useCallback(() => {
     setFindTerm(findInputRef.current?.value ?? "");
+    syncMatchTerm();
     // New term: jump back to the first match.
     setCurrentMatchIndex(0);
-  }, []);
+  }, [syncMatchTerm]);
 
   const goToMatch = useCallback(
     (index: number) => {
@@ -299,8 +315,10 @@ export const LogListGrid: FC<LogListGridProps> = ({
     openBandMatchIdRef.current = undefined;
     setShowFind(false);
     setFindTerm("");
+    syncMatchTerm.cancel();
+    setMatchTerm("");
     setCurrentMatchIndex(0);
-  }, [persistSelectedId]);
+  }, [persistSelectedId, syncMatchTerm]);
 
   // Same persistence for the leave-without-closing path: unmounting (e.g.
   // navigating away) with the band still open. Ref carries the latest match
@@ -351,7 +369,15 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onNext={() => goToMatch(activeMatchIndex + 1)}
           disableNav={matchIds.length === 0}
           noResults={
-            !!findTerm && matchIds.length === 0 && !fileMatches.isPending
+            // Only claim "no results" once membership for the *displayed*
+            // term has landed: the debounce hasn't flushed yet while the
+            // terms differ, and a disabled/in-flight match query reads as
+            // pending (a disabled query stays pending — that's what
+            // suppresses the flash while the band hydrates).
+            !!findTerm &&
+            findTerm === matchTerm &&
+            matchIds.length === 0 &&
+            !fileMatches.isPending
           }
           matchCount={findTerm ? matchIds.length : undefined}
           matchIndex={findTerm ? activeMatchIndex : undefined}
