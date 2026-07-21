@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { openZipFileFromBuffer } from "../../client/remote/remoteZipFile";
+import { hydrateFinalConversation } from "../chunkedMessages";
 
 import { openChunkedSample, type ChunkedSample } from "./chunkedSample";
 import { decodeRange, type DecodeCtx } from "./decode";
@@ -123,6 +124,15 @@ describe("chunked corpus", () => {
 
       // the twin check: TS producer over reassembled events == persisted skeleton
       expect(sampleSkeleton(events)).toStrictEqual(sample.skeleton);
+
+      // the final conversation hydrates from message_refs, fully resolved
+      const conversation = await hydrateFinalConversation(sample);
+      const refWidths = sample.shell.message_refs.reduce(
+        (n, [start, end]) => n + (end - start),
+        0
+      );
+      expect(conversation.length).toBe(refWidths);
+      expect(JSON.stringify(conversation)).not.toContain('"attachment://');
 
       // decode walk, everything visible and expanded
       const expanded = new RowSpace(

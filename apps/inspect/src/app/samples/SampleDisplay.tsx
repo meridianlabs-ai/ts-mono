@@ -57,7 +57,7 @@ import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
-import { getApi } from "../../app_config";
+import { getApi, useLogDir } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -70,6 +70,7 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
+import { useChunkedMessages } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
@@ -207,6 +208,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     /* eslint-enable react-hooks/refs */
   }, [sample?.messages, runningSampleData]);
 
+  // Chunked samples carry an empty shell `messages` array; the Messages tab
+  // hydrates the final conversation from message_refs instead.
+  const logDir = useLogDir();
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
+  const chunkedMessages = useChunkedMessages(
+    logDir,
+    isChunked ? selectedSampleHandle : undefined,
+    sampleData.chunked
+  );
+  const effectiveMessages = isChunked
+    ? (chunkedMessages.data ?? [])
+    : sampleMessages;
+
   // Get all URL parameters at component level
   const {
     logPath: urlLogPath,
@@ -302,9 +318,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
   const printLogPath = urlLogPath || selectedLogFile;
   const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
@@ -864,7 +877,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <ChatViewVirtualList
                   key={`${baseId}-chat-${id}`}
                   id={`${baseId}-chat-${id}`}
-                  messages={sampleMessages}
+                  messages={effectiveMessages}
                   initialMessageId={sampleDetailNavigation.message}
                   offsetTop={stickyOffsetTop}
                   display={chatDisplay}

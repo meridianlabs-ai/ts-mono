@@ -48,31 +48,42 @@ const collectRefs = (value: unknown, into: Set<number>): void => {
 };
 
 /**
+ * Substitute every attachment ref in `items` from the sample's attachments
+ * sequence (fetches dedup through the shared chunk-byte store). `label`
+ * names the batch in the read log.
+ */
+export const withAttachmentsResolved = async <T>(
+  items: T[],
+  chunked: ChunkedSample,
+  label: string
+): Promise<T[]> => {
+  const refs = new Set<number>();
+  collectRefs(items, refs);
+  if (refs.size === 0) {
+    return items;
+  }
+  log.info(
+    `resolve ${refs.size} attachment ref${refs.size === 1 ? "" : "s"} for ${label}`
+  );
+  const attachments: Record<string, string> = {};
+  await Promise.all(
+    [...refs].map(async (index) => {
+      const [content] = await chunked.attachments.getRange(index, index + 1);
+      if (content !== undefined) {
+        attachments[String(index)] = content;
+      }
+    })
+  );
+  return items.map((item) => resolveAttachments(item, attachments));
+};
+
+/**
  * The sample's events reader with attachment refs resolved per chunk.
- * Chunk-level caching means each chunk resolves once; attachment fetches
- * dedup through the shared chunk-byte store.
+ * Chunk-level caching means each chunk resolves once.
  */
 export const resolvedEventsReader = (
   chunked: ChunkedSample
 ): SequenceReader<ChunkedEvent> =>
-  chunked.events.withTransform(async (items, start) => {
-    const refs = new Set<number>();
-    collectRefs(items, refs);
-    if (refs.size === 0) {
-      return items;
-    }
-    log.info(
-      `resolve ${refs.size} attachment ref${refs.size === 1 ? "" : "s"} ` +
-        `for events chunk ${start}`
-    );
-    const attachments: Record<string, string> = {};
-    await Promise.all(
-      [...refs].map(async (index) => {
-        const [content] = await chunked.attachments.getRange(index, index + 1);
-        if (content !== undefined) {
-          attachments[String(index)] = content;
-        }
-      })
-    );
-    return items.map((ev) => resolveAttachments(ev, attachments));
-  });
+  chunked.events.withTransform((items, start) =>
+    withAttachmentsResolved(items, chunked, `events chunk ${start}`)
+  );
