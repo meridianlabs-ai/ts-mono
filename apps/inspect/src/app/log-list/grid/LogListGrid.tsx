@@ -255,16 +255,23 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [showFind, rows, searchColumns]
   );
 
-  // Display-order match list: membership from the queries, order from the
-  // rendered rows. (Under pagination the ordering piece moves to the
-  // snapshot key list; membership stays as-is.)
-  const matchIds = useMemo(() => {
-    if (!findTerm) return [];
+  // Match membership is universe-wide (the DB scan covers rows beyond the
+  // loaded pages), so the count reports the whole universe — but display
+  // order (and thus navigation) comes from the rendered rows, so `matchIds`
+  // holds only the loaded matches. Because pages load head-first, they are
+  // a listing-order prefix of the universe's matches; matches past the
+  // loaded window aren't navigable until ordering moves to the snapshot key
+  // list (range-driven rework — see the plan doc).
+  const { matchIds, totalMatchCount } = useMemo(() => {
+    if (!findTerm) return { matchIds: [], totalMatchCount: 0 };
     const matchSet = new Set([
       ...(fileMatches.ids ?? []),
       ...(overlayIndex ? findMatches(overlayIndex, findTerm) : []),
     ]);
-    return rows.filter((row) => matchSet.has(row.id)).map((row) => row.id);
+    return {
+      matchIds: rows.filter((row) => matchSet.has(row.id)).map((row) => row.id),
+      totalMatchCount: matchSet.size,
+    };
   }, [findTerm, fileMatches.ids, overlayIndex, rows]);
 
   const handleFindTermChange = useCallback(() => {
@@ -355,13 +362,19 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onNext={() => goToMatch(activeMatchIndex + 1)}
           disableNav={matchIds.length === 0}
           noResults={
-            // Only claim "no results" once membership for the *displayed*
-            // term has settled — debounce flushed and a real result (not a
-            // stale placeholder, not an error) landed for it.
-            !!findTerm && matchIds.length === 0 && fileMatches.settled
+            // Universe-wide: matches beyond the loaded pages must not read
+            // as "no results". Only claimed once membership for the
+            // *displayed* term has settled — debounce flushed and a real
+            // result (not a stale placeholder, not an error) landed for it.
+            !!findTerm && totalMatchCount === 0 && fileMatches.settled
           }
-          matchCount={findTerm ? matchIds.length : undefined}
-          matchIndex={findTerm ? activeMatchIndex : undefined}
+          matchCount={findTerm ? totalMatchCount : undefined}
+          matchIndex={
+            // The index is within the loaded (navigable) prefix; when no
+            // match is loaded, show no counter rather than claim a position
+            // on an unreachable match.
+            findTerm && matchIds.length > 0 ? activeMatchIndex : undefined
+          }
         />
       )}
       <div className={clsx(gridStyles.gridContainer)}>
