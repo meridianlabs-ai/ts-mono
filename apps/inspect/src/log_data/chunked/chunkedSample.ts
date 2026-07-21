@@ -50,9 +50,12 @@ const readJson = async <T>(
 ): Promise<T> => {
   const startedAt = performance.now();
   const bytes = await source.readFile(name);
+  // "fetch" = range-read member bytes + decompress, same operation the
+  // chunk-byte store logs; sidecars just bypass its LRU (fetched once per
+  // sample open, no re-read to cache for).
   log.info(
-    `read ${name} — ${(bytes.byteLength / 1024).toFixed(1)}KB in ` +
-      `${(performance.now() - startedAt).toFixed(0)}ms`
+    `fetch ${name} — ${(bytes.byteLength / 1024).toFixed(1)}KB in ` +
+      `${(performance.now() - startedAt).toFixed(0)}ms (sidecar, uncached)`
   );
   return JSON.parse(decoder.decode(bytes)) as T;
 };
