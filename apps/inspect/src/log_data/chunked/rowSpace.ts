@@ -8,8 +8,6 @@
  * chunk. Ordinals — not row indexes — are the stable scroll coordinate
  * (amendment 3): callers re-anchor via `rowIndexForOrdinal`.
  */
-import { createLogger } from "@tsmono/util";
-
 import type { SequenceReader } from "./chunkStore";
 import {
   decodeRange,
@@ -19,10 +17,9 @@ import {
   type ViewRow,
 } from "./decode";
 import { at } from "./format";
+import { log } from "./log";
 import type { SkeletonIndex } from "./skeletonIndex";
 import type { ChunkedEvent, EventChunkStats } from "./types";
-
-const log = createLogger("chunked");
 
 /** Guessed events per run row when a chunk is only estimated. */
 const EST_RUN_LEN = 6;

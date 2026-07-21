@@ -6,7 +6,6 @@
  * only").
  */
 import type { ChatMessage } from "@tsmono/inspect-common";
-import { createLogger } from "@tsmono/util";
 
 import {
   ChunkByteStore,
@@ -20,6 +19,7 @@ import {
   skeletonEntryName,
   statsEntryName,
 } from "./format";
+import { log } from "./log";
 import { SkeletonIndex } from "./skeletonIndex";
 import type {
   ChunkedEvent,
@@ -43,8 +43,6 @@ export interface ChunkedSample {
 }
 
 const decoder = new TextDecoder();
-
-const log = createLogger("chunked");
 
 const readJson = async <T>(
   source: EntryByteSource,

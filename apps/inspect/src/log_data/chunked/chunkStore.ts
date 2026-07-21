@@ -8,14 +8,8 @@
  * callers). `SequenceReader` layers chunk math + JSON parsing + `getRange`
  * over it for one sequence.
  */
-import { createLogger } from "@tsmono/util";
-
 import { at, chunkIndexOf, chunkStarts, sequenceCount } from "./format";
-
-// Emits under DEV_LOGGING=true builds (DEV_LOGGING_NAMESPACES=chunked):
-// every member fetch/cache-hit/eviction and chunk parse, for confirming the
-// windowed-read behavior while scrolling.
-const log = createLogger("chunked");
+import { log } from "./log";
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
 
