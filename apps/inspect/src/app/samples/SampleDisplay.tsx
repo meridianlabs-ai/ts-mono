@@ -148,12 +148,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
   // A sample with no events has no transcript to show; default to the
-  // messages tab when its body settles.
+  // messages tab when its body settles. (Chunked samples carry an empty
+  // shell `events` array but window their transcript separately.)
+  const isChunked = sampleData.chunked !== undefined;
   useEffect(() => {
-    if (sample !== undefined && sample.events.length < 1) {
+    if (sample !== undefined && sample.events.length < 1 && !isChunked) {
       setSelectedTab(kSampleMessagesTabId);
     }
-  }, [sample, setSelectedTab]);
+  }, [sample, isChunked, setSelectedTab]);
 
   // Per-tab scroll positions persist while tabbing within a sample (each tab's
   // VirtualList snapshot is keyed by sample id). Clear them when leaving this
