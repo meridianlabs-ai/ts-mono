@@ -855,6 +855,9 @@ importers:
       arquero:
         specifier: ^8.0.3
         version: 8.0.3
+      esbuild:
+        specifier: ^0.28.1
+        version: 0.28.1
       eslint:
         specifier: ^9.39.5
         version: 9.39.5
@@ -867,6 +870,9 @@ importers:
       lz4js:
         specifier: ^0.2.0
         version: 0.2.0
+      playwright-core:
+        specifier: ^1.61.0
+        version: 1.61.1
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'

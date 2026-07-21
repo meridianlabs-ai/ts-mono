@@ -10,10 +10,9 @@ import {
   SearchRequest,
   SearchResponse,
 } from "@tsmono/inspect-common/types";
-import { encodeBase64Url } from "@tsmono/util";
+import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { EvalScores } from "../../../@types/extraInspect";
-import { asyncJsonParse } from "../../../utils/json-worker";
 import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleData";
 import { download_file } from "../shared/api-shared";
 import {
