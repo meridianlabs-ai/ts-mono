@@ -8,6 +8,8 @@
  * chunk. Ordinals — not row indexes — are the stable scroll coordinate
  * (amendment 3): callers re-anchor via `rowIndexForOrdinal`.
  */
+import { createLogger } from "@tsmono/util";
+
 import type { SequenceReader } from "./chunkStore";
 import {
   decodeRange,
@@ -19,6 +21,8 @@ import {
 import { at } from "./format";
 import type { SkeletonIndex } from "./skeletonIndex";
 import type { ChunkedEvent, EventChunkStats } from "./types";
+
+const log = createLogger("chunked");
 
 /** Guessed events per run row when a chunk is only estimated. */
 const EST_RUN_LEN = 6;
@@ -213,6 +217,7 @@ export class RowSpace {
 
   private async doMaterialize(chunkIdx: number, ctx: DecodeCtx): Promise<void> {
     const [lo, hi] = this.chunkBounds(chunkIdx);
+    const estimated = at(this.chunkRows, chunkIdx);
     // decode starts at the first non-elided ordinal in the chunk
     let start = lo;
     for (const [a, b] of this.elision) {
@@ -236,6 +241,10 @@ export class RowSpace {
     this.materializedRows.set(chunkIdx, rows);
     this.chunkRows[chunkIdx] = rows.length;
     this.exact[chunkIdx] = true;
+    log.info(
+      `materialize events chunk ${chunkIdx} [${lo},${hi}) → ${rows.length} rows` +
+        ` (estimate was ${estimated}${start > lo ? `, decode from ${start} past elision` : ""})`
+    );
     this.recompute();
   }
 

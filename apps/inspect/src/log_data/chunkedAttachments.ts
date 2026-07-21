@@ -9,6 +9,8 @@
  * resolved here — they stay lazy (Confounder 1: the last event references
  * essentially the whole conversation).
  */
+import { createLogger } from "@tsmono/util";
+
 import { resolveAttachments } from "../utils/attachments";
 
 import {
@@ -16,6 +18,8 @@ import {
   type ChunkedEvent,
   type ChunkedSample,
 } from "./chunked";
+
+const log = createLogger("chunked");
 
 const ATTACHMENT_PROTOCOL = "attachment://";
 const CONTENT_PROTOCOL = "tc://";
@@ -54,12 +58,16 @@ const collectRefs = (value: unknown, into: Set<number>): void => {
 export const resolvedEventsReader = (
   chunked: ChunkedSample
 ): SequenceReader<ChunkedEvent> =>
-  chunked.events.withTransform(async (items) => {
+  chunked.events.withTransform(async (items, start) => {
     const refs = new Set<number>();
     collectRefs(items, refs);
     if (refs.size === 0) {
       return items;
     }
+    log.info(
+      `resolve ${refs.size} attachment ref${refs.size === 1 ? "" : "s"} ` +
+        `for events chunk ${start}`
+    );
     const attachments: Record<string, string> = {};
     await Promise.all(
       [...refs].map(async (index) => {

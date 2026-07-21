@@ -8,7 +8,16 @@
  * callers). `SequenceReader` layers chunk math + JSON parsing + `getRange`
  * over it for one sequence.
  */
+import { createLogger } from "@tsmono/util";
+
 import { at, chunkIndexOf, chunkStarts, sequenceCount } from "./format";
+
+// Emits under DEV_LOGGING=true builds (DEV_LOGGING_NAMESPACES=chunked):
+// every member fetch/cache-hit/eviction and chunk parse, for confirming the
+// windowed-read behavior while scrolling.
+const log = createLogger("chunked");
+
+const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
 
 /** Byte-level access to zip entries (what remoteZipFile's open* return). */
 export interface EntryByteSource {
@@ -35,6 +44,7 @@ export class ChunkByteStore {
   read(name: string): Promise<Uint8Array> {
     const cached = this.cache.get(name);
     if (cached) {
+      log.debug(`byte-cache hit ${name} (${kb(cached.byteLength)})`);
       // touch: Map iteration order is the LRU order
       this.cache.delete(name);
       this.cache.set(name, cached);
@@ -42,11 +52,17 @@ export class ChunkByteStore {
     }
     let pending = this.inflight.get(name);
     if (!pending) {
+      const startedAt = performance.now();
       pending = this.source
         .readFile(name)
         .then((bytes) => {
           this.cache.set(name, bytes);
           this.cachedBytes += bytes.byteLength;
+          log.info(
+            `fetch ${name} — ${kb(bytes.byteLength)} in ` +
+              `${(performance.now() - startedAt).toFixed(0)}ms ` +
+              `(byte cache ${kb(this.cachedBytes)})`
+          );
           this.evict();
           return bytes;
         })
@@ -54,6 +70,8 @@ export class ChunkByteStore {
           this.inflight.delete(name);
         });
       this.inflight.set(name, pending);
+    } else {
+      log.debug(`fetch dedup ${name} (already in flight)`);
     }
     return pending;
   }
@@ -65,6 +83,7 @@ export class ChunkByteStore {
       }
       this.cache.delete(name);
       this.cachedBytes -= bytes.byteLength;
+      log.info(`evict ${name} (${kb(bytes.byteLength)}) — over byte budget`);
     }
   }
 
@@ -135,9 +154,14 @@ export class SequenceReader<T> {
     const start = at(this.starts, chunkIdx);
     let pending = this.parsed.get(start);
     if (!pending) {
+      const name = this.entryNameFor(start);
       pending = this.bytes
-        .read(this.entryNameFor(start))
-        .then((bytes) => JSON.parse(decoder.decode(bytes)) as T[])
+        .read(name)
+        .then((bytes) => {
+          const items = JSON.parse(decoder.decode(bytes)) as T[];
+          log.debug(`parse ${name}: ${items.length} items`);
+          return items;
+        })
         .then((items) => this.transform?.(items, start) ?? items);
       pending.catch(() => this.parsed.delete(start));
       this.parsed.set(start, pending);
@@ -146,6 +170,9 @@ export class SequenceReader<T> {
           break;
         }
         this.parsed.delete(key);
+        log.debug(
+          `parsed-cache evict ${this.entryNameFor(key)} — over ${PARSED_CHUNK_CAP}-chunk cap`
+        );
       }
     } else {
       // touch: Map iteration order is the LRU order

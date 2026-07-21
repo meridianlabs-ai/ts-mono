@@ -6,6 +6,7 @@
  * only").
  */
 import type { ChatMessage } from "@tsmono/inspect-common";
+import { createLogger } from "@tsmono/util";
 
 import {
   ChunkByteStore,
@@ -43,8 +44,20 @@ export interface ChunkedSample {
 
 const decoder = new TextDecoder();
 
-const readJson = async <T>(source: EntryByteSource, name: string): Promise<T> =>
-  JSON.parse(decoder.decode(await source.readFile(name))) as T;
+const log = createLogger("chunked");
+
+const readJson = async <T>(
+  source: EntryByteSource,
+  name: string
+): Promise<T> => {
+  const startedAt = performance.now();
+  const bytes = await source.readFile(name);
+  log.info(
+    `read ${name} — ${(bytes.byteLength / 1024).toFixed(1)}KB in ` +
+      `${(performance.now() - startedAt).toFixed(0)}ms`
+  );
+  return JSON.parse(decoder.decode(bytes)) as T;
+};
 
 /**
  * Open a chunked sample. `entryNames` is the log's central-directory name
