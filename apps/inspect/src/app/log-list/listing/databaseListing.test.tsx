@@ -13,7 +13,6 @@ import type {
 import type { LogListingRow, LogsListingPageQuery } from "../../../log_data";
 
 import {
-  kLogsListingMaxPages,
   useDatabaseLogsListingQuery,
   useLogsListingMatches,
 } from "./useLogsListingQuery";
@@ -291,14 +290,15 @@ describe("useDatabaseLogsListingQuery", () => {
     expect(result.current.autoFetchPaused).toBe(false);
   });
 
-  test("pauses commit-driven fetching at the retained-page cap", async () => {
-    holder.records = Array.from(
-      { length: kLogsListingMaxPages + 1 },
-      (_, i) => ({
-        name: `/logs/${String(i).padStart(2, "0")}.eval`,
-        model: "claude",
-      })
-    );
+  test("deep paging keeps every loaded page — no retained-page cap", async () => {
+    // Guards against reintroducing react-query's `maxPages`: it drops pages
+    // off the *front*, and with no getPreviousPageParam/scroll-up trigger
+    // the head rows would be unrecoverable (see the query options comment).
+    const pageCount = 25;
+    holder.records = Array.from({ length: pageCount }, (_, i) => ({
+      name: `/logs/${String(i).padStart(2, "0")}.eval`,
+      model: "claude",
+    }));
     pageByOne();
 
     const { result } = renderHook(
@@ -308,21 +308,17 @@ describe("useDatabaseLogsListingQuery", () => {
     await waitFor(() =>
       expect(result.current.result.data?.items.length).toBe(1)
     );
-    expect(result.current.autoFetchPaused).toBe(false);
 
-    for (let pages = 1; pages < kLogsListingMaxPages; pages++) {
+    for (let pages = 1; pages < pageCount; pages++) {
       result.current.fetchNextPage();
       await waitFor(() =>
         expect(result.current.result.data?.items.length).toBe(pages + 1)
       );
     }
 
-    // The retained window is full but rows remain. A chained fetch would
-    // slide the window without growing it — re-rendering with the grid's
-    // near-end condition still true, forever — so chaining must pause while
-    // scroll-driven paging (hasNextPage) stays available.
-    expect(result.current.hasNextPage).toBe(true);
-    expect(result.current.autoFetchPaused).toBe(true);
+    expect(result.current.result.data?.items[0]?.name).toBe("/logs/00.eval");
+    expect(result.current.hasNextPage).toBe(false);
+    expect(result.current.autoFetchPaused).toBe(false);
   });
 
   test("does not serve one universe's rows to another", async () => {

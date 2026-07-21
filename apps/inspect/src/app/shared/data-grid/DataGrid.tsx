@@ -200,10 +200,9 @@ export interface DataGridProps<TRow> {
   fetchThreshold?: number;
   /** Pause the commit-driven near-end check; scroll-driven checks still
    *  fire. Set while a chained fetch can't make progress — e.g. the caller's
-   *  query has settled in error, or a retained-page cap means a fetch slides
-   *  the loaded window without growing it. In both cases the fetch's own
-   *  re-render commits with the near-end condition still true, so an
-   *  ungated chain would fetch unboundedly. */
+   *  query has settled in error, so the fetch's own re-render commits with
+   *  the near-end condition still true and an ungated chain would fetch
+   *  unboundedly. */
   autoFetchPaused?: boolean;
   /** Focus the grid container on mount so arrow-key navigation works
    *  immediately — e.g. the log list, where returning from a log should
@@ -767,8 +766,8 @@ export function DataGrid<TRow>({
   // each settling refetch causes. Keyed on `data` identity, not
   // `data.length`: a refetch can replace the loaded window's contents
   // without changing its size. `autoFetchPaused` covers the remaining loop:
-  // when a fetch can't grow the rows (retained-page cap, settled error) its
-  // own commit re-satisfies this check forever.
+  // when a fetch can't grow the rows (e.g. a settled error) its own commit
+  // re-satisfies this check forever.
   useEffect(() => {
     if (autoFetchPaused) return;
     checkScrollNearEnd();

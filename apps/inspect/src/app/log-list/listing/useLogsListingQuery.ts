@@ -114,14 +114,6 @@ interface UseDatabaseLogsListingParams<TRow> {
  */
 const kLogsListingPageSize = 500;
 
-/**
- * Retained-page cap (react-query `maxPages`, decision 3): a long scroll
- * must not reassemble the full list in memory — pages beyond the cap drop
- * off the front, and refetch-on-scroll-back is the accepted cost. Inert
- * while `kLogsListingPageSize` serves everything as one page.
- */
-export const kLogsListingMaxPages = 20;
-
 /** {@link useDatabaseLogsListingQuery}'s result: the flattened page window
  *  plus the paging controls the grid's scroll trigger drives. */
 export interface DatabaseLogsListing<TRow> {
@@ -132,12 +124,11 @@ export interface DatabaseLogsListing<TRow> {
    *  ongoing page fetch (`cancelRefetch: false`, like scout). */
   fetchNextPage: () => void;
   /** A chained (commit-driven) fetch can't make progress right now, so the
-   *  grid must pause its after-commit near-end check: at the retained-page
-   *  cap a fetch slides the window without growing it, and after a settled
-   *  error it would tight-loop the failing request — either way the fetch's
-   *  own re-render commits with the near-end condition still true, chaining
-   *  unboundedly. Scroll-driven fetches stay live (they page past the cap
-   *  and are the retry path out of an error). */
+   *  grid must pause its after-commit near-end check: after a settled error
+   *  it would tight-loop the failing request — the fetch's own re-render
+   *  commits with the near-end condition still true, chaining unboundedly.
+   *  Scroll-driven fetches stay live (they are the retry path out of an
+   *  error). */
   autoFetchPaused: boolean;
 }
 
@@ -173,21 +164,16 @@ export function useDatabaseLogsListingQuery<TRow>({
   // after a partial refetch. Passed as a stable `select` so react-query
   // memoizes the flattening (a per-render flatMap would give consumers a
   // fresh items identity every render).
-  // `pageCount` rides along because nothing else exposes it post-select, and
-  // `items.length` can't stand in for it: a page may come back short of the
-  // limit with a cursor still set (rows dropped by `toRow` — see
-  // readSnapshotPageRows), so a full window need not hold cap × limit rows.
   const select = useCallback(
     (
       data: InfiniteData<LogsListingResult<TRow>, Cursor | null>
-    ): LogsListingResult<TRow> & { pageCount: number } => ({
+    ): LogsListingResult<TRow> => ({
       items:
         data.pages.length === 1
           ? (data.pages[0]?.items ?? [])
           : data.pages.flatMap((page) => page.items),
       total_count: data.pages[0]?.total_count ?? 0,
       next_cursor: data.pages.at(-1)?.next_cursor ?? null,
-      pageCount: data.pages.length,
     }),
     []
   );
@@ -221,7 +207,12 @@ export function useDatabaseLogsListingQuery<TRow>({
         ),
       initialPageParam: null as Cursor | null,
       getNextPageParam: (lastPage) => lastPage.next_cursor,
-      maxPages: kLogsListingMaxPages,
+      // Deliberately no `maxPages`: react-query drops capped pages off the
+      // *front*, and with no `getPreviousPageParam`/scroll-up trigger the
+      // head rows would be unrecoverable while the window slides under the
+      // scroll position. A cap also wins no memory while the react-query
+      // logs mirror still holds every row (plan doc, step 7) — bounded
+      // windows arrive with the range-driven page queries sketched there.
       select,
       enabled: universe !== undefined,
       // Keep showing the previous result across re-filters/sorts — and schema
@@ -234,9 +225,10 @@ export function useDatabaseLogsListingQuery<TRow>({
           ? previousData
           : undefined,
       staleTime: 0,
-      // The page window is a bounded copy per recent (schema, filter, orderBy)
-      // combination; drop unobserved ones fast (the snapshot has its own short
-      // gcTime — see readLogsListingPage).
+      // The page window is a copy per recent (schema, filter, orderBy)
+      // combination — unbounded until the range-driven rework, so scrolled
+      // dirs can park deep windows here. Drop unobserved ones fast (the
+      // snapshot has its own short gcTime — see readLogsListingPage).
       gcTime: 30_000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
@@ -254,15 +246,14 @@ export function useDatabaseLogsListingQuery<TRow>({
     return { data, loading: false };
   }, [data, isPending, isError, error]);
 
-  const atPageCap = (data?.pageCount ?? 0) >= kLogsListingMaxPages;
   return useMemo(
     () => ({
       result,
       hasNextPage,
       fetchNextPage: fetchNext,
-      autoFetchPaused: isError || atPageCap,
+      autoFetchPaused: isError,
     }),
-    [result, hasNextPage, fetchNext, isError, atPageCap]
+    [result, hasNextPage, fetchNext, isError]
   );
 }
 

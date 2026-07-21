@@ -116,8 +116,8 @@ describe("DataGrid infinite scroll trigger", () => {
 
   test("does not re-fire from a re-render when the rows are unchanged", () => {
     // Regression: an every-commit check chains unboundedly once a fetch
-    // stops changing the rows (retained-page cap) — the near-end condition
-    // then re-satisfies itself off the fetch's own re-render.
+    // stops changing the rows — the near-end condition then re-satisfies
+    // itself off the fetch's own re-render.
     const onScrollNearEnd = vi.fn();
     const rows = makeRows(3);
     const { rerender } = render(
@@ -148,8 +148,8 @@ describe("DataGrid infinite scroll trigger", () => {
     );
     expect(onScrollNearEnd).not.toHaveBeenCalled();
 
-    // A user scroll must still page (past a cap, or as the retry out of an
-    // error) — jsdom's zero-height layout reads as "at the bottom".
+    // A user scroll must still page (it's the retry path out of an error) —
+    // jsdom's zero-height layout reads as "at the bottom".
     fireEvent.scroll(screen.getByRole("grid"));
     expect(onScrollNearEnd).toHaveBeenCalledTimes(1);
   });
