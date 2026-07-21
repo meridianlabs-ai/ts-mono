@@ -22,9 +22,12 @@
 > - `readLogsListingMatches` — the find band's data-level backing (match
 >   ids in listing order under the same universe/filter/sort; a shared
 >   `LogsListingDescriptor` keeps it and the row query on one universe).
->   Folders/pending match locally; display *ordering* of matches still
->   comes from rendered rows — moving it to the snapshot key list is
->   step 5, so matches beyond the loaded pages aren't navigable yet.
+>   Folders/pending match locally. The band's match *count* and its "no
+>   results" claim are universe-wide (matches beyond the loaded pages
+>   count), but display *ordering* still comes from rendered rows — so
+>   out-of-window matches aren't navigable until ordering moves to the
+>   snapshot key list (step 5, via the range-driven rework's
+>   jump-to-offset).
 > - Restore-by-offset (decided over restore-by-loaded-rows): resolve the
 >   persisted `selectedRowId` to its offset in the filtered+sorted
 >   universe, fetch pages through it, then scroll. A `readLogsListingOffset`
@@ -43,10 +46,15 @@
 > the first page shaped inline. `readLogsListingPage` composes pages over
 > it per decision 3 (see the decision for the `fetchQuery` amendment), and
 > `useDatabaseLogsListingQuery` is a real `useInfiniteQuery` — 500-row
-> pages, `maxPages: 20`, same-universe placeholders, cache-only scopes
-> falling back inside the same queryFn — returning
-> `{ result, hasNextPage, fetchNextPage }` to feed the shared DataGrid's
-> scroll-near-end trigger (scout's 2,000px threshold). Parity tests in
+> pages, same-universe placeholders, cache-only scopes falling back inside
+> the same queryFn — returning
+> `{ result, hasNextPage, fetchNextPage, autoFetchPaused }` to feed the
+> shared DataGrid's scroll-near-end trigger (scout's 2,000px threshold;
+> commit-driven fetch chaining pauses on a settled error). The page window
+> is deliberately *uncapped*: `maxPages` landed and was rescinded — see
+> decision 3's amendment — so the interim memory story leans on step 7 not
+> having happened yet, and bounded windows arrive with the range-driven
+> rework (its own section below). Parity tests in
 > `log_data/logsListingRead.test.ts` hold the paged path equal to
 > `applyListingQuery` page-by-page, plus staleness (dropped holes),
 > invalidation-rebuild, and first-page-seeding coverage.
@@ -60,15 +68,19 @@
 >   retried-marking constraint) — until then every snapshot rebuild is the
 >   intended transitional O(scope) scan, re-run per throttled invalidation
 >   during a sync burst.
+> - The range-driven page-query rework (its own section below): replace
+>   the sequential `useInfiniteQuery` window with offset-addressed pages
+>   driven by the virtualizer's visible range. Prerequisite for every
+>   step 5 feature; bounds window memory for real (with step 7).
 > - Step 7 mirror demotion — the react-query logs mirror still holds every
 >   row, so steady-state memory stays O(dir) no matter how the read path
 >   paginates.
 > - The samples halves of steps 2–4: `/samples` still runs the in-memory
 >   `useLogsListingQuery` over the full row list.
-> - Step 5's long tail: find-match display ordering, adjacent-sample nav,
->   and selected-row restore from the snapshot key list — until then a
->   `maxPages` trim (beyond 10k scrolled rows) shifts the rendered window,
->   the accepted cost.
+> - Step 5's long tail: find-match navigation beyond the loaded pages,
+>   adjacent-sample nav, and selected-row restore from the snapshot key
+>   list — all consumers of the range-driven rework's jump-to-offset
+>   primitive; build them on it, not on the sequential window.
 > - Step 3's scope-prefix invalidation: writes still invalidate the whole
 >   listing root (throttled), not just listings whose scope contains the
 >   written file — equivalent with one grid mounted, wasteful once several
@@ -83,7 +95,8 @@ The `/tasks`, `/logs`, and `/samples` pages sort and filter via `Condition` /
 which compiles it to SQL and returns one page plus a total count; inspect
 replicates data into IndexedDB but still reads **entire tables into memory**
 and filters/sorts/counts there. This plan moves that work into Dexie queries,
-adds infinite scrolling via react-query `useInfiniteQuery`, and keeps the API
+adds infinite scrolling via react-query `useInfiniteQuery` (an interim shape —
+see "Range-driven page queries" for where paging is headed), and keeps the API
 client interface unchanged (the query layer sits *above* the api, unlike
 scout's). Target UX: scout's transcripts page — cursor-paged rows, a filtered
 `total_count` in the footer, `keepPreviousData` across re-filters.
@@ -128,12 +141,75 @@ Three design decisions are already settled from prior discussion:
    write burst marks both tiers stale, the snapshot rebuilds once, pages
    re-derive as cheap `bulkGet`s. (A module-level LRU avoids the
    query-inside-query pattern but re-creates singleton-state test pain and
-   needs its own eviction + invalidation coupling.) Two requirements ride
-   on this decision: the snapshot build **returns the first page inline**
-   (it shaped those rows anyway), so the read path adds no waterfall over
-   today's one-read flow; and the page queries set **`maxPages`**, so a
-   long scroll doesn't reassemble the full list in memory — bidirectional
-   refetch on scroll-back is the accepted cost.
+   needs its own eviction + invalidation coupling.) Two requirements rode
+   on this decision. The first stands: the snapshot build **returns the
+   first page inline** (it shaped those rows anyway), so the read path
+   adds no waterfall over today's one-read flow. The second — the page
+   queries set **`maxPages`** so a long scroll doesn't reassemble the full
+   list in memory — is **rescinded**: it landed and was removed. react-query
+   drops capped pages off the *front*, and with no `getPreviousPageParam`,
+   no `fetchPreviousPage` caller, and no scroll-up trigger, the head rows
+   were unrecoverable for the life of the query key while the rendered
+   window slid under a fixed scroll position (each capped fetch also
+   re-satisfied the grid's near-end check, auto-paging through the whole
+   dir until `autoFetchPaused` gated chaining). The "refetch on
+   scroll-back" this decision priced in was never built — and a cap wins
+   no memory anyway while step 7's mirror still holds every row. Bounded
+   windows return with the range-driven rework (below), which drops pages
+   by *observation* (plain `gcTime`) instead of recency-of-fetch, so
+   scroll-back refetching falls out instead of needing a mechanism.
+
+## Range-driven page queries (the pagination endgame)
+
+The `useInfiniteQuery` window is *sequential*: pages accumulate from
+offset 0 and the only motion is "append the next page". But the keys-first
+snapshot (decision 1) gives O(1) random access to any offset —
+`keys.slice(offset, offset + limit)` + `bulkGet` — and every deferred
+step 5 feature reduces to a jump-to-offset the sequential window can't
+express: find-match navigation past the loaded pages (jump to the match's
+offset in the snapshot key list), selected-row restore (resolve the
+persisted id to its key-list offset, jump there), adjacent-sample nav
+(the key list *is* the adjacency list). `useInfiniteQuery` fits scout —
+keyset cursors genuinely only support "next page after this one" — but
+under keys-first it's the wrong abstraction.
+
+The rework replaces the one infinite query with **offset-addressed page
+queries driven by the virtualizer's visible range**:
+
+- The virtualizer's `count` becomes the snapshot's `total_count`, not the
+  loaded row count — the scrollbar represents the whole universe, and
+  jumping anywhere is `scrollToIndex`. Rows without a loaded page render
+  as skeletons.
+- The visible range (plus overscan) determines the needed page indices;
+  each page is its own query keyed
+  `(universe, accessorsKey, filter, orderBy, pageIndex)` whose queryFn is
+  `readLogsListingPage` at `{ offset: pageIndex * pageSize }` (one
+  `useQueries` over the needed indices; the snapshot tier already dedupes
+  concurrent builds).
+- No `maxPages` semantics at all: pages that scroll out of observation
+  drop via plain `gcTime`, and scroll-back refetches naturally —
+  "refetch-on-scroll-back" becomes emergent behavior instead of an
+  unbuilt promise. Window memory is bounded by the *observed* range
+  (real once step 7 demotes the mirror).
+- Invalidation gets cheaper: only observed pages refetch (unobserved ones
+  go stale and refetch on next observation), vs. an infinite query
+  refetching every loaded page per invalidation.
+
+The design question to settle before building (the genuinely tricky bit):
+the **same-universe no-blank-flash guarantee**. Today `placeholderData` on
+the one infinite query keeps the previous window on screen across
+re-filters/sorts within a universe. Per-page placeholders are the wrong
+tool — page N's previous contents under a different filter are the wrong
+rows to show at position N (row counts and order both changed) — so the
+hold needs to live at the listing level: keep the previous
+(filter, orderBy)'s rendered window + total on screen until the new
+snapshot's first observed pages land, then swap atomically.
+
+Sequencing: independent of the samples halves, step 3, and step 7 — but
+do it *before* any step 5 feature. Each of those is a `scrollToIndex` on
+top of the rework; built on the sequential window instead, each would be
+throwaway contortion (e.g. "fetchNextPage in a loop until the target row
+loads").
 
 ## Foundation already landed
 
@@ -198,10 +274,13 @@ swap this seam existed for has happened: match *membership* comes from the
 DB-level `readLogsListingMatches` (via `useLogsListingMatches`, same
 universe/filter/sort as the row query), with `buildSearchIndex` /
 `findMatches` (`apps/inspect/src/app/shared/data-grid/findMatches.ts`)
-remaining only for the small overlay rows (folders/pending). What's left
-for step 5 is display *ordering*: matches are ordered by the rendered
-rows, so matches beyond the loaded pages aren't navigable until ordering
-moves to the snapshot key list.
+remaining only for the small overlay rows (folders/pending). The match
+*count* and the "no results" claim are universe-wide (out-of-window
+matches count; because pages load head-first, the loaded matches are a
+listing-order prefix of the universe's). What's left for step 5 is
+display *ordering*: matches are ordered by the rendered rows, so matches
+beyond the loaded pages aren't navigable until ordering moves to the
+snapshot key list — a jump-to-offset consumer of the range-driven rework.
 
 ### The in-memory engine (now the plan compiler + overlay/samples path)
 
@@ -312,8 +391,9 @@ the service layer can own; column defs consume it rather than restating it.
 during a cold sync, and invalidating an infinite query refetches **every
 loaded page**. Debounce/coalesce invalidation per scope (adopt scout's
 `-inv` key-sentinel convention with a prefix-match predicate: invalidate
-listing queries whose scope contains the written file_path); `maxPages` is
-settled (decision 3). Snapshots make refetch cheap-ish (pages are bulkGets)
+listing queries whose scope contains the written file_path). The
+refetch-every-loaded-page cost shrinks to refetch-observed-pages under the
+range-driven rework. Snapshots make refetch cheap-ish (pages are bulkGets)
 but the snapshot scan itself reruns per invalidation — coalescing matters,
 and at true huge-dir scale consider backing the throttle off during sync
 bursts (measure first).
@@ -327,8 +407,10 @@ explicit answer in phase 3:
 
 - Cmd/F: swap the `buildSearchIndex`/`findMatches` backing behind
   `FindBandUI` for a DB scan (it can reuse the snapshot's key list).
-  *Half-answered*: membership is DB-level (`readLogsListingMatches`);
-  display ordering still comes from rendered rows (step 5).
+  *Mostly answered*: membership, count, and "no results" are DB-level and
+  universe-wide (`readLogsListingMatches`); display ordering — and thus
+  navigation to out-of-window matches — still comes from rendered rows
+  (step 5, via the range-driven jump-to-offset).
 - Sample prev/next navigation: `displayedSamples` in the store is fed from
   displayed rows; with paging, adjacency should come from the snapshot key
   list (it *is* the adjacency list — scout needed a dedicated
@@ -379,10 +461,13 @@ Parity tests live in `log_data/logsListingRead.test.ts`.
    the sink.
 4. **Grid + pages**: port scout's `checkScrollNearEnd` into inspect's
    `DataGrid`, `pages.flatMap(p => p.items)` in `useLogListData` /
-   `SamplesGrid`, `maxPages` per decision 3, footer counts from
-   `total_count` + scoped `count()`, folders eager.
-5. **Long tail**: Cmd/F backing swap, snapshot-based adjacent-sample nav,
-   selected-row restore, samples progress aggregates.
+   `SamplesGrid`, footer counts from `total_count` + scoped `count()`,
+   folders eager. (`maxPages` was landed here and rescinded — see
+   decision 3's amendment.)
+5. **Long tail**: find-match navigation beyond the loaded pages,
+   snapshot-based adjacent-sample nav, selected-row restore, samples
+   progress aggregates — all on the range-driven rework's jump-to-offset
+   (do the rework first; see its section).
 6. **Cleanup**: `applyListingQuery` shrinks to the fallback path;
    `evaluator.ts` loses its "delete me" banner (it's now the residual
    predicate); revisit which indexes earn their keep (e.g. is
