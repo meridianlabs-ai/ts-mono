@@ -66,6 +66,12 @@ const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
  * samples (classification is a central-directory lookup on the already-open
  * log — no extra fetch); the completed-sample fetch is gated on that
  * settlement so exactly one path acquires the sample.
+ *
+ * Classification failures also settle `null`: the pre-existing monolith
+ * path must stay the sole error surface for old-format samples (its
+ * retry/fallback handling is authoritative), so this query only reports
+ * errors for samples it has positively classified as chunked — which the
+ * monolith path could never serve anyway.
  */
 export const useChunkedSample = (
   logDir: string,
@@ -75,7 +81,12 @@ export const useChunkedSample = (
     queryKey: chunkedSampleQueryKey(logDir, handle),
     queryFn: handle
       ? async (): Promise<ChunkedSampleData | null> => {
-          const zip = await getApi().get_log_zip_access?.(handle.logFile);
+          let zip;
+          try {
+            zip = await getApi().get_log_zip_access?.(handle.logFile);
+          } catch {
+            return null;
+          }
           if (
             !zip ||
             classifySampleShape(zip.entryNames, handle.id, handle.epoch) !==

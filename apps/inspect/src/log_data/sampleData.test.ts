@@ -151,6 +151,38 @@ describe("deriveSampleData", () => {
     expect(result.eventsCleared).toBe(false);
   });
 
+  test("chunked path: a chunked sample serves its shell and never touches the monolith path", () => {
+    const evalSample = sample({ events: [] });
+    const chunkedSample = { shell: {} } as never;
+    const result = deriveSampleData(
+      inputs({
+        chunked: data({ chunked: chunkedSample, evalSample }),
+        query: loading,
+      })
+    );
+    expect(result.status).toBe("ok");
+    expect(result.sample).toBe(evalSample);
+    expect(result.chunked).toBe(chunkedSample);
+  });
+
+  test("chunked classification pending reads as loading, not idle", () => {
+    const result = deriveSampleData(
+      inputs({ chunked: loading, query: loading })
+    );
+    expect(result.status).toBe("loading");
+    expect(result.error).toBeUndefined();
+  });
+
+  test("monolith classification (null) leaves the completed path authoritative", () => {
+    const evalSample = sample({ events: [{} as never] });
+    const result = deriveSampleData(
+      inputs({ chunked: data(null), query: data(evalSample) })
+    );
+    expect(result.status).toBe("ok");
+    expect(result.sample).toBe(evalSample);
+    expect(result.chunked).toBeUndefined();
+  });
+
   test("completed path: settled EvalSample wins over leftover stream state (navigating away from a running sample)", () => {
     const evalSample = sample({ events: [{} as never] });
     const result = deriveSampleData(
