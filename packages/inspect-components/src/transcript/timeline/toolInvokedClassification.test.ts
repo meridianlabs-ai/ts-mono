@@ -57,7 +57,18 @@ function spanEnd(id: string): Event {
   } as unknown as Event;
 }
 
-function modelTurn(spanId: string, systemPrompt: string): Event {
+function modelTurn(
+  spanId: string,
+  systemPrompt: string,
+  opts?: { toolCalls?: boolean }
+): Event {
+  const message = opts?.toolCalls
+    ? {
+        role: "assistant",
+        content: "ok",
+        tool_calls: [{ id: "call_1", function: "agent", arguments: {} }],
+      }
+    : { role: "assistant", content: "ok" };
   return {
     ...base(),
     event: "model",
@@ -70,7 +81,7 @@ function modelTurn(spanId: string, systemPrompt: string): Event {
     ],
     output: {
       choices: [
-        { message: { role: "assistant", content: "ok" }, stop_reason: "stop" },
+        { message, stop_reason: opts?.toolCalls ? "tool_calls" : "stop" },
       ],
       usage: { input_tokens: 5, output_tokens: 1 },
     },
@@ -109,9 +120,12 @@ describe("tool-invoked subagent classification", () => {
   // single-turn (one model turn, no submit) with a different system prompt than
   // the parent: before the fix this matched the utility heuristic and the child
   // was hidden from the swimlane.
+  // The parent turn carries tool_calls: classification now requires the parent
+  // to run an agentic loop (parentHasLoop), and a real dispatch always does —
+  // without it the utility branch is unreachable and the test proves nothing.
   const events: Event[] = [
     spanBegin("solvers", "solvers", "solvers", null),
-    modelTurn("solvers", "PARENT"),
+    modelTurn("solvers", "PARENT", { toolCalls: true }),
     spanBegin("at1", "agent", "tool", "solvers"),
     spanBegin("child_tool", "child_tool", "agent", "at1"),
     modelTurn("child_tool", "CHILD"),

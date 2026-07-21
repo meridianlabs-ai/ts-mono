@@ -232,6 +232,26 @@ export function spanHasBranches(span: TimelineSpan): boolean {
 }
 
 /**
+ * Count utility spans in `span`'s content tree.
+ *
+ * Used to surface how many utility agents are elided from display when the
+ * "Utility agents" option is off, so they never disappear without a trace.
+ * Branches are deliberately excluded: the indicator's contract is "what the
+ * utility toggle reveals", and branch content stays hidden behind the
+ * separate branches option regardless of the utility setting.
+ */
+export function countUtilitySpans(span: TimelineSpan): number {
+  let count = 0;
+  for (const item of span.content) {
+    if (item.type === "span") {
+      if (item.utility) count++;
+      count += countUtilitySpans(item);
+    }
+  }
+  return count;
+}
+
+/**
  * Creates a display-ready TimelineSpan from a branch span.
  *
  * If the branch has exactly one child span, returns that span directly.
@@ -1254,19 +1274,25 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
   if (!input) return null;
   for (const msg of input) {
     if (msg.role === "system") {
+      let raw: string;
       if (typeof msg.content === "string") {
-        return normalizeSystemPrompt(msg.content);
-      }
-      if (Array.isArray(msg.content)) {
+        raw = msg.content;
+      } else if (Array.isArray(msg.content)) {
         const parts: string[] = [];
         for (const c of msg.content) {
           if ("text" in c && typeof c.text === "string") {
             parts.push(c.text);
           }
         }
-        const raw = parts.length > 0 ? parts.join("\n") : null;
-        return raw ? normalizeSystemPrompt(raw) : null;
+        raw = parts.join("\n");
+      } else {
+        return null;
       }
+      // Null rather than "" for prompts that are empty after normalization
+      // (e.g. only the billing header) — keeps empty prompts out of
+      // primary-trajectory comparisons and prompt inheritance.
+      const normalized = normalizeSystemPrompt(raw);
+      return normalized ? normalized : null;
     }
   }
   return null;
@@ -1294,13 +1320,19 @@ function hasToolCalls(event: ModelEvent): boolean {
  * This function detects them and wraps each one in a TimelineSpan
  * with utility=true so downstream code treats them as utility agents.
  *
+ * The primary trajectory is identified by the system prompt of the first
+ * tool-calling ModelEvent. When a span contains no tool-calling model
+ * events there is no agentic loop to distinguish helpers from — plain
+ * workflows of generate() calls routinely mix system prompts — so
+ * foreign-prompt wrapping is skipped entirely (warmup calls are still
+ * wrapped; they are identified independently of prompts).
+ *
  * Operates recursively on the entire span tree.
  */
 function wrapUtilityEvents(agent: TimelineSpan): void {
-  // --- Determine the primary system prompt for this span ---
+  // The primary prompt comes only from a tool-calling ModelEvent: without
+  // an agentic loop there is no primary trajectory (see docstring).
   let primaryPrompt: string | null = null;
-
-  // Prefer the prompt of the first ModelEvent that has tool calls
   for (const item of agent.content) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
@@ -1311,70 +1343,40 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     }
   }
 
-  // Fall back to the first ModelEvent's prompt
-  if (primaryPrompt === null) {
-    for (const item of agent.content) {
-      if (item.type === "event" && item.event.event === "model") {
-        primaryPrompt = getSystemPromptForEvent(item.event);
-        break;
-      }
-    }
-  }
-
-  // No ModelEvents at all → nothing to wrap
-  if (primaryPrompt === null) {
-    // Still recurse into child spans
-    for (const item of agent.content) {
-      if (item.type === "span") {
-        wrapUtilityEvents(item);
-      }
-    }
-    for (const branch of agent.branches) {
-      wrapUtilityEvents(branch);
-      for (const item of branch.content) {
-        if (item.type === "span") {
-          wrapUtilityEvents(item);
-        }
-      }
-    }
-    return;
-  }
+  // Fall back to a position-derived id for uuid-less (legacy) events so
+  // ids stay unique and deterministic across rebuilds.
+  const utilityWrapper = (item: TimelineEvent, index: number) => {
+    const wrapper = createTimelineSpan(
+      `utility-${item.event.uuid ?? `${agent.id}-${index}`}`,
+      "utility",
+      "agent",
+      [item]
+    );
+    wrapper.utility = true;
+    return wrapper;
+  };
 
   // --- Scan and wrap utility candidates ---
+  const originalSpans = agent.content.filter(
+    (item): item is TimelineSpan => item.type === "span"
+  );
   const newContent: (TimelineEvent | TimelineSpan)[] = [];
-  for (const item of agent.content) {
+  for (const [index, item] of agent.content.entries()) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
 
       // Warmup/cache-priming call (max_tokens=1)
       if (isWarmupCall(modelEvt)) {
-        const wrapper = createTimelineSpan(
-          `utility-${item.event.uuid ?? "unknown"}`,
-          "utility",
-          "agent",
-          [item]
-        );
-        wrapper.utility = true;
-        newContent.push(wrapper);
+        newContent.push(utilityWrapper(item, index));
         continue;
       }
 
-      const evtPrompt = getSystemPromptForEvent(modelEvt);
-      if (
-        evtPrompt !== null &&
-        evtPrompt !== primaryPrompt &&
-        !hasToolCalls(modelEvt)
-      ) {
-        // Wrap in a synthetic utility span
-        const wrapper = createTimelineSpan(
-          `utility-${item.event.uuid ?? "unknown"}`,
-          "utility",
-          "agent",
-          [item]
-        );
-        wrapper.utility = true;
-        newContent.push(wrapper);
-        continue;
+      if (primaryPrompt !== null && !hasToolCalls(modelEvt)) {
+        const evtPrompt = getSystemPromptForEvent(modelEvt);
+        if (evtPrompt !== null && evtPrompt !== primaryPrompt) {
+          newContent.push(utilityWrapper(item, index));
+          continue;
+        }
       }
     }
     newContent.push(item);
@@ -1382,19 +1384,15 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 
   agent.content = newContent;
 
-  // --- Recurse into child spans and branches ---
-  for (const item of agent.content) {
-    if (item.type === "span") {
-      wrapUtilityEvents(item);
-    }
+  // Recurse into the span's original children only — not the synthetic
+  // wrappers created above: a wrapper holds a single already-processed
+  // event, and re-entering it would wrap a warmup call again, forever.
+  // wrapUtilityEvents(branch) recurses into the branch's own children.
+  for (const item of originalSpans) {
+    wrapUtilityEvents(item);
   }
   for (const branch of agent.branches) {
     wrapUtilityEvents(branch);
-    for (const item of branch.content) {
-      if (item.type === "span") {
-        wrapUtilityEvents(item);
-      }
-    }
   }
 }
 
@@ -1422,34 +1420,13 @@ function isWarmupCall(event: ModelEvent): boolean {
 // =============================================================================
 
 /**
- * Extract system prompt from the first ModelEvent in span's direct content.
+ * Extract the normalized system prompt from the first ModelEvent in span's
+ * direct content (see getSystemPromptForEvent).
  */
 function getSystemPrompt(span: TimelineSpan): string | null {
   for (const item of span.content) {
     if (item.type === "event" && item.event.event === "model") {
-      const input = item.event.input;
-      if (input) {
-        for (const msg of input) {
-          if (msg.role === "system") {
-            if (typeof msg.content === "string") {
-              return normalizeSystemPrompt(msg.content);
-            }
-            if (Array.isArray(msg.content)) {
-              const parts: string[] = [];
-              for (const c of msg.content) {
-                if ("text" in c && typeof c.text === "string") {
-                  parts.push(c.text);
-                }
-              }
-              if (parts.length > 0) {
-                return normalizeSystemPrompt(parts.join("\n"));
-              }
-              return null;
-            }
-          }
-        }
-      }
-      return null; // ModelEvent found but no system message
+      return getSystemPromptForEvent(item.event);
     }
   }
   return null; // No ModelEvent found
@@ -1494,14 +1471,34 @@ function isSingleTurn(span: TimelineSpan): boolean {
 }
 
 /**
+ * Check whether span's direct content contains a tool-calling ModelEvent.
+ */
+function hasAgenticLoop(span: TimelineSpan): boolean {
+  for (const item of span.content) {
+    if (
+      item.type === "event" &&
+      item.event.event === "model" &&
+      hasToolCalls(item.event)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Classify utility agents in the tree via post-processing.
  *
  * An agent is utility if it has a single turn (or single tool-calling turn)
- * and a different system prompt than its parent.
+ * and a different system prompt than its parent. Classification only applies
+ * when the parent runs an agentic (tool-calling) loop: absent a loop there
+ * is no main trajectory for a helper to be subordinate to — plain workflows
+ * of generate() calls routinely mix system prompts.
  */
 function classifyUtilityAgents(
   node: TimelineSpan,
-  parentSystemPrompt: string | null = null
+  parentSystemPrompt: string | null = null,
+  parentHasLoop: boolean = false
 ): void {
   const agentSystemPrompt = getSystemPrompt(node);
 
@@ -1512,6 +1509,7 @@ function classifyUtilityAgents(
   // by wrapUtilityEvents.
   if (
     parentSystemPrompt !== null &&
+    parentHasLoop &&
     agentSystemPrompt !== null &&
     !node.toolInvoked
   ) {
@@ -1520,11 +1518,18 @@ function classifyUtilityAgents(
     }
   }
 
-  // Recurse into child spans
+  // Recurse into child spans. Pure grouping spans (no direct model events)
+  // inherit from the parent, mirroring the prompt inheritance.
   const effectivePrompt = agentSystemPrompt ?? parentSystemPrompt;
+  const hasModelEvents = node.content.some(
+    (item) => item.type === "event" && item.event.event === "model"
+  );
+  const effectiveHasLoop = hasModelEvents
+    ? hasAgenticLoop(node)
+    : parentHasLoop;
   for (const item of node.content) {
     if (item.type === "span") {
-      classifyUtilityAgents(item, effectivePrompt);
+      classifyUtilityAgents(item, effectivePrompt, effectiveHasLoop);
     }
   }
 }

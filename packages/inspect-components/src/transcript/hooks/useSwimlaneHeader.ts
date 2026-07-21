@@ -26,6 +26,9 @@ export interface UseSwimlaneHeaderOptions {
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
   /** Timeline config for the options popover. */
   timelineConfig?: UseTimelineConfigResult;
+  /** Number of utility agents elided from display (shows the header indicator
+   *  when > 0 and utility agents are toggled off). */
+  hiddenUtilityCount?: number;
   /** Minimap data (root time mapping + selection). */
   minimap?: TimelineMinimapData;
   /** Multi-timeline navigation. */
@@ -42,6 +45,7 @@ export function useSwimlaneHeader(
     onScrollToTop,
     onHeadroomResetAnchor,
     timelineConfig,
+    hiddenUtilityCount,
     minimap,
     multiTimeline,
     views,
@@ -64,6 +68,7 @@ export function useSwimlaneHeader(
       scrubberProgress,
       onScrub: handleScrub,
       timelineConfig,
+      hiddenUtilityCount,
       multiTimeline,
       views,
     }),
@@ -73,6 +78,7 @@ export function useSwimlaneHeader(
       scrubberProgress,
       handleScrub,
       timelineConfig,
+      hiddenUtilityCount,
       multiTimeline,
       views,
     ]

@@ -17,6 +17,7 @@ import { makeSpan, ts } from "./testHelpers";
 import {
   buildSelectionKey,
   collectPathWithNavigators,
+  collectRawEvents,
   computeCompactionRegions,
   findTerminatorTool,
   getParentKeyFromBranch,
@@ -808,5 +809,54 @@ describe("collectPathWithNavigators — empty leaf marker", () => {
       (e) => e.event === "span_begin" && e.type === "empty_branch"
     );
     expect(markers).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// collectRawEvents — utility span elision
+// =============================================================================
+
+describe("collectRawEvents — utility span elision", () => {
+  const utilitySpan = (id: string, sec: number) =>
+    new TimelineSpan({
+      id,
+      name: "utility",
+      spanType: "agent",
+      content: [makeModel(sec, id)],
+      branches: [],
+      utility: true,
+    });
+
+  const mainSpan = (content: (TimelineEvent | TimelineSpan)[]) =>
+    new TimelineSpan({
+      id: "main",
+      name: "main",
+      spanType: "agent",
+      content,
+      branches: [],
+      utility: false,
+    });
+
+  it("elides utility spans when utility agents are off", () => {
+    const root = mainSpan([
+      makeModel(0, "a"),
+      utilitySpan("u1", 1),
+      utilitySpan("u2", 2),
+      makeModel(3, "b"),
+    ]);
+    const { events } = collectRawEvents([root]);
+    expect(events.filter((e) => e.event === "model")).toHaveLength(2);
+    expect(events.filter((e) => e.event === "span_begin")).toHaveLength(0);
+  });
+
+  it("emits utility spans when utility agents are on", () => {
+    const root = mainSpan([
+      makeModel(0, "a"),
+      utilitySpan("u1", 1),
+      utilitySpan("u2", 2),
+      makeModel(3, "b"),
+    ]);
+    const { events } = collectRawEvents([root], { includeUtility: true });
+    expect(events.filter((e) => e.event === "span_begin")).toHaveLength(2);
   });
 });

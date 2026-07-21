@@ -20,6 +20,7 @@ import {
   ReactNode,
   RefObject,
   useCallback,
+  useMemo,
   useRef,
 } from "react";
 
@@ -50,7 +51,7 @@ import {
 } from "./OutlineSidebar";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { type TimelineSpan } from "./timeline/core";
+import { countUtilitySpans, type TimelineSpan } from "./timeline/core";
 import {
   type TimelineOptions,
   type UseActiveTimelineProps,
@@ -339,11 +340,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Swimlane header
   // ---------------------------------------------------------------------------
 
+  const hiddenUtilityCount = useMemo(
+    () => countUtilitySpans(transcriptTimeline.timeline.root),
+    [transcriptTimeline.timeline.root]
+  );
+
   const swimlaneHeader = useSwimlaneHeader({
     scrollRef,
     onScrollToTop,
     onHeadroomResetAnchor,
     timelineConfig,
+    hiddenUtilityCount,
     minimap,
     multiTimeline,
     views,
