@@ -1043,7 +1043,7 @@ export interface components {
              * Config
              * @enum {string}
              */
-            config: "eval" | "generate";
+            config: "eval" | "generate" | "concurrency";
             /** Name */
             name: string;
             previous: components["schemas"]["JsonValue"];
