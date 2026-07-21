@@ -23,8 +23,8 @@
 >   ids in listing order under the same universe/filter/sort; a shared
 >   `LogsListingDescriptor` keeps it and the row query on one universe).
 >   Folders/pending match locally; display *ordering* of matches still
->   comes from rendered rows and moves to the snapshot key list with
->   pagination.
+>   comes from rendered rows — moving it to the snapshot key list is
+>   step 5, so matches beyond the loaded pages aren't navigable yet.
 > - Restore-by-offset (decided over restore-by-loaded-rows): resolve the
 >   persisted `selectedRowId` to its offset in the filtered+sorted
 >   universe, fetch pages through it, then scroll. A `readLogsListingOffset`
@@ -35,28 +35,48 @@
 >   key-list lookup on the snapshot (step 5 below), so re-derive from the
 >   snapshot service rather than restoring the scan version verbatim.
 >
-> Keys-first pagination (steps 2–4) is landed for the logs listing:
-> `readLogsListingSnapshot` builds the tier-1 snapshot (ordered PK list +
-> `total_count`, the scan's retried marks per key, the first page shaped
-> inline), `readLogsListingPage` composes pages over it per decision 3 —
-> `fetchQuery` with `staleTime: Infinity` rather than `ensureQueryData`,
-> which would resolve with stale keys after an invalidation and only
-> rebuild in the background, so a final sync write would never reach the
-> grid — and `useDatabaseLogsListingQuery` is a real `useInfiniteQuery`
-> (500-row pages, `maxPages`, same-universe placeholders) feeding the
-> shared DataGrid's scroll-near-end trigger (scout's 2,000px threshold).
-> Parity tests in `log_data/logsListingRead.test.ts` hold the paged path
-> equal to `applyListingQuery` page-by-page.
+> Keys-first pagination (the logs half of steps 2–4) is landed:
+> `readLogsListingSnapshot` (`log_data/logsListingRead.ts` — beside the
+> scan it wraps, not on `DatabaseService` as step 2 sketched) builds the
+> tier-1 snapshot: the ordered PK list + `total_count`, the scan's retried
+> marks per key (a page's `bulkGet` can't re-derive a cross-row fact), and
+> the first page shaped inline. `readLogsListingPage` composes pages over
+> it per decision 3 (see the decision for the `fetchQuery` amendment), and
+> `useDatabaseLogsListingQuery` is a real `useInfiniteQuery` — 500-row
+> pages, `maxPages: 20`, same-universe placeholders, cache-only scopes
+> falling back inside the same queryFn — returning
+> `{ result, hasNextPage, fetchNextPage }` to feed the shared DataGrid's
+> scroll-near-end trigger (scout's 2,000px threshold). Parity tests in
+> `log_data/logsListingRead.test.ts` hold the paged path equal to
+> `applyListingQuery` page-by-page, plus staleness (dropped holes),
+> invalidation-rebuild, and first-page-seeding coverage.
 >
-> Still open: chunked listing *ingestion* (scoped in its own section below
-> — the dominant cost of a cold load on a huge dir), the samples listing
-> (still the in-memory `useLogsListingQuery`), the step-5 long tail
-> (find-match ordering / adjacency / restore from the snapshot key list —
-> until then a `maxPages` trim beyond 10k scrolled rows shifts the window,
-> the accepted cost), the columns schema (`useScoreSchema` /
-> `hasSampleLimits` in `grid/columns/hooks.tsx`) — the last full-list
-> subscriber on the list page, a candidate for another overview-style
-> aggregate — and demoting the react-query logs mirror (step 7 below).
+> Still open, in rough value order:
+>
+> - Chunked listing *ingestion* (its own section below) — the dominant
+>   cold-load cost on a huge dir.
+> - Step 1's full form (index choice + residual predicate): only the plan
+>   compiler + evaluator exist. Blocked on persisting `retried` (see the
+>   retried-marking constraint) — until then every snapshot rebuild is the
+>   intended transitional O(scope) scan, re-run per throttled invalidation
+>   during a sync burst.
+> - Step 7 mirror demotion — the react-query logs mirror still holds every
+>   row, so steady-state memory stays O(dir) no matter how the read path
+>   paginates.
+> - The samples halves of steps 2–4: `/samples` still runs the in-memory
+>   `useLogsListingQuery` over the full row list.
+> - Step 5's long tail: find-match display ordering, adjacent-sample nav,
+>   and selected-row restore from the snapshot key list — until then a
+>   `maxPages` trim (beyond 10k scrolled rows) shifts the rendered window,
+>   the accepted cost.
+> - Step 3's scope-prefix invalidation: writes still invalidate the whole
+>   listing root (throttled), not just listings whose scope contains the
+>   written file — equivalent with one grid mounted, wasteful once several
+>   scopes hold cached listings.
+> - The columns schema (`useScoreSchema` / `hasSampleLimits` in
+>   `grid/columns/hooks.tsx`) — the last full-list subscriber on the list
+>   page, a candidate for another overview-style aggregate.
+> - Step 6 cleanup.
 
 The `/tasks`, `/logs`, and `/samples` pages sort and filter via `Condition` /
 `OrderBy` types copied from scout. Scout ships the condition to its server,
@@ -94,10 +114,17 @@ Three design decisions are already settled from prior discussion:
    keyed by the existing `databaseLogsListingKey` builder plus a
    `"snapshot"` suffix, so the universe slot, `listingKeyUniverse`, and
    the throttled root-key invalidation all keep working unchanged. Tier 2
-   is the `useInfiniteQuery` pages, whose queryFn obtains the snapshot via
-   `queryClient.ensureQueryData(...)`: concurrent page fetches dedupe into
-   one build, later pages reuse it, and lifecycle is plain `gcTime` rather
-   than hand-rolled eviction. Invalidation stays the one existing seam — a
+   is the `useInfiniteQuery` pages, whose queryFn obtains the snapshot
+   through the query cache — implemented as `queryClient.fetchQuery` with
+   `staleTime: Infinity`, amending the original `ensureQueryData` sketch:
+   the snapshot query has no observers, and after an invalidation
+   `ensureQueryData` resolves with the stale keys (rebuilding only in the
+   background), so a sync's *final* write would never reach the grid —
+   breaking the streaming invariant. `fetchQuery` awaits the rebuild
+   exactly when invalidated and serves from cache otherwise. Either way,
+   concurrent page fetches dedupe into one build, later pages reuse it,
+   and lifecycle is plain `gcTime` rather than hand-rolled eviction.
+   Invalidation stays the one existing seam — a
    write burst marks both tiers stale, the snapshot rebuilds once, pages
    re-derive as cheap `bulkGet`s. (A module-level LRU avoids the
    query-inside-query pattern but re-creates singleton-state test pain and
@@ -166,12 +193,15 @@ mode never mounts the log list, so it needs no listing path at all.
 
 `FindBandUI` (the presentational band: input, match counter, next/prev) is
 now separate from its backing, shared in `packages/react/src/components/`.
-The log list uses `FindBandUI` directly with a data-level backing —
-`buildSearchIndex` / `findMatches` in
-`apps/inspect/src/app/shared/data-grid/findMatches.ts`, built over **all**
-rows. That backing is exactly what breaks under pagination, and now it's a
-swappable seam: phase 3 replaces it with a DB-backed matcher without
-touching the UI.
+The log list uses `FindBandUI` directly with a data-level backing, and the
+swap this seam existed for has happened: match *membership* comes from the
+DB-level `readLogsListingMatches` (via `useLogsListingMatches`, same
+universe/filter/sort as the row query), with `buildSearchIndex` /
+`findMatches` (`apps/inspect/src/app/shared/data-grid/findMatches.ts`)
+remaining only for the small overlay rows (folders/pending). What's left
+for step 5 is display *ordering*: matches are ordered by the rendered
+rows, so matches beyond the loaded pages aren't navigable until ordering
+moves to the snapshot key list.
 
 ### The in-memory engine (now the plan compiler + overlay/samples path)
 
@@ -187,27 +217,32 @@ touching the UI.
 - `evaluator.ts` — full `Condition` interpreter (all 16 operators, SQL
   three-valued NULL semantics, LIKE→regex). The plan's `matches`, and later
   the residual predicate once index-backed scans land.
-- `useLogsListingQuery.ts` — `useDatabaseLogsListingQuery` is the real
-  query hook (queryKey = universe + accessor schema + filter + orderBy +
-  pagination; results are async by design, with same-universe placeholders
-  and a short transitional `gcTime`, since each key holds a full row list
-  until pagination). The accessor-schema slot (`accessorsKey` from
-  `useLogListColumns`) exists because the queryFn closes over the column
-  accessors, whose score-column semantics (by-metric accessors, numeric
-  comparators/filter types) land asynchronously with the scorer schema —
-  without it a persisted score-column filter/sort computes against missing
-  accessors and never self-corrects. The in-memory `useLogsListingQuery`
-  remains for samples. `sortingStateToOrderBy` lives here.
+- `useLogsListingQuery.ts` — `useDatabaseLogsListingQuery` is the paged
+  query hook: a `useInfiniteQuery` (queryKey = universe + accessor schema
+  + filter + orderBy; the cursor is the page param, not a key slot) whose
+  queryFn is `readLogsListingPage`, flattening the page window through a
+  stable `select` and returning `{ result, hasNextPage, fetchNextPage }`.
+  Results are async by design, with same-universe placeholders. The
+  accessor-schema slot (`accessorsKey` from `useLogListColumns`) exists
+  because the queryFn closes over the column accessors, whose score-column
+  semantics (by-metric accessors, numeric comparators/filter types) land
+  asynchronously with the scorer schema — without it a persisted
+  score-column filter/sort computes against missing accessors and never
+  self-corrects. The in-memory `useLogsListingQuery` remains for samples.
+  `sortingStateToOrderBy` lives here.
 - `combineFilters.ts` — AND-combines persisted per-column `FilterSpec`s into
   one wire `Condition` via the shared `specToCondition`
   (`packages/inspect-components/src/columnFilter/`).
 
 Consumers: `grid/useLogListData.ts` (tasks/logs; splits pinned folders from
-files, runs the listing query over files only) and
+files, runs the listing query over files only, and threads
+`hasMoreRows`/`fetchMoreRows` through to the grid) and
 `shared/samples-grid/SamplesGrid.tsx` (cross-log samples). Both feed the
 shared `DataGrid` (`app/shared/data-grid/DataGrid.tsx`) — TanStack Table +
-react-virtual, which **virtualizes rendering but receives the complete
-array**; it has no infinite-load mechanism yet.
+react-virtual. The grid now has the infinite-load mechanism
+(`hasMore`/`onScrollNearEnd`/`fetchThreshold`, scout's `checkScrollNearEnd`
+checked on scroll and whenever a page lands); the logs list drives it,
+while `SamplesGrid` still passes the complete array.
 
 ### Scout's reference implementation
 
@@ -292,6 +327,8 @@ explicit answer in phase 3:
 
 - Cmd/F: swap the `buildSearchIndex`/`findMatches` backing behind
   `FindBandUI` for a DB scan (it can reuse the snapshot's key list).
+  *Half-answered*: membership is DB-level (`readLogsListingMatches`);
+  display ordering still comes from rendered rows (step 5).
 - Sample prev/next navigation: `displayedSamples` in the store is fed from
   displayed rows; with paging, adjacency should come from the snapshot key
   list (it *is* the adjacency list — scout needed a dedicated
@@ -305,13 +342,16 @@ explicit answer in phase 3:
   aggregate queries over the logs table.
 - Folders in the logs list are presentation: kept eager and pinned, only
   file rows paginate; footer count stays `folders.length + total_count`.
+  *Answered as written* (landed with step 4; the pending-task overlay
+  merges into the loaded window the same way).
 
 ## Work breakdown
 
-Steps 1 and 3 are landed in their no-pagination form (plan compilation +
-`readLogsListing` as the executor; the hook swap — minus `useInfiniteQuery`,
-which arrives with step 2's snapshots). Parity tests live in
-`log_data/logsListingRead.test.ts`.
+Where things stand (details in the Status header): step 1 is landed as the
+plan compiler only — no index choice, blocked on persisting `retried`;
+steps 2–4 are landed for the logs listing, with their samples halves and
+step 3's scope-prefix invalidation outstanding; steps 5–7 are untouched.
+Parity tests live in `log_data/logsListingRead.test.ts`.
 
 1. **Query planner + record evaluation** (pure, heavily testable):
    `(scope, Condition, OrderBy[], columnFieldMap)` → index choice +
@@ -324,8 +364,9 @@ which arrives with step 2's snapshots). Parity tests live in
    `getLogsListing(scope, filter, orderBy, pagination)` and
    `getSamplesListing(...)` returning `{ items, total_count, next_cursor }`;
    snapshot = ordered PK list as a tier-1 query per decision 3 (keyed off
-   `databaseLogsListingKey` + `"snapshot"`, pages composing via
-   `ensureQueryData`), with the first page seeded from the build. Handle
+   `databaseLogsListingKey` + `"snapshot"`, pages composing through the
+   query cache — see the decision's `fetchQuery` amendment), with the
+   first page seeded from the build. Handle
    snapshot staleness (a key deleted between scan and `bulkGet` → drop the
    hole).
 3. **Hook swap**: `useLogsListingQuery` becomes a real `useInfiniteQuery`
