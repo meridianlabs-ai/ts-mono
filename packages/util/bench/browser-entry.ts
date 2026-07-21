@@ -329,17 +329,23 @@ const syncParse = (text: string): unknown => {
   }
 };
 
-const generate = (
-  kind: PayloadKind,
-  targetBytes: number
-): { chars: number; bytes: number } => {
-  payloadKind = kind;
-  payloadText = GENERATORS[kind](targetBytes);
+// Install caller-built payload text (used by json-worker.browser.test.ts for
+// shapes the generators don't cover) and precompute the verification refs.
+const setPayload = (text: string): { chars: number; bytes: number } => {
+  payloadText = text;
   payloadBytes = new TextEncoder().encode(payloadText);
   const ref = syncParse(payloadText);
   refProbe = probeJson(ref);
   refNonFinite = countNonFinite(ref);
   return { chars: payloadText.length, bytes: payloadBytes.length };
+};
+
+const generate = (
+  kind: PayloadKind,
+  targetBytes: number
+): { chars: number; bytes: number } => {
+  payloadKind = kind;
+  return setPayload(GENERATORS[kind](targetBytes));
 };
 
 // Real-world payloads served by the bench runner from bench/fixtures/
@@ -412,6 +418,29 @@ const runCase = async (
   return { iterations: stats, verified, verifyDetail };
 };
 
+// Error-path probe: resolves instead of rejecting so page.evaluate callers
+// can assert on the failure without a pageerror.
+const tryParse = async (
+  api: ApiName,
+  text: string
+): Promise<{ ok: boolean; error?: string }> => {
+  try {
+    if (api === "asyncJsonParseBytes") {
+      await asyncJsonParseBytes(new TextEncoder().encode(text));
+    } else if (api === "asyncJsonParse") {
+      await asyncJsonParse(text);
+    } else {
+      syncParse(text);
+    }
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+};
+
 const releasePayload = () => {
   payloadText = "";
   payloadBytes = null;
@@ -431,8 +460,10 @@ declare global {
     JsonWorkerBench: {
       warmupPool: typeof warmupPool;
       generate: typeof generate;
+      setPayload: typeof setPayload;
       loadFixture: typeof loadFixture;
       runCase: typeof runCase;
+      tryParse: typeof tryParse;
       releasePayload: typeof releasePayload;
       payloadKindCheck: () => PayloadKind;
     };
@@ -442,8 +473,10 @@ declare global {
 window.JsonWorkerBench = {
   warmupPool,
   generate,
+  setPayload,
   loadFixture,
   runCase,
+  tryParse,
   releasePayload,
   payloadKindCheck: () => payloadKind,
 };
