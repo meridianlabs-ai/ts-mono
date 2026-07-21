@@ -155,6 +155,8 @@ export type Samples = S["Samples"];
 export type TaskDisplayMetric = S["TaskDisplayMetric"];
 
 // Other types
+export type ConfigUpdate = S["ConfigUpdate"];
+export type ConfigValueChange = S["ConfigValueChange"];
 export type JsonChange = S["JsonChange"];
 export type JsonValue = S["JsonValue"];
 export type LogUpdate = S["LogUpdate"];
