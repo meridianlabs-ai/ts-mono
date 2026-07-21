@@ -1,10 +1,15 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
+import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LogDetails, SampleSummary } from "../client/api/types";
-import { createDatabaseService, DatabaseService } from "../client/database";
+import {
+  createDatabaseService,
+  DatabaseService,
+  DB_NAME,
+} from "../client/database";
 import { queryClient } from "../state/queryClient";
 
 import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
@@ -65,11 +70,14 @@ let db: DatabaseService;
 beforeEach(async () => {
   db = createDatabaseService();
   holder.service = db;
-  await db.openDatabase(`samples-listing-test-${crypto.randomUUID()}`);
+  await db.openDatabase();
 });
 
 afterEach(async () => {
   await db.closeDatabase();
+  // The database name is a constant — cross-test isolation comes from
+  // deleting it outright.
+  await Dexie.delete(DB_NAME);
   holder.service = null;
   queryClient.clear();
 });
@@ -233,7 +241,7 @@ describe("useSamplesListing", () => {
     // (FetchEngine.start → sink.seedRows). A warm no-change boot performs no
     // writes after this, so seeding itself must refresh the listing.
     holder.service = db;
-    const rows = await db.readLogs();
+    const rows = await db.readLogs({ prefix: LOG_DIR });
     createLogsContentSink(db, LOG_DIR).seedRows(rows ?? []);
 
     await waitFor(() => expect(result.current.data).toHaveLength(2));

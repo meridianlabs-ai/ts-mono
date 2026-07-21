@@ -12,5 +12,6 @@ export {
 } from "./TimelineSelector";
 export {
   TimelineSwimLanes,
+  type TimelineHeaderProps,
   type TimelineSwimLanesProps,
 } from "./TimelineSwimLanes";

@@ -20,10 +20,7 @@ import {
   ReactNode,
   RefObject,
   useCallback,
-  useEffect,
-  useMemo,
   useRef,
-  useState,
 } from "react";
 
 import type {
@@ -35,39 +32,31 @@ import {
   RailDock,
   StickyScroll,
 } from "@tsmono/react/components";
-import { useElementHeight, useScrubberProgress } from "@tsmono/react/hooks";
+import { useElementHeight } from "@tsmono/react/hooks";
 
-import {
-  findTimelineIndexForEvent,
-  findTimelineIndexForMessage,
-  timelineContainsEvent,
-} from "./findTimelineForDeepLink";
+import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
+import { useEventNodeData } from "./hooks/useEventNodeData";
 import { useListPositionManager } from "./hooks/useListPositionManager";
+import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
+import { useSelectionActions } from "./hooks/useSelectionActions";
+import { useSidebarScrollCoupling } from "./hooks/useSidebarScrollCoupling";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
-import { TranscriptOutline } from "./outline/TranscriptOutline";
+import { useSwimlaneHeader } from "./hooks/useSwimlaneHeader";
+import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
+import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
 import {
-  resolveEventInBranches,
-  resolveEventToSpan,
-  resolveMessageInBranches,
-  resolveMessageToEvent,
-} from "./resolveMessageToEvent";
+  OutlineSidebar,
+  type TranscriptLayoutOutlineProps,
+} from "./OutlineSidebar";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { spanHasBranches, type TimelineSpan } from "./timeline/core";
+import { type TimelineSpan } from "./timeline/core";
 import {
-  useEventNodes,
-  useTimelineConfig,
-  useTimelinesArray,
-  useTranscriptTimeline,
   type TimelineOptions,
   type UseActiveTimelineProps,
   type UseTimelineProps,
 } from "./timeline/hooks";
 import { type MarkerConfig } from "./timeline/markers";
-import {
-  buildSpanSelectKeys,
-  getSelectedSpans,
-} from "./timeline/timelineEventNodes";
 import {
   TimelineRowSelectContext,
   TimelineSelectContext,
@@ -79,8 +68,6 @@ import {
 } from "./TranscriptViewNodes";
 import {
   EventNode,
-  kCollapsibleEventTypes,
-  kContentCollapsibleEventTypes,
   type EventNodeContext,
   type TranscriptCollapseState,
 } from "./types";
@@ -89,21 +76,7 @@ import {
 // Types
 // =============================================================================
 
-export interface TranscriptLayoutOutlineProps {
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
-  toggleDisabled?: boolean;
-  toggleTitle?: string;
-  toggleIcon: string;
-  /** Header title shown next to the toggle icon when expanded. */
-  title?: string;
-  /** Name of the agent/subagent currently displayed. Shown as a header in the outline. */
-  name?: string;
-  renderLink?: (url: string, children: ReactNode) => ReactNode;
-  onNavigateToEvent?: (eventId: string) => void;
-  selectedId?: string | null;
-  setSelectedId?: (id: string) => void;
-}
+export { type TranscriptLayoutOutlineProps } from "./OutlineSidebar";
 
 export interface TranscriptLayoutRightRailProps {
   /** Always-visible rail content (the vertical activity bar). */
@@ -121,6 +94,53 @@ export interface TranscriptLayoutRightRailProps {
   panelMaxWidth?: number;
   /** aria-label root for the panel region. */
   label?: string;
+}
+
+/** Timeline data, selection adapters, and swimlane behavior
+ *  (consumed by the timeline pipeline + swimlane header). */
+export interface TranscriptLayoutTimelineProps {
+  /** Row selection state adapter. */
+  selection?: UseTimelineProps;
+  /** Active-timeline adapter (multi-timeline logs). */
+  active?: UseActiveTimelineProps;
+  serverTimelines?: ServerTimeline[];
+  /** Marker config override (default: useTimelineConfig()). */
+  markerConfig?: MarkerConfig;
+  /** Agent timeline options override (default: useTimelineConfig()). */
+  agentConfig?: TimelineOptions;
+  /** Swimlane visibility. "auto" (the default) shows them when the timeline
+   *  has agent structure. */
+  showSwimlanes?: boolean | "auto";
+  onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
+  /** Called on swimlane header click to scroll the view to the top. */
+  onScrollToTop?: () => void;
+}
+
+/** Deep-link target resolved on mount (consumed by useDeepLinkResolution). */
+export interface TranscriptLayoutDeepLinkProps {
+  /** Deep-link to a specific event. Takes priority over messageId. */
+  eventId?: string | null;
+  /** Deep-link to a message ID, resolved to the best matching event.
+   *  Used for citation navigation — resolves against selected span first, then root. */
+  messageId?: string | null;
+}
+
+/** Adapter for the host's headroom (collapsing chrome above the transcript). */
+export interface TranscriptLayoutHeadroomProps {
+  hidden?: boolean;
+  /** Force the headroom into the given hidden state. Used by sources (e.g.
+   *  search) that drive scroll-direction-sensitive UI when their motion
+   *  doesn't match what the scroll-direction tracker would infer. */
+  onSetHidden?: (hidden: boolean) => void;
+  onResetAnchor?: (debounce?: boolean) => void;
+}
+
+/** Empty-state display when no events match the current filter. */
+export interface TranscriptLayoutEmptyProps {
+  /** Text shown when no events match. Pass null to disable the empty state. */
+  text?: string | null;
+  /** Render the empty state as an in-progress placeholder (animated, no icon). */
+  busy?: boolean;
 }
 
 export interface TranscriptLayoutProps {
@@ -142,35 +162,18 @@ export interface TranscriptLayoutProps {
    *  rather than as the page's primary scroll region. */
   embedded?: boolean;
 
-  // --- Timeline selection adapters ---
-  timelineSelection?: UseTimelineProps;
-  activeTimeline?: UseActiveTimelineProps;
-  serverTimelines?: ServerTimeline[];
-
-  // --- Timeline config overrides (default: useTimelineConfig()) ---
-  markerConfig?: MarkerConfig;
-  agentConfig?: TimelineOptions;
-
-  // --- Swimlane control ---
-  showSwimlanes?: boolean | "auto";
-  onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
-  onScrollToTop?: () => void;
-
-  // --- Headroom ---
-  headroomHidden?: boolean;
-  /** Force the headroom into the given hidden state. Used by sources (e.g.
-   *  search) that drive scroll-direction-sensitive UI when their motion
-   *  doesn't match what the scroll-direction tracker would infer. */
-  onHeadroomSetHidden?: (hidden: boolean) => void;
-  onHeadroomResetAnchor?: (debounce?: boolean) => void;
+  // --- Feature groups ---
+  /** Timeline data, selection adapters, and swimlane behavior. */
+  timeline?: TranscriptLayoutTimelineProps;
+  /** Deep-link target resolved on mount. */
+  deepLink?: TranscriptLayoutDeepLinkProps;
+  /** Host headroom adapter. */
+  headroom?: TranscriptLayoutHeadroomProps;
+  /** Empty-state display. Omit for the default text. */
+  empty?: TranscriptLayoutEmptyProps;
 
   // --- Event list ---
   listId: string;
-  /** Deep-link to a specific event on mount. Takes priority over initialMessageId. */
-  initialEventId?: string | null;
-  /** Deep-link to a message ID, resolved to the best matching event.
-   *  Used for citation navigation — resolves against selected span first, then root. */
-  initialMessageId?: string | null;
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
@@ -183,112 +186,25 @@ export interface TranscriptLayoutProps {
   // --- Outline ---
   /** Outline panel configuration. When omitted, the outline column is hidden entirely. */
   outline?: TranscriptLayoutOutlineProps;
-  /** Optional ref to the outline's sticky scroll container. Useful when the
-   *  caller wants to observe its scroll events (e.g. headroom direction). */
-  outlineScrollRef?: RefObject<HTMLDivElement | null>;
 
   // --- Right rail ---
   /** Optional always-visible right rail + optional panel. */
   rightRail?: TranscriptLayoutRightRailProps;
-  /** Optional ref to the rail panel's sticky scroll container (wheel forwarding). */
-  rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
 
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
-
-  /** Text shown when no events match the current filter. Pass null to disable empty state. */
-  emptyText?: string | null;
-  /** Render the empty state as an in-progress placeholder (animated, no icon). */
-  emptyBusy?: boolean;
   className?: string;
 }
 
 // =============================================================================
-// Helpers
-// =============================================================================
-
-const collectAllCollapsibleIds = (
-  nodes: EventNode[]
-): Record<string, boolean> => {
-  const result: Record<string, boolean> = {};
-  const traverse = (nodeList: EventNode[]) => {
-    for (const node of nodeList) {
-      if (
-        kCollapsibleEventTypes.includes(node.event.event) ||
-        kContentCollapsibleEventTypes.includes(node.event.event)
-      ) {
-        result[node.id] = true;
-      }
-      if (node.children.length > 0) {
-        traverse(node.children);
-      }
-    }
-  };
-  traverse(nodes);
-  return result;
-};
-
-const buildToolLabels = (
-  events: Event[],
-  messageLabels: Record<string, string> | undefined
-): Record<string, string> | undefined => {
-  if (!messageLabels) return undefined;
-
-  const toolLabels: Record<string, string> = {};
-  for (const event of events) {
-    if (event.event === "tool") {
-      const label = event.message_id
-        ? messageLabels[event.message_id]
-        : undefined;
-      if (label) toolLabels[event.id] = label;
-    } else if (event.event === "model") {
-      for (const message of event.input ?? []) {
-        if (message.role !== "tool" || !message.id) continue;
-        const label = messageLabels[message.id];
-        if (label && message.tool_call_id) {
-          toolLabels[message.tool_call_id] = label;
-        }
-      }
-    }
-  }
-
-  return Object.keys(toolLabels).length > 0 ? toolLabels : undefined;
-};
-
-// Restrict the message-label map to messages actually present in `events`.
-// The map is shared across the whole sample, but timelines (e.g. auditor vs
-// target) show different events — without this an unlabeled timeline would
-// reserve label-column space just because another timeline is labeled.
-const scopeMessageLabels = (
-  events: Event[],
-  messageLabels: Record<string, string> | undefined
-): Record<string, string> | undefined => {
-  if (!messageLabels) return undefined;
-
-  const present = new Set<string>();
-  for (const event of events) {
-    if (event.event === "model") {
-      for (const message of event.input ?? []) {
-        if (message.id) present.add(message.id);
-      }
-      for (const choice of event.output?.choices ?? []) {
-        if (choice.message?.id) present.add(choice.message.id);
-      }
-    } else if (event.event === "tool" && event.message_id) {
-      present.add(event.message_id);
-    }
-  }
-
-  const scoped: Record<string, string> = {};
-  for (const [id, label] of Object.entries(messageLabels)) {
-    if (present.has(id)) scoped[id] = label;
-  }
-  return Object.keys(scoped).length > 0 ? scoped : undefined;
-};
-
-// =============================================================================
 // Component
 // =============================================================================
+
+function renderAgentCard(node: EventNode, agentCardClassName?: string) {
+  const span = node.sourceSpan as TimelineSpan | undefined;
+  if (!span) return null;
+  return <AgentCardView span={span} className={agentCardClassName} />;
+}
 
 export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   events,
@@ -298,175 +214,83 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   scrollRef,
   offsetTop = 0,
   embedded = false,
-  timelineSelection,
-  activeTimeline,
-  serverTimelines,
-  markerConfig: markerConfigOverride,
-  agentConfig: agentConfigOverride,
-  showSwimlanes: showSwimlanesOption = "auto",
-  onMarkerNavigate,
-  onScrollToTop,
-  headroomHidden,
-  onHeadroomResetAnchor,
-  onHeadroomSetHidden,
+  timeline,
+  deepLink,
+  headroom,
+  empty,
   listId,
-  initialEventId,
-  initialMessageId,
   eventsListRef,
   getEventUrl,
   linkingEnabled,
   bulkCollapse,
   collapseState,
   outline,
-  outlineScrollRef,
   rightRail,
-  rightRailPanelScrollRef,
   eventNodeContext,
-  emptyText = "No events match the current filter",
-  emptyBusy,
   className,
 }) => {
+  // Group props destructure to locals immediately: the group objects are
+  // typically fresh literals at call sites, but the values inside keep the
+  // caller's identity — hooks below depend on the values, never the groups.
+  const {
+    selection: timelineSelection,
+    active: activeTimeline,
+    serverTimelines,
+    markerConfig: markerConfigOverride,
+    agentConfig: agentConfigOverride,
+    showSwimlanes: showSwimlanesOption = "auto",
+    onMarkerNavigate,
+    onScrollToTop,
+  } = timeline ?? {};
+  const { eventId: initialEventId, messageId: initialMessageId } =
+    deepLink ?? {};
+  const {
+    hidden: headroomHidden,
+    onSetHidden: onHeadroomSetHidden,
+    onResetAnchor: onHeadroomResetAnchor,
+  } = headroom ?? {};
+  const {
+    text: emptyText = "No events match the current filter",
+    busy: emptyBusy,
+  } = empty ?? {};
   // ---------------------------------------------------------------------------
-  // Timeline-pipeline events
-  // ---------------------------------------------------------------------------
-
-  // Apply the user's event-type filter to the timeline pipeline so hidden
-  // types don't leave behind empty swimlane rows (e.g. an "init" span whose
-  // only content was a filtered `sample_init`). `anchor` events are always
-  // preserved — they're structural references used by `convertServerTimeline`
-  // to position fork navigators, not display content.
-  const eventsForTimeline = useMemo(() => {
-    if (!hiddenEventTypes || hiddenEventTypes.length === 0) return events;
-    return events.filter(
-      (e) => e.event === "anchor" || !hiddenEventTypes.includes(e.event)
-    );
-  }, [events, hiddenEventTypes]);
-
-  // ---------------------------------------------------------------------------
-  // Timeline config (persistent user preferences)
-  // ---------------------------------------------------------------------------
-
-  // Detect whether any timeline in this sample contains branches so the
-  // config hook can default `showBranches` on (when the user has not
-  // explicitly toggled it). `useTimelinesArray` is memoized, so the redundant
-  // call inside `useTranscriptTimeline` below reuses the same result.
-  const timelinesForBranchDetection = useTimelinesArray(
-    eventsForTimeline,
-    serverTimelines
-  );
-  const branchesPresent = useMemo(
-    () => timelinesForBranchDetection.some((tl) => spanHasBranches(tl.root)),
-    [timelinesForBranchDetection]
-  );
-
-  const timelineConfig = useTimelineConfig({ branchesPresent });
-  const resolvedMarkerConfig =
-    markerConfigOverride ?? timelineConfig.markerConfig;
-  const resolvedAgentConfig = agentConfigOverride ?? timelineConfig.agentConfig;
-
-  // ---------------------------------------------------------------------------
-  // Timeline pipeline
+  // Timeline pipeline + event nodes
   // ---------------------------------------------------------------------------
 
   const {
-    timeline: timelineData,
-    state: timelineState,
-    layouts: timelineLayouts,
-    rootTimeMapping,
-    selectedEvents,
-    sourceSpans,
-    minimapSelection,
-    hasTimeline,
-    hasAgentTimeline,
-    timelines,
-    activeTimelineIndex,
-    setActiveTimeline,
-    regionCounts,
-    branchScrollTarget,
-    highlightedKeys,
-    selectedRowName,
-    viewStack,
-    pushView,
-    popView,
-  } = useTranscriptTimeline({
-    events: eventsForTimeline,
-    markerConfig: resolvedMarkerConfig,
-    timelineOptions: resolvedAgentConfig,
+    timeline: transcriptTimeline,
+    timelineConfig,
+    showSwimlanes,
+    swimlanesDefaultCollapsed,
+    nodeFeed,
+    searchableEvents,
+  } = useTimelinePipeline({
+    events,
+    hiddenEventTypes,
     serverTimelines,
-    timelineProps: timelineSelection,
-    activeTimelineProps: activeTimeline,
+    markerConfig: markerConfigOverride,
+    agentConfig: agentConfigOverride,
+    showSwimlanes: showSwimlanesOption,
+    timelineSelection,
+    activeTimeline,
   });
 
-  // ---------------------------------------------------------------------------
-  // Swimlane visibility
-  // ---------------------------------------------------------------------------
+  const {
+    state: timelineState,
+    swimlanes: { layouts: timelineLayouts, regionCounts, highlightedKeys },
+    minimap,
+    multiTimeline,
+    views,
+    selection: { rowName: selectedRowName },
+  } = transcriptTimeline;
 
-  const showSwimlanes = useMemo(() => {
-    if (showSwimlanesOption === "auto") {
-      return hasTimeline || regionCounts.size > 0 || timelines.length > 1;
-    }
-    return showSwimlanesOption;
-  }, [showSwimlanesOption, hasTimeline, regionCounts, timelines.length]);
-
-  const swimlanesDefaultCollapsed = useMemo(() => {
-    if (
-      showSwimlanesOption === "auto" &&
-      !hasTimeline &&
-      regionCounts.size === 0
-    ) {
-      return true;
-    }
-    if (hasTimeline) {
-      // Expand by default only when there's agent sub-structure to drill into.
-      // A bare main + scoring (or init) timeline has nothing to expand, so
-      // default it collapsed.
-      return hasAgentTimeline ? false : true;
-    }
-    return undefined;
-  }, [showSwimlanesOption, hasTimeline, hasAgentTimeline, regionCounts]);
-
-  // ---------------------------------------------------------------------------
-  // Event nodes
-  // ---------------------------------------------------------------------------
-
-  const rawEventsForNodes = showSwimlanes ? selectedEvents : events;
-  const eventsForNodes = useMemo(
-    () =>
-      hiddenEventTypes && hiddenEventTypes.length > 0
-        ? rawEventsForNodes.filter((e) => !hiddenEventTypes.includes(e.event))
-        : rawEventsForNodes,
-    [rawEventsForNodes, hiddenEventTypes]
-  );
-  const { eventNodes, defaultCollapsedIds, retryAttempts } = useEventNodes(
-    eventsForNodes,
-    running,
-    showSwimlanes ? sourceSpans : undefined
-  );
-
-  const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(() => {
-    const messageLabels = scopeMessageLabels(
-      eventsForNodes,
-      eventNodeContext?.messageLabels
-    );
-    const toolLabels = buildToolLabels(eventsForNodes, messageLabels);
-    return {
-      ...eventNodeContext,
-      messageLabels,
-      retryAttempts,
-      ...(toolLabels ? { toolLabels } : {}),
-    };
-  }, [eventsForNodes, eventNodeContext, retryAttempts]);
+  const {
+    eventNodes,
+    defaultCollapsedIds,
+    eventNodeContext: mergedEventNodeContext,
+  } = useEventNodeData(nodeFeed, running, eventNodeContext);
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
-
-  // Honor the same event-type filter the renderer uses. State/store events
-  // carry huge JSON payloads but aren't surfaced in the transcript tree;
-  // matching their fields would inflate the counter with unreachable results.
-  const searchableEvents = useMemo(() => {
-    if (!hiddenEventTypes || hiddenEventTypes.length === 0) return events;
-    const hidden = new Set(hiddenEventTypes);
-    return events.filter((e) => !hidden.has(e.event));
-  }, [events, hiddenEventTypes]);
 
   useTranscriptSearchSource({
     id: listId,
@@ -493,29 +317,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const effectiveOffsetTop = offsetTop + stickySwimLaneHeight;
 
   // ---------------------------------------------------------------------------
-  // Per-agent list position management
+  // Selection actions + per-agent list position management
   // ---------------------------------------------------------------------------
 
-  // Suppress the scroll-to-top on selection change when an active deep-link
-  // target is in URL. The URL-driven case is sync (the URL update lands
-  // before the row-click effects fire, so a top reset would clobber the
-  // about-to-fire imperative scroll). For pure swimlane row clicks (URL
-  // bare, only `branchScrollTarget` set), keeping the top reset is
-  // desirable — it clears the previous branch's deep scroll position
-  // before the imperative scroll lands on the new branch separator.
-  // The imperative scroll runs in rAF and re-scrolls to its target after
-  // the sync top reset.
-  // Scroll-anchor for inline fork-navigator clicks: the prefix above the
-  // clicked navigator is unchanged across the selection, so capturing and
-  // restoring scrollTop keeps the navigator at the same viewport position.
-  const [scrollAnchor, setScrollAnchor] = useState<{
-    scrollTop: number;
-  } | null>(null);
-  const hasScrollTarget = !!(
-    initialEventId ||
-    initialMessageId ||
-    scrollAnchor
-  );
+  const { spanSelectKeys, selectBySpanId, selectByRowKey, hasScrollTarget } =
+    useSelectionActions({
+      timelineState,
+      scrollRef,
+      initialEventId,
+      initialMessageId,
+    });
+
   const { effectiveListId } = useListPositionManager(
     listId,
     timelineState.selected,
@@ -524,390 +336,53 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Scrubber progress
+  // Swimlane header
   // ---------------------------------------------------------------------------
 
-  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
-
-  const handleScrub = useCallback(
-    (progress: number) => {
-      onHeadroomResetAnchor?.(true);
-      scrubTo(progress);
-    },
-    [onHeadroomResetAnchor, scrubTo]
-  );
-
-  const swimlaneHeader = useMemo(
-    () => ({
-      rootLabel: timelineData.root.name,
-      onScrollToTop,
-      minimap: {
-        root: timelineData.root,
-        selection: minimapSelection,
-        mapping: rootTimeMapping,
-        scrubberProgress,
-        onScrub: handleScrub,
-      },
-      timelineConfig,
-      timelineSelector:
-        timelines.length > 1
-          ? {
-              timelines,
-              activeIndex: activeTimelineIndex,
-              onSelect: setActiveTimeline,
-            }
-          : undefined,
-      viewStack,
-      onPopView: popView,
-    }),
-    [
-      timelineData.root,
-      onScrollToTop,
-      minimapSelection,
-      rootTimeMapping,
-      scrubberProgress,
-      handleScrub,
-      timelineConfig,
-      timelines,
-      activeTimelineIndex,
-      setActiveTimeline,
-      viewStack,
-      popView,
-    ]
-  );
-
-  const handlePunchDown = useCallback(
-    (rowKey: string, label: string) => {
-      const row = timelineState.rows.find((r) => r.key === rowKey);
-      const span = row?.spans[0];
-      if (span && "agent" in span) pushView(span.agent, label);
-    },
-    [timelineState.rows, pushView]
-  );
+  const swimlaneHeader = useSwimlaneHeader({
+    scrollRef,
+    onScrollToTop,
+    onHeadroomResetAnchor,
+    timelineConfig,
+    minimap,
+    multiTimeline,
+    views,
+  });
 
   // ---------------------------------------------------------------------------
-  // Span selection context (agent card clicks → swimlane selection)
+  // Deep-link resolution
   // ---------------------------------------------------------------------------
 
-  const spanSelectKeys = useMemo(
-    () => buildSpanSelectKeys(timelineState.rows),
-    [timelineState.rows]
-  );
-
-  const selectBySpanId = useCallback(
-    (spanId: string) => {
-      const key = spanSelectKeys.get(spanId);
-      if (!key) return;
-      timelineState.select(key.key);
-    },
-    [spanSelectKeys, timelineState]
-  );
-
-  const selectByRowKey = useCallback(
-    (rowKey: string, anchorEl?: HTMLElement) => {
-      if (anchorEl && scrollRef.current) {
-        setScrollAnchor({ scrollTop: scrollRef.current.scrollTop });
-      }
-      timelineState.select(rowKey, { preserveScroll: true });
-    },
-    [timelineState, scrollRef]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Message ID → event resolution
-  // ---------------------------------------------------------------------------
-
-  // Resolve message ID against the selected span first, then fall back to root.
-  const resolvedLocal = useMemo(() => {
-    if (initialEventId || !initialMessageId) return undefined;
-    const selectedSpans = getSelectedSpans(
-      timelineState.rows,
-      timelineState.selected
-    );
-    for (const span of selectedSpans) {
-      const result = resolveMessageToEvent(initialMessageId, span);
-      if (result && !result.agentSpanId) return result;
-    }
-    return undefined;
-  }, [
+  const { effectiveInitialEventId } = useDeepLinkResolution({
     initialEventId,
     initialMessageId,
-    timelineState.rows,
-    timelineState.selected,
-  ]);
-
-  const resolvedRoot = useMemo(() => {
-    if (initialEventId || !initialMessageId || resolvedLocal) return undefined;
-    // First try the main content tree (existing behavior).
-    const main = resolveMessageToEvent(initialMessageId, timelineData.root);
-    if (main) return main;
-    // Fall back to branches: walk every branch in the tree and return the
-    // first match in swimlane row order (latest fork first).
-    return resolveMessageInBranches(initialMessageId, timelineData.root);
-  }, [initialEventId, initialMessageId, resolvedLocal, timelineData.root]);
-
-  const resolved = resolvedLocal ?? resolvedRoot;
-
-  // Cross-timeline deep links: if the target lives in a different root
-  // timeline, find it so the effect below can switch to it. -1 = no switch.
-  const deepLinkTimelineIndex = useMemo(() => {
-    if (timelines.length <= 1) return -1;
-    if (initialEventId) {
-      const active = timelines[activeTimelineIndex];
-      if (!active || timelineContainsEvent(initialEventId, active)) return -1;
-      return findTimelineIndexForEvent(initialEventId, timelines);
-    }
-    if (initialMessageId && !resolvedLocal && !resolvedRoot) {
-      return findTimelineIndexForMessage(initialMessageId, timelines);
-    }
-    return -1;
-  }, [
-    initialEventId,
-    initialMessageId,
-    resolvedLocal,
-    resolvedRoot,
-    timelines,
-    activeTimelineIndex,
-  ]);
-
-  // Side-effect: switch swimlane selection when resolution comes from root
-  // (i.e. requires moving the user to a different row to see the resolved
-  // event). Calls `timelineState.select` with `{ preserveDeepLink: true }`
-  // so hosts know to keep the URL `?message=` / `?event=` params intact
-  // rather than clearing them as they would for a user row click — the
-  // imperative scroll about to fire still needs the deep-link target.
-  //
-  // Gated on `initialMessageId` actually changing — selection-only changes
-  // (user clicked a swimlane row) cause `resolvedRoot` to recompute against
-  // the still-stale URL message during the intermediate render before URL
-  // clearing is applied; firing the side effect there would override the
-  // user's just-expressed selection intent.
-  const prevMessageIdRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (prevMessageIdRef.current === initialMessageId) return;
-    // A cross-timeline switch is pending: don't consume the message id yet —
-    // this effect must re-evaluate after the switch lands and resolution
-    // re-runs against the new root.
-    if (deepLinkTimelineIndex >= 0) return;
-    prevMessageIdRef.current = initialMessageId;
-    if (!resolvedRoot) return;
-    let targetKey: string | null = null;
-    if (resolvedRoot.branchRowKey) {
-      targetKey = resolvedRoot.branchRowKey;
-    } else if (resolvedRoot.agentSpanId) {
-      targetKey = spanSelectKeys.get(resolvedRoot.agentSpanId)?.key ?? null;
-    }
-    if (timelineState.selected === targetKey) return;
-    timelineState.select(targetKey, { preserveDeepLink: true });
-  }, [
-    initialMessageId,
-    deepLinkTimelineIndex,
-    resolvedRoot,
+    timeline: transcriptTimeline,
     spanSelectKeys,
-    timelineState,
-  ]);
+    showSwimlanes,
+    nodeFeedEvents: nodeFeed.events,
+    onHeadroomResetAnchor,
+  });
 
-  // Fire the timeline switch once per deep-link change — a stale `?event=` /
-  // `?message=` param left in the URL must not snap the user back after they
-  // manually switch timelines away.
-  //
-  // Mark the key "consumed" only once we've actually switched. While the
-  // target isn't found yet (index -1 — e.g. timeline data still building or
-  // events still streaming), leave it unconsumed so a later data update with
-  // the same key can still trigger the switch. The snap-back guard still
-  // holds: after a switch, the target resolves in the now-active timeline,
-  // so `deepLinkTimelineIndex` drops to -1 and the consumed key blocks any
-  // re-switch even if the user navigates timelines manually.
-  const prevDeepLinkRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (timelines.length <= 1) return;
-    const key = initialEventId ?? initialMessageId ?? null;
-    if (key === null) {
-      prevDeepLinkRef.current = null;
-      return;
-    }
-    if (prevDeepLinkRef.current === key) return;
-    if (deepLinkTimelineIndex < 0) return;
-    prevDeepLinkRef.current = key;
-    if (deepLinkTimelineIndex === activeTimelineIndex) return;
-    setActiveTimeline(deepLinkTimelineIndex);
-  }, [
-    initialEventId,
-    initialMessageId,
-    deepLinkTimelineIndex,
-    activeTimelineIndex,
-    setActiveTimeline,
-    timelines.length,
-  ]);
+  // ---------------------------------------------------------------------------
+  // Collapse state & outline auto-hide
+  // ---------------------------------------------------------------------------
 
-  // Event deep links targeting a non-visible swimlane lane: with swimlanes
-  // on, the event list only contains the selected rows' events, so a target
-  // in another agent lane (or branch) is unreachable until that row is
-  // selected. The event-id analogue of the message side-effect above.
-  const resolvedEventSpan = useMemo(() => {
-    if (!initialEventId || !showSwimlanes) return undefined;
-    const present = eventsForNodes.some(
-      (e) => (e as { uuid?: string | null }).uuid === initialEventId
-    );
-    if (present) return undefined;
-    return (
-      resolveEventToSpan(initialEventId, timelineData.root) ??
-      resolveEventInBranches(initialEventId, timelineData.root)
-    );
-  }, [initialEventId, showSwimlanes, eventsForNodes, timelineData.root]);
+  const { onCollapseTranscript, onExpandNodes } = useTranscriptCollapse({
+    eventNodes,
+    defaultCollapsedIds,
+    collapseState,
+    bulkCollapse,
+    eventCount: events.length,
+  });
 
-  const prevEventIdRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (prevEventIdRef.current === initialEventId) return;
-    // A cross-timeline switch is pending: re-evaluate after it lands.
-    if (deepLinkTimelineIndex >= 0) return;
-    prevEventIdRef.current = initialEventId;
-    if (!resolvedEventSpan) return;
-    let targetKey: string | null = null;
-    if (resolvedEventSpan.branchRowKey) {
-      targetKey = resolvedEventSpan.branchRowKey;
-    } else if (resolvedEventSpan.agentSpanId) {
-      targetKey =
-        spanSelectKeys.get(resolvedEventSpan.agentSpanId)?.key ?? null;
-    }
-    if (!targetKey) return;
-    if (timelineState.selected === targetKey) return;
-    timelineState.select(targetKey, { preserveDeepLink: true });
-  }, [
-    initialEventId,
-    deepLinkTimelineIndex,
-    resolvedEventSpan,
-    spanSelectKeys,
-    timelineState,
-  ]);
-
-  const effectiveInitialEventId =
-    initialEventId ?? resolved?.eventId ?? branchScrollTarget ?? null;
-
-  // Branch selections share one effectiveListId (no remount), so the prefix
-  // above the clicked navigator is laid out identically — restoring scrollTop
-  // keeps it at the same viewport position.
-  useEffect(() => {
-    if (!scrollAnchor) return;
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: scrollAnchor.scrollTop });
+  const { isOutlineCollapsed, outlineHasNodes, onOutlineHasNodesChange } =
+    useOutlineAutoHide({
+      eventNodes,
+      hasOutline: !!outline,
+      outlineCollapsed: outline?.collapsed,
     });
-  }, [scrollAnchor, scrollRef]);
-
-  // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
-  // — fires for any change to the effective scroll target (URL `?event=`,
-  // resolved message, branch switch). The reset-anchor uses a debounced
-  // lock that stays active while the imperative scroll's retry loop keeps
-  // emitting scroll events, so the swimlane doesn't flicker open/closed
-  // during the multi-pass settling.
-  useEffect(() => {
-    if (effectiveInitialEventId) {
-      onHeadroomResetAnchor?.(true);
-    }
-  }, [effectiveInitialEventId, onHeadroomResetAnchor]);
-
-  // ---------------------------------------------------------------------------
-  // Bulk collapse/expand
-  // ---------------------------------------------------------------------------
-
-  const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
-  useEffect(() => {
-    if (events.length <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
-      return;
-    }
-    if (bulkCollapse === "expand") {
-      onSetTranscriptCollapsed({});
-    } else if (bulkCollapse === "collapse") {
-      const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
-      onSetTranscriptCollapsed(allCollapsibleIds);
-    }
-  }, [eventNodes, bulkCollapse, onSetTranscriptCollapsed, events.length]);
-
-  // Lazy-seed: when the user toggles an individual node for the first time
-  // (store scope is empty), seed the store with defaults before applying the
-  // toggle so that all other nodes retain their default collapsed state.
-  const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
-  const onCollapseTranscript = useCallback(
-    (nodeId: string, collapsed: boolean) => {
-      if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      if (!collapseState?.transcript) {
-        // First toggle — seed defaults then apply the toggle
-        onSetTranscriptCollapsed({
-          ...defaultCollapsedIds,
-          [nodeId]: collapsed,
-        });
-      } else {
-        onCollapseTranscriptRaw(nodeId, collapsed);
-      }
-    },
-    [
-      onCollapseTranscriptRaw,
-      onSetTranscriptCollapsed,
-      collapseState?.transcript,
-      defaultCollapsedIds,
-    ]
-  );
-
-  // Bulk-expand for deep links into collapsed regions. One batched update —
-  // sequential onCollapseTranscript calls would each re-seed defaults and
-  // clobber the previous call's expansion while the store is unseeded.
-  const onExpandNodes = useCallback(
-    (nodeIds: string[]) => {
-      if (!onSetTranscriptCollapsed) return;
-      const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
-      for (const id of nodeIds) next[id] = false;
-      onSetTranscriptCollapsed(next);
-    },
-    [onSetTranscriptCollapsed, collapseState?.transcript, defaultCollapsedIds]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Outline auto-hide
-  // ---------------------------------------------------------------------------
-  //
-  // Track whether the outline component reports displayable nodes. When the
-  // outline is collapsed (unmounted), it can't report, so we optimistically
-  // fall back to eventNodes.length > 0 to keep the toggle enabled.
-  //
-  // Auto-hide the outline when content has no nodes (e.g. utility agent)
-  // without touching the user's persistent preference. When the user navigates
-  // back to an agent with outline content, the preference is still intact.
-
-  const [reportedHasNodes, setReportedHasNodes] = useState(true);
-
-  // Reset to optimistic when eventNodes change (e.g. agent selection changes).
-  // Uses "adjust state during render" pattern to avoid an extra effect cycle.
-  const [prevEventNodes, setPrevEventNodes] = useState(eventNodes);
-  if (prevEventNodes !== eventNodes) {
-    setPrevEventNodes(eventNodes);
-    if (!reportedHasNodes) {
-      setReportedHasNodes(true);
-    }
-  }
 
   const hasMatchingEvents = eventNodes.length > 0;
-  const autoHidden = outline ? !reportedHasNodes && !outline.collapsed : false;
-  const isOutlineCollapsed = !outline || outline.collapsed || autoHidden;
-
-  const outlineHasNodes = isOutlineCollapsed
-    ? hasMatchingEvents
-    : reportedHasNodes;
-  const handleOutlineHasNodesChange = useCallback((hasNodes: boolean) => {
-    setReportedHasNodes(hasNodes);
-  }, []);
-
-  // ---------------------------------------------------------------------------
-  // Agent card rendering
-  // ---------------------------------------------------------------------------
-
-  const renderAgentCard = useCallback(
-    (node: EventNode, agentCardClassName?: string) => {
-      const span = node.sourceSpan as TimelineSpan | undefined;
-      if (!span) return null;
-      return <AgentCardView span={span} className={agentCardClassName} />;
-    },
-    []
-  );
 
   // ---------------------------------------------------------------------------
   // Headroom reset anchor
@@ -918,127 +393,30 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor]
   );
 
-  // When a sidebar toggles, the layout reflows but no scroll/resize event
-  // fires — so sticky-state observers (useStickyObserver, StickyScroll)
-  // keep stale state. Dispatch a synthetic scroll event after the DOM has
-  // settled to force them to re-measure.
-  const outlineCollapsedFlag = outline?.collapsed ?? null;
-  const railPanelOpenFlag = rightRail?.panel != null;
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const timer = setTimeout(() => {
-      el.dispatchEvent(new Event("scroll"));
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [outlineCollapsedFlag, railPanelOpenFlag, scrollRef]);
+  // The rail panel's scroll container is written by RailDock and read only by
+  // the wheel coupling below — no caller sees it, so the layout owns the ref.
+  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Forward wheel events from the sidebars to the main scroll container
-  // only while the header above the tabs is still visible. Once the sidebar
-  // is stuck at its sticky top (header fully out), wheel events stop chaining
-  // so the main transcript doesn't scroll along with the sidebar.
-  const effectiveOffsetTopRef = useRef(effectiveOffsetTop);
-  useEffect(() => {
-    effectiveOffsetTopRef.current = effectiveOffsetTop;
-  }, [effectiveOffsetTop]);
-  const offsetTopRef = useRef(offsetTop);
-  useEffect(() => {
-    offsetTopRef.current = offsetTop;
-  }, [offsetTop]);
-
-  useEffect(() => {
-    const main = scrollRef.current;
-    const outlineEl = outlineScrollRef?.current ?? null;
-    const railPanelEl = rightRailPanelScrollRef?.current ?? null;
-    if (!main) return;
-
-    const makeHandler =
-      (sidebar: HTMLDivElement, stickyTopRef: { current: number }) =>
-      (e: WheelEvent) => {
-        const mainMaxTop = main.scrollHeight - main.clientHeight;
-        // Is the sidebar currently stuck at its sticky top? If so, the header
-        // above the tabs has already scrolled off — don't chain further main
-        // scrolling or the transcript itself would move with the sidebar.
-        const mainRect = main.getBoundingClientRect();
-        const sidebarRect = sidebar.getBoundingClientRect();
-        const sidebarTopInScroller = sidebarRect.top - mainRect.top;
-        const sidebarIsSticky =
-          sidebarTopInScroller <= stickyTopRef.current + 1;
-
-        if (!sidebarIsSticky) {
-          // Header still visible — forward all wheel input to the main
-          // scroller so that the header collapses/expands. Suppress the
-          // sidebar's default scroll for this step.
-          const canMain =
-            (e.deltaY > 0 && main.scrollTop < mainMaxTop - 0.5) ||
-            (e.deltaY < 0 && main.scrollTop > 0.5);
-          if (canMain) {
-            e.preventDefault();
-            main.scrollBy({ top: e.deltaY, behavior: "auto" });
-          }
-        } else if (
-          e.deltaY < 0 &&
-          sidebar.scrollTop <= 0 &&
-          main.scrollTop > 0
-        ) {
-          // Sidebar is sticky and already at its own top — wheeling up should
-          // bring the header back, so forward to main.
-          e.preventDefault();
-          main.scrollBy({ top: e.deltaY, behavior: "auto" });
-        }
-        // Otherwise let the sidebar's native wheel scroll proceed.
-      };
-
-    // The rail panel pins directly below the toolbar (offsetTop), alongside
-    // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
-    // Each needs its own sticky-detection threshold.
-    const targets: {
-      el: HTMLDivElement;
-      stickyTopRef: { current: number };
-    }[] = [];
-    if (outlineEl)
-      targets.push({ el: outlineEl, stickyTopRef: effectiveOffsetTopRef });
-    if (railPanelEl)
-      targets.push({ el: railPanelEl, stickyTopRef: offsetTopRef });
-
-    const entries = targets.map(({ el, stickyTopRef }) => {
-      const handler = makeHandler(el, stickyTopRef);
-      // passive: false so we can preventDefault when taking over the scroll.
-      el.addEventListener("wheel", handler, { passive: false });
-      return { el, handler };
-    });
-    return () => {
-      for (const { el, handler } of entries) {
-        el.removeEventListener("wheel", handler);
-      }
-    };
-  }, [
-    scrollRef,
-    outlineScrollRef,
-    rightRailPanelScrollRef,
-    // Re-attach when collapse state changes (the scroll elements may have
-    // unmounted/remounted via the conditional render).
-    outlineCollapsedFlag,
-    railPanelOpenFlag,
-  ]);
-
-  // Capture the outline's own scroll container (the StickyScroll div, which
-  // has overflow-y:auto) into state so the outline's Virtuoso can use it as
-  // its scroll parent. Resolving into state (rather than reading a ref during
-  // render) guarantees a re-render once the element mounts. Also mirror it
-  // into the optional external ref callers pass for wheel forwarding.
-  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
-    null
-  );
-  const handleOutlineScrollRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      setOutlineScrollEl(el);
-      if (outlineScrollRef) {
-        outlineScrollRef.current = el;
-      }
-    },
-    [outlineScrollRef]
-  );
+  // The rail panel pins directly below the toolbar (offsetTop), alongside
+  // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
+  // Each needs its own sticky-detection threshold. The remount keys re-attach
+  // listeners when collapse state changes (the scroll elements may have
+  // unmounted/remounted via the conditional render).
+  useSidebarScrollCoupling({
+    mainScrollRef: scrollRef,
+    sidebars: [
+      {
+        scrollRef: outline?.scrollRef,
+        stickyTop: effectiveOffsetTop,
+        remountKey: outline?.collapsed ?? null,
+      },
+      {
+        scrollRef: railPanelScrollRef,
+        stickyTop: offsetTop,
+        remountKey: rightRail?.panel != null,
+      },
+    ],
+  });
 
   // Track the scroll container's visible height so sticky sidebars can cap
   // their max-height to the actually-visible area (100vh would include the
@@ -1074,7 +452,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     defaultCollapsed={swimlanesDefaultCollapsed}
                     regionCounts={regionCounts}
                     highlightedKeys={highlightedKeys}
-                    onPunchDown={handlePunchDown}
+                    onPunchDown={views.pushByRowKey}
                   />
                 </div>
               </StickyScroll>
@@ -1096,95 +474,24 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               }
             >
               {outline && (
-                <>
-                  <StickyScroll
-                    ref={handleOutlineScrollRef}
-                    scrollRef={scrollRef}
-                    className={styles.outline}
-                    offsetTop={effectiveOffsetTop}
-                  >
-                    {!isOutlineCollapsed ? (
-                      <>
-                        {outline.title && (
-                          <div className={styles.sidebarHeader}>
-                            <span
-                              className={clsx(
-                                styles.sidebarHeaderTitle,
-                                "text-size-smaller"
-                              )}
-                            >
-                              {outline.title}
-                            </span>
-                          </div>
-                        )}
-                        <div className={styles.sidebarHeaderCloseAnchor}>
-                          <button
-                            type="button"
-                            className={styles.sidebarHeaderClose}
-                            onClick={() => outline.onCollapsedChange(true)}
-                            aria-label="Hide outline"
-                            title={outline.toggleTitle ?? "Hide outline"}
-                          >
-                            <i className="bi bi-x" />
-                          </button>
-                        </div>
-                        <TranscriptOutline
-                          eventNodes={eventNodes}
-                          defaultCollapsedIds={defaultCollapsedIds}
-                          scrollRef={scrollRef}
-                          outlineScrollEl={outlineScrollEl}
-                          running={running}
-                          backfilling={backfilling}
-                          agentName={
-                            outline.name ??
-                            (showSwimlanes ? selectedRowName : undefined)
-                          }
-                          scrollTrackOffset={effectiveOffsetTop}
-                          getCollapsed={
-                            collapseState?.outline
-                              ? (nodeId: string) =>
-                                  collapseState.outline?.[nodeId] === true
-                              : undefined
-                          }
-                          setCollapsed={collapseState?.onCollapseOutline}
-                          collapsedEvents={collapseState?.outline}
-                          setCollapsedEvents={
-                            collapseState?.onSetOutlineCollapsed
-                          }
-                          selectedOutlineId={outline.selectedId}
-                          setSelectedOutlineId={outline.setSelectedId}
-                          getEventUrl={getEventUrl}
-                          renderLink={outline.renderLink}
-                          onNavigateToEvent={outline.onNavigateToEvent}
-                          onHasNodesChange={handleOutlineHasNodesChange}
-                        />
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className={styles.outlineToggle}
-                        onClick={
-                          outlineHasNodes && !outline.toggleDisabled
-                            ? () => outline.onCollapsedChange(false)
-                            : undefined
-                        }
-                        aria-disabled={
-                          outline.toggleDisabled || !outlineHasNodes
-                        }
-                        title={
-                          outline.toggleTitle ??
-                          (!outlineHasNodes
-                            ? "No outline available for the current filter"
-                            : undefined)
-                        }
-                        aria-label="Show outline"
-                      >
-                        <i className={outline.toggleIcon} />
-                      </button>
-                    )}
-                  </StickyScroll>
-                  <div className={styles.separator} />
-                </>
+                <OutlineSidebar
+                  outline={outline}
+                  isCollapsed={isOutlineCollapsed}
+                  hasNodes={outlineHasNodes}
+                  onHasNodesChange={onOutlineHasNodesChange}
+                  eventNodes={eventNodes}
+                  defaultCollapsedIds={defaultCollapsedIds}
+                  scrollRef={scrollRef}
+                  running={running}
+                  backfilling={backfilling}
+                  agentName={
+                    outline.name ??
+                    (showSwimlanes ? selectedRowName : undefined)
+                  }
+                  offsetTop={effectiveOffsetTop}
+                  collapseState={collapseState}
+                  getEventUrl={getEventUrl}
+                />
               )}
               {hasMatchingEvents ? (
                 <TranscriptViewNodes
@@ -1206,9 +513,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   collapsedTranscript={collapseState?.transcript}
                   collapsedOutline={collapseState?.outline}
                   onCollapseTranscript={onCollapseTranscript}
-                  onExpandNodes={
-                    onSetTranscriptCollapsed ? onExpandNodes : undefined
-                  }
+                  onExpandNodes={onExpandNodes}
                   eventNodeContext={mergedEventNodeContext}
                 />
               ) : emptyText !== null ? (
@@ -1227,7 +532,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               scrollRef={scrollRef}
               scrollerHeight={scrollerHeight}
               offsetTop={offsetTop}
-              panelScrollRef={rightRailPanelScrollRef}
+              panelScrollRef={railPanelScrollRef}
               railWidth={rightRail.railWidth}
               panelWidth={rightRail.panelWidth}
               onPanelWidthChange={rightRail.onPanelWidthChange}

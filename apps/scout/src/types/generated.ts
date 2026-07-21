@@ -1172,6 +1172,8 @@ export interface components {
             } | null;
             /** Pending */
             pending?: boolean | null;
+            /** Role */
+            role?: string | null;
             /** Source */
             source?: string | null;
             /** Span Id */

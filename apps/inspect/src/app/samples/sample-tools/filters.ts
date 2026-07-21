@@ -1,10 +1,12 @@
 import { compileExpression } from "filtrex";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
+import { arrayToString } from "@tsmono/util";
 
 import { EvalSampleScore } from "../../../@types/extraInspect";
 import { FilterError, ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
+import { totalSampleTokens } from "../../../client/utils/derive";
 import { kScoreTypeBoolean } from "../../../constants";
 import { SamplesDescriptor } from "../descriptor/samplesDescriptor";
 import { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
@@ -153,17 +155,6 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
   return current;
 };
 
-const totalTokens = (sample: SampleSummary): number | null => {
-  if (!sample.model_usage) return null;
-  return Object.values(sample.model_usage).reduce(
-    (sum, u) => sum + (u.total_tokens ?? 0),
-    0
-  );
-};
-
-const targetString = (target: SampleSummary["target"]): string =>
-  Array.isArray(target) ? target.join(", ") : (target ?? "");
-
 export const sampleVariables = (
   sample: SampleSummary,
   samplesDescriptor: SamplesDescriptor | undefined
@@ -178,14 +169,14 @@ export const sampleVariables = (
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
-    target: targetString(sample.target),
+    target: arrayToString(sample.target ?? ""),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
     error: sample.error ?? null,
     limit: sample.limit ?? null,
     retries: sample.retries ?? 0,
     fallbacks: totalModelFallbacks(sample.model_fallbacks),
-    tokens: totalTokens(sample),
+    tokens: totalSampleTokens(sample.model_usage) ?? null,
     duration: sample.total_time ?? null,
     metadata: sample.metadata,
   };

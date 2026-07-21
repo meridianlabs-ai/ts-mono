@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useLocation, useParams } from "react-router-dom";
 
 import { useLogDir } from "../../app_config";
@@ -330,21 +330,38 @@ export type SampleUrlBuilder = (
 
 export const useSampleUrlBuilder = () => {
   const location = useLocation();
-  const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
-    ? "/tasks"
-    : "/logs";
-  return (
-    logPath: string,
-    sampleId?: string | number,
-    sampleEpoch?: string | number,
-    sampleTabId?: string
-  ) => {
-    if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
-      return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
-    } else {
-      return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
-    }
-  };
+  // Memoize on pathname so the returned builder keeps a stable identity across
+  // renders (e.g. streaming polls). Downstream memos (SampleDisplay's
+  // `messageOptions`, TranscriptPanel's event-url chain) key on this builder,
+  // so an unstable identity would defeat their memoization.
+  return useCallback(
+    (
+      logPath: string,
+      sampleId?: string | number,
+      sampleEpoch?: string | number,
+      sampleTabId?: string
+    ) => {
+      const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
+        ? "/tasks"
+        : "/logs";
+      if (
+        sampleId &&
+        sampleEpoch &&
+        location.pathname.startsWith("/samples/")
+      ) {
+        return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
+      } else {
+        return logSamplesUrl(
+          logPath,
+          sampleId,
+          sampleEpoch,
+          sampleTabId,
+          prefix
+        );
+      }
+    },
+    [location.pathname]
+  );
 };
 
 export const logSamplesUrl = (
@@ -520,6 +537,46 @@ export const sampleMessageUrl = (
   return `${baseUrl}?message=${messageId}`;
 };
 
+/**
+ * Returns a builder for *shareable* message links: the relative hash route
+ * from `sampleMessageUrl` wrapped with the host page's origin/path via
+ * `toFullUrl`. Copy-to-clipboard consumers (ChatMessage's copy button) must
+ * use this rather than the bare route, which only works for in-app router
+ * navigation.
+ */
+export const useFullSampleMessageUrlBuilder = () => {
+  const builder = useSampleUrlBuilder();
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+
+  const log_file = useStore((state) => state.logs.selectedLogFile);
+  const log_dir = useLogDir();
+
+  let targetLogPath = urlLogPath;
+  if (!targetLogPath && log_file) {
+    targetLogPath = makeLogsPath(log_file, log_dir);
+  }
+
+  return useCallback(
+    (messageId: string) =>
+      toFullUrlMaybe(
+        targetLogPath
+          ? sampleMessageUrl(
+              builder,
+              messageId,
+              targetLogPath,
+              urlSampleId,
+              urlEpoch
+            )
+          : undefined
+      ),
+    [builder, targetLogPath, urlSampleId, urlEpoch]
+  );
+};
+
 export const tasksUrl = (log_file: string, log_dir?: string) => {
   const path = makeLogsPath(log_file, log_dir);
   const decodedLogSegment = decodeUrlParam(path) || path;
@@ -600,14 +657,16 @@ export const logsUrlRaw = (
   }
 };
 
-export const supportsLinking = () => {
-  return (
-    location.hostname !== "localhost" &&
-    location.hostname !== "127.0.0.1" &&
-    location.protocol !== "vscode-webview:"
-  );
-};
-
 export const toFullUrl = (path: string) => {
   return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
+};
+
+export const toFullUrlMaybe = (route: string | undefined) =>
+  route ? toFullUrl(route) : undefined;
+
+// Inverse of `toFullUrl`: recover the hash route from an absolute URL. Safe to
+// split on the first `#` — origin/pathname/search never contain a raw `#`.
+export const routeFromFullUrl = (url: string) => {
+  const hashIndex = url.indexOf("#");
+  return hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
 };

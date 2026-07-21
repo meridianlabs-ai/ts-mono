@@ -24,6 +24,7 @@ import { eventSearchText } from "./eventText";
 import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
+import { computeVisualActionContext } from "./transcriptVisualActions";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface TranscriptVirtualListComponentProps {
@@ -121,7 +122,17 @@ export const TranscriptVirtualListComponent: FC<
     for (const [i, node] of eventNodes.entries()) {
       const hasToolEvents = hasToolEventsLookup[i] ?? false;
       const turnInfo = turnMap?.get(node.id);
-      map.set(node.id, { hasToolEvents, turnInfo, ...eventNodeContext });
+      const { inputScreenshot, selfAnnotation } = computeVisualActionContext(
+        eventNodes,
+        i
+      );
+      map.set(node.id, {
+        hasToolEvents,
+        turnInfo,
+        ...eventNodeContext,
+        inputScreenshot,
+        selfAnnotation,
+      });
     }
     return map;
   }, [eventNodes, hasToolEventsLookup, turnMap, eventNodeContext]);

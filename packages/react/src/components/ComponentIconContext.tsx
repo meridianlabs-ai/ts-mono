@@ -9,6 +9,8 @@ import { createContext, FC, ReactNode, useContext } from "react";
  * here — both apps will get a type error until they supply it.
  */
 export interface ComponentIcons {
+  arrowDown: string;
+  arrowUp: string;
   chevronDown: string;
   chevronUp: string;
   clearText: string;

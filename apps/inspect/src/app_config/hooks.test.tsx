@@ -30,7 +30,6 @@ const notMocked = <T,>(): Promise<T> => Promise.reject(new Error("not mocked"));
 // get_app_config / get_log_root / get_log_dir are ever exercised.
 const baseApi = (): ClientAPI => ({
   get_log_dir: () => Promise.resolve(undefined),
-  get_log_dir_handle: () => "",
   get_logs: () => notMocked(),
   get_log_root: () => notMocked(),
   get_eval_set: () => Promise.resolve(undefined),

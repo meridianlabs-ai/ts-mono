@@ -66,29 +66,24 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       // If already cached, apply post-processing and use cached content
       if (cachedHtml) {
         const finalHtml = applyPostProcess(cachedHtml);
-        // Only update state if it's different (avoid unnecessary re-render)
-        if (renderedHtml !== finalHtml) {
-          startTransition(() => {
-            setRenderedHtml(finalHtml);
-          });
-        }
+        startTransition(() => {
+          // Functional update keeps renderedHtml out of the effect deps,
+          // avoiding cancel/re-enqueue churn on every async completion
+          setRenderedHtml((prev) => (prev === finalHtml ? prev : finalHtml));
+        });
         return;
       }
 
       // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
       setRenderedHtml(sanitizeMarkdown(markdown));
 
-      // Process markdown asynchronously using the queue
       const { promise, cancel } = renderQueue.enqueue(() =>
         renderMarkdown(markdown, rendererName)
       );
 
-      // Update state when rendering completes
       promise
         .then((result) => {
-          // Update cache with pre-post-processed content (with simple size limit)
           if (renderCache.size >= MAX_CACHE_SIZE) {
-            // Remove oldest entry (first key)
             const firstKey = renderCache.keys().next().value;
             if (firstKey) {
               renderCache.delete(firstKey);
@@ -96,13 +91,10 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
           }
           const sanitizedResult = sanitizeRenderedHtml(result);
           renderCache.set(cacheKey, sanitizedResult);
-
-          // Apply post-processing after caching
-          const finalHtml = applyPostProcess(sanitizedResult);
-
-          // Use startTransition to mark this as a non-urgent update
+          // React 18 batches same-turn transition updates, so concurrent
+          // completions still coalesce into a single render pass.
           startTransition(() => {
-            setRenderedHtml(finalHtml);
+            setRenderedHtml(applyPostProcess(sanitizedResult));
           });
         })
         .catch((error: unknown) => {
@@ -113,14 +105,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
         // Cancel rendering if component unmounts
         cancel();
       };
-    }, [
-      markdown,
-      rendererName,
-      cachedHtml,
-      renderedHtml,
-      cacheKey,
-      applyPostProcess,
-    ]);
+    }, [markdown, rendererName, cachedHtml, cacheKey, applyPostProcess]);
 
     return (
       <div
@@ -149,7 +134,8 @@ interface QueueTask {
   cancelled: boolean;
 }
 
-class MarkdownRenderQueue {
+// Exported for tests only
+export class MarkdownRenderQueue {
   private queue: QueueTask[] = [];
   private activeCount = 0;
   private readonly maxConcurrent: number;
@@ -163,6 +149,7 @@ class MarkdownRenderQueue {
     cancel: () => void;
   } {
     let cancelled = false;
+    let queueTask: QueueTask | undefined;
 
     const promise = new Promise<T>((resolve, reject) => {
       const wrappedTask = async () => {
@@ -183,7 +170,7 @@ class MarkdownRenderQueue {
         }
       };
 
-      const queueTask: QueueTask = {
+      queueTask = {
         task: wrappedTask,
         cancelled: false,
       };
@@ -195,10 +182,9 @@ class MarkdownRenderQueue {
 
     const cancel = () => {
       cancelled = true;
-      // Mark task as cancelled in queue
-      const index = this.queue.findIndex((t) => !t.cancelled);
-      if (index !== -1 && this.queue[index]) {
-        this.queue[index].cancelled = true;
+      // Mark our own task so processQueue skips it without running it
+      if (queueTask) {
+        queueTask.cancelled = true;
       }
     };
 

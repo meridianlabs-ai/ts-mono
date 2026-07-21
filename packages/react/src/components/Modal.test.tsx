@@ -13,6 +13,8 @@ import { ComponentIconProvider, ComponentIcons } from "./ComponentIconContext";
 import { Modal } from "./Modal";
 
 const icons: ComponentIcons = {
+  arrowDown: "",
+  arrowUp: "",
   chevronDown: "",
   chevronUp: "",
   clearText: "",

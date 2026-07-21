@@ -1,13 +1,8 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import { Log, LogDetails, LogFetchState, LogPreview } from "../api/types";
-import {
-  detailTier,
-  maxDepth,
-  previewTier,
-  toLogHeader,
-} from "../utils/type-utils";
+import { Log, LogFetchState, LogPreview } from "../api/types";
+import { maxDepth, PreparedLogDetails, previewTier } from "../utils/type-utils";
 
 import { DatabaseManager } from "./manager";
 import {
@@ -15,6 +10,8 @@ import {
   fromLogRecord,
   LogRecord,
   SampleSummaryRecord,
+  scopePrefix,
+  SyncScopeRecord,
   toLogRecord,
 } from "./schema";
 
@@ -23,6 +20,11 @@ const log = createLogger("DatabaseService");
 /** Scope of a sample-summaries read: one log file, or every file under a
  *  path prefix. */
 export type SampleSummariesScope = { file: string } | { prefix: string };
+
+/** Scope of a log-rows read/clear: every file under a dir. The database is
+ *  unified across log dirs, so whole-table reads are never correct — every
+ *  listing-level operation names its scope. */
+export type LogScope = { prefix: string };
 
 const newRow = (handle: LogHandle): Log => ({
   ...handle,
@@ -60,10 +62,10 @@ export class DatabaseService {
   }
 
   /**
-   * Open a database for the specified log directory.
+   * Open the (unified) database.
    */
-  async openDatabase(databaseHandle: string): Promise<void> {
-    await this.manager.openDatabase(databaseHandle);
+  async openDatabase(): Promise<void> {
+    await this.manager.openDatabase();
   }
 
   /**
@@ -71,13 +73,6 @@ export class DatabaseService {
    */
   async closeDatabase(): Promise<void> {
     await this.manager.close();
-  }
-
-  /**
-   * Get the current log directory.
-   */
-  getDatabaseHandle(): string | null {
-    return this.manager.getDatabaseHandle();
   }
 
   // === LOG ROWS ===
@@ -91,7 +86,10 @@ export class DatabaseService {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    const existingRecords = await db.logs.toArray();
+    const existingRecords = await db.logs
+      .where("file_path")
+      .anyOf(handles.map((handle) => handle.name))
+      .toArray();
     const existingByPath = new Map(
       existingRecords.map((record) => [record.file_path, record])
     );
@@ -113,7 +111,7 @@ export class DatabaseService {
     await db.logs.bulkPut(records);
   }
 
-  async readLogs(): Promise<Log[] | null> {
+  async readLogs(scope: LogScope): Promise<Log[] | null> {
     try {
       if (!this.opened()) {
         log.debug("Database not open");
@@ -121,7 +119,10 @@ export class DatabaseService {
       }
 
       const db = this.getDb();
-      const records = await db.logs.toArray();
+      const records = await db.logs
+        .where("file_path")
+        .startsWith(scopePrefix(scope.prefix))
+        .toArray();
 
       // Sort by mtime (descending) if present, otherwise maintain insertion
       // order. Note: != null (not !==) catches both null and undefined.
@@ -216,12 +217,15 @@ export class DatabaseService {
   // === DETAILED TIER ===
 
   /**
-   * Ingest details payloads: merge the detailed tier into each log row and
-   * replace the file's sample summary rows, in one transaction per call so a
-   * reader never sees a header whose summary rows are from an older
-   * ingestion.
+   * Ingest prepared details payloads (`prepareLogDetails` — the seam
+   * normalizes once for both stores): merge the detailed tier into each log
+   * row and replace the file's sample summary rows, in one transaction per
+   * call so a reader never sees a header whose summary rows are from an
+   * older ingestion.
    */
-  async writeLogDetails(details: Record<string, LogDetails>): Promise<void> {
+  async writeLogDetails(
+    details: Record<string, PreparedLogDetails>
+  ): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
@@ -229,22 +233,18 @@ export class DatabaseService {
     log.debug(`Ingesting ${entries.length} log details (split)`);
     await db.transaction("rw", db.logs, db.sample_summaries, async () => {
       await this.mergeRows(
-        Object.fromEntries(
-          entries.map(([file, payload]) => [
-            file,
-            detailTier(toLogHeader(payload)),
-          ])
-        )
+        Object.fromEntries(entries.map(([file, { patch }]) => [file, patch]))
       );
       const files = entries.map(([filePath]) => filePath);
       await db.sample_summaries.where("file_path").anyOf(files).delete();
       await db.sample_summaries.bulkPut(
-        entries.flatMap(([filePath, payload]) =>
-          payload.sampleSummaries.map<SampleSummaryRecord>((summary) => ({
+        entries.flatMap(([filePath, { summaries }]) =>
+          summaries.map<SampleSummaryRecord>(({ summary, derived }) => ({
             file_path: filePath,
             id: summary.id,
             epoch: summary.epoch,
             summary,
+            derived,
             cached_at: now,
           }))
         )
@@ -259,7 +259,9 @@ export class DatabaseService {
     const collection =
       "file" in scope
         ? db.sample_summaries.where("file_path").equals(scope.file)
-        : db.sample_summaries.where("file_path").startsWith(scope.prefix);
+        : db.sample_summaries
+            .where("file_path")
+            .startsWith(scopePrefix(scope.prefix));
     return collection.toArray();
   }
 
@@ -317,41 +319,123 @@ export class DatabaseService {
   }
 
   /**
-   * Clear all cached data from all tables.
+   * Wipe every table — the "Clear Local Database" escape hatch. Unlike
+   * `clearScope`, this reaches rows persisted under names outside any synced
+   * scope's namespace (see `namesInScope` in logsContent).
    */
-  async clearAllCaches(): Promise<void> {
+  async clearAllData(): Promise<void> {
     const db = this.getDb();
-
-    log.debug("Clearing all caches");
-    await Promise.all([db.logs.clear(), db.sample_summaries.clear()]);
+    log.debug("Clearing all cached data");
+    await db.transaction(
+      "rw",
+      [db.logs, db.sample_summaries, db.sync_scopes],
+      () =>
+        Promise.all([
+          db.logs.clear(),
+          db.sample_summaries.clear(),
+          db.sync_scopes.clear(),
+        ])
+    );
   }
 
   /**
-   * Get cache statistics.
+   * Clear all cached data under a scope: its log rows, their sample
+   * summaries, and the scope's sync record. Other scopes' rows are untouched.
    */
-  async getCacheStats(): Promise<{
+  async clearScope(scope: LogScope): Promise<void> {
+    const db = this.getDb();
+    const prefix = scopePrefix(scope.prefix);
+
+    log.debug(`Clearing caches under: ${prefix}`);
+    // One transaction: a partial failure must not leave rows deleted while a
+    // sync record still claims the scope is replicated. The sync_scopes sweep
+    // is prefix-based so nested scopes' records go with their rows.
+    await db.transaction(
+      "rw",
+      [db.logs, db.sample_summaries, db.sync_scopes],
+      () =>
+        Promise.all([
+          db.logs.where("file_path").startsWith(prefix).delete(),
+          db.sample_summaries.where("file_path").startsWith(prefix).delete(),
+          db.sync_scopes.where("prefix").startsWith(prefix).delete(),
+        ])
+    );
+  }
+
+  // === SYNC SCOPES ===
+  // Keys are stored in boundary-safe `scopePrefix` form. The get-then-put
+  // upserts run in single transactions: the per-origin database is shared
+  // across tabs, and an unfenced read-modify-write can overwrite another
+  // tab's just-written timestamp.
+
+  /** Record that a scope is active (creating its row on first contact). */
+  async touchSyncScope(prefix: string): Promise<void> {
+    const db = this.getDb();
+    const key = scopePrefix(prefix);
+    const now = new Date().toISOString();
+    await db.transaction("rw", db.sync_scopes, async () => {
+      const existing = await db.sync_scopes.get(key);
+      await db.sync_scopes.put({
+        ...existing,
+        prefix: key,
+        last_accessed: now,
+      });
+    });
+  }
+
+  /** Read a scope's sync record (undefined when never activated). */
+  async getSyncScope(prefix: string): Promise<SyncScopeRecord | undefined> {
+    const db = this.getDb();
+    return db.sync_scopes.get(scopePrefix(prefix));
+  }
+
+  /** Record that a listing sync persisted under a scope. */
+  async markScopeSynced(prefix: string): Promise<void> {
+    const db = this.getDb();
+    const key = scopePrefix(prefix);
+    const now = new Date().toISOString();
+    await db.transaction("rw", db.sync_scopes, async () => {
+      const existing = await db.sync_scopes.get(key);
+      await db.sync_scopes.put({
+        prefix: key,
+        last_accessed: existing?.last_accessed ?? now,
+        last_synced: now,
+      });
+    });
+  }
+
+  /**
+   * Get cache statistics for a scope.
+   */
+  async getCacheStats(scope: LogScope): Promise<{
     logFiles: number;
     logSummaries: number;
     logHeaders: number;
     sampleSummaries: number;
-    logHandle: string | null;
   }> {
     const db = this.getDb();
+    const prefix = scopePrefix(scope.prefix);
 
-    const [logFiles, logSummaries, logHeaders, sampleSummaries] =
-      await Promise.all([
-        db.logs.count(),
-        db.logs.where("depth").anyOf(["previewed", "detailed"]).count(),
-        db.logs.where("depth").equals("detailed").count(),
-        db.sample_summaries.count(),
-      ]);
+    // Index-only counts: this runs throttled but repeatedly during active
+    // replication, and a cursor over the range would structured-clone every
+    // record (full header included) just to count it.
+    const depthCount = (depth: LogRecord["depth"]) =>
+      db.logs
+        .where("[depth+file_path]")
+        .between([depth, prefix], [depth, prefix + "\uffff"])
+        .count();
+    const [logFiles, previewed, detailed, sampleSummaries] = await Promise.all([
+      db.logs.where("file_path").startsWith(prefix).count(),
+      depthCount("previewed"),
+      depthCount("detailed"),
+      db.sample_summaries.where("file_path").startsWith(prefix).count(),
+    ]);
 
     return {
       logFiles,
-      logSummaries,
-      logHeaders,
+      logSummaries: previewed + detailed,
+      logHeaders: detailed,
       sampleSummaries,
-      logHandle: this.manager.getDatabaseHandle(),
     };
   }
 }

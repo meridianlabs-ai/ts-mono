@@ -551,9 +551,8 @@ export interface components {
             /** Anchor Id */
             anchor_id: string;
             /**
-             * Event
-             * @default anchor
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "anchor";
             /** Metadata */
@@ -597,9 +596,8 @@ export interface components {
              */
             decision: "approve" | "modify" | "reject" | "escalate" | "terminate";
             /**
-             * Event
-             * @default approval
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "approval";
             /** Explanation */
@@ -699,9 +697,8 @@ export interface components {
          */
         BranchEvent: {
             /**
-             * Event
-             * @default branch
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "branch";
             /**
@@ -915,9 +912,8 @@ export interface components {
             /** Duration Ms */
             duration_ms: number;
             /**
-             * Event
-             * @default checkpoint
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "checkpoint";
             host: components["schemas"]["SnapshotDetails"];
@@ -986,9 +982,8 @@ export interface components {
          */
         CompactionEvent: {
             /**
-             * Event
-             * @default compaction
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "compaction";
             /** Metadata */
@@ -1314,9 +1309,8 @@ export interface components {
         ErrorEvent: {
             error: components["schemas"]["EvalError"];
             /**
-             * Event
-             * @default error
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "error";
             /** Metadata */
@@ -2166,9 +2160,8 @@ export interface components {
         InfoEvent: {
             data: components["schemas"]["JsonValue"];
             /**
-             * Event
-             * @default info
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "info";
             /** Metadata */
@@ -2198,9 +2191,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /**
-             * Event
-             * @default input
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "input";
             /** Fields */
@@ -2264,9 +2256,8 @@ export interface components {
          */
         InterruptEvent: {
             /**
-             * Event
-             * @default interrupt
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "interrupt";
             /**
@@ -2434,6 +2425,8 @@ export interface components {
             files: components["schemas"]["LogHandle"][];
             /** Log Dir */
             log_dir: string;
+            /** Log Dir Uri */
+            log_dir_uri?: string | null;
         };
         /**
          * LogUpdate
@@ -2450,9 +2443,8 @@ export interface components {
          */
         LoggerEvent: {
             /**
-             * Event
-             * @default logger
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "logger";
             message: components["schemas"]["LoggingMessage"];
@@ -2638,9 +2630,8 @@ export interface components {
             /** Error */
             error?: string | null;
             /**
-             * Event
-             * @default model
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "model";
             /** Input */
@@ -2907,9 +2898,8 @@ export interface components {
          */
         SampleInitEvent: {
             /**
-             * Event
-             * @default sample_init
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "sample_init";
             /** Metadata */
@@ -2935,9 +2925,8 @@ export interface components {
          */
         SampleLimitEvent: {
             /**
-             * Event
-             * @default sample_limit
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "sample_limit";
             /** Limit */
@@ -3023,9 +3012,8 @@ export interface components {
             /** Completed */
             completed?: string | null;
             /**
-             * Event
-             * @default sandbox
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "sandbox";
             /** File */
@@ -3171,9 +3159,8 @@ export interface components {
         ScoreEditEvent: {
             edit: components["schemas"]["ScoreEdit"];
             /**
-             * Event
-             * @default score_edit
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "score_edit";
             /** Metadata */
@@ -3202,9 +3189,8 @@ export interface components {
          */
         ScoreEvent: {
             /**
-             * Event
-             * @default score
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "score";
             /**
@@ -3298,9 +3284,8 @@ export interface components {
          */
         SpanBeginEvent: {
             /**
-             * Event
-             * @default span_begin
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "span_begin";
             /** Id */
@@ -3332,9 +3317,8 @@ export interface components {
          */
         SpanEndEvent: {
             /**
-             * Event
-             * @default span_end
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "span_end";
             /** Id */
@@ -3362,9 +3346,8 @@ export interface components {
             /** Changes */
             changes: components["schemas"]["JsonChange"][];
             /**
-             * Event
-             * @default state
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "state";
             /** Metadata */
@@ -3393,9 +3376,8 @@ export interface components {
              */
             action: "begin" | "end";
             /**
-             * Event
-             * @default step
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "step";
             /** Metadata */
@@ -3455,9 +3437,8 @@ export interface components {
             /** Changes */
             changes: components["schemas"]["JsonChange"][];
             /**
-             * Event
-             * @default store
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "store";
             /** Metadata */
@@ -3483,9 +3464,8 @@ export interface components {
             /** Completed */
             completed?: string | null;
             /**
-             * Event
-             * @default subtask
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "subtask";
             /** Events */
@@ -3782,9 +3762,8 @@ export interface components {
             completed?: string | null;
             error?: components["schemas"]["ToolCallError"] | null;
             /**
-             * Event
-             * @default tool
-             * @constant
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
              */
             event: "tool";
             /** Events */

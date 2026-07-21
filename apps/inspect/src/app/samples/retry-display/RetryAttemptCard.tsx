@@ -184,7 +184,7 @@ const RetryEventsView: FC<{
         scrollRef={scrollRef}
         listId={listId}
         embedded
-        showSwimlanes={false}
+        timeline={{ showSwimlanes: false }}
         collapseState={collapseState}
         bulkCollapse={bulkCollapse}
         eventNodeContext={{ inlineExpansionUX: true }}
