@@ -86,6 +86,9 @@ export interface LogListData {
   hasMoreRows: boolean;
   /** Load the next page of file rows (in-flight-safe). */
   fetchMoreRows: () => void;
+  /** Pause the grid's commit-driven fetch chaining — a chained fetch can't
+   *  make progress right now (see `DatabaseLogsListing.autoFetchPaused`). */
+  autoFetchPaused: boolean;
 }
 
 /**
@@ -150,6 +153,7 @@ export const useLogListData = ({
     result: { data: result, loading: pending, error },
     hasNextPage,
     fetchNextPage,
+    autoFetchPaused,
   } = useDatabaseLogsListingQuery<LogListRow>({
     filter,
     orderBy,
@@ -222,5 +226,6 @@ export const useLogListData = ({
     error,
     hasMoreRows: hasNextPage,
     fetchMoreRows: fetchNextPage,
+    autoFetchPaused,
   };
 };

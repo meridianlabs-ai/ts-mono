@@ -13,6 +13,7 @@ import type {
 import type { LogListingRow, LogsListingPageQuery } from "../../../log_data";
 
 import {
+  kLogsListingMaxPages,
   useDatabaseLogsListingQuery,
   useLogsListingMatches,
 } from "./useLogsListingQuery";
@@ -236,11 +237,14 @@ describe("useDatabaseLogsListingQuery", () => {
     expect(result.current.result.error?.message).toBe("scan failed");
     expect(result.current.result.loading).toBe(false);
     expect(result.current.result.data).toBeUndefined();
+    // A settled error must pause commit-driven fetch chaining — the grid
+    // would otherwise retry the failing request in a tight loop.
+    expect(result.current.autoFetchPaused).toBe(true);
   });
 
-  test("accumulates pages via fetchNextPage and reports the universe total", async () => {
-    // Page by 1 regardless of the requested limit so the fixture exercises
-    // the multi-page path without 500+ records.
+  /** Page by 1 regardless of the requested limit so fixtures exercise the
+   *  multi-page path without 500+ records. */
+  const pageByOne = () =>
     holder.read.mockImplementation(
       (
         query: LogsListingPageQuery<Row>,
@@ -259,6 +263,9 @@ describe("useDatabaseLogsListingQuery", () => {
         });
       }
     );
+
+  test("accumulates pages via fetchNextPage and reports the universe total", async () => {
+    pageByOne();
 
     const { result } = renderHook(
       () => useDatabaseLogsListingQuery<Row>(listingParams()),
@@ -281,6 +288,41 @@ describe("useDatabaseLogsListingQuery", () => {
       ])
     );
     expect(result.current.hasNextPage).toBe(false);
+    expect(result.current.autoFetchPaused).toBe(false);
+  });
+
+  test("pauses commit-driven fetching at the retained-page cap", async () => {
+    holder.records = Array.from(
+      { length: kLogsListingMaxPages + 1 },
+      (_, i) => ({
+        name: `/logs/${String(i).padStart(2, "0")}.eval`,
+        model: "claude",
+      })
+    );
+    pageByOne();
+
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+    await waitFor(() =>
+      expect(result.current.result.data?.items.length).toBe(1)
+    );
+    expect(result.current.autoFetchPaused).toBe(false);
+
+    for (let pages = 1; pages < kLogsListingMaxPages; pages++) {
+      result.current.fetchNextPage();
+      await waitFor(() =>
+        expect(result.current.result.data?.items.length).toBe(pages + 1)
+      );
+    }
+
+    // The retained window is full but rows remain. A chained fetch would
+    // slide the window without growing it — re-rendering with the grid's
+    // near-end condition still true, forever — so chaining must pause while
+    // scroll-driven paging (hasNextPage) stays available.
+    expect(result.current.hasNextPage).toBe(true);
+    expect(result.current.autoFetchPaused).toBe(true);
   });
 
   test("does not serve one universe's rows to another", async () => {

@@ -120,7 +120,7 @@ const kLogsListingPageSize = 500;
  * off the front, and refetch-on-scroll-back is the accepted cost. Inert
  * while `kLogsListingPageSize` serves everything as one page.
  */
-const kLogsListingMaxPages = 20;
+export const kLogsListingMaxPages = 20;
 
 /** {@link useDatabaseLogsListingQuery}'s result: the flattened page window
  *  plus the paging controls the grid's scroll trigger drives. */
@@ -131,6 +131,14 @@ export interface DatabaseLogsListing<TRow> {
   /** Load the next page. In-flight-safe: a scroll burst never restarts an
    *  ongoing page fetch (`cancelRefetch: false`, like scout). */
   fetchNextPage: () => void;
+  /** A chained (commit-driven) fetch can't make progress right now, so the
+   *  grid must pause its after-commit near-end check: at the retained-page
+   *  cap a fetch slides the window without growing it, and after a settled
+   *  error it would tight-loop the failing request — either way the fetch's
+   *  own re-render commits with the near-end condition still true, chaining
+   *  unboundedly. Scroll-driven fetches stay live (they page past the cap
+   *  and are the retry path out of an error). */
+  autoFetchPaused: boolean;
 }
 
 /**
@@ -165,16 +173,21 @@ export function useDatabaseLogsListingQuery<TRow>({
   // after a partial refetch. Passed as a stable `select` so react-query
   // memoizes the flattening (a per-render flatMap would give consumers a
   // fresh items identity every render).
+  // `pageCount` rides along because nothing else exposes it post-select, and
+  // `items.length` can't stand in for it: a page may come back short of the
+  // limit with a cursor still set (rows dropped by `toRow` — see
+  // readSnapshotPageRows), so a full window need not hold cap × limit rows.
   const select = useCallback(
     (
       data: InfiniteData<LogsListingResult<TRow>, Cursor | null>
-    ): LogsListingResult<TRow> => ({
+    ): LogsListingResult<TRow> & { pageCount: number } => ({
       items:
         data.pages.length === 1
           ? (data.pages[0]?.items ?? [])
           : data.pages.flatMap((page) => page.items),
       total_count: data.pages[0]?.total_count ?? 0,
       next_cursor: data.pages.at(-1)?.next_cursor ?? null,
+      pageCount: data.pages.length,
     }),
     []
   );
@@ -241,9 +254,15 @@ export function useDatabaseLogsListingQuery<TRow>({
     return { data, loading: false };
   }, [data, isPending, isError, error]);
 
+  const atPageCap = (data?.pageCount ?? 0) >= kLogsListingMaxPages;
   return useMemo(
-    () => ({ result, hasNextPage, fetchNextPage: fetchNext }),
-    [result, hasNextPage, fetchNext]
+    () => ({
+      result,
+      hasNextPage,
+      fetchNextPage: fetchNext,
+      autoFetchPaused: isError || atPageCap,
+    }),
+    [result, hasNextPage, fetchNext, isError, atPageCap]
   );
 }
 

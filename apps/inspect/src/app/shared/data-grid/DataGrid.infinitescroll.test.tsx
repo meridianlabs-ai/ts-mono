@@ -28,7 +28,11 @@ const columns: ExtendedColumnDef<Row>[] = [
 
 const gridWith = (
   data: Row[],
-  props: { hasMore: boolean; onScrollNearEnd: () => void }
+  props: {
+    hasMore: boolean;
+    onScrollNearEnd: () => void;
+    autoFetchPaused?: boolean;
+  }
 ) => (
   <DataGrid<Row>
     data={data}
@@ -37,6 +41,7 @@ const gridWith = (
     onRowActivate={() => {}}
     hasMore={props.hasMore}
     onScrollNearEnd={props.onScrollNearEnd}
+    autoFetchPaused={props.autoFetchPaused}
   />
 );
 
@@ -107,5 +112,45 @@ describe("DataGrid infinite scroll trigger", () => {
 
     rerender(gridWith(makeRows(6), { hasMore: true, onScrollNearEnd }));
     expect(onScrollNearEnd.mock.calls.length).toBeGreaterThan(baseline);
+  });
+
+  test("does not re-fire from a re-render when the rows are unchanged", () => {
+    // Regression: an every-commit check chains unboundedly once a fetch
+    // stops changing the rows (retained-page cap) — the near-end condition
+    // then re-satisfies itself off the fetch's own re-render.
+    const onScrollNearEnd = vi.fn();
+    const rows = makeRows(3);
+    const { rerender } = render(
+      gridWith(rows, { hasMore: true, onScrollNearEnd })
+    );
+    const baseline = onScrollNearEnd.mock.calls.length;
+    expect(baseline).toBeGreaterThan(0);
+
+    rerender(gridWith(rows, { hasMore: true, onScrollNearEnd }));
+    expect(onScrollNearEnd.mock.calls.length).toBe(baseline);
+  });
+
+  test("autoFetchPaused stops commit-driven fetches but not scroll-driven ones", () => {
+    const onScrollNearEnd = vi.fn();
+    const { rerender } = render(
+      gridWith(makeRows(3), {
+        hasMore: true,
+        onScrollNearEnd,
+        autoFetchPaused: true,
+      })
+    );
+    rerender(
+      gridWith(makeRows(6), {
+        hasMore: true,
+        onScrollNearEnd,
+        autoFetchPaused: true,
+      })
+    );
+    expect(onScrollNearEnd).not.toHaveBeenCalled();
+
+    // A user scroll must still page (past a cap, or as the retry out of an
+    // error) — jsdom's zero-height layout reads as "at the bottom".
+    fireEvent.scroll(screen.getByRole("grid"));
+    expect(onScrollNearEnd).toHaveBeenCalledTimes(1);
   });
 });

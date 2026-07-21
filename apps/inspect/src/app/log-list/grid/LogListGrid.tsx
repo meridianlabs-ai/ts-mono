@@ -74,6 +74,8 @@ interface LogListGridProps {
   hasMoreRows: boolean;
   /** Load the next page of file rows (in-flight-safe). */
   fetchMoreRows: () => void;
+  /** Pause the grid's commit-driven fetch chaining (from `useLogListData`). */
+  autoFetchPaused: boolean;
 }
 
 export const LogListGrid: FC<LogListGridProps> = ({
@@ -90,6 +92,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   listing,
   hasMoreRows,
   fetchMoreRows,
+  autoFetchPaused,
 }) => {
   const { gridStateByScope, patchGridState } = useLogsListing();
 
@@ -380,6 +383,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onRowActivate={handleRowActivate}
           hasMore={hasMoreRows}
           onScrollNearEnd={fetchMoreRows}
+          autoFetchPaused={autoFetchPaused}
           autoFocus
           ariaLabel="Evaluation logs"
           loading={totalRowCount === 0 && busy}

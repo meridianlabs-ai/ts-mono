@@ -198,6 +198,13 @@ export interface DataGridProps<TRow> {
   onScrollNearEnd?: () => void;
   /** Distance from the bottom (px) at which to trigger `onScrollNearEnd`. */
   fetchThreshold?: number;
+  /** Pause the commit-driven near-end check; scroll-driven checks still
+   *  fire. Set while a chained fetch can't make progress — e.g. the caller's
+   *  query has settled in error, or a retained-page cap means a fetch slides
+   *  the loaded window without growing it. In both cases the fetch's own
+   *  re-render commits with the near-end condition still true, so an
+   *  ungated chain would fetch unboundedly. */
+  autoFetchPaused?: boolean;
   /** Focus the grid container on mount so arrow-key navigation works
    *  immediately — e.g. the log list, where returning from a log should
    *  land you on the restored selection ready to arrow up/down. */
@@ -246,6 +253,7 @@ export function DataGrid<TRow>({
   hasMore = false,
   onScrollNearEnd,
   fetchThreshold = kFetchThreshold,
+  autoFetchPaused = false,
   autoFocus = false,
   ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
@@ -750,15 +758,21 @@ export function DataGrid<TRow>({
   const handleScroll = useCallback(() => {
     checkScrollNearEnd();
   }, [checkScrollNearEnd]);
-  // Also check outside scroll events — after every commit, not just when a
-  // page lands. During a replication burst the row query can be perpetually
-  // refetching, which makes the caller's in-flight-safe fetchNextPage a
-  // no-op; a user parked at the bottom generates no further scroll events,
-  // so the retry has to ride the re-render each settling refetch causes.
-  // The check is three property reads — cheap enough to run unconditionally.
+  // Also check outside scroll events, whenever the rows change: a page that
+  // doesn't out-run the threshold (or fill the viewport at all) must chain
+  // the next fetch without user input, and during a replication burst the
+  // row query can be perpetually refetching — which makes the caller's
+  // in-flight-safe fetchNextPage a no-op — while a user parked at the bottom
+  // generates no further scroll events, so the retry has to ride the commit
+  // each settling refetch causes. Keyed on `data` identity, not
+  // `data.length`: a refetch can replace the loaded window's contents
+  // without changing its size. `autoFetchPaused` covers the remaining loop:
+  // when a fetch can't grow the rows (retained-page cap, settled error) its
+  // own commit re-satisfies this check forever.
   useEffect(() => {
+    if (autoFetchPaused) return;
     checkScrollNearEnd();
-  });
+  }, [autoFetchPaused, checkScrollNearEnd, data]);
 
   // Polite live-region text. ag-grid maintained its own off-screen live region
   // that spoke row-count/sort changes; reproduce a concise equivalent so a
