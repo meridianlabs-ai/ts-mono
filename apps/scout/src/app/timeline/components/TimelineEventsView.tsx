@@ -229,19 +229,22 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       events={events}
       scrollRef={scrollRef}
       offsetTop={offsetTop}
-      timelineSelection={timelineSelection}
-      activeTimeline={activeTimeline}
-      serverTimelines={serverTimelines}
-      markerConfig={markerConfig}
-      agentConfig={agentConfig}
-      showSwimlanes={timelineProp}
-      onMarkerNavigate={onMarkerNavigate}
-      onScrollToTop={scrollToTop}
-      headroomHidden={headroomHidden}
-      onHeadroomResetAnchor={onHeadroomResetAnchor}
+      timeline={{
+        selection: timelineSelection,
+        active: activeTimeline,
+        serverTimelines,
+        markerConfig,
+        agentConfig,
+        showSwimlanes: timelineProp,
+        onMarkerNavigate,
+        onScrollToTop: scrollToTop,
+      }}
+      headroom={{
+        hidden: headroomHidden,
+        onResetAnchor: onHeadroomResetAnchor,
+      }}
       listId={id}
-      initialEventId={initialEventId}
-      initialMessageId={initialMessageId}
+      deepLink={{ eventId: initialEventId, messageId: initialMessageId }}
       eventsListRef={eventsListRef}
       getEventUrl={getEventUrl}
       linkingEnabled={linkingEnabled}

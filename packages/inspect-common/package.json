@@ -25,10 +25,11 @@
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
-    "eslint": "^9.39.4",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^9.39.5",
     "openapi-typescript": "^7.10.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.63.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.64.0",
     "vitest": "^4.1.10"
   }
 }

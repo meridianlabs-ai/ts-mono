@@ -23,7 +23,7 @@ import {
 
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import { ApplicationIcons } from "../../../icons";
-import type { SimpleCondition } from "../../../query/types";
+import type { SimpleCondition } from "../../../query";
 import { openRouteInNewTab } from "../../../router/url";
 import { FilterType } from "../../../state/store";
 import { ColumnFilterControl } from "../columnFilter";

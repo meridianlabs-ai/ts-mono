@@ -3,7 +3,7 @@
  * database.test.ts).
  */
 import Dexie from "dexie";
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DB_NAME } from "../client/database/schema";
 import {
@@ -12,7 +12,13 @@ import {
 } from "../client/database/service";
 import { queryClient } from "../state/queryClient";
 
-import { writeListing } from "./logsContent";
+import { clearFile, writeListing, writePreviews } from "./logsContent";
+
+const invalidateListings = vi.hoisted(() => vi.fn());
+vi.mock("./databaseListings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./databaseListings")>()),
+  invalidateDatabaseLogsListings: invalidateListings,
+}));
 
 describe("writeListing", () => {
   let db: DatabaseService;
@@ -52,5 +58,28 @@ describe("writeListing", () => {
     // ...and nothing was persisted where no scoped read could reach it.
     expect(await db.readLogs({ prefix: "~/logs" })).toHaveLength(0);
     expect(await db.getSyncScope("~/logs")).toBeUndefined();
+  });
+});
+
+describe("db-less write invalidation", () => {
+  // Listing queries in db-less sessions read from the react-query cache and
+  // only refetch on invalidation — so every cache-updating write must fire
+  // it, not just the persisted ones.
+  beforeEach(() => {
+    invalidateListings.mockClear();
+  });
+
+  afterEach(() => {
+    queryClient.clear();
+  });
+
+  test("a db-less preview merge refreshes the listings", async () => {
+    await writePreviews(null, "/plain/logs", {});
+    expect(invalidateListings).toHaveBeenCalled();
+  });
+
+  test("a db-less file clear refreshes the listings", async () => {
+    await clearFile(null, "/plain/logs", "/plain/logs/a.eval");
+    expect(invalidateListings).toHaveBeenCalled();
   });
 });

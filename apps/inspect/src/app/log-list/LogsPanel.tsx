@@ -5,10 +5,13 @@ import { Navigate } from "react-router-dom";
 import { EvalSet } from "@tsmono/inspect-common/types";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
-import { dirname, isInDirectory } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import { useLogListing, useLogsSync, type LogListingRow } from "../../log_data";
+import {
+  useLogsSync,
+  type LogListingRow,
+  type LogsOverview,
+} from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import { useLogsListing } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -24,18 +27,21 @@ import { logsUrl, tasksUrl, useLogRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 
+import {
+  fileLogIdentity,
+  fileLogItem,
+  type FileLogItemView,
+} from "./fileLogItem";
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
+import type { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
+import { buildLogListRow } from "./grid/logListRow";
 import { useLogListData } from "./grid/useLogListData";
-import { FileLogItem, FolderLogItem, PendingTaskItem } from "./LogItem";
+import type { LogsListingDescriptor } from "./listing/useLogsListingQuery";
+import { FolderLogItem, PendingTaskItem } from "./LogItem";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
-
-const rootName = (relativePath: string) => {
-  return relativePath.split("/")[0] ?? "";
-};
-
-const kNoListingRows: LogListingRow[] = [];
+import { useLogsOverview } from "./useLogsOverview";
 
 export type LogsPanelMode = "logs" | "tasks";
 
@@ -57,21 +63,14 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     (state) => state.setShowRetriedLogs
   );
   const logDir = useLogDir();
-  const listing = useLogListing(logDir);
-  const logFiles = listing.data ?? kNoListingRows;
   const { gridStateByScope, patchGridState } = useLogsListing();
 
   const { logPath } = useLogRouteParams();
   const evalSet = useEvalSet(logPath || "").data;
   // Sync the listing for this panel's scope; the error panel and busy
-  // indications derive from its status folded with the listing read's own
+  // indications derive from its status folded with the overview read's own
   // loading/error.
   const sync = useLogsSync(logDir, logPath ?? "");
-  const busy = sync.busy || listing.loading;
-  // The navbar bar tracks the sync round-trip only — engine background
-  // fetching (`busy`) stays in the footer/overlay indications.
-  const navbarLoading = sync.loading || listing.loading;
-  const error = sync.error ?? listing.error;
 
   const currentDir = join(logPath || "", logDir);
 
@@ -84,6 +83,14 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // a half-initialized scope.
   const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
 
+  // Cache identity of the row universe: the listing/overview queries depend
+  // on everything the view mapping reads, so it carries the display toggle
+  // along with the view scope.
+  const universe =
+    scopeKey === undefined
+      ? undefined
+      : `${scopeKey}::retried=${showRetriedLogs}`;
+
   const flowData = useFlowQuery(logPath || "").data;
 
   useEffect(() => {
@@ -92,143 +99,51 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     });
   }, [logDir]);
 
-  const [logItems, hasRetriedLogs]: [
-    Array<FileLogItem | FolderLogItem | PendingTaskItem>,
-    boolean,
-  ] = useMemo(() => {
-    if (mode === "tasks") {
-      // Flat mode: show all log files without folder grouping
-      const fileItems: Array<FileLogItem | PendingTaskItem> = [];
-      const existingLogTaskIds = new Set<string>();
-      let _hasRetriedLogs = false;
+  const itemView: FileLogItemView = useMemo(
+    () => ({ mode, logDir, currentDir, showRetriedLogs }),
+    [mode, logDir, currentDir, showRetriedLogs]
+  );
 
-      for (const logFile of logFiles) {
-        if (logFile.task_id) {
-          existingLogTaskIds.add(logFile.task_id);
-        }
+  const isCandidate = useCallback(
+    (log: LogListingRow) => fileLogIdentity(log.name, itemView) !== undefined,
+    [itemView]
+  );
+  const overviewQuery = useLogsOverview({
+    logDir,
+    universe,
+    view: {
+      folderDir: mode === "logs" ? currentDir : undefined,
+      showRetriedLogs,
+      isCandidate,
+    },
+  });
+  const overview = overviewQuery.data;
 
-        if (logFile.retried) {
-          _hasRetriedLogs = true;
-        }
+  const busy = sync.busy;
+  // The navbar bar tracks the sync round-trip only — engine background
+  // fetching (`busy`) stays in the footer/overlay indications.
+  const navbarLoading = sync.loading || overviewQuery.loading;
 
-        if (showRetriedLogs || !logFile.retried) {
-          const relativePath = directoryRelativeUrl(logFile.name, logDir);
-          const decodedPath = decodeURIComponent(relativePath);
+  // Presentation items with no database record: folders (pinned) and the
+  // eval set's not-yet-run tasks. File rows come from the listing query.
+  const logItems: Array<FolderLogItem | PendingTaskItem> = useMemo(() => {
+    const currentDirRelative = directoryRelativeUrl(currentDir, logDir);
+    const folderItems: Array<FolderLogItem | PendingTaskItem> = (
+      overview?.folders ?? []
+    ).map((folder) => ({
+      id: folder.name,
+      name: folder.name,
+      type: "folder",
+      url: logsUrl(
+        join(folder.name, decodeURIComponent(currentDirRelative)),
+        logDir
+      ),
+      itemCount: folder.itemCount,
+    }));
+    return appendPendingItems(evalSet, new Set(overview?.taskIds), folderItems);
+  }, [overview, evalSet, currentDir, logDir]);
 
-          fileItems.push({
-            id: logFile.name,
-            name: decodedPath,
-            type: "file",
-            url: tasksUrl(decodedPath, logDir),
-            log: logFile,
-          });
-        }
-      }
-
-      const allItems = appendPendingItems(
-        evalSet,
-        existingLogTaskIds,
-        fileItems
-      );
-      return [allItems, _hasRetriedLogs];
-    }
-
-    // Folder-grouped mode (default)
-    const folderItems: Array<FileLogItem | FolderLogItem | PendingTaskItem> =
-      [];
-    const fileItems: Array<FileLogItem | FolderLogItem | PendingTaskItem> = [];
-
-    // Track processed folders to avoid duplicates
-    const processedFolders = new Set<string>();
-    const existingLogTaskIds = new Set<string>();
-    let _hasRetriedLogs = false;
-
-    // Count logs under a path prefix via binary search rather than a full
-    // scan per folder (which made folder counting O(folders × logs)). Names
-    // sort into contiguous ranges, so a prefix count is two bound lookups.
-    const sortedNames = logFiles.map((f) => f.name).sort();
-    const lowerBound = (target: string): number => {
-      let lo = 0;
-      let hi = sortedNames.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        const name = sortedNames[mid];
-        if (name !== undefined && name < target) lo = mid + 1;
-        else hi = mid;
-      }
-      return lo;
-    };
-    const countWithPrefix = (prefix: string): number =>
-      lowerBound(prefix + "\uffff") - lowerBound(prefix);
-
-    for (const logFile of logFiles) {
-      if (logFile.task_id) {
-        existingLogTaskIds.add(logFile.task_id);
-      }
-
-      const name = logFile.name;
-
-      const cleanDir = currentDir.endsWith("/")
-        ? currentDir.slice(0, -1)
-        : currentDir;
-
-      const dirWithSlash = !currentDir.endsWith("/")
-        ? currentDir + "/"
-        : currentDir;
-
-      if (isInDirectory(name, cleanDir)) {
-        const dirName = directoryRelativeUrl(currentDir, logDir);
-        const relativePath = directoryRelativeUrl(name, currentDir);
-
-        const fileOrFolderName = decodeURIComponent(rootName(relativePath));
-        const path = join(
-          decodeURIComponent(relativePath),
-          decodeURIComponent(dirName)
-        );
-
-        if (logFile.retried) {
-          _hasRetriedLogs = true;
-        }
-
-        if (showRetriedLogs || !logFile.retried) {
-          fileItems.push({
-            id: fileOrFolderName,
-            name: fileOrFolderName,
-            type: "file",
-            url: logsUrl(path, logDir),
-            log: logFile,
-          });
-        }
-      } else if (name.startsWith(dirWithSlash)) {
-        // This is file that is next level (or deeper) child of the current directory
-        const relativePath = directoryRelativeUrl(name, currentDir);
-
-        const dirName = decodeURIComponent(rootName(relativePath));
-        const currentDirRelative = directoryRelativeUrl(currentDir, logDir);
-        const url = join(dirName, decodeURIComponent(currentDirRelative));
-        if (!processedFolders.has(dirName)) {
-          folderItems.push({
-            id: dirName,
-            name: dirName,
-            type: "folder",
-            url: logsUrl(url, logDir),
-            itemCount: countWithPrefix(dirname(name)),
-          });
-          processedFolders.add(dirName);
-        }
-      }
-    }
-
-    const orderedItems = [...folderItems, ...fileItems];
-
-    const _logFiles = appendPendingItems(
-      evalSet,
-      existingLogTaskIds,
-      orderedItems
-    );
-
-    return [_logFiles, _hasRetriedLogs];
-  }, [mode, evalSet, logFiles, currentDir, logDir, showRetriedLogs]);
+  const hasRetriedLogs = (overview?.retriedCount ?? 0) > 0;
 
   // In the folder view, scope the Metrics list to logs under the current
   // directory so descending into a subfolder shows only that folder's metrics.
@@ -254,15 +169,51 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
   } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
+  const toRow = useCallback(
+    (log: LogListingRow) => {
+      const item = fileLogItem(log, itemView);
+      return item === undefined ? undefined : buildLogListRow(item);
+    },
+    [itemView]
+  );
+
+  // One descriptor shared by the row query (useLogListData) and the grid's
+  // find-band match query, so they can never disagree about the universe.
+  const listing = useMemo<LogsListingDescriptor<LogListRow>>(
+    () => ({
+      logDir,
+      // Match the row universe: folder mode lists the current directory, the
+      // flat tasks view lists the whole log dir (like `scopeDir` above) — a
+      // narrower scan prefix would silently drop matching rows outside it.
+      prefix: mode === "logs" ? currentDir : logDir,
+      universe,
+      toRow,
+    }),
+    [logDir, mode, currentDir, universe, toRow]
+  );
+
   const listData = useLogListData({
-    items: logItems,
+    overlayItems: logItems,
     scopeKey,
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
+    listing,
   });
+
+  // Pre-filter row count — distinguishes "no items yet" (loading
+  // empty-state) from "filters matched nothing".
+  const totalRowCount = (overview?.fileCount ?? 0) + logItems.length;
+
+  // The listing/overview queries are asynchronous by design: fold their
+  // first-read window into the busy indication so the grid shows "syncing"
+  // rather than a silently empty list.
+  const listBusy = busy || listData.pending || overviewQuery.loading;
+  const error = sync.error ?? overviewQuery.error ?? listData.error;
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
@@ -318,28 +269,23 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   );
 
   const progress = useMemo(() => {
-    let pending = 0;
-    let total = 0;
-    for (const item of logItems) {
-      if (item.type === "file" || item.type === "pending-task") {
-        total += 1;
-        if (item.type === "pending-task" || item.log?.status === "started") {
-          pending += 1;
-        }
-      }
-    }
+    const pendingTasks = logItems.filter(
+      (item) => item.type === "pending-task"
+    ).length;
+    const total = (overview?.fileCount ?? 0) + pendingTasks;
+    const running = (overview?.startedCount ?? 0) + pendingTasks;
     return {
-      complete: total - pending,
+      complete: total - running,
       total,
     };
-  }, [logItems]);
+  }, [logItems, overview]);
 
   // Single-log workspaces skip the pointless one-row list. `replace` keeps
   // this page out of history so back from the log doesn't bounce forward
   // again. Deliberately not gated on sync settling — see the audit doc.
-  const onlyItem = logItems.length === 1 ? logItems[0] : undefined;
-  if (maybeShowSingleLog && onlyItem?.url) {
-    return <Navigate to={onlyItem.url} replace />;
+  const soleItemUrl = soleItemRedirectUrl(overview, logItems, itemView);
+  if (maybeShowSingleLog && soleItemUrl) {
+    return <Navigate to={soleItemUrl} replace />;
   }
 
   return (
@@ -414,21 +360,28 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       ) : (
         <>
           <div className={clsx(styles.list, "text-size-smaller")}>
+            {/* Keyed on the scope so switching folder/mode resets the grid
+                wholesale — scroll, selection, and the find band's state
+                (term + matches) belong to one scope and reset together. */}
             <LogListGrid
+              key={scopeKey ?? "pending"}
               rows={listData.rows}
-              totalRowCount={listData.totalRowCount}
+              totalRowCount={totalRowCount}
               sorting={listData.sorting}
               columnFilters={listData.columnFilters}
+              filter={listData.filter}
+              orderBy={listData.orderBy}
               currentPath={currentDir}
               scopeKey={scopeKey}
               mode={mode}
-              busy={busy}
+              busy={listBusy}
+              listing={listing}
             />
           </div>
           <LogListFooter
-            itemCount={logItems.length}
+            itemCount={totalRowCount}
             filteredCount={listData.filteredCount}
-            progressText={busy ? "Syncing data" : undefined}
+            progressText={listBusy ? "Syncing data" : undefined}
             progressBar={
               progress.total !== progress.complete ? (
                 <ProgressBar
@@ -446,11 +399,25 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   );
 };
 
+/** The redirect target when the view holds exactly one item (folder, file,
+ *  or pending task — the latter has no url, so no redirect). */
+const soleItemRedirectUrl = (
+  overview: LogsOverview | undefined,
+  logItems: Array<FolderLogItem | PendingTaskItem>,
+  itemView: FileLogItemView
+): string | undefined => {
+  if ((overview?.fileCount ?? 0) + logItems.length !== 1) return undefined;
+  if (logItems.length === 1) return logItems[0]?.url;
+  return overview?.soleFileName !== undefined
+    ? fileLogIdentity(overview.soleFileName, itemView)?.url
+    : undefined;
+};
+
 const appendPendingItems = (
   evalSet: EvalSet | undefined,
   tasksWithLogFiles: Set<string>,
-  collapsedLogItems: (FileLogItem | FolderLogItem | PendingTaskItem)[]
-): (FileLogItem | FolderLogItem | PendingTaskItem)[] => {
+  items: Array<FolderLogItem | PendingTaskItem>
+): Array<FolderLogItem | PendingTaskItem> => {
   const pendingTasks = new Array<PendingTaskItem>();
   for (const task of evalSet?.tasks || []) {
     if (!tasksWithLogFiles.has(task.task_id)) {
@@ -466,7 +433,7 @@ const appendPendingItems = (
   // Sort pending tasks by name
   pendingTasks.sort((a, b) => a.name.localeCompare(b.name));
 
-  collapsedLogItems.push(...pendingTasks);
+  items.push(...pendingTasks);
 
-  return collapsedLogItems;
+  return items;
 };

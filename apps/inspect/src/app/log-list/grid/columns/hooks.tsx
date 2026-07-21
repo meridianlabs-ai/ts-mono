@@ -96,6 +96,12 @@ export const useLogListColumns = (
   getComparator: (columnId: string) => ColumnComparator | undefined;
   /** Per-column filter type (from column meta) for client-side filtering. */
   getFilterType: (columnId: string) => FilterType | undefined;
+  /** Cache identity of the accessors above: the scorer schema they're built
+   *  from. The schema arrives asynchronously, so a query that closes over
+   *  the accessors must carry this in its key — score-column semantics
+   *  (by-metric accessors, numeric comparators/filter types) change when it
+   *  lands, with no other query input changing. */
+  accessorsKey: string;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
@@ -873,6 +879,18 @@ export const useLogListColumns = (
     [columnsById]
   );
 
+  // Everything the accessors read beyond the row and the column id: the
+  // scorer schema (`mode` also shapes the column set, but only in ways the
+  // accessors don't observe — and it's part of the listing universe anyway).
+  const accessorsKey = useMemo(
+    () =>
+      Object.entries(scorerMap)
+        .map(([key, { valueType }]) => `${key}:${valueType}`)
+        .sort()
+        .join(","),
+    [scorerMap]
+  );
+
   return {
     columns: allColumns,
     visibility,
@@ -880,6 +898,7 @@ export const useLogListColumns = (
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
     setColumnVisibility,
   };
 };

@@ -3,7 +3,7 @@ import { FC, useCallback, useRef } from "react";
 import { PopOver } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../../api/api";
-import type { SimpleCondition } from "../../../query/types";
+import type { SimpleCondition } from "../../../query";
 import type { FilterType } from "../../../state/store";
 
 import { ColumnFilterButton } from "./ColumnFilterButton";

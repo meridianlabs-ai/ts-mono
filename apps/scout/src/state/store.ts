@@ -26,7 +26,7 @@ import {
   ScanResultSummary,
   SortColumn,
 } from "../app/types";
-import type { SimpleCondition } from "../query/types";
+import type { SimpleCondition } from "../query";
 import { TranscriptInfo } from "../types/api-types";
 
 // Filter types for columns

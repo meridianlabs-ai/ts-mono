@@ -99,7 +99,6 @@ export {
   clearDeepLinkParams,
   findBranchesByBranchedFrom,
   useActiveTimeline,
-  useEventNodes,
   useTimeline,
   useTimelineConfig,
   useTimelinesArray,

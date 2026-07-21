@@ -7,8 +7,11 @@ import {
 } from "@tsmono/util";
 
 import { ConditionBuilder } from "../../../query";
-import type { OperatorModel, ScalarValue } from "../../../query";
-import type { SimpleCondition } from "../../../query/types";
+import type {
+  OperatorModel,
+  ScalarValue,
+  SimpleCondition,
+} from "../../../query";
 import type { FilterType } from "../../../state/store";
 
 const OPERATORS_BY_TYPE: Record<FilterType, OperatorModel[]> = {
