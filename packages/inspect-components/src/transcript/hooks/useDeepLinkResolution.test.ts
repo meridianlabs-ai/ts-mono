@@ -113,6 +113,7 @@ interface HarnessProps {
   initialMessageId?: string | null;
   showSwimlanes?: boolean;
   nodeFeedEvents?: Event[];
+  onHeadroomResetAnchor?: (debounce?: boolean) => void;
 }
 
 function useHarness(props: HarnessProps) {
@@ -139,6 +140,7 @@ function useHarness(props: HarnessProps) {
     spanSelectKeys,
     showSwimlanes: props.showSwimlanes ?? true,
     nodeFeedEvents: props.nodeFeedEvents ?? props.events,
+    onHeadroomResetAnchor: props.onHeadroomResetAnchor,
   });
   return { resolution, timeline, spanSelectKeys };
 }
@@ -183,6 +185,31 @@ describe("useDeepLinkResolution → effectiveInitialEventId", () => {
     const events = [makeModelEvent("evt-1", 0)];
     const { result } = renderHarness({ events });
     expect(result.current.resolution.effectiveInitialEventId).toBeNull();
+  });
+});
+
+// =============================================================================
+// Headroom anchor reset
+// =============================================================================
+
+describe("useDeepLinkResolution → headroom anchor reset", () => {
+  it("fires the debounced reset when a scroll target is pending", () => {
+    const onHeadroomResetAnchor = vi.fn();
+    renderHarness({
+      events: [makeModelEvent("evt-1", 0)],
+      initialEventId: "evt-1",
+      onHeadroomResetAnchor,
+    });
+    expect(onHeadroomResetAnchor).toHaveBeenCalledWith(true);
+  });
+
+  it("does not fire without a scroll target", () => {
+    const onHeadroomResetAnchor = vi.fn();
+    renderHarness({
+      events: [makeModelEvent("evt-1", 0)],
+      onHeadroomResetAnchor,
+    });
+    expect(onHeadroomResetAnchor).not.toHaveBeenCalled();
   });
 });
 

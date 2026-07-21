@@ -50,13 +50,11 @@ export interface OutlineNodes {
 
 export const useOutlineNodes = (
   eventNodes: EventNode[],
-  collapsedEvents: Record<string, boolean> | undefined,
-  defaultCollapsedIds: Record<string, boolean>
+  collapsedIds: Record<string, boolean>
 ): OutlineNodes => {
   const outlineNodeList = useMemo(
-    () =>
-      buildOutlineNodeList(eventNodes, collapsedEvents ?? defaultCollapsedIds),
-    [eventNodes, collapsedEvents, defaultCollapsedIds]
+    () => buildOutlineNodeList(eventNodes, collapsedIds),
+    [eventNodes, collapsedIds]
   );
 
   const allNodesList = useMemo(() => {

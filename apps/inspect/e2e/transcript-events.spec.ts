@@ -417,3 +417,113 @@ test.describe("transcript event rendering", () => {
     await expect(page.getByText("Second model call").first()).toBeVisible();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Characterization: outline collapse
+// ---------------------------------------------------------------------------
+
+function createSpanBegin(
+  id: string,
+  name: string,
+  type: string | null,
+  timestamp: string
+): Events[number] {
+  return {
+    event: "span_begin",
+    id,
+    name,
+    type,
+    parent_id: null,
+    span_id: null,
+    timestamp,
+    working_start: 0,
+    pending: null,
+    uuid: `span-${id}`,
+    metadata: null,
+  } as unknown as Events[number];
+}
+
+function createSpanEnd(id: string, timestamp: string): Events[number] {
+  return {
+    event: "span_end",
+    id,
+    span_id: null,
+    timestamp,
+    working_start: 0,
+    pending: null,
+    uuid: `span-end-${id}`,
+    metadata: null,
+  } as unknown as Events[number];
+}
+
+function inSpan(event: ModelEvent, spanId: string): Events[number] {
+  return { ...event, span_id: spanId } as unknown as Events[number];
+}
+
+test.describe("outline collapse", () => {
+  // A plain (non-agent) span keeps its children in the outline tree; agent
+  // spans render as childless card rows until their swimlane row is selected.
+  const spanEvents = (): Events => [
+    createSpanBegin("init-1", "init", null, "2025-01-15T09:59:00Z"),
+    inSpan(
+      createModelEvent({
+        uuid: "init-model",
+        content: "Setting things up",
+        startSec: 0,
+        endSec: 1,
+      }),
+      "init-1"
+    ),
+    createSpanEnd("init-1", "2025-01-15T09:59:30Z"),
+    createSpanBegin("phase-1", "phase one", null, "2025-01-15T10:00:00Z"),
+    inSpan(
+      createModelEvent({
+        uuid: "phase-model-1",
+        content: "Research step one",
+        startSec: 2,
+        endSec: 4,
+      }),
+      "phase-1"
+    ),
+    inSpan(
+      createModelEvent({
+        uuid: "phase-model-2",
+        content: "Research step two",
+        startSec: 5,
+        endSec: 7,
+      }),
+      "phase-1"
+    ),
+    createSpanEnd("phase-1", "2025-01-15T10:01:00Z"),
+  ];
+
+  test("span rows collapse and expand via their chevrons", async ({
+    page,
+    network,
+  }) => {
+    await openTranscript(page, network, spanEvents());
+
+    const outline = page.locator(".transcript-outline");
+    await expect(outline).toBeVisible();
+
+    // The phase span row is expanded by default: its grouped turns row shows.
+    const phaseRow = outline
+      .locator('[class*="eventRow"]')
+      .filter({ hasText: "phase one" });
+    await expect(phaseRow).toBeVisible();
+    const turnsRow = outline
+      .locator('[class*="eventRow"]')
+      .filter({ hasText: "2 turns" });
+    await expect(turnsRow).toBeVisible();
+    await expect(phaseRow.locator("i.bi-chevron-down")).toBeVisible();
+
+    // Collapse the phase row: the turns row disappears.
+    await phaseRow.locator('[class*="toggle"]').click();
+    await expect(turnsRow).toBeHidden();
+    await expect(phaseRow.locator("i.bi-chevron-right")).toBeVisible();
+
+    // Expand it again.
+    await phaseRow.locator('[class*="toggle"]').click();
+    await expect(turnsRow).toBeVisible();
+  });
+});

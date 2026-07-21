@@ -20,10 +20,7 @@ import {
   ReactNode,
   RefObject,
   useCallback,
-  useEffect,
-  useMemo,
   useRef,
-  useState,
 } from "react";
 
 import type {
@@ -35,16 +32,22 @@ import {
   RailDock,
   StickyScroll,
 } from "@tsmono/react/components";
-import { useElementHeight, useScrubberProgress } from "@tsmono/react/hooks";
+import { useElementHeight } from "@tsmono/react/hooks";
 
 import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
 import { useListPositionManager } from "./hooks/useListPositionManager";
 import { useOutlineAutoHide } from "./hooks/useOutlineAutoHide";
+import { useSelectionActions } from "./hooks/useSelectionActions";
+import { useSidebarScrollCoupling } from "./hooks/useSidebarScrollCoupling";
 import { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+import { useSwimlaneHeader } from "./hooks/useSwimlaneHeader";
 import { useTimelinePipeline } from "./hooks/useTimelinePipeline";
 import { useTranscriptCollapse } from "./hooks/useTranscriptCollapse";
-import { TranscriptOutline } from "./outline/TranscriptOutline";
+import {
+  OutlineSidebar,
+  type TranscriptLayoutOutlineProps,
+} from "./OutlineSidebar";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { type TimelineSpan } from "./timeline/core";
@@ -54,7 +57,6 @@ import {
   type UseTimelineProps,
 } from "./timeline/hooks";
 import { type MarkerConfig } from "./timeline/markers";
-import { buildSpanSelectKeys } from "./timeline/timelineEventNodes";
 import {
   TimelineRowSelectContext,
   TimelineSelectContext,
@@ -74,21 +76,7 @@ import {
 // Types
 // =============================================================================
 
-export interface TranscriptLayoutOutlineProps {
-  collapsed: boolean;
-  onCollapsedChange: (collapsed: boolean) => void;
-  toggleDisabled?: boolean;
-  toggleTitle?: string;
-  toggleIcon: string;
-  /** Header title shown next to the toggle icon when expanded. */
-  title?: string;
-  /** Name of the agent/subagent currently displayed. Shown as a header in the outline. */
-  name?: string;
-  renderLink?: (url: string, children: ReactNode) => ReactNode;
-  onNavigateToEvent?: (eventId: string) => void;
-  selectedId?: string | null;
-  setSelectedId?: (id: string) => void;
-}
+export { type TranscriptLayoutOutlineProps } from "./OutlineSidebar";
 
 export interface TranscriptLayoutRightRailProps {
   /** Always-visible rail content (the vertical activity bar). */
@@ -106,6 +94,53 @@ export interface TranscriptLayoutRightRailProps {
   panelMaxWidth?: number;
   /** aria-label root for the panel region. */
   label?: string;
+}
+
+/** Timeline data, selection adapters, and swimlane behavior
+ *  (consumed by the timeline pipeline + swimlane header). */
+export interface TranscriptLayoutTimelineProps {
+  /** Row selection state adapter. */
+  selection?: UseTimelineProps;
+  /** Active-timeline adapter (multi-timeline logs). */
+  active?: UseActiveTimelineProps;
+  serverTimelines?: ServerTimeline[];
+  /** Marker config override (default: useTimelineConfig()). */
+  markerConfig?: MarkerConfig;
+  /** Agent timeline options override (default: useTimelineConfig()). */
+  agentConfig?: TimelineOptions;
+  /** Swimlane visibility. "auto" (the default) shows them when the timeline
+   *  has agent structure. */
+  showSwimlanes?: boolean | "auto";
+  onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
+  /** Called on swimlane header click to scroll the view to the top. */
+  onScrollToTop?: () => void;
+}
+
+/** Deep-link target resolved on mount (consumed by useDeepLinkResolution). */
+export interface TranscriptLayoutDeepLinkProps {
+  /** Deep-link to a specific event. Takes priority over messageId. */
+  eventId?: string | null;
+  /** Deep-link to a message ID, resolved to the best matching event.
+   *  Used for citation navigation — resolves against selected span first, then root. */
+  messageId?: string | null;
+}
+
+/** Adapter for the host's headroom (collapsing chrome above the transcript). */
+export interface TranscriptLayoutHeadroomProps {
+  hidden?: boolean;
+  /** Force the headroom into the given hidden state. Used by sources (e.g.
+   *  search) that drive scroll-direction-sensitive UI when their motion
+   *  doesn't match what the scroll-direction tracker would infer. */
+  onSetHidden?: (hidden: boolean) => void;
+  onResetAnchor?: (debounce?: boolean) => void;
+}
+
+/** Empty-state display when no events match the current filter. */
+export interface TranscriptLayoutEmptyProps {
+  /** Text shown when no events match. Pass null to disable the empty state. */
+  text?: string | null;
+  /** Render the empty state as an in-progress placeholder (animated, no icon). */
+  busy?: boolean;
 }
 
 export interface TranscriptLayoutProps {
@@ -127,35 +162,18 @@ export interface TranscriptLayoutProps {
    *  rather than as the page's primary scroll region. */
   embedded?: boolean;
 
-  // --- Timeline selection adapters ---
-  timelineSelection?: UseTimelineProps;
-  activeTimeline?: UseActiveTimelineProps;
-  serverTimelines?: ServerTimeline[];
-
-  // --- Timeline config overrides (default: useTimelineConfig()) ---
-  markerConfig?: MarkerConfig;
-  agentConfig?: TimelineOptions;
-
-  // --- Swimlane control ---
-  showSwimlanes?: boolean | "auto";
-  onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
-  onScrollToTop?: () => void;
-
-  // --- Headroom ---
-  headroomHidden?: boolean;
-  /** Force the headroom into the given hidden state. Used by sources (e.g.
-   *  search) that drive scroll-direction-sensitive UI when their motion
-   *  doesn't match what the scroll-direction tracker would infer. */
-  onHeadroomSetHidden?: (hidden: boolean) => void;
-  onHeadroomResetAnchor?: (debounce?: boolean) => void;
+  // --- Feature groups ---
+  /** Timeline data, selection adapters, and swimlane behavior. */
+  timeline?: TranscriptLayoutTimelineProps;
+  /** Deep-link target resolved on mount. */
+  deepLink?: TranscriptLayoutDeepLinkProps;
+  /** Host headroom adapter. */
+  headroom?: TranscriptLayoutHeadroomProps;
+  /** Empty-state display. Omit for the default text. */
+  empty?: TranscriptLayoutEmptyProps;
 
   // --- Event list ---
   listId: string;
-  /** Deep-link to a specific event on mount. Takes priority over initialMessageId. */
-  initialEventId?: string | null;
-  /** Deep-link to a message ID, resolved to the best matching event.
-   *  Used for citation navigation — resolves against selected span first, then root. */
-  initialMessageId?: string | null;
   eventsListRef?: RefObject<TranscriptViewNodesHandle | null>;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
@@ -168,29 +186,25 @@ export interface TranscriptLayoutProps {
   // --- Outline ---
   /** Outline panel configuration. When omitted, the outline column is hidden entirely. */
   outline?: TranscriptLayoutOutlineProps;
-  /** Optional ref to the outline's sticky scroll container. Useful when the
-   *  caller wants to observe its scroll events (e.g. headroom direction). */
-  outlineScrollRef?: RefObject<HTMLDivElement | null>;
 
   // --- Right rail ---
   /** Optional always-visible right rail + optional panel. */
   rightRail?: TranscriptLayoutRightRailProps;
-  /** Optional ref to the rail panel's sticky scroll container (wheel forwarding). */
-  rightRailPanelScrollRef?: RefObject<HTMLDivElement | null>;
 
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
-
-  /** Text shown when no events match the current filter. Pass null to disable empty state. */
-  emptyText?: string | null;
-  /** Render the empty state as an in-progress placeholder (animated, no icon). */
-  emptyBusy?: boolean;
   className?: string;
 }
 
 // =============================================================================
 // Component
 // =============================================================================
+
+function renderAgentCard(node: EventNode, agentCardClassName?: string) {
+  const span = node.sourceSpan as TimelineSpan | undefined;
+  if (!span) return null;
+  return <AgentCardView span={span} className={agentCardClassName} />;
+}
 
 export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   events,
@@ -200,34 +214,45 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   scrollRef,
   offsetTop = 0,
   embedded = false,
-  timelineSelection,
-  activeTimeline,
-  serverTimelines,
-  markerConfig: markerConfigOverride,
-  agentConfig: agentConfigOverride,
-  showSwimlanes: showSwimlanesOption = "auto",
-  onMarkerNavigate,
-  onScrollToTop,
-  headroomHidden,
-  onHeadroomResetAnchor,
-  onHeadroomSetHidden,
+  timeline,
+  deepLink,
+  headroom,
+  empty,
   listId,
-  initialEventId,
-  initialMessageId,
   eventsListRef,
   getEventUrl,
   linkingEnabled,
   bulkCollapse,
   collapseState,
   outline,
-  outlineScrollRef,
   rightRail,
-  rightRailPanelScrollRef,
   eventNodeContext,
-  emptyText = "No events match the current filter",
-  emptyBusy,
   className,
 }) => {
+  // Group props destructure to locals immediately: the group objects are
+  // typically fresh literals at call sites, but the values inside keep the
+  // caller's identity — hooks below depend on the values, never the groups.
+  const {
+    selection: timelineSelection,
+    active: activeTimeline,
+    serverTimelines,
+    markerConfig: markerConfigOverride,
+    agentConfig: agentConfigOverride,
+    showSwimlanes: showSwimlanesOption = "auto",
+    onMarkerNavigate,
+    onScrollToTop,
+  } = timeline ?? {};
+  const { eventId: initialEventId, messageId: initialMessageId } =
+    deepLink ?? {};
+  const {
+    hidden: headroomHidden,
+    onSetHidden: onHeadroomSetHidden,
+    onResetAnchor: onHeadroomResetAnchor,
+  } = headroom ?? {};
+  const {
+    text: emptyText = "No events match the current filter",
+    busy: emptyBusy,
+  } = empty ?? {};
   // ---------------------------------------------------------------------------
   // Timeline pipeline + event nodes
   // ---------------------------------------------------------------------------
@@ -251,16 +276,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   });
 
   const {
-    timeline: timelineData,
     state: timelineState,
     swimlanes: { layouts: timelineLayouts, regionCounts, highlightedKeys },
-    minimap: { mapping: rootTimeMapping, selection: minimapSelection },
-    multiTimeline: {
-      timelines,
-      activeIndex: activeTimelineIndex,
-      setActive: setActiveTimeline,
-    },
-    views: { stack: viewStack, push: pushView, pop: popView },
+    minimap,
+    multiTimeline,
+    views,
     selection: { rowName: selectedRowName },
   } = transcriptTimeline;
 
@@ -297,29 +317,17 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const effectiveOffsetTop = offsetTop + stickySwimLaneHeight;
 
   // ---------------------------------------------------------------------------
-  // Per-agent list position management
+  // Selection actions + per-agent list position management
   // ---------------------------------------------------------------------------
 
-  // Suppress the scroll-to-top on selection change when an active deep-link
-  // target is in URL. The URL-driven case is sync (the URL update lands
-  // before the row-click effects fire, so a top reset would clobber the
-  // about-to-fire imperative scroll). For pure swimlane row clicks (URL
-  // bare, only `branchScrollTarget` set), keeping the top reset is
-  // desirable — it clears the previous branch's deep scroll position
-  // before the imperative scroll lands on the new branch separator.
-  // The imperative scroll runs in rAF and re-scrolls to its target after
-  // the sync top reset.
-  // Scroll-anchor for inline fork-navigator clicks: the prefix above the
-  // clicked navigator is unchanged across the selection, so capturing and
-  // restoring scrollTop keeps the navigator at the same viewport position.
-  const [scrollAnchor, setScrollAnchor] = useState<{
-    scrollTop: number;
-  } | null>(null);
-  const hasScrollTarget = !!(
-    initialEventId ||
-    initialMessageId ||
-    scrollAnchor
-  );
+  const { spanSelectKeys, selectBySpanId, selectByRowKey, hasScrollTarget } =
+    useSelectionActions({
+      timelineState,
+      scrollRef,
+      initialEventId,
+      initialMessageId,
+    });
+
   const { effectiveListId } = useListPositionManager(
     listId,
     timelineState.selected,
@@ -328,94 +336,18 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   );
 
   // ---------------------------------------------------------------------------
-  // Scrubber progress
+  // Swimlane header
   // ---------------------------------------------------------------------------
 
-  const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
-
-  const handleScrub = useCallback(
-    (progress: number) => {
-      onHeadroomResetAnchor?.(true);
-      scrubTo(progress);
-    },
-    [onHeadroomResetAnchor, scrubTo]
-  );
-
-  const swimlaneHeader = useMemo(
-    () => ({
-      rootLabel: timelineData.root.name,
-      onScrollToTop,
-      minimap: {
-        root: timelineData.root,
-        selection: minimapSelection,
-        mapping: rootTimeMapping,
-        scrubberProgress,
-        onScrub: handleScrub,
-      },
-      timelineConfig,
-      timelineSelector:
-        timelines.length > 1
-          ? {
-              timelines,
-              activeIndex: activeTimelineIndex,
-              onSelect: setActiveTimeline,
-            }
-          : undefined,
-      viewStack,
-      onPopView: popView,
-    }),
-    [
-      timelineData.root,
-      onScrollToTop,
-      minimapSelection,
-      rootTimeMapping,
-      scrubberProgress,
-      handleScrub,
-      timelineConfig,
-      timelines,
-      activeTimelineIndex,
-      setActiveTimeline,
-      viewStack,
-      popView,
-    ]
-  );
-
-  const handlePunchDown = useCallback(
-    (rowKey: string, label: string) => {
-      const row = timelineState.rows.find((r) => r.key === rowKey);
-      const span = row?.spans[0];
-      if (span && "agent" in span) pushView(span.agent, label);
-    },
-    [timelineState.rows, pushView]
-  );
-
-  // ---------------------------------------------------------------------------
-  // Span selection context (agent card clicks → swimlane selection)
-  // ---------------------------------------------------------------------------
-
-  const spanSelectKeys = useMemo(
-    () => buildSpanSelectKeys(timelineState.rows),
-    [timelineState.rows]
-  );
-
-  const selectBySpanId = useCallback(
-    (spanId: string) => {
-      const key = spanSelectKeys.get(spanId);
-      if (!key) return;
-      timelineState.select(key.key);
-    },
-    [spanSelectKeys, timelineState]
-  );
-
-  const selectByRowKey = useCallback(
-    (rowKey: string, anchorEl?: HTMLElement) => {
-      if (anchorEl && scrollRef.current) {
-        setScrollAnchor({ scrollTop: scrollRef.current.scrollTop });
-      }
-      timelineState.select(rowKey, { preserveScroll: true });
-    },
-    [timelineState, scrollRef]
-  );
+  const swimlaneHeader = useSwimlaneHeader({
+    scrollRef,
+    onScrollToTop,
+    onHeadroomResetAnchor,
+    timelineConfig,
+    minimap,
+    multiTimeline,
+    views,
+  });
 
   // ---------------------------------------------------------------------------
   // Deep-link resolution
@@ -428,29 +360,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     spanSelectKeys,
     showSwimlanes,
     nodeFeedEvents: nodeFeed.events,
+    onHeadroomResetAnchor,
   });
-
-  // Branch selections share one effectiveListId (no remount), so the prefix
-  // above the clicked navigator is laid out identically — restoring scrollTop
-  // keeps it at the same viewport position.
-  useEffect(() => {
-    if (!scrollAnchor) return;
-    requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: scrollAnchor.scrollTop });
-    });
-  }, [scrollAnchor, scrollRef]);
-
-  // Suppress headroom (swimlane collapse/expand) during programmatic scrolls
-  // — fires for any change to the effective scroll target (URL `?event=`,
-  // resolved message, branch switch). The reset-anchor uses a debounced
-  // lock that stays active while the imperative scroll's retry loop keeps
-  // emitting scroll events, so the swimlane doesn't flicker open/closed
-  // during the multi-pass settling.
-  useEffect(() => {
-    if (effectiveInitialEventId) {
-      onHeadroomResetAnchor?.(true);
-    }
-  }, [effectiveInitialEventId, onHeadroomResetAnchor]);
 
   // ---------------------------------------------------------------------------
   // Collapse state & outline auto-hide
@@ -474,19 +385,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   const hasMatchingEvents = eventNodes.length > 0;
 
   // ---------------------------------------------------------------------------
-  // Agent card rendering
-  // ---------------------------------------------------------------------------
-
-  const renderAgentCard = useCallback(
-    (node: EventNode, agentCardClassName?: string) => {
-      const span = node.sourceSpan as TimelineSpan | undefined;
-      if (!span) return null;
-      return <AgentCardView span={span} className={agentCardClassName} />;
-    },
-    []
-  );
-
-  // ---------------------------------------------------------------------------
   // Headroom reset anchor
   // ---------------------------------------------------------------------------
 
@@ -495,127 +393,30 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     [onHeadroomResetAnchor]
   );
 
-  // When a sidebar toggles, the layout reflows but no scroll/resize event
-  // fires — so sticky-state observers (useStickyObserver, StickyScroll)
-  // keep stale state. Dispatch a synthetic scroll event after the DOM has
-  // settled to force them to re-measure.
-  const outlineCollapsedFlag = outline?.collapsed ?? null;
-  const railPanelOpenFlag = rightRail?.panel != null;
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const timer = setTimeout(() => {
-      el.dispatchEvent(new Event("scroll"));
-    }, 0);
-    return () => clearTimeout(timer);
-  }, [outlineCollapsedFlag, railPanelOpenFlag, scrollRef]);
+  // The rail panel's scroll container is written by RailDock and read only by
+  // the wheel coupling below — no caller sees it, so the layout owns the ref.
+  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
 
-  // Forward wheel events from the sidebars to the main scroll container
-  // only while the header above the tabs is still visible. Once the sidebar
-  // is stuck at its sticky top (header fully out), wheel events stop chaining
-  // so the main transcript doesn't scroll along with the sidebar.
-  const effectiveOffsetTopRef = useRef(effectiveOffsetTop);
-  useEffect(() => {
-    effectiveOffsetTopRef.current = effectiveOffsetTop;
-  }, [effectiveOffsetTop]);
-  const offsetTopRef = useRef(offsetTop);
-  useEffect(() => {
-    offsetTopRef.current = offsetTop;
-  }, [offsetTop]);
-
-  useEffect(() => {
-    const main = scrollRef.current;
-    const outlineEl = outlineScrollRef?.current ?? null;
-    const railPanelEl = rightRailPanelScrollRef?.current ?? null;
-    if (!main) return;
-
-    const makeHandler =
-      (sidebar: HTMLDivElement, stickyTopRef: { current: number }) =>
-      (e: WheelEvent) => {
-        const mainMaxTop = main.scrollHeight - main.clientHeight;
-        // Is the sidebar currently stuck at its sticky top? If so, the header
-        // above the tabs has already scrolled off — don't chain further main
-        // scrolling or the transcript itself would move with the sidebar.
-        const mainRect = main.getBoundingClientRect();
-        const sidebarRect = sidebar.getBoundingClientRect();
-        const sidebarTopInScroller = sidebarRect.top - mainRect.top;
-        const sidebarIsSticky =
-          sidebarTopInScroller <= stickyTopRef.current + 1;
-
-        if (!sidebarIsSticky) {
-          // Header still visible — forward all wheel input to the main
-          // scroller so that the header collapses/expands. Suppress the
-          // sidebar's default scroll for this step.
-          const canMain =
-            (e.deltaY > 0 && main.scrollTop < mainMaxTop - 0.5) ||
-            (e.deltaY < 0 && main.scrollTop > 0.5);
-          if (canMain) {
-            e.preventDefault();
-            main.scrollBy({ top: e.deltaY, behavior: "auto" });
-          }
-        } else if (
-          e.deltaY < 0 &&
-          sidebar.scrollTop <= 0 &&
-          main.scrollTop > 0
-        ) {
-          // Sidebar is sticky and already at its own top — wheeling up should
-          // bring the header back, so forward to main.
-          e.preventDefault();
-          main.scrollBy({ top: e.deltaY, behavior: "auto" });
-        }
-        // Otherwise let the sidebar's native wheel scroll proceed.
-      };
-
-    // The rail panel pins directly below the toolbar (offsetTop), alongside
-    // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
-    // Each needs its own sticky-detection threshold.
-    const targets: {
-      el: HTMLDivElement;
-      stickyTopRef: { current: number };
-    }[] = [];
-    if (outlineEl)
-      targets.push({ el: outlineEl, stickyTopRef: effectiveOffsetTopRef });
-    if (railPanelEl)
-      targets.push({ el: railPanelEl, stickyTopRef: offsetTopRef });
-
-    const entries = targets.map(({ el, stickyTopRef }) => {
-      const handler = makeHandler(el, stickyTopRef);
-      // passive: false so we can preventDefault when taking over the scroll.
-      el.addEventListener("wheel", handler, { passive: false });
-      return { el, handler };
-    });
-    return () => {
-      for (const { el, handler } of entries) {
-        el.removeEventListener("wheel", handler);
-      }
-    };
-  }, [
-    scrollRef,
-    outlineScrollRef,
-    rightRailPanelScrollRef,
-    // Re-attach when collapse state changes (the scroll elements may have
-    // unmounted/remounted via the conditional render).
-    outlineCollapsedFlag,
-    railPanelOpenFlag,
-  ]);
-
-  // Capture the outline's own scroll container (the StickyScroll div, which
-  // has overflow-y:auto) into state so the outline's Virtuoso can use it as
-  // its scroll parent. Resolving into state (rather than reading a ref during
-  // render) guarantees a re-render once the element mounts. Also mirror it
-  // into the optional external ref callers pass for wheel forwarding.
-  const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
-    null
-  );
-  const handleOutlineScrollRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      setOutlineScrollEl(el);
-      if (outlineScrollRef) {
-        outlineScrollRef.current = el;
-      }
-    },
-    [outlineScrollRef]
-  );
+  // The rail panel pins directly below the toolbar (offsetTop), alongside
+  // the timeline; the outline pins below the swimlanes (effectiveOffsetTop).
+  // Each needs its own sticky-detection threshold. The remount keys re-attach
+  // listeners when collapse state changes (the scroll elements may have
+  // unmounted/remounted via the conditional render).
+  useSidebarScrollCoupling({
+    mainScrollRef: scrollRef,
+    sidebars: [
+      {
+        scrollRef: outline?.scrollRef,
+        stickyTop: effectiveOffsetTop,
+        remountKey: outline?.collapsed ?? null,
+      },
+      {
+        scrollRef: railPanelScrollRef,
+        stickyTop: offsetTop,
+        remountKey: rightRail?.panel != null,
+      },
+    ],
+  });
 
   // Track the scroll container's visible height so sticky sidebars can cap
   // their max-height to the actually-visible area (100vh would include the
@@ -651,7 +452,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                     defaultCollapsed={swimlanesDefaultCollapsed}
                     regionCounts={regionCounts}
                     highlightedKeys={highlightedKeys}
-                    onPunchDown={handlePunchDown}
+                    onPunchDown={views.pushByRowKey}
                   />
                 </div>
               </StickyScroll>
@@ -673,95 +474,24 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               }
             >
               {outline && (
-                <>
-                  <StickyScroll
-                    ref={handleOutlineScrollRef}
-                    scrollRef={scrollRef}
-                    className={styles.outline}
-                    offsetTop={effectiveOffsetTop}
-                  >
-                    {!isOutlineCollapsed ? (
-                      <>
-                        {outline.title && (
-                          <div className={styles.sidebarHeader}>
-                            <span
-                              className={clsx(
-                                styles.sidebarHeaderTitle,
-                                "text-size-smaller"
-                              )}
-                            >
-                              {outline.title}
-                            </span>
-                          </div>
-                        )}
-                        <div className={styles.sidebarHeaderCloseAnchor}>
-                          <button
-                            type="button"
-                            className={styles.sidebarHeaderClose}
-                            onClick={() => outline.onCollapsedChange(true)}
-                            aria-label="Hide outline"
-                            title={outline.toggleTitle ?? "Hide outline"}
-                          >
-                            <i className="bi bi-x" />
-                          </button>
-                        </div>
-                        <TranscriptOutline
-                          eventNodes={eventNodes}
-                          defaultCollapsedIds={defaultCollapsedIds}
-                          scrollRef={scrollRef}
-                          outlineScrollEl={outlineScrollEl}
-                          running={running}
-                          backfilling={backfilling}
-                          agentName={
-                            outline.name ??
-                            (showSwimlanes ? selectedRowName : undefined)
-                          }
-                          scrollTrackOffset={effectiveOffsetTop}
-                          getCollapsed={
-                            collapseState?.outline
-                              ? (nodeId: string) =>
-                                  collapseState.outline?.[nodeId] === true
-                              : undefined
-                          }
-                          setCollapsed={collapseState?.onCollapseOutline}
-                          collapsedEvents={collapseState?.outline}
-                          setCollapsedEvents={
-                            collapseState?.onSetOutlineCollapsed
-                          }
-                          selectedOutlineId={outline.selectedId}
-                          setSelectedOutlineId={outline.setSelectedId}
-                          getEventUrl={getEventUrl}
-                          renderLink={outline.renderLink}
-                          onNavigateToEvent={outline.onNavigateToEvent}
-                          onHasNodesChange={onOutlineHasNodesChange}
-                        />
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className={styles.outlineToggle}
-                        onClick={
-                          outlineHasNodes && !outline.toggleDisabled
-                            ? () => outline.onCollapsedChange(false)
-                            : undefined
-                        }
-                        aria-disabled={
-                          outline.toggleDisabled || !outlineHasNodes
-                        }
-                        title={
-                          outline.toggleTitle ??
-                          (!outlineHasNodes
-                            ? "No outline available for the current filter"
-                            : undefined)
-                        }
-                        aria-label="Show outline"
-                      >
-                        <i className={outline.toggleIcon} />
-                      </button>
-                    )}
-                  </StickyScroll>
-                  <div className={styles.separator} />
-                </>
+                <OutlineSidebar
+                  outline={outline}
+                  isCollapsed={isOutlineCollapsed}
+                  hasNodes={outlineHasNodes}
+                  onHasNodesChange={onOutlineHasNodesChange}
+                  eventNodes={eventNodes}
+                  defaultCollapsedIds={defaultCollapsedIds}
+                  scrollRef={scrollRef}
+                  running={running}
+                  backfilling={backfilling}
+                  agentName={
+                    outline.name ??
+                    (showSwimlanes ? selectedRowName : undefined)
+                  }
+                  offsetTop={effectiveOffsetTop}
+                  collapseState={collapseState}
+                  getEventUrl={getEventUrl}
+                />
               )}
               {hasMatchingEvents ? (
                 <TranscriptViewNodes
@@ -802,7 +532,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
               scrollRef={scrollRef}
               scrollerHeight={scrollerHeight}
               offsetTop={offsetTop}
-              panelScrollRef={rightRailPanelScrollRef}
+              panelScrollRef={railPanelScrollRef}
               railWidth={rightRail.railWidth}
               panelWidth={rightRail.panelWidth}
               onPanelWidthChange={rightRail.onPanelWidthChange}

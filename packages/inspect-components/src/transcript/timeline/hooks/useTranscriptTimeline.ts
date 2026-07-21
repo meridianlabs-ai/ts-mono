@@ -92,6 +92,9 @@ export interface TimelineViewStack {
   stack: ReadonlyArray<{ label: string; timeline: Timeline }>;
   /** Drill into `branch` — splice it against the base timeline's root and push onto the view stack. */
   push: (branch: TimelineSpan, label: string) => void;
+  /** Drill into the branch on the swimlane row with `rowKey`. No-op when the
+   *  row doesn't hold a single agent span. */
+  pushByRowKey: (rowKey: string, label: string) => void;
   /** Pop the top of the view stack (back to the previous view). */
   pop: () => void;
 }
@@ -404,9 +407,23 @@ export function useTranscriptTimeline(
     [timelines, activeTimelineIndex, setActiveTimeline]
   );
 
+  const pushViewByRowKey = useCallback(
+    (rowKey: string, label: string) => {
+      const row = state.rows.find((r) => r.key === rowKey);
+      const span = row?.spans[0];
+      if (span && "agent" in span) pushView(span.agent, label);
+    },
+    [state.rows, pushView]
+  );
+
   const views = useMemo(
-    () => ({ stack: viewStack, push: pushView, pop: popView }),
-    [viewStack, pushView, popView]
+    () => ({
+      stack: viewStack,
+      push: pushView,
+      pushByRowKey: pushViewByRowKey,
+      pop: popView,
+    }),
+    [viewStack, pushView, pushViewByRowKey, popView]
   );
 
   const selection = useMemo(

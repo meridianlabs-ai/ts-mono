@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   Event,
@@ -288,5 +288,96 @@ describe("useTranscriptTimeline", () => {
     expect(result.current.timeline).toBeDefined();
     expect(result.current.multiTimeline.timelines).toHaveLength(1);
     expect(result.current.selection.events.length).toBeGreaterThan(0);
+  });
+});
+
+// =============================================================================
+// Punch-down views
+// =============================================================================
+
+function makeAnchorEvent(
+  uuid: string,
+  anchorId: string,
+  startSec: number
+): Event {
+  return {
+    event: "anchor",
+    uuid,
+    anchor_id: anchorId,
+    timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
+    working_start: startSec,
+    span_id: null,
+    pending: null,
+    metadata: null,
+    source: null,
+  } as unknown as Event;
+}
+
+describe("useTranscriptTimeline punch-down views", () => {
+  const events = [
+    makeModelEvent("evt-1", 0, 3),
+    makeAnchorEvent("evt-anchor", "fork-1", 4),
+    makeModelEvent("evt-branch", 5, 8),
+  ];
+  const branchTimeline: ServerTimeline = {
+    name: "default",
+    description: "Branch timeline",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [makeServerEvent("evt-1"), makeServerEvent("evt-anchor")],
+      branches: [
+        makeServerSpan({
+          id: "branch-1",
+          name: "branch",
+          span_type: "branch",
+          branched_from: "fork-1",
+          content: [makeServerEvent("evt-branch")],
+        }),
+      ],
+    }),
+  };
+
+  // Stable identity: an inline array would recreate the timelines on every
+  // render, resetting the view stack via the stack-base adjustment.
+  const serverTimelines = [branchTimeline];
+
+  function renderViews() {
+    const onSelect = vi.fn();
+    const view = renderHook(() =>
+      useTranscriptTimeline({
+        events,
+        serverTimelines,
+        timelineOptions: { showBranches: true },
+        timelineProps: { selected: null, onSelect },
+      })
+    );
+    return { ...view, onSelect };
+  }
+
+  it("pushes a branch row as a standalone spliced view and pops back", () => {
+    const { result, onSelect } = renderViews();
+
+    const branchRow = result.current.state.rows.find((r) => r.branch);
+    expect(branchRow).toBeDefined();
+    const rootBefore = result.current.timeline.root;
+
+    act(() => result.current.views.pushByRowKey(branchRow!.key, "Branch 1"));
+    expect(result.current.views.stack).toHaveLength(1);
+    expect(result.current.views.stack[0]!.label).toBe("Branch 1");
+    // The current timeline is now the spliced standalone branch.
+    expect(result.current.timeline.root).not.toBe(rootBefore);
+    // Push clears the selection for the new view.
+    expect(onSelect).toHaveBeenCalledWith(null);
+
+    act(() => result.current.views.pop());
+    expect(result.current.views.stack).toHaveLength(0);
+    expect(result.current.timeline.root).toBe(rootBefore);
+  });
+
+  it("ignores unknown row keys", () => {
+    const { result } = renderViews();
+    act(() => result.current.views.pushByRowKey("no-such-row", "x"));
+    expect(result.current.views.stack).toHaveLength(0);
   });
 });
