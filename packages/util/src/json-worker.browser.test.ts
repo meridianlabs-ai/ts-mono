@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { type Browser, chromium, type Page } from "playwright-core";
+import { chromium, type Browser, type Page } from "playwright-core";
 import {
   afterAll,
   beforeAll,
@@ -93,7 +93,7 @@ const requirePage = (ctx: TestContext): Page => {
   if (!page) {
     ctx.skip("no Chromium/Chrome available in this environment");
   }
-  return page as Page;
+  return page;
 };
 
 const runVerified = async (p: Page, api: string): Promise<void> => {
