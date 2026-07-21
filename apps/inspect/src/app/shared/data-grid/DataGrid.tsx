@@ -750,12 +750,15 @@ export function DataGrid<TRow>({
   const handleScroll = useCallback(() => {
     checkScrollNearEnd();
   }, [checkScrollNearEnd]);
-  // Also check outside scroll events: on mount, and whenever a page lands
-  // (`data.length`) — a page that doesn't out-run the threshold (or fill
-  // the viewport at all) must chain the next fetch without user input.
+  // Also check outside scroll events — after every commit, not just when a
+  // page lands. During a replication burst the row query can be perpetually
+  // refetching, which makes the caller's in-flight-safe fetchNextPage a
+  // no-op; a user parked at the bottom generates no further scroll events,
+  // so the retry has to ride the re-render each settling refetch causes.
+  // The check is three property reads — cheap enough to run unconditionally.
   useEffect(() => {
     checkScrollNearEnd();
-  }, [checkScrollNearEnd, data.length]);
+  });
 
   // Polite live-region text. ag-grid maintained its own off-screen live region
   // that spoke row-count/sort changes; reproduce a concise equivalent so a
