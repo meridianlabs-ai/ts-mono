@@ -74,7 +74,6 @@ interface JsonEvent {
     }>;
   };
   events?: JsonEvent[];
-  arguments?: Record<string, unknown>;
   config?: Record<string, unknown>;
 }
 
