@@ -106,6 +106,27 @@ export {
   type SamplesScope,
   useSamplesListing,
 } from "./samplesListing";
+// Chunked-format sample support (design/large-samples.md in the inspect_ai
+// repo): the headless data layer (./chunked) plus its app-side query and
+// attachment-resolution glue. A *chunked sample* stores its four sequences
+// (messages/events/calls/attachments) as index-addressed zip entries read by
+// range; the transcript consumes windowed *view rows* instead of
+// `sample.events`.
+export {
+  candidateOutlineRows,
+  defaultCollapsedSpanIds,
+  RowSpace,
+  type ChunkedEvent,
+  type ChunkedSample,
+  type DecodeCtx,
+  type OutlineRow,
+  type RowSlot,
+  type SampleSkeleton,
+  type SkeletonSpan,
+  type ViewRow,
+} from "./chunked";
+export { resolvedEventsReader } from "./chunkedAttachments";
+export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
 export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
 export { useDatabaseStats } from "./useFetchEngineStatus";

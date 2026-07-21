@@ -48,6 +48,7 @@ import {
   EvalSampleTarget,
 } from "../../@types/extraInspect";
 import { WorkResult } from "../../utils/workQueue";
+import type { LogZipAccess } from "../remote/remoteLogFile";
 
 export type SearchResultScope = { events?: "all"; messages?: "all" };
 
@@ -332,6 +333,12 @@ export interface ClientAPI {
     epoch: number,
     onProgress?: ProgressCallback
   ) => Promise<EvalSample | undefined>;
+  /**
+   * Entry-level access to an `.eval` log's already-open zip (undefined for
+   * non-eval logs). Serves format shapes the whole-sample reads don't —
+   * e.g. chunked samples.
+   */
+  get_log_zip_access?: (log_file: string) => Promise<LogZipAccess | undefined>;
   get_log_pending_samples?: (
     log_file: string,
     etag?: string

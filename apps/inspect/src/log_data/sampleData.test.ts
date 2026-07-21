@@ -54,6 +54,7 @@ const inputs = (overrides: Partial<SampleDataInputs>): SampleDataInputs => ({
   handle,
   summaries: data([summary()]),
   summary: summary(),
+  chunked: data(null),
   query: loading,
   running: loading,
   finalizedSample: loading,

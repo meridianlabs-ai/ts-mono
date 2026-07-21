@@ -1,0 +1,73 @@
+.layout {
+  display: flex;
+  gap: 1em;
+  align-items: flex-start;
+}
+
+.outline {
+  position: sticky;
+  flex: 0 0 220px;
+  overflow-y: auto;
+  font-size: var(--inspect-font-size-small, 0.9rem);
+  padding: 0.5em 0;
+}
+
+.outlineRow {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+  color: var(--bs-body-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.outlineRow:hover {
+  background-color: var(--bs-secondary-bg, rgba(0, 0, 0, 0.05));
+}
+
+.outlineTurns {
+  color: var(--bs-secondary-color, #888);
+  font-style: italic;
+}
+
+.list {
+  flex: 1 1 auto;
+  position: relative;
+  min-width: 0;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding-bottom: 0.5em;
+}
+
+.placeholder {
+  height: 56px;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--bs-secondary-bg, #eee) 25%,
+    var(--bs-tertiary-bg, #f6f6f6) 50%,
+    var(--bs-secondary-bg, #eee) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite linear;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}

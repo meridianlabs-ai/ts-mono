@@ -29,6 +29,12 @@ export {
   type SkeletonEvent,
   type SkeletonPolicy,
 } from "./skeleton";
+export {
+  candidateOutlineRows,
+  defaultCollapsedSpanIds,
+  type CollapseState,
+  type OutlineRow,
+} from "./outlineRows";
 export { SkeletonIndex } from "./skeletonIndex";
 export { RowSpace, type RowSlot } from "./rowSpace";
 export type {

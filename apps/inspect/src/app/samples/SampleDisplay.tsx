@@ -100,6 +100,7 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
+import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
 import { mergeTranscriptLabelContext } from "./transcript/search/mergeTranscriptLabelContext";
@@ -795,7 +796,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 positionEl={filterButtonEl}
               />
 
-              {!sampleEvents || sampleEvents.length === 0 ? (
+              {sampleData.chunked ? (
+                <div className={styles.tabContent}>
+                  <ChunkedTranscriptPanel
+                    id={`${baseId}-transcript-display-${id}`}
+                    key={`${baseId}-chunked-transcript-${id}`}
+                    scrollRef={scrollRef}
+                    offsetTop={stickyOffsetTop}
+                    chunked={sampleData.chunked}
+                  />
+                </div>
+              ) : !sampleEvents || sampleEvents.length === 0 ? (
                 sampleData.status === "loading" ? null : (
                   <NoContentsPanel
                     text={

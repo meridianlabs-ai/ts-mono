@@ -98,11 +98,28 @@ export class SequenceReader<T> {
   constructor(
     private bytes: ChunkByteStore,
     private entryNameFor: (start: number) => string,
-    boundaries: readonly number[]
+    boundaries: readonly number[],
+    /**
+     * Optional per-chunk post-parse transform (e.g. attachment-ref
+     * resolution), applied once per parsed chunk and cached with it.
+     */
+    private transform?: (items: T[], start: number) => Promise<T[]>
   ) {
     this.starts = chunkStarts(boundaries);
     this.ends = [...boundaries];
     this.count = sequenceCount(boundaries);
+  }
+
+  /** A reader over the same chunks with `transform` applied post-parse. */
+  withTransform(
+    transform: (items: T[], start: number) => Promise<T[]>
+  ): SequenceReader<T> {
+    return new SequenceReader(
+      this.bytes,
+      this.entryNameFor,
+      this.ends,
+      transform
+    );
   }
 
   /** Index of the chunk holding item `i`: greatest start ≤ i. */
@@ -120,7 +137,8 @@ export class SequenceReader<T> {
     if (!pending) {
       pending = this.bytes
         .read(this.entryNameFor(start))
-        .then((bytes) => JSON.parse(decoder.decode(bytes)) as T[]);
+        .then((bytes) => JSON.parse(decoder.decode(bytes)) as T[])
+        .then((items) => this.transform?.(items, start) ?? items);
       pending.catch(() => this.parsed.delete(start));
       this.parsed.set(start, pending);
       for (const key of this.parsed.keys()) {
