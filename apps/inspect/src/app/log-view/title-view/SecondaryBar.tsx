@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC } from "react";
+import { FC, useMemo } from "react";
 
 import {
   EvalDataset,
@@ -9,12 +9,21 @@ import {
   EvalStats,
   ProvenanceData,
 } from "@tsmono/inspect-common/types";
+import {
+  ConfigChangeInfo,
+  effectiveEvalConfig,
+  effectiveGenerateConfig,
+  evalConfigChanges,
+  generateConfigChanges,
+} from "@tsmono/inspect-common/utils";
+import { ConfigChangesCountChip } from "@tsmono/inspect-components/config";
 import { ExpandablePanel, LabeledValue } from "@tsmono/react/components";
 import { formatDataset } from "@tsmono/util";
 
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
 import {
+  useConfigUpdates,
   useEvalDescriptor,
   useSelectedSampleInvalidation,
 } from "../../../state/hooks";
@@ -23,6 +32,7 @@ import {
   formatDuration,
   valueAsString,
 } from "../../../utils/format";
+import { useShowTimeline } from "../useShowTimeline";
 
 import styles from "./SecondaryBar.module.css";
 
@@ -48,18 +58,32 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
 }) => {
   const evalDescriptor = useEvalDescriptor();
   const sampleInvalidation = useSelectedSampleInvalidation();
+  const configUpdates = useConfigUpdates();
+  const showTimeline = useShowTimeline();
+
+  // The chip string reads what the run actually finished under; the
+  // aggregate "N changed" chip carries the affordance for the retunes.
+  const configChanges = useMemo<ConfigChangeInfo[]>(
+    () => [
+      ...evalConfigChanges(configUpdates).values(),
+      ...generateConfigChanges(configUpdates).values(),
+    ],
+    [configUpdates]
+  );
 
   if (!evalSpec || status !== "success") {
     return null;
   }
 
-  const epochs = evalSpec.config.epochs || 1;
+  const effectiveConfig = effectiveEvalConfig(evalSpec.config, configUpdates);
+  const epochs = effectiveConfig.epochs || 1;
   const hyperparameters: Record<string, unknown> = {
-    ...(evalPlan?.config || {}),
+    ...effectiveGenerateConfig(evalPlan?.config || {}, configUpdates),
     ...(evalSpec.task_args || {}),
   };
 
-  const hasConfig = Object.keys(hyperparameters).length > 0;
+  const hasConfig =
+    Object.keys(hyperparameters).length > 0 || configChanges.length > 0;
 
   const values = [];
   values.push({
@@ -107,7 +131,16 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
           label="Config"
           className={clsx(styles.justifyRight, "text-size-small")}
         >
-          <ParamSummary params={hyperparameters} />
+          <span className={styles.paramsWithChanges}>
+            <ParamSummary params={hyperparameters} />
+            {configChanges.length > 0 ? (
+              <ConfigChangesCountChip
+                id="secondary-bar-config-changes"
+                changes={configChanges}
+                onViewTimeline={showTimeline}
+              />
+            ) : null}
+          </span>
         </LabeledValue>
       ),
     });
