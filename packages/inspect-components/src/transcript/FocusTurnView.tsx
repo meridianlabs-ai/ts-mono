@@ -21,7 +21,6 @@ import type { EventPanelCallbacks } from "./types";
 
 const kChevronUp = "bi bi-chevron-up";
 const kChevronDown = "bi bi-chevron-down";
-const kChevronLeft = "bi bi-chevron-left";
 const kChevronRight = "bi bi-chevron-right";
 // Pairs with EventPanel's kFocusIcon (arrows-angle-expand/contract): expand
 // enters focus mode, contract exits.
@@ -85,11 +84,6 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
     goToTurn,
     laneCrumbs,
     laneOptions,
-    laneCount,
-    onPrevAgent,
-    onNextAgent,
-    hasPrevAgent,
-    hasNextAgent,
     focusTab,
   } = nav;
 
@@ -242,31 +236,6 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
           >
             <i className={kChevronUp} />
           </button>
-          {laneCount > 1 && (
-            <>
-              <span className={styles.divider} />
-              <button
-                type="button"
-                className={styles.button}
-                title="Previous agent (h)"
-                aria-label="Previous agent"
-                disabled={!hasPrevAgent}
-                onClick={onPrevAgent}
-              >
-                <i className={kChevronLeft} />
-              </button>
-              <button
-                type="button"
-                className={styles.button}
-                title="Next agent (l)"
-                aria-label="Next agent"
-                disabled={!hasNextAgent}
-                onClick={onNextAgent}
-              >
-                <i className={kChevronRight} />
-              </button>
-            </>
-          )}
           {handleExit && (
             <>
               <span className={styles.divider} />

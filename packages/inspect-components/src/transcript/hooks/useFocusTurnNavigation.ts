@@ -98,14 +98,6 @@ export interface FocusTurnNavigation {
   laneCrumbs: LaneCrumb[];
   /** All lanes for the click-to-select picker, in row order. */
   laneOptions: LaneOption[];
-  /** Number of agent lanes (main + subagents); the `<` `>` control hides below 2. */
-  laneCount: number;
-  /** `h` key / `<` button - open the previous agent lane's first turn. */
-  onPrevAgent: () => void;
-  /** `l` key / `>` button - open the next agent lane's first turn. */
-  onNextAgent: () => void;
-  hasPrevAgent: boolean;
-  hasNextAgent: boolean;
   /** Selected view tab + setter, both URL-backed (single source of truth). */
   focusTab: FocusTabValue;
   /** Follow-latest is armed and the sample is running: the focus tracks the
@@ -281,8 +273,6 @@ export function useFocusTurnNavigation(
     () => goToLane(nextLane(1)),
     [goToLane, nextLane]
   );
-  const hasPrevAgent = nextLane(-1) !== undefined;
-  const hasNextAgent = nextLane(1) !== undefined;
 
   const laneCrumbs = useMemo<LaneCrumb[]>(() => {
     const path = laneScope?.lanePath ?? [];
@@ -359,11 +349,6 @@ export function useFocusTurnNavigation(
     goToTurn,
     laneCrumbs,
     laneOptions,
-    laneCount: laneOptions.length,
-    onPrevAgent,
-    onNextAgent,
-    hasPrevAgent,
-    hasNextAgent,
     focusTab,
   };
 }

@@ -35,8 +35,6 @@ export interface UseSwimlaneHeaderOptions {
   multiTimeline?: MultiTimelineNav;
   /** Punch-down view navigation. */
   views?: TimelineViewStack;
-  /** Agent-lane prev/next navigation (the `<` / `>` buttons + h/l). */
-  laneNav?: TimelineHeaderProps["laneNav"];
 }
 
 export function useSwimlaneHeader(
@@ -51,7 +49,6 @@ export function useSwimlaneHeader(
     minimap,
     multiTimeline,
     views,
-    laneNav,
   } = options;
 
   const [scrubberProgress, scrubTo] = useScrubberProgress(scrollRef);
@@ -74,7 +71,6 @@ export function useSwimlaneHeader(
       hiddenUtilityCount,
       multiTimeline,
       views,
-      laneNav,
     }),
     [
       onScrollToTop,
@@ -85,7 +81,6 @@ export function useSwimlaneHeader(
       hiddenUtilityCount,
       multiTimeline,
       views,
-      laneNav,
     ]
   );
 }

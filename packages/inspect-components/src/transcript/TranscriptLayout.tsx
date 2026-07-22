@@ -537,28 +537,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     () => goToNavLane(nextNavLane),
     [goToNavLane, nextNavLane]
   );
-  // Rendered even for single-lane transcripts (both chevrons disabled) so the
-  // control is discoverable rather than appearing only on multi-agent logs.
-  const laneNav = useMemo(
-    () => ({
-      index: navLanes.laneIndex,
-      count: navLanes.lanes.length,
-      name: navLanes.lanes[navLanes.laneIndex]?.label ?? selectedRowName,
-      hasPrev: prevNavLane !== undefined,
-      hasNext: nextNavLane !== undefined,
-      onPrev: onLanePrev,
-      onNext: onLaneNext,
-    }),
-    [
-      navLanes,
-      selectedRowName,
-      prevNavLane,
-      nextNavLane,
-      onLanePrev,
-      onLaneNext,
-    ]
-  );
-
   // Lane-aware wrappers over the selection actions: agent-lane keys park the
   // URL via selectLaneByKey; non-lane keys fall through to the base actions.
   const selectBySpanId = useCallback(
@@ -590,7 +568,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     minimap,
     multiTimeline,
     views,
-    laneNav,
   });
 
   // ---------------------------------------------------------------------------
@@ -764,8 +741,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   onProgrammaticScroll={onHeadroomResetAnchor}
                   onHeadroomSetHidden={onHeadroomSetHidden}
                   // Wired only with real lanes so h/l aren't swallowed for a
-                  // no-op on single-lane transcripts (the header chevrons
-                  // still render, disabled).
+                  // no-op on single-lane transcripts.
                   onPrevAgent={
                     navLanes.lanes.length > 1 ? onLanePrev : undefined
                   }
