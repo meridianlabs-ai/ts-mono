@@ -249,6 +249,14 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
 // persistence round-trips (start()-time reset, settle-seq bumps, invalidation
 // resets) without a real database.
 const createFakeSink = (db?: DatabaseService) => {
+  // Depth-tracking analogue of the real sink's cache mirror: every write
+  // path ratchets it, so `currentRows` reflects what production backfill
+  // re-derivation (requeueMissing) would see.
+  const mirror = new Map<string, Log>();
+  const upsert = (name: string, patch: Partial<Log>) => {
+    const current = mirror.get(name) ?? listedRow({ name });
+    mirror.set(name, { ...current, ...patch });
+  };
   const calls = {
     seedRows: [] as Log[][],
     setListing: [] as LogHandle[][],
@@ -266,28 +274,42 @@ const createFakeSink = (db?: DatabaseService) => {
     clearAll: 0,
   };
   const sink: LogsContentSink = {
+    currentRows: () => [...mirror.values()],
     seedRows: (rows) => {
       calls.seedRows.push(rows);
+      rows.forEach((row) => mirror.set(row.name, { ...row }));
     },
     setListing: (handles) => {
       calls.setListing.push(handles);
+      handles.forEach((h) => upsert(h.name, h));
     },
     mergePreviews: (previews) => {
       calls.mergePreviews.push(previews);
+      Object.entries(previews).forEach(([name, preview]) =>
+        upsert(name, { depth: "previewed", status: preview.status })
+      );
     },
     writeListing: async (handles) => {
       calls.writeListing.push(handles);
       const known: Record<string, Log> = db
         ? await db.readLogRows(handles.map((h) => h.name))
         : {};
-      return handles.map((h) => known[h.name] ?? listedRow(h));
+      const rows = handles.map((h) => known[h.name] ?? listedRow(h));
+      rows.forEach((row) => mirror.set(row.name, { ...row }));
+      return rows;
     },
     writePreviews: (previews) => {
       calls.writePreviews.push(previews);
+      Object.entries(previews).forEach(([name, preview]) =>
+        upsert(name, { depth: "previewed", status: preview.status })
+      );
       return Promise.resolve();
     },
     writeDetails: (details) => {
       calls.writeDetails.push(details);
+      Object.entries(details).forEach(([name, detail]) =>
+        upsert(name, { depth: "detailed", status: detail.status })
+      );
       return Promise.resolve();
     },
     mergeFetchStates: (states) => {
@@ -301,17 +323,22 @@ const createFakeSink = (db?: DatabaseService) => {
     },
     resetDepth: async (names) => {
       calls.resetDepth.push(names);
-      names.forEach((name) => delete calls.fetchStates[name]);
+      names.forEach((name) => {
+        delete calls.fetchStates[name];
+        upsert(name, { depth: "listed", status: undefined });
+      });
       await db?.resetDepth(names);
     },
     clearFile: async (name) => {
       calls.clearFile.push(name);
       delete calls.fetchStates[name];
+      mirror.delete(name);
       await db?.clearCacheForFile(name);
     },
     clearAll: () => {
       calls.clearAll++;
       calls.fetchStates = {};
+      mirror.clear();
       return Promise.resolve();
     },
   };
@@ -1882,5 +1909,84 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
     await Promise.all([first, second]);
 
     expect(fake.detailCalls.length).toBe(1);
+  });
+});
+
+// An unchanged server dir produces empty incremental sync responses, which
+// skip `applyListing` — the only backfill trigger a non-empty sync has. A
+// session that hydrates rows persisted below their target depth (interrupted
+// backfill, settled failures) must still resume fetching on those no-change
+// ticks, or the gap persists until a file's mtime changes server-side.
+describe("syncListing backfill re-arm (no-change syncs)", () => {
+  const emptyIncremental = (fake: ReturnType<typeof createFakeApi>) =>
+    ({
+      ...fake.api,
+      get_logs: vi
+        .fn()
+        .mockResolvedValue({ files: [], response_type: "incremental" }),
+    }) as unknown as ClientAPI;
+
+  it("an empty incremental sync resumes interrupted backfill from persisted rows", async () => {
+    const rows = [
+      listedRow(handle("a.eval", 10)),
+      listedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const { engine } = await createEngine({
+      api,
+      database: createFakeDb(rows),
+    });
+
+    await syncListing(api, engine);
+
+    await vi.waitFor(() => {
+      expect(fake.summaryCalls.flat().sort()).toEqual(["a.eval", "b.eval"]);
+      expect(fake.detailCalls.map((call) => call.file).sort()).toEqual([
+        "a.eval",
+        "b.eval",
+      ]);
+    });
+  });
+
+  it("a no-change sync leaves rows already at full depth alone", async () => {
+    const rows = [
+      detailedRow(handle("a.eval", 10)),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const { engine } = await createEngine({
+      api,
+      database: createFakeDb(rows),
+    });
+
+    await syncListing(api, engine);
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.detailCalls).toEqual([]);
+    expect(fake.summaryCalls).toEqual([]);
+  });
+
+  it("a later no-change sync retries a settled backfill failure", async () => {
+    const fake = createFakeApi({ failFor: ["a.eval"] });
+    const api = emptyIncremental(fake);
+    const { engine, sinkCalls } = await createEngine({
+      api,
+      database: createFakeDb([listedRow(handle("a.eval", 10))]),
+    });
+
+    await syncListing(api, engine);
+    await vi.waitFor(() => {
+      expect(sinkCalls.fetchStates["a.eval"]?.details_attempts).toBe(1);
+      expect(engine.getStatus().syncing).toBe(false);
+    });
+
+    const callsBefore = fake.detailCalls.length;
+    await syncListing(api, engine);
+    await vi.waitFor(() =>
+      expect(fake.detailCalls.length).toBeGreaterThan(callsBefore)
+    );
   });
 });

@@ -427,6 +427,7 @@ export const createLogsContentSink = (
     invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   },
+  currentRows: () => currentLogs(logDir),
   setListing: (handles) => setListing(logDir, handles),
   mergePreviews: (previews) => mergePreviews(logDir, previews),
   writeListing: (handles) => writeListing(db, logDir, handles),

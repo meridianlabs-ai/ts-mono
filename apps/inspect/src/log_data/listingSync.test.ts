@@ -16,6 +16,7 @@ const apiWith = (response: LogFilesResponse): ClientAPI =>
 
 const targetWith = (local: LogHandle[]) => {
   const applied: ListingUpdate[] = [];
+  const requeueMissing = vi.fn();
   const target: ListingTarget = {
     listing: () => local,
     epoch: () => 7,
@@ -23,8 +24,9 @@ const targetWith = (local: LogHandle[]) => {
       applied.push(update);
       return Promise.resolve(update.listing);
     },
+    requeueMissing,
   };
-  return { target, applied };
+  return { target, applied, requeueMissing };
 };
 
 describe("syncListing", () => {
@@ -76,9 +78,9 @@ describe("syncListing", () => {
     expect(applied[0]?.persistListing).toBe(true);
   });
 
-  it("treats an empty incremental response as a no-op", async () => {
+  it("applies no listing on an empty incremental response, but re-arms backfill", async () => {
     const local = [handle("a.eval", 10), handle("b.eval", 20)];
-    const { target, applied } = targetWith(local);
+    const { target, applied, requeueMissing } = targetWith(local);
 
     const result = await syncListing(
       apiWith({ files: [], response_type: "incremental" }),
@@ -87,6 +89,7 @@ describe("syncListing", () => {
 
     expect(result).toEqual(local);
     expect(applied).toEqual([]);
+    expect(requeueMissing).toHaveBeenCalledTimes(1);
   });
 
   it("merges incremental changes into the current listing", async () => {
@@ -122,6 +125,7 @@ describe("syncListing", () => {
         current = update.listing;
         return Promise.resolve(current);
       },
+      requeueMissing: vi.fn(),
     };
     const api = apiWith({ files: [], response_type: "incremental" });
 

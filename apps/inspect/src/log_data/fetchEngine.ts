@@ -90,6 +90,10 @@ interface ClaimStamp {
  * about the split.
  */
 export interface LogsContentSink {
+  /** The cache mirror's current full row collection — depth-accurate in both
+   *  db and cache-only modes (every write path ratchets it), so backfill can
+   *  re-derive missing work without an IndexedDB read. */
+  currentRows(): Log[];
   seedRows(rows: Log[]): void;
   setListing(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
@@ -246,6 +250,11 @@ export class FetchEngine {
   // backfill gating (avoids a db round-trip per batch). Writes still go
   // through the sink so the db ⟹ cache invariant holds.
   private _fetchStates: Record<string, LogFetchState> = {};
+
+  // A `requeueMissing` pass found nothing to enqueue, so no-change sync
+  // ticks can skip re-deriving backfill until new work can exist again
+  // (an applied listing, or a settled failure worth retrying).
+  private _backfillIdle = false;
 
   // Batched sink writes for background completions (user-awaited completions
   // write immediately).
@@ -438,6 +447,9 @@ export class FetchEngine {
         };
         this._fetchStates[name] = next;
         updates[name] = next;
+        // A settled failure is a retry candidate for the next no-change
+        // sync's requeueMissing pass.
+        this._backfillIdle = false;
         return;
       }
       if (!row) {
@@ -668,6 +680,7 @@ export class FetchEngine {
     this._activeSettles.clear();
     this._latestDetailsClaim.clear();
     this._fetchStates = {};
+    this._backfillIdle = false;
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
     const error = new Error("Fetch engine stopped");
@@ -897,10 +910,37 @@ export class FetchEngine {
     // insertion order, so the Medium preview tail sorts ahead of the Medium
     // details backfill and a cold listing paints every preview before the
     // per-file detail fetches start.
+    this._backfillIdle = false;
     this.queuePreviewBackfill(full, rows, invalidated);
     this.queueDetailBackfill(full, rows, invalidated);
     this._throttledUpdateDbStats();
     return full;
+  }
+
+  /**
+   * Re-arm preview/details backfill from the cache mirror's rows — the
+   * no-change sync path's stand-in for the re-arm `applyListing` performs on
+   * every applied sync. Without it, backfill lost mid-run (a restart drops
+   * the queue; settled failures leave gaps) never resumes while the server
+   * dir is unchanged, because an unchanged dir never reaches `applyListing`.
+   * No-ops while queued work is still draining — claimed items are no longer
+   * in the queue, so re-deriving here would double-fetch them — and once a
+   * pass found nothing to enqueue, until new work can exist again.
+   */
+  public requeueMissing(): void {
+    const deps = this._deps;
+    if (
+      !deps ||
+      this._backfillIdle ||
+      this._queue.size > 0 ||
+      this._queue.isProcessing
+    ) {
+      return;
+    }
+    const rows = deps.sink.currentRows();
+    this.queuePreviewBackfill(this._handles, rows, []);
+    this.queueDetailBackfill(this._handles, rows, []);
+    this._backfillIdle = this._queue.size === 0;
   }
 
   /** Clear all cached log data (database + cache). */
