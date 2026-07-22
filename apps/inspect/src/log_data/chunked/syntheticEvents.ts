@@ -134,13 +134,22 @@ export const syntheticEventsFromSkeleton = (
     );
   };
 
-  const emitNotable = (notable: SkeletonNotable, spanId: string | null, us: number) => {
+  const emitNotable = (
+    notable: SkeletonNotable,
+    spanId: string | null,
+    us: number
+  ) => {
     const uuid = `synth-notable-${notable.i}`;
     const fields =
       notable.type === "score"
         ? {
             event: "score",
-            score: { value: "", answer: null, explanation: null, metadata: null },
+            score: {
+              value: "",
+              answer: null,
+              explanation: null,
+              metadata: null,
+            },
             intermediate: false,
           }
         : notable.type === "checkpoint"
@@ -197,9 +206,11 @@ export const syntheticEventsFromSkeleton = (
         const child = spans[index];
         return { kind: "span", index, at: child?.begin ?? 0 };
       }),
-      ...notables.map(
-        (notable): Item => ({ kind: "notable", notable, at: notable.i })
-      ),
+      ...notables.map((notable): Item => ({
+        kind: "notable",
+        notable,
+        at: notable.i,
+      })),
     ].sort((a, b) => a.at - b.at);
 
     // gap_models has length items+1; the root container has no record —
@@ -241,8 +252,7 @@ export const syntheticEventsFromSkeleton = (
         points.push({ kind: "notable", notable: item.notable });
       }
 
-      const segmentHiUs =
-        nextSpan !== undefined ? beginUs(nextSpan) : hiUs;
+      const segmentHiUs = nextSpan !== undefined ? beginUs(nextSpan) : hiUs;
       const step =
         segmentHiUs > segmentLoUs
           ? (segmentHiUs - segmentLoUs) / (points.length + 1)

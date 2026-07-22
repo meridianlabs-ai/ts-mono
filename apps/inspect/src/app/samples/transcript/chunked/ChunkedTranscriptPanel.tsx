@@ -341,4 +341,3 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
     </div>
   );
 };
-

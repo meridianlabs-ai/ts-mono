@@ -11,9 +11,10 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { describe, expect, it } from "vitest";
+
 import type { Event } from "@tsmono/inspect-common/types";
 import type { EventNode } from "@tsmono/inspect-components/transcript";
-import { describe, expect, it } from "vitest";
 
 import { openZipFileFromBuffer } from "../../../../client/remote/remoteZipFile";
 import {
@@ -47,7 +48,9 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
   for (const entry of original.centralDirectory.keys()) {
     const match = /^samples\/(.+)_epoch_(\d+)\.json$/.exec(entry);
     if (!match) continue;
-    const parsed = JSON.parse(decoder.decode(await original.readFile(entry))) as {
+    const parsed = JSON.parse(
+      decoder.decode(await original.readFile(entry))
+    ) as {
       id: string | number;
       epoch: number;
       events: Event[];
