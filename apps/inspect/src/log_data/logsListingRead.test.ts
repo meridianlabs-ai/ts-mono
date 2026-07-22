@@ -659,6 +659,51 @@ describe("readLogsListingMatches", () => {
     await Dexie.delete(DB_NAME);
   });
 
+  test("overlaps the snapshot build with the match scan (no serialized table reads)", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task: "alpha", task_id: "t-a" }),
+      "/test/logs/b.json": preview({ task: "beta", task_id: "t-b" }),
+    });
+    // Gate every store read: with a cold snapshot both the snapshot build
+    // and the match scan need a full table read, and neither depends on the
+    // other's result — serializing them doubles per-keystroke match latency.
+    const original = databaseService.readLogs.bind(databaseService);
+    const release: Array<() => void> = [];
+    const readLogsSpy = vi
+      .spyOn(databaseService, "readLogs")
+      .mockImplementation(
+        (...args) =>
+          new Promise((resolve) => {
+            release.push(() => resolve(original(...args)));
+          })
+      );
+
+    const pending = readLogsListingMatches(
+      {
+        logDir: "/test/logs",
+        prefix: "/test/logs",
+        toRow: (log: LogListingRow) => log,
+        universe: "test-universe",
+        accessorsKey: "accessors-v1",
+        plan: createListingPlan({ getValue, getComparator: () => undefined }),
+      },
+      {
+        pageSize: 2,
+        term: "alpha",
+        getRowId: (row) => row.name,
+        getOrderValue: getValue,
+        rowText: (row) => `${row.name}\n${row.task ?? ""}`.toLowerCase(),
+      }
+    );
+
+    // Both reads must be in flight before either resolves.
+    await vi.waitFor(() => expect(readLogsSpy).toHaveBeenCalledTimes(2));
+    release.forEach((releaseRead) => releaseRead());
+
+    const matches = await pending;
+    expect(matches.map((match) => match.id)).toEqual(["/test/logs/a.json"]);
+  });
+
   test("returns matching row ids and snapshot offsets under the active plan", async () => {
     await databaseService.writeLogPreviews({
       "/test/logs/a.json": preview({ task: "alpha", task_id: "t-a" }),

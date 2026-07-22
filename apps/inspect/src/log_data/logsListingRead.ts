@@ -481,15 +481,19 @@ export const readLogsListingMatches = async <TRow>(
     return matches;
   }
 
-  const snapshot = await fetchLogsListingSnapshot(query, find.pageSize);
+  // The match scan doesn't consume the snapshot until the join below, so
+  // overlap the two store reads: on a stale snapshot (first keystroke per
+  // (filter, orderBy), post-invalidation refetch) each is a full table
+  // scan, and serializing them doubles per-keystroke match latency.
+  // Unsorted scan: order comes from the snapshot's key positions below, so
+  // the plan's full-list sort would be paid per keystroke and discarded.
+  const [snapshot, entries] = await Promise.all([
+    fetchLogsListingSnapshot(query, find.pageSize),
+    scanListingEntries(logDir, prefix, toRow, plan, { sorted: false }),
+  ]);
   const offsetByKey = new Map(
     snapshot.keys.map((key, offset) => [key, offset] as const)
   );
-  // Unsorted: order comes from the snapshot's key positions below, so the
-  // plan's full-list sort would be paid per keystroke and discarded.
-  const entries = await scanListingEntries(logDir, prefix, toRow, plan, {
-    sorted: false,
-  });
   const matches: LogsListingMatch[] = [];
   for (const { log, row } of entries) {
     const offset = offsetByKey.get(log.name);
