@@ -1,0 +1,250 @@
+.chart {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.bandLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.bandLabelModel {
+  fill: var(--bs-body-color);
+}
+
+.bandSeparator {
+  stroke: var(--bs-border-color);
+}
+
+.activeSeries {
+  fill: none;
+  stroke: #495057;
+  stroke-width: 1.2;
+}
+
+.connectionsSeries {
+  fill: none;
+  stroke: #3a7bd5;
+  stroke-width: 1.2;
+}
+
+.limitGuide {
+  stroke: #9d84d1;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.guideLabel {
+  font-size: 9px;
+  fill: #5d3f9e;
+}
+
+.rateLimitLine {
+  stroke: #b04a3c;
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+.terminationDot {
+  cursor: pointer;
+}
+
+.clusterBar {
+  fill: #2f7d4f;
+  opacity: 0.65;
+}
+
+.clusterCount {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.axisLine {
+  stroke: var(--bs-border-color);
+}
+
+.axisLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.axisBreak {
+  stroke: var(--bs-secondary-color);
+  stroke-width: 1;
+  fill: none;
+}
+
+.postRunLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+  opacity: 0.8;
+}
+
+.marker {
+  cursor: pointer;
+}
+
+.markerLine {
+  stroke: #9d84d1;
+}
+
+.markerLineSelected {
+  stroke: #5d3f9e;
+}
+
+.markerDiamond {
+  fill: #8f6fd0;
+  stroke: #5d3f9e;
+  cursor: pointer;
+}
+
+.markerDiamondSelected {
+  stroke-width: 2;
+}
+
+.markerDiamondPostRun {
+  opacity: 0.45;
+}
+
+.markerLabel {
+  font-family: var(--bs-font-monospace);
+  font-size: 10px;
+  fill: #4a2e73;
+}
+
+.markerLabelSelected {
+  font-weight: 600;
+}
+
+.samplePopover {
+  position: absolute;
+  width: 330px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  font-size: 0.78rem;
+}
+
+.popoverHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-light-bg-subtle);
+  font-size: 0.75rem;
+  border-radius: 4px 4px 0 0;
+}
+
+.popoverStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.popoverSampleId {
+  font-weight: 600;
+}
+
+.popoverEpoch {
+  color: var(--bs-secondary-color);
+}
+
+.popoverStatusWord {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.popoverBody {
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.popoverInput {
+  color: var(--bs-body-color);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.popoverGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1em;
+  row-gap: 0.2rem;
+}
+
+.popoverLabel {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+}
+
+.popoverScore {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+}
+
+.popoverCallout {
+  font-size: 0.72rem;
+  color: #664d03;
+  background: #fffaeb;
+  border: 1px solid #e8d8a0;
+  border-radius: 3px;
+  padding: 0.3rem 0.45rem;
+}
+
+.popoverOpen {
+  font-size: 0.72rem;
+  color: var(--bs-link-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.popoverOpen:hover {
+  text-decoration: underline;
+}
+
+:global([data-bs-theme="dark"]) .activeSeries {
+  stroke: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .connectionsSeries {
+  stroke: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .guideLabel {
+  fill: #b49ae0;
+}
+
+:global([data-bs-theme="dark"]) .markerLabel {
+  fill: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .rateLimitLine {
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .popoverCallout {
+  color: #e8d8a0;
+  background: #3a3220;
+  border-color: #5c512f;
+}

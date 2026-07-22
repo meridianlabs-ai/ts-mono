@@ -1,0 +1,91 @@
+.container {
+  padding: 0.5em 1em 1em 1em;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.72rem;
+  flex-wrap: wrap;
+}
+
+.caption {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-right: 0.25rem;
+}
+
+.bandChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color);
+  border-radius: 999px;
+  line-height: 1.2;
+  background: none;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.bandChipOn {
+  border-color: var(--bs-secondary);
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+}
+
+.bandChip i {
+  font-size: 0.7rem;
+}
+
+.legend {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
+}
+
+.legendDiamond {
+  width: 7px;
+  height: 7px;
+  background: #8f6fd0;
+  border: 1px solid #5d3f9e;
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
+.legendDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legendRateLimit {
+  width: 1px;
+  height: 10px;
+  background: #b04a3c;
+  display: inline-block;
+}
+
+:global([data-bs-theme="dark"]) .legendRateLimit {
+  background: #d98b7f;
+}

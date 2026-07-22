@@ -35,6 +35,7 @@ import { useJsonTabConfig } from "./tabs/JsonTab";
 import { useModelsTab } from "./tabs/ModelsTab";
 import { useSamplesTabConfig } from "./tabs/SamplesTab";
 import { useTaskTabConfig } from "./tabs/TaskTab";
+import { useTimelineTab } from "./tabs/timeline/TimelineTab";
 import { TitleView } from "./title-view/TitleView";
 import { TabDescriptor } from "./types";
 
@@ -82,6 +83,15 @@ export const LogView: FC = () => {
     selectedLogDetails?.config_updates
   );
 
+  const timelineTabConfig = useTimelineTab(
+    evalSpec,
+    selectedLogDetails?.stats,
+    selectedLogDetails?.status,
+    selectedLogDetails?.config_updates,
+    selectedLogDetails?.log_updates,
+    selectedLogDetails?.results?.early_stopping
+  );
+
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
 
   // Heterogeneous tab configs each bind their own props type; `unknown`
@@ -92,6 +102,7 @@ export const LogView: FC = () => {
     ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
     task: taskTabConfig,
     model: modelsTabConfig,
+    timeline: timelineTabConfig,
     config: intoTabConfig,
     ...(selectedLogDetails?.error ? { error: errorTabConfig } : {}),
     json: jsonTabConfig,

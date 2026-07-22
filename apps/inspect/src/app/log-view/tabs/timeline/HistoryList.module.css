@@ -1,0 +1,259 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.72rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+}
+
+.caption {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-right: 0.25rem;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  color: var(--bs-secondary-color);
+  border-radius: 999px;
+  line-height: 1.2;
+  background: none;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.filterChipActive {
+  border-color: var(--bs-secondary);
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+}
+
+.filterChipEmpty {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.list {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem 0.5rem;
+}
+
+.empty {
+  padding: 0.75rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 72px 100px 1fr;
+  column-gap: 1em;
+  padding: 0.5rem 0.25rem;
+  border-bottom: 1px dotted var(--bs-border-color);
+  align-items: start;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowClickable {
+  cursor: pointer;
+}
+
+.rowSelected {
+  background: #f7f3fc;
+  outline: 1px solid #d9cfe8;
+  border-radius: 3px;
+}
+
+.time {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  padding-top: 2px;
+}
+
+.categoryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.categoryChip i {
+  font-size: 0.65rem;
+}
+
+.chipConfig {
+  border-color: #d9cfe8;
+  background: #f7f3fc;
+  color: #4a2e73;
+}
+
+.chipConfig.chipOnTint {
+  background: var(--bs-body-bg);
+}
+
+.chipTags {
+  border-color: #cfe0f1;
+  background: #f2f7fc;
+  color: #1d4f7c;
+}
+
+.chipScore {
+  border-color: #d9cfe8;
+  background: #f7f3fc;
+  color: #4a2e73;
+}
+
+.chipRuntime {
+  border-color: #d3d9df;
+  background: #f6f7f8;
+  color: #495057;
+}
+
+.postRunChip {
+  display: inline-flex;
+  border: 1px dashed var(--bs-border-color);
+  color: var(--bs-secondary-color);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+}
+
+.scopePill {
+  display: inline-flex;
+  border: 1px solid #d3d9df;
+  color: var(--bs-secondary-color);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.detail {
+  font-size: 0.8rem;
+}
+
+.detailStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detailHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.author {
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--bs-secondary-color);
+}
+
+.monoDetail {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  color: var(--bs-secondary-color);
+}
+
+.changeLines {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.changeLine b {
+  font-weight: 600;
+}
+
+.auditOnlyChip {
+  display: inline-flex;
+  border: 1px dashed #d9cfe8;
+  color: #4a2e73;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+  font-family: var(--bs-font-sans-serif);
+  margin-left: 0.3rem;
+}
+
+.openSample {
+  font-size: 0.72rem;
+  color: var(--bs-link-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.openSample:hover {
+  text-decoration: underline;
+}
+
+:global([data-bs-theme="dark"]) .chipConfig {
+  border-color: #4a3d63;
+  background: #2a2333;
+  color: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .chipTags {
+  border-color: #2c4a66;
+  background: #16222e;
+  color: #8db8dd;
+}
+
+:global([data-bs-theme="dark"]) .chipScore {
+  border-color: #4a3d63;
+  background: #2a2333;
+  color: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .chipRuntime {
+  border-color: #464c52;
+  background: #24272a;
+  color: #aeb6bf;
+}
+
+:global([data-bs-theme="dark"]) .rowSelected {
+  background: #241f2e;
+  outline-color: #4a3d63;
+}
+
+:global([data-bs-theme="dark"]) .auditOnlyChip {
+  border-color: #4a3d63;
+  color: #cbb8ec;
+}
