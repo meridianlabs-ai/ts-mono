@@ -514,3 +514,48 @@ grid as chunks land — no read-path changes required.
 - Scout reconciliation: `apps/scout/src/query/` still duplicates
   `packages/inspect-common/src/query/` (a noted follow-up, orthogonal to
   this work).
+
+## Deferred review findings (pre-PR triage, 2026-07-22)
+
+Findings from the pagination-branch review that were deliberately deferred
+rather than fixed pre-PR, so they aren't lost. (Fixed on the branch, for
+context: the empty-incremental backfill re-arm, failed bulk reads served as
+deletions, the pending-row anti-join window, incremental tail-append
+ordering, the zero-layout fetch-chain guard, Find's serialized table scans,
+and the warm banner's swallowed error text.)
+
+- **Pending-row position drift**: overlay (pending-task) rows merge-sort
+  into the *loaded* page window, so a late-sorting pending row renders at
+  the window boundary, drifts as pages load, and can transiently disagree
+  with the Find band's snapshot-ordered match targets. Correct fix is
+  positioning overlays against snapshot order — couples into the
+  range-driven rework above, so it waits for it.
+- **Database→cache source flip mid-pagination**: `readLogsListingPage`'s
+  cache fallback ignores `page.cursor` and the query key carries no source
+  slot, so a mid-session scope degrade appends the full listing after the
+  loaded pages (duplicate row ids) until the next invalidation refetch
+  prunes it. Narrow window, self-heals in ~1s; clean fix is a source slot
+  in the listing key (or resetting pages on flip).
+- **Invalidation throttle vs. refetch-cycle duration**: the 1s trailing
+  throttle is tuned to a 20k-dir refetch cycle (see the comment at the
+  throttle); a dir whose cycle exceeds it re-triggers the
+  invalidateQueries-cancels-refetch starvation, and cold loads can flash
+  "No matching items" for up to the trailing delay. Real fix is
+  non-cancelling invalidation / the index-backed snapshot build.
+- **`autoFetchPaused` is `isError`**: the flag is derivable from the error
+  returned beside it and is prop-drilled in parallel through four layers;
+  fold it into the grid (or derive at the prop site) when the trigger is
+  next touched.
+- **`LogsListingSnapshot.total_count` is `keys.length`**: stored
+  redundantly; drop the field and read the key list's length.
+- **Scroll-trigger duplication with scout**: `checkScrollNearEnd`, the
+  commit-driven re-check, the zero-layout guard, and the 500/2000 tuning
+  now live in inspect's grid while scout keeps the older copy (no
+  commit-chaining fix, no layout guard). Hoist one near-end trigger (and
+  the coupled pageSize/threshold config) into a shared package both grids
+  consume.
+- **Snapshot-path cursor arithmetic duplicates `pageRows`**: the offset
+  decode and `next_cursor` formula in `readLogsListingPage` mirror
+  `client/database/listing.ts`'s `pageRows`; partial fit (the snapshot path
+  pages keys, not rows), so fold together only if a cursor-shape change
+  ever forces both to move.
