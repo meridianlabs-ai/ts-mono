@@ -8,7 +8,10 @@ import { SampleHandle } from "../app/types";
 
 import { type ChunkedSample } from "./chunked";
 import { log } from "./chunked/log";
-import { withAttachmentsResolved } from "./chunkedAttachments";
+import {
+  prefetchAttachments,
+  withAttachmentsResolved,
+} from "./chunkedAttachments";
 import { kSampleGcTimeMs } from "./sampleQuery";
 
 /**
@@ -17,19 +20,29 @@ import { kSampleGcTimeMs } from "./sampleQuery";
  * the same material a monolith sample stores inline as `messages`.
  *
  * INTERIM: full hydration is a bridge until the Messages tab pages by
- * index window (design/large-samples.md, access pattern #3). "The final
- * conversation is conversation-sized" does NOT hold under compaction —
- * measured 134,989 messages / 7,961 ranges (~135MB of member fetches) on
- * the mirror-code monster — so this matches the monolith path's memory
- * profile, no better. Windowed replacement is planned; this fetches
- * on-demand (tab open), never at sample open.
+ * index window (design/large-samples.md, access pattern 3 / effort C3).
+ * "The final conversation is conversation-sized" does NOT hold under
+ * compaction — measured 134,989 messages / 7,961 ranges (~135MB of member
+ * fetches) on the mirror-code monster — so this matches the monolith
+ * path's memory profile, no better. Windowed replacement is C3; this
+ * fetches on-demand (tab open), never at sample open.
+ *
+ * Attachment chunks are prefetched per message range as ranges arrive, so
+ * attachment downloads overlap the remaining message downloads instead of
+ * serializing behind the full conversation assembly.
  */
 export const hydrateFinalConversation = async (
   chunked: ChunkedSample
 ): Promise<ChatMessage[]> => {
   const refs = chunked.shell.message_refs;
   const ranges = await Promise.all(
-    refs.map(([start, end]) => chunked.messages.getRange(start, end))
+    refs.map(([start, end]) =>
+      chunked.messages.getRange(start, end).then((messages) => {
+        // best-effort warmup; the final resolve pass is the error surface
+        prefetchAttachments(messages, chunked).catch(() => undefined);
+        return messages;
+      })
+    )
   );
   const messages = ranges.flat();
   log.info(

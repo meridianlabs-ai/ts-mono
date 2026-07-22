@@ -78,6 +78,23 @@ export const withAttachmentsResolved = async <T>(
 };
 
 /**
+ * Warm the attachment chunks `items` reference without resolving (the
+ * parsed-chunk and byte caches make the later `withAttachmentsResolved`
+ * pass a cache hit). Lets callers overlap attachment downloads with
+ * whatever else they're still fetching.
+ */
+export const prefetchAttachments = async <T>(
+  items: T[],
+  chunked: ChunkedSample
+): Promise<void> => {
+  const refs = new Set<number>();
+  collectRefs(items, refs);
+  await Promise.all(
+    [...refs].map((index) => chunked.attachments.getRange(index, index + 1))
+  );
+};
+
+/**
  * The sample's events reader with attachment refs resolved per chunk.
  * Chunk-level caching means each chunk resolves once.
  */
