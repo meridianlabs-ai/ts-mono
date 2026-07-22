@@ -151,22 +151,19 @@ export class DatabaseService {
     }
   }
 
+  // No catch here, unlike the sibling reads: an empty map is a legitimate
+  // success (every key deleted), so swallowing a failure into {} would be
+  // indistinguishable from mass deletion — the paged listing read drops
+  // missing keys as holes and would silently truncate the visible listing.
+  // Callers surface the rejection instead (React Query error state).
   async readLogRows(filePaths: string[]): Promise<Record<string, Log>> {
-    try {
-      const db = this.getDb();
-      const records = await db.logs
-        .where("file_path")
-        .anyOf(filePaths)
-        .toArray();
-      const result: Record<string, Log> = {};
-      for (const record of records) {
-        result[record.file_path] = fromLogRecord(record);
-      }
-      return result;
-    } catch (error) {
-      log.error("Error retrieving log rows:", error);
-      return {};
+    const db = this.getDb();
+    const records = await db.logs.where("file_path").anyOf(filePaths).toArray();
+    const result: Record<string, Log> = {};
+    for (const record of records) {
+      result[record.file_path] = fromLogRecord(record);
     }
+    return result;
   }
 
   /** Merge a set of per-file row patches, creating listed-depth rows for

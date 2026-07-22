@@ -443,6 +443,26 @@ describe("readLogsListingPage", () => {
     expect(second.next_cursor).toBeNull();
   });
 
+  test("a failed bulk read rejects the page instead of serving deleted-key holes", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task_id: "t-a" }),
+      "/test/logs/b.json": preview({ task_id: "t-b" }),
+      "/test/logs/c.json": preview({ task_id: "t-c" }),
+    });
+    const query = pageQuery();
+    const first = await readLogsListingPage(query, { cursor: null, limit: 2 });
+
+    // A transient store failure must surface as a page error (React Query
+    // error state → banner, paused auto-fetch) — an empty page would be
+    // indistinguishable from mass deletion and silently truncate the list.
+    vi.spyOn(databaseService, "readLogRows").mockRejectedValue(
+      new Error("InvalidStateError: database is closing")
+    );
+    await expect(
+      readLogsListingPage(query, { cursor: first.next_cursor, limit: 2 })
+    ).rejects.toThrow("database is closing");
+  });
+
   test("invalidation rebuilds the snapshot and streams new rows in", async () => {
     await databaseService.writeLogPreviews({
       "/test/logs/a.json": preview({ task_id: "t-a" }),

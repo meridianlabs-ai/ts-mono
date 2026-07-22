@@ -701,5 +701,18 @@ describe("Database Service", () => {
       const result = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(result).toBeNull();
     });
+
+    test("readLogRows propagates read failures instead of serving an empty map", async () => {
+      // Close database to simulate a mid-read failure. Unlike readLogs
+      // (whose null return is a distinguishable failure sentinel), an empty
+      // map is indistinguishable from "every key was deleted" — the paged
+      // listing read treats missing keys as holes to drop, so a swallowed
+      // failure would silently truncate the visible listing.
+      await databaseService.closeDatabase();
+
+      await expect(
+        databaseService.readLogRows(["/test/logs/a.json"])
+      ).rejects.toThrow();
+    });
   });
 });
