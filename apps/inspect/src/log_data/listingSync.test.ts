@@ -113,6 +113,26 @@ describe("syncListing", () => {
     ]);
   });
 
+  it("puts brand-new incremental files at the front, like a full response would", async () => {
+    // The server lists newest-first (mtime desc) and an incremental payload
+    // only holds files newer than every local mtime, so new files belong at
+    // the head. Cache-only scopes render raw listing order — a tail append
+    // would pin fresh logs to the bottom of the unsorted list, while DB-mode
+    // reads (mtime desc) and full responses put them on top.
+    const local = [handle("a.eval", 30), handle("b.eval", 20)];
+    const brandNew = handle("new.eval", 50);
+    const changed = handle("a.eval", 40);
+    const { target, applied } = targetWith(local);
+
+    await syncListing(
+      apiWith({ files: [brandNew, changed], response_type: "incremental" }),
+      target
+    );
+
+    // New file first; the changed file is patched in place.
+    expect(applied[0]?.listing).toEqual([brandNew, changed, local[1]]);
+  });
+
   it("does not turn unchanged incremental syncs into a full-list request", async () => {
     const local = [handle("a.eval", 10), handle("b.eval", 25)];
     let current = local;

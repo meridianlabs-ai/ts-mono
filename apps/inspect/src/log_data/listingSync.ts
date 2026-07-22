@@ -73,12 +73,17 @@ export const syncListing = async (
   const updatedByName = new Map(updatedLogs.map((file) => [file.name, file]));
 
   // Incremental payloads are patches, so retain every unmentioned handle.
+  // Brand-new files go to the head: the server lists newest-first (mtime
+  // desc) and an incremental payload only holds files newer than every
+  // local mtime, so this matches the order a full response would produce —
+  // cache-only scopes render raw listing order, and a tail append would pin
+  // fresh logs to the bottom while DB-mode reads sort them on top.
   const listing =
     response.response_type === "full"
       ? updatedLogs
       : [
-          ...localFiles.map((file) => updatedByName.get(file.name) ?? file),
           ...updatedLogs.filter((file) => !localByName.has(file.name)),
+          ...localFiles.map((file) => updatedByName.get(file.name) ?? file),
         ];
 
   const deleted =
