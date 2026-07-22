@@ -13,7 +13,6 @@ import { Column } from "@tsmono/inspect-common/query";
 import { applyListingQuery } from "../app/log-list/listing/applyListingQuery";
 import { createListingPlan } from "../app/log-list/listing/planner";
 import type { Log, LogPreview } from "../client/api/types";
-import type { DatabaseListingResult } from "../client/database/listing";
 import { DB_NAME } from "../client/database/schema";
 import {
   createDatabaseService,
@@ -30,6 +29,7 @@ import {
   readLogsListingPage,
   readLogsOverview,
   type LogsListingPageQuery,
+  type LogsListingPageResult,
 } from "./logsListingRead";
 
 const holder = vi.hoisted(() => {
@@ -217,11 +217,11 @@ describe("readLogsListingPage", () => {
   const collectPages = async (
     query: LogsListingPageQuery<Log>,
     limit: number
-  ): Promise<DatabaseListingResult<Log>[]> => {
-    const pages: DatabaseListingResult<Log>[] = [];
-    let cursor: DatabaseListingResult<Log>["next_cursor"] = null;
+  ): Promise<LogsListingPageResult<Log>[]> => {
+    const pages: LogsListingPageResult<Log>[] = [];
+    let cursor: LogsListingPageResult<Log>["next_cursor"] = null;
     do {
-      const page: DatabaseListingResult<Log> = await readLogsListingPage(
+      const page: LogsListingPageResult<Log> = await readLogsListingPage(
         query,
         { cursor, limit }
       );
@@ -295,7 +295,14 @@ describe("readLogsListingPage", () => {
           direction: "forward" as const,
         },
       });
-      expect(page).toEqual(expected);
+      // The snapshot-scoped aggregate rides beside the parity fields.
+      const { universe_task_ids, ...parityFields } = page;
+      expect(parityFields).toEqual(expected);
+      expect([...(universe_task_ids ?? [])].sort()).toEqual([
+        "t-a",
+        "t-d",
+        "t-e",
+      ]);
     });
     expect(pages).toHaveLength(2);
     expect(pages.map((page) => page.total_count)).toEqual([3, 3]);
@@ -368,7 +375,10 @@ describe("readLogsListingPage", () => {
       identityRow,
       query.plan
     );
-    expect(paged).toEqual(unpaged);
+    // The snapshot-scoped aggregate rides beside the parity fields.
+    const { universe_task_ids, ...parityFields } = paged;
+    expect(parityFields).toEqual(unpaged);
+    expect([...(universe_task_ids ?? [])].sort()).toEqual(["t-a", "t-b"]);
     expect(paged.next_cursor).toBeNull();
   });
 
@@ -441,6 +451,37 @@ describe("readLogsListingPage", () => {
     expect(second.items.map((row) => row.name)).toEqual(["/test/logs/d.json"]);
     expect(second.total_count).toBe(4);
     expect(second.next_cursor).toBeNull();
+  });
+
+  test("pages carry the filtered universe's distinct task ids for the pending anti-join", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ model: "gpt-4", task_id: "t-a" }),
+      "/test/logs/b.json": preview({ model: "gpt-4o", task_id: "t-b" }),
+      "/test/logs/c.json": preview({ model: "claude", task_id: "t-c" }),
+    });
+    const filter = new Column("model").ilike("gpt%");
+    const query = pageQuery({
+      filter,
+      plan: createListingPlan({
+        filter,
+        getValue,
+        getComparator: () => undefined,
+      }),
+    });
+
+    // Every page reports the whole filtered universe's task ids (parity with
+    // the pre-pagination anti-join, which saw the full filtered row set) —
+    // a pending task whose file sits on an unloaded page must still settle.
+    const first = await readLogsListingPage(query, { cursor: null, limit: 1 });
+    expect([...(first.universe_task_ids ?? [])].sort()).toEqual(["t-a", "t-b"]);
+    const second = await readLogsListingPage(query, {
+      cursor: first.next_cursor,
+      limit: 1,
+    });
+    expect([...(second.universe_task_ids ?? [])].sort()).toEqual([
+      "t-a",
+      "t-b",
+    ]);
   });
 
   test("a failed bulk read rejects the page instead of serving deleted-key holes", async () => {

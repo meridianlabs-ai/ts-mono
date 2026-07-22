@@ -16,6 +16,12 @@ export interface LogsListingResult<TRow> {
   items: TRow[];
   /** Total rows after filtering, before pagination. */
   total_count: number;
+  /** Distinct task_ids across the whole filtered universe — like
+   *  `total_count`, snapshot-scoped rather than window-scoped, so the
+   *  pending-task anti-join can settle tasks whose file rows sit on
+   *  unloaded pages. Unset when `items` already spans the universe
+   *  (cache-path reads). */
+  universe_task_ids?: string[];
   next_cursor?: Cursor | null;
 }
 

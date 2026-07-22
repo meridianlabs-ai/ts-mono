@@ -203,6 +203,7 @@ export function useDatabaseLogsListingQuery<TRow>({
           ? (data.pages[0]?.items ?? [])
           : data.pages.flatMap((page) => page.items),
       total_count: data.pages[0]?.total_count ?? 0,
+      universe_task_ids: data.pages[0]?.universe_task_ids,
       next_cursor: data.pages.at(-1)?.next_cursor ?? null,
     }),
     []

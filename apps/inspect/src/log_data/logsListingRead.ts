@@ -123,6 +123,11 @@ export interface LogsListingSnapshot<TRow> {
   keys: string[];
   /** `keys.length` — the scan that orders also counts. */
   total_count: number;
+  /** Distinct task_ids across the whole filtered universe — the scan
+   *  touches every row anyway. Pages report these so the pending-task
+   *  anti-join can settle a task whose file sits on an unloaded page
+   *  (the loaded window alone can't prove a file exists). */
+  task_ids: string[];
   /** The scan's retried marks by key. A cross-row derivation
    *  (`computeLogsWithRetried`): a page's key-slice `bulkGet` cannot
    *  re-derive it, so pages re-attach these to their records. */
@@ -147,12 +152,20 @@ export const readLogsListingSnapshot = async <TRow>(
   const entries = await scanListingEntries(logDir, prefix, toRow, plan);
   const keys: string[] = [];
   const retried: Record<string, boolean> = {};
+  const taskIds = new Set<string>();
   for (const { log } of entries) {
     keys.push(log.name);
     if (log.retried !== undefined) retried[log.name] = log.retried;
+    if (log.task_id) taskIds.add(log.task_id);
   }
   const firstPage = entries.slice(0, firstPageSize).map((entry) => entry.row);
-  return { keys, total_count: keys.length, retried, firstPage };
+  return {
+    keys,
+    total_count: keys.length,
+    task_ids: [...taskIds],
+    retried,
+    firstPage,
+  };
 };
 
 /** One page of records by key slice: `bulkGet`, re-attach the snapshot's
@@ -182,6 +195,17 @@ const readSnapshotPageRows = async <TRow>(
   }
   return rows;
 };
+
+/** One page of the listing plus the snapshot-scoped aggregates every page
+ *  reports (like `total_count`, they come free with the snapshot scan). */
+export interface LogsListingPageResult<
+  TRow,
+> extends DatabaseListingResult<TRow> {
+  /** Distinct task_ids across the whole filtered universe (see
+   *  {@link LogsListingSnapshot.task_ids}); unset on the cache path, whose
+   *  single page is the whole universe. */
+  universe_task_ids?: string[];
+}
 
 /** The query inputs a paged listing read composes over: the listing source
  *  (`logDir`/`prefix`/`toRow`), the snapshot's cache identity (the row
@@ -247,9 +271,11 @@ const fetchLogsListingSnapshot = <TRow>(
 export const readLogsListingPage = async <TRow>(
   query: LogsListingPageQuery<TRow>,
   page: { cursor?: Cursor | null; limit: number }
-): Promise<DatabaseListingResult<TRow>> => {
+): Promise<LogsListingPageResult<TRow>> => {
   const { logDir, prefix, toRow, plan } = query;
   if (logsListingSource(logDir) === "cache") {
+    // No universe_task_ids: the cache path's single page IS the whole
+    // universe, so the anti-join's loaded-window fallback already covers it.
     return readLogsListing(logDir, prefix, toRow, plan);
   }
   // Fresh until invalidated (see above); short gcTime because the key list
@@ -275,6 +301,7 @@ export const readLogsListingPage = async <TRow>(
   return {
     items,
     total_count,
+    universe_task_ids: snapshot.task_ids,
     // Cursors index the snapshot's key list (not served-row counts), so a
     // dropped hole never desyncs subsequent pages.
     next_cursor: end < total_count ? { offset: end } : null,

@@ -160,6 +160,28 @@ describe("useDatabaseLogsListingQuery", () => {
     );
   });
 
+  test("passes the page's universe task ids through the flattened result", async () => {
+    holder.read.mockImplementation(() =>
+      Promise.resolve({
+        items: [],
+        total_count: 0,
+        next_cursor: null,
+        universe_task_ids: ["t-1", "t-2"],
+      })
+    );
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+
+    await waitFor(() =>
+      expect(result.current.result.data?.universe_task_ids).toEqual([
+        "t-1",
+        "t-2",
+      ])
+    );
+  });
+
   test("stays disabled (pending) while the universe is hydrating", async () => {
     const { result } = renderHook(
       () =>

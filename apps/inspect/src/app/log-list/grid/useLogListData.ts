@@ -29,14 +29,19 @@ import { buildLogListRow } from "./logListRow";
 
 const kNoRows: LogListRow[] = [];
 
-/** Pending rows minus the tasks that already have a file row in `fileRows`
- *  (pending row ids are task ids; file rows carry their record's task_id). */
+/** Pending rows minus the tasks that already have a file row (pending row
+ *  ids are task ids; file rows carry their record's task_id). `fileRows` is
+ *  only the loaded page window under pagination, so the snapshot-scoped
+ *  `universeTaskIds` carries the tasks whose files sit on unloaded pages;
+ *  the window rows still count too — their bulkGot records can be fresher
+ *  than the snapshot (e.g. a preview landing task_id after the scan). */
 export const dropSettledPendingRows = (
   pendingRows: LogListRow[],
-  fileRows: LogListRow[]
+  fileRows: LogListRow[],
+  universeTaskIds?: string[]
 ): LogListRow[] => {
-  if (pendingRows.length === 0 || fileRows.length === 0) return pendingRows;
-  const fileTaskIds = new Set<string>();
+  if (pendingRows.length === 0) return pendingRows;
+  const fileTaskIds = new Set<string>(universeTaskIds);
   for (const row of fileRows) {
     const taskId = row.log?.task_id;
     if (taskId) fileTaskIds.add(taskId);
@@ -177,7 +182,12 @@ export const useLogListData = ({
   // renders. Re-derive against the queried page: a task with a file row is
   // not pending, whatever the overview's snapshot said.
   const visiblePendingRows = useMemo(
-    () => dropSettledPendingRows(pendingRows, result?.items ?? kNoRows),
+    () =>
+      dropSettledPendingRows(
+        pendingRows,
+        result?.items ?? kNoRows,
+        result?.universe_task_ids
+      ),
     [pendingRows, result]
   );
 
