@@ -78,8 +78,11 @@ export interface LogListData {
   orderBy: OrderByModel[];
   /** The listing query has no result to show yet (first read in flight). */
   pending: boolean;
-  /** The listing read failed — `rows` carries only the overlay items, so
-   *  render this rather than an empty-looking list. */
+  /** The listing read failed. Warm — `rows` still carries the retained
+   *  pages (see `DatabaseLogsListing.result`) plus overlay items — so keep
+   *  rendering the list and surface this beside it; only when `rows` is
+   *  empty is there nothing to show (render an error state rather than an
+   *  empty-looking list). */
   error: Error | undefined;
   /** More file rows exist beyond the loaded pages — gates the grid's
    *  scroll-near-end fetch trigger. */
@@ -150,7 +153,8 @@ export const useLogListData = ({
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
   const {
-    result: { data: result, loading: pending, error },
+    result: { data: result, loading: pending },
+    error,
     hasNextPage,
     fetchNextPage,
     autoFetchPaused,

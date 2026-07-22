@@ -9,4 +9,13 @@
   overflow: hidden;
   height: 100%;
   min-height: 0;
+  /* Column so the (conditional) error banner stacks above the grid without
+   * disturbing the panel grid's row template. */
+  display: flex;
+  flex-direction: column;
+}
+
+.listBody {
+  flex: 1;
+  min-height: 0;
 }

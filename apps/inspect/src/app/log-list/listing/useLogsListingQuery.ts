@@ -117,7 +117,18 @@ const kLogsListingPageSize = 500;
 /** {@link useDatabaseLogsListingQuery}'s result: the flattened page window
  *  plus the paging controls the grid's scroll trigger drives. */
 export interface DatabaseLogsListing<TRow> {
+  /** What to render. A settled failure reports here only when there is
+   *  nothing to show (cold — typically the universe's first read failing):
+   *  react-query retains the loaded pages across a failed refetch, and
+   *  `placeholderData` carries the previous rows across a re-filter, so
+   *  those keep serving as `data` (warm) with the failure surfaced through
+   *  `error` beside them. */
   result: AsyncData<LogsListingResult<TRow>>;
+  /** The last read failed — set for warm and cold failures alike (see
+   *  `result`). Sticky once sync settles (focus/reconnect refetches are
+   *  off); recovery is an invalidation (`invalidateDatabaseLogsListings`),
+   *  a scroll-driven `fetchNextPage`, or a filter/sort change. */
+  error: Error | undefined;
   /** More pages exist beyond the loaded window. */
   hasNextPage: boolean;
   /** Load the next page. In-flight-safe: a scroll burst never restarts an
@@ -178,8 +189,8 @@ export function useDatabaseLogsListingQuery<TRow>({
     []
   );
 
-  const { data, isPending, isError, error, hasNextPage, fetchNextPage } =
-    useInfiniteQuery({
+  const { data, isError, error, hasNextPage, fetchNextPage } = useInfiniteQuery(
+    {
       queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
       queryFn: ({
         pageParam,
@@ -232,7 +243,8 @@ export function useDatabaseLogsListingQuery<TRow>({
       gcTime: 30_000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
-    });
+    }
+  );
 
   const fetchNext = useCallback(() => {
     // Fire-and-forget: page arrival/errors surface through the query state.
@@ -240,20 +252,24 @@ export function useDatabaseLogsListingQuery<TRow>({
     fetchNextPage({ cancelRefetch: false });
   }, [fetchNextPage]);
 
+  // Prefer retained rows over a settled error (`error` still reports beside
+  // them): replacing a rendered list because one refetch failed would lose
+  // the user's place over a failure a later invalidation may well heal.
   const result = useMemo<AsyncData<LogsListingResult<TRow>>>(() => {
-    if (isPending) return loading;
+    if (data !== undefined) return { data, loading: false };
     if (isError) return { error, loading: false };
-    return { data, loading: false };
-  }, [data, isPending, isError, error]);
+    return loading;
+  }, [data, isError, error]);
 
   return useMemo(
     () => ({
       result,
+      error: error ?? undefined,
       hasNextPage,
       fetchNextPage: fetchNext,
       autoFetchPaused: isError,
     }),
-    [result, hasNextPage, fetchNext, isError]
+    [result, error, hasNextPage, fetchNext, isError]
   );
 }
 

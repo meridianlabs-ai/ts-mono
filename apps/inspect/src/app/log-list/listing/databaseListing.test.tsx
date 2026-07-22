@@ -236,6 +236,7 @@ describe("useDatabaseLogsListingQuery", () => {
     expect(result.current.result.error?.message).toBe("scan failed");
     expect(result.current.result.loading).toBe(false);
     expect(result.current.result.data).toBeUndefined();
+    expect(result.current.error).toBeDefined();
     // A settled error must pause commit-driven fetch chaining — the grid
     // would otherwise retry the failing request in a tight loop.
     expect(result.current.autoFetchPaused).toBe(true);
@@ -287,6 +288,38 @@ describe("useDatabaseLogsListingQuery", () => {
       ])
     );
     expect(result.current.hasNextPage).toBe(false);
+    expect(result.current.autoFetchPaused).toBe(false);
+  });
+
+  test("keeps retained rows through a failed read, reporting the error beside them", async () => {
+    pageByOne();
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+    await waitFor(() =>
+      expect(result.current.result.data?.items.length).toBe(1)
+    );
+    expect(result.current.error).toBeUndefined();
+
+    // The next read fails (a page fetch here; an invalidation refetch is the
+    // same query state) — the loaded rows must keep serving (warm), with the
+    // failure reported beside them rather than through the AsyncData.
+    holder.read.mockRejectedValue(new Error("scan failed"));
+    result.current.fetchNextPage();
+    await waitFor(() => expect(result.current.error).toBeDefined());
+    expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
+      "/logs/b.eval",
+    ]);
+    expect(result.current.result.error).toBeUndefined();
+    expect(result.current.autoFetchPaused).toBe(true);
+
+    // Recovery: an invalidation refetch (retry banner / write path / sync)
+    // that succeeds clears the error and keeps the rows.
+    pageByOne();
+    await queryClient.invalidateQueries();
+    await waitFor(() => expect(result.current.error).toBeUndefined());
+    expect(result.current.result.data?.items.length).toBeGreaterThan(0);
     expect(result.current.autoFetchPaused).toBe(false);
   });
 
