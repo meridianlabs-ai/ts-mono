@@ -751,6 +751,12 @@ export function DataGrid<TRow>({
   const checkScrollNearEnd = useCallback(() => {
     const el = containerRef.current;
     if (!el || !hasMore || !onScrollNearEnd) return;
+    // A container with no layout (hidden webview tab, display:none ancestor)
+    // measures 0-0-0 — "at the bottom" — and each landed page re-satisfies
+    // the commit-driven check, so chaining would load the entire universe
+    // unseen. The ResizeObserver below re-checks when layout arrives, so a
+    // revealed container resumes the chain without a scroll or commit.
+    if (el.clientHeight === 0) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     if (distanceFromBottom < fetchThreshold) onScrollNearEnd();
   }, [hasMore, onScrollNearEnd, fetchThreshold]);
@@ -772,6 +778,20 @@ export function DataGrid<TRow>({
     if (autoFetchPaused) return;
     checkScrollNearEnd();
   }, [autoFetchPaused, checkScrollNearEnd, data]);
+  // Layout arriving (first paint, a hidden tab revealed) may satisfy the
+  // near-end condition with no commit or scroll event to re-check it — the
+  // zero-layout guard above skips hidden containers, so this is what
+  // resumes their chain. Separate from the width observer: that one runs
+  // once ([]), while this must track the current check.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      checkScrollNearEnd();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [checkScrollNearEnd]);
 
   // Polite live-region text. ag-grid maintained its own off-screen live region
   // that spoke row-count/sort changes; reproduce a concise equivalent so a
