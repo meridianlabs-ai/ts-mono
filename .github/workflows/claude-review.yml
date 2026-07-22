@@ -31,6 +31,7 @@ jobs:
     # which runs as `issue_comment` in the base-repo context (full token access).
     if: >
       (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft != true &&
        github.event.pull_request.head.repo.full_name == github.repository &&
        github.actor != 'dependabot[bot]') ||
       (github.event.issue.pull_request != null &&
