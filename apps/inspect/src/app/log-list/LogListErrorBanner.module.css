@@ -33,3 +33,8 @@
 .retry:hover {
   background-color: var(--bs-secondary-bg);
 }
+
+.detail {
+  margin-left: 0.5em;
+  opacity: 0.75;
+}

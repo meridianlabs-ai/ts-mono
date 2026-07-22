@@ -7,6 +7,11 @@ import styles from "./LogListErrorBanner.module.css";
 
 interface LogListErrorBannerProps {
   message: string;
+  /** The underlying failure text (e.g. `error.message`) — shown truncated
+   *  beside the headline, in full via the tooltip. The cold state's
+   *  ErrorPanel shows message+stack; the warm strip must not swallow the
+   *  actual failure entirely. */
+  detail?: string;
   onRetry: () => void;
 }
 
@@ -19,6 +24,7 @@ interface LogListErrorBannerProps {
  */
 export const LogListErrorBanner: FC<LogListErrorBannerProps> = ({
   message,
+  detail,
   onRetry,
 }) => (
   <div className={clsx(styles.banner, "text-size-smaller")} role="alert">
@@ -26,7 +32,10 @@ export const LogListErrorBanner: FC<LogListErrorBannerProps> = ({
       className={clsx(ApplicationIcons.error, styles.icon)}
       aria-hidden="true"
     />
-    <div className={styles.message}>{message}</div>
+    <div className={styles.message} title={detail}>
+      {message}
+      {detail && <span className={styles.detail}>{detail}</span>}
+    </div>
     <button type="button" className={styles.retry} onClick={onRetry}>
       Retry
     </button>

@@ -386,6 +386,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
                     ? "Sync failed — the list may be out of date."
                     : "Couldn't refresh the log listing — showing the last loaded rows."
                 }
+                detail={error.message}
                 onRetry={handleErrorRetry}
               />
             )}

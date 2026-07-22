@@ -17,3 +17,20 @@ test("announces the message and retries on click", () => {
   fireEvent.click(screen.getByRole("button", { name: "Retry" }));
   expect(onRetry).toHaveBeenCalledTimes(1);
 });
+
+test("surfaces the failure detail beside the headline", () => {
+  // The headline says which data may be stale; the detail carries the
+  // actual failure text (the cold-state ErrorPanel shows message+stack,
+  // and the warm banner must not swallow it entirely).
+  render(
+    <LogListErrorBanner
+      message="Couldn't refresh the log listing — showing the last loaded rows."
+      detail="InvalidStateError: database is closing"
+      onRetry={() => {}}
+    />
+  );
+
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "InvalidStateError: database is closing"
+  );
+});
