@@ -4,10 +4,9 @@ import {
   EvalSample,
   EvalSpec,
 } from "@tsmono/inspect-common/types";
-import { AsyncQueue, fetchRange } from "@tsmono/util";
+import { asyncJsonParseBytes, AsyncQueue, fetchRange } from "@tsmono/util";
 
 import { clearLargeEventsArray } from "../../utils/clear-events-preprocessor";
-import { asyncJsonParseBytes } from "../../utils/json-worker";
 import {
   EvalHeader,
   LogDetails,

@@ -44,7 +44,7 @@ import {
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { type TimelineSpan } from "./timeline/core";
+import { countUtilitySpans, type TimelineSpan } from "./timeline/core";
 import {
   type SelectOptions,
   type TimelineOptions,
@@ -369,6 +369,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   // Swimlane header
   // ---------------------------------------------------------------------------
 
+  const hiddenUtilityCount = useMemo(
+    () => countUtilitySpans(transcriptTimeline.timeline.root),
+    [transcriptTimeline.timeline.root]
+  );
+
   // Only agent lanes (root + subagents) are h/l-navigable — skip scoring/tool
   // rows so lane stepping matches the focus page, which is agent-only.
   const agentLaneKeys = useMemo(() => {
@@ -581,6 +586,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     onScrollToTop,
     onHeadroomResetAnchor,
     timelineConfig,
+    hiddenUtilityCount,
     minimap,
     multiTimeline,
     views,

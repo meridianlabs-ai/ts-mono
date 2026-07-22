@@ -16,7 +16,9 @@ import type {
 } from "@tsmono/inspect-common/types";
 
 import {
+  buildTimeline,
   convertServerTimeline,
+  countUtilitySpans,
   filterEmptyBranches,
   isEmptyBranch,
   spanHasBranches,
@@ -646,5 +648,126 @@ describe("convertServerTimeline", () => {
       expect(result.root.outline!.nodes).toHaveLength(1);
       expect(result.root.outline!.nodes[0]!.event).toBe("evt-1");
     });
+  });
+});
+
+// =============================================================================
+// countUtilitySpans
+// =============================================================================
+
+describe("countUtilitySpans", () => {
+  const span = (
+    id: string,
+    options?: { utility?: boolean; content?: TimelineSpan[] }
+  ) =>
+    new TimelineSpan({
+      id,
+      name: id,
+      spanType: "agent",
+      content: options?.content ?? [],
+      utility: options?.utility ?? false,
+    });
+
+  it("returns 0 for a tree with no utility spans", () => {
+    const root = span("root", { content: [span("child")] });
+    expect(countUtilitySpans(root)).toBe(0);
+  });
+
+  it("counts utility spans across nesting levels", () => {
+    const root = span("root", {
+      content: [
+        span("u1", { utility: true }),
+        span("child", { content: [span("u2", { utility: true })] }),
+      ],
+    });
+    expect(countUtilitySpans(root)).toBe(2);
+  });
+
+  it("excludes utility spans inside branches (not revealed by the utility toggle)", () => {
+    const branch = span("branch", { content: [span("u1", { utility: true })] });
+    const root = new TimelineSpan({
+      id: "root",
+      name: "root",
+      spanType: "agent",
+      content: [span("u2", { utility: true })],
+      branches: [branch],
+    });
+    expect(countUtilitySpans(root)).toBe(1);
+  });
+});
+
+// =============================================================================
+// utility wrapper ids for uuid-less events
+// =============================================================================
+
+describe("utility wrapper ids", () => {
+  // Legacy logs predate event uuids; wrapper ids must stay unique and
+  // deterministic without them. (The JSON fixtures can't express this case —
+  // the Python side auto-assigns uuids at parse time.)
+  it("assigns unique position-derived ids to uuid-less wrapped events", () => {
+    let clock = 0;
+    const ts = () =>
+      new Date(Date.UTC(2026, 0, 1, 0, 0, ++clock)).toISOString();
+    const warmup = () =>
+      ({
+        event: "model",
+        uuid: null,
+        timestamp: ts(),
+        completed: ts(),
+        working_start: 0,
+        pending: false,
+        metadata: null,
+        span_id: "monitor",
+        model: "mockllm/model",
+        config: { max_tokens: 1 },
+        input: [{ role: "user", content: "warmup" }],
+        output: {
+          choices: [
+            {
+              message: { role: "assistant", content: "w" },
+              stop_reason: "max_tokens",
+            },
+          ],
+          usage: { input_tokens: 5, output_tokens: 1 },
+        },
+      }) as unknown as Event;
+    const spanEvt = (evt: object) =>
+      ({
+        timestamp: ts(),
+        working_start: 0,
+        pending: false,
+        metadata: null,
+        uuid: null,
+        ...evt,
+      }) as unknown as Event;
+
+    const timeline = buildTimeline([
+      spanEvt({
+        event: "span_begin",
+        id: "solvers",
+        name: "solvers",
+        type: "solvers",
+        parent_id: null,
+      }),
+      spanEvt({
+        event: "span_begin",
+        id: "monitor",
+        name: "monitor",
+        type: "agent",
+        parent_id: "solvers",
+      }),
+      warmup(),
+      warmup(),
+      spanEvt({ event: "span_end", id: "monitor" }),
+      spanEvt({ event: "span_end", id: "solvers" }),
+    ]);
+
+    const wrappers = timeline.root.content.filter(
+      (item): item is TimelineSpan => item.type === "span" && item.utility
+    );
+    expect(wrappers.map((w) => w.id)).toEqual([
+      "utility-monitor-0",
+      "utility-monitor-1",
+    ]);
   });
 });
