@@ -1,0 +1,56 @@
+.headerMeta {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 0.6rem;
+}
+
+.effectiveNote {
+  font-weight: 400;
+  text-transform: none;
+  color: var(--bs-secondary-color);
+  font-size: 0.75rem;
+  letter-spacing: normal;
+}
+
+.headerRight {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.changeCount {
+  font-size: 0.68rem;
+  color: var(--bs-secondary-color);
+}
+
+.headerSep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--bs-border-color);
+  margin: 1px 0;
+}
+
+.timelineLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--bs-secondary-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.timelineLink:hover {
+  color: var(--bs-body-color);
+}
+
+.timelineLink i {
+  font-size: 0.8rem;
+}
