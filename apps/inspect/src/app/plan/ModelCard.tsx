@@ -52,7 +52,7 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec, configUpdates }) => {
     eval: {
       model: evalSpec.model,
       base_url: evalSpec.model_base_url,
-      config: evalModelConfig,
+      config: evalModelConfig ?? {},
       args: evalSpec.model_args,
     },
     ...evalSpec.model_roles,

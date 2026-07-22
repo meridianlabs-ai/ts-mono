@@ -1,5 +1,12 @@
 import clsx from "clsx";
-import { FC, Fragment, ReactNode, useEffect, useRef } from "react";
+import {
+  FC,
+  Fragment,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  useEffect,
+  useRef,
+} from "react";
 
 import { ConfigUpdate, LogUpdate } from "@tsmono/inspect-common/types";
 
@@ -8,11 +15,19 @@ import {
   HistoryCategory,
   HistoryRow,
   formatShort,
+  markerKey,
   rowCategory,
 } from "./timelineData";
 
-const fmtRowTime = (sec: number): string =>
-  new Date(sec * 1000).toLocaleTimeString(undefined, { hour12: false });
+// Tag/metadata edits can land days after the run — always show the date.
+const fmtRowTime = (sec: number): string => {
+  const date = new Date(sec * 1000);
+  const day = date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return `${day} ${date.toLocaleTimeString(undefined, { hour12: false })}`;
+};
 
 interface CategoryChipProps {
   icon: string;
@@ -136,33 +151,45 @@ const logUpdateChip = (update: LogUpdate): { icon: string; label: string } =>
     ? { icon: "bi-table", label: "Metadata" }
     : { icon: "bi-tags", label: "Tags" };
 
+// The chart-linkable rows: config ◆ and tag/metadata ◆ share the rail.
+const rowKey = (row: HistoryRow): string | undefined =>
+  row.kind === "config"
+    ? markerKey("config", row.index)
+    : row.kind === "logUpdate"
+      ? markerKey("log", row.index)
+      : undefined;
+
 export interface HistoryListProps {
   rows: HistoryRow[];
   enabledCategories: Set<HistoryCategory>;
   onToggleCategory: (category: HistoryCategory | "all") => void;
-  selectedConfigIndex: number | null;
-  onSelectConfig: (index: number | null) => void;
-  onOpenSample?: (id: string | number, epoch: number) => void;
+  selectedEventKey: string | null;
+  onSelectEvent: (key: string | null) => void;
+  onOpenSample?: (
+    id: string | number,
+    epoch: number,
+    event: ReactMouseEvent
+  ) => void;
 }
 
 export const HistoryList: FC<HistoryListProps> = ({
   rows,
   enabledCategories,
   onToggleCategory,
-  selectedConfigIndex,
-  onSelectConfig,
+  selectedEventKey,
+  onSelectEvent,
   onOpenSample,
 }) => {
   const selectedRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (selectedConfigIndex !== null) {
+    if (selectedEventKey !== null) {
       selectedRef.current?.scrollIntoView({
         block: "nearest",
         behavior: "smooth",
       });
     }
-  }, [selectedConfigIndex]);
+  }, [selectedEventKey]);
 
   const counts = new Map<HistoryCategory, number>();
   for (const row of rows) {
@@ -191,7 +218,7 @@ export const HistoryList: FC<HistoryListProps> = ({
               icon="bi-sliders"
               label="Config"
               kind="config"
-              selected={selectedConfigIndex === row.index}
+              selected={selectedEventKey === rowKey(row)}
             />
           ),
           detail: (
@@ -215,7 +242,14 @@ export const HistoryList: FC<HistoryListProps> = ({
       case "logUpdate": {
         const chip = logUpdateChip(row.update);
         return {
-          chip: <CategoryChip icon={chip.icon} label={chip.label} kind="tags" />,
+          chip: (
+            <CategoryChip
+              icon={chip.icon}
+              label={chip.label}
+              kind="tags"
+              selected={selectedEventKey === rowKey(row)}
+            />
+          ),
           detail: (
             <div className={styles.detailStack}>
               <div className={styles.detailHead}>
@@ -264,7 +298,11 @@ export const HistoryList: FC<HistoryListProps> = ({
       case "rateLimit":
         return {
           chip: (
-            <CategoryChip icon="bi-arrow-repeat" label="Runtime" kind="runtime" />
+            <CategoryChip
+              icon="bi-arrow-repeat"
+              label="Runtime"
+              kind="runtime"
+            />
           ),
           detail: (
             <div className={styles.detailHead}>
@@ -279,7 +317,11 @@ export const HistoryList: FC<HistoryListProps> = ({
       case "sampleError":
         return {
           chip: (
-            <CategoryChip icon="bi-arrow-repeat" label="Runtime" kind="runtime" />
+            <CategoryChip
+              icon="bi-arrow-repeat"
+              label="Runtime"
+              kind="runtime"
+            />
           ),
           detail: (
             <div className={styles.detailHead}>
@@ -297,7 +339,9 @@ export const HistoryList: FC<HistoryListProps> = ({
                 <button
                   type="button"
                   className={styles.openSample}
-                  onClick={() => onOpenSample(row.sample.id, row.sample.epoch)}
+                  onClick={(event) =>
+                    onOpenSample(row.sample.id, row.sample.epoch, event)
+                  }
                 >
                   open sample →
                 </button>
@@ -308,7 +352,11 @@ export const HistoryList: FC<HistoryListProps> = ({
       case "sampleLimit":
         return {
           chip: (
-            <CategoryChip icon="bi-arrow-repeat" label="Runtime" kind="runtime" />
+            <CategoryChip
+              icon="bi-arrow-repeat"
+              label="Runtime"
+              kind="runtime"
+            />
           ),
           detail: (
             <div className={styles.detailHead}>
@@ -318,7 +366,9 @@ export const HistoryList: FC<HistoryListProps> = ({
                 <button
                   type="button"
                   className={styles.openSample}
-                  onClick={() => onOpenSample(row.sample.id, row.sample.epoch)}
+                  onClick={(event) =>
+                    onOpenSample(row.sample.id, row.sample.epoch, event)
+                  }
                 >
                   open sample →
                 </button>
@@ -329,7 +379,11 @@ export const HistoryList: FC<HistoryListProps> = ({
       case "fallback":
         return {
           chip: (
-            <CategoryChip icon="bi-arrow-repeat" label="Runtime" kind="runtime" />
+            <CategoryChip
+              icon="bi-arrow-repeat"
+              label="Runtime"
+              kind="runtime"
+            />
           ),
           detail: (
             <div className={styles.detailHead}>
@@ -343,7 +397,11 @@ export const HistoryList: FC<HistoryListProps> = ({
       case "earlyStopping":
         return {
           chip: (
-            <CategoryChip icon="bi-arrow-repeat" label="Runtime" kind="runtime" />
+            <CategoryChip
+              icon="bi-arrow-repeat"
+              label="Runtime"
+              kind="runtime"
+            />
           ),
           detail: (
             <div className={styles.detailHead}>
@@ -397,8 +455,8 @@ export const HistoryList: FC<HistoryListProps> = ({
         ) : (
           visible.map((row, i) => {
             const { chip, detail } = rowBody(row);
-            const selected =
-              row.kind === "config" && selectedConfigIndex === row.index;
+            const key = rowKey(row);
+            const selected = key !== undefined && selectedEventKey === key;
             return (
               <div
                 key={i}
@@ -406,11 +464,11 @@ export const HistoryList: FC<HistoryListProps> = ({
                 className={clsx(
                   styles.row,
                   selected && styles.rowSelected,
-                  row.kind === "config" && styles.rowClickable
+                  key !== undefined && styles.rowClickable
                 )}
                 onClick={
-                  row.kind === "config"
-                    ? () => onSelectConfig(selected ? null : row.index)
+                  key !== undefined
+                    ? () => onSelectEvent(selected ? null : key)
                     : undefined
                 }
               >

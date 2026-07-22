@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Fragment, ReactNode, useState } from "react";
+import { Fragment, MouseEvent, ReactNode, useState } from "react";
 
 import type {
   ConfigUpdate,
@@ -46,7 +46,10 @@ interface UsagePanelProps {
   /** The eval's main model — generate-config pool retunes apply to it. */
   main_model?: string;
   /** Deep-link to the Timeline tab with the model's band toggled on. */
-  onViewTimeline?: (model: string) => void;
+  onViewTimeline?: (
+    model: string,
+    event: MouseEvent<HTMLButtonElement>
+  ) => void;
 }
 
 type Mode = "model" | "role" | "connections";
@@ -216,7 +219,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           shared_roles={logRoles}
           retunes={retunesByModel[logLane.model]}
           onViewTimeline={
-            onViewTimeline ? () => onViewTimeline(logLane.model) : undefined
+            onViewTimeline
+              ? (event) => onViewTimeline(logLane.model, event)
+              : undefined
           }
         />
       )}

@@ -95,29 +95,39 @@ const changeText = (change: ConfigValueChange): string => {
 
 export const formatShort = (value: unknown): string => {
   if (value === null || value === undefined) return "null";
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value.toString();
+  }
+  return JSON.stringify(value);
 };
 
-export interface ConfigMarker {
+/** A full-height ◆ on the chart: a config retune or a tag/metadata edit. */
+export type TimelineMarker = {
   time: number;
-  update: ConfigUpdate;
-  /** Index into config_updates — the History-row link. */
+  /** Index into its source array — the History-row link. */
   index: number;
   label: string;
   postRun: boolean;
-}
+} & (
+  | { kind: "config"; update: ConfigUpdate }
+  | { kind: "log"; update: LogUpdate }
+);
+
+export const markerKey = (kind: "config" | "log", index: number): string =>
+  `${kind}:${index}`;
 
 export const configMarkers = (
   updates: ConfigUpdate[] | null | undefined,
   runEnd?: number
-): ConfigMarker[] =>
+): TimelineMarker[] =>
   (updates ?? [])
-    .map((update, index) => {
+    .map((update, index): TimelineMarker | undefined => {
       const time = isoToEpoch(update.provenance.timestamp);
       if (time === undefined) return undefined;
       const label = `${update.changes.map(changeText).join(" · ")} · ${update.provenance.author}`;
       return {
+        kind: "config",
         time,
         update,
         index,
@@ -125,7 +135,42 @@ export const configMarkers = (
         postRun: runEnd !== undefined && time > runEnd,
       };
     })
-    .filter((m): m is ConfigMarker => m !== undefined)
+    .filter((m): m is TimelineMarker => m !== undefined)
+    .sort((a, b) => a.time - b.time);
+
+const logEditText = (update: LogUpdate): string => {
+  const parts: string[] = [];
+  for (const edit of update.edits) {
+    if (edit.type === "tags") {
+      parts.push(...edit.tags_add.map((tag) => `+${tag}`));
+      parts.push(...edit.tags_remove.map((tag) => `−${tag}`));
+    } else {
+      parts.push(...Object.keys(edit.metadata_set).map((key) => `${key} set`));
+      parts.push(...edit.metadata_remove.map((key) => `${key} removed`));
+    }
+  }
+  return parts.join(" · ");
+};
+
+export const logMarkers = (
+  updates: LogUpdate[] | null | undefined,
+  runEnd?: number
+): TimelineMarker[] =>
+  (updates ?? [])
+    .map((update, index): TimelineMarker | undefined => {
+      const time = isoToEpoch(update.provenance.timestamp);
+      if (time === undefined) return undefined;
+      const label = `${logEditText(update)} · ${update.provenance.author}`;
+      return {
+        kind: "log",
+        time,
+        update,
+        index,
+        label,
+        postRun: runEnd !== undefined && time > runEnd,
+      };
+    })
+    .filter((m): m is TimelineMarker => m !== undefined)
     .sort((a, b) => a.time - b.time);
 
 /** A violet dashed guide that steps at the ◆ that changed it. */
@@ -138,14 +183,14 @@ export interface GuideSegment {
 export const guideSegments = (
   launchValue: number | null | undefined,
   knob: string,
-  markers: ConfigMarker[],
+  markers: TimelineMarker[],
   window: TimeWindow
 ): GuideSegment[] => {
   const segments: GuideSegment[] = [];
   let value = typeof launchValue === "number" ? launchValue : undefined;
   let from = window.start;
   for (const marker of markers) {
-    if (marker.postRun) continue;
+    if (marker.kind !== "config" || marker.postRun) continue;
     for (const change of marker.update.changes) {
       if (change.config !== "eval" || change.name !== knob) continue;
       const next = change.cleared
@@ -172,7 +217,7 @@ export type HistoryCategory = "config" | "tags" | "scores" | "runtime";
 
 export type HistoryRow = { time: number; postRun: boolean } & (
   | { kind: "config"; update: ConfigUpdate; index: number }
-  | { kind: "logUpdate"; update: LogUpdate }
+  | { kind: "logUpdate"; update: LogUpdate; index: number }
   | { kind: "runStart"; detail: string }
   | { kind: "runEnd"; status: EvalLogStatus; detail: string }
   | { kind: "rateLimit"; event: ConnectionLimitChange }
@@ -258,20 +303,26 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
     });
   });
 
-  for (const update of logUpdates ?? []) {
+  (logUpdates ?? []).forEach((update, index) => {
     const time = isoToEpoch(update.provenance.timestamp);
-    if (time === undefined) continue;
+    if (time === undefined) return;
     rows.push({
       kind: "logUpdate",
       time,
       postRun: runEnd !== undefined && time > runEnd,
       update,
+      index,
     });
-  }
+  });
 
   for (const event of stats?.connection_limit_history ?? []) {
     if (event.reason !== "rate_limit") continue;
-    rows.push({ kind: "rateLimit", time: event.timestamp, postRun: false, event });
+    rows.push({
+      kind: "rateLimit",
+      time: event.timestamp,
+      postRun: false,
+      event,
+    });
   }
 
   for (const sample of samples) {

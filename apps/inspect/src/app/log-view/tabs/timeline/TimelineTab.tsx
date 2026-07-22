@@ -1,5 +1,11 @@
 import clsx from "clsx";
-import { FC, useCallback, useMemo, useState } from "react";
+import {
+  FC,
+  MouseEvent as ReactMouseEvent,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   ConfigUpdate,
@@ -20,6 +26,7 @@ import { EvalLogStatus } from "../../../../@types/extraInspect";
 import { kLogViewTimelineTabId } from "../../../../constants";
 import { useSelectedSampleSummaries } from "../../../../state/hooks";
 import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
+import { openInNewTab } from "../../../shared/openInNewTab";
 import {
   kTimelineBag,
   kTimelineBandsKey,
@@ -36,7 +43,7 @@ import {
   guideSegments,
   historyRows,
   isoToEpoch,
-  rowCategory,
+  logMarkers,
   terminations,
 } from "./timelineData";
 
@@ -104,14 +111,19 @@ export const TimelineTab: FC<TimelineTabProps> = ({
   earlyStopping,
 }) => {
   const samples = useSelectedSampleSummaries().data ?? [];
-  const { showSample } = useSampleNavigationActions();
+  const { showSample, getSampleUrl } = useSampleNavigationActions();
 
   const runStart = isoToEpoch(evalStats?.started_at);
   const runEnd = isoToEpoch(evalStats?.completed_at);
 
+  // Config retunes and tag/metadata edits share the ◆ marker rail.
   const markers = useMemo(
-    () => configMarkers(configUpdates, runEnd),
-    [configUpdates, runEnd]
+    () =>
+      [
+        ...configMarkers(configUpdates, runEnd),
+        ...logMarkers(logUpdates, runEnd),
+      ].sort((a, b) => a.time - b.time),
+    [configUpdates, logUpdates, runEnd]
   );
 
   const dots = useMemo(() => terminations(samples), [samples]);
@@ -145,8 +157,10 @@ export const TimelineTab: FC<TimelineTabProps> = ({
   );
   const lanes = useMemo(
     () =>
-      buildConnectionLanes(evalStats?.connection_limit_history, window, (model) =>
-        adaptiveMaxFromConfig(configsByModel?.[model])
+      buildConnectionLanes(
+        evalStats?.connection_limit_history,
+        window,
+        (model) => adaptiveMaxFromConfig(configsByModel?.[model])
       ),
     [evalStats?.connection_limit_history, window, configsByModel]
   );
@@ -224,19 +238,18 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     ]
   );
 
-  const hasHumanRows = rows.some((row) => rowCategory(row) !== "runtime");
   const [categoryOverrides, setCategoryOverrides] = useState<Record<
     string,
     boolean
   > | null>(null);
   const enabledCategories = useMemo(() => {
     const enabled = new Set<HistoryCategory>();
+    // Everything on by default; the chips narrow from there.
     const defaults: Record<HistoryCategory, boolean> = {
       config: true,
       tags: true,
       scores: true,
-      // Runtime defaults on only when the log has no human events.
-      runtime: !hasHumanRows,
+      runtime: true,
     };
     for (const category of Object.keys(defaults) as HistoryCategory[]) {
       if (categoryOverrides?.[category] ?? defaults[category]) {
@@ -244,7 +257,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       }
     }
     return enabled;
-  }, [categoryOverrides, hasHumanRows]);
+  }, [categoryOverrides]);
 
   const toggleCategory = (category: HistoryCategory | "all") => {
     if (category === "all") {
@@ -267,9 +280,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     });
   };
 
-  const [selectedConfigIndex, setSelectedConfigIndex] = useState<number | null>(
-    null
-  );
+  const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
 
   const limitCrossReference = useCallback(
     (sample: SampleSummary): string | undefined => {
@@ -279,13 +290,15 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       const completed = isoToEpoch(sample.completed_at);
       if (completed === undefined) return undefined;
       for (const marker of markers) {
-        if (marker.time <= completed) continue;
+        if (marker.kind !== "config" || marker.time <= completed) continue;
         for (const change of marker.update.changes) {
           if (change.config !== "eval" || change.name !== knob) continue;
-          const when = new Date(marker.time * 1000).toLocaleTimeString(
-            undefined,
-            { hour: "numeric", minute: "2-digit" }
-          );
+          const when = new Date(marker.time * 1000).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          });
           if (!change.cleared && change.value === null) {
             return `${knob} was lifted at ${when} — samples after that no longer hit this limit`;
           }
@@ -297,11 +310,19 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     [markers]
   );
 
+  // Plain click navigates in place; cmd/ctrl/shift click opens a new tab.
   const openSample = useCallback(
-    (id: string | number, epoch: number) => {
+    (id: string | number, epoch: number, event?: ReactMouseEvent) => {
+      if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
+        const url = getSampleUrl(id, epoch);
+        if (url) {
+          openInNewTab(url);
+          return;
+        }
+      }
       showSample(id, epoch);
     },
-    [showSample]
+    [showSample, getSampleUrl]
   );
 
   const showRateLimitLegend = enabledModels.some(
@@ -349,6 +370,12 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                 <span className={styles.legendDiamond} />
                 config change
               </span>
+              {markers.some((m) => m.kind === "log") && (
+                <span className={styles.legendItem}>
+                  <span className={styles.legendDiamondLog} />
+                  tag/metadata edit
+                </span>
+              )}
               {showTerminations && (
                 <>
                   <span className={styles.legendItem}>
@@ -395,8 +422,8 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             lanes={lanes}
             retunes={retunes}
             markers={markers}
-            selectedMarker={selectedConfigIndex}
-            onSelectMarker={setSelectedConfigIndex}
+            selectedMarker={selectedEventKey}
+            onSelectMarker={setSelectedEventKey}
             limitCrossReference={limitCrossReference}
             onOpenSample={openSample}
           />
@@ -405,8 +432,8 @@ export const TimelineTab: FC<TimelineTabProps> = ({
           rows={rows}
           enabledCategories={enabledCategories}
           onToggleCategory={toggleCategory}
-          selectedConfigIndex={selectedConfigIndex}
-          onSelectConfig={setSelectedConfigIndex}
+          selectedEventKey={selectedEventKey}
+          onSelectEvent={setSelectedEventKey}
           onOpenSample={openSample}
         />
       </div>

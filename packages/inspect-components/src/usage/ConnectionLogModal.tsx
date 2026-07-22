@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useMemo, useState } from "react";
+import { FC, MouseEvent, useMemo, useState } from "react";
 
 import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
@@ -17,7 +17,7 @@ interface ConnectionLogModalProps {
   shared_roles?: string[];
   /** Mid-run config retunes of this pool, interleaved as violet ◆ rows. */
   retunes?: PoolRetune[];
-  onViewTimeline?: () => void;
+  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 const kReasonLabel: Record<ConnectionLimitChange["reason"], string> = {
@@ -54,7 +54,11 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
   const rows = useMemo<LogRow[]>(() => {
     const all: LogRow[] = [
       ...events.map(
-        (event): LogRow => ({ kind: "controller", time: event.timestamp, event })
+        (event): LogRow => ({
+          kind: "controller",
+          time: event.timestamp,
+          event,
+        })
       ),
       ...(retunes ?? []).map(
         (retune): LogRow => ({ kind: "config", time: retune.timestamp, retune })

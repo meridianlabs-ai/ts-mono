@@ -72,6 +72,15 @@
   display: inline-block;
 }
 
+.legendDiamondLog {
+  width: 7px;
+  height: 7px;
+  background: #5b8ec4;
+  border: 1px solid #1d4f7c;
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
 .legendDot {
   width: 7px;
   height: 7px;

@@ -92,6 +92,7 @@
 .popoverTransition {
   font-family: var(--bs-font-monospace);
   font-size: 0.85rem;
+  overflow-wrap: anywhere;
 }
 
 .popoverTransition .from {
@@ -107,6 +108,11 @@
   grid-template-columns: max-content 1fr;
   column-gap: 1em;
   row-gap: 0.2rem;
+}
+
+.popoverGrid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .popoverLabel {

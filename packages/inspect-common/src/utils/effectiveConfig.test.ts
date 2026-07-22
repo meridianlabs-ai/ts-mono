@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ConfigUpdate, EvalConfig, GenerateConfig } from "../types";
+
 import {
   effectiveEvalConfig,
   effectiveGenerateConfig,

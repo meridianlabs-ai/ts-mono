@@ -75,6 +75,11 @@
   fill: var(--bs-secondary-color);
 }
 
+.yTickLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
 .axisBreak {
   stroke: var(--bs-secondary-color);
   stroke-width: 1;
@@ -95,14 +100,27 @@
   stroke: #9d84d1;
 }
 
+.markerLineLog {
+  stroke: #7fa8d0;
+}
+
 .markerLineSelected {
   stroke: #5d3f9e;
+}
+
+.markerLineLog.markerLineSelected {
+  stroke: #1d4f7c;
 }
 
 .markerDiamond {
   fill: #8f6fd0;
   stroke: #5d3f9e;
   cursor: pointer;
+}
+
+.markerDiamondLog {
+  fill: #5b8ec4;
+  stroke: #1d4f7c;
 }
 
 .markerDiamondSelected {
@@ -117,6 +135,10 @@
   font-family: var(--bs-font-monospace);
   font-size: 10px;
   fill: #4a2e73;
+}
+
+.markerLabelLog {
+  fill: #1d4f7c;
 }
 
 .markerLabelSelected {
@@ -189,6 +211,11 @@
   row-gap: 0.2rem;
 }
 
+.popoverGrid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .popoverLabel {
   text-transform: uppercase;
   color: var(--bs-secondary-color);
@@ -207,6 +234,7 @@
   border: 1px solid #e8d8a0;
   border-radius: 3px;
   padding: 0.3rem 0.45rem;
+  overflow-wrap: anywhere;
 }
 
 .popoverOpen {
@@ -237,6 +265,14 @@
 
 :global([data-bs-theme="dark"]) .markerLabel {
   fill: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .markerLabelLog {
+  fill: #8db8dd;
+}
+
+:global([data-bs-theme="dark"]) .markerLineLog {
+  stroke: #4d7aa8;
 }
 
 :global([data-bs-theme="dark"]) .rateLimitLine {

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment, ReactNode, useState } from "react";
+import { FC, Fragment, MouseEvent, ReactNode, useState } from "react";
 
 import type { ConfigChangeInfo } from "@tsmono/inspect-common/utils";
 import { PopOver } from "@tsmono/react/components";
@@ -11,10 +11,13 @@ export const formatConfigValue = (value: unknown): string => {
   if (value === null || value === undefined) {
     return "none";
   }
-  if (typeof value === "object") {
-    return JSON.stringify(value);
+  if (typeof value === "string") {
+    return value;
   }
-  return String(value);
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value.toString();
+  }
+  return JSON.stringify(value);
 };
 
 const formatTimestamp = (timestamp: string): string => {
@@ -32,7 +35,7 @@ const scopeLabel = (change: ConfigChangeInfo): string =>
   change.inherited ? `${change.scope} · inherited` : change.scope;
 
 interface TimelineLinkProps {
-  onClick: () => void;
+  onClick: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 const TimelineLink: FC<TimelineLinkProps> = ({ onClick }) => (
@@ -114,7 +117,7 @@ interface ConfigChangedChipProps {
   effectiveValue?: unknown;
   /** Compact chip: omit the scope / limit-lifted detail from the label. */
   compact?: boolean;
-  onViewTimeline?: () => void;
+  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**
@@ -174,7 +177,9 @@ export const ConfigChangedChip: FC<ConfigChangedChipProps> = ({
                 {formatConfigValue(change.previous)} →{" "}
               </span>
               <span className={styles.to}>
-                {change.value === null ? "null" : formatConfigValue(change.value)}
+                {change.value === null
+                  ? "null"
+                  : formatConfigValue(change.value)}
               </span>
               {change.limitLifted ? (
                 <span className={styles.from}> (limit lifted)</span>
@@ -194,7 +199,7 @@ interface ConfigValueCellProps {
   value: unknown;
   change: ConfigChangeInfo;
   compact?: boolean;
-  onViewTimeline?: () => void;
+  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**
@@ -241,7 +246,7 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
 interface ConfigChangesCountChipProps {
   changes: ConfigChangeInfo[];
   id?: string;
-  onViewTimeline?: () => void;
+  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
 /**

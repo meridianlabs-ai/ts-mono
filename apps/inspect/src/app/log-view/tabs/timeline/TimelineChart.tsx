@@ -1,5 +1,12 @@
 import clsx from "clsx";
-import { FC, Fragment, useCallback, useRef, useState } from "react";
+import {
+  FC,
+  Fragment,
+  MouseEvent as ReactMouseEvent,
+  useCallback,
+  useRef,
+  useState,
+} from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
 import type {
@@ -12,12 +19,13 @@ import { SampleSummary } from "../../../../client/api/types";
 
 import styles from "./TimelineChart.module.css";
 import {
-  ConfigMarker,
   GuideSegment,
   StepPoint,
   Termination,
   TimeWindow,
+  TimelineMarker,
   formatShort,
+  markerKey,
 } from "./timelineData";
 
 const kBandHeight = 84;
@@ -25,6 +33,7 @@ const kBandLabelY = 14;
 const kPlotTop = 22;
 const kPlotBottom = 72;
 const kAxisHeight = 28;
+const kYAxisWidth = 30;
 const kDotRadius = 3.5;
 const kDotRowStep = 9;
 const kMaxDotRows = 6;
@@ -85,12 +94,16 @@ export interface TimelineChartProps {
   terminationDots: Termination[];
   lanes: Record<string, ConnectionLaneData>;
   retunes: Record<string, PoolRetune[]>;
-  markers: ConfigMarker[];
-  selectedMarker: number | null;
-  onSelectMarker: (index: number | null) => void;
+  markers: TimelineMarker[];
+  selectedMarker: string | null;
+  onSelectMarker: (key: string | null) => void;
   /** Amber cross-reference for a hovered limit-terminated dot, if any. */
   limitCrossReference?: (sample: SampleSummary) => string | undefined;
-  onOpenSample?: (id: string | number, epoch: number) => void;
+  onOpenSample?: (
+    id: string | number,
+    epoch: number,
+    event: ReactMouseEvent
+  ) => void;
 }
 
 export const TimelineChart: FC<TimelineChartProps> = ({
@@ -130,20 +143,21 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     if (popoverCloseTimer.current !== null) {
       window.clearTimeout(popoverCloseTimer.current);
     }
-    popoverCloseTimer.current = window.setTimeout(
-      () => setPopover(null),
-      250
-    );
+    popoverCloseTimer.current = window.setTimeout(() => setPopover(null), 250);
   };
 
   const hasPostRun = markers.some((m) => m.postRun);
   const gutter = hasPostRun ? kPostRunGutter : 0;
-  const plotWidth = Math.max(width - gutter, 0);
+  const plotLeft = kYAxisWidth;
+  const plotRight = Math.max(width - gutter, plotLeft);
 
   const span = timeWindow.end - timeWindow.start;
   const x = (t: number): number => {
     const clamped = Math.min(Math.max(t, timeWindow.start), timeWindow.end);
-    return span > 0 ? ((clamped - timeWindow.start) / span) * plotWidth : 0;
+    return span > 0
+      ? plotLeft +
+          ((clamped - timeWindow.start) / span) * (plotRight - plotLeft)
+      : plotLeft;
   };
 
   interface Band {
@@ -176,14 +190,37 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 
   // ── band renderers ───────────────────────────────────────────────────
 
+  // Y scale for the line bands: 0 / mid / max, deduped for tiny ranges.
+  const yTicks = (yOf: (v: number) => number, max: number) => {
+    const values = [0, ...(max >= 4 ? [Math.round(max / 2)] : []), max];
+    return Array.from(new Set(values)).map((value) => (
+      <g key={`ytick-${value}`}>
+        <line
+          className={styles.axisLine}
+          x1={plotLeft - 3}
+          x2={plotLeft}
+          y1={yOf(value)}
+          y2={yOf(value)}
+        />
+        <text
+          className={styles.yTickLabel}
+          x={plotLeft - 5}
+          y={yOf(value) + 3}
+          textAnchor="end"
+        >
+          {value}
+        </text>
+      </g>
+    ));
+  };
+
   const renderActive = (band: Band) => {
     const values = activeSeries.map((p) => p.value);
     const guideMax = samplesGuide.reduce((m, s) => Math.max(m, s.value), 0);
-    const yMax = Math.max(...values, guideMax, 1) * 1.1;
+    const dataMax = Math.max(...values, guideMax, 1);
+    const yMax = dataMax * 1.1;
     const y = (v: number): number =>
-      band.top +
-      kPlotBottom -
-      (v / yMax) * (kPlotBottom - kPlotTop);
+      band.top + kPlotBottom - (v / yMax) * (kPlotBottom - kPlotTop);
 
     let path = "";
     let prev: StepPoint | undefined;
@@ -197,7 +234,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       prev = point;
     }
     if (prev) {
-      path += ` L ${plotWidth} ${y(prev.value)}`;
+      path += ` L ${plotRight} ${y(prev.value)}`;
     }
 
     return (
@@ -230,10 +267,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           </Fragment>
         ))}
         {path && <path className={styles.activeSeries} d={path} />}
+        {yTicks(y, dataMax)}
         <line
           className={styles.bandSeparator}
           x1={0}
-          x2={plotWidth}
+          x2={plotRight}
           y1={band.top + kBandHeight - 4}
           y2={band.top + kBandHeight - 4}
         />
@@ -247,8 +285,13 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     const capValues = laneRetunes
       .map((r) => (typeof r.value === "number" ? r.value : undefined))
       .filter((v): v is number => v !== undefined);
-    const yMax =
-      Math.max(lane.configuredMax ?? 0, lane.peak, ...capValues, 1) * 1.1;
+    const dataMax = Math.max(
+      lane.configuredMax ?? 0,
+      lane.peak,
+      ...capValues,
+      1
+    );
+    const yMax = dataMax * 1.1;
     const y = (v: number): number =>
       band.top + kPlotBottom - (v / yMax) * (kPlotBottom - kPlotTop);
 
@@ -259,12 +302,12 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       path += ` L ${ex} ${y(prev)} L ${ex} ${y(e.new_limit)}`;
       prev = e.new_limit;
     }
-    path += ` L ${plotWidth} ${y(prev)}`;
+    path += ` L ${plotRight} ${y(prev)}`;
 
     // Cap guide steps at retunes that changed the cap.
     const capSegments: { x1: number; x2: number; value: number }[] = [];
     let capValue = lane.configuredMax;
-    let capStart = 0;
+    let capStart = plotLeft;
     for (const retune of laneRetunes) {
       const next = typeof retune.value === "number" ? retune.value : undefined;
       if (next === undefined) continue;
@@ -276,7 +319,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       capStart = rx;
     }
     if (capValue !== undefined) {
-      capSegments.push({ x1: capStart, x2: plotWidth, value: capValue });
+      capSegments.push({ x1: capStart, x2: plotRight, value: capValue });
     }
 
     return (
@@ -287,7 +330,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           y={band.top + kBandLabelY}
           letterSpacing="0.4"
         >
-          CONNECTIONS · <tspan className={styles.bandLabelModel}>{band.model}</tspan>
+          CONNECTIONS ·{" "}
+          <tspan className={styles.bandLabelModel}>{band.model}</tspan>
         </text>
         {lane.events
           .filter((e) => e.reason === "rate_limit")
@@ -323,10 +367,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           </Fragment>
         ))}
         <path className={styles.connectionsSeries} d={path} />
+        {yTicks(y, dataMax)}
         <line
           className={styles.bandSeparator}
           x1={0}
-          x2={plotWidth}
+          x2={plotRight}
           y1={band.top + kBandHeight - 4}
           y2={band.top + kBandHeight - 4}
         />
@@ -390,7 +435,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         </text>
         {dots.map((dot, i) => {
           const hovered =
-            popover?.sample === dot.t.sample && popover?.status === dot.t.status;
+            popover?.sample === dot.t.sample &&
+            popover?.status === dot.t.status;
           return (
             <circle
               key={i}
@@ -437,7 +483,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         <line
           className={styles.bandSeparator}
           x1={0}
-          x2={plotWidth}
+          x2={plotRight}
           y1={band.top + kBandHeight - 4}
           y2={band.top + kBandHeight - 4}
         />
@@ -448,16 +494,21 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   // ── axis ─────────────────────────────────────────────────────────────
 
   const renderAxis = () => {
-    const ticks: { x: number; label: string; anchor: "start" | "middle" | "end" }[] = [
+    const ticks: {
+      x: number;
+      label: string;
+      anchor: "start" | "middle" | "end";
+    }[] = [
       {
-        x: 0,
+        x: plotLeft,
         label: `${fmtDate(timeWindow.start)}, ${fmtTime(timeWindow.start)}`,
         anchor: "start",
       },
-      { x: plotWidth, label: fmtTime(timeWindow.end), anchor: "end" },
+      { x: plotRight, label: fmtTime(timeWindow.end), anchor: "end" },
     ];
     const intervals = [300, 900, 1800, 3600, 7200, 14400, 43200, 86400];
-    const interval = intervals.find((i) => (i / span) * plotWidth >= 80);
+    const plotSpan = plotRight - plotLeft;
+    const interval = intervals.find((i) => (i / span) * plotSpan >= 80);
     if (interval) {
       for (
         let t = Math.ceil(timeWindow.start / interval) * interval;
@@ -465,7 +516,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         t += interval
       ) {
         const px = x(t);
-        if (px < 110 || px > plotWidth - 60) continue;
+        if (px < plotLeft + 110 || px > plotRight - 60) continue;
         ticks.push({ x: px, label: fmtTime(t), anchor: "middle" });
       }
     }
@@ -473,8 +524,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       <g key="axis">
         <line
           className={styles.axisLine}
-          x1={0}
-          x2={plotWidth}
+          x1={plotLeft}
+          x2={plotRight}
           y1={axisY}
           y2={axisY}
         />
@@ -502,18 +553,18 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             {/* axis break (⫽) then the compact post-run gutter */}
             <path
               className={styles.axisBreak}
-              d={`M ${plotWidth + 6} ${axisY - 4} L ${plotWidth + 12} ${axisY + 4} M ${plotWidth + 14} ${axisY - 4} L ${plotWidth + 20} ${axisY + 4}`}
+              d={`M ${plotRight + 6} ${axisY - 4} L ${plotRight + 12} ${axisY + 4} M ${plotRight + 14} ${axisY - 4} L ${plotRight + 20} ${axisY + 4}`}
             />
             <line
               className={styles.axisLine}
-              x1={plotWidth + 24}
+              x1={plotRight + 24}
               x2={width}
               y1={axisY}
               y2={axisY}
             />
             <text
               className={styles.postRunLabel}
-              x={plotWidth + 26}
+              x={plotRight + 26}
               y={axisY + 14}
             >
               post-run ›
@@ -533,21 +584,23 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         {markers
           .filter((m) => !m.postRun)
           .map((marker) => {
+            const key = markerKey(marker.kind, marker.index);
+            const isLog = marker.kind === "log";
             const mx = x(marker.time);
-            const selected = selectedMarker === marker.index;
+            const selected = selectedMarker === key;
             const size = selected ? 12 : 8;
             return (
               <g
-                key={marker.index}
+                key={key}
                 className={styles.marker}
-                onClick={() =>
-                  onSelectMarker(selected ? null : marker.index)
-                }
+                onClick={() => onSelectMarker(selected ? null : key)}
               >
                 <line
-                  className={
-                    selected ? styles.markerLineSelected : styles.markerLine
-                  }
+                  className={clsx(
+                    styles.markerLine,
+                    isLog && styles.markerLineLog,
+                    selected && styles.markerLineSelected
+                  )}
                   x1={mx}
                   x2={mx}
                   y1={kMarkerTop + 6}
@@ -556,6 +609,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                 <rect
                   className={clsx(
                     styles.markerDiamond,
+                    isLog && styles.markerDiamondLog,
                     selected && styles.markerDiamondSelected
                   )}
                   x={mx - size / 2}
@@ -569,6 +623,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                 <text
                   className={clsx(
                     styles.markerLabel,
+                    isLog && styles.markerLabelLog,
                     selected && styles.markerLabelSelected
                   )}
                   x={mx + 12}
@@ -580,13 +635,15 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             );
           })}
         {postRun.map((marker, i) => {
-          const mx = Math.min(plotWidth + 32 + i * 16, width - 8);
-          const selected = selectedMarker === marker.index;
+          const key = markerKey(marker.kind, marker.index);
+          const mx = Math.min(plotRight + 32 + i * 16, width - 8);
+          const selected = selectedMarker === key;
           return (
             <rect
-              key={`post-${marker.index}`}
+              key={`post-${key}`}
               className={clsx(
                 styles.markerDiamond,
+                marker.kind === "log" && styles.markerDiamondLog,
                 styles.markerDiamondPostRun,
                 selected && styles.markerDiamondSelected
               )}
@@ -595,7 +652,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
               width={7}
               height={7}
               transform={`rotate(45 ${mx} ${axisY - 8.5})`}
-              onClick={() => onSelectMarker(selected ? null : marker.index)}
+              onClick={() => onSelectMarker(selected ? null : key)}
             >
               <title>{marker.label}</title>
             </rect>
@@ -613,15 +670,22 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     const preview = inputString(sample.input).join(" ");
     const crossReference = limitCrossReference?.(sample);
     const completedAt = sample.completed_at
-      ? new Date(sample.completed_at).toLocaleTimeString()
+      ? new Date(sample.completed_at).toLocaleString(undefined, {
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+        })
       : undefined;
     const scores = sample.scores ? Object.entries(sample.scores) : [];
     const firstScore = scores[0];
-    const left = Math.min(Math.max(popover.x - 60, 0), Math.max(width - 340, 0));
+    const left = Math.min(
+      Math.max(popover.x - 60, 0),
+      Math.max(width - 340, 0)
+    );
     const statusWord =
-      status === "limit"
-        ? `${sample.limit ?? ""} limit`.trim()
-        : status;
+      status === "limit" ? `${sample.limit ?? ""} limit`.trim() : status;
     return (
       <div
         className={styles.samplePopover}
@@ -657,7 +721,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             )}
             <div className={styles.popoverLabel}>Working / total</div>
             <div>
-              {fmtCompact(sample.working_time)} / {fmtCompact(sample.total_time)}
+              {fmtCompact(sample.working_time)} /{" "}
+              {fmtCompact(sample.total_time)}
             </div>
             {sampleTokens(sample) !== undefined && (
               <Fragment>
@@ -683,7 +748,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             <button
               type="button"
               className={styles.popoverOpen}
-              onClick={() => onOpenSample(sample.id, sample.epoch)}
+              onClick={(event) => onOpenSample(sample.id, sample.epoch, event)}
             >
               Open sample →
             </button>

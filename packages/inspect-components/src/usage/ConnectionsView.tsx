@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Fragment, useCallback, useState } from "react";
+import { FC, Fragment, MouseEvent, useCallback, useState } from "react";
 
 import { useResizeObserver } from "@tsmono/react/hooks";
 
@@ -17,7 +17,10 @@ interface ConnectionsViewProps {
   role_aliases?: Record<string, string>;
   retunes_by_model?: Record<string, PoolRetune[]>;
   onShowLog?: (model: string) => void;
-  onViewTimeline?: (model: string) => void;
+  onViewTimeline?: (
+    model: string,
+    event: MouseEvent<HTMLButtonElement>
+  ) => void;
 }
 
 /** The legend for the Connections view header row (◆ / rate limit / max). */
@@ -121,7 +124,7 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
                   type="button"
                   className={styles.actionLink}
                   title="View on timeline"
-                  onClick={() => onViewTimeline(model)}
+                  onClick={(event) => onViewTimeline(model, event)}
                 >
                   <i className="bi bi-graph-up" aria-hidden="true" />
                   Timeline
