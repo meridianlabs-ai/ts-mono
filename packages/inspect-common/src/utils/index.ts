@@ -1,4 +1,5 @@
 export {
+  concurrencyChanges,
   effectiveEvalConfig,
   effectiveGenerateConfig,
   evalConfigChanges,

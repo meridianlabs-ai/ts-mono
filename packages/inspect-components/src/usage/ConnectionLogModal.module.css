@@ -94,6 +94,84 @@
   color: #5f6771;
 }
 
+.badgeConfig {
+  border: 1px solid #d9cfe8;
+  background: var(--bs-body-bg);
+  color: #4a2e73;
+}
+
+.configRow {
+  background: #f7f3fc;
+}
+
+.rateLimitRow {
+  background: #fdf6f5;
+}
+
+.configDetail {
+  color: #4a2e73;
+  margin-left: 0.4rem;
+  font-size: 0.75rem;
+}
+
+.subheader {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--bs-light-border-subtle);
+  font-size: 0.7rem;
+  color: var(--bs-secondary);
+}
+
+.sharedBy {
+  white-space: nowrap;
+}
+
+.filters {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.filterChip {
+  display: inline-flex;
+  padding: 0.1rem 0.45rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  background: none;
+  color: var(--bs-secondary);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.filterChipActive {
+  border-color: var(--bs-secondary);
+  background: var(--bs-secondary-bg);
+  color: var(--bs-body-color);
+}
+
+.timelineLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--bs-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  margin-right: auto;
+}
+
+.timelineLink:hover {
+  color: var(--bs-body-color);
+}
+
+.timelineLink i {
+  font-size: 0.8rem;
+}
+
 /* Dark mode — dark tinted fills with light text (the light fills above are
    near-white and glare on a dark surface). */
 :global([data-bs-theme="dark"]) .arrowDown {
@@ -118,4 +196,21 @@
 :global([data-bs-theme="dark"]) .badgeManual {
   background: #31353b;
   color: #aeb6bf;
+}
+
+:global([data-bs-theme="dark"]) .badgeConfig {
+  border-color: #4a3d63;
+  color: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .configRow {
+  background: #241f2e;
+}
+
+:global([data-bs-theme="dark"]) .rateLimitRow {
+  background: #2e211e;
+}
+
+:global([data-bs-theme="dark"]) .configDetail {
+  color: #cbb8ec;
 }

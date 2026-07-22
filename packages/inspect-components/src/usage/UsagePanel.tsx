@@ -1,7 +1,10 @@
 import clsx from "clsx";
 import { Fragment, ReactNode, useState } from "react";
 
-import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
+import type {
+  ConfigUpdate,
+  ConnectionLimitChange,
+} from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
@@ -9,9 +12,11 @@ import {
   adaptiveMaxFromConfig,
   buildConnectionLanes,
   connectionWindow,
+  poolRetunes,
   type ConnectionLaneData,
 } from "./connectionHistory";
 import { ConnectionLogModal } from "./ConnectionLogModal";
+import { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
 import styles from "./UsagePanel.module.css";
@@ -36,9 +41,15 @@ interface UsagePanelProps {
   connection_limit_history?: ConnectionLimitChange[];
   started_at?: string | null;
   completed_at?: string | null;
+  /** Mid-run config changes — pool retunes render on lanes and in the log. */
+  config_updates?: ConfigUpdate[] | null;
+  /** The eval's main model — generate-config pool retunes apply to it. */
+  main_model?: string;
+  /** Deep-link to the Timeline tab with the model's band toggled on. */
+  onViewTimeline?: (model: string) => void;
 }
 
-type Mode = "model" | "role";
+type Mode = "model" | "role" | "connections";
 
 export const UsagePanel: React.FC<UsagePanelProps> = ({
   label,
@@ -55,6 +66,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   connection_limit_history,
   started_at,
   completed_at,
+  config_updates,
+  main_model,
+  onViewTimeline,
 }) => {
   const keysOf = (
     ...maps: (Record<string, unknown> | undefined)[]
@@ -74,13 +88,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
     usageWindow,
     (model) => adaptiveMaxFromConfig(configs_by_model?.[model])
   );
+  const retunesByModel = poolRetunes(config_updates, main_model);
 
-  const modelKeys = keysOf(
-    model_usage,
-    configs_by_model,
-    args_by_model,
-    lanesByModel
-  );
+  const modelKeys = keysOf(model_usage, configs_by_model, args_by_model);
   const roleKeys = keysOf(
     role_usage,
     configs_by_role,
@@ -90,6 +100,8 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const hasModel = modelKeys.length > 0;
   const hasRole = roleKeys.length > 0;
   const hasRoleUsage = !!(role_usage && Object.keys(role_usage).length > 0);
+  // The Connections lens appears only when connection history exists.
+  const hasConnections = !!usageWindow && Object.keys(lanesByModel).length > 0;
 
   const [mode, setMode] = useState<Mode>(hasRoleUsage ? "role" : "model");
   const [logModel, setLogModel] = useProperty<string | null>(
@@ -98,36 +110,46 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
     { defaultValue: null }
   );
 
-  if (!hasModel && !hasRole) return null;
+  if (!hasModel && !hasRole && !hasConnections) return null;
 
-  const showSegmented = hasModel && hasRole;
-  const effectiveMode: Mode = showSegmented ? mode : hasRole ? "role" : "model";
+  const segments = [
+    ...(hasRole ? [{ id: "role", label: "Roles" }] : []),
+    ...(hasModel ? [{ id: "model", label: "Models" }] : []),
+    ...(hasConnections ? [{ id: "connections", label: "Connections" }] : []),
+  ];
+  const showSegmented = segments.length > 1;
+  const effectiveMode: Mode = segments.some((s) => s.id === mode)
+    ? mode
+    : hasRole
+      ? "role"
+      : hasModel
+        ? "model"
+        : "connections";
   const isModel = effectiveMode === "model";
+  const isConnections = effectiveMode === "connections";
   const resolvedLabel = label ?? "Usage";
 
   const usageData = isModel ? model_usage : role_usage;
-  const hasUsageData = !!(usageData && Object.keys(usageData).length > 0);
+  const hasUsageData =
+    !isConnections && !!(usageData && Object.keys(usageData).length > 0);
   const tableConfigs = isModel ? configs_by_model : configs_by_role;
   const tableArgs = isModel ? args_by_model : args_by_role;
   const tableAliases = !isModel ? role_aliases : undefined;
   const tableRowKeys = isModel ? modelKeys : roleKeys;
 
-  // History is keyed by model; role rows resolve their lane through the
-  // role → model alias map (roles sharing a model show the same lane).
-  const connectionsByRow: Record<string, ConnectionLaneData> = {};
-  if (isModel) {
-    Object.assign(connectionsByRow, lanesByModel);
-  } else if (role_aliases) {
-    for (const [role, model] of Object.entries(role_aliases)) {
-      const lane = lanesByModel[model];
-      if (lane) connectionsByRow[role] = lane;
-    }
-  }
-  const logLane = logModel != null ? lanesByModel[logModel] : undefined;
+  const logLane: ConnectionLaneData | undefined =
+    logModel != null ? lanesByModel[logModel] : undefined;
+  const logRoles =
+    logModel != null
+      ? Object.entries(role_aliases ?? {})
+          .filter(([, model]) => model === logModel)
+          .map(([role]) => role)
+      : [];
 
-  const metaItems = hasUsageData
-    ? (meta?.filter((m) => m.value != null && m.value !== "") ?? [])
-    : [];
+  const metaItems =
+    hasUsageData || isConnections
+      ? (meta?.filter((m) => m.value != null && m.value !== "") ?? [])
+      : [];
 
   return (
     <div className={clsx(styles.panel, className)}>
@@ -138,48 +160,64 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           </div>
           {showSegmented && (
             <SegmentedControl
-              segments={[
-                { id: "role", label: "Roles" },
-                { id: "model", label: "Models" },
-              ]}
+              segments={segments}
               selectedId={effectiveMode}
               onSegmentChange={(value) => setMode(value as Mode)}
             />
           )}
         </div>
-        {metaItems.length > 0 && (
-          <div className={styles.meta}>
-            {metaItems.map((m, i) => (
-              <Fragment key={m.label}>
-                {i > 0 && <span className={styles.metaSep} />}
-                <span className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{m.label}</span>
-                  <span className={styles.metaValue}>{m.value}</span>
-                </span>
-              </Fragment>
-            ))}
-          </div>
-        )}
+        <div className={styles.meta}>
+          {isConnections && (
+            <Fragment>
+              <ConnectionsLegend />
+              {metaItems.length > 0 && <span className={styles.metaSep} />}
+            </Fragment>
+          )}
+          {metaItems.map((m, i) => (
+            <Fragment key={m.label}>
+              {i > 0 && <span className={styles.metaSep} />}
+              <span className={styles.metaItem}>
+                <span className={styles.metaLabel}>{m.label}</span>
+                <span className={styles.metaValue}>{m.value}</span>
+              </span>
+            </Fragment>
+          ))}
+        </div>
       </div>
-      <ModelTokenTable
-        model_usage={usageData}
-        model_configs={tableConfigs}
-        model_args={tableArgs}
-        model_aliases={tableAliases}
-        rowKeys={tableRowKeys}
-        showTokenColumns={hasUsageData}
-        samples={samples}
-        className={styles.tableNoTop}
-        connections_by_row={connectionsByRow}
-        connections_window={usageWindow}
-        onShowConnectionLog={setLogModel}
-      />
+      {isConnections && usageWindow ? (
+        <ConnectionsView
+          lanes={lanesByModel}
+          timeWindow={usageWindow}
+          role_aliases={role_aliases}
+          retunes_by_model={retunesByModel}
+          onShowLog={setLogModel}
+          onViewTimeline={onViewTimeline}
+        />
+      ) : (
+        // Roles/Models are token lenses — connection lanes render once, in
+        // the Connections lens, never per row (pools are model-keyed).
+        <ModelTokenTable
+          model_usage={usageData}
+          model_configs={tableConfigs}
+          model_args={tableArgs}
+          model_aliases={tableAliases}
+          rowKeys={tableRowKeys}
+          showTokenColumns={hasUsageData}
+          samples={samples}
+          className={styles.tableNoTop}
+        />
+      )}
       {logLane && (
         <ConnectionLogModal
           model={logLane.model}
           events={logLane.events}
           show={true}
           onHide={() => setLogModel(null)}
+          shared_roles={logRoles}
+          retunes={retunesByModel[logLane.model]}
+          onViewTimeline={
+            onViewTimeline ? () => onViewTimeline(logLane.model) : undefined
+          }
         />
       )}
     </div>

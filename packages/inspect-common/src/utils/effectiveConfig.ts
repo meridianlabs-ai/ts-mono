@@ -202,3 +202,33 @@ export const generateConfigChanges = (
   updates?: ConfigUpdate[] | null
 ): Map<string, ConfigChangeInfo> =>
   changesFor(updates, "generate", GENERATE_CONFIG_KEYS);
+
+/**
+ * Audit-only `"concurrency"` changes (named concurrency() registry retunes)
+ * in update order — never folded into config; shown on the Timeline and in
+ * the Connection Log only.
+ */
+export const concurrencyChanges = (
+  updates?: ConfigUpdate[] | null
+): ConfigChangeInfo[] => {
+  const changes: ConfigChangeInfo[] = [];
+  for (const update of updates ?? []) {
+    for (const change of update.changes) {
+      if (change.config !== "concurrency") {
+        continue;
+      }
+      changes.push({
+        name: change.name,
+        config: change.config,
+        value: change.value,
+        previous: change.previous,
+        cleared: change.cleared,
+        limitLifted: false,
+        scope: update.scope,
+        inherited: update.provenance.metadata?.["inherited"] === true,
+        provenance: update.provenance,
+      });
+    }
+  }
+  return changes;
+};

@@ -78,7 +78,8 @@ export const LogView: FC = () => {
   const modelsTabConfig = useModelsTab(
     evalSpec,
     selectedLogDetails?.stats,
-    selectedLogDetails?.status
+    selectedLogDetails?.status,
+    selectedLogDetails?.config_updates
   );
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);

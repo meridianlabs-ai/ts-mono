@@ -11,8 +11,16 @@ export {
 } from "./configsForUsage";
 export {
   adaptiveMaxFromConfig,
+  adaptiveMaxFromValue,
   buildConnectionLanes,
   connectionWindow,
+  poolRetunes,
 } from "./connectionHistory";
-export type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
+export type {
+  ConnectionLaneData,
+  ConnectionWindow,
+  PoolRetune,
+} from "./connectionHistory";
+export { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
+export { ConnectionLogModal } from "./ConnectionLogModal";
 export { fmtClock, fmtCompactDuration } from "./timeFormat";

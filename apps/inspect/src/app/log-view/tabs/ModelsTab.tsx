@@ -1,6 +1,10 @@
 import { FC, useMemo } from "react";
 
-import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
+import {
+  ConfigUpdate,
+  EvalSpec,
+  EvalStats,
+} from "@tsmono/inspect-common/types";
 import {
   buildArgsByModel,
   buildArgsByRole,
@@ -14,39 +18,45 @@ import {
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
+import { useShowTimelineForModel } from "../useShowTimeline";
 
 // Individual hook for Info tab
 export const useModelsTab = (
   evalSpec: EvalSpec | undefined,
   evalStats: EvalStats | undefined,
-  evalStatus?: EvalLogStatus
+  evalStatus?: EvalLogStatus,
+  configUpdates?: ConfigUpdate[] | null
 ) => {
   return useMemo(() => {
     return {
       id: kLogViewModelsTabId,
-      label: "Stats",
+      label: "Models",
       scrollable: true,
       component: ModelTab,
       componentProps: {
         evalSpec,
         evalStats,
         evalStatus,
+        configUpdates,
       },
     };
-  }, [evalSpec, evalStats, evalStatus]);
+  }, [evalSpec, evalStats, evalStatus, configUpdates]);
 };
 
 interface ModelTabProps {
   evalSpec?: EvalSpec;
   evalStats?: EvalStats;
   evalStatus?: EvalLogStatus;
+  configUpdates?: ConfigUpdate[] | null;
 }
 
 export const ModelTab: FC<ModelTabProps> = ({
   evalSpec,
   evalStats,
   evalStatus,
+  configUpdates,
 }) => {
+  const showTimelineForModel = useShowTimelineForModel();
   const configsByModel = useMemo(
     () => buildConfigsByModel(evalSpec),
     [evalSpec]
@@ -129,6 +139,9 @@ export const ModelTab: FC<ModelTabProps> = ({
           connection_limit_history={evalStats?.connection_limit_history}
           started_at={evalStats?.started_at}
           completed_at={evalStats?.completed_at}
+          config_updates={configUpdates}
+          main_model={evalSpec?.model}
+          onViewTimeline={showTimelineForModel}
         />
       </div>
     </div>

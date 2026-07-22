@@ -1,5 +1,6 @@
 import type {
   AdaptiveConcurrency,
+  ConfigUpdate,
   ConnectionLimitChange,
 } from "@tsmono/inspect-common/types";
 
@@ -49,10 +50,9 @@ export const connectionWindow = (
 
 // adaptive_connections is boolean | number | AdaptiveConcurrency | null, plus
 // the "min-max" / "min-start-max" string shorthand accepted by CLI flags.
-export const adaptiveMaxFromConfig = (
-  config?: Record<string, unknown>
+export const adaptiveMaxFromValue = (
+  adaptive: unknown
 ): number | undefined => {
-  const adaptive = config?.["adaptive_connections"];
   if (adaptive == null || adaptive === false) return undefined;
   if (adaptive === true) return kAdaptiveDefaultMax;
   if (typeof adaptive === "number") return adaptive;
@@ -66,6 +66,61 @@ export const adaptiveMaxFromConfig = (
     return typeof max === "number" ? max : kAdaptiveDefaultMax;
   }
   return undefined;
+};
+
+export const adaptiveMaxFromConfig = (
+  config?: Record<string, unknown>
+): number | undefined => adaptiveMaxFromValue(config?.["adaptive_connections"]);
+
+/** A mid-run config change that retuned a model's connection pool. */
+export interface PoolRetune {
+  /** Epoch seconds (provenance timestamps are ISO strings). */
+  timestamp: number;
+  /** The knob: max_connections / adaptive_connections / the registry key. */
+  name: string;
+  previous: unknown;
+  value: unknown;
+  author: string;
+  reason?: string | null;
+}
+
+/**
+ * Per-model pool retunes from config_updates: `"concurrency"` changes key
+ * on the registry name; generate max_connections / adaptive_connections
+ * changes apply to the main model's pool.
+ */
+export const poolRetunes = (
+  updates: ConfigUpdate[] | null | undefined,
+  mainModel?: string
+): Record<string, PoolRetune[]> => {
+  const byModel: Record<string, PoolRetune[]> = {};
+  for (const update of updates ?? []) {
+    const timestamp = new Date(update.provenance.timestamp).getTime() / 1000;
+    if (!Number.isFinite(timestamp)) continue;
+    for (const change of update.changes) {
+      const model =
+        change.config === "concurrency"
+          ? change.name
+          : change.config === "generate" &&
+              (change.name === "max_connections" ||
+                change.name === "adaptive_connections")
+            ? mainModel
+            : undefined;
+      if (!model) continue;
+      (byModel[model] ??= []).push({
+        timestamp,
+        name: change.name,
+        previous: change.previous,
+        value: change.value,
+        author: update.provenance.author,
+        reason: update.provenance.reason,
+      });
+    }
+  }
+  for (const retunes of Object.values(byModel)) {
+    retunes.sort((a, b) => a.timestamp - b.timestamp);
+  }
+  return byModel;
 };
 
 export const buildConnectionLanes = (
