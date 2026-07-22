@@ -29,6 +29,8 @@ jobs:
     # token and the job would only fail. The `permissions:` block can't override
     # this. Those PRs are instead reviewed on demand via an `@review` comment,
     # which runs as `issue_comment` in the base-repo context (full token access).
+    # Skip draft PRs (auto-reviewed when marked Ready for review; an explicit
+    # `@review` comment still works on a draft).
     if: >
       (github.event_name == 'pull_request' &&
        github.event.pull_request.draft != true &&
