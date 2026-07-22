@@ -589,14 +589,16 @@ describe("readLogsListingMatches", () => {
     databaseService = createDatabaseService();
     holder.service = databaseService;
     await databaseService.openDatabase();
+    queryClient.clear();
   });
 
   afterEach(async () => {
+    queryClient.clear();
     await databaseService.closeDatabase();
     await Dexie.delete(DB_NAME);
   });
 
-  test("returns matching row ids in listing order under the active plan", async () => {
+  test("returns matching row ids and snapshot offsets under the active plan", async () => {
     await databaseService.writeLogPreviews({
       "/test/logs/a.json": preview({ task: "alpha", task_id: "t-a" }),
       "/test/logs/b.json": preview({
@@ -614,24 +616,93 @@ describe("readLogsListingMatches", () => {
       }),
     });
 
+    const filter = new Column("model").ilike("gpt%");
+    const orderBy = [{ column: "name", direction: "DESC" as const }];
     const matches = await readLogsListingMatches(
-      "/test/logs",
-      "/test/logs",
-      (log: LogListingRow) => log as Log,
-      createListingPlan({
-        filter: new Column("model").ilike("gpt%"),
-        orderBy: [{ column: "name", direction: "DESC" as const }],
-        getValue,
-        getComparator: () => undefined,
-      }),
       {
+        logDir: "/test/logs",
+        prefix: "/test/logs",
+        toRow: (log: LogListingRow) => log,
+        universe: "test-universe",
+        accessorsKey: "accessors-v1",
+        filter,
+        orderBy,
+        plan: createListingPlan({
+          filter,
+          orderBy,
+          getValue,
+          getComparator: () => undefined,
+        }),
+      },
+      {
+        pageSize: 2,
         // Lowercased per rowText's contract; the term may be any case.
         term: "ALPHA",
         getRowId: (row) => row.name,
+        getOrderValue: getValue,
         rowText: (row) => `${row.name}\n${row.task ?? ""}`.toLowerCase(),
       }
     );
 
-    expect(matches).toEqual(["/test/logs/c.json", "/test/logs/a.json"]);
+    expect(matches).toEqual([
+      {
+        id: "/test/logs/c.json",
+        offset: 0,
+        orderValues: { name: "/test/logs/c.json" },
+      },
+      {
+        id: "/test/logs/a.json",
+        offset: 2,
+        orderValues: { name: "/test/logs/a.json" },
+      },
+    ]);
+  });
+
+  test("keeps match offsets tied to the cached page snapshot", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/b.json": preview({ task: "match", task_id: "t-b" }),
+      "/test/logs/c.json": preview({ task: "match", task_id: "t-c" }),
+    });
+    const orderBy = [{ column: "name", direction: "ASC" as const }];
+    const query: LogsListingPageQuery<Log> = {
+      logDir: "/test/logs",
+      prefix: "/test/logs",
+      toRow: (log: LogListingRow) => log,
+      universe: "test-universe",
+      accessorsKey: "accessors-v1",
+      orderBy,
+      plan: createListingPlan({
+        orderBy,
+        getValue,
+        getComparator: () => undefined,
+      }),
+    };
+
+    await readLogsListingPage(query, { cursor: null, limit: 1 });
+    // No invalidation: the new leading row is not part of the page
+    // snapshot, so it must not shift or join the match projection.
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task: "match", task_id: "t-a" }),
+    });
+
+    const matches = await readLogsListingMatches(query, {
+      pageSize: 1,
+      term: "match",
+      getRowId: (row) => row.name,
+      getOrderValue: getValue,
+      rowText: (row) => row.task ?? "",
+    });
+    expect(matches).toEqual([
+      {
+        id: "/test/logs/b.json",
+        offset: 0,
+        orderValues: { name: "/test/logs/b.json" },
+      },
+      {
+        id: "/test/logs/c.json",
+        offset: 1,
+        orderValues: { name: "/test/logs/c.json" },
+      },
+    ]);
   });
 });

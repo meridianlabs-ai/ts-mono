@@ -196,11 +196,34 @@ export interface LogsListingPageQuery<TRow> {
   plan: DatabaseListingPlan<TRow>;
 }
 
+const fetchLogsListingSnapshot = <TRow>(
+  query: LogsListingPageQuery<TRow>,
+  firstPageSize: number
+): Promise<LogsListingSnapshot<TRow>> =>
+  queryClient.fetchQuery({
+    queryKey: databaseLogsListingSnapshotKey(
+      query.universe,
+      query.accessorsKey,
+      query.filter,
+      query.orderBy
+    ),
+    queryFn: () =>
+      readLogsListingSnapshot(
+        query.logDir,
+        query.prefix,
+        query.toRow,
+        query.plan,
+        firstPageSize
+      ),
+    staleTime: Infinity,
+    gcTime: 30_000,
+  });
+
 /**
  * Serve one page of the listing via the two-tier snapshot scheme
  * (decision 3): the snapshot is itself a react-query entry — obtained
- * exclusively here, so concurrent page fetches dedupe into one build,
- * later pages reuse it, and lifecycle is plain `gcTime`. `fetchQuery`
+ * through `fetchLogsListingSnapshot`, so page and Find reads dedupe into
+ * one build, later reads reuse it, and lifecycle is plain `gcTime`. `fetchQuery`
  * with `staleTime: Infinity` rather than `ensureQueryData`: both dedupe,
  * but after the write path invalidates the (observer-less) snapshot,
  * `ensureQueryData` would resolve with the stale keys and only rebuild in
@@ -225,21 +248,10 @@ export const readLogsListingPage = async <TRow>(
   if (logsListingSource(logDir) === "cache") {
     return readLogsListing(logDir, prefix, toRow, plan);
   }
-  const snapshot = await queryClient.fetchQuery({
-    queryKey: databaseLogsListingSnapshotKey(
-      query.universe,
-      query.accessorsKey,
-      query.filter,
-      query.orderBy
-    ),
-    queryFn: () =>
-      readLogsListingSnapshot(logDir, prefix, toRow, plan, page.limit),
-    // Fresh until invalidated (see above); short gcTime because the key
-    // list + inline first page are per-(filter, orderBy) copies and the
-    // query has no observers to keep it active.
-    staleTime: Infinity,
-    gcTime: 30_000,
-  });
+  // Fresh until invalidated (see above); short gcTime because the key list
+  // + inline first page are per-(filter, orderBy) copies and the query has
+  // no observers to keep it active.
+  const snapshot = await fetchLogsListingSnapshot(query, page.limit);
 
   const offset =
     page.cursor && typeof page.cursor.offset === "number"
@@ -389,33 +401,67 @@ export const readLogsOverview = async (
   };
 };
 
-/**
- * Ids of the rows whose searchable text contains `term`
- * (case-insensitive), in listing order under the same universe + plan as
- * the row query — the find band's data-level backing. Runs over the scan
- * today; under keys-first pagination it becomes a snapshot projection, so
- * matches keep covering rows outside the loaded pages.
- */
+export interface LogsListingMatch {
+  id: string;
+  /** Zero-based position in the filtered + sorted snapshot key list. */
+  offset: number;
+  /** Values needed to merge transient matching rows into file-match order. */
+  orderValues?: Record<string, unknown>;
+}
+
+/** Rows whose searchable text contains `term` (case-insensitive), in the
+ * same snapshot order and with the same offsets as page cursors. */
 export const readLogsListingMatches = async <TRow>(
-  logDir: string,
-  prefix: string,
-  toRow: (log: LogListingRow) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>,
+  query: LogsListingPageQuery<TRow>,
   find: {
+    pageSize: number;
     term: string;
     getRowId: (row: TRow) => string;
+    getOrderValue: (row: TRow, columnId: string) => unknown;
     /** A row's searchable text, already lowercased (`rowSearchText`'s
      *  contract) — the scan must not pay a second per-row lowering. */
     rowText: (row: TRow) => string;
   }
-): Promise<string[]> => {
-  const rows = await scanListingRows(logDir, prefix, toRow, plan);
+): Promise<LogsListingMatch[]> => {
+  const { logDir, prefix, toRow, plan } = query;
   const term = find.term.toLowerCase();
-  const ids: string[] = [];
-  for (const row of rows) {
-    if (find.rowText(row).includes(term)) {
-      ids.push(find.getRowId(row));
+  const toMatch = (row: TRow, offset: number): LogsListingMatch => {
+    const orderValues = query.orderBy?.length
+      ? Object.fromEntries(
+          query.orderBy.map(({ column }) => [
+            column,
+            find.getOrderValue(row, column),
+          ])
+        )
+      : undefined;
+    const match = { id: find.getRowId(row), offset };
+    return orderValues === undefined ? match : { ...match, orderValues };
+  };
+
+  if (logsListingSource(logDir) === "cache") {
+    const rows = await scanListingRows(logDir, prefix, toRow, plan);
+    const matches: LogsListingMatch[] = [];
+    for (let offset = 0; offset < rows.length; offset++) {
+      const row = rows[offset]!;
+      if (find.rowText(row).includes(term)) {
+        matches.push(toMatch(row, offset));
+      }
+    }
+    return matches;
+  }
+
+  const snapshot = await fetchLogsListingSnapshot(query, find.pageSize);
+  const offsetByKey = new Map(
+    snapshot.keys.map((key, offset) => [key, offset] as const)
+  );
+  const entries = await scanListingEntries(logDir, prefix, toRow, plan);
+  const matches: LogsListingMatch[] = [];
+  for (const { log, row } of entries) {
+    const offset = offsetByKey.get(log.name);
+    if (offset !== undefined && find.rowText(row).includes(term)) {
+      matches.push(toMatch(row, offset));
     }
   }
-  return ids;
+  matches.sort((a, b) => a.offset - b.offset);
+  return matches;
 };

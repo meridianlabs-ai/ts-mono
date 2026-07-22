@@ -104,6 +104,7 @@ export {
   readLogsListingMatches,
   readLogsListingPage,
   readLogsOverview,
+  type LogsListingMatch,
   type LogsListingPageQuery,
   type LogsListingSnapshot,
   type LogsOverview,

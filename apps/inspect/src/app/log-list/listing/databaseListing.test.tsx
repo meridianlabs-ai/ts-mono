@@ -1,16 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { Column } from "@tsmono/inspect-common/query";
 import type { Condition } from "@tsmono/inspect-common/query";
 
+import type { Cursor } from "../../../client/database/listing";
 import type {
-  Cursor,
-  DatabaseListingPlan,
-} from "../../../client/database/listing";
-import type { LogListingRow, LogsListingPageQuery } from "../../../log_data";
+  LogListingRow,
+  LogsListingMatch,
+  LogsListingPageQuery,
+} from "../../../log_data";
 
 import {
   useDatabaseLogsListingQuery,
@@ -51,8 +52,8 @@ vi.mock("../../../log_data", () => ({
     ...args: Parameters<ReadListingPage>
   ): ReturnType<ReadListingPage> =>
     holder.read(...args) as ReturnType<ReadListingPage>,
-  readLogsListingMatches: (...args: unknown[]): Promise<string[]> =>
-    holder.readMatches(...args) as Promise<string[]>,
+  readLogsListingMatches: (...args: unknown[]): Promise<LogsListingMatch[]> =>
+    holder.readMatches(...args) as Promise<LogsListingMatch[]>,
 }));
 
 const records = [
@@ -290,6 +291,36 @@ describe("useDatabaseLogsListingQuery", () => {
     expect(result.current.autoFetchPaused).toBe(false);
   });
 
+  test("loads pages through a requested snapshot offset", async () => {
+    holder.records = [
+      ...records,
+      { name: "/logs/c.eval", model: "gpt-5" },
+      { name: "/logs/d.eval", model: "gpt-5" },
+    ];
+    pageByOne();
+
+    const { result } = renderHook(
+      () => useDatabaseLogsListingQuery<Row>(listingParams()),
+      { wrapper }
+    );
+    await waitFor(() =>
+      expect(result.current.result.data?.items.length).toBe(1)
+    );
+
+    act(() => result.current.ensureOffsetLoaded(2));
+    await waitFor(() =>
+      expect(result.current.result.data?.items.map((row) => row.name)).toEqual([
+        "/logs/b.eval",
+        "/logs/a.eval",
+        "/logs/c.eval",
+      ])
+    );
+    expect(holder.read).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ cursor: { offset: 2 } })
+    );
+  });
+
   test("keeps retained rows through a failed read, reporting the error beside them", async () => {
     pageByOne();
     const { result } = renderHook(
@@ -385,26 +416,40 @@ describe("useLogsListingMatches", () => {
     // readLogsListingMatches over the scanned rows.
     holder.readMatches.mockImplementation(
       (
-        _logDir: string,
-        _prefix: string,
-        rowFor: (log: LogListingRow) => Row | undefined,
-        plan: DatabaseListingPlan<Row>,
+        query: LogsListingPageQuery<Row>,
         find: {
+          pageSize: number;
           term: string;
           getRowId: (row: Row) => string;
+          getOrderValue: (row: Row, columnId: string) => unknown;
           rowText: (row: Row) => string;
         }
       ) => {
         const rows = holder.records
-          .map((record) => rowFor(record as LogListingRow))
+          .map((record) => query.toRow(record as LogListingRow))
           .filter((row): row is Row => row !== undefined)
-          .filter(plan.matches);
+          .filter(query.plan.matches);
+        if (query.plan.compare) rows.sort(query.plan.compare);
         return Promise.resolve(
           rows
-            .filter((row) =>
+            .map((row, offset) => ({ row, offset }))
+            .filter(({ row }) =>
               find.rowText(row).includes(find.term.toLowerCase())
             )
-            .map(find.getRowId)
+            .map(({ row, offset }) => {
+              const match = { id: find.getRowId(row), offset };
+              return query.orderBy?.length
+                ? {
+                    ...match,
+                    orderValues: Object.fromEntries(
+                      query.orderBy.map(({ column }) => [
+                        column,
+                        find.getOrderValue(row, column),
+                      ])
+                    ),
+                  }
+                : match;
+            })
         );
       }
     );
@@ -434,16 +479,16 @@ describe("useLogsListingMatches", () => {
     );
 
     rerender(matchesParams({ term: "claude" }));
-    // Debounce not flushed: no ids for the live term yet, and no
+    // Debounce not flushed: no matches for the live term yet, and no
     // "no results" claim may be made.
-    expect(result.current.ids).toBeUndefined();
+    expect(result.current.matches).toBeUndefined();
     expect(result.current.settled).toBe(false);
 
     await waitFor(() => expect(result.current.settled).toBe(true));
-    expect(result.current.ids).toEqual(["/logs/b.eval"]);
+    expect(result.current.matches).toEqual([{ id: "/logs/b.eval", offset: 0 }]);
   });
 
-  test("keeps the previous term's ids as a placeholder but reports unsettled", async () => {
+  test("keeps the previous term's matches as a placeholder but reports unsettled", async () => {
     const { result, rerender } = renderHook(
       (props) => useLogsListingMatches<Row>(props),
       { wrapper, initialProps: matchesParams({ term: "claude" }) }
@@ -454,14 +499,14 @@ describe("useLogsListingMatches", () => {
     // result must not read as settled — a "no results" gate on pending
     // alone would fire here while the new term's scan is in flight.
     rerender(matchesParams({ term: "zzz" }));
-    expect(result.current.ids).toEqual(["/logs/b.eval"]);
+    expect(result.current.matches).toEqual([{ id: "/logs/b.eval", offset: 0 }]);
     expect(result.current.settled).toBe(false);
 
     await waitFor(() => expect(result.current.settled).toBe(true));
-    expect(result.current.ids).toEqual([]);
+    expect(result.current.matches).toEqual([]);
   });
 
-  test("does not serve one universe's ids to another", async () => {
+  test("does not serve one universe's matches to another", async () => {
     const { result, rerender } = renderHook(
       (props) => useLogsListingMatches<Row>(props),
       {
@@ -470,12 +515,12 @@ describe("useLogsListingMatches", () => {
       }
     );
     await waitFor(() => expect(result.current.settled).toBe(true));
-    expect(result.current.ids).toEqual(["/logs/b.eval"]);
+    expect(result.current.matches).toEqual([{ id: "/logs/b.eval", offset: 0 }]);
 
-    // Folder-mode ids are basenames, so another scope's ids could mark
+    // Folder-mode ids are basenames, so another scope's matches could mark
     // unrelated same-named rows as matches — they must not carry over.
     rerender(matchesParams({ term: "claude", universe: "tasks::/logs" }));
-    expect(result.current.ids).toBeUndefined();
+    expect(result.current.matches).toBeUndefined();
     expect(result.current.settled).toBe(false);
     await waitFor(() => expect(result.current.settled).toBe(true));
   });

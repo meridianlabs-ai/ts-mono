@@ -12,7 +12,7 @@ import { useDebouncedCallback } from "@tsmono/react/hooks";
 import { loading, type AsyncData } from "@tsmono/util";
 
 import type { Cursor } from "../../../client/database/listing";
-import type { LogListingRow } from "../../../log_data";
+import type { LogListingRow, LogsListingMatch } from "../../../log_data";
 import {
   databaseLogsListingKey,
   listingKeyUniverse,
@@ -134,6 +134,10 @@ export interface DatabaseLogsListing<TRow> {
   /** Load the next page. In-flight-safe: a scroll burst never restarts an
    *  ongoing page fetch (`cancelRefetch: false`, like scout). */
   fetchNextPage: () => void;
+  /** Ensure the head-first page window covers a snapshot offset. Used by
+   *  Find to materialize an unloaded match without guessing from row
+   *  counts (pages may contain dropped holes). */
+  ensureOffsetLoaded: (offset: number) => void;
   /** A chained (commit-driven) fetch can't make progress right now, so the
    *  grid must pause its after-commit near-end check: after a settled error
    *  it would tight-loop the failing request — the fetch's own re-render
@@ -169,6 +173,13 @@ export function useDatabaseLogsListingQuery<TRow>({
   listing,
 }: UseDatabaseLogsListingParams<TRow>): DatabaseLogsListing<TRow> {
   const { logDir, prefix, universe, toRow } = listing;
+  const [offsetRequest, setOffsetRequest] = useState<{
+    offset: number;
+    universe: string | undefined;
+    accessorsKey: string;
+    filter: Condition | undefined;
+    orderBy: OrderByModel[] | undefined;
+  }>();
 
   // Flatten the page window into the result shape consumers already read.
   // Every page reports the snapshot's total_count; page 0 is the freshest
@@ -189,68 +200,121 @@ export function useDatabaseLogsListingQuery<TRow>({
     []
   );
 
-  const { data, isError, error, hasNextPage, fetchNextPage } = useInfiniteQuery(
-    {
-      queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
-      queryFn: ({
-        pageParam,
-      }: {
-        pageParam: Cursor | null;
-      }): Promise<LogsListingResult<TRow>> =>
-        readLogsListingPage(
-          {
-            logDir,
-            prefix,
-            toRow,
-            universe,
-            accessorsKey,
+  const {
+    data,
+    isError,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetching,
+    isPlaceholderData,
+  } = useInfiniteQuery({
+    queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
+    queryFn: ({
+      pageParam,
+    }: {
+      pageParam: Cursor | null;
+    }): Promise<LogsListingResult<TRow>> =>
+      readLogsListingPage(
+        {
+          logDir,
+          prefix,
+          toRow,
+          universe,
+          accessorsKey,
+          filter,
+          orderBy,
+          plan: createListingPlan({
             filter,
             orderBy,
-            plan: createListingPlan({
-              filter,
-              orderBy,
-              getValue,
-              getComparator,
-              getFilterType,
-            }),
-          },
-          { cursor: pageParam, limit: kLogsListingPageSize }
-        ),
-      initialPageParam: null as Cursor | null,
-      getNextPageParam: (lastPage) => lastPage.next_cursor,
-      // Deliberately no `maxPages`: react-query drops capped pages off the
-      // *front*, and with no `getPreviousPageParam`/scroll-up trigger the
-      // head rows would be unrecoverable while the window slides under the
-      // scroll position. A cap also wins no memory while the react-query
-      // logs mirror still holds every row (plan doc, step 7) — bounded
-      // windows arrive with the range-driven page queries sketched there.
-      select,
-      enabled: universe !== undefined,
-      // Keep showing the previous result across re-filters/sorts — and schema
-      // arrivals — within one universe (same row set, possibly re-evaluated);
-      // a different universe's rows must not leak in.
-      placeholderData: (previousData, previousQuery) =>
-        universe !== undefined &&
-        previousQuery !== undefined &&
-        listingKeyUniverse(previousQuery.queryKey) === universe
-          ? previousData
-          : undefined,
-      staleTime: 0,
-      // The page window is a copy per recent (schema, filter, orderBy)
-      // combination — unbounded until the range-driven rework, so scrolled
-      // dirs can park deep windows here. Drop unobserved ones fast (the
-      // snapshot has its own short gcTime — see readLogsListingPage).
-      gcTime: 30_000,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-    }
-  );
+            getValue,
+            getComparator,
+            getFilterType,
+          }),
+        },
+        { cursor: pageParam, limit: kLogsListingPageSize }
+      ),
+    initialPageParam: null as Cursor | null,
+    getNextPageParam: (lastPage) => lastPage.next_cursor,
+    // Deliberately no `maxPages`: react-query drops capped pages off the
+    // *front*, and with no `getPreviousPageParam`/scroll-up trigger the
+    // head rows would be unrecoverable while the window slides under the
+    // scroll position. A cap also wins no memory while the react-query
+    // logs mirror still holds every row (plan doc, step 7) — bounded
+    // windows arrive with the range-driven page queries sketched there.
+    select,
+    enabled: universe !== undefined,
+    // Keep showing the previous result across re-filters/sorts — and schema
+    // arrivals — within one universe (same row set, possibly re-evaluated);
+    // a different universe's rows must not leak in.
+    placeholderData: (previousData, previousQuery) =>
+      universe !== undefined &&
+      previousQuery !== undefined &&
+      listingKeyUniverse(previousQuery.queryKey) === universe
+        ? previousData
+        : undefined,
+    staleTime: 0,
+    // The page window is a copy per recent (schema, filter, orderBy)
+    // combination — unbounded until the range-driven rework, so scrolled
+    // dirs can park deep windows here. Drop unobserved ones fast (the
+    // snapshot has its own short gcTime — see readLogsListingPage).
+    gcTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
 
   const fetchNext = useCallback(() => {
     // Fire-and-forget: page arrival/errors surface through the query state.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fetchNextPage({ cancelRefetch: false });
   }, [fetchNextPage]);
+
+  const ensureOffsetLoaded = useCallback(
+    (offset: number) => {
+      if (!Number.isInteger(offset) || offset < 0) return;
+      setOffsetRequest({
+        offset,
+        universe,
+        accessorsKey,
+        filter,
+        orderBy,
+      });
+    },
+    [universe, accessorsKey, filter, orderBy]
+  );
+
+  useEffect(() => {
+    if (
+      offsetRequest === undefined ||
+      offsetRequest.universe !== universe ||
+      offsetRequest.accessorsKey !== accessorsKey ||
+      offsetRequest.filter !== filter ||
+      offsetRequest.orderBy !== orderBy ||
+      data === undefined ||
+      isPlaceholderData ||
+      isFetching ||
+      isError
+    ) {
+      return;
+    }
+    // `next_cursor` is the first snapshot offset not covered by the loaded
+    // pages. A missing cursor means the whole snapshot is already loaded.
+    const nextOffset = data.next_cursor?.offset;
+    if (nextOffset === undefined || nextOffset > offsetRequest.offset) return;
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    fetchNextPage({ cancelRefetch: false });
+  }, [
+    offsetRequest,
+    universe,
+    accessorsKey,
+    filter,
+    orderBy,
+    data,
+    isPlaceholderData,
+    isFetching,
+    isError,
+    fetchNextPage,
+  ]);
 
   // Prefer retained rows over a settled error (`error` still reports beside
   // them): replacing a rendered list because one refetch failed would lose
@@ -267,9 +331,10 @@ export function useDatabaseLogsListingQuery<TRow>({
       error: error ?? undefined,
       hasNextPage,
       fetchNextPage: fetchNext,
+      ensureOffsetLoaded,
       autoFetchPaused: isError,
     }),
-    [result, error, hasNextPage, fetchNext, isError]
+    [result, error, hasNextPage, fetchNext, ensureOffsetLoaded, isError]
   );
 }
 
@@ -298,10 +363,9 @@ interface UseLogsListingMatchesParams<TRow> {
 }
 
 export interface LogsListingMatches {
-  /** Ids of the file rows matching the debounced term — membership only;
-   *  display order comes from the rendered rows. */
-  ids: string[] | undefined;
-  /** `ids` is a real result for the live term under the current universe —
+  /** File-row matches in snapshot order, including their page offsets. */
+  matches: LogsListingMatch[] | undefined;
+  /** `matches` is a real result for the live term under the current universe —
    *  debounce flushed, not pending, not another key's placeholder, not an
    *  error. Only then may the UI claim "no results". */
   settled: boolean;
@@ -352,24 +416,39 @@ export function useLogsListingMatches<TRow>({
       matchTerm,
       searchKey,
     ],
-    queryFn: (): Promise<string[]> =>
+    queryFn: (): Promise<LogsListingMatch[]> =>
       readLogsListingMatches(
-        logDir,
-        prefix,
-        toRow,
-        createListingPlan({
+        {
+          logDir,
+          prefix,
+          toRow,
+          universe,
+          accessorsKey,
           filter,
           orderBy,
-          getValue,
-          getComparator,
-          getFilterType,
-        }),
-        { term: matchTerm, getRowId, rowText }
+          plan: createListingPlan({
+            filter,
+            orderBy,
+            getValue,
+            getComparator,
+            getFilterType,
+          }),
+        },
+        {
+          pageSize: kLogsListingPageSize,
+          term: matchTerm,
+          getRowId,
+          getOrderValue: getValue,
+          rowText,
+        }
       ),
     enabled: enabled && matchTerm !== "" && universe !== undefined,
     // Keep the previous matches while a keystroke's refetch is in flight —
     // within one universe only (see the docstring above).
-    placeholderData: (previousData: string[] | undefined, previousQuery) =>
+    placeholderData: (
+      previousData: LogsListingMatch[] | undefined,
+      previousQuery
+    ) =>
       universe !== undefined &&
       previousQuery !== undefined &&
       listingKeyUniverse(previousQuery.queryKey) === universe
@@ -384,7 +463,7 @@ export function useLogsListingMatches<TRow>({
   });
 
   return {
-    ids: query.data,
+    matches: query.data,
     // `isPending` alone can't gate "no results": a key change served from
     // the placeholder reads as success while the new term's scan is still
     // in flight, and an errored query reads as not-pending with no data.

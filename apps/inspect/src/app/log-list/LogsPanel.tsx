@@ -408,6 +408,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
                 listing={listing}
                 hasMoreRows={listData.hasMoreRows}
                 fetchMoreRows={listData.fetchMoreRows}
+                ensureFileOffsetLoaded={listData.ensureFileOffsetLoaded}
                 autoFetchPaused={listData.autoFetchPaused}
               />
             </div>

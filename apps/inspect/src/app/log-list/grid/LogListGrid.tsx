@@ -28,6 +28,8 @@ import {
   rowSearchText,
 } from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
+import { mergeSortedRows } from "../listing/applyListingQuery";
+import { compareByOrderBy } from "../listing/evaluator";
 import {
   useLogsListingMatches,
   type LogsListingDescriptor,
@@ -39,6 +41,14 @@ import {
   type ScoresViewMode,
 } from "./columns/hooks";
 import { LogListRow } from "./columns/types";
+
+interface FindTarget {
+  id: string;
+  /** Snapshot offset for file rows; overlays are already materialized. */
+  offset?: number;
+  orderValues?: Record<string, unknown>;
+  row?: LogListRow;
+}
 
 interface LogListGridProps {
   /** Display rows from `useLogListData` (folders pinned, files
@@ -74,6 +84,8 @@ interface LogListGridProps {
   hasMoreRows: boolean;
   /** Load the next page of file rows (in-flight-safe). */
   fetchMoreRows: () => void;
+  /** Load pages through a file match's snapshot offset. */
+  ensureFileOffsetLoaded: (offset: number) => void;
   /** Pause the grid's commit-driven fetch chaining (from `useLogListData`). */
   autoFetchPaused: boolean;
 }
@@ -92,6 +104,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
   listing,
   hasMoreRows,
   fetchMoreRows,
+  ensureFileOffsetLoaded,
   autoFetchPaused,
 }) => {
   const { gridStateByScope, patchGridState } = useLogsListing();
@@ -255,24 +268,55 @@ export const LogListGrid: FC<LogListGridProps> = ({
     [showFind, rows, searchColumns]
   );
 
-  // Match membership is universe-wide (the DB scan covers rows beyond the
-  // loaded pages), so the count reports the whole universe — but display
-  // order (and thus navigation) comes from the rendered rows, so `matchIds`
-  // holds only the loaded matches. Because pages load head-first, they are
-  // a listing-order prefix of the universe's matches; matches past the
-  // loaded window aren't navigable until ordering moves to the snapshot key
-  // list (range-driven rework — see the plan doc).
-  const { matchIds, totalMatchCount } = useMemo(() => {
-    if (!findTerm) return { matchIds: [], totalMatchCount: 0 };
-    const matchSet = new Set([
-      ...(fileMatches.ids ?? []),
-      ...(overlayIndex ? findMatches(overlayIndex, findTerm) : []),
-    ]);
-    return {
-      matchIds: rows.filter((row) => matchSet.has(row.id)).map((row) => row.id),
-      totalMatchCount: matchSet.size,
+  const matchTargets = useMemo<FindTarget[]>(() => {
+    if (!findTerm) return [];
+    const overlayMatches = new Set(
+      overlayIndex ? findMatches(overlayIndex, findTerm) : []
+    );
+    const seen = new Set<string>();
+    const folders: FindTarget[] = [];
+    const files: FindTarget[] = [];
+    const pending: FindTarget[] = [];
+    const add = (targets: FindTarget[], target: FindTarget) => {
+      if (seen.has(target.id)) return;
+      seen.add(target.id);
+      targets.push(target);
     };
-  }, [findTerm, fileMatches.ids, overlayIndex, rows]);
+
+    // Folders are pinned above the file universe. Files use the snapshot's
+    // complete ordering, loaded or not; transient pending matches merge by
+    // the same controlled sort values as the rendered rows.
+    rows
+      .filter((row) => row.type === "folder" && overlayMatches.has(row.id))
+      .forEach((row) => add(folders, { id: row.id, row }));
+    fileMatches.matches?.forEach((match) => add(files, match));
+    rows
+      .filter(
+        (row) => row.type === "pending-task" && overlayMatches.has(row.id)
+      )
+      .forEach((row) => add(pending, { id: row.id, row }));
+
+    if (!orderBy || orderBy.length === 0) {
+      return [...folders, ...files, ...pending];
+    }
+    const compare = compareByOrderBy<FindTarget>(
+      orderBy,
+      (target, columnId) =>
+        target.row
+          ? getValue(target.row, columnId)
+          : target.orderValues?.[columnId],
+      getComparator
+    );
+    return [...folders, ...mergeSortedRows(files, pending, compare)];
+  }, [
+    findTerm,
+    fileMatches.matches,
+    overlayIndex,
+    rows,
+    orderBy,
+    getValue,
+    getComparator,
+  ]);
 
   const handleFindTermChange = useCallback(() => {
     setFindTerm(findInputRef.current?.value ?? "");
@@ -282,21 +326,46 @@ export const LogListGrid: FC<LogListGridProps> = ({
 
   const goToMatch = useCallback(
     (index: number) => {
-      if (matchIds.length === 0) return;
-      setCurrentMatchIndex(
-        ((index % matchIds.length) + matchIds.length) % matchIds.length
-      );
+      if (matchTargets.length === 0) return;
+      const nextIndex =
+        ((index % matchTargets.length) + matchTargets.length) %
+        matchTargets.length;
+      setCurrentMatchIndex(nextIndex);
+      const target = matchTargets[nextIndex];
+      if (fileMatches.settled && target?.offset !== undefined) {
+        ensureFileOffsetLoaded(target.offset);
+      }
     },
-    [matchIds.length]
+    [matchTargets, fileMatches.settled, ensureFileOffsetLoaded]
   );
 
   // Clamp: a data flush can shrink the match list under a stale index.
   const activeMatchIndex = Math.min(
     currentMatchIndex,
-    Math.max(matchIds.length - 1, 0)
+    Math.max(matchTargets.length - 1, 0)
   );
-  const activeMatchId =
-    matchIds.length > 0 ? matchIds[activeMatchIndex] : undefined;
+  const activeMatch = matchTargets[activeMatchIndex];
+  const activeMatchId = activeMatch?.id;
+
+  // The first result arrives without a navigation event. Arm its offset as
+  // soon as the debounced match query settles; DataGrid already waits to
+  // scroll a selected id until that row appears in `rows`.
+  useEffect(() => {
+    if (
+      showFind &&
+      findTerm &&
+      fileMatches.settled &&
+      activeMatch?.offset !== undefined
+    ) {
+      ensureFileOffsetLoaded(activeMatch.offset);
+    }
+  }, [
+    showFind,
+    findTerm,
+    fileMatches.settled,
+    activeMatch,
+    ensureFileOffsetLoaded,
+  ]);
 
   const closeFind = useCallback(() => {
     // Persist the armed match as the selection so closing the band doesn't
@@ -360,20 +429,17 @@ export const LogListGrid: FC<LogListGridProps> = ({
           onClose={closeFind}
           onPrevious={() => goToMatch(activeMatchIndex - 1)}
           onNext={() => goToMatch(activeMatchIndex + 1)}
-          disableNav={matchIds.length === 0}
+          disableNav={matchTargets.length === 0}
           noResults={
             // Universe-wide: matches beyond the loaded pages must not read
             // as "no results". Only claimed once membership for the
             // *displayed* term has settled — debounce flushed and a real
             // result (not a stale placeholder, not an error) landed for it.
-            !!findTerm && totalMatchCount === 0 && fileMatches.settled
+            !!findTerm && matchTargets.length === 0 && fileMatches.settled
           }
-          matchCount={findTerm ? totalMatchCount : undefined}
+          matchCount={findTerm ? matchTargets.length : undefined}
           matchIndex={
-            // The index is within the loaded (navigable) prefix; when no
-            // match is loaded, show no counter rather than claim a position
-            // on an unreachable match.
-            findTerm && matchIds.length > 0 ? activeMatchIndex : undefined
+            findTerm && matchTargets.length > 0 ? activeMatchIndex : undefined
           }
         />
       )}
