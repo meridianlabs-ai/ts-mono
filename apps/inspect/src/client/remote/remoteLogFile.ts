@@ -1,4 +1,5 @@
 import {
+  ConfigUpdate,
   EvalLog,
   EvalPlan,
   EvalSample,
@@ -265,8 +266,40 @@ export const openRemoteLogFile = async (
       // written yet — the recorder only flushes it at end-of-eval.
       // Fall back to start.json and synthesize a header from it.
       const start = (await readJSONFile("_journal/start.json")) as LogStart;
-      return headerFromLogStart(start);
+      const header = headerFromLogStart(start);
+      // Mid-run retunes are journaled immediately (one file per update,
+      // consolidated into header.json only at end-of-eval) — fold them in
+      // so running and crashed logs surface config_updates too.
+      const config_updates = await readJournalConfigUpdates();
+      return config_updates.length > 0
+        ? { ...header, config_updates }
+        : header;
     }
+  };
+
+  /**
+   * Journaled config updates (`_journal/config_updates/{n}.json`) in write
+   * order — the recorder names entries by a monotonic integer index.
+   */
+  const readJournalConfigUpdates = async (): Promise<ConfigUpdate[]> => {
+    const prefix = "_journal/config_updates/";
+    const entries = Array.from(remoteZipFile.centralDirectory.keys())
+      .filter((name) => name.startsWith(prefix) && name.endsWith(".json"))
+      .sort(
+        (a, b) =>
+          parseInt(a.slice(prefix.length), 10) -
+          parseInt(b.slice(prefix.length), 10)
+      );
+
+    const updates: ConfigUpdate[] = [];
+    for (const entry of entries) {
+      try {
+        updates.push((await readJSONFile(entry)) as ConfigUpdate);
+      } catch (error) {
+        console.error(`Failed to read config update ${entry}:`, error);
+      }
+    }
+    return updates;
   };
 
   const readEvalBasicInfo = async (): Promise<LogPreview> => {
@@ -341,6 +374,7 @@ export const openRemoteLogFile = async (
         tags: header.tags,
         metadata: header.metadata,
         log_updates: header.log_updates,
+        config_updates: header.config_updates,
         sampleSummaries,
         etag: initialEtag,
       };

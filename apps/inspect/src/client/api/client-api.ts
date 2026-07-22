@@ -187,6 +187,7 @@ export const clientApi = (
         tags: parsed.tags,
         metadata: parsed.metadata,
         log_updates: parsed.log_updates,
+        config_updates: parsed.config_updates,
         sampleSummaries,
       };
     }
