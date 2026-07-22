@@ -65,12 +65,16 @@ const scanRows = async (logDir: string, prefix: string): Promise<Log[]> => {
  * grouping keys on a row's exact parent directory, so a boundary-safe
  * prefix scan never splits a group and the marking matches a whole-dir
  * scan's.
+ *
+ * `sorted: false` skips the plan's ordering, for callers that impose their
+ * own (the match projection orders by snapshot key position).
  */
 const scanListingEntries = async <TRow>(
   logDir: string,
   prefix: string,
   toRow: (log: LogListingRow) => TRow | undefined,
-  plan: DatabaseListingPlan<TRow>
+  plan: DatabaseListingPlan<TRow>,
+  options?: { sorted: boolean }
 ): Promise<{ log: LogListingRow; row: TRow }[]> => {
   const scanned = await scanRows(logDir, prefix);
   const entries: { log: LogListingRow; row: TRow }[] = [];
@@ -80,7 +84,7 @@ const scanListingEntries = async <TRow>(
   }
   // Stable sort over the scan's listing order (mtime-descending), so ties —
   // and the unsorted listing — keep that order without a position tiebreak.
-  if (plan.compare) {
+  if (plan.compare && options?.sorted !== false) {
     const compare = plan.compare;
     entries.sort((a, b) => compare(a.row, b.row));
   }
@@ -454,7 +458,11 @@ export const readLogsListingMatches = async <TRow>(
   const offsetByKey = new Map(
     snapshot.keys.map((key, offset) => [key, offset] as const)
   );
-  const entries = await scanListingEntries(logDir, prefix, toRow, plan);
+  // Unsorted: order comes from the snapshot's key positions below, so the
+  // plan's full-list sort would be paid per keystroke and discarded.
+  const entries = await scanListingEntries(logDir, prefix, toRow, plan, {
+    sorted: false,
+  });
   const matches: LogsListingMatch[] = [];
   for (const { log, row } of entries) {
     const offset = offsetByKey.get(log.name);

@@ -327,16 +327,12 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const goToMatch = useCallback(
     (index: number) => {
       if (matchTargets.length === 0) return;
-      const nextIndex =
+      setCurrentMatchIndex(
         ((index % matchTargets.length) + matchTargets.length) %
-        matchTargets.length;
-      setCurrentMatchIndex(nextIndex);
-      const target = matchTargets[nextIndex];
-      if (fileMatches.settled && target?.offset !== undefined) {
-        ensureFileOffsetLoaded(target.offset);
-      }
+          matchTargets.length
+      );
     },
-    [matchTargets, fileMatches.settled, ensureFileOffsetLoaded]
+    [matchTargets.length]
   );
 
   // Clamp: a data flush can shrink the match list under a stale index.
@@ -347,9 +343,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
   const activeMatch = matchTargets[activeMatchIndex];
   const activeMatchId = activeMatch?.id;
 
-  // The first result arrives without a navigation event. Arm its offset as
-  // soon as the debounced match query settles; DataGrid already waits to
-  // scroll a selected id until that row appears in `rows`.
+  // The single load-through trigger: whenever the active match changes —
+  // a navigation, or the first result arriving without one — and the
+  // debounced match query has settled, load pages through its offset.
+  // DataGrid already waits to scroll a selected id until that row appears
+  // in `rows`.
   useEffect(() => {
     if (
       showFind &&
