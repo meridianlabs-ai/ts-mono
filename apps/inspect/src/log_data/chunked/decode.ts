@@ -82,7 +82,7 @@ export async function decodeRange(
     STRUCTURAL_TYPES.has(type) || RUN_TYPES.has(type) || ctx.visible(type);
   const cursor = new FilteredCursor(ctx.events, ctx.stats, startOrd, survives);
   const rows: ViewRow[] = [];
-  const spanIds = new Set(ctx.skel.spans.map((span) => span.id));
+  const spanIds = ctx.skel.spanIds;
 
   if (headRunContinues) {
     const head = await cursor.peek();

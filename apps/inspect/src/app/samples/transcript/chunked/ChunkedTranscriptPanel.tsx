@@ -202,12 +202,18 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
 
   const eventCallbacks = useMemo(
     () => ({
-      getCollapsed: (nodeId: string) => rows.isCollapsed(nodeId),
+      // Span ids key row accounting (RowSpace); anything else is an
+      // event-level panel id (uuid) that collapses within its own panel —
+      // answered straight from the store overrides.
+      getCollapsed: (nodeId: string) =>
+        chunked.skel.spanIds.has(nodeId)
+          ? rows.isCollapsed(nodeId)
+          : (collapsedOverrides?.[nodeId] ?? false),
       onCollapse: (nodeId: string, collapsed: boolean) => {
         collapseEvent(kTranscriptCollapseScope, nodeId, collapsed);
       },
     }),
-    [rows, collapseEvent]
+    [chunked, rows, collapsedOverrides, collapseEvent]
   );
 
   const jumpToOrdinal = useCallback(

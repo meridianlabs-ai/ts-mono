@@ -36,6 +36,10 @@ export type RowSlot =
 export class RowSpace {
   readonly chunkRows: number[];
   readonly exact: boolean[];
+  // No eviction (unlike the byte store / parsed-chunk LRU): decoded rows
+  // accumulate for the panel's lifetime. Known gap — a cap that drops
+  // far-away chunks' rows while keeping chunkRows/exact would preserve
+  // exact accounting (design/large-samples.md deferred issues).
   private materializedRows = new Map<number, ViewRow[]>();
   private inflight = new Map<number, Promise<void>>();
   private prefix: number[] = [];
@@ -176,7 +180,14 @@ export class RowSpace {
     return { kind: "placeholder", chunkIdx: lo, estOrdinal, globalIndex };
   }
 
-  /** The ordinal anchor: map an event ordinal to its global row index. */
+  /**
+   * The ordinal anchor: map an event ordinal to its global row index.
+   *
+   * Two accepted one-row inaccuracies on materialized chunks: an ordinal
+   * covered by a run row that STARTS in the previous chunk anchors one row
+   * late (the containing run row lives in that chunk), and an ordinal past
+   * the chunk's last row (e.g. a trailing span_end) clamps backward to it.
+   */
   rowIndexForOrdinal(ordinal: number): number {
     const c = this.events.chunkIndexOf(
       Math.min(ordinal, this.events.count - 1)

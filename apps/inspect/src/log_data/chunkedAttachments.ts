@@ -27,9 +27,13 @@ const collectRefs = (value: unknown, into: Set<number>): void => {
       ? value.replace(CONTENT_PROTOCOL, ATTACHMENT_PROTOCOL)
       : value;
     if (ref.startsWith(ATTACHMENT_PROTOCOL)) {
-      const index = Number(ref.slice(ATTACHMENT_PROTOCOL.length));
-      if (Number.isInteger(index)) {
-        into.add(index);
+      const suffix = ref.slice(ATTACHMENT_PROTOCOL.length);
+      // strict: resolveAttachments substitutes by the literal suffix, so
+      // non-canonical forms ("1e2", "0x10", "-2") would fetch under a
+      // different key than they substitute by (and -2 would index from the
+      // sequence end) — treat them as unresolvable instead
+      if (/^\d+$/.test(suffix)) {
+        into.add(Number(suffix));
       }
     }
     return;

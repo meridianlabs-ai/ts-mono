@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 
 import {
   resolvedEventsReader,
@@ -38,7 +38,7 @@ export const useChunkedRows = (
     return (type: string) => !hidden.has(type);
   }, [hiddenTypes]);
 
-  const collapsed = useMemo(() => {
+  const nextCollapsed = useMemo(() => {
     const ids = new Set<string>();
     for (const span of chunked.skeleton.spans) {
       const override = collapsedOverrides?.[span.id];
@@ -48,6 +48,19 @@ export const useChunkedRows = (
     }
     return ids;
   }, [chunked, collapsedOverrides, defaultCollapsedIds]);
+  // Content-stable identity: `collapsedOverrides` also carries event-level
+  // (uuid) entries that never affect span collapse; without this, any
+  // event-panel toggle would rebuild the RowSpace (discarding every
+  // materialized chunk) for an identical span set. Render-time setState is
+  // the sanctioned "derive from previous render" pattern.
+  const [collapsed, setCollapsed] = useState(nextCollapsed);
+  if (
+    collapsed !== nextCollapsed &&
+    (collapsed.size !== nextCollapsed.size ||
+      ![...nextCollapsed].every((id) => collapsed.has(id)))
+  ) {
+    setCollapsed(nextCollapsed);
+  }
 
   const events = useMemo(() => resolvedEventsReader(chunked), [chunked]);
 

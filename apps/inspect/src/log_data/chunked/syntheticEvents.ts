@@ -23,12 +23,14 @@
  *   span boundaries.
  * - Non-model, non-notable direct-child events ("strays": logger, info,
  *   sandbox, tool, ...) have known counts but unknown positions; one
- *   representative per type is emitted at its span's begin. They exist to
- *   keep `filterEmpty` survival and type-filter behavior faithful — no
- *   stray type yields a per-event outline row on the default filter.
- *   Known deviation: error/compaction/sample_limit events are strays, so
- *   their outline rows and timeline markers (rare) collapse to one per
- *   span, anchored at the span start rather than their true positions.
+ *   representative per type is emitted at its span's begin, carrying the
+ *   minimum payload the outline pipeline dereferences. They exist to keep
+ *   `filterEmpty` survival and type-filter behavior faithful. Known
+ *   deviation: types that DO yield outline rows (subtask,
+ *   error/compaction/sample_limit) collapse to one row per span, anchored
+ *   at the span start rather than their true positions. Notable types past
+ *   the persistence cap emit no stray at all — the persisted ones already
+ *   cover survival, and an extra would add a row the real pipeline lacks.
  * - Root-level plain events (e.g. a legacy log's `sample_init`, an
  *   interrupted eval's `sample_limit`) are absent: the skeleton records
  *   direct-child type counts per span only, and root notables are the only
@@ -40,7 +42,9 @@
  * Every synthetic event carries a unique `uuid`; `ordinals` maps it to the
  * best-known index in the real event sequence for scroll anchoring (models
  * anchor at their gap's lower bound — the same convention the parity
- * harness signed off as allowance class 3).
+ * harness signed off as allowance class 3). Skeleton span ids are also
+ * seeded (span.begin), since timeline-derived outline span rows anchor by
+ * span id rather than synthetic uuid.
  */
 import type { Event } from "@tsmono/inspect-common/types";
 
@@ -73,19 +77,25 @@ export const syntheticEventsFromSkeleton = (
   const spans = skel.spans;
   const childSpans = new Map<number | null, number[]>();
   const spanNotables = new Map<number | null, SkeletonNotable[]>();
+  const append = <K, V>(map: Map<K, V[]>, key: K, value: V) => {
+    const list = map.get(key);
+    if (list === undefined) {
+      map.set(key, [value]);
+    } else {
+      list.push(value);
+    }
+  };
   spans.forEach((span, index) => {
-    const parent = span.parent ?? null;
-    childSpans.set(parent, [...(childSpans.get(parent) ?? []), index]);
+    append(childSpans, span.parent ?? null, index);
   });
   for (const notable of skel.notables) {
-    const parent = notable.span ?? null;
-    spanNotables.set(parent, [...(spanNotables.get(parent) ?? []), notable]);
+    append(spanNotables, notable.span ?? null, notable);
   }
 
-  const beginUs = (index: number): number =>
-    parsePyTimestamp(spans[index]?.t[0] ?? "").epochUs;
-  const endUs = (index: number): number =>
-    parsePyTimestamp(spans[index]?.t[1] ?? "").epochUs;
+  const beginsUs = spans.map((span) => parsePyTimestamp(span.t[0]).epochUs);
+  const endsUs = spans.map((span) => parsePyTimestamp(span.t[1]).epochUs);
+  const beginUs = (index: number): number => beginsUs[index] ?? 0;
+  const endUs = (index: number): number => endsUs[index] ?? 0;
 
   /** Nearest non-step ancestor's span id (steps have no span identity). */
   const realSpanId = (index: number | null): string | null => {
@@ -158,6 +168,27 @@ export const syntheticEventsFromSkeleton = (
     push(synth({ ...fields, ...common(uuid, spanId, us) }), uuid, notable.i);
   };
 
+  /** Minimum payload each stray type needs to survive the outline pipeline
+   * (labelers/summarizers dereference these fields without guards). */
+  const strayPayload = (type: string, uuid: string): Record<string, unknown> =>
+    type === "tool"
+      ? { id: uuid, function: "", agent: null, events: [], result: null }
+      : type === "subtask"
+        ? { name: "subtask", input: {}, result: null, events: [] }
+        : type === "score"
+          ? {
+              score: {
+                value: "",
+                answer: null,
+                explanation: null,
+                metadata: null,
+              },
+              intermediate: false,
+            }
+          : type === "checkpoint"
+            ? { checkpoint_id: "" }
+            : {};
+
   const emitStrays = (spanIdx: number, us: number) => {
     const span = spans[spanIdx];
     if (span === undefined) return;
@@ -171,14 +202,19 @@ export const syntheticEventsFromSkeleton = (
     const spanId = realSpanId(spanIdx);
     for (const [type, count] of Object.entries(span.children)) {
       if (type === "model") continue;
-      if (count - (notableCounts.get(type) ?? 0) <= 0) continue;
+      const persisted = notableCounts.get(type) ?? 0;
+      if (count - persisted <= 0) continue;
+      // Capped notables: the persisted ones already guarantee survival and
+      // type-filter fidelity; an extra placeholder would add an outline row
+      // the real pipeline doesn't have (e.g. an unmerged "scoring" row).
+      if (persisted > 0) continue;
       const uuid = `synth-stray-${spanIdx}-${type}`;
-      const extra =
-        type === "tool"
-          ? { id: uuid, function: "", agent: null, events: [], result: null }
-          : {};
       push(
-        synth({ event: type, ...extra, ...common(uuid, spanId, us) }),
+        synth({
+          event: type,
+          ...strayPayload(type, uuid),
+          ...common(uuid, spanId, us),
+        }),
         uuid,
         span.begin + 1
       );
@@ -306,6 +342,12 @@ export const syntheticEventsFromSkeleton = (
       beginUuid,
       span.begin
     );
+    if (!step) {
+      // Outline nodes for timeline-derived span rows carry the SPAN id
+      // (collectRawEvents re-emits span_begin with uuid = timeline span id),
+      // so anchor lookups arrive keyed by span id, not synthetic uuid.
+      ordinals.set(span.id, span.begin);
+    }
     emitStrays(spanIdx, loUs);
     emitContents(spanIdx, loUs, hiUs);
     push(

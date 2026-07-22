@@ -157,7 +157,14 @@ export class SequenceReader<T> {
           return items;
         })
         .then((items) => this.transform?.(items, start) ?? items);
-      pending.catch(() => this.parsed.delete(start));
+      // identity check: a cap eviction + fresh loadChunk can replace this
+      // entry before the rejection lands — don't delete the newer one
+      const inserted = pending;
+      pending.catch(() => {
+        if (this.parsed.get(start) === inserted) {
+          this.parsed.delete(start);
+        }
+      });
       this.parsed.set(start, pending);
       for (const key of this.parsed.keys()) {
         if (this.parsed.size <= PARSED_CHUNK_CAP) {
@@ -178,6 +185,7 @@ export class SequenceReader<T> {
 
   /** Items `[lo, hi)` — fetches the covering chunks in parallel. */
   async getRange(lo: number, hi: number): Promise<T[]> {
+    lo = Math.max(0, lo);
     hi = Math.min(hi, this.count);
     if (hi <= lo) {
       return [];

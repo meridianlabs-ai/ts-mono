@@ -11,6 +11,7 @@ export class SkeletonIndex {
   readonly spans: SkeletonSpan[];
   readonly childrenOf: number[][];
   readonly roots: number[];
+  readonly spanIds: ReadonlySet<string>;
   private byBegin = new Map<number, number>();
 
   constructor(readonly skeleton: SampleSkeleton) {
@@ -25,6 +26,7 @@ export class SkeletonIndex {
         at(this.childrenOf, span.parent).push(i);
       }
     });
+    this.spanIds = new Set(this.spans.map((span) => span.id));
   }
 
   /** Span whose begin event sits at `ordinal` (undefined: dissolved span). */
@@ -63,10 +65,10 @@ export class SkeletonIndex {
     spanIdx: number,
     visibleTypes: (type: string) => boolean
   ): boolean {
+    // No `models` fast path needed: a direct-child model shows up in
+    // `children.model`, and a deeper one implies a structural child span
+    // (dissolved leaves require zero aggregate models — see skeleton.ts).
     const span = at(this.spans, spanIdx);
-    if (span.models > 0 && visibleTypes("model")) {
-      return true;
-    }
     if (
       Object.entries(span.children).some(
         ([type, count]) => count > 0 && visibleTypes(type)

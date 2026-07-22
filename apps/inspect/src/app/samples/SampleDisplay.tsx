@@ -208,21 +208,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     /* eslint-enable react-hooks/refs */
   }, [sample?.messages, runningSampleData]);
 
-  // Chunked samples carry an empty shell `messages` array; the Messages tab
-  // hydrates the final conversation from message_refs instead.
-  const logDir = useLogDir();
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
-  const chunkedMessages = useChunkedMessages(
-    logDir,
-    isChunked ? selectedSampleHandle : undefined,
-    sampleData.chunked
-  );
-  const effectiveMessages = isChunked
-    ? (chunkedMessages.data ?? [])
-    : sampleMessages;
-
   // Get all URL parameters at component level
   const {
     logPath: urlLogPath,
@@ -241,6 +226,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
+
+  // Chunked samples carry an empty shell `messages` array; the Messages tab
+  // hydrates the final conversation from message_refs instead — gated on the
+  // tab actually being open (full hydration can be ~135MB on compaction
+  // monsters; never pay it at sample open). Once hydrated it stays cached.
+  const logDir = useLogDir();
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
+  const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
+  const chunkedMessages = useChunkedMessages(
+    logDir,
+    isChunked && messagesTabOpen ? selectedSampleHandle : undefined,
+    sampleData.chunked
+  );
+  const effectiveMessages = isChunked
+    ? (chunkedMessages.data ?? [])
+    : sampleMessages;
 
   // Focus the panel when it loads
   useEffect(() => {
@@ -813,7 +816,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 <div className={styles.tabContent}>
                   <ChunkedTranscriptPanel
                     id={`${baseId}-transcript-display-${id}`}
-                    key={`${baseId}-chunked-transcript-${id}`}
+                    // sample identity in the key: anchor/selection refs must
+                    // not survive a switch between two chunked samples
+                    key={`${baseId}-chunked-transcript-${id}-${sampleData.chunked.shell.id}-${sampleData.chunked.shell.epoch}`}
                     scrollRef={scrollRef}
                     offsetTop={stickyOffsetTop}
                     chunked={sampleData.chunked}
