@@ -76,6 +76,64 @@ describe("syncListing", () => {
     expect(applied[0]?.persistListing).toBe(true);
   });
 
+  it("treats an empty incremental response as a no-op", async () => {
+    const local = [handle("a.eval", 10), handle("b.eval", 20)];
+    const { target, applied } = targetWith(local);
+
+    const result = await syncListing(
+      apiWith({ files: [], response_type: "incremental" }),
+      target
+    );
+
+    expect(result).toEqual(local);
+    expect(applied).toEqual([]);
+  });
+
+  it("merges incremental changes into the current listing", async () => {
+    const local = [handle("changed.eval", 10), handle("untouched.eval", 30)];
+    const changed = handle("changed.eval", 20);
+    const { target, applied } = targetWith(local);
+
+    await syncListing(
+      apiWith({ files: [changed], response_type: "incremental" }),
+      target
+    );
+
+    expect(applied).toEqual([
+      {
+        listing: [changed, local[1]],
+        invalidated: ["changed.eval"],
+        deleted: [],
+        persistListing: true,
+        epoch: 7,
+      },
+    ]);
+  });
+
+  it("does not turn unchanged incremental syncs into a full-list request", async () => {
+    const local = [handle("a.eval", 10), handle("b.eval", 25)];
+    let current = local;
+    const applied: ListingUpdate[] = [];
+    const target: ListingTarget = {
+      listing: () => current,
+      epoch: () => 7,
+      applyListing: (update) => {
+        applied.push(update);
+        current = update.listing;
+        return Promise.resolve(current);
+      },
+    };
+    const api = apiWith({ files: [], response_type: "incremental" });
+
+    await syncListing(api, target);
+    await syncListing(api, target);
+
+    expect(api.get_logs).toHaveBeenNthCalledWith(1, 25, 2);
+    expect(api.get_logs).toHaveBeenNthCalledWith(2, 25, 2);
+    expect(current).toEqual(local);
+    expect(applied).toEqual([]);
+  });
+
   it("full response: local files absent from the server are deleted", async () => {
     const local = [handle("keep.eval", 10), handle("gone.eval", 10)];
     const server = [handle("keep.eval", 10)];
