@@ -19,6 +19,7 @@ import {
   shellEntryName,
   skeletonEntryName,
   statsEntryName,
+  uuidsEntryName,
 } from "./format";
 import { log } from "./log";
 import { SkeletonIndex } from "./skeletonIndex";
@@ -39,6 +40,12 @@ export interface ChunkedSample {
   messages: SequenceReader<ChatMessage>;
   calls: SequenceReader<unknown>;
   attachments: SequenceReader<string>;
+  /**
+   * Resolve an event uuid to its ordinal via `events/uuids.json` (fetched
+   * lazily, once). Undefined for unknown uuids — including every uuid on a
+   * log converted before the sidecar existed.
+   */
+  uuidToOrdinal: (uuid: string) => Promise<number | undefined>;
   /** Fetch `metadata.json` (undefined when the sample has no metadata). */
   readMetadata?: () => Promise<Record<string, unknown>>;
 }
@@ -100,6 +107,23 @@ export const openChunkedSample = async (
       count
     );
 
+  const uuidsEntry = uuidsEntryName(id, epoch);
+  let uuidOrdinals: Promise<Map<string, number>> | undefined;
+  const uuidToOrdinal = async (uuid: string): Promise<number | undefined> => {
+    if (!entryNames.has(uuidsEntry)) {
+      return undefined; // log converted before the sidecar existed
+    }
+    uuidOrdinals ??= readJson<(string | null)[]>(source, uuidsEntry).then(
+      (uuids) =>
+        new Map(
+          uuids.flatMap((u, ordinal): [string, number][] =>
+            u === null ? [] : [[u, ordinal]]
+          )
+        )
+    );
+    return (await uuidOrdinals).get(uuid);
+  };
+
   const metadataEntry = metadataEntryName(id, epoch);
   return {
     shell,
@@ -110,6 +134,7 @@ export const openChunkedSample = async (
     messages: reader<ChatMessage>("messages"),
     calls: reader<unknown>("calls"),
     attachments: reader<string>("attachments"),
+    uuidToOrdinal,
     ...(entryNames.has(metadataEntry)
       ? {
           readMetadata: () =>

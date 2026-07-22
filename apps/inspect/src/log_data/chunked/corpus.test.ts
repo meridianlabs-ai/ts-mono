@@ -107,6 +107,18 @@ describe("chunked corpus", () => {
         expect(messages.length).toBeGreaterThan(lastStart);
       }
 
+      // events/uuids.json resolves event uuids to ordinals (old logs may
+      // have events without uuids — those simply have no map entry)
+      const withUuid = events.flatMap((e, ordinal) =>
+        e.uuid ? [{ uuid: e.uuid, ordinal }] : []
+      );
+      for (const { uuid, ordinal } of withUuid.filter(
+        (_, i) => i === 0 || i === withUuid.length - 1
+      )) {
+        expect(await sample.uuidToOrdinal(uuid)).toBe(ordinal);
+      }
+      expect(await sample.uuidToOrdinal("no-such-uuid")).toBeUndefined();
+
       // the stats sidecar is a pure function of the chunking
       expect(sample.stats.length).toBe(sample.events.starts.length);
       sample.stats.forEach((chunkStats, c) => {

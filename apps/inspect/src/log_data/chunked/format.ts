@@ -17,6 +17,7 @@ export const SHELL_JSON = "sample.json";
 export const METADATA_JSON = "metadata.json";
 export const SKELETON_JSON = "skeleton.json";
 export const STATS_JSON = "stats.json";
+export const UUIDS_JSON = "uuids.json";
 
 /** `samples/{id}_epoch_{epoch}` — the per-sample prefix (no trailing slash). */
 export const samplePrefix = (id: string | number, epoch: number): string =>
@@ -37,6 +38,10 @@ export const skeletonEntryName = (id: string | number, epoch: number): string =>
 
 export const statsEntryName = (id: string | number, epoch: number): string =>
   `${samplePrefix(id, epoch)}/events/${STATS_JSON}`;
+
+/** Event uuids in ordinal order (position = ordinal), lazily fetched. */
+export const uuidsEntryName = (id: string | number, epoch: number): string =>
+  `${samplePrefix(id, epoch)}/events/${UUIDS_JSON}`;
 
 /** `{prefix}/{sequence}/{start}.json` — chunk holding items from `start`. */
 export const chunkEntryName = (
