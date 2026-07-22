@@ -25,7 +25,7 @@ interface Row {
 
 type ReadListingPage = <TRow>(
   query: LogsListingPageQuery<TRow>,
-  page: { cursor?: Cursor | null; limit?: number }
+  page: { cursor?: Cursor | null; limit: number }
 ) => Promise<{
   items: TRow[];
   total_count: number;
@@ -100,7 +100,7 @@ describe("useDatabaseLogsListingQuery", () => {
     holder.read.mockImplementation(
       (
         query: LogsListingPageQuery<Row>,
-        page: { cursor?: Cursor | null; limit?: number }
+        page: { cursor?: Cursor | null; limit: number }
       ) => {
         const rows = holder.records
           .map((record) => query.toRow(record as LogListingRow))
@@ -109,8 +109,7 @@ describe("useDatabaseLogsListingQuery", () => {
         if (query.plan.compare) rows.sort(query.plan.compare);
         const offset =
           typeof page.cursor?.offset === "number" ? page.cursor.offset : 0;
-        const end =
-          page.limit === undefined ? rows.length : offset + page.limit;
+        const end = offset + page.limit;
         return Promise.resolve({
           items: rows.slice(offset, end),
           total_count: rows.length,
@@ -248,7 +247,7 @@ describe("useDatabaseLogsListingQuery", () => {
     holder.read.mockImplementation(
       (
         query: LogsListingPageQuery<Row>,
-        page: { cursor?: Cursor | null; limit?: number }
+        page: { cursor?: Cursor | null; limit: number }
       ) => {
         const rows = holder.records
           .map((record) => query.toRow(record as LogListingRow))

@@ -351,14 +351,17 @@ describe("readLogsListingPage", () => {
     expect(readLogRowsSpy).toHaveBeenCalledTimes(1);
   });
 
-  test("a single full-size page (no limit) matches the unpaged read", async () => {
+  test("a single page holding the whole universe matches the unpaged read", async () => {
     await databaseService.writeLogPreviews({
       "/test/logs/a.json": preview({ task_id: "t-a" }),
       "/test/logs/b.json": preview({ task_id: "t-b" }),
     });
 
     const query = pageQuery();
-    const paged = await readLogsListingPage(query, { cursor: null });
+    const paged = await readLogsListingPage(query, {
+      cursor: null,
+      limit: 100,
+    });
     const unpaged = await readLogsListing(
       "/test/logs",
       "/test/logs",
@@ -397,6 +400,45 @@ describe("readLogsListingPage", () => {
     expect(second.items.map((row) => row.name)).toEqual(["/test/logs/d.json"]);
     // The cursor indexes the (stale-until-invalidated) key list, not served
     // rows — total_count updates on the next snapshot rebuild.
+    expect(second.total_count).toBe(4);
+    expect(second.next_cursor).toBeNull();
+  });
+
+  test("drops holes for records mutated out of the filter between snapshot and page read", async () => {
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ model: "gpt-4", task_id: "t-a" }),
+      "/test/logs/b.json": preview({ model: "gpt-4o", task_id: "t-b" }),
+      "/test/logs/c.json": preview({ model: "gpt-5", task_id: "t-c" }),
+      "/test/logs/d.json": preview({ model: "gpt-4.1", task_id: "t-d" }),
+    });
+    const filter = new Column("model").ilike("gpt%");
+    const orderBy = [{ column: "name", direction: "ASC" as const }];
+    const query = pageQuery({
+      filter,
+      orderBy,
+      plan: createListingPlan({
+        filter,
+        orderBy,
+        getValue,
+        getComparator: () => undefined,
+      }),
+    });
+
+    // Prime the snapshot, then a replication write flips a later-page row
+    // out of the filter before its page is read.
+    const first = await readLogsListingPage(query, { cursor: null, limit: 2 });
+    await databaseService.writeLogPreviews({
+      "/test/logs/c.json": preview({ model: "claude", task_id: "t-c" }),
+    });
+
+    // The page must not serve a row the active filter excludes — it runs
+    // short (like a deleted key) until the next invalidation rebuilds the
+    // key list.
+    const second = await readLogsListingPage(query, {
+      cursor: first.next_cursor,
+      limit: 2,
+    });
+    expect(second.items.map((row) => row.name)).toEqual(["/test/logs/d.json"]);
     expect(second.total_count).toBe(4);
     expect(second.next_cursor).toBeNull();
   });

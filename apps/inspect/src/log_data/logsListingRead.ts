@@ -125,8 +125,7 @@ export interface LogsListingSnapshot<TRow> {
   retried: Record<string, boolean>;
   /** Shaped rows for the first page, seeded by the build (decision 3): the
    *  scan shaped them anyway, so serving page one adds no second read over
-   *  today's one-read flow. Sized by the build's `firstPageSize`
-   *  (unbounded when unset). */
+   *  today's one-read flow. Sized by the build's `firstPageSize`. */
   firstPage: TRow[];
 }
 
@@ -139,7 +138,7 @@ export const readLogsListingSnapshot = async <TRow>(
   prefix: string,
   toRow: (log: LogListingRow) => TRow | undefined,
   plan: DatabaseListingPlan<TRow>,
-  firstPageSize?: number
+  firstPageSize: number
 ): Promise<LogsListingSnapshot<TRow>> => {
   const entries = await scanListingEntries(logDir, prefix, toRow, plan);
   const keys: string[] = [];
@@ -148,19 +147,22 @@ export const readLogsListingSnapshot = async <TRow>(
     keys.push(log.name);
     if (log.retried !== undefined) retried[log.name] = log.retried;
   }
-  const firstPage = (
-    firstPageSize === undefined ? entries : entries.slice(0, firstPageSize)
-  ).map((entry) => entry.row);
+  const firstPage = entries.slice(0, firstPageSize).map((entry) => entry.row);
   return { keys, total_count: keys.length, retried, firstPage };
 };
 
 /** One page of records by key slice: `bulkGet`, re-attach the snapshot's
- *  retried marks, shape via `toRow`. A key deleted (or reshaped out of the
- *  universe) between snapshot and read is a dropped hole — the page runs
- *  short rather than erroring; the next invalidation rebuilds the keys. */
+ *  retried marks, shape via `toRow`, re-check the plan's filter. A key
+ *  deleted, reshaped out of the universe, or mutated out of the filter
+ *  between snapshot and read is a dropped hole — the page runs short
+ *  rather than erroring (or serving a row the active filter excludes);
+ *  the next invalidation rebuilds the keys. A record mutated in its *sort*
+ *  field still serves at its snapshot position — one page can't re-sort
+ *  the universe. */
 const readSnapshotPageRows = async <TRow>(
   snapshot: LogsListingSnapshot<TRow>,
   toRow: (log: LogListingRow) => TRow | undefined,
+  plan: DatabaseListingPlan<TRow>,
   offset: number,
   limit: number
 ): Promise<TRow[]> => {
@@ -172,7 +174,7 @@ const readSnapshotPageRows = async <TRow>(
     const record = records[key];
     if (record === undefined) continue;
     const row = toRow({ ...record, retried: snapshot.retried[key] });
-    if (row !== undefined) rows.push(row);
+    if (row !== undefined && plan.matches(row)) rows.push(row);
   }
   return rows;
 };
@@ -207,14 +209,17 @@ export interface LogsListingPageQuery<TRow> {
  * exactly when the snapshot has been invalidated and serves it from cache
  * otherwise.
  *
- * `limit` unset serves the whole listing as a single page. Cache-only
+ * `limit` is required: an unlimited page would trust the cached snapshot's
+ * inline first page to be the whole listing, but the snapshot key carries
+ * no limit slot — one built by a limited call would be served truncated
+ * with `next_cursor: null`, silently claiming completeness. Cache-only
  * scopes (db-less sessions, out-of-namespace dirs) don't take the snapshot
  * path at all — their rows already live in memory, so one scan per read
  * stays the simpler and equally-cheap form.
  */
 export const readLogsListingPage = async <TRow>(
   query: LogsListingPageQuery<TRow>,
-  page: { cursor?: Cursor | null; limit?: number }
+  page: { cursor?: Cursor | null; limit: number }
 ): Promise<DatabaseListingResult<TRow>> => {
   const { logDir, prefix, toRow, plan } = query;
   if (logsListingSource(logDir) === "cache") {
@@ -241,11 +246,6 @@ export const readLogsListingPage = async <TRow>(
       ? page.cursor.offset
       : 0;
   const { total_count } = snapshot;
-  if (page.limit === undefined) {
-    // Single full page: the build shaped every row inline.
-    const items = offset === 0 ? snapshot.firstPage : [];
-    return { items, total_count, next_cursor: null };
-  }
   // The inline first page covers offset 0 whenever it holds `limit` rows —
   // or the whole (shorter) universe. A cached snapshot built under another
   // limit falls through to the bulkGet path.
@@ -254,7 +254,7 @@ export const readLogsListingPage = async <TRow>(
     (snapshot.firstPage.length >= page.limit ||
       snapshot.firstPage.length === total_count)
       ? snapshot.firstPage.slice(0, page.limit)
-      : await readSnapshotPageRows(snapshot, toRow, offset, page.limit);
+      : await readSnapshotPageRows(snapshot, toRow, plan, offset, page.limit);
   const end = offset + page.limit;
   return {
     items,
