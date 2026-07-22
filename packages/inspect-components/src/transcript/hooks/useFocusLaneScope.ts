@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import type {
   Event,
@@ -16,6 +16,7 @@ import {
   computeFlatSwimlaneRows,
   getAgents,
   parseSelection,
+  useTimelineConfig,
   useTimelinesArray,
   useTranscriptTimeline,
   type SwimlaneRow,
@@ -214,6 +215,10 @@ export function useFocusLaneScope(
     showEmptyBranches: false,
   });
 
+  // Focus scopes to the same lanes the swimlanes show, so it honors the shared
+  // utility-agents preference rather than hardcoding it.
+  const { includeUtility, setIncludeUtility } = useTimelineConfig();
+
   // Which timeline the focused event lives in (petri-style logs have several
   // root agents as separate timelines).
   const activeIndex = useMemo(() => {
@@ -223,22 +228,40 @@ export function useFocusLaneScope(
   }, [eventId, timelines]);
   const activeRoot = timelines[activeIndex]?.root;
 
+  const resolved = useMemo(() => {
+    if (!eventId || !activeRoot) return null;
+    return (
+      resolveEventToSpan(eventId, activeRoot) ??
+      resolveEventInBranches(eventId, activeRoot)
+    );
+  }, [eventId, activeRoot]);
+
   // Which swimlane row must be selected for the event list to contain the
   // focused event — the transcript's deep-link resolution (agent-span rows
   // and branch rows both count).
   const selected = useMemo(() => {
-    if (!eventId || !activeRoot) return null;
-    const resolved =
-      resolveEventToSpan(eventId, activeRoot) ??
-      resolveEventInBranches(eventId, activeRoot);
-    if (resolved?.branchRowKey) return resolved.branchRowKey;
-    if (!resolved?.agentSpanId) return null;
+    if (!resolved) return null;
+    if (resolved.branchRowKey) return resolved.branchRowKey;
+    if (!resolved.agentSpanId || !activeRoot) return null;
     const rows = computeFlatSwimlaneRows(activeRoot, {
-      includeUtility: false,
+      includeUtility,
       showBranches: false,
     });
     return buildSpanSelectKeys(rows).get(resolved.agentSpanId)?.key ?? null;
-  }, [eventId, activeRoot]);
+  }, [resolved, activeRoot, includeUtility]);
+
+  // Flipping the toggle recomputes `selected` (and downstream `laneEvents`),
+  // completing resolution on the next render — no separate retrigger needed.
+  useEffect(() => {
+    if (
+      !includeUtility &&
+      resolved?.agentSpanId &&
+      !resolved.branchRowKey &&
+      selected === null
+    ) {
+      setIncludeUtility(true);
+    }
+  }, [includeUtility, resolved, selected, setIncludeUtility]);
 
   const {
     timeline,
@@ -247,6 +270,7 @@ export function useFocusLaneScope(
   } = useTranscriptTimeline({
     events,
     serverTimelines,
+    timelineOptions: { includeUtility },
     timelineProps: { selected, onSelect: () => {} },
     activeTimelineProps: { activeIndex, onActiveChange: () => {} },
   });

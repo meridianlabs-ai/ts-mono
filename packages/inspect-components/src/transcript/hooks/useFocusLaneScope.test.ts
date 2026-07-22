@@ -1,21 +1,25 @@
 // @vitest-environment jsdom
 // jsdom: the timeline barrel transitively imports vscode-elements web
 // components, which touch CSSStyleSheet at module load.
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { Event } from "@tsmono/inspect-common/types";
 
+import { InMemoryStateWrapper } from "../testHelpers";
 import {
   buildSpanSelectKeys,
   computeFlatSwimlaneRows,
   TimelineEvent,
   TimelineSpan,
+  useTimelineConfig,
   type Timeline,
 } from "../timeline";
 
 import {
   appendSampleTerminalEvents,
   deriveFocusLanes,
+  useFocusLaneScope,
 } from "./useFocusLaneScope";
 
 // A model event carrying the uuid that computeLaneFirstAnchors keys turn
@@ -311,5 +315,90 @@ describe("appendSampleTerminalEvents", () => {
       "m1",
       "m2",
     ]);
+  });
+});
+
+describe("useFocusLaneScope — utility-agents toggle", () => {
+  // Raw events through the real build pipeline, not hand-rolled spans: a
+  // primary turn plus a warmup call that wrapUtilityEvents folds into a
+  // synthetic utility span. With the toggle off, that span carries no select
+  // key and its model is elided from the root lane, so focusing the wrapped
+  // model can only resolve once the toggle is honored.
+  const iso = (secs: number) =>
+    new Date(Date.UTC(2026, 0, 1, 0, 0, secs)).toISOString();
+  const modelEvent = (uuid: string, warmup: boolean, secs: number): Event =>
+    ({
+      event: "model",
+      uuid,
+      timestamp: iso(secs),
+      completed: iso(secs),
+      working_start: 0,
+      pending: false,
+      metadata: null,
+      span_id: null,
+      model: "mockllm/model",
+      config: warmup ? { max_tokens: 1 } : {},
+      input: warmup
+        ? [{ role: "user", content: "warmup" }]
+        : [{ role: "user", content: "do the task please" }],
+      output: {
+        choices: [
+          {
+            message: { role: "assistant", content: "ok" },
+            stop_reason: warmup ? "max_tokens" : "stop",
+          },
+        ],
+        usage: { input_tokens: 5, output_tokens: 1 },
+      },
+    }) as unknown as Event;
+
+  const events: Event[] = [
+    modelEvent("m-main", false, 1),
+    modelEvent("m-util", true, 2),
+  ];
+
+  const renderFocus = (eventId: string | null) =>
+    renderHook(
+      () => ({
+        config: useTimelineConfig(),
+        scope: useFocusLaneScope(events, eventId),
+      }),
+      { wrapper: InMemoryStateWrapper }
+    );
+
+  it("lists the utility lane as navigable only when the toggle is on", () => {
+    const { result } = renderFocus(null);
+
+    expect(
+      result.current.scope.lanes.map((l) => l.firstAnchorId)
+    ).not.toContain("m-util");
+
+    act(() => result.current.config.setIncludeUtility(true));
+
+    expect(result.current.scope.lanes.map((l) => l.firstAnchorId)).toContain(
+      "m-util"
+    );
+  });
+
+  it("enables the utility toggle when the focused event lives in a hidden lane", () => {
+    const { result } = renderFocus("m-util");
+
+    expect(result.current.config.includeUtility).toBe(true);
+    expect(result.current.scope.laneEvents.map((e) => e.uuid)).toContain(
+      "m-util"
+    );
+    const utilityLane = result.current.scope.lanes.find(
+      (l) => l.firstAnchorId === "m-util"
+    );
+    expect(utilityLane).toBeDefined();
+    expect(result.current.scope.lanes[result.current.scope.laneIndex]).toBe(
+      utilityLane
+    );
+  });
+
+  it("does not flip the toggle for an unresolvable (stale/garbage) event id", () => {
+    const { result } = renderFocus("event-does-not-exist");
+
+    expect(result.current.config.includeUtility).toBe(false);
   });
 });

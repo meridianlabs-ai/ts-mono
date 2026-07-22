@@ -582,6 +582,8 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     showSwimlanes,
     nodeFeedEvents: nodeFeed.events,
     onHeadroomResetAnchor,
+    includeUtility: timelineConfig.includeUtility,
+    setIncludeUtility: timelineConfig.setIncludeUtility,
   });
 
   // ---------------------------------------------------------------------------
