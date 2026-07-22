@@ -30,3 +30,6 @@ Sources (under the inspect_ai repo's `tests/`):
   per-span sweep log)
 - `2025-02-11…popularity….eval` — legacy step-only log
 - `log_streaming.eval`, `log_read_sample.eval` — small multi-sample logs
+- `ais-decoder.eval` — agent log with checkpoint spans exited in another
+  context (unbalanced span order; from the inspect_ai repo's `logs/old/`) —
+  the reproducer for the main-view outline twin (`mainViewOutline.test.ts`)

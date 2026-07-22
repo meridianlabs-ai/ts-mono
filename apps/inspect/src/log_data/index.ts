@@ -116,6 +116,7 @@ export {
   candidateOutlineRows,
   defaultCollapsedSpanIds,
   RowSpace,
+  syntheticEventsFromSkeleton,
   type ChunkedEvent,
   type ChunkedSample,
   type DecodeCtx,
@@ -123,6 +124,7 @@ export {
   type RowSlot,
   type SampleSkeleton,
   type SkeletonSpan,
+  type SyntheticStream,
   type ViewRow,
 } from "./chunked";
 export { resolvedEventsReader } from "./chunkedAttachments";

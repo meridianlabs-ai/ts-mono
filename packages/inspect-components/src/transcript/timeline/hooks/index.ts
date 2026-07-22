@@ -23,5 +23,9 @@ export {
   type TranscriptTimelineResult,
   type UseTranscriptTimelineOptions,
 } from "./useTranscriptTimeline";
-export { useEventNodes } from "./useEventNodes";
+export {
+  buildEventNodes,
+  useEventNodes,
+  type EventNodesResult,
+} from "./useEventNodes";
 export { useTimelinesArray } from "./useTimelinesArray";

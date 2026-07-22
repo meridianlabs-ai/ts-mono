@@ -36,6 +36,10 @@ export {
   type OutlineRow,
 } from "./outlineRows";
 export { SkeletonIndex } from "./skeletonIndex";
+export {
+  syntheticEventsFromSkeleton,
+  type SyntheticStream,
+} from "./syntheticEvents";
 export { RowSpace, type RowSlot } from "./rowSpace";
 export type {
   ChunkedEvent,

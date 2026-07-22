@@ -5,15 +5,14 @@ import { FC, RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { kTranscriptCollapseScope } from "@tsmono/inspect-components/transcript";
 
 import {
-  candidateOutlineRows,
   defaultCollapsedSpanIds,
   type ChunkedSample,
-  type OutlineRow,
 } from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 
 import { ChunkedRowView, rowNodeId } from "./ChunkedRowView";
 import styles from "./ChunkedTranscriptPanel.module.css";
+import { chunkedOutline, type ChunkedOutlineRow } from "./mainViewOutline";
 import { useChunkedRows } from "./useChunkedRows";
 
 interface ChunkedTranscriptPanelProps {
@@ -56,8 +55,8 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   );
 
   const outline = useMemo(
-    () => candidateOutlineRows(chunked.skeleton),
-    [chunked]
+    () => chunkedOutline(chunked.skeleton, hiddenTypes),
+    [chunked, hiddenTypes]
   );
 
   const virtualizer = useVirtualizer({
@@ -134,8 +133,9 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
         className={styles.outline}
         style={{ top: offsetTop ?? 0, maxHeight: "80vh" }}
       >
-        {outline.map((row, i) => (
-          <OutlineRowView key={i} row={row} onJump={jumpToOrdinal} />
+        <div className={styles.outlineHeader}>{outline.header}</div>
+        {outline.rows.map((row) => (
+          <OutlineRowView key={row.id} row={row} onJump={jumpToOrdinal} />
         ))}
       </nav>
       <div
@@ -179,28 +179,22 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
 };
 
 const OutlineRowView: FC<{
-  row: OutlineRow;
+  row: ChunkedOutlineRow;
   onJump: (ordinal: number) => void;
 }> = ({ row, onJump }) => {
-  const label =
-    row.kind === "turns"
-      ? `${row.total} turn${row.total === 1 ? "" : "s"}`
-      : row.kind === "scoring"
-        ? "scoring"
-        : (row.name ?? row.type ?? row.kind);
   return (
     <button
       type="button"
       className={clsx(
         styles.outlineRow,
-        row.kind === "turns" && styles.outlineTurns
+        /\d+ turns?$/.test(row.label) && styles.outlineTurns
       )}
       style={{ paddingLeft: `${0.4 + row.depth * 0.8}em` }}
       onClick={
         row.anchor !== undefined ? () => onJump(row.anchor ?? 0) : undefined
       }
     >
-      {label}
+      {row.label}
     </button>
   );
 };
