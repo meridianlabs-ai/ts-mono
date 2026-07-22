@@ -91,7 +91,7 @@ vi.mock("@tsmono/inspect-components/transcript", async (importOriginal) => {
         {outlineUrl && props.outline?.renderLink
           ? props.outline.renderLink(outlineUrl, <span>outline link</span>)
           : null}
-        <button onClick={() => props.onMarkerNavigate?.("event-1")}>
+        <button onClick={() => props.timeline?.onMarkerNavigate?.("event-1")}>
           marker
         </button>
       </div>

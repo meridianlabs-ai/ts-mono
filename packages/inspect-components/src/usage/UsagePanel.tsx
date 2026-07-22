@@ -1,8 +1,17 @@
 import clsx from "clsx";
 import { Fragment, ReactNode, useState } from "react";
 
+import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
 
+import {
+  adaptiveMaxFromConfig,
+  buildConnectionLanes,
+  connectionWindow,
+  type ConnectionLaneData,
+} from "./connectionHistory";
+import { ConnectionLogModal } from "./ConnectionLogModal";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
 import styles from "./UsagePanel.module.css";
@@ -24,6 +33,9 @@ interface UsagePanelProps {
   samples?: number;
   meta?: MetaItem[];
   className?: string | string[];
+  connection_limit_history?: ConnectionLimitChange[];
+  started_at?: string | null;
+  completed_at?: string | null;
 }
 
 type Mode = "model" | "role";
@@ -40,6 +52,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   samples,
   meta,
   className,
+  connection_limit_history,
+  started_at,
+  completed_at,
 }) => {
   const keysOf = (
     ...maps: (Record<string, unknown> | undefined)[]
@@ -49,7 +64,23 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
     return Array.from(out);
   };
 
-  const modelKeys = keysOf(model_usage, configs_by_model, args_by_model);
+  const usageWindow = connectionWindow(
+    connection_limit_history,
+    started_at,
+    completed_at
+  );
+  const lanesByModel = buildConnectionLanes(
+    connection_limit_history,
+    usageWindow,
+    (model) => adaptiveMaxFromConfig(configs_by_model?.[model])
+  );
+
+  const modelKeys = keysOf(
+    model_usage,
+    configs_by_model,
+    args_by_model,
+    lanesByModel
+  );
   const roleKeys = keysOf(
     role_usage,
     configs_by_role,
@@ -61,6 +92,11 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const hasRoleUsage = !!(role_usage && Object.keys(role_usage).length > 0);
 
   const [mode, setMode] = useState<Mode>(hasRoleUsage ? "role" : "model");
+  const [logModel, setLogModel] = useProperty<string | null>(
+    "usage-connections",
+    "log-model",
+    { defaultValue: null }
+  );
 
   if (!hasModel && !hasRole) return null;
 
@@ -75,6 +111,19 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const tableArgs = isModel ? args_by_model : args_by_role;
   const tableAliases = !isModel ? role_aliases : undefined;
   const tableRowKeys = isModel ? modelKeys : roleKeys;
+
+  // History is keyed by model; role rows resolve their lane through the
+  // role → model alias map (roles sharing a model show the same lane).
+  const connectionsByRow: Record<string, ConnectionLaneData> = {};
+  if (isModel) {
+    Object.assign(connectionsByRow, lanesByModel);
+  } else if (role_aliases) {
+    for (const [role, model] of Object.entries(role_aliases)) {
+      const lane = lanesByModel[model];
+      if (lane) connectionsByRow[role] = lane;
+    }
+  }
+  const logLane = logModel != null ? lanesByModel[logModel] : undefined;
 
   const metaItems = hasUsageData
     ? (meta?.filter((m) => m.value != null && m.value !== "") ?? [])
@@ -121,7 +170,18 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
         showTokenColumns={hasUsageData}
         samples={samples}
         className={styles.tableNoTop}
+        connections_by_row={connectionsByRow}
+        connections_window={usageWindow}
+        onShowConnectionLog={setLogModel}
       />
+      {logLane && (
+        <ConnectionLogModal
+          model={logLane.model}
+          events={logLane.events}
+          show={true}
+          onHide={() => setLogModel(null)}
+        />
+      )}
     </div>
   );
 };

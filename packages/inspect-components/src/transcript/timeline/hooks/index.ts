@@ -20,12 +20,10 @@ export {
 } from "./useTimelineConfig";
 export {
   useTranscriptTimeline,
+  type MultiTimelineNav,
+  type TimelineMinimapData,
+  type TimelineViewStack,
   type TranscriptTimelineResult,
   type UseTranscriptTimelineOptions,
 } from "./useTranscriptTimeline";
-export {
-  buildEventNodes,
-  useEventNodes,
-  type EventNodesResult,
-} from "./useEventNodes";
 export { useTimelinesArray } from "./useTimelinesArray";

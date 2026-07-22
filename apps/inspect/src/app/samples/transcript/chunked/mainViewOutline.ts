@@ -19,21 +19,15 @@
 import type { Event } from "@tsmono/inspect-common/types";
 import {
   buildEventNodes,
+  buildOutlineNodeList,
   buildTimeline,
-  collapseScoring,
-  collapseTurns,
   collectRawEvents,
   computeFlatSwimlaneRows,
   correctRetryTimestamps,
   filterEmptyBranches,
-  flatTree,
   getSelectedSpans,
   kSandboxSignalName,
-  makeTurns,
-  noScorerChildren,
   parseSelection,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
   spanHasBranches,
   type EventNode,
   type TimelineSpan,
@@ -78,9 +72,9 @@ export const outlineViewTree = (
 };
 
 /**
- * Flat outline rows for a selected view — `outlineViewTree` plus
- * `TranscriptOutline.outlineNodeList`'s visitor/turn/scoring chain
- * (headless twin of what the component renders; used by tests).
+ * Flat outline rows for a selected view — `outlineViewTree` plus the real
+ * `buildOutlineNodeList` visitor/turn/scoring chain (headless twin of what
+ * the component renders; used by tests).
  */
 export const outlineNodesForView = (
   selectedEvents: Event[],
@@ -92,18 +86,7 @@ export const outlineNodesForView = (
     sourceSpans,
     hiddenTypes
   );
-  const nodeList = flatTree(eventNodes, defaultCollapsedIds, [
-    removeNodeVisitor("logger"),
-    removeNodeVisitor("info"),
-    removeNodeVisitor("state"),
-    removeNodeVisitor("store"),
-    removeNodeVisitor("approval"),
-    removeNodeVisitor("input"),
-    removeNodeVisitor("sandbox"),
-    removeStepSpanNameVisitor(kSandboxSignalName),
-    noScorerChildren(),
-  ]);
-  return collapseScoring(collapseTurns(makeTurns(nodeList)));
+  return buildOutlineNodeList(eventNodes, defaultCollapsedIds);
 };
 
 /**

@@ -36,6 +36,8 @@ export type EvalScore = S["EvalScore"];
 export type EvalScorer = S["EvalScorer"];
 export type EvalSpec = S["EvalSpec"];
 export type EvalStats = S["EvalStats"];
+export type ConnectionLimitChange = S["ConnectionLimitChange"];
+export type AdaptiveConcurrency = S["AdaptiveConcurrency"];
 export type EvalRetryError = S["EvalRetryError"];
 
 // Event types
@@ -153,6 +155,8 @@ export type Samples = S["Samples"];
 export type TaskDisplayMetric = S["TaskDisplayMetric"];
 
 // Other types
+export type ConfigUpdate = S["ConfigUpdate"];
+export type ConfigValueChange = S["ConfigValueChange"];
 export type JsonChange = S["JsonChange"];
 export type JsonValue = S["JsonValue"];
 export type LogUpdate = S["LogUpdate"];

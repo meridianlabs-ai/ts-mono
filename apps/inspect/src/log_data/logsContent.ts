@@ -16,6 +16,7 @@ import {
 } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
+import { invalidateDatabaseLogsListings } from "./databaseListings";
 import type { LogsContentSink } from "./fetchEngine";
 import {
   invalidateSamplesListings,
@@ -212,13 +213,23 @@ const clearCache = (logDir: string): void => {
  * remove. "Clear Local Database" (`clearAll`) wipes them along with
  * everything else.
  */
-const warnedScopes = new Set<string>();
+const cacheOnlyScopes = new Set<string>();
+
+/**
+ * Whether `logDir`'s listing degraded to cache-only persistence
+ * (out-of-namespace names — see `namesInScope`). Session-sticky: once a
+ * listing sync detects the degrade, listing reads for the dir serve from
+ * the react-query cache instead of the database.
+ */
+export const isCacheOnlyListingScope = (logDir: string): boolean =>
+  cacheOnlyScopes.has(scopePrefix(logDir));
+
 const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
   const prefix = scopePrefix(logDir);
   const misnamed = handles.find((handle) => !handle.name.startsWith(prefix));
   if (misnamed !== undefined) {
-    if (!warnedScopes.has(prefix)) {
-      warnedScopes.add(prefix);
+    if (!cacheOnlyScopes.has(prefix)) {
+      cacheOnlyScopes.add(prefix);
       log.warn(
         `Listing names (e.g. ${misnamed.name}) are outside the log dir's namespace (${prefix}); skipping persistence for this scope.`
       );
@@ -245,10 +256,19 @@ export const writeListing = async (
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
       setRows(logDir, all);
+      // Invalidate only after the re-read rows land in the cache: a listing
+      // refetch scheduled between the write and setRows would run against
+      // the pre-write rows and drop the newly written files from its result.
+      invalidateDatabaseLogsListings();
       return all;
     }
+    // A failed read-back degrades to the cache-only listing write below.
   }
   setListing(logDir, handles);
+  // Cache-backed scopes (the out-of-namespace degrade, db-less sessions)
+  // have no db write to fire the listing invalidation, so fire it once the
+  // cache write lands — listing queries reading from the cache refetch here.
+  invalidateDatabaseLogsListings();
   return currentLogs(logDir);
 };
 
@@ -265,6 +285,10 @@ export const writePreviews = async (
   if (db?.opened()) {
     await db.writeLogPreviews(previews);
   }
+  // Unconditional (after the db write, so a refetch reads committed rows):
+  // cache-backed listings serve the merge above and refetch on the same
+  // nudge — a db-less session's preview columns must not stay blank.
+  invalidateDatabaseLogsListings();
 };
 
 /**
@@ -273,10 +297,11 @@ export const writePreviews = async (
  * own store. Cache updates land synchronously; samples rows land BEFORE the
  * row merge (the status flip is what drops a running log's pending-buffer
  * rows, so a render between the two updates must already have the settled
- * rows). Persistence is one transaction per call; the invalidation sweep
- * then refreshes prefix-scope listings from the committed rows. In db-less
- * sessions the pushes are the only landing spot, and invalidating would
- * clobber them with an empty read — so the sweep is persistence-gated.
+ * rows). Persistence is one transaction per call. The samples sweep is
+ * persistence-gated: samples listings read from the database, and in db-less
+ * sessions invalidating would clobber the pushes — the only landing spot —
+ * with an empty read. Log listings have a cache-backed read path, so their
+ * invalidation is unconditional.
  */
 export const writeDetails = async (
   db: DatabaseService | null | undefined,
@@ -303,6 +328,7 @@ export const writeDetails = async (
     await db.writeLogDetails(Object.fromEntries(prepared));
     invalidateSamplesListings(logDir);
   }
+  invalidateDatabaseLogsListings();
 };
 
 export const writeFetchStates = async (
@@ -347,6 +373,7 @@ export const resetDepth = async (
   if (db?.opened()) {
     await db.resetDepth(names);
   }
+  invalidateDatabaseLogsListings();
   invalidateSamplesListings(logDir);
 };
 
@@ -359,6 +386,7 @@ export const clearFile = async (
   if (db?.opened()) {
     await db.clearCacheForFile(name);
   }
+  invalidateDatabaseLogsListings();
   // After the rows are gone (db) — or cache-only (db-less), where a refetch
   // correctly reads empty — refresh any samples listing that carried them.
   invalidateSamplesListings(logDir);
@@ -376,6 +404,7 @@ export const clearAll = async (
     // other scopes re-sync on their next listing.
     await db.clearAllData();
   }
+  invalidateDatabaseLogsListings();
 };
 
 /**
@@ -392,7 +421,10 @@ export const createLogsContentSink = (
     // A warm session coming online must refresh samples listings: a listing
     // query mounted before the db opened settled empty (staleTime: Infinity)
     // and a no-change boot performs none of the writes that would otherwise
-    // invalidate it — so /#/samples as the entry route stayed blank.
+    // invalidate it — so /#/samples as the entry route stayed blank. Log
+    // listings need the same nudge: one mounted before the db opened read
+    // nothing, and a no-change boot never writes.
+    invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   },
   setListing: (handles) => setListing(logDir, handles),

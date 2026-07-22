@@ -431,8 +431,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (id: ActivityRailItemId) => setRightDock(rightDock === id ? "none" : id),
     [rightDock, setRightDock]
   );
-  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
-
   // Panel width is a global preference persisted across samples and reloads,
   // shared by the Transcript and Messages tabs.
   const railPanelWidth = useStore((state) => {
@@ -846,7 +844,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
                     rightRail={hasRail ? transcriptRail : undefined}
-                    rightRailPanelScrollRef={railPanelScrollRef}
                   />
                 </div>
               )}

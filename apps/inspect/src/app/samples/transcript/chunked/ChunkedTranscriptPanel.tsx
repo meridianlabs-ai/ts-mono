@@ -114,17 +114,11 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
 
   const {
     state: timelineState,
-    layouts: timelineLayouts,
-    timeline: timelineData,
-    rootTimeMapping,
-    selectedEvents,
-    sourceSpans,
-    minimapSelection,
+    swimlanes,
+    minimap,
+    selection,
     hasTimeline,
     hasAgentTimeline,
-    regionCounts,
-    highlightedKeys,
-    selectedRowName,
   } = useTranscriptTimeline({
     events: eventsForTimeline,
     markerConfig: timelineConfig.markerConfig,
@@ -133,8 +127,8 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   });
 
   const outlineTree = useMemo(
-    () => outlineViewTree(selectedEvents, sourceSpans, hiddenTypes),
-    [selectedEvents, sourceSpans, hiddenTypes]
+    () => outlineViewTree(selection.events, selection.sourceSpans, hiddenTypes),
+    [selection.events, selection.sourceSpans, hiddenTypes]
   );
 
   const outlineCollapsed = useStore(
@@ -143,19 +137,15 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   const setCollapsedEventsStore = useStore(
     (state) => state.sampleActions.setCollapsedEvents
   );
-  const getOutlineCollapsed = useCallback(
-    (nodeId: string) => outlineCollapsed?.[nodeId] === true,
-    [outlineCollapsed]
-  );
-  const setOutlineCollapsed = useCallback(
-    (nodeId: string, collapsed: boolean) =>
-      collapseEvent(kTranscriptOutlineCollapseScope, nodeId, collapsed),
-    [collapseEvent]
-  );
-  const setOutlineCollapsedEvents = useCallback(
-    (ids: Record<string, boolean>) =>
-      setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
-    [setCollapsedEventsStore]
+  const outlineCollapse = useMemo(
+    () => ({
+      collapsed: outlineCollapsed,
+      onCollapse: (nodeId: string, collapsed: boolean) =>
+        collapseEvent(kTranscriptOutlineCollapseScope, nodeId, collapsed),
+      onSetCollapsed: (ids: Record<string, boolean>) =>
+        setCollapsedEventsStore(kTranscriptOutlineCollapseScope, ids),
+    }),
+    [outlineCollapsed, collapseEvent, setCollapsedEventsStore]
   );
 
   // TranscriptLayout's auto default: collapse when there's no agent
@@ -251,24 +241,17 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   );
   const swimlaneNavigation = useMemo(
     () => ({
+      node: timelineState.node,
       selected: timelineState.selected,
       select: handleRowSelect,
       clearSelection: () => setSelectedRow(null),
     }),
-    [timelineState.selected, handleRowSelect]
+    [timelineState.node, timelineState.selected, handleRowSelect]
   );
 
   const swimlaneHeader = useMemo(
-    () => ({
-      rootLabel: timelineData.root.name,
-      minimap: {
-        root: timelineData.root,
-        selection: minimapSelection,
-        mapping: rootTimeMapping,
-      },
-      timelineConfig,
-    }),
-    [timelineData.root, minimapSelection, rootTimeMapping, timelineConfig]
+    () => ({ minimap, timelineConfig }),
+    [minimap, timelineConfig]
   );
 
   // Outline navigation: node ids are synthetic uuids; map to ordinals.
@@ -291,12 +274,12 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
       {hasTimeline && (
         <div className={styles.swimlanes} style={{ top: offsetTop ?? 0 }}>
           <TimelineSwimLanes
-            layouts={timelineLayouts}
+            layouts={swimlanes.layouts}
             timeline={swimlaneNavigation}
             header={swimlaneHeader}
             defaultCollapsed={swimlanesDefaultCollapsed}
-            regionCounts={regionCounts}
-            highlightedKeys={highlightedKeys}
+            regionCounts={swimlanes.regionCounts}
+            highlightedKeys={swimlanes.highlightedKeys}
           />
         </div>
       )}
@@ -311,12 +294,9 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
             defaultCollapsedIds={outlineTree.defaultCollapsedIds}
             scrollRef={scrollRef}
             outlineScrollEl={outlineScrollEl}
-            agentName={selectedRowName}
+            agentName={selection.rowName}
             onNavigateToEvent={navigateToOutlineEvent}
-            getCollapsed={getOutlineCollapsed}
-            setCollapsed={setOutlineCollapsed}
-            collapsedEvents={outlineCollapsed}
-            setCollapsedEvents={setOutlineCollapsedEvents}
+            collapse={outlineCollapse}
             selectedOutlineId={selectedOutlineId}
             setSelectedOutlineId={setSelectedOutlineId}
           />

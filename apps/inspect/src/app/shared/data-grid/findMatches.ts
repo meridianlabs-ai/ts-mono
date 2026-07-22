@@ -16,10 +16,32 @@ function primitiveText(value: unknown): string | null {
 }
 
 /**
- * Search index for the grid find band: lowercased plain-text per row id,
- * built from the visible columns' `textValue` (display formatting) or raw
- * accessor value. Data-level — searches all rows, not just the virtualized
- * window. Insertion order follows `rows`, so match order is row order.
+ * One row's searchable text: lowercased plain-text built from the visible
+ * columns' `textValue` (display formatting) or raw accessor value.
+ */
+export function rowSearchText<TRow>(
+  row: TRow,
+  columns: ExtendedColumnDef<TRow>[]
+): string {
+  const parts: string[] = [];
+  for (const column of columns) {
+    let text: string | null = null;
+    if (column.textValue) {
+      text = column.textValue(row);
+    } else if ("accessorFn" in column && column.accessorFn) {
+      text = primitiveText(column.accessorFn(row, 0));
+    }
+    if (text) parts.push(text);
+  }
+  // Newline separator: never matches a typed term, so a term can't match
+  // across the boundary between adjacent columns' text.
+  return parts.join("\n").toLowerCase();
+}
+
+/**
+ * Search index for the grid find band: searchable text per row id.
+ * Data-level — searches all rows, not just the virtualized window.
+ * Insertion order follows `rows`, so match order is row order.
  */
 export function buildSearchIndex<TRow>(
   rows: TRow[],
@@ -28,19 +50,7 @@ export function buildSearchIndex<TRow>(
 ): Map<string, string> {
   const index = new Map<string, string>();
   for (const row of rows) {
-    const parts: string[] = [];
-    for (const column of columns) {
-      let text: string | null = null;
-      if (column.textValue) {
-        text = column.textValue(row);
-      } else if ("accessorFn" in column && column.accessorFn) {
-        text = primitiveText(column.accessorFn(row, 0));
-      }
-      if (text) parts.push(text);
-    }
-    // Newline separator: never matches a typed term, so a term can't match
-    // across the boundary between adjacent columns' text.
-    index.set(getRowId(row), parts.join("\n").toLowerCase());
+    index.set(getRowId(row), rowSearchText(row, columns));
   }
   return index;
 }

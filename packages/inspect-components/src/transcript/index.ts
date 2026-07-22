@@ -102,6 +102,10 @@ export {
   type TranscriptLayoutProps,
   type TranscriptLayoutOutlineProps,
   type TranscriptLayoutRightRailProps,
+  type TranscriptLayoutTimelineProps,
+  type TranscriptLayoutDeepLinkProps,
+  type TranscriptLayoutHeadroomProps,
+  type TranscriptLayoutEmptyProps,
 } from "./TranscriptLayout";
 
 // Icons
@@ -161,6 +165,7 @@ export {
 
 // Outline components
 export { TranscriptOutline } from "./outline/TranscriptOutline";
+export { buildOutlineNodeList } from "./outline/useOutlineNodes";
 export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
 export {
   useOutlineWidth,
@@ -168,6 +173,11 @@ export {
 } from "./outline/useOutlineWidth";
 
 // Timeline utilities
+export {
+  buildEventNodes,
+  useEventNodes,
+  type EventNodesResult,
+} from "./hooks/useEventNodes";
 export * from "./timeline";
 
 // Search utilities

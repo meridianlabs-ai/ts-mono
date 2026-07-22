@@ -100,12 +100,9 @@ export {
 
 // Hooks (React-dependent)
 export {
-  buildEventNodes,
   clearDeepLinkParams,
   findBranchesByBranchedFrom,
   useActiveTimeline,
-  useEventNodes,
-  type EventNodesResult,
   useTimeline,
   useTimelineConfig,
   useTimelinesArray,
