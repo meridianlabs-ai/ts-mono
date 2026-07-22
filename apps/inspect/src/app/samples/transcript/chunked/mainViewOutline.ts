@@ -51,9 +51,66 @@ export interface LegacyOutline {
   nodes: EventNode[];
 }
 
+export interface OutlineViewTree {
+  eventNodes: EventNode[];
+  defaultCollapsedIds: Record<string, true>;
+}
+
+/**
+ * The EventNode tree for a selected timeline view's collected events — the
+ * exact `TranscriptLayout.eventsForNodes` + `useEventNodes` composition.
+ * This is the shape `TranscriptOutline` consumes directly.
+ */
+export const outlineViewTree = (
+  selectedEvents: Event[],
+  sourceSpans: ReadonlyMap<string, TimelineSpan>,
+  hiddenTypes: readonly string[]
+): OutlineViewTree => {
+  const eventsForNodes = selectedEvents.filter(
+    (e) => !hiddenTypes.includes(e.event)
+  );
+  const { eventNodes, defaultCollapsedIds } = buildEventNodes(
+    eventsForNodes,
+    false,
+    sourceSpans
+  );
+  return { eventNodes, defaultCollapsedIds };
+};
+
+/**
+ * Flat outline rows for a selected view — `outlineViewTree` plus
+ * `TranscriptOutline.outlineNodeList`'s visitor/turn/scoring chain
+ * (headless twin of what the component renders; used by tests).
+ */
+export const outlineNodesForView = (
+  selectedEvents: Event[],
+  sourceSpans: ReadonlyMap<string, TimelineSpan>,
+  hiddenTypes: readonly string[]
+): EventNode[] => {
+  const { eventNodes, defaultCollapsedIds } = outlineViewTree(
+    selectedEvents,
+    sourceSpans,
+    hiddenTypes
+  );
+  const nodeList = flatTree(eventNodes, defaultCollapsedIds, [
+    removeNodeVisitor("logger"),
+    removeNodeVisitor("info"),
+    removeNodeVisitor("state"),
+    removeNodeVisitor("store"),
+    removeNodeVisitor("approval"),
+    removeNodeVisitor("input"),
+    removeNodeVisitor("sandbox"),
+    removeStepSpanNameVisitor(kSandboxSignalName),
+    noScorerChildren(),
+  ]);
+  return collapseScoring(collapseTurns(makeTurns(nodeList)));
+};
+
 /**
  * The exact outline row derivation the legacy viewer performs for an
- * at-rest sample with the default swimlane selection.
+ * at-rest sample with the default swimlane selection. Headless twin of the
+ * `useTranscriptTimeline` + `outlineNodesForView` composition the chunked
+ * panel runs (the panel's selection is interactive; this pins the default).
  */
 export const legacyOutlineNodes = (
   rawEvents: Event[],
@@ -83,30 +140,13 @@ export const legacyOutlineNodes = (
           regionIndex: parseSelection(selected)?.regionIndex ?? null,
           showBranches,
         });
-  // TranscriptLayout.eventsForNodes: the type filter applies again
-  const eventsForNodes = collected.events.filter(
-    (e) => !hiddenTypes.includes(e.event)
-  );
-  const { eventNodes, defaultCollapsedIds } = buildEventNodes(
-    eventsForNodes,
-    false,
-    collected.sourceSpans
-  );
-  // TranscriptOutline.outlineNodeList
-  const nodeList = flatTree(eventNodes, defaultCollapsedIds, [
-    removeNodeVisitor("logger"),
-    removeNodeVisitor("info"),
-    removeNodeVisitor("state"),
-    removeNodeVisitor("store"),
-    removeNodeVisitor("approval"),
-    removeNodeVisitor("input"),
-    removeNodeVisitor("sandbox"),
-    removeStepSpanNameVisitor(kSandboxSignalName),
-    noScorerChildren(),
-  ]);
   return {
     header: timeline.root.name,
-    nodes: collapseScoring(collapseTurns(makeTurns(nodeList))),
+    nodes: outlineNodesForView(
+      collected.events,
+      collected.sourceSpans,
+      hiddenTypes
+    ),
   };
 };
 
@@ -145,6 +185,17 @@ const rowLabel = (node: EventNode): string => {
   }
 };
 
+export const outlineRowsFromNodes = (
+  nodes: EventNode[],
+  ordinals: ReadonlyMap<string, number>
+): ChunkedOutlineRow[] =>
+  nodes.map((node) => ({
+    id: node.id,
+    depth: node.depth,
+    label: rowLabel(node),
+    anchor: ordinals.get(node.id),
+  }));
+
 export const chunkedOutline = (
   skeleton: SampleSkeleton,
   hiddenTypes: readonly string[]
@@ -153,11 +204,6 @@ export const chunkedOutline = (
   const { header, nodes } = legacyOutlineNodes(events, hiddenTypes);
   return {
     header,
-    rows: nodes.map((node) => ({
-      id: node.id,
-      depth: node.depth,
-      label: rowLabel(node),
-      anchor: ordinals.get(node.id),
-    })),
+    rows: outlineRowsFromNodes(nodes, ordinals),
   };
 };

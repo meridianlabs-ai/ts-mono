@@ -1,29 +1,34 @@
 /**
  * Synthesize a minimal event stream from a `SampleSkeleton`.
  *
- * The legacy transcript outline is a function of the full event list
- * (timeline main-view derivation + re-treeify + outline visitors). A chunked
+ * The legacy transcript presentation layer (timeline swimlanes, main-view
+ * selection, outline) is a function of the full event list. A chunked
  * sample never loads all events, but the skeleton carries exactly the
- * structure that pipeline consumes: the span tree, per-gap model counts,
- * persisted notables (score/checkpoint) with exact positions, and per-span
- * direct-child event-type counts. This module rebuilds a stand-in event
- * stream from that structure so the REAL pipeline (see `mainViewOutline.ts`)
- * can run unchanged — no ported twin to drift.
+ * structure that layer consumes: the span tree, per-gap model counts,
+ * persisted notables (score/checkpoint) with exact positions, per-span
+ * direct-child event-type counts, and real span timestamps. This module
+ * rebuilds a stand-in event stream from that structure so the REAL
+ * pipeline (see `app/samples/transcript/chunked/mainViewOutline.ts`) can
+ * run unchanged — no ported twin to drift.
  *
  * Fidelity contract (what is and isn't reconstructed):
  *
  * - Span/step structure, model counts per gap, and notable positions are
  *   exact — outline rows, turn counts, and scoring rows match the legacy
  *   pipeline on well-formed logs (pinned by `mainViewOutline.test.ts`).
+ * - Span/step begin and end timestamps are the real ones (skeleton `t`);
+ *   event timestamps are interpolated evenly inside their gap's real time
+ *   bounds. Ordering is faithful; sub-span timing detail is smoothed, so
+ *   time-proportional displays (swimlane bars) are approximate between
+ *   span boundaries.
  * - Non-model, non-notable direct-child events ("strays": logger, info,
- *   sandbox, tool, ...) have known counts but unknown positions; they are
- *   emitted immediately after their span's begin marker. They exist to keep
- *   `filterEmpty` survival and type-filter behavior faithful; every type
- *   whose position could produce a visible outline row of its own (score,
- *   checkpoint) is a persisted notable with an exact position. Known
- *   deviation: error/compaction/sample_limit events are strays, so their
- *   outline rows (rare) anchor at the span start rather than their true
- *   position.
+ *   sandbox, tool, ...) have known counts but unknown positions; one
+ *   representative per type is emitted at its span's begin. They exist to
+ *   keep `filterEmpty` survival and type-filter behavior faithful — no
+ *   stray type yields a per-event outline row on the default filter.
+ *   Known deviation: error/compaction/sample_limit events are strays, so
+ *   their outline rows and timeline markers (rare) collapse to one per
+ *   span, anchored at the span start rather than their true positions.
  * - Root-level plain events (e.g. a legacy log's `sample_init`, an
  *   interrupted eval's `sample_limit`) are absent: the skeleton records
  *   direct-child type counts per span only, and root notables are the only
@@ -31,9 +36,6 @@
  * - Event payloads are empty (no model input/output), so content-based
  *   utility-call detection (`wrapUtilityEvents`' system-prompt comparison)
  *   never fires. Utility model calls therefore count as ordinary turns.
- * - Timestamps are a synthetic monotonic clock in emission order — ordering
- *   is meaningful, wall time is not. Downstream consumers that display time
- *   (timeline swimlanes) must not use this stream.
  *
  * Every synthetic event carries a unique `uuid`; `ordinals` maps it to the
  * best-known index in the real event sequence for scroll anchoring (models
@@ -42,6 +44,7 @@
  */
 import type { Event } from "@tsmono/inspect-common/types";
 
+import { formatPyTimestamp, parsePyTimestamp } from "./pyTimestamp";
 import type { SampleSkeleton, SkeletonNotable, SkeletonSpan } from "./types";
 
 export interface SyntheticStream {
@@ -61,15 +64,11 @@ const isStepSpan = (span: SkeletonSpan): boolean => /^step-\d+$/.test(span.id);
 const synth = (fields: Record<string, unknown>): Event =>
   fields as unknown as Event;
 
-const BASE_MS = Date.UTC(2020, 0, 1);
-
 export const syntheticEventsFromSkeleton = (
   skel: SampleSkeleton
 ): SyntheticStream => {
   const events: Event[] = [];
   const ordinals = new Map<string, number>();
-  let clock = 0;
-  const timestamp = () => new Date(BASE_MS + ++clock * 1000).toISOString();
 
   const spans = skel.spans;
   const childSpans = new Map<number | null, number[]>();
@@ -80,11 +79,13 @@ export const syntheticEventsFromSkeleton = (
   });
   for (const notable of skel.notables) {
     const parent = notable.span ?? null;
-    spanNotables.set(parent, [
-      ...(spanNotables.get(parent) ?? []),
-      notable,
-    ]);
+    spanNotables.set(parent, [...(spanNotables.get(parent) ?? []), notable]);
   }
+
+  const beginUs = (index: number): number =>
+    parsePyTimestamp(spans[index]?.t[0] ?? "").epochUs;
+  const endUs = (index: number): number =>
+    parsePyTimestamp(spans[index]?.t[1] ?? "").epochUs;
 
   /** Nearest non-step ancestor's span id (steps have no span identity). */
   const realSpanId = (index: number | null): string | null => {
@@ -103,8 +104,8 @@ export const syntheticEventsFromSkeleton = (
     ordinals.set(uuid, ordinal);
   };
 
-  const common = (uuid: string, spanId: string | null) => ({
-    timestamp: timestamp(),
+  const common = (uuid: string, spanId: string | null, us: number) => ({
+    timestamp: formatPyTimestamp(us),
     pending: false,
     working_start: 0,
     uuid,
@@ -112,7 +113,13 @@ export const syntheticEventsFromSkeleton = (
     metadata: null,
   });
 
-  const emitModel = (spanIdx: number | null, gap: number, k: number, ordinal: number) => {
+  const emitModel = (
+    spanIdx: number | null,
+    gap: number,
+    k: number,
+    ordinal: number,
+    us: number
+  ) => {
     const uuid = `synth-model-${spanIdx ?? "root"}-${gap}-${k}`;
     push(
       synth({
@@ -120,16 +127,15 @@ export const syntheticEventsFromSkeleton = (
         model: "",
         input: [],
         output: { model: "", choices: [], usage: null },
-        ...common(uuid, realSpanId(spanIdx)),
+        ...common(uuid, realSpanId(spanIdx), us),
       }),
       uuid,
       ordinal
     );
   };
 
-  const emitNotable = (notable: SkeletonNotable) => {
+  const emitNotable = (notable: SkeletonNotable, spanId: string | null, us: number) => {
     const uuid = `synth-notable-${notable.i}`;
-    const spanId = realSpanId(notable.span ?? null);
     const fields =
       notable.type === "score"
         ? {
@@ -140,10 +146,10 @@ export const syntheticEventsFromSkeleton = (
         : notable.type === "checkpoint"
           ? { event: "checkpoint", checkpoint_id: notable.checkpoint_id }
           : { event: notable.type };
-    push(synth({ ...fields, ...common(uuid, spanId) }), uuid, notable.i);
+    push(synth({ ...fields, ...common(uuid, spanId, us) }), uuid, notable.i);
   };
 
-  const emitStrays = (spanIdx: number) => {
+  const emitStrays = (spanIdx: number, us: number) => {
     const span = spans[spanIdx];
     if (span === undefined) return;
     const notableCounts = new Map<string, number>();
@@ -156,11 +162,6 @@ export const syntheticEventsFromSkeleton = (
     const spanId = realSpanId(spanIdx);
     for (const [type, count] of Object.entries(span.children)) {
       if (type === "model") continue;
-      // One representative per type: strays exist to keep `filterEmpty`
-      // survival and type-filter behavior faithful, and no stray type
-      // yields per-event outline rows (see module docstring). Emitting
-      // true counts is pure overhead (a monster span holds 60k+ sandbox
-      // events) — capping keeps the stream proportional to the skeleton.
       if (count - (notableCounts.get(type) ?? 0) <= 0) continue;
       const uuid = `synth-stray-${spanIdx}-${type}`;
       const extra =
@@ -168,15 +169,23 @@ export const syntheticEventsFromSkeleton = (
           ? { id: uuid, function: "", agent: null, events: [], result: null }
           : {};
       push(
-        synth({ event: type, ...extra, ...common(uuid, spanId) }),
+        synth({ event: type, ...extra, ...common(uuid, spanId, us) }),
         uuid,
         span.begin + 1
       );
     }
   };
 
-  /** Emit a container's gap models + items (child spans and notables). */
-  const emitContents = (spanIdx: number | null) => {
+  /**
+   * Emit a container's gap models + items (child spans and notables).
+   *
+   * Timing: child spans carry real begin/end times; the loose points
+   * between them (gap models + notables) are spaced evenly inside the
+   * segment's real time bounds. Inverted bounds (cross-context span exits)
+   * degrade to the segment's lower bound — order still holds because
+   * `buildSpanTree`'s child sort is stable.
+   */
+  const emitContents = (spanIdx: number | null, loUs: number, hiUs: number) => {
     const span = spanIdx !== null ? spans[spanIdx] : undefined;
     const children = childSpans.get(spanIdx) ?? [];
     const notables = spanNotables.get(spanIdx) ?? [];
@@ -204,78 +213,115 @@ export const syntheticEventsFromSkeleton = (
         ? (spans[prev.index]?.extent[1] ?? prev.at) + 1
         : prev.at + 1;
     };
-    const emitGap = (g: number) => {
-      const count = gaps[g] ?? 0;
-      const ordinal = gapLowerBound(g);
-      for (let k = 0; k < count; k++) emitModel(spanIdx, g, k, ordinal);
-    };
 
-    items.forEach((item, g) => {
-      emitGap(g);
-      if (item.kind === "span") emitSpan(item.index);
-      else emitNotable(item.notable);
-    });
-    emitGap(items.length);
+    // A segment is a maximal run of loose points (gap models + notables)
+    // between two child spans (or the container bounds); points inside it
+    // share evenly interpolated timestamps.
+    let g = 0;
+    let segmentLoUs = loUs;
+    while (g <= items.length) {
+      type Point =
+        | { kind: "model"; gap: number; k: number; ordinal: number }
+        | { kind: "notable"; notable: SkeletonNotable };
+      const points: Point[] = [];
+      let nextSpan: number | undefined;
+      while (g <= items.length) {
+        const count = gaps[g] ?? 0;
+        const ordinal = gapLowerBound(g);
+        for (let k = 0; k < count; k++) {
+          points.push({ kind: "model", gap: g, k, ordinal });
+        }
+        const item = items[g];
+        g++;
+        if (item === undefined) break;
+        if (item.kind === "span") {
+          nextSpan = item.index;
+          break;
+        }
+        points.push({ kind: "notable", notable: item.notable });
+      }
+
+      const segmentHiUs =
+        nextSpan !== undefined ? beginUs(nextSpan) : hiUs;
+      const step =
+        segmentHiUs > segmentLoUs
+          ? (segmentHiUs - segmentLoUs) / (points.length + 1)
+          : 0;
+      points.forEach((point, i) => {
+        const us = Math.round(segmentLoUs + step * (i + 1));
+        if (point.kind === "model") {
+          emitModel(spanIdx, point.gap, point.k, point.ordinal, us);
+        } else {
+          emitNotable(point.notable, realSpanId(spanIdx), us);
+        }
+      });
+
+      if (nextSpan !== undefined) {
+        emitSpan(nextSpan);
+        segmentLoUs = Math.max(segmentLoUs, endUs(nextSpan));
+      }
+    }
   };
 
   const emitSpan = (spanIdx: number) => {
     const span = spans[spanIdx];
     if (span === undefined) return;
+    const loUs = beginUs(spanIdx);
+    const hiUs = endUs(spanIdx);
     const beginUuid = `synth-begin-${spanIdx}`;
     const endUuid = `synth-end-${spanIdx}`;
-    if (isStepSpan(span)) {
-      push(
-        synth({
-          event: "step",
-          action: "begin",
-          name: span.name,
-          type: span.type ?? null,
-          ...common(beginUuid, realSpanId(span.parent ?? null)),
-        }),
-        beginUuid,
-        span.begin
-      );
-      emitStrays(spanIdx);
-      emitContents(spanIdx);
-      push(
-        synth({
-          event: "step",
-          action: "end",
-          name: span.name,
-          type: span.type ?? null,
-          ...common(endUuid, realSpanId(span.parent ?? null)),
-        }),
-        endUuid,
-        span.extent[1]
-      );
-    } else {
-      push(
-        synth({
-          event: "span_begin",
-          id: span.id,
-          parent_id: realSpanId(span.parent ?? null),
-          name: span.name,
-          type: span.type ?? null,
-          ...common(beginUuid, span.id),
-        }),
-        beginUuid,
-        span.begin
-      );
-      emitStrays(spanIdx);
-      emitContents(spanIdx);
-      push(
-        synth({
-          event: "span_end",
-          id: span.id,
-          ...common(endUuid, span.id),
-        }),
-        endUuid,
-        span.extent[1]
-      );
-    }
+    const step = isStepSpan(span);
+    const stepFields = (action: "begin" | "end") => ({
+      event: "step",
+      action,
+      name: span.name,
+      type: span.type ?? null,
+    });
+    push(
+      synth(
+        step
+          ? {
+              ...stepFields("begin"),
+              ...common(beginUuid, realSpanId(span.parent ?? null), loUs),
+            }
+          : {
+              event: "span_begin",
+              id: span.id,
+              parent_id: realSpanId(span.parent ?? null),
+              name: span.name,
+              type: span.type ?? null,
+              ...common(beginUuid, span.id, loUs),
+            }
+      ),
+      beginUuid,
+      span.begin
+    );
+    emitStrays(spanIdx, loUs);
+    emitContents(spanIdx, loUs, hiUs);
+    push(
+      synth(
+        step
+          ? {
+              ...stepFields("end"),
+              ...common(endUuid, realSpanId(span.parent ?? null), hiUs),
+            }
+          : {
+              event: "span_end",
+              id: span.id,
+              ...common(endUuid, span.id, hiUs),
+            }
+      ),
+      endUuid,
+      span.extent[1]
+    );
   };
 
-  emitContents(null);
+  const rootLoUs = spans.length > 0 ? beginUs(0) : 0;
+  const rootHiUs = spans.reduce(
+    (acc, _, index) => Math.max(acc, endUs(index)),
+    rootLoUs
+  );
+  emitContents(null, rootLoUs, rootHiUs);
 
   return { events, ordinals };
 };
