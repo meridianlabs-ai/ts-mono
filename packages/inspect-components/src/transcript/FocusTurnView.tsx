@@ -15,6 +15,7 @@ import { isEditableTarget } from "@tsmono/util";
 import styles from "./FocusTurnView.module.css";
 import { GoToTurnBar } from "./GoToTurnBar";
 import type { FocusTurnNavigation } from "./hooks/useFocusTurnNavigation";
+import selectorStyles from "./timeline/components/TimelineSelector.module.css";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import type { EventPanelCallbacks } from "./types";
 
@@ -186,7 +187,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
                   <button
                     ref={laneButtonRef}
                     type="button"
-                    className={styles.crumbButton}
+                    className={selectorStyles.selectorButton}
                     title="Select agent"
                     aria-label={`Select agent (current: ${crumb.label})`}
                     aria-haspopup="listbox"
@@ -194,7 +195,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
                     onClick={() => setLaneMenuOpen((open) => !open)}
                   >
                     {crumb.label}
-                    <i className={clsx(kChevronDown, styles.pickerCaret)} />
+                    <i className={clsx(kChevronDown, selectorStyles.chevron)} />
                   </button>
                 ) : isLast ? (
                   <span className={styles.laneName}>{crumb.label}</span>
