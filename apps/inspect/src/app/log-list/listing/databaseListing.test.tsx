@@ -321,6 +321,34 @@ describe("useDatabaseLogsListingQuery", () => {
     );
   });
 
+  test("keeps loading through an offset across query-input identity churn", async () => {
+    holder.records = [
+      ...records,
+      { name: "/logs/c.eval", model: "gpt-5" },
+      { name: "/logs/d.eval", model: "gpt-5" },
+    ];
+    pageByOne();
+
+    const orderBy = () => [{ column: "name", direction: "ASC" as const }];
+    const { result, rerender } = renderHook(
+      (props) => useDatabaseLogsListingQuery<Row>(props),
+      { wrapper, initialProps: listingParams({ orderBy: orderBy() }) }
+    );
+    await waitFor(() =>
+      expect(result.current.result.data?.items.length).toBe(1)
+    );
+
+    act(() => result.current.ensureOffsetLoaded(3));
+    // A grid-state patch re-derives filter/orderBy with fresh identities but
+    // equal values (e.g. persisting a selection as the find band closes) —
+    // the pending request is keyed by value, so it must keep chaining.
+    rerender(listingParams({ orderBy: orderBy() }));
+
+    await waitFor(() =>
+      expect(result.current.result.data?.items.length).toBe(4)
+    );
+  });
+
   test("keeps retained rows through a failed read, reporting the error beside them", async () => {
     pageByOne();
     const { result } = renderHook(

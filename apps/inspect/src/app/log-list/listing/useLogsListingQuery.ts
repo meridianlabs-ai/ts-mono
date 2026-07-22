@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { hashKey, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import type { InfiniteData } from "@tanstack/react-query";
 import type { SortingState } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -173,13 +173,21 @@ export function useDatabaseLogsListingQuery<TRow>({
   listing,
 }: UseDatabaseLogsListingParams<TRow>): DatabaseLogsListing<TRow> {
   const { logDir, prefix, universe, toRow } = listing;
+  const queryKey = useMemo(
+    () => databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
+    [universe, accessorsKey, filter, orderBy]
+  );
+  // The pending ensure-offset request, tagged with the query it was issued
+  // against by key *value* (react-query's own hash), not input references:
+  // `filter`/`orderBy` get fresh identities from unrelated grid-state
+  // patches (e.g. persisting a selection re-derives `sorting ?? []`), and a
+  // reference guard would cancel an in-flight load-through over a no-op
+  // change.
   const [offsetRequest, setOffsetRequest] = useState<{
     offset: number;
-    universe: string | undefined;
-    accessorsKey: string;
-    filter: Condition | undefined;
-    orderBy: OrderByModel[] | undefined;
+    keyHash: string;
   }>();
+  const queryKeyHash = useMemo(() => hashKey(queryKey), [queryKey]);
 
   // Flatten the page window into the result shape consumers already read.
   // Every page reports the snapshot's total_count; page 0 is the freshest
@@ -209,7 +217,7 @@ export function useDatabaseLogsListingQuery<TRow>({
     isFetching,
     isPlaceholderData,
   } = useInfiniteQuery({
-    queryKey: databaseLogsListingKey(universe, accessorsKey, filter, orderBy),
+    queryKey,
     queryFn: ({
       pageParam,
     }: {
@@ -272,49 +280,50 @@ export function useDatabaseLogsListingQuery<TRow>({
   const ensureOffsetLoaded = useCallback(
     (offset: number) => {
       if (!Number.isInteger(offset) || offset < 0) return;
-      setOffsetRequest({
-        offset,
-        universe,
-        accessorsKey,
-        filter,
-        orderBy,
-      });
+      setOffsetRequest({ offset, keyHash: queryKeyHash });
     },
-    [universe, accessorsKey, filter, orderBy]
+    [queryKeyHash]
   );
+
+  // The first snapshot offset the loaded pages don't cover (`next_cursor`
+  // indexes the snapshot key list): `Infinity` once the whole snapshot is
+  // loaded, `undefined` until the key's own data lands — a placeholder is
+  // another query's window, so coverage must never be read off it. Also
+  // the effect's progress trigger: booleans like "covered" can hold their
+  // value across a fast page fetch and stall the chain.
+  const uncoveredFrom =
+    data === undefined || isPlaceholderData
+      ? undefined
+      : (data.next_cursor?.offset ?? Infinity);
+
+  // Render-time state adjustment (not an effect — see the React docs'
+  // setState-during-render form): drop a request that is stale (issued
+  // against another query — it must not resume if that query's inputs
+  // recur, e.g. a scope switch and back) or satisfied (a later snapshot
+  // rebuild could otherwise re-activate it long after Find moved on). A
+  // settled error keeps the request: an invalidation may heal the query,
+  // and the effect below then resumes the chain.
+  if (
+    offsetRequest !== undefined &&
+    (offsetRequest.keyHash !== queryKeyHash ||
+      (uncoveredFrom !== undefined && uncoveredFrom > offsetRequest.offset))
+  ) {
+    setOffsetRequest(undefined);
+  }
 
   useEffect(() => {
     if (
       offsetRequest === undefined ||
-      offsetRequest.universe !== universe ||
-      offsetRequest.accessorsKey !== accessorsKey ||
-      offsetRequest.filter !== filter ||
-      offsetRequest.orderBy !== orderBy ||
-      data === undefined ||
-      isPlaceholderData ||
+      uncoveredFrom === undefined ||
+      uncoveredFrom > offsetRequest.offset ||
       isFetching ||
       isError
     ) {
       return;
     }
-    // `next_cursor` is the first snapshot offset not covered by the loaded
-    // pages. A missing cursor means the whole snapshot is already loaded.
-    const nextOffset = data.next_cursor?.offset;
-    if (nextOffset === undefined || nextOffset > offsetRequest.offset) return;
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fetchNextPage({ cancelRefetch: false });
-  }, [
-    offsetRequest,
-    universe,
-    accessorsKey,
-    filter,
-    orderBy,
-    data,
-    isPlaceholderData,
-    isFetching,
-    isError,
-    fetchNextPage,
-  ]);
+  }, [offsetRequest, uncoveredFrom, isFetching, isError, fetchNextPage]);
 
   // Prefer retained rows over a settled error (`error` still reports beside
   // them): replacing a rendered list because one refetch failed would lose
