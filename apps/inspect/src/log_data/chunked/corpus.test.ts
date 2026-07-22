@@ -17,7 +17,7 @@ import { hydrateFinalConversation } from "../chunkedMessages";
 
 import { openChunkedSample, type ChunkedSample } from "./chunkedSample";
 import { decodeRange, type DecodeCtx } from "./decode";
-import { chunkStarts, classifySampleShape } from "./format";
+import { classifySampleShape } from "./format";
 import { RowSpace } from "./rowSpace";
 import { sampleSkeleton } from "./skeleton";
 
@@ -83,28 +83,32 @@ describe("chunked corpus", () => {
       );
       const sample = await log.open(ref);
 
-      // every chunk named in the shell's boundaries exists in the directory
-      for (const [sequence, boundaries] of Object.entries(
-        sample.shell.sequences
-      )) {
-        for (const start of chunkStarts(boundaries)) {
-          expect(log.entryNames).toContain(
-            `samples/${ref.id}_epoch_${ref.epoch}/${sequence}/${start}.json`
-          );
+      // chunks recovered from entry names are contiguous and complete:
+      // each chunk's name is the index of its first item
+      for (const reader of [sample.messages, sample.calls]) {
+        let itemCount = 0;
+        for (let c = 0; c < reader.starts.length; c++) {
+          expect(reader.starts[c]).toBe(itemCount);
+          itemCount += (await reader.loadChunk(c)).length;
         }
       }
 
-      // full reassembly matches the sample totals
-      const events = await sample.events.getRange(0, sample.events.count);
-      expect(events.length).toBe(sample.events.count);
+      // full reassembly matches the sample totals (the events count is
+      // exact from the stats sidecar; message_refs bound the messages)
+      const events = await sample.events.getRange(0, sample.events.knownCount);
+      expect(events.length).toBe(sample.events.knownCount);
       expect(events.length).toBe(sample.skeleton.counts.events);
-      const messages = await sample.messages.getRange(0, sample.messages.count);
-      expect(messages.length).toBe(sample.messages.count);
+      const messages = await sample.messages.getRange(
+        0,
+        Number.MAX_SAFE_INTEGER
+      );
+      const lastStart = sample.messages.starts.at(-1);
+      if (lastStart !== undefined) {
+        expect(messages.length).toBeGreaterThan(lastStart);
+      }
 
       // the stats sidecar is a pure function of the chunking
-      expect(sample.stats.length).toBe(
-        sample.events.count === 0 ? 0 : sample.shell.sequences.events.length
-      );
+      expect(sample.stats.length).toBe(sample.events.starts.length);
       sample.stats.forEach((chunkStats, c) => {
         const [lo, hi] = sample.events.chunkBounds(c);
         expect(chunkStats.start).toBe(lo);
@@ -208,7 +212,7 @@ describe("chunked corpus", () => {
       const filtered = await decodeRange(
         decodeCtx(sample, new Set(), (type) => type === "no_such_type"),
         0,
-        sample.events.count,
+        sample.events.knownCount,
         false
       );
       expect(filtered.every((row) => row.kind !== "event")).toBe(true);

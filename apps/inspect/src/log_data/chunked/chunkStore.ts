@@ -8,7 +8,7 @@
  * callers). `SequenceReader` layers chunk math + JSON parsing + `getRange`
  * over it for one sequence.
  */
-import { at, chunkIndexOf, chunkStarts, sequenceCount } from "./format";
+import { at, chunkIndexOf } from "./format";
 import { log } from "./log";
 
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)}KB`;
@@ -97,31 +97,34 @@ const decoder = new TextDecoder();
 const PARSED_CHUNK_CAP = 32;
 
 /**
- * Random access over one chunked sequence: index→chunk resolution from the
- * shell's boundaries, JSON parse on top of the byte store, and half-open
- * `getRange`. A small parsed-chunk LRU absorbs the walk's re-reads; the
- * byte store below makes cap misses a re-parse, not a re-download.
+ * Random access over one chunked sequence: index→chunk resolution from
+ * central-directory chunk starts, JSON parse on top of the byte store, and
+ * half-open `getRange`. A small parsed-chunk LRU absorbs the walk's
+ * re-reads; the byte store below makes cap misses a re-parse, not a
+ * re-download.
  */
 export class SequenceReader<T> {
-  readonly starts: number[];
-  readonly ends: number[];
-  readonly count: number;
   private parsed = new Map<number, Promise<T[]>>();
 
   constructor(
     private bytes: ChunkByteStore,
     private entryNameFor: (start: number) => string,
-    boundaries: readonly number[],
+    /** Ascending chunk start indexes (from `sequenceChunkStarts`). */
+    readonly starts: readonly number[],
+    /**
+     * Exact item count when known — the events reader derives it from the
+     * stats sidecar. Undefined otherwise: the format persists no sequence
+     * counts (chunk starts come from entry names), so an unknown count is
+     * only learnable by parsing the last chunk. In-range `getRange` calls
+     * never depend on it.
+     */
+    readonly count: number | undefined,
     /**
      * Optional per-chunk post-parse transform (e.g. attachment-ref
      * resolution), applied once per parsed chunk and cached with it.
      */
     private transform?: (items: T[], start: number) => Promise<T[]>
-  ) {
-    this.starts = chunkStarts(boundaries);
-    this.ends = [...boundaries];
-    this.count = sequenceCount(boundaries);
-  }
+  ) {}
 
   /** A reader over the same chunks with `transform` applied post-parse. */
   withTransform(
@@ -130,9 +133,18 @@ export class SequenceReader<T> {
     return new SequenceReader(
       this.bytes,
       this.entryNameFor,
-      this.ends,
+      this.starts,
+      this.count,
       transform
     );
+  }
+
+  /** Exact count (coding error to read on a count-less sequence). */
+  get knownCount(): number {
+    if (this.count === undefined) {
+      throw new Error("sequence count unknown (no stats-backed count)");
+    }
+    return this.count;
   }
 
   /** Index of the chunk holding item `i`: greatest start ≤ i. */
@@ -140,8 +152,14 @@ export class SequenceReader<T> {
     return chunkIndexOf(this.starts, i);
   }
 
+  /**
+   * `[start, end_exclusive)` of a chunk. The last chunk's end is the
+   * sequence count — coding error on a count-less sequence (bounds
+   * consumers are events-side, where stats supply the count).
+   */
   chunkBounds(chunkIdx: number): [number, number] {
-    return [at(this.starts, chunkIdx), at(this.ends, chunkIdx)];
+    const start = at(this.starts, chunkIdx);
+    return [start, this.starts[chunkIdx + 1] ?? this.knownCount];
   }
 
   loadChunk(chunkIdx: number): Promise<T[]> {
@@ -183,11 +201,17 @@ export class SequenceReader<T> {
     return pending;
   }
 
-  /** Items `[lo, hi)` — fetches the covering chunks in parallel. */
+  /**
+   * Items `[lo, hi)` — fetches the covering chunks in parallel. When the
+   * count is unknown, an out-of-range `hi` is clamped by the data itself
+   * (the last chunk yields what it holds).
+   */
   async getRange(lo: number, hi: number): Promise<T[]> {
     lo = Math.max(0, lo);
-    hi = Math.min(hi, this.count);
-    if (hi <= lo) {
+    if (this.count !== undefined) {
+      hi = Math.min(hi, this.count);
+    }
+    if (hi <= lo || this.starts.length === 0) {
       return [];
     }
     const firstChunk = this.chunkIndexOf(lo);

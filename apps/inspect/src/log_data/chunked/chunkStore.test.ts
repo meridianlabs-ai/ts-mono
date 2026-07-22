@@ -69,27 +69,39 @@ describe("ChunkByteStore", () => {
 });
 
 describe("SequenceReader", () => {
-  const reader = (entries: Record<string, unknown>, boundaries: number[]) =>
+  const reader = (
+    entries: Record<string, unknown>,
+    starts: number[],
+    count?: number
+  ) =>
     new SequenceReader<number>(
       new ChunkByteStore(jsonSource(entries)),
       (start) => `${start}.json`,
-      boundaries
+      starts,
+      count
     );
 
+  const entries = { "0.json": [0, 1, 2], "3.json": [3, 4, 5], "6.json": [6] };
+
   it("ranges across chunk boundaries", async () => {
-    const numbers = reader(
-      { "0.json": [0, 1, 2], "3.json": [3, 4, 5], "6.json": [6] },
-      [3, 6, 7]
-    );
+    const numbers = reader(entries, [0, 3, 6], 7);
     expect(await numbers.getRange(1, 5)).toStrictEqual([1, 2, 3, 4]);
     expect(await numbers.getRange(0, 7)).toStrictEqual([0, 1, 2, 3, 4, 5, 6]);
     expect(await numbers.getRange(6, 99)).toStrictEqual([6]);
     expect(await numbers.getRange(5, 5)).toStrictEqual([]);
   });
 
+  it("ranges without a known count (data-clamped)", async () => {
+    const numbers = reader(entries, [0, 3, 6]);
+    expect(numbers.count).toBeUndefined();
+    expect(await numbers.getRange(1, 5)).toStrictEqual([1, 2, 3, 4]);
+    expect(await numbers.getRange(6, 99)).toStrictEqual([6]);
+  });
+
   it("handles empty sequences", async () => {
     const empty = reader({}, []);
-    expect(empty.count).toBe(0);
+    expect(empty.count).toBeUndefined();
     expect(await empty.getRange(0, 10)).toStrictEqual([]);
+    expect(await reader({}, [], 0).getRange(0, 10)).toStrictEqual([]);
   });
 });

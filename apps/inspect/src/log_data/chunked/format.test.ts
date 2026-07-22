@@ -3,10 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   chunkEntryName,
   chunkIndexOf,
-  chunkStarts,
   classifySampleShape,
   monolithEntryName,
-  sequenceCount,
+  sequenceChunkStarts,
   shellEntryName,
   skeletonEntryName,
   statsEntryName,
@@ -35,11 +34,24 @@ describe("entry naming", () => {
 });
 
 describe("chunk math", () => {
-  it("derives starts from cumulative boundaries", () => {
-    expect(chunkStarts([1000, 2000, 2210])).toStrictEqual([0, 1000, 2000]);
-    expect(chunkStarts([])).toStrictEqual([]);
-    expect(sequenceCount([1000, 2000, 2210])).toBe(2210);
-    expect(sequenceCount([])).toBe(0);
+  it("recovers chunk starts from central-directory entry names", () => {
+    const names = new Set([
+      "samples/a_epoch_1/sample.json",
+      "samples/a_epoch_1/events/1000.json",
+      "samples/a_epoch_1/events/0.json",
+      "samples/a_epoch_1/events/stats.json",
+      "samples/a_epoch_1/messages/0.json",
+      "samples/a_epoch_1/attachments/812.json.bak",
+      "samples/aa_epoch_1/events/0.json",
+    ]);
+    // numeric stems only, sorted numerically; stats.json and foreign
+    // prefixes are excluded
+    expect(sequenceChunkStarts(names, "a", 1, "events")).toStrictEqual([
+      0, 1000,
+    ]);
+    expect(sequenceChunkStarts(names, "a", 1, "messages")).toStrictEqual([0]);
+    expect(sequenceChunkStarts(names, "a", 1, "attachments")).toStrictEqual([]);
+    expect(sequenceChunkStarts(names, "a", 1, "calls")).toStrictEqual([]);
   });
 
   it("resolves index to chunk (greatest start ≤ i)", () => {

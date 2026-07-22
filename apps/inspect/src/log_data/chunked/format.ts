@@ -2,10 +2,13 @@
  * Entry naming and chunk math for the chunked per-sample log format — the TS
  * twin of inspect_ai's `log/_recorders/chunked/format.py`.
  *
- * Chunking is writer policy, not format: readers infer chunk extents from
- * entry names plus the shell's `sequences` boundaries. Chunk entries are
- * named by the index of their first item only; every range is half-open
- * `[start, end_exclusive)`.
+ * Chunking is writer policy, not format: the central directory's entry
+ * names are the only persisted record of the chunk layout. Chunk entries
+ * are named by the index of their first item only; every range is
+ * half-open `[start, end_exclusive)`. A chunk's extent is the next
+ * chunk's start; the last chunk's end (the sequence count) is learned by
+ * parsing it — for events it's also the sum of the stats sidecar's
+ * per-chunk type counts.
  */
 import type { SequenceName } from "./types";
 
@@ -62,15 +65,28 @@ export const classifySampleShape = (
       : undefined;
 
 /**
- * Chunk start indexes for a sequence, from the shell's cumulative
- * end-exclusive `boundaries`. Empty sequences have no chunks.
+ * Chunk start indexes for a sequence, recovered from central-directory
+ * entry names. Ascending; empty sequences have no chunk entries at all.
+ * Non-numeric stems are skipped (`events/` also holds `stats.json`).
  */
-export const chunkStarts = (boundaries: readonly number[]): number[] =>
-  boundaries.length === 0 ? [] : [0, ...boundaries.slice(0, -1)];
-
-/** Total item count for a sequence. */
-export const sequenceCount = (boundaries: readonly number[]): number =>
-  boundaries.at(-1) ?? 0;
+export const sequenceChunkStarts = (
+  entryNames: ReadonlySet<string>,
+  id: string | number,
+  epoch: number,
+  sequence: SequenceName
+): number[] => {
+  const prefix = `${samplePrefix(id, epoch)}/${sequence}/`;
+  const starts: number[] = [];
+  for (const name of entryNames) {
+    if (name.startsWith(prefix) && name.endsWith(".json")) {
+      const stem = name.slice(prefix.length, -".json".length);
+      if (/^\d+$/.test(stem)) {
+        starts.push(Number(stem));
+      }
+    }
+  }
+  return starts.sort((a, b) => a - b);
+};
 
 /** Bounds-checked index (an out-of-range index is a coding error). */
 export const at = <T>(items: readonly T[], i: number): T => {
@@ -83,7 +99,7 @@ export const at = <T>(items: readonly T[], i: number): T => {
 
 /**
  * Index of the chunk holding item `i`: greatest start ≤ i (binary search
- * over ascending starts). Callers must ensure `0 ≤ i < sequenceCount`.
+ * over ascending starts). Callers must ensure `0 ≤ i <` the sequence count.
  */
 export const chunkIndexOf = (starts: readonly number[], i: number): number => {
   let lo = 0;

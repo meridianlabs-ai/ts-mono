@@ -43,11 +43,7 @@ const chunkedSampleQueryKey = (
   ] as const;
 
 const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
-  const {
-    sequences: _sequences,
-    message_refs: _messageRefs,
-    ...shell
-  } = chunked.shell;
+  const { message_refs: _messageRefs, ...shell } = chunked.shell;
   // The shell is the EvalSample serialization minus the four sequences and
   // metadata (design/large-samples.md, "Chunked on-disk layout") — the same
   // parse-boundary lift as remoteLogFile's `readJSONFile(...) as EvalSample`.

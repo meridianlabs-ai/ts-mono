@@ -15,6 +15,7 @@ import {
 import {
   chunkEntryName,
   metadataEntryName,
+  sequenceChunkStarts,
   shellEntryName,
   skeletonEntryName,
   statsEntryName,
@@ -62,8 +63,9 @@ const readJson = async <T>(
 
 /**
  * Open a chunked sample. `entryNames` is the log's central-directory name
- * set (used only to detect the optional metadata entry); the three parsed
- * artifacts — shell, skeleton, stats — are fetched in parallel.
+ * set — the persisted chunk layout (per-sequence starts) plus optional
+ * metadata detection; the three parsed artifacts — shell, skeleton,
+ * stats — are fetched in parallel.
  */
 export const openChunkedSample = async (
   source: EntryByteSource,
@@ -78,14 +80,24 @@ export const openChunkedSample = async (
     readJson<EventStats>(source, statsEntryName(id, epoch)),
   ]);
 
+  // the exact events count: sequence counts are not persisted, but the
+  // stats sidecar's per-chunk type counts sum to it
+  const eventsCount = stats.chunks.reduce(
+    (n, chunk) =>
+      n + Object.values(chunk.type_counts).reduce((a, b) => a + b, 0),
+    0
+  );
+
   const bytes = new ChunkByteStore(source, byteBudget);
   const reader = <T>(
-    sequence: "messages" | "events" | "calls" | "attachments"
+    sequence: "messages" | "events" | "calls" | "attachments",
+    count?: number
   ) =>
     new SequenceReader<T>(
       bytes,
       (start) => chunkEntryName(id, epoch, sequence, start),
-      shell.sequences[sequence] ?? []
+      sequenceChunkStarts(entryNames, id, epoch, sequence),
+      count
     );
 
   const metadataEntry = metadataEntryName(id, epoch);
@@ -94,7 +106,7 @@ export const openChunkedSample = async (
     skeleton,
     skel: new SkeletonIndex(skeleton),
     stats: stats.chunks,
-    events: reader<ChunkedEvent>("events"),
+    events: reader<ChunkedEvent>("events", eventsCount),
     messages: reader<ChatMessage>("messages"),
     calls: reader<unknown>("calls"),
     attachments: reader<string>("attachments"),
