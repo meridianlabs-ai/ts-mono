@@ -978,10 +978,27 @@ export class FetchEngine {
     ) {
       return;
     }
-    this.queuePreviewBackfill(this._handles, rows, [], {
+    // Settled fetches whose writes are still staged on the throttled flush
+    // aren't in the store rows yet — count them at their settled depth
+    // (buffers read after the await, so settles landing mid-read count
+    // too), or a tick in the flush window re-fetches the batch that just
+    // completed.
+    const effective = rows.map((row): Log => {
+      if (this._pendingDetailWrites[row.name] !== undefined) {
+        return row.depth === "detailed" ? row : { ...row, depth: "detailed" };
+      }
+      if (
+        this._pendingPreviewWrites[row.name] !== undefined &&
+        row.depth === "listed"
+      ) {
+        return { ...row, depth: "previewed" };
+      }
+      return row;
+    });
+    this.queuePreviewBackfill(this._handles, effective, [], {
       refreshStarted: false,
     });
-    this.queueDetailBackfill(this._handles, rows, [], {
+    this.queueDetailBackfill(this._handles, effective, [], {
       refreshStarted: false,
     });
     // Claims are removed from the queue the moment a worker picks them up

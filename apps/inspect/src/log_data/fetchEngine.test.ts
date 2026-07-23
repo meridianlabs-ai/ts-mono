@@ -2056,6 +2056,68 @@ describe("syncListing backfill re-arm (no-change syncs)", () => {
     expect(fake.detailCalls).toEqual([]);
   });
 
+  it("a no-change sync does not re-fetch settled results still staged in the throttled flush buffers", async () => {
+    // Background settles stage their writes on a throttled flush, so a tick
+    // landing in that window reads pre-settle depths from the store; the
+    // just-completed batch must not re-derive as missing.
+    const rows = [
+      previewedRow(handle("a.eval", 10)),
+      previewedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi({ gated: true });
+    const api = emptyIncremental(fake);
+    const db = createFakeDb(rows);
+    const { sink, calls } = createFakeSink(db);
+    // Relay detail persistence into the fake db's row depth (production
+    // writeDetails lands depth in the store; the shared fake only mirrors
+    // the cache) so flushed writes converge and only the staged one is at
+    // stake.
+    const persistingSink: LogsContentSink = {
+      ...sink,
+      writeDetails: async (details) => {
+        await sink.writeDetails(details);
+        await db.writeFetchStates(
+          Object.fromEntries(
+            Object.keys(details).map((name) => [
+              name,
+              { depth: "detailed" } as unknown as LogFetchState,
+            ])
+          )
+        );
+      },
+    };
+    const { engine } = await createEngine(
+      { api, database: db, sink: persistingSink },
+      // Hold the throttle window open: the leading flush consumes the first
+      // settle, the second stays staged for the rest of the test.
+      { flushDelayMs: 60_000 }
+    );
+
+    await syncListing(api, engine);
+    await vi.waitFor(() => expect(fake.gates.length).toBe(2));
+
+    // First settle flushes immediately (leading edge) and lands in the db.
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(async () => {
+      expect(calls.writeDetails.length).toBe(1);
+      expect((await db.readLogRow("a.eval"))?.depth).toBe("detailed");
+    });
+
+    // Second settle stages on the trailing timer: buffered, db still
+    // pre-settle.
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    await tick();
+    expect(calls.writeDetails.length).toBe(1);
+    expect((await db.readLogRow("b.eval"))?.depth).toBe("previewed");
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.detailCalls.length).toBe(2);
+    expect(fake.summaryCalls).toEqual([]);
+  });
+
   it("a later no-change sync retries a settled backfill failure", async () => {
     const fake = createFakeApi({ failFor: ["a.eval"] });
     const api = emptyIncremental(fake);
