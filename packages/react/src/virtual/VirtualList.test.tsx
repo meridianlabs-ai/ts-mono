@@ -479,4 +479,23 @@ describe("VirtualList persist flush on unmount", () => {
     vi.advanceTimersByTime(1000);
     expect(store.get("flush-list::snapshot")).toBeUndefined();
   });
+
+  it("cancels the pending initial-scroll frame on unmount (shared container)", () => {
+    // The mount-time initial scroll is scheduled on a rAF that closes over
+    // the shared scroll container; the container outlives the list, so a
+    // frame surviving unmount would reset whatever view owns it next back
+    // to the top (same contract as the finish timer above).
+    const scrollRef = createRef<HTMLDivElement>();
+    const { unmount } = mountWithStore(scrollRef);
+    const el = scrollRef.current!;
+    // Do NOT advance timers: the initial-scroll frame is still pending.
+    Object.defineProperty(el, "scrollTop", {
+      value: 300,
+      configurable: true,
+      writable: true,
+    });
+    unmount();
+    vi.advanceTimersByTime(50);
+    expect(el.scrollTop).toBe(300);
+  });
 });

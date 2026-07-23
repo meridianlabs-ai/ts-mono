@@ -466,14 +466,18 @@ export function VirtualList<T>({
     const el = getScrollElement();
     if (!el) return;
     const snapshot = getRestoreSnapshot();
-    requestAnimationFrame(() => {
+    // Cancelled on cleanup — the shared container outlives this list, and a
+    // frame surviving unmount (or a key change) would scroll it under
+    // whatever view owns it next, with stale closures.
+    let releaseFrame = 0;
+    const frame = requestAnimationFrame(() => {
       // Flag programmatic scrolls so the scroll listeners don't mistake them
       // for user scrolls (which would block restore / persist a bogus offset).
       isAutoScrollingRef.current = true;
       // Release the guard a frame after the last programmatic scroll.
       const release = () => {
         lastAutoScrollTopRef.current = el.scrollTop;
-        requestAnimationFrame(() => {
+        releaseFrame = requestAnimationFrame(() => {
           isAutoScrollingRef.current = false;
         });
       };
@@ -515,6 +519,16 @@ export function VirtualList<T>({
         release();
       }
     });
+    return () => {
+      cancelAnimationFrame(frame);
+      if (releaseFrame) {
+        cancelAnimationFrame(releaseFrame);
+        // The one-shot hasInitialScrolledRef means no later run releases the
+        // guard — drop it here or scroll persistence stays disabled for the
+        // rest of the mount.
+        isAutoScrollingRef.current = false;
+      }
+    };
   }, [
     persistenceKey,
     initialIndex,
