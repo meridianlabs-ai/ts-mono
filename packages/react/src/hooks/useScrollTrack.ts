@@ -1,4 +1,11 @@
-import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import {
+  RefObject,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 // How far (px) below the detection line an element's top may sit and still
 // count as "reached the top", so a jump/scroll that lands a hair short registers
@@ -76,7 +83,30 @@ export function useScrollTrack(
   const currentVisibleRef = useRef<string | null>(null);
   const lastCheckRef = useRef<number>(0);
   const rafRef = useRef<number | null>(null);
-  const elementIdSet = useMemo(() => new Set(elementIds), [elementIds]);
+
+  // Some consumers rebuild the ids array every render; keying the Set and
+  // the subscription effect on array identity would tear down and re-register
+  // the scroll listener + interval per render (starving the interval under
+  // streaming re-renders). Keep the previous array while the CONTENT is equal
+  // (render-phase adjust, before paint), so a stableIds identity change IS a
+  // content change.
+  const [stableIds, setStableIds] = useState(elementIds);
+  if (
+    stableIds !== elementIds &&
+    (stableIds.length !== elementIds.length ||
+      stableIds.some((id, i) => id !== elementIds[i]))
+  ) {
+    setStableIds(elementIds);
+  }
+  const elementIdSet = useMemo(() => new Set(stableIds), [stableIds]);
+
+  // Latest-value ref so an inline consumer callback doesn't churn the
+  // subscription, and interval/scroll fires never report through a stale
+  // closure.
+  const onElementVisibleRef = useRef(onElementVisible);
+  useEffect(() => {
+    onElementVisibleRef.current = onElementVisible;
+  });
 
   const findTopmostVisibleElement = useCallback(() => {
     const container = scrollRef?.current;
@@ -141,10 +171,10 @@ export function useScrollTrack(
     if (topmostId !== currentVisibleRef.current) {
       currentVisibleRef.current = topmostId;
       if (topmostId) {
-        onElementVisible(topmostId);
+        onElementVisibleRef.current(topmostId);
       }
     }
-  }, [findTopmostVisibleElement, onElementVisible, options?.checkInterval]);
+  }, [findTopmostVisibleElement, options?.checkInterval]);
 
   const handleScroll = useCallback(() => {
     if (rafRef.current !== null) {
@@ -157,31 +187,25 @@ export function useScrollTrack(
     });
   }, [checkVisibility]);
 
-  // The elementIds CONTENT the last report was issued against. When the
-  // tracked set changes (collapse/filter), consumers that derive state from
+  // The stableIds the last report was issued against. When the tracked set
+  // genuinely changes (collapse/filter), consumers that derive state from
   // the id AND the array (e.g. the transcript maps the top event to a
   // turn-anchor index) need a fresh report even if the SAME element is still
   // on top — so drop the cached current id and the throttle stamp, letting
-  // the effect's synchronous check below re-report. Compared by content, not
-  // identity: some consumers rebuild the array every render, and an identity
-  // reset would bypass the throttle into rect reads (forced layout) per
-  // render. A single re-check, not a retry loop: fresh mounts keep their
-  // existing single checkVisibility, and the scroll listener and interval
-  // remain the fallback for rows that haven't mounted yet.
+  // the effect's synchronous check below re-report. stableIds identity IS
+  // content equality (see above), so a plain identity compare suffices. A
+  // single re-check, not a retry loop: fresh mounts keep their existing
+  // single checkVisibility, and the scroll listener and interval remain the
+  // fallback for rows that haven't mounted yet.
   const reportedIdsRef = useRef<string[] | null>(null);
 
   useEffect(() => {
-    if (elementIds.length === 0) return;
+    if (stableIds.length === 0) return;
 
     const scrollElement = scrollRef?.current || window;
 
-    const prevIds = reportedIdsRef.current;
-    const idsChanged =
-      prevIds === null ||
-      prevIds.length !== elementIds.length ||
-      prevIds.some((id, i) => id !== elementIds[i]);
-    if (idsChanged) {
-      reportedIdsRef.current = elementIds;
+    if (reportedIdsRef.current !== stableIds) {
+      reportedIdsRef.current = stableIds;
       currentVisibleRef.current = null;
       lastCheckRef.current = 0;
     }
@@ -198,5 +222,5 @@ export function useScrollTrack(
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [elementIds, scrollRef, handleScroll, checkVisibility]);
+  }, [stableIds, scrollRef, handleScroll, checkVisibility]);
 }

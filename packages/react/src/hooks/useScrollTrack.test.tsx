@@ -133,6 +133,68 @@ describe("useScrollTrack tracked-set changes", () => {
   });
 });
 
+function ChurnHarness({
+  ids,
+  onVisible,
+}: {
+  ids: string[];
+  onVisible: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  // Fresh array AND fresh inline callback on every render — the shape of a
+  // consumer that maps ids from its nodes and inlines its handler.
+  useScrollTrack([...ids], (id) => onVisible(id), ref, {
+    checkInterval: 0,
+    advanceDetectionPointAtEnd: false,
+  });
+  return (
+    <div ref={ref} style={{ overflowY: "auto" }}>
+      <div id="a" />
+      <div id="b" />
+      <div id="c" />
+    </div>
+  );
+}
+
+describe("useScrollTrack subscription stability", () => {
+  it("keeps the scroll listener and interval across identical-content re-renders", () => {
+    // Streaming re-renders arrive faster than the 1s interval; tearing the
+    // subscription down per render (array/callback identity) both wastes
+    // work and keeps resetting the interval so it never fires.
+    const removeSpy = vi.spyOn(
+      HTMLDivElement.prototype as HTMLElement,
+      "removeEventListener"
+    );
+    const clearIntervalSpy = vi.spyOn(globalThis, "clearInterval");
+    try {
+      const onVisible = vi.fn();
+      const { rerender } = render(
+        <ChurnHarness ids={["a", "b", "c"]} onVisible={onVisible} />
+      );
+      removeSpy.mockClear();
+      clearIntervalSpy.mockClear();
+      for (let i = 0; i < 3; i++) {
+        rerender(<ChurnHarness ids={["a", "b", "c"]} onVisible={onVisible} />);
+      }
+      const scrollRemovals = removeSpy.mock.calls.filter(
+        ([type]) => type === "scroll"
+      );
+      expect(scrollRemovals).toEqual([]);
+      expect(clearIntervalSpy).not.toHaveBeenCalled();
+
+      // A genuine content change still re-subscribes (and re-reports — see
+      // the tracked-set-changes test above).
+      rerender(<ChurnHarness ids={["b", "c"]} onVisible={onVisible} />);
+      expect(
+        removeSpy.mock.calls.filter(([type]) => type === "scroll").length
+      ).toBeGreaterThan(0);
+    } finally {
+      removeSpy.mockRestore();
+      clearIntervalSpy.mockRestore();
+    }
+  });
+});
+
 describe("useScrollTrack measurement scope", () => {
   it("measures only tracked elements, not every [id] in the container", () => {
     vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {

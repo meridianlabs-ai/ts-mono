@@ -8,7 +8,7 @@
  * through intermediate rows.
  */
 
-import { useCallback, useRef, type RefObject } from "react";
+import { useCallback, useMemo, useRef, type RefObject } from "react";
 
 import { useScrollTrack } from "@tsmono/react/hooks";
 
@@ -111,12 +111,19 @@ export function useOutlineScrollSync(
     [setSelectedOutlineId, beginProgrammaticScroll]
   );
 
-  const elementIds = allNodesList.map((node) => node.id);
-  useScrollTrack(
-    elementIds,
+  // Stable identities: a fresh array/callback per render would make the
+  // tracker re-run its content compare (O(n)) on every streaming re-render.
+  const elementIds = useMemo(
+    () => allNodesList.map((node) => node.id),
+    [allNodesList]
+  );
+  const outlineIds = useMemo(
+    () => new Set(outlineNodeList.map((node) => node.id)),
+    [outlineNodeList]
+  );
+  const onTopElement = useCallback(
     (scrolledId: string) => {
       if (!isProgrammaticScrolling.current) {
-        const outlineIds = new Set(outlineNodeList.map((node) => node.id));
         const parentNode = findNearestOutlineAbove(
           scrolledId,
           allNodesList,
@@ -127,9 +134,11 @@ export function useOutlineScrollSync(
         }
       }
     },
-    scrollRef,
-    { topOffset: scrollTrackOffset }
+    [allNodesList, outlineIds, setSelectedOutlineId]
   );
+  useScrollTrack(elementIds, onTopElement, scrollRef, {
+    topOffset: scrollTrackOffset,
+  });
 
   return { onOutlineSelect };
 }
