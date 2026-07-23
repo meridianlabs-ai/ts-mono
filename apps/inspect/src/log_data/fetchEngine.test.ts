@@ -251,7 +251,7 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
 const createFakeSink = (db?: DatabaseService) => {
   // Depth-tracking analogue of the real sink's cache mirror: every write
   // path ratchets it, so `currentRows` reflects what production backfill
-  // re-derivation (requeueMissing) would see.
+  // re-derivation (requeueMissing) would see in db-less sessions.
   const mirror = new Map<string, Log>();
   const upsert = (name: string, patch: Partial<Log>) => {
     const current = mirror.get(name) ?? listedRow({ name });
@@ -1967,6 +1967,51 @@ describe("syncListing backfill re-arm (no-change syncs)", () => {
 
     expect(fake.detailCalls).toEqual([]);
     expect(fake.summaryCalls).toEqual([]);
+  });
+
+  it("a no-change sync trusts persisted depth even when the cache mirror is empty", async () => {
+    // The real sink's mirror is a react-query entry that can be
+    // garbage-collected while unobserved — an empty mirror must not read as
+    // "everything is missing" (that re-fetched entire fully-cached dirs).
+    const rows = [
+      detailedRow(handle("a.eval", 10)),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const db = createFakeDb(rows);
+    const { sink } = createFakeSink(db);
+    const gcSink: LogsContentSink = { ...sink, currentRows: () => [] };
+    const { engine } = await createEngine({ api, database: db, sink: gcSink });
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+    expect(fake.detailCalls).toEqual([]);
+  });
+
+  it("a no-change sync does not re-poll rows persisted as started", async () => {
+    // `applyListing` re-fetches started snapshots (the run may have finished
+    // since), but on no-change ticks that rule would poll every permanently
+    // "started" log forever — an unchanged dir refreshes them only via mtime
+    // invalidation.
+    const rows = [
+      detailedRow(handle("a.eval", 10), "started"),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const { engine } = await createEngine({
+      api,
+      database: createFakeDb(rows),
+    });
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+    expect(fake.detailCalls).toEqual([]);
   });
 
   it("a later no-change sync retries a settled backfill failure", async () => {

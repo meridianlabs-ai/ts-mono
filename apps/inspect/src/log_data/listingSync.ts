@@ -10,7 +10,7 @@ export interface ListingTarget {
   listing(): LogHandle[];
   epoch(): number;
   applyListing(update: ListingUpdate): Promise<LogHandle[]>;
-  requeueMissing(): void;
+  requeueMissing(): Promise<void>;
 }
 
 /**
@@ -65,7 +65,7 @@ export const syncListing = async (
     // No listing churn to apply, but `applyListing` was also the only thing
     // re-arming interrupted/failed backfill — keep that alive on no-change
     // ticks or a reload mid-backfill never finishes fetching.
-    engine.requeueMissing();
+    await engine.requeueMissing();
     return localFiles;
   }
 
