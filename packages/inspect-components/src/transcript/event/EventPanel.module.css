@@ -91,8 +91,7 @@
 }
 
 /* Link-like text highlight, matching the sibling chevron/focus buttons —
-   deliberate deviation from the handoff's pill hover (owner's call: no other
-   header button has a pill treatment). */
+   deliberately no pill hover; no other header button has a pill treatment. */
 .turnLabelButton:hover {
   color: var(--bs-body-color);
   opacity: 1;
@@ -138,7 +137,7 @@ a.turnButton {
   border-radius: var(--bs-border-radius);
 }
 
-/* Landing target of the latest go-to-turn jump (design handoff state 4). */
+/* Landing target of the latest go-to-turn jump — persistent selection ring. */
 .card.jumpTarget {
   outline: 2px solid var(--inspect-jump-target-ring-color);
   outline-offset: 2px;

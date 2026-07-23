@@ -436,20 +436,11 @@ test.describe("transcript event rendering", () => {
     network,
   }) => {
     // Deep-link mounts render the chrome collapsed from the FIRST frame
-    // (useScrollDirection's initialHidden in TranscriptPanel) instead of
-    // painting the title headroom expanded and blinking it away when the
-    // landing force-collapses it.
-    //
-    // INVARIANT GUARD, honestly scoped: the MutationObserver below records
-    // the title headroom's class at DOM insertion and, via attributeOldValue,
-    // the PRE-change class of every class flip — verified to fail against
-    // the pre-fix behavior (mount expanded, landing force-collapses one
-    // commit later). It pins DOM state, not pixels: with the msw mocks the
-    // pre-fix flip happened within one frame here, so this asserts the
-    // state-level invariant rather than a user-visible flash (which needs a
-    // slower load than the mocks can produce). Class matching relies on
-    // dev-server CSS-module naming (`_titleHeadroom_hash`), which is what
-    // the Playwright webServer (`pnpm dev`) serves.
+    // (initialHidden). The observer records the headroom's class at DOM
+    // insertion and, via attributeOldValue, the pre-change class of every
+    // flip — verified to fail pre-fix (mount expanded, force-collapse a
+    // commit later). Pins DOM state, not pixels; class matching relies on
+    // dev-server CSS-module naming (`_titleHeadroom_hash`).
     await page.addInitScript(() => {
       const log: string[] = [];
       (window as unknown as { __chromeClassLog: string[] }).__chromeClassLog =
@@ -645,21 +636,16 @@ test.describe("transcript event rendering", () => {
     // Delayed (800ms) loads on every hop plus real-time debounce/settle
     // windows put this journey past the default budget under parallel load.
     test.slow();
-    // TranscriptPanel isn't remounted across an ArrowRight sibling hop (t.53):
-    // same route element, only :transcriptId changes. The scroll container
-    // (and the VirtualList's own scroll-position snapshot, persisted under a
-    // key scoped by list id + swimlane selection but NOT by transcript id)
-    // both survive the hop, so a bare landing on the sibling can inherit
-    // transcript A's scroll offset — clamped to B's shorter content — instead
-    // of opening at the top. A delayed response for B mirrors the real
-    // multi-second per-transcript fetch: an instant/cached mock can let the
-    // hop resolve within one render pass and mask the carried-over offset.
-    //
-    // Origin lands via a deep link (nav-owned, collapsed chrome — same setup
-    // as e5b00378's chrome-only regression test, which this test supersedes)
-    // and is then scrolled further down by hand, so both the nav-ownership
-    // path and the natural-scroll path land on a collapsed, deep-scrolled
-    // transcript A before the sibling hop.
+    // TranscriptPanel isn't remounted across an ArrowRight sibling hop: same
+    // route element, only :transcriptId changes. The scroll container and the
+    // VirtualList's position snapshot (keyed by list id + swimlane selection,
+    // NOT transcript id) both survive the hop, so a bare landing on the
+    // sibling can inherit transcript A's offset clamped to B's shorter
+    // content. The delayed response mirrors the real multi-second fetch — an
+    // instant mock can resolve within one render pass and mask the carried
+    // offset. Origin lands via a deep link (nav-owned, collapsed chrome) and
+    // is then scrolled further down by hand, covering both the nav-ownership
+    // and natural-scroll paths before the hop.
     const nextTranscriptId = "t-events-002";
 
     // Long, varied turns: the within-visit flip legs below need real scroll
@@ -829,9 +815,9 @@ test.describe("transcript event rendering", () => {
     await expect.poll(isChromeCollapsed).toBe(false);
 
     // RETURNING to A must not restore its earlier visit's offset either: a
-    // return is a fresh visit and opens at the top (t.58 ruling) — the
-    // per-transcript snapshot recorded during A's deep scroll above must not
-    // resurface on the remounted list.
+    // return is a fresh visit and opens at the top — the per-transcript
+    // snapshot recorded during A's deep scroll above must not resurface on
+    // the remounted list.
     await expect(async () => {
       await page.keyboard.press("ArrowLeft");
       expect(page.url()).toContain(TRANSCRIPT_ID);
@@ -843,8 +829,9 @@ test.describe("transcript event rendering", () => {
     await page.waitForTimeout(1500);
     await expect.poll(topScrollTop, { timeout: 3000 }).toBeLessThanOrEqual(10);
 
-    // WITHIN-VISIT tab flips still restore — the KEPT case of the t.58
-    // ruling. Two regressions, on this same (fresh) visit to A:
+    // WITHIN-VISIT tab flips still restore — the deliberate counterpart of
+    // the fresh-visit top landing above. Two regressions, on this same
+    // (fresh) visit to A:
     // 1) events -> messages -> events lands back where the user was (a
     //    one-shot scrollTop write against a freshly remounted virtualized
     //    list lands on interim row measurements and drifts by the re-measure
@@ -855,8 +842,9 @@ test.describe("transcript event rendering", () => {
     //
     // Tolerance: the restore is a single scrollTop write against a freshly
     // remounted virtualizer (DEFAULT_ITEM_HEIGHT_PX estimate, no re-issue/
-    // settle loop — pixel accuracy was descoped, t.58), so it lands within the
-    // straddling row's re-measure delta of the recorded offset — deterministic
+    // settle loop — pixel accuracy is deliberately not guaranteed), so it
+    // lands within the straddling row's re-measure delta of the recorded
+    // offset — deterministic
     // ~77/94px here on CI Linux font metrics (deeper scroll -> taller straddle
     // row). 120px stays well under one 400px row, so it still fails a top reset
     // (~1000px off) or a full-row miss; it only tolerates the sub-row drift.

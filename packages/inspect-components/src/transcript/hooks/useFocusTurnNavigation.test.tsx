@@ -90,7 +90,7 @@ describe("useFocusTurnNavigation — follow latest (running samples)", () => {
     expect(setParam).toHaveBeenCalledWith({ follow: null });
   });
 
-  it("k right after j still disarms, even before `following` round-trips through the URL (r.37)", () => {
+  it("k right after j still disarms, even before `following` round-trips through the URL", () => {
     // On a single-turn lane, j at the (only, last) turn arms follow. `k`
     // pressed immediately after — before the app re-renders with the new
     // `following=true` from the URL — must still disarm: stepTurn's

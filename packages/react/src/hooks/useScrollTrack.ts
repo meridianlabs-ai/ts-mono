@@ -165,10 +165,9 @@ export function useScrollTrack(
   // the effect's synchronous check below re-report. Compared by content, not
   // identity: some consumers rebuild the array every render, and an identity
   // reset would bypass the throttle into rect reads (forced layout) per
-  // render. A single re-check, not a retry loop — this must not reintroduce
-  // the reverted first-report bootstrap (fresh mounts keep their existing
-  // single checkVisibility; the scroll listener and 1s interval remain the
-  // fallback for rows that haven't mounted yet).
+  // render. A single re-check, not a retry loop: fresh mounts keep their
+  // existing single checkVisibility, and the scroll listener and interval
+  // remain the fallback for rows that haven't mounted yet.
   const reportedIdsRef = useRef<string[] | null>(null);
 
   useEffect(() => {

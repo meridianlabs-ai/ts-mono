@@ -252,14 +252,9 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   const findActiveRef = useRef(showFind);
   findActiveRef.current = showFind;
 
-  // Chrome ownership: two separate worlds, no interaction. Navigation (deep
-  // links, f/h/j/k/l, go-to-turn) FORCES the chrome state and, while it owns
-  // it, the natural-scroll detection below is fully suppressed — j/k can
-  // never flicker the chrome, and once collapsed it stays collapsed until
-  // `kkk` reaches the very top (which forces expand). A physical user gesture
-  // (wheel / touch / pointer on the scroller) hands ownership back to the
-  // natural world, which resumes fresh from the current position (the hook
-  // resets its anchor when suppression ends).
+  // Nav (deep links, f/h/j/k/l, go-to-turn) forces the chrome and suppresses
+  // natural scroll detection while it owns it; a physical gesture hands
+  // ownership back — see useChromeNavOwnershipRelease.
   const localNavOwnsRef = useRef(!!(initialEventId || initialMessageId));
   const navOwnsRef = chromeNavOwnsRef ?? localNavOwnsRef;
   const suppressRef = useMemo(

@@ -181,7 +181,7 @@ describe("VirtualList live-finish scroll-to-top", () => {
   });
 
   it("does not scroll to top if the user scrolls away (disengaging follow) within the 100ms finish window", () => {
-    // r.03: the finish effect schedules a 100ms scrollTo(top:0) timer. If the
+    // The finish effect schedules a 100ms scrollTo(top:0) timer. If the
     // user scrolls away within that window, followOutput flips to false and
     // the effect re-runs, but its re-run only checks the *current* condition
     // — it never cancels the timer scheduled by the *previous* run. The stale

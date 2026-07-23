@@ -26,7 +26,7 @@ describe("NextPreviousNav arrow navigation", () => {
     expect(buttons[1]?.title).toBe("Next result (→)");
   });
 
-  it("ArrowRight/ArrowLeft fire onNext/onPrevious; the retired Shift+L chord does not", () => {
+  it("ArrowRight/ArrowLeft fire onNext/onPrevious; Shift+L does not", () => {
     const onPrevious = vi.fn();
     const onNext = vi.fn();
     render(
@@ -41,8 +41,7 @@ describe("NextPreviousNav arrow navigation", () => {
     expect(onNext).toHaveBeenCalledTimes(1);
     press("ArrowLeft");
     expect(onPrevious).toHaveBeenCalledTimes(1);
-    // User decree (t.60): the Shift+H/L chord system is removed — the chord
-    // must no longer navigate.
+    // The Shift+H/L chord binding was removed; it must not navigate.
     press("L", { shiftKey: true });
     expect(onNext).toHaveBeenCalledTimes(1);
     press("H", { shiftKey: true });

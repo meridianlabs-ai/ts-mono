@@ -51,14 +51,11 @@ export const defaultHandlers = [
     return new HttpResponse(null, { status: 404 });
   }),
 
-  // Fail any /api request no handler above (or a spec's network.use) matched,
-  // the way CI does: no backend listens behind the vite proxy there, so vite
-  // answers 502. Locally a developer's live `inspect view` server would
-  // otherwise answer through the proxy and poison specs with real log-dir
-  // data (the sample fetch then targets the real dir's path shape and the
-  // spec's own mock never matches).
+  // Fail any unmatched /api request the way CI does (502): locally a live
+  // `inspect view` server would otherwise answer through the vite proxy and
+  // poison specs with real log-dir data.
   // Anchored to the origin root — a bare "*/api/*" would also swallow vite's
-  // own module URLs like /src/client/api/index.ts and blank the app.
+  // own module URLs (/src/client/api/...) and blank the app.
   http.all(/^https?:\/\/[^/]+\/api\//, () => {
     return new HttpResponse(null, { status: 502 });
   }),

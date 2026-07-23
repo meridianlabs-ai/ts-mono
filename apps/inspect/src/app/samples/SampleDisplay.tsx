@@ -397,7 +397,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);
 
-  // Right-docked sidebar - search and scans share a single slot (one at a
+  // Right-docked sidebar — search and scans share a single slot (one at a
   // time), each toggled from the toolbar. Scope follows the active tab. The
   // choice is persisted per log so a closed dock stays closed across reloads.
   const setPropertyValue = useStore(
@@ -625,7 +625,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
-  // Search and Scans are no longer toolbar buttons - the always-visible
+  // Search and Scans are no longer toolbar buttons — the always-visible
   // activity rail (rendered below the timeline) is the sole entry point.
 
   // Is the sample running?
@@ -654,20 +654,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [displayMode]
   );
 
-  // Headroom-style collapse: the sample header is wrapped in a
-  // `StickyScroll`, so the *same* SampleSummaryView renders both in
-  // flow at the top and pinned at the top while scrolled. The
-  // component's `collapsed` prop is the position-derived `hidden` alone —
-  // deliberately NOT gated on the sticky state: StickyScroll reports
-  // stickiness asynchronously (first report measures at mount, before a
-  // deep-link landing scrolls), so any gate on it makes the initial state
-  // depend on report-vs-landing timing. `hidden` covers the top on its own:
-  // the scroll handler's at-top branch and `k` past turn 1 both clear it.
-  // A deep-linked mount (?event= or ?message=) lands scrolled down, so the
-  // header must START collapsed — the summary is often already cached, and
-  // initializing expanded would paint the full header for a frame and blink
-  // away. A bare mount starts expanded and, with no state flip, renders that
-  // way statically (transitions only run on changes, never on load).
+  // Headroom collapse: `collapsed` is the position-derived `hidden` alone —
+  // deliberately NOT gated on sticky state, which StickyScroll reports
+  // asynchronously (a gate makes the initial state depend on report-vs-
+  // landing timing); the at-top scroll branch and `k` past turn 1 both
+  // clear `hidden`. Deep-link mounts (?event=/?message=) land scrolled
+  // down, so the header must START collapsed — the summary is often cached
+  // and would paint expanded for a frame and blink away. Bare mounts start
+  // expanded statically (transitions run on changes only).
   const mountsAtDeepLink = !!(
     sampleDetailNavigation.event || sampleDetailNavigation.message
   );

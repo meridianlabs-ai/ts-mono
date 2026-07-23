@@ -141,15 +141,9 @@ const twoTallTurns: Events = [
   createModelEvent("tall2", tallBody("Tall second turn")),
 ];
 
-// A leading non-turn (info) row before the first model turn, to exercise the
-// "first j from above turn 1 lands on turn 1, not turn 2" case.
-// Several pre-turn info rows. Real transcripts open with substantial pre-turn
-// content (sample init, system + user messages) that fills the viewport before
-// the first model turn; the test below needs turn 1 to genuinely sit BELOW the
-// detection line (`offsetTop` + tolerance under the sticky chrome), so a single
-// short info row — which renders under the chrome and leaves turn 1 already at
-// the top — would make "sit above turn 1" untrue and the result chrome-height
-// dependent. A stack of rows reproduces the realistic tall preamble.
+// Several pre-turn info rows: turn 1 must genuinely sit below the detection
+// line at load — a single short row leaves turn 1 already at the top, making
+// "first j from above turn 1 lands on turn 1" chrome-height dependent.
 const infoRows: Events = Array.from(
   { length: 6 },
   (_, i) =>
@@ -213,13 +207,10 @@ test.describe("transcript turn navigation", () => {
     page,
     network,
   }) => {
-    // A preamble (like the neighboring "first j from above turn 1" test)
-    // makes turn 1 genuinely sit below the detection line at load — without
-    // it (a bare threeTurns fixture with no pre-turn content), a slow-enough
-    // paint can let the scroll tracker report turn-a as already at the top
-    // BEFORE this test's first keypress, which makes first-j legitimately
-    // land turn-b instead of turn-a: a real race, not a wrong expectation,
-    // and flaky under load rather than reliably red or green.
+    // The preamble keeps turn 1 below the detection line at load; without it
+    // a slow paint can let the tracker report turn-a before the first
+    // keypress, making first-j legitimately land turn-b — flaky under load,
+    // not a wrong expectation.
     await openTranscript(page, network, preTurnThenTurns);
     await expect(page.getByText("turn 1/3").first()).toBeVisible();
 
@@ -232,13 +223,10 @@ test.describe("transcript turn navigation", () => {
       );
 
     const before = await maxScrollTop();
-    // vim-style: j = next turn (down); k = previous (up). At a fresh load,
-    // the scroll tracker hasn't reported the turn at the top yet, so current
-    // is "unknown" (index -1) — the same state the pre-turn preamble (sample
-    // init, system/user messages) leaves it in. j steps from there, so the
-    // FIRST j lands on turn 1 (turn-a), not turn 2; only a SECOND j reaches
-    // turn-b. (No wait before this first press — asserting it fires
-    // instantly, before any report, is the point.)
+    // vim-style: j = next turn (down); k = previous (up). At a fresh load
+    // current is "unknown" (-1), so the FIRST j lands on turn 1 and only the
+    // SECOND reaches turn-b. No wait before this press — firing before any
+    // tracker report is the point.
     await page.keyboard.press("j");
     await page.waitForTimeout(800);
     const afterFirst = await maxScrollTop();
@@ -328,34 +316,16 @@ test.describe("transcript turn navigation", () => {
     page,
     network,
   }) => {
-    // Deep-link landings force-collapse the summary header (chrome follows
-    // navigation); the landing settle re-issues the jump each frame, so any
-    // chrome height change during it is re-corrected. Two invariants:
-    //
-    // 1. No expanded flash: a deep-link mount renders the header collapsed
-    //    from the FIRST frame (useScrollDirection's initialHidden in
-    //    SampleDisplay) instead of painting the expanded header and blinking
-    //    it away when the landing force-collapses it. SampleSummaryView
-    //    renders both variants as the same heading <div> whose child div
-    //    carries `_layout_` (expanded) or `_collapsedMeta_` (collapsed);
-    //    React reconciles them into one element, so a mount-expanded →
-    //    force-collapse transition is a class flip. The MutationObserver
-    //    below records the variant's class at DOM insertion and, via
-    //    attributeOldValue, the PRE-change class of every flip (live reads
-    //    post-date the microtask batch — a same-batch flip is only visible
-    //    through oldValue) — verified to fail with initialHidden disabled.
-    //    Class matching relies on dev-server CSS-module naming
-    //    (`_layout_hash` / `_collapsedMeta_hash`), which is what the
-    //    Playwright webServer (`pnpm dev`) serves. The swimlane headroom is
-    //    NOT observed: this fixture (bare model events, no timeline spans)
-    //    never shows the swimlane strip, so its marker can't flip here.
-    //
-    // 2. End state (the poll below): the target row sits at the viewport top
-    //    band. Still an invariant guard for the GEOMETRY race — this fixture
-    //    could not reproduce the original bug (the late-collapse shift
-    //    self-heals via the virtualizer's reconcile here, and the mocks
-    //    serve summary+events in one response, so the cached-summary blink
-    //    can't occur).
+    // 1) No expanded flash: deep-link mounts render the header collapsed from
+    //    the first frame (initialHidden). The observer records the variant's
+    //    class at DOM insertion and, via attributeOldValue, the pre-change
+    //    class of same-microtask flips (live reads post-date the batch) —
+    //    verified to fail with initialHidden disabled. Class matching relies
+    //    on dev-server CSS-module names (`_layout_`/`_collapsedMeta_`), which
+    //    is what the Playwright webServer serves.
+    // 2) End-state poll: the target row sits in the viewport top band —
+    //    geometry guard only; this fixture cannot reproduce the original
+    //    late-collapse bug.
     await page.addInitScript(() => {
       const log: string[] = [];
       (window as unknown as { __headerClassLog: string[] }).__headerClassLog =
@@ -497,14 +467,6 @@ test.describe("transcript turn navigation", () => {
     expect(arrival).toBeLessThan(130);
   });
 
-  // Removed: "tab flips keep the position; scrolling between flips updates it".
-  // Sample-tab pixel restore is main-parity; drift under latency is pre-existing
-  // upstream — not a guarantee of this branch (owner descope ruling). The three
-  // legs (return-from-Messages restore, hold-release, debounce-flush) all pinned
-  // that deleted machinery; the surviving inspect guarantees (fresh-visit/sibling/
-  // reload land at top) are covered by "scroll position does not leak between
-  // samples" and "next-sample arrow starts the new sample at the top".
-
   test("exit from focus lands on the focused turn, not a stale saved position", async ({
     page,
     network,
@@ -548,15 +510,10 @@ test.describe("transcript turn navigation", () => {
     page,
     network,
   }) => {
-    // User repro: on a focus page (?event=<id>&tab=Summary), pressing `f`
-    // twice quickly must round-trip (exit to the transcript deep-linked at
-    // the focused turn, then re-enter focus on that SAME turn) — not clamp to
-    // turn 1. The second `f` can land on the freshly re-mounted transcript
-    // before its scroll tracker's first report, while currentTurnIndexRef is
-    // still its just-mounted "unknown" (-1); the buggy code then clamps `f`
-    // to turn 1 exactly like it does for a genuine "above turn 1" viewport.
-    // Deep-link straight to turn 2's focus page (not turn 1) so a wrong
-    // landing on turn 1 is actually visible.
+    // Regression: on a focus page, `ff` must round-trip to the SAME turn, not
+    // clamp to turn 1 — the second f can land on the remounted transcript
+    // before its tracker's first report, while currentTurnIndexRef is still
+    // -1. Deep-link to turn 2 so a wrong turn-1 landing is visible.
     await openTranscript(page, network, threeTurns);
     const encodedFile = encodeURIComponent(LOG_FILE);
     await page.goto(
@@ -564,13 +521,10 @@ test.describe("transcript turn navigation", () => {
     );
     await expect(page.getByText("Second turn response").first()).toBeVisible();
 
-    // First `f` exits to the transcript. Wait for a control unique to the
-    // transcript's OWN chrome (not "Next turn", which both views render) so
-    // the second `f` reliably reaches the NEW mount rather than a not-yet-
-    // unmounted focus page — then fire it immediately, no extra sleep: that
-    // mount's scroll tracker may not have reported yet, which is the gap this
-    // test targets. A longer sleep here would dodge the race instead of
-    // hitting it.
+    // Wait for a control unique to the transcript's OWN chrome (both views
+    // render "Next turn"), then press immediately — that mount's tracker may
+    // not have reported yet, which is the gap under test; a longer sleep
+    // would dodge the race instead of hitting it.
     await page.keyboard.press("f");
     await expect(page).toHaveURL(/transcript\?event=/);
     await expect(
@@ -769,7 +723,7 @@ test.describe("transcript turn navigation", () => {
     // ArrowLeft / ArrowRight step samples from the keyboard (same actions).
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByText("Sample 1")).toBeVisible();
-    // User decree (t.60): the retired Shift+H/L chord must NOT navigate.
+    // Shift+L must not navigate — only plain ArrowLeft/ArrowRight step samples.
     await page.keyboard.press("Shift+L");
     await page.waitForTimeout(300);
     await expect(page.getByText("Sample 1")).toBeVisible();

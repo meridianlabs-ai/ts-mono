@@ -39,7 +39,7 @@ import {
 } from "./types";
 
 // Stable Item wrapper defined at module scope so its identity is constant
-// across re-renders - a new component identity each render forces the
+// across re-renders — a new component identity each render forces the
 // virtualizer to re-mount every row and detaches any active find-selection.
 const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
   return (

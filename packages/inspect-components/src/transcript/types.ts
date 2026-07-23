@@ -186,7 +186,7 @@ export interface EventPanelCallbacks {
    *  that turn number. When omitted the label renders as passive text. */
   onTurnLabelClick?: (turnNumber: number) => void;
   /** Whether this event card is the landing target of the latest go-to-turn
-   *  jump — it renders a persistent selection ring (handoff state 4). */
+   *  jump — it renders a persistent selection ring. */
   isJumpTarget?: (eventNodeId: string) => boolean;
   /** Enter focus mode in the current window, from the SAME `getEventFocusUrl`
    *  href the anchor renders — the anchor keeps the href so modified clicks

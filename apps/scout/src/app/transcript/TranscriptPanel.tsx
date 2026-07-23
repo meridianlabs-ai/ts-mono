@@ -74,14 +74,9 @@ export const TranscriptPanel: FC = () => {
     findActiveRef.current = showFind;
   }, [showFind]);
 
-  // Chrome ownership: two separate worlds, no interaction. Navigation (deep
-  // links, f/h/j/k/l, go-to-turn) FORCES the chrome state and, while it owns
-  // it, the natural-scroll detection below is fully suppressed — j/k can
-  // never flicker the chrome, and once collapsed it stays collapsed until
-  // `kkk` reaches the very top (which forces expand). A physical user gesture
-  // (wheel / touch on the scroller) hands ownership back to the natural
-  // world, which resumes fresh from the current position (the hook resets
-  // its anchor when suppression ends).
+  // Nav (deep links, f/h/j/k/l, go-to-turn) forces the chrome and suppresses
+  // natural scroll detection while it owns it; a physical gesture hands
+  // ownership back — see useChromeNavOwnershipRelease.
   const navOwnsRef = useRef(!!(initialEventId || initialMessageId));
   const suppressRef = useMemo(
     () => ({
@@ -125,15 +120,12 @@ export const TranscriptPanel: FC = () => {
     [setHeadroomHidden]
   );
 
-  // TranscriptPanel isn't keyed per-transcript (the route element is the
-  // same one across sibling hops, e.g. ArrowRight), so navOwnsRef/headroomHidden
-  // — both seeded once via useRef/initialHidden — would otherwise carry a
-  // deep-linked transcript's collapsed chrome onto the next bare one (or vice
-  // versa). Re-derive both from the CURRENT mount's own params whenever
-  // transcriptId changes, in the render phase (not an effect) so it applies
-  // before paint — matching useScrollDirection's own scroller-changed reset,
-  // which can't help here since the scroll container element itself doesn't
-  // remount across the hop either.
+  // The route element and scroll container both survive sibling hops
+  // (ArrowRight), so the useRef/initialHidden seeds would carry one
+  // transcript's chrome state onto the next. Re-derive from the current
+  // params when transcriptId changes, in render (before paint) —
+  // useScrollDirection's scroller-changed reset can't fire because the
+  // element never remounts.
   const [chromeResetForId, setChromeResetForId] = useState(transcriptId);
   if (chromeResetForId !== transcriptId) {
     setChromeResetForId(transcriptId);

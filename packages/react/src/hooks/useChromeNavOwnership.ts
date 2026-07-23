@@ -26,8 +26,7 @@ export const SCROLL_RELEASE_KEYS = new Set([
  * turn-nav chevron) rather than the scroller itself, since the browser still
  * scrolls the container natively without the button consuming the key.
  *
- * One shared implementation for every "nav owns the chrome" call site
- * (previously hand-copied per surface, wheel/touch-only in each copy).
+ * One shared implementation for every "nav owns the chrome" call site.
  */
 export function useChromeNavOwnershipRelease(
   navOwnsRef: RefObject<boolean>,

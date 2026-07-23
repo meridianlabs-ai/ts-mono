@@ -1,5 +1,5 @@
 /**
- * Regression coverage (t.46): at a narrow viewport, the sticky EventPanel
+ * Regression coverage: at a narrow viewport, the sticky EventPanel
  * header (turnNav cluster + tab picker + title) must degrade gracefully —
  * title truncates, nothing wraps to a second line, and the tab picker never
  * renders detached from the header it belongs to.
@@ -245,14 +245,11 @@ test("model call header stays contained at a narrow viewport with the outline ex
   // 40px tall; a wrapped title pushes this well past 50px.
   expect(headerBox!.height).toBeLessThan(40);
 
-  // --- Invariant 2: the tab picker never overlaps the title cell. The
-  // header's direct-child <div>s are, in order, the title cell and the
-  // picker/nav cell (`.navs`) — grid-column order, independent of hashed
-  // CSS-module class names. When the `.navs` track collapses to 0 width
-  // (starved by the turnNav cluster), its flex-end-anchored picker button
-  // still renders at its natural size and spills backwards, left over the
-  // title's own cell — this is the "detached, overlapping" picker from the
-  // regression, measurable as a horizontal overlap between the two cells. ---
+  // --- Invariant 2: the tab picker never overlaps the title cell.
+  // Direct-child <div> order (title, .navs) is grid-column order, independent
+  // of hashed class names. A .navs track starved to 0 width lets its flex-end
+  // picker render at natural size and spill left over the title cell — the
+  // "detached picker" regression, measured as horizontal overlap. ---
   const directDivs = header.locator(":scope > div");
   const titleCell = directDivs.nth(0);
   const navsCell = directDivs.nth(1);

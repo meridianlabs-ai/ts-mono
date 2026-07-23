@@ -564,7 +564,7 @@ export const TranscriptViewNodes = forwardRef<
   const goToTurnBarRef = useRef<GoToTurnBarHandle | null>(null);
 
   // The event card a go-to-turn-bar jump landed on keeps a persistent
-  // selection ring (design handoff state 4) until the next bar jump.
+  // selection ring until the next bar jump.
   const [jumpTargetId, setJumpTargetId] = useState<string | null>(null);
 
   // Per-event-header turn controls: several headers can be visible at once,
@@ -671,9 +671,9 @@ export const TranscriptViewNodes = forwardRef<
     if (!getEventFocusUrl || !onOpenEventFocus) return undefined;
     return () => {
       // Already following a running transcript: `f` keeps following AT the
-      // newest turn (not the viewport-top turn) — the owner's ruling. Otherwise
-      // above turn 1 (index -1) clamps to turn 1, mirroring `j`, so `f` never
-      // looks dead just because the viewport is on the preamble.
+      // newest turn (not the viewport-top turn). Otherwise above turn 1
+      // (index -1) clamps to turn 1, mirroring `j`, so `f` never looks dead
+      // just because the viewport is on the preamble.
       const following = running && transcriptFollow === true;
       const anchorId = following
         ? turnAnchorIds[turnAnchorIds.length - 1]
@@ -717,9 +717,8 @@ export const TranscriptViewNodes = forwardRef<
       // target) owns that state until the user engages. Programmatic nav drives
       // currentTurnIndexRef directly (scrollRowToTop's stamp) and moves scrollTop
       // off 0, so genuine reports resume on their own once the user scrolls —
-      // and `k` past turn 1 (goToVeryTop) keeps its -1 with no scroll. This is
-      // the "never moved from 0" latch, not the reverted first-report bootstrap
-      // (no retry loop) and not the held-k round trip (still a synchronous stamp).
+      // and `k` past turn 1 (goToVeryTop) keeps its -1 with no scroll.
+      // One-shot latch; no retry loop, no async round trip.
       if ((scrollRef?.current?.scrollTop ?? 0) > 0) {
         userScrolledRef.current = true;
       }
@@ -737,7 +736,7 @@ export const TranscriptViewNodes = forwardRef<
   useScrollTrack(trackedEventIds, onTopEvent, scrollRef, {
     topOffset: offsetTop,
     // The default end-of-viewport advance reports a LATER turn near the end
-    // of the log, making `k` oscillate between the last two turns (t.43).
+    // of the log, making `k` oscillate between the last two turns.
     advanceDetectionPointAtEnd: false,
   });
 

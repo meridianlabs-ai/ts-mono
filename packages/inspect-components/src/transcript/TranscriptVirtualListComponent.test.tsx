@@ -159,9 +159,9 @@ describe("TranscriptVirtualList finish scroll-to-top", () => {
   });
 
   it("stays put when the host reports an unsuccessful finish (error/cancelled)", () => {
-    // User ruling: an errored or cancelled run renders its error panel at the
-    // bottom, exactly where the user is looking — never yank them to the top.
-    // The host passes scrollToTopOnFinish={false} for those finishes.
+    // An errored or cancelled run renders its error panel at the bottom,
+    // exactly where the user is looking — never yank them to the top. The
+    // host passes scrollToTopOnFinish={false} for those finishes.
     const { scrollRef, finish, unmount } = mountLive(false);
     finish();
     const scrollTo = vi.fn();

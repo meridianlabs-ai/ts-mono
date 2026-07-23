@@ -114,8 +114,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // flips within one visit share the key (flipping back restores the scroll
   // position), but a sibling hop or a later return to this transcript is a
   // new visit — its lists mount with fresh keys and open at the top instead
-  // of restoring an earlier visit's offset (t.53's per-transcript scoping,
-  // tightened per the t.58 ruling).
+  // of restoring an earlier visit's offset.
   const visitId = useVisitId(transcript.transcript_id);
 
   // Selected tab — default to Events when the transcript has events
