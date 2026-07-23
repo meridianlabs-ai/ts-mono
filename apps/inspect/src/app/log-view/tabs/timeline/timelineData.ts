@@ -110,8 +110,7 @@ export type TimelineMarker = {
   label: string;
   postRun: boolean;
 } & (
-  | { kind: "config"; update: ConfigUpdate }
-  | { kind: "log"; update: LogUpdate }
+  { kind: "config"; update: ConfigUpdate } | { kind: "log"; update: LogUpdate }
 );
 
 export const markerKey = (kind: "config" | "log", index: number): string =>

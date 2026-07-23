@@ -271,9 +271,7 @@ export const openRemoteLogFile = async (
       // consolidated into header.json only at end-of-eval) — fold them in
       // so running and crashed logs surface config_updates too.
       const config_updates = await readJournalConfigUpdates();
-      return config_updates.length > 0
-        ? { ...header, config_updates }
-        : header;
+      return config_updates.length > 0 ? { ...header, config_updates } : header;
     }
   };
 

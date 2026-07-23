@@ -239,9 +239,10 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     ]
   );
 
-  const [categoryOverrides, setCategoryOverrides] = useState<
-    Record<string, boolean> | null
-  >(null);
+  const [categoryOverrides, setCategoryOverrides] = useState<Record<
+    string,
+    boolean
+  > | null>(null);
   const enabledCategories = useMemo(() => {
     const enabled = new Set<HistoryCategory>();
     // Everything on by default; the chips narrow from there.
