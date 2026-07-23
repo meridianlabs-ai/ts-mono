@@ -25,6 +25,7 @@ const DOC = {
   document: "data:application/pdf;base64,abc123",
   filename: "report.pdf",
   mime_type: "application/pdf",
+  citations: false,
 };
 
 function toolNode(
