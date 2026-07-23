@@ -1,7 +1,8 @@
 import { FC } from "react";
 
+import { NextPreviousNav } from "@tsmono/react/components";
+
 import { Transcript } from "../../types/api-types";
-import { NextPreviousNav } from "../components/NextPreviousNav";
 import { TaskName } from "../components/TaskName";
 
 import { useTranscriptPrevNext } from "./hooks/useTranscriptPrevNext";

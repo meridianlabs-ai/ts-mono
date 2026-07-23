@@ -15,7 +15,11 @@ import {
   LoadingBar,
   NoContentsPanel,
 } from "@tsmono/react/components";
-import { useDocumentTitle, useRequiredParams } from "@tsmono/react/hooks";
+import {
+  navigateAndForget,
+  useDocumentTitle,
+  useRequiredParams,
+} from "@tsmono/react/hooks";
 
 import { parseTranscriptParams, transcriptRoute } from "../../router/url";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
@@ -104,8 +108,7 @@ export const TranscriptEventPanel: FC = () => {
   }, [transcriptsDir, transcriptId, resolvedEventId]);
   const onExit = useCallback(() => {
     if (!exitUrl) return;
-    const result = navigate(exitUrl);
-    if (result instanceof Promise) result.catch(() => undefined);
+    navigateAndForget(navigate, exitUrl);
   }, [exitUrl, navigate]);
 
   // Reuse the transcript view's own header on the focus page (mirrors how the

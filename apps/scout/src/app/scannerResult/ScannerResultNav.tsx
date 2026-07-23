@@ -1,6 +1,7 @@
 import { FC } from "react";
 
-import { NextPreviousNav } from "../components/NextPreviousNav";
+import { NextPreviousNav } from "@tsmono/react/components";
+
 import { IdentifierInfo, resultIdentifier } from "../utils/results";
 
 import { useScannerResultPrevNext } from "./useScannerResultPrevNext";

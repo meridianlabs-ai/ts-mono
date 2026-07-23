@@ -23,3 +23,5 @@ export * from "./useBreadcrumbTruncation";
 export * from "./useElementHeight";
 export * from "./useChromeNavOwnership";
 export * from "./useArrowStepper";
+export * from "./navigateAndForget";
+export * from "./useEventUrlSync";

@@ -402,11 +402,9 @@ export const EventPanel: FC<EventPanelProps> = ({
                     !e.altKey
                   ) {
                     e.preventDefault();
-                    // Route derived from the same href, so the tab param (and
-                    // any future params) survive the in-window entry too.
-                    onOpenEventFocus(
-                      focusUrl.startsWith("#") ? focusUrl.slice(1) : focusUrl
-                    );
+                    // The same href, so the tab param (and any future params)
+                    // survive the in-window entry too.
+                    onOpenEventFocus(focusUrl);
                   }
                 }}
               >

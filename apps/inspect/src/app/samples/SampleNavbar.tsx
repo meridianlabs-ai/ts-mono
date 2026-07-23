@@ -1,9 +1,8 @@
 import clsx from "clsx";
-import React, { FC, useCallback } from "react";
+import { FC } from "react";
 
-import { useArrowStepper } from "@tsmono/react/hooks";
+import { NextPreviousNav } from "@tsmono/react/components";
 
-import { ApplicationIcons } from "../appearance/icons";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 
 import styles from "./SampleNavbar.module.css";
@@ -58,26 +57,6 @@ export const SampleNavbar: FC<SampleNavbarProps> = ({
     breadcrumbsEnabled,
   } = navbarConfig;
 
-  const handleNavButtonKeyDown = useCallback(
-    (e: React.KeyboardEvent, action: () => void, enabled: boolean) => {
-      if ((e.key === "Enter" || e.key === " ") && enabled) {
-        e.preventDefault();
-        action();
-      }
-    },
-    []
-  );
-
-  // Bound here, next to the "(←)"/"(→)" tooltips it backs, so every surface
-  // that renders this navbar (sample detail, single-event focus page) gets the
-  // same sample-stepping binding.
-  useArrowStepper({
-    onPrev: onPrevious,
-    onNext,
-    canPrev: hasPrevious,
-    canNext: hasNext,
-  });
-
   return (
     <ApplicationNavbar
       currentPath={currentPath}
@@ -88,35 +67,21 @@ export const SampleNavbar: FC<SampleNavbarProps> = ({
       breadcrumbsEnabled={breadcrumbsEnabled}
       loading={loading}
     >
-      <div className={clsx(styles.sampleNav)}>
-        <div
-          onClick={hasPrevious ? onPrevious : undefined}
-          onKeyDown={(e) => handleNavButtonKeyDown(e, onPrevious, hasPrevious)}
-          tabIndex={hasPrevious ? 0 : -1}
-          role="button"
-          aria-label="Previous sample"
-          title="Previous sample (←)"
-          aria-disabled={!hasPrevious}
-          className={clsx(!hasPrevious && styles.disabled, styles.nav)}
-        >
-          <i className={clsx(ApplicationIcons.previous)} />
-        </div>
+      {/* The shared chevrons bind ArrowLeft/ArrowRight next to the
+          "(←)"/"(→)" tooltips, so every surface that renders this navbar
+          (sample detail, single-event focus page) steps samples the same way. */}
+      <NextPreviousNav
+        onPrevious={onPrevious}
+        onNext={onNext}
+        hasPrevious={hasPrevious}
+        hasNext={hasNext}
+        previousTitle="Previous sample"
+        nextTitle="Next sample"
+      >
         <div className={clsx(styles.sampleInfo, "text-size-smallest")}>
           Sample {sampleId} (Epoch {epoch})
         </div>
-        <div
-          onClick={hasNext ? onNext : undefined}
-          onKeyDown={(e) => handleNavButtonKeyDown(e, onNext, hasNext)}
-          tabIndex={hasNext ? 0 : -1}
-          role="button"
-          aria-label="Next sample"
-          title="Next sample (→)"
-          aria-disabled={!hasNext}
-          className={clsx(!hasNext && styles.disabled, styles.nav)}
-        >
-          <i className={clsx(ApplicationIcons.next)} />
-        </div>
-      </div>
+      </NextPreviousNav>
     </ApplicationNavbar>
   );
 };

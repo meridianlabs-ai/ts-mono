@@ -189,8 +189,9 @@ export interface EventPanelCallbacks {
    *  jump — it renders a persistent selection ring. */
   isJumpTarget?: (eventNodeId: string) => boolean;
   /** Enter focus mode in the current window, from the SAME `getEventFocusUrl`
-   *  href the anchor renders — the anchor keeps the href so modified clicks
-   *  open a new tab natively; a plain left-click calls this instead. */
+   *  href the anchor renders (`#`-prefixed hrefs accepted) — the anchor keeps
+   *  the href so modified clicks open a new tab natively; a plain left-click
+   *  calls this instead. */
   onOpenEventFocus?: (focusRoute: string) => void;
 }
 

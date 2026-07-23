@@ -730,7 +730,7 @@ export const TranscriptViewNodes = forwardRef<
         anchorTabsRef.current.get(anchorId)
       );
       if (!href) return;
-      onOpenEventFocus(href.startsWith("#") ? href.slice(1) : href);
+      onOpenEventFocus(href);
     };
   }, [
     getEventFocusUrl,

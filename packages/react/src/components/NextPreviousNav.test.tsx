@@ -48,6 +48,37 @@ describe("NextPreviousNav arrow navigation", () => {
     expect(onPrevious).toHaveBeenCalledTimes(1);
   });
 
+  it("chevrons expose accessible names (aria-label, without the shortcut suffix)", () => {
+    // Screen readers must announce the control, not the "(←)" tooltip
+    // decoration — and a caller that omits tooltips still gets a name.
+    render(
+      <NextPreviousNav
+        hasPrevious
+        hasNext
+        onPrevious={vi.fn()}
+        onNext={vi.fn()}
+        previousTitle="Previous result"
+        nextTitle="Next result"
+      />
+    );
+    expect(
+      screen.getByRole("button", { name: "Previous result" })
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next result" })).toBeTruthy();
+    cleanup();
+
+    render(
+      <NextPreviousNav
+        hasPrevious
+        hasNext
+        onPrevious={vi.fn()}
+        onNext={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("button", { name: "Previous" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Next" })).toBeTruthy();
+  });
+
   it("a disabled chevron's arrow key is a no-op (tooltip still advertises it)", () => {
     const onNext = vi.fn();
     render(

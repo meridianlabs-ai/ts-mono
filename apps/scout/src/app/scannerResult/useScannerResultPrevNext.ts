@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { navigateAndForget } from "@tsmono/react/hooks";
+
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../router/url";
 import { useStore } from "../../state/store";
@@ -52,7 +54,8 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
     }
     const previousResult = visibleScannerResults[currentIndex - 1];
     return () => {
-      const result = navigate(
+      navigateAndForget(
+        navigate,
         scanResultRoute(
           scansDir,
           scanPath,
@@ -60,7 +63,6 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
           searchParams
         )
       );
-      if (result instanceof Promise) result.catch(() => undefined);
     };
   }, [
     hasPrevious,
@@ -78,7 +80,8 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
     }
     const nextResult = visibleScannerResults[currentIndex + 1];
     return () => {
-      const result = navigate(
+      navigateAndForget(
+        navigate,
         scanResultRoute(
           scansDir,
           scanPath,
@@ -86,7 +89,6 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
           searchParams
         )
       );
-      if (result instanceof Promise) result.catch(() => undefined);
     };
   }, [
     hasNext,

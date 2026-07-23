@@ -8,12 +8,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
@@ -27,7 +22,13 @@ import {
   type TranscriptLayoutRightRailProps,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import { useChromeNavOwnership, type ChromeTarget } from "@tsmono/react/hooks";
+import {
+  navigateAndForget,
+  useChromeNavOwnership,
+  useOpenEventFocus,
+  useReflectEventNavigationInUrl,
+  type ChromeTarget,
+} from "@tsmono/react/hooks";
 import { isHostedEnvironment } from "@tsmono/util";
 
 import { Events } from "../../../@types/extraInspect";
@@ -359,25 +360,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   const getEventFocusUrl = useSampleEventFocusUrlBuilder();
 
-  // Reflect an explicit turn navigation (j/k, the turn chevrons, the editable
-  // number) in the URL via ?event= so the position is shareable — the keyboard
-  // analogue of an outline-link click. `replace` keeps the back button clean;
-  // ?message= is cleared (turn nav isn't message-scoped). Not called on passive
-  // scroll, so the scroll-spy-driven turn label never churns the URL.
-  const onNavigatedToEvent = useCallback(
-    (eventId: string) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("event", eventId);
-          next.delete("message");
-          return next;
-        },
-        { replace: true }
-      );
-    },
-    [setSearchParams]
-  );
+  const onNavigatedToEvent = useReflectEventNavigationInUrl(setSearchParams);
 
   // Outline link clicks are in-view navigation (jumping to an event in the
   // same transcript), so recover the hash route from the absolute URL and
@@ -396,19 +379,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   const navigate = useNavigate();
-  const location = useLocation();
-
-  // focus-mode entry: plain click navigates in-window; modified clicks use the href
-  const onOpenEventFocus = useCallback(
-    (focusRoute: string) => {
-      // Idempotent: a double-click / f-key repeat must not push the same focus
-      // URL twice (the first Back would then be a same-URL no-op).
-      if (focusRoute === `${location.pathname}${location.search}`) return;
-      const result = navigate(focusRoute);
-      if (result instanceof Promise) result.catch(() => undefined);
-    },
-    [navigate, location.pathname, location.search]
-  );
+  const onOpenEventFocus = useOpenEventFocus();
 
   const onMarkerNavigate = useCallback(
     (eventId: string, selectedKey?: string) => {
@@ -417,8 +388,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       if (selectedKey) {
         setTimelineSelected(selectedKey);
       }
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url, { replace: true });
+      navigateAndForget(navigate, url, { replace: true });
     },
     [getEventUrl, navigate, setTimelineSelected]
   );

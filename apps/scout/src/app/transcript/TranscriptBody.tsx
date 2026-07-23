@@ -30,7 +30,12 @@ import {
   ToolDropdownButton,
   type ActivityRailItem,
 } from "@tsmono/react/components";
-import { useProperty, useVisitId } from "@tsmono/react/hooks";
+import {
+  navigateAndForget,
+  useProperty,
+  useReflectEventNavigationInUrl,
+  useVisitId,
+} from "@tsmono/react/hooks";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
@@ -167,24 +172,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     [setSelectedTranscriptTab, setSearchParams]
   );
 
-  // Reflect an explicit turn navigation (j/k, header chevrons, go-to-turn bar)
-  // in the URL via ?event= so the position is shareable — mirrors inspect's
-  // TranscriptPanel. `replace` keeps the back button clean; ?message= is
-  // cleared (turn nav isn't message-scoped). Not called on passive scroll.
-  const onNavigatedToEvent = useCallback(
-    (eventId: string) => {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.set("event", eventId);
-          next.delete("message");
-          return next;
-        },
-        { replace: true }
-      );
-    },
-    [setSearchParams]
-  );
+  const onNavigatedToEvent = useReflectEventNavigationInUrl(setSearchParams);
 
   // Navigate to a specific event when a marker is clicked on the timeline.
   // When selectedKey is provided (compaction markers), the bar is selected
@@ -194,8 +182,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url, { replace: true });
+      navigateAndForget(navigate, url, { replace: true });
     },
     [getEventUrl, navigate]
   );

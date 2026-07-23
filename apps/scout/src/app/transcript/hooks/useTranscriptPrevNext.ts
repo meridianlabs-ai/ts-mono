@@ -1,6 +1,8 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
+import { navigateAndForget } from "@tsmono/react/hooks";
+
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import { transcriptFocusRoute, transcriptRoute } from "../../../router/url";
 import { useStore } from "../../../state/store";
@@ -74,10 +76,10 @@ export const useTranscriptPrevNext = (
     () =>
       prevId
         ? () => {
-            const result = navigate(
+            navigateAndForget(
+              navigate,
               siblingRoute(resolvedTranscriptsDir, prevId, cleanParams)
             );
-            if (result instanceof Promise) result.catch(() => undefined);
           }
         : undefined,
     [prevId, navigate, siblingRoute, resolvedTranscriptsDir, cleanParams]
@@ -87,10 +89,10 @@ export const useTranscriptPrevNext = (
     () =>
       nextId
         ? () => {
-            const result = navigate(
+            navigateAndForget(
+              navigate,
               siblingRoute(resolvedTranscriptsDir, nextId, cleanParams)
             );
-            if (result instanceof Promise) result.catch(() => undefined);
           }
         : undefined,
     [nextId, navigate, siblingRoute, resolvedTranscriptsDir, cleanParams]

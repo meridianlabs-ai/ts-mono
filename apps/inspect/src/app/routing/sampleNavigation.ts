@@ -1,6 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
+import { navigateAndForget } from "@tsmono/react/hooks";
+
 import { useLogDir } from "../../app_config";
 import { selectSample } from "../../state/actions";
 import {
@@ -163,8 +165,7 @@ export const useSampleNavigationActions = () => {
         );
 
         // Navigate to the sample URL (now goes to LogSampleDetailView)
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        navigate(url);
+        navigateAndForget(navigate, url);
       }
     },
     [resolveLogPath, navigate, sampleTabId, prefix]
@@ -235,8 +236,7 @@ export const useSampleNavigationActions = () => {
     const resolvedPath = resolveLogPath();
     if (resolvedPath) {
       const url = logsUrlRaw(resolvedPath, tabId, prefix);
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
+      navigateAndForget(navigate, url);
     }
   }, [resolveLogPath, navigate, tabId, prefix]);
 
@@ -292,8 +292,7 @@ export const useSamplesGridNavigationAction = () => {
         // Open in new window/tab
         openInNewTab(url);
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        navigate(url);
+        navigateAndForget(navigate, url);
       }
     },
     [navigate, logDirectory]
@@ -380,8 +379,7 @@ export const useLogSampleNavigationActions = () => {
             sampleTabId,
             prefix
           );
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
+      navigateAndForget(navigate, url);
     }
   }, [
     hasPrevious,
@@ -415,8 +413,7 @@ export const useLogSampleNavigationActions = () => {
             sampleTabId,
             prefix
           );
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
+      navigateAndForget(navigate, url);
     }
   }, [
     hasNext,

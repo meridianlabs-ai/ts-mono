@@ -1,10 +1,7 @@
 import { useCallback } from "react";
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
+
+import { useOpenEventFocus } from "@tsmono/react/hooks";
 
 import {
   parseTranscriptParams,
@@ -109,20 +106,7 @@ export const useTranscriptNavigation = () => {
     [transcriptsDir, transcriptId]
   );
 
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // focus-mode entry: plain click navigates in-window; modified clicks use the href
-  const onOpenEventFocus = useCallback(
-    (focusRoute: string): void => {
-      // Idempotent: a double-click / f-key repeat must not push the same focus
-      // URL twice (the first Back would then be a same-URL no-op).
-      if (focusRoute === `${location.pathname}${location.search}`) return;
-      const result = navigate(focusRoute);
-      if (result instanceof Promise) result.catch(() => undefined);
-    },
-    [navigate, location.pathname, location.search]
-  );
+  const onOpenEventFocus = useOpenEventFocus();
 
   return {
     getEventUrl,
