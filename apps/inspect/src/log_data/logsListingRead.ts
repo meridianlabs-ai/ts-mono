@@ -251,6 +251,11 @@ const fetchLogsListingSnapshot = <TRow>(
       ),
     staleTime: Infinity,
     gcTime: 30_000,
+    // The page/match queries calling this already retry via the client's
+    // default policy, and each outer attempt that finds this query settled
+    // in error starts a fresh inner cycle — an inherited retry here would
+    // multiply attempts and delay the error banner by tens of seconds.
+    retry: false,
   });
 
 /**
