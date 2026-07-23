@@ -10,11 +10,11 @@ import {
   buildConnectionLanes,
   capFromRetune,
   capGuideSegments,
-  type ConnectionLaneData,
   connectionWindow,
   laneCapValues,
-  type PoolRetune,
   poolRetunes,
+  type ConnectionLaneData,
+  type PoolRetune,
 } from "./connectionHistory";
 
 const change = (

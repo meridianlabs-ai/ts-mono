@@ -6,7 +6,7 @@ import { Modal } from "@tsmono/react/components";
 
 import { TimelineLink } from "../config";
 
-import { type PoolRetune, retuneTransition } from "./connectionHistory";
+import { retuneTransition, type PoolRetune } from "./connectionHistory";
 import styles from "./ConnectionLogModal.module.css";
 import { fmtClock } from "./timeFormat";
 

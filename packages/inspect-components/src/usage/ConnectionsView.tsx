@@ -6,11 +6,11 @@ import { useResizeObserver } from "@tsmono/react/hooks";
 import {
   buildStepPath,
   capGuideSegments,
+  laneCapValues,
+  retuneTransition,
   type ConnectionLaneData,
   type ConnectionWindow,
-  laneCapValues,
   type PoolRetune,
-  retuneTransition,
 } from "./connectionHistory";
 import styles from "./ConnectionsView.module.css";
 import { rolesForModel } from "./roleAliases";

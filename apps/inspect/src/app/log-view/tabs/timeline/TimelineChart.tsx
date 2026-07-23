@@ -13,8 +13,8 @@ import { inputString } from "@tsmono/inspect-common/utils";
 import {
   buildStepPath,
   capGuideSegments,
-  type ConnectionLaneData,
   laneCapValues,
+  type ConnectionLaneData,
   type PoolRetune,
 } from "@tsmono/inspect-components/usage";
 import { useResizeObserver } from "@tsmono/react/hooks";

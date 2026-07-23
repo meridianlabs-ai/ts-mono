@@ -43,10 +43,7 @@ interface TimelineLinkProps {
 }
 
 /** The "View on timeline" affordance shared by the config/usage surfaces. */
-export const TimelineLink: FC<TimelineLinkProps> = ({
-  onClick,
-  className,
-}) => (
+export const TimelineLink: FC<TimelineLinkProps> = ({ onClick, className }) => (
   <button
     type="button"
     className={clsx(styles.timelineLink, className)}
