@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  CSSProperties,
   FC,
   Fragment,
   MouseEvent as ReactMouseEvent,
@@ -59,23 +60,36 @@ const kStatusColor: Record<Termination["status"], string> = {
   completed: "#2f7d4f",
   error: "#b04a3c",
   limit: "#d4a72c",
-  incomplete: "#6c757d",
+  cancelled: "#6c757d",
+  // Stroke color — started samples render hollow.
+  started: "#6c757d",
 };
 
 const kStatusLabel: Record<Termination["status"], string> = {
   completed: "completed",
   error: "errors",
   limit: "limits",
-  incomplete: "incomplete",
+  cancelled: "cancelled",
+  started: "started",
 };
 
 /** Abnormal statuses render closest to the axis so they never hide. */
 const kStatusOrder: Termination["status"][] = [
   "error",
   "limit",
-  "incomplete",
+  "cancelled",
+  "started",
   "completed",
 ];
+
+/** HTML status dots (popovers): hollow ring for started, solid otherwise. */
+const statusDotStyle = (status: Termination["status"]): CSSProperties =>
+  status === "started"
+    ? {
+        background: "transparent",
+        border: `1.5px solid ${kStatusColor.started}`,
+      }
+    : { background: kStatusColor[status] };
 
 const fmtTime = (sec: number): string =>
   new Date(sec * 1000).toLocaleTimeString(undefined, {
@@ -649,6 +663,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                   popover?.kind === "sample" &&
                   popover.sample === t.sample &&
                   popover.status === t.status;
+                const hollow = t.status === "started";
                 return (
                   <circle
                     key={row}
@@ -656,9 +671,15 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                     cx={cx}
                     cy={cy}
                     r={hovered ? 5 : kDotRadius}
-                    fill={kStatusColor[t.status]}
-                    stroke={hovered ? "var(--bs-body-color)" : "none"}
-                    strokeWidth={hovered ? 1.5 : 0}
+                    fill={hollow ? "var(--bs-body-bg)" : kStatusColor[t.status]}
+                    stroke={
+                      hovered
+                        ? "var(--bs-body-color)"
+                        : hollow
+                          ? kStatusColor.started
+                          : "none"
+                    }
+                    strokeWidth={hovered ? 1.5 : hollow ? 1.25 : 0}
                     onMouseEnter={() =>
                       openPopover({
                         kind: "sample",
@@ -1017,7 +1038,7 @@ const SamplePopover: FC<SamplePopoverProps> = ({
       <div className={styles.popoverHeader}>
         <span
           className={styles.popoverStatusDot}
-          style={{ background: kStatusColor[status] }}
+          style={statusDotStyle(status)}
         />
         <span className={styles.popoverSampleId}>Sample {sample.id}</span>
         <span className={styles.popoverEpoch}>epoch {sample.epoch}</span>
@@ -1140,7 +1161,7 @@ const BinPopover: FC<BinPopoverProps> = ({
               <span key={status} className={styles.breakdownItem}>
                 <span
                   className={styles.popoverStatusDot}
-                  style={{ background: kStatusColor[status] }}
+                  style={statusDotStyle(status)}
                 />
                 {counts.get(status)} {kStatusLabel[status]}
               </span>
@@ -1158,7 +1179,7 @@ const BinPopover: FC<BinPopoverProps> = ({
             >
               <span
                 className={styles.popoverStatusDot}
-                style={{ background: kStatusColor[t.status] }}
+                style={statusDotStyle(t.status)}
               />
               <span className={styles.popoverSampleId}>{t.sample.id}</span>
               <span className={styles.popoverEpoch}>

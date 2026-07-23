@@ -8,7 +8,7 @@ import {
 
 import { SampleSummary } from "../../../../client/api/types";
 
-import { historyRows } from "./timelineData";
+import { historyRows, sampleStatus } from "./timelineData";
 
 const epoch = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -19,6 +19,18 @@ const sample = (overrides: Partial<SampleSummary>): SampleSummary => ({
   target: "target",
   scores: null,
   ...overrides,
+});
+
+describe("sampleStatus", () => {
+  it("separates cancellations and still-running samples from errors", () => {
+    expect(sampleStatus(sample({ error: "boom(oops)" }))).toBe("error");
+    expect(sampleStatus(sample({ error: "CancelledError(cancelled)" }))).toBe(
+      "cancelled"
+    );
+    expect(sampleStatus(sample({ completed: false }))).toBe("started");
+    expect(sampleStatus(sample({ limit: "message" }))).toBe("limit");
+    expect(sampleStatus(sample({}))).toBe("completed");
+  });
 });
 
 describe("historyRows", () => {

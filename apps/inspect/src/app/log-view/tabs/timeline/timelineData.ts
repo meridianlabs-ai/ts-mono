@@ -11,6 +11,7 @@ import { formatConfigValue, isoToEpoch } from "@tsmono/inspect-common/utils";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";
+import { errorType } from "../../../samples/error/error";
 
 /** Epoch seconds; timeline math shares the connection-history convention. */
 export interface TimeWindow {
@@ -18,12 +19,17 @@ export interface TimeWindow {
   end: number;
 }
 
-export type SampleStatus = "completed" | "error" | "limit" | "incomplete";
+export type SampleStatus =
+  "completed" | "error" | "limit" | "cancelled" | "started";
 
+/** Mirrors deriveSampleStatus in samples/status — cancellations are not
+ *  errors, and a sample that never completed is still running. */
 export const sampleStatus = (sample: SampleSummary): SampleStatus => {
-  if (sample.error) return "error";
+  if (sample.error) {
+    return errorType(sample.error) === "CancelledError" ? "cancelled" : "error";
+  }
   if (sample.limit) return "limit";
-  if (sample.completed === false) return "incomplete";
+  if (sample.completed === false) return "started";
   return "completed";
 };
 

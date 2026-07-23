@@ -413,6 +413,27 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                     />
                     limit
                   </span>
+                  {dots.some((dot) => dot.status === "cancelled") && (
+                    <span className={styles.legendItem}>
+                      <span
+                        className={styles.legendDot}
+                        style={{ background: "#6c757d" }}
+                      />
+                      cancelled
+                    </span>
+                  )}
+                  {dots.some((dot) => dot.status === "started") && (
+                    <span className={styles.legendItem}>
+                      <span
+                        className={styles.legendDot}
+                        style={{
+                          background: "transparent",
+                          border: "1.5px solid #6c757d",
+                        }}
+                      />
+                      started
+                    </span>
+                  )}
                 </>
               )}
               {showRateLimitLegend && (
