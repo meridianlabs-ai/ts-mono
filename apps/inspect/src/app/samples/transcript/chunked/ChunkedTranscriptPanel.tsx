@@ -319,7 +319,12 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
                 data-index={item.index}
                 ref={virtualizer.measureElement}
                 className={styles.row}
-                style={{ transform: `translateY(${item.start}px)` }}
+                // Position with `top`, not `transform`: a transformed ancestor
+                // is a containing block that traps `position: sticky`
+                // descendants, pinning the event-panel header to the card's
+                // bottom instead of the scroll container's top. The monolith
+                // VirtualList positions rows the same way for the same reason.
+                style={{ top: item.start }}
               >
                 {slot.kind === "row" ? (
                   <div
