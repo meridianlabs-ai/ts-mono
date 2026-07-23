@@ -8,6 +8,8 @@ import { useProperty } from "@tsmono/react/hooks";
 
 import { useLogDir } from "../../app_config";
 import {
+  imperativeLogData,
+  invalidateDatabaseLogsListings,
   useLogsSync,
   type LogListingRow,
   type LogsOverview,
@@ -39,6 +41,7 @@ import { buildLogListRow } from "./grid/logListRow";
 import { useLogListData } from "./grid/useLogListData";
 import type { LogsListingDescriptor } from "./listing/useLogsListingQuery";
 import { FolderLogItem, PendingTaskItem } from "./LogItem";
+import { LogListErrorBanner } from "./LogListErrorBanner";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
 import { useLogsOverview } from "./useLogsOverview";
@@ -214,6 +217,22 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // rather than a silently empty list.
   const listBusy = busy || listData.pending || overviewQuery.loading;
   const error = sync.error ?? overviewQuery.error ?? listData.error;
+  // Cold vs warm failure: with no rows to show the error replaces the panel
+  // body; with rows retained (earlier pages, the previous filter's
+  // placeholder, or overlay folders) the grid stays mounted — scroll,
+  // selection, and find state survive — and the failure surfaces as a
+  // banner above it.
+  const coldError = error !== undefined && listData.rows.length === 0;
+  const handleErrorRetry = useCallback(() => {
+    // Re-run everything that feeds the panel — the listing sync (network)
+    // and the row/overview reads (local): invalidation refetches errored
+    // active queries, so whichever source failed recovers, and the healthy
+    // ones are cheap local re-reads. Both invalidators are needed: a
+    // re-sync that writes nothing never reaches the (throttled) listing
+    // invalidation, so an errored row query would stay parked.
+    imperativeLogData.invalidateLogListing();
+    invalidateDatabaseLogsListings();
+  }, []);
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
@@ -352,7 +371,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         onScoresViewModeChange={setScoresViewMode}
       />
 
-      {error ? (
+      {coldError && error ? (
         <ErrorPanel
           title="Error"
           error={{ message: error.message, stack: error.stack }}
@@ -360,23 +379,40 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       ) : (
         <>
           <div className={clsx(styles.list, "text-size-smaller")}>
-            {/* Keyed on the scope so switching folder/mode resets the grid
+            {error && (
+              <LogListErrorBanner
+                message={
+                  sync.error
+                    ? "Sync failed — the list may be out of date."
+                    : "Couldn't refresh the log listing — showing the last loaded rows."
+                }
+                detail={error.message}
+                onRetry={handleErrorRetry}
+              />
+            )}
+            <div className={styles.listBody}>
+              {/* Keyed on the scope so switching folder/mode resets the grid
                 wholesale — scroll, selection, and the find band's state
                 (term + matches) belong to one scope and reset together. */}
-            <LogListGrid
-              key={scopeKey ?? "pending"}
-              rows={listData.rows}
-              totalRowCount={totalRowCount}
-              sorting={listData.sorting}
-              columnFilters={listData.columnFilters}
-              filter={listData.filter}
-              orderBy={listData.orderBy}
-              currentPath={currentDir}
-              scopeKey={scopeKey}
-              mode={mode}
-              busy={listBusy}
-              listing={listing}
-            />
+              <LogListGrid
+                key={scopeKey ?? "pending"}
+                rows={listData.rows}
+                totalRowCount={totalRowCount}
+                sorting={listData.sorting}
+                columnFilters={listData.columnFilters}
+                filter={listData.filter}
+                orderBy={listData.orderBy}
+                currentPath={currentDir}
+                scopeKey={scopeKey}
+                mode={mode}
+                busy={listBusy}
+                listing={listing}
+                hasMoreRows={listData.hasMoreRows}
+                fetchMoreRows={listData.fetchMoreRows}
+                ensureFileOffsetLoaded={listData.ensureFileOffsetLoaded}
+                autoFetchPaused={listData.autoFetchPaused}
+              />
+            </div>
           </div>
           <LogListFooter
             itemCount={totalRowCount}

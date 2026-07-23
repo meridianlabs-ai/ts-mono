@@ -108,30 +108,32 @@ export const clientApi = (
   ): Promise<LogContents> => {
     // If the requested log is different or no cached log exists, start fetching
     if (!cached || log_file !== current_path || !current_log) {
-      // If there's already a pending fetch, return the same promise
-      if (pending_log_promise) {
-        return pending_log_promise;
+      // Share an in-flight fetch only with callers asking for the SAME file.
+      // The fetch engine backfills details for many files concurrently; a
+      // path-blind pending slot here returned whichever file happened to be
+      // in flight, silently writing one log's contents under its neighbors'
+      // names (duplicated rows, cross-linked task_ids, collapsed counts).
+      const pending = pending_log_promises.get(log_file);
+      if (pending) {
+        return pending;
       }
 
-      // Otherwise, create a new promise for fetching the log
-      pending_log_promise = api
+      const promise = api
         .get_log_contents(log_file, 100)
         .then((log) => {
           current_log = log;
           current_path = log_file;
-          pending_log_promise = null;
           return log;
         })
-        .catch((err) => {
-          pending_log_promise = null;
-          throw err;
+        .finally(() => {
+          pending_log_promises.delete(log_file);
         });
-
-      return pending_log_promise;
+      pending_log_promises.set(log_file, promise);
+      return promise;
     }
     return current_log;
   };
-  let pending_log_promise: Promise<LogContents> | null = null;
+  const pending_log_promises = new Map<string, Promise<LogContents>>();
 
   /**
    * Gets a log summary

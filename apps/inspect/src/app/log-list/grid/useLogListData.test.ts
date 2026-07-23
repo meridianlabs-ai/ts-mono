@@ -28,6 +28,18 @@ describe("dropSettledPendingRows", () => {
     expect(rows.map((row) => row.id)).toEqual(["t-b"]);
   });
 
+  test("universe task ids settle pending tasks whose file row sits beyond the loaded window", () => {
+    // Under pagination `fileRows` is only the loaded page window: the file
+    // row claiming t-a may live on an unloaded page, reported only through
+    // the snapshot's universe task ids.
+    const rows = dropSettledPendingRows(
+      [pending("t-a"), pending("t-b")],
+      [file("/logs/z.eval", "t-z")],
+      ["t-a"]
+    );
+    expect(rows.map((row) => row.id)).toEqual(["t-b"]);
+  });
+
   test("keeps pending tasks when no file row claims them", () => {
     const pendingRows = [pending("t-a")];
     expect(

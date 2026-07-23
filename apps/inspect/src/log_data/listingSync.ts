@@ -10,6 +10,7 @@ export interface ListingTarget {
   listing(): LogHandle[];
   epoch(): number;
   applyListing(update: ListingUpdate): Promise<LogHandle[]>;
+  requeueMissing(): Promise<void>;
 }
 
 /**
@@ -60,13 +61,35 @@ export const syncListing = async (
   // Fetch the updated list of logs from the server
   const response = await api.get_logs(mtime, localFiles.length);
   const updatedLogs = response.files;
+  if (response.response_type === "incremental" && updatedLogs.length === 0) {
+    // No listing churn to apply, but `applyListing` was also the only thing
+    // re-arming interrupted/failed backfill — keep that alive on no-change
+    // ticks or a reload mid-backfill never finishes fetching.
+    await engine.requeueMissing();
+    return localFiles;
+  }
+
+  const localByName = new Map(localFiles.map((file) => [file.name, file]));
+  const updatedByName = new Map(updatedLogs.map((file) => [file.name, file]));
+
+  // Incremental payloads are patches, so retain every unmentioned handle.
+  // Brand-new files go to the head: the server lists newest-first (mtime
+  // desc) and an incremental payload only holds files newer than every
+  // local mtime, so this matches the order a full response would produce —
+  // cache-only scopes render raw listing order, and a tail append would pin
+  // fresh logs to the bottom while DB-mode reads sort them on top.
+  const listing =
+    response.response_type === "full"
+      ? updatedLogs
+      : [
+          ...updatedLogs.filter((file) => !localByName.has(file.name)),
+          ...localFiles.map((file) => updatedByName.get(file.name) ?? file),
+        ];
 
   const deleted =
     response.response_type === "full"
       ? localFiles
-          .filter(
-            (current) => !updatedLogs.find((f) => f.name === current.name)
-          )
+          .filter((current) => !updatedByName.has(current.name))
           .map((file) => file.name)
       : [];
 
@@ -74,7 +97,7 @@ export const syncListing = async (
   // (or whose mtimes are missing, in which case assume changed).
   const invalidated = updatedLogs
     .filter((remoteLog) => {
-      const localCopy = localFiles.find((f) => f.name === remoteLog.name);
+      const localCopy = localByName.get(remoteLog.name);
       if (!localCopy) {
         return true;
       }
@@ -86,7 +109,7 @@ export const syncListing = async (
     .map((file) => file.name);
 
   return engine.applyListing({
-    listing: updatedLogs,
+    listing,
     invalidated,
     deleted,
     persistListing: true,

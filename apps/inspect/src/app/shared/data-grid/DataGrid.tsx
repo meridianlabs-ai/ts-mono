@@ -48,6 +48,11 @@ import { resolveKeyboardNavTarget } from "./keyboardNav";
 const kRowHeight = 30;
 const kPageJump = 10;
 const kHeaderHeight = 25;
+// Infinite-scroll fetch distance. Scout's tuning (rationale in
+// apps/scout/src/app/transcripts/constants.ts): threshold ≥ scroll_speed ×
+// fetch_duration, so at a fast 1500px/s scroll a worst-case 1s page fetch
+// still lands before the user reaches the bottom.
+const kFetchThreshold = 2000;
 // Tall enough to host a rotated score-column label (≈92px of vertical
 // extent for a 130px label at 45°) plus breathing room.
 const kRotatedHeaderHeight = 115;
@@ -183,6 +188,22 @@ export interface DataGridProps<TRow> {
   loading?: boolean;
   emptyMessage?: string;
   className?: string;
+  /** More rows exist beyond `data` (infinite scroll) — gates
+   *  `onScrollNearEnd`. */
+  hasMore?: boolean;
+  /** Called when the scroll position comes within `fetchThreshold` px of
+   *  the bottom while `hasMore` — the caller loads the next page. May fire
+   *  repeatedly during a scroll burst; the caller is expected to be
+   *  in-flight-safe (e.g. react-query's `fetchNextPage`). */
+  onScrollNearEnd?: () => void;
+  /** Distance from the bottom (px) at which to trigger `onScrollNearEnd`. */
+  fetchThreshold?: number;
+  /** Pause the commit-driven near-end check; scroll-driven checks still
+   *  fire. Set while a chained fetch can't make progress — e.g. the caller's
+   *  query has settled in error, so the fetch's own re-render commits with
+   *  the near-end condition still true and an ungated chain would fetch
+   *  unboundedly. */
+  autoFetchPaused?: boolean;
   /** Focus the grid container on mount so arrow-key navigation works
    *  immediately — e.g. the log list, where returning from a log should
    *  land you on the restored selection ready to arrow up/down. */
@@ -228,6 +249,10 @@ export function DataGrid<TRow>({
   loading = false,
   emptyMessage = "No matching items",
   className,
+  hasMore = false,
+  onScrollNearEnd,
+  fetchThreshold = kFetchThreshold,
+  autoFetchPaused = false,
   autoFocus = false,
   ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
@@ -721,6 +746,53 @@ export function DataGrid<TRow>({
   const virtualItems = rowVirtualizer.getVirtualItems();
   const totalSize = rowVirtualizer.getTotalSize();
 
+  // Infinite scroll (ported from scout's DataGrid): ask for the next page
+  // when the viewport nears the bottom of the loaded rows.
+  const checkScrollNearEnd = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || !hasMore || !onScrollNearEnd) return;
+    // A container with no layout (hidden webview tab, display:none ancestor)
+    // measures 0-0-0 — "at the bottom" — and each landed page re-satisfies
+    // the commit-driven check, so chaining would load the entire universe
+    // unseen. The ResizeObserver below re-checks when layout arrives, so a
+    // revealed container resumes the chain without a scroll or commit.
+    if (el.clientHeight === 0) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (distanceFromBottom < fetchThreshold) onScrollNearEnd();
+  }, [hasMore, onScrollNearEnd, fetchThreshold]);
+  const handleScroll = useCallback(() => {
+    checkScrollNearEnd();
+  }, [checkScrollNearEnd]);
+  // Also check outside scroll events, whenever the rows change: a page that
+  // doesn't out-run the threshold (or fill the viewport at all) must chain
+  // the next fetch without user input, and during a replication burst the
+  // row query can be perpetually refetching — which makes the caller's
+  // in-flight-safe fetchNextPage a no-op — while a user parked at the bottom
+  // generates no further scroll events, so the retry has to ride the commit
+  // each settling refetch causes. Keyed on `data` identity, not
+  // `data.length`: a refetch can replace the loaded window's contents
+  // without changing its size. `autoFetchPaused` covers the remaining loop:
+  // when a fetch can't grow the rows (e.g. a settled error) its own commit
+  // re-satisfies this check forever.
+  useEffect(() => {
+    if (autoFetchPaused) return;
+    checkScrollNearEnd();
+  }, [autoFetchPaused, checkScrollNearEnd, data]);
+  // Layout arriving (first paint, a hidden tab revealed) may satisfy the
+  // near-end condition with no commit or scroll event to re-check it — the
+  // zero-layout guard above skips hidden containers, so this is what
+  // resumes their chain. Separate from the width observer: that one runs
+  // once ([]), while this must track the current check.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      checkScrollNearEnd();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [checkScrollNearEnd]);
+
   // Polite live-region text. ag-grid maintained its own off-screen live region
   // that spoke row-count/sort changes; reproduce a concise equivalent so a
   // screen-reader user hears the result of filtering, sorting, and loading
@@ -753,6 +825,7 @@ export function DataGrid<TRow>({
       aria-busy={loading || undefined}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onScroll={handleScroll}
     >
       <div className={styles.srStatus} role="status" aria-live="polite">
         {statusMessage}

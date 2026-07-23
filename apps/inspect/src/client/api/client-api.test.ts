@@ -49,6 +49,67 @@ const baseApi = (): LogViewAPI => ({
     .mockResolvedValue({ inspect_version: "test", scout_version: null }),
 });
 
+describe("clientApi.get_log_details in-flight dedupe", () => {
+  const contentsFor = (task_id: string) => ({
+    raw: "",
+    parsed: {
+      version: 2,
+      status: "success",
+      eval: { task: "t", task_id },
+      plan: {},
+      results: {},
+      stats: {},
+      samples: [],
+    },
+  });
+
+  test("concurrent fetches for different files each get their own contents", async () => {
+    // The fetch engine backfills details for many files at once; a
+    // path-blind pending slot once handed file A's in-flight contents to
+    // every concurrent caller, writing A's identity under B's name.
+    const resolvers = new Map<string, (value: unknown) => void>();
+    const get_log_contents = vi.fn(
+      (file: string) =>
+        new Promise((resolve) => {
+          resolvers.set(file, resolve);
+        })
+    );
+    const api = {
+      ...baseApi(),
+      get_log_contents,
+    } as unknown as LogViewAPI;
+    const client = clientApi(api);
+
+    const a = client.get_log_details("/logs/a.json");
+    const b = client.get_log_details("/logs/b.json");
+    expect(get_log_contents).toHaveBeenCalledTimes(2);
+
+    // Resolve out of order: B first, then A.
+    resolvers.get("/logs/b.json")!(contentsFor("task-b"));
+    resolvers.get("/logs/a.json")!(contentsFor("task-a"));
+
+    expect((await a).eval.task_id).toBe("task-a");
+    expect((await b).eval.task_id).toBe("task-b");
+  });
+
+  test("concurrent fetches for the same file share one request", async () => {
+    const get_log_contents = vi.fn().mockResolvedValue(contentsFor("task-a"));
+    const api = {
+      ...baseApi(),
+      get_log_contents,
+    } as unknown as LogViewAPI;
+    const client = clientApi(api);
+
+    const [first, second] = await Promise.all([
+      client.get_log_details("/logs/a.json"),
+      client.get_log_details("/logs/a.json"),
+    ]);
+    expect(get_log_contents).toHaveBeenCalledTimes(1);
+    expect(first.eval.task_id).toBe("task-a");
+    expect(second.eval.task_id).toBe("task-a");
+  });
+});
+
 describe("clientApi.get_log_sample_data path selection", () => {
   test("pins to direct on the first call when the probe succeeds", async () => {
     const direct = vi.fn().mockResolvedValue(okResponse(true));

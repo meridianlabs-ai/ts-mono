@@ -95,13 +95,19 @@ export { imperativeLogData } from "./imperativeLogData";
 export {
   databaseLogsListingKey,
   databaseLogsListingKeyRoot,
+  databaseLogsListingSnapshotKey,
   invalidateDatabaseLogsListings,
   listingKeyUniverse,
 } from "./databaseListings";
 export {
   readLogsListing,
   readLogsListingMatches,
+  readLogsListingPage,
   readLogsOverview,
+  type LogsListingMatch,
+  type LogsListingPageQuery,
+  type LogsListingPageResult,
+  type LogsListingSnapshot,
   type LogsOverview,
   type LogsOverviewView,
 } from "./logsListingRead";

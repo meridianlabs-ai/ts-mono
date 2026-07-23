@@ -29,14 +29,19 @@ import { buildLogListRow } from "./logListRow";
 
 const kNoRows: LogListRow[] = [];
 
-/** Pending rows minus the tasks that already have a file row in `fileRows`
- *  (pending row ids are task ids; file rows carry their record's task_id). */
+/** Pending rows minus the tasks that already have a file row (pending row
+ *  ids are task ids; file rows carry their record's task_id). `fileRows` is
+ *  only the loaded page window under pagination, so the snapshot-scoped
+ *  `universeTaskIds` carries the tasks whose files sit on unloaded pages;
+ *  the window rows still count too — their bulkGot records can be fresher
+ *  than the snapshot (e.g. a preview landing task_id after the scan). */
 export const dropSettledPendingRows = (
   pendingRows: LogListRow[],
-  fileRows: LogListRow[]
+  fileRows: LogListRow[],
+  universeTaskIds?: string[]
 ): LogListRow[] => {
-  if (pendingRows.length === 0 || fileRows.length === 0) return pendingRows;
-  const fileTaskIds = new Set<string>();
+  if (pendingRows.length === 0) return pendingRows;
+  const fileTaskIds = new Set<string>(universeTaskIds);
   for (const row of fileRows) {
     const taskId = row.log?.task_id;
     if (taskId) fileTaskIds.add(taskId);
@@ -78,9 +83,22 @@ export interface LogListData {
   orderBy: OrderByModel[];
   /** The listing query has no result to show yet (first read in flight). */
   pending: boolean;
-  /** The listing read failed — `rows` carries only the overlay items, so
-   *  render this rather than an empty-looking list. */
+  /** The listing read failed. Warm — `rows` still carries the retained
+   *  pages (see `DatabaseLogsListing.result`) plus overlay items — so keep
+   *  rendering the list and surface this beside it; only when `rows` is
+   *  empty is there nothing to show (render an error state rather than an
+   *  empty-looking list). */
   error: Error | undefined;
+  /** More file rows exist beyond the loaded pages — gates the grid's
+   *  scroll-near-end fetch trigger. */
+  hasMoreRows: boolean;
+  /** Load the next page of file rows (in-flight-safe). */
+  fetchMoreRows: () => void;
+  /** Load pages until a snapshot offset is represented in `rows`. */
+  ensureFileOffsetLoaded: (offset: number) => void;
+  /** Pause the grid's commit-driven fetch chaining — a chained fetch can't
+   *  make progress right now (see `DatabaseLogsListing.autoFetchPaused`). */
+  autoFetchPaused: boolean;
 }
 
 /**
@@ -142,9 +160,12 @@ export const useLogListData = ({
   const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
 
   const {
-    data: result,
-    loading: pending,
+    result: { data: result, loading: pending },
     error,
+    hasNextPage,
+    fetchNextPage,
+    ensureOffsetLoaded,
+    autoFetchPaused,
   } = useDatabaseLogsListingQuery<LogListRow>({
     filter,
     orderBy,
@@ -161,7 +182,12 @@ export const useLogListData = ({
   // renders. Re-derive against the queried page: a task with a file row is
   // not pending, whatever the overview's snapshot said.
   const visiblePendingRows = useMemo(
-    () => dropSettledPendingRows(pendingRows, result?.items ?? kNoRows),
+    () =>
+      dropSettledPendingRows(
+        pendingRows,
+        result?.items ?? kNoRows,
+        result?.universe_task_ids
+      ),
     [pendingRows, result]
   );
 
@@ -205,6 +231,8 @@ export const useLogListData = ({
 
   return {
     rows,
+    // Footer count over the whole filtered universe, not the loaded pages:
+    // total_count comes from the snapshot's key list.
     filteredCount:
       folders.length + (result?.total_count ?? 0) + (overlay?.total_count ?? 0),
     sorting,
@@ -213,5 +241,9 @@ export const useLogListData = ({
     orderBy,
     pending,
     error,
+    hasMoreRows: hasNextPage,
+    fetchMoreRows: fetchNextPage,
+    ensureFileOffsetLoaded: ensureOffsetLoaded,
+    autoFetchPaused,
   };
 };

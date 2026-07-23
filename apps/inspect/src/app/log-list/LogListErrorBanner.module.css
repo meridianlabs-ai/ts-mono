@@ -1,0 +1,40 @@
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.3em 0.75em;
+  border-bottom: solid 1px var(--bs-border-color);
+  background-color: var(--bs-light-bg-subtle);
+}
+
+.icon {
+  color: var(--bs-danger);
+}
+
+.message {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.retry {
+  flex: none;
+  border: solid 1px var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-size: inherit;
+  padding: 0 0.6em;
+  cursor: pointer;
+}
+
+.retry:hover {
+  background-color: var(--bs-secondary-bg);
+}
+
+.detail {
+  margin-left: 0.5em;
+  opacity: 0.75;
+}
