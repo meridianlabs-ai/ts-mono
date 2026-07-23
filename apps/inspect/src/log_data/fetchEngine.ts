@@ -940,7 +940,11 @@ export class FetchEngine {
     const rows = deps.sink.currentRows();
     this.queuePreviewBackfill(this._handles, rows, []);
     this.queueDetailBackfill(this._handles, rows, []);
-    this._backfillIdle = this._queue.size === 0;
+    // Claims are removed from the queue the moment a worker picks them up
+    // (possibly synchronously, within the enqueue above), so an empty queue
+    // alone doesn't mean nothing was missing — only idle-and-empty does.
+    this._backfillIdle =
+      this._queue.size === 0 && !this._queue.isProcessing;
   }
 
   /** Clear all cached log data (database + cache). */

@@ -167,32 +167,40 @@ export class DatabaseService {
   }
 
   /** Merge a set of per-file row patches, creating listed-depth rows for
-   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers. */
+   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers.
+   *  The read and the write-back run in one transaction: this is a
+   *  read-modify-write, and the engine's throttled flushes overlap (a
+   *  details ingest races the same settle's derived-preview write) — an
+   *  unserialized merge that read before a concurrent commit would bulk-put
+   *  the stale row back, silently erasing the other write's tier (nested
+   *  callers like writeLogDetails compose via Dexie sub-transactions). */
   private async mergeRows(
     patches: Record<string, Partial<Log>>
   ): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
     const files = Object.keys(patches);
-    const existing = await db.logs.where("file_path").anyOf(files).toArray();
-    const byPath = new Map(
-      existing.map((record) => [record.file_path, record])
-    );
-    const records = files.map<LogRecord>((file) => {
-      const patch = patches[file] ?? {};
-      const current = byPath.get(file);
-      const base =
-        current ?? toLogRecord(newRow({ name: file }), undefined, now);
-      return {
-        ...base,
-        ...patch,
-        depth: maxDepth(base.depth, patch.depth ?? base.depth),
-        file_path: file,
-        id: current?.id,
-        cached_at: now,
-      };
+    await db.transaction("rw", db.logs, async () => {
+      const existing = await db.logs.where("file_path").anyOf(files).toArray();
+      const byPath = new Map(
+        existing.map((record) => [record.file_path, record])
+      );
+      const records = files.map<LogRecord>((file) => {
+        const patch = patches[file] ?? {};
+        const current = byPath.get(file);
+        const base =
+          current ?? toLogRecord(newRow({ name: file }), undefined, now);
+        return {
+          ...base,
+          ...patch,
+          depth: maxDepth(base.depth, patch.depth ?? base.depth),
+          file_path: file,
+          id: current?.id,
+          cached_at: now,
+        };
+      });
+      await db.logs.bulkPut(records);
     });
-    await db.logs.bulkPut(records);
   }
 
   // === PREVIEWED TIER ===

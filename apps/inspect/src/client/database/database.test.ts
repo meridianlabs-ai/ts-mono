@@ -306,6 +306,31 @@ describe("Database Service", () => {
       );
       expect(row).toBeNull();
     });
+
+    test("a concurrent preview write cannot clobber a details ingest (lost update)", async () => {
+      const file = "/test/logs/race.json";
+      // The backfill state before details land: a previewed row.
+      await databaseService.writeLogPreviews({
+        [file]: createTestLogSummary(),
+      });
+
+      // The fetch engine stages a details write AND a details-derived
+      // preview write on every ok settle; their throttled flushes race. A
+      // preview merge that reads the row before the details transaction
+      // commits and bulk-puts afterward would erase the detailed tier
+      // (depth back to previewed, header gone) — whatever the interleave,
+      // the detailed tier must survive.
+      await Promise.all([
+        writeLogDetails({ [file]: createTestLogInfo() }),
+        databaseService.writeLogPreviews({
+          [file]: createTestLogSummary(),
+        }),
+      ]);
+
+      const row = await databaseService.readLogRow(file);
+      expect(row?.depth).toBe("detailed");
+      expect(row?.header).toBeDefined();
+    });
   });
 
   describe("Sample Summaries Store", () => {
