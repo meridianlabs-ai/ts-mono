@@ -37,7 +37,13 @@ const scanRows = async (logDir: string, prefix: string): Promise<Log[]> => {
   if (logsListingSource(logDir) === "database") {
     const logs = await getDatabaseService().readLogs({ prefix });
     if (logs !== null) return logs;
-    // A failed db read degrades to the cache for this query only.
+    // `readLogs` swallows store errors to null. Don't degrade to the cache
+    // mirror: it can be GC'd empty, and the snapshot cache (staleTime:
+    // Infinity) would then serve "no items" as a durable success over a
+    // populated database — indistinguishable from mass deletion (the same
+    // rationale as readLogRows' no-catch). Reject so the listing query
+    // settles in error and the retry/banner path owns recovery.
+    throw new Error("Reading the log listing from the local database failed");
   }
   // An out-of-namespace scope's names never start with the scope prefix —
   // that mismatch is what degraded it (see `namesInScope`) — so filtering

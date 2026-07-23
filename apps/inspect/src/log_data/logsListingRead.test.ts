@@ -308,6 +308,36 @@ describe("readLogsListingPage", () => {
     expect(pages.map((page) => page.total_count)).toEqual([3, 3]);
   });
 
+  test("a failed store read during the snapshot build rejects instead of caching an empty listing", async () => {
+    // `readLogs` swallows Dexie errors to null. Degrading to the react-query
+    // mirror (which can be GC'd empty) would cache keys: [] as a fresh
+    // successful snapshot (staleTime: Infinity) — "No matching items" over a
+    // populated database, with no error surfaced. The failure must reject so
+    // the listing query settles in error (same rationale as readLogRows'
+    // deliberate no-catch).
+    await databaseService.writeLogPreviews({
+      "/test/logs/a.json": preview({ task_id: "t-a" }),
+    });
+    vi.spyOn(databaseService, "readLogs").mockResolvedValue(null);
+
+    globalThis.__TEST_DISABLE_RETRY = true;
+    try {
+      await expect(
+        readLogsListingPage(pageQuery(), { limit: 10 })
+      ).rejects.toThrow(/listing/i);
+
+      // The failure must not have been cached: with the store healthy again,
+      // the same query serves the real rows.
+      vi.restoreAllMocks();
+      const recovered = await readLogsListingPage(pageQuery(), { limit: 10 });
+      expect(recovered.items.map((row) => row.name)).toEqual([
+        "/test/logs/a.json",
+      ]);
+    } finally {
+      globalThis.__TEST_DISABLE_RETRY = undefined;
+    }
+  });
+
   test("pages re-attach the scan's retried marks to bulkGot records", async () => {
     // Same parent dir + task_id: the newer run wins, the older is retried.
     await databaseService.writeLogPreviews({
