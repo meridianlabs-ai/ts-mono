@@ -3,9 +3,7 @@ import type {
   ConfigUpdate,
   ConnectionLimitChange,
 } from "@tsmono/inspect-common/types";
-import { isoToEpoch } from "@tsmono/inspect-common/utils";
-
-import { formatConfigValue } from "../config";
+import { formatConfigValue, isoToEpoch } from "@tsmono/inspect-common/utils";
 
 export interface ConnectionWindow {
   start: number;

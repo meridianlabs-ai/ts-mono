@@ -7,8 +7,7 @@ import {
   EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
-import { isoToEpoch } from "@tsmono/inspect-common/utils";
-import { formatConfigValue } from "@tsmono/inspect-components/config";
+import { formatConfigValue, isoToEpoch } from "@tsmono/inspect-common/utils";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";

@@ -7,6 +7,7 @@ export {
   type ConfigChangeInfo,
 } from "./effectiveConfig";
 export { expandEvents } from "./expandEvents";
+export { formatConfigValue } from "./formatConfigValue";
 export { inputString } from "./inputString";
 export { modelFallbackLines, totalModelFallbacks } from "./modelFallbacks";
 export { sampleLimitMessage } from "./sampleLimit";
