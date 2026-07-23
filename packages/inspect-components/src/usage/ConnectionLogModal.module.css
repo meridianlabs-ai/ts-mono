@@ -151,25 +151,9 @@
   color: var(--bs-body-color);
 }
 
-.timelineLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.72rem;
-  color: var(--bs-secondary);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
+/* Push the shared TimelineLink to the footer's left edge. */
+.footerLink {
   margin-right: auto;
-}
-
-.timelineLink:hover {
-  color: var(--bs-body-color);
-}
-
-.timelineLink i {
-  font-size: 0.8rem;
 }
 
 /* Dark mode — dark tinted fills with light text (the light fills above are

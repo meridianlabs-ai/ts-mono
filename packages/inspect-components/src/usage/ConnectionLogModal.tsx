@@ -4,9 +4,9 @@ import { FC, MouseEvent, useMemo, useState } from "react";
 import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
-import { formatConfigValue } from "../config";
+import { TimelineLink } from "../config";
 
-import type { PoolRetune } from "./connectionHistory";
+import { type PoolRetune, retuneTransition } from "./connectionHistory";
 import styles from "./ConnectionLogModal.module.css";
 import { fmtClock } from "./timeFormat";
 
@@ -99,14 +99,10 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
       footer={
         <>
           {onViewTimeline && (
-            <button
-              type="button"
-              className={styles.timelineLink}
+            <TimelineLink
+              className={styles.footerLink}
               onClick={onViewTimeline}
-            >
-              <i className="bi bi-graph-up" aria-hidden="true" />
-              View on timeline
-            </button>
+            />
           )}
           <button
             type="button"
@@ -181,11 +177,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
                       ◆ config
                     </span>
                     <span className={styles.configDetail}>
-                      {retune.name}{" "}
-                      {retune.cleared
-                        ? "override cleared → launch value"
-                        : `${formatConfigValue(retune.previous)} → ${formatConfigValue(retune.value)}`}{" "}
-                      · {retune.author}
+                      {retuneTransition(retune)} · {retune.author}
                       {retune.reason ? ` — “${retune.reason}”` : ""}
                     </span>
                   </td>

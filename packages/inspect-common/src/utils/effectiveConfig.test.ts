@@ -155,6 +155,42 @@ describe("effectiveEvalConfig", () => {
     expect(folded).toEqual(launch);
   });
 
+  it("skips prototype-chain names in crafted logs", () => {
+    const launch: EvalConfig = { epochs: 1 };
+    const folded = effectiveEvalConfig(launch, [
+      update([
+        {
+          config: "eval",
+          name: "__proto__",
+          value: { polluted: true },
+          previous: null,
+          cleared: false,
+        },
+        {
+          config: "eval",
+          name: "toString",
+          value: 42,
+          previous: null,
+          cleared: false,
+        },
+      ]),
+    ]);
+    expect(folded).toEqual(launch);
+    expect(Object.getPrototypeOf(folded)).toBe(Object.prototype);
+    const changes = evalConfigChanges([
+      update([
+        {
+          config: "eval",
+          name: "constructor",
+          value: 1,
+          previous: null,
+          cleared: false,
+        },
+      ]),
+    ]);
+    expect(changes.size).toBe(0);
+  });
+
   it("skips concurrency and generate changes", () => {
     const launch: EvalConfig = { max_samples: 5 };
     const folded = effectiveEvalConfig(launch, [

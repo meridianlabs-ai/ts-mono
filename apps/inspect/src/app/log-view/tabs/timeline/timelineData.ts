@@ -7,6 +7,8 @@ import {
   EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
+import { isoToEpoch } from "@tsmono/inspect-common/utils";
+import { formatConfigValue } from "@tsmono/inspect-components/config";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";
@@ -16,12 +18,6 @@ export interface TimeWindow {
   start: number;
   end: number;
 }
-
-export const isoToEpoch = (iso?: string | null): number | undefined => {
-  if (!iso) return undefined;
-  const ms = new Date(iso).getTime();
-  return Number.isFinite(ms) ? ms / 1000 : undefined;
-};
 
 export type SampleStatus = "completed" | "error" | "limit" | "incomplete";
 
@@ -57,15 +53,23 @@ export interface StepPoint {
 /** Concurrently-active sample count over time (+1 at start, -1 at end). */
 export const activeSamplesSeries = (
   samples: SampleSummary[],
-  window: TimeWindow
+  window: TimeWindow,
+  running = false
 ): StepPoint[] => {
   const deltas: { time: number; delta: number }[] = [];
   for (const sample of samples) {
     const start = isoToEpoch(sample.started_at);
     if (start === undefined) continue;
     deltas.push({ time: start, delta: 1 });
-    const end = isoToEpoch(sample.completed_at) ?? window.end;
-    deltas.push({ time: end, delta: -1 });
+    const end = isoToEpoch(sample.completed_at);
+    if (end !== undefined) {
+      deltas.push({ time: end, delta: -1 });
+    } else if (!running) {
+      // No completed_at on a finished log means cancelled/crashed — step
+      // down at the window end. On a live eval the sample is still going:
+      // hold the line at the right edge instead of plunging to zero.
+      deltas.push({ time: window.end, delta: -1 });
+    }
   }
   if (deltas.length === 0) return [];
   deltas.sort((a, b) => a.time - b.time);
@@ -93,14 +97,9 @@ const changeText = (change: ConfigValueChange): string => {
   return `${change.name} ${formatShort(change.previous)}→${formatShort(change.value)}`;
 };
 
-export const formatShort = (value: unknown): string => {
-  if (value === null || value === undefined) return "null";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") {
-    return value.toString();
-  }
-  return JSON.stringify(value);
-};
+/** Compact value text for markers/rows — shared formatter, terse "null". */
+export const formatShort = (value: unknown): string =>
+  formatConfigValue(value, "null");
 
 /** A full-height ◆ on the chart: a config retune or a tag/metadata edit. */
 export type TimelineMarker = {

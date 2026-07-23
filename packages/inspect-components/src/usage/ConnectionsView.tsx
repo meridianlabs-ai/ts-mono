@@ -3,13 +3,14 @@ import { FC, Fragment, MouseEvent, useCallback, useState } from "react";
 
 import { useResizeObserver } from "@tsmono/react/hooks";
 
-import { formatConfigValue } from "../config";
-
 import {
-  capFromRetune,
+  buildStepPath,
+  capGuideSegments,
   type ConnectionLaneData,
   type ConnectionWindow,
+  laneCapValues,
   type PoolRetune,
+  retuneTransition,
 } from "./connectionHistory";
 import styles from "./ConnectionsView.module.css";
 import { rolesForModel } from "./roleAliases";
@@ -151,11 +152,6 @@ interface PoolLaneProps {
   onShowLog?: () => void;
 }
 
-const retuneTransition = (retune: PoolRetune): string =>
-  retune.cleared
-    ? `${retune.name} override cleared → launch value`
-    : `${retune.name} ${formatConfigValue(retune.previous)} → ${formatConfigValue(retune.value)}`;
-
 /**
  * The 27a annotated pool lane: blue stepped series, violet cap guide
  * stepping at ◆ retunes, red rate-limit hairlines, start/peak/final labels
@@ -176,9 +172,7 @@ const PoolLane: FC<PoolLaneProps> = ({
   );
 
   const span = timeWindow.end - timeWindow.start;
-  const capValues = (retunes ?? [])
-    .map((retune) => capFromRetune(retune, data.configuredMax))
-    .filter((v): v is number => v !== undefined);
+  const capValues = laneCapValues(data, retunes, timeWindow.end);
   const yMax =
     Math.max(data.configuredMax ?? 0, data.peak, ...capValues) * 1.08 || 1;
   const x = (t: number): number => {
@@ -188,35 +182,23 @@ const PoolLane: FC<PoolLaneProps> = ({
   const y = (v: number): number =>
     kBaselineY - (v / yMax) * (kBaselineY - kPlotTop);
 
-  let path = `M ${x(timeWindow.start)} ${y(data.start)}`;
-  let prev = data.start;
-  for (const e of data.events) {
-    const ex = x(e.timestamp);
-    path += ` L ${ex} ${y(prev)} L ${ex} ${y(e.new_limit)}`;
-    prev = e.new_limit;
-  }
-  path += ` L ${width} ${y(prev)}`;
+  const path = buildStepPath(data, timeWindow.start, x, y, width);
 
   // The cap guide steps at the ◆ that changed it.
-  const capSegments: { x1: number; x2: number; value: number }[] = [];
-  let capValue = data.configuredMax;
-  let capStart = 0;
-  for (const retune of retunes ?? []) {
-    const next = capFromRetune(retune, data.configuredMax);
-    if (next === undefined) continue;
-    const rx = x(retune.timestamp);
-    if (capValue !== undefined && rx > capStart) {
-      capSegments.push({ x1: capStart, x2: rx, value: capValue });
-    }
-    capValue = next;
-    capStart = rx;
-  }
-  if (capValue !== undefined) {
-    capSegments.push({ x1: capStart, x2: width, value: capValue });
-  }
+  const capSegments = capGuideSegments(
+    data,
+    retunes,
+    timeWindow.end,
+    x,
+    0,
+    width
+  );
 
   const finalY = y(data.final);
   const peakAndFinalMerge = data.peak === data.final;
+  // A pool that only scaled down peaks at its start — merge those labels
+  // too, or "peak N" prints directly over "start N" at x=0.
+  const startAndPeakMerge = !peakAndFinalMerge && data.start === data.peak;
   // Where the series first reaches its peak — the plateau the label sits on.
   let peakX = 0;
   if (data.start !== data.peak) {
@@ -296,7 +278,9 @@ const PoolLane: FC<PoolLaneProps> = ({
           />
           <path className={styles.series} d={path} />
           <text className={styles.chartLabel} x={0} y={y(data.start) - 4}>
-            start {data.start}
+            {startAndPeakMerge
+              ? `start · peak ${data.start}`
+              : `start ${data.start}`}
           </text>
           {peakAndFinalMerge ? (
             <text
@@ -309,13 +293,15 @@ const PoolLane: FC<PoolLaneProps> = ({
             </text>
           ) : (
             <Fragment>
-              <text
-                className={styles.chartLabel}
-                x={Math.min(peakX + 4, width - 40)}
-                y={y(data.peak) - 4}
-              >
-                peak {data.peak}
-              </text>
+              {!startAndPeakMerge && (
+                <text
+                  className={styles.chartLabel}
+                  x={Math.min(peakX + 4, width - 40)}
+                  y={y(data.peak) - 4}
+                >
+                  peak {data.peak}
+                </text>
+              )}
               <text
                 className={styles.chartLabel}
                 x={width - 4}

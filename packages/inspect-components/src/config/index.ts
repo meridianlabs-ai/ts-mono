@@ -3,4 +3,5 @@ export {
   ConfigChangesCountChip,
   ConfigValueCell,
   formatConfigValue,
+  TimelineLink,
 } from "./ConfigChangedChip";

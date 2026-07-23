@@ -34,23 +34,3 @@
   background: var(--bs-border-color);
   margin: 1px 0;
 }
-
-.timelineLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.68rem;
-  color: var(--bs-secondary-color);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.timelineLink:hover {
-  color: var(--bs-body-color);
-}
-
-.timelineLink i {
-  font-size: 0.8rem;
-}

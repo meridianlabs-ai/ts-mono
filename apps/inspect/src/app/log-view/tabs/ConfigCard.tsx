@@ -6,7 +6,10 @@ import {
   effectiveEvalConfig,
   evalConfigChanges,
 } from "@tsmono/inspect-common/utils";
-import { ConfigValueCell } from "@tsmono/inspect-components/config";
+import {
+  ConfigValueCell,
+  TimelineLink,
+} from "@tsmono/inspect-components/config";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
@@ -87,14 +90,7 @@ export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
                 {changeCount} {changeCount === 1 ? "change" : "changes"}
               </span>
               <span className={styles.headerSep} />
-              <button
-                type="button"
-                className={styles.timelineLink}
-                onClick={showTimeline}
-              >
-                <i className="bi bi-graph-up" aria-hidden="true" />
-                View on timeline
-              </button>
+              <TimelineLink onClick={showTimeline} />
             </span>
           </span>
         ) : null}

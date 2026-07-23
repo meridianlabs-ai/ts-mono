@@ -14,6 +14,7 @@ import {
   EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
+import { isoToEpoch } from "@tsmono/inspect-common/utils";
 import {
   adaptiveMaxFromConfig,
   buildConfigsByModel,
@@ -42,7 +43,6 @@ import {
   guideSegments,
   HistoryCategory,
   historyRows,
-  isoToEpoch,
   logMarkers,
   terminations,
 } from "./timelineData";
@@ -130,25 +130,32 @@ export const TimelineTab: FC<TimelineTabProps> = ({
 
   // Window: the run bounds, widened to cover any timestamped signal.
   const window = useMemo(() => {
-    const times: number[] = [];
-    if (runStart !== undefined) times.push(runStart);
-    if (runEnd !== undefined) times.push(runEnd);
-    for (const dot of dots) times.push(dot.time);
+    // Running min/max — spreading a per-sample array into Math.min/max
+    // overflows the engine argument limit on very large logs.
+    let start = Infinity;
+    let end = -Infinity;
+    const cover = (t: number) => {
+      if (t < start) start = t;
+      if (t > end) end = t;
+    };
+    if (runStart !== undefined) cover(runStart);
+    if (runEnd !== undefined) cover(runEnd);
+    for (const dot of dots) cover(dot.time);
     for (const marker of markers) {
-      if (!marker.postRun) times.push(marker.time);
+      if (!marker.postRun) cover(marker.time);
     }
     for (const event of evalStats?.connection_limit_history ?? []) {
-      times.push(event.timestamp);
+      cover(event.timestamp);
     }
-    if (times.length === 0) return undefined;
-    const start = Math.min(...times);
-    const end = Math.max(...times);
     return end > start ? { start, end } : undefined;
   }, [runStart, runEnd, dots, markers, evalStats?.connection_limit_history]);
 
   const activeSeries = useMemo(
-    () => (window ? activeSamplesSeries(samples, window) : []),
-    [samples, window]
+    () =>
+      window
+        ? activeSamplesSeries(samples, window, evalStatus === "started")
+        : [],
+    [samples, window, evalStatus]
   );
 
   const configsByModel = useMemo(
@@ -288,7 +295,9 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       const completed = isoToEpoch(sample.completed_at);
       if (completed === undefined) return undefined;
       for (const marker of markers) {
-        if (marker.kind !== "config" || marker.time <= completed) continue;
+        // Post-run amendments changed nothing for samples that ran.
+        if (marker.kind !== "config" || marker.postRun) continue;
+        if (marker.time <= completed) continue;
         for (const change of marker.update.changes) {
           if (change.config !== "eval" || change.name !== knob) continue;
           const when = new Date(marker.time * 1000).toLocaleString(undefined, {

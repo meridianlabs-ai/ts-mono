@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Fragment, MouseEvent, ReactNode, useState } from "react";
+import { Fragment, MouseEvent, ReactNode, useMemo, useState } from "react";
 
 import type {
   ConfigUpdate,
@@ -82,17 +82,23 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
     return Array.from(out);
   };
 
-  const usageWindow = connectionWindow(
-    connection_limit_history,
-    started_at,
-    completed_at
+  // Memoized so mode-toggle / modal renders don't rebuild the lanes and the
+  // stable identities keep ConnectionLogModal's useMemo effective.
+  const usageWindow = useMemo(
+    () => connectionWindow(connection_limit_history, started_at, completed_at),
+    [connection_limit_history, started_at, completed_at]
   );
-  const lanesByModel = buildConnectionLanes(
-    connection_limit_history,
-    usageWindow,
-    (model) => adaptiveMaxFromConfig(configs_by_model?.[model])
+  const lanesByModel = useMemo(
+    () =>
+      buildConnectionLanes(connection_limit_history, usageWindow, (model) =>
+        adaptiveMaxFromConfig(configs_by_model?.[model])
+      ),
+    [connection_limit_history, usageWindow, configs_by_model]
   );
-  const retunesByModel = poolRetunes(config_updates, main_model);
+  const retunesByModel = useMemo(
+    () => poolRetunes(config_updates, main_model),
+    [config_updates, main_model]
+  );
 
   const modelKeys = keysOf(model_usage, configs_by_model, args_by_model);
   const roleKeys = keysOf(
@@ -217,7 +223,13 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           retunes={retunesByModel[logLane.model]}
           onViewTimeline={
             onViewTimeline
-              ? (event) => onViewTimeline(logLane.model, event)
+              ? (event) => {
+                  // The modal's visibility lives in a property bag that
+                  // survives unmount — clear it before navigating away or
+                  // it reopens the next time this tab is shown.
+                  setLogModel(null);
+                  onViewTimeline(logLane.model, event);
+                }
               : undefined
           }
         />

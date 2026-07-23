@@ -81,10 +81,17 @@ export const useShowTimelineForModel = (): ((
   );
   return useCallback(
     (model: string, event?: NavClickEvent) => {
-      setPropertyValue(kTimelineBag, bandsKey, {
-        ...bands,
-        [timelineBandId("connections", model)]: true,
-      });
+      // Modifier clicks open a new browser tab that doesn't share this
+      // store — writing the toggle here would silently flip the band in
+      // the *current* tab instead, so only in-app navigation writes it.
+      const newTab =
+        !!event && (event.metaKey || event.ctrlKey || event.shiftKey);
+      if (!newTab) {
+        setPropertyValue(kTimelineBag, bandsKey, {
+          ...bands,
+          [timelineBandId("connections", model)]: true,
+        });
+      }
       showTimeline(event);
     },
     [setPropertyValue, bandsKey, bands, showTimeline]

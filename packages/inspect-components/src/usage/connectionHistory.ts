@@ -3,6 +3,9 @@ import type {
   ConfigUpdate,
   ConnectionLimitChange,
 } from "@tsmono/inspect-common/types";
+import { isoToEpoch } from "@tsmono/inspect-common/utils";
+
+import { formatConfigValue } from "../config";
 
 export interface ConnectionWindow {
   start: number;
@@ -21,12 +24,6 @@ export interface ConnectionLaneData {
 }
 
 const kAdaptiveDefaultMax = 100;
-
-const isoToEpoch = (iso?: string | null): number | undefined => {
-  if (!iso) return undefined;
-  const ms = new Date(iso).getTime();
-  return Number.isFinite(ms) ? ms / 1000 : undefined;
-};
 
 // History timestamps are epoch seconds while started_at/completed_at are ISO
 // strings; normalize here. The window expands to cover any events outside the
@@ -86,22 +83,33 @@ export interface PoolRetune {
 }
 
 /**
- * The cap a retune sets the guide to, or undefined for no step. A cleared
- * retune restores `launchCap` (the guide's starting value — the closest
- * launch signal a lane carries).
+ * The cap a retune steps the guide to: a number, `"none"` when the cap
+ * ceases to exist (adaptive disabled, limit nulled, or cleared with no
+ * launch cap to restore), or undefined when the retune doesn't step the
+ * cap at all. A cleared retune restores `launchCap` (the guide's starting
+ * value — the closest launch signal a lane carries).
  */
 export const capFromRetune = (
   retune: PoolRetune,
   launchCap?: number
-): number | undefined => {
+): number | "none" | undefined => {
   if (retune.cleared) {
-    return launchCap;
+    return launchCap ?? "none";
   }
   if (retune.name === "adaptive_connections") {
-    return adaptiveMaxFromValue(retune.value);
+    return adaptiveMaxFromValue(retune.value) ?? "none";
   }
-  return typeof retune.value === "number" ? retune.value : undefined;
+  if (typeof retune.value === "number") {
+    return retune.value;
+  }
+  return retune.value === null ? "none" : undefined;
 };
+
+/** The transition text shared by lane ◆ tooltips and Connection Log rows. */
+export const retuneTransition = (retune: PoolRetune): string =>
+  retune.cleared
+    ? `${retune.name} override cleared → launch value`
+    : `${retune.name} ${formatConfigValue(retune.previous)} → ${formatConfigValue(retune.value)}`;
 
 /**
  * Per-model pool retunes from config_updates: `"concurrency"` changes key
@@ -114,8 +122,8 @@ export const poolRetunes = (
 ): Record<string, PoolRetune[]> => {
   const byModel: Record<string, PoolRetune[]> = {};
   for (const update of updates ?? []) {
-    const timestamp = new Date(update.provenance.timestamp).getTime() / 1000;
-    if (!Number.isFinite(timestamp)) continue;
+    const timestamp = isoToEpoch(update.provenance.timestamp);
+    if (timestamp === undefined) continue;
     for (const change of update.changes) {
       const model =
         change.config === "concurrency"
@@ -194,3 +202,75 @@ export const buildConnectionLanes = (
   }
   return lanes;
 };
+
+/**
+ * SVG path for a lane's stepped connections series. `x`/`y` map time/value
+ * into pixel space; `rightEdge` extends the final value to the plot edge.
+ */
+export const buildStepPath = (
+  lane: ConnectionLaneData,
+  windowStart: number,
+  x: (t: number) => number,
+  y: (v: number) => number,
+  rightEdge: number
+): string => {
+  let path = `M ${x(windowStart)} ${y(lane.start)}`;
+  let prev = lane.start;
+  for (const e of lane.events) {
+    const ex = x(e.timestamp);
+    path += ` L ${ex} ${y(prev)} L ${ex} ${y(e.new_limit)}`;
+    prev = e.new_limit;
+  }
+  path += ` L ${rightEdge} ${y(prev)}`;
+  return path;
+};
+
+export interface CapSegment {
+  x1: number;
+  x2: number;
+  value: number;
+}
+
+/**
+ * Cap-guide segments stepping at the ◆ that changed the cap. Retunes after
+ * `windowEnd` (post-run amendments) never step the guide, and a `"none"`
+ * step ends it until a later retune restores a cap.
+ */
+export const capGuideSegments = (
+  lane: ConnectionLaneData,
+  retunes: PoolRetune[] | undefined,
+  windowEnd: number,
+  x: (t: number) => number,
+  leftEdge: number,
+  rightEdge: number
+): CapSegment[] => {
+  const segments: CapSegment[] = [];
+  let capValue = lane.configuredMax;
+  let capStart = leftEdge;
+  for (const retune of retunes ?? []) {
+    if (retune.timestamp > windowEnd) continue;
+    const next = capFromRetune(retune, lane.configuredMax);
+    if (next === undefined) continue;
+    const rx = x(retune.timestamp);
+    if (capValue !== undefined && rx > capStart) {
+      segments.push({ x1: capStart, x2: rx, value: capValue });
+    }
+    capValue = next === "none" ? undefined : next;
+    capStart = rx;
+  }
+  if (capValue !== undefined) {
+    segments.push({ x1: capStart, x2: rightEdge, value: capValue });
+  }
+  return segments;
+};
+
+/** Caps the guide can show in-window — the y-scale must cover them. */
+export const laneCapValues = (
+  lane: ConnectionLaneData,
+  retunes: PoolRetune[] | undefined,
+  windowEnd: number
+): number[] =>
+  (retunes ?? [])
+    .filter((retune) => retune.timestamp <= windowEnd)
+    .map((retune) => capFromRetune(retune, lane.configuredMax))
+    .filter((v): v is number => typeof v === "number");

@@ -13,12 +13,17 @@ export {
   adaptiveMaxFromConfig,
   adaptiveMaxFromValue,
   buildConnectionLanes,
+  buildStepPath,
   capFromRetune,
+  capGuideSegments,
   connectionWindow,
+  laneCapValues,
   poolRetunes,
+  retuneTransition,
 } from "./connectionHistory";
 export { rolesForModel } from "./roleAliases";
 export type {
+  CapSegment,
   ConnectionLaneData,
   ConnectionWindow,
   PoolRetune,

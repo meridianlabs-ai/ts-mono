@@ -7,9 +7,12 @@ import { PopOver } from "@tsmono/react/components";
 import styles from "./ConfigChangedChip.module.css";
 
 /** Scalar-ish config values render plain; structures fall back to JSON. */
-export const formatConfigValue = (value: unknown): string => {
+export const formatConfigValue = (
+  value: unknown,
+  nullLabel = "none"
+): string => {
   if (value === null || value === undefined) {
-    return "none";
+    return nullLabel;
   }
   if (typeof value === "string") {
     return value;
@@ -36,10 +39,19 @@ const scopeLabel = (change: ConfigChangeInfo): string =>
 
 interface TimelineLinkProps {
   onClick: (event: MouseEvent<HTMLButtonElement>) => void;
+  className?: string;
 }
 
-const TimelineLink: FC<TimelineLinkProps> = ({ onClick }) => (
-  <button type="button" className={styles.timelineLink} onClick={onClick}>
+/** The "View on timeline" affordance shared by the config/usage surfaces. */
+export const TimelineLink: FC<TimelineLinkProps> = ({
+  onClick,
+  className,
+}) => (
+  <button
+    type="button"
+    className={clsx(styles.timelineLink, className)}
+    onClick={onClick}
+  >
     <i className="bi bi-graph-up" aria-hidden="true" />
     View on timeline
   </button>
@@ -91,6 +103,15 @@ const HoverChip: FC<HoverChipProps> = ({
         ref={setChipEl}
         className={clsx(styles.chip, chipClassName)}
         onMouseEnter={() => setIsOpen(true)}
+        onMouseLeave={() => {
+          // A fast swipe can leave before PopOver attaches its own
+          // mouseleave listener; its open timer would still fire and strand
+          // the popover open. If it hasn't shown yet (no portal node in the
+          // DOM), cancel the open.
+          if (!document.getElementById(id)) {
+            setIsOpen(false);
+          }
+        }}
       >
         {chipContent}
       </span>

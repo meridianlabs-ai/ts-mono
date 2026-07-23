@@ -11,8 +11,10 @@ import {
 
 import { inputString } from "@tsmono/inspect-common/utils";
 import {
-  capFromRetune,
+  buildStepPath,
+  capGuideSegments,
   type ConnectionLaneData,
+  laneCapValues,
   type PoolRetune,
 } from "@tsmono/inspect-components/usage";
 import { useResizeObserver } from "@tsmono/react/hooks";
@@ -64,8 +66,10 @@ const fmtDate = (sec: number): string =>
 
 const fmtCompact = (seconds?: number | null): string => {
   if (seconds == null || !Number.isFinite(seconds)) return "—";
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
+  // Round once up front — rounding the remainder alone yields "1:60".
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return `${m}:${String(s).padStart(2, "0")}`;
 };
 
@@ -225,9 +229,13 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   };
 
   const renderActive = (band: Band) => {
-    const values = activeSeries.map((p) => p.value);
+    // Running max — spreading a per-sample array into Math.max overflows
+    // the engine argument limit on very large logs.
     const guideMax = samplesGuide.reduce((m, s) => Math.max(m, s.value), 0);
-    const dataMax = Math.max(...values, guideMax, 1);
+    const dataMax = activeSeries.reduce(
+      (m, p) => Math.max(m, p.value),
+      Math.max(guideMax, 1)
+    );
     const yMax = dataMax * 1.1;
     const y = (v: number): number =>
       band.top + kPlotBottom - (v / yMax) * (kPlotBottom - kPlotTop);
@@ -292,9 +300,9 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   const renderConnections = (band: Band) => {
     const lane = lanes[band.model!]!;
     const laneRetunes = retunes[band.model!] ?? [];
-    const capValues = laneRetunes
-      .map((r) => capFromRetune(r, lane.configuredMax))
-      .filter((v): v is number => v !== undefined);
+    // Shared helpers window-filter post-run retunes — a cap amended after
+    // the run never inflates the y-scale or steps the guide.
+    const capValues = laneCapValues(lane, laneRetunes, timeWindow.end);
     const dataMax = Math.max(
       lane.configuredMax ?? 0,
       lane.peak,
@@ -305,32 +313,17 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     const y = (v: number): number =>
       band.top + kPlotBottom - (v / yMax) * (kPlotBottom - kPlotTop);
 
-    let path = `M ${x(timeWindow.start)} ${y(lane.start)}`;
-    let prev = lane.start;
-    for (const e of lane.events) {
-      const ex = x(e.timestamp);
-      path += ` L ${ex} ${y(prev)} L ${ex} ${y(e.new_limit)}`;
-      prev = e.new_limit;
-    }
-    path += ` L ${plotRight} ${y(prev)}`;
+    const path = buildStepPath(lane, timeWindow.start, x, y, plotRight);
 
     // Cap guide steps at retunes that changed the cap.
-    const capSegments: { x1: number; x2: number; value: number }[] = [];
-    let capValue = lane.configuredMax;
-    let capStart = plotLeft;
-    for (const retune of laneRetunes) {
-      const next = capFromRetune(retune, lane.configuredMax);
-      if (next === undefined) continue;
-      const rx = x(retune.timestamp);
-      if (capValue !== undefined && rx > capStart) {
-        capSegments.push({ x1: capStart, x2: rx, value: capValue });
-      }
-      capValue = next;
-      capStart = rx;
-    }
-    if (capValue !== undefined) {
-      capSegments.push({ x1: capStart, x2: plotRight, value: capValue });
-    }
+    const capSegments = capGuideSegments(
+      lane,
+      laneRetunes,
+      timeWindow.end,
+      x,
+      plotLeft,
+      plotRight
+    );
 
     return (
       <g key={`band-connections-${band.model}`}>
@@ -405,7 +398,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       cy: number;
       t: Termination;
     }[] = [];
-    const clusters: { cx: number; count: number; items: Termination[] }[] = [];
+    const clusters: { cx: number; count: number }[] = [];
     for (const [bin, items] of bins) {
       const cx = bin * kBinWidth + kBinWidth / 2;
       // Abnormal statuses sink to the bottom (closest to the axis) and are
@@ -428,7 +421,6 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         clusters.push({
           cx,
           count: normal.length + (abnormal.length - shown.length),
-          items: sorted,
         });
       }
     }
@@ -679,6 +671,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     if (!popover) return null;
     const { sample, status } = popover;
     const preview = inputString(sample.input).join(" ");
+    const tokens = sampleTokens(sample);
     const crossReference = limitCrossReference?.(sample);
     const completedAt = sample.completed_at
       ? new Date(sample.completed_at).toLocaleString(undefined, {
@@ -735,10 +728,10 @@ export const TimelineChart: FC<TimelineChartProps> = ({
               {fmtCompact(sample.working_time)} /{" "}
               {fmtCompact(sample.total_time)}
             </div>
-            {sampleTokens(sample) !== undefined && (
+            {tokens !== undefined && (
               <Fragment>
                 <div className={styles.popoverLabel}>Tokens</div>
-                <div>{sampleTokens(sample)!.toLocaleString()}</div>
+                <div>{tokens.toLocaleString()}</div>
               </Fragment>
             )}
             <div className={styles.popoverLabel}>Retries</div>

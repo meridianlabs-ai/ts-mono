@@ -97,12 +97,14 @@ const foldConfig = <T extends object>(
   const result: Record<string, unknown> = { ...launchRecord };
   for (const update of updates) {
     for (const change of update.changes) {
-      if (change.config !== family || !(change.name in knownKeys)) {
+      // Object.hasOwn, not `in`: log files are untrusted, and `in` matches
+      // prototype-chain names ("__proto__", "toString", …).
+      if (change.config !== family || !Object.hasOwn(knownKeys, change.name)) {
         continue;
       }
       if (change.cleared) {
         // Cleared restores the launch value — distinct from setting null.
-        if (change.name in launchRecord) {
+        if (Object.hasOwn(launchRecord, change.name)) {
           result[change.name] = launchRecord[change.name];
         } else {
           delete result[change.name];
@@ -165,7 +167,7 @@ const changesFor = (
   const changes = new Map<string, ConfigChangeInfo>();
   for (const update of updates ?? []) {
     for (const change of update.changes) {
-      if (change.config !== family || !(change.name in knownKeys)) {
+      if (change.config !== family || !Object.hasOwn(knownKeys, change.name)) {
         continue;
       }
       changes.set(change.name, {
