@@ -6,6 +6,7 @@ import { Modal } from "@tsmono/react/components";
 
 import { TimelineLink } from "../config";
 
+import { ConnectionReasonBadge, LimitTransition } from "./ConnectionChange";
 import { retuneTransition, type PoolRetune } from "./connectionHistory";
 import styles from "./ConnectionLogModal.module.css";
 import { fmtClock } from "./timeFormat";
@@ -21,20 +22,6 @@ interface ConnectionLogModalProps {
   retunes?: PoolRetune[];
   onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
-
-const kReasonLabel: Record<ConnectionLimitChange["reason"], string> = {
-  slow_start: "slow start",
-  steady_state_up: "steady up",
-  rate_limit: "rate limit",
-  manual: "manual",
-};
-
-const kReasonBadge: Record<ConnectionLimitChange["reason"], string> = {
-  slow_start: styles.badgeSlowStart!,
-  steady_state_up: styles.badgeSteadyUp!,
-  rate_limit: styles.badgeRateLimit!,
-  manual: styles.badgeManual!,
-};
 
 type RowFilter = "all" | "controller" | "config";
 
@@ -170,7 +157,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
                     {fmtClock(new Date(row.time * 1000).toISOString(), true)}
                   </td>
                   <td className={styles.limit}>
-                    <span className={styles.oldLimit}>—</span>
+                    <span className={styles.noLimit}>—</span>
                   </td>
                   <td>
                     <span className={clsx(styles.badge, styles.badgeConfig)}>
@@ -185,7 +172,6 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
               );
             }
             const e = row.event;
-            const down = e.new_limit < e.old_limit;
             return (
               <tr
                 key={`controller-${i}`}
@@ -197,19 +183,13 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
                   {fmtClock(new Date(e.timestamp * 1000).toISOString(), true)}
                 </td>
                 <td className={styles.limit}>
-                  <span className={styles.oldLimit}>{e.old_limit}</span>
-                  <span
-                    className={down ? styles.arrowDown : styles.arrowUp}
-                    aria-label={down ? "decreased to" : "increased to"}
-                  >
-                    {down ? "↓" : "↑"}
-                  </span>
-                  <span className={styles.newLimit}>{e.new_limit}</span>
+                  <LimitTransition
+                    oldLimit={e.old_limit}
+                    newLimit={e.new_limit}
+                  />
                 </td>
                 <td>
-                  <span className={clsx(styles.badge, kReasonBadge[e.reason])}>
-                    {kReasonLabel[e.reason]}
-                  </span>
+                  <ConnectionReasonBadge reason={e.reason} />
                 </td>
               </tr>
             );

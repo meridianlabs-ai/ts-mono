@@ -44,25 +44,8 @@
   white-space: nowrap;
 }
 
-.oldLimit {
+.noLimit {
   color: var(--bs-secondary);
-}
-
-.arrowUp,
-.arrowDown {
-  margin: 0 5px;
-}
-
-.arrowUp {
-  color: var(--bs-secondary);
-}
-
-.arrowDown {
-  color: #b04a3c;
-}
-
-.newLimit {
-  font-weight: 600;
 }
 
 .badge {
@@ -72,26 +55,6 @@
   font-size: 0.7rem;
   font-weight: 600;
   white-space: nowrap;
-}
-
-.badgeSlowStart {
-  background: #e7eef8;
-  color: #3a6ea8;
-}
-
-.badgeSteadyUp {
-  background: #e9f1eb;
-  color: #4a7a55;
-}
-
-.badgeRateLimit {
-  background: #f8e9e7;
-  color: #b04a3c;
-}
-
-.badgeManual {
-  background: #eceef0;
-  color: #5f6771;
 }
 
 .badgeConfig {
@@ -154,32 +117,6 @@
 /* Push the shared TimelineLink to the footer's left edge. */
 .footerLink {
   margin-right: auto;
-}
-
-/* Dark mode — dark tinted fills with light text (the light fills above are
-   near-white and glare on a dark surface). */
-:global([data-bs-theme="dark"]) .arrowDown {
-  color: #d98d7d;
-}
-
-:global([data-bs-theme="dark"]) .badgeSlowStart {
-  background: #253850;
-  color: #9dc0ea;
-}
-
-:global([data-bs-theme="dark"]) .badgeSteadyUp {
-  background: #253b2c;
-  color: #9ccaa8;
-}
-
-:global([data-bs-theme="dark"]) .badgeRateLimit {
-  background: #472a24;
-  color: #e39a8a;
-}
-
-:global([data-bs-theme="dark"]) .badgeManual {
-  background: #31353b;
-  color: #aeb6bf;
 }
 
 :global([data-bs-theme="dark"]) .badgeConfig {

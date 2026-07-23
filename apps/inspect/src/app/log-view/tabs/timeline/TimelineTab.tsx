@@ -261,6 +261,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       config: true,
       tags: true,
       runtime: true,
+      connections: true,
     };
     for (const category of Object.keys(defaults) as HistoryCategory[]) {
       if (categoryOverrides?.[category] ?? defaults[category]) {
@@ -276,6 +277,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
         config: true,
         tags: true,
         runtime: true,
+        connections: true,
       });
       return;
     }
@@ -284,6 +286,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
         config: enabledCategories.has("config"),
         tags: enabledCategories.has("tags"),
         runtime: enabledCategories.has("runtime"),
+        connections: enabledCategories.has("connections"),
       }),
       [category]: !enabledCategories.has(category),
     });

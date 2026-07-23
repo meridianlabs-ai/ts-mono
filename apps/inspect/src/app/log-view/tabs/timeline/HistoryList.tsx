@@ -9,6 +9,10 @@ import {
 } from "react";
 
 import { ConfigUpdate, LogUpdate } from "@tsmono/inspect-common/types";
+import {
+  ConnectionReasonBadge,
+  LimitTransition,
+} from "@tsmono/inspect-components/usage";
 
 import styles from "./HistoryList.module.css";
 import {
@@ -32,7 +36,7 @@ const fmtRowTime = (sec: number): string => {
 interface CategoryChipProps {
   icon: string;
   label: string;
-  kind: "config" | "tags" | "runtime";
+  kind: "config" | "tags" | "runtime" | "connections";
   selected?: boolean;
 }
 
@@ -48,6 +52,7 @@ const CategoryChip: FC<CategoryChipProps> = ({
       kind === "config" && styles.chipConfig,
       kind === "tags" && styles.chipTags,
       kind === "runtime" && styles.chipRuntime,
+      kind === "connections" && styles.chipConnections,
       selected && styles.chipOnTint
     )}
   >
@@ -201,6 +206,7 @@ export const HistoryList: FC<HistoryListProps> = ({
     { id: "config", label: "Config" },
     { id: "tags", label: "Tags & metadata" },
     { id: "runtime", label: "Runtime" },
+    { id: "connections", label: "Connections" },
   ];
 
   const allOn = filters.every(
@@ -293,22 +299,21 @@ export const HistoryList: FC<HistoryListProps> = ({
           ),
         };
       }
-      case "rateLimit":
+      case "connections":
         return {
           chip: (
             <CategoryChip
-              icon="bi-arrow-repeat"
-              label="Runtime"
-              kind="runtime"
+              icon="bi-activity"
+              label="Connections"
+              kind="connections"
             />
           ),
           detail: (
             <div className={styles.detailHead}>
-              <span>Rate limit</span>
-              <span className={styles.monoDetail}>
-                {row.event.model} · connections {row.event.old_limit} →{" "}
-                {row.event.new_limit}
-              </span>
+              <span>Connections</span>
+              <span className={styles.monoDetail}>{row.model}</span>
+              <LimitTransition oldLimit={row.from} newLimit={row.to} />
+              <ConnectionReasonBadge reason={row.reason} count={row.count} />
             </div>
           ),
         };
@@ -471,7 +476,7 @@ export const HistoryList: FC<HistoryListProps> = ({
                 }
               >
                 <div className={styles.time}>{fmtRowTime(row.time)}</div>
-                <div>{chip}</div>
+                <div className={styles.chipCell}>{chip}</div>
                 <div className={styles.detail}>{detail}</div>
               </div>
             );

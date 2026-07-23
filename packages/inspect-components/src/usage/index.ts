@@ -9,6 +9,7 @@ export {
   buildConfigsByModel,
   buildConfigsByRole,
 } from "./configsForUsage";
+export { ConnectionReasonBadge, LimitTransition } from "./ConnectionChange";
 export {
   adaptiveMaxFromConfig,
   adaptiveMaxFromValue,

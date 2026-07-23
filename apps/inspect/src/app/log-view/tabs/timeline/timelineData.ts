@@ -210,14 +210,22 @@ export const guideSegments = (
   return segments;
 };
 
-export type HistoryCategory = "config" | "tags" | "runtime";
+export type HistoryCategory = "config" | "tags" | "runtime" | "connections";
 
 export type HistoryRow = { time: number; postRun: boolean } & (
   | { kind: "config"; update: ConfigUpdate; index: number }
   | { kind: "logUpdate"; update: LogUpdate; index: number }
   | { kind: "runStart"; detail: string }
   | { kind: "runEnd"; status: EvalLogStatus; detail: string }
-  | { kind: "rateLimit"; event: ConnectionLimitChange }
+  | {
+      kind: "connections";
+      model: string;
+      reason: ConnectionLimitChange["reason"];
+      from: number;
+      to: number;
+      /** Contiguous controller steps aggregated into this row. */
+      count: number;
+    }
   | { kind: "sampleError"; sample: SampleSummary }
   | { kind: "sampleLimit"; sample: SampleSummary }
   | { kind: "fallback"; sample: SampleSummary; line: string }
@@ -230,6 +238,8 @@ export const rowCategory = (row: HistoryRow): HistoryCategory => {
       return "config";
     case "logUpdate":
       return "tags";
+    case "connections":
+      return "connections";
     default:
       return "runtime";
   }
@@ -312,14 +322,52 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
     });
   });
 
+  // Controller events: rate limits and manual retunes are individually
+  // newsworthy; contiguous same-reason scaling runs (slow start, steady up)
+  // aggregate into one row per run so the controller's arc stays readable
+  // without burying the rest of the history. Full per-step detail lives in
+  // the Connection Log modal.
+  const byModel = new Map<string, ConnectionLimitChange[]>();
   for (const event of stats?.connection_limit_history ?? []) {
-    if (event.reason !== "rate_limit") continue;
-    rows.push({
-      kind: "rateLimit",
-      time: event.timestamp,
-      postRun: false,
-      event,
-    });
+    const list = byModel.get(event.model) ?? [];
+    list.push(event);
+    byModel.set(event.model, list);
+  }
+  for (const [model, events] of byModel) {
+    events.sort((a, b) => a.timestamp - b.timestamp);
+    let run: ConnectionLimitChange[] = [];
+    const flush = () => {
+      const first = run[0];
+      const last = run[run.length - 1];
+      if (!first || !last) return;
+      rows.push({
+        kind: "connections",
+        time: last.timestamp,
+        postRun: false,
+        model,
+        reason: first.reason,
+        from: first.old_limit,
+        to: last.new_limit,
+        count: run.length,
+      });
+      run = [];
+    };
+    for (const event of events) {
+      if (event.reason === "rate_limit" || event.reason === "manual") {
+        flush();
+        run = [event];
+        flush();
+      } else if (
+        run.length > 0 &&
+        run[run.length - 1]!.reason === event.reason
+      ) {
+        run.push(event);
+      } else {
+        flush();
+        run = [event];
+      }
+    }
+    flush();
   }
 
   for (const sample of samples) {
@@ -395,7 +443,21 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
   );
 };
 
-/** runStart sorts before, and runEnd after, any other row sharing its
- *  (clamped) timestamp. */
-const rowTieRank = (row: HistoryRow): number =>
-  row.kind === "runStart" ? -1 : row.kind === "runEnd" ? 1 : 0;
+/** Tie order at a shared (clamped) timestamp: runStart first, then config ◆
+ *  (the cause sorts before its manual controller echo — the Connection Log
+ *  modal applies the same rule), then everything else, then connection rows,
+ *  with runEnd always last. */
+const rowTieRank = (row: HistoryRow): number => {
+  switch (row.kind) {
+    case "runStart":
+      return -2;
+    case "config":
+      return -1;
+    case "connections":
+      return 1;
+    case "runEnd":
+      return 2;
+    default:
+      return 0;
+  }
+};

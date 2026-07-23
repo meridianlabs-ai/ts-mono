@@ -92,6 +92,14 @@
   padding-top: 2px;
 }
 
+/* Centers the chip on the row's first text line — as a bare inline-flex
+   the pill hangs from the line's baseline and sits ~5px low. */
+.chipCell {
+  display: flex;
+  align-items: center;
+  height: calc(0.8rem * 1.5);
+}
+
 .categoryChip {
   display: inline-flex;
   align-items: center;
@@ -131,8 +139,15 @@
   color: #495057;
 }
 
+.chipConnections {
+  border-color: #c3dcea;
+  background: #eef6fb;
+  color: #2b6a94;
+}
+
 .postRunChip {
   display: inline-flex;
+  align-self: center;
   border: 1px dashed var(--bs-border-color);
   color: var(--bs-secondary-color);
   border-radius: 999px;
@@ -142,6 +157,7 @@
 
 .scopePill {
   display: inline-flex;
+  align-self: center;
   border: 1px solid #d3d9df;
   color: var(--bs-secondary-color);
   border-radius: 999px;
@@ -196,6 +212,7 @@
 
 .auditOnlyChip {
   display: inline-flex;
+  vertical-align: middle;
   border: 1px dashed #d9cfe8;
   color: #4a2e73;
   border-radius: 999px;
@@ -234,6 +251,12 @@
   border-color: #464c52;
   background: #24272a;
   color: #aeb6bf;
+}
+
+:global([data-bs-theme="dark"]) .chipConnections {
+  border-color: #2b4c66;
+  background: #16242e;
+  color: #8fbcd9;
 }
 
 :global([data-bs-theme="dark"]) .rowSelected {
