@@ -375,5 +375,27 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
     });
   }
 
-  return rows.sort((a, b) => a.time - b.time);
+  // Run lifecycle brackets everything that happened during the run: clock
+  // skew can stamp a sample's completion milliseconds past run end, so
+  // in-run rows sort by their time clamped to the run window, with the
+  // lifecycle rows ranked to the outside of any resulting tie. Post-run
+  // rows (config/tag amendments) keep their real times. Display always
+  // shows the row's own time.
+  const sortTime = (row: HistoryRow): number => {
+    if (row.kind === "runStart" || row.kind === "runEnd" || row.postRun) {
+      return row.time;
+    }
+    let time = row.time;
+    if (runEnd !== undefined) time = Math.min(time, runEnd);
+    if (runStart !== undefined) time = Math.max(time, runStart);
+    return time;
+  };
+  return rows.sort(
+    (a, b) => sortTime(a) - sortTime(b) || rowTieRank(a) - rowTieRank(b)
+  );
 };
+
+/** runStart sorts before, and runEnd after, any other row sharing its
+ *  (clamped) timestamp. */
+const rowTieRank = (row: HistoryRow): number =>
+  row.kind === "runStart" ? -1 : row.kind === "runEnd" ? 1 : 0;

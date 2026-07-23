@@ -26,7 +26,10 @@ import { useProperty } from "@tsmono/react/hooks";
 import { EvalLogStatus } from "../../../../@types/extraInspect";
 import type { SampleSummary } from "../../../../client/api/types";
 import { kLogViewTimelineTabId } from "../../../../constants";
-import { useSelectedSampleSummaries } from "../../../../state/hooks";
+import {
+  useEvalDescriptor,
+  useSelectedSampleSummaries,
+} from "../../../../state/hooks";
 import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
 import { openInNewTab } from "../../../shared/openInNewTab";
 import {
@@ -111,6 +114,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
 }) => {
   const sampleData = useSelectedSampleSummaries().data;
   const samples = useMemo(() => sampleData ?? [], [sampleData]);
+  const evalDescriptor = useEvalDescriptor();
   const { showSample, getSampleUrl } = useSampleNavigationActions();
 
   const runStart = isoToEpoch(evalStats?.started_at);
@@ -431,6 +435,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             markers={markers}
             selectedMarker={selectedEventKey}
             onSelectMarker={setSelectedEventKey}
+            evalDescriptor={evalDescriptor}
             limitCrossReference={limitCrossReference}
             onOpenSample={openSample}
           />

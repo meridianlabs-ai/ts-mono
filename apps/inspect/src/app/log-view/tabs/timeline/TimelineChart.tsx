@@ -17,9 +17,12 @@ import {
   type ConnectionLaneData,
   type PoolRetune,
 } from "@tsmono/inspect-components/usage";
-import { useResizeObserver } from "@tsmono/react/hooks";
 
+import { ScoreValue } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";
+import { kScoreTypeOther } from "../../../../constants";
+import { EvalDescriptor } from "../../../samples/descriptor/types";
+import { ScoreValueDisplay } from "../../../samples/header-v2/ScoreValueDisplay";
 
 import styles from "./TimelineChart.module.css";
 import {
@@ -38,10 +41,17 @@ const kPlotTop = 22;
 const kPlotBottom = 72;
 const kAxisHeight = 28;
 const kYAxisWidth = 30;
+// Marks at the window end would otherwise sit on the svg edge and clip.
+const kPlotRightInset = 10;
 const kDotRadius = 3.5;
 const kDotRowStep = 9;
-const kMaxDotRows = 6;
+// Extra headroom over the dot stacks so collapsed-band counts sit on their
+// own line, clear of the band label.
+const kTermPlotTop = kPlotTop + 10;
+const kMaxDotRows = 15;
 const kBinWidth = 8;
+const kMaxPopoverScores = 4;
+const kMaxBinRows = 40;
 const kPostRunGutter = 72;
 const kMarkerTop = 10;
 
@@ -52,10 +62,32 @@ const kStatusColor: Record<Termination["status"], string> = {
   incomplete: "#6c757d",
 };
 
+const kStatusLabel: Record<Termination["status"], string> = {
+  completed: "completed",
+  error: "errors",
+  limit: "limits",
+  incomplete: "incomplete",
+};
+
+/** Abnormal statuses render closest to the axis so they never hide. */
+const kStatusOrder: Termination["status"][] = [
+  "error",
+  "limit",
+  "incomplete",
+  "completed",
+];
+
 const fmtTime = (sec: number): string =>
   new Date(sec * 1000).toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
+  });
+
+const fmtTimeSec = (sec: number): string =>
+  new Date(sec * 1000).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
   });
 
 const fmtDate = (sec: number): string =>
@@ -83,12 +115,15 @@ const sampleTokens = (sample: SampleSummary): number | undefined => {
   return total > 0 ? total : undefined;
 };
 
-interface PopoverState {
-  sample: SampleSummary;
-  status: Termination["status"];
+type PopoverState = {
+  /** Bin the popover belongs to — drives the column hover highlight. */
+  binKey: number;
   x: number;
   y: number;
-}
+} & (
+  | { kind: "sample"; sample: SampleSummary; status: Termination["status"] }
+  | { kind: "bin"; items: Termination[] }
+);
 
 export interface TimelineChartProps {
   window: TimeWindow;
@@ -103,6 +138,8 @@ export interface TimelineChartProps {
   markers: TimelineMarker[];
   selectedMarker: string | null;
   onSelectMarker: (key: string | null) => void;
+  /** Renders sample scores in the popover with the samples-list treatment. */
+  evalDescriptor?: EvalDescriptor | null;
   /** Amber cross-reference for a hovered limit-terminated dot, if any. */
   limitCrossReference?: (sample: SampleSummary) => string | undefined;
   onOpenSample?: (
@@ -125,16 +162,28 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   markers,
   selectedMarker,
   onSelectMarker,
+  evalDescriptor,
   limitCrossReference,
   onOpenSample,
 }) => {
   const [width, setWidth] = useState(0);
-  const chartRef = useResizeObserver(
-    useCallback(
-      (entry: ResizeObserverEntry) => setWidth(entry.contentRect.width),
-      []
-    )
-  );
+  // Callback ref, not useResizeObserver — the chart renders null until
+  // samples arrive (and while every band is toggled off), so a mount-only
+  // effect observes nothing and the width would stay 0 forever.
+  const resizeObserver = useRef<ResizeObserver | null>(null);
+  const chartRef = useCallback((element: HTMLDivElement | null) => {
+    resizeObserver.current?.disconnect();
+    resizeObserver.current = null;
+    if (element) {
+      const observer = new ResizeObserver((entries) => {
+        if (entries[0]) {
+          setWidth(entries[0].contentRect.width);
+        }
+      });
+      observer.observe(element);
+      resizeObserver.current = observer;
+    }
+  }, []);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const popoverCloseTimer = useRef<number | null>(null);
 
@@ -163,7 +212,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   const hasPostRun = markers.some((m) => m.postRun);
   const gutter = hasPostRun ? kPostRunGutter : 0;
   const plotLeft = kYAxisWidth;
-  const plotRight = Math.max(width - gutter, plotLeft);
+  const plotRight = Math.max(width - gutter - kPlotRightInset, plotLeft);
 
   const span = timeWindow.end - timeWindow.start;
   const x = (t: number): number => {
@@ -179,21 +228,44 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     model?: string;
     top: number;
   }
+
+  // Bin terminations by ~8px time slice up front — the deepest stack sets
+  // the band's height (up to kMaxDotRows dot rows before a bin collapses).
+  const termBins = new Map<number, Termination[]>();
+  if (showTerminations) {
+    for (const t of terminationDots) {
+      const bin = Math.floor(x(t.time) / kBinWidth);
+      const list = termBins.get(bin) ?? [];
+      list.push(t);
+      termBins.set(bin, list);
+    }
+  }
+  let maxBinCount = 1;
+  for (const items of termBins.values()) {
+    maxBinCount = Math.max(maxBinCount, items.length);
+  }
+  const termStackRows = Math.min(maxBinCount, kMaxDotRows);
+  const termPlotBottom = Math.max(
+    kPlotBottom,
+    kTermPlotTop + 6 + termStackRows * kDotRowStep
+  );
+
+  // Bands stack in the same order as the picker chips above the chart.
   const bands: Band[] = [];
   let cursor = 0;
   if (showActiveSamples && activeSeries.length > 0) {
     bands.push({ kind: "active", top: cursor });
     cursor += kBandHeight;
   }
+  if (showTerminations) {
+    bands.push({ kind: "terminations", top: cursor });
+    cursor += termPlotBottom + 12;
+  }
   for (const model of connectionModels) {
     if (lanes[model]) {
       bands.push({ kind: "connections", model, top: cursor });
       cursor += kBandHeight;
     }
-  }
-  if (showTerminations) {
-    bands.push({ kind: "terminations", top: cursor });
-    cursor += kBandHeight;
   }
   const axisY = cursor + 6;
   const height = axisY + kAxisHeight;
@@ -203,6 +275,26 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   }
 
   // ── band renderers ───────────────────────────────────────────────────
+
+  // Left spine plus a baseline at y = 0 — each band reads as its own chart.
+  const axisFrame = (band: Band, bottom: number = kPlotBottom) => (
+    <Fragment>
+      <line
+        className={styles.axisLine}
+        x1={plotLeft}
+        x2={plotLeft}
+        y1={band.top + kPlotTop - 4}
+        y2={band.top + bottom}
+      />
+      <line
+        className={styles.axisLine}
+        x1={plotLeft}
+        x2={plotRight}
+        y1={band.top + bottom}
+        y2={band.top + bottom}
+      />
+    </Fragment>
+  );
 
   // Y scale for the line bands: 0 / mid / max, deduped for tiny ranges.
   const yTicks = (yOf: (v: number) => number, max: number) => {
@@ -285,14 +377,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           </Fragment>
         ))}
         {path && <path className={styles.activeSeries} d={path} />}
+        {axisFrame(band)}
         {yTicks(y, dataMax)}
-        <line
-          className={styles.bandSeparator}
-          x1={0}
-          x2={plotRight}
-          y1={band.top + kBandHeight - 4}
-          y2={band.top + kBandHeight - 4}
-        />
       </g>
     );
   };
@@ -370,60 +456,16 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           </Fragment>
         ))}
         <path className={styles.connectionsSeries} d={path} />
+        {axisFrame(band)}
         {yTicks(y, dataMax)}
-        <line
-          className={styles.bandSeparator}
-          x1={0}
-          x2={plotRight}
-          y1={band.top + kBandHeight - 4}
-          y2={band.top + kBandHeight - 4}
-        />
       </g>
     );
   };
 
   const renderTerminations = (band: Band) => {
-    const baseline = band.top + kPlotBottom;
-    // Bin by ~8px time slice; stacks grow up from the rail baseline —
-    // column height is termination volume, x stays at the true slice.
-    const bins = new Map<number, Termination[]>();
-    for (const t of terminationDots) {
-      const bin = Math.floor(x(t.time) / kBinWidth);
-      const list = bins.get(bin) ?? [];
-      list.push(t);
-      bins.set(bin, list);
-    }
-    const dots: {
-      cx: number;
-      cy: number;
-      t: Termination;
-    }[] = [];
-    const clusters: { cx: number; count: number }[] = [];
-    for (const [bin, items] of bins) {
-      const cx = bin * kBinWidth + kBinWidth / 2;
-      // Abnormal statuses sink to the bottom (closest to the axis) and are
-      // never absorbed into a counted cluster.
-      const sorted = [...items].sort((a, b) => {
-        const abnormal = (t: Termination) => (t.status === "completed" ? 1 : 0);
-        return abnormal(a) - abnormal(b);
-      });
-      if (sorted.length <= kMaxDotRows) {
-        sorted.forEach((t, row) => {
-          dots.push({ cx, cy: baseline - row * kDotRowStep, t });
-        });
-      } else {
-        const abnormal = sorted.filter((t) => t.status !== "completed");
-        const normal = sorted.filter((t) => t.status === "completed");
-        const shown = abnormal.slice(0, kMaxDotRows - 1);
-        shown.forEach((t, row) => {
-          dots.push({ cx, cy: baseline - row * kDotRowStep, t });
-        });
-        clusters.push({
-          cx,
-          count: normal.length + (abnormal.length - shown.length),
-        });
-      }
-    }
+    const baseline = band.top + termPlotBottom;
+    const hitTop = band.top + kTermPlotTop - 4;
+    const hitHeight = baseline - hitTop;
 
     return (
       <g key="band-terminations">
@@ -435,61 +477,102 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         >
           SAMPLE TERMINATIONS
         </text>
-        {/* Clusters render under dots — abnormal dots stay hoverable. */}
-        {clusters.map((cluster, i) => (
-          <g key={`cluster-${i}`}>
-            <rect
-              className={styles.clusterBar}
-              x={cluster.cx - 3}
-              y={band.top + kPlotTop}
-              width={6}
-              height={baseline - band.top - kPlotTop}
-              rx={3}
-            >
-              <title>{`${cluster.count} terminations`}</title>
-            </rect>
-            <text
-              className={styles.clusterCount}
-              x={cluster.cx + 6}
-              y={band.top + kPlotTop + 8}
-            >
-              ×{cluster.count}
-            </text>
-          </g>
-        ))}
-        {dots.map((dot, i) => {
-          const hovered =
-            popover?.sample === dot.t.sample &&
-            popover?.status === dot.t.status;
-          return (
-            <circle
-              key={i}
-              className={styles.terminationDot}
-              cx={dot.cx}
-              cy={dot.cy}
-              r={hovered ? 5 : kDotRadius}
-              fill={kStatusColor[dot.t.status]}
-              stroke={hovered ? "var(--bs-body-color)" : "none"}
-              strokeWidth={hovered ? 1.5 : 0}
-              onMouseEnter={() =>
-                openPopover({
-                  sample: dot.t.sample,
-                  status: dot.t.status,
-                  x: dot.cx,
-                  y: dot.cy,
-                })
-              }
-              onMouseLeave={scheduleClosePopover}
-            />
-          );
-        })}
-        <line
-          className={styles.bandSeparator}
-          x1={0}
-          x2={plotRight}
-          y1={band.top + kBandHeight - 4}
-          y2={band.top + kBandHeight - 4}
-        />
+        {[...termBins.entries()]
+          .sort((a, b) => a[0] - b[0])
+          .map(([bin, items]) => {
+            const cx = bin * kBinWidth + kBinWidth / 2;
+            // Abnormal statuses sink to the bottom (closest to the axis)
+            // and are never absorbed into a collapsed band.
+            const sorted = [...items].sort((a, b) => {
+              const abnormal = (t: Termination) =>
+                t.status === "completed" ? 1 : 0;
+              return abnormal(a) - abnormal(b);
+            });
+            const collapsed = sorted.length > kMaxDotRows;
+            const shown = collapsed
+              ? sorted
+                  .filter((t) => t.status !== "completed")
+                  .slice(0, kMaxDotRows - 1)
+              : sorted;
+            const groupHovered =
+              popover?.kind === "bin" && popover.binKey === bin;
+            return (
+              <g key={`bin-${bin}`}>
+                {/* Only a collapsed band answers hover as a group — plain
+                    dot stacks popover per sample via the dots themselves. */}
+                {collapsed && (
+                  <Fragment>
+                    <rect
+                      x={cx - 3}
+                      y={band.top + kTermPlotTop}
+                      width={6}
+                      height={baseline - band.top - kTermPlotTop}
+                      rx={3}
+                      fill={kStatusColor.completed}
+                      stroke={groupHovered ? "var(--bs-body-color)" : "none"}
+                      strokeWidth={groupHovered ? 1.5 : 0}
+                    />
+                    <text
+                      className={styles.clusterCount}
+                      x={cx}
+                      y={band.top + kTermPlotTop - 6}
+                      textAnchor="middle"
+                    >
+                      {sorted.length - shown.length}
+                    </text>
+                    <rect
+                      className={styles.binHit}
+                      x={cx - kBinWidth / 2}
+                      y={hitTop}
+                      width={kBinWidth}
+                      height={hitHeight}
+                      onMouseEnter={() =>
+                        openPopover({
+                          kind: "bin",
+                          binKey: bin,
+                          items,
+                          x: cx,
+                          y: band.top + kTermPlotTop,
+                        })
+                      }
+                      onMouseLeave={scheduleClosePopover}
+                    />
+                  </Fragment>
+                )}
+                {shown.map((t, row) => {
+                  const cy = baseline - kDotRadius - row * kDotRowStep;
+                  const hovered =
+                    popover?.kind === "sample" &&
+                    popover.sample === t.sample &&
+                    popover.status === t.status;
+                  return (
+                    <circle
+                      key={row}
+                      className={styles.terminationDot}
+                      cx={cx}
+                      cy={cy}
+                      r={hovered ? 5 : kDotRadius}
+                      fill={kStatusColor[t.status]}
+                      stroke={hovered ? "var(--bs-body-color)" : "none"}
+                      strokeWidth={hovered ? 1.5 : 0}
+                      onMouseEnter={() =>
+                        openPopover({
+                          kind: "sample",
+                          binKey: bin,
+                          sample: t.sample,
+                          status: t.status,
+                          x: cx,
+                          y: cy,
+                        })
+                      }
+                      onMouseLeave={scheduleClosePopover}
+                    />
+                  );
+                })}
+              </g>
+            );
+          })}
+        {axisFrame(band, termPlotBottom)}
       </g>
     );
   };
@@ -509,10 +592,13 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       },
       { x: plotRight, label: fmtTime(timeWindow.end), anchor: "end" },
     ];
-    const intervals = [300, 900, 1800, 3600, 7200, 14400, 43200, 86400];
+    const intervals = [
+      15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400,
+    ];
     const plotSpan = plotRight - plotLeft;
     const interval = intervals.find((i) => (i / span) * plotSpan >= 80);
     if (interval) {
+      const fmt = interval < 60 ? fmtTimeSec : fmtTime;
       for (
         let t = Math.ceil(timeWindow.start / interval) * interval;
         t < timeWindow.end;
@@ -520,7 +606,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       ) {
         const px = x(t);
         if (px < plotLeft + 110 || px > plotRight - 60) continue;
-        ticks.push({ x: px, label: fmtTime(t), anchor: "middle" });
+        ticks.push({ x: px, label: fmt(t), anchor: "middle" });
       }
     }
     return (
@@ -665,100 +751,40 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     );
   };
 
-  // ── sample popover ───────────────────────────────────────────────────
+  // ── popovers ─────────────────────────────────────────────────────────
 
   const renderPopover = () => {
     if (!popover) return null;
-    const { sample, status } = popover;
-    const preview = inputString(sample.input).join(" ");
-    const tokens = sampleTokens(sample);
-    const crossReference = limitCrossReference?.(sample);
-    const completedAt = sample.completed_at
-      ? new Date(sample.completed_at).toLocaleString(undefined, {
-          month: "short",
-          day: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-        })
-      : undefined;
-    const scores = sample.scores ? Object.entries(sample.scores) : [];
-    const firstScore = scores[0];
     const left = Math.min(
       Math.max(popover.x - 60, 0),
       Math.max(width - 340, 0)
     );
-    const statusWord =
-      status === "limit" ? `${sample.limit ?? ""} limit`.trim() : status;
+    const top = popover.y + 14;
+    const hold = () => openPopover(popover);
+    if (popover.kind === "bin") {
+      return (
+        <BinPopover
+          items={popover.items}
+          left={left}
+          top={top}
+          onHold={hold}
+          onRelease={scheduleClosePopover}
+          onOpenSample={onOpenSample}
+        />
+      );
+    }
     return (
-      <div
-        className={styles.samplePopover}
-        style={{ left, top: popover.y + 14 }}
-        onMouseEnter={() => openPopover(popover)}
-        onMouseLeave={scheduleClosePopover}
-      >
-        <div className={styles.popoverHeader}>
-          <span
-            className={styles.popoverStatusDot}
-            style={{ background: kStatusColor[status] }}
-          />
-          <span className={styles.popoverSampleId}>Sample {sample.id}</span>
-          <span className={styles.popoverEpoch}>epoch {sample.epoch}</span>
-          <span
-            className={styles.popoverStatusWord}
-            style={{ color: kStatusColor[status] }}
-          >
-            {statusWord}
-          </span>
-        </div>
-        <div className={styles.popoverBody}>
-          {preview && <div className={styles.popoverInput}>{preview}</div>}
-          <div className={styles.popoverGrid}>
-            {completedAt && (
-              <Fragment>
-                <div className={styles.popoverLabel}>Terminated</div>
-                <div>
-                  {completedAt}
-                  {sample.limit ? ` — hit ${sample.limit}` : ""}
-                </div>
-              </Fragment>
-            )}
-            <div className={styles.popoverLabel}>Working / total</div>
-            <div>
-              {fmtCompact(sample.working_time)} /{" "}
-              {fmtCompact(sample.total_time)}
-            </div>
-            {tokens !== undefined && (
-              <Fragment>
-                <div className={styles.popoverLabel}>Tokens</div>
-                <div>{tokens.toLocaleString()}</div>
-              </Fragment>
-            )}
-            <div className={styles.popoverLabel}>Retries</div>
-            <div>{sample.retries ?? 0}</div>
-            {firstScore && (
-              <Fragment>
-                <div className={styles.popoverLabel}>Score</div>
-                <div className={styles.popoverScore}>
-                  {firstScore[0]}: {formatShort(firstScore[1]?.value)}
-                </div>
-              </Fragment>
-            )}
-          </div>
-          {crossReference && (
-            <div className={styles.popoverCallout}>{crossReference}</div>
-          )}
-          {onOpenSample && (
-            <button
-              type="button"
-              className={styles.popoverOpen}
-              onClick={(event) => onOpenSample(sample.id, sample.epoch, event)}
-            >
-              Open sample →
-            </button>
-          )}
-        </div>
-      </div>
+      <SamplePopover
+        sample={popover.sample}
+        status={popover.status}
+        left={left}
+        top={top}
+        scores={scoreRowsFor(popover.sample, evalDescriptor)}
+        crossReference={limitCrossReference?.(popover.sample)}
+        onHold={hold}
+        onRelease={scheduleClosePopover}
+        onOpenSample={onOpenSample}
+      />
     );
   };
 
@@ -778,6 +804,256 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         </svg>
       )}
       {renderPopover()}
+    </div>
+  );
+};
+
+// ── popover components ─────────────────────────────────────────────────
+
+interface ScoreRow {
+  key: string;
+  name: string;
+  value: ScoreValue | undefined;
+  scoreType: string;
+}
+
+// Descriptor-typed rows (pass/fail circles, tones) when available;
+// plain formatted text otherwise (e.g. scorers absent from the header).
+const scoreRowsFor = (
+  sample: SampleSummary,
+  evalDescriptor: EvalDescriptor | null | undefined
+): ScoreRow[] => {
+  if (!sample.scores) return [];
+  if (evalDescriptor && evalDescriptor.scores.length > 0) {
+    return evalDescriptor.scores
+      .map((label) => ({
+        key: `${label.scorer}.${label.name}`,
+        name: label.name,
+        value: evalDescriptor.score(sample, label)?.value,
+        scoreType: evalDescriptor.scoreDescriptor(label).scoreType,
+      }))
+      .filter((row) => row.value !== undefined && row.value !== null);
+  }
+  return Object.entries(sample.scores).map(([name, score]) => ({
+    key: name,
+    name,
+    value: formatShort(score?.value),
+    scoreType: kScoreTypeOther,
+  }));
+};
+
+interface PopoverBaseProps {
+  left: number;
+  top: number;
+  /** Keeps the popover open while the pointer is inside it. */
+  onHold: () => void;
+  onRelease: () => void;
+  onOpenSample?: (
+    id: string | number,
+    epoch: number,
+    event: ReactMouseEvent
+  ) => void;
+}
+
+interface SamplePopoverProps extends PopoverBaseProps {
+  sample: SampleSummary;
+  status: Termination["status"];
+  scores: ScoreRow[];
+  crossReference?: string;
+}
+
+const SamplePopover: FC<SamplePopoverProps> = ({
+  sample,
+  status,
+  scores,
+  crossReference,
+  left,
+  top,
+  onHold,
+  onRelease,
+  onOpenSample,
+}) => {
+  const preview = inputString(sample.input).join(" ");
+  const tokens = sampleTokens(sample);
+  const completedAt = sample.completed_at
+    ? new Date(sample.completed_at).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    : undefined;
+  const shownScores = scores.slice(0, kMaxPopoverScores);
+  const statusWord =
+    status === "limit" ? `${sample.limit ?? ""} limit`.trim() : status;
+  return (
+    <div
+      className={styles.samplePopover}
+      style={{ left, top }}
+      onMouseEnter={onHold}
+      onMouseLeave={onRelease}
+    >
+      <div className={styles.popoverHeader}>
+        <span
+          className={styles.popoverStatusDot}
+          style={{ background: kStatusColor[status] }}
+        />
+        <span className={styles.popoverSampleId}>Sample {sample.id}</span>
+        <span className={styles.popoverEpoch}>epoch {sample.epoch}</span>
+        <span
+          className={styles.popoverStatusWord}
+          style={{ color: kStatusColor[status] }}
+        >
+          {statusWord}
+        </span>
+      </div>
+      <div className={styles.popoverBody}>
+        {preview && <div className={styles.popoverInput}>{preview}</div>}
+        <div className={styles.popoverGrid}>
+          {completedAt && (
+            <Fragment>
+              <div className={styles.popoverLabel}>Terminated</div>
+              <div>
+                {completedAt}
+                {sample.limit ? ` — hit ${sample.limit}` : ""}
+              </div>
+            </Fragment>
+          )}
+          <div className={styles.popoverLabel}>Working / total</div>
+          <div>
+            {fmtCompact(sample.working_time)} / {fmtCompact(sample.total_time)}
+          </div>
+          {tokens !== undefined && (
+            <Fragment>
+              <div className={styles.popoverLabel}>Tokens</div>
+              <div>{tokens.toLocaleString()}</div>
+            </Fragment>
+          )}
+          <div className={styles.popoverLabel}>Retries</div>
+          <div>{sample.retries ?? 0}</div>
+          {shownScores.map((row) => (
+            <Fragment key={row.key}>
+              <div className={styles.popoverLabel}>{row.name}</div>
+              <div>
+                <ScoreValueDisplay
+                  value={row.value}
+                  scoreType={row.scoreType}
+                  size={15}
+                />
+              </div>
+            </Fragment>
+          ))}
+          {scores.length > shownScores.length && (
+            <Fragment>
+              <div />
+              <div className={styles.popoverMore}>
+                +{scores.length - shownScores.length} more scores
+              </div>
+            </Fragment>
+          )}
+        </div>
+        {crossReference && (
+          <div className={styles.popoverCallout}>{crossReference}</div>
+        )}
+        {onOpenSample && (
+          <button
+            type="button"
+            className={styles.popoverOpen}
+            onClick={(event) => onOpenSample(sample.id, sample.epoch, event)}
+          >
+            Open sample →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface BinPopoverProps extends PopoverBaseProps {
+  items: Termination[];
+}
+
+const BinPopover: FC<BinPopoverProps> = ({
+  items,
+  left,
+  top,
+  onHold,
+  onRelease,
+  onOpenSample,
+}) => {
+  let minTime = Infinity;
+  let maxTime = -Infinity;
+  const counts = new Map<Termination["status"], number>();
+  for (const t of items) {
+    minTime = Math.min(minTime, t.time);
+    maxTime = Math.max(maxTime, t.time);
+    counts.set(t.status, (counts.get(t.status) ?? 0) + 1);
+  }
+  const minLabel = fmtTimeSec(minTime);
+  const maxLabel = fmtTimeSec(maxTime);
+  const timeLabel =
+    minLabel === maxLabel ? minLabel : `${minLabel} – ${maxLabel}`;
+  const sorted = [...items].sort((a, b) => {
+    const abnormal = (t: Termination) => (t.status === "completed" ? 1 : 0);
+    return abnormal(a) - abnormal(b) || a.time - b.time;
+  });
+  const shown = sorted.slice(0, kMaxBinRows);
+  return (
+    <div
+      className={styles.samplePopover}
+      style={{ left, top }}
+      onMouseEnter={onHold}
+      onMouseLeave={onRelease}
+    >
+      <div className={styles.popoverHeader}>
+        <span className={styles.popoverSampleId}>
+          {items.length} terminations
+        </span>
+        <span className={styles.popoverEpoch}>{timeLabel}</span>
+      </div>
+      <div className={styles.popoverBody}>
+        <div className={styles.popoverBreakdown}>
+          {kStatusOrder
+            .filter((status) => counts.has(status))
+            .map((status) => (
+              <span key={status} className={styles.breakdownItem}>
+                <span
+                  className={styles.popoverStatusDot}
+                  style={{ background: kStatusColor[status] }}
+                />
+                {counts.get(status)} {kStatusLabel[status]}
+              </span>
+            ))}
+        </div>
+        <div className={styles.popoverBinList}>
+          {shown.map((t) => (
+            <button
+              type="button"
+              key={`${t.sample.id}-${t.sample.epoch}`}
+              className={styles.popoverBinRow}
+              onClick={(event) =>
+                onOpenSample?.(t.sample.id, t.sample.epoch, event)
+              }
+            >
+              <span
+                className={styles.popoverStatusDot}
+                style={{ background: kStatusColor[t.status] }}
+              />
+              <span className={styles.popoverSampleId}>{t.sample.id}</span>
+              <span className={styles.popoverEpoch}>
+                epoch {t.sample.epoch}
+              </span>
+              <span className={styles.binRowTime}>{fmtTimeSec(t.time)}</span>
+            </button>
+          ))}
+          {sorted.length > shown.length && (
+            <div className={styles.popoverMore}>
+              +{sorted.length - shown.length} more
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

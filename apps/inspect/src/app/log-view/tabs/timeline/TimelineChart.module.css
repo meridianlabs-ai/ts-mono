@@ -19,10 +19,6 @@
   fill: var(--bs-body-color);
 }
 
-.bandSeparator {
-  stroke: var(--bs-border-color);
-}
-
 .activeSeries {
   fill: none;
   stroke: #495057;
@@ -56,14 +52,14 @@
   cursor: pointer;
 }
 
-.clusterBar {
-  fill: #2f7d4f;
-  opacity: 0.65;
-}
-
 .clusterCount {
   font-size: 9px;
   fill: var(--bs-secondary-color);
+}
+
+.binHit {
+  fill: transparent;
+  cursor: pointer;
 }
 
 .axisLine {
@@ -209,6 +205,7 @@
   grid-template-columns: max-content 1fr;
   column-gap: 1em;
   row-gap: 0.2rem;
+  align-items: baseline;
 }
 
 .popoverGrid > div {
@@ -222,9 +219,55 @@
   font-size: 0.68rem;
 }
 
-.popoverScore {
-  font-family: var(--bs-font-monospace);
+.popoverMore {
+  color: var(--bs-secondary-color);
   font-size: 0.72rem;
+}
+
+.popoverBreakdown {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+}
+
+.breakdownItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.popoverBinList {
+  display: flex;
+  flex-direction: column;
+  max-height: 190px;
+  overflow-y: auto;
+  margin: 0 -0.25rem;
+}
+
+.popoverBinRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.25rem;
+  background: none;
+  border: none;
+  border-radius: 3px;
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--bs-body-color);
+  cursor: pointer;
+}
+
+.popoverBinRow:hover {
+  background: var(--bs-tertiary-bg);
+}
+
+.binRowTime {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-variant-numeric: tabular-nums;
 }
 
 .popoverCallout {
