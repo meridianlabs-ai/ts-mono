@@ -35,6 +35,22 @@ import {
 const TRANSCRIPTS_DIR = "/home/test/project/.transcripts";
 const TRANSCRIPT_ID = "t-events-001";
 
+// Real-time windows tied to implementation constants — not pollable:
+// the tab-level scroll recorder debounces its store write for 1000ms
+// (TabSet passes delay=1000 to useStatefulScrollPosition) and VirtualList's
+// snapshot persist debounces 250ms (PERSIST_DEBOUNCE_MS); neither write has
+// a DOM signal. The restore retries for up to 20 x 100ms from remount.
+const RECORDER_ARM_MS = 1300; // covers both recorders' debounce + margin
+const RESTORE_ABSENCE_WINDOW_MS = 1500; // late-restore allowance after landing
+// Absence-of-drift recheck after a restore poll first matches ("must SETTLE
+// there") — a window, not a poll, by nature.
+const DRIFT_RECHECK_MS = 800;
+// Deliberately INSIDE VirtualList's 250ms persist debounce: the pin is
+// "flip before the record fires". An upper bound — this must never become
+// a poll (an open-ended wait could exit the window and pass vacuously via
+// the normal recorded path).
+const WITHIN_PERSIST_DEBOUNCE_MS = 150;
+
 /**
  * Mock the transcript info + messages-events endpoints for any transcript id.
  */
@@ -772,7 +788,7 @@ test.describe("transcript event rendering", () => {
       if (sc)
         sc.scrollTop = Math.max(0, sc.scrollHeight - sc.clientHeight - 400);
     });
-    await page.waitForTimeout(1300); // let the debounced position-snapshot record
+    await page.waitForTimeout(RECORDER_ARM_MS); // let the debounced position-snapshot record
     const deepScrollTop = await page.evaluate(() => {
       const sc = document.querySelector<HTMLElement>(
         '[data-e2e-scroller-id="transcript-scroller"]'
@@ -826,7 +842,7 @@ test.describe("transcript event rendering", () => {
       timeout: 5000,
     });
     // Give any late restore its window, then require a SETTLED top.
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(RESTORE_ABSENCE_WINDOW_MS);
     await expect.poll(topScrollTop, { timeout: 3000 }).toBeLessThanOrEqual(10);
 
     // WITHIN-VISIT tab flips still restore — the deliberate counterpart of
@@ -852,7 +868,6 @@ test.describe("transcript event rendering", () => {
     const flipToMessagesAndBack = async () => {
       await page.getByRole("tab", { name: "Messages" }).first().click();
       await expect(page.getByText("flip message 0").first()).toBeVisible();
-      await page.waitForTimeout(400);
       await page.getByRole("tab", { name: "Events" }).first().click();
       // Not turn 0's text: a successful restore lands deep, where turn 0 is
       // virtualized out. The tab state is the reliable switch signal.
@@ -865,7 +880,7 @@ test.describe("transcript event rendering", () => {
     // and flip.
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, 3000);
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(RECORDER_ARM_MS);
     const scrolled = await topScrollTop();
     expect(scrolled).toBeGreaterThan(1000);
     await flipToMessagesAndBack();
@@ -875,7 +890,7 @@ test.describe("transcript event rendering", () => {
       })
       .toBeLessThanOrEqual(RESTORE_REMEASURE_TOLERANCE_PX);
     // The position must SETTLE there, not drift after the poll first matches.
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(DRIFT_RECHECK_MS);
     expect(Math.abs((await topScrollTop()) - scrolled)).toBeLessThanOrEqual(
       RESTORE_REMEASURE_TOLERANCE_PX
     );
@@ -883,7 +898,7 @@ test.describe("transcript event rendering", () => {
     // 2) Scroll further and flip almost immediately — inside the debounce
     // window (deliberately NOT waiting for the record; that gap is the pin).
     await page.mouse.wheel(0, 1500);
-    await page.waitForTimeout(150);
+    await page.waitForTimeout(WITHIN_PERSIST_DEBOUNCE_MS);
     const quickScrolled = await topScrollTop();
     expect(quickScrolled).toBeGreaterThan(scrolled + 500);
     await flipToMessagesAndBack();
@@ -892,7 +907,7 @@ test.describe("transcript event rendering", () => {
         timeout: 4000,
       })
       .toBeLessThanOrEqual(RESTORE_REMEASURE_TOLERANCE_PX);
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(DRIFT_RECHECK_MS);
     expect(
       Math.abs((await topScrollTop()) - quickScrolled)
     ).toBeLessThanOrEqual(RESTORE_REMEASURE_TOLERANCE_PX);

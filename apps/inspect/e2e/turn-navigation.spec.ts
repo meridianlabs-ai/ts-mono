@@ -182,6 +182,92 @@ async function eventTopInScroller(
   }, eventId);
 }
 
+// Real-time windows tied to implementation constants — not pollable:
+// the per-tab scroll recorder debounces its store write for 1000ms with no
+// DOM signal (TabSet passes delay=1000 to useStatefulScrollPosition), and
+// its restore retries for up to 20 x 100ms from remount
+// (useStatefulScrollPosition).
+const TAB_RECORDER_ARM_MS = 1300; // 1000ms debounce + capture/scheduling margin
+const RESTORE_RETRY_WINDOW_MS = 2100; // 20 x 100ms retry window + margin
+// Negative assertions ("nothing happened") have no completion signal to
+// poll; this is the allowance a wrong navigation gets to show up.
+const NAV_ABSENCE_WINDOW_MS = 300;
+
+// The canonical landing band: the target's top just under the collapsed
+// chrome, tuck included.
+const inLandingBand = (top: number) => top > -30 && top < 130;
+
+// Poll until the target row's top sits inside the landing band. Terminal by
+// construction: the landing settle re-issues the jump each frame until the
+// scroll holds still for 3 frames or 30 frames elapse (VirtualList).
+async function expectLandedAtTurn(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  eventId: string
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const top = await eventTopInScroller(page, eventId);
+        return `top=${Math.round(top)} ok=${inLandingBand(top)}`;
+      },
+      { timeout: 5000 }
+    )
+    .toMatch(/ok=true$/);
+}
+
+// Landing-band poll that additionally requires the value to hold still
+// across two consecutive samples, for the ±2px re-landing comparisons;
+// returns the settled top.
+async function settledTurnTop(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
+  eventId: string
+): Promise<number> {
+  let prev: number | null = null;
+  let settled = Number.NaN;
+  await expect
+    .poll(
+      async () => {
+        const top = await eventTopInScroller(page, eventId);
+        const stable = prev !== null && Math.abs(top - prev) < 0.5;
+        prev = top;
+        if (stable && inLandingBand(top)) {
+          settled = top;
+          return "settled";
+        }
+        return `top=${Math.round(top)}`;
+      },
+      { timeout: 5000 }
+    )
+    .toBe("settled");
+  return settled;
+}
+
+// The `?event=` URL param — the same signal onNavigatedToEvent writes on
+// every landing; ground truth for "which turn is current" (DOM geometry is
+// unreliable under virtualizer overscan).
+const currentEventParam = (
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"]
+) => page.url().match(/event=([^&]+)/)?.[1] ?? null;
+
+// Biggest scroller's scrollTop, -1 while nothing is scrollable yet (also the
+// precondition poll before wheeling — a wheel on unscrollable content
+// silently no-ops).
+async function biggestScrollerTop(
+  page: Parameters<Parameters<typeof test>[2]>[0]["page"]
+): Promise<number> {
+  return page.evaluate(() => {
+    const scrollers = Array.from(
+      document.querySelectorAll<HTMLElement>("*")
+    ).filter(
+      (el) =>
+        /(auto|scroll)/.test(getComputedStyle(el).overflowY) &&
+        el.scrollHeight > el.clientHeight + 50
+    );
+    const sc = scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+    return sc ? sc.scrollTop : -1;
+  });
+}
+
 test.describe("transcript turn navigation", () => {
   test("model headers show turn nav chevrons + focus-view link", async ({
     page,
@@ -228,23 +314,19 @@ test.describe("transcript turn navigation", () => {
     // SECOND reaches turn-b. No wait before this press — firing before any
     // tracker report is the point.
     await page.keyboard.press("j");
-    await page.waitForTimeout(800);
+    await expect(page).toHaveURL(/event=turn-a/);
+    // Turn 1's landing, not just "scrolled somewhere".
+    await expectLandedAtTurn(page, "turn-a");
     const afterFirst = await maxScrollTop();
     expect(afterFirst).toBeGreaterThan(before);
-    // Turn 1's landing, not just "scrolled somewhere".
-    const firstArrival = await eventTopInScroller(page, "turn-a");
-    expect(firstArrival).toBeGreaterThan(-30);
-    expect(firstArrival).toBeLessThan(130);
 
     await page.keyboard.press("j");
-    await page.waitForTimeout(800);
-    const afterSecond = await maxScrollTop();
-    expect(afterSecond).toBeGreaterThan(afterFirst);
+    await expect(page).toHaveURL(/event=turn-b/);
     // And now TURN 2's landing (no persistent selection carried the index
     // past where it belongs).
-    const secondArrival = await eventTopInScroller(page, "turn-b");
-    expect(secondArrival).toBeGreaterThan(-30);
-    expect(secondArrival).toBeLessThan(130);
+    await expectLandedAtTurn(page, "turn-b");
+    const afterSecond = await maxScrollTop();
+    expect(afterSecond).toBeGreaterThan(afterFirst);
   });
 
   test("re-navigating to a turn lands at the same position every time", async ({
@@ -263,18 +345,19 @@ test.describe("transcript turn navigation", () => {
       `/#/logs/${encodedFile}/samples/sample/1/1/transcript?event=turn-15`
     );
     await expect(page.locator("#turn-15")).toBeVisible();
-    await page.waitForTimeout(900);
-    const firstArrival = await eventTopInScroller(page, "turn-15");
+    const firstArrival = await settledTurnTop(page, "turn-15");
 
     await page.keyboard.press("j");
-    await page.waitForTimeout(800);
+    await expect(page).toHaveURL(/event=turn-16/);
     // The bounce must actually leave turn-15 (a no-op j+k would vacuously
     // "land at the same position").
-    const away = await eventTopInScroller(page, "turn-15");
-    expect(Math.abs(away - firstArrival)).toBeGreaterThan(100);
+    await expect
+      .poll(async () =>
+        Math.abs((await eventTopInScroller(page, "turn-15")) - firstArrival)
+      )
+      .toBeGreaterThan(100);
     await page.keyboard.press("k");
-    await page.waitForTimeout(800);
-    const secondArrival = await eventTopInScroller(page, "turn-15");
+    const secondArrival = await settledTurnTop(page, "turn-15");
 
     expect(Math.abs(secondArrival - firstArrival)).toBeLessThan(2);
   });
@@ -304,12 +387,10 @@ test.describe("transcript turn navigation", () => {
     // Press immediately: initial navigation state must already represent
     // "above turn 1", without waiting for the scroll tracker's backstop.
     await page.keyboard.press("j");
-    await page.waitForTimeout(700);
 
     // Literal fixture id: turn 1 is "turn-a" — deriving the expectation from
     // the page's own focus links could share a wrong anchor list with j.
-    const ev = page.url().match(/event=([^&]+)/)?.[1];
-    expect(ev).toBe("turn-a"); // turn 1, not "turn-b" (turn 2)
+    await expect.poll(() => currentEventParam(page)).toBe("turn-a"); // turn 1, not "turn-b" (turn 2)
   });
 
   test("deep-link landing stays on target while the summary header collapses", async ({
@@ -457,14 +538,12 @@ test.describe("transcript turn navigation", () => {
     await expect(page.getByText("Turn 0 response").first()).toBeVisible();
 
     await page.getByRole("button", { name: "Next turn" }).first().click();
-    await page.waitForTimeout(900);
+    await expect(page).toHaveURL(/event=turn-01/);
 
     // The target's top must sit at the canonical landing (just under the
     // collapsed chrome, tuck included) — a settle aborted by the click's own
     // interaction window parks it a full expanded-header delta lower.
-    const arrival = await eventTopInScroller(page, "turn-01");
-    expect(arrival).toBeGreaterThan(-30);
-    expect(arrival).toBeLessThan(130);
+    await expectLandedAtTurn(page, "turn-01");
   });
 
   test("exit from focus lands on the focused turn, not a stale saved position", async ({
@@ -477,20 +556,39 @@ test.describe("transcript turn navigation", () => {
     // drag the view away from the landing (seen as "returns to turn 1").
     await openTranscript(page, network, manyTurns, { eventId: "turn-15" });
     await expect(page.getByText("Turn 15 response").first()).toBeVisible();
-    await page.waitForTimeout(1400);
+    await expectLandedAtTurn(page, "turn-15");
 
     // Scroll well away from the landing and let the debounced recorder save it.
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, -2500);
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(TAB_RECORDER_ARM_MS); // real time: no DOM signal for the store write
 
     await page.keyboard.press("f");
     await expect(page).toHaveURL(/\/event\?/);
+    // The j/Escape bindings live on the focus page — wait for a control
+    // unique to ITS chrome so the first press can't race the mount.
+    await expect(
+      page.getByRole("button", { name: "Exit focus mode" })
+    ).toBeVisible();
     // Step several turns inside focus so the exit target is far from the
     // saved pre-focus position — a restore win is then clearly visible.
+    // Each focus-view j is a URL navigation. The focus page steps via a
+    // URL → re-render round trip, so wait for each landed turn's CONTENT
+    // before the next press (the URL alone flips before the re-render, and
+    // a press against the stale render re-targets the same turn). The entry
+    // turn depends on where the wheel-up landed, so stop at the fixture's
+    // last turn (turn-19) where j is a legitimate no-op.
     for (let i = 0; i < 5; i++) {
+      const beforePress = currentEventParam(page);
+      if (beforePress === "turn-19") break;
       await page.keyboard.press("j");
-      await page.waitForTimeout(80);
+      await expect.poll(() => currentEventParam(page)).not.toBe(beforePress);
+      const landed = currentEventParam(page)!;
+      await expect(
+        page
+          .getByText(`Turn ${Number(landed.replace("turn-", ""))} response`)
+          .first()
+      ).toBeVisible();
     }
     const focused = new URL(page.url().replace("/#/", "/")).searchParams.get(
       "event"
@@ -499,8 +597,11 @@ test.describe("transcript turn navigation", () => {
 
     await page.keyboard.press("Escape");
     await expect(page).toHaveURL(/transcript\?event=/);
-    // Wait out both the landing settle and the restore's polling window.
-    await page.waitForTimeout(2000);
+    // Land first, then give a buggy late restore its full retry window to
+    // fire (absence assertion — nothing to poll for) before pinning the
+    // final position.
+    await expectLandedAtTurn(page, focused!);
+    await page.waitForTimeout(RESTORE_RETRY_WINDOW_MS);
     const top = await eventTopInScroller(page, focused!);
     expect(top).toBeGreaterThanOrEqual(-5);
     expect(top).toBeLessThanOrEqual(120);
@@ -531,11 +632,11 @@ test.describe("transcript turn navigation", () => {
       page.getByRole("link", { name: "Open focused turn view" }).first()
     ).toBeVisible();
     await page.keyboard.press("f");
-    await page.waitForTimeout(700);
 
+    // The clamp bug under test is decided synchronously at press time; the
+    // auto-retrying URL assertions are the only wait needed.
     await expect(page).toHaveURL(/\/event\?/);
-    const ev = page.url().match(/event=([^&]+)/)?.[1];
-    expect(ev).toBe("turn-b"); // turn 2, not "turn-a" (turn 1)
+    await expect.poll(() => currentEventParam(page)).toBe("turn-b"); // turn 2, not "turn-a" (turn 1)
   });
 
   test("scroll position does not leak between samples", async ({
@@ -587,26 +688,21 @@ test.describe("transcript turn navigation", () => {
         ])
       )
     );
-    const mainScrollTop = () =>
-      page.evaluate(() => {
-        const scrollers = Array.from(document.querySelectorAll("*")).filter(
-          (el) =>
-            /(auto|scroll)/.test(getComputedStyle(el).overflowY) &&
-            el.scrollHeight > el.clientHeight + 50
-        );
-        const sc = scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
-        return sc ? sc.scrollTop : -1;
-      });
+    const mainScrollTop = () => biggestScrollerTop(page);
     const scrollDeepAndRecord = async () => {
+      // Precondition: something is actually scrollable (a wheel on
+      // unscrollable content silently no-ops).
+      await expect.poll(mainScrollTop).toBeGreaterThanOrEqual(0);
       await page.mouse.move(700, 400);
       await page.mouse.wheel(0, 3000);
-      await page.waitForTimeout(1300); // real time: the recorder debounces
+      await page.waitForTimeout(TAB_RECORDER_ARM_MS); // real time: the recorder debounces
       expect(await mainScrollTop()).toBeGreaterThan(1000);
     };
     // The offset must not just start near the top and drift back later —
-    // poll until it SETTLES at the top (restores fire on delayed frames).
+    // a buggy late restore must get its whole retry window to fire BEFORE
+    // the settled-top poll can pass, then the offset must SETTLE at the top.
     const expectSettledAtTop = async () => {
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(RESTORE_RETRY_WINDOW_MS);
       await expect
         .poll(mainScrollTop, { timeout: 4000 })
         .toBeLessThanOrEqual(150);
@@ -618,7 +714,6 @@ test.describe("transcript turn navigation", () => {
     await expect(page.getByText("Turn 0 response").first()).toBeVisible({
       timeout: 15000,
     });
-    await page.waitForTimeout(600);
     await scrollDeepAndRecord();
 
     // 1) In-SPA navigation to sample 2 (a reload would clear the in-memory
@@ -654,7 +749,9 @@ test.describe("transcript turn navigation", () => {
       );
     });
     await expect(page).toHaveURL(/\/samples$/);
-    await page.waitForTimeout(600);
+    // The sample page's unmount (which flushes any pending snapshot) has
+    // necessarily happened once its content is gone.
+    await expect(page.getByText("Turn 0 response")).toHaveCount(0);
     await page.evaluate(() => {
       window.location.hash = window.location.hash.replace(
         /\/samples$/,
@@ -713,10 +810,10 @@ test.describe("transcript turn navigation", () => {
     const encodedFile = encodeURIComponent(LOG_FILE);
     await page.goto(`/#/logs/${encodedFile}/samples/sample/1/1/transcript`);
     await expect(page.getByText("Turn 0 response").first()).toBeVisible();
-    await page.waitForTimeout(600);
+    await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThanOrEqual(0);
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, 3000);
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(TAB_RECORDER_ARM_MS);
 
     await page.getByRole("button", { name: "Next sample" }).click();
     await expect(page.getByText("Sample 2")).toBeVisible();
@@ -725,45 +822,32 @@ test.describe("transcript turn navigation", () => {
     await expect(page.getByText("Sample 1")).toBeVisible();
     // Shift+L must not navigate — only plain ArrowLeft/ArrowRight step samples.
     await page.keyboard.press("Shift+L");
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(NAV_ABSENCE_WINDOW_MS);
     await expect(page.getByText("Sample 1")).toBeVisible();
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText("Sample 2")).toBeVisible();
-    await page.waitForTimeout(800);
+    await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThanOrEqual(0);
 
     // REVISIT rule: coming back to a sample lands at the top — per-sample
     // position memory must not survive sample navigation (only tab flips
     // within one sample restore).
     await page.mouse.move(700, 400);
     await page.mouse.wheel(0, 2500);
-    await page.waitForTimeout(1300);
+    await page.waitForTimeout(TAB_RECORDER_ARM_MS);
     await page.keyboard.press("ArrowLeft");
     await expect(page.getByText("Sample 1")).toBeVisible();
-    await page.waitForTimeout(800);
+    await expect.poll(() => biggestScrollerTop(page)).toBeGreaterThanOrEqual(0);
     await page.keyboard.press("ArrowRight");
     await expect(page.getByText("Sample 2")).toBeVisible();
-    await page.waitForTimeout(1500);
-    const revisitTop = await page.evaluate(() => {
-      const scrollers = Array.from(document.querySelectorAll("*")).filter(
-        (el) =>
-          /(auto|scroll)/.test(getComputedStyle(el).overflowY) &&
-          el.scrollHeight > el.clientHeight + 50
-      );
-      const sc = scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
-      return sc ? sc.scrollTop : -1;
-    });
+    // A leaked restore must get its whole retry window to fire before the
+    // reads below (absence assertion — unpollable), and the position must
+    // not drift between the two reads.
+    await page.waitForTimeout(RESTORE_RETRY_WINDOW_MS);
+    const revisitTop = await biggestScrollerTop(page);
     expect(revisitTop).toBeGreaterThanOrEqual(0);
     expect(revisitTop).toBeLessThanOrEqual(150);
-    await page.waitForTimeout(1500);
-    const scrollTop = await page.evaluate(() => {
-      const scrollers = Array.from(document.querySelectorAll("*")).filter(
-        (el) =>
-          /(auto|scroll)/.test(getComputedStyle(el).overflowY) &&
-          el.scrollHeight > el.clientHeight + 50
-      );
-      const sc = scrollers.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
-      return sc ? sc.scrollTop : -1;
-    });
+    await page.waitForTimeout(RESTORE_RETRY_WINDOW_MS);
+    const scrollTop = await biggestScrollerTop(page);
     expect(scrollTop).toBeGreaterThanOrEqual(0);
     expect(scrollTop).toBeLessThanOrEqual(150);
   });
@@ -841,14 +925,13 @@ test.describe("transcript turn navigation", () => {
       );
       if (sc) sc.scrollTop = 150;
     });
-    await page.waitForTimeout(200);
-    expect(await scrollTop()).toBeGreaterThan(30);
+    await expect.poll(scrollTop).toBeGreaterThan(30);
 
     await page.locator("body").click({ position: { x: 500, y: 160 } });
     await page.keyboard.press("j"); // next turn
     await expect(page.getByText("Tall second turn").first()).toBeVisible();
-    await page.waitForTimeout(700);
-    expect(await scrollTop()).toBe(0);
+    // The bug under test is "reset never happens" — the poll times out red.
+    await expect.poll(scrollTop, { timeout: 4000 }).toBe(0);
   });
 
   test("single-event page renders only the target event", async ({
@@ -875,26 +958,25 @@ test.describe("transcript turn navigation", () => {
     page,
     network,
   }) => {
-    // Ground truth is the `?event=` URL param — the same signal
-    // onNavigatedToEvent writes on every landing — not DOM geometry, which
-    // virtualizer overscan makes unreliable for "which turn is current".
-    const currentEvent = () => page.url().match(/event=([^&]+)/)?.[1] ?? null;
+    const currentEvent = () => currentEventParam(page);
 
     await openTranscript(page, network, manyTurns, { eventId: "turn-14" });
     await expect(page.getByText("turn 15/20").first()).toBeVisible();
-    await page.waitForTimeout(600);
+    await expectLandedAtTurn(page, "turn-14");
     expect(currentEvent()).toBe("turn-14");
 
     // 8 presses at 30ms (approximating OS key-repeat) must land exactly 8
     // turns back, same as a fully-settled slow press would — regardless of
     // press cadence. (k is a synchronous index decision, same as j — no
-    // settle to race.)
+    // settle to race. The 30ms cadence IS the test subject; a longer or
+    // conditional wait would dodge the race instead of hitting it.)
     for (let i = 0; i < 8; i++) {
       await page.keyboard.press("k");
       await page.waitForTimeout(30);
     }
-    await page.waitForTimeout(1500);
-    expect(currentEvent()).toBe("turn-06");
+    // turn-06 is the terminus of a monotonic k-sequence, so the poll can't
+    // pass through a transient equal value.
+    await expect.poll(currentEvent).toBe("turn-06");
   });
 
   test("held j and held k traverse the same number of turns for the same press count", async ({
@@ -903,26 +985,25 @@ test.describe("transcript turn navigation", () => {
   }) => {
     // k is the exact mirror of j (goToTurn(idx - 1) vs goToTurn(idx + 1)), so
     // a held burst of either must move the same distance, just in opposite
-    // directions — no asymmetric settle/confirm step on either side.
-    const currentEvent = () => page.url().match(/event=([^&]+)/)?.[1] ?? null;
+    // directions — no asymmetric settle/confirm step on either side. The
+    // 30ms cadence approximates OS key auto-repeat and is the test subject.
+    const currentEvent = () => currentEventParam(page);
 
     await openTranscript(page, network, manyTurns, { eventId: "turn-10" });
     await expect(page.getByText("turn 11/20").first()).toBeVisible();
-    await page.waitForTimeout(600);
+    await expectLandedAtTurn(page, "turn-10");
     expect(currentEvent()).toBe("turn-10");
 
     for (let i = 0; i < 6; i++) {
       await page.keyboard.press("j");
       await page.waitForTimeout(30);
     }
-    await page.waitForTimeout(1500);
-    expect(currentEvent()).toBe("turn-16");
+    await expect.poll(currentEvent).toBe("turn-16");
 
     for (let i = 0; i < 6; i++) {
       await page.keyboard.press("k");
       await page.waitForTimeout(30);
     }
-    await page.waitForTimeout(1500);
-    expect(currentEvent()).toBe("turn-10");
+    await expect.poll(currentEvent).toBe("turn-10");
   });
 });
