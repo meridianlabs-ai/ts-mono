@@ -95,6 +95,12 @@ export interface LogsContentSink {
    *  unobserved — so backfill re-derivation only reads it when there is no
    *  database (there the mirror is the system of record). */
   currentRows(): Log[];
+  /** Whether this scope's listing persistence degraded to cache-only
+   *  (out-of-namespace names — see logsContent's `namesInScope`). The degrade
+   *  skips the listing's db writes while the database stays open, so scoped
+   *  db reads see nothing: the mirror, not the database, is the system of
+   *  record for backfill re-derivation. */
+  isCacheOnlyScope(): boolean;
   seedRows(rows: Log[]): void;
   setListing(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
@@ -932,9 +938,11 @@ export class FetchEngine {
    * Depth is read from the database, not the sink's cache mirror: the mirror
    * is a react-query entry that can be garbage-collected while unobserved,
    * and an empty mirror here would misread a fully-cached dir as all-missing
-   * and re-fetch the entire listing. Sessions without a store (db-less, the
-   * cache-only scope degrade) fall back to the mirror — there it IS the
-   * system of record, and a collected mirror means the data is gone anyway.
+   * and re-fetch the entire listing. Sessions where the database isn't the
+   * listing's system of record (db-less, the cache-only scope degrade — the
+   * latter leaves the db open but empty for the scope, so a scoped read
+   * would misread the dir as all-missing the same way) fall back to the
+   * mirror; a collected mirror there means the data is gone anyway.
    *
    * Unlike `applyListing`'s backfill, rows persisted as "started" are left
    * alone: re-fetching them here would poll every permanently-started log on
@@ -956,9 +964,10 @@ export class FetchEngine {
       return;
     }
     const epoch = this._epoch;
-    const rows = deps.database?.opened()
-      ? await deps.database.readLogs({ prefix: deps.logDir })
-      : deps.sink.currentRows();
+    const rows =
+      deps.database?.opened() && !deps.sink.isCacheOnlyScope()
+        ? await deps.database.readLogs({ prefix: deps.logDir })
+        : deps.sink.currentRows();
     if (
       // A failed store read skips the pass (without latching idle) rather
       // than re-deriving from nothing; the next no-change tick retries.

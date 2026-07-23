@@ -275,6 +275,7 @@ const createFakeSink = (db?: DatabaseService) => {
   };
   const sink: LogsContentSink = {
     currentRows: () => [...mirror.values()],
+    isCacheOnlyScope: () => false,
     seedRows: (rows) => {
       calls.seedRows.push(rows);
       rows.forEach((row) => mirror.set(row.name, { ...row }));
@@ -1983,6 +1984,47 @@ describe("syncListing backfill re-arm (no-change syncs)", () => {
     const { sink } = createFakeSink(db);
     const gcSink: LogsContentSink = { ...sink, currentRows: () => [] };
     const { engine } = await createEngine({ api, database: db, sink: gcSink });
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+    expect(fake.detailCalls).toEqual([]);
+  });
+
+  it("a no-change sync on a cache-only scope derives backfill from the mirror, not the empty database", async () => {
+    // The out-of-namespace degrade (logsContent's namesInScope) skips listing
+    // persistence entirely, so the database stays empty for the scope while
+    // the mirror is the system of record. With the database open, an empty
+    // scoped read must not count as "everything is missing" — that re-fetched
+    // the entire dir on every no-change tick, forever (completed fetches
+    // persist under keys the scoped read never sees, so it never converged).
+    const rows = [
+      detailedRow(handle("a.eval", 10)),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const db = createFakeDb([]);
+    const { sink } = createFakeSink(db);
+    const degradedSink: LogsContentSink = {
+      ...sink,
+      currentRows: () => rows,
+      writeListing: () => Promise.resolve(rows),
+      isCacheOnlyScope: () => true,
+    };
+    const { engine } = await createEngine({
+      api,
+      database: db,
+      sink: degradedSink,
+    });
+    await engine.applyListing({
+      listing: rows.map(({ name, mtime }) => handle(name, mtime ?? undefined)),
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+      epoch: engine.epoch(),
+    });
 
     await syncListing(api, engine);
     await tick();
