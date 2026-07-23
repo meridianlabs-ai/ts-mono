@@ -608,6 +608,24 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                 .filter((t) => t.status !== "completed")
                 .slice(0, kMaxDotRows - 1)
             : sorted;
+          // The band wears the dominant absorbed status — on live evals a
+          // saturated bin is mostly still-running samples, not completions.
+          const absorbedCount = new Map<Termination["status"], number>();
+          for (const t of sorted) {
+            absorbedCount.set(t.status, (absorbedCount.get(t.status) ?? 0) + 1);
+          }
+          for (const t of shown) {
+            absorbedCount.set(t.status, (absorbedCount.get(t.status) ?? 0) - 1);
+          }
+          let bandStatus: Termination["status"] = "completed";
+          let bandBest = 0;
+          for (const [status, count] of absorbedCount) {
+            if (count > bandBest) {
+              bandBest = count;
+              bandStatus = status;
+            }
+          }
+          const bandHollow = bandStatus === "started";
           const groupHovered =
             popover?.kind === "bin" && popover.binKey === bin;
           return (
@@ -622,9 +640,19 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                     width={6}
                     height={baseline - band.top - kTermPlotTop}
                     rx={3}
-                    fill={kStatusColor.completed}
-                    stroke={groupHovered ? "var(--bs-body-color)" : "none"}
-                    strokeWidth={groupHovered ? 1.5 : 0}
+                    fill={
+                      bandHollow
+                        ? "var(--bs-body-bg)"
+                        : kStatusColor[bandStatus]
+                    }
+                    stroke={
+                      groupHovered
+                        ? "var(--bs-body-color)"
+                        : bandHollow
+                          ? kStatusColor.started
+                          : "none"
+                    }
+                    strokeWidth={groupHovered ? 1.5 : bandHollow ? 1.25 : 0}
                   />
                   {/* Hover-only — always-on counts collide when adjacent
                         bins collapse. */}
