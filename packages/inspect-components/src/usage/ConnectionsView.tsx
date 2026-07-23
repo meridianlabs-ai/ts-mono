@@ -3,13 +3,16 @@ import { FC, Fragment, MouseEvent, useCallback, useState } from "react";
 
 import { useResizeObserver } from "@tsmono/react/hooks";
 
+import { formatConfigValue } from "../config";
+
 import {
-  adaptiveMaxFromValue,
+  capFromRetune,
   type ConnectionLaneData,
   type ConnectionWindow,
   type PoolRetune,
 } from "./connectionHistory";
 import styles from "./ConnectionsView.module.css";
+import { rolesForModel } from "./roleAliases";
 
 interface ConnectionsViewProps {
   lanes: Record<string, ConnectionLaneData>;
@@ -57,9 +60,7 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
   if (models.length === 0) return null;
 
   const rolesFor = (model: string): string[] =>
-    Object.entries(role_aliases ?? {})
-      .filter(([, m]) => m === model)
-      .map(([role]) => role);
+    rolesForModel(role_aliases, model);
 
   return (
     <div className={styles.grid}>
@@ -150,12 +151,10 @@ interface PoolLaneProps {
   onShowLog?: () => void;
 }
 
-const capFromRetune = (retune: PoolRetune): number | undefined => {
-  if (retune.name === "adaptive_connections") {
-    return adaptiveMaxFromValue(retune.value);
-  }
-  return typeof retune.value === "number" ? retune.value : undefined;
-};
+const retuneTransition = (retune: PoolRetune): string =>
+  retune.cleared
+    ? `${retune.name} override cleared → launch value`
+    : `${retune.name} ${formatConfigValue(retune.previous)} → ${formatConfigValue(retune.value)}`;
 
 /**
  * The 27a annotated pool lane: blue stepped series, violet cap guide
@@ -178,7 +177,7 @@ const PoolLane: FC<PoolLaneProps> = ({
 
   const span = timeWindow.end - timeWindow.start;
   const capValues = (retunes ?? [])
-    .map(capFromRetune)
+    .map((retune) => capFromRetune(retune, data.configuredMax))
     .filter((v): v is number => v !== undefined);
   const yMax =
     Math.max(data.configuredMax ?? 0, data.peak, ...capValues) * 1.08 || 1;
@@ -203,7 +202,7 @@ const PoolLane: FC<PoolLaneProps> = ({
   let capValue = data.configuredMax;
   let capStart = 0;
   for (const retune of retunes ?? []) {
-    const next = capFromRetune(retune);
+    const next = capFromRetune(retune, data.configuredMax);
     if (next === undefined) continue;
     const rx = x(retune.timestamp);
     if (capValue !== undefined && rx > capStart) {
@@ -220,16 +219,12 @@ const PoolLane: FC<PoolLaneProps> = ({
   const peakAndFinalMerge = data.peak === data.final;
   // Where the series first reaches its peak — the plateau the label sits on.
   let peakX = 0;
-  let running = data.start;
-  if (running === data.peak) {
-    peakX = 0;
-  } else {
+  if (data.start !== data.peak) {
     for (const e of data.events) {
       if (e.new_limit === data.peak) {
         peakX = x(e.timestamp);
         break;
       }
-      running = e.new_limit;
     }
   }
 
@@ -287,7 +282,7 @@ const PoolLane: FC<PoolLaneProps> = ({
                   height={8}
                   transform={`rotate(45 ${rx} ${kMarkerTop})`}
                 >
-                  <title>{`${retune.name} ${String(retune.previous)} → ${String(retune.value)} · ${retune.author}${retune.reason ? ` — ${retune.reason}` : ""}`}</title>
+                  <title>{`${retuneTransition(retune)} · ${retune.author}${retune.reason ? ` — ${retune.reason}` : ""}`}</title>
                 </rect>
               </g>
             );

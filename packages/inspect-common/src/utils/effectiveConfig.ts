@@ -140,7 +140,10 @@ export const effectiveGenerateConfig = (
 export interface ConfigChangeInfo {
   name: string;
   config: "eval" | "generate" | "concurrency";
-  /** Value set by the last change (launch value when cleared). */
+  /**
+   * Value set by the last change — null when cleared; check `cleared` first
+   * (the launch value is not recorded here).
+   */
   value: JsonValue;
   /** Best-effort prior value recorded on the last change. */
   previous: JsonValue;

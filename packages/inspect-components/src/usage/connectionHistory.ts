@@ -79,10 +79,31 @@ export interface PoolRetune {
   /** The knob: max_connections / adaptive_connections / the registry key. */
   name: string;
   previous: unknown;
+  /** Value set by the change — null when cleared (check `cleared` first). */
   value: unknown;
+  /** Override removed — the pool reverted to its launch cap. */
+  cleared: boolean;
   author: string;
   reason?: string | null;
 }
+
+/**
+ * The cap a retune sets the guide to, or undefined for no step. A cleared
+ * retune restores `launchCap` (the guide's starting value — the closest
+ * launch signal a lane carries).
+ */
+export const capFromRetune = (
+  retune: PoolRetune,
+  launchCap?: number
+): number | undefined => {
+  if (retune.cleared) {
+    return launchCap;
+  }
+  if (retune.name === "adaptive_connections") {
+    return adaptiveMaxFromValue(retune.value);
+  }
+  return typeof retune.value === "number" ? retune.value : undefined;
+};
 
 /**
  * Per-model pool retunes from config_updates: `"concurrency"` changes key
@@ -112,6 +133,7 @@ export const poolRetunes = (
         name: change.name,
         previous: change.previous,
         value: change.value,
+        cleared: change.cleared,
         author: update.provenance.author,
         reason: update.provenance.reason,
       });

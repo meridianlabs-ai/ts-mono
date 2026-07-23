@@ -4,6 +4,8 @@ import { FC, MouseEvent, useMemo, useState } from "react";
 import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
+import { formatConfigValue } from "../config";
+
 import type { PoolRetune } from "./connectionHistory";
 import styles from "./ConnectionLogModal.module.css";
 import { fmtClock } from "./timeFormat";
@@ -34,7 +36,7 @@ const kReasonBadge: Record<ConnectionLimitChange["reason"], string> = {
   manual: styles.badgeManual!,
 };
 
-type RowFilter = "all" | "controller" | "events";
+type RowFilter = "all" | "controller" | "config";
 
 type LogRow =
   | { kind: "controller"; time: number; event: ConnectionLimitChange }
@@ -67,12 +69,14 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
     // Stable tiebreak: a manual controller entry is the mechanical echo of
     // its ◆ retune — the ◆ cause sorts first, both shown, no dedupe.
     return all.sort(
-      (a, b) => a.time - b.time || (a.kind === "config" ? -1 : 1)
+      (a, b) =>
+        a.time - b.time ||
+        (a.kind === b.kind ? 0 : a.kind === "config" ? -1 : 1)
     );
   }, [events, retunes]);
 
   const controllerCount = events.length;
-  const eventCount = rows.length - controllerCount;
+  const retuneCount = rows.length - controllerCount;
   const visibleRows =
     filter === "all"
       ? rows
@@ -82,7 +86,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
             : row.kind !== "controller"
         );
 
-  const showFilters = eventCount > 0;
+  const showFilters = retuneCount > 0;
 
   return (
     <Modal
@@ -133,7 +137,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
                 [
                   ["all", `All (${rows.length})`],
                   ["controller", `Controller (${controllerCount})`],
-                  ["events", `Events (${eventCount})`],
+                  ["config", `Config (${retuneCount})`],
                 ] as [RowFilter, string][]
               ).map(([id, label]) => (
                 <button
@@ -177,8 +181,11 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
                       ◆ config
                     </span>
                     <span className={styles.configDetail}>
-                      {retune.name} {String(retune.previous)} →{" "}
-                      {String(retune.value)} · {retune.author}
+                      {retune.name}{" "}
+                      {retune.cleared
+                        ? "override cleared → launch value"
+                        : `${formatConfigValue(retune.previous)} → ${formatConfigValue(retune.value)}`}{" "}
+                      · {retune.author}
                       {retune.reason ? ` — “${retune.reason}”` : ""}
                     </span>
                   </td>

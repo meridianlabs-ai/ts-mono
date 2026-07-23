@@ -8,11 +8,19 @@ import { useLogNavigationAction } from "../routing/logNavigation";
 import { logsUrl, logsUrlRaw, useRoutePrefix } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
 
-// Timeline band-picker state (per-log view storage, cf. usage-connections).
+// Timeline band-picker state, keyed per log so toggles don't leak between
+// logs viewed in the same session.
 export const kTimelineBag = "timeline";
-export const kTimelineBandsKey = "bands";
+const kTimelineBandsKey = "bands";
 export const timelineBandId = (band: string, model?: string): string =>
   model ? `${band}:${model}` : band;
+
+/** The band-picker property key for the log currently in view. */
+export const useTimelineBandsKey = (): string => {
+  const { logPath } = useParams<{ logPath: string }>();
+  const loadedLog = useStore((state) => state.log.loadedLog);
+  return `${kTimelineBandsKey}:${logPath ?? loadedLog ?? ""}`;
+};
 
 /** The modifier keys that turn a navigation click into open-in-new-tab. */
 export interface NavClickEvent {
@@ -62,23 +70,24 @@ export const useShowTimelineForModel = (): ((
   event?: NavClickEvent
 ) => void) => {
   const showTimeline = useShowTimeline();
+  const bandsKey = useTimelineBandsKey();
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
   );
   const bands = useStore(
     (state) =>
-      state.app.propertyBags[kTimelineBag]?.[kTimelineBandsKey] as
+      state.app.propertyBags[kTimelineBag]?.[bandsKey] as
         | Record<string, boolean>
         | undefined
   );
   return useCallback(
     (model: string, event?: NavClickEvent) => {
-      setPropertyValue(kTimelineBag, kTimelineBandsKey, {
+      setPropertyValue(kTimelineBag, bandsKey, {
         ...bands,
         [timelineBandId("connections", model)]: true,
       });
       showTimeline(event);
     },
-    [setPropertyValue, bands, showTimeline]
+    [setPropertyValue, bandsKey, bands, showTimeline]
   );
 };

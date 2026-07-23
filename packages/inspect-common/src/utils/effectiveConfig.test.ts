@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ConfigUpdate, EvalConfig, GenerateConfig } from "../types";
 
 import {
+  concurrencyChanges,
   effectiveEvalConfig,
   effectiveGenerateConfig,
   evalConfigChanges,
@@ -275,6 +276,8 @@ describe("evalConfigChanges", () => {
     const timeLimit = changes.get("time_limit");
     expect(timeLimit?.cleared).toBe(true);
     expect(timeLimit?.limitLifted).toBe(false);
+    // value carries the change verbatim — not the restored launch value.
+    expect(timeLimit?.value).toBeNull();
   });
 
   it("excludes unknown fields and concurrency changes", () => {
@@ -314,5 +317,60 @@ describe("generateConfigChanges", () => {
       ]),
     ]);
     expect(changes.get("max_connections")?.value).toBe(25);
+  });
+});
+
+describe("concurrencyChanges", () => {
+  it("returns concurrency changes in update order, skipping the rest", () => {
+    const changes = concurrencyChanges([
+      update([
+        {
+          config: "concurrency",
+          name: "anthropic/claude-3-7-sonnet",
+          value: 25,
+          previous: 10,
+          cleared: false,
+        },
+        {
+          config: "eval",
+          name: "max_samples",
+          value: 20,
+          previous: 5,
+          cleared: false,
+        },
+      ]),
+      update([
+        {
+          config: "concurrency",
+          name: "anthropic/claude-3-7-sonnet",
+          value: 40,
+          previous: 25,
+          cleared: false,
+        },
+      ]),
+    ]);
+    expect(changes.map((c) => c.value)).toEqual([25, 40]);
+    expect(changes.every((c) => c.config === "concurrency")).toBe(true);
+  });
+
+  it("never marks concurrency changes limit-lifted", () => {
+    const changes = concurrencyChanges([
+      update([
+        {
+          config: "concurrency",
+          name: "anthropic/claude-3-7-sonnet",
+          value: null,
+          previous: 25,
+          cleared: false,
+        },
+      ]),
+    ]);
+    expect(changes[0]?.limitLifted).toBe(false);
+  });
+
+  it("returns an empty list without updates", () => {
+    expect(concurrencyChanges(undefined)).toEqual([]);
+    expect(concurrencyChanges(null)).toEqual([]);
+    expect(concurrencyChanges([])).toEqual([]);
   });
 });

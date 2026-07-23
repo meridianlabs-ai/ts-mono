@@ -125,12 +125,6 @@
   color: #1d4f7c;
 }
 
-.chipScore {
-  border-color: #d9cfe8;
-  background: #f7f3fc;
-  color: #4a2e73;
-}
-
 .chipRuntime {
   border-color: #d3d9df;
   background: #f6f7f8;
@@ -234,12 +228,6 @@
   border-color: #2c4a66;
   background: #16222e;
   color: #8db8dd;
-}
-
-:global([data-bs-theme="dark"]) .chipScore {
-  border-color: #4a3d63;
-  background: #2a2333;
-  color: #cbb8ec;
 }
 
 :global([data-bs-theme="dark"]) .chipRuntime {

@@ -19,6 +19,7 @@ import { ConnectionLogModal } from "./ConnectionLogModal";
 import { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
+import { rolesForModel } from "./roleAliases";
 import styles from "./UsagePanel.module.css";
 
 export interface MetaItem {
@@ -143,11 +144,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const logLane: ConnectionLaneData | undefined =
     logModel != null ? lanesByModel[logModel] : undefined;
   const logRoles =
-    logModel != null
-      ? Object.entries(role_aliases ?? {})
-          .filter(([, model]) => model === logModel)
-          .map(([role]) => role)
-      : [];
+    logModel != null ? rolesForModel(role_aliases, logModel) : [];
 
   const metaItems =
     hasUsageData || isConnections

@@ -32,7 +32,7 @@ const fmtRowTime = (sec: number): string => {
 interface CategoryChipProps {
   icon: string;
   label: string;
-  kind: "config" | "tags" | "score" | "runtime";
+  kind: "config" | "tags" | "runtime";
   selected?: boolean;
 }
 
@@ -47,7 +47,6 @@ const CategoryChip: FC<CategoryChipProps> = ({
       styles.categoryChip,
       kind === "config" && styles.chipConfig,
       kind === "tags" && styles.chipTags,
-      kind === "score" && styles.chipScore,
       kind === "runtime" && styles.chipRuntime,
       selected && styles.chipOnTint
     )}
@@ -201,7 +200,6 @@ export const HistoryList: FC<HistoryListProps> = ({
   const filters: { id: HistoryCategory; label: string }[] = [
     { id: "config", label: "Config" },
     { id: "tags", label: "Tags & metadata" },
-    { id: "scores", label: "Scores" },
     { id: "runtime", label: "Runtime" },
   ];
 

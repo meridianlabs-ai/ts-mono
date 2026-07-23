@@ -4,14 +4,16 @@ import {
   Fragment,
   MouseEvent as ReactMouseEvent,
   useCallback,
+  useEffect,
   useRef,
   useState,
 } from "react";
 
 import { inputString } from "@tsmono/inspect-common/utils";
-import type {
-  ConnectionLaneData,
-  PoolRetune,
+import {
+  capFromRetune,
+  type ConnectionLaneData,
+  type PoolRetune,
 } from "@tsmono/inspect-components/usage";
 import { useResizeObserver } from "@tsmono/react/hooks";
 
@@ -145,6 +147,14 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     }
     popoverCloseTimer.current = window.setTimeout(() => setPopover(null), 250);
   };
+  useEffect(
+    () => () => {
+      if (popoverCloseTimer.current !== null) {
+        window.clearTimeout(popoverCloseTimer.current);
+      }
+    },
+    []
+  );
 
   const hasPostRun = markers.some((m) => m.postRun);
   const gutter = hasPostRun ? kPostRunGutter : 0;
@@ -283,7 +293,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     const lane = lanes[band.model!]!;
     const laneRetunes = retunes[band.model!] ?? [];
     const capValues = laneRetunes
-      .map((r) => (typeof r.value === "number" ? r.value : undefined))
+      .map((r) => capFromRetune(r, lane.configuredMax))
       .filter((v): v is number => v !== undefined);
     const dataMax = Math.max(
       lane.configuredMax ?? 0,
@@ -309,7 +319,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     let capValue = lane.configuredMax;
     let capStart = plotLeft;
     for (const retune of laneRetunes) {
-      const next = typeof retune.value === "number" ? retune.value : undefined;
+      const next = capFromRetune(retune, lane.configuredMax);
       if (next === undefined) continue;
       const rx = x(retune.timestamp);
       if (capValue !== undefined && rx > capStart) {
@@ -433,6 +443,28 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         >
           SAMPLE TERMINATIONS
         </text>
+        {/* Clusters render under dots — abnormal dots stay hoverable. */}
+        {clusters.map((cluster, i) => (
+          <g key={`cluster-${i}`}>
+            <rect
+              className={styles.clusterBar}
+              x={cluster.cx - 3}
+              y={band.top + kPlotTop}
+              width={6}
+              height={baseline - band.top - kPlotTop}
+              rx={3}
+            >
+              <title>{`${cluster.count} terminations`}</title>
+            </rect>
+            <text
+              className={styles.clusterCount}
+              x={cluster.cx + 6}
+              y={band.top + kPlotTop + 8}
+            >
+              ×{cluster.count}
+            </text>
+          </g>
+        ))}
         {dots.map((dot, i) => {
           const hovered =
             popover?.sample === dot.t.sample &&
@@ -459,27 +491,6 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             />
           );
         })}
-        {clusters.map((cluster, i) => (
-          <g key={`cluster-${i}`}>
-            <rect
-              className={styles.clusterBar}
-              x={cluster.cx - 3}
-              y={band.top + kPlotTop}
-              width={6}
-              height={baseline - band.top - kPlotTop}
-              rx={3}
-            >
-              <title>{`${cluster.count} terminations`}</title>
-            </rect>
-            <text
-              className={styles.clusterCount}
-              x={cluster.cx + 6}
-              y={band.top + kPlotTop + 8}
-            >
-              ×{cluster.count}
-            </text>
-          </g>
-        ))}
         <line
           className={styles.bandSeparator}
           x1={0}

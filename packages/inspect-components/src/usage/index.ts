@@ -13,9 +13,11 @@ export {
   adaptiveMaxFromConfig,
   adaptiveMaxFromValue,
   buildConnectionLanes,
+  capFromRetune,
   connectionWindow,
   poolRetunes,
 } from "./connectionHistory";
+export { rolesForModel } from "./roleAliases";
 export type {
   ConnectionLaneData,
   ConnectionWindow,

@@ -29,8 +29,8 @@ import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
 import { openInNewTab } from "../../../shared/openInNewTab";
 import {
   kTimelineBag,
-  kTimelineBandsKey,
   timelineBandId,
+  useTimelineBandsKey,
 } from "../../useShowTimeline";
 
 import { HistoryList } from "./HistoryList";
@@ -182,11 +182,12 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     [evalSpec?.config?.max_samples, markers, window]
   );
 
-  // ── band picker (per-log view storage) ───────────────────────────────
+  // ── band picker (state keyed per log) ────────────────────────────────
 
+  const bandsKey = useTimelineBandsKey();
   const [bandOverrides, setBandOverrides] = useProperty<
     Record<string, boolean>
-  >(kTimelineBag, kTimelineBandsKey, { defaultValue: {} });
+  >(kTimelineBag, bandsKey, { defaultValue: {} });
 
   const laneModels = Object.keys(lanes).sort();
   const bandOn = useCallback(
@@ -248,7 +249,6 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     const defaults: Record<HistoryCategory, boolean> = {
       config: true,
       tags: true,
-      scores: true,
       runtime: true,
     };
     for (const category of Object.keys(defaults) as HistoryCategory[]) {
@@ -264,7 +264,6 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       setCategoryOverrides({
         config: true,
         tags: true,
-        scores: true,
         runtime: true,
       });
       return;
@@ -273,7 +272,6 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       ...(categoryOverrides ?? {
         config: enabledCategories.has("config"),
         tags: enabledCategories.has("tags"),
-        scores: enabledCategories.has("scores"),
         runtime: enabledCategories.has("runtime"),
       }),
       [category]: !enabledCategories.has(category),

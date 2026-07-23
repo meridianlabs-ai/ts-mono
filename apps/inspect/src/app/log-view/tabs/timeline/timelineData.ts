@@ -213,7 +213,7 @@ export const guideSegments = (
   return segments;
 };
 
-export type HistoryCategory = "config" | "tags" | "scores" | "runtime";
+export type HistoryCategory = "config" | "tags" | "runtime";
 
 export type HistoryRow = { time: number; postRun: boolean } & (
   | { kind: "config"; update: ConfigUpdate; index: number }
