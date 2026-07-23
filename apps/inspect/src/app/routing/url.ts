@@ -433,7 +433,7 @@ export const sampleEventUrl = (
     sampleEpoch,
     kSampleTranscriptTabId
   );
-  return `${baseUrl}?event=${eventId}`;
+  return `${baseUrl}?event=${encodeURIComponent(eventId)}`;
 };
 
 /**
@@ -444,7 +444,7 @@ export const sampleEventUrl = (
  * all three routers wire the `event` tab) so exiting focus mode and the
  * back/home buttons return to the surface the sample was opened from.
  */
-export const sampleEventFocusUrl = (
+const sampleEventFocusUrl = (
   eventId: string,
   logPath: string,
   sampleId?: string | number,
@@ -466,7 +466,7 @@ export const sampleEventFocusUrl = (
           kSampleEventTabId,
           surface
         );
-  return `${baseUrl}?event=${eventId}`;
+  return `${baseUrl}?event=${encodeURIComponent(eventId)}`;
 };
 
 /**
@@ -481,7 +481,8 @@ export const sampleEventFocusUrl = (
  * resolved.
  */
 export const useSampleEventFocusUrlBuilder = (): ((
-  eventId: string
+  eventId: string,
+  selectedTab?: string
 ) => string | undefined) => {
   const {
     logPath: urlLogPath,

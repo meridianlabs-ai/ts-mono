@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import type { TurnInfo } from "./outline/tree-visitors";
+import { flatTree } from "./transform/flatten";
 import {
   anchorIndexForTurn,
   computeTurnAnchorIds,
@@ -160,21 +161,19 @@ describe("focusedTurnNodes", () => {
   ];
 
   it("slices a turn's model + tool, dropping interleaved sandbox spans", () => {
-    expect(focusedTurnNodes(tree(), "model1").map((n) => n.id)).toEqual([
-      "model1",
-      "tool1",
-    ]);
+    expect(
+      focusedTurnNodes(flatTree(tree(), null), "model1").map((n) => n.id)
+    ).toEqual(["model1", "tool1"]);
   });
 
   it("stops at the next turn's model", () => {
-    expect(focusedTurnNodes(tree(), "model2").map((n) => n.id)).toEqual([
-      "model2",
-      "tool2",
-    ]);
+    expect(
+      focusedTurnNodes(flatTree(tree(), null), "model2").map((n) => n.id)
+    ).toEqual(["model2", "tool2"]);
   });
 
   it("returns an empty list for an unknown event id", () => {
-    expect(focusedTurnNodes(tree(), "nope")).toEqual([]);
+    expect(focusedTurnNodes(flatTree(tree(), null), "nope")).toEqual([]);
   });
 
   it("appends trailing sample-terminal events to the LAST turn only", () => {
@@ -187,24 +186,19 @@ describe("focusedTurnNodes", () => {
       treeNode("lim", "sample_limit", 0),
       treeNode("sc", "score", 0),
     ];
-    expect(focusedTurnNodes(nodes, "model2").map((n) => n.id)).toEqual([
-      "model2",
-      "tool2",
-      "err",
-      "lim",
-      "sc",
-    ]);
+    expect(
+      focusedTurnNodes(flatTree(nodes, null), "model2").map((n) => n.id)
+    ).toEqual(["model2", "tool2", "err", "lim", "sc"]);
     // Earlier turns don't swallow it.
-    expect(focusedTurnNodes(nodes, "model1").map((n) => n.id)).toEqual([
-      "model1",
-      "tool1",
-    ]);
+    expect(
+      focusedTurnNodes(flatTree(nodes, null), "model1").map((n) => n.id)
+    ).toEqual(["model1", "tool1"]);
   });
 
   it("does not append terminals to a non-model (tool) focus slice", () => {
     const nodes = [...tree(), treeNode("err", "error", 0)];
-    expect(focusedTurnNodes(nodes, "tool2").map((n) => n.id)).toEqual([
-      "tool2",
-    ]);
+    expect(
+      focusedTurnNodes(flatTree(nodes, null), "tool2").map((n) => n.id)
+    ).toEqual(["tool2"]);
   });
 });

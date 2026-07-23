@@ -15,12 +15,13 @@ import {
   LoadingBar,
   NoContentsPanel,
 } from "@tsmono/react/components";
-import { useRequiredParams } from "@tsmono/react/hooks";
+import { useDocumentTitle, useRequiredParams } from "@tsmono/react/hooks";
 
 import { parseTranscriptParams, transcriptRoute } from "../../router/url";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
 import { useAppConfig } from "../server/useAppConfig";
 import { useTranscript } from "../server/useTranscript";
+import { getTranscriptDisplayName } from "../utils/transcript";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 
 import { kTranscriptEventsTabId } from "./TranscriptBody";
@@ -64,6 +65,10 @@ export const TranscriptEventPanel: FC = () => {
       ? { location: config.transcripts.dir, id: transcriptId }
       : skipToken
   );
+
+  // Focus mode is designed for open-in-new-tab, where the tab title is all
+  // the user sees — same title as the transcript view (TranscriptPanel).
+  useDocumentTitle(getTranscriptDisplayName(transcript), "Transcripts");
 
   const scope = useFocusLaneScope(
     transcript?.events ?? kNoEvents,

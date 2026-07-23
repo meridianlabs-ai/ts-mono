@@ -151,14 +151,14 @@ export const kSampleTerminalEvents = new Set([
 
 /**
  * Focus-page nodes for `eventId`: its turn slice minus structural/noise
- * events. Slices the *unfiltered* flat list — filtering spans out first would
- * drop the span_begin that ends a turn and run the slice into later turns.
+ * events. Takes the *unfiltered* flat list (`flatTree(eventNodes, null)`) —
+ * filtering spans out first would drop the span_begin that ends a turn and
+ * run the slice into later turns.
  */
 export function focusedTurnNodes(
-  eventNodes: EventNode[],
+  flat: EventNode[],
   eventId: string
 ): EventNode[] {
-  const flat = flatTree(eventNodes, null);
   const slice = turnSlice(flat, eventId);
   // The transcript renders the sample's error/limit card right after the last
   // turn; keep it visible in the LAST turn's focus slice too (a focused tool

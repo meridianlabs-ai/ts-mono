@@ -7,6 +7,8 @@
  */
 import { describe, expect, test } from "vitest";
 
+import { directoryRelativeUrl } from "../../utils/uri";
+
 // Constants copied from src/constants.ts to avoid import chain issues
 const kSampleTabIds = [
   "messages",
@@ -802,27 +804,6 @@ describe("sample IDs with slashes", () => {
     expect(url).not.toMatch(/\/samples\/sample\/\/\d/); // Should not have literal double slash
   });
 });
-
-/**
- * Relative-path derivation copied from src/utils/uri.ts (directoryRelativeUrl),
- * used by prev/next navigation on the /samples surface.
- */
-function directoryRelativeUrl(file: string, dir?: string): string {
-  if (!dir) return file;
-  const normalizedFile = file.replace(/\\/g, "/");
-  const normalizedDir = dir.replace(/\\/g, "/");
-  const dirWithSlash = normalizedDir.endsWith("/")
-    ? normalizedDir
-    : normalizedDir + "/";
-  if (normalizedFile.startsWith(dirWithSlash)) {
-    return normalizedFile
-      .substring(dirWithSlash.length)
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
-  }
-  return normalizedFile;
-}
 
 // Regression: prev/next from the focus view on the /samples surface must build
 // a log-dir-relative samples URL that keeps the "event" tab (so the sibling

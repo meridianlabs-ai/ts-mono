@@ -15,8 +15,15 @@ import {
   kLogViewSamplesTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { selectLogFile, selectSample } from "../../../state/actions";
-import { useSelectedEvalSampleData } from "../../../state/hooks";
+import {
+  selectLogFile,
+  selectSample,
+  setDocumentTitle,
+} from "../../../state/actions";
+import {
+  useSelectedEvalSampleData,
+  useSelectedLogDetails,
+} from "../../../state/hooks";
 import { useLogSampleNavigationActions } from "../../routing/sampleNavigation";
 import {
   logsUrl,
@@ -63,6 +70,14 @@ export const SampleEventView: FC = () => {
   const sample = sampleData.sample;
   const sampleLoading =
     sampleData.status === "loading" || sampleData.status === "streaming";
+
+  // Focus mode is designed for open-in-new-tab, where the tab title is all
+  // the user sees — same title as the sample view (SampleDisplay).
+  const logDetails = useSelectedLogDetails();
+  const evalSpec = logDetails?.eval;
+  useEffect(() => {
+    setDocumentTitle({ evalSpec, sample });
+  }, [evalSpec, sample]);
 
   // A running sample has no settled `sample` until it completes — its events
   // stream through `running` instead. Read the same source the transcript

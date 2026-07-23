@@ -237,9 +237,18 @@ export const TranscriptViewNodes = forwardRef<
   // The turn at the top of the viewport (tracked by useScrollTrack below);
   // seeded from the deep-link target so a keypress can't race the tracker's
   // first report (e.g. the "double f" right after a route transition).
-  const currentTurnIndexRef = useRef(
-    anchorIndexForEvent(turnAnchorIds, computedTurnMap, scrollEventId)
-  );
+  // Lazily seeded: a useRef initializer expression would re-run the
+  // O(#turns) scan on every render just to be discarded.
+  const turnIndexSeededRef = useRef(false);
+  const currentTurnIndexRef = useRef(-1);
+  if (!turnIndexSeededRef.current) {
+    turnIndexSeededRef.current = true;
+    currentTurnIndexRef.current = anchorIndexForEvent(
+      turnAnchorIds,
+      computedTurnMap,
+      scrollEventId
+    );
+  }
 
   // The one scroll primitive for every programmatic row scroll — and the
   // single choke point stamping the current turn, so a j/k/f fired before

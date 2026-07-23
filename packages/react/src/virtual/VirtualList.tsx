@@ -122,7 +122,7 @@ export function VirtualList<T>({
     [scrollParent]
   );
 
-  const { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll } =
+  const { virtualizer, scale, toContentScroll, toSpacerScroll } =
     useScaledVirtualizer({
       count: data.length,
       estimateSize: () => DEFAULT_ITEM_HEIGHT_PX,
@@ -654,14 +654,16 @@ export function VirtualList<T>({
         if (el) el.scrollTop = 0;
       },
       jumpToEnd() {
+        // The true container bottom, not the list's own content height — the
+        // container can hold a footer/siblings below the list (matches the
+        // non-virtual fallback in useListKeyboardNavigation).
         const el = getScrollElement();
-        if (el) el.scrollTop = spacerHeight;
+        if (el) el.scrollTop = el.scrollHeight;
       },
     }),
     [
       virtualizer,
       scale,
-      spacerHeight,
       settleScrollToIndex,
       smoothScroll,
       getScrollElement,

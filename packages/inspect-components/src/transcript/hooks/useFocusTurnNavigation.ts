@@ -156,9 +156,8 @@ export function useFocusTurnNavigation(
   }, [eventId, anchorIds, flat, options?.following]);
 
   const slice = useMemo(
-    () =>
-      resolvedEventId ? focusedTurnNodes(eventNodes, resolvedEventId) : [],
-    [eventNodes, resolvedEventId]
+    () => (resolvedEventId ? focusedTurnNodes(flat, resolvedEventId) : []),
+    [flat, resolvedEventId]
   );
 
   const turnInfo: TurnInfo | undefined = resolvedEventId

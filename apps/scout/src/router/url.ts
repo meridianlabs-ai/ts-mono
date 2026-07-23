@@ -129,7 +129,7 @@ export const transcriptEventDetailRoute = (
   eventId: string
 ) => {
   const encodedDir = encodeBase64Url(transcriptsDir);
-  return `/transcripts/${encodedDir}/${transcriptId}/event?event=${eventId}`;
+  return `/transcripts/${encodedDir}/${transcriptId}/event?event=${encodeURIComponent(eventId)}`;
 };
 
 /**
