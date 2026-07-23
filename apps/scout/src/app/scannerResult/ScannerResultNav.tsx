@@ -1,87 +1,26 @@
-import { FC, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { FC } from "react";
 
-import { useLoggingNavigate } from "../../debugging/navigationDebugging";
-import { scanResultRoute } from "../../router/url";
-import { useStore } from "../../state/store";
-import { NextPreviousNav } from "../components/NextPreviousNav";
-import { useScanRoute } from "../hooks/useScanRoute";
+import { NextPreviousNav } from "@tsmono/react/components";
+
 import { IdentifierInfo, resultIdentifier } from "../utils/results";
 
+import { useScannerResultPrevNext } from "./useScannerResultPrevNext";
+
 export const ScannerResultNav: FC = () => {
-  const navigate = useLoggingNavigate("ScannerResultNav");
-  const [searchParams] = useSearchParams();
-  const { scansDir, scanPath, scanResultUuid } = useScanRoute();
-
-  const visibleScannerResults = useStore(
-    (state) => state.visibleScannerResults
-  );
-
-  const currentIndex = useMemo(() => {
-    if (!visibleScannerResults) {
-      return -1;
-    }
-    return visibleScannerResults.findIndex(
-      (s) => s.identifier === scanResultUuid
-    );
-  }, [visibleScannerResults, scanResultUuid]);
-
-  const hasPrevious = currentIndex > 0;
-  const hasNext =
-    visibleScannerResults &&
-    currentIndex >= 0 &&
-    currentIndex < visibleScannerResults.length - 1;
-
-  const handlePrevious = () => {
-    if (!hasPrevious || !visibleScannerResults) {
-      return;
-    }
-    const previousResult = visibleScannerResults[currentIndex - 1];
-    if (!scansDir) {
-      return;
-    }
-    const route = scanResultRoute(
-      scansDir,
-      scanPath,
-      previousResult?.identifier,
-      searchParams
-    );
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    navigate(route);
-  };
-
-  const handleNext = () => {
-    if (!hasNext || !visibleScannerResults) {
-      return;
-    }
-    const nextResult = visibleScannerResults[currentIndex + 1];
-    if (!scansDir) {
-      return;
-    }
-    const route = scanResultRoute(
-      scansDir,
-      scanPath,
-      nextResult?.identifier,
-      searchParams
-    );
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    navigate(route);
-  };
-
-  const result =
-    visibleScannerResults && currentIndex !== -1
-      ? visibleScannerResults[currentIndex]
-      : undefined;
+  const { result, hasPrevious, hasNext, onPrevious, onNext } =
+    useScannerResultPrevNext();
 
   return (
     <NextPreviousNav
-      onPrevious={handlePrevious}
-      onNext={handleNext}
+      onPrevious={onPrevious}
+      onNext={onNext}
       hasPrevious={hasPrevious}
-      hasNext={!!hasNext}
+      hasNext={hasNext}
+      previousTitle="Previous result"
+      nextTitle="Next result"
     >
       <span className="text-size-smallest">
-        {visibleScannerResults && currentIndex !== -1
+        {result
           ? printIdentifier(resultIdentifier(result), result?.label)
           : undefined}
       </span>

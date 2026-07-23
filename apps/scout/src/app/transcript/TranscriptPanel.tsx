@@ -1,22 +1,20 @@
 import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
-import { FC, useRef } from "react";
+import { FC, useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
 import {
+  useChromeNavOwnership,
   useDocumentTitle,
   useRequiredParams,
-  useScrollDirection,
 } from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
 
 import { useStore } from "../../state/store";
 import { TranscriptsNavbar } from "../components/TranscriptsNavbar";
-import { useFilterConditions } from "../hooks/useFilterConditions";
-import { useAdjacentTranscriptIds } from "../server/useAdjacentTranscriptIds";
 import { useAppConfig } from "../server/useAppConfig";
 import { useTranscript } from "../server/useTranscript";
-import { TRANSCRIPTS_INFINITE_SCROLL_CONFIG } from "../transcripts/constants";
 import { getTranscriptDisplayName } from "../utils/transcript";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 
@@ -35,7 +33,6 @@ export const TranscriptPanel: FC = () => {
   // Transcripts directory (resolved from route, user preference, or config)
   const {
     displayTranscriptsDir,
-    resolvedTranscriptsDir,
     resolvedTranscriptsDirSource,
     setTranscriptsDir,
   } = useTranscriptsDir(true);
@@ -58,25 +55,40 @@ export const TranscriptPanel: FC = () => {
   // Set document title with transcript task name
   useDocumentTitle(getTranscriptDisplayName(transcript), "Transcripts");
 
-  // Get sorting/filter from store
-  const sorting = useStore((state) => state.transcriptsTableState.sorting);
-  const condition = useFilterConditions();
+  // Deep-link params (?event= / ?message=), read here — not only in
+  // TranscriptBody — because a deep-linked mount lands scrolled down and the
+  // chrome must render collapsed from the very first frame. Both are
+  // mount-time signals only (initialHidden / navOwnsRef read them once).
+  const [searchParams] = useSearchParams();
+  const initialEventId = searchParams.get("event");
+  const initialMessageId = searchParams.get("message");
 
-  // Get adjacent transcript IDs
-  const adjacentIds = useAdjacentTranscriptIds(
-    transcriptId,
-    resolvedTranscriptsDir,
-    TRANSCRIPTS_INFINITE_SCROLL_CONFIG.pageSize,
-    condition,
-    sorting
-  );
-  const [prevId, nextId] = adjacentIds.data ?? [undefined, undefined];
+  // While the find band is open it scrolls matches into view (Ctrl+F → next /
+  // prev); those programmatic scrolls would otherwise read as user direction
+  // changes and flicker the chrome open/closed. Freeze headroom detection
+  // while find is active (a ref so the scroll handler sees the live value).
+  const showFind = useStore((state) => state.showFind) ?? false;
+  const findActiveRef = useRef(showFind);
+  useEffect(() => {
+    findActiveRef.current = showFind;
+  }, [showFind]);
 
-  // Headroom: show title on scroll-up, hide on scroll-down.
-  // Shared with the swimlane headroom in TimelineEventsView so both
-  // collapse/expand in sync from a single scroll-direction signal.
-  const { hidden: headroomHidden, resetAnchor: headroomResetAnchor } =
-    useScrollDirection(scrollRef);
+  // Nav-owned chrome (see useChromeNavOwnership). Scout's whole chrome (this
+  // title headroom + the swimlane strip inside TranscriptLayout) hangs off
+  // the ONE hidden signal, so it re-expands only at the very top
+  // (expandOnlyAtTop). resetKey: the route element and scroll container both
+  // survive sibling hops (ArrowRight), so ownership and the hidden state
+  // re-derive from the current params when transcriptId changes.
+  const {
+    hidden: headroomHidden,
+    resetAnchor: headroomResetAnchor,
+    forceHidden: onHeadroomSetHidden,
+  } = useChromeNavOwnership(scrollRef, {
+    ownedForKey: () => !!(initialEventId || initialMessageId),
+    resetKey: transcriptId,
+    findActiveRef,
+    expandOnlyAtTop: true,
+  });
 
   return (
     <div className={clsx(styles.container)}>
@@ -86,12 +98,7 @@ export const TranscriptPanel: FC = () => {
         filter={filter}
         setTranscriptsDir={setTranscriptsDir}
       >
-        <TranscriptNav
-          transcriptsDir={resolvedTranscriptsDir}
-          transcript={transcript}
-          nextId={nextId}
-          prevId={prevId}
-        />
+        <TranscriptNav transcriptId={transcriptId} transcript={transcript} />
       </TranscriptsNavbar>
       <LoadingBar loading={loading} />
 
@@ -113,6 +120,7 @@ export const TranscriptPanel: FC = () => {
               scrollRef={scrollRef}
               headroomHidden={headroomHidden}
               onHeadroomResetAnchor={headroomResetAnchor}
+              onHeadroomSetHidden={onHeadroomSetHidden}
             />
           </div>
         </>

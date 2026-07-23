@@ -47,6 +47,7 @@ vi.mock("../../../state/store", async (importOriginal) => {
     app: { propertyBags: {} },
     appActions: { setPropertyValue: () => undefined },
     logs: { selectedLogFile: undefined, logDir: undefined },
+    log: { selectedSampleHandle: undefined },
   } as unknown as StoreState;
   return {
     ...actual,

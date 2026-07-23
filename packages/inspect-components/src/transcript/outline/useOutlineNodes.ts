@@ -4,7 +4,6 @@
 
 import { useMemo } from "react";
 
-import { kSandboxSignalName } from "../transform/fixups";
 import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
@@ -13,9 +12,30 @@ import {
   collapseTurns,
   makeTurns,
   noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
+  outlineFilterVisitors,
 } from "./tree-visitors";
+import { findNearestOutlineAbove } from "./useOutlineScrollSync";
+
+/**
+ * Resolve a selected event id to the outline row that contains it.
+ *
+ * A collapsed "N turns" row reuses its first turn's model-event id, so a
+ * selection on a later turn in the group matches no row by identity; fall back
+ * to the nearest outline row at or above the selection.
+ */
+export const resolveOutlineSelection = (
+  selectedOutlineId: string | null | undefined,
+  allNodesList: EventNode[],
+  outlineNodeList: EventNode[]
+): string | null => {
+  if (!selectedOutlineId) return null;
+  const outlineIds = new Set(outlineNodeList.map((node) => node.id));
+  if (outlineIds.has(selectedOutlineId)) return selectedOutlineId;
+  return (
+    findNearestOutlineAbove(selectedOutlineId, allNodesList, outlineIds)?.id ??
+    null
+  );
+};
 
 /**
  * Build the outline's row list: flatten the tree with the outline's
@@ -27,14 +47,7 @@ export const buildOutlineNodeList = (
   collapsedIds: Record<string, boolean>
 ): EventNode[] => {
   const nodeList = flatTree(eventNodes, collapsedIds, [
-    removeNodeVisitor("logger"),
-    removeNodeVisitor("info"),
-    removeNodeVisitor("state"),
-    removeNodeVisitor("store"),
-    removeNodeVisitor("approval"),
-    removeNodeVisitor("input"),
-    removeNodeVisitor("sandbox"),
-    removeStepSpanNameVisitor(kSandboxSignalName),
+    ...outlineFilterVisitors(),
     noScorerChildren(),
   ]);
 

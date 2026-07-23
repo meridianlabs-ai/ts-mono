@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import type { Event } from "@tsmono/inspect-common/types";
 import {
   buildOutlineNodeList,
+  kDefaultExcludeEvents,
   labelForOutlineNode,
   type EventNode,
 } from "@tsmono/inspect-components/transcript";
@@ -28,7 +29,6 @@ import {
   type SampleSkeleton,
   type SkeletonEvent,
 } from "../../../../log_data";
-import { kDefaultExcludeEvents } from "../../../../state/sampleSlice";
 import { resolveAttachments } from "../../../../utils/attachments";
 
 import {

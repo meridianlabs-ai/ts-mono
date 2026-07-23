@@ -3,6 +3,7 @@ export {
   EventNode,
   eventTypeValues,
   kCollapsibleEventTypes,
+  kDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
@@ -21,6 +22,7 @@ export type {
 // Transform utilities
 export { fixupEventStream, kSandboxSignalName } from "./transform/fixups";
 export { flatTree } from "./transform/flatten";
+export { FocusTurnView } from "./FocusTurnView";
 export type { TreeNodeVisitor } from "./transform/flatten";
 export { transformTree } from "./transform/transform";
 export { treeifyEvents } from "./transform/treeify";
@@ -92,8 +94,19 @@ export {
 } from "./state/StateEventRenderers";
 
 // Hooks
-export { useStickyObserver } from "./hooks/useStickyObserver";
 export { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+export {
+  useFocusSetParams,
+  useFocusTurnNavigation,
+  type FocusTurnNavigation,
+  type LaneCrumb,
+  type LaneOption,
+} from "./hooks/useFocusTurnNavigation";
+export {
+  useFocusLaneScope,
+  type FocusLane,
+  type FocusLaneScope,
+} from "./hooks/useFocusLaneScope";
 export { useListPositionManager } from "./hooks/useListPositionManager";
 
 // Layout
@@ -155,7 +168,6 @@ export {
   TranscriptVirtualList,
   RenderedEventNode,
 } from "./TranscriptVirtualList";
-export { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 
 export {
   TranscriptViewNodes,

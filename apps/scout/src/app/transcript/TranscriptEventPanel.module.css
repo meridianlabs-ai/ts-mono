@@ -1,0 +1,37 @@
+/* Same ProjectBar compensation as TranscriptPanel's container (min-height:
+   2em): without it the 100vh focus root overflows the app content area and
+   mount-time scrolling clips the header. */
+.focusRoot {
+  --focus-turn-view-height: calc(100vh - 2em);
+}
+
+/* Loading + error parity with the inspect focus page. */
+.loading {
+  padding: 2rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--bs-secondary);
+}
+
+.ellipsis::after {
+  display: inline-block;
+  width: 1.2em;
+  text-align: left;
+  content: "";
+  animation: loading-ellipsis 1.2s steps(1, end) infinite;
+}
+
+@keyframes loading-ellipsis {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75% {
+    content: "...";
+  }
+}

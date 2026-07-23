@@ -26,6 +26,8 @@
   );
   --inspect-focus-border-color: #86b7fe;
   --inspect-focus-border-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
+  /* Ring marking the event card a go-to-turn jump landed on (timeline blue). */
+  --inspect-jump-target-ring-color: #4d7ebf;
   --inspect-focus-border-gray-color: #808080;
   --inspect-focus-border-gray-shadow: 0 0 0 0.25rem rgba(48, 48, 48, 0.25);
 

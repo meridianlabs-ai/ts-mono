@@ -1,58 +1,38 @@
-import { FC, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { FC } from "react";
 
-import { useLoggingNavigate } from "../../debugging/navigationDebugging";
-import { transcriptRoute } from "../../router/url";
+import { NextPreviousNav } from "@tsmono/react/components";
+
 import { Transcript } from "../../types/api-types";
-import { NextPreviousNav } from "../components/NextPreviousNav";
 import { TaskName } from "../components/TaskName";
 
+import { useTranscriptPrevNext } from "./hooks/useTranscriptPrevNext";
+
 interface TranscriptNavProps {
-  transcriptsDir: string;
+  transcriptId: string;
   transcript?: Transcript;
-  prevId?: string;
-  nextId?: string;
+  /** Keep sibling navigation on the focus (single-event) route instead of the
+   *  transcript view — for the focus page, which reuses this header. */
+  toFocusRoute?: boolean;
 }
 
 export const TranscriptNav: FC<TranscriptNavProps> = ({
-  transcriptsDir,
+  transcriptId,
   transcript,
-  prevId,
-  nextId,
+  toFocusRoute,
 }) => {
-  const navigate = useLoggingNavigate("TranscriptNav");
-  const [searchParams] = useSearchParams();
-
-  // Strip transcript-specific params when navigating to a different transcript.
-  // The selected agent and deep-link targets don't carry over.
-  const cleanParams = useMemo(() => {
-    const next = new URLSearchParams(searchParams);
-    next.delete("selected");
-    next.delete("event");
-    next.delete("message");
-    return next;
-  }, [searchParams]);
-
-  const handlePrevious = () => {
-    if (prevId) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(transcriptRoute(transcriptsDir, prevId, cleanParams));
-    }
-  };
-
-  const handleNext = () => {
-    if (nextId) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(transcriptRoute(transcriptsDir, nextId, cleanParams));
-    }
-  };
+  const { prevId, nextId, onPrevious, onNext } = useTranscriptPrevNext(
+    transcriptId,
+    toFocusRoute ? { toFocusRoute: true } : undefined
+  );
 
   return (
     <NextPreviousNav
-      onPrevious={handlePrevious}
-      onNext={handleNext}
+      onPrevious={onPrevious}
+      onNext={onNext}
       hasPrevious={!!prevId}
       hasNext={!!nextId}
+      previousTitle="Previous transcript"
+      nextTitle="Next transcript"
     >
       {transcript && (
         <TaskName

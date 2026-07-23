@@ -1,9 +1,11 @@
 import { FC } from "react";
 
+import { kSampleEventTabId } from "../../constants";
 import { FlowPanel } from "../flow/FlowPanel";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
+import { SampleEventView } from "../samples/event/SampleEventView";
 import { SamplePrintView } from "../samples/print/SamplePrintView";
 
 import { useLogRouteParams } from "./url";
@@ -22,6 +24,10 @@ export const TasksRouter: FC = () => {
 
   if (sampleId && epoch && sampleTabId === "print") {
     return <SamplePrintView />;
+  }
+
+  if (sampleId && epoch && sampleTabId === kSampleEventTabId) {
+    return <SampleEventView />;
   }
 
   if ((sampleId && epoch) || sampleUuid) {

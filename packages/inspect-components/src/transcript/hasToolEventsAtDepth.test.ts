@@ -16,11 +16,11 @@ const node = (
   return new EventNode(id, event, depth);
 };
 
-// Faithful O(n^2) reference: a LITERAL transcription of the backward scan the
-// component uses today (TranscriptVirtualListComponent.tsx:91-111). The tool
-// check precedes the depth check, exactly as in the live code. The fast path
-// must equal this for every index, on every input. Do NOT "fix" or simplify
-// this oracle — it encodes the real (current) behavior, bugs and all.
+// Faithful O(n^2) reference for computeHasToolEventsAtDepth: a LITERAL
+// transcription of the original per-index backward scan. The tool check
+// precedes the depth check, exactly as in the live code. The fast path must
+// equal this for every index, on every input. Do NOT "fix" or simplify this
+// oracle - it encodes the real (current) behavior, bugs and all.
 const referenceHasToolEvents = (nodes: EventNode[]): boolean[] =>
   nodes.map((_unused, startIndex) => {
     const startNode = nodes[startIndex];

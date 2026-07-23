@@ -44,15 +44,15 @@ export interface BreadcrumbSegment {
  * [main, Build, Test] where "Test" is the currently selected row.
  */
 export function buildBreadcrumbs(
-  layouts: RowLayout[],
+  rows: ReadonlyArray<{ key: string; name: string; depth: number }>,
   selectedRowKey: string | null
 ): BreadcrumbSegment[] {
   if (!selectedRowKey) return [];
 
-  // Build a lookup from key to layout
-  const byKey = new Map<string, RowLayout>();
-  for (const layout of layouts) {
-    byKey.set(layout.key, layout);
+  // Build a lookup from key to row
+  const byKey = new Map<string, { key: string; name: string; depth: number }>();
+  for (const row of rows) {
+    byKey.set(row.key, row);
   }
 
   // Walk the key segments to find ancestor rows.
@@ -62,11 +62,19 @@ export function buildBreadcrumbs(
 
   for (let i = 1; i <= parts.length; i++) {
     const ancestorKey = parts.slice(0, i).join("/");
-    const layout = byKey.get(ancestorKey);
-    if (layout) {
+    const row = byKey.get(ancestorKey);
+    if (row) {
       const label =
-        layout.depth === 0 && layout.name === "solvers" ? "main" : layout.name;
-      segments.push({ label, key: layout.key });
+        row.depth === 0 && row.name === "solvers" ? "main" : row.name;
+      // Adjacent same-named segments collapse to the deeper one (a wrapping
+      // top-level agent often shares the root's name — "main › main" reads as
+      // a bug); the deeper key keeps the more specific navigation target.
+      const prev = segments[segments.length - 1];
+      if (prev && prev.label === label) {
+        segments[segments.length - 1] = { label, key: row.key };
+      } else {
+        segments.push({ label, key: row.key });
+      }
     }
   }
 

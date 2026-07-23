@@ -3,6 +3,7 @@ import { useLocation, useParams } from "react-router-dom";
 
 import { useLogDir } from "../../app_config";
 import {
+  kSampleEventTabId,
   kSampleMessagesTabId,
   kSampleTabIds,
   kSampleTranscriptTabId,
@@ -432,7 +433,111 @@ export const sampleEventUrl = (
     sampleEpoch,
     kSampleTranscriptTabId
   );
-  return `${baseUrl}?event=${eventId}`;
+  return `${baseUrl}?event=${encodeURIComponent(eventId)}`;
+};
+
+/**
+ * Hash route for the focus-mode page (single focused turn). Renders
+ * only the given event and its descendants.
+ *
+ * Keeps the originating surface's prefix (`/logs`, `/tasks`, or `/samples` —
+ * all three routers wire the `event` tab) so exiting focus mode and the
+ * back/home buttons return to the surface the sample was opened from.
+ */
+const sampleEventFocusUrl = (
+  eventId: string,
+  logPath: string,
+  sampleId?: string | number,
+  sampleEpoch?: string | number,
+  surface: RoutePrefix | "/samples" = "/logs"
+) => {
+  const baseUrl =
+    surface === "/samples"
+      ? samplesSampleUrl(
+          logPath,
+          sampleId ?? "",
+          sampleEpoch ?? "",
+          kSampleEventTabId
+        )
+      : logSamplesUrl(
+          logPath,
+          sampleId,
+          sampleEpoch,
+          kSampleEventTabId,
+          surface
+        );
+  return `${baseUrl}?event=${encodeURIComponent(eventId)}`;
+};
+
+/**
+ * Builder for the focus-mode entry href: a `#`-prefixed hash-route URL for the
+ * single-event focus page. Relative `#…` so a ctrl/cmd- or middle-click opens
+ * it in a new browser tab of the same SPA, while a plain click is intercepted
+ * for in-window navigation (see `TranscriptLayout.onOpenEventFocus`). The
+ * VS Code webview has no browser-tab model, but in-window focus mode works
+ * there like any hash navigation, so the control is no longer suppressed.
+ *
+ * Returns undefined (hiding the control) when the log path / sample can't be
+ * resolved.
+ */
+export const useSampleEventFocusUrlBuilder = (): ((
+  eventId: string,
+  selectedTab?: string
+) => string | undefined) => {
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+  const location = useLocation();
+  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logDir = useLogDir();
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
+
+  // Preserve the originating surface so leaving focus mode returns to it.
+  const surface: RoutePrefix | "/samples" = location.pathname.startsWith(
+    "/samples/"
+  )
+    ? "/samples"
+    : location.pathname.startsWith("/tasks")
+      ? "/tasks"
+      : "/logs";
+
+  return useCallback(
+    (eventId: string, selectedTab?: string) => {
+      let targetLogPath = urlLogPath;
+      if (!targetLogPath && logFile) {
+        targetLogPath = makeLogsPath(logFile, logDir);
+      }
+      // Sample id + epoch normally come from the route, but the bare log URL
+      // (single-sample auto-display) omits them — fall back to the in-state
+      // selected sample so the focus-mode control still appears there.
+      const sampleId = urlSampleId ?? selectedSampleHandle?.id;
+      const sampleEpoch = urlEpoch ?? selectedSampleHandle?.epoch;
+      if (
+        !targetLogPath ||
+        sampleId === undefined ||
+        sampleEpoch === undefined
+      ) {
+        return undefined;
+      }
+      const base = `#${sampleEventFocusUrl(eventId, targetLogPath, sampleId, sampleEpoch, surface)}`;
+      return selectedTab
+        ? `${base}&tab=${encodeURIComponent(selectedTab)}`
+        : base;
+    },
+    [
+      urlLogPath,
+      urlSampleId,
+      urlEpoch,
+      logFile,
+      logDir,
+      selectedSampleHandle,
+      surface,
+    ]
+  );
 };
 
 export const useSampleMessageUrl = (

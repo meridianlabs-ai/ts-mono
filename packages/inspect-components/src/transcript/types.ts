@@ -109,6 +109,17 @@ export const eventTypeValues = [
   "span_end",
 ] as const;
 
+// Event types the transcript hides by default (the "Events: Default" filter).
+export const kDefaultExcludeEvents = [
+  "sample_init",
+  "sandbox",
+  "state",
+  "store",
+  "branch",
+  "anchor",
+  "checkpoint",
+];
+
 // Derive the type from the array (replaces the indexed access approach)
 export type EventTypeValue = (typeof eventTypeValues)[number];
 
@@ -146,6 +157,42 @@ export interface EventPanelCallbacks {
   getCollapsed?: (id: string) => boolean;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  /** Selected tab NAME for a multi-tab event panel; when it returns a name
+   *  it wins over the panel's own per-event selection. */
+  getSelectedTab?: (
+    eventNodeId: string,
+    tabNames: string[]
+  ) => string | undefined;
+  /** Record a tab selection on a multi-tab event panel (focus page: writes the
+   *  `?tab=` param so the selection follows turn navigation). */
+  onSelectTab?: (eventNodeId: string, tabName: string) => void;
+  /** A user selected one of the panel's inner tabs (never initial/programmatic
+   *  selection) — the host aligns the panel to show the new tab from its start. */
+  onTabSelected?: (eventNodeId: string) => void;
+  /** Builds the focus-mode entry href for an event's header link, carrying
+   *  the panel's selected tab. Omit to hide that control. */
+  getEventFocusUrl?: (
+    eventId: string,
+    selectedTab?: string
+  ) => string | undefined;
+  /** Report the panel's selected tab NAME (undefined = default) so the `f`
+   *  shortcut builds the same tab-carrying focus URL as the header link. */
+  onFocusTabChange?: (eventNodeId: string, tabName: string | undefined) => void;
+  /** Navigate to the turn before the given 1-based turn number (header chevron). */
+  onPrevTurn?: (turnNumber: number) => void;
+  /** Navigate to the turn after the given 1-based turn number (header chevron). */
+  onNextTurn?: (turnNumber: number) => void;
+  /** A header turn label was clicked — opens the go-to-turn bar prefilled with
+   *  that turn number. When omitted the label renders as passive text. */
+  onTurnLabelClick?: (turnNumber: number) => void;
+  /** Whether this event card is the landing target of the latest go-to-turn
+   *  jump — it renders a persistent selection ring. */
+  isJumpTarget?: (eventNodeId: string) => boolean;
+  /** Enter focus mode in the current window, from the SAME `getEventFocusUrl`
+   *  href the anchor renders (`#`-prefixed hrefs accepted) — the anchor keeps
+   *  the href so modified clicks open a new tab natively; a plain left-click
+   *  calls this instead. */
+  onOpenEventFocus?: (focusRoute: string) => void;
 }
 
 /**
@@ -182,6 +229,10 @@ export type TranscriptState = Record<string, TranscriptEventState>;
 export interface EventNodeContext {
   hasToolEvents?: boolean;
   turnInfo?: { turnNumber: number; totalTurns: number };
+  /** True for the turn's first flattened event (its "capstone"). Only the
+   *  capstone's header shows the turn-nav cluster while unstuck; other headers
+   *  of the same turn reveal it only while pinned (`data-sticky-stuck`). */
+  turnIsAnchor?: boolean;
   /** When true, event views should show inline expansion UX element. (e.g. ModelEventView shows a "Show all messages" toggle for expanding filtered input.) */
   inlineExpansionUX?: boolean;
   /** Per-message labels rendered in the chat label gutter (e.g. scanner citation cites like "M1"). Keyed by `message.id`. */
