@@ -12,9 +12,9 @@ import { ConfigUpdate, LogUpdate } from "@tsmono/inspect-common/types";
 
 import styles from "./HistoryList.module.css";
 import {
+  formatShort,
   HistoryCategory,
   HistoryRow,
-  formatShort,
   markerKey,
   rowCategory,
 } from "./timelineData";

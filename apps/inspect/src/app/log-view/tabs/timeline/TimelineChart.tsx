@@ -21,13 +21,13 @@ import { SampleSummary } from "../../../../client/api/types";
 
 import styles from "./TimelineChart.module.css";
 import {
+  formatShort,
   GuideSegment,
+  markerKey,
   StepPoint,
   Termination,
-  TimeWindow,
   TimelineMarker,
-  formatShort,
-  markerKey,
+  TimeWindow,
 } from "./timelineData";
 
 const kBandHeight = 84;

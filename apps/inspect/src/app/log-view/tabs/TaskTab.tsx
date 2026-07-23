@@ -159,10 +159,7 @@ export const TaskTab: FC<TaskTabProps> = ({
           </CardBody>
         </Card>
 
-        <ConfigCard
-          config={evalSpec?.config}
-          configUpdates={configUpdates}
-        />
+        <ConfigCard config={evalSpec?.config} configUpdates={configUpdates} />
 
         {earlyStopping && (
           <Card>

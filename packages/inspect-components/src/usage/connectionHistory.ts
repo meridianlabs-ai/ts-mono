@@ -50,9 +50,7 @@ export const connectionWindow = (
 
 // adaptive_connections is boolean | number | AdaptiveConcurrency | null, plus
 // the "min-max" / "min-start-max" string shorthand accepted by CLI flags.
-export const adaptiveMaxFromValue = (
-  adaptive: unknown
-): number | undefined => {
+export const adaptiveMaxFromValue = (adaptive: unknown): number | undefined => {
   if (adaptive == null || adaptive === false) return undefined;
   if (adaptive === true) return kAdaptiveDefaultMax;
   if (typeof adaptive === "number") return adaptive;

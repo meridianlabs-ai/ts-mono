@@ -77,8 +77,7 @@ export const useShowTimelineForModel = (): ((
   const bands = useStore(
     (state) =>
       state.app.propertyBags[kTimelineBag]?.[bandsKey] as
-        | Record<string, boolean>
-        | undefined
+        Record<string, boolean> | undefined
   );
   return useCallback(
     (model: string, event?: NavClickEvent) => {

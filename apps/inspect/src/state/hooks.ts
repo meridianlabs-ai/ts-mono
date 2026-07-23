@@ -185,10 +185,12 @@ export const useConfigUpdates = (): ConfigUpdate[] | undefined => {
  */
 export const useEffectiveEvalConfig = (): EvalConfig | undefined => {
   const details = useSelectedLogDetails();
+  const config = details?.eval.config;
+  const configUpdates = details?.config_updates;
   return useMemo(() => {
-    if (!details?.eval.config) return undefined;
-    return effectiveEvalConfig(details.eval.config, details.config_updates);
-  }, [details?.eval.config, details?.config_updates]);
+    if (!config) return undefined;
+    return effectiveEvalConfig(config, configUpdates);
+  }, [config, configUpdates]);
 };
 
 /**

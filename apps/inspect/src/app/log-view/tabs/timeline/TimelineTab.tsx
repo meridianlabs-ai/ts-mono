@@ -23,6 +23,7 @@ import {
 import { useProperty } from "@tsmono/react/hooks";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
+import type { SampleSummary } from "../../../../client/api/types";
 import { kLogViewTimelineTabId } from "../../../../constants";
 import { useSelectedSampleSummaries } from "../../../../state/hooks";
 import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
@@ -35,19 +36,17 @@ import {
 
 import { HistoryList } from "./HistoryList";
 import { TimelineChart } from "./TimelineChart";
-import styles from "./TimelineTab.module.css";
 import {
-  HistoryCategory,
   activeSamplesSeries,
   configMarkers,
   guideSegments,
+  HistoryCategory,
   historyRows,
   isoToEpoch,
   logMarkers,
   terminations,
 } from "./timelineData";
-
-import type { SampleSummary } from "../../../../client/api/types";
+import styles from "./TimelineTab.module.css";
 
 export const useTimelineTab = (
   evalSpec: EvalSpec | undefined,
@@ -110,7 +109,8 @@ export const TimelineTab: FC<TimelineTabProps> = ({
   logUpdates,
   earlyStopping,
 }) => {
-  const samples = useSelectedSampleSummaries().data ?? [];
+  const sampleData = useSelectedSampleSummaries().data;
+  const samples = useMemo(() => sampleData ?? [], [sampleData]);
   const { showSample, getSampleUrl } = useSampleNavigationActions();
 
   const runStart = isoToEpoch(evalStats?.started_at);
@@ -239,10 +239,9 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     ]
   );
 
-  const [categoryOverrides, setCategoryOverrides] = useState<Record<
-    string,
-    boolean
-  > | null>(null);
+  const [categoryOverrides, setCategoryOverrides] = useState<
+    Record<string, boolean> | null
+  >(null);
   const enabledCategories = useMemo(() => {
     const enabled = new Set<HistoryCategory>();
     // Everything on by default; the chips narrow from there.

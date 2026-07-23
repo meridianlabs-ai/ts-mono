@@ -55,16 +55,16 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
 
   const rows = useMemo<LogRow[]>(() => {
     const all: LogRow[] = [
-      ...events.map(
-        (event): LogRow => ({
-          kind: "controller",
-          time: event.timestamp,
-          event,
-        })
-      ),
-      ...(retunes ?? []).map(
-        (retune): LogRow => ({ kind: "config", time: retune.timestamp, retune })
-      ),
+      ...events.map((event): LogRow => ({
+        kind: "controller",
+        time: event.timestamp,
+        event,
+      })),
+      ...(retunes ?? []).map((retune): LogRow => ({
+        kind: "config",
+        time: retune.timestamp,
+        retune,
+      })),
     ];
     // Stable tiebreak: a manual controller entry is the mechanical echo of
     // its ◆ retune — the ◆ cause sorts first, both shown, no dedupe.
