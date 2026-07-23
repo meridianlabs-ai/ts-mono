@@ -62,6 +62,41 @@
   cursor: pointer;
 }
 
+.lineHit {
+  fill: transparent;
+}
+
+.crosshair {
+  stroke: var(--bs-secondary-color);
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hoverDotActive {
+  fill: #495057;
+  pointer-events: none;
+}
+
+.hoverDotConnections {
+  fill: #3a7bd5;
+  pointer-events: none;
+}
+
+.lineTooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 9;
+}
+
 .axisLine {
   stroke: var(--bs-border-color);
 }
@@ -300,6 +335,14 @@
 
 :global([data-bs-theme="dark"]) .connectionsSeries {
   stroke: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .hoverDotActive {
+  fill: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .hoverDotConnections {
+  fill: #6ea0dc;
 }
 
 :global([data-bs-theme="dark"]) .guideLabel {

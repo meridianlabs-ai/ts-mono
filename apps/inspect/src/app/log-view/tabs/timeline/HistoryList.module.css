@@ -64,7 +64,8 @@
 
 .row {
   display: grid;
-  grid-template-columns: 110px 92px 1fr;
+  /* Chip column fits the widest chip (Connections) with clearance. */
+  grid-template-columns: 110px 104px 1fr;
   column-gap: 1em;
   padding: 0.5rem 0.25rem;
   border-bottom: 1px dotted var(--bs-border-color);

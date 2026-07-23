@@ -125,6 +125,36 @@ type PopoverState = {
   | { kind: "bin"; items: Termination[] }
 );
 
+/** Crosshair + value readout for a hovered line band. */
+interface LineHover {
+  bandId: string;
+  /** Cursor x, clamped to the plot. */
+  x: number;
+  /** Series y at the cursor time — the marker dot position. */
+  dotY: number;
+  /** Band plot top — anchors the tooltip. */
+  top: number;
+  label: string;
+}
+
+/** Stepped-series value at time t: the last point at or before t. */
+const stepValueAt = (points: StepPoint[], t: number): number => {
+  let value = 0;
+  for (const point of points) {
+    if (point.time > t) break;
+    value = point.value;
+  }
+  return value;
+};
+
+const laneValueAt = (lane: ConnectionLaneData, t: number): number => {
+  let value = lane.start;
+  for (const event of lane.events) {
+    if (event.timestamp <= t) value = event.new_limit;
+  }
+  return value;
+};
+
 export interface TimelineChartProps {
   window: TimeWindow;
   showActiveSamples: boolean;
@@ -185,6 +215,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     }
   }, []);
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [lineHover, setLineHover] = useState<LineHover | null>(null);
   const popoverCloseTimer = useRef<number | null>(null);
 
   const openPopover = (state: PopoverState) => {
@@ -296,6 +327,49 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     </Fragment>
   );
 
+  // ── line-band hover (crosshair + value tooltip) ──────────────────────
+
+  const cursorTime = (
+    event: ReactMouseEvent<SVGRectElement>
+  ): { px: number; t: number } => {
+    const left =
+      event.currentTarget.ownerSVGElement?.getBoundingClientRect().left ?? 0;
+    const px = Math.min(Math.max(event.clientX - left, plotLeft), plotRight);
+    const t =
+      plotRight > plotLeft
+        ? timeWindow.start + ((px - plotLeft) / (plotRight - plotLeft)) * span
+        : timeWindow.start;
+    return { px, t };
+  };
+
+  const crosshair = (band: Band, hover: LineHover, dotClass?: string) => (
+    <Fragment>
+      <line
+        className={styles.crosshair}
+        x1={hover.x}
+        x2={hover.x}
+        y1={band.top + kPlotTop - 4}
+        y2={band.top + kPlotBottom}
+      />
+      <circle className={dotClass} cx={hover.x} cy={hover.dotY} r={3} />
+    </Fragment>
+  );
+
+  const lineHitRect = (
+    band: Band,
+    onMove: (event: ReactMouseEvent<SVGRectElement>) => void
+  ) => (
+    <rect
+      className={styles.lineHit}
+      x={plotLeft}
+      y={band.top + kPlotTop - 4}
+      width={Math.max(plotRight - plotLeft, 0)}
+      height={kPlotBottom - kPlotTop + 4}
+      onMouseMove={onMove}
+      onMouseLeave={() => setLineHover(null)}
+    />
+  );
+
   // Y scale for the line bands: 0 / mid / max, deduped for tiny ranges.
   const yTicks = (yOf: (v: number) => number, max: number) => {
     const values = [0, ...(max >= 4 ? [Math.round(max / 2)] : []), max];
@@ -379,6 +453,19 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         {path && <path className={styles.activeSeries} d={path} />}
         {axisFrame(band)}
         {yTicks(y, dataMax)}
+        {lineHover?.bandId === "active" &&
+          crosshair(band, lineHover, styles.hoverDotActive)}
+        {lineHitRect(band, (event) => {
+          const { px, t } = cursorTime(event);
+          const value = stepValueAt(activeSeries, t);
+          setLineHover({
+            bandId: "active",
+            x: px,
+            dotY: y(value),
+            top: band.top + kPlotTop,
+            label: `${value} active · ${fmtTimeSec(t)}`,
+          });
+        })}
       </g>
     );
   };
@@ -458,6 +545,19 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         <path className={styles.connectionsSeries} d={path} />
         {axisFrame(band)}
         {yTicks(y, dataMax)}
+        {lineHover?.bandId === `conn:${band.model}` &&
+          crosshair(band, lineHover, styles.hoverDotConnections)}
+        {lineHitRect(band, (event) => {
+          const { px, t } = cursorTime(event);
+          const value = laneValueAt(lane, t);
+          setLineHover({
+            bandId: `conn:${band.model}`,
+            x: px,
+            dotY: y(value),
+            top: band.top + kPlotTop,
+            label: `${value} connections · ${fmtTimeSec(t)}`,
+          });
+        })}
       </g>
     );
   };
@@ -808,6 +908,22 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         </svg>
       )}
       {renderPopover()}
+      {lineHover && (
+        <div
+          className={styles.lineTooltip}
+          style={
+            lineHover.x > width - 160
+              ? {
+                  left: lineHover.x - 10,
+                  top: lineHover.top,
+                  transform: "translateX(-100%)",
+                }
+              : { left: lineHover.x + 10, top: lineHover.top }
+          }
+        >
+          {lineHover.label}
+        </div>
+      )}
     </div>
   );
 };
