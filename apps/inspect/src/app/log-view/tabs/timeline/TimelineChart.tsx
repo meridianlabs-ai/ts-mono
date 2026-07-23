@@ -45,8 +45,8 @@ const kYAxisWidth = 30;
 const kPlotRightInset = 10;
 const kDotRadius = 3.5;
 const kDotRowStep = 9;
-// Extra headroom over the dot stacks so collapsed-band counts sit on their
-// own line, clear of the band label.
+// Extra headroom over the dot stacks so the hovered band's count sits on
+// its own line, clear of the band label.
 const kTermPlotTop = kPlotTop + 10;
 const kMaxDotRows = 15;
 const kBinWidth = 8;
@@ -467,6 +467,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     const hitTop = band.top + kTermPlotTop - 4;
     const hitHeight = baseline - hitTop;
 
+    const sortedBins = [...termBins.entries()].sort((a, b) => a[0] - b[0]);
+
     return (
       <g key="band-terminations">
         <text
@@ -477,41 +479,42 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         >
           SAMPLE TERMINATIONS
         </text>
-        {[...termBins.entries()]
-          .sort((a, b) => a[0] - b[0])
-          .map(([bin, items]) => {
-            const cx = bin * kBinWidth + kBinWidth / 2;
-            // Abnormal statuses sink to the bottom (closest to the axis)
-            // and are never absorbed into a collapsed band.
-            const sorted = [...items].sort((a, b) => {
-              const abnormal = (t: Termination) =>
-                t.status === "completed" ? 1 : 0;
-              return abnormal(a) - abnormal(b);
-            });
-            const collapsed = sorted.length > kMaxDotRows;
-            const shown = collapsed
-              ? sorted
-                  .filter((t) => t.status !== "completed")
-                  .slice(0, kMaxDotRows - 1)
-              : sorted;
-            const groupHovered =
-              popover?.kind === "bin" && popover.binKey === bin;
-            return (
-              <g key={`bin-${bin}`}>
-                {/* Only a collapsed band answers hover as a group — plain
+        {sortedBins.map(([bin, items]) => {
+          const cx = bin * kBinWidth + kBinWidth / 2;
+          // Abnormal statuses sink to the bottom (closest to the axis)
+          // and are never absorbed into a collapsed band.
+          const sorted = [...items].sort((a, b) => {
+            const abnormal = (t: Termination) =>
+              t.status === "completed" ? 1 : 0;
+            return abnormal(a) - abnormal(b);
+          });
+          const collapsed = sorted.length > kMaxDotRows;
+          const shown = collapsed
+            ? sorted
+                .filter((t) => t.status !== "completed")
+                .slice(0, kMaxDotRows - 1)
+            : sorted;
+          const groupHovered =
+            popover?.kind === "bin" && popover.binKey === bin;
+          return (
+            <g key={`bin-${bin}`}>
+              {/* Only a collapsed band answers hover as a group — plain
                     dot stacks popover per sample via the dots themselves. */}
-                {collapsed && (
-                  <Fragment>
-                    <rect
-                      x={cx - 3}
-                      y={band.top + kTermPlotTop}
-                      width={6}
-                      height={baseline - band.top - kTermPlotTop}
-                      rx={3}
-                      fill={kStatusColor.completed}
-                      stroke={groupHovered ? "var(--bs-body-color)" : "none"}
-                      strokeWidth={groupHovered ? 1.5 : 0}
-                    />
+              {collapsed && (
+                <Fragment>
+                  <rect
+                    x={cx - 3}
+                    y={band.top + kTermPlotTop}
+                    width={6}
+                    height={baseline - band.top - kTermPlotTop}
+                    rx={3}
+                    fill={kStatusColor.completed}
+                    stroke={groupHovered ? "var(--bs-body-color)" : "none"}
+                    strokeWidth={groupHovered ? 1.5 : 0}
+                  />
+                  {/* Hover-only — always-on counts collide when adjacent
+                        bins collapse. */}
+                  {groupHovered && (
                     <text
                       className={styles.clusterCount}
                       x={cx}
@@ -520,58 +523,59 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                     >
                       {sorted.length - shown.length}
                     </text>
-                    <rect
-                      className={styles.binHit}
-                      x={cx - kBinWidth / 2}
-                      y={hitTop}
-                      width={kBinWidth}
-                      height={hitHeight}
-                      onMouseEnter={() =>
-                        openPopover({
-                          kind: "bin",
-                          binKey: bin,
-                          items,
-                          x: cx,
-                          y: band.top + kTermPlotTop,
-                        })
-                      }
-                      onMouseLeave={scheduleClosePopover}
-                    />
-                  </Fragment>
-                )}
-                {shown.map((t, row) => {
-                  const cy = baseline - kDotRadius - row * kDotRowStep;
-                  const hovered =
-                    popover?.kind === "sample" &&
-                    popover.sample === t.sample &&
-                    popover.status === t.status;
-                  return (
-                    <circle
-                      key={row}
-                      className={styles.terminationDot}
-                      cx={cx}
-                      cy={cy}
-                      r={hovered ? 5 : kDotRadius}
-                      fill={kStatusColor[t.status]}
-                      stroke={hovered ? "var(--bs-body-color)" : "none"}
-                      strokeWidth={hovered ? 1.5 : 0}
-                      onMouseEnter={() =>
-                        openPopover({
-                          kind: "sample",
-                          binKey: bin,
-                          sample: t.sample,
-                          status: t.status,
-                          x: cx,
-                          y: cy,
-                        })
-                      }
-                      onMouseLeave={scheduleClosePopover}
-                    />
-                  );
-                })}
-              </g>
-            );
-          })}
+                  )}
+                  <rect
+                    className={styles.binHit}
+                    x={cx - kBinWidth / 2}
+                    y={hitTop}
+                    width={kBinWidth}
+                    height={hitHeight}
+                    onMouseEnter={() =>
+                      openPopover({
+                        kind: "bin",
+                        binKey: bin,
+                        items,
+                        x: cx,
+                        y: band.top + kTermPlotTop,
+                      })
+                    }
+                    onMouseLeave={scheduleClosePopover}
+                  />
+                </Fragment>
+              )}
+              {shown.map((t, row) => {
+                const cy = baseline - kDotRadius - row * kDotRowStep;
+                const hovered =
+                  popover?.kind === "sample" &&
+                  popover.sample === t.sample &&
+                  popover.status === t.status;
+                return (
+                  <circle
+                    key={row}
+                    className={styles.terminationDot}
+                    cx={cx}
+                    cy={cy}
+                    r={hovered ? 5 : kDotRadius}
+                    fill={kStatusColor[t.status]}
+                    stroke={hovered ? "var(--bs-body-color)" : "none"}
+                    strokeWidth={hovered ? 1.5 : 0}
+                    onMouseEnter={() =>
+                      openPopover({
+                        kind: "sample",
+                        binKey: bin,
+                        sample: t.sample,
+                        status: t.status,
+                        x: cx,
+                        y: cy,
+                      })
+                    }
+                    onMouseLeave={scheduleClosePopover}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
         {axisFrame(band, termPlotBottom)}
       </g>
     );
