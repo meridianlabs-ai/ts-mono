@@ -331,6 +331,26 @@ describe("Database Service", () => {
       expect(row?.depth).toBe("detailed");
       expect(row?.header).toBeDefined();
     });
+
+    test("a concurrent listing upsert cannot clobber a details ingest (lost update)", async () => {
+      const file = "/test/logs/race.json";
+      await databaseService.writeLogs([{ name: file, task: "task-1" }]);
+
+      // Incremental listing syncs re-send every known row through writeLogs
+      // while the engine's throttled details flushes land. A listing upsert
+      // that reads the row before the details transaction commits and
+      // bulk-puts the stale copy afterward would silently revert the row to
+      // its pre-flush depth — whatever the interleave, the detailed tier
+      // must survive.
+      await Promise.all([
+        writeLogDetails({ [file]: createTestLogInfo() }),
+        databaseService.writeLogs([{ name: file, task: "task-1" }]),
+      ]);
+
+      const row = await databaseService.readLogRow(file);
+      expect(row?.depth).toBe("detailed");
+      expect(row?.header).toBeDefined();
+    });
   });
 
   describe("Sample Summaries Store", () => {

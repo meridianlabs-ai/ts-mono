@@ -80,35 +80,41 @@ export class DatabaseService {
   /**
    * Upsert the listing identity tier: new files get fresh listed-depth rows;
    * known files update identity fields only (depth, content, and retrieval
-   * facts are preserved).
+   * facts are preserved). One transaction, same rationale as `mergeRows`:
+   * listing syncs re-send known rows while the engine's throttled flushes
+   * land, and an unserialized read-modify-write that read before a
+   * concurrent commit would bulk-put the stale row back at its pre-flush
+   * depth.
    */
   async writeLogs(handles: LogHandle[]): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    const existingRecords = await db.logs
-      .where("file_path")
-      .anyOf(handles.map((handle) => handle.name))
-      .toArray();
-    const existingByPath = new Map(
-      existingRecords.map((record) => [record.file_path, record])
-    );
+    await db.transaction("rw", db.logs, async () => {
+      const existingRecords = await db.logs
+        .where("file_path")
+        .anyOf(handles.map((handle) => handle.name))
+        .toArray();
+      const existingByPath = new Map(
+        existingRecords.map((record) => [record.file_path, record])
+      );
 
-    const records = handles.map<LogRecord>((handle) => {
-      const existing = existingByPath.get(handle.name);
-      return existing
-        ? {
-            ...existing,
-            task: handle.task,
-            task_id: handle.task_id,
-            mtime: handle.mtime,
-            cached_at: now,
-          }
-        : toLogRecord(newRow(handle), undefined, now);
+      const records = handles.map<LogRecord>((handle) => {
+        const existing = existingByPath.get(handle.name);
+        return existing
+          ? {
+              ...existing,
+              task: handle.task,
+              task_id: handle.task_id,
+              mtime: handle.mtime,
+              cached_at: now,
+            }
+          : toLogRecord(newRow(handle), undefined, now);
+      });
+
+      log.debug(`Upserting ${records.length} log rows (identity tier)`);
+      await db.logs.bulkPut(records);
     });
-
-    log.debug(`Upserting ${records.length} log rows (identity tier)`);
-    await db.logs.bulkPut(records);
   }
 
   async readLogs(scope: LogScope): Promise<Log[] | null> {
