@@ -48,7 +48,7 @@ const kDotRowStep = 9;
 // Extra headroom over the dot stacks so the hovered band's count sits on
 // its own line, clear of the band label.
 const kTermPlotTop = kPlotTop + 10;
-const kMaxDotRows = 20;
+const kMaxDotRows = 25;
 const kBinWidth = 8;
 const kMaxPopoverScores = 4;
 const kMaxBinRows = 40;
