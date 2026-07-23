@@ -43,6 +43,16 @@ export class SampleNotFoundError extends Error {
     Object.setPrototypeOf(this, SampleNotFoundError.prototype);
   }
 }
+/**
+ * Raw entry-level access to an open log zip: the central-directory name set
+ * plus decompressed entry reads. Format-agnostic — consumers (e.g. the
+ * chunked-sample data layer) bring their own entry-name conventions.
+ */
+export interface LogZipAccess {
+  entryNames: ReadonlySet<string>;
+  readFile: (name: string) => Promise<Uint8Array>;
+}
+
 export interface RemoteLogFile {
   readEvalBasicInfo: () => Promise<LogPreview>;
   readLogSummary: () => Promise<LogDetails>;
@@ -51,6 +61,8 @@ export interface RemoteLogFile {
     epoch: number,
     onProgress?: ProgressCallback
   ) => Promise<EvalSample>;
+  /** Entry-level access to the already-open zip (range reads, no server). */
+  zipAccess: () => LogZipAccess;
   readCompleteLog: () => Promise<EvalLog>;
 }
 
@@ -335,6 +347,10 @@ export const openRemoteLogFile = async (
       return result;
     },
     readSample,
+    zipAccess: () => ({
+      entryNames: new Set(remoteZipFile.centralDirectory.keys()),
+      readFile: (name: string) => remoteZipFile.readFile(name),
+    }),
     /**
      * Reads the complete log file.
      */

@@ -245,6 +245,17 @@ export const clientApi = (
     return undefined;
   };
 
+  const get_log_zip_access = async (log_file: string) => {
+    if (!isEvalFile(log_file)) {
+      return undefined;
+    }
+    const remoteLogFile = await remoteEvalFile(log_file, true);
+    if (!remoteLogFile) {
+      throw new Error(`Unable to read remote eval file ${log_file}`);
+    }
+    return remoteLogFile.zipAccess();
+  };
+
   const read_eval_file_log_summary = async (log_file: string) => {
     // If the API supports this, delegate to it
     if (api.get_log_summary) {
@@ -576,6 +587,7 @@ export const clientApi = (
       api.get_log_info(encodePathParts(log_file))
     ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
+    get_log_zip_access: middleware("get_log_zip_access", get_log_zip_access),
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {
       return api.open_log_file(log_file, log_dir);
     }),

@@ -11,6 +11,7 @@ export {
   computeIdleTime,
   convertServerTimeline,
   createBranchSpan,
+  filterEmptyBranches,
   getSpanToolResult,
   getUtilityAgentLabel,
   spanHasBranches,
@@ -28,6 +29,9 @@ export {
   type ContentItem,
   type EventItem,
 } from "./contentItems";
+
+export { groupRetryAttempts } from "./retryGrouping";
+export { correctRetryTimestamps } from "./retryOrdering";
 
 export {
   collectMarkers,

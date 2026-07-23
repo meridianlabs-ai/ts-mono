@@ -177,6 +177,7 @@ export {
 
 // Outline components
 export { TranscriptOutline } from "./outline/TranscriptOutline";
+export { buildOutlineNodeList } from "./outline/useOutlineNodes";
 export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
 export {
   useOutlineWidth,
@@ -184,7 +185,11 @@ export {
 } from "./outline/useOutlineWidth";
 
 // Timeline utilities
-export { useEventNodes } from "./hooks/useEventNodes";
+export {
+  buildEventNodes,
+  useEventNodes,
+  type EventNodesResult,
+} from "./hooks/useEventNodes";
 export * from "./timeline";
 
 // Search utilities
