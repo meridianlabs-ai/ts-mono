@@ -27,10 +27,7 @@ import {
   type TranscriptLayoutRightRailProps,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import {
-  useChromeNavOwnershipRelease,
-  useScrollDirection,
-} from "@tsmono/react/hooks";
+import { useChromeNavOwnership, type ChromeTarget } from "@tsmono/react/hooks";
 import { isHostedEnvironment } from "@tsmono/util";
 
 import { Events } from "../../../@types/extraInspect";
@@ -254,30 +251,25 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   // Nav (deep links, f/h/j/k/l, go-to-turn) forces the chrome and suppresses
   // natural scroll detection while it owns it; a physical gesture hands
-  // ownership back — see useChromeNavOwnershipRelease.
-  const localNavOwnsRef = useRef(!!(initialEventId || initialMessageId));
-  const navOwnsRef = chromeNavOwnsRef ?? localNavOwnsRef;
-  const suppressRef = useMemo(
-    () => ({
-      get current() {
-        return findActiveRef.current || navOwnsRef.current;
-      },
-    }),
-    [navOwnsRef]
+  // ownership back — see useChromeNavOwnership. The sample header only ever
+  // re-expands at the very top (its hook runs stayHiddenOnUpScroll), hence
+  // expandOnlyAtTop; the swimlane headroom follows every force.
+  const headerTargets = useMemo<ChromeTarget[]>(
+    () =>
+      onHeaderSetHidden
+        ? [{ setHidden: onHeaderSetHidden, expandOnlyAtTop: true }]
+        : [],
+    [onHeaderSetHidden]
   );
-  useChromeNavOwnershipRelease(navOwnsRef, scrollRef);
-
   const {
     hidden: headroomHidden,
     resetAnchor: headroomResetAnchor,
-    setHidden: setHeadroomHidden,
-  } = useScrollDirection(scrollRefs, {
-    suppressRef,
-    // A deep-linked mount (?event= or ?message=) lands scrolled down — start
-    // collapsed instead of painting the swimlane headroom expanded for a frame
-    // and blinking away. Bare mounts start expanded, statically (no state
-    // flip, so no transition runs on load).
-    initialHidden: !!(initialEventId || initialMessageId),
+    forceHidden: onHeadroomSetHidden,
+  } = useChromeNavOwnership(scrollRefs, {
+    ownedForKey: () => !!(initialEventId || initialMessageId),
+    findActiveRef,
+    navOwnsRef: chromeNavOwnsRef,
+    extraTargets: headerTargets,
   });
 
   const onHeadroomResetAnchor = useCallback(
@@ -288,22 +280,6 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
       onHeaderResetAnchor?.(debounce);
     },
     [headroomResetAnchor, onHeaderResetAnchor]
-  );
-  const onHeadroomSetHidden = useCallback(
-    (hidden: boolean) => {
-      // Every force claims ownership (suppressing natural detection) and sets
-      // both chromes.
-      navOwnsRef.current = true;
-      setHeadroomHidden(hidden);
-      // The sample header only ever re-expands at the very top (its hook runs
-      // stayHiddenOnUpScroll), so honor that here: collapse follows every
-      // caller (nav landing, find-forward), but expand only when the scroll
-      // really is at the top (`k` past turn 1) — not on find-prev mid-log.
-      if (hidden || (scrollRef.current?.scrollTop ?? 0) <= 0) {
-        onHeaderSetHidden?.(hidden);
-      }
-    },
-    [navOwnsRef, setHeadroomHidden, onHeaderSetHidden, scrollRef]
   );
 
   // ---------------------------------------------------------------------------

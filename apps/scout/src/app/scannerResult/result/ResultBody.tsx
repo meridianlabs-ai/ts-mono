@@ -1,13 +1,10 @@
 import clsx from "clsx";
-import { FC, useCallback, useRef } from "react";
+import { FC, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
-import {
-  useChromeNavOwnershipRelease,
-  useScrollDirection,
-} from "@tsmono/react/hooks";
+import { useChromeNavOwnership } from "@tsmono/react/hooks";
 
 import { useStore } from "../../../state/store";
 import { ScannerInput } from "../../../types/api-types";
@@ -37,32 +34,28 @@ export const ResultBody: FC<ResultBodyProps> = ({ resultData, inputData }) => {
   const initialMessageId = searchParams.get("message");
   const initialEventId = searchParams.get("event");
 
-  // Headroom with the chrome-ownership contract (same as the transcript
-  // page): deep-link mounts render collapsed from the first frame; landings
-  // force the state via onHeadroomSetHidden; a real wheel/touch gesture on
-  // the scroller hands ownership back to natural scroll detection.
-  const navOwnsRef = useRef(!!(initialEventId || initialMessageId));
+  // While the find band is open it scrolls matches into view; freeze
+  // headroom detection so those programmatic scrolls don't flicker the
+  // chrome (this surface's keyboard nav already stands down for find — see
+  // TimelineEventsView's keyboardNavDisabled).
+  const showFind = useStore((state) => state.showFind) ?? false;
+  const findActiveRef = useRef(showFind);
+  useEffect(() => {
+    findActiveRef.current = showFind;
+  }, [showFind]);
+
+  // Nav-owned chrome with the ownership contract shared with the transcript
+  // page (see useChromeNavOwnership); the single chrome signal re-expands
+  // only at the very top.
   const {
     hidden: headroomHidden,
     resetAnchor: headroomResetAnchor,
-    setHidden: headroomSetHidden,
-  } = useScrollDirection(scrollRef, {
-    initialHidden: !!(initialEventId || initialMessageId),
-    suppressRef: navOwnsRef,
+    forceHidden: onHeadroomSetHidden,
+  } = useChromeNavOwnership(scrollRef, {
+    ownedForKey: () => !!(initialEventId || initialMessageId),
+    findActiveRef,
+    expandOnlyAtTop: true,
   });
-  useChromeNavOwnershipRelease(navOwnsRef, scrollRef);
-  const onHeadroomSetHidden = useCallback(
-    (hidden: boolean) => {
-      navOwnsRef.current = true;
-      if (hidden) {
-        headroomSetHidden(true);
-        return;
-      }
-      const el = scrollRef.current;
-      if (el && el.scrollTop <= 0) headroomSetHidden(false);
-    },
-    [headroomSetHidden]
-  );
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
 

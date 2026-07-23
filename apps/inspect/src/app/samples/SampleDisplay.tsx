@@ -54,9 +54,8 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  useChromeNavOwnershipRelease,
+  useChromeNavOwnership,
   useElementHeight,
-  useScrollDirection,
   useVisitId,
 } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
@@ -668,20 +667,18 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Shared with TranscriptPanel: while navigation owns the chrome (deep-link
   // mounts, f/h/j/k/l forces), the header's natural-scroll detection is fully
   // suppressed; a physical user gesture on the scroller hands ownership back.
-  const chromeNavOwnsRef = useRef(mountsAtDeepLink);
-  // Release lives here (not only in TranscriptPanel, which unmounts on other
-  // tabs) so ownership can't leak past the transcript tab. Wheel/touch only —
-  // clicks are navigation, which reclaims ownership itself.
-  useChromeNavOwnershipRelease(chromeNavOwnsRef, scrollRef);
+  // The hook (and its release) lives here — not only in TranscriptPanel,
+  // which unmounts on other tabs — so ownership can't leak past the
+  // transcript tab. No findActiveRef: the header runs stayHiddenOnUpScroll
+  // and find-forward collapse is intended.
   const {
     hidden: headerCollapsed,
     resetAnchor: headerResetAnchor,
     setHidden: headerSetHidden,
-  } = useScrollDirection(scrollRef, {
-    threshold: 80,
-    stayHiddenOnUpScroll: true,
-    initialHidden: mountsAtDeepLink,
-    suppressRef: chromeNavOwnsRef,
+    navOwnsRef: chromeNavOwnsRef,
+  } = useChromeNavOwnership(scrollRef, {
+    ownedForKey: () => mountsAtDeepLink,
+    scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
 
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);

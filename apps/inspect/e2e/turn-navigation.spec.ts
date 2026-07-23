@@ -852,6 +852,80 @@ test.describe("transcript turn navigation", () => {
     expect(scrollTop).toBeLessThanOrEqual(150);
   });
 
+  test("sibling hop from a deep-linked sample lands with expanded chrome", async ({
+    page,
+    network,
+  }) => {
+    // A deep-link mount is nav-owned (header collapsed, natural detection
+    // suppressed). ArrowRight lands the sibling as a BARE visit at the top —
+    // ownership must re-derive from the new visit's own params, or the
+    // suppressed at-top reveal keeps the sibling's chrome collapsed until a
+    // physical wheel gesture.
+    const userMessage =
+      "Sample input. " +
+      "A long wordy question that makes the expanded header tall. ".repeat(20);
+    const messages: ChatMessage[] = [
+      { role: "user", content: userMessage, id: "user-1" },
+    ];
+    const sampleA = createEvalSample({ id: 1, epoch: 1, messages });
+    (sampleA as { events: Events }).events = manyTurns;
+    const sampleB = createEvalSample({ id: 2, epoch: 1, messages });
+    (sampleB as { events: Events }).events = manyTurns;
+    const evalLog = createEvalLog({ samples: [sampleA, sampleB] });
+    const logDetails = createLogDetails(evalLog);
+    network.use(
+      http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
+      http.get("*/api/log-files*", () =>
+        HttpResponse.json({ files: [{ name: LOG_FILE }] })
+      ),
+      http.get("*/api/logs/:file", () => HttpResponse.json(evalLog)),
+      http.get("*/api/log-headers*", () =>
+        HttpResponse.json([
+          {
+            eval_id: logDetails.eval.eval_id,
+            run_id: logDetails.eval.run_id,
+            task: logDetails.eval.task,
+            task_id: logDetails.eval.task_id,
+            task_version: logDetails.eval.task_version,
+            model: logDetails.eval.model,
+            status: logDetails.status,
+            started_at: logDetails.stats?.started_at,
+            completed_at: logDetails.stats?.completed_at,
+          },
+        ])
+      )
+    );
+    const encodedFile = encodeURIComponent(LOG_FILE);
+    await page.goto(
+      `/#/logs/${encodedFile}/samples/sample/1/1/transcript?event=turn-15`
+    );
+    await expect(page.getByText("Turn 15 response").first()).toBeVisible();
+    // Sanity: the deep-link landing itself renders the header collapsed.
+    await expect(
+      page.locator("[id^='sample-heading-'] [class*='_collapsedMeta_']").first()
+    ).toBeVisible();
+
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByText("Sample 2")).toBeVisible();
+    // The sibling settles at the top...
+    await expect
+      .poll(() => biggestScrollerTop(page), { timeout: 4000 })
+      .toBeLessThanOrEqual(10);
+    // ...with the EXPANDED header variant, like any fresh/direct visit.
+    await expect
+      .poll(
+        () =>
+          page.locator("[id^='sample-heading-'] [class*='_layout_']").count(),
+        { timeout: 4000 }
+      )
+      .toBeGreaterThan(0);
+    expect(
+      await page
+        .locator("[id^='sample-heading-'] [class*='_collapsedMeta_']")
+        .count()
+    ).toBe(0);
+  });
+
   test("focus view surfaces the sample error from every turn", async ({
     page,
     network,

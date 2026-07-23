@@ -1,14 +1,13 @@
 import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FC, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
 import {
-  useChromeNavOwnershipRelease,
+  useChromeNavOwnership,
   useDocumentTitle,
   useRequiredParams,
-  useScrollDirection,
 } from "@tsmono/react/hooks";
 import { ApiError } from "@tsmono/util";
 
@@ -68,72 +67,28 @@ export const TranscriptPanel: FC = () => {
   // prev); those programmatic scrolls would otherwise read as user direction
   // changes and flicker the chrome open/closed. Freeze headroom detection
   // while find is active (a ref so the scroll handler sees the live value).
-  const showFind = useStore((state) => state.showFind);
+  const showFind = useStore((state) => state.showFind) ?? false;
   const findActiveRef = useRef(showFind);
   useEffect(() => {
     findActiveRef.current = showFind;
   }, [showFind]);
 
-  // Nav (deep links, f/h/j/k/l, go-to-turn) forces the chrome and suppresses
-  // natural scroll detection while it owns it; a physical gesture hands
-  // ownership back — see useChromeNavOwnershipRelease.
-  const navOwnsRef = useRef(!!(initialEventId || initialMessageId));
-  const suppressRef = useMemo(
-    () => ({
-      get current() {
-        return findActiveRef.current || navOwnsRef.current;
-      },
-    }),
-    []
-  );
-  useChromeNavOwnershipRelease(navOwnsRef, scrollRef);
-
-  // Headroom: show title on scroll-up, hide on scroll-down.
-  // Shared with the swimlane headroom in TimelineEventsView so both
-  // collapse/expand in sync from a single scroll-direction signal.
+  // Nav-owned chrome (see useChromeNavOwnership). Scout's whole chrome (this
+  // title headroom + the swimlane strip inside TranscriptLayout) hangs off
+  // the ONE hidden signal, so it re-expands only at the very top
+  // (expandOnlyAtTop). resetKey: the route element and scroll container both
+  // survive sibling hops (ArrowRight), so ownership and the hidden state
+  // re-derive from the current params when transcriptId changes.
   const {
     hidden: headroomHidden,
     resetAnchor: headroomResetAnchor,
-    setHidden: setHeadroomHidden,
-  } = useScrollDirection(scrollRef, {
-    suppressRef,
-    // A deep-linked mount (?event= or ?message=) lands scrolled down — start
-    // collapsed instead of painting the title headroom expanded for a frame
-    // and blinking away. Bare mounts start expanded, statically (no state
-    // flip, so no transition runs on load).
-    initialHidden: !!(initialEventId || initialMessageId),
+    forceHidden: onHeadroomSetHidden,
+  } = useChromeNavOwnership(scrollRef, {
+    ownedForKey: () => !!(initialEventId || initialMessageId),
+    resetKey: transcriptId,
+    findActiveRef,
+    expandOnlyAtTop: true,
   });
-
-  const onHeadroomSetHidden = useCallback(
-    (hidden: boolean) => {
-      // Every force claims ownership (suppressing natural detection). Scout's
-      // whole chrome (this title headroom + the swimlane strip inside
-      // TranscriptLayout) hangs off the ONE hidden signal, so inspect's
-      // sample-header rule applies to all of it: collapse follows every
-      // caller (nav landing, find-forward), but expand only when the scroll
-      // really is at the top (`k` past turn 1) — not on find-prev mid-log.
-      navOwnsRef.current = true;
-      if (hidden || (scrollRef.current?.scrollTop ?? 0) <= 0) {
-        setHeadroomHidden(hidden);
-      }
-    },
-    [setHeadroomHidden]
-  );
-
-  // The route element and scroll container both survive sibling hops
-  // (ArrowRight), so the useRef/initialHidden seeds would carry one
-  // transcript's chrome state onto the next. Re-derive from the current
-  // params when transcriptId changes, in render (before paint) —
-  // useScrollDirection's scroller-changed reset can't fire because the
-  // element never remounts.
-  const [chromeResetForId, setChromeResetForId] = useState(transcriptId);
-  if (chromeResetForId !== transcriptId) {
-    setChromeResetForId(transcriptId);
-    const startsCollapsed = !!(initialEventId || initialMessageId);
-    // eslint-disable-next-line react-hooks/refs -- deliberate render-phase reset: must land in the SAME render transcriptId changes, or the old transcript's chrome state paints for a frame before this corrects it
-    navOwnsRef.current = startsCollapsed;
-    if (headroomHidden !== startsCollapsed) setHeadroomHidden(startsCollapsed);
-  }
 
   return (
     <div className={clsx(styles.container)}>
