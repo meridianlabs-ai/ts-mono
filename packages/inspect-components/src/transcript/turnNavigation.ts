@@ -23,20 +23,33 @@ const kFocusExcludedEvents = new Set([
  * Turn map + ordered turn-anchor ids, shared by the transcript list and the
  * single-event page so their "turn N/M" numbering can't disagree. Pass the
  * *default* collapse state, not the user's live collapse, so collapsing a
- * region doesn't renumber turns below it.
+ * region doesn't renumber turns below it. `anchorIdByTurn` maps every turn
+ * number to its model anchor id even when live collapse hides it (while
+ * `anchorIds` skips hidden turns).
  */
 export function computeTranscriptTurns(
   eventNodes: EventNode[],
   flattenedNodes: EventNode[],
   collapsed: Record<string, boolean> | null
-): { turnMap: Map<string, TurnInfo>; anchorIds: string[] } {
+): {
+  turnMap: Map<string, TurnInfo>;
+  anchorIds: string[];
+  anchorIdByTurn: Map<number, string>;
+} {
   const outlineFiltered = flatTree(
     eventNodes,
     collapsed,
     outlineFilterVisitors()
   );
-  const turnMap = computeTurnMap(outlineFiltered, flattenedNodes);
-  return { turnMap, anchorIds: computeTurnAnchorIds(flattenedNodes, turnMap) };
+  const { turnMap, anchorIdByTurn } = computeTurnMap(
+    outlineFiltered,
+    flattenedNodes
+  );
+  return {
+    turnMap,
+    anchorIds: computeTurnAnchorIds(flattenedNodes, turnMap),
+    anchorIdByTurn,
+  };
 }
 
 /**

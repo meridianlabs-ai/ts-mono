@@ -232,13 +232,19 @@ export type TurnInfo = { turnNumber: number; totalTurns: number };
  * Turn numbers come from the outline-filtered nodes (after makeTurns), so numbering
  * matches the sidebar. Non-turn events inherit the previous turn number.
  *
+ * Also returns the inversion, `anchorIdByTurn`: turn number → the turn's model
+ * event id, for every numbered turn — including turns whose anchor is hidden
+ * by the live collapse state (the keys of `turnMap` cover only visible nodes).
+ * Turns without a model child (possible only for backend-emitted turn spans;
+ * makeTurns always inserts the model node) have no entry.
+ *
  * @param outlineFilteredNodes - The filtered node list used for the outline sidebar
  * @param flattenedNodes - The full flattened node list (all visible transcript events)
  */
 export const computeTurnMap = (
   outlineFilteredNodes: EventNode[],
   flattenedNodes: EventNode[]
-): Map<string, TurnInfo> => {
+): { turnMap: Map<string, TurnInfo>; anchorIdByTurn: Map<number, string> } => {
   const turns = makeTurns(outlineFilteredNodes);
   const map = new Map<string, TurnInfo>();
 
@@ -252,11 +258,13 @@ export const computeTurnMap = (
   // Map model event IDs to their turn numbers
   let turnNumber = 0;
   const modelEventTurnNumbers = new Map<string, number>();
+  const anchorIdByTurn = new Map<number, string>();
   for (const node of turnNodes) {
     turnNumber++;
     const modelChild = node.children.find((c) => c.event.event === "model");
     if (modelChild) {
       modelEventTurnNumbers.set(modelChild.id, turnNumber);
+      anchorIdByTurn.set(turnNumber, modelChild.id);
     }
   }
 
@@ -273,5 +281,5 @@ export const computeTurnMap = (
     }
   }
 
-  return map;
+  return { turnMap: map, anchorIdByTurn };
 };

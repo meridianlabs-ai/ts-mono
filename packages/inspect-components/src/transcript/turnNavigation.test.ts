@@ -6,6 +6,7 @@ import type { TurnInfo } from "./outline/tree-visitors";
 import { flatTree } from "./transform/flatten";
 import {
   anchorIndexForTurn,
+  computeTranscriptTurns,
   computeTurnAnchorIds,
   focusedTurnNodes,
   resolveEventTurnAnchor,
@@ -142,6 +143,42 @@ describe("resolveEventTurnAnchor", () => {
     expect(
       resolveEventTurnAnchor([tool("t0", 0), model("m1", 0)], "t0")
     ).toBeUndefined();
+  });
+});
+
+describe("computeTranscriptTurns", () => {
+  const agentSpan = (id: string, children: EventNode[]): EventNode => {
+    const n = new EventNode(
+      id,
+      {
+        event: "span_begin",
+        type: "agent",
+        name: "sub",
+      } as unknown as Event,
+      0
+    );
+    n.children = children;
+    return n;
+  };
+
+  it("anchorIdByTurn maps every turn number to its anchor even when live collapse hides it", () => {
+    const eventNodes = [
+      treeNode("m1", "model", 0),
+      agentSpan("s1", [treeNode("m3", "model", 1)]),
+      treeNode("m4", "model", 0),
+    ];
+    // Live collapse hides m3; numbering is collapse-independent.
+    const live = flatTree(eventNodes, { s1: true });
+    const { anchorIds, anchorIdByTurn } = computeTranscriptTurns(
+      eventNodes,
+      live,
+      null
+    );
+    expect(anchorIds).toEqual(["m1", "m4"]);
+    expect(anchorIdByTurn.get(1)).toBe("m1");
+    expect(anchorIdByTurn.get(2)).toBe("m3");
+    expect(anchorIdByTurn.get(3)).toBe("m4");
+    expect(anchorIdByTurn.size).toBe(3);
   });
 });
 

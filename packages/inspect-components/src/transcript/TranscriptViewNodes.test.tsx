@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import {
   createRef,
   useCallback,
@@ -244,6 +250,71 @@ describe("TranscriptViewNodes current-turn stamping", () => {
       await new Promise((r) => setTimeout(r, 30));
     });
 
+    pressJ();
+    expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m4");
+  });
+
+  it("go-to-turn bar jump into a user-collapsed region expands it and lands on the requested turn", async () => {
+    // The bar advertises the collapse-INDEPENDENT range (turn 3 stays a legal
+    // input while s1 is collapsed), so the jump must expand the region and
+    // land on turn 3's own anchor — not silently fall back to the previous
+    // visible turn.
+    const eventNodes = [
+      model("m1"),
+      model("m2"),
+      agentSpan("s1", [model("m3", 1)]),
+      model("m4"),
+    ];
+    const scrollRef = createRef<HTMLDivElement>();
+    const onNavigatedToEvent = vi.fn();
+
+    const Harness = () => {
+      const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
+        s1: true,
+      });
+      const onExpandNodes = useCallback((ids: string[]) => {
+        setCollapsed((prev) => {
+          const next = { ...prev };
+          for (const id of ids) next[id] = false;
+          return next;
+        });
+      }, []);
+      return (
+        <div ref={scrollRef}>
+          <TranscriptViewNodes
+            id="test"
+            eventNodes={eventNodes}
+            defaultCollapsedIds={{}}
+            scrollRef={scrollRef}
+            initialEventId={null}
+            collapsedTranscript={collapsed}
+            onExpandNodes={onExpandNodes}
+            onNavigatedToEvent={onNavigatedToEvent}
+          />
+        </div>
+      );
+    };
+
+    render(<Harness />, { wrapper: StateWrapper });
+
+    fireEvent.keyDown(document, { key: "g", ctrlKey: true });
+    const input = screen.getByRole<HTMLInputElement>("textbox");
+    fireEvent.change(input, { target: { value: "3" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    // Let the rAF-chained expansion retry (stubbed onto setTimeout) run.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 30));
+    });
+
+    // URL and jump ring mark the REQUESTED turn's anchor...
+    expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m3");
+    expect(capturedEventCallbacks?.isJumpTarget?.("m3")).toBe(true);
+    // ...and the region was actually expanded so the anchor row exists.
+    expect(document.getElementById("m3")).not.toBeNull();
+
+    // An immediate j steps from the landed turn (restamp regression guard;
+    // this line alone would pass by coincidence — anchors [m1,m2,m4] step
+    // m2→m4 — so it must accompany the assertions above).
     pressJ();
     expect(onNavigatedToEvent).toHaveBeenLastCalledWith("m4");
   });

@@ -213,13 +213,17 @@ export const TranscriptViewNodes = forwardRef<
 
   // Turn map + anchors from the shared helper (collapse-independent
   // numbering; same event-type filtering as the sidebar).
-  const { computedTurnMap, turnAnchorIds } = useMemo(() => {
-    const { turnMap: computed, anchorIds } = computeTranscriptTurns(
-      eventNodes,
-      flattenedNodes,
-      defaultCollapsedIds
-    );
-    return { computedTurnMap: computed, turnAnchorIds: anchorIds };
+  const { computedTurnMap, turnAnchorIds, anchorIdByTurn } = useMemo(() => {
+    const {
+      turnMap: computed,
+      anchorIds,
+      anchorIdByTurn: byTurn,
+    } = computeTranscriptTurns(eventNodes, flattenedNodes, defaultCollapsedIds);
+    return {
+      computedTurnMap: computed,
+      turnAnchorIds: anchorIds,
+      anchorIdByTurn: byTurn,
+    };
   }, [eventNodes, flattenedNodes, defaultCollapsedIds]);
 
   const flattenedNodesLatest = useRef<EventNode[]>(flattenedNodes);
@@ -668,6 +672,39 @@ export const TranscriptViewNodes = forwardRef<
     ]
   );
 
+  // A numbered bar jump must reach the REQUESTED turn even when it's hidden
+  // in a user-collapsed region (the bar's range is collapse-independent):
+  // scrollToEvent batch-expands the ancestors and retries, and the URL/ring
+  // mark the requested anchor. anchorIndexForTurn's previous-visible-anchor
+  // fallback stays right for j/k and the header chevrons.
+  const onGoToTurnJump = useCallback(
+    (n: number) => {
+      const anchorId = anchorIdByTurn.get(n);
+      if (anchorId !== undefined) {
+        // Prime the deep-link dedup (as goToTurn does) so the resulting
+        // ?event= change doesn't re-scroll.
+        lastScrolledKeyRef.current = `${anchorId}:`;
+        scrollToEvent(anchorId);
+        onNavigatedToEvent?.(anchorId);
+        setJumpTargetId(anchorId);
+        return;
+      }
+      // No model anchor recorded for this number (only possible for a
+      // backend-emitted turn span without a model child): previous behavior.
+      const idx = anchorIndexForTurn(turnAnchorIds, computedTurnMap, n);
+      goToTurn(idx);
+      setJumpTargetId(turnAnchorIds[idx] ?? null);
+    },
+    [
+      anchorIdByTurn,
+      scrollToEvent,
+      onNavigatedToEvent,
+      turnAnchorIds,
+      computedTurnMap,
+      goToTurn,
+    ]
+  );
+
   const onFirst = useCallback(() => goToTurn(0), [goToTurn]);
   const onLast = useCallback(
     () => goToTurn(turnAnchorIds.length - 1),
@@ -788,11 +825,7 @@ export const TranscriptViewNodes = forwardRef<
             totalTurns={totalTurns}
             offsetTop={offsetTop}
             disabled={keyboardNavDisabled}
-            onJump={(n) => {
-              const idx = anchorIndexForTurn(turnAnchorIds, computedTurnMap, n);
-              goToTurn(idx);
-              setJumpTargetId(turnAnchorIds[idx] ?? null);
-            }}
+            onJump={onGoToTurnJump}
           />
         )}
         <TranscriptVirtualList
