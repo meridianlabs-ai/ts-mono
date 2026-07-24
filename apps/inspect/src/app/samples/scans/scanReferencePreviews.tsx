@@ -24,6 +24,7 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
       defaultCollapsedIds={defaultCollapsedIds}
       collapsedTranscript={EMPTY_COLLAPSE}
       onCollapseTranscript={noopCollapse}
+      keyboardNavDisabled={true}
     />
   );
 };

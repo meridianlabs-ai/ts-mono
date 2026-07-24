@@ -16,6 +16,10 @@ interface TranscriptsNavbarProps {
   filter?: string;
   setTranscriptsDir: (path: string) => void;
   bordered?: boolean;
+  /** Override the Back button target (default: the transcripts listing). The
+   *  focus page passes its exit-to-transcript URL so Back returns to the
+   *  transcript it was opened from, not the listing (mirrors inspect). */
+  backUrl?: string;
   children?: React.ReactNode;
 }
 
@@ -25,6 +29,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
   filter,
   setTranscriptsDir,
   bordered = true,
+  backUrl,
   children,
 }) => {
   const appMode = useContext(AppModeContext);
@@ -35,17 +40,19 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
   const params = useParams<{ transcriptId: string }>();
   const transcriptId = params.transcriptId;
 
-  // Check if we're on a scan result page and calculate the appropriate back URL
-  const backUrl = !singleFileMode ? transcriptsRoute(searchParams) : undefined;
+  // Back defaults to the transcripts listing; a caller (the focus page) may
+  // override it to return to the transcript it was opened from instead.
+  const resolvedBackUrl =
+    backUrl ?? (!singleFileMode ? transcriptsRoute(searchParams) : undefined);
 
   const navButtons: NavButton[] = useMemo(() => {
     const buttons: NavButton[] = [];
 
-    if (backUrl) {
+    if (resolvedBackUrl) {
       buttons.push({
         title: "Back",
         icon: ApplicationIcons.navbar.back,
-        route: backUrl,
+        route: resolvedBackUrl,
         enabled: !!transcriptId,
       });
     }
@@ -62,7 +69,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
     return buttons;
     // TODO: lint react-hooks/exhaustive-deps Fix this
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backUrl, singleFileMode]);
+  }, [resolvedBackUrl, singleFileMode]);
 
   const editable = false;
   const filterText =

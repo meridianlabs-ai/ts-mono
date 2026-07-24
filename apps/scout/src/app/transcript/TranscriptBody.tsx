@@ -30,7 +30,12 @@ import {
   ToolDropdownButton,
   type ActivityRailItem,
 } from "@tsmono/react/components";
-import { useProperty } from "@tsmono/react/hooks";
+import {
+  navigateAndForget,
+  useProperty,
+  useReflectEventNavigationInUrl,
+  useVisitId,
+} from "@tsmono/react/hooks";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
@@ -66,6 +71,9 @@ interface TranscriptBodyProps {
   /** Reset the headroom anchor before a layout shift or programmatic scroll.
    *  Pass `true` to debounce (keeps lock alive while scrolling continues). */
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
+  /** Force the chrome (title headroom + swimlanes) shown/hidden. Every call
+   *  claims nav ownership of the chrome — see TranscriptPanel. */
+  onHeadroomSetHidden?: (hidden: boolean) => void;
 }
 
 export const TranscriptBody: FC<TranscriptBodyProps> = ({
@@ -73,6 +81,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   scrollRef,
   headroomHidden,
   onHeadroomResetAnchor,
+  onHeadroomSetHidden,
 }) => {
   const navigate = useNavigate();
   const { resolvedTranscriptsDir } = useTranscriptsDir(true);
@@ -93,13 +102,25 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const { getEventUrl, getFullEventUrl, getFullMessageUrl } =
-    useTranscriptNavigation();
+  const {
+    getEventUrl,
+    getFullEventUrl,
+    getFullMessageUrl,
+    getEventFocusUrl,
+    onOpenEventFocus,
+  } = useTranscriptNavigation();
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
   const eventParam = searchParams.get("event");
   const messageParam = searchParams.get("message");
+
+  // Scope the Events/Messages VirtualList persistence keys by VISIT: tab
+  // flips within one visit share the key (flipping back restores the scroll
+  // position), but a sibling hop or a later return to this transcript is a
+  // new visit — its lists mount with fresh keys and open at the top instead
+  // of restoring an earlier visit's offset.
+  const visitId = useVisitId(transcript.transcript_id);
 
   // Selected tab — default to Events when the transcript has events
   const hasEvents = transcript.events && transcript.events.length > 0;
@@ -151,6 +172,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     [setSelectedTranscriptTab, setSearchParams]
   );
 
+  const onNavigatedToEvent = useReflectEventNavigationInUrl(setSearchParams);
+
   // Navigate to a specific event when a marker is clicked on the timeline.
   // When selectedKey is provided (compaction markers), the bar is selected
   // atomically in the same URL update to avoid a race between setSearchParams
@@ -159,8 +182,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     (eventId: string, selectedKey?: string) => {
       const url = getEventUrl(eventId, selectedKey);
       if (!url) return;
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url, { replace: true });
+      navigateAndForget(navigate, url, { replace: true });
     },
     [getEventUrl, navigate]
   );
@@ -401,7 +423,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.railContent}>
           <div className={styles.chatList}>
             <ChatViewVirtualList
-              id={"transcript-id"}
+              id={`transcript-${visitId}`}
               messages={transcript.messages || []}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
@@ -459,7 +481,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         initialEventId={eventParam}
         initialMessageId={messageParam}
         defaultOutlineExpanded={true}
-        id="transcript-events-list"
+        id={`transcript-events-list-${visitId}`}
         bulkCollapse={
           eventsCollapsed === undefined
             ? undefined
@@ -471,7 +493,11 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         timelines={transcript.timelines}
         headroomHidden={headroomHidden}
         onHeadroomResetAnchor={onHeadroomResetAnchor}
+        onHeadroomSetHidden={onHeadroomSetHidden}
         getEventUrl={getFullEventUrl}
+        getEventFocusUrl={getEventFocusUrl}
+        onOpenEventFocus={onOpenEventFocus}
+        onNavigatedToEvent={onNavigatedToEvent}
         linkingEnabled={isHostedEnvironment()}
         messageLabels={eventsReferenceLabels?.messageLabels}
         eventLabels={eventsReferenceLabels?.eventLabels}

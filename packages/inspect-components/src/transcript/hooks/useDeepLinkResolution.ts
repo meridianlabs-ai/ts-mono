@@ -45,6 +45,10 @@ export interface UseDeepLinkResolutionOptions {
   showSwimlanes: boolean;
   /** The events currently in the node feed (to detect visible targets). */
   nodeFeedEvents: Event[];
+  /** Whether utility agents are currently shown. */
+  includeUtility: boolean;
+  /** Force the utility-agents toggle on (same effect as the header button). */
+  setIncludeUtility: (include: boolean) => void;
   /** Headroom anchor reset, fired (debounced) whenever the effective scroll
    *  target changes — see the effect below for why. */
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
@@ -76,6 +80,8 @@ export function useDeepLinkResolution(
     showSwimlanes,
     nodeFeedEvents,
     onHeadroomResetAnchor,
+    includeUtility,
+    setIncludeUtility,
   } = options;
 
   // ---------------------------------------------------------------------------
@@ -226,6 +232,17 @@ export function useDeepLinkResolution(
     if (prevEventIdRef.current === initialEventId) return;
     // A cross-timeline switch is pending: re-evaluate after it lands.
     if (deepLinkTimelineIndex >= 0) return;
+    // Return without advancing prevEventIdRef: flipping the toggle recomputes
+    // spanSelectKeys, which re-runs this effect to finish the selection.
+    if (
+      !includeUtility &&
+      resolvedEventSpan?.agentSpanId &&
+      !resolvedEventSpan.branchRowKey &&
+      !spanSelectKeys.has(resolvedEventSpan.agentSpanId)
+    ) {
+      setIncludeUtility(true);
+      return;
+    }
     prevEventIdRef.current = initialEventId;
     if (!resolvedEventSpan) return;
     let targetKey: string | null = null;
@@ -244,6 +261,8 @@ export function useDeepLinkResolution(
     resolvedEventSpan,
     spanSelectKeys,
     timelineState,
+    includeUtility,
+    setIncludeUtility,
   ]);
 
   const effectiveInitialEventId =

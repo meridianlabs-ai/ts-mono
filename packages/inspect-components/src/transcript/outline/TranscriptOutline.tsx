@@ -5,6 +5,7 @@ import {
   RefObject,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
@@ -18,7 +19,7 @@ import {
   useOutlineCollapse,
   type OutlineCollapseState,
 } from "./useOutlineCollapse";
-import { useOutlineNodes } from "./useOutlineNodes";
+import { resolveOutlineSelection, useOutlineNodes } from "./useOutlineNodes";
 import { useOutlineScrollSync } from "./useOutlineScrollSync";
 import { useOutlineWidth } from "./useOutlineWidth";
 
@@ -123,6 +124,12 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     collapsedIds
   );
 
+  const resolvedSelectedId = useMemo(
+    () =>
+      resolveOutlineSelection(selectedOutlineId, allNodesList, outlineNodeList),
+    [selectedOutlineId, allNodesList, outlineNodeList]
+  );
+
   const { onOutlineSelect } = useOutlineScrollSync({
     allNodesList,
     outlineNodeList,
@@ -178,7 +185,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
               isLast: index === outlineNodeList.length - 1,
             })}
             selected={
-              selectedOutlineId ? selectedOutlineId === node.id : index === 0
+              selectedOutlineId ? resolvedSelectedId === node.id : index === 0
             }
             getEventUrl={getEventUrl}
             onSelect={onOutlineSelect}
@@ -195,6 +202,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       running,
       backfilling,
       selectedOutlineId,
+      resolvedSelectedId,
       getEventUrl,
       onOutlineSelect,
       onNavigateToEvent,

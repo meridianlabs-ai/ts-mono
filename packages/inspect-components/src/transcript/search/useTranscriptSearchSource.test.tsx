@@ -141,7 +141,6 @@ function renderHarness(opts: HarnessOptions): Harness {
     harness.search = extendedFindTerm;
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
       scrollToEvent: opts.scrollToEvent ?? vi.fn(),
-      scrollToIndex: vi.fn(),
       getFlattenedNodes: () => flattened,
       getVisibleRange: () => ({ startIndex: 0, endIndex: 0 }),
     });

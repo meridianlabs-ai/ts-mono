@@ -4,6 +4,31 @@
 
 import { context as esbuildContext } from "esbuild";
 
+const LOOPBACK_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
+
+/**
+ * Proxy `configure` hook that rewrites loopback `Origin` headers to the
+ * proxy target.
+ *
+ * `changeOrigin` only rewrites Host, not Origin, so mutating requests reach
+ * the proxied server with the dev server's origin and its CSRF check rejects
+ * them with 403 "Forbidden browser origin". Rewrite only loopback origins so
+ * genuinely cross-site writes still fail that check.
+ *
+ * @param {string} target the proxy target url, e.g. "http://127.0.0.1:7575"
+ * @returns {import("vite").ProxyOptions["configure"]}
+ */
+export function rewriteLoopbackOrigin(target) {
+  return (proxy) => {
+    proxy.on("proxyReq", (proxyReq, req) => {
+      const origin = req.headers.origin;
+      if (origin && LOOPBACK_ORIGIN.test(origin)) {
+        proxyReq.setHeader("origin", target);
+      }
+    });
+  };
+}
+
 /**
  * Inline a theme-bootstrap module into index.html as a synchronous,
  * render-blocking <script>.

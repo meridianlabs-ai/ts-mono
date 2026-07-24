@@ -1,7 +1,13 @@
 import { useCallback } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
-import { parseTranscriptParams, transcriptRoute } from "../../../router/url";
+import { useOpenEventFocus } from "@tsmono/react/hooks";
+
+import {
+  parseTranscriptParams,
+  transcriptEventDetailRoute,
+  transcriptRoute,
+} from "../../../router/url";
 
 /**
  * Converts a hash-router relative URL to a full absolute URL.
@@ -87,6 +93,21 @@ export const useTranscriptNavigation = () => {
     [getEventMessageUrl]
   );
 
+  // Hash-route href for the focus-mode entry control. Relative `#…` so a
+  // ctrl/cmd-click or middle-click opens the focus page in a new tab.
+  const getEventFocusUrl = useCallback(
+    (eventId: string, selectedTab?: string): string | undefined => {
+      if (!transcriptsDir || !transcriptId) return undefined;
+      const base = `#${transcriptEventDetailRoute(transcriptsDir, transcriptId, eventId)}`;
+      return selectedTab
+        ? `${base}&tab=${encodeURIComponent(selectedTab)}`
+        : base;
+    },
+    [transcriptsDir, transcriptId]
+  );
+
+  const onOpenEventFocus = useOpenEventFocus();
+
   return {
     getEventUrl,
     getMessageUrl,
@@ -94,5 +115,7 @@ export const useTranscriptNavigation = () => {
     getFullEventUrl,
     getFullMessageUrl,
     getFullEventMessageUrl,
+    getEventFocusUrl,
+    onOpenEventFocus,
   };
 };

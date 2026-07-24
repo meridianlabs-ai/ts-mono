@@ -18,6 +18,8 @@ import { Navbar } from "./Navbar";
 interface ApplicationNavbarProps {
   currentPath: string | undefined;
   fnNavigationUrl: (file: string, log_dir?: string) => string;
+  backUrl?: string;
+  homeUrl?: string;
   bordered?: boolean;
   children?: ReactNode;
   breadcrumbsEnabled?: boolean;
@@ -29,6 +31,8 @@ interface ApplicationNavbarProps {
 export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
   currentPath,
   fnNavigationUrl,
+  backUrl,
+  homeUrl,
   bordered,
   children,
   breadcrumbsEnabled,
@@ -50,6 +54,8 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
       <Navbar
         currentPath={currentPath}
         fnNavigationUrl={fnNavigationUrl}
+        backUrl={backUrl}
+        homeUrl={homeUrl}
         bordered={bordered}
         breadcrumbsEnabled={breadcrumbsEnabled}
       >

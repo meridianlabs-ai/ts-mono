@@ -7,6 +7,8 @@
  */
 import { describe, expect, test } from "vitest";
 
+import { directoryRelativeUrl } from "../../utils/uri";
+
 // Constants copied from src/constants.ts to avoid import chain issues
 const kSampleTabIds = [
   "messages",
@@ -800,5 +802,39 @@ describe("sample IDs with slashes", () => {
     const url = logSamplesUrl("path/to/file.eval", "/", 1, "transcript");
     expect(url).toContain("%2F");
     expect(url).not.toMatch(/\/samples\/sample\/\/\d/); // Should not have literal double slash
+  });
+});
+
+// Regression: prev/next from the focus view on the /samples surface must build
+// a log-dir-relative samples URL that keeps the "event" tab (so the sibling
+// sample stays in focus mode), NOT the absolute file: URI on the plain sample
+// view. Guards the two defects fixed by routing prev/next through the samples
+// route params (relative path + event tab) instead of useLogRouteParams.
+describe("prev/next from focus view (samples surface)", () => {
+  const logDir = "file:///home/peter/logs";
+  const absoluteLogFile = "file:///home/peter/logs/retry-single/demo.eval";
+
+  test("builds a relative /samples URL preserving the event tab", () => {
+    const relative = directoryRelativeUrl(absoluteLogFile, logDir);
+    expect(relative).toBe("retry-single/demo.eval");
+
+    const url = samplesSampleUrl(relative, "fail_fast", 1, "event");
+    expect(url).toBe(
+      "/samples/retry-single/demo.eval/sample/fail_fast/1/event"
+    );
+    expect(url).not.toContain("file:"); // no absolute URI leaked into the path
+    expect(url).not.toContain("?event="); // focused event id belongs to the old sample
+  });
+
+  test("round-trip keeps the event tab and relative path", () => {
+    const relative = directoryRelativeUrl(absoluteLogFile, logDir);
+    const url = samplesSampleUrl(relative, "fail_fast", 1, "event");
+    const result = parseSamplesRouteParams(url.replace(/^\/samples\//, ""));
+    expect(result).toEqual({
+      samplesPath: "retry-single/demo.eval",
+      sampleId: "fail_fast",
+      epoch: "1",
+      tabId: "event",
+    });
   });
 });

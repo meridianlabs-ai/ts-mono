@@ -1,16 +1,8 @@
+import { kDefaultExcludeEvents } from "@tsmono/inspect-components/transcript";
+
 import { SampleState } from "../app/types";
 
 import { StoreState } from "./store";
-
-export const kDefaultExcludeEvents = [
-  "sample_init",
-  "sandbox",
-  "state",
-  "store",
-  "branch",
-  "anchor",
-  "checkpoint",
-];
 
 export interface SampleSlice {
   sample: SampleState;
