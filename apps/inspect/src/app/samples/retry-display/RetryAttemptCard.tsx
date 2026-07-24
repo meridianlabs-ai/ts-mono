@@ -188,6 +188,7 @@ const RetryEventsView: FC<{
         collapseState={collapseState}
         bulkCollapse={bulkCollapse}
         eventNodeContext={{ inlineExpansionUX: true }}
+        keyboardNavDisabled={true}
       />
     </div>
   );

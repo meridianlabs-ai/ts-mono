@@ -2,12 +2,23 @@
    Rules here are either unique to inspect or reference assets that live under
    apps/inspect/src/img/. Shared rules live in the theme package. */
 
-:root {
-  --inspect-event-panel-sticky-top: 30px;
-}
-
-body[class^="vscode-"] {
-  --inspect-event-panel-sticky-top: 25px;
+/* VS Code webview: clicking any non-interactive spot focuses the nearest
+   container tabstop (e.g. .app-main-grid[tabindex="0"], 100vh — so its UA
+   ring wraps the whole viewer), and Chromium's focus-modality upgrade makes
+   it sprout the :focus-visible UA outline at the next keypress and keep it.
+   Suppress the ring on those containers; links, buttons (native or
+   role="button") and form controls keep their rings for keyboard users. */
+body[class^="vscode-"]
+  :focus-visible:not(
+    a,
+    button,
+    input,
+    textarea,
+    select,
+    summary,
+    [role="button"]
+  ) {
+  outline: none;
 }
 
 li > p {

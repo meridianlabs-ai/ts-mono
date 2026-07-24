@@ -9,10 +9,12 @@ export function useRafThrottle<T extends (...args: unknown[]) => unknown>(
   const rafRef = useRef<number | null>(null);
   const callbackRef = useRef<T>(callback);
 
-  // Update the callback ref when the callback changes
+  // Callers pass a fresh closure every render, so the latest-ref sync must run
+  // on every commit; a [callback] dep would just be a reference that never
+  // matches (and makes callers churn this effect on each render).
   useEffect(() => {
     callbackRef.current = callback;
-  }, [callback]);
+  });
 
   const throttledCallback = useCallback((...args: Parameters<T>) => {
     // Skip if we already have a frame queued

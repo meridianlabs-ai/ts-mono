@@ -57,15 +57,21 @@ const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
 
 const chatComponents = { Item: ChatItem };
 
+// Empirically tuned, sign-inverted vs naive TanStack math; don't "fix" without re-verifying against both chat and transcript surfaces.
+const kChatScrollPaddingStart = -15;
+
 export interface ChatViewVirtualListProps {
   id: string;
   messages: ChatMessage[];
   className?: string | string[];
   initialMessageId?: string | null;
-  offsetTop?: number;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
   backfilling?: boolean;
+  /** Whether a live→finished transition may scroll the view to the top.
+   *  Hosts pass false for unsuccessful finishes (error/cancelled): the
+   *  error panel renders at the bottom, where the user is looking. */
+  scrollToTopOnFinish?: boolean;
   onNativeFindChanged?: (nativeFind: boolean) => void;
   display?: ChatViewDisplayOptions;
   labels?: ChatViewLabelOptions;
@@ -78,11 +84,11 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     id,
     messages,
     initialMessageId,
-    offsetTop,
     className,
     scrollRef,
     running,
     backfilling,
+    scrollToTopOnFinish = true,
     onNativeFindChanged,
     display,
     labels,
@@ -230,9 +236,9 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         data={collapsedMessages}
         renderRow={renderRow}
         initialIndex={initialMessageIndex}
-        stickyHeaderOffset={offsetTop}
+        scrollPaddingStart={kChatScrollPaddingStart}
         live={running}
-        scrollToTopOnFinish={true}
+        scrollToTopOnFinish={scrollToTopOnFinish}
         components={chatComponents}
         smoothScroll={false}
         itemSearchText={messageSearchText}

@@ -50,4 +50,13 @@ export const defaultHandlers = [
   http.get("*/api/flow*", () => {
     return new HttpResponse(null, { status: 404 });
   }),
+
+  // Fail any unmatched /api request the way CI does (502): locally a live
+  // `inspect view` server would otherwise answer through the vite proxy and
+  // poison specs with real log-dir data.
+  // Anchored to the origin root — a bare "*/api/*" would also swallow vite's
+  // own module URLs (/src/client/api/...) and blank the app.
+  http.all(/^https?:\/\/[^/]+\/api\//, () => {
+    return new HttpResponse(null, { status: 502 });
+  }),
 ];

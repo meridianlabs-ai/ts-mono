@@ -13,10 +13,12 @@ import {
 } from "@tsmono/react/components";
 
 import { useAppConfig } from "../../app_config";
+import { kSampleEventTabId } from "../../constants";
 import { storeImplementation } from "../../state/store";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
+import { SampleEventView } from "../samples/event/SampleEventView";
 
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
@@ -50,15 +52,23 @@ const AppLayout = () => {
   }, [location]);
 
   // Get route params to check for sample detail routes
-  const { sampleId, epoch, sampleUuid } = useLogRouteParams();
+  const { sampleId, epoch, sampleTabId, sampleUuid } = useLogRouteParams();
 
   // Single file mode is a legacy mode that is used when an explicit file is
   // passed via URL (the log_file param) or via embedded state (VSCode). It
   // renders the log/sample view directly rather than through the child route
   // table (which is oriented around the collection).
+  //
+  // Focus-mode page (must come before the general sample detail check) —
+  // mirrors the sibling dispatch points (RouteDispatcher / TasksRouter /
+  // SamplesRouter), which otherwise never fire here because single-file mode
+  // bypasses the Outlet and its child route table.
+  const isFocus = sampleId && epoch && sampleTabId === kSampleEventTabId;
   const isSampleDetail = (sampleId && epoch) || sampleUuid;
   const content = useAppConfig().singleFileMode ? (
-    isSampleDetail ? (
+    isFocus ? (
+      <SampleEventView />
+    ) : isSampleDetail ? (
       <LogSampleDetailView />
     ) : (
       <LogViewContainer />

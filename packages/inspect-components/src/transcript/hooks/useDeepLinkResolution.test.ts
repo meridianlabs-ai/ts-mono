@@ -77,6 +77,28 @@ function makeServerSpan(
   };
 }
 
+/** evt-1 at root, evt-2 inside a utility-flagged agent span "util-a". */
+function makeUtilityTimeline(): ServerTimeline {
+  return {
+    name: "default",
+    description: "Test timeline",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [
+        makeServerEvent("evt-1"),
+        makeServerSpan({
+          id: "util-a",
+          name: "Util A",
+          span_type: "agent",
+          utility: true,
+          content: [makeServerEvent("evt-2")],
+        }),
+      ],
+    }),
+  };
+}
+
 /** Single timeline: evt-1 at root, evt-2 inside agent span "agent-a". */
 function makeAgentTimeline(): ServerTimeline {
   return {
@@ -114,12 +136,15 @@ interface HarnessProps {
   showSwimlanes?: boolean;
   nodeFeedEvents?: Event[];
   onHeadroomResetAnchor?: (debounce?: boolean) => void;
+  includeUtility?: boolean;
+  setIncludeUtility?: (include: boolean) => void;
 }
 
 function useHarness(props: HarnessProps) {
   const timeline = useTranscriptTimeline({
     events: props.events,
     serverTimelines: props.serverTimelines,
+    timelineOptions: { includeUtility: props.includeUtility ?? false },
     timelineProps: { selected: props.selected, onSelect: props.onSelect },
     activeTimelineProps:
       props.activeIndex !== undefined && props.onActiveChange
@@ -141,6 +166,8 @@ function useHarness(props: HarnessProps) {
     showSwimlanes: props.showSwimlanes ?? true,
     nodeFeedEvents: props.nodeFeedEvents ?? props.events,
     onHeadroomResetAnchor: props.onHeadroomResetAnchor,
+    includeUtility: props.includeUtility ?? false,
+    setIncludeUtility: props.setIncludeUtility ?? (() => {}),
   });
   return { resolution, timeline, spanSelectKeys };
 }
@@ -148,16 +175,18 @@ function useHarness(props: HarnessProps) {
 function renderHarness(props: Partial<HarnessProps> & { events: Event[] }) {
   const onSelect = vi.fn();
   const onActiveChange = vi.fn();
+  const setIncludeUtility = vi.fn();
   const base: HarnessProps = {
     selected: null,
     onSelect,
+    setIncludeUtility,
     ...props,
     ...(props.activeIndex !== undefined ? { onActiveChange } : {}),
   };
   const view = renderHook((p: HarnessProps) => useHarness(p), {
     initialProps: base,
   });
-  return { ...view, base, onSelect, onActiveChange };
+  return { ...view, base, onSelect, onActiveChange, setIncludeUtility };
 }
 
 // =============================================================================
@@ -364,5 +393,44 @@ describe("useDeepLinkResolution → event row selection", () => {
       nodeFeedEvents: [events[0]!],
     });
     expect(onSelect).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// Utility-lane deep link (forces the toggle on)
+// =============================================================================
+
+describe("useDeepLinkResolution → utility-lane deep link", () => {
+  const events = [makeModelEvent("evt-1", 0), makeModelEvent("evt-2", 4)];
+
+  const renderUtilityDeepLink = (initialEventId: string) =>
+    renderHarness({
+      events,
+      serverTimelines: [makeUtilityTimeline()],
+      initialEventId,
+      includeUtility: false,
+      nodeFeedEvents: [events[0]!],
+    });
+
+  it("forces the utility toggle on when the target lives in a hidden utility lane", () => {
+    const { setIncludeUtility } = renderUtilityDeepLink("evt-2");
+    expect(setIncludeUtility).toHaveBeenCalledWith(true);
+  });
+
+  it("completes the row selection once the toggle flips the lane into view", () => {
+    const { result, rerender, base, onSelect, setIncludeUtility } =
+      renderUtilityDeepLink("evt-2");
+    expect(setIncludeUtility).toHaveBeenCalledWith(true);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    rerender({ ...base, includeUtility: true });
+    const utilKey = result.current.spanSelectKeys.get("util-a")?.key;
+    expect(utilKey).toBeDefined();
+    expect(onSelect).toHaveBeenCalledWith(utilKey, { preserveDeepLink: true });
+  });
+
+  it("does not touch the toggle for an unresolvable (stale/garbage) event id", () => {
+    const { setIncludeUtility } = renderUtilityDeepLink("evt-does-not-exist");
+    expect(setIncludeUtility).not.toHaveBeenCalled();
   });
 });

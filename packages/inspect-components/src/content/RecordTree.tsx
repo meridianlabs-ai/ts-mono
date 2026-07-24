@@ -193,6 +193,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
           )}
           onKeyUp={keyUpHandler(item, index)}
           tabIndex={0}
+          role="button"
           onClick={() => {
             setCollapsed(item.id, !item.isCollapsed);
           }}

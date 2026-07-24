@@ -17,6 +17,7 @@ coverage/
 
 # Logs
 *.log
+demo-logs/
 
 # Storybook
 storybook-static/

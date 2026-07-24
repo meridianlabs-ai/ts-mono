@@ -119,10 +119,15 @@ export const ValidationSplitSelector: FC<ValidationSplitSelectorProps> = ({
         title="New Split"
         footer={
           <>
-            <button className={styles.modalButton} onClick={handleModalClose}>
+            <button
+              type="button"
+              className={styles.modalButton}
+              onClick={handleModalClose}
+            >
               Cancel
             </button>
             <button
+              type="button"
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleCustomSubmit}
               disabled={!customSplitValue.trim()}
