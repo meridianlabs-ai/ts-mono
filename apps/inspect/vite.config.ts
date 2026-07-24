@@ -29,6 +29,8 @@ function copyToPythonRepo(): Plugin {
   };
 }
 
+const viewServerUrl = "http://127.0.0.1:7575";
+
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
 
@@ -126,8 +128,13 @@ export default defineConfig(({ mode }) => {
       server: {
         proxy: {
           "/api": {
-            target: "http://127.0.0.1:7575",
+            target: viewServerUrl,
             changeOrigin: true,
+            // changeOrigin only rewrites Host, not Origin, so mutating
+            // requests (e.g. saving tags) reach the view server with the
+            // dev server's origin and its CSRF check rejects them with
+            // 403 "Forbidden browser origin". Rewrite Origin to match.
+            headers: { origin: viewServerUrl },
           },
         },
       },

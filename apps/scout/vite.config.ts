@@ -29,6 +29,8 @@ function copyToPythonRepo(): Plugin {
   };
 }
 
+const scoutServerUrl = "http://127.0.0.1:7576";
+
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
   const baseConfig = {
@@ -110,8 +112,13 @@ export default defineConfig(({ mode }) => {
       server: {
         proxy: {
           "/api": {
-            target: "http://127.0.0.1:7576",
+            target: scoutServerUrl,
             changeOrigin: true,
+            // changeOrigin only rewrites Host, not Origin, so mutating
+            // requests reach the scout server with the dev server's origin
+            // and its CSRF check rejects them with 403 "Forbidden browser
+            // origin". Rewrite Origin to match.
+            headers: { origin: scoutServerUrl },
           },
         },
       },
