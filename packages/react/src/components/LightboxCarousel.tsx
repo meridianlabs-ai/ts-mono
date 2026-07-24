@@ -117,6 +117,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
         >
           <div className={clsx(styles.lightboxButtonCloseWrapper)}>
             <button
+              type="button"
               className={styles.lightboxButtonClose}
               onClick={closeLightbox}
             >
@@ -125,6 +126,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
           </div>
           {slides.length > 1 ? (
             <button
+              type="button"
               className={clsx(styles.lightboxPreviewButton, "prev")}
               onClick={showPrev}
             >
@@ -135,6 +137,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
           )}
           {slides.length > 1 ? (
             <button
+              type="button"
               className={clsx(styles.lightboxPreviewButton, "next")}
               onClick={showNext}
             >

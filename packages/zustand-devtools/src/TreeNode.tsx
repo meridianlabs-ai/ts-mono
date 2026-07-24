@@ -58,6 +58,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
         <div className={styles.row}>
           {expandable ? (
             <button
+              type="button"
               className={styles.caret}
               onClick={toggle}
               aria-label={expanded ? `Collapse ${name}` : `Expand ${name}`}
@@ -84,6 +85,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
             {previewOf(value)}
           </span>
           <button
+            type="button"
             className={styles.copy}
             onClick={copy}
             aria-label={`Copy ${name}`}
@@ -99,6 +101,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
             ))}
             {entries.length > limit && (
               <button
+                type="button"
                 className={styles.showMore}
                 onClick={() => setLimit((l) => l + CHUNK_SIZE)}
               >

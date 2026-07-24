@@ -364,6 +364,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
                     {section.items.map((item) => (
                       <li key={item.id} className={styles.navListItem}>
                         <button
+                          type="button"
                           className={styles.navItem}
                           onClick={() => scrollToSection(item.id)}
                         >
