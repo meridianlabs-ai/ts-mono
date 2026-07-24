@@ -22,6 +22,16 @@ export interface TimeWindow {
 export type SampleStatus =
   "completed" | "error" | "limit" | "cancelled" | "started";
 
+/** One palette for dots, collapsed bands, and legend swatches. */
+export const kStatusColor: Record<SampleStatus, string> = {
+  completed: "#2f7d4f",
+  error: "#b04a3c",
+  limit: "#d4a72c",
+  cancelled: "#6c757d",
+  // Stroke color — started samples render hollow.
+  started: "#6c757d",
+};
+
 /** Mirrors deriveSampleStatus in samples/status — cancellations are not
  *  errors, and a sample that never completed is still running. */
 export const sampleStatus = (sample: SampleSummary): SampleStatus => {
@@ -96,7 +106,13 @@ const changeText = (change: ConfigValueChange): string => {
   if (change.cleared) {
     return `${change.name} cleared`;
   }
-  if (change.value === null) {
+  // "lifted" needs a limit that existed — a knob first set to null (or a
+  // null → null no-op) is a plain transition, matching limitLifted.
+  if (
+    change.value === null &&
+    change.previous !== null &&
+    change.previous !== undefined
+  ) {
     return `${change.name} lifted`;
   }
   return `${change.name} ${formatShort(change.previous)}→${formatShort(change.value)}`;

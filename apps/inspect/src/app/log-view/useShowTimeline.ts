@@ -1,11 +1,10 @@
 import { useCallback } from "react";
-import { useParams } from "react-router-dom";
 
 import { useLogDir } from "../../app_config";
 import { kLogViewTimelineTabId } from "../../constants";
 import { useStore } from "../../state/store";
 import { useLogNavigationAction } from "../routing/logNavigation";
-import { logsUrl, logsUrlRaw, useRoutePrefix } from "../routing/url";
+import { logsUrl, useRoutePrefix } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
 
 // Timeline band-picker state, keyed per log so toggles don't leak between
@@ -17,9 +16,10 @@ export const timelineBandId = (band: string, model?: string): string =>
 
 /** The band-picker property key for the log currently in view. */
 export const useTimelineBandsKey = (): string => {
-  const { logPath } = useParams<{ logPath: string }>();
+  // The app routes are splat patterns, so no logPath param exists —
+  // loadedLog is the only source for the log in view.
   const loadedLog = useStore((state) => state.log.loadedLog);
-  return `${kTimelineBandsKey}:${logPath ?? loadedLog ?? ""}`;
+  return `${kTimelineBandsKey}:${loadedLog ?? ""}`;
 };
 
 /** The modifier keys that turn a navigation click into open-in-new-tab. */
@@ -37,18 +37,15 @@ export interface NavClickEvent {
 export const useShowTimeline = (): ((event?: NavClickEvent) => void) => {
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const navigation = useLogNavigationAction();
-  const { logPath } = useParams<{ logPath: string }>();
   const logDir = useLogDir();
   const loadedLog = useStore((state) => state.log.loadedLog);
   const prefix = useRoutePrefix();
   return useCallback(
     (event?: NavClickEvent) => {
       if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
-        const url = logPath
-          ? logsUrlRaw(logPath, kLogViewTimelineTabId, prefix)
-          : loadedLog
-            ? logsUrl(loadedLog, logDir, kLogViewTimelineTabId, prefix)
-            : undefined;
+        const url = loadedLog
+          ? logsUrl(loadedLog, logDir, kLogViewTimelineTabId, prefix)
+          : undefined;
         if (url) {
           openInNewTab(url);
           return;
@@ -57,7 +54,7 @@ export const useShowTimeline = (): ((event?: NavClickEvent) => void) => {
       setWorkspaceTab(kLogViewTimelineTabId);
       navigation.selectTab(kLogViewTimelineTabId);
     },
-    [setWorkspaceTab, navigation, logPath, loadedLog, logDir, prefix]
+    [setWorkspaceTab, navigation, loadedLog, logDir, prefix]
   );
 };
 

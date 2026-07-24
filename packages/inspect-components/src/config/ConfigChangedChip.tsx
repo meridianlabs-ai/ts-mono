@@ -180,10 +180,10 @@ export const ConfigChangedChip: FC<ConfigChangedChipProps> = ({
               <span className={styles.from}>
                 {formatConfigValue(change.previous)} →{" "}
               </span>
+              {/* "none", matching retuneTransition — the Connection Log and
+                  this chip describe the same event. */}
               <span className={styles.to}>
-                {change.value === null
-                  ? "null"
-                  : formatConfigValue(change.value)}
+                {formatConfigValue(change.value)}
               </span>
               {change.limitLifted ? (
                 <span className={styles.from}> (limit lifted)</span>
@@ -294,9 +294,7 @@ export const ConfigChangesCountChip: FC<ConfigChangesCountChipProps> = ({
                     {formatConfigValue(change.previous)} →{" "}
                   </span>
                   <span className={styles.to}>
-                    {change.value === null
-                      ? "null"
-                      : formatConfigValue(change.value)}
+                    {formatConfigValue(change.value)}
                   </span>
                   {change.limitLifted ? (
                     <span className={styles.from}> (limit lifted)</span>

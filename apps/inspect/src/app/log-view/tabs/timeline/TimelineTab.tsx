@@ -46,6 +46,7 @@ import {
   guideSegments,
   HistoryCategory,
   historyRows,
+  kStatusColor,
   logMarkers,
   terminations,
 } from "./timelineData";
@@ -380,10 +381,12 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             ))}
             {/* Derived legend: built from the visible bands only. */}
             <span className={styles.legend}>
-              <span className={styles.legendItem}>
-                <span className={styles.legendDiamond} />
-                config change
-              </span>
+              {markers.some((m) => m.kind === "config") && (
+                <span className={styles.legendItem}>
+                  <span className={styles.legendDiamond} />
+                  config change
+                </span>
+              )}
               {markers.some((m) => m.kind === "log") && (
                 <span className={styles.legendItem}>
                   <span className={styles.legendDiamondLog} />
@@ -395,21 +398,21 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                   <span className={styles.legendItem}>
                     <span
                       className={styles.legendDot}
-                      style={{ background: "#2f7d4f" }}
+                      style={{ background: kStatusColor.completed }}
                     />
                     completed
                   </span>
                   <span className={styles.legendItem}>
                     <span
                       className={styles.legendDot}
-                      style={{ background: "#b04a3c" }}
+                      style={{ background: kStatusColor.error }}
                     />
                     error
                   </span>
                   <span className={styles.legendItem}>
                     <span
                       className={styles.legendDot}
-                      style={{ background: "#d4a72c" }}
+                      style={{ background: kStatusColor.limit }}
                     />
                     limit
                   </span>
@@ -417,7 +420,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                     <span className={styles.legendItem}>
                       <span
                         className={styles.legendDot}
-                        style={{ background: "#6c757d" }}
+                        style={{ background: kStatusColor.cancelled }}
                       />
                       cancelled
                     </span>
@@ -428,7 +431,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                         className={styles.legendDot}
                         style={{
                           background: "transparent",
-                          border: "1.5px solid #6c757d",
+                          border: `1.5px solid ${kStatusColor.started}`,
                         }}
                       />
                       started

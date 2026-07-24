@@ -105,7 +105,7 @@ const ConfigChangeLines: FC<{ update: ConfigUpdate }> = ({ update }) => (
             <span className={styles.muted}>
               {formatShort(change.previous)} →{" "}
             </span>
-            <b>{change.value === null ? "null" : formatShort(change.value)}</b>
+            <b>{formatShort(change.value)}</b>
             {change.value === null && change.previous !== null ? (
               <span className={styles.muted}> (limit lifted)</span>
             ) : null}
@@ -133,9 +133,11 @@ const LogUpdateLines: FC<{ update: LogUpdate }> = ({ update }) => (
       const metadataEdit = edit;
       return (
         <Fragment key={i}>
+          {/* "set", not "∅ →" — metadata_set can overwrite an existing key
+              (the schema carries no previous value). */}
           {Object.entries(metadataEdit.metadata_set).map(([key, value]) => (
             <div key={`set-${key}`} className={styles.changeLine}>
-              {key} <span className={styles.muted}>∅ → </span>
+              {key} <span className={styles.muted}>set to </span>
               <b>{JSON.stringify(value)}</b>
             </div>
           ))}

@@ -29,6 +29,7 @@ import styles from "./TimelineChart.module.css";
 import {
   formatShort,
   GuideSegment,
+  kStatusColor,
   markerKey,
   StepPoint,
   Termination,
@@ -55,15 +56,6 @@ const kMaxPopoverScores = 4;
 const kMaxBinRows = 40;
 const kPostRunGutter = 72;
 const kMarkerTop = 10;
-
-const kStatusColor: Record<Termination["status"], string> = {
-  completed: "#2f7d4f",
-  error: "#b04a3c",
-  limit: "#d4a72c",
-  cancelled: "#6c757d",
-  // Stroke color — started samples render hollow.
-  started: "#6c757d",
-};
 
 const kStatusLabel: Record<Termination["status"], string> = {
   completed: "completed",
@@ -312,7 +304,9 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       cursor += kBandHeight;
     }
   }
-  const axisY = cursor + 6;
+  // With every band toggled off, the ◆ rail still needs room below the
+  // diamonds — otherwise marker lines and labels garble the axis.
+  const axisY = (bands.length === 0 ? kMarkerTop + 24 : cursor) + 6;
   const height = axisY + kAxisHeight;
 
   if (bands.length === 0 && markers.length === 0) {

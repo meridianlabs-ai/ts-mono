@@ -96,6 +96,9 @@ const foldConfig = <T extends object>(
   const launchRecord = launch as Record<string, unknown>;
   const result: Record<string, unknown> = { ...launchRecord };
   for (const update of updates) {
+    // Journal entries are cast, not validated — a malformed `changes`
+    // degrades to a skip instead of failing the whole header read.
+    if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
       // Object.hasOwn, not `in`: log files are untrusted, and `in` matches
       // prototype-chain names ("__proto__", "toString", …).
@@ -166,6 +169,7 @@ const changesFor = (
 ): Map<string, ConfigChangeInfo> => {
   const changes = new Map<string, ConfigChangeInfo>();
   for (const update of updates ?? []) {
+    if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
       if (change.config !== family || !Object.hasOwn(knownKeys, change.name)) {
         continue;
@@ -218,6 +222,7 @@ export const concurrencyChanges = (
 ): ConfigChangeInfo[] => {
   const changes: ConfigChangeInfo[] = [];
   for (const update of updates ?? []) {
+    if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
       if (change.config !== "concurrency") {
         continue;

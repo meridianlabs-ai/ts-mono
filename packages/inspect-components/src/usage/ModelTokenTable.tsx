@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
+import { formatConfigValue } from "@tsmono/inspect-common/utils";
 import { formatNumber } from "@tsmono/util";
 
 import styles from "./ModelTokenTable.module.css";
@@ -16,13 +17,6 @@ interface ModelTokenTableProps {
   rowKeys?: string[];
   showTokenColumns?: boolean;
 }
-
-const fmtConfigVal = (v: unknown): string => {
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "bigint") return String(v);
-  return JSON.stringify(v);
-};
 
 type CategoryKey =
   "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
@@ -160,7 +154,7 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                               <Fragment key={k}>
                                 <dt className={styles.configKey}>{k}</dt>
                                 <dd className={styles.configVal}>
-                                  {fmtConfigVal(v)}
+                                  {formatConfigValue(v, "null")}
                                 </dd>
                               </Fragment>
                             ))}

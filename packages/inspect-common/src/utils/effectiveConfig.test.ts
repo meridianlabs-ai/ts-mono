@@ -191,6 +191,27 @@ describe("effectiveEvalConfig", () => {
     expect(changes.size).toBe(0);
   });
 
+  it("skips updates whose changes is missing or not an array", () => {
+    const launch: EvalConfig = { max_samples: 5 };
+    const malformed = [
+      update([]),
+      { ...update([]), changes: undefined },
+      { ...update([]), changes: { config: "eval" } },
+      update([
+        {
+          config: "eval",
+          name: "max_samples",
+          value: 10,
+          previous: 5,
+          cleared: false,
+        },
+      ]),
+    ] as unknown as ConfigUpdate[];
+    expect(effectiveEvalConfig(launch, malformed).max_samples).toBe(10);
+    expect(evalConfigChanges(malformed).get("max_samples")?.value).toBe(10);
+    expect(concurrencyChanges(malformed)).toEqual([]);
+  });
+
   it("skips concurrency and generate changes", () => {
     const launch: EvalConfig = { max_samples: 5 };
     const folded = effectiveEvalConfig(launch, [

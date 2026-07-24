@@ -40,7 +40,7 @@ export const ConnectionsLegend: FC = () => (
     </span>
     <span className={styles.legendItem}>
       <span className={styles.legendGuide} />
-      adaptive max
+      connection cap
     </span>
   </span>
 );
@@ -245,30 +245,34 @@ const PoolLane: FC<PoolLaneProps> = ({
                 <title>{`rate limit · ${e.old_limit} → ${e.new_limit}`}</title>
               </line>
             ))}
-          {(retunes ?? []).map((retune, i) => {
-            const rx = x(retune.timestamp);
-            return (
-              <g key={`retune-${i}`} onClick={onShowLog}>
-                <line
-                  className={styles.retuneLine}
-                  x1={rx}
-                  x2={rx}
-                  y1={kPlotTop}
-                  y2={kBaselineY}
-                />
-                <rect
-                  className={styles.retuneMarker}
-                  x={rx - 4}
-                  y={kMarkerTop - 4}
-                  width={8}
-                  height={8}
-                  transform={`rotate(45 ${rx} ${kMarkerTop})`}
-                >
-                  <title>{`${retuneTransition(retune)} · ${retune.author}${retune.reason ? ` — ${retune.reason}` : ""}`}</title>
-                </rect>
-              </g>
-            );
-          })}
+          {/* Post-run retunes stay in the Connection Log — drawn in-lane
+              they'd clamp to the right edge as caps never in effect. */}
+          {(retunes ?? [])
+            .filter((retune) => retune.timestamp <= timeWindow.end)
+            .map((retune, i) => {
+              const rx = x(retune.timestamp);
+              return (
+                <g key={`retune-${i}`} onClick={onShowLog}>
+                  <line
+                    className={styles.retuneLine}
+                    x1={rx}
+                    x2={rx}
+                    y1={kPlotTop}
+                    y2={kBaselineY}
+                  />
+                  <rect
+                    className={styles.retuneMarker}
+                    x={rx - 4}
+                    y={kMarkerTop - 4}
+                    width={8}
+                    height={8}
+                    transform={`rotate(45 ${rx} ${kMarkerTop})`}
+                  >
+                    <title>{`${retuneTransition(retune)} · ${retune.author}${retune.reason ? ` — ${retune.reason}` : ""}`}</title>
+                  </rect>
+                </g>
+              );
+            })}
           <line
             className={styles.baseline}
             x1={0}
