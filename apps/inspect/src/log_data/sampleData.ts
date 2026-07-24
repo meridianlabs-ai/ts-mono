@@ -32,9 +32,11 @@ export interface EvalSampleData {
    *  draining), as opposed to waiting on live output. Drives the
    *  "Loading events…" affordances. */
   backfilling: boolean;
-  /** Set when the sample is stored in the chunked shape: the transcript
-   *  reads windowed rows through this instead of `sample.events` (which the
-   *  shell-synthesized `sample` carries empty). Absent on every other path. */
+  /** Set when a chunked-shape sample renders through the windowed path:
+   *  the transcript reads windowed rows through this instead of
+   *  `sample.events` (which the shell-synthesized `sample` carries empty).
+   *  Absent on every other path — including chunked samples that were fully
+   *  hydrated for timeline fidelity (their `sample` is complete). */
   chunked?: ChunkedSample;
 }
 

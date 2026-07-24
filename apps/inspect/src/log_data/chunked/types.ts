@@ -6,7 +6,7 @@
  * `model_dump(mode="json", exclude_none=True)` — optional fields are absent,
  * never null.
  */
-import type { Event } from "@tsmono/inspect-common";
+import type { Event, Timeline } from "@tsmono/inspect-common";
 
 export type SequenceName = "messages" | "events" | "calls" | "attachments";
 
@@ -29,6 +29,8 @@ export interface ChunkedSampleShell {
   epoch: number;
   /** Final conversation as half-open ranges into the messages sequence. */
   message_refs: [number, number][];
+  /** Producer-authored timelines (EvalSample.timelines, carried verbatim). */
+  timelines?: Timeline[];
   /** Remaining EvalSample shell fields (input, target, scores, store, ...). */
   [key: string]: unknown;
 }

@@ -51,6 +51,8 @@ export class SampleNotFoundError extends Error {
 export interface LogZipAccess {
   entryNames: ReadonlySet<string>;
   readFile: (name: string) => Promise<Uint8Array>;
+  /** Uncompressed size of an entry (central directory; no fetch). */
+  uncompressedSize: (name: string) => number | undefined;
 }
 
 export interface RemoteLogFile {
@@ -350,6 +352,8 @@ export const openRemoteLogFile = async (
     zipAccess: () => ({
       entryNames: new Set(remoteZipFile.centralDirectory.keys()),
       readFile: (name: string) => remoteZipFile.readFile(name),
+      uncompressedSize: (name: string) =>
+        remoteZipFile.centralDirectory.get(name)?.uncompressedSize,
     }),
     /**
      * Reads the complete log file.
