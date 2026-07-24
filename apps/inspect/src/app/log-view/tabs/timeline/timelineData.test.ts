@@ -8,7 +8,13 @@ import {
 
 import { SampleSummary } from "../../../../client/api/types";
 
-import { historyRows, sampleStatus } from "./timelineData";
+import {
+  densestTerminationBin,
+  dotLadderStep,
+  historyRows,
+  sampleStatus,
+  Termination,
+} from "./timelineData";
 
 const epoch = (iso: string): number => Date.parse(iso) / 1000;
 
@@ -30,6 +36,38 @@ describe("sampleStatus", () => {
     expect(sampleStatus(sample({ completed: false }))).toBe("started");
     expect(sampleStatus(sample({ limit: "message" }))).toBe("limit");
     expect(sampleStatus(sample({}))).toBe("completed");
+  });
+});
+
+describe("dotLadderStep", () => {
+  it("steps down the 3-step ladder and floors at r = 1.5", () => {
+    expect(dotLadderStep(1)).toEqual({ r: 3.5, pitch: 9 });
+    expect(dotLadderStep(12)).toEqual({ r: 3.5, pitch: 9 });
+    expect(dotLadderStep(13)).toEqual({ r: 2.2, pitch: 6 });
+    expect(dotLadderStep(28)).toEqual({ r: 2.2, pitch: 6 });
+    expect(dotLadderStep(29)).toEqual({ r: 1.5, pitch: 4 });
+    // Past the floor the band grows instead — the step never changes.
+    expect(dotLadderStep(500)).toEqual({ r: 1.5, pitch: 4 });
+  });
+});
+
+describe("densestTerminationBin", () => {
+  const dot = (time: number): Termination => ({
+    time,
+    status: "completed",
+    sample: sample({}),
+  });
+
+  it("counts the densest uniform time slice", () => {
+    // 150 slices over 1500s → 10s slices: three dots share one slice.
+    const window = { start: 0, end: 1500 };
+    const dots = [dot(101), dot(105), dot(109), dot(500)];
+    expect(densestTerminationBin(dots, window)).toBe(3);
+  });
+
+  it("degrades to the dot count on an empty window", () => {
+    const window = { start: 5, end: 5 };
+    expect(densestTerminationBin([dot(5), dot(5)], window)).toBe(2);
   });
 });
 

@@ -27,6 +27,7 @@ import { ScoreValueDisplay } from "../../../samples/header-v2/ScoreValueDisplay"
 
 import styles from "./TimelineChart.module.css";
 import {
+  dotLadderStep,
   formatShort,
   GuideSegment,
   kStatusColor,
@@ -45,16 +46,8 @@ const kAxisHeight = 28;
 const kYAxisWidth = 30;
 // Marks at the window end would otherwise sit on the svg edge and clip.
 const kPlotRightInset = 10;
-const kDotRadius = 3.5;
-const kDotRowStep = 9;
 // Extra headroom so the tallest dot stack clears the band label.
 const kTermPlotTop = kPlotTop + 10;
-// Dots always, uniform pitch: columns cap at 12 dots and overflow becomes
-// a hoverable +N pill (design canvas 30b) — never a solid band.
-const kDotCap = 12;
-const kPillWidth = 7;
-const kPillHeight = 20;
-const kPillGap = 3;
 const kBinWidth = 8;
 const kMaxPopoverScores = 4;
 const kPostRunGutter = 72;
@@ -97,6 +90,9 @@ const fmtCompact = (seconds?: number | null): string => {
   return `${m}:${String(s).padStart(2, "0")}`;
 };
 
+const svgOffsetTop = (event: ReactMouseEvent<SVGRectElement>): number =>
+  event.currentTarget.ownerSVGElement?.getBoundingClientRect().top ?? 0;
+
 const sampleTokens = (sample: SampleSummary): number | undefined => {
   const usage = sample.model_usage;
   if (!usage) return undefined;
@@ -107,15 +103,12 @@ const sampleTokens = (sample: SampleSummary): number | undefined => {
   return total > 0 ? total : undefined;
 };
 
-type PopoverState = {
-  /** Bin the popover belongs to — drives the pill hover highlight. */
-  binKey: number;
+interface PopoverState {
   x: number;
   y: number;
-} & (
-  | { kind: "sample"; sample: SampleSummary; status: Termination["status"] }
-  | { kind: "overflow"; count: number; time: number; allCompleted: boolean }
-);
+  sample: SampleSummary;
+  status: Termination["status"];
+}
 
 /** Crosshair + value readout for a hovered line band. */
 interface LineHover {
@@ -149,6 +142,8 @@ const laneValueAt = (lane: ConnectionLaneData, t: number): number => {
 
 export interface TimelineChartProps {
   window: TimeWindow;
+  /** Live eval — the terminations rail only ever grows between refreshes. */
+  running?: boolean;
   showActiveSamples: boolean;
   showTerminations: boolean;
   connectionModels: string[];
@@ -173,6 +168,7 @@ export interface TimelineChartProps {
 
 export const TimelineChart: FC<TimelineChartProps> = ({
   window: timeWindow,
+  running = false,
   showActiveSamples,
   showTerminations,
   connectionModels,
@@ -208,6 +204,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   }, []);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [lineHover, setLineHover] = useState<LineHover | null>(null);
+  // Running logs — monotonic growth: the rail derives from the densest bin
+  // seen so far, so a live refresh never reflows the band shorter or steps
+  // the dots back up the radius ladder. Keyed by window start (a new log
+  // resets it); updated by an effect after the bins are computed.
+  const [binHighWater, setBinHighWater] = useState({ key: 0, value: 0 });
   const popoverCloseTimer = useRef<number | null>(null);
 
   const openPopover = (state: PopoverState) => {
@@ -252,10 +253,12 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     top: number;
   }
 
-  // Bin terminations by ~8px time slice up front — the deepest stack sets
-  // the band's height (up to kDotCap dot rows, plus pill room on overflow).
+  // Bin terminations by ~8px time slice up front — the densest stack picks
+  // the radius-ladder step and sets the band's height. Skipped until the
+  // width is known: with a zero-width plot every dot lands in one bin,
+  // which would poison the running-log high-water mark.
   const termBins = new Map<number, Termination[]>();
-  if (showTerminations) {
+  if (showTerminations && width > 0) {
     for (const t of terminationDots) {
       const bin = Math.floor(x(t.time) / kBinWidth);
       const list = termBins.get(bin) ?? [];
@@ -267,13 +270,26 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   for (const items of termBins.values()) {
     maxBinCount = Math.max(maxBinCount, items.length);
   }
-  const termStackRows = Math.min(maxBinCount, kDotCap);
+  useEffect(() => {
+    if (binHighWater.key !== timeWindow.start) {
+      setBinHighWater({
+        key: timeWindow.start,
+        value: running ? maxBinCount : 0,
+      });
+    } else if (running && maxBinCount > binHighWater.value) {
+      setBinHighWater({ key: timeWindow.start, value: maxBinCount });
+    }
+  }, [binHighWater, running, maxBinCount, timeWindow.start]);
+  const effectiveMaxBin =
+    running && binHighWater.key === timeWindow.start
+      ? Math.max(maxBinCount, binHighWater.value)
+      : maxBinCount;
+  // Elastic rail (design canvas 34a): shrink the dots down the ladder as
+  // density grows, then grow the band — uncapped — once the radius floors.
+  const { r: dotRadius, pitch: dotPitch } = dotLadderStep(effectiveMaxBin);
   const termPlotBottom = Math.max(
     kPlotBottom,
-    kTermPlotTop +
-      6 +
-      termStackRows * kDotRowStep +
-      (maxBinCount > kDotCap ? kPillGap + kPillHeight : 0)
+    kTermPlotTop + 6 + effectiveMaxBin * dotPitch
   );
 
   // Bands stack in the same order as the picker chips above the chart.
@@ -561,6 +577,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 
   const renderTerminations = (band: Band) => {
     const baseline = band.top + termPlotBottom;
+    const hitTop = band.top + kTermPlotTop - 4;
 
     const sortedBins = [...termBins.entries()].sort((a, b) => a[0] - b[0]);
 
@@ -576,41 +593,27 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         </text>
         {sortedBins.map(([bin, items]) => {
           const cx = bin * kBinWidth + kBinWidth / 2;
-          // Abnormal statuses sink to the bottom (closest to the axis) and
-          // keep their slots — the +N pill absorbs the completions that
-          // sort above the cap, so it counts completions only.
+          // Abnormal statuses sink to the bottom (closest to the axis) so
+          // error/limit dots are never buried under a completion stack.
           const sorted = [...items].sort((a, b) => {
             const abnormal = (t: Termination) =>
               t.status === "completed" ? 1 : 0;
             return abnormal(a) - abnormal(b);
           });
-          const shown = sorted.slice(0, kDotCap);
-          const overflow = sorted.slice(kDotCap);
-          const topDotCy =
-            baseline - kDotRadius - (shown.length - 1) * kDotRowStep;
-          const pillTop = topDotCy - kDotRadius - kPillGap - kPillHeight;
-          const pillHovered =
-            popover?.kind === "overflow" && popover.binKey === bin;
-          let binMinTime = Infinity;
-          for (const t of items) {
-            binMinTime = Math.min(binMinTime, t.time);
-          }
+          const rowY = (row: number) => baseline - dotRadius - row * dotPitch;
           return (
             <g key={`bin-${bin}`}>
-              {shown.map((t, row) => {
-                const cy = baseline - kDotRadius - row * kDotRowStep;
+              {sorted.map((t, row) => {
                 const hovered =
-                  popover?.kind === "sample" &&
-                  popover.sample === t.sample &&
-                  popover.status === t.status;
+                  popover?.sample === t.sample && popover.status === t.status;
                 const hollow = t.status === "started";
                 return (
                   <circle
                     key={row}
                     className={styles.terminationDot}
                     cx={cx}
-                    cy={cy}
-                    r={hovered ? 5 : kDotRadius}
+                    cy={rowY(row)}
+                    r={hovered ? dotRadius + 1.5 : dotRadius}
                     fill={hollow ? "var(--bs-body-bg)" : kStatusColor[t.status]}
                     stroke={
                       hovered
@@ -619,62 +622,46 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                           ? kStatusColor.started
                           : "none"
                     }
-                    strokeWidth={hovered ? 1.5 : hollow ? 1.25 : 0}
-                    onMouseEnter={() =>
-                      openPopover({
-                        kind: "sample",
-                        binKey: bin,
-                        sample: t.sample,
-                        status: t.status,
-                        x: cx,
-                        y: cy,
-                      })
+                    strokeWidth={
+                      hovered
+                        ? 1.5
+                        : hollow
+                          ? Math.min(1.25, dotRadius * 0.7)
+                          : 0
                     }
-                    onMouseLeave={scheduleClosePopover}
                   />
                 );
               })}
-              {overflow.length > 0 && (
-                <g
-                  className={styles.overflowPill}
-                  onMouseEnter={() =>
-                    openPopover({
-                      kind: "overflow",
-                      binKey: bin,
-                      count: overflow.length,
-                      time: binMinTime,
-                      allCompleted: overflow.every(
-                        (t) => t.status === "completed"
-                      ),
-                      x: cx,
-                      y: pillTop + kPillHeight,
-                    })
+              {/* Full-height invisible hit column — at r = 1.5 this is what
+                  keeps per-dot hover workable. */}
+              <rect
+                className={styles.termHitColumn}
+                x={bin * kBinWidth}
+                y={hitTop}
+                width={kBinWidth}
+                height={Math.max(baseline - hitTop, 0)}
+                onMouseMove={(event) => {
+                  const my = event.clientY - svgOffsetTop(event);
+                  const raw = Math.round((baseline - dotRadius - my) / dotPitch);
+                  const row = Math.min(sorted.length - 1, Math.max(0, raw));
+                  const t = sorted[row]!;
+                  // Movement within one dot's slice keeps the open popover.
+                  if (
+                    popoverCloseTimer.current === null &&
+                    popover?.sample === t.sample &&
+                    popover.status === t.status
+                  ) {
+                    return;
                   }
-                  onMouseLeave={scheduleClosePopover}
-                >
-                  <rect
-                    className={clsx(
-                      styles.overflowPillBody,
-                      pillHovered && styles.overflowPillBodyHovered
-                    )}
-                    x={cx - kPillWidth / 2}
-                    y={pillTop}
-                    width={kPillWidth}
-                    height={kPillHeight}
-                    rx={kPillWidth / 2}
-                  />
-                  <text
-                    className={styles.overflowPillCount}
-                    x={cx}
-                    y={pillTop + kPillHeight / 2}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    transform={`rotate(-90 ${cx} ${pillTop + kPillHeight / 2})`}
-                  >
-                    +{overflow.length}
-                  </text>
-                </g>
-              )}
+                  openPopover({
+                    sample: t.sample,
+                    status: t.status,
+                    x: cx,
+                    y: rowY(row),
+                  });
+                }}
+                onMouseLeave={scheduleClosePopover}
+              />
             </g>
           );
         })}
@@ -893,27 +880,6 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     if (!popover) return null;
     const top = popover.y + 14;
     const hold = () => openPopover(popover);
-    if (popover.kind === "overflow") {
-      // Time-slice tooltip in the dot popovers' card family — hover only,
-      // no click behavior on the pill.
-      return (
-        <div
-          className={styles.overflowTooltip}
-          style={{
-            left: Math.min(
-              Math.max(popover.x - 60, 0),
-              Math.max(width - 220, 0)
-            ),
-            top,
-          }}
-          onMouseEnter={hold}
-          onMouseLeave={scheduleClosePopover}
-        >
-          {fmtTimeSec(popover.time)} · +{popover.count} more
-          {popover.allCompleted ? " completed" : ""}
-        </div>
-      );
-    }
     const left = Math.min(
       Math.max(popover.x - 60, 0),
       Math.max(width - 340, 0)

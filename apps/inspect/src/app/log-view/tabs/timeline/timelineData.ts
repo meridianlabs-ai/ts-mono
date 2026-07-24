@@ -60,6 +60,50 @@ export const terminations = (samples: SampleSummary[]): Termination[] =>
     .filter((t): t is Termination => t !== undefined)
     .sort((a, b) => a.time - b.time);
 
+/** Elastic terminations rail (design canvas 34a): every termination is an
+ *  individual dot at every density. Radius steps down a 3-step ladder as the
+ *  densest column grows (row pitch = 2r + 1px air); past the ladder floor
+ *  the band grows instead, uncapped. */
+export interface DotLadderStep {
+  r: number;
+  pitch: number;
+}
+
+export const dotLadderStep = (maxBin: number): DotLadderStep => {
+  if (maxBin <= 12) return { r: 3.5, pitch: 9 };
+  if (maxBin <= 28) return { r: 2.2, pitch: 6 };
+  // r = 1.5 is the floor — smaller reads as dither on 1× displays.
+  return { r: 1.5, pitch: 4 };
+};
+
+/** Pathology guard: past a screen-height band the rail defaults collapsed
+ *  (the band chip opts into the full wall — no data is summarized away). */
+export const kTallRailHeight = 900;
+
+/** Densest column under uniform time slices approximating the chart's ~8px
+ *  pixel bins at a typical plot width — feeds the tall-rail guard, which
+ *  must decide before the chart (and its real width) ever renders. */
+export const densestTerminationBin = (
+  dots: Termination[],
+  window: TimeWindow
+): number => {
+  const slices = 150;
+  const span = window.end - window.start;
+  if (span <= 0) return dots.length;
+  const counts = new Map<number, number>();
+  let max = 0;
+  for (const dot of dots) {
+    const slice = Math.min(
+      slices - 1,
+      Math.floor(((dot.time - window.start) / span) * slices)
+    );
+    const next = (counts.get(slice) ?? 0) + 1;
+    counts.set(slice, next);
+    if (next > max) max = next;
+  }
+  return max;
+};
+
 export interface StepPoint {
   time: number;
   value: number;

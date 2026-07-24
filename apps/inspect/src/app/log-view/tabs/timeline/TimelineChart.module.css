@@ -48,44 +48,15 @@
   opacity: 0.55;
 }
 
+/* Hover lives on the hit columns — dots stay visual-only so tiny radii
+   never fight the pointer. */
 .terminationDot {
-  cursor: pointer;
-}
-
-/* Hoverable, not clickable — the pill only reveals its time-slice tooltip. */
-.overflowPill {
-  cursor: default;
-}
-
-.overflowPillBody {
-  fill: #e6eef5;
-  stroke: #6c757d;
-  stroke-width: 0.75;
-}
-
-.overflowPillBodyHovered {
-  stroke: var(--bs-body-color);
-  stroke-width: 1.25;
-}
-
-.overflowPillCount {
-  font-size: 7.5px;
-  font-weight: 600;
-  fill: #495057;
   pointer-events: none;
 }
 
-.overflowTooltip {
-  position: absolute;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 4px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-  z-index: 10;
-  padding: 0.3rem 0.55rem;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.termHitColumn {
+  fill: transparent;
+  cursor: pointer;
 }
 
 .lineHit {
@@ -362,13 +333,4 @@
   color: #e8d8a0;
   background: #3a3220;
   border-color: #5c512f;
-}
-
-:global([data-bs-theme="dark"]) .overflowPillBody {
-  fill: #343a40;
-  stroke: #868e96;
-}
-
-:global([data-bs-theme="dark"]) .overflowPillCount {
-  fill: #adb5bd;
 }

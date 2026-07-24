@@ -47,6 +47,11 @@
   font-size: 0.7rem;
 }
 
+.bandChipNote {
+  color: var(--bs-secondary-color);
+  font-size: 0.66rem;
+}
+
 .legend {
   margin-left: auto;
   display: inline-flex;

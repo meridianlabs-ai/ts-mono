@@ -43,10 +43,13 @@ import { TimelineChart } from "./TimelineChart";
 import {
   activeSamplesSeries,
   configMarkers,
+  densestTerminationBin,
+  dotLadderStep,
   guideSegments,
   HistoryCategory,
   historyRows,
   kStatusColor,
+  kTallRailHeight,
   logMarkers,
   terminations,
 } from "./timelineData";
@@ -213,10 +216,19 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     });
   };
 
+  // Pathology guard (design canvas 34a): a degenerate run would render a
+  // screen-height wall of dots — keep the honest height but collapse the
+  // rail by default; the chip opts into the full wall.
+  const tallRail = useMemo(() => {
+    if (!window || dots.length === 0) return false;
+    const maxBin = densestTerminationBin(dots, window);
+    return maxBin * dotLadderStep(maxBin).pitch > kTallRailHeight;
+  }, [dots, window]);
+
   const showActiveSamples =
     activeSeries.length > 0 && bandOn(timelineBandId("active"), true);
   const showTerminations =
-    dots.length > 0 && bandOn(timelineBandId("terminations"), true);
+    dots.length > 0 && bandOn(timelineBandId("terminations"), !tallRail);
   // A model's band auto-lights when that model was retuned or rate-limited.
   const connectionsDefault = (model: string): boolean =>
     (lanes[model]?.rateLimitCount ?? 0) > 0 ||
@@ -360,9 +372,16 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             {dots.length > 0 && (
               <BandChip
                 label="Terminations"
+                note={tallRail ? "tall rail" : undefined}
+                title={
+                  tallRail
+                    ? "The densest column makes this rail taller than a " +
+                      "screen — toggle on to show the full wall of dots."
+                    : undefined
+                }
                 on={showTerminations}
                 onToggle={() =>
-                  toggleBand(timelineBandId("terminations"), true)
+                  toggleBand(timelineBandId("terminations"), !tallRail)
                 }
               />
             )}
@@ -451,6 +470,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
         {window && (
           <TimelineChart
             window={window}
+            running={evalStatus === "started"}
             showActiveSamples={showActiveSamples}
             showTerminations={showTerminations}
             connectionModels={enabledModels}
@@ -482,17 +502,22 @@ export const TimelineTab: FC<TimelineTabProps> = ({
 
 interface BandChipProps {
   label: string;
+  /** Muted annotation after the label (e.g. the tall-rail guard). */
+  note?: string;
+  title?: string;
   on: boolean;
   onToggle: () => void;
 }
 
-const BandChip: FC<BandChipProps> = ({ label, on, onToggle }) => (
+const BandChip: FC<BandChipProps> = ({ label, note, title, on, onToggle }) => (
   <button
     type="button"
     className={clsx(styles.bandChip, on && styles.bandChipOn)}
     onClick={onToggle}
+    title={title}
   >
     {on ? <i className="bi bi-check" aria-hidden="true" /> : null}
     {label}
+    {note && <span className={styles.bandChipNote}>· {note}</span>}
   </button>
 );
