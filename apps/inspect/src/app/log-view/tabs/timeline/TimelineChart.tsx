@@ -875,7 +875,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           const isLog = marker.kind === "log";
           const mx = Math.min(plotRight + 32 + i * 16, width - 8);
           const selected = selectedMarker === key;
-          const size = selected ? 12 : 8;
+          // smaller head than in-run markers — the gutter is narrow
+          const size = selected ? 9 : 6;
           return (
             <g
               key={`post-${key}`}
@@ -890,7 +891,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                 )}
                 x1={mx}
                 x2={mx}
-                y1={kMarkerTop + 6}
+                y1={kMarkerTop + 4}
                 y2={axisY}
               />
               <rect
@@ -907,6 +908,19 @@ export const TimelineChart: FC<TimelineChartProps> = ({
               >
                 <title>{marker.label}</title>
               </rect>
+              <text
+                className={clsx(
+                  styles.markerLabel,
+                  styles.markerLabelHover,
+                  isLog && styles.markerLabelLog,
+                  selected && styles.markerLabelSelected
+                )}
+                x={mx - 9}
+                y={kMarkerTop + 3}
+                textAnchor="end"
+              >
+                {marker.label}
+              </text>
             </g>
           );
         })}

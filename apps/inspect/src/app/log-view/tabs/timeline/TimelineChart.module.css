@@ -162,10 +162,23 @@
   opacity: 0.45;
 }
 
+/* un-dim so the hover label is legible against the gutter */
+.markerPostRun:hover {
+  opacity: 1;
+}
+
 .markerLabel {
   font-family: var(--bs-font-monospace);
   font-size: 10px;
   fill: #4a2e73;
+}
+
+.markerLabelHover {
+  display: none;
+}
+
+.marker:hover .markerLabelHover {
+  display: block;
 }
 
 .markerLabelLog {
