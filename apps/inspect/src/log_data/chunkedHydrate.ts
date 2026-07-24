@@ -87,7 +87,10 @@ export const hydrateFullSample = async (
     chunked.attachments.getRange(0, Number.MAX_SAFE_INTEGER),
     chunked.readMetadata?.() ?? Promise.resolve({}),
   ]);
-  const { message_refs, ...shell } = chunked.shell;
+  // `sequences` is the pre-central-directory chunk layout — logs converted
+  // before it was dropped still carry it; strip it so it never leaks into
+  // the synthesized EvalSample
+  const { message_refs, sequences: _sequences, ...shell } = chunked.shell;
   return resolveSample({
     ...shell,
     messages: message_refs.flatMap(([start, end]) =>

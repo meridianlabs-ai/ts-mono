@@ -115,6 +115,17 @@ describe("shouldFullyHydrate", () => {
 });
 
 describe("hydrateFullSample", () => {
+  it("strips the legacy `sequences` shell field", async () => {
+    const [first] = await openSamples(logNames[0] ?? "");
+    if (!first) throw new Error("no fixture samples");
+    const hydrated = await hydrateFullSample({
+      ...first.sample,
+      // shells converted before the central-directory layout carry this
+      shell: { ...first.sample.shell, sequences: { events: [0] } },
+    });
+    expect("sequences" in hydrated).toBe(false);
+  });
+
   it.each(logNames.map((name) => [name]))("%s", async (name) => {
     for (const { sample } of await openSamples(name)) {
       const hydrated = await hydrateFullSample(sample);

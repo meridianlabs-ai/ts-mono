@@ -51,7 +51,14 @@ const chunkedSampleQueryKey = (
   ] as const;
 
 const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
-  const { message_refs: _messageRefs, ...shell } = chunked.shell;
+  // `sequences` is the pre-central-directory chunk layout — logs converted
+  // before it was dropped still carry it; strip it so it never leaks into
+  // the synthesized EvalSample
+  const {
+    message_refs: _messageRefs,
+    sequences: _sequences,
+    ...shell
+  } = chunked.shell;
   // The shell is the EvalSample serialization minus the four sequences and
   // metadata (design/large-samples.md, "Chunked on-disk layout") — the same
   // parse-boundary lift as remoteLogFile's `readJSONFile(...) as EvalSample`.

@@ -88,7 +88,10 @@ export const openChunkedSample = async (
   ]);
 
   // the exact events count: sequence counts are not persisted, but the
-  // stats sidecar's per-chunk type counts sum to it
+  // stats sidecar's per-chunk type counts sum to it. Deliberately stats,
+  // not skeleton.counts.events: stats is the events-side sidecar (one
+  // entry per chunk), the skeleton a derived UI artifact — corpus tests
+  // assert the two agree
   const eventsCount = stats.chunks.reduce(
     (n, chunk) =>
       n + Object.values(chunk.type_counts).reduce((a, b) => a + b, 0),
@@ -113,14 +116,25 @@ export const openChunkedSample = async (
     if (!entryNames.has(uuidsEntry)) {
       return undefined; // log converted before the sidecar existed
     }
-    uuidOrdinals ??= readJson<(string | null)[]>(source, uuidsEntry).then(
-      (uuids) =>
-        new Map(
-          uuids.flatMap((u, ordinal): [string, number][] =>
-            u === null ? [] : [[u, ordinal]]
+    if (!uuidOrdinals) {
+      const pending = readJson<(string | null)[]>(source, uuidsEntry).then(
+        (uuids) =>
+          new Map(
+            uuids.flatMap((u, ordinal): [string, number][] =>
+              u === null ? [] : [[u, ordinal]]
+            )
           )
-        )
-    );
+      );
+      // memoize successes only — a transient read failure must not disable
+      // uuid resolution for the sample's lifetime (same policy as
+      // ChunkByteStore / SequenceReader.loadChunk)
+      pending.catch(() => {
+        if (uuidOrdinals === pending) {
+          uuidOrdinals = undefined;
+        }
+      });
+      uuidOrdinals = pending;
+    }
     return (await uuidOrdinals).get(uuid);
   };
 
