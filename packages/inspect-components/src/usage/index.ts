@@ -9,10 +9,26 @@ export {
   buildConfigsByModel,
   buildConfigsByRole,
 } from "./configsForUsage";
+export { ConnectionReasonBadge, LimitTransition } from "./ConnectionChange";
 export {
   adaptiveMaxFromConfig,
+  adaptiveMaxFromValue,
   buildConnectionLanes,
+  buildStepPath,
+  capFromRetune,
+  capGuideSegments,
   connectionWindow,
+  laneCapValues,
+  poolRetunes,
+  retuneTransition,
 } from "./connectionHistory";
-export type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
+export { rolesForModel } from "./roleAliases";
+export type {
+  CapSegment,
+  ConnectionLaneData,
+  ConnectionWindow,
+  PoolRetune,
+} from "./connectionHistory";
+export { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
+export { ConnectionLogModal } from "./ConnectionLogModal";
 export { fmtClock, fmtCompactDuration } from "./timeFormat";

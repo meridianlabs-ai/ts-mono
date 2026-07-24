@@ -1,11 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
+import type {
+  ConfigUpdate,
+  ConnectionLimitChange,
+} from "@tsmono/inspect-common/types";
 
 import {
   adaptiveMaxFromConfig,
   buildConnectionLanes,
+  capFromRetune,
+  capGuideSegments,
   connectionWindow,
+  laneCapValues,
+  poolRetunes,
+  type ConnectionLaneData,
+  type PoolRetune,
 } from "./connectionHistory";
 
 const change = (
@@ -176,5 +185,252 @@ describe("adaptiveMaxFromConfig", () => {
       adaptiveMaxFromConfig({ adaptive_connections: { min: 5, max: 40 } })
     ).toBe(40);
     expect(adaptiveMaxFromConfig({ adaptive_connections: {} })).toBe(100);
+  });
+});
+
+const update = (
+  changes: ConfigUpdate["changes"],
+  timestamp = "2026-07-18T10:05:00Z"
+): ConfigUpdate => ({
+  changes,
+  scope: "task",
+  provenance: { author: "asher", timestamp, metadata: {} },
+});
+
+const retune = (overrides: Partial<PoolRetune>): PoolRetune => ({
+  timestamp: 100,
+  name: "max_connections",
+  previous: 20,
+  value: 40,
+  cleared: false,
+  author: "asher",
+  ...overrides,
+});
+
+const lane = (overrides: Partial<ConnectionLaneData>): ConnectionLaneData => ({
+  model: "openai/gpt-4o",
+  events: [],
+  start: 10,
+  peak: 10,
+  final: 10,
+  avg: 10,
+  rateLimitCount: 0,
+  ...overrides,
+});
+
+describe("poolRetunes", () => {
+  it("keys concurrency changes on the registry name", () => {
+    const byModel = poolRetunes([
+      update([
+        {
+          config: "concurrency",
+          name: "anthropic/claude-sonnet-4-5",
+          value: 25,
+          previous: 10,
+          cleared: false,
+        },
+      ]),
+    ]);
+    expect(Object.keys(byModel)).toEqual(["anthropic/claude-sonnet-4-5"]);
+    expect(byModel["anthropic/claude-sonnet-4-5"]![0]!.value).toBe(25);
+  });
+
+  it("routes generate pool knobs to the main model only", () => {
+    const updates = [
+      update([
+        {
+          config: "generate",
+          name: "max_connections",
+          value: 50,
+          previous: 20,
+          cleared: false,
+        },
+        {
+          config: "generate",
+          name: "temperature",
+          value: 1,
+          previous: 0,
+          cleared: false,
+        },
+        {
+          config: "eval",
+          name: "max_samples",
+          value: 8,
+          previous: 4,
+          cleared: false,
+        },
+      ]),
+    ];
+    const byModel = poolRetunes(updates, "openai/gpt-4o");
+    expect(Object.keys(byModel)).toEqual(["openai/gpt-4o"]);
+    expect(byModel["openai/gpt-4o"]!.map((r) => r.name)).toEqual([
+      "max_connections",
+    ]);
+    // Without a main model there is nowhere to attach generate retunes.
+    expect(poolRetunes(updates)).toEqual({});
+  });
+
+  it("sorts by timestamp and drops unparseable provenance timestamps", () => {
+    const byModel = poolRetunes(
+      [
+        update(
+          [
+            {
+              config: "generate",
+              name: "max_connections",
+              value: 50,
+              previous: 20,
+              cleared: false,
+            },
+          ],
+          "2026-07-18T11:00:00Z"
+        ),
+        update(
+          [
+            {
+              config: "generate",
+              name: "max_connections",
+              value: 30,
+              previous: 20,
+              cleared: false,
+            },
+          ],
+          "not-a-timestamp"
+        ),
+        update(
+          [
+            {
+              config: "generate",
+              name: "max_connections",
+              value: 40,
+              previous: 20,
+              cleared: false,
+            },
+          ],
+          "2026-07-18T10:00:00Z"
+        ),
+      ],
+      "openai/gpt-4o"
+    );
+    expect(byModel["openai/gpt-4o"]!.map((r) => r.value)).toEqual([40, 50]);
+  });
+
+  it("carries cleared through to the retune", () => {
+    const byModel = poolRetunes(
+      [
+        update([
+          {
+            config: "generate",
+            name: "max_connections",
+            value: null,
+            previous: 50,
+            cleared: true,
+          },
+        ]),
+      ],
+      "openai/gpt-4o"
+    );
+    expect(byModel["openai/gpt-4o"]![0]!.cleared).toBe(true);
+  });
+});
+
+describe("capFromRetune", () => {
+  it("restores the launch cap on cleared, 'none' without one", () => {
+    const cleared = retune({ cleared: true, value: null });
+    expect(capFromRetune(cleared, 64)).toBe(64);
+    expect(capFromRetune(cleared)).toBe("none");
+  });
+
+  it("parses adaptive_connections values", () => {
+    const adaptive = (value: unknown) =>
+      capFromRetune(retune({ name: "adaptive_connections", value }));
+    expect(adaptive(true)).toBe(100);
+    expect(adaptive("10-80")).toBe(80);
+    expect(adaptive({ min: 2, max: 50 })).toBe(50);
+    // Adaptive disabled — the cap ceases to exist.
+    expect(adaptive(false)).toBe("none");
+    expect(adaptive(null)).toBe("none");
+  });
+
+  it("steps to numeric values and ends the cap on null", () => {
+    expect(capFromRetune(retune({ value: 50 }))).toBe(50);
+    expect(capFromRetune(retune({ value: null }))).toBe("none");
+    expect(capFromRetune(retune({ value: "fast" }))).toBeUndefined();
+  });
+});
+
+describe("capGuideSegments", () => {
+  const x = (t: number) => t;
+
+  it("steps the guide at retunes that changed the cap", () => {
+    const segments = capGuideSegments(
+      lane({ configuredMax: 20 }),
+      [retune({ timestamp: 100, value: 50 })],
+      400,
+      x,
+      0,
+      400
+    );
+    expect(segments).toEqual([
+      { x1: 0, x2: 100, value: 20 },
+      { x1: 100, x2: 400, value: 50 },
+    ]);
+  });
+
+  it("ignores post-run retunes past the window end", () => {
+    const segments = capGuideSegments(
+      lane({ configuredMax: 20 }),
+      [retune({ timestamp: 900, value: 500 })],
+      400,
+      x,
+      0,
+      400
+    );
+    expect(segments).toEqual([{ x1: 0, x2: 400, value: 20 }]);
+  });
+
+  it("ends the guide on a 'none' step until a cap returns", () => {
+    const segments = capGuideSegments(
+      lane({}),
+      [
+        retune({
+          timestamp: 100,
+          name: "adaptive_connections",
+          value: 50,
+        }),
+        retune({
+          timestamp: 200,
+          name: "adaptive_connections",
+          value: null,
+          previous: 50,
+          cleared: true,
+        }),
+        retune({ timestamp: 300, value: 30 }),
+      ],
+      400,
+      x,
+      0,
+      400
+    );
+    // No launch cap: nothing before 100, capped 100→200, gone until 300.
+    expect(segments).toEqual([
+      { x1: 100, x2: 200, value: 50 },
+      { x1: 300, x2: 400, value: 30 },
+    ]);
+  });
+});
+
+describe("laneCapValues", () => {
+  it("collects numeric in-window caps only", () => {
+    const values = laneCapValues(
+      lane({ configuredMax: 20 }),
+      [
+        retune({ timestamp: 100, value: 50 }),
+        retune({ timestamp: 200, name: "adaptive_connections", value: false }),
+        retune({ timestamp: 900, value: 500 }),
+      ],
+      400
+    );
+    expect(values).toEqual([50]);
   });
 });

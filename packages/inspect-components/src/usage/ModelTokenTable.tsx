@@ -1,11 +1,9 @@
 import clsx from "clsx";
-import { FC, Fragment, useCallback, useState } from "react";
+import { FC, Fragment } from "react";
 
-import { useResizeObserver } from "@tsmono/react/hooks";
+import { formatConfigValue } from "@tsmono/inspect-common/utils";
 import { formatNumber } from "@tsmono/util";
 
-import type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
-import { ConnectionsLane } from "./ConnectionsLane";
 import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
 
@@ -18,17 +16,7 @@ interface ModelTokenTableProps {
   model_aliases?: Record<string, string>;
   rowKeys?: string[];
   showTokenColumns?: boolean;
-  connections_by_row?: Record<string, ConnectionLaneData>;
-  connections_window?: ConnectionWindow;
-  onShowConnectionLog?: (model: string) => void;
 }
-
-const fmtConfigVal = (v: unknown): string => {
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "bigint") return String(v);
-  return JSON.stringify(v);
-};
 
 type CategoryKey =
   "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
@@ -87,19 +75,7 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   model_aliases,
   rowKeys,
   showTokenColumns = true,
-  connections_by_row,
-  connections_window,
-  onShowConnectionLog,
 }) => {
-  const [containerWidth, setContainerWidth] = useState(0);
-  const wrapperRef = useResizeObserver(
-    useCallback(
-      (entry: ResizeObserverEntry) =>
-        setContainerWidth(entry.contentRect.width),
-      []
-    )
-  );
-
   const models =
     rowKeys ??
     (model_usage ? Object.keys(model_usage).filter((k) => model_usage[k]) : []);
@@ -108,22 +84,8 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
   const showPerSample =
     showTokenColumns && samples !== undefined && samples > 0;
 
-  const hasConnections =
-    !!connections_window &&
-    !!connections_by_row &&
-    models.some((m) => connections_by_row[m]);
-  // Below ~1000px the lane leaves the column and becomes a full-width strip
-  // row under its model's row.
-  const narrow = containerWidth > 0 && containerWidth < 1000;
-  const showConnectionsColumn = hasConnections && !narrow;
-  const columnCount =
-    1 +
-    (showTokenColumns ? 2 : 0) +
-    (showConnectionsColumn ? 1 : 0) +
-    (showPerSample ? 1 : 0);
-
   return (
-    <div ref={wrapperRef} className={clsx(styles.wrapper, className)}>
+    <div className={clsx(styles.wrapper, className)}>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -134,16 +96,12 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                 <th>Breakdown</th>
               </>
             )}
-            {showConnectionsColumn && (
-              <th className={styles.connectionsHead}>Connections</th>
-            )}
             {showPerSample && <th className={styles.num}>Per sample</th>}
           </tr>
         </thead>
         <tbody>
           {models.map((modelId) => {
             const usage = model_usage?.[modelId];
-            const lane = connections_by_row?.[modelId];
             const composeSum = usage ? compositionTotal(usage) : 0;
             const total = usage ? usageTotal(usage) : 0;
             const cacheRate =
@@ -156,10 +114,6 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
               usage && total > 0
                 ? Math.round(((usage.output_tokens ?? 0) / total) * 100)
                 : 0;
-            const showLog =
-              onShowConnectionLog && lane
-                ? () => onShowConnectionLog(lane.model)
-                : undefined;
             return (
               <Fragment key={modelId}>
                 <tr className={styles.modelRow}>
@@ -200,7 +154,7 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                               <Fragment key={k}>
                                 <dt className={styles.configKey}>{k}</dt>
                                 <dd className={styles.configVal}>
-                                  {fmtConfigVal(v)}
+                                  {formatConfigValue(v, "null")}
                                 </dd>
                               </Fragment>
                             ))}
@@ -217,8 +171,8 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                       );
                     })()}
                   </td>
-                  {/* rows with connection history but no usage still need
-                      cells here to keep later columns aligned */}
+                  {/* rows without usage still need cells here to keep
+                      later columns aligned */}
                   {showTokenColumns && !usage && <td colSpan={2} />}
                   {showTokenColumns && usage && (
                     <>
@@ -271,18 +225,6 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                       </td>
                     </>
                   )}
-                  {showConnectionsColumn && (
-                    <td className={styles.connectionsCell}>
-                      {lane && connections_window && (
-                        <ConnectionsLane
-                          data={lane}
-                          timeWindow={connections_window}
-                          variant="column"
-                          onShowLog={showLog}
-                        />
-                      )}
-                    </td>
-                  )}
                   {showPerSample && !usage && <td />}
                   {showPerSample && usage && (
                     <td className={clsx(styles.num, styles.perSampleCell)}>
@@ -291,18 +233,6 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                     </td>
                   )}
                 </tr>
-                {hasConnections && narrow && lane && connections_window && (
-                  <tr className={styles.connectionsStripRow}>
-                    <td colSpan={columnCount}>
-                      <ConnectionsLane
-                        data={lane}
-                        timeWindow={connections_window}
-                        variant="strip"
-                        onShowLog={showLog}
-                      />
-                    </td>
-                  </tr>
-                )}
               </Fragment>
             );
           })}

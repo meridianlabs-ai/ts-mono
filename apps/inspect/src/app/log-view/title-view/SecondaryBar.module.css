@@ -31,3 +31,9 @@
   color: var(--bs-warning-text-emphasis, #664d03);
   cursor: help;
 }
+
+.paramsWithChanges {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}

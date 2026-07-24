@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EvalSample } from "@tsmono/inspect-common/types";
+import {
+  ConfigUpdate,
+  EvalConfig,
+  EvalSample,
+} from "@tsmono/inspect-common/types";
+import { effectiveEvalConfig } from "@tsmono/inspect-common/utils";
 import { AsyncData, createLogger } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
@@ -166,6 +171,26 @@ export const useSelectedLogDetails = (): LogHeader | undefined => {
 
 export const useEvalSpec = () => {
   return useSelectedLogDetails()?.eval;
+};
+
+/** The selected log's mid-run config changes (undefined when none). */
+export const useConfigUpdates = (): ConfigUpdate[] | undefined => {
+  return useSelectedLogDetails()?.config_updates ?? undefined;
+};
+
+/**
+ * The eval config the selected run actually ran under — launch config with
+ * `config_updates` folded in. Functional readers must use this rather than
+ * `evalSpec.config` so mid-run retunes are honored.
+ */
+export const useEffectiveEvalConfig = (): EvalConfig | undefined => {
+  const details = useSelectedLogDetails();
+  const config = details?.eval.config;
+  const configUpdates = details?.config_updates;
+  return useMemo(() => {
+    if (!config) return undefined;
+    return effectiveEvalConfig(config, configUpdates);
+  }, [config, configUpdates]);
 };
 
 /**

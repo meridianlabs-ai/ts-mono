@@ -1,4 +1,5 @@
 import {
+  ConfigUpdate,
   EvalLog,
   EvalPlan,
   EvalSample,
@@ -92,6 +93,39 @@ export const headerFromLogStart = (start: LogStart): EvalHeader => ({
   tags: start.eval?.tags ?? [],
   metadata: start.eval?.metadata ?? {},
 });
+
+/**
+ * Journaled config updates (`_journal/config_updates/{n}.json`) in write
+ * order — the recorder names entries by a monotonic integer index, so
+ * non-integer names are ignored rather than poisoning the sort with NaN.
+ *
+ * Exported for unit testing; `openRemoteLogFile` binds it to its zip.
+ */
+export const readJournalConfigUpdatesFrom = async (
+  entryNames: Iterable<string>,
+  readEntry: (name: string) => Promise<unknown>
+): Promise<ConfigUpdate[]> => {
+  const prefix = "_journal/config_updates/";
+  const entries = Array.from(entryNames)
+    .filter((name) => name.startsWith(prefix) && name.endsWith(".json"))
+    .map((name) => ({ name, index: parseInt(name.slice(prefix.length), 10) }))
+    .filter(({ index }) => Number.isFinite(index))
+    .sort((a, b) => a.index - b.index);
+
+  const updates: ConfigUpdate[] = [];
+  for (const entry of entries) {
+    try {
+      updates.push((await readEntry(entry.name)) as ConfigUpdate);
+    } catch (error) {
+      // The fold is last-wins in order: splicing around a failed middle
+      // read would silently misreport later state, while a truncated tail
+      // cannot — stop at the first failure.
+      console.error(`Failed to read config update ${entry.name}:`, error);
+      break;
+    }
+  }
+  return updates;
+};
 
 /**
  * Opens a remote log file and provides methods to read its contents.
@@ -265,9 +299,20 @@ export const openRemoteLogFile = async (
       // written yet — the recorder only flushes it at end-of-eval.
       // Fall back to start.json and synthesize a header from it.
       const start = (await readJSONFile("_journal/start.json")) as LogStart;
-      return headerFromLogStart(start);
+      const header = headerFromLogStart(start);
+      // Mid-run retunes are journaled immediately (one file per update,
+      // consolidated into header.json only at end-of-eval) — fold them in
+      // so running and crashed logs surface config_updates too.
+      const config_updates = await readJournalConfigUpdates();
+      return config_updates.length > 0 ? { ...header, config_updates } : header;
     }
   };
+
+  const readJournalConfigUpdates = (): Promise<ConfigUpdate[]> =>
+    readJournalConfigUpdatesFrom(
+      remoteZipFile.centralDirectory.keys(),
+      (name) => readJSONFile(name)
+    );
 
   const readEvalBasicInfo = async (): Promise<LogPreview> => {
     const header = await readHeader();
@@ -341,6 +386,7 @@ export const openRemoteLogFile = async (
         tags: header.tags,
         metadata: header.metadata,
         log_updates: header.log_updates,
+        config_updates: header.config_updates,
         sampleSummaries,
         etag: initialEtag,
       };

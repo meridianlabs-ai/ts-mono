@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, useMemo } from "react";
 
 import {
+  ConfigUpdate,
   EarlyStoppingSummary,
   EvalSpec,
   EvalStats,
@@ -15,6 +16,7 @@ import { kLogViewTaskTabId } from "../../../constants";
 import { formatDateTime, formatDuration } from "../../../utils/format";
 import { TagsField } from "../title-view/TagsField";
 
+import { ConfigCard } from "./ConfigCard";
 import styles from "./TaskTab.module.css";
 
 // Individual hook for Info tab
@@ -22,7 +24,8 @@ export const useTaskTabConfig = (
   evalSpec: EvalSpec | undefined,
   evalStats?: EvalStats,
   earlyStopping?: EarlyStoppingSummary | null,
-  tags?: string[]
+  tags?: string[],
+  configUpdates?: ConfigUpdate[] | null
 ) => {
   return useMemo(() => {
     return {
@@ -35,9 +38,10 @@ export const useTaskTabConfig = (
         evalStats,
         earlyStopping,
         tags,
+        configUpdates,
       },
     };
-  }, [evalSpec, evalStats, earlyStopping, tags]);
+  }, [evalSpec, evalStats, earlyStopping, tags, configUpdates]);
 };
 
 interface TaskTabProps {
@@ -45,6 +49,7 @@ interface TaskTabProps {
   evalStats?: EvalStats;
   earlyStopping?: EarlyStoppingSummary | null;
   tags?: string[];
+  configUpdates?: ConfigUpdate[] | null;
 }
 
 export const TaskTab: FC<TaskTabProps> = ({
@@ -52,6 +57,7 @@ export const TaskTab: FC<TaskTabProps> = ({
   evalStats,
   earlyStopping,
   tags,
+  configUpdates,
 }) => {
   // Only used to decide whether to include the "tags" row in the
   // metadata grid for an empty log — TagsField owns the actual gating
@@ -59,13 +65,6 @@ export const TaskTab: FC<TaskTabProps> = ({
   const api = getApi();
   const canEditTags = Boolean(api.edit_log);
   const tagList = tags ?? [];
-
-  const config: Record<string, unknown> = {};
-  Object.entries(evalSpec?.config || {}).forEach((entry) => {
-    const key = entry[0];
-    const value = entry[1];
-    config[key] = value;
-  });
 
   const revision = evalSpec?.revision;
   const packages = evalSpec?.packages;
@@ -159,6 +158,8 @@ export const TaskTab: FC<TaskTabProps> = ({
             </div>
           </CardBody>
         </Card>
+
+        <ConfigCard config={evalSpec?.config} configUpdates={configUpdates} />
 
         {earlyStopping && (
           <Card>

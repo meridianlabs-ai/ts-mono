@@ -5,6 +5,7 @@ import type {
   BranchEvent,
   CallPoolData,
   CompactionEvent,
+  ConfigUpdate,
   ErrorEvent,
   EvalError,
   EvalLog,
@@ -78,6 +79,7 @@ export interface LogDetails {
   tags?: string[];
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
+  config_updates?: ConfigUpdate[] | null;
   sampleSummaries: SampleSummary[];
   // S3 ETag captured at fetch time. Used by the `edit_log` middleware
   // to prime an `If-Match` on the *first* save so concurrent-modification
@@ -420,6 +422,7 @@ export interface EvalHeader {
   tags?: string[];
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
+  config_updates?: ConfigUpdate[] | null;
 }
 
 export interface LogPreview {

@@ -15,7 +15,11 @@
 
 import { describe, expect, test } from "vitest";
 
-import { headerFromLogStart, LogStart } from "./remoteLogFile";
+import {
+  headerFromLogStart,
+  LogStart,
+  readJournalConfigUpdatesFrom,
+} from "./remoteLogFile";
 
 const baseEval = {
   // EvalSpec has more fields, but the helper only touches `tags` and
@@ -63,5 +67,55 @@ describe("headerFromLogStart", () => {
     // rely on stable references.
     expect(header.eval).toBe(start.eval);
     expect(header.plan).toBe(start.plan);
+  });
+});
+
+describe("readJournalConfigUpdatesFrom", () => {
+  const prefix = "_journal/config_updates/";
+
+  test("orders entries numerically, not lexicographically", async () => {
+    const names = [`${prefix}10.json`, `${prefix}2.json`, `${prefix}1.json`];
+    const reads: string[] = [];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) => {
+      reads.push(name);
+      return Promise.resolve({ name });
+    });
+    expect(reads).toEqual([
+      `${prefix}1.json`,
+      `${prefix}2.json`,
+      `${prefix}10.json`,
+    ]);
+    expect(updates).toHaveLength(3);
+  });
+
+  test("ignores non-integer and out-of-prefix names", async () => {
+    const names = [
+      `${prefix}notes.json`,
+      `${prefix}1.json`,
+      "_journal/summaries/1.json",
+      `${prefix}2.txt`,
+    ];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) =>
+      Promise.resolve({ name })
+    );
+    expect(updates).toEqual([{ name: `${prefix}1.json` }]);
+  });
+
+  test("stops at the first failed read, not splicing around it", async () => {
+    // The fold is last-wins: a truncated tail is safe, a gap is not.
+    const names = [`${prefix}1.json`, `${prefix}2.json`, `${prefix}3.json`];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) =>
+      name.endsWith("2.json")
+        ? Promise.reject(new Error("corrupt entry"))
+        : Promise.resolve({ name })
+    );
+    expect(updates).toEqual([{ name: `${prefix}1.json` }]);
+  });
+
+  test("returns empty when no journal entries exist", async () => {
+    const updates = await readJournalConfigUpdatesFrom([], () =>
+      Promise.resolve({})
+    );
+    expect(updates).toEqual([]);
   });
 });

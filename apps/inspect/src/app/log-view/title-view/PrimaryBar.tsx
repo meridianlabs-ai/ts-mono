@@ -11,6 +11,7 @@ import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
 import { toDisplayScorers } from "../../../scoring/metrics";
+import { useEffectiveEvalConfig } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 
 import { ModelRolesView } from "./ModelRolesView";
@@ -38,6 +39,9 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   tags,
 }) => {
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
+  // Effective (folded) config: a mid-run change to continue_on_fail decides
+  // how an errored run's status renders.
+  const effectiveConfig = useEffectiveEvalConfig();
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
   const absLogDir = useAbsLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
@@ -118,7 +122,7 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
       <div className={clsx(styles.taskStatus, "navbar-text")}>
         {status === "success" ||
         (status === "started" && streamSamples && hasRunningMetrics) ||
-        (status === "error" && evalSpec?.config["continue_on_fail"]) ? (
+        (status === "error" && effectiveConfig?.continue_on_fail) ? (
           <ResultsPanel
             scorers={
               runningMetrics
