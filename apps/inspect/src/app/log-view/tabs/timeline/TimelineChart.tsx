@@ -270,16 +270,13 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   for (const items of termBins.values()) {
     maxBinCount = Math.max(maxBinCount, items.length);
   }
-  useEffect(() => {
-    if (binHighWater.key !== timeWindow.start) {
-      setBinHighWater({
-        key: timeWindow.start,
-        value: running ? maxBinCount : 0,
-      });
-    } else if (running && maxBinCount > binHighWater.value) {
-      setBinHighWater({ key: timeWindow.start, value: maxBinCount });
-    }
-  }, [binHighWater, running, maxBinCount, timeWindow.start]);
+  // Derived-state adjustment during render — both writes are guarded by
+  // comparisons against the current state, so they cannot loop.
+  if (binHighWater.key !== timeWindow.start) {
+    setBinHighWater({ key: timeWindow.start, value: 0 });
+  } else if (running && maxBinCount > binHighWater.value) {
+    setBinHighWater({ key: timeWindow.start, value: maxBinCount });
+  }
   const effectiveMaxBin =
     running && binHighWater.key === timeWindow.start
       ? Math.max(maxBinCount, binHighWater.value)
@@ -642,7 +639,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                 height={Math.max(baseline - hitTop, 0)}
                 onMouseMove={(event) => {
                   const my = event.clientY - svgOffsetTop(event);
-                  const raw = Math.round((baseline - dotRadius - my) / dotPitch);
+                  const dy = baseline - dotRadius - my;
+                  const raw = Math.round(dy / dotPitch);
                   const row = Math.min(sorted.length - 1, Math.max(0, raw));
                   const t = sorted[row]!;
                   // Movement within one dot's slice keeps the open popover.
