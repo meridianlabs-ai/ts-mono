@@ -11,7 +11,10 @@ import {
   findPythonRepoRoot,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
-import { inlineThemeBootstrap } from "../../tooling/vite-plugins/index.js";
+import {
+  inlineThemeBootstrap,
+  rewriteLoopbackOrigin,
+} from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
   return {
@@ -114,11 +117,7 @@ export default defineConfig(({ mode }) => {
           "/api": {
             target: scoutServerUrl,
             changeOrigin: true,
-            // changeOrigin only rewrites Host, not Origin, so mutating
-            // requests reach the scout server with the dev server's origin
-            // and its CSRF check rejects them with 403 "Forbidden browser
-            // origin". Rewrite Origin to match.
-            headers: { origin: scoutServerUrl },
+            configure: rewriteLoopbackOrigin(scoutServerUrl),
           },
         },
       },
