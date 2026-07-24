@@ -872,26 +872,42 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           })}
         {postRun.map((marker, i) => {
           const key = markerKey(marker.kind, marker.index);
+          const isLog = marker.kind === "log";
           const mx = Math.min(plotRight + 32 + i * 16, width - 8);
           const selected = selectedMarker === key;
+          const size = selected ? 12 : 8;
           return (
-            <rect
+            <g
               key={`post-${key}`}
-              className={clsx(
-                styles.markerDiamond,
-                marker.kind === "log" && styles.markerDiamondLog,
-                styles.markerDiamondPostRun,
-                selected && styles.markerDiamondSelected
-              )}
-              x={mx - 3.5}
-              y={axisY - 12}
-              width={7}
-              height={7}
-              transform={`rotate(45 ${mx} ${axisY - 8.5})`}
+              className={clsx(styles.marker, styles.markerPostRun)}
               onClick={() => onSelectMarker(selected ? null : key)}
             >
-              <title>{marker.label}</title>
-            </rect>
+              <line
+                className={clsx(
+                  styles.markerLine,
+                  isLog && styles.markerLineLog,
+                  selected && styles.markerLineSelected
+                )}
+                x1={mx}
+                x2={mx}
+                y1={kMarkerTop + 6}
+                y2={axisY}
+              />
+              <rect
+                className={clsx(
+                  styles.markerDiamond,
+                  isLog && styles.markerDiamondLog,
+                  selected && styles.markerDiamondSelected
+                )}
+                x={mx - size / 2}
+                y={kMarkerTop - size / 2}
+                width={size}
+                height={size}
+                transform={`rotate(45 ${mx} ${kMarkerTop})`}
+              >
+                <title>{marker.label}</title>
+              </rect>
+            </g>
           );
         })}
       </g>
