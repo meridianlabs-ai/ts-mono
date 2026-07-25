@@ -427,6 +427,95 @@ export const eventsToStr = (events: EventType[]): string => {
 };
 
 /**
+ * Converts an array of events to a Markdown transcript suitable for reports
+ * and other review artifacts.
+ */
+export const eventsToMarkdown = (events: EventType[]): string => {
+  return events
+    .map((event) => {
+      const fields = extractEventFields(event);
+      if (fields.length === 0) return null;
+      const title = titleCase(event.event);
+      const body = fields
+        .map(([key, value]) => {
+          const label = titleCase(key);
+          if (!value.includes("\n")) return `**${label}:** ${value}`;
+          const quoted = value
+            .split("\n")
+            .map((line) => `> ${line}`)
+            .join("\n");
+          return `**${label}**\n\n${quoted}`;
+        })
+        .join("\n\n");
+      return `## ${title}\n\n${body}`;
+    })
+    .filter((section): section is string => section !== null)
+    .join("\n\n---\n\n");
+};
+
+/**
+ * Converts events to a self-contained, print-friendly HTML document.
+ * All event content is escaped before it is placed in the document.
+ */
+export const eventsToHtmlDocument = (events: EventType[]): string => {
+  const sections = events
+    .map((event) => {
+      const fields = extractEventFields(event);
+      if (fields.length === 0) return null;
+      const body = fields
+        .map(
+          ([key, value]) =>
+            `<dt>${escapeHtml(titleCase(key))}</dt><dd><pre>${escapeHtml(
+              value
+            )}</pre></dd>`
+        )
+        .join("");
+      return `<section><h2>${escapeHtml(
+        titleCase(event.event)
+      )}</h2><dl>${body}</dl></section>`;
+    })
+    .filter((section): section is string => section !== null)
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspect transcript evidence</title>
+<style>
+  body { color: #1f2328; font: 14px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
+  h1 { border-bottom: 1px solid #d0d7de; font-size: 1.6rem; padding-bottom: .4rem; }
+  h2 { font-size: 1.15rem; margin: 0 0 .8rem; }
+  section { break-inside: avoid; border-bottom: 1px solid #d8dee4; padding: 1rem 0; }
+  dt { font-weight: 600; margin-top: .7rem; }
+  dd { margin: .2rem 0 0; }
+  pre { font: inherit; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+  @page { margin: 18mm; }
+</style>
+</head>
+<body>
+<h1>Inspect transcript evidence</h1>
+${sections}
+</body>
+</html>`;
+};
+
+const titleCase = (value: string): string =>
+  value
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+/**
  * Extracts text strings from message content.
  */
 const extractContentText = (content: string | Array<Content>): string[] => {

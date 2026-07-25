@@ -29,7 +29,12 @@ import {
   anchorIndexForTurn,
   computeTranscriptTurns,
 } from "./turnNavigation";
-import type { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
+import type {
+  EventNode,
+  EventNodeContext,
+  EventPanelCallbacks,
+  TranscriptExportSelection,
+} from "./types";
 
 // =============================================================================
 // Types
@@ -95,6 +100,7 @@ export interface TranscriptViewNodesProps {
   onNavigatedToEvent?: (eventId: string) => void;
   /** Disable turn/agent keyboard nav while find-in-page owns the keyboard. */
   keyboardNavDisabled?: boolean;
+  exportSelection?: TranscriptExportSelection;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -151,6 +157,7 @@ export const TranscriptViewNodes = forwardRef<
     onNextAgent,
     onNavigatedToEvent,
     keyboardNavDisabled,
+    exportSelection,
   },
   ref
 ) {
@@ -844,6 +851,7 @@ export const TranscriptViewNodes = forwardRef<
           turnMap={computedTurnMap}
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
+          exportSelection={exportSelection}
           visibleRangeRef={visibleRangeRef}
         />
       </div>

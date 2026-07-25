@@ -50,7 +50,7 @@ export {
 export { eventTitle, formatTiming, formatTitle } from "./event/utils";
 
 // Search text and event serialization
-export { eventSearchText, eventsToStr } from "./eventText";
+export { eventSearchText, eventsToMarkdown, eventsToStr } from "./eventText";
 
 // Message ID resolution
 export {
