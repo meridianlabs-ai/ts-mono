@@ -294,13 +294,14 @@ export const guideSegments = (
 /** One category per thing you'd filter for (design canvas 35c) — the old
  *  Runtime junk drawer splits into limits / errors & retries / run. */
 export type HistoryCategory =
-  "config" | "connections" | "limits" | "errors" | "tags" | "run";
+  "config" | "connections" | "limits" | "errors" | "cancels" | "tags" | "run";
 
 export const kHistoryCategories: HistoryCategory[] = [
   "config",
   "connections",
   "limits",
   "errors",
+  "cancels",
   "tags",
   "run",
 ];
@@ -311,6 +312,7 @@ export const kCategoryShort: Record<HistoryCategory, string> = {
   connections: "Conn",
   limits: "Limits",
   errors: "Errors",
+  cancels: "Cancel",
   tags: "Tags",
   run: "Run",
 };
@@ -320,6 +322,7 @@ export const kCategoryLong: Record<HistoryCategory, string> = {
   connections: "Connections",
   limits: "Limits",
   errors: "Errors & retries",
+  cancels: "Cancellations",
   tags: "Tags & metadata",
   run: "Run",
 };
@@ -339,6 +342,7 @@ export type HistoryRow = { time: number; postRun: boolean } & (
       count: number;
     }
   | { kind: "sampleError"; sample: SampleSummary }
+  | { kind: "sampleCancelled"; sample: SampleSummary }
   | { kind: "sampleLimit"; sample: SampleSummary }
   | { kind: "fallback"; sample: SampleSummary; line: string }
   | { kind: "earlyStopping"; summary: EarlyStoppingSummary }
@@ -359,6 +363,10 @@ export const rowCategory = (row: HistoryRow): HistoryCategory => {
     case "sampleError":
     case "fallback":
       return "errors";
+    // A cancellation is not a failure — its own pill so an interrupted
+    // run doesn't read as an error storm.
+    case "sampleCancelled":
+      return "cancels";
     default:
       return "run";
   }
@@ -392,9 +400,9 @@ export const rowHaystack = (row: HistoryRow): string => {
     case "connections":
       return `pool ${row.model} ${row.reason.replace(/_/g, " ")}`;
     case "sampleError":
-      return sampleStatus(row.sample) === "cancelled"
-        ? `sample ${row.sample.id} cancelled retried`
-        : `sample ${row.sample.id} error retried ${row.sample.error ?? ""}`;
+      return `sample ${row.sample.id} error retried ${row.sample.error ?? ""}`;
+    case "sampleCancelled":
+      return `sample ${row.sample.id} cancelled retried`;
     case "sampleLimit":
       return `sample ${row.sample.id} ${row.sample.limit ?? ""} limit`;
     case "fallback":
@@ -537,7 +545,11 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
     const time = isoToEpoch(sample.completed_at);
     if (time === undefined) continue;
     if (sample.error) {
-      rows.push({ kind: "sampleError", time, postRun: false, sample });
+      const kind =
+        sampleStatus(sample) === "cancelled"
+          ? "sampleCancelled"
+          : "sampleError";
+      rows.push({ kind, time, postRun: false, sample });
     }
     if (sample.limit) {
       rows.push({ kind: "sampleLimit", time, postRun: false, sample });
@@ -566,12 +578,16 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
     const completed = samples.filter(
       (s) => sampleStatus(s) === "completed"
     ).length;
-    const errors = samples.filter((s) => !!s.error).length;
+    const errors = samples.filter((s) => sampleStatus(s) === "error").length;
+    const cancels = samples.filter(
+      (s) => sampleStatus(s) === "cancelled"
+    ).length;
     const limits = samples.filter((s) => !!s.limit).length;
     const detail = [
       samples.length > 0 ? `${samples.length} samples` : undefined,
       completed > 0 ? `${completed} completed` : undefined,
       errors > 0 ? `${errors} error${errors === 1 ? "" : "s"}` : undefined,
+      cancels > 0 ? `${cancels} cancelled` : undefined,
       limits > 0 ? `${limits} limit${limits === 1 ? "" : "s"}` : undefined,
       runStart !== undefined ? fmtDuration(runEnd - runStart) : undefined,
     ]

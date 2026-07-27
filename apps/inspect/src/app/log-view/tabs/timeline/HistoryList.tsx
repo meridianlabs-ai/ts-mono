@@ -21,7 +21,6 @@ import {
   markerKey,
   rowCategory,
   rowHaystack,
-  sampleStatus,
 } from "./timelineData";
 
 // Tag/metadata edits can land days after the run — always show the date.
@@ -46,6 +45,7 @@ const kPillClass: Record<HistoryCategory, string> = {
   connections: styles.pillConnections!,
   limits: styles.pillLimits!,
   errors: styles.pillErrors!,
+  cancels: styles.pillCancels!,
   tags: styles.pillTags!,
   run: styles.pillRun!,
 };
@@ -293,24 +293,30 @@ export const HistoryList: FC<HistoryListProps> = ({
             {row.sample.limit} limit {openLink(row.sample)}
           </Fragment>
         );
-      case "sampleError": {
-        // A cancellation is not a failure — the exception text carries no
-        // information beyond "cancelled", so leave it off.
-        const cancelled = sampleStatus(row.sample) === "cancelled";
+      case "sampleError":
         return (
           <Fragment>
-            Sample <span className={styles.mono}>{row.sample.id}</span>{" "}
-            {cancelled ? "cancelled" : "errored"}
+            Sample <span className={styles.mono}>{row.sample.id}</span> errored
             {(row.sample.retries ?? 0) > 0
               ? `, retried ×${row.sample.retries}`
               : ""}
-            {!cancelled && (
-              <span className={styles.muted}> · {row.sample.error}</span>
-            )}{" "}
+            <span className={styles.muted}> · {row.sample.error}</span>{" "}
             {openLink(row.sample)}
           </Fragment>
         );
-      }
+      // The exception text carries no information beyond "cancelled",
+      // so leave it off.
+      case "sampleCancelled":
+        return (
+          <Fragment>
+            Sample <span className={styles.mono}>{row.sample.id}</span>{" "}
+            cancelled
+            {(row.sample.retries ?? 0) > 0
+              ? `, retried ×${row.sample.retries}`
+              : ""}{" "}
+            {openLink(row.sample)}
+          </Fragment>
+        );
       case "fallback":
         return (
           <Fragment>
