@@ -28,6 +28,7 @@ import { ScoreValueDisplay } from "../../../samples/header-v2/ScoreValueDisplay"
 import styles from "./TimelineChart.module.css";
 import {
   dotLadderStep,
+  fmtDuration,
   formatShort,
   GuideSegment,
   kStatusColor,
@@ -88,17 +89,13 @@ const fmtDate = (sec: number): string =>
     day: "numeric",
   });
 
-const fmtCompact = (seconds?: number | null): string => {
-  if (seconds == null || !Number.isFinite(seconds)) return "—";
-  // Round once up front — rounding the remainder alone yields "1:60".
-  const total = Math.round(seconds);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
-};
-
 const svgOffsetTop = (event: ReactMouseEvent<SVGRectElement>): number =>
   event.currentTarget.ownerSVGElement?.getBoundingClientRect().top ?? 0;
+
+// Live polls replace the summaries array, so object identity breaks across
+// refreshes — hover/popover matching keys on id + epoch instead.
+const sameSample = (a: SampleSummary, b: SampleSummary): boolean =>
+  a.id === b.id && a.epoch === b.epoch;
 
 const sampleTokens = (sample: SampleSummary): number | undefined => {
   const usage = sample.model_usage;
@@ -224,9 +221,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   } | null>(null);
   // Running logs — monotonic growth: the rail derives from the densest bin
   // seen so far, so a live refresh never reflows the band shorter or steps
-  // the dots back up the radius ladder. Keyed by window start (a new log
-  // resets it); adjusted in render, guarded so it cannot loop.
-  const [binHighWater, setBinHighWater] = useState({ key: 0, value: 0 });
+  // the dots back up the radius ladder. Pixel bins depend on the chart
+  // width, so the mark is keyed by window start *and* width — a resize
+  // recomputes honestly instead of latching a narrow-viewport count for the
+  // rest of the run. Adjusted during render, guarded so it cannot loop.
+  const [binHighWater, setBinHighWater] = useState({ key: "", value: 0 });
   const popoverCloseTimer = useRef<number | null>(null);
 
   const openPopover = (state: PopoverState) => {
@@ -251,8 +250,18 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     []
   );
 
-  const hasPostRun = markers.some((m) => m.postRun);
-  const gutter = hasPostRun ? kPostRunGutter : 0;
+  const postRunCount = markers.filter((m) => m.postRun).length;
+  const hasPostRun = postRunCount > 0;
+  // The gutter grows with the post-run stack (16px marker pitch) so the
+  // markers stay individually hoverable, capped so the run keeps most of
+  // the width; markers past the cap fold into one cluster group instead of
+  // clamping into an unclickable pile at the right edge.
+  const gutter = hasPostRun
+    ? Math.min(
+        Math.max(kPostRunGutter, 48 + postRunCount * 16),
+        Math.max(Math.floor(width * 0.3), kPostRunGutter)
+      )
+    : 0;
   const plotLeft = kYAxisWidth;
   const plotRight = Math.max(width - gutter - kPlotRightInset, plotLeft);
 
@@ -290,13 +299,14 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   }
   // Derived-state adjustment during render — both writes are guarded by
   // comparisons against the current state, so they cannot loop.
-  if (binHighWater.key !== timeWindow.start) {
-    setBinHighWater({ key: timeWindow.start, value: 0 });
+  const binKey = `${timeWindow.start}:${width}`;
+  if (binHighWater.key !== binKey) {
+    setBinHighWater({ key: binKey, value: 0 });
   } else if (running && maxBinCount > binHighWater.value) {
-    setBinHighWater({ key: timeWindow.start, value: maxBinCount });
+    setBinHighWater({ key: binKey, value: maxBinCount });
   }
   const effectiveMaxBin =
-    running && binHighWater.key === timeWindow.start
+    running && binHighWater.key === binKey
       ? Math.max(maxBinCount, binHighWater.value)
       : maxBinCount;
   // Elastic rail (design canvas 34a): shrink the dots down the ladder as
@@ -620,7 +630,9 @@ export const TimelineChart: FC<TimelineChartProps> = ({
             <g key={`bin-${bin}`}>
               {sorted.map((t, row) => {
                 const hovered =
-                  popover?.sample === t.sample && popover.status === t.status;
+                  popover !== null &&
+                  sameSample(popover.sample, t.sample) &&
+                  popover.status === t.status;
                 const hollow = t.status === "started";
                 return (
                   <circle
@@ -664,7 +676,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                   // Movement within one dot's slice keeps the open popover.
                   if (
                     popoverCloseTimer.current === null &&
-                    popover?.sample === t.sample &&
+                    popover !== null &&
+                    sameSample(popover.sample, t.sample) &&
                     popover.status === t.status
                   ) {
                     return;
@@ -788,11 +801,15 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   const groupKeys = (group: MarkerGroup): string[] =>
     group.members.map((m) => markerKey(m.kind, m.index));
 
-  // "3" for a single marker, "4–5" for a merged cluster.
+  // "3" for a single marker, "4–5" for a merged cluster. Unnumbered (log)
+  // members can share an overflow group — only ordinals render.
   const ordinalBadge = (members: TimelineMarker[]): string => {
-    const first = members[0]?.ordinal;
-    const last = members[members.length - 1]?.ordinal;
-    return members.length > 1 ? `${first}–${last}` : String(first ?? "");
+    const ordinals = members
+      .map((m) => m.ordinal)
+      .filter((o): o is number => o !== undefined);
+    const first = ordinals[0];
+    const last = ordinals[ordinals.length - 1];
+    return ordinals.length > 1 ? `${first}–${last}` : String(first ?? "");
   };
 
   const markerAria = (group: MarkerGroup): string => {
@@ -949,16 +966,30 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       }
     }
     const postRun = markers.filter((m) => m.postRun);
+    // Slots that fit before the right edge; markers past the last slot fold
+    // into its group so each stays reachable (the gutter already grows with
+    // the count — this only bites at its width cap).
+    const slotCap = Math.max(
+      1,
+      Math.floor((width - 8 - (plotRight + 32)) / 16) + 1
+    );
+    const postGroups: MarkerGroup[] = [];
+    postRun.forEach((marker, i) => {
+      const last = postGroups[postGroups.length - 1];
+      if (i >= slotCap && last) {
+        last.members.push(marker);
+      } else {
+        postGroups.push({
+          x: Math.min(plotRight + 32 + i * 16, width - 8),
+          members: [marker],
+          postRun: true,
+        });
+      }
+    });
     return (
       <g key="markers">
         {groups.map(renderMarkerGroup)}
-        {postRun.map((marker, i) =>
-          renderMarkerGroup({
-            x: Math.min(plotRight + 32 + i * 16, width - 8),
-            members: [marker],
-            postRun: true,
-          })
-        )}
+        {postGroups.map(renderMarkerGroup)}
       </g>
     );
   };
@@ -1229,7 +1260,8 @@ const SamplePopover: FC<SamplePopoverProps> = ({
           )}
           <div className={styles.popoverLabel}>Working / total</div>
           <div>
-            {fmtCompact(sample.working_time)} / {fmtCompact(sample.total_time)}
+            {fmtDuration(sample.working_time)} /{" "}
+            {fmtDuration(sample.total_time)}
           </div>
           {tokens !== undefined && (
             <Fragment>

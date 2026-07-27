@@ -8,7 +8,10 @@ import {
   useRef,
 } from "react";
 
-import { ConnectionLimitChange } from "@tsmono/inspect-common/types";
+import {
+  fmtDayClock,
+  kConnectionReasonLabel,
+} from "@tsmono/inspect-components/usage";
 
 import styles from "./HistoryList.module.css";
 import {
@@ -23,23 +26,6 @@ import {
   rowHaystack,
   sampleStatus,
 } from "./timelineData";
-
-// Tag/metadata edits can land days after the run — always show the date.
-const fmtRowTime = (sec: number): string => {
-  const date = new Date(sec * 1000);
-  const day = date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-  return `${day} ${date.toLocaleTimeString(undefined, { hour12: false })}`;
-};
-
-const kReasonText: Record<ConnectionLimitChange["reason"], string> = {
-  slow_start: "slow start",
-  steady_state_up: "steady up",
-  rate_limit: "rate limited",
-  manual: "manual",
-};
 
 const kPillClass: Record<HistoryCategory, string> = {
   config: styles.pillConfig!,
@@ -186,7 +172,11 @@ export const HistoryList: FC<HistoryListProps> = ({
                     <span className={styles.mono}>
                       {formatShort(change.value)}
                     </span>
-                    {change.value === null && change.previous !== null ? (
+                    {/* A knob first set to null is a plain transition —
+                        matching limitLifted and changeText. */}
+                    {change.value === null &&
+                    change.previous !== null &&
+                    change.previous !== undefined ? (
                       <span className={styles.muted}> (limit lifted)</span>
                     ) : null}
                   </Fragment>
@@ -281,7 +271,7 @@ export const HistoryList: FC<HistoryListProps> = ({
             <span className={styles.mono}>{row.to}</span>
             <span className={styles.muted}>
               {" · "}
-              {kReasonText[row.reason]}
+              {kConnectionReasonLabel[row.reason]}
               {row.count > 1 ? `, ×${row.count}` : ""}
             </span>
           </Fragment>
@@ -390,7 +380,9 @@ export const HistoryList: FC<HistoryListProps> = ({
                 count === 0 && styles.pillEmpty
               )}
               onClick={() => onToggleCategory(category)}
-              disabled={count === 0}
+              // A selected pill stays clickable at count 0 (live counts can
+              // drop) — otherwise the filter would trap an empty list.
+              disabled={count === 0 && !selected}
             >
               {kCategoryLong[category]}{" "}
               <span className={styles.pillCount}>{count}</span>
@@ -452,7 +444,9 @@ export const HistoryList: FC<HistoryListProps> = ({
                   key !== undefined ? () => onHoverRow(null) : undefined
                 }
               >
-                <div className={styles.time}>{fmtRowTime(row.time)}</div>
+                {/* Tag/metadata edits can land days after the run — the
+                    date always shows. */}
+                <div className={styles.time}>{fmtDayClock(row.time)}</div>
                 <div className={styles.kindCell}>
                   <span className={clsx(styles.kindPill, kPillClass[category])}>
                     {kCategoryShort[category]}

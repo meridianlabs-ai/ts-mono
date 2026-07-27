@@ -52,6 +52,7 @@ import {
   kTallRailHeight,
   logMarkers,
   markerKey,
+  rowHaystack,
   terminations,
   withConfigOrdinals,
 } from "./timelineData";
@@ -305,14 +306,17 @@ export const TimelineTab: FC<TimelineTabProps> = ({
 
   const [search, setSearch] = useState("");
   // Time is the one sortable column — descending by default on a running
-  // log so new events land at the top (canvas 37b).
+  // log so new events land at the top (canvas 37b). The default is captured
+  // once: a run completing mid-session must not flip the list under the
+  // user.
+  const [defaultDescending] = useState(evalStatus === "started");
   const [timeSortOverride, setTimeSortOverride] = useState<
     "asc" | "desc" | null
   >(null);
   const timeDescending =
     timeSortOverride !== null
       ? timeSortOverride === "desc"
-      : evalStatus === "started";
+      : defaultDescending;
 
   const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
   // Bidirectional marker ↔ row hover link (canvas 36a).
@@ -321,7 +325,9 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     keys: string[];
   } | null>(null);
 
-  // Click marker → scroll to its row, clearing a filter that would hide it.
+  // Click marker → scroll to its row, clearing any filter that would hide
+  // it: a category filter widens to include the row, and a non-matching
+  // search is dropped (otherwise the selection is invisible in the list).
   const selectMarker = useCallback(
     (key: string | null) => {
       setSelectedEventKey(key);
@@ -334,9 +340,20 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             ? previous
             : new Set(previous).add(category)
         );
+        const query = search.trim().toLowerCase();
+        if (query !== "") {
+          const row = rows.find(
+            (r) =>
+              (r.kind === "config" && markerKey("config", r.index) === key) ||
+              (r.kind === "logUpdate" && markerKey("log", r.index) === key)
+          );
+          if (row && !rowHaystack(row).toLowerCase().includes(query)) {
+            setSearch("");
+          }
+        }
       }
     },
-    [setSelectedEventKey, setSelectedCategories]
+    [rows, search]
   );
 
   const limitCrossReference = useCallback(

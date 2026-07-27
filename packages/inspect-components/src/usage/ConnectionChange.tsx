@@ -5,7 +5,12 @@ import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 
 import styles from "./ConnectionChange.module.css";
 
-const kReasonLabel: Record<ConnectionLimitChange["reason"], string> = {
+/** One wording per controller reason — shared by the badge here and the
+ *  Timeline History rows so the two surfaces cannot drift. */
+export const kConnectionReasonLabel: Record<
+  ConnectionLimitChange["reason"],
+  string
+> = {
   slow_start: "slow start",
   steady_state_up: "steady up",
   rate_limit: "rate limit",
@@ -24,10 +29,7 @@ export interface LimitTransitionProps {
   newLimit: number;
 }
 
-/**
- * `old ↓/↑ new` connection-limit transition — the Connection Log modal and
- * the Timeline history render the same event with the same treatment.
- */
+/** `old ↓/↑ new` connection-limit transition (Connection Log modal). */
 export const LimitTransition: FC<LimitTransitionProps> = ({
   oldLimit,
   newLimit,
@@ -49,16 +51,12 @@ export const LimitTransition: FC<LimitTransitionProps> = ({
 
 export interface ConnectionReasonBadgeProps {
   reason: ConnectionLimitChange["reason"];
-  /** Steps aggregated into this entry — > 1 renders an ×N suffix. */
-  count?: number;
 }
 
 export const ConnectionReasonBadge: FC<ConnectionReasonBadgeProps> = ({
   reason,
-  count,
 }) => (
   <span className={clsx(styles.badge, kReasonBadge[reason])}>
-    {kReasonLabel[reason]}
-    {count !== undefined && count > 1 ? ` ×${count}` : ""}
+    {kConnectionReasonLabel[reason]}
   </span>
 );

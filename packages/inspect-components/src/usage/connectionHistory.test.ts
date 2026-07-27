@@ -332,6 +332,33 @@ describe("poolRetunes", () => {
     );
     expect(byModel["openai/gpt-4o"]![0]!.cleared).toBe(true);
   });
+
+  it("skips journal entries whose changes is missing or not an array", () => {
+    const malformed = {
+      scope: "task",
+      provenance: {
+        author: "asher",
+        timestamp: "2026-07-18T10:05:00Z",
+        metadata: {},
+      },
+    } as unknown as ConfigUpdate;
+    expect(poolRetunes([malformed], "openai/gpt-4o")).toEqual({});
+  });
+
+  it("groups registry names that collide with Object.prototype keys", () => {
+    const byModel = poolRetunes([
+      update([
+        {
+          config: "concurrency",
+          name: "constructor",
+          value: 5,
+          previous: 2,
+          cleared: false,
+        },
+      ]),
+    ]);
+    expect(byModel["constructor"]!.map((r) => r.value)).toEqual([5]);
+  });
 });
 
 describe("capFromRetune", () => {

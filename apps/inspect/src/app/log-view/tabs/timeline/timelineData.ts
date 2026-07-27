@@ -203,6 +203,10 @@ export const configMarkers = (
     .map((update, index): TimelineMarker | undefined => {
       const time = isoToEpoch(update.provenance.timestamp);
       if (time === undefined) return undefined;
+      // Journal entries are cast, not validated — a malformed `changes`
+      // degrades to a skip, matching effectiveConfig's posture. Everything
+      // downstream (rows, aria labels, popovers) iterates via this filter.
+      if (!Array.isArray(update.changes)) return undefined;
       const label = `${update.changes.map(changeText).join(" · ")} · ${update.provenance.author}`;
       return {
         kind: "config",
@@ -408,10 +412,15 @@ export const rowHaystack = (row: HistoryRow): string => {
   }
 };
 
-const fmtDuration = (seconds: number): string => {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
+/** m:ss under an hour, h:mm:ss above — the one duration formatter shared
+ *  by the timeline surfaces (History detail, termination popover). */
+export const fmtDuration = (seconds?: number | null): string => {
+  if (seconds == null || !Number.isFinite(seconds)) return "—";
+  // Round once up front — rounding remainders alone yields "1:60".
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   const mm = String(m).padStart(2, "0");
   const ss = String(s).padStart(2, "0");
   return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
@@ -464,6 +473,9 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
   (configUpdates ?? []).forEach((update, index) => {
     const time = isoToEpoch(update.provenance.timestamp);
     if (time === undefined) return;
+    // Skip malformed journal entries — mirrors configMarkers, so a row
+    // always has a chart marker and an iterable `changes`.
+    if (!Array.isArray(update.changes)) return;
     rows.push({
       kind: "config",
       time,

@@ -12,6 +12,7 @@ import {
   configMarkers,
   densestTerminationBin,
   dotLadderStep,
+  fmtDuration,
   HistoryRow,
   historyRows,
   logMarkers,
@@ -184,6 +185,56 @@ describe("withConfigOrdinals", () => {
       ["log", undefined],
       ["config", 2],
     ]);
+  });
+});
+
+describe("configMarkers", () => {
+  it("skips journal entries whose changes is missing or not an array", () => {
+    // Journal entries are cast, not validated — a malformed `changes` must
+    // degrade to a skip (matching effectiveConfig) in both the markers and
+    // the History rows.
+    const good = {
+      scope: "task",
+      changes: [
+        {
+          config: "eval",
+          name: "max_samples",
+          previous: 4,
+          value: 8,
+          cleared: false,
+        },
+      ],
+      provenance: {
+        timestamp: "2026-07-20T18:26:00+00:00",
+        author: "a",
+        metadata: {},
+      },
+    } as ConfigUpdate;
+    const malformed = {
+      scope: "task",
+      changes: "not-an-array",
+      provenance: {
+        timestamp: "2026-07-20T18:26:01+00:00",
+        author: "a",
+        metadata: {},
+      },
+    } as unknown as ConfigUpdate;
+    expect(configMarkers([good, malformed]).map((m) => m.index)).toEqual([0]);
+    const rows = historyRows({
+      configUpdates: [good, malformed],
+      samples: [],
+    });
+    expect(rows.map((row) => row.kind)).toEqual(["config"]);
+  });
+});
+
+describe("fmtDuration", () => {
+  it("carries rounding into minutes and adds hours", () => {
+    expect(fmtDuration(119.6)).toBe("2:00");
+    expect(fmtDuration(34)).toBe("0:34");
+    expect(fmtDuration(7234)).toBe("2:00:34");
+    expect(fmtDuration(undefined)).toBe("—");
+    expect(fmtDuration(null)).toBe("—");
   });
 });
 
