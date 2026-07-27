@@ -322,19 +322,22 @@ export const TimelineTab: FC<TimelineTabProps> = ({
   } | null>(null);
 
   // Click marker → scroll to its row, clearing a filter that would hide it.
-  const selectMarker = useCallback((key: string | null) => {
-    setSelectedEventKey(key);
-    if (key !== null) {
-      const category: HistoryCategory = key.startsWith("config:")
-        ? "config"
-        : "tags";
-      setSelectedCategories((previous) =>
-        previous.size === 0 || previous.has(category)
-          ? previous
-          : new Set(previous).add(category)
-      );
-    }
-  }, []);
+  const selectMarker = useCallback(
+    (key: string | null) => {
+      setSelectedEventKey(key);
+      if (key !== null) {
+        const category: HistoryCategory = key.startsWith("config:")
+          ? "config"
+          : "tags";
+        setSelectedCategories((previous) =>
+          previous.size === 0 || previous.has(category)
+            ? previous
+            : new Set(previous).add(category)
+        );
+      }
+    },
+    [setSelectedEventKey, setSelectedCategories]
+  );
 
   const limitCrossReference = useCallback(
     (sample: SampleSummary): string | undefined => {
