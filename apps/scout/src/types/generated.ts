@@ -1276,6 +1276,11 @@ export interface components {
          * @description Document content (e.g. a PDF).
          */
         ContentDocument: {
+            /**
+             * Citations
+             * @default false
+             */
+            citations: boolean;
             /** Document */
             document: string;
             /** Filename */
