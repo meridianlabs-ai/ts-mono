@@ -314,9 +314,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     "asc" | "desc" | null
   >(null);
   const timeDescending =
-    timeSortOverride !== null
-      ? timeSortOverride === "desc"
-      : defaultDescending;
+    timeSortOverride !== null ? timeSortOverride === "desc" : defaultDescending;
 
   const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
   // Bidirectional marker ↔ row hover link (canvas 36a).
@@ -353,7 +351,7 @@ export const TimelineTab: FC<TimelineTabProps> = ({
         }
       }
     },
-    [rows, search]
+    [rows, search, setSearch, setSelectedCategories, setSelectedEventKey]
   );
 
   const limitCrossReference = useCallback(
