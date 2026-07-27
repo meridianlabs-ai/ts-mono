@@ -909,6 +909,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   id={chatListId}
                   messages={effectiveMessages}
                   initialMessageId={sampleDetailNavigation.message}
+                  followRequested={sampleDetailNavigation.follow}
                   display={chatDisplay}
                   labels={messagesSearchLabels}
                   linking={chatLinking}

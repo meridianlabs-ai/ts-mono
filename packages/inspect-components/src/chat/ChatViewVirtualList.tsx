@@ -8,6 +8,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
@@ -65,6 +66,9 @@ export interface ChatViewVirtualListProps {
   messages: ChatMessage[];
   className?: string | string[];
   initialMessageId?: string | null;
+  /** Explicit `follow=1` URL param: arm live-tail at mount even on a
+   *  `?message=` landing, matching the transcript tab. */
+  followRequested?: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   running?: boolean;
   backfilling?: boolean;
@@ -84,6 +88,7 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     id,
     messages,
     initialMessageId,
+    followRequested,
     className,
     scrollRef,
     running,
@@ -96,6 +101,10 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
     tools,
   }: ChatViewVirtualListProps) {
     const listHandle = useRef<VirtualListHandle>(null);
+
+    // Frozen at mount, mirroring TranscriptViewNodes: a ?message= landing owns
+    // the scroll position, so follow must not auto-arm from a live sample.
+    const [navOwned] = useState(() => !!initialMessageId);
 
     useEffect(() => {
       onNativeFindChanged?.(false);
@@ -238,6 +247,8 @@ export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
         initialIndex={initialMessageIndex}
         scrollPaddingStart={kChatScrollPaddingStart}
         live={running}
+        navOwned={navOwned}
+        followRequested={followRequested}
         scrollToTopOnFinish={scrollToTopOnFinish}
         components={chatComponents}
         smoothScroll={false}
