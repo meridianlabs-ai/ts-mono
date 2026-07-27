@@ -170,7 +170,9 @@
 .row {
   display: grid;
   grid-template-columns: 110px 64px minmax(0, 1fr) minmax(56px, max-content);
-  column-gap: 1em;
+  /* rem, not em — the header row's smaller font would shrink an em gap,
+     shifting its Kind/Event labels left of the row cells. */
+  column-gap: 1rem;
   align-items: start;
   padding: 0.4rem 0.25rem;
 }
