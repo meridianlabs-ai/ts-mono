@@ -51,7 +51,9 @@ import {
   kStatusColor,
   kTallRailHeight,
   logMarkers,
+  markerKey,
   terminations,
+  withConfigOrdinals,
 } from "./timelineData";
 import styles from "./TimelineTab.module.css";
 
@@ -108,6 +110,9 @@ const kLimitKnobs: [string, string][] = [
 const limitKnob = (limit: string): string | undefined =>
   kLimitKnobs.find(([kind]) => limit.includes(kind))?.[1];
 
+// Stable empty array — a fresh identity would re-render every row.
+const kNoKeys: string[] = [];
+
 export const TimelineTab: FC<TimelineTabProps> = ({
   evalSpec,
   evalStats,
@@ -124,15 +129,29 @@ export const TimelineTab: FC<TimelineTabProps> = ({
   const runStart = isoToEpoch(evalStats?.started_at);
   const runEnd = isoToEpoch(evalStats?.completed_at);
 
-  // Config retunes and tag/metadata edits share the ◆ marker rail.
+  // Config retunes and tag/metadata edits share the ◆ marker rail; config
+  // markers carry chronological ordinals (1..N) that never renumber.
   const markers = useMemo(
     () =>
-      [
-        ...configMarkers(configUpdates, runEnd),
-        ...logMarkers(logUpdates, runEnd),
-      ].sort((a, b) => a.time - b.time),
+      withConfigOrdinals(
+        [
+          ...configMarkers(configUpdates, runEnd),
+          ...logMarkers(logUpdates, runEnd),
+        ].sort((a, b) => a.time - b.time)
+      ),
     [configUpdates, logUpdates, runEnd]
   );
+
+  // markerKey → ordinal: the History rows render the same shared token.
+  const ordinals = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const marker of markers) {
+      if (marker.kind === "config" && marker.ordinal !== undefined) {
+        map.set(markerKey(marker.kind, marker.index), marker.ordinal);
+      }
+    }
+    return map;
+  }, [markers]);
 
   const dots = useMemo(() => terminations(samples), [samples]);
 
@@ -263,49 +282,59 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     ]
   );
 
-  const [categoryOverrides, setCategoryOverrides] = useState<Record<
-    string,
-    boolean
-  > | null>(null);
-  const enabledCategories = useMemo(() => {
-    const enabled = new Set<HistoryCategory>();
-    // Everything on by default; the chips narrow from there.
-    const defaults: Record<HistoryCategory, boolean> = {
-      config: true,
-      tags: true,
-      runtime: true,
-      connections: true,
-    };
-    for (const category of Object.keys(defaults) as HistoryCategory[]) {
-      if (categoryOverrides?.[category] ?? defaults[category]) {
-        enabled.add(category);
-      }
-    }
-    return enabled;
-  }, [categoryOverrides]);
-
+  // Additive filter pills: empty selection = All (a reset, not a seventh
+  // filter) — Config + Limits together is the "did lifting it help?" read.
+  const [selectedCategories, setSelectedCategories] = useState<
+    Set<HistoryCategory>
+  >(new Set());
   const toggleCategory = (category: HistoryCategory | "all") => {
     if (category === "all") {
-      setCategoryOverrides({
-        config: true,
-        tags: true,
-        runtime: true,
-        connections: true,
-      });
+      setSelectedCategories(new Set());
       return;
     }
-    setCategoryOverrides({
-      ...(categoryOverrides ?? {
-        config: enabledCategories.has("config"),
-        tags: enabledCategories.has("tags"),
-        runtime: enabledCategories.has("runtime"),
-        connections: enabledCategories.has("connections"),
-      }),
-      [category]: !enabledCategories.has(category),
+    setSelectedCategories((previous) => {
+      const next = new Set(previous);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
     });
   };
 
+  const [search, setSearch] = useState("");
+  // Time is the one sortable column — descending by default on a running
+  // log so new events land at the top (canvas 37b).
+  const [timeSortOverride, setTimeSortOverride] = useState<
+    "asc" | "desc" | null
+  >(null);
+  const timeDescending =
+    timeSortOverride !== null
+      ? timeSortOverride === "desc"
+      : evalStatus === "started";
+
   const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
+  // Bidirectional marker ↔ row hover link (canvas 36a).
+  const [hoverLink, setHoverLink] = useState<{
+    source: "marker" | "row";
+    keys: string[];
+  } | null>(null);
+
+  // Click marker → scroll to its row, clearing a filter that would hide it.
+  const selectMarker = useCallback((key: string | null) => {
+    setSelectedEventKey(key);
+    if (key !== null) {
+      const category: HistoryCategory = key.startsWith("config:")
+        ? "config"
+        : "tags";
+      setSelectedCategories((previous) =>
+        previous.size === 0 || previous.has(category)
+          ? previous
+          : new Set(previous).add(category)
+      );
+    }
+  }, []);
 
   const limitCrossReference = useCallback(
     (sample: SampleSummary): string | undefined => {
@@ -398,20 +427,10 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                 }
               />
             ))}
-            {/* Derived legend: built from the visible bands only. */}
+            {/* Derived legend: visible bands only. Marks whose hue a filter
+                pill already carries (config ◆, tag ◆, error, limit) are not
+                repeated here — the pill row doubles as the rail's legend. */}
             <span className={styles.legend}>
-              {markers.some((m) => m.kind === "config") && (
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDiamond} />
-                  config change
-                </span>
-              )}
-              {markers.some((m) => m.kind === "log") && (
-                <span className={styles.legendItem}>
-                  <span className={styles.legendDiamondLog} />
-                  tag/metadata edit
-                </span>
-              )}
               {showTerminations && (
                 <>
                   <span className={styles.legendItem}>
@@ -420,20 +439,6 @@ export const TimelineTab: FC<TimelineTabProps> = ({
                       style={{ background: kStatusColor.completed }}
                     />
                     completed
-                  </span>
-                  <span className={styles.legendItem}>
-                    <span
-                      className={styles.legendDot}
-                      style={{ background: kStatusColor.error }}
-                    />
-                    error
-                  </span>
-                  <span className={styles.legendItem}>
-                    <span
-                      className={styles.legendDot}
-                      style={{ background: kStatusColor.limit }}
-                    />
-                    limit
                   </span>
                   {dots.some((dot) => dot.status === "cancelled") && (
                     <span className={styles.legendItem}>
@@ -481,7 +486,15 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             retunes={retunes}
             markers={markers}
             selectedMarker={selectedEventKey}
-            onSelectMarker={setSelectedEventKey}
+            onSelectMarker={selectMarker}
+            hoveredRowKey={
+              hoverLink?.source === "row" ? (hoverLink.keys[0] ?? null) : null
+            }
+            onHoverMarker={(keys) =>
+              setHoverLink(
+                keys && keys.length > 0 ? { source: "marker", keys } : null
+              )
+            }
             evalDescriptor={evalDescriptor}
             limitCrossReference={limitCrossReference}
             onOpenSample={openSample}
@@ -489,10 +502,21 @@ export const TimelineTab: FC<TimelineTabProps> = ({
         )}
         <HistoryList
           rows={rows}
-          enabledCategories={enabledCategories}
+          ordinals={ordinals}
+          selectedCategories={selectedCategories}
           onToggleCategory={toggleCategory}
+          search={search}
+          onSearchChange={setSearch}
+          timeDescending={timeDescending}
+          onToggleTimeSort={() =>
+            setTimeSortOverride(timeDescending ? "asc" : "desc")
+          }
           selectedEventKey={selectedEventKey}
           onSelectEvent={setSelectedEventKey}
+          washKeys={hoverLink?.source === "marker" ? hoverLink.keys : kNoKeys}
+          onHoverRow={(key) =>
+            setHoverLink(key !== null ? { source: "row", keys: [key] } : null)
+          }
           onOpenSample={openSample}
         />
       </div>

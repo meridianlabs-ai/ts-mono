@@ -9,11 +9,17 @@ import {
 import { SampleSummary } from "../../../../client/api/types";
 
 import {
+  configMarkers,
   densestTerminationBin,
   dotLadderStep,
+  HistoryRow,
   historyRows,
+  logMarkers,
+  rowCategory,
+  rowHaystack,
   sampleStatus,
   Termination,
+  withConfigOrdinals,
 } from "./timelineData";
 
 const epoch = (iso: string): number => Date.parse(iso) / 1000;
@@ -68,6 +74,116 @@ describe("densestTerminationBin", () => {
   it("degrades to the dot count on an empty window", () => {
     const window = { start: 5, end: 5 };
     expect(densestTerminationBin([dot(5), dot(5)], window)).toBe(2);
+  });
+});
+
+describe("rowCategory", () => {
+  const base = { time: 0, postRun: false };
+  const configUpdate = {
+    scope: "task",
+    changes: [
+      {
+        config: "eval",
+        name: "max_samples",
+        previous: 20,
+        value: 32,
+        cleared: false,
+      },
+    ],
+    provenance: {
+      timestamp: "2026-07-20T18:26:00+00:00",
+      author: "charles@meridianlabs.ai",
+      reason: "raising concurrency",
+      metadata: {},
+    },
+  } as ConfigUpdate;
+
+  it("splits the old Runtime junk drawer into limits, errors, and run", () => {
+    expect(
+      rowCategory({ ...base, kind: "sampleLimit", sample: sample({}) })
+    ).toBe("limits");
+    expect(
+      rowCategory({ ...base, kind: "sampleError", sample: sample({}) })
+    ).toBe("errors");
+    expect(
+      rowCategory({ ...base, kind: "fallback", sample: sample({}), line: "" })
+    ).toBe("errors");
+    expect(rowCategory({ ...base, kind: "runStart", detail: "" })).toBe("run");
+    expect(
+      rowCategory({ ...base, kind: "runEnd", status: "success", detail: "" })
+    ).toBe("run");
+    expect(
+      rowCategory({
+        ...base,
+        kind: "connections",
+        model: "m1",
+        reason: "manual",
+        from: 5,
+        to: 10,
+        count: 1,
+      })
+    ).toBe("connections");
+    expect(
+      rowCategory({ ...base, kind: "config", update: configUpdate, index: 0 })
+    ).toBe("config");
+  });
+
+  it("builds a search haystack from knob path, sample id, and author", () => {
+    const row: HistoryRow = {
+      ...base,
+      kind: "config",
+      update: configUpdate,
+      index: 0,
+    };
+    const haystack = rowHaystack(row).toLowerCase();
+    expect(haystack).toContain("eval.max_samples");
+    expect(haystack).toContain("charles@meridianlabs.ai");
+    expect(haystack).toContain("raising concurrency");
+    expect(
+      rowHaystack({ ...base, kind: "sampleLimit", sample: sample({ id: 33 }) })
+    ).toContain("sample 33");
+  });
+});
+
+describe("withConfigOrdinals", () => {
+  const configUpdate = (timestamp: string): ConfigUpdate =>
+    ({
+      scope: "task",
+      changes: [],
+      provenance: { timestamp, author: "a", metadata: {} },
+    }) as unknown as ConfigUpdate;
+
+  it("numbers config markers chronologically, skipping tag edits", () => {
+    const config = configMarkers(
+      [
+        configUpdate("2026-07-20T18:26:02+00:00"),
+        configUpdate("2026-07-20T18:26:00+00:00"),
+      ],
+      undefined
+    );
+    const logs = logMarkers(
+      [
+        {
+          edits: [{ type: "tags", tags_add: ["t"], tags_remove: [] }],
+          provenance: {
+            timestamp: "2026-07-20T18:26:01+00:00",
+            author: "a",
+            metadata: {},
+          },
+        },
+      ],
+      undefined
+    );
+    const markers = withConfigOrdinals(
+      [...config, ...logs].sort((a, b) => a.time - b.time)
+    );
+    // configMarkers sorts by time, so the update at :00 is ordinal 1 even
+    // though it was recorded second; the tag edit between stays unnumbered.
+    expect(markers.map((m) => [m.kind, m.ordinal])).toEqual([
+      ["config", 1],
+      ["log", undefined],
+      ["config", 2],
+    ]);
   });
 });
 

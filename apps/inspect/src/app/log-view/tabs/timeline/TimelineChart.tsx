@@ -51,7 +51,14 @@ const kTermPlotTop = kPlotTop + 10;
 const kBinWidth = 8;
 const kMaxPopoverScores = 4;
 const kPostRunGutter = 72;
-const kMarkerTop = 10;
+// Marker rail: a 13px ordinal box above the diamond head (canvas 36a–36c).
+const kOrdinalTop = 2;
+const kMarkerTop = 22;
+// Bands shift down to clear the ordinal boxes when markers exist.
+const kMarkerHeadroom = 18;
+// Config markers closer than this merge into one badge — pixel-based, so
+// clusters dissolve on a wider window and ordinals never renumber.
+const kClusterGapPx = 10;
 
 /** HTML status dots (popovers): hollow ring for started, solid otherwise. */
 const statusDotStyle = (status: Termination["status"]): CSSProperties =>
@@ -155,6 +162,10 @@ export interface TimelineChartProps {
   markers: TimelineMarker[];
   selectedMarker: string | null;
   onSelectMarker: (key: string | null) => void;
+  /** Row hovered in the History list — its marker lights up (canvas 36c). */
+  hoveredRowKey?: string | null;
+  /** Hovering a marker washes its History row(s); null clears. */
+  onHoverMarker?: (keys: string[] | null) => void;
   /** Renders sample scores in the popover with the samples-list treatment. */
   evalDescriptor?: EvalDescriptor | null;
   /** Amber cross-reference for a hovered limit-terminated dot, if any. */
@@ -180,6 +191,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   markers,
   selectedMarker,
   onSelectMarker,
+  hoveredRowKey,
+  onHoverMarker,
   evalDescriptor,
   limitCrossReference,
   onOpenSample,
@@ -204,10 +217,15 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   }, []);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [lineHover, setLineHover] = useState<LineHover | null>(null);
+  // Hovered config marker/cluster — its popover replaces inline labels.
+  const [markerHover, setMarkerHover] = useState<{
+    x: number;
+    members: TimelineMarker[];
+  } | null>(null);
   // Running logs — monotonic growth: the rail derives from the densest bin
   // seen so far, so a live refresh never reflows the band shorter or steps
   // the dots back up the radius ladder. Keyed by window start (a new log
-  // resets it); updated by an effect after the bins are computed.
+  // resets it); adjusted in render, guarded so it cannot loop.
   const [binHighWater, setBinHighWater] = useState({ key: 0, value: 0 });
   const popoverCloseTimer = useRef<number | null>(null);
 
@@ -291,7 +309,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 
   // Bands stack in the same order as the picker chips above the chart.
   const bands: Band[] = [];
-  let cursor = 0;
+  let cursor = markers.length > 0 ? kMarkerHeadroom : 0;
   if (showActiveSamples && activeSeries.length > 0) {
     bands.push({ kind: "active", top: cursor });
     cursor += kBandHeight;
@@ -757,118 +775,281 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 
   // ── config markers ───────────────────────────────────────────────────
 
+  interface MarkerGroup {
+    /** Badge/diamond center x. */
+    x: number;
+    /** One marker, or a pixel-merged run of config markers. */
+    members: TimelineMarker[];
+    postRun: boolean;
+  }
+
+  const configTotal = markers.filter((m) => m.kind === "config").length;
+
+  const groupKeys = (group: MarkerGroup): string[] =>
+    group.members.map((m) => markerKey(m.kind, m.index));
+
+  // "3" for a single marker, "4–5" for a merged cluster.
+  const ordinalBadge = (members: TimelineMarker[]): string => {
+    const first = members[0]?.ordinal;
+    const last = members[members.length - 1]?.ordinal;
+    return members.length > 1 ? `${first}–${last}` : String(first ?? "");
+  };
+
+  const markerAria = (group: MarkerGroup): string => {
+    const first = group.members[0]!;
+    if (first.kind === "log") return `tag/metadata edit, ${first.label}`;
+    if (group.members.length > 1) {
+      return `config changes ${ordinalBadge(group.members)} of ${configTotal}`;
+    }
+    const change = first.update.changes[0];
+    const changeText = change
+      ? `${change.name} ${formatShort(change.previous)} to ` +
+        formatShort(change.value)
+      : first.label;
+    return `config change ${first.ordinal} of ${configTotal}, ${changeText}`;
+  };
+
+  const renderMarkerGroup = (group: MarkerGroup) => {
+    const keys = groupKeys(group);
+    const isLog = group.members[0]!.kind === "log";
+    const cluster = group.members.length > 1;
+    const selected = selectedMarker !== null && keys.includes(selectedMarker);
+    // Hover from the History row lights the marker up (canvas 36c); click
+    // holds the same treatment until the next hover.
+    const active =
+      selected || (hoveredRowKey != null && keys.includes(hoveredRowKey));
+    const badge = isLog ? "" : ordinalBadge(group.members);
+    const mx = group.x;
+    const size = group.postRun
+      ? active
+        ? 10
+        : 6
+      : active
+        ? cluster
+          ? 16
+          : 14
+        : cluster
+          ? 10
+          : 8;
+    const boxW = Math.max(13, 6 + badge.length * 5.5);
+    const activate = () => {
+      if (!isLog) setMarkerHover({ x: mx, members: group.members });
+      onHoverMarker?.(keys);
+    };
+    const deactivate = () => {
+      setMarkerHover(null);
+      onHoverMarker?.(null);
+    };
+    const toggle = () => onSelectMarker(selected ? null : (keys[0] ?? null));
+    return (
+      <g
+        key={group.postRun ? `post-${keys[0]}` : keys[0]}
+        className={clsx(
+          styles.marker,
+          group.postRun && styles.markerPostRun,
+          active && styles.markerActive
+        )}
+        role="button"
+        tabIndex={0}
+        aria-label={markerAria(group)}
+        onClick={toggle}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            toggle();
+          }
+        }}
+        onMouseEnter={activate}
+        onMouseLeave={deactivate}
+        onFocus={activate}
+        onBlur={deactivate}
+      >
+        <line
+          className={clsx(
+            styles.markerLine,
+            isLog && styles.markerLineLog,
+            active && !isLog && styles.markerLineActive,
+            active && isLog && styles.markerLineLogActive
+          )}
+          x1={mx}
+          x2={mx}
+          y1={kMarkerTop + size / 2 + 2}
+          y2={axisY}
+        />
+        <rect
+          className={clsx(
+            styles.markerDiamond,
+            isLog && styles.markerDiamondLog,
+            active && !isLog && styles.markerDiamondActive,
+            active && isLog && styles.markerDiamondLogActive
+          )}
+          x={mx - size / 2}
+          y={kMarkerTop - size / 2}
+          width={size}
+          height={size}
+          transform={`rotate(45 ${mx} ${kMarkerTop})`}
+        >
+          {isLog && <title>{group.members[0]!.label}</title>}
+        </rect>
+        {!isLog &&
+          (active ? (
+            // The diamond fills solid with the ordinal reversed out in white.
+            <text
+              className={styles.markerDiamondText}
+              x={mx}
+              y={kMarkerTop + 2.5}
+              textAnchor="middle"
+            >
+              {badge}
+            </text>
+          ) : (
+            <Fragment>
+              <rect
+                className={styles.ordinalBoxRect}
+                x={mx - boxW / 2}
+                y={kOrdinalTop}
+                width={boxW}
+                height={13}
+                rx={2}
+              />
+              <text
+                className={styles.ordinalBoxText}
+                x={mx}
+                y={kOrdinalTop + 9.5}
+                textAnchor="middle"
+              >
+                {badge}
+              </text>
+            </Fragment>
+          ))}
+      </g>
+    );
+  };
+
   const renderMarkers = () => {
+    const groups: MarkerGroup[] = [];
+    for (const marker of markers) {
+      if (marker.postRun) continue;
+      const mx = x(marker.time);
+      if (marker.kind === "config") {
+        const last = groups[groups.length - 1];
+        const lastMember = last?.members[last.members.length - 1];
+        if (
+          last &&
+          lastMember?.kind === "config" &&
+          mx - x(lastMember.time) < kClusterGapPx
+        ) {
+          last.members.push(marker);
+          last.x = (x(last.members[0]!.time) + mx) / 2;
+        } else {
+          groups.push({ x: mx, members: [marker], postRun: false });
+        }
+      } else {
+        groups.push({ x: mx, members: [marker], postRun: false });
+      }
+    }
     const postRun = markers.filter((m) => m.postRun);
     return (
       <g key="markers">
-        {markers
-          .filter((m) => !m.postRun)
-          .map((marker) => {
-            const key = markerKey(marker.kind, marker.index);
-            const isLog = marker.kind === "log";
-            const mx = x(marker.time);
-            const selected = selectedMarker === key;
-            const size = selected ? 12 : 8;
+        {groups.map(renderMarkerGroup)}
+        {postRun.map((marker, i) =>
+          renderMarkerGroup({
+            x: Math.min(plotRight + 32 + i * 16, width - 8),
+            members: [marker],
+            postRun: true,
+          })
+        )}
+      </g>
+    );
+  };
+
+  // Hover popover: knob path, previous → value, author, scope, reason —
+  // the label lives here and in the History row, not inline on the rail.
+  const renderMarkerPopover = () => {
+    if (!markerHover) return null;
+    const members = markerHover.members.filter((m) => m.kind === "config");
+    const first = members[0];
+    const last = members[members.length - 1];
+    if (!first || !last) return null;
+    const cluster = members.length > 1;
+    const left = Math.min(
+      Math.max(markerHover.x - 24, 0),
+      Math.max(width - 300, 0)
+    );
+    return (
+      <div
+        className={styles.markerPopover}
+        style={{ left, top: kMarkerTop + 14 }}
+      >
+        <div className={styles.markerPopoverHeader}>
+          <span className={styles.markerPopoverOrdinal}>
+            {ordinalBadge(members)}
+          </span>
+          <span>
+            {cluster ? `${members.length} config changes` : "Config change"}
+          </span>
+          <span className={styles.markerPopoverTime}>
+            {fmtTimeSec(first.time)}
+            {cluster ? ` – ${fmtTimeSec(last.time)}` : ""}
+          </span>
+        </div>
+        <div className={styles.markerPopoverBody}>
+          {members.map((member) => {
+            if (member.kind !== "config") return null;
+            const provenance = member.update.provenance;
             return (
-              <g
-                key={key}
-                className={styles.marker}
-                onClick={() => onSelectMarker(selected ? null : key)}
-              >
-                <line
-                  className={clsx(
-                    styles.markerLine,
-                    isLog && styles.markerLineLog,
-                    selected && styles.markerLineSelected
-                  )}
-                  x1={mx}
-                  x2={mx}
-                  y1={kMarkerTop + 6}
-                  y2={axisY}
-                />
-                <rect
-                  className={clsx(
-                    styles.markerDiamond,
-                    isLog && styles.markerDiamondLog,
-                    selected && styles.markerDiamondSelected
-                  )}
-                  x={mx - size / 2}
-                  y={kMarkerTop - size / 2}
-                  width={size}
-                  height={size}
-                  transform={`rotate(45 ${mx} ${kMarkerTop})`}
-                >
-                  <title>{marker.label}</title>
-                </rect>
-                <text
-                  className={clsx(
-                    styles.markerLabel,
-                    isLog && styles.markerLabelLog,
-                    selected && styles.markerLabelSelected
-                  )}
-                  x={mx + 12}
-                  y={kMarkerTop + 3}
-                >
-                  {marker.label}
-                </text>
-              </g>
+              <div key={member.index} className={styles.markerPopoverEntry}>
+                {member.update.changes.map((change, i) => (
+                  <div key={i} className={styles.markerPopoverChange}>
+                    {cluster && i === 0 && (
+                      <span className={styles.markerPopoverOrdinal}>
+                        {member.ordinal}
+                      </span>
+                    )}
+                    {change.config}.{change.name}{" "}
+                    {change.cleared ? (
+                      <span className={styles.markerPopoverMuted}>
+                        override cleared → launch value
+                      </span>
+                    ) : (
+                      <Fragment>
+                        <span className={styles.markerPopoverMuted}>
+                          {formatShort(change.previous)} →{" "}
+                        </span>
+                        {formatShort(change.value)}
+                      </Fragment>
+                    )}
+                  </div>
+                ))}
+                {cluster ? (
+                  <div className={styles.markerPopoverByline}>
+                    {provenance.author} · {member.update.scope}
+                    {member.update.changes.some(
+                      (change) => change.config === "concurrency"
+                    )
+                      ? " · audit-only, not folded"
+                      : ""}
+                    {provenance.reason ? ` · “${provenance.reason}”` : ""}
+                  </div>
+                ) : (
+                  <div className={styles.markerPopoverMeta}>
+                    <span className={styles.markerPopoverLabel}>by</span>
+                    <span>{provenance.author}</span>
+                    <span className={styles.markerPopoverLabel}>scope</span>
+                    <span>{member.update.scope}</span>
+                    {provenance.reason ? (
+                      <Fragment>
+                        <span className={styles.markerPopoverLabel}>why</span>
+                        <span>{provenance.reason}</span>
+                      </Fragment>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             );
           })}
-        {postRun.map((marker, i) => {
-          const key = markerKey(marker.kind, marker.index);
-          const isLog = marker.kind === "log";
-          const mx = Math.min(plotRight + 32 + i * 16, width - 8);
-          const selected = selectedMarker === key;
-          // smaller head than in-run markers — the gutter is narrow
-          const size = selected ? 9 : 6;
-          return (
-            <g
-              key={`post-${key}`}
-              className={clsx(styles.marker, styles.markerPostRun)}
-              onClick={() => onSelectMarker(selected ? null : key)}
-            >
-              <line
-                className={clsx(
-                  styles.markerLine,
-                  isLog && styles.markerLineLog,
-                  selected && styles.markerLineSelected
-                )}
-                x1={mx}
-                x2={mx}
-                y1={kMarkerTop + 4}
-                y2={axisY}
-              />
-              <rect
-                className={clsx(
-                  styles.markerDiamond,
-                  isLog && styles.markerDiamondLog,
-                  selected && styles.markerDiamondSelected
-                )}
-                x={mx - size / 2}
-                y={kMarkerTop - size / 2}
-                width={size}
-                height={size}
-                transform={`rotate(45 ${mx} ${kMarkerTop})`}
-              >
-                <title>{marker.label}</title>
-              </rect>
-              <text
-                className={clsx(
-                  styles.markerLabel,
-                  styles.markerLabelHover,
-                  isLog && styles.markerLabelLog,
-                  selected && styles.markerLabelSelected
-                )}
-                x={mx - 9}
-                y={kMarkerTop + 3}
-                textAnchor="end"
-              >
-                {marker.label}
-              </text>
-            </g>
-          );
-        })}
-      </g>
+        </div>
+      </div>
     );
   };
 
@@ -913,6 +1094,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         </svg>
       )}
       {renderPopover()}
+      {renderMarkerPopover()}
       {lineHover && (
         <div
           className={styles.lineTooltip}

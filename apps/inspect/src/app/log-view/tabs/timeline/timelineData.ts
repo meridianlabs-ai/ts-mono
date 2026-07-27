@@ -171,14 +171,29 @@ export type TimelineMarker = {
   time: number;
   /** Index into its source array — the History-row link. */
   index: number;
+  /** Tooltip/aria text — markers render only their ordinal inline. */
   label: string;
   postRun: boolean;
+  /** Chronological 1..N over config markers only (design canvas 36c). */
+  ordinal?: number;
 } & (
   { kind: "config"; update: ConfigUpdate } | { kind: "log"; update: LogUpdate }
 );
 
 export const markerKey = (kind: "config" | "log", index: number): string =>
   `${kind}:${index}`;
+
+/** Ordinals are assigned by chronological index over the whole run — cluster
+ *  merging on the chart never renumbers them. Tag/metadata markers stay
+ *  unnumbered, keeping the number space small and meaningful. */
+export const withConfigOrdinals = (
+  markers: TimelineMarker[]
+): TimelineMarker[] => {
+  let ordinal = 0;
+  return markers.map((marker) =>
+    marker.kind === "config" ? { ...marker, ordinal: ++ordinal } : marker
+  );
+};
 
 export const configMarkers = (
   updates: ConfigUpdate[] | null | undefined,
@@ -276,7 +291,43 @@ export const guideSegments = (
   return segments;
 };
 
-export type HistoryCategory = "config" | "tags" | "runtime" | "connections";
+/** One category per thing you'd filter for (design canvas 35c) — the old
+ *  Runtime junk drawer splits into limits / errors & retries / run. */
+export type HistoryCategory =
+  | "config"
+  | "connections"
+  | "limits"
+  | "errors"
+  | "tags"
+  | "run";
+
+export const kHistoryCategories: HistoryCategory[] = [
+  "config",
+  "connections",
+  "limits",
+  "errors",
+  "tags",
+  "run",
+];
+
+/** Canonical strings — short forms for Kind cells, long for filter pills. */
+export const kCategoryShort: Record<HistoryCategory, string> = {
+  config: "Config",
+  connections: "Conn",
+  limits: "Limits",
+  errors: "Errors",
+  tags: "Tags",
+  run: "Run",
+};
+
+export const kCategoryLong: Record<HistoryCategory, string> = {
+  config: "Config",
+  connections: "Connections",
+  limits: "Limits",
+  errors: "Errors & retries",
+  tags: "Tags & metadata",
+  run: "Run",
+};
 
 export type HistoryRow = { time: number; postRun: boolean } & (
   | { kind: "config"; update: ConfigUpdate; index: number }
@@ -306,8 +357,57 @@ export const rowCategory = (row: HistoryRow): HistoryCategory => {
       return "tags";
     case "connections":
       return "connections";
+    case "sampleLimit":
+      return "limits";
+    // A retry only exists because of an error, and a fallback is an error
+    // response — one category, so cause and effect share a filter.
+    case "sampleError":
+    case "fallback":
+      return "errors";
     default:
-      return "runtime";
+      return "run";
+  }
+};
+
+/** Free-text search haystack: knob path, sample id, author, reason … the
+ *  fields a per-column filter instinct actually wants (canvas 37a). */
+export const rowHaystack = (row: HistoryRow): string => {
+  switch (row.kind) {
+    case "config":
+      return [
+        ...row.update.changes.flatMap((change) => [
+          `${change.config}.${change.name}`,
+          formatShort(change.previous),
+          formatShort(change.value),
+        ]),
+        row.update.scope,
+        row.update.provenance.author,
+        row.update.provenance.reason ?? "",
+      ].join(" ");
+    case "logUpdate":
+      return [
+        ...row.update.edits.flatMap((edit) =>
+          edit.type === "tags"
+            ? [...edit.tags_add, ...edit.tags_remove]
+            : [...Object.keys(edit.metadata_set), ...edit.metadata_remove]
+        ),
+        row.update.provenance.author,
+        row.update.provenance.reason ?? "",
+      ].join(" ");
+    case "connections":
+      return `pool ${row.model} ${row.reason.replace(/_/g, " ")}`;
+    case "sampleError":
+      return `sample ${row.sample.id} error retried ${row.sample.error ?? ""}`;
+    case "sampleLimit":
+      return `sample ${row.sample.id} ${row.sample.limit ?? ""} limit`;
+    case "fallback":
+      return `sample ${row.sample.id} fallback ${row.line}`;
+    case "runStart":
+      return `run started ${row.detail}`;
+    case "runEnd":
+      return `run ${row.status} ${row.detail}`;
+    case "earlyStopping":
+      return `early stopping ${row.summary.manager}`;
   }
 };
 

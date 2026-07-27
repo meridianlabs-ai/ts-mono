@@ -8,19 +8,19 @@ import {
   useRef,
 } from "react";
 
-import { ConfigUpdate, LogUpdate } from "@tsmono/inspect-common/types";
-import {
-  ConnectionReasonBadge,
-  LimitTransition,
-} from "@tsmono/inspect-components/usage";
+import { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 
 import styles from "./HistoryList.module.css";
 import {
   formatShort,
   HistoryCategory,
   HistoryRow,
+  kCategoryLong,
+  kCategoryShort,
+  kHistoryCategories,
   markerKey,
   rowCategory,
+  rowHaystack,
 } from "./timelineData";
 
 // Tag/metadata edits can land days after the run — always show the date.
@@ -33,129 +33,21 @@ const fmtRowTime = (sec: number): string => {
   return `${day} ${date.toLocaleTimeString(undefined, { hour12: false })}`;
 };
 
-interface CategoryChipProps {
-  icon: string;
-  label: string;
-  kind: "config" | "tags" | "runtime" | "connections";
-  selected?: boolean;
-}
-
-const CategoryChip: FC<CategoryChipProps> = ({
-  icon,
-  label,
-  kind,
-  selected,
-}) => (
-  <span
-    className={clsx(
-      styles.categoryChip,
-      kind === "config" && styles.chipConfig,
-      kind === "tags" && styles.chipTags,
-      kind === "runtime" && styles.chipRuntime,
-      kind === "connections" && styles.chipConnections,
-      selected && styles.chipOnTint
-    )}
-  >
-    <i className={`bi ${icon}`} aria-hidden="true" />
-    {label}
-  </span>
-);
-
-const PostRunChip: FC = () => (
-  <span className={styles.postRunChip}>post-run</span>
-);
-
-const ScopePill: FC<{ update: ConfigUpdate }> = ({ update }) => {
-  const inherited = update.provenance.metadata?.["inherited"] === true;
-  return (
-    <span className={styles.scopePill}>
-      {update.scope}
-      {inherited ? " · inherited" : ""}
-    </span>
-  );
+const kReasonText: Record<ConnectionLimitChange["reason"], string> = {
+  slow_start: "slow start",
+  steady_state_up: "steady up",
+  rate_limit: "rate limited",
+  manual: "manual",
 };
 
-const ConfigChangeLines: FC<{ update: ConfigUpdate }> = ({ update }) => (
-  <div className={styles.changeLines}>
-    {update.changes.map((change, i) => (
-      <div key={i} className={styles.changeLine}>
-        {change.config === "concurrency" ? (
-          <Fragment>
-            {change.name}{" "}
-            <span className={styles.muted}>
-              {formatShort(change.previous)} →{" "}
-            </span>
-            <b>{formatShort(change.value)}</b>{" "}
-            <span className={styles.auditOnlyChip}>
-              audit-only — not folded into config
-            </span>
-          </Fragment>
-        ) : change.cleared ? (
-          <Fragment>
-            <span className={styles.muted}>{change.config}.</span>
-            {change.name}{" "}
-            <span className={styles.muted}>
-              override cleared → launch value
-            </span>
-          </Fragment>
-        ) : (
-          <Fragment>
-            <span className={styles.muted}>{change.config}.</span>
-            {change.name}{" "}
-            <span className={styles.muted}>
-              {formatShort(change.previous)} →{" "}
-            </span>
-            <b>{formatShort(change.value)}</b>
-            {change.value === null && change.previous !== null ? (
-              <span className={styles.muted}> (limit lifted)</span>
-            ) : null}
-          </Fragment>
-        )}
-      </div>
-    ))}
-  </div>
-);
-
-const LogUpdateLines: FC<{ update: LogUpdate }> = ({ update }) => (
-  <div className={styles.changeLines}>
-    {update.edits.map((edit, i) => {
-      if (edit.type === "tags") {
-        const parts = [
-          ...edit.tags_add.map((t) => `+${t}`),
-          ...edit.tags_remove.map((t) => `−${t}`),
-        ];
-        return (
-          <div key={i} className={styles.changeLine}>
-            {parts.join("  ")}
-          </div>
-        );
-      }
-      const metadataEdit = edit;
-      return (
-        <Fragment key={i}>
-          {/* "set", not "∅ →" — metadata_set can overwrite an existing key
-              (the schema carries no previous value). */}
-          {Object.entries(metadataEdit.metadata_set).map(([key, value]) => (
-            <div key={`set-${key}`} className={styles.changeLine}>
-              {key} <span className={styles.muted}>set to </span>
-              <b>{JSON.stringify(value)}</b>
-            </div>
-          ))}
-          {metadataEdit.metadata_remove.map((key) => (
-            <div key={`rm-${key}`} className={styles.changeLine}>
-              {key} <span className={styles.muted}>removed</span>
-            </div>
-          ))}
-        </Fragment>
-      );
-    })}
-  </div>
-);
-
-const logUpdateChip = (update: LogUpdate): { icon: string; label: string } =>
-  update.edits.some((edit) => edit.type === "metadata")
-    ? { icon: "bi-table", label: "Metadata" }
-    : { icon: "bi-tags", label: "Tags" };
+const kPillClass: Record<HistoryCategory, string> = {
+  config: styles.pillConfig!,
+  connections: styles.pillConnections!,
+  limits: styles.pillLimits!,
+  errors: styles.pillErrors!,
+  tags: styles.pillTags!,
+  run: styles.pillRun!,
+};
 
 // The chart-linkable rows: config ◆ and tag/metadata ◆ share the rail.
 const rowKey = (row: HistoryRow): string | undefined =>
@@ -165,12 +57,38 @@ const rowKey = (row: HistoryRow): string | undefined =>
       ? markerKey("log", row.index)
       : undefined;
 
+// Local part only — the full address lives in the cell's title.
+const byInfo = (row: HistoryRow): { text: string; title?: string } => {
+  switch (row.kind) {
+    case "config":
+    case "logUpdate": {
+      const author = row.update.provenance.author;
+      return { text: author.split("@")[0] || author, title: author };
+    }
+    case "runStart":
+    case "runEnd":
+      return { text: "—" };
+    default:
+      return { text: "system" };
+  }
+};
+
 export interface HistoryListProps {
   rows: HistoryRow[];
-  enabledCategories: Set<HistoryCategory>;
+  /** Config-marker ordinals keyed by markerKey — the shared rail token. */
+  ordinals: Map<string, number>;
+  /** Empty set = All; selection narrows additively (canvas 37a). */
+  selectedCategories: Set<HistoryCategory>;
   onToggleCategory: (category: HistoryCategory | "all") => void;
+  search: string;
+  onSearchChange: (search: string) => void;
+  timeDescending: boolean;
+  onToggleTimeSort: () => void;
   selectedEventKey: string | null;
   onSelectEvent: (key: string | null) => void;
+  /** Rows washed lavender while their marker is hovered on the rail. */
+  washKeys: string[];
+  onHoverRow: (key: string | null) => void;
   onOpenSample?: (
     id: string | number,
     epoch: number,
@@ -180,10 +98,17 @@ export interface HistoryListProps {
 
 export const HistoryList: FC<HistoryListProps> = ({
   rows,
-  enabledCategories,
+  ordinals,
+  selectedCategories,
   onToggleCategory,
+  search,
+  onSearchChange,
+  timeDescending,
+  onToggleTimeSort,
   selectedEventKey,
   onSelectEvent,
+  washKeys,
+  onHoverRow,
   onOpenSample,
 }) => {
   const selectedRef = useRef<HTMLDivElement | null>(null);
@@ -202,88 +127,199 @@ export const HistoryList: FC<HistoryListProps> = ({
     const category = rowCategory(row);
     counts.set(category, (counts.get(category) ?? 0) + 1);
   }
-  const visible = rows.filter((row) => enabledCategories.has(rowCategory(row)));
-
-  const filters: { id: HistoryCategory; label: string }[] = [
-    { id: "config", label: "Config" },
-    { id: "tags", label: "Tags & metadata" },
-    { id: "runtime", label: "Runtime" },
-    { id: "connections", label: "Connections" },
-  ];
-
-  const allOn = filters.every(
-    (f) => (counts.get(f.id) ?? 0) === 0 || enabledCategories.has(f.id)
+  const query = search.trim().toLowerCase();
+  const visible = rows.filter(
+    (row) =>
+      (selectedCategories.size === 0 ||
+        selectedCategories.has(rowCategory(row))) &&
+      (query === "" || rowHaystack(row).toLowerCase().includes(query))
   );
+  const ordered = timeDescending ? [...visible].reverse() : visible;
 
-  const rowBody = (row: HistoryRow): { chip: ReactNode; detail: ReactNode } => {
+  const openLink = (sample: {
+    id: string | number;
+    epoch: number;
+  }): ReactNode =>
+    onOpenSample ? (
+      <button
+        type="button"
+        className={styles.openSample}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpenSample(sample.id, sample.epoch, event);
+        }}
+      >
+        open →
+      </button>
+    ) : null;
+
+  // One sentence per row: body colour for the event itself, muted for
+  // everything parenthetical, mono (never bold) separating values from
+  // prose (canvas 37a).
+  const eventCell = (row: HistoryRow): ReactNode => {
     switch (row.kind) {
-      case "config":
-        return {
-          chip: (
-            <CategoryChip
-              icon="bi-sliders"
-              label="Config"
-              kind="config"
-              selected={selectedEventKey === rowKey(row)}
-            />
-          ),
-          detail: (
-            <div className={styles.detailStack}>
-              <div className={styles.detailHead}>
-                <span className={styles.author}>
-                  {row.update.provenance.author}
-                </span>
-                <ScopePill update={row.update} />
-                {row.update.provenance.reason ? (
+      case "config": {
+        const ordinal = ordinals.get(markerKey("config", row.index));
+        const inherited =
+          row.update.provenance.metadata?.["inherited"] === true;
+        return (
+          <Fragment>
+            {ordinal !== undefined && (
+              <span className={styles.ordinalBox}>{ordinal}</span>
+            )}
+            {row.update.changes.map((change, i) => (
+              <Fragment key={i}>
+                {i > 0 && <span className={styles.muted}>{" · "}</span>}
+                <span className={styles.mono}>
+                  {change.config}.{change.name}
+                </span>{" "}
+                {change.cleared ? (
                   <span className={styles.muted}>
-                    {row.update.provenance.reason}
+                    override cleared → launch value
                   </span>
-                ) : null}
-                {row.postRun ? <PostRunChip /> : null}
-              </div>
-              <ConfigChangeLines update={row.update} />
-            </div>
-          ),
-        };
-      case "logUpdate": {
-        const chip = logUpdateChip(row.update);
-        return {
-          chip: (
-            <CategoryChip
-              icon={chip.icon}
-              label={chip.label}
-              kind="tags"
-              selected={selectedEventKey === rowKey(row)}
-            />
-          ),
-          detail: (
-            <div className={styles.detailStack}>
-              <div className={styles.detailHead}>
-                <span className={styles.author}>
-                  {row.update.provenance.author}
-                </span>
-                {row.update.provenance.reason ? (
+                ) : (
+                  <Fragment>
+                    <span className={clsx(styles.mono, styles.muted)}>
+                      {formatShort(change.previous)} →{" "}
+                    </span>
+                    <span className={styles.mono}>
+                      {formatShort(change.value)}
+                    </span>
+                    {change.value === null && change.previous !== null ? (
+                      <span className={styles.muted}> (limit lifted)</span>
+                    ) : null}
+                  </Fragment>
+                )}
+                {change.config === "concurrency" && (
                   <span className={styles.muted}>
-                    {row.update.provenance.reason}
+                    {" · audit-only, not folded"}
                   </span>
-                ) : null}
-                {row.postRun ? <PostRunChip /> : null}
-              </div>
-              <LogUpdateLines update={row.update} />
-            </div>
-          ),
-        };
+                )}
+              </Fragment>
+            ))}
+            <span className={styles.muted}>
+              {" · "}
+              {row.update.scope} scope
+              {inherited ? " · inherited" : ""}
+            </span>
+            {row.update.provenance.reason ? (
+              <span className={styles.muted}>
+                {" · “"}
+                {row.update.provenance.reason}
+                {"”"}
+              </span>
+            ) : null}
+            {row.postRun && <span className={styles.muted}> · post-run</span>}
+          </Fragment>
+        );
       }
+      case "logUpdate": {
+        const parts: ReactNode[] = [];
+        row.update.edits.forEach((edit, i) => {
+          if (edit.type === "tags") {
+            const tags = [
+              ...edit.tags_add.map((tag) => `+${tag}`),
+              ...edit.tags_remove.map((tag) => `−${tag}`),
+            ];
+            if (tags.length > 0) {
+              parts.push(
+                <span key={`tags-${i}`} className={styles.mono}>
+                  {tags.join("  ")}
+                </span>
+              );
+            }
+          } else {
+            // "set", not "∅ →" — metadata_set can overwrite an existing key
+            // (the schema carries no previous value).
+            for (const [key, value] of Object.entries(edit.metadata_set)) {
+              parts.push(
+                <Fragment key={`set-${i}-${key}`}>
+                  <span className={styles.mono}>{key}</span>
+                  <span className={styles.muted}> set to </span>
+                  <span className={styles.mono}>{JSON.stringify(value)}</span>
+                </Fragment>
+              );
+            }
+            for (const key of edit.metadata_remove) {
+              parts.push(
+                <Fragment key={`rm-${i}-${key}`}>
+                  <span className={styles.mono}>{key}</span>
+                  <span className={styles.muted}> removed</span>
+                </Fragment>
+              );
+            }
+          }
+        });
+        return (
+          <Fragment>
+            {parts.map((part, i) => (
+              <Fragment key={i}>
+                {i > 0 && <span className={styles.muted}>{" · "}</span>}
+                {part}
+              </Fragment>
+            ))}
+            {row.update.provenance.reason ? (
+              <span className={styles.muted}>
+                {" · “"}
+                {row.update.provenance.reason}
+                {"”"}
+              </span>
+            ) : null}
+            {row.postRun && <span className={styles.muted}> · post-run</span>}
+          </Fragment>
+        );
+      }
+      case "connections":
+        return (
+          <Fragment>
+            {row.to >= row.from ? "Pool raised" : "Pool cut"}{" "}
+            <span className={styles.mono}>{row.model}</span>{" "}
+            <span className={clsx(styles.mono, styles.muted)}>
+              {row.from} →{" "}
+            </span>
+            <span className={styles.mono}>{row.to}</span>
+            <span className={styles.muted}>
+              {" · "}
+              {kReasonText[row.reason]}
+              {row.count > 1 ? `, ×${row.count}` : ""}
+            </span>
+          </Fragment>
+        );
+      case "sampleLimit":
+        return (
+          <Fragment>
+            Sample <span className={styles.mono}>{row.sample.id}</span> hit{" "}
+            {row.sample.limit} limit {openLink(row.sample)}
+          </Fragment>
+        );
+      case "sampleError":
+        return (
+          <Fragment>
+            Sample <span className={styles.mono}>{row.sample.id}</span> errored
+            {(row.sample.retries ?? 0) > 0
+              ? `, retried ×${row.sample.retries}`
+              : ""}
+            <span className={styles.muted}> · {row.sample.error}</span>{" "}
+            {openLink(row.sample)}
+          </Fragment>
+        );
+      case "fallback":
+        return (
+          <Fragment>
+            Model fallback <span className={styles.mono}>{row.line}</span>
+            <span className={styles.muted}> · sample {row.sample.id}</span>
+          </Fragment>
+        );
       case "runStart":
-        return {
-          chip: <CategoryChip icon="bi-play" label="Run" kind="runtime" />,
-          detail: (
-            <div className={styles.detailHead}>
-              <span>Run started</span>
-              <span className={styles.monoDetail}>{row.detail}</span>
-            </div>
-          ),
-        };
+        return (
+          <Fragment>
+            Run started
+            <span className={clsx(styles.mono, styles.muted)}>
+              {" — "}
+              {row.detail}
+            </span>
+          </Fragment>
+        );
       case "runEnd": {
         const label =
           row.status === "cancelled"
@@ -291,134 +327,31 @@ export const HistoryList: FC<HistoryListProps> = ({
             : row.status === "error"
               ? "Run crashed"
               : "Run completed";
-        return {
-          chip: <CategoryChip icon="bi-check2" label="Run" kind="runtime" />,
-          detail: (
-            <div className={styles.detailHead}>
-              <span>{label}</span>
-              <span className={styles.monoDetail}>{row.detail}</span>
-            </div>
-          ),
-        };
+        return (
+          <Fragment>
+            {label}
+            <span className={clsx(styles.mono, styles.muted)}>
+              {" — "}
+              {row.detail}
+            </span>
+          </Fragment>
+        );
       }
-      case "connections":
-        return {
-          chip: (
-            <CategoryChip
-              icon="bi-activity"
-              label="Connections"
-              kind="connections"
-            />
-          ),
-          detail: (
-            <div className={styles.detailHead}>
-              <span>Connections</span>
-              <span className={styles.monoDetail}>{row.model}</span>
-              <LimitTransition oldLimit={row.from} newLimit={row.to} />
-              <ConnectionReasonBadge reason={row.reason} count={row.count} />
-            </div>
-          ),
-        };
-      case "sampleError":
-        return {
-          chip: (
-            <CategoryChip
-              icon="bi-arrow-repeat"
-              label="Runtime"
-              kind="runtime"
-            />
-          ),
-          detail: (
-            <div className={styles.detailHead}>
-              <span>
-                Sample error
-                {(row.sample.retries ?? 0) > 0 ? ", retried" : ""}
-              </span>
-              <span className={styles.monoDetail}>
-                sample {row.sample.id} · {row.sample.error}
-                {(row.sample.retries ?? 0) > 0
-                  ? ` · ${row.sample.retries} retr${row.sample.retries === 1 ? "y" : "ies"}`
-                  : ""}
-              </span>
-              {onOpenSample && (
-                <button
-                  type="button"
-                  className={styles.openSample}
-                  onClick={(event) =>
-                    onOpenSample(row.sample.id, row.sample.epoch, event)
-                  }
-                >
-                  open sample →
-                </button>
-              )}
-            </div>
-          ),
-        };
-      case "sampleLimit":
-        return {
-          chip: (
-            <CategoryChip
-              icon="bi-arrow-repeat"
-              label="Runtime"
-              kind="runtime"
-            />
-          ),
-          detail: (
-            <div className={styles.detailHead}>
-              <span>Sample hit {row.sample.limit}</span>
-              <span className={styles.monoDetail}>sample {row.sample.id}</span>
-              {onOpenSample && (
-                <button
-                  type="button"
-                  className={styles.openSample}
-                  onClick={(event) =>
-                    onOpenSample(row.sample.id, row.sample.epoch, event)
-                  }
-                >
-                  open sample →
-                </button>
-              )}
-            </div>
-          ),
-        };
-      case "fallback":
-        return {
-          chip: (
-            <CategoryChip
-              icon="bi-arrow-repeat"
-              label="Runtime"
-              kind="runtime"
-            />
-          ),
-          detail: (
-            <div className={styles.detailHead}>
-              <span>Model fallback</span>
-              <span className={styles.monoDetail}>
-                {row.line} (sample {row.sample.id})
-              </span>
-            </div>
-          ),
-        };
       case "earlyStopping":
-        return {
-          chip: (
-            <CategoryChip
-              icon="bi-arrow-repeat"
-              label="Runtime"
-              kind="runtime"
-            />
-          ),
-          detail: (
-            <div className={styles.detailHead}>
-              <span>Early stopping</span>
-              <span className={styles.monoDetail}>
-                {row.summary.manager} · {row.summary.early_stops.length} skipped
-              </span>
-            </div>
-          ),
-        };
+        return (
+          <Fragment>
+            Early stopping
+            <span className={clsx(styles.mono, styles.muted)}>
+              {" — "}
+              {row.summary.manager} · {row.summary.early_stops.length} skipped
+            </span>
+          </Fragment>
+        );
     }
   };
+
+  const allSelected = selectedCategories.size === 0;
+  const sortIcon = timeDescending ? "bi-arrow-down" : "bi-arrow-up";
 
   return (
     <div className={styles.container}>
@@ -426,42 +359,69 @@ export const HistoryList: FC<HistoryListProps> = ({
         <span className={styles.caption}>History</span>
         <button
           type="button"
-          className={clsx(styles.filterChip, allOn && styles.filterChipActive)}
+          className={clsx(
+            styles.filterPill,
+            styles.pillAll,
+            allSelected && styles.pillSelected
+          )}
           onClick={() => onToggleCategory("all")}
         >
-          All ({rows.length})
+          All <span className={styles.pillCount}>{rows.length}</span>
         </button>
-        {filters.map((filter) => {
-          const count = counts.get(filter.id) ?? 0;
-          const enabled = enabledCategories.has(filter.id);
+        {kHistoryCategories.map((category) => {
+          const count = counts.get(category) ?? 0;
+          const selected = selectedCategories.has(category);
           return (
             <button
-              key={filter.id}
+              key={category}
               type="button"
               className={clsx(
-                styles.filterChip,
-                enabled && count > 0 && styles.filterChipActive,
-                count === 0 && styles.filterChipEmpty
+                styles.filterPill,
+                kPillClass[category],
+                selected && styles.pillSelected,
+                count === 0 && styles.pillEmpty
               )}
-              onClick={() => onToggleCategory(filter.id)}
+              onClick={() => onToggleCategory(category)}
               disabled={count === 0}
             >
-              {enabled && count > 0 ? (
-                <i className="bi bi-check" aria-hidden="true" />
-              ) : null}
-              {filter.label} ({count})
+              {kCategoryLong[category]}{" "}
+              <span className={styles.pillCount}>{count}</span>
             </button>
           );
         })}
+        <input
+          type="text"
+          className={styles.search}
+          placeholder="filter by knob, sample, author"
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+        />
       </div>
       <div className={styles.list}>
-        {visible.length === 0 ? (
+        <div className={styles.headerRow}>
+          {/* The one sortable column — any other sort destroys the list's
+              causal read (canvas 37b). */}
+          <button
+            type="button"
+            className={styles.timeSort}
+            onClick={onToggleTimeSort}
+          >
+            Time
+            <i className={`bi ${sortIcon}`} aria-hidden="true" />
+          </button>
+          <span>Kind</span>
+          <span>Event</span>
+          <span className={styles.byHeader}>By</span>
+        </div>
+        {ordered.length === 0 ? (
           <div className={styles.empty}>No events</div>
         ) : (
-          visible.map((row, i) => {
-            const { chip, detail } = rowBody(row);
+          ordered.map((row, i) => {
             const key = rowKey(row);
+            const category = rowCategory(row);
             const selected = key !== undefined && selectedEventKey === key;
+            const washed = key !== undefined && washKeys.includes(key);
+            const by = byInfo(row);
             return (
               <div
                 key={i}
@@ -469,6 +429,7 @@ export const HistoryList: FC<HistoryListProps> = ({
                 className={clsx(
                   styles.row,
                   selected && styles.rowSelected,
+                  !selected && washed && styles.rowWash,
                   key !== undefined && styles.rowClickable
                 )}
                 onClick={
@@ -476,10 +437,25 @@ export const HistoryList: FC<HistoryListProps> = ({
                     ? () => onSelectEvent(selected ? null : key)
                     : undefined
                 }
+                onMouseEnter={
+                  key !== undefined ? () => onHoverRow(key) : undefined
+                }
+                onMouseLeave={
+                  key !== undefined ? () => onHoverRow(null) : undefined
+                }
               >
                 <div className={styles.time}>{fmtRowTime(row.time)}</div>
-                <div className={styles.chipCell}>{chip}</div>
-                <div className={styles.detail}>{detail}</div>
+                <div className={styles.kindCell}>
+                  <span
+                    className={clsx(styles.kindPill, kPillClass[category])}
+                  >
+                    {kCategoryShort[category]}
+                  </span>
+                </div>
+                <div className={styles.event}>{eventCell(row)}</div>
+                <div className={styles.by} title={by.title}>
+                  {by.text}
+                </div>
               </div>
             );
           })

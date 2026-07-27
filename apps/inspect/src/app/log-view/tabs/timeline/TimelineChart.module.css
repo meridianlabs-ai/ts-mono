@@ -122,6 +122,7 @@
 
 .marker {
   cursor: pointer;
+  outline: none;
 }
 
 .markerLine {
@@ -132,12 +133,15 @@
   stroke: #7fa8d0;
 }
 
-.markerLineSelected {
-  stroke: #5d3f9e;
+/* Row-hover / selection: the guide line thickens (canvas 36c). */
+.markerLineActive {
+  stroke: #6b4fa8;
+  stroke-width: 1.75;
 }
 
-.markerLineLog.markerLineSelected {
+.markerLineLogActive {
   stroke: #1d4f7c;
+  stroke-width: 1.75;
 }
 
 .markerDiamond {
@@ -151,39 +155,140 @@
   stroke: #1d4f7c;
 }
 
-.markerDiamondSelected {
-  stroke-width: 2;
+/* Deep lavender solid — the ordinal reverses out in white on top. */
+.markerDiamondActive {
+  fill: #6b4fa8;
+  stroke: #6b4fa8;
+}
+
+.markerDiamondLogActive {
+  fill: #1d4f7c;
+  stroke: #1d4f7c;
+}
+
+.markerDiamondText {
+  fill: #fff;
+  font-family: var(--bs-font-monospace);
+  font-size: 7px;
+  pointer-events: none;
+}
+
+/* The 13px bordered mono box — the same token the History row renders. */
+.ordinalBoxRect {
+  fill: var(--bs-body-bg);
+  stroke: #b9a5e0;
+}
+
+.ordinalBoxText {
+  fill: #5d3f9e;
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  pointer-events: none;
 }
 
 .markerPostRun {
   opacity: 0.45;
 }
 
-/* un-dim so the hover label is legible against the gutter */
-.markerPostRun:hover {
+.markerPostRun:hover,
+.markerPostRun:focus,
+.markerPostRun.markerActive {
   opacity: 1;
 }
 
-.markerLabel {
+.markerPopover {
+  position: absolute;
+  width: 300px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.markerPopoverHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-light-bg-subtle);
+  border-radius: 4px 4px 0 0;
+}
+
+.markerPopoverOrdinal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  border: 1px solid #b9a5e0;
+  border-radius: 2px;
+  color: #5d3f9e;
   font-family: var(--bs-font-monospace);
-  font-size: 10px;
-  fill: #4a2e73;
+  font-size: 9px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
-.markerLabelHover {
-  display: none;
+.markerPopoverTime {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-family: var(--bs-font-monospace);
+  font-size: 0.7rem;
 }
 
-.marker:hover .markerLabelHover {
-  display: block;
+.markerPopoverBody {
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
 }
 
-.markerLabelLog {
-  fill: #1d4f7c;
+.markerPopoverEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
-.markerLabelSelected {
-  font-weight: 600;
+.markerPopoverChange {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.markerPopoverMuted {
+  color: var(--bs-secondary-color);
+}
+
+.markerPopoverMeta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 0.8em;
+  row-gap: 0.1rem;
+  align-items: baseline;
+}
+
+.markerPopoverMeta > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.markerPopoverLabel {
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+}
+
+.markerPopoverByline {
+  color: var(--bs-secondary-color);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
 }
 
 .samplePopover {
@@ -313,12 +418,17 @@
   fill: #b49ae0;
 }
 
-:global([data-bs-theme="dark"]) .markerLabel {
+:global([data-bs-theme="dark"]) .ordinalBoxRect {
+  stroke: #4a3d63;
+}
+
+:global([data-bs-theme="dark"]) .ordinalBoxText {
   fill: #cbb8ec;
 }
 
-:global([data-bs-theme="dark"]) .markerLabelLog {
-  fill: #8db8dd;
+:global([data-bs-theme="dark"]) .markerPopoverOrdinal {
+  border-color: #4a3d63;
+  color: #cbb8ec;
 }
 
 :global([data-bs-theme="dark"]) .markerLineLog {
