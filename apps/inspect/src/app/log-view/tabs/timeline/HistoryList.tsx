@@ -446,9 +446,7 @@ export const HistoryList: FC<HistoryListProps> = ({
               >
                 <div className={styles.time}>{fmtRowTime(row.time)}</div>
                 <div className={styles.kindCell}>
-                  <span
-                    className={clsx(styles.kindPill, kPillClass[category])}
-                  >
+                  <span className={clsx(styles.kindPill, kPillClass[category])}>
                     {kCategoryShort[category]}
                   </span>
                 </div>

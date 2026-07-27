@@ -294,12 +294,7 @@ export const guideSegments = (
 /** One category per thing you'd filter for (design canvas 35c) — the old
  *  Runtime junk drawer splits into limits / errors & retries / run. */
 export type HistoryCategory =
-  | "config"
-  | "connections"
-  | "limits"
-  | "errors"
-  | "tags"
-  | "run";
+  "config" | "connections" | "limits" | "errors" | "tags" | "run";
 
 export const kHistoryCategories: HistoryCategory[] = [
   "config",

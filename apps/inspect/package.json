@@ -36,7 +36,7 @@
     "tsc": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check . || (prettier --write . && git --no-pager diff -- . && exit 1)",
+    "format:check": "prettier --check .",
     "e2e": "playwright test --config playwright.config.ts",
     "check-all": "pnpm tsc && pnpm lint:fix && pnpm format && pnpm test && pnpm build"
   },
