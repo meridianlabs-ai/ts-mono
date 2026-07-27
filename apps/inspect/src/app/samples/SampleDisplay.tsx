@@ -1018,6 +1018,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     key={sample.uuid || String(sample.id)}
                     id={sample.uuid || String(sample.id)}
                     retries={sample.error_retries}
+                    error={sample.error}
+                    limit={sample.limit}
                     scrollRef={scrollRef}
                   />
                 </div>
