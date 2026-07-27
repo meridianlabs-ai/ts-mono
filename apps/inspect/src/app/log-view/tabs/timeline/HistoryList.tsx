@@ -21,6 +21,7 @@ import {
   markerKey,
   rowCategory,
   rowHaystack,
+  sampleStatus,
 } from "./timelineData";
 
 // Tag/metadata edits can land days after the run — always show the date.
@@ -292,17 +293,24 @@ export const HistoryList: FC<HistoryListProps> = ({
             {row.sample.limit} limit {openLink(row.sample)}
           </Fragment>
         );
-      case "sampleError":
+      case "sampleError": {
+        // A cancellation is not a failure — the exception text carries no
+        // information beyond "cancelled", so leave it off.
+        const cancelled = sampleStatus(row.sample) === "cancelled";
         return (
           <Fragment>
-            Sample <span className={styles.mono}>{row.sample.id}</span> errored
+            Sample <span className={styles.mono}>{row.sample.id}</span>{" "}
+            {cancelled ? "cancelled" : "errored"}
             {(row.sample.retries ?? 0) > 0
               ? `, retried ×${row.sample.retries}`
               : ""}
-            <span className={styles.muted}> · {row.sample.error}</span>{" "}
+            {!cancelled && (
+              <span className={styles.muted}> · {row.sample.error}</span>
+            )}{" "}
             {openLink(row.sample)}
           </Fragment>
         );
+      }
       case "fallback":
         return (
           <Fragment>
@@ -325,7 +333,7 @@ export const HistoryList: FC<HistoryListProps> = ({
           row.status === "cancelled"
             ? "Run cancelled"
             : row.status === "error"
-              ? "Run crashed"
+              ? "Run failed"
               : "Run completed";
         return (
           <Fragment>

@@ -392,7 +392,9 @@ export const rowHaystack = (row: HistoryRow): string => {
     case "connections":
       return `pool ${row.model} ${row.reason.replace(/_/g, " ")}`;
     case "sampleError":
-      return `sample ${row.sample.id} error retried ${row.sample.error ?? ""}`;
+      return sampleStatus(row.sample) === "cancelled"
+        ? `sample ${row.sample.id} cancelled retried`
+        : `sample ${row.sample.id} error retried ${row.sample.error ?? ""}`;
     case "sampleLimit":
       return `sample ${row.sample.id} ${row.sample.limit ?? ""} limit`;
     case "fallback":
