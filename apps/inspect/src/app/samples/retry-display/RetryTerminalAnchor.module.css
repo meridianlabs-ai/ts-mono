@@ -33,8 +33,10 @@
 
 .marker-limit {
   background: var(--bs-warning);
-  /* White on Bootstrap's yellow fails contrast; use the dark emphasis tone. */
-  color: var(--bs-warning-text-emphasis);
+  /* White on Bootstrap's yellow fails contrast, and the theme bridge remaps
+     --bs-warning-text-emphasis to a light grey in dark themes while the amber
+     background never changes — so hardcode the dark emphasis tone. */
+  color: #664d03;
 }
 
 .copy {

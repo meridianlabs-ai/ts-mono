@@ -30,7 +30,7 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
   limit,
   scrollRef,
 }) => {
-  // Accordion: default to the most recent failure (closest to the success).
+  // Accordion: default to the most recent failure (closest to the final run).
   // Callers must pass key={id} so the state resets when the sample changes
   // (the same component instance can be reused on the inline display path).
   const [expandedIndex, setExpandedIndex] = useState<number | null>(

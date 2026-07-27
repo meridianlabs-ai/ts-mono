@@ -3,7 +3,7 @@ import { FC } from "react";
 
 import { EvalError, EvalSampleLimit } from "@tsmono/inspect-common";
 
-import { errorType } from "../error/error";
+import { deriveSampleStatus } from "../status/status";
 
 import styles from "./RetryTerminalAnchor.module.css";
 
@@ -19,10 +19,9 @@ const deriveOutcome = (
   error?: EvalError | null,
   limit?: EvalSampleLimit | null
 ): Outcome => {
-  if (error) {
-    return errorType(error.message) === "CancelledError"
-      ? "cancelled"
-      : "error";
+  const status = deriveSampleStatus(true, error?.message);
+  if (status === "error" || status === "cancelled") {
+    return status;
   }
   return limit ? "limit" : "success";
 };
