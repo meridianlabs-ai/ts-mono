@@ -1,17 +1,14 @@
 import type { ChatMessage, ModelEvent } from "@tsmono/inspect-common/types";
 
 export interface SummaryInputOptions {
-  /**
-   * Include tool-role messages. Set when the client emits no tool events, so
-   * tool results have nowhere else to appear.
-   */
+  /** Set when the client emits no tool events, so tool results have nowhere else to appear. */
   includeToolMessages?: boolean;
 }
 
 /**
  * The `event.input` messages the model event's SUMMARY panel draws: the
- * trailing run of user/system messages, plus a trailing assistant message
- * (which may be a compaction summary).
+ * trailing run of user/system messages — or, when `input` ends with an
+ * assistant message, only that message (see below).
  *
  * Single-sourced so the find index can't drift from what's on screen.
  */
@@ -19,20 +16,18 @@ export const summaryInputMessages = (
   event: ModelEvent,
   opts?: SummaryInputOptions
 ): ChatMessage[] => {
-  // Agent tool results have been filtered from input (shown on AgentCard
-  // instead), so contribute nothing from input; the trailing assistant message
-  // the panel shows comes from `output.choices`, not from this function.
+  // Input was filtered because AgentCard shows the agent's tool results
+  // instead; what the panel still draws comes from `output.choices`.
   if ((event as Record<string, unknown>).agentResultsFiltered) {
     return [];
   }
 
   const result: ChatMessage[] = [];
 
-  // A trailing assistant message (possibly a compaction summary) is taken as
-  // the whole result: `slice(-1)` leaves only that message for the walk below,
-  // which then breaks on it. Reads like it was meant to be `slice(0, -1)`, but
-  // this mirrors what ModelEventView renders today and changing it would change
-  // the panel.
+  // `slice(-1)` leaves the walk below only the trailing message, which it then
+  // breaks on — so a trailing assistant message becomes the entire result.
+  // Reads like `slice(0, -1)` was meant, but this is what ModelEventView
+  // renders today and changing it would change the panel.
   let offset: number | undefined = undefined;
   const lastMessage = event.input.at(-1);
   if (lastMessage?.role === "assistant") {

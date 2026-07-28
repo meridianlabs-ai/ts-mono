@@ -65,10 +65,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Output content only. Assistant `tool_calls` are deliberately absent:
-      // the following tool event draws them and already indexes `function` and
-      // `arguments`, so indexing here would double-count — and would be a
-      // phantom whenever ModelEventView omits them (`showToolCalls` false).
+      // Assistant `tool_calls` are deliberately absent: the following tool
+      // event draws them and already indexes `function`/`arguments`, so
+      // indexing here would double-count — and would be a phantom whenever
+      // ModelEventView omits them (`showToolCalls` false).
       if (modelEvent.output?.choices) {
         for (const choice of modelEvent.output.choices) {
           for (const text of extractContentText(choice.message.content)) {
@@ -76,17 +76,14 @@ export const extractEventFields = (event: EventType): [string, string][] => {
           }
         }
       }
-      // Only the messages the SUMMARY panel draws. Indexing the full input
-      // history counts text that never reaches the DOM, so `window.find` has
-      // nothing to anchor on and the match counter freezes mid-walk.
+      // Indexing the full input history counts text that never reaches the
+      // DOM, leaving `window.find` nothing to anchor on and freezing the
+      // counter mid-walk. Under-counts instead when a panel is expanded
+      // ("Show all messages", MESSAGES tab) — a miss beats a phantom.
       //
-      // Two known under-counts, both preferable to a phantom match:
-      // "Show all messages" / the MESSAGES tab draw more than this, and
-      // tool-role messages drawn when the client emits no tool events are
-      // skipped — `findAllMatches` gets a raw Event[] and can't compute that
-      // flag, so including them here alone would desync the two indexers
-      // (as can `agentResultsFiltered`, stamped only on the patched copy this
-      // function sees, not on the raw event `findAllMatches` reads).
+      // Keep this call option-free: `findAllMatches` re-derives fields from
+      // raw events, so anything node-specific desyncs the two indexers, as
+      // `agentResultsFiltered` (node-tree copy only) already can.
       for (const msg of summaryInputMessages(modelEvent)) {
         for (const text of extractContentText(msg.content)) {
           fields.push([msg.role, text]);

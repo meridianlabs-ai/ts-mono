@@ -41,9 +41,8 @@ describe("summaryInputMessages", () => {
     expect(summaryInputMessages(event)).toEqual([]);
   });
 
-  // Current ModelEventView behaviour: `slice(-1)` yields only the trailing
-  // message, so the backward walk breaks on it immediately. Preserved
-  // deliberately — see the note in modelSummaryMessages.ts.
+  // Surprising, and deliberately so — see the `slice(-1)` note in
+  // modelSummaryMessages.ts.
   it("returns only the trailing assistant message, not earlier messages", () => {
     const event = modelEvent([
       msg({ role: "assistant", content: "older answer" }),
