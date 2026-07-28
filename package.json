@@ -21,13 +21,19 @@
   },
   "//": "manypkg requires root deps in 'dependencies', not 'devDependencies'. The root is private and never published, so the distinction is meaningless here — it's a consistency convention.",
   "pnpm": {
+    "//": "eslint-plugin-react works with eslint 10 but hasn't published a release declaring ^10 peer support yet; drop this rule when it does.",
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "eslint-plugin-react>eslint": "^10.0.0"
+      }
+    },
     "overrides": {
       "yaml": "^2.4.2",
       "react-popper>react": "^19.2.0",
       "react-popper>react-dom": "^19.1.1",
       "glob": "^10.5.0",
       "js-yaml": "^4.3.0",
-      "brace-expansion": "^1.1.12",
+      "brace-expansion@1": "^1.1.12",
       "@isaacs/brace-expansion": "^5.0.1",
       "@codemirror/state": "^6.5.4",
       "lodash": ">=4.17.23",

@@ -188,11 +188,13 @@ export const openRemoteLogFile = async (
         throw error;
       } else if (error instanceof Error) {
         throw new Error(
-          `Failed to read or parse file ${file}: ${error.message}`
+          `Failed to read or parse file ${file}: ${error.message}`,
+          { cause: error }
         );
       } else {
         throw new Error(
-          `Failed to read or parse file ${file} - an unknown error occurred`
+          `Failed to read or parse file ${file} - an unknown error occurred`,
+          { cause: error }
         );
       }
     }

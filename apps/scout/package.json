@@ -77,7 +77,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^6.0.3",
-    "eslint": "^9.39.5",
+    "eslint": "^10.7.0",
     "eventsource": "^4.1.0",
     "jsdom": "^29.1.1",
     "markdown-it-mathjax3": "^5.2.0",
