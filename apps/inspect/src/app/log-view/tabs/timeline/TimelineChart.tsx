@@ -864,8 +864,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           formatShort(change.value)
       : first.label;
     return (
-      `config change ${first.ordinal} of ${configTotal}, ${changeText}` +
-      suffix
+      `config change ${first.ordinal} of ${configTotal}, ${changeText}` + suffix
     );
   };
 
