@@ -41,7 +41,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vscode-elements/react-elements": "^2.4.0",
-    "eslint": "^9.39.5",
+    "eslint": "^10.7.0",
     "jsdom": "^29.1.1",
     "json5": "^2.2.3",
     "react": "^19.2.7",

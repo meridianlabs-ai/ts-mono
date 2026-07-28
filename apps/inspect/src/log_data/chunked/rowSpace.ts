@@ -190,7 +190,7 @@ export class RowSpace {
    */
   rowIndexForOrdinal(ordinal: number): number {
     const c = this.events.chunkIndexOf(
-      Math.min(ordinal, this.events.count - 1)
+      Math.min(ordinal, this.events.knownCount - 1)
     );
     const rows = this.materializedRows.get(c);
     if (rows) {

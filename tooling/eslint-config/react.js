@@ -1,3 +1,4 @@
+import { fixupPluginRules } from "@eslint/compat";
 import reactPlugin from "eslint-plugin-react";
 import reactHooksPlugin from "eslint-plugin-react-hooks";
 import reactRefreshPlugin from "eslint-plugin-react-refresh";
@@ -10,7 +11,9 @@ export default tseslint.config(
   {
     files: ["**/*.{ts,tsx}"],
     plugins: {
-      react: reactPlugin,
+      // eslint-plugin-react still calls context APIs removed in ESLint 10
+      // (e.g. context.getFilename); fixup shims them until it ships v10 support.
+      react: fixupPluginRules(reactPlugin),
       "react-hooks": reactHooksPlugin,
       "react-refresh": reactRefreshPlugin,
     },

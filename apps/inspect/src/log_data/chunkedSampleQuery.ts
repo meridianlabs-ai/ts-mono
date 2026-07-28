@@ -12,19 +12,27 @@ import {
   openChunkedSample,
   type ChunkedSample,
 } from "./chunked";
+import { hydrateFullSample, shouldFullyHydrate } from "./chunkedHydrate";
 import { kSampleGcTimeMs } from "./sampleQuery";
 
 /**
- * A chunked-shape sample and the EvalSample synthesized from its shell.
+ * A chunked-shape sample and the EvalSample synthesized from it.
  * `null` (as the query datum) means the sample is a monolith — the caller
  * proceeds down the existing completed-sample path.
  */
 export interface ChunkedSampleData {
-  chunked: ChunkedSample;
   /**
-   * The shell presented as an EvalSample (sequences empty): scores,
-   * metadata, store and the other shell fields render through the existing
-   * sample UI; the transcript never reads `events` on this object.
+   * Present when the sample renders through the chunked windowed path.
+   * Absent when the sample was fully hydrated instead (it needs
+   * producer-timeline fidelity and is under the size gate — see
+   * `shouldFullyHydrate`): the legacy UI then renders `evalSample` alone,
+   * exactly as it would a monolith sample.
+   */
+  chunked?: ChunkedSample;
+  /**
+   * The sample as an EvalSample. Windowed path: the shell only (sequences
+   * empty — the transcript never reads `events` on this object). Hydrated
+   * path: the fully downloaded, fully resolved sample.
    */
   evalSample: EvalSample;
 }
@@ -43,9 +51,12 @@ const chunkedSampleQueryKey = (
   ] as const;
 
 const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
+  // `sequences` is the pre-central-directory chunk layout — logs converted
+  // before it was dropped still carry it; strip it so it never leaks into
+  // the synthesized EvalSample
   const {
-    sequences: _sequences,
     message_refs: _messageRefs,
+    sequences: _sequences,
     ...shell
   } = chunked.shell;
   // The shell is the EvalSample serialization minus the four sequences and
@@ -100,6 +111,9 @@ export const useChunkedSample = (
             handle.id,
             handle.epoch
           );
+          if (shouldFullyHydrate(chunked, zip)) {
+            return { evalSample: await hydrateFullSample(chunked) };
+          }
           return { chunked, evalSample: await shellEvalSample(chunked) };
         }
       : skipToken,

@@ -58,7 +58,8 @@ export function useMapAsyncData<TBefore, TAfter>(
         } catch (error: unknown) {
           if (!(error instanceof Error))
             throw Error(
-              `useMapAsyncData only supports catching Error's: ${JSON.stringify(error)}`
+              `useMapAsyncData only supports catching Error's: ${JSON.stringify(error)}`,
+              { cause: error }
             );
           return { loading: false, error };
         }

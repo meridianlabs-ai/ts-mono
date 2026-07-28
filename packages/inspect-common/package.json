@@ -26,7 +26,7 @@
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^9.39.5",
+    "eslint": "^10.7.0",
     "openapi-typescript": "^7.10.1",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.65.0",
