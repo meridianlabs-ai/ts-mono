@@ -22,20 +22,17 @@ export const summaryInputMessages = (
     return [];
   }
 
-  const result: ChatMessage[] = [];
-
-  // `slice(-1)` leaves the walk below only the trailing message, which it then
-  // breaks on — so a trailing assistant message becomes the entire result.
+  // A trailing assistant message is the entire result: the original walked
+  // `slice(-1)`, which left the loop below only that message to break on.
   // Reads like `slice(0, -1)` was meant, but this is what ModelEventView
   // renders today and changing it would change the panel.
-  let offset: number | undefined = undefined;
   const lastMessage = event.input.at(-1);
   if (lastMessage?.role === "assistant") {
-    result.push(lastMessage);
-    offset = -1;
+    return [lastMessage];
   }
 
-  for (const msg of event.input.slice(offset).reverse()) {
+  const result: ChatMessage[] = [];
+  for (const msg of event.input.slice().reverse()) {
     if (
       (msg.role === "user" && !msg.tool_call_id) ||
       msg.role === "system" ||
