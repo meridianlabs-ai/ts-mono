@@ -1000,9 +1000,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         // Merge when the ordinal boxes would collide, not just on the 10px
         // time floor — boxes are ≥13px wide, so two unmerged single-digit
         // markers 10–12px apart would overlap.
-        const lastBoxW = last
-          ? ordinalBoxWidth(ordinalBadge(last.members))
-          : 0;
+        const lastBoxW = last ? ordinalBoxWidth(ordinalBadge(last.members)) : 0;
         const nextBoxW = ordinalBoxWidth(String(marker.ordinal ?? ""));
         const boxGap = (lastBoxW + nextBoxW) / 2 + 2;
         if (

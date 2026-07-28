@@ -103,7 +103,8 @@ describe("buildConnectionLanes", () => {
     const history = [change({ timestamp: 100, old_limit: 10, new_limit: 20 })];
     const lanes = buildConnectionLanes(history, { start: 0, end: 200 });
     expect(lanes["constructor"]).toBeUndefined();
-    expect(lanes["toString"]).toBeUndefined();
+    // `in` walks the prototype chain — false proves the null prototype.
+    expect("toString" in lanes).toBe(false);
   });
 
   it("sorts events by timestamp before deriving", () => {
@@ -372,7 +373,8 @@ describe("poolRetunes", () => {
     // must read undefined, not the function inherited from Object.prototype.
     const byModel = poolRetunes([]);
     expect(byModel["constructor"]).toBeUndefined();
-    expect(byModel["toString"]).toBeUndefined();
+    // `in` walks the prototype chain — false proves the null prototype.
+    expect("toString" in byModel).toBe(false);
   });
 });
 
