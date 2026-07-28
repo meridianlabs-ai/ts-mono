@@ -119,8 +119,6 @@ interface ConfigChangedChipProps {
   change: ConfigChangeInfo;
   /** The folded value shown in the cell — the launch value when cleared. */
   effectiveValue?: unknown;
-  /** Compact chip: omit the scope / limit-lifted detail from the label. */
-  compact?: boolean;
   onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -132,18 +130,15 @@ interface ConfigChangedChipProps {
 export const ConfigChangedChip: FC<ConfigChangedChipProps> = ({
   change,
   effectiveValue,
-  compact,
   onViewTimeline,
 }) => {
   const chipLabel = change.cleared
     ? "override cleared → launch value"
-    : compact
-      ? "changed"
-      : change.limitLifted
-        ? "changed · limit lifted"
-        : change.scope === "process"
-          ? "changed · process"
-          : "changed";
+    : change.limitLifted
+      ? "changed · limit lifted"
+      : change.scope === "process"
+        ? "changed · process"
+        : "changed";
 
   return (
     <HoverChip
@@ -202,7 +197,6 @@ interface ConfigValueCellProps {
   /** The folded (effective) value for this knob. */
   value: unknown;
   change: ConfigChangeInfo;
-  compact?: boolean;
   onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
@@ -214,7 +208,6 @@ interface ConfigValueCellProps {
 export const ConfigValueCell: FC<ConfigValueCellProps> = ({
   value,
   change,
-  compact,
   onViewTimeline,
 }) => {
   const showPrior =
@@ -240,7 +233,6 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
       <ConfigChangedChip
         change={change}
         effectiveValue={value}
-        compact={compact}
         onViewTimeline={onViewTimeline}
       />
     </div>

@@ -52,6 +52,7 @@ import {
   kTallRailHeight,
   logMarkers,
   markerKey,
+  rowHaystack,
   terminations,
   withConfigOrdinals,
 } from "./timelineData";
@@ -113,7 +114,15 @@ const limitKnob = (limit: string): string | undefined =>
 // Stable empty array — a fresh identity would re-render every row.
 const kNoKeys: string[] = [];
 
-export const TimelineTab: FC<TimelineTabProps> = ({
+// The tab stays mounted across log switches, so local UI state (filters,
+// search, the captured sort default, selection) is reset by keying the body
+// on the per-log bands key — matching the band picker's per-log scoping.
+export const TimelineTab: FC<TimelineTabProps> = (props) => {
+  const logKey = useTimelineBandsKey();
+  return <TimelineTabBody key={logKey} {...props} />;
+};
+
+const TimelineTabBody: FC<TimelineTabProps> = ({
   evalSpec,
   evalStats,
   evalStatus,
@@ -168,6 +177,13 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     if (runStart !== undefined) cover(runStart);
     if (runEnd !== undefined) cover(runEnd);
     for (const dot of dots) cover(dot.time);
+    // Sample starts too: a live eval has no stats yet, so the window would
+    // otherwise open after in-flight samples began and the active-samples
+    // series would double back on itself (its points sort by time).
+    for (const sample of samples) {
+      const started = isoToEpoch(sample.started_at);
+      if (started !== undefined) cover(started);
+    }
     for (const marker of markers) {
       if (!marker.postRun) cover(marker.time);
     }
@@ -175,7 +191,14 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       cover(event.timestamp);
     }
     return end > start ? { start, end } : undefined;
-  }, [runStart, runEnd, dots, markers, evalStats?.connection_limit_history]);
+  }, [
+    runStart,
+    runEnd,
+    dots,
+    samples,
+    markers,
+    evalStats?.connection_limit_history,
+  ]);
 
   const activeSeries = useMemo(
     () =>
@@ -305,14 +328,15 @@ export const TimelineTab: FC<TimelineTabProps> = ({
 
   const [search, setSearch] = useState("");
   // Time is the one sortable column — descending by default on a running
-  // log so new events land at the top (canvas 37b).
+  // log so new events land at the top (canvas 37b). The default is captured
+  // once: a run completing mid-session must not flip the list under the
+  // user.
+  const [defaultDescending] = useState(evalStatus === "started");
   const [timeSortOverride, setTimeSortOverride] = useState<
     "asc" | "desc" | null
   >(null);
   const timeDescending =
-    timeSortOverride !== null
-      ? timeSortOverride === "desc"
-      : evalStatus === "started";
+    timeSortOverride !== null ? timeSortOverride === "desc" : defaultDescending;
 
   const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
   // Bidirectional marker ↔ row hover link (canvas 36a).
@@ -321,7 +345,9 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     keys: string[];
   } | null>(null);
 
-  // Click marker → scroll to its row, clearing a filter that would hide it.
+  // Click marker → scroll to its row, clearing any filter that would hide
+  // it: a category filter widens to include the row, and a non-matching
+  // search is dropped (otherwise the selection is invisible in the list).
   const selectMarker = useCallback(
     (key: string | null) => {
       setSelectedEventKey(key);
@@ -334,9 +360,20 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             ? previous
             : new Set(previous).add(category)
         );
+        const query = search.trim().toLowerCase();
+        if (query !== "") {
+          const row = rows.find(
+            (r) =>
+              (r.kind === "config" && markerKey("config", r.index) === key) ||
+              (r.kind === "logUpdate" && markerKey("log", r.index) === key)
+          );
+          if (row && !rowHaystack(row).toLowerCase().includes(query)) {
+            setSearch("");
+          }
+        }
       }
     },
-    [setSelectedEventKey, setSelectedCategories]
+    [rows, search, setSearch, setSelectedCategories, setSelectedEventKey]
   );
 
   const limitCrossReference = useCallback(
@@ -436,13 +473,15 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             <span className={styles.legend}>
               {showTerminations && (
                 <>
-                  <span className={styles.legendItem}>
-                    <span
-                      className={styles.legendDot}
-                      style={{ background: kStatusColor.completed }}
-                    />
-                    completed
-                  </span>
+                  {dots.some((dot) => dot.status === "completed") && (
+                    <span className={styles.legendItem}>
+                      <span
+                        className={styles.legendDot}
+                        style={{ background: kStatusColor.completed }}
+                      />
+                      completed
+                    </span>
+                  )}
                   {dots.some((dot) => dot.status === "cancelled") && (
                     <span className={styles.legendItem}>
                       <span

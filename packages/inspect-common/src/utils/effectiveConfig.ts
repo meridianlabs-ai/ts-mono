@@ -84,6 +84,12 @@ const GENERATE_CONFIG_KEYS: Record<keyof GenerateConfig, true> = {
   verbosity: true,
 };
 
+// Elements are as unvalidated as the arrays that carry them — a `null` (or
+// scalar) entry inside `changes` must degrade to a skip, not throw on
+// `change.config` in a render path.
+const isChangeRecord = (change: unknown): change is object =>
+  typeof change === "object" && change !== null;
+
 const foldConfig = <T extends object>(
   launch: T,
   updates: ConfigUpdate[] | null | undefined,
@@ -100,6 +106,7 @@ const foldConfig = <T extends object>(
     // degrades to a skip instead of failing the whole header read.
     if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
+      if (!isChangeRecord(change)) continue;
       // Object.hasOwn, not `in`: log files are untrusted, and `in` matches
       // prototype-chain names ("__proto__", "toString", …).
       if (change.config !== family || !Object.hasOwn(knownKeys, change.name)) {
@@ -171,6 +178,7 @@ const changesFor = (
   for (const update of updates ?? []) {
     if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
+      if (!isChangeRecord(change)) continue;
       if (change.config !== family || !Object.hasOwn(knownKeys, change.name)) {
         continue;
       }
@@ -186,7 +194,8 @@ const changesFor = (
           change.previous !== null &&
           change.previous !== undefined,
         scope: update.scope,
-        inherited: update.provenance.metadata?.["inherited"] === true,
+        // provenance?. — the cast doesn't guarantee it exists either.
+        inherited: update.provenance?.metadata?.["inherited"] === true,
         provenance: update.provenance,
       });
     }
@@ -224,6 +233,7 @@ export const concurrencyChanges = (
   for (const update of updates ?? []) {
     if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
+      if (!isChangeRecord(change)) continue;
       if (change.config !== "concurrency") {
         continue;
       }
@@ -235,7 +245,7 @@ export const concurrencyChanges = (
         cleared: change.cleared,
         limitLifted: false,
         scope: update.scope,
-        inherited: update.provenance.metadata?.["inherited"] === true,
+        inherited: update.provenance?.metadata?.["inherited"] === true,
         provenance: update.provenance,
       });
     }

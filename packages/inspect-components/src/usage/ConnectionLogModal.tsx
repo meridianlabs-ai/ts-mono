@@ -9,7 +9,7 @@ import { TimelineLink } from "../config";
 import { ConnectionReasonBadge, LimitTransition } from "./ConnectionChange";
 import { retuneTransition, type PoolRetune } from "./connectionHistory";
 import styles from "./ConnectionLogModal.module.css";
-import { fmtClock } from "./timeFormat";
+import { fmtDayClock } from "./timeFormat";
 
 interface ConnectionLogModalProps {
   model: string;
@@ -153,9 +153,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
               const retune = row.retune;
               return (
                 <tr key={`config-${i}`} className={styles.configRow}>
-                  <td className={styles.time}>
-                    {fmtClock(new Date(row.time * 1000).toISOString(), true)}
-                  </td>
+                  <td className={styles.time}>{fmtDayClock(row.time)}</td>
                   <td className={styles.limit}>
                     <span className={styles.noLimit}>—</span>
                   </td>
@@ -179,9 +177,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
                   e.reason === "rate_limit" ? styles.rateLimitRow : undefined
                 }
               >
-                <td className={styles.time}>
-                  {fmtClock(new Date(e.timestamp * 1000).toISOString(), true)}
-                </td>
+                <td className={styles.time}>{fmtDayClock(e.timestamp)}</td>
                 <td className={styles.limit}>
                   <LimitTransition
                     oldLimit={e.old_limit}

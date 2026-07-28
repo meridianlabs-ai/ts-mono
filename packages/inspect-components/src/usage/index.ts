@@ -9,7 +9,11 @@ export {
   buildConfigsByModel,
   buildConfigsByRole,
 } from "./configsForUsage";
-export { ConnectionReasonBadge, LimitTransition } from "./ConnectionChange";
+export {
+  ConnectionReasonBadge,
+  kConnectionReasonLabel,
+  LimitTransition,
+} from "./ConnectionChange";
 export {
   adaptiveMaxFromConfig,
   adaptiveMaxFromValue,
@@ -31,4 +35,4 @@ export type {
 } from "./connectionHistory";
 export { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
 export { ConnectionLogModal } from "./ConnectionLogModal";
-export { fmtClock, fmtCompactDuration } from "./timeFormat";
+export { fmtClock, fmtCompactDuration, fmtDayClock } from "./timeFormat";

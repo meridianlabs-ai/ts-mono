@@ -46,6 +46,9 @@ interface UsagePanelProps {
   config_updates?: ConfigUpdate[] | null;
   /** The eval's main model — generate-config pool retunes apply to it. */
   main_model?: string;
+  /** Scopes persisted UI state (the open Connection Log modal) — pass the
+   *  log identity so the modal doesn't leak across logs in a session. */
+  state_key?: string;
   /** Deep-link to the Timeline tab with the model's band toggled on. */
   onViewTimeline?: (
     model: string,
@@ -72,6 +75,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   completed_at,
   config_updates,
   main_model,
+  state_key,
   onViewTimeline,
 }) => {
   const keysOf = (
@@ -116,7 +120,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const [mode, setMode] = useState<Mode>(hasRoleUsage ? "role" : "model");
   const [logModel, setLogModel] = useProperty<string | null>(
     "usage-connections",
-    "log-model",
+    state_key ? `log-model:${state_key}` : "log-model",
     { defaultValue: null }
   );
 

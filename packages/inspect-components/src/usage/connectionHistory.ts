@@ -23,6 +23,15 @@ export interface ConnectionLaneData {
 
 const kAdaptiveDefaultMax = 100;
 
+// fromEntries alone only makes *present* keys own properties — an absent
+// prototype-named key ("constructor" with no retunes) would still resolve
+// through Object.prototype at read sites. A null prototype closes both.
+const nullProtoRecord = <T>(entries: Map<string, T>): Record<string, T> =>
+  Object.assign(
+    Object.create(null) as Record<string, T>,
+    Object.fromEntries(entries)
+  );
+
 // History timestamps are epoch seconds while started_at/completed_at are ISO
 // strings; normalize here. The window expands to cover any events outside the
 // eval bounds (clock skew, live evals with no completed_at yet).
@@ -118,10 +127,16 @@ export const poolRetunes = (
   updates: ConfigUpdate[] | null | undefined,
   mainModel?: string
 ): Record<string, PoolRetune[]> => {
-  const byModel: Record<string, PoolRetune[]> = {};
+  // Map, not a plain object — concurrency changes key on user-defined
+  // registry names, which can collide with Object.prototype keys
+  // ("constructor" would resolve to the inherited function and crash).
+  const byModel = new Map<string, PoolRetune[]>();
   for (const update of updates ?? []) {
     const timestamp = isoToEpoch(update.provenance.timestamp);
     if (timestamp === undefined) continue;
+    // Journal entries are cast, not validated — a malformed `changes`
+    // degrades to a skip, matching effectiveConfig's posture.
+    if (!Array.isArray(update.changes)) continue;
     for (const change of update.changes) {
       const model =
         change.config === "concurrency"
@@ -132,7 +147,8 @@ export const poolRetunes = (
             ? mainModel
             : undefined;
       if (!model) continue;
-      (byModel[model] ??= []).push({
+      const list = byModel.get(model) ?? [];
+      list.push({
         timestamp,
         name: change.name,
         previous: change.previous,
@@ -141,12 +157,13 @@ export const poolRetunes = (
         author: update.provenance.author,
         reason: update.provenance.reason,
       });
+      byModel.set(model, list);
     }
   }
-  for (const retunes of Object.values(byModel)) {
+  for (const retunes of byModel.values()) {
     retunes.sort((a, b) => a.timestamp - b.timestamp);
   }
-  return byModel;
+  return nullProtoRecord(byModel);
 };
 
 export const buildConnectionLanes = (
@@ -154,13 +171,19 @@ export const buildConnectionLanes = (
   window: ConnectionWindow | undefined,
   configuredMax?: (model: string) => number | undefined
 ): Record<string, ConnectionLaneData> => {
-  const lanes: Record<string, ConnectionLaneData> = {};
-  if (!history || history.length === 0 || !window) return lanes;
+  if (!history || history.length === 0 || !window) return {};
 
-  const byModel: Record<string, ConnectionLimitChange[]> = {};
-  for (const e of history) (byModel[e.model] ??= []).push(e);
+  // Map, not a plain object — model names come from the log and could
+  // collide with Object.prototype keys (see poolRetunes).
+  const lanes = new Map<string, ConnectionLaneData>();
+  const byModel = new Map<string, ConnectionLimitChange[]>();
+  for (const e of history) {
+    const list = byModel.get(e.model) ?? [];
+    list.push(e);
+    byModel.set(e.model, list);
+  }
 
-  for (const [model, events] of Object.entries(byModel)) {
+  for (const [model, events] of byModel) {
     events.sort((a, b) => a.timestamp - b.timestamp);
     const start = events[0]!.old_limit;
     const final = events[events.length - 1]!.new_limit;
@@ -187,7 +210,7 @@ export const buildConnectionLanes = (
     const span = window.end - window.start;
     const avg = span > 0 ? weighted / span : final;
 
-    lanes[model] = {
+    lanes.set(model, {
       model,
       events,
       start,
@@ -196,9 +219,9 @@ export const buildConnectionLanes = (
       avg,
       rateLimitCount,
       configuredMax: configuredMax?.(model),
-    };
+    });
   }
-  return lanes;
+  return nullProtoRecord(lanes);
 };
 
 /**
