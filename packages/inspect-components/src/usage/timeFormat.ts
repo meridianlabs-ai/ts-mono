@@ -8,8 +8,10 @@ export const fmtCompactDuration = (s: number): string => {
     const r = t % 60;
     return r > 0 ? `${m}m ${r}s` : `${m}m`;
   }
-  if (t < 86400) {
-    const totalM = Math.round(t / 60);
+  // Minute rounding can land on exactly 24h (t in [86370, 86400)) — fall
+  // through to the day form rather than rendering "24h".
+  const totalM = Math.round(t / 60);
+  if (t < 86400 && totalM < 1440) {
     const h = Math.floor(totalM / 60);
     const m = totalM % 60;
     return m > 0 ? `${h}h ${m}m` : `${h}h`;

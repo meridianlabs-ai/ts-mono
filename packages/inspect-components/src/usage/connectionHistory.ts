@@ -23,6 +23,15 @@ export interface ConnectionLaneData {
 
 const kAdaptiveDefaultMax = 100;
 
+// fromEntries alone only makes *present* keys own properties — an absent
+// prototype-named key ("constructor" with no retunes) would still resolve
+// through Object.prototype at read sites. A null prototype closes both.
+const nullProtoRecord = <T>(entries: Map<string, T>): Record<string, T> =>
+  Object.assign(
+    Object.create(null) as Record<string, T>,
+    Object.fromEntries(entries)
+  );
+
 // History timestamps are epoch seconds while started_at/completed_at are ISO
 // strings; normalize here. The window expands to cover any events outside the
 // eval bounds (clock skew, live evals with no completed_at yet).
@@ -154,8 +163,7 @@ export const poolRetunes = (
   for (const retunes of byModel.values()) {
     retunes.sort((a, b) => a.timestamp - b.timestamp);
   }
-  // fromEntries creates own properties, so prototype names stay safe keys.
-  return Object.fromEntries(byModel);
+  return nullProtoRecord(byModel);
 };
 
 export const buildConnectionLanes = (
@@ -213,7 +221,7 @@ export const buildConnectionLanes = (
       configuredMax: configuredMax?.(model),
     });
   }
-  return Object.fromEntries(lanes);
+  return nullProtoRecord(lanes);
 };
 
 /**

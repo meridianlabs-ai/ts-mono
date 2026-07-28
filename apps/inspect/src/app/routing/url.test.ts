@@ -20,7 +20,15 @@ const kSampleTabIds = [
   "json",
 ];
 
-const kWorkspaceTabs = ["samples", "json", "info", "models", "task", "error"];
+const kWorkspaceTabs = [
+  "samples",
+  "json",
+  "info",
+  "models",
+  "task",
+  "timeline",
+  "error",
+];
 
 /**
  * Decodes a URL parameter that may be URL-encoded.

@@ -99,6 +99,13 @@ describe("buildConnectionLanes", () => {
     expect(lanes["anthropic/claude-sonnet-4-5"]!.rateLimitCount).toBe(0);
   });
 
+  it("reads absent prototype-named models as undefined", () => {
+    const history = [change({ timestamp: 100, old_limit: 10, new_limit: 20 })];
+    const lanes = buildConnectionLanes(history, { start: 0, end: 200 });
+    expect(lanes["constructor"]).toBeUndefined();
+    expect(lanes["toString"]).toBeUndefined();
+  });
+
   it("sorts events by timestamp before deriving", () => {
     const history = [
       change({ timestamp: 200, old_limit: 40, new_limit: 80 }),
@@ -358,6 +365,14 @@ describe("poolRetunes", () => {
       ]),
     ]);
     expect(byModel["constructor"]!.map((r) => r.value)).toEqual([5]);
+  });
+
+  it("reads absent prototype-named pools as undefined", () => {
+    // Null-prototype record: a pool named "constructor" with no retunes
+    // must read undefined, not the function inherited from Object.prototype.
+    const byModel = poolRetunes([]);
+    expect(byModel["constructor"]).toBeUndefined();
+    expect(byModel["toString"]).toBeUndefined();
   });
 });
 

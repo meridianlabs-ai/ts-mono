@@ -242,6 +242,9 @@ export const logMarkers = (
     .map((update, index): TimelineMarker | undefined => {
       const time = isoToEpoch(update.provenance.timestamp);
       if (time === undefined) return undefined;
+      // Same skip as configMarkers' `changes` guard — a malformed `edits`
+      // must degrade, not crash the markers memo.
+      if (!Array.isArray(update.edits)) return undefined;
       const label = `${logEditText(update)} · ${update.provenance.author}`;
       return {
         kind: "log",
@@ -415,7 +418,8 @@ export const rowHaystack = (row: HistoryRow): string => {
 /** m:ss under an hour, h:mm:ss above — the one duration formatter shared
  *  by the timeline surfaces (History detail, termination popover). */
 export const fmtDuration = (seconds?: number | null): string => {
-  if (seconds == null || !Number.isFinite(seconds)) return "—";
+  // Negative input is corrupt/clock-skewed data — "-1:-5" helps nobody.
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return "—";
   // Round once up front — rounding remainders alone yields "1:60".
   const total = Math.round(seconds);
   const h = Math.floor(total / 3600);
@@ -488,6 +492,9 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
   (logUpdates ?? []).forEach((update, index) => {
     const time = isoToEpoch(update.provenance.timestamp);
     if (time === undefined) return;
+    // Skip malformed entries — mirrors logMarkers, so a row always has a
+    // chart marker and an iterable `edits`.
+    if (!Array.isArray(update.edits)) return;
     rows.push({
       kind: "logUpdate",
       time,

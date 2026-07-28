@@ -114,7 +114,15 @@ const limitKnob = (limit: string): string | undefined =>
 // Stable empty array — a fresh identity would re-render every row.
 const kNoKeys: string[] = [];
 
-export const TimelineTab: FC<TimelineTabProps> = ({
+// The tab stays mounted across log switches, so local UI state (filters,
+// search, the captured sort default, selection) is reset by keying the body
+// on the per-log bands key — matching the band picker's per-log scoping.
+export const TimelineTab: FC<TimelineTabProps> = (props) => {
+  const logKey = useTimelineBandsKey();
+  return <TimelineTabBody key={logKey} {...props} />;
+};
+
+const TimelineTabBody: FC<TimelineTabProps> = ({
   evalSpec,
   evalStats,
   evalStatus,
@@ -169,6 +177,13 @@ export const TimelineTab: FC<TimelineTabProps> = ({
     if (runStart !== undefined) cover(runStart);
     if (runEnd !== undefined) cover(runEnd);
     for (const dot of dots) cover(dot.time);
+    // Sample starts too: a live eval has no stats yet, so the window would
+    // otherwise open after in-flight samples began and the active-samples
+    // series would double back on itself (its points sort by time).
+    for (const sample of samples) {
+      const started = isoToEpoch(sample.started_at);
+      if (started !== undefined) cover(started);
+    }
     for (const marker of markers) {
       if (!marker.postRun) cover(marker.time);
     }
@@ -176,7 +191,14 @@ export const TimelineTab: FC<TimelineTabProps> = ({
       cover(event.timestamp);
     }
     return end > start ? { start, end } : undefined;
-  }, [runStart, runEnd, dots, markers, evalStats?.connection_limit_history]);
+  }, [
+    runStart,
+    runEnd,
+    dots,
+    samples,
+    markers,
+    evalStats?.connection_limit_history,
+  ]);
 
   const activeSeries = useMemo(
     () =>
@@ -451,13 +473,15 @@ export const TimelineTab: FC<TimelineTabProps> = ({
             <span className={styles.legend}>
               {showTerminations && (
                 <>
-                  <span className={styles.legendItem}>
-                    <span
-                      className={styles.legendDot}
-                      style={{ background: kStatusColor.completed }}
-                    />
-                    completed
-                  </span>
+                  {dots.some((dot) => dot.status === "completed") && (
+                    <span className={styles.legendItem}>
+                      <span
+                        className={styles.legendDot}
+                        style={{ background: kStatusColor.completed }}
+                      />
+                      completed
+                    </span>
+                  )}
                   {dots.some((dot) => dot.status === "cancelled") && (
                     <span className={styles.legendItem}>
                       <span

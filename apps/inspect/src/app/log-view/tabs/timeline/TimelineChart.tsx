@@ -58,8 +58,13 @@ const kMarkerTop = 22;
 // Bands shift down to clear the ordinal boxes when markers exist.
 const kMarkerHeadroom = 18;
 // Config markers closer than this merge into one badge — pixel-based, so
-// clusters dissolve on a wider window and ordinals never renumber.
+// clusters dissolve on a wider window and ordinals never renumber. The
+// working threshold also covers the ordinal boxes (see renderMarkers):
+// boxes are ≥13px wide, so unmerged neighbors just past 10px would overlap.
 const kClusterGapPx = 10;
+
+const ordinalBoxWidth = (badge: string): number =>
+  Math.max(13, 6 + badge.length * 5.5);
 
 /** HTML status dots (popovers): hollow ring for started, solid otherwise. */
 const statusDotStyle = (status: Termination["status"]): CSSProperties =>
@@ -225,7 +230,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   // width, so the mark is keyed by window start *and* width — a resize
   // recomputes honestly instead of latching a narrow-viewport count for the
   // rest of the run. Adjusted during render, guarded so it cannot loop.
-  const [binHighWater, setBinHighWater] = useState({ key: "", value: 0 });
+  const [binHighWater, setBinHighWater] = useState({
+    key: "",
+    value: 0,
+    bottom: 0,
+  });
   const popoverCloseTimer = useRef<number | null>(null);
 
   const openPopover = (state: PopoverState) => {
@@ -297,13 +306,19 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   for (const items of termBins.values()) {
     maxBinCount = Math.max(maxBinCount, items.length);
   }
+  const termBottomFor = (bins: number): number =>
+    Math.max(kPlotBottom, kTermPlotTop + 6 + bins * dotLadderStep(bins).pitch);
   // Derived-state adjustment during render — both writes are guarded by
   // comparisons against the current state, so they cannot loop.
   const binKey = `${timeWindow.start}:${width}`;
   if (binHighWater.key !== binKey) {
-    setBinHighWater({ key: binKey, value: 0 });
+    setBinHighWater({ key: binKey, value: 0, bottom: 0 });
   } else if (running && maxBinCount > binHighWater.value) {
-    setBinHighWater({ key: binKey, value: maxBinCount });
+    setBinHighWater({
+      key: binKey,
+      value: maxBinCount,
+      bottom: Math.max(binHighWater.bottom, termBottomFor(maxBinCount)),
+    });
   }
   const effectiveMaxBin =
     running && binHighWater.key === binKey
@@ -312,10 +327,13 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   // Elastic rail (design canvas 34a): shrink the dots down the ladder as
   // density grows, then grow the band — uncapped — once the radius floors.
   const { r: dotRadius, pitch: dotPitch } = dotLadderStep(effectiveMaxBin);
-  const termPlotBottom = Math.max(
-    kPlotBottom,
-    kTermPlotTop + 6 + effectiveMaxBin * dotPitch
-  );
+  // The band bottom ratchets alongside the bin count: pitch steps down at
+  // ladder thresholds, so a growing densest bin (12 → 13) would otherwise
+  // shrink the raw height and reflow everything below it mid-run.
+  const termPlotBottom =
+    running && binHighWater.key === binKey
+      ? Math.max(termBottomFor(effectiveMaxBin), binHighWater.bottom)
+      : termBottomFor(effectiveMaxBin);
 
   // Bands stack in the same order as the picker chips above the chart.
   const bands: Band[] = [];
@@ -557,9 +575,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
               x2={x(e.timestamp)}
               y1={band.top + kPlotTop - 4}
               y2={band.top + kPlotBottom}
-            >
-              <title>{`rate limit · ${band.model} · ${e.old_limit} → ${e.new_limit}`}</title>
-            </line>
+            />
           ))}
         {capSegments.map((seg, i) => (
           <Fragment key={`cap-${i}`}>
@@ -588,12 +604,22 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         {lineHitRect(band, (event) => {
           const { px, t } = cursorTime(event);
           const value = laneValueAt(lane, t);
+          // The hit rect paints over the hairlines, so a <title> on them
+          // could never fire — the crosshair label carries a nearby rate
+          // limit instead.
+          const rateLimit = lane.events.find(
+            (e) =>
+              e.reason === "rate_limit" && Math.abs(x(e.timestamp) - px) <= 3
+          );
           setLineHover({
             bandId: `conn:${band.model}`,
             x: px,
             dotY: y(value),
             top: band.top + kPlotTop,
-            label: `${value} connections · ${fmtTimeSec(t)}`,
+            label: rateLimit
+              ? `rate limit · ${rateLimit.old_limit} → ${rateLimit.new_limit}` +
+                ` · ${fmtTimeSec(rateLimit.timestamp)}`
+              : `${value} connections · ${fmtTimeSec(t)}`,
           });
         })}
       </g>
@@ -813,22 +839,42 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   };
 
   const markerAria = (group: MarkerGroup): string => {
-    const first = group.members[0]!;
-    if (first.kind === "log") return `tag/metadata edit, ${first.label}`;
-    if (group.members.length > 1) {
-      return `config changes ${ordinalBadge(group.members)} of ${configTotal}`;
+    // Overflow folding can mix kinds — describe the config members (the
+    // numbered ones) and count the rest, never just members[0].
+    const configs = group.members.filter(
+      (m): m is Extract<TimelineMarker, { kind: "config" }> =>
+        m.kind === "config"
+    );
+    const first = configs[0];
+    if (!first) return `tag/metadata edit, ${group.members[0]!.label}`;
+    const logCount = group.members.length - configs.length;
+    const suffix =
+      logCount > 0
+        ? `, plus ${logCount} tag/metadata edit${logCount === 1 ? "" : "s"}`
+        : "";
+    if (configs.length > 1) {
+      return `config changes ${ordinalBadge(configs)} of ${configTotal}${suffix}`;
     }
     const change = first.update.changes[0];
+    // A cleared override reverts to the launch value — "to null" misstates.
     const changeText = change
-      ? `${change.name} ${formatShort(change.previous)} to ` +
-        formatShort(change.value)
+      ? change.cleared
+        ? `${change.name} cleared, restored to launch value`
+        : `${change.name} ${formatShort(change.previous)} to ` +
+          formatShort(change.value)
       : first.label;
-    return `config change ${first.ordinal} of ${configTotal}, ${changeText}`;
+    return (
+      `config change ${first.ordinal} of ${configTotal}, ${changeText}` +
+      suffix
+    );
   };
 
   const renderMarkerGroup = (group: MarkerGroup) => {
     const keys = groupKeys(group);
-    const isLog = group.members[0]!.kind === "log";
+    // Overflow folding can land config markers behind a log-headed group —
+    // a group renders as config (violet, badged, popover) whenever it
+    // carries any config member, so folded changes stay discoverable.
+    const isLog = group.members.every((m) => m.kind === "log");
     const cluster = group.members.length > 1;
     const selected = selectedMarker !== null && keys.includes(selectedMarker);
     // Hover from the History row lights the marker up (canvas 36c); click
@@ -848,7 +894,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
         : cluster
           ? 10
           : 8;
-    const boxW = Math.max(13, 6 + badge.length * 5.5);
+    const boxW = ordinalBoxWidth(badge);
     const activate = () => {
       if (!isLog) setMarkerHover({ x: mx, members: group.members });
       onHoverMarker?.(keys);
@@ -951,10 +997,18 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       if (marker.kind === "config") {
         const last = groups[groups.length - 1];
         const lastMember = last?.members[last.members.length - 1];
+        // Merge when the ordinal boxes would collide, not just on the 10px
+        // time floor — boxes are ≥13px wide, so two unmerged single-digit
+        // markers 10–12px apart would overlap.
+        const lastBoxW = last
+          ? ordinalBoxWidth(ordinalBadge(last.members))
+          : 0;
+        const nextBoxW = ordinalBoxWidth(String(marker.ordinal ?? ""));
+        const boxGap = (lastBoxW + nextBoxW) / 2 + 2;
         if (
           last &&
           lastMember?.kind === "config" &&
-          mx - x(lastMember.time) < kClusterGapPx
+          mx - last.x < Math.max(kClusterGapPx, boxGap)
         ) {
           last.members.push(marker);
           last.x = (x(last.members[0]!.time) + mx) / 2;

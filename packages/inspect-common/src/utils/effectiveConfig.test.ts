@@ -212,6 +212,56 @@ describe("effectiveEvalConfig", () => {
     expect(concurrencyChanges(malformed)).toEqual([]);
   });
 
+  it("skips non-object elements inside changes", () => {
+    const launch: EvalConfig = { max_samples: 5 };
+    const corrupt = [
+      {
+        ...update([]),
+        changes: [
+          null,
+          "junk",
+          7,
+          {
+            config: "eval",
+            name: "max_samples",
+            value: 10,
+            previous: 5,
+            cleared: false,
+          },
+        ],
+      },
+    ] as unknown as ConfigUpdate[];
+    expect(effectiveEvalConfig(launch, corrupt).max_samples).toBe(10);
+    expect(evalConfigChanges(corrupt).get("max_samples")?.value).toBe(10);
+    expect(concurrencyChanges(corrupt)).toEqual([]);
+  });
+
+  it("tolerates a missing provenance", () => {
+    const bare = [
+      {
+        ...update([
+          {
+            config: "eval",
+            name: "max_samples",
+            value: 10,
+            previous: 5,
+            cleared: false,
+          },
+          {
+            config: "concurrency",
+            name: "pool",
+            value: 3,
+            previous: 1,
+            cleared: false,
+          },
+        ]),
+        provenance: undefined,
+      },
+    ] as unknown as ConfigUpdate[];
+    expect(evalConfigChanges(bare).get("max_samples")?.inherited).toBe(false);
+    expect(concurrencyChanges(bare)[0]?.inherited).toBe(false);
+  });
+
   it("skips concurrency and generate changes", () => {
     const launch: EvalConfig = { max_samples: 5 };
     const folded = effectiveEvalConfig(launch, [
