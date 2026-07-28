@@ -14,4 +14,3 @@ minimumReleaseAge: 10080
 # has aged 7 days; the advisory fix is the reason we want them early.
 minimumReleaseAgeExclude:
   - dompurify
-  - brace-expansion
