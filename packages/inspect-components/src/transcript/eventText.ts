@@ -1,5 +1,6 @@
 import type { Content } from "@tsmono/inspect-common/types";
 
+import { summaryInputMessages } from "./modelSummaryMessages";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -64,7 +65,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Extract text from model output
+      // Output content only. Assistant `tool_calls` are deliberately absent:
+      // the following tool event draws them and already indexes `function` and
+      // `arguments`, so indexing here would double-count — and would be a
+      // phantom whenever ModelEventView omits them (`showToolCalls` false).
       if (modelEvent.output?.choices) {
         for (const choice of modelEvent.output.choices) {
           for (const text of extractContentText(choice.message.content)) {
@@ -72,14 +76,18 @@ export const extractEventFields = (event: EventType): [string, string][] => {
           }
         }
       }
-      // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
-          }
+      // Only the messages the SUMMARY panel draws. Indexing the full input
+      // history counts text that never reaches the DOM, so `window.find` has
+      // nothing to anchor on and the match counter freezes mid-walk.
+      //
+      // Two known under-counts, both preferable to a phantom match:
+      // "Show all messages" / the MESSAGES tab draw more than this, and
+      // tool-role messages drawn when the client emits no tool events are
+      // skipped — `findAllMatches` gets a raw Event[] and can't compute that
+      // flag, so including them here alone would desync the two indexers.
+      for (const msg of summaryInputMessages(modelEvent)) {
+        for (const text of extractContentText(msg.content)) {
+          fields.push([msg.role, text]);
         }
       }
       // API-call errors / tracebacks surfaced on the model event itself

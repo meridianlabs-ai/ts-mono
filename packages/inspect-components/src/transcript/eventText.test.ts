@@ -150,6 +150,7 @@ describe("extractEventFields — model error / traceback", () => {
       event: {
         event: "model",
         model: "test/model",
+        input: [],
         error: "API rate limit exceeded",
         traceback: "Traceback (most recent call last): ...",
       },
@@ -887,5 +888,79 @@ describe("eventSearchText", () => {
       })
     );
     expect(texts).toEqual([]);
+  });
+});
+
+describe("extractEventFields — model input mirrors the SUMMARY panel", () => {
+  const modelEventNode = (
+    input: Record<string, unknown>[],
+    output: Record<string, unknown> = { choices: [] }
+  ) =>
+    makeNode({
+      event: "model",
+      model: "test/model",
+      role: null,
+      input,
+      output,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+
+  it("skips input messages the panel does not draw", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "system", content: "HEAD_OF_HISTORY" },
+        { role: "user", content: "OLD_TURN" },
+        { role: "assistant", content: "old answer" },
+        { role: "tool", content: "tool result" },
+        { role: "user", content: "CURRENT_TURN" },
+      ])
+    );
+    expect(texts).toContain("CURRENT_TURN");
+    expect(texts).not.toContain("HEAD_OF_HISTORY");
+    expect(texts).not.toContain("OLD_TURN");
+  });
+
+  it("indexes a trailing assistant compaction message", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "user", content: "old turn" },
+        { role: "assistant", content: "COMPACTION_SUMMARY" },
+      ])
+    );
+    expect(texts).toContain("COMPACTION_SUMMARY");
+  });
+
+  it("skips trailing tool messages, which the panel omits by default", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "user", content: "prompt" },
+        { role: "tool", content: "TOOL_RESULT" },
+      ])
+    );
+    expect(texts).not.toContain("TOOL_RESULT");
+  });
+
+  it("skips assistant tool_calls, which the following tool event draws", () => {
+    const texts = eventSearchText(
+      modelEventNode([{ role: "user", content: "prompt" }], {
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "",
+              tool_calls: [
+                {
+                  id: "call-1",
+                  function: "CANCEL_SCORE",
+                  arguments: { job_id: "JOB_ID_BLOB" },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    );
+    expect(texts).not.toContain("CANCEL_SCORE");
+    expect(texts.join("\n")).not.toContain("JOB_ID_BLOB");
   });
 });
