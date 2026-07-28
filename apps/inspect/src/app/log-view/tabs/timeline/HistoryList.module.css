@@ -82,6 +82,13 @@
   color: #a13b2c;
 }
 
+/* Light grey — the rail's cancelled-dot hue, one step lighter than Run. */
+.pillCancels {
+  background: #f8f9fa;
+  border-color: #dee2e6;
+  color: #6c757d;
+}
+
 .pillTags {
   background: #f2f7fc;
   border-color: #cfe0f1;
@@ -116,6 +123,12 @@
 .pillErrors.pillSelected {
   background: #b04a3c;
   border-color: #b04a3c;
+  color: #fff;
+}
+
+.pillCancels.pillSelected {
+  background: #6c757d;
+  border-color: #6c757d;
   color: #fff;
 }
 
@@ -352,6 +365,12 @@
   color: #d98b7f;
 }
 
+:global([data-bs-theme="dark"]) .pillCancels {
+  background: #26282b;
+  border-color: #4a5056;
+  color: #9aa3ab;
+}
+
 :global([data-bs-theme="dark"]) .pillTags {
   background: #16222e;
   border-color: #2c4a66;
@@ -368,6 +387,7 @@
 :global([data-bs-theme="dark"]) .pillConnections.pillSelected,
 :global([data-bs-theme="dark"]) .pillLimits.pillSelected,
 :global([data-bs-theme="dark"]) .pillErrors.pillSelected,
+:global([data-bs-theme="dark"]) .pillCancels.pillSelected,
 :global([data-bs-theme="dark"]) .pillTags.pillSelected,
 :global([data-bs-theme="dark"]) .pillRun.pillSelected {
   color: #fff;
@@ -391,6 +411,11 @@
 :global([data-bs-theme="dark"]) .pillErrors.pillSelected {
   background: #b04a3c;
   border-color: #b04a3c;
+}
+
+:global([data-bs-theme="dark"]) .pillCancels.pillSelected {
+  background: #6c757d;
+  border-color: #6c757d;
 }
 
 :global([data-bs-theme="dark"]) .pillTags.pillSelected {
