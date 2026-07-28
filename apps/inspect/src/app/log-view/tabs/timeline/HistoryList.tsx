@@ -1,11 +1,17 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import {
   FC,
   Fragment,
   MouseEvent as ReactMouseEvent,
   ReactNode,
+  RefObject,
+  useDeferredValue,
   useEffect,
+  useLayoutEffect,
+  useMemo,
   useRef,
+  useState,
 } from "react";
 
 import {
@@ -64,6 +70,8 @@ export interface HistoryListProps {
   rows: HistoryRow[];
   /** Config-marker ordinals keyed by markerKey — the shared rail token. */
   ordinals: Map<string, number>;
+  /** The tab's scroll container — rows virtualize against it. */
+  scrollRef: RefObject<HTMLDivElement | null>;
   /** Empty set = All; selection narrows additively (canvas 37a). */
   selectedCategories: Set<HistoryCategory>;
   onToggleCategory: (category: HistoryCategory | "all") => void;
@@ -86,6 +94,7 @@ export interface HistoryListProps {
 export const HistoryList: FC<HistoryListProps> = ({
   rows,
   ordinals,
+  scrollRef,
   selectedCategories,
   onToggleCategory,
   search,
@@ -98,30 +107,82 @@ export const HistoryList: FC<HistoryListProps> = ({
   onHoverRow,
   onOpenSample,
 }) => {
-  const selectedRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (selectedEventKey !== null) {
-      selectedRef.current?.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
+  const counts = useMemo(() => {
+    const map = new Map<HistoryCategory, number>();
+    for (const row of rows) {
+      const category = rowCategory(row);
+      map.set(category, (map.get(category) ?? 0) + 1);
     }
-  }, [selectedEventKey]);
+    return map;
+  }, [rows]);
 
-  const counts = new Map<HistoryCategory, number>();
-  for (const row of rows) {
-    const category = rowCategory(row);
-    counts.set(category, (counts.get(category) ?? 0) + 1);
-  }
-  const query = search.trim().toLowerCase();
-  const visible = rows.filter(
-    (row) =>
-      (selectedCategories.size === 0 ||
-        selectedCategories.has(rowCategory(row))) &&
-      (query === "" || rowHaystack(row).toLowerCase().includes(query))
+  // Haystacks are built once per row set — rebuilding them per keystroke
+  // over thousands of rows is what made search typing lag. The deferred
+  // query keeps the input responsive while the filter catches up.
+  const haystacks = useMemo(
+    () => rows.map((row) => rowHaystack(row).toLowerCase()),
+    [rows]
   );
-  const ordered = timeDescending ? [...visible].reverse() : visible;
+  const deferredSearch = useDeferredValue(search);
+  const query = deferredSearch.trim().toLowerCase();
+  const ordered = useMemo(() => {
+    const visible = rows.filter(
+      (row, index) =>
+        (selectedCategories.size === 0 ||
+          selectedCategories.has(rowCategory(row))) &&
+        (query === "" || haystacks[index]!.includes(query))
+    );
+    return timeDescending ? visible.reverse() : visible;
+  }, [rows, haystacks, selectedCategories, query, timeDescending]);
+
+  // Rows virtualize against the tab's scroll container; everything above
+  // the list (chart, filter row) is accounted for by scrollMargin, kept
+  // fresh by observing the tab content so band toggles that resize the
+  // chart don't leave the visible window computed from a stale offset.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const scrollEl = scrollRef.current;
+    const listEl = listRef.current;
+    if (!scrollEl || !listEl) return;
+    const measure = () => {
+      const margin = Math.round(
+        listEl.getBoundingClientRect().top -
+          scrollEl.getBoundingClientRect().top +
+          scrollEl.scrollTop
+      );
+      setScrollMargin((previous) => (previous === margin ? previous : margin));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(scrollEl.firstElementChild ?? scrollEl);
+    return () => observer.disconnect();
+  }, [scrollRef, ordered.length]);
+
+  const virtualizer = useVirtualizer({
+    count: ordered.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 33,
+    overscan: 10,
+    scrollMargin,
+  });
+
+  // Scroll to the selection when it changes (marker click → its row); a
+  // ref guards re-scrolls when only the row's position changes (sort flip,
+  // filter edit).
+  const scrolledKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (selectedEventKey === null) {
+      scrolledKey.current = null;
+      return;
+    }
+    if (scrolledKey.current === selectedEventKey) return;
+    scrolledKey.current = selectedEventKey;
+    const index = ordered.findIndex((row) => rowKey(row) === selectedEventKey);
+    if (index >= 0) {
+      virtualizer.scrollToIndex(index, { align: "auto" });
+    }
+  }, [selectedEventKey, ordered, virtualizer]);
 
   const openLink = (sample: {
     id: string | number;
@@ -422,49 +483,66 @@ export const HistoryList: FC<HistoryListProps> = ({
         {ordered.length === 0 ? (
           <div className={styles.empty}>No events</div>
         ) : (
-          ordered.map((row, i) => {
-            const key = rowKey(row);
-            const category = rowCategory(row);
-            const selected = key !== undefined && selectedEventKey === key;
-            const washed = key !== undefined && washKeys.includes(key);
-            const by = byInfo(row);
-            return (
-              <div
-                key={i}
-                ref={selected ? selectedRef : undefined}
-                className={clsx(
-                  styles.row,
-                  selected && styles.rowSelected,
-                  !selected && washed && styles.rowWash,
-                  key !== undefined && styles.rowClickable
-                )}
-                onClick={
-                  key !== undefined
-                    ? () => onSelectEvent(selected ? null : key)
-                    : undefined
-                }
-                onMouseEnter={
-                  key !== undefined ? () => onHoverRow(key) : undefined
-                }
-                onMouseLeave={
-                  key !== undefined ? () => onHoverRow(null) : undefined
-                }
-              >
-                {/* Tag/metadata edits can land days after the run — the
-                    date always shows. */}
-                <div className={styles.time}>{fmtDayClock(row.time)}</div>
-                <div className={styles.kindCell}>
-                  <span className={clsx(styles.kindPill, kPillClass[category])}>
-                    {kCategoryShort[category]}
-                  </span>
+          <div
+            ref={listRef}
+            style={{ height: virtualizer.getTotalSize(), position: "relative" }}
+          >
+            {virtualizer.getVirtualItems().map((item) => {
+              const row = ordered[item.index]!;
+              const key = rowKey(row);
+              const category = rowCategory(row);
+              const selected = key !== undefined && selectedEventKey === key;
+              const washed = key !== undefined && washKeys.includes(key);
+              const by = byInfo(row);
+              return (
+                <div
+                  key={item.key}
+                  data-index={item.index}
+                  ref={virtualizer.measureElement}
+                  className={clsx(
+                    styles.row,
+                    item.index === ordered.length - 1 && styles.rowLast,
+                    selected && styles.rowSelected,
+                    !selected && washed && styles.rowWash,
+                    key !== undefined && styles.rowClickable
+                  )}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${item.start - scrollMargin}px)`,
+                  }}
+                  onClick={
+                    key !== undefined
+                      ? () => onSelectEvent(selected ? null : key)
+                      : undefined
+                  }
+                  onMouseEnter={
+                    key !== undefined ? () => onHoverRow(key) : undefined
+                  }
+                  onMouseLeave={
+                    key !== undefined ? () => onHoverRow(null) : undefined
+                  }
+                >
+                  {/* Tag/metadata edits can land days after the run — the
+                      date always shows. */}
+                  <div className={styles.time}>{fmtDayClock(row.time)}</div>
+                  <div className={styles.kindCell}>
+                    <span
+                      className={clsx(styles.kindPill, kPillClass[category])}
+                    >
+                      {kCategoryShort[category]}
+                    </span>
+                  </div>
+                  <div className={styles.event}>{eventCell(row)}</div>
+                  <div className={styles.by} title={by.title}>
+                    {by.text}
+                  </div>
                 </div>
-                <div className={styles.event}>{eventCell(row)}</div>
-                <div className={styles.by} title={by.title}>
-                  {by.text}
-                </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

@@ -225,7 +225,9 @@
   border-bottom: 1px dotted var(--bs-border-color);
 }
 
-.row:last-child {
+/* Rows are virtualized (absolutely positioned), so :last-child would match
+   whatever row happens to render last — the bottom row is flagged by index. */
+.row.rowLast {
   border-bottom: none;
 }
 

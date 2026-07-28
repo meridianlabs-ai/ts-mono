@@ -2,9 +2,11 @@ import clsx from "clsx";
 import {
   FC,
   MouseEvent as ReactMouseEvent,
+  RefObject,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -68,11 +70,15 @@ export const useTimelineTab = (
   logUpdates?: LogUpdate[] | null,
   earlyStopping?: EarlyStoppingSummary | null
 ) => {
+  // Shared with the history list, which virtualizes against the tab's
+  // scroll container (the whole tab scrolls — the list has no scrollbar).
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   return useMemo(() => {
     return {
       id: kLogViewTimelineTabId,
       label: "Timeline",
       scrollable: true,
+      scrollRef,
       component: TimelineTab,
       componentProps: {
         evalSpec,
@@ -81,6 +87,7 @@ export const useTimelineTab = (
         configUpdates,
         logUpdates,
         earlyStopping,
+        scrollRef,
       },
     };
   }, [
@@ -100,6 +107,7 @@ interface TimelineTabProps {
   configUpdates?: ConfigUpdate[] | null;
   logUpdates?: LogUpdate[] | null;
   earlyStopping?: EarlyStoppingSummary | null;
+  scrollRef: RefObject<HTMLDivElement | null>;
 }
 
 const kLimitKnobs: [string, string][] = [
@@ -133,6 +141,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
   configUpdates,
   logUpdates,
   earlyStopping,
+  scrollRef,
 }) => {
   const sampleData = useSelectedSampleSummaries().data;
   const samples = useMemo(() => sampleData ?? [], [sampleData]);
@@ -571,6 +580,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
         <HistoryList
           rows={rows}
           ordinals={ordinals}
+          scrollRef={scrollRef}
           selectedCategories={selectedCategories}
           onToggleCategory={toggleCategory}
           search={search}
