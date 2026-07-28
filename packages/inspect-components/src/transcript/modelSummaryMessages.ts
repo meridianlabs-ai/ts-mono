@@ -19,9 +19,9 @@ export const summaryInputMessages = (
   event: ModelEvent,
   opts?: SummaryInputOptions
 ): ChatMessage[] => {
-  // When agent tool results have been filtered from input (shown on AgentCard
-  // instead), the trailing assistant message is the previous model call's output
-  // — just show it without crawling backward through system/user messages.
+  // Agent tool results have been filtered from input (shown on AgentCard
+  // instead), so contribute nothing from input; the trailing assistant message
+  // the panel shows comes from `output.choices`, not from this function.
   if ((event as Record<string, unknown>).agentResultsFiltered) {
     return [];
   }

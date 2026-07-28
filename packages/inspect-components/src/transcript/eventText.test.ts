@@ -310,6 +310,26 @@ describe("eventsToStr — extractEventFields sanitization", () => {
   });
 });
 
+describe("eventsToStr — model input mirrors the SUMMARY panel", () => {
+  it("omits head-of-history messages but keeps the trailing run", () => {
+    const event = {
+      ...modelEventWith("current answer"),
+      input: [
+        { role: "system", content: "HEAD_OF_HISTORY_SYSTEM" },
+        { role: "user", content: "HEAD_OF_HISTORY_USER" },
+        { role: "assistant", content: "old answer" },
+        { role: "tool", content: "OLD_TOOL_RESULT" },
+        { role: "user", content: "CURRENT_TURN" },
+      ],
+    } as unknown as ModelEvent;
+    const out = eventsToStr([event]);
+    expect(out).toContain("CURRENT_TURN");
+    expect(out).not.toContain("HEAD_OF_HISTORY_SYSTEM");
+    expect(out).not.toContain("HEAD_OF_HISTORY_USER");
+    expect(out).not.toContain("OLD_TOOL_RESULT");
+  });
+});
+
 const compactionEvent = (
   partial: Partial<CompactionEvent> = {}
 ): CompactionEvent =>
@@ -918,6 +938,17 @@ describe("extractEventFields — model input mirrors the SUMMARY panel", () => {
     expect(texts).toContain("CURRENT_TURN");
     expect(texts).not.toContain("HEAD_OF_HISTORY");
     expect(texts).not.toContain("OLD_TURN");
+  });
+
+  it("indexes a first model call's input in full, since [system, user] is entirely a trailing run", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "system", content: "TASK_PROMPT" },
+        { role: "user", content: "TASK_QUESTION" },
+      ])
+    );
+    expect(texts).toContain("TASK_PROMPT");
+    expect(texts).toContain("TASK_QUESTION");
   });
 
   it("indexes a trailing assistant compaction message", () => {

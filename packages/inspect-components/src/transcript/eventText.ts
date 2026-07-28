@@ -84,7 +84,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       // "Show all messages" / the MESSAGES tab draw more than this, and
       // tool-role messages drawn when the client emits no tool events are
       // skipped — `findAllMatches` gets a raw Event[] and can't compute that
-      // flag, so including them here alone would desync the two indexers.
+      // flag, so including them here alone would desync the two indexers
+      // (as can `agentResultsFiltered`, stamped only on the patched copy this
+      // function sees, not on the raw event `findAllMatches` reads).
       for (const msg of summaryInputMessages(modelEvent)) {
         for (const text of extractContentText(msg.content)) {
           fields.push([msg.role, text]);
