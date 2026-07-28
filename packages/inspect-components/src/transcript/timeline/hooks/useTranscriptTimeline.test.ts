@@ -381,3 +381,78 @@ describe("useTranscriptTimeline punch-down views", () => {
     expect(result.current.views.stack).toHaveLength(0);
   });
 });
+
+// =============================================================================
+// Orphaned selection
+// =============================================================================
+
+describe("useTranscriptTimeline orphaned selection", () => {
+  const events = [
+    makeModelEvent("evt-main", 0, 3),
+    makeModelEvent("evt-util", 4, 8),
+  ];
+
+  const utilityTimeline: ServerTimeline = {
+    name: "default",
+    description: "Utility lane test",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [
+        makeServerEvent("evt-main"),
+        makeServerSpan({
+          id: "util-a",
+          name: "Utility A",
+          span_type: "agent",
+          utility: true,
+          content: [makeServerEvent("evt-util")],
+        }),
+      ],
+    }),
+  };
+  const serverTimelines = [utilityTimeline];
+
+  it("keeps the hidden events out when the utility toggle drops the selected lane", () => {
+    const { result, rerender } = renderHook(
+      (props: { includeUtility: boolean; selected: string | null }) =>
+        useTranscriptTimeline({
+          events,
+          serverTimelines,
+          timelineOptions: { includeUtility: props.includeUtility },
+          timelineProps: { selected: props.selected, onSelect: vi.fn() },
+        }),
+      {
+        initialProps: {
+          includeUtility: true,
+          selected: null as string | null,
+        },
+      }
+    );
+    const utilKey = result.current.state.rows.find(
+      (r) => r.name === "Utility A"
+    )?.key;
+    expect(utilKey).toBeDefined();
+
+    rerender({ includeUtility: true, selected: utilKey! });
+    expect(result.current.selection.events.map((e) => e.uuid)).toContain(
+      "evt-util"
+    );
+
+    // The selected row is gone now. Pre-fix this fell back to the unscoped
+    // stream, putting the just-hidden event back on screen.
+    rerender({ includeUtility: false, selected: utilKey! });
+    expect(result.current.selection.events.map((e) => e.uuid)).toEqual([
+      "evt-main",
+    ]);
+  });
+
+  it("still returns every event when the timeline has no swimlane rows", () => {
+    const { result } = renderHook(() =>
+      useTranscriptTimeline({ events: [makeModelEvent("flat-1", 0, 3)] })
+    );
+
+    expect(result.current.selection.events.map((e) => e.uuid)).toEqual([
+      "flat-1",
+    ]);
+  });
+});

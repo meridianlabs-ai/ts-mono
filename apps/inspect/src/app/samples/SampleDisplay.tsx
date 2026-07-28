@@ -909,6 +909,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   id={chatListId}
                   messages={effectiveMessages}
                   initialMessageId={sampleDetailNavigation.message}
+                  followRequested={sampleDetailNavigation.follow}
                   display={chatDisplay}
                   labels={messagesSearchLabels}
                   linking={chatLinking}
@@ -1017,6 +1018,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     key={sample.uuid || String(sample.id)}
                     id={sample.uuid || String(sample.id)}
                     retries={sample.error_retries}
+                    error={sample.error}
+                    limit={sample.limit}
                     scrollRef={scrollRef}
                   />
                 </div>
