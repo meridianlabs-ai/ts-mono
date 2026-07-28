@@ -398,7 +398,7 @@ export const HistoryList: FC<HistoryListProps> = ({
         <input
           type="text"
           className={styles.search}
-          placeholder="filter by knob, sample, author"
+          placeholder="filter by event or author"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
         />

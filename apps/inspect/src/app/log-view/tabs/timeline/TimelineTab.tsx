@@ -3,6 +3,7 @@ import {
   FC,
   MouseEvent as ReactMouseEvent,
   useCallback,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -36,6 +37,7 @@ import {
   kTimelineBag,
   timelineBandId,
   useTimelineBandsKey,
+  useTimelineLogKey,
 } from "../../useShowTimeline";
 
 import { HistoryList } from "./HistoryList";
@@ -111,14 +113,16 @@ const kLimitKnobs: [string, string][] = [
 const limitKnob = (limit: string): string | undefined =>
   kLimitKnobs.find(([kind]) => limit.includes(kind))?.[1];
 
-// Stable empty array — a fresh identity would re-render every row.
+// Stable empty arrays — a fresh identity would re-render every row.
 const kNoKeys: string[] = [];
+const kNoCategories: HistoryCategory[] = [];
 
-// The tab stays mounted across log switches, so local UI state (filters,
-// search, the captured sort default, selection) is reset by keying the body
-// on the per-log bands key — matching the band picker's per-log scoping.
+// Durable UI state (filters, search, sort, selection) lives in the store
+// keyed per log — the tab unmounts on tab switches, so useState would drop
+// it. Keying the body per log resets the remaining transient state (hover
+// links, chart popovers) when the log in view changes.
 export const TimelineTab: FC<TimelineTabProps> = (props) => {
-  const logKey = useTimelineBandsKey();
+  const logKey = useTimelineLogKey("tab");
   return <TimelineTabBody key={logKey} {...props} />;
 };
 
@@ -307,38 +311,55 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
 
   // Additive filter pills: empty selection = All (a reset, not a seventh
   // filter) — Config + Limits together is the "did lifting it help?" read.
-  const [selectedCategories, setSelectedCategories] = useState<
-    Set<HistoryCategory>
-  >(new Set());
+  // Stored as an array (a Set wouldn't survive the store's JSON persistence).
+  const [categoryList, setCategoryList] = useProperty<HistoryCategory[]>(
+    kTimelineBag,
+    useTimelineLogKey("filters"),
+    { defaultValue: kNoCategories }
+  );
+  const selectedCategories = useMemo(
+    () => new Set(categoryList),
+    [categoryList]
+  );
   const toggleCategory = (category: HistoryCategory | "all") => {
     if (category === "all") {
-      setSelectedCategories(new Set());
+      setCategoryList([]);
       return;
     }
-    setSelectedCategories((previous) => {
-      const next = new Set(previous);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
+    setCategoryList(
+      categoryList.includes(category)
+        ? categoryList.filter((existing) => existing !== category)
+        : [...categoryList, category]
+    );
   };
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useProperty<string>(
+    kTimelineBag,
+    useTimelineLogKey("search"),
+    { defaultValue: "" }
+  );
   // Time is the one sortable column — descending by default on a running
   // log so new events land at the top (canvas 37b). The default is captured
-  // once: a run completing mid-session must not flip the list under the
-  // user.
-  const [defaultDescending] = useState(evalStatus === "started");
-  const [timeSortOverride, setTimeSortOverride] = useState<
-    "asc" | "desc" | null
-  >(null);
-  const timeDescending =
-    timeSortOverride !== null ? timeSortOverride === "desc" : defaultDescending;
+  // into the store on first view of the log: a run completing mid-session
+  // must not flip the list under the user.
+  const [timeSort, setTimeSort] = useProperty<"asc" | "desc">(
+    kTimelineBag,
+    useTimelineLogKey("sort")
+  );
+  const timeDescending = timeSort
+    ? timeSort === "desc"
+    : evalStatus === "started";
+  useEffect(() => {
+    if (timeSort === undefined) {
+      setTimeSort(evalStatus === "started" ? "desc" : "asc");
+    }
+  }, [timeSort, setTimeSort, evalStatus]);
 
-  const [selectedEventKey, setSelectedEventKey] = useState<string | null>(null);
+  const [selectedEventKey, setSelectedEventKey] = useProperty<string | null>(
+    kTimelineBag,
+    useTimelineLogKey("selected"),
+    { defaultValue: null }
+  );
   // Bidirectional marker ↔ row hover link (canvas 36a).
   const [hoverLink, setHoverLink] = useState<{
     source: "marker" | "row";
@@ -355,11 +376,9 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
         const category: HistoryCategory = key.startsWith("config:")
           ? "config"
           : "tags";
-        setSelectedCategories((previous) =>
-          previous.size === 0 || previous.has(category)
-            ? previous
-            : new Set(previous).add(category)
-        );
+        if (categoryList.length > 0 && !categoryList.includes(category)) {
+          setCategoryList([...categoryList, category]);
+        }
         const query = search.trim().toLowerCase();
         if (query !== "") {
           const row = rows.find(
@@ -373,7 +392,14 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
         }
       }
     },
-    [rows, search, setSearch, setSelectedCategories, setSelectedEventKey]
+    [
+      rows,
+      search,
+      setSearch,
+      categoryList,
+      setCategoryList,
+      setSelectedEventKey,
+    ]
   );
 
   const limitCrossReference = useCallback(
@@ -550,9 +576,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
           search={search}
           onSearchChange={setSearch}
           timeDescending={timeDescending}
-          onToggleTimeSort={() =>
-            setTimeSortOverride(timeDescending ? "asc" : "desc")
-          }
+          onToggleTimeSort={() => setTimeSort(timeDescending ? "asc" : "desc")}
           selectedEventKey={selectedEventKey}
           onSelectEvent={setSelectedEventKey}
           washKeys={hoverLink?.source === "marker" ? hoverLink.keys : kNoKeys}

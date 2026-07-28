@@ -7,20 +7,24 @@ import { useLogNavigationAction } from "../routing/logNavigation";
 import { logsUrl, useRoutePrefix } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
 
-// Timeline band-picker state, keyed per log so toggles don't leak between
-// logs viewed in the same session.
+// Timeline tab UI state (band toggles, filters, search, sort, selection),
+// keyed per log so it doesn't leak between logs viewed in the same session.
 export const kTimelineBag = "timeline";
 const kTimelineBandsKey = "bands";
 export const timelineBandId = (band: string, model?: string): string =>
   model ? `${band}:${model}` : band;
 
-/** The band-picker property key for the log currently in view. */
-export const useTimelineBandsKey = (): string => {
+/** A timeline property key scoped to the log currently in view. */
+export const useTimelineLogKey = (name: string): string => {
   // The app routes are splat patterns, so no logPath param exists —
   // loadedLog is the only source for the log in view.
   const loadedLog = useStore((state) => state.log.loadedLog);
-  return `${kTimelineBandsKey}:${loadedLog ?? ""}`;
+  return `${name}:${loadedLog ?? ""}`;
 };
+
+/** The band-picker property key for the log currently in view. */
+export const useTimelineBandsKey = (): string =>
+  useTimelineLogKey(kTimelineBandsKey);
 
 /** The modifier keys that turn a navigation click into open-in-new-tab. */
 export interface NavClickEvent {
