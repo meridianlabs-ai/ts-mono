@@ -37,7 +37,7 @@ ranges: `gh api /advisories/<ghsa_id> -q .vulnerabilities`.
 
 ```bash
 pnpm why -r <pkg>                      # who depends on it, all workspaces
-grep -n "^  <pkg>@" pnpm-lock.yaml     # which versions actually resolve
+grep -n "^  '\?<pkg>@" pnpm-lock.yaml  # which versions actually resolve
 ```
 
 Key questions:
@@ -74,7 +74,7 @@ that breaks the build is worse than the alert.
 
 ```bash
 pnpm install
-grep -n "^  <pkg>@" pnpm-lock.yaml   # confirm vulnerable versions are gone
+grep -n "^  '\?<pkg>@" pnpm-lock.yaml # confirm vulnerable versions are gone
 pnpm audit                            # should no longer report the advisory
 pnpm check && pnpm build && pnpm test # forced bumps can break things
 ```
