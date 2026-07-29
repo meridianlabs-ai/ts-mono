@@ -15,10 +15,7 @@ import {
 import { useNavigate } from "react-router";
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
-import {
-  ChatViewVirtualList,
-  messagesToStr,
-} from "@tsmono/inspect-components/chat";
+import { ChatViewRowsVirtualList } from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   RecordTree,
@@ -74,7 +71,7 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
-import { useChunkedMessages } from "../../log_data";
+import { useSampleMessages } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
@@ -94,10 +91,6 @@ import {
 } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
 
-import {
-  messagesFromEvents,
-  type MessagesFromEventsState,
-} from "./messagesFromEvents";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -197,27 +190,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const selectedSampleSummary = useSelectedSampleSummary();
 
-  // Consolidate the events and messages into the proper list
-  // whether running or not
+  // Consolidate the events into the proper list whether running or not
   const sampleEvents = sample?.events || runningSampleData;
-  // Cache messagesFromEvents work across polls. The polling pipeline
-  // only ever appends to the running events array (or replaces a tail
-  // event during streaming updates), so a pure-extension call only
-  // processes the new tail. Diverging events trigger a rebuild.
-  const messagesRef = useRef<MessagesFromEventsState | null>(null);
-  const sampleMessages = useMemo(() => {
-    /* eslint-disable react-hooks/refs */
-    if (sample?.messages) {
-      messagesRef.current = null;
-      return sample.messages;
-    } else if (runningSampleData) {
-      return messagesFromEvents(runningSampleData, messagesRef);
-    } else {
-      messagesRef.current = null;
-      return [];
-    }
-    /* eslint-enable react-hooks/refs */
-  }, [sample?.messages, runningSampleData]);
+
+  // Is the sample running?
+  const running = useMemo(() => {
+    return isRunning(
+      selectedSampleSummary,
+      runningSampleData,
+      sampleData.status
+    );
+  }, [selectedSampleSummary, runningSampleData, sampleData.status]);
 
   // Get all URL parameters at component level
   const {
@@ -238,23 +221,22 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
 
-  // Chunked samples carry an empty shell `messages` array; the Messages tab
-  // hydrates the final conversation from message_refs instead — gated on the
-  // tab actually being open (full hydration can be ~135MB on compaction
-  // monsters; never pay it at sample open). Once hydrated it stays cached.
+  // The Messages tab's rows and export source, assembled by the data layer.
+  // Which feed serves the conversation (monolith fetch, chunked hydration,
+  // live stream) is subsystem-private; the tab-open gate keeps chunked
+  // hydration from ever being paid at sample open.
   const logDir = useLogDir();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
-  const chunkedMessages = useChunkedMessages(
+  const sampleMessages = useSampleMessages(
     logDir,
-    isChunked && messagesTabOpen ? selectedSampleHandle : undefined,
-    sampleData.chunked
+    selectedSampleHandle,
+    sampleData,
+    messagesTabOpen,
+    running
   );
-  const effectiveMessages = isChunked
-    ? (chunkedMessages.data ?? [])
-    : sampleMessages;
 
   // Focus the panel when it loads
   useEffect(() => {
@@ -547,13 +529,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           }
         },
         Messages: () => {
-          if (sample?.messages) {
+          if (sampleMessages.source) {
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            navigator.clipboard.writeText(messagesToStr(sample.messages));
-            setIcon(ApplicationIcons.confirm);
-            setTimeout(() => {
-              setIcon(ApplicationIcons.copy);
-            }, 1250);
+            sampleMessages.source.exportText().then((text) => {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises
+              navigator.clipboard.writeText(text);
+              setIcon(ApplicationIcons.confirm);
+              setTimeout(() => {
+                setIcon(ApplicationIcons.copy);
+              }, 1250);
+            });
           }
         },
         Transcript: () => {
@@ -588,12 +573,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             );
           },
           Messages: () => {
-            if (sample.messages && sample.messages.length > 0) {
+            if (sampleMessages.source) {
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              api.download_file(
-                `${sampleId}-messages.txt`,
-                messagesToStr(sample.messages)
-              );
+              sampleMessages.source.exportText().then((text) => {
+                if (text.length > 0) {
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+                  api.download_file(`${sampleId}-messages.txt`, text);
+                }
+              });
             }
           },
           Transcript: () => {
@@ -624,15 +611,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Search and Scans are no longer toolbar buttons — the always-visible
   // activity rail (rendered below the timeline) is the sole entry point.
-
-  // Is the sample running?
-  const running = useMemo(() => {
-    return isRunning(
-      selectedSampleSummary,
-      runningSampleData,
-      sampleData.status
-    );
-  }, [selectedSampleSummary, runningSampleData, sampleData.status]);
 
   // Only a SUCCESSFUL finish may scroll the transcript/messages back to the
   // top when a live sample completes. An errored or cancelled run renders its
@@ -904,10 +882,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 panel={hasRail ? railPanel : undefined}
                 label={railLabel}
               >
-                <ChatViewVirtualList
+                <ChatViewRowsVirtualList
                   key={chatListId}
                   id={chatListId}
-                  messages={effectiveMessages}
+                  rows={sampleMessages.rows}
                   initialMessageId={sampleDetailNavigation.message}
                   followRequested={sampleDetailNavigation.follow}
                   display={chatDisplay}
@@ -917,7 +895,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   scrollRef={scrollRef}
                   tools={chatTools}
                   running={running}
-                  backfilling={backfilling}
+                  backfilling={backfilling || sampleMessages.loading}
                   scrollToTopOnFinish={scrollToTopOnFinish}
                   className={styles.fullWidth}
                 />

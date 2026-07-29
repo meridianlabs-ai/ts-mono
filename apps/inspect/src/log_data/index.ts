@@ -143,7 +143,8 @@ export {
   type ViewRow,
 } from "./chunked";
 export { resolvedEventsReader } from "./chunkedAttachments";
-export { useChunkedMessages } from "./chunkedMessages";
+export { type MessageRowsPage, type SampleMessagesData } from "./messageRows";
+export { useSampleMessages, type SampleMessages } from "./sampleMessages";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
 export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
