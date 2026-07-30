@@ -6,8 +6,7 @@ import type { MarkdownReference } from "@tsmono/react/components";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import { computeMaxLabelLength } from "./labelLength";
-import { resolveMessages } from "./messages";
-import { countRowBlocks } from "./rowsModel";
+import { buildMessageRows, messageRowOptions } from "./rowsModel";
 import {
   ChatViewDisplayOptions,
   ChatViewLabelOptions,
@@ -39,44 +38,35 @@ export const ChatView: FC<ChatViewProps> = ({
   tools,
   references,
 }) => {
-  const resolveInto = tools?.collapseToolMessages ?? true;
-  const collapsedMessages = resolveInto
-    ? resolveMessages(messages)
-    : messages.map((msg) => {
-        return {
-          message: msg,
-          toolMessages: [],
-        };
-      });
+  const callStyle = tools?.callStyle;
+  const collapseToolMessages = tools?.collapseToolMessages;
+  const rows = useMemo(
+    () =>
+      buildMessageRows(
+        messages,
+        messageRowOptions({ callStyle, collapseToolMessages })
+      ),
+    [messages, callStyle, collapseToolMessages]
+  );
   const maxLabelLength = useMemo(
     () => computeMaxLabelLength(labels?.messageLabels),
     [labels?.messageLabels]
   );
-  const toolCallStyle = tools?.callStyle ?? "complete";
-  const rowStartNumbers = useMemo(() => {
-    const starts: number[] = [];
-    let next = 1;
-    for (const msg of collapsedMessages) {
-      starts.push(next);
-      next += countRowBlocks(msg, toolCallStyle);
-    }
-    return starts;
-  }, [collapsedMessages, toolCallStyle]);
   return (
     <div className={clsx(className)}>
-      {collapsedMessages.map((msg, index) => {
+      {rows.map((row, index) => {
         return (
           <ChatMessageRow
             index={index}
             key={`${id}-msg-${index}`}
             parentName={id || "chat-view"}
-            resolvedMessage={msg}
+            resolvedMessage={row.resolved}
             display={display}
             labels={labels}
             linking={linking}
             tools={tools}
             maxLabelLength={maxLabelLength}
-            startNumber={rowStartNumbers[index]}
+            startNumber={row.startNumber}
             references={references}
           />
         );

@@ -2,6 +2,7 @@ import { Pagination } from "@tsmono/inspect-common/query";
 import { ChatMessage } from "@tsmono/inspect-common/types";
 import {
   buildMessageRows,
+  messageRowOptions,
   messagesToStr,
   type MessageRow,
   type MessageRowOptions,
@@ -70,10 +71,10 @@ export const paginationRange = (
   return { lo, hi: Math.min(lo + pagination.limit, total) };
 };
 
-export const kDefaultMessageRowOptions: MessageRowOptions = {
-  toolCallStyle: "complete",
-  collapseToolMessages: true,
-};
+// derived, not restated: the render-side defaults in messageRowOptions
+// are the single authority for how conversations fold
+export const kDefaultMessageRowOptions: MessageRowOptions =
+  messageRowOptions();
 
 /**
  * A source over an inline message array (monolith samples and hydrated

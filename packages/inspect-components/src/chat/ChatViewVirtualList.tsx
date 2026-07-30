@@ -31,7 +31,11 @@ import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
 import { messageSearchText } from "./messageSearchText";
-import { buildMessageRows, type MessageRow } from "./rowsModel";
+import {
+  buildMessageRows,
+  messageRowOptions,
+  type MessageRow,
+} from "./rowsModel";
 import {
   ChatViewDisplayOptions,
   ChatViewLabelOptions,
@@ -261,13 +265,15 @@ export interface ChatViewVirtualListProps extends Omit<
 /** The chat list over an in-memory message array. */
 export const ChatViewVirtualList: FC<ChatViewVirtualListProps> = memo(
   function ChatViewVirtualList({ messages, tools, ...rest }) {
+    const callStyle = tools?.callStyle;
+    const collapseToolMessages = tools?.collapseToolMessages;
     const rows = useMemo(
       () =>
-        buildMessageRows(messages, {
-          toolCallStyle: tools?.callStyle ?? "complete",
-          collapseToolMessages: tools?.collapseToolMessages ?? true,
-        }),
-      [messages, tools?.callStyle, tools?.collapseToolMessages]
+        buildMessageRows(
+          messages,
+          messageRowOptions({ callStyle, collapseToolMessages })
+        ),
+      [messages, callStyle, collapseToolMessages]
     );
     return <ChatViewRowsVirtualList rows={rows} tools={tools} {...rest} />;
   }

@@ -16,6 +16,19 @@ export interface MessageRowOptions {
 }
 
 /**
+ * Fold options from a view's tool options — the one place the fold
+ * defaults ("complete", collapse on) are defined. Data-layer folds and
+ * the chat components both derive from here, so pre-built rows and their
+ * rendering can't disagree on defaults.
+ */
+export const messageRowOptions = (
+  tools?: Pick<ChatViewToolOptions, "callStyle" | "collapseToolMessages">
+): MessageRowOptions => ({
+  toolCallStyle: tools?.callStyle ?? "complete",
+  collapseToolMessages: tools?.collapseToolMessages ?? true,
+});
+
+/**
  * Fold messages into rows and attach start numbers — the whole-conversation
  * derivation the chat list renders from (tool folding, block prefix sums).
  * React-free so data-layer sources can build rows without dragging in
