@@ -1,6 +1,8 @@
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { skipToken } from "@tanstack/react-query";
 
 import type { MessageRow } from "@tsmono/inspect-components/chat";
+import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
+import { AsyncData, loading as asyncLoading } from "@tsmono/util";
 
 import { SampleHandle } from "../app/types";
 
@@ -13,24 +15,22 @@ import { kSampleGcTimeMs } from "./sampleQuery";
  * still slow on huge samples, but behind the seam a windowed source can
  * later serve page by page without touching consumers.
  *
- * This is the asynchronous rows path: undefined until the source exists
- * and the read settles. Feeds whose rows are already resident don't route
- * through here — the factory composes those in directly, because they must
- * never spend a pending frame (react-query's initialData can't provide
- * that: it only applies when the query instance is first created, and this
- * query mounts sourceless while a sample streams).
+ * Every settled feed's rows read through here. The read is asynchronous;
+ * across the live-finish handoff the caller bridges the pending frames
+ * with the last streaming rows (see useSampleMessages) so the list never
+ * sees an empty frame.
  */
 export const useMessageRows = (
   handle: SampleHandle | undefined,
   source: SampleMessagesData | undefined
-): MessageRow[] | undefined => {
-  const query = useQuery({
-    // The key carries sample identity only — nothing distinguishes which
-    // source (message set, fold options) produced the rows, and staleTime
-    // Infinity means a new source under the same handle would serve stale
-    // rows. Safe while sources are pure functions of the settled sample;
-    // the first live async source (the windowed chunked source) must add
-    // its distinguishing inputs here.
+): AsyncData<MessageRow[]> => {
+  const rows = useAsyncDataFromQuery<MessageRow[]>({
+    // CONTRACT: the key omits the source because every source is a pure
+    // function of the handle (logs are append-only; fold options are a
+    // module constant) — that is what lets staleTime Infinity serve the
+    // cached fold forever. A source that breaks the rule (the windowed
+    // chunked source, per-user fold options) must add its distinguishing
+    // inputs here.
     queryKey: [
       "log_data",
       "message-rows",
@@ -57,5 +57,8 @@ export const useMessageRows = (
     // MessageRows hold large resolved message graphs — never clone/merge.
     structuralSharing: false,
   });
-  return source === undefined ? undefined : query.data;
+  // Sourceless mounts read as loading even over a warm cache: rows are
+  // served only while the caller presents a source (activation gating
+  // lives with the caller).
+  return source === undefined ? asyncLoading : rows;
 };

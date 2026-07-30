@@ -112,7 +112,7 @@ export const useSampleMessages = (
     handle,
     activated && residentRows === undefined ? source : undefined
   );
-  const settledRows = sourceRows ?? residentRows;
+  const settledRows = sourceRows.data ?? residentRows;
 
   // Streaming path: rows derived from the event stream each poll. The
   // polling pipeline only ever appends to the running events array (or
@@ -156,7 +156,7 @@ export const useSampleMessages = (
   return {
     rows: settledRows ?? streamingRows ?? kNoRows,
     loading,
-    error: isChunked ? chunkedMessages.error : undefined,
+    error: (isChunked ? chunkedMessages.error : undefined) ?? sourceRows.error,
     source,
   };
 };
