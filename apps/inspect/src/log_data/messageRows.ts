@@ -73,8 +73,7 @@ export const paginationRange = (
 
 // derived, not restated: the render-side defaults in messageRowOptions
 // are the single authority for how conversations fold
-export const kDefaultMessageRowOptions: MessageRowOptions =
-  messageRowOptions();
+export const kDefaultMessageRowOptions: MessageRowOptions = messageRowOptions();
 
 /**
  * A source over an inline message array (monolith samples and hydrated
