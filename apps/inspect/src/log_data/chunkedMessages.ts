@@ -52,6 +52,9 @@ export const useChunkedMessages = (
     queryFn:
       chunked && handle ? () => hydrateFinalConversation(chunked) : skipToken,
     gcTime: kSampleGcTimeMs,
+    // a settled chunked conversation is immutable: a warm hydration is
+    // served as-is on observer remount, never re-fetched
+    staleTime: Infinity,
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
