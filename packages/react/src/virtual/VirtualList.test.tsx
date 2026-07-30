@@ -9,79 +9,19 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExtendedFindProvider } from "../components/ExtendedFindContext";
-import { ComponentStateProvider } from "../state/ComponentStateContext";
+import {
+  ComponentStateHooks,
+  ComponentStateProvider,
+} from "../state/ComponentStateContext";
+import {
+  makeReactiveStateHooks,
+  makeStateHooks,
+} from "../test/component-state-hooks";
 
 import { VirtualList } from "./VirtualList";
 
-// Minimal Map-backed ComponentStateHooks (VirtualList persists its scroll
-// snapshot through useProperty; the store itself is irrelevant here).
-function makeStateHooks() {
-  const store = new Map<string, unknown>();
-  const getKey = (id: string, prop: string) => `${id}::${prop}`;
-  return {
-    useValue: (id: string, prop: string, defaultValue?: unknown) =>
-      store.has(getKey(id, prop)) ? store.get(getKey(id, prop)) : defaultValue,
-    useSetValue: () => (id: string, prop: string, value: unknown) => {
-      store.set(getKey(id, prop), value);
-    },
-    useRemoveValue: () => (id: string, prop: string) => {
-      store.delete(getKey(id, prop));
-    },
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-}
-
-// Reactive Map-backed ComponentStateHooks: like production (zustand-selector
-// adapters in both apps), a set re-renders every subscribed component. The
-// non-reactive fake above cannot exercise effects whose own setProperty call
-// re-runs them — this one can.
-function makeReactiveStateHooks(): ReturnType<typeof makeStateHooks> {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const subscribe = (cb: () => void) => {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  };
-  const emit = () => {
-    version++;
-    listeners.forEach((l) => l());
-  };
-  const getKey = (id: string, prop: string) => `${id}::${prop}`;
-  // Stable action references, like zustand store actions in production —
-  // an unstable setter would churn effect deps on every re-render and mask
-  // the very re-run behavior this harness exists to exercise.
-  const setValue = (id: string, prop: string, value: unknown) => {
-    const key = getKey(id, prop);
-    if (!store.has(key) || store.get(key) !== value) {
-      store.set(key, value);
-      emit();
-    }
-  };
-  const removeValue = (id: string, prop: string) => {
-    if (store.delete(getKey(id, prop))) emit();
-  };
-  return {
-    useValue: (id: string, prop: string, defaultValue?: unknown) => {
-      useSyncExternalStore(subscribe, () => version);
-      return store.has(getKey(id, prop))
-        ? store.get(getKey(id, prop))
-        : defaultValue;
-    },
-    useSetValue: () => setValue,
-    useRemoveValue: () => removeValue,
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-}
-
 const Wrapper: React.FC<{
-  hooks: ReturnType<typeof makeStateHooks>;
+  hooks: ComponentStateHooks;
   children: ReactNode;
 }> = ({ hooks, children }) => (
   <ComponentStateProvider hooks={hooks}>
@@ -104,7 +44,7 @@ describe("VirtualList live-finish scroll-to-top", () => {
 
   const mountList = (
     scrollRef: RefObject<HTMLDivElement | null>,
-    makeHooks: () => ReturnType<typeof makeStateHooks> = makeStateHooks
+    makeHooks: () => ComponentStateHooks = makeStateHooks
   ) => {
     const props = {
       persistenceKey: "test-list",
@@ -255,7 +195,7 @@ describe("VirtualList follow arming (nav ownership)", () => {
         emit();
       }
     };
-    const hooks: ReturnType<typeof makeStateHooks> = {
+    const hooks: ComponentStateHooks = {
       useValue: (id: string, prop: string, defaultValue?: unknown) => {
         useSyncExternalStore(subscribe, () => version);
         return store.has(key(id, prop))
@@ -415,7 +355,7 @@ describe("VirtualList persist flush on unmount", () => {
   const mountWithStore = (scrollRef: RefObject<HTMLDivElement | null>) => {
     const store = new Map<string, unknown>();
     const getKey = (id: string, prop: string) => `${id}::${prop}`;
-    const hooks: ReturnType<typeof makeStateHooks> = {
+    const hooks: ComponentStateHooks = {
       useValue: (id, prop, defaultValue) =>
         store.has(getKey(id, prop))
           ? store.get(getKey(id, prop))

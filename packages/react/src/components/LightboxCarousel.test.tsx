@@ -6,53 +6,21 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { FC, ReactNode, useState, useSyncExternalStore } from "react";
+import { FC, ReactNode, useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "../state/ComponentStateContext";
+import { ComponentStateProvider } from "../state/ComponentStateContext";
+import { makeReactiveStateHooks } from "../test/component-state-hooks";
 import { testIcons } from "../test/test-icons";
 
 import { ComponentIconProvider } from "./ComponentIconContext";
 import { LightboxCarousel } from "./LightboxCarousel";
 
-// Reactive Map-backed store: LightboxCarousel drives every piece of its state
-// through useProperty, so setValue has to actually re-render for the lightbox
-// to open or the slide to advance.
-function makeStateHooks(): ComponentStateHooks {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  const key = (id: string, prop: string) => `${id}::${prop}`;
-  const subscribe = (listener: () => void) => {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  };
-  const emit = () => listeners.forEach((listener) => listener());
-
-  return {
-    useValue: (id: string, prop: string, defaultValue?: unknown) =>
-      useSyncExternalStore(subscribe, () => {
-        const k = key(id, prop);
-        return store.has(k) ? store.get(k) : defaultValue;
-      }),
-    useSetValue: () => (id: string, prop: string, value: unknown) => {
-      store.set(key(id, prop), value);
-      emit();
-    },
-    useRemoveValue: () => (id: string, prop: string) => {
-      store.delete(key(id, prop));
-      emit();
-    },
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-}
-
+// LightboxCarousel drives every piece of its state through useProperty, so a
+// set has to actually re-render for the lightbox to open or the slide to
+// advance.
 const Wrapper: FC<{ children: ReactNode }> = ({ children }) => {
-  const [hooks] = useState(makeStateHooks);
+  const [hooks] = useState(makeReactiveStateHooks);
   return (
     <ComponentStateProvider hooks={hooks}>
       <ComponentIconProvider icons={testIcons}>
