@@ -152,6 +152,7 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   // sub-structure to drill into.
   const swimlanesDefaultCollapsed = hasTimeline ? !hasAgentTimeline : true;
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns fresh closures by design, so the compiler declines to memoize this component; the virtualizer stays local to this file and is never handed to a memoized child, so the bail-out costs nothing here
   const virtualizer = useVirtualizer({
     count: rows.total,
     getScrollElement: () => scrollRef.current,
