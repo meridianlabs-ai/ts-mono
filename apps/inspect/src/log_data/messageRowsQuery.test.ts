@@ -19,7 +19,7 @@ const makeMessages = (count: number): ChatMessage[] =>
     id: `m-${i}`,
     role: "user",
     content: `message ${i}`,
-  })) as unknown as ChatMessage[];
+  }));
 
 const makeWrapper = (client: QueryClient = new QueryClient()) =>
   function Wrapper({ children }: { children: ReactNode }) {
