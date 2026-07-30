@@ -3,25 +3,23 @@ import { renderHook } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ChatMessage, EvalSample } from "@tsmono/inspect-common/types";
+import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
 
-import { type ChunkedSample } from "./chunked";
 import { useMessagesExport } from "./messagesExport";
 import { type EvalSampleData } from "./sampleData";
+import {
+  sequenceReaderOver,
+  testChunkedSample,
+  testEvalSample,
+  testMessages as makeMessages,
+} from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
 
-const makeMessages = (count: number): ChatMessage[] =>
-  Array.from({ length: count }, (_, i) => ({
-    id: `m-${i}`,
-    role: "user",
-    content: `message ${i}`,
-  })) as unknown as ChatMessage[];
-
 const settledData = (messages: ChatMessage[]): EvalSampleData => ({
-  sample: { messages } as EvalSample,
+  sample: testEvalSample(messages),
   status: "ok",
   error: undefined,
   running: [],
@@ -65,14 +63,9 @@ describe("useMessagesExport", () => {
   });
 
   it("hydrates a chunked conversation on demand, once", async () => {
-    const messages = makeMessages(4);
-    const getRange = vi.fn((lo: number, hi: number) =>
-      Promise.resolve(messages.slice(lo, hi))
-    );
-    const chunked = {
-      shell: { id: "s1", epoch: 1, message_refs: [[0, 4]] },
-      messages: { getRange },
-    } as unknown as ChunkedSample;
+    const reader = sequenceReaderOver(makeMessages(4));
+    const getRange = vi.spyOn(reader, "getRange");
+    const chunked = testChunkedSample(reader);
     const sampleData: EvalSampleData = {
       sample: undefined,
       status: "ok",

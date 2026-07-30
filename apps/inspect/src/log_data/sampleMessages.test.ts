@@ -3,50 +3,30 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
-import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
+import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
 
-import { type ChunkedSample } from "./chunked";
 import { type EvalSampleData } from "./sampleData";
 import { useSampleMessages } from "./sampleMessages";
+import {
+  failingSequenceReader,
+  testChunkedSample,
+  testEvalSample,
+  testMessages as makeMessages,
+  testModelEvent as modelEvent,
+} from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
 
-const makeMessages = (count: number): ChatMessage[] =>
-  Array.from({ length: count }, (_, i) => ({
-    id: `m-${i}`,
-    role: "user",
-    content: `message ${i}`,
-  })) as unknown as ChatMessage[];
-
 const settledData = (messages: ChatMessage[]): EvalSampleData => ({
-  sample: { messages } as EvalSample,
+  sample: testEvalSample(messages),
   status: "ok",
   error: undefined,
   running: [],
   eventsCleared: false,
   backfilling: false,
 });
-
-const modelEvent = (inputId: string, outputId: string): Event =>
-  ({
-    event: "model",
-    error: null,
-    input: [{ id: inputId, role: "user", content: "hello", source: null }],
-    output: {
-      choices: [
-        {
-          message: {
-            id: outputId,
-            role: "assistant",
-            content: "response",
-            source: "generate",
-          },
-        },
-      ],
-    },
-  }) as unknown as Event;
 
 const makeWrapper = (client: QueryClient = new QueryClient()) =>
   function Wrapper({ children }: { children: ReactNode }) {
@@ -286,10 +266,10 @@ describe("useSampleMessages", () => {
   });
 
   it("surfaces a chunked hydration failure instead of 'No messages'", async () => {
-    const failingChunked = {
-      shell: { id: "s1", epoch: 1, message_refs: [[0, 2]] },
-      messages: { getRange: () => Promise.reject(new Error("boom")) },
-    } as unknown as ChunkedSample;
+    const failingChunked = testChunkedSample(
+      failingSequenceReader(new Error("boom")),
+      [[0, 2]]
+    );
     const sampleData: EvalSampleData = {
       sample: undefined,
       status: "ok",

@@ -3,25 +3,24 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
-import { ChatMessage, EvalSample } from "@tsmono/inspect-common/types";
+import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
 
-import { type ChunkedSample } from "./chunked";
 import { useMessageRows } from "./messageRowsQuery";
 import { type EvalSampleData } from "./sampleData";
+import {
+  failingSequenceReader,
+  sequenceReaderOver,
+  testChunkedSample,
+  testEvalSample,
+  testMessages as makeMessages,
+} from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
 
-const makeMessages = (count: number): ChatMessage[] =>
-  Array.from({ length: count }, (_, i) => ({
-    id: `m-${i}`,
-    role: "user",
-    content: `message ${i}`,
-  })) as unknown as ChatMessage[];
-
 const settledData = (messages: ChatMessage[]): EvalSampleData => ({
-  sample: { messages } as EvalSample,
+  sample: testEvalSample(messages),
   status: "ok",
   error: undefined,
   running: [],
@@ -93,14 +92,7 @@ describe("useMessageRows", () => {
   });
 
   it("reads a chunked sample through hydration", async () => {
-    const messages = makeMessages(4);
-    const chunked = {
-      shell: { id: "s1", epoch: 1, message_refs: [[0, 4]] },
-      messages: {
-        getRange: (lo: number, hi: number) =>
-          Promise.resolve(messages.slice(lo, hi)),
-      },
-    } as unknown as ChunkedSample;
+    const chunked = testChunkedSample(sequenceReaderOver(makeMessages(4)));
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
@@ -109,10 +101,10 @@ describe("useMessageRows", () => {
   });
 
   it("surfaces a chunked hydration failure as error, not endless loading", async () => {
-    const chunked = {
-      shell: { id: "s1", epoch: 1, message_refs: [[0, 2]] },
-      messages: { getRange: () => Promise.reject(new Error("boom")) },
-    } as unknown as ChunkedSample;
+    const chunked = testChunkedSample(
+      failingSequenceReader(new Error("boom")),
+      [[0, 2]]
+    );
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
