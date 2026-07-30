@@ -26,6 +26,12 @@ export const useMessageRows = (
   source: SampleMessagesData | undefined
 ): MessageRow[] | undefined => {
   const query = useQuery({
+    // The key carries sample identity only — nothing distinguishes which
+    // source (message set, fold options) produced the rows, and staleTime
+    // Infinity means a new source under the same handle would serve stale
+    // rows. Safe while sources are pure functions of the settled sample;
+    // the first live async source (the windowed chunked source) must add
+    // its distinguishing inputs here.
     queryKey: [
       "log_data",
       "message-rows",

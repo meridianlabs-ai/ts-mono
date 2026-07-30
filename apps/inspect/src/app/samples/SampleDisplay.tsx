@@ -72,7 +72,7 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
-import { useSampleMessages } from "../../log_data";
+import { kDefaultMessageRowOptions, useSampleMessages } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
@@ -285,7 +285,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     () => ({ enabled: isHostedEnvironment(), getMessageUrl }),
     [getMessageUrl]
   );
-  const chatTools = useMemo(() => ({ callStyle: "complete" as const }), []);
+  // Derived from the fold options: the rows arrive pre-folded and numbered
+  // by kDefaultMessageRowOptions, and render-side tool options must agree
+  // with them or block numbering and rendering diverge.
+  const chatTools = useMemo(
+    () => ({ callStyle: kDefaultMessageRowOptions.toolCallStyle }),
+    []
+  );
 
   const sampleUsages = usageViewsForSample(`${baseId}-${id}`, sample, evalSpec);
   const sampleMetadatas = metadataViewsForSample(
