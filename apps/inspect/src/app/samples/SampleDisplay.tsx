@@ -888,22 +888,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               selected={effectiveSelectedTab === kSampleMessagesTabId}
               scrollable={false}
             >
-              {sampleMessages.error ? (
-                <ErrorPanel
-                  title="An error occurred while loading messages."
-                  error={sampleMessages.error}
-                />
-              ) : (
-                <RailSidebarHost
-                  contentClassName={styles.chat}
-                  scrollRef={scrollRef}
-                  panelTop={stickyOffsetTop}
-                  panelWidth={railPanelWidth}
-                  onPanelWidthChange={setRailPanelWidth}
-                  rail={hasRail ? railNode : undefined}
-                  panel={hasRail ? railPanel : undefined}
-                  label={railLabel}
-                >
+              <RailSidebarHost
+                contentClassName={styles.chat}
+                scrollRef={scrollRef}
+                panelTop={stickyOffsetTop}
+                panelWidth={railPanelWidth}
+                onPanelWidthChange={setRailPanelWidth}
+                rail={hasRail ? railNode : undefined}
+                panel={hasRail ? railPanel : undefined}
+                label={railLabel}
+              >
+                {sampleMessages.error ? (
+                  // inside the rail host: the activity rail is the sole
+                  // search/scans entry point and must survive the error
+                  <ErrorPanel
+                    title="An error occurred while loading messages."
+                    error={sampleMessages.error}
+                  />
+                ) : (
                   <ChatViewRowsVirtualList
                     key={chatListId}
                     id={chatListId}
@@ -921,8 +923,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     className={styles.fullWidth}
                   />
-                </RailSidebarHost>
-              )}
+                )}
+              </RailSidebarHost>
             </TabPanel>
             <TabPanel
               key={kSampleScoringTabId}
