@@ -126,9 +126,13 @@ export const useSampleMessages = (
   // empty list (that would unmount the view and lose its scroll handoff).
   const messagesRef = useRef<MessagesFromEventsState | null>(null);
   const runningEvents = sampleData.running;
+  // Gated on raw `active`, not the latch: unlike the resident path there is
+  // no artifact worth keeping warm — the fold reruns per poll by design —
+  // so a hidden tab shouldn't pay O(conversation) per poll. Returning
+  // mid-stream rebuilds once from the events, matching main's remount.
   const streamingRows = useMemo(() => {
     /* eslint-disable react-hooks/refs */
-    if (!activated || settledRows !== undefined || runningEvents.length === 0) {
+    if (!active || settledRows !== undefined || runningEvents.length === 0) {
       messagesRef.current = null;
       return undefined;
     }
@@ -137,7 +141,7 @@ export const useSampleMessages = (
       kDefaultMessageRowOptions
     );
     /* eslint-enable react-hooks/refs */
-  }, [activated, settledRows, runningEvents]);
+  }, [active, settledRows, runningEvents]);
 
   const loading =
     // a created source whose rows haven't landed (and no streaming rows

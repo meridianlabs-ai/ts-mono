@@ -207,6 +207,31 @@ describe("useSampleMessages", () => {
     expect(result.current.rows).toHaveLength(2);
   });
 
+  it("stops the streaming fold when the tab is hidden, latch or not", () => {
+    const streamingData: EvalSampleData = {
+      sample: undefined,
+      status: "streaming",
+      error: undefined,
+      running: [modelEvent("m-in", "m-out")],
+      eventsCleared: false,
+      backfilling: false,
+    };
+    const { result, rerender } = renderHook(
+      ({ active }: { active: boolean }) =>
+        useSampleMessages(logDir, handle, streamingData, active, true),
+      { wrapper: makeWrapper(), initialProps: { active: true } }
+    );
+    expect(result.current.rows).toHaveLength(2);
+
+    // hidden mid-stream: the per-poll refold must not keep running (the
+    // list is unmounted); returning rebuilds from the events
+    rerender({ active: false });
+    expect(result.current.rows).toHaveLength(0);
+
+    rerender({ active: true });
+    expect(result.current.rows).toHaveLength(2);
+  });
+
   it("resets the latch when the sample changes", () => {
     const sampleData = settledData(makeMessages(4));
     const other: SampleHandle = { logFile: "log.eval", id: "s2", epoch: 1 };
