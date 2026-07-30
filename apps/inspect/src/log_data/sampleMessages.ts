@@ -71,6 +71,10 @@ export const useSampleMessages = (
   // async hop would unmount the list mid-handoff, losing its live-finish
   // scroll behavior. The query serves only sources that actually need an
   // async read (none in this stage; the windowed chunked source will).
+  // Deliberately parallel to the source's own lazy fold, not duplication:
+  // the resident path can never read through the async interface (the
+  // atomic swap above), and the source's paged reads have no resident-path
+  // caller — two consumers sharing one fold, buildMessageRows.
   const residentRows = useMemo(
     () =>
       residentMessages
