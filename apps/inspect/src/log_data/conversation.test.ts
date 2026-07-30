@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ChatMessage } from "@tsmono/inspect-common/types";
 
-import { inMemoryConversation } from "./conversation";
+import { conversationRanges, inMemoryConversation } from "./conversation";
 
 const message = (id: string): ChatMessage => ({
   id,
@@ -43,5 +43,51 @@ describe("inMemoryConversation", () => {
     await expect(inMemoryConversation([]).getMessages(0, 10)).resolves.toEqual(
       []
     );
+  });
+});
+
+describe("conversationRanges", () => {
+  // widths 3, 2, 5 — conversation positions 0-2, 3-4, 5-9
+  const refs: [number, number][] = [
+    [10, 13],
+    [20, 22],
+    [30, 35],
+  ];
+
+  it("maps a window within one ref to a single offset range", () => {
+    expect(conversationRanges(refs, 1, 3)).toEqual([[11, 13]]);
+    expect(conversationRanges(refs, 5, 8)).toEqual([[30, 33]]);
+  });
+
+  it("splits windows crossing ref boundaries", () => {
+    expect(conversationRanges(refs, 2, 6)).toEqual([
+      [12, 13],
+      [20, 22],
+      [30, 31],
+    ]);
+    expect(conversationRanges(refs, 0, 10)).toEqual(refs);
+  });
+
+  it("clamps out-of-range bounds", () => {
+    expect(conversationRanges(refs, -5, 2)).toEqual([[10, 12]]);
+    expect(conversationRanges(refs, 8, 99)).toEqual([[33, 35]]);
+    expect(conversationRanges(refs, 10, 20)).toEqual([]);
+    expect(conversationRanges(refs, 4, 4)).toEqual([]);
+  });
+
+  it("skips zero-width refs", () => {
+    const gappy: [number, number][] = [
+      [10, 12],
+      [15, 15],
+      [20, 22],
+    ];
+    expect(conversationRanges(gappy, 1, 3)).toEqual([
+      [11, 12],
+      [20, 21],
+    ]);
+  });
+
+  it("handles empty refs", () => {
+    expect(conversationRanges([], 0, 10)).toEqual([]);
   });
 });
