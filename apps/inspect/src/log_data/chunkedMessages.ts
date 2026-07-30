@@ -35,7 +35,6 @@ export const hydrateFinalConversation = (
  * cached alongside the sample queries.
  */
 export const useChunkedMessages = (
-  logDir: string,
   handle: SampleHandle | undefined,
   chunked: ChunkedSample | undefined
 ): AsyncData<ChatMessage[]> =>
@@ -43,7 +42,6 @@ export const useChunkedMessages = (
     queryKey: [
       "log_data",
       "chunked-messages",
-      logDir,
       handle?.logFile ?? null,
       handle?.id ?? null,
       handle?.epoch ?? null,

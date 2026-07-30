@@ -47,7 +47,6 @@ export interface SampleMessages {
  * surface "waiting", not "loading", before their first poll lands).
  */
 export const useSampleMessages = (
-  logDir: string,
   handle: SampleHandle | undefined,
   sampleData: EvalSampleData,
   active: boolean,
@@ -78,7 +77,6 @@ export const useSampleMessages = (
 
   const isChunked = sampleData.chunked !== undefined;
   const chunkedMessages = useChunkedMessages(
-    logDir,
     isChunked && activated ? handle : undefined,
     sampleData.chunked
   );
@@ -111,7 +109,6 @@ export const useSampleMessages = (
   // `activated` gates the query input too, or deferring the resident fold
   // would just move the sample-open fold into react-query
   const sourceRows = useMessageRows(
-    logDir,
     handle,
     activated && residentRows === undefined ? source : undefined
   );

@@ -11,7 +11,6 @@ import { type ChunkedSample } from "./chunked";
 import { type EvalSampleData } from "./sampleData";
 import { useSampleMessages } from "./sampleMessages";
 
-const logDir = "logs";
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
 
 const makeMessages = (count: number): ChatMessage[] =>
@@ -58,7 +57,7 @@ describe("useSampleMessages", () => {
   it("serves a settled sample's rows synchronously through the seam", () => {
     const sampleData = settledData(makeMessages(1200));
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, false),
+      () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 
@@ -71,7 +70,7 @@ describe("useSampleMessages", () => {
   it("exports the settled conversation's text", async () => {
     const sampleData = settledData(makeMessages(3));
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, false),
+      () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 
@@ -90,7 +89,7 @@ describe("useSampleMessages", () => {
       backfilling: false,
     };
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, false),
+      () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 
@@ -108,7 +107,7 @@ describe("useSampleMessages", () => {
       backfilling: false,
     };
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, true),
+      () => useSampleMessages(handle, sampleData, true, true),
       { wrapper: makeWrapper() }
     );
 
@@ -130,7 +129,7 @@ describe("useSampleMessages", () => {
       backfilling: false,
     };
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, true),
+      () => useSampleMessages(handle, sampleData, true, true),
       { wrapper: makeWrapper() }
     );
 
@@ -153,7 +152,7 @@ describe("useSampleMessages", () => {
     };
     const { result, rerender } = renderHook(
       ({ data, running }: { data: EvalSampleData; running: boolean }) =>
-        useSampleMessages(logDir, handle, data, true, running),
+        useSampleMessages(handle, data, true, running),
       {
         wrapper: makeWrapper(),
         initialProps: { data: streamingData, running: true },
@@ -170,7 +169,7 @@ describe("useSampleMessages", () => {
     const sampleData = settledData(makeMessages(10));
     const { result, rerender } = renderHook(
       ({ active }: { active: boolean }) =>
-        useSampleMessages(logDir, handle, sampleData, active, false),
+        useSampleMessages(handle, sampleData, active, false),
       { wrapper: makeWrapper(), initialProps: { active: false } }
     );
 
@@ -197,7 +196,7 @@ describe("useSampleMessages", () => {
     };
     const { result, rerender } = renderHook(
       ({ active }: { active: boolean }) =>
-        useSampleMessages(logDir, handle, streamingData, active, true),
+        useSampleMessages(handle, streamingData, active, true),
       { wrapper: makeWrapper(), initialProps: { active: false } }
     );
 
@@ -218,7 +217,7 @@ describe("useSampleMessages", () => {
     };
     const { result, rerender } = renderHook(
       ({ active }: { active: boolean }) =>
-        useSampleMessages(logDir, handle, streamingData, active, true),
+        useSampleMessages(handle, streamingData, active, true),
       { wrapper: makeWrapper(), initialProps: { active: true } }
     );
     expect(result.current.rows).toHaveLength(2);
@@ -237,7 +236,7 @@ describe("useSampleMessages", () => {
     const other: SampleHandle = { logFile: "log.eval", id: "s2", epoch: 1 };
     const { result, rerender } = renderHook(
       ({ h, active }: { h: SampleHandle; active: boolean }) =>
-        useSampleMessages(logDir, h, sampleData, active, false),
+        useSampleMessages(h, sampleData, active, false),
       { wrapper: makeWrapper(), initialProps: { h: handle, active: true } }
     );
     expect(result.current.rows).toHaveLength(4);
@@ -270,7 +269,7 @@ describe("useSampleMessages", () => {
       chunked: failingChunked,
     };
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, false),
+      () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 
@@ -284,7 +283,7 @@ describe("useSampleMessages", () => {
   it("handles an empty settled conversation", () => {
     const sampleData = settledData([]);
     const { result } = renderHook(
-      () => useSampleMessages(logDir, handle, sampleData, true, false),
+      () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 

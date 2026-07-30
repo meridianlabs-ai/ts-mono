@@ -21,7 +21,6 @@ import { kSampleGcTimeMs } from "./sampleQuery";
  * query mounts sourceless while a sample streams).
  */
 export const useMessageRows = (
-  logDir: string,
   handle: SampleHandle | undefined,
   source: SampleMessagesData | undefined
 ): MessageRow[] | undefined => {
@@ -35,7 +34,6 @@ export const useMessageRows = (
     queryKey: [
       "log_data",
       "message-rows",
-      logDir,
       handle?.logFile ?? null,
       handle?.id ?? null,
       handle?.epoch ?? null,

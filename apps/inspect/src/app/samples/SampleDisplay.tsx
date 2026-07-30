@@ -59,7 +59,7 @@ import {
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
-import { getApi, useLogDir } from "../../app_config";
+import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -226,13 +226,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Which feed serves the conversation (monolith fetch, chunked hydration,
   // live stream) is subsystem-private; the tab-open gate keeps chunked
   // hydration from ever being paid at sample open.
-  const logDir = useLogDir();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
   const sampleMessages = useSampleMessages(
-    logDir,
     selectedSampleHandle,
     sampleData,
     messagesTabOpen,

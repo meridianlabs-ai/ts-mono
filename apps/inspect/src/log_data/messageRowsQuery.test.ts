@@ -11,7 +11,6 @@ import { SampleHandle } from "../app/types";
 import { inMemoryMessageRows, type SampleMessagesData } from "./messageRows";
 import { useMessageRows } from "./messageRowsQuery";
 
-const logDir = "logs";
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
 
 const makeMessages = (count: number): ChatMessage[] =>
@@ -28,7 +27,7 @@ const makeWrapper = (client: QueryClient = new QueryClient()) =>
 
 const renderRows = (src: SampleMessagesData | undefined) =>
   renderHook<MessageRow[] | undefined, { src: SampleMessagesData | undefined }>(
-    ({ src }) => useMessageRows(logDir, handle, src),
+    ({ src }) => useMessageRows(handle, src),
     {
       wrapper: makeWrapper(),
       initialProps: { src },
