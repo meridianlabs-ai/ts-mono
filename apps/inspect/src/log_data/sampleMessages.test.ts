@@ -220,6 +220,14 @@ describe("useSampleMessages", () => {
     // a different sample arrives with the tab closed: no fold until opened
     rerender({ h: other, active: false });
     expect(result.current.rows).toHaveLength(0);
+
+    // returning to the previously-activated sample must NOT re-latch: the
+    // hook mounts unkeyed, so a stale latch would fold at sample open
+    rerender({ h: handle, active: false });
+    expect(result.current.rows).toHaveLength(0);
+
+    rerender({ h: handle, active: true });
+    expect(result.current.rows).toHaveLength(4);
   });
 
   it("surfaces a chunked hydration failure instead of 'No messages'", async () => {

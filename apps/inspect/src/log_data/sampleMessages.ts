@@ -53,20 +53,28 @@ export const useSampleMessages = (
   active: boolean,
   running: boolean
 ): SampleMessages => {
-  // Activation latch, per sample: the first Messages-tab open turns the
-  // fold pipelines on for the sample's lifetime. Ungated they run at
-  // sample open (whole-conversation fold, per-poll streaming refolds)
-  // while another tab is shown; re-gating on `active` alone would drop
-  // the fold cache and the hydrated chunked feed on every tab switch.
+  // Activation latch: the first Messages-tab open turns the resident fold
+  // and chunked hydration on while the user stays on the sample. Ungated
+  // they run at sample open (whole-conversation fold, hydration) while
+  // another tab is shown; re-gating on `active` alone would drop the fold
+  // cache and the hydrated chunked feed on every tab switch. "Activated"
+  // means since ARRIVING at this sample — the latch resets whenever the
+  // sample changes (the hook mounts unkeyed in SampleDisplay, so state
+  // survives navigation; without the reset, returning to the last-activated
+  // sample would pay fold + hydration at open with the tab closed).
   const sampleKey = handle
     ? `${handle.logFile}|${handle.id}|${handle.epoch}`
     : null;
-  const [activatedKey, setActivatedKey] = useState<string | null>(null);
-  if (active && sampleKey !== null && activatedKey !== sampleKey) {
-    setActivatedKey(sampleKey);
+  const [latch, setLatch] = useState<{
+    key: string | null;
+    activated: boolean;
+  }>({ key: null, activated: false });
+  if (latch.key !== sampleKey) {
+    setLatch({ key: sampleKey, activated: active });
+  } else if (active && !latch.activated) {
+    setLatch({ key: sampleKey, activated: true });
   }
-  const activated =
-    active || (sampleKey !== null && activatedKey === sampleKey);
+  const activated = active || (latch.key === sampleKey && latch.activated);
 
   const isChunked = sampleData.chunked !== undefined;
   const chunkedMessages = useChunkedMessages(
