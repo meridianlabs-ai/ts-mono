@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import {
   buildMessageRows,
@@ -39,9 +39,9 @@ export interface SampleMessages {
  * completed monolith messages, a hydrated chunked sample, or the live
  * event stream — is selected here, behind the SampleMessagesData seam.
  * The view consumes rows and reports two gates it owns: `active` (the tab
- * is open — full hydration of a chunked monster is never paid at sample
- * open) and `running` (live samples surface "waiting", not "loading",
- * before their first poll lands).
+ * is open — folding and chunked hydration are activation-latched on it,
+ * so neither is ever paid at sample open) and `running` (live samples
+ * surface "waiting", not "loading", before their first poll lands).
  */
 export const useSampleMessages = (
   logDir: string,
@@ -50,10 +50,25 @@ export const useSampleMessages = (
   active: boolean,
   running: boolean
 ): SampleMessages => {
+  // Activation latch, per sample: the first Messages-tab open turns the
+  // fold pipelines on for the sample's lifetime. Ungated they run at
+  // sample open (whole-conversation fold, per-poll streaming refolds)
+  // while another tab is shown; re-gating on `active` alone would drop
+  // the fold cache and the hydrated chunked feed on every tab switch.
+  const sampleKey = handle
+    ? `${handle.logFile}|${handle.id}|${handle.epoch}`
+    : null;
+  const [activatedKey, setActivatedKey] = useState<string | null>(null);
+  if (active && sampleKey !== null && activatedKey !== sampleKey) {
+    setActivatedKey(sampleKey);
+  }
+  const activated =
+    active || (sampleKey !== null && activatedKey === sampleKey);
+
   const isChunked = sampleData.chunked !== undefined;
   const chunkedMessages = useChunkedMessages(
     logDir,
-    isChunked && active ? handle : undefined,
+    isChunked && activated ? handle : undefined,
     sampleData.chunked
   );
 
@@ -77,15 +92,17 @@ export const useSampleMessages = (
   // caller — two consumers sharing one fold, buildMessageRows.
   const residentRows = useMemo(
     () =>
-      residentMessages
+      activated && residentMessages
         ? buildMessageRows(residentMessages, kDefaultMessageRowOptions)
         : undefined,
-    [residentMessages]
+    [activated, residentMessages]
   );
+  // `activated` gates the query input too, or deferring the resident fold
+  // would just move the sample-open fold into react-query
   const sourceRows = useMessageRows(
     logDir,
     handle,
-    residentRows === undefined ? source : undefined
+    activated && residentRows === undefined ? source : undefined
   );
   const settledRows = sourceRows ?? residentRows;
 
@@ -100,7 +117,7 @@ export const useSampleMessages = (
   const runningEvents = sampleData.running;
   const streamingRows = useMemo(() => {
     /* eslint-disable react-hooks/refs */
-    if (settledRows !== undefined || runningEvents.length === 0) {
+    if (!activated || settledRows !== undefined || runningEvents.length === 0) {
       messagesRef.current = null;
       return undefined;
     }
@@ -109,16 +126,17 @@ export const useSampleMessages = (
       kDefaultMessageRowOptions
     );
     /* eslint-enable react-hooks/refs */
-  }, [settledRows, runningEvents]);
+  }, [activated, settledRows, runningEvents]);
 
   const loading =
     // a created source whose rows haven't landed (and no streaming rows
     // covering the gap)
-    (source !== undefined &&
+    (activated &&
+      source !== undefined &&
       settledRows === undefined &&
       streamingRows === undefined) ||
     // chunked hydration in flight
-    (isChunked && active && chunkedMessages.loading) ||
+    (isChunked && activated && chunkedMessages.loading) ||
     // monolith member fetch/parse (`running` keeps the streaming path's
     // pre-first-poll state on its "waiting" affordance instead)
     (sampleData.status === "loading" && !running);

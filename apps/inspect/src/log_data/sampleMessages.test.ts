@@ -165,6 +165,62 @@ describe("useSampleMessages", () => {
     expect(result.current.loading).toBe(false);
   });
 
+  it("defers all folding until the Messages tab first opens, then latches", () => {
+    const sampleData = settledData(makeMessages(10));
+    const { result, rerender } = renderHook(
+      ({ active }: { active: boolean }) =>
+        useSampleMessages(logDir, handle, sampleData, active, false),
+      { wrapper: makeWrapper(), initialProps: { active: false } }
+    );
+
+    // inactive: no fold — but the source (copy/download) exists
+    expect(result.current.rows).toHaveLength(0);
+    expect(result.current.source).toBeDefined();
+
+    rerender({ active: true });
+    expect(result.current.rows).toHaveLength(10);
+
+    // latched: switching away keeps the rows resident
+    rerender({ active: false });
+    expect(result.current.rows).toHaveLength(10);
+  });
+
+  it("keeps the streaming fold off while the tab has never been open", () => {
+    const streamingData: EvalSampleData = {
+      sample: undefined,
+      status: "streaming",
+      error: undefined,
+      running: [modelEvent("m-in", "m-out")],
+      eventsCleared: false,
+      backfilling: false,
+    };
+    const { result, rerender } = renderHook(
+      ({ active }: { active: boolean }) =>
+        useSampleMessages(logDir, handle, streamingData, active, true),
+      { wrapper: makeWrapper(), initialProps: { active: false } }
+    );
+
+    expect(result.current.rows).toHaveLength(0);
+
+    rerender({ active: true });
+    expect(result.current.rows).toHaveLength(2);
+  });
+
+  it("resets the latch when the sample changes", () => {
+    const sampleData = settledData(makeMessages(4));
+    const other: SampleHandle = { logFile: "log.eval", id: "s2", epoch: 1 };
+    const { result, rerender } = renderHook(
+      ({ h, active }: { h: SampleHandle; active: boolean }) =>
+        useSampleMessages(logDir, h, sampleData, active, false),
+      { wrapper: makeWrapper(), initialProps: { h: handle, active: true } }
+    );
+    expect(result.current.rows).toHaveLength(4);
+
+    // a different sample arrives with the tab closed: no fold until opened
+    rerender({ h: other, active: false });
+    expect(result.current.rows).toHaveLength(0);
+  });
+
   it("handles an empty settled conversation", () => {
     const sampleData = settledData([]);
     const { result } = renderHook(
