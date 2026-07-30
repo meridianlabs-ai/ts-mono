@@ -10,10 +10,10 @@ import { SampleHandle } from "../app/types";
 import { useMessagesExport } from "./messagesExport";
 import { type EvalSampleData } from "./sampleData";
 import {
+  testMessages as makeMessages,
   sequenceReaderOver,
   testChunkedSample,
   testEvalSample,
-  testMessages as makeMessages,
 } from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
@@ -35,10 +35,9 @@ const makeWrapper = (client: QueryClient = new QueryClient()) =>
 describe("useMessagesExport", () => {
   it("exports a settled monolith conversation", async () => {
     const sampleData = settledData(makeMessages(3));
-    const { result } = renderHook(
-      () => useMessagesExport(handle, sampleData),
-      { wrapper: makeWrapper() }
-    );
+    const { result } = renderHook(() => useMessagesExport(handle, sampleData), {
+      wrapper: makeWrapper(),
+    });
 
     const text = await result.current!();
     expect(text).toContain("message 0");
@@ -54,10 +53,9 @@ describe("useMessagesExport", () => {
       eventsCleared: false,
       backfilling: false,
     };
-    const { result } = renderHook(
-      () => useMessagesExport(handle, sampleData),
-      { wrapper: makeWrapper() }
-    );
+    const { result } = renderHook(() => useMessagesExport(handle, sampleData), {
+      wrapper: makeWrapper(),
+    });
 
     expect(result.current).toBeUndefined();
   });
@@ -75,10 +73,9 @@ describe("useMessagesExport", () => {
       backfilling: false,
       chunked,
     };
-    const { result } = renderHook(
-      () => useMessagesExport(handle, sampleData),
-      { wrapper: makeWrapper() }
-    );
+    const { result } = renderHook(() => useMessagesExport(handle, sampleData), {
+      wrapper: makeWrapper(),
+    });
 
     // export works without the Messages tab ever having been opened
     const text = await result.current!();

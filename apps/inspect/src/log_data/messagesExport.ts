@@ -24,7 +24,8 @@ export const useMessagesExport = (
 ): (() => Promise<string>) | undefined => {
   const queryClient = useQueryClient();
   const chunked = sampleData.chunked;
-  const messages = chunked === undefined ? sampleData.sample?.messages : undefined;
+  const messages =
+    chunked === undefined ? sampleData.sample?.messages : undefined;
   return useMemo(() => {
     if (chunked && handle) {
       return async () => {

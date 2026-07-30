@@ -11,10 +11,10 @@ import { useMessageRows } from "./messageRowsQuery";
 import { type EvalSampleData } from "./sampleData";
 import {
   failingSequenceReader,
+  testMessages as makeMessages,
   sequenceReaderOver,
   testChunkedSample,
   testEvalSample,
-  testMessages as makeMessages,
 } from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
@@ -44,13 +44,8 @@ const makeWrapper = (client: QueryClient = new QueryClient()) =>
 
 const renderRows = (data: EvalSampleData, activated = true) =>
   renderHook(
-    ({
-      data,
-      activated,
-    }: {
-      data: EvalSampleData;
-      activated: boolean;
-    }) => useMessageRows(handle, data, activated),
+    ({ data, activated }: { data: EvalSampleData; activated: boolean }) =>
+      useMessageRows(handle, data, activated),
     { wrapper: makeWrapper(), initialProps: { data, activated } }
   );
 
@@ -108,9 +103,7 @@ describe("useMessageRows", () => {
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
-    await waitFor(() =>
-      expect(result.current?.error).toBeInstanceOf(Error)
-    );
+    await waitFor(() => expect(result.current?.error).toBeInstanceOf(Error));
     expect(result.current?.loading).toBe(false);
     expect(result.current?.data).toBeUndefined();
   });

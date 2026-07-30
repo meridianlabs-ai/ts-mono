@@ -11,10 +11,10 @@ import { type EvalSampleData } from "./sampleData";
 import { useSampleMessages } from "./sampleMessages";
 import {
   failingSequenceReader,
-  testChunkedSample,
-  testEvalSample,
   testMessages as makeMessages,
   testModelEvent as modelEvent,
+  testChunkedSample,
+  testEvalSample,
 } from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };

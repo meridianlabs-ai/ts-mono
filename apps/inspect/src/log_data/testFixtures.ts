@@ -3,11 +3,7 @@
  * generated log types, and a real ChunkedSample over in-memory chunks (no
  * `as unknown as` — fixtures break loudly when the types move).
  */
-import {
-  ChatMessage,
-  EvalSample,
-  Event,
-} from "@tsmono/inspect-common/types";
+import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
 
 import {
   ChunkByteStore,
@@ -21,14 +17,11 @@ import {
 const encoder = new TextEncoder();
 
 export const testMessages = (count: number): ChatMessage[] =>
-  Array.from(
-    { length: count },
-    (_, i): ChatMessage => ({
-      id: `m-${i}`,
-      role: "user",
-      content: `message ${i}`,
-    })
-  );
+  Array.from({ length: count }, (_, i): ChatMessage => ({
+    id: `m-${i}`,
+    role: "user",
+    content: `message ${i}`,
+  }));
 
 export const testEvalSample = (messages: ChatMessage[]): EvalSample => ({
   id: "s1",
