@@ -89,6 +89,9 @@ branch and commit once. Don't open per-alert PRs; the override edits all land
 in the same two files (package.json + lockfile) anyway, and one PR keeps
 review/CI cost flat. Commit message: concise list of packages bumped and
 alert numbers. PR body: one line per alert (number, package, severity).
+Never write alert numbers as `#N` in PR titles/bodies — GitHub autolinks
+that to PR/issue N. Write "dependabot alert N", ideally linked to
+`https://github.com/meridianlabs-ai/ts-mono/security/dependabot/N`.
 Alerts auto-close once the merged lockfile no longer contains vulnerable
 versions — don't dismiss them manually.
 
