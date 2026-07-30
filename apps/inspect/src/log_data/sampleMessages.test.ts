@@ -1,9 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
-import { createElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
-
-import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
 
@@ -11,27 +7,13 @@ import { type EvalSampleData } from "./sampleData";
 import { useSampleMessages } from "./sampleMessages";
 import {
   failingSequenceReader,
+  testHandle as handle,
   testMessages as makeMessages,
+  makeWrapper,
   testModelEvent as modelEvent,
+  settledData,
   testChunkedSample,
-  testEvalSample,
 } from "./testFixtures";
-
-const handle: SampleHandle = { logFile: "log.eval", id: "s1", epoch: 1 };
-
-const settledData = (messages: ChatMessage[]): EvalSampleData => ({
-  sample: testEvalSample(messages),
-  status: "ok",
-  error: undefined,
-  running: [],
-  eventsCleared: false,
-  backfilling: false,
-});
-
-const makeWrapper = (client: QueryClient = new QueryClient()) =>
-  function Wrapper({ children }: { children: ReactNode }) {
-    return createElement(QueryClientProvider, { client }, children);
-  };
 
 describe("useSampleMessages", () => {
   it("reads a settled sample's rows through the seam", async () => {

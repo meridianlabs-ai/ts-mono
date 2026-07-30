@@ -3,7 +3,12 @@
  * generated log types, and a real ChunkedSample over in-memory chunks (no
  * `as unknown as` — fixtures break loudly when the types move).
  */
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createElement, ReactNode } from "react";
+
 import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
+
+import { SampleHandle } from "../app/types";
 
 import {
   ChunkByteStore,
@@ -13,8 +18,31 @@ import {
   type ChunkedSample,
   type SampleSkeleton,
 } from "./chunked";
+import { type EvalSampleData } from "./sampleData";
 
 const encoder = new TextEncoder();
+
+export const testHandle: SampleHandle = {
+  logFile: "log.eval",
+  id: "s1",
+  epoch: 1,
+};
+
+/** Sample data for a settled (fetched, non-streaming) monolith sample. */
+export const settledData = (messages: ChatMessage[]): EvalSampleData => ({
+  sample: testEvalSample(messages),
+  status: "ok",
+  error: undefined,
+  running: [],
+  eventsCleared: false,
+  backfilling: false,
+});
+
+/** A renderHook wrapper providing a QueryClient. */
+export const makeWrapper = (client: QueryClient = new QueryClient()) =>
+  function Wrapper({ children }: { children: ReactNode }) {
+    return createElement(QueryClientProvider, { client }, children);
+  };
 
 export const testMessages = (count: number): ChatMessage[] =>
   Array.from({ length: count }, (_, i): ChatMessage => ({
