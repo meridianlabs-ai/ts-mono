@@ -29,6 +29,9 @@ export interface SampleMessages {
    *  fetch, chunked hydration, rows materialization) — render a loading
    *  affordance, never "No messages". */
   loading: boolean;
+  /** The conversation failed to materialize (chunked hydration error) —
+   *  render an error affordance, never "No messages". */
+  error: Error | undefined;
   /** The settled conversation's source — `exportText` backs copy/download.
    *  Undefined while loading and on the streaming path. */
   source: SampleMessagesData | undefined;
@@ -144,6 +147,7 @@ export const useSampleMessages = (
   return {
     rows: settledRows ?? streamingRows ?? kNoRows,
     loading,
+    error: isChunked ? chunkedMessages.error : undefined,
     source,
   };
 };

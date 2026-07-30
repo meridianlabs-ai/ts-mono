@@ -41,6 +41,7 @@ import {
   Card,
   CardBody,
   CardHeader,
+  ErrorPanel,
   NoContentsPanel,
   RailDock,
   StickyScroll,
@@ -881,34 +882,41 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               selected={effectiveSelectedTab === kSampleMessagesTabId}
               scrollable={false}
             >
-              <RailSidebarHost
-                contentClassName={styles.chat}
-                scrollRef={scrollRef}
-                panelTop={stickyOffsetTop}
-                panelWidth={railPanelWidth}
-                onPanelWidthChange={setRailPanelWidth}
-                rail={hasRail ? railNode : undefined}
-                panel={hasRail ? railPanel : undefined}
-                label={railLabel}
-              >
-                <ChatViewRowsVirtualList
-                  key={chatListId}
-                  id={chatListId}
-                  rows={sampleMessages.rows}
-                  initialMessageId={sampleDetailNavigation.message}
-                  followRequested={sampleDetailNavigation.follow}
-                  display={chatDisplay}
-                  labels={messagesSearchLabels}
-                  linking={chatLinking}
-                  onNativeFindChanged={setNativeFind}
-                  scrollRef={scrollRef}
-                  tools={chatTools}
-                  running={running}
-                  backfilling={backfilling || sampleMessages.loading}
-                  scrollToTopOnFinish={scrollToTopOnFinish}
-                  className={styles.fullWidth}
+              {sampleMessages.error ? (
+                <ErrorPanel
+                  title="An error occurred while loading messages."
+                  error={sampleMessages.error}
                 />
-              </RailSidebarHost>
+              ) : (
+                <RailSidebarHost
+                  contentClassName={styles.chat}
+                  scrollRef={scrollRef}
+                  panelTop={stickyOffsetTop}
+                  panelWidth={railPanelWidth}
+                  onPanelWidthChange={setRailPanelWidth}
+                  rail={hasRail ? railNode : undefined}
+                  panel={hasRail ? railPanel : undefined}
+                  label={railLabel}
+                >
+                  <ChatViewRowsVirtualList
+                    key={chatListId}
+                    id={chatListId}
+                    rows={sampleMessages.rows}
+                    initialMessageId={sampleDetailNavigation.message}
+                    followRequested={sampleDetailNavigation.follow}
+                    display={chatDisplay}
+                    labels={messagesSearchLabels}
+                    linking={chatLinking}
+                    onNativeFindChanged={setNativeFind}
+                    scrollRef={scrollRef}
+                    tools={chatTools}
+                    running={running}
+                    backfilling={backfilling || sampleMessages.loading}
+                    scrollToTopOnFinish={scrollToTopOnFinish}
+                    className={styles.fullWidth}
+                  />
+                </RailSidebarHost>
+              )}
             </TabPanel>
             <TabPanel
               key={kSampleScoringTabId}

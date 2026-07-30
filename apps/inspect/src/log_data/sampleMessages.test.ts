@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook } from "@testing-library/react";
+import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -7,6 +7,7 @@ import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
 
+import { type ChunkedSample } from "./chunked";
 import { type EvalSampleData } from "./sampleData";
 import { useSampleMessages } from "./sampleMessages";
 
@@ -218,6 +219,32 @@ describe("useSampleMessages", () => {
 
     // a different sample arrives with the tab closed: no fold until opened
     rerender({ h: other, active: false });
+    expect(result.current.rows).toHaveLength(0);
+  });
+
+  it("surfaces a chunked hydration failure instead of 'No messages'", async () => {
+    const failingChunked = {
+      shell: { id: "s1", epoch: 1, message_refs: [[0, 2]] },
+      messages: { getRange: () => Promise.reject(new Error("boom")) },
+    } as unknown as ChunkedSample;
+    const sampleData: EvalSampleData = {
+      sample: undefined,
+      status: "ok",
+      error: undefined,
+      running: [],
+      eventsCleared: false,
+      backfilling: false,
+      chunked: failingChunked,
+    };
+    const { result } = renderHook(
+      () => useSampleMessages(logDir, handle, sampleData, true, false),
+      { wrapper: makeWrapper() }
+    );
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+    expect(result.current.loading).toBe(false);
     expect(result.current.rows).toHaveLength(0);
   });
 
