@@ -322,7 +322,11 @@ export const openRemoteLogFile = async (
       summaryFiles.map((filename, index) =>
         queue.enqueue(async () => {
           try {
-            perFile[index] = (await readJSONFile(filename)) as SampleSummary[];
+            const parsed = await readJSONFile(filename);
+            if (!Array.isArray(parsed)) {
+              throw new Error(`Expected an array in ${filename}`);
+            }
+            perFile[index] = parsed as SampleSummary[];
           } catch (error) {
             errors.push(error);
           }
