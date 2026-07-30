@@ -54,15 +54,19 @@ const makeWrapper = (client: QueryClient = new QueryClient()) =>
   };
 
 describe("useSampleMessages", () => {
-  it("serves a settled sample's rows synchronously through the seam", () => {
+  it("reads a settled sample's rows through the seam", async () => {
     const sampleData = settledData(makeMessages(1200));
     const { result } = renderHook(
       () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 
+    // the read is asynchronous: a loading affordance covers the gap
+    expect(result.current.loading).toBe(true);
+    expect(result.current.rows).toHaveLength(0);
+
+    await waitFor(() => expect(result.current.rows).toHaveLength(1200));
     expect(result.current.loading).toBe(false);
-    expect(result.current.rows).toHaveLength(1200);
     expect(result.current.rows[0]?.startNumber).toBe(1);
     expect(result.current.source).toBeDefined();
   });
@@ -138,10 +142,11 @@ describe("useSampleMessages", () => {
     expect(result.current.rows).toHaveLength(0);
   });
 
-  it("swaps the streaming feed for settled rows without an empty frame", () => {
+  it("swaps the streaming feed for settled rows without an empty frame", async () => {
     // the live-finish handoff: settledSampleData clears running events on
-    // the same render the sample body appears, so the settled rows must be
-    // resident on that render — an empty frame would unmount the list
+    // the same render the sample body appears, and the settled read is
+    // asynchronous — the last streaming rows bridge its pending frames (an
+    // empty frame would unmount the list and lose its scroll handoff)
     const streamingData: EvalSampleData = {
       sample: undefined,
       status: "streaming",
@@ -161,11 +166,51 @@ describe("useSampleMessages", () => {
     expect(result.current.rows).toHaveLength(2);
 
     rerender({ data: settledData(makeMessages(50)), running: false });
-    expect(result.current.rows).toHaveLength(50);
+    // the bridge: streaming rows hold while the read is in flight
+    expect(result.current.rows).toHaveLength(2);
+    expect(result.current.loading).toBe(false);
+
+    await waitFor(() => expect(result.current.rows).toHaveLength(50));
     expect(result.current.loading).toBe(false);
   });
 
-  it("defers all folding until the Messages tab first opens, then latches", () => {
+  it("never bridges streaming rows across samples", async () => {
+    const streamingData: EvalSampleData = {
+      sample: undefined,
+      status: "streaming",
+      error: undefined,
+      running: [modelEvent("m-in", "m-out")],
+      eventsCleared: false,
+      backfilling: false,
+    };
+    const other: SampleHandle = { logFile: "log.eval", id: "s2", epoch: 1 };
+    const { result, rerender } = renderHook(
+      ({
+        h,
+        data,
+        running,
+      }: {
+        h: SampleHandle;
+        data: EvalSampleData;
+        running: boolean;
+      }) => useSampleMessages(h, data, true, running),
+      {
+        wrapper: makeWrapper(),
+        initialProps: { h: handle, data: streamingData, running: true },
+      }
+    );
+    expect(result.current.rows).toHaveLength(2);
+
+    // navigating mid-stream to a settled sample: the previous sample's
+    // streaming rows must not cover the new sample's read
+    rerender({ h: other, data: settledData(makeMessages(5)), running: false });
+    expect(result.current.rows).toHaveLength(0);
+    expect(result.current.loading).toBe(true);
+
+    await waitFor(() => expect(result.current.rows).toHaveLength(5));
+  });
+
+  it("defers all folding until the Messages tab first opens, then latches", async () => {
     const sampleData = settledData(makeMessages(10));
     const { result, rerender } = renderHook(
       ({ active }: { active: boolean }) =>
@@ -173,12 +218,12 @@ describe("useSampleMessages", () => {
       { wrapper: makeWrapper(), initialProps: { active: false } }
     );
 
-    // inactive: no fold — but the source (copy/download) exists
+    // inactive: no read — but the source (copy/download) exists
     expect(result.current.rows).toHaveLength(0);
     expect(result.current.source).toBeDefined();
 
     rerender({ active: true });
-    expect(result.current.rows).toHaveLength(10);
+    await waitFor(() => expect(result.current.rows).toHaveLength(10));
 
     // latched: switching away keeps the rows resident
     rerender({ active: false });
@@ -231,7 +276,7 @@ describe("useSampleMessages", () => {
     expect(result.current.rows).toHaveLength(2);
   });
 
-  it("resets the latch when the sample changes", () => {
+  it("resets the latch when the sample changes", async () => {
     const sampleData = settledData(makeMessages(4));
     const other: SampleHandle = { logFile: "log.eval", id: "s2", epoch: 1 };
     const { result, rerender } = renderHook(
@@ -239,17 +284,18 @@ describe("useSampleMessages", () => {
         useSampleMessages(h, sampleData, active, false),
       { wrapper: makeWrapper(), initialProps: { h: handle, active: true } }
     );
-    expect(result.current.rows).toHaveLength(4);
+    await waitFor(() => expect(result.current.rows).toHaveLength(4));
 
-    // a different sample arrives with the tab closed: no fold until opened
+    // a different sample arrives with the tab closed: no read until opened
     rerender({ h: other, active: false });
     expect(result.current.rows).toHaveLength(0);
 
     // returning to the previously-activated sample must NOT re-latch: the
-    // hook mounts unkeyed, so a stale latch would fold at sample open
+    // hook mounts unkeyed, so a stale latch would read at sample open
     rerender({ h: handle, active: false });
     expect(result.current.rows).toHaveLength(0);
 
+    // re-opening serves the cached rows synchronously
     rerender({ h: handle, active: true });
     expect(result.current.rows).toHaveLength(4);
   });
@@ -280,14 +326,15 @@ describe("useSampleMessages", () => {
     expect(result.current.rows).toHaveLength(0);
   });
 
-  it("handles an empty settled conversation", () => {
+  it("handles an empty settled conversation", async () => {
     const sampleData = settledData([]);
     const { result } = renderHook(
       () => useSampleMessages(handle, sampleData, true, false),
       { wrapper: makeWrapper() }
     );
 
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.rows).toHaveLength(0);
+    expect(result.current.error).toBeUndefined();
   });
 });
