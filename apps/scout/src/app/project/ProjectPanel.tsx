@@ -4,7 +4,7 @@ import {
   VscodeFormHelper,
 } from "@vscode-elements/react-elements";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useBlocker } from "react-router-dom";
+import { useBlocker } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
@@ -364,6 +364,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
                     {section.items.map((item) => (
                       <li key={item.id} className={styles.navListItem}>
                         <button
+                          type="button"
                           className={styles.navItem}
                           onClick={() => scrollToSection(item.id)}
                         >

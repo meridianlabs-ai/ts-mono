@@ -1,6 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const baseURL = "http://localhost:5173";
+// 5176: dedicated e2e port — 5173/5174 are taken by the two apps' dev
+// servers, and reuseExistingServer would silently test the wrong app.
+const baseURL = "http://localhost:5176";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -21,7 +23,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev",
+    command: "pnpm dev --port 5176",
     url: baseURL,
     reuseExistingServer: !process.env.CI,
   },

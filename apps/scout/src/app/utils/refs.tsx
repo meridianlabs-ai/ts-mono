@@ -1,5 +1,5 @@
 import { FC, ReactNode, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
@@ -248,6 +248,7 @@ const TranscriptView: FC<{ id: string; events: Event[] }> = ({
       defaultCollapsedIds={defaultCollapsedIds}
       collapsedTranscript={collapsedTranscript}
       onCollapseTranscript={onCollapseTranscript}
+      keyboardNavDisabled={true}
     />
   );
 };

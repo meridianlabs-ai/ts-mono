@@ -71,6 +71,21 @@ describe("computeScorerMap", () => {
     expect(Object.keys(map)).toEqual(["match/accuracy"]);
   });
 
+  it("does not match a sibling directory sharing the scope as a name prefix", () => {
+    const map = computeScorerMap(
+      fromMap({
+        "/dir/eval-set/a.eval": details([
+          { name: "match", metrics: { accuracy: 1 } },
+        ]),
+        "/dir/eval-set-2/b.eval": details([
+          { name: "other", metrics: { f1: 1 } },
+        ]),
+      }),
+      "/dir/eval-set"
+    );
+    expect(Object.keys(map)).toEqual(["match/accuracy"]);
+  });
+
   it("skips logs without score results", () => {
     const map = computeScorerMap(
       fromMap({

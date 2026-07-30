@@ -170,8 +170,12 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     </span>
   ) : undefined;
 
-  const turnLabel = context?.turnInfo
-    ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
+  const turnNav = context?.turnInfo
+    ? {
+        turnNumber: context.turnInfo.turnNumber,
+        totalTurns: context.turnInfo.totalTurns,
+        isAnchor: context.turnIsAnchor ?? true,
+      }
     : undefined;
 
   const retryChip = attempts ? (
@@ -194,7 +198,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           : undefined
       }
       icon={TranscriptIcons.model}
-      turnLabel={turnLabel}
+      turnNav={turnNav}
       headerExtra={
         fallbackBadge || retryChip ? (
           <>

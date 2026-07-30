@@ -109,6 +109,9 @@ export interface FetchEngineDeps {
    *  sessions), in which case every read misses and writes are cache-only. */
   database: DatabaseService | null;
   sink: LogsContentSink;
+  /** The log dir this session replicates — the query scope for database
+   *  reads (the database itself is unified across dirs). */
+  logDir: string;
 }
 
 export interface DbStats {
@@ -617,7 +620,7 @@ export class FetchEngine {
     if (!deps.database) {
       return;
     }
-    const rows = await deps.database.readLogs();
+    const rows = await deps.database.readLogs({ prefix: deps.logDir });
     if (!rows) {
       return;
     }
@@ -1129,12 +1132,13 @@ export class FetchEngine {
   }
 
   private async updateDbStats(): Promise<void> {
-    const database = this._deps?.database;
-    if (!database?.opened()) {
+    const deps = this._deps;
+    const database = deps?.database;
+    if (deps === undefined || !database?.opened()) {
       return;
     }
     try {
-      const stats = await database.getCacheStats();
+      const stats = await database.getCacheStats({ prefix: deps.logDir });
       this.setStatus({
         dbStats: {
           logCount: stats.logFiles,

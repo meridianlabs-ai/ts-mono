@@ -132,6 +132,8 @@ async function openTranscriptWithTimeline(
   options?: {
     messages?: ChatMessage[];
     sampleId?: number | string;
+    events?: Events;
+    timelines?: Timeline[];
   }
 ) {
   const sampleId = options?.sampleId ?? 1;
@@ -140,7 +142,7 @@ async function openTranscriptWithTimeline(
     { role: "assistant", content: "Hi there", source: "generate" },
   ];
 
-  const events: Events = [
+  const events: Events = options?.events ?? [
     createModelEvent({ uuid: "evt-root", startSec: 0, endSec: 5, tokens: 200 }),
     createModelEvent({
       uuid: "evt-explore",
@@ -160,7 +162,7 @@ async function openTranscriptWithTimeline(
 
   const sample = createEvalSample({ id: sampleId, epoch: 1, messages });
   (sample as { events: Events }).events = events;
-  (sample as { timelines: Timeline[] }).timelines = [
+  (sample as { timelines: Timeline[] }).timelines = options?.timelines ?? [
     createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
   ];
 
@@ -255,4 +257,71 @@ test("clicking a swimlane row updates selection", async ({ page, network }) => {
 
   // The Explore agent's content should no longer be visible
   await expect(page.getByText("Exploring the code")).not.toBeVisible();
+});
+
+// ---------------------------------------------------------------------------
+// Characterization: minimap
+// ---------------------------------------------------------------------------
+
+test("scrubbing the minimap scrolls the event list", async ({
+  page,
+  network,
+}) => {
+  // Enough events that the list overflows and scrubbing has somewhere to go.
+  const events: Events = Array.from({ length: 30 }, (_, i) =>
+    createModelEvent({
+      uuid: `evt-${i}`,
+      content: `Step ${i} of the long transcript`,
+      startSec: i * 2,
+      endSec: i * 2 + 1,
+      tokens: 100,
+    })
+  );
+  // A child agent span is required for the swimlane section (and thus the
+  // minimap) to render at all.
+  const timeline: Timeline = {
+    name: "default",
+    description: "Long timeline",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [
+        ...events.slice(0, 29).map((e) => makeServerEvent(e.uuid!)),
+        makeServerSpan({
+          id: "deep",
+          name: "Deep",
+          span_type: "agent",
+          content: [makeServerEvent(events[29]!.uuid!)],
+        }),
+      ],
+    }),
+  };
+  await openTranscriptWithTimeline(page, network, {
+    events,
+    timelines: [timeline],
+  });
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+
+  // Early content is on screen, late content is virtualized away.
+  await expect(
+    page.getByText("Step 0 of the long transcript").first()
+  ).toBeVisible();
+  await expect(
+    page.getByText("Step 28 of the long transcript")
+  ).not.toBeVisible();
+
+  // Click near the right edge of the minimap's selection region: onScrub
+  // receives ~1.0 and the main scroller jumps to the end of the list.
+  const region = swimlane.locator('[class*="selectionRegion"]');
+  await expect(region).toBeVisible();
+  const box = (await region.boundingBox())!;
+  await page.mouse.click(box.x + box.width - 2, box.y + box.height / 2);
+
+  // Step 29 lives inside the agent span (it renders as an agent card at
+  // root selection), so the last root-level event is the scroll target.
+  await expect(
+    page.getByText("Step 28 of the long transcript").first()
+  ).toBeVisible();
 });

@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 import {
@@ -53,11 +53,15 @@ import {
   ToolDropdownButton,
   type ActivityRailItem,
 } from "@tsmono/react/components";
-import { useElementHeight, useScrollDirection } from "@tsmono/react/hooks";
+import {
+  useChromeNavOwnership,
+  useElementHeight,
+  useVisitId,
+} from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
-import { getApi } from "../../app_config";
+import { getApi, useLogDir } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
@@ -70,6 +74,7 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
+import { useChunkedMessages } from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
@@ -82,7 +87,7 @@ import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
-  sampleMessageUrl,
+  useFullSampleMessageUrlBuilder,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
@@ -100,6 +105,7 @@ import { SampleSummaryView } from "./SampleSummaryView";
 import { ScansSidebarPanel } from "./scans/ScansSidebarPanel";
 import { useSampleScans } from "./scans/useSampleScans";
 import { SampleScoresView } from "./scores/SampleScoresView";
+import { ChunkedTranscriptPanel } from "./transcript/chunked/ChunkedTranscriptPanel";
 import { useTranscriptFilter } from "./transcript/hooks";
 import { useInspectSearchContext } from "./transcript/search/inspectSearchAdapters";
 import { mergeTranscriptLabelContext } from "./transcript/search/mergeTranscriptLabelContext";
@@ -137,7 +143,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const runningSampleData = sampleData.running;
   const backfilling = sampleData.backfilling;
 
-  const evalSpec = useSelectedLogDetails()?.eval;
+  const logDetails = useSelectedLogDetails();
+  const evalSpec = logDetails?.eval;
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
   }, [sample, evalSpec]);
@@ -147,32 +154,40 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const setSelectedTab = useStore((state) => state.appActions.setSampleTab);
 
   // A sample with no events has no transcript to show; default to the
-  // messages tab when its body settles.
+  // messages tab when its body settles. (Chunked samples carry an empty
+  // shell `events` array but window their transcript separately.)
+  const isChunked = sampleData.chunked !== undefined;
   useEffect(() => {
-    if (sample !== undefined && sample.events.length < 1) {
+    if (sample !== undefined && sample.events.length < 1 && !isChunked) {
       setSelectedTab(kSampleMessagesTabId);
     }
-  }, [sample, setSelectedTab]);
+  }, [sample, isChunked, setSelectedTab]);
 
-  // Per-tab scroll positions persist while tabbing within a sample (each tab's
-  // VirtualList snapshot is keyed by sample id). Clear them when leaving this
-  // sample so re-entering starts at the top rather than a stale offset.
+  // Per-tab scroll positions persist while tabbing within one VISIT to a
+  // sample: each tab's VirtualList snapshot is keyed by the visit, so a
+  // later return to the same sample (or a hop to a sibling) can never
+  // restore this visit's offsets — a fresh visit starts at the top.
+  const visitHandle = useStore((state) => state.log.selectedSampleHandle);
+  const visitId = useVisitId(
+    `${visitHandle?.logFile}-${visitHandle?.id}-${visitHandle?.epoch}`
+  );
+  const transcriptListId = `${baseId}-transcript-display-${id}-${visitId}`;
+  const chatListId = `${baseId}-chat-${id}-${visitId}`;
   const removeBagsByPrefix = useStore(
     (state) => state.appActions.removeBagsByPrefix
   );
   useEffect(() => {
-    // Prefixes cover the dynamic suffixes on these bag names (the transcript's
-    // `:<timeline>` selection, branch ids, etc.).
-    const snapshotBagPrefixes = [
-      `chat-${baseId}-chat-${id}`,
-      `${baseId}-transcript-display-${id}`,
-    ];
+    // Drop the visit's snapshot bags when it ends (identity change or
+    // unmount) — the keys are unreachable afterwards, this is only garbage
+    // collection. Prefixes cover the dynamic suffixes on these bag names
+    // (the transcript's `:<timeline>` selection, branch ids, etc.).
+    const snapshotBagPrefixes = [`chat-${chatListId}`, transcriptListId];
     return () => {
       for (const prefix of snapshotBagPrefixes) {
         removeBagsByPrefix(prefix);
       }
     };
-  }, [baseId, id, removeBagsByPrefix]);
+  }, [chatListId, transcriptListId, removeBagsByPrefix]);
 
   // Navigation hook for URL updates
   const navigate = useNavigate();
@@ -223,13 +238,29 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
 
+  // Chunked samples carry an empty shell `messages` array; the Messages tab
+  // hydrates the final conversation from message_refs instead — gated on the
+  // tab actually being open (full hydration can be ~135MB on compaction
+  // monsters; never pay it at sample open). Once hydrated it stays cached.
+  const logDir = useLogDir();
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
+  const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
+  const chunkedMessages = useChunkedMessages(
+    logDir,
+    isChunked && messagesTabOpen ? selectedSampleHandle : undefined,
+    sampleData.chunked
+  );
+  const effectiveMessages = isChunked
+    ? (chunkedMessages.data ?? [])
+    : sampleMessages;
+
   // Focus the panel when it loads
   useEffect(() => {
-    setTimeout(() => {
-      if (focusOnLoad) {
-        scrollRef.current?.focus();
-      }
-    }, 10);
+    if (!focusOnLoad) return;
+    const id = setTimeout(() => scrollRef.current?.focus(), 10);
+    return () => clearTimeout(id);
   }, [focusOnLoad, scrollRef]);
 
   // Tab selection
@@ -260,20 +291,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const setNativeFind = useStore((state) => state.appActions.setNativeFind);
 
-  const getMessageUrl = useCallback(
-    (messageId: string) => {
-      return urlLogPath
-        ? sampleMessageUrl(
-            sampleUrlBuilder,
-            messageId,
-            urlLogPath,
-            urlSampleId,
-            urlEpoch
-          )
-        : undefined;
-    },
-    [sampleUrlBuilder, urlLogPath, urlSampleId, urlEpoch]
-  );
+  // Absolute URL (origin + host path + hash route): ChatMessage copies this
+  // value to the clipboard as a shareable link.
+  const getMessageUrl = useFullSampleMessageUrlBuilder();
 
   // Stable option objects so memoized ChatMessageRow rows don't re-render on
   // every streaming poll just because these were fresh literals each render.
@@ -310,9 +330,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
   const printLogPath = urlLogPath || selectedLogFile;
   const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
@@ -426,8 +443,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (id: ActivityRailItemId) => setRightDock(rightDock === id ? "none" : id),
     [rightDock, setRightDock]
   );
-  const railPanelScrollRef = useRef<HTMLDivElement | null>(null);
-
   // Panel width is a global preference persisted across samples and reloads,
   // shared by the Transcript and Messages tabs.
   const railPanelWidth = useStore((state) => {
@@ -619,6 +634,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }, [selectedSampleSummary, runningSampleData, sampleData.status]);
 
+  // Only a SUCCESSFUL finish may scroll the transcript/messages back to the
+  // top when a live sample completes. An errored or cancelled run renders its
+  // error panel at the bottom — exactly where the user watching the live tail
+  // is looking — so the view must stay put.
+  const scrollToTopOnFinish =
+    !sample?.error &&
+    !selectedSampleSummary?.error &&
+    logDetails?.status !== "error" &&
+    logDetails?.status !== "cancelled";
+
   const sampleDetailNavigation = useSampleDetailNavigation();
 
   const displayModeContext = useMemo(
@@ -626,24 +651,33 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     [displayMode]
   );
 
-  // Headroom-style collapse: the sample header is wrapped in a
-  // `StickyScroll`, so the *same* SampleSummaryView renders both in
-  // flow at the top and pinned at the top while scrolled. The
-  // component's `collapsed` prop drives compact (meta-line-only) vs
-  // full mode and is true only while sticky AND scrolling down past
-  // the headroom threshold. When the user scrolls back up, the full
-  // header expands while still sticky; when they reach the very top
-  // the StickyScroll transitions to in-flow without re-rendering, so
-  // the user never sees the header re-animate or "re-appear".
-  const { hidden: headroomHidden } = useScrollDirection(scrollRef, {
-    threshold: 80,
-    stayHiddenOnUpScroll: true,
+  // Headroom collapse: `collapsed` is the position-derived `hidden` alone —
+  // deliberately NOT gated on sticky state, which StickyScroll reports
+  // asynchronously (a gate makes the initial state depend on report-vs-
+  // landing timing); the at-top scroll branch and `k` past turn 1 both
+  // clear `hidden`. Deep-link mounts (?event=/?message=) land scrolled
+  // down, so the header must START collapsed — the summary is often cached
+  // and would paint expanded for a frame and blink away. Bare mounts start
+  // expanded statically (transitions run on changes only).
+  const mountsAtDeepLink = !!(
+    sampleDetailNavigation.event || sampleDetailNavigation.message
+  );
+  // Shared with TranscriptPanel: while navigation owns the chrome (deep-link
+  // mounts, f/h/j/k/l forces), the header's natural-scroll detection is fully
+  // suppressed; a physical user gesture on the scroller hands ownership back.
+  // The hook (and its release) lives here — not only in TranscriptPanel,
+  // which unmounts on other tabs — so ownership can't leak past the
+  // transcript tab. No findActiveRef: the header runs stayHiddenOnUpScroll
+  // and find-forward collapse is intended.
+  const {
+    hidden: headerCollapsed,
+    resetAnchor: headerResetAnchor,
+    setHidden: headerSetHidden,
+    navOwnsRef: chromeNavOwnsRef,
+  } = useChromeNavOwnership(scrollRef, {
+    ownedForKey: () => mountsAtDeepLink,
+    scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
-  const [isHeaderSticky, setIsHeaderSticky] = useState(false);
-  const handleHeaderStickyChange = useCallback((sticky: boolean) => {
-    setIsHeaderSticky(sticky);
-  }, []);
-  const headerCollapsed = isHeaderSticky && headroomHidden;
 
   const headerWrapperRef = useRef<HTMLDivElement | null>(null);
   const headerHeight = useElementHeight(
@@ -758,12 +792,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     <DisplayModeContext.Provider value={displayModeContext}>
       <Fragment>
         {selectedSampleSummary ? (
-          <StickyScroll
-            scrollRef={scrollRef}
-            offsetTop={0}
-            zIndex={1002}
-            onStickyChange={handleHeaderStickyChange}
-          >
+          <StickyScroll scrollRef={scrollRef} offsetTop={0} zIndex={1002}>
             <div ref={headerWrapperRef}>
               <SampleSummaryView
                 parent_id={id}
@@ -806,7 +835,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 positionEl={filterButtonEl}
               />
 
-              {!sampleEvents || sampleEvents.length === 0 ? (
+              {sampleData.chunked ? (
+                <div className={styles.tabContent}>
+                  <ChunkedTranscriptPanel
+                    id={`${baseId}-transcript-display-${id}`}
+                    // sample identity in the key: anchor/selection refs must
+                    // not survive a switch between two chunked samples
+                    key={`${baseId}-chunked-transcript-${id}-${sampleData.chunked.shell.id}-${sampleData.chunked.shell.epoch}`}
+                    scrollRef={scrollRef}
+                    offsetTop={stickyOffsetTop}
+                    chunked={sampleData.chunked}
+                  />
+                </div>
+              ) : !sampleEvents || sampleEvents.length === 0 ? (
                 sampleData.status === "loading" ? null : (
                   <NoContentsPanel
                     text={
@@ -819,19 +860,23 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               ) : (
                 <div className={styles.tabContent}>
                   <TranscriptPanel
-                    id={`${baseId}-transcript-display-${id}`}
-                    key={`${baseId}-transcript-display-${id}`}
+                    id={transcriptListId}
+                    key={transcriptListId}
                     scrollRef={scrollRef}
+                    onHeaderResetAnchor={headerResetAnchor}
+                    onHeaderSetHidden={headerSetHidden}
+                    chromeNavOwnsRef={chromeNavOwnsRef}
                     offsetTop={stickyOffsetTop}
                     running={running}
                     backfilling={backfilling}
+                    scrollToTopOnFinish={scrollToTopOnFinish}
                     events={sampleEvents}
                     timelines={sample?.timelines ?? undefined}
                     eventNodeContext={transcriptEventNodeContext}
                     initialEventId={sampleDetailNavigation.event}
                     initialMessageId={sampleDetailNavigation.message}
+                    followRequested={sampleDetailNavigation.follow}
                     rightRail={hasRail ? transcriptRail : undefined}
-                    rightRailPanelScrollRef={railPanelScrollRef}
                   />
                 </div>
               )}
@@ -860,11 +905,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 label={railLabel}
               >
                 <ChatViewVirtualList
-                  key={`${baseId}-chat-${id}`}
-                  id={`${baseId}-chat-${id}`}
-                  messages={sampleMessages}
+                  key={chatListId}
+                  id={chatListId}
+                  messages={effectiveMessages}
                   initialMessageId={sampleDetailNavigation.message}
-                  offsetTop={stickyOffsetTop}
+                  followRequested={sampleDetailNavigation.follow}
                   display={chatDisplay}
                   labels={messagesSearchLabels}
                   linking={chatLinking}
@@ -873,6 +918,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   tools={chatTools}
                   running={running}
                   backfilling={backfilling}
+                  scrollToTopOnFinish={scrollToTopOnFinish}
                   className={styles.fullWidth}
                 />
               </RailSidebarHost>
@@ -972,6 +1018,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     key={sample.uuid || String(sample.id)}
                     id={sample.uuid || String(sample.id)}
                     retries={sample.error_retries}
+                    error={sample.error}
+                    limit={sample.limit}
                     scrollRef={scrollRef}
                   />
                 </div>

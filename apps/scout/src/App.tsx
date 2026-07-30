@@ -10,7 +10,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "@vscode/codicons/dist/codicon.css";
 
 import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router/dom";
 
 import "prismjs";
 import "prismjs/components/prism-bash";
@@ -40,6 +40,8 @@ import { scoutStateHooks } from "./state/componentStateAdapter";
 import { SETTINGS_STORAGE_KEY, useUserSettings } from "./state/userSettings";
 
 const componentIcons: ComponentIcons = {
+  arrowDown: ApplicationIcons.arrows.down,
+  arrowUp: ApplicationIcons.arrows.up,
   chevronDown: ApplicationIcons.chevron.down,
   chevronUp: ApplicationIcons.collapse.up,
   clearText: ApplicationIcons["clear-text"],

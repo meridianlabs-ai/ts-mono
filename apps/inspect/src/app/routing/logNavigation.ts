@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router";
 
 import { useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";

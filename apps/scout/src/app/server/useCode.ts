@@ -3,7 +3,7 @@ import { skipToken } from "@tanstack/react-query";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
-import { Condition } from "../../query/types";
+import type { Condition } from "../../query";
 import { useApi } from "../../state/store";
 
 export const useCode = (

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import type { SimpleCondition } from "../../query/types";
+import type { SimpleCondition } from "../../query";
 import { ColumnFilter } from "../../state/store";
 
 /**

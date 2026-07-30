@@ -13,6 +13,9 @@ export const kTranscriptDetailRoute =
   "/transcripts/:transcriptsDir/:transcriptId";
 export const kTranscriptDetailRouteUrlPattern =
   /\/transcripts\/[^\s/]+\/[^\s/]+$/;
+// Focus-mode page (single focused turn, entered from a transcript event).
+export const kTranscriptEventDetailRoute =
+  "/transcripts/:transcriptsDir/:transcriptId/event";
 
 // Regex pattern for valid scan IDs (22 characters: alphanumeric, underscore, dot, or dash)
 export const kScanIdPattern = /scan_id=[a-zA-Z0-9_.-]{22}$/;
@@ -96,6 +99,37 @@ export const transcriptRoute = (
   }
 
   return params?.toString() ? `${route}?${params.toString()}` : route;
+};
+
+/**
+ * Route for the standalone single-event (focus) page without a specific
+ * event. The focus view resolves the missing `event` param to the
+ * transcript's first turn, so prev/next-transcript navigation can stay in
+ * focus mode.
+ */
+export const transcriptFocusRoute = (
+  transcriptsDir: string,
+  transcriptId: string,
+  searchParams?: URLSearchParams
+) => {
+  const encodedDir = encodeBase64Url(transcriptsDir);
+  const route = `/transcripts/${encodedDir}/${transcriptId}/event`;
+  return searchParams?.toString()
+    ? `${route}?${searchParams.toString()}`
+    : route;
+};
+
+/**
+ * Route for the standalone single-event page. Renders only the given event and
+ * its turn's tool calls.
+ */
+export const transcriptEventDetailRoute = (
+  transcriptsDir: string,
+  transcriptId: string,
+  eventId: string
+) => {
+  const encodedDir = encodeBase64Url(transcriptsDir);
+  return `/transcripts/${encodedDir}/${transcriptId}/event?event=${encodeURIComponent(eventId)}`;
 };
 
 /**

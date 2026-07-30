@@ -1,10 +1,17 @@
 // @vitest-environment jsdom
 import { render, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 import { MarkdownDiv } from "./MarkdownDiv";
+import { renderMarkdown } from "./markdownRendering";
 
 describe("MarkdownDiv rendered HTML sanitization", () => {
+  // Pay the one-time lazy import of markdown-it-mathjax3 up front; on slow CI
+  // runners it exceeds waitFor's default timeout inside the first math test.
+  beforeAll(async () => {
+    await renderMarkdown("$x$", "full");
+  });
+
   it("removes active SVG injected through MathJax href rendering", async () => {
     const payload = '$\\href{x"><animate onbegin=alert(1)>}{z}$';
     const { container } = render(<MarkdownDiv markdown={payload} />);

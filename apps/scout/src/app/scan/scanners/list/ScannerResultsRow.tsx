@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, memo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { MarkdownReference } from "@tsmono/react/components";
 import {

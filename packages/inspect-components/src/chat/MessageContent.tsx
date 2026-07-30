@@ -240,7 +240,14 @@ const messageRenderers: Record<string, MessageRenderer> = {
     render: (key, content) => {
       const c = content as ContentImage;
       if (isRenderableImageSource(c.image)) {
-        return <img src={c.image} className={styles.contentImage} key={key} />;
+        return (
+          <img
+            src={c.image}
+            alt="Message attachment"
+            className={styles.contentImage}
+            key={key}
+          />
+        );
       } else {
         return <MediaReference source={c.image} key={key} />;
       }

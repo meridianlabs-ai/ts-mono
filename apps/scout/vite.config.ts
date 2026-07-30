@@ -11,7 +11,10 @@ import {
   findPythonRepoRoot,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
-import { inlineThemeBootstrap } from "../../tooling/vite-plugins/index.js";
+import {
+  inlineThemeBootstrap,
+  rewriteLoopbackOrigin,
+} from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
   return {
@@ -28,6 +31,8 @@ function copyToPythonRepo(): Plugin {
     },
   };
 }
+
+const scoutServerUrl = "http://127.0.0.1:7576";
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
@@ -108,10 +113,15 @@ export default defineConfig(({ mode }) => {
       ],
       base: "",
       server: {
+        // Pinned so `pnpm dev` from the root always gives scout 5174 and
+        // inspect 5173 regardless of startup order (e2e uses 5175/5176).
+        port: 5174,
+        strictPort: true,
         proxy: {
           "/api": {
-            target: "http://127.0.0.1:7576",
+            target: scoutServerUrl,
             changeOrigin: true,
+            configure: rewriteLoopbackOrigin(scoutServerUrl),
           },
         },
       },

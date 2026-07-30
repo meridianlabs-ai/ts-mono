@@ -5,6 +5,7 @@ import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
+import { scopePrefix } from "../../../../client/database";
 import { kModelNone } from "../../../../constants";
 import {
   useLogListing,
@@ -66,11 +67,11 @@ export type ScoresViewMode = "by-metric" | "per-scorer";
 export const useLogListColumns = (
   mode: LogListMode = "logs",
   /**
-   * When set, scorer columns are computed only from logs whose name starts
-   * with this prefix. Used by the folder view so descending into a subfolder
+   * When set, scorer columns are computed only from logs under this
+   * directory. Used by the folder view so descending into a subfolder
    * recomputes the Metrics list to match the contents of that folder.
    */
-  scopePrefix?: string,
+  scopeDir?: string,
   /**
    * View mode for scorer columns:
    *   - "by-metric" (default): one synthetic column per unique metric name,
@@ -95,6 +96,12 @@ export const useLogListColumns = (
   getComparator: (columnId: string) => ColumnComparator | undefined;
   /** Per-column filter type (from column meta) for client-side filtering. */
   getFilterType: (columnId: string) => FilterType | undefined;
+  /** Cache identity of the accessors above: the scorer schema they're built
+   *  from. The schema arrives asynchronously, so a query that closes over
+   *  the accessors must carry this in its key — score-column semantics
+   *  (by-metric accessors, numeric comparators/filter types) change when it
+   *  lands, with no other query input changing. */
+  accessorsKey: string;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
   const columnVisibility = useStore(
@@ -107,7 +114,7 @@ export const useLogListColumns = (
   // Settled schema only: column defs are decorative config — while the
   // listing loads there are simply no scorer columns yet, and listing errors
   // render in LogsPanel's error surface.
-  const scorerMap = useScoreSchema(logDir, scopePrefix).data ?? kNoScorerMap;
+  const scorerMap = useScoreSchema(logDir, scopeDir).data ?? kNoScorerMap;
 
   const allColumns = useMemo((): LogListColumn[] => {
     const baseColumns: LogListColumn[] = [
@@ -768,15 +775,14 @@ export const useLogListColumns = (
   // Auto-promote `sampleLimits` to default-visible when any in-scope log
   // has a sample that ended with a limit (an ingestion-derived header fact).
   const listingRows = useLogListing(logDir).data ?? kNoListingRows;
-  const hasSampleLimits = useMemo(
-    () =>
-      listingRows.some(
-        (row) =>
-          (!scopePrefix || row.name.startsWith(scopePrefix)) &&
-          (row.header?.sampleLimits.length ?? 0) > 0
-      ),
-    [listingRows, scopePrefix]
-  );
+  const hasSampleLimits = useMemo(() => {
+    const prefix = scopeDir ? scopePrefix(scopeDir) : undefined;
+    return listingRows.some(
+      (row) =>
+        (!prefix || row.name.startsWith(prefix)) &&
+        (row.header?.sampleLimits.length ?? 0) > 0
+    );
+  }, [listingRows, scopeDir]);
 
   // Default hidden columns per mode
   const defaultHiddenFields = useMemo(() => {
@@ -873,6 +879,18 @@ export const useLogListColumns = (
     [columnsById]
   );
 
+  // Everything the accessors read beyond the row and the column id: the
+  // scorer schema (`mode` also shapes the column set, but only in ways the
+  // accessors don't observe — and it's part of the listing universe anyway).
+  const accessorsKey = useMemo(
+    () =>
+      Object.entries(scorerMap)
+        .map(([key, { valueType }]) => `${key}:${valueType}`)
+        .sort()
+        .join(","),
+    [scorerMap]
+  );
+
   return {
     columns: allColumns,
     visibility,
@@ -880,6 +898,7 @@ export const useLogListColumns = (
     getValue,
     getComparator,
     getFilterType,
+    accessorsKey,
     setColumnVisibility,
   };
 };

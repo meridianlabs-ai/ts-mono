@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type {
   Event,
@@ -165,7 +165,7 @@ describe("useTranscriptTimeline", () => {
     );
 
     // Default selection is root — all events should be returned
-    expect(result.current.selectedEvents.length).toBeGreaterThanOrEqual(
+    expect(result.current.selection.events.length).toBeGreaterThanOrEqual(
       events.length
     );
   });
@@ -179,7 +179,7 @@ describe("useTranscriptTimeline", () => {
     );
 
     // Should have layouts for root + agent rows
-    expect(result.current.layouts.length).toBeGreaterThan(0);
+    expect(result.current.swimlanes.layouts.length).toBeGreaterThan(0);
   });
 
   it("reports hasTimeline false for flat events without structure", () => {
@@ -245,8 +245,8 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.timelines).toHaveLength(1);
-    expect(result.current.activeTimelineIndex).toBe(0);
+    expect(result.current.multiTimeline.timelines).toHaveLength(1);
+    expect(result.current.multiTimeline.activeIndex).toBe(0);
   });
 
   it("selectedRowName defaults to root name", () => {
@@ -257,7 +257,7 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.selectedRowName).toBe("Transcript");
+    expect(result.current.selection.rowName).toBe("Transcript");
   });
 
   it("highlightedKeys is empty when no branch is selected", () => {
@@ -268,7 +268,7 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.highlightedKeys.size).toBe(0);
+    expect(result.current.swimlanes.highlightedKeys.size).toBe(0);
   });
 
   it("branchScrollTarget is null when no branch is selected", () => {
@@ -279,14 +279,180 @@ describe("useTranscriptTimeline", () => {
       })
     );
 
-    expect(result.current.branchScrollTarget).toBeNull();
+    expect(result.current.selection.branchScrollTarget).toBeNull();
   });
 
   it("builds timeline from raw events without server timelines", () => {
     const { result } = renderHook(() => useTranscriptTimeline({ events }));
 
     expect(result.current.timeline).toBeDefined();
-    expect(result.current.timelines).toHaveLength(1);
-    expect(result.current.selectedEvents.length).toBeGreaterThan(0);
+    expect(result.current.multiTimeline.timelines).toHaveLength(1);
+    expect(result.current.selection.events.length).toBeGreaterThan(0);
+  });
+});
+
+// =============================================================================
+// Punch-down views
+// =============================================================================
+
+function makeAnchorEvent(
+  uuid: string,
+  anchorId: string,
+  startSec: number
+): Event {
+  return {
+    event: "anchor",
+    uuid,
+    anchor_id: anchorId,
+    timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
+    working_start: startSec,
+    span_id: null,
+    pending: null,
+    metadata: null,
+    source: null,
+  } as unknown as Event;
+}
+
+describe("useTranscriptTimeline punch-down views", () => {
+  const events = [
+    makeModelEvent("evt-1", 0, 3),
+    makeAnchorEvent("evt-anchor", "fork-1", 4),
+    makeModelEvent("evt-branch", 5, 8),
+  ];
+  const branchTimeline: ServerTimeline = {
+    name: "default",
+    description: "Branch timeline",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [makeServerEvent("evt-1"), makeServerEvent("evt-anchor")],
+      branches: [
+        makeServerSpan({
+          id: "branch-1",
+          name: "branch",
+          span_type: "branch",
+          branched_from: "fork-1",
+          content: [makeServerEvent("evt-branch")],
+        }),
+      ],
+    }),
+  };
+
+  // Stable identity: an inline array would recreate the timelines on every
+  // render, resetting the view stack via the stack-base adjustment.
+  const serverTimelines = [branchTimeline];
+
+  function renderViews() {
+    const onSelect = vi.fn();
+    const view = renderHook(() =>
+      useTranscriptTimeline({
+        events,
+        serverTimelines,
+        timelineOptions: { showBranches: true },
+        timelineProps: { selected: null, onSelect },
+      })
+    );
+    return { ...view, onSelect };
+  }
+
+  it("pushes a branch row as a standalone spliced view and pops back", () => {
+    const { result, onSelect } = renderViews();
+
+    const branchRow = result.current.state.rows.find((r) => r.branch);
+    expect(branchRow).toBeDefined();
+    const rootBefore = result.current.timeline.root;
+
+    act(() => result.current.views.pushByRowKey(branchRow!.key, "Branch 1"));
+    expect(result.current.views.stack).toHaveLength(1);
+    expect(result.current.views.stack[0]!.label).toBe("Branch 1");
+    // The current timeline is now the spliced standalone branch.
+    expect(result.current.timeline.root).not.toBe(rootBefore);
+    // Push clears the selection for the new view.
+    expect(onSelect).toHaveBeenCalledWith(null);
+
+    act(() => result.current.views.pop());
+    expect(result.current.views.stack).toHaveLength(0);
+    expect(result.current.timeline.root).toBe(rootBefore);
+  });
+
+  it("ignores unknown row keys", () => {
+    const { result } = renderViews();
+    act(() => result.current.views.pushByRowKey("no-such-row", "x"));
+    expect(result.current.views.stack).toHaveLength(0);
+  });
+});
+
+// =============================================================================
+// Orphaned selection
+// =============================================================================
+
+describe("useTranscriptTimeline orphaned selection", () => {
+  const events = [
+    makeModelEvent("evt-main", 0, 3),
+    makeModelEvent("evt-util", 4, 8),
+  ];
+
+  const utilityTimeline: ServerTimeline = {
+    name: "default",
+    description: "Utility lane test",
+    root: makeServerSpan({
+      id: "root",
+      name: "Transcript",
+      content: [
+        makeServerEvent("evt-main"),
+        makeServerSpan({
+          id: "util-a",
+          name: "Utility A",
+          span_type: "agent",
+          utility: true,
+          content: [makeServerEvent("evt-util")],
+        }),
+      ],
+    }),
+  };
+  const serverTimelines = [utilityTimeline];
+
+  it("keeps the hidden events out when the utility toggle drops the selected lane", () => {
+    const { result, rerender } = renderHook(
+      (props: { includeUtility: boolean; selected: string | null }) =>
+        useTranscriptTimeline({
+          events,
+          serverTimelines,
+          timelineOptions: { includeUtility: props.includeUtility },
+          timelineProps: { selected: props.selected, onSelect: vi.fn() },
+        }),
+      {
+        initialProps: {
+          includeUtility: true,
+          selected: null as string | null,
+        },
+      }
+    );
+    const utilKey = result.current.state.rows.find(
+      (r) => r.name === "Utility A"
+    )?.key;
+    expect(utilKey).toBeDefined();
+
+    rerender({ includeUtility: true, selected: utilKey! });
+    expect(result.current.selection.events.map((e) => e.uuid)).toContain(
+      "evt-util"
+    );
+
+    // The selected row is gone now. Pre-fix this fell back to the unscoped
+    // stream, putting the just-hidden event back on screen.
+    rerender({ includeUtility: false, selected: utilKey! });
+    expect(result.current.selection.events.map((e) => e.uuid)).toEqual([
+      "evt-main",
+    ]);
+  });
+
+  it("still returns every event when the timeline has no swimlane rows", () => {
+    const { result } = renderHook(() =>
+      useTranscriptTimeline({ events: [makeModelEvent("flat-1", 0, 3)] })
+    );
+
+    expect(result.current.selection.events.map((e) => e.uuid)).toEqual([
+      "flat-1",
+    ]);
   });
 });

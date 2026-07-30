@@ -8,14 +8,16 @@ import { fetchEngine } from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
 
-// Open the per-dir IndexedDB for `logDir`. Returns the (already-constructed)
-// DatabaseService once its database is open, or undefined if unavailable.
+// Open the (unified) IndexedDB and mark `logDir`'s sync scope active.
+// Returns the (already-constructed) DatabaseService once its database is
+// open, or undefined if unavailable.
 export const openLogDirDatabase = async (
   logDir: string
 ): Promise<DatabaseService | undefined> => {
   const databaseService = getDatabaseService();
   try {
-    await databaseService.openDatabase(getApi().get_log_dir_handle(logDir));
+    await databaseService.openDatabase();
+    await databaseService.touchSyncScope(logDir);
     return databaseService;
   } catch (e) {
     console.log(e);
@@ -23,22 +25,19 @@ export const openLogDirDatabase = async (
   }
 };
 
-// Ensure the per-dir database is open and the fetch engine is running for
-// `logDir`, (re)activating if they aren't. Idempotent. This is the
-// composition root for the engine: the database, api, and per-dir cache sink
-// are wired here.
+// Ensure the database is open and the fetch engine is running for `logDir`,
+// (re)activating if they aren't. Idempotent. This is the composition root
+// for the engine: the database, api, and per-dir cache sink are wired here.
 const ensureActive = async (logDir: string): Promise<void> => {
-  const databaseHandle = getApi().get_log_dir_handle(logDir);
   const needsActivation =
     !fetchEngine.isStarted() ||
     engineDir !== logDir ||
-    getDatabaseService().getDatabaseHandle() !== databaseHandle;
+    !getDatabaseService().opened();
 
   if (needsActivation) {
-    // Bump the engine epoch before re-pointing the singleton database, so an
-    // in-flight listing sync for the old dir is fenced (see
-    // `ListingUpdate.epoch`) before its writes could land in the new dir's
-    // database.
+    // Bump the engine epoch before re-scoping, so an in-flight listing sync
+    // for the old dir is fenced (see `ListingUpdate.epoch`) before its
+    // writes could land in the new session.
     fetchEngine.stop();
     const opened = await openLogDirDatabase(logDir);
     if (!opened) {
@@ -48,6 +47,7 @@ const ensureActive = async (logDir: string): Promise<void> => {
       api: getApi(),
       database: opened,
       sink: createLogsContentSink(opened, logDir),
+      logDir,
     });
     engineDir = logDir;
   }
@@ -82,6 +82,7 @@ const ensureFetchEngine = (logDir: string): Promise<void> => {
           api: getApi(),
           database,
           sink: createLogsContentSink(database, logDir),
+          logDir,
         });
         engineDir = logDir;
       }

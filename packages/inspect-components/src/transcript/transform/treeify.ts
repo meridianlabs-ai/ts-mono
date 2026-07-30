@@ -265,3 +265,31 @@ const injectScorersSpan = (events: Event[]): Event[] => {
 
   return results;
 };
+
+/**
+ * Remove span/step nodes with no visible children (filtering recursively, in
+ * place on each node's `children`). Nodes with an attached `sourceSpan`
+ * (agent cards) and structural `fork_nav`/`empty_branch` spans are preserved
+ * even when childless.
+ */
+export const filterEmptySpans = (
+  eventNodes: EventNode<EventType>[]
+): EventNode<EventType>[] => {
+  return eventNodes.filter((node) => {
+    if (node.children && node.children.length > 0) {
+      node.children = filterEmptySpans(node.children);
+    }
+    // Preserve nodes with a sourceSpan (e.g. agent cards)
+    if (node.sourceSpan) return true;
+    if (
+      node.event.event === "span_begin" &&
+      (node.event.type === "fork_nav" || node.event.type === "empty_branch")
+    ) {
+      return true;
+    }
+    return (
+      (node.event.event !== "span_begin" && node.event.event !== "step") ||
+      (node.children && node.children.length > 0)
+    );
+  });
+};

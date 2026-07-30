@@ -18,7 +18,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router/dom";
 
 import {
   ComponentIconProvider,
@@ -52,6 +52,8 @@ import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
 
 const componentIcons: ComponentIcons = {
+  arrowDown: ApplicationIcons.arrows.down,
+  arrowUp: ApplicationIcons.arrows.up,
   chevronDown: ApplicationIcons.chevron.down,
   chevronUp: ApplicationIcons.collapse.up,
   clearText: ApplicationIcons["clear-text"],

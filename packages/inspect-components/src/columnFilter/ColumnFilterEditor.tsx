@@ -350,6 +350,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
 
       <div className={styles.filterRow}>
         <button
+          type="button"
           className={clsx(
             "btn",
             "btn-outline-primary",

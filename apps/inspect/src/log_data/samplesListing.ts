@@ -4,8 +4,14 @@ import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
-import { Log, LogHeader, SampleSummary } from "../client/api/types";
+import {
+  Log,
+  LogHeader,
+  SampleDerived,
+  SampleSummary,
+} from "../client/api/types";
 import { SampleSummariesScope } from "../client/database";
+import { PreparedSampleSummary } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { getDatabaseService } from "./databaseServiceInstance";
@@ -36,6 +42,7 @@ export interface SamplesListingLogContext {
 export interface SamplesListingRow {
   logFile: string;
   summary: SampleSummary;
+  derived: SampleDerived;
   log: SamplesListingLogContext;
 }
 
@@ -80,16 +87,17 @@ const rowContext = (row: Log | undefined): SamplesListingLogContext =>
         status: row.status,
       };
 
-/** Assemble listing rows from an ingested payload's parts (the sink's push
+/** Assemble listing rows from a prepared payload's parts (the sink's push
  *  path — the db read below produces the same shape). */
 export const toSamplesListingRows = (
   logFile: string,
   header: LogHeader,
-  summaries: SampleSummary[]
+  summaries: PreparedSampleSummary[]
 ): SamplesListingRow[] =>
-  summaries.map((summary) => ({
+  summaries.map(({ summary, derived }) => ({
     logFile,
     summary,
+    derived,
     log: logContext(header),
   }));
 
@@ -128,6 +136,7 @@ const readSamplesListing = async (
     records.map((record) => ({
       logFile: record.file_path,
       summary: record.summary,
+      derived: record.derived,
       log: contexts.get(record.file_path) ?? {},
     })),
     params

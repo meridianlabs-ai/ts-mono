@@ -27,6 +27,10 @@ export interface UseScrollDirectionOptions {
    *  at which point the existing top-reveal path still fires. Default: false
    *  (symmetric show/hide on direction changes). */
   stayHiddenOnUpScroll?: boolean;
+  /** Start hidden (read once, on mount). For surfaces that mount already
+   *  "scrolled down" — e.g. a deep-link landing — so the headroom never
+   *  paints expanded on the first frame and then blinks away. Default: false */
+  initialHidden?: boolean;
 }
 
 export interface UseScrollDirectionResult {
@@ -93,7 +97,7 @@ export function useScrollDirection(
   // setHidden) use a fixed timeout so direction reversals aren't delayed.
   const programmaticLockRef = useRef(false);
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(options?.initialHidden ?? false);
 
   // Normalize input to an array of refs.
   const refArray: ReadonlyArray<RefObject<HTMLElement | null>> = useMemo(
@@ -133,19 +137,28 @@ export function useScrollDirection(
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/refs -- refArray is an array of ref objects, not .current reads; false positive (facebook/react#34775)
   }, [refArray]);
 
-  // Reset hidden state when the primary scroll element changes.
+  // Reset hidden when the scroller changes — different refs from the caller,
+  // or the same logical scroller remounting its element (loading→loaded
+  // swaps, content switches): a fresh scroller starts at the top, where the
+  // headroom shows. EXCEPT while suppressed: a nav-owned deep-link mount
+  // swaps its element mid-landing, and wiping the forced/initial state there
+  // painted the headroom expanded right before the landing re-collapsed it.
+  // eslint-disable-next-line react-hooks/refs -- stores the ref ARRAY's identity for change detection; no .current read
+  const [prevRefs, setPrevRefs] = useState(refArray);
   const [prevPrimary, setPrevPrimary] = useState<HTMLElement | null>(
     scrollEls[0] ?? null
   );
   const primaryEl = scrollEls[0] ?? null;
-  if (prevPrimary !== primaryEl) {
-    setPrevPrimary(primaryEl);
-    if (hidden) {
-      setHidden(false);
-    }
+  const scrollerChanged =
+    prevRefs !== refArray ||
+    (prevPrimary !== primaryEl && prevPrimary !== null);
+  if (prevRefs !== refArray) setPrevRefs(refArray);
+  if (prevPrimary !== primaryEl) setPrevPrimary(primaryEl);
+  // eslint-disable-next-line react-hooks/refs -- deliberate render-phase gate: the reset must be suppressed in the SAME render the scroller swaps, or the headroom paints expanded for a frame before a nav-owned landing re-collapses it
+  if (scrollerChanged && hidden && !suppressRef?.current) {
+    setHidden(false);
   }
 
   // Attach scroll listeners to all resolved elements.
@@ -253,13 +266,8 @@ export function useScrollDirection(
         el.removeEventListener("scroll", handler);
       }
     };
-  }, [
-    scrollEls,
-    threshold,
-    transitionLockMs,
-    suppressRef,
-    stayHiddenOnUpScroll,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- suppressRef is a stable ref (read at event time, never during render); listing it trips react-hooks/refs
+  }, [scrollEls, threshold, transitionLockMs, stayHiddenOnUpScroll]);
 
   const resetAnchor = useCallback(
     (debounce?: boolean) => {

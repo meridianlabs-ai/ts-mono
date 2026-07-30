@@ -1,3 +1,7 @@
+/** First segment of a relative path ("" when empty). */
+export const rootName = (relativePath: string): string =>
+  relativePath.split("/")[0] ?? "";
+
 export const directoryRelativeUrl = (file: string, dir?: string): string => {
   if (!dir) {
     return uriEncodePathSegments(file);

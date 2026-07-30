@@ -5,6 +5,7 @@ import { AsyncData } from "@tsmono/util";
 
 import { useStableValue } from "../app/shared/useStableValue";
 import { Log } from "../client/api/types";
+import { scopePrefix } from "../client/database";
 
 import { useLogs } from "./logsContent";
 
@@ -44,14 +45,15 @@ export const scorerMetricKey = (
  * scorers emitting the same metric (e.g. two "accuracy"s) into one column.
  *
  * @param logs - The directory's Log rows
- * @param scopePrefix - When set, only logs whose name starts with this
- *   prefix contribute (folder view scoping)
+ * @param scopeDir - When set, only logs under this directory contribute
+ *   (folder view scoping)
  */
-export function computeScorerMap(logs: Log[], scopePrefix?: string): ScorerMap {
+export function computeScorerMap(logs: Log[], scopeDir?: string): ScorerMap {
   const info: ScorerMap = {};
+  const prefix = scopeDir ? scopePrefix(scopeDir) : undefined;
 
   for (const log of logs) {
-    if (scopePrefix && !log.name.startsWith(scopePrefix)) {
+    if (prefix && !log.name.startsWith(prefix)) {
       continue;
     }
     if (log.header?.results?.scores) {
@@ -115,16 +117,13 @@ const asyncScorerMapsEqual = (
 
 export const useScoreSchema = (
   logDir: string,
-  scopePrefix?: string
+  scopeDir?: string
 ): AsyncData<ScorerMap> => {
   const logs = useLogs(logDir);
   return useStableValue(
     useMapAsyncData(
       logs,
-      useCallback(
-        (rows: Log[]) => computeScorerMap(rows, scopePrefix),
-        [scopePrefix]
-      )
+      useCallback((rows: Log[]) => computeScorerMap(rows, scopeDir), [scopeDir])
     ),
     asyncScorerMapsEqual
   );

@@ -2,8 +2,7 @@
  * Query builder for constructing filter conditions and order-by clauses.
  *
  * Builds `Condition`s that serialize automatically via `JSON.stringify()`
- * (`.toJSON()`). Shared between inspect and (eventually) scout — see the
- * scout-reconciliation follow-up.
+ * (`.toJSON()`). Shared between inspect and scout.
  *
  * @example
  * ```typescript

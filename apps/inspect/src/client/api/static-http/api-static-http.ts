@@ -1,6 +1,7 @@
 import { AppConfig, EvalSet } from "@tsmono/inspect-common/types";
 import { fetchRange } from "@tsmono/util";
 
+import { isUri } from "../../../utils/uri";
 import { fetchSize } from "../../remote/remoteZipFile";
 import { download_file } from "../shared/api-shared";
 import { Capabilities, LogPreview, LogRoot, LogViewAPI } from "../types";
@@ -12,6 +13,19 @@ import {
   fetchTextFile,
   joinURI,
 } from "./fetch";
+
+/** The canonical, origin-unique URL of a deployment's log dir. A relative
+ *  configured log_dir is page-relative for fetching, but page-relative
+ *  strings are not identities: two bundles at different paths on one origin
+ *  would collide in the shared per-origin IndexedDB. So everything the app
+ *  sees (log_dir, file names) is absolute. */
+const canonicalDirUrl = (log_dir: string): string => {
+  if (isUri(log_dir)) {
+    return log_dir;
+  }
+  const pageDir = `${window.location.origin}${window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))}`;
+  return joinURI(pageDir, log_dir);
+};
 
 // Versions aren't reachable without a server; older bundles don't embed them.
 const kFallbackAppConfig: AppConfig = {
@@ -51,6 +65,8 @@ function staticHttpApiForLog(logInfo: {
   app_config?: AppConfig;
 }): LogViewAPI {
   const log_dir = logInfo.log_dir;
+  const canonical_log_dir =
+    log_dir === undefined ? undefined : canonicalDirUrl(log_dir);
   const abs_log_dir = logInfo.abs_log_dir;
   const app_config = logInfo.app_config ?? kFallbackAppConfig;
   let manifest: Record<string, LogPreview> | undefined = undefined;
@@ -81,29 +97,25 @@ function staticHttpApiForLog(logInfo: {
     },
     get_log_root: async (): Promise<LogRoot | undefined> => {
       // First check based upon the log dir
-      if (log_dir) {
+      if (log_dir && canonical_log_dir) {
         const manifest = await getManifest();
         if (manifest) {
           const logs = Object.entries(manifest).map(([key, preview]) => {
             return {
-              name: joinURI(log_dir, key),
+              name: joinURI(canonical_log_dir, key),
               task: preview.task,
               task_id: preview.task_id,
             };
           });
           return Promise.resolve({
             logs: logs,
-            log_dir,
+            log_dir: canonical_log_dir,
             abs_log_dir,
           });
         }
       }
 
       return undefined;
-    },
-    get_log_dir_handle: (log_dir: string | undefined): string => {
-      const currentDirUrl = `${window.location.origin}${window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))}`;
-      return joinURI(currentDirUrl, log_dir || "default_log_dir");
     },
     get_eval_set: async (dir?: string) => {
       const dirSegments = [];
@@ -176,7 +188,7 @@ function staticHttpApiForLog(logInfo: {
       if (manifest) {
         const manifestAbs: Record<string, LogPreview> = {};
         Object.entries(manifest).forEach(([key, preview]) => {
-          manifestAbs[joinURI(log_dir || "", key)] = preview;
+          manifestAbs[joinURI(canonical_log_dir || "", key)] = preview;
         });
         const header = manifestAbs[log_file];
         if (header) {

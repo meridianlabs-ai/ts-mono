@@ -1,47 +1,24 @@
-import clsx from "clsx";
-import React, { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useEffect, useMemo } from "react";
 
 import {
   ExtendedFindProvider,
+  FindBand,
   FindTargetProvider,
+  useFindBandShortcut,
 } from "@tsmono/react/components";
 
-import { FindBand } from "../../components/FindBand";
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { ApplicationIcons } from "../appearance/icons";
-import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 
 import { InlineSampleDisplay } from "./InlineSampleDisplay";
 import styles from "./SampleDetailComponent.module.css";
+import {
+  NavbarConfig,
+  SampleNavbar,
+  SampleNavigationConfig,
+} from "./SampleNavbar";
 
-/**
- * Configuration for sample navigation (prev/next)
- */
-export interface SampleNavigationConfig {
-  /** Handler for navigating to previous sample */
-  onPrevious: () => void;
-  /** Handler for navigating to next sample */
-  onNext: () => void;
-  /** Whether there is a previous sample to navigate to */
-  hasPrevious: boolean;
-  /** Whether there is a next sample to navigate to */
-  hasNext: boolean;
-}
-
-/**
- * Configuration for the application navbar
- */
-export interface NavbarConfig {
-  /** The current path to display in breadcrumb */
-  currentPath: string | undefined;
-  /** Function to build navigation URLs for breadcrumb segments */
-  fnNavigationUrl: (file: string, log_dir?: string) => string;
-  /** Whether to show a border on the navbar */
-  bordered?: boolean;
-
-  breadcrumbsEnabled?: boolean;
-}
+export type { NavbarConfig, SampleNavigationConfig };
 
 /**
  * Props for the SampleDetailComponent
@@ -64,7 +41,8 @@ export interface SampleDetailComponentProps {
  * Used by both SampleDetailView (for /samples route) and LogSampleDetailView (for /logs route).
  *
  * This component handles:
- * - Keyboard shortcuts (arrow keys for nav, Ctrl+F for find)
+ * - Keyboard shortcuts (Ctrl+F for find; arrow-key sample nav lives in
+ *   SampleNavbar)
  * - Find band integration
  * - Sample tab synchronization (URL → state)
  * - Navigation controls UI (prev/next buttons + sample info)
@@ -82,14 +60,6 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   navigation,
   navbarConfig,
 }) => {
-  const { onPrevious, onNext, hasPrevious, hasNext } = navigation;
-  const {
-    currentPath,
-    fnNavigationUrl,
-    bordered = true,
-    breadcrumbsEnabled,
-  } = navbarConfig;
-
   // Sample data and status
   const sampleData = useSelectedEvalSampleData();
   const sample = sampleData.sample;
@@ -120,121 +90,24 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
     }
   }, [tabId, setSampleTab]);
 
-  // Global keydown handler for keyboard shortcuts
-  const handleKeyDown = useCallback(
-    (e: globalThis.KeyboardEvent) => {
-      // Don't handle keyboard events if focus is on an input, textarea, or
-      // select element. Walk shadow roots so custom elements like
-      // <vscode-textarea> (whose real <textarea> lives in shadow DOM) count.
-      let activeElement: Element | null = document.activeElement;
-      while (activeElement?.shadowRoot?.activeElement) {
-        activeElement = activeElement.shadowRoot.activeElement;
-      }
-      const isInputFocused =
-        activeElement &&
-        (activeElement.tagName === "INPUT" ||
-          activeElement.tagName === "TEXTAREA" ||
-          activeElement.tagName === "SELECT" ||
-          (activeElement instanceof HTMLElement &&
-            activeElement.isContentEditable));
-
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        if (!nativeFind) {
-          e.preventDefault();
-          e.stopPropagation();
-          setShowFind(true);
-        }
-      } else if (e.key === "Escape") {
-        if (!nativeFind) {
-          hideFind();
-        }
-      } else if (!isInputFocused) {
-        // Navigation shortcuts (only when not in an input field)
-        if (e.key === "ArrowLeft") {
-          if (hasPrevious) {
-            e.preventDefault();
-            onPrevious();
-          }
-        } else if (e.key === "ArrowRight") {
-          if (hasNext) {
-            e.preventDefault();
-            onNext();
-          }
-        }
-      }
-    },
-    [
-      setShowFind,
-      hideFind,
-      hasPrevious,
-      hasNext,
-      nativeFind,
-      onPrevious,
-      onNext,
-    ]
-  );
-
-  useEffect(() => {
-    // Use capture phase to catch event before it reaches other handlers
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [handleKeyDown]);
-
-  // Keyboard handler for navigation buttons (Enter/Space to activate)
-  const handleNavButtonKeyDown = useCallback(
-    (e: React.KeyboardEvent, action: () => void, enabled: boolean) => {
-      if ((e.key === "Enter" || e.key === " ") && enabled) {
-        e.preventDefault();
-        action();
-      }
-    },
-    []
-  );
+  const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+  useFindBandShortcut(openFind, {
+    onClose: hideFind,
+    isOpen: showFind,
+    enabled: !nativeFind,
+  });
 
   return (
     <ExtendedFindProvider>
       <FindTargetProvider>
-        {showFind ? <FindBand /> : ""}
+        {showFind ? <FindBand onClose={hideFind} /> : ""}
         <div className={styles.detail}>
-          <ApplicationNavbar
-            currentPath={currentPath}
-            fnNavigationUrl={fnNavigationUrl}
-            bordered={bordered}
-            breadcrumbsEnabled={breadcrumbsEnabled}
-          >
-            <div className={clsx(styles.sampleNav)}>
-              <div
-                onClick={hasPrevious ? onPrevious : undefined}
-                onKeyDown={(e) =>
-                  handleNavButtonKeyDown(e, onPrevious, hasPrevious)
-                }
-                tabIndex={hasPrevious ? 0 : -1}
-                role="button"
-                aria-label="Previous sample"
-                aria-disabled={!hasPrevious}
-                className={clsx(!hasPrevious && styles.disabled, styles.nav)}
-              >
-                <i className={clsx(ApplicationIcons.previous)} />
-              </div>
-              <div className={clsx(styles.sampleInfo, "text-size-smallest")}>
-                Sample {sampleId} (Epoch {epoch})
-              </div>
-              <div
-                onClick={hasNext ? onNext : undefined}
-                onKeyDown={(e) => handleNavButtonKeyDown(e, onNext, hasNext)}
-                tabIndex={hasNext ? 0 : -1}
-                role="button"
-                aria-label="Next sample"
-                aria-disabled={!hasNext}
-                className={clsx(!hasNext && styles.disabled, styles.nav)}
-              >
-                <i className={clsx(ApplicationIcons.next)} />
-              </div>
-            </div>
-          </ApplicationNavbar>
+          <SampleNavbar
+            sampleId={sampleId}
+            epoch={epoch}
+            navigation={navigation}
+            navbarConfig={navbarConfig}
+          />
 
           {sampleMatchesRequest && (
             <InlineSampleDisplay className={styles.panel} />

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@tsmono/util";
 
-import { Column } from "../../query/column";
+import { Column } from "../../query";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 

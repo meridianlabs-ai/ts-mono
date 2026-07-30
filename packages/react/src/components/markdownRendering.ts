@@ -4,9 +4,32 @@
  */
 
 import MarkdownIt from "markdown-it";
-import markdownitMathjax3 from "markdown-it-mathjax3";
 
 import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
+
+type MarkdownItPlugin = (md: MarkdownIt) => void;
+
+let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
+const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
+  if (!mathjaxPluginPromise) {
+    const loading = import("markdown-it-mathjax3").then(
+      (m) => m.default as MarkdownItPlugin
+    );
+    // Reset on rejection so a transient chunk-load failure (network blip,
+    // redeploy invalidating the hashed chunk) retries on the next math render
+    // instead of disabling math for the rest of the session.
+    loading.catch(() => {
+      if (mathjaxPluginPromise === loading) {
+        mathjaxPluginPromise = null;
+      }
+    });
+    mathjaxPluginPromise = loading;
+  }
+  return mathjaxPluginPromise;
+};
+
+export const hasMathContent = (text: string): boolean =>
+  text.includes("$") || text.includes("\\(") || text.includes("\\[");
 
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
@@ -26,8 +49,15 @@ export const unescapeHtmlForMath = (content: string): string => {
     .replace(/&quot;/g, '"');
 };
 
-export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
-  const cached = mdInstanceCache[renderer];
+export const getMarkdownInstance = async (
+  renderer: MarkdownRenderer,
+  contentHasMath?: boolean
+): Promise<MarkdownIt> => {
+  const useMath =
+    (renderer === "full" || renderer === "fragment") && !!contentHasMath;
+  const cacheKey = `${renderer}:${useMath ? "1" : "0"}`;
+
+  const cached = mdInstanceCache[cacheKey];
   if (cached) {
     return cached;
   }
@@ -37,7 +67,7 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
       "emphasis",
       "newline",
     ]);
-    mdInstanceCache[renderer] = md;
+    mdInstanceCache[cacheKey] = md;
     return md;
   }
 
@@ -67,9 +97,9 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
     return `<a href="${md.utils.escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapedLabel}</a>`;
   };
 
-  if (renderer === "full" || renderer === "fragment") {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- plugin has no type declarations
-    md.use(markdownitMathjax3);
+  if (useMath) {
+    const mathjaxPlugin = await getMathjaxPlugin();
+    md.use(mathjaxPlugin);
 
     // Wrap math renderers to unescape HTML entities in TeX content
     // before MathJax processes them. HTML chars in LaTeX blocks are
@@ -98,7 +128,7 @@ export const getMarkdownInstance = (renderer: MarkdownRenderer): MarkdownIt => {
       };
     }
   }
-  mdInstanceCache[renderer] = md;
+  mdInstanceCache[cacheKey] = md;
 
   return md;
 };
@@ -272,12 +302,12 @@ export function unescapeCodeHtmlEntities(str: string): string {
   );
 }
 
-type MarkdownRenderFunction = (markdown: string) => string;
+type MarkdownRenderFunction = (markdown: string) => Promise<string>;
 
-const renderFullPipelineMarkdown = (
+const renderFullPipelineMarkdown = async (
   markdown: string,
   renderer: "full" | "fragment"
-): string => {
+): Promise<string> => {
   // Protect backslashes in LaTeX expressions
   const protectedContent = protectBackslashesInLatex(markdown);
 
@@ -294,7 +324,7 @@ const renderFullPipelineMarkdown = (
 
   let html = preparedForMarkdown;
   try {
-    const md = getMarkdownInstance(renderer);
+    const md = await getMarkdownInstance(renderer, hasMathContent(markdown));
     html = md.render(preparedForMarkdown);
   } catch (ex) {
     console.log("Unable to markdown render content");
@@ -312,9 +342,9 @@ const renderFullPipelineMarkdown = (
   return withSup;
 };
 
-const renderTextOnlyMarkdown = (markdown: string): string => {
+const renderTextOnlyMarkdown = async (markdown: string): Promise<string> => {
   try {
-    return getMarkdownInstance("textOnly").render(markdown);
+    return (await getMarkdownInstance("textOnly")).render(markdown);
   } catch (ex) {
     console.log("Unable to markdown render content");
     console.error(ex);
@@ -331,4 +361,4 @@ const markdownRenderers: Record<MarkdownRenderer, MarkdownRenderFunction> = {
 export const renderMarkdown = (
   markdown: string,
   renderer: MarkdownRenderer = defaultMarkdownRenderer
-): string => markdownRenderers[renderer](markdown);
+): Promise<string> => markdownRenderers[renderer](markdown);

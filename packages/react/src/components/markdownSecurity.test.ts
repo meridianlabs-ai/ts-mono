@@ -1,77 +1,88 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getMarkdownInstance,
+  hasMathContent,
   protectBackslashesInLatex,
   renderMarkdown,
   restoreBackslashesForLatex,
   unescapeHtmlForMath,
-  type MarkdownRenderer,
 } from "./markdownRendering";
-
-/**
- * Simulate the async rendering pipeline from MarkdownDiv.
- * This mirrors the steps in the renderQueue.enqueue callback.
- */
-function renderPipeline(
-  markdown: string,
-  renderer: MarkdownRenderer = "full"
-): string {
-  return renderMarkdown(markdown, renderer);
-}
 
 describe("MarkdownDiv XSS security", () => {
   describe("script injection in LaTeX blocks", () => {
-    it("should not produce raw <script> tags from inline math", () => {
-      const result = renderPipeline("$<script>alert(1)</script>$");
+    it("should not produce raw <script> tags from inline math", async () => {
+      const result = await renderMarkdown("$<script>alert(1)</script>$");
       expect(result).not.toContain("<script>");
       expect(result).not.toContain("</script>");
     });
 
-    it("should not produce raw <script> tags from block math", () => {
-      const result = renderPipeline("$$<script>alert(1)</script>$$");
+    it("should not produce raw <script> tags from block math", async () => {
+      const result = await renderMarkdown("$$<script>alert(1)</script>$$");
       expect(result).not.toContain("<script>");
       expect(result).not.toContain("</script>");
     });
   });
 
   describe("event handler injection in LaTeX blocks", () => {
-    it("should not produce raw <img> with onerror from inline math", () => {
-      const result = renderPipeline('$<img src=x onerror="alert(1)">$');
+    it("should not produce raw <img> with onerror from inline math", async () => {
+      const result = await renderMarkdown('$<img src=x onerror="alert(1)">$');
       expect(result).not.toContain("<img");
       expect(result).not.toContain("onerror");
     });
 
-    it("should not produce raw <img> with onerror from block math", () => {
-      const result = renderPipeline('$$<img src=x onerror="alert(1)">$$');
+    it("should not produce raw <img> with onerror from block math", async () => {
+      const result = await renderMarkdown('$$<img src=x onerror="alert(1)">$$');
       expect(result).not.toContain("<img");
       expect(result).not.toContain("onerror");
     });
   });
 
   describe("script injection outside LaTeX", () => {
-    it("should escape <script> tags in plain text", () => {
-      const result = renderPipeline("<script>alert(1)</script>");
+    it("should escape <script> tags in plain text", async () => {
+      const result = await renderMarkdown("<script>alert(1)</script>");
       expect(result).not.toContain("<script>");
     });
 
-    it("should escape event handlers in plain text", () => {
-      const result = renderPipeline('<img src=x onerror="alert(1)">');
+    it("should escape event handlers in plain text", async () => {
+      const result = await renderMarkdown('<img src=x onerror="alert(1)">');
       // The text "onerror" may appear as escaped text, but no raw <img> tag
       expect(result).not.toContain("<img");
     });
   });
 
   describe("legitimate LaTeX still renders", () => {
-    it("should render inline math with backslashes", () => {
-      const result = renderPipeline("$\\frac{1}{2}$");
+    it("should render inline math with backslashes", async () => {
+      const result = await renderMarkdown("$\\frac{1}{2}$");
       // MathJax should process this — output should contain mjx-container or similar
       // At minimum, the backslash commands should not be entity-encoded
       expect(result).not.toContain("___LATEX_BACKSLASH___");
     });
 
-    it("should render block math with backslashes", () => {
-      const result = renderPipeline("$$\\sum_{i=0}^{n} x_i$$");
+    it("should render block math with backslashes", async () => {
+      const result = await renderMarkdown("$$\\sum_{i=0}^{n} x_i$$");
       expect(result).not.toContain("___LATEX_BACKSLASH___");
+    });
+
+    it("lazily loads mathjax and emits an mjx-container for math content", async () => {
+      const result = await renderMarkdown("$\\frac{1}{2}$");
+      expect(result).toContain("mjx-container");
+    });
+
+    it("renders plain content without loading mathjax", async () => {
+      const result = await renderMarkdown("hello **world**");
+      expect(result).toContain("<strong>world</strong>");
+      expect(result).not.toContain("mjx-container");
+    });
+
+    it("detects math delimiters before loading mathjax", async () => {
+      expect(hasMathContent("hello **world**")).toBe(false);
+      expect(hasMathContent("$x + y$")).toBe(true);
+      expect(hasMathContent("\\(x + y\\)")).toBe(true);
+      expect(hasMathContent("\\[x + y\\]")).toBe(true);
+
+      const plainFullRenderer = await getMarkdownInstance("full", false);
+      expect(plainFullRenderer.renderer.rules.math_inline).toBeUndefined();
     });
 
     it("should render math with comparison operators via unescapeHtmlForMath", () => {
@@ -130,8 +141,8 @@ describe("MarkdownDiv XSS security", () => {
   describe("renderer scenarios", () => {
     it.each(["full", "fragment"] as const)(
       "%s renderer replaces remote markdown images with links",
-      (renderer) => {
-        const result = renderPipeline(
+      async (renderer) => {
+        const result = await renderMarkdown(
           "![alt](https://example.com/image.png)",
           renderer
         );
@@ -143,8 +154,8 @@ describe("MarkdownDiv XSS security", () => {
       }
     );
 
-    it("does not link data-image markdown", () => {
-      const result = renderPipeline(
+    it("does not link data-image markdown", async () => {
+      const result = await renderMarkdown(
         "![alt](data:image/png;base64,AAAA)",
         "full"
       );
@@ -153,14 +164,17 @@ describe("MarkdownDiv XSS security", () => {
       expect(result).toContain("alt");
     });
 
-    it("does not auto-link plain URL text", () => {
-      const result = renderPipeline("https://example.com/image.png", "full");
+    it("does not auto-link plain URL text", async () => {
+      const result = await renderMarkdown(
+        "https://example.com/image.png",
+        "full"
+      );
       expect(result).not.toContain("<a ");
       expect(result).toContain("https://example.com/image.png");
     });
 
-    it("textOnly renderer supports emphasis and newlines only", () => {
-      const result = renderPipeline(
+    it("textOnly renderer supports emphasis and newlines only", async () => {
+      const result = await renderMarkdown(
         "hello *world*\n![alt](https://example.com/image.png)\n[link](https://example.com)",
         "textOnly"
       );

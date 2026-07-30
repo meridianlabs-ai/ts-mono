@@ -3,6 +3,7 @@ export {
   EventNode,
   eventTypeValues,
   kCollapsibleEventTypes,
+  kDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
@@ -21,6 +22,7 @@ export type {
 // Transform utilities
 export { fixupEventStream, kSandboxSignalName } from "./transform/fixups";
 export { flatTree } from "./transform/flatten";
+export { FocusTurnView } from "./FocusTurnView";
 export type { TreeNodeVisitor } from "./transform/flatten";
 export { transformTree } from "./transform/transform";
 export { treeifyEvents } from "./transform/treeify";
@@ -92,8 +94,19 @@ export {
 } from "./state/StateEventRenderers";
 
 // Hooks
-export { useStickyObserver } from "./hooks/useStickyObserver";
 export { useStickySwimLaneHeight } from "./hooks/useStickySwimLaneHeight";
+export {
+  useFocusSetParams,
+  useFocusTurnNavigation,
+  type FocusTurnNavigation,
+  type LaneCrumb,
+  type LaneOption,
+} from "./hooks/useFocusTurnNavigation";
+export {
+  useFocusLaneScope,
+  type FocusLane,
+  type FocusLaneScope,
+} from "./hooks/useFocusLaneScope";
 export { useListPositionManager } from "./hooks/useListPositionManager";
 
 // Layout
@@ -102,6 +115,10 @@ export {
   type TranscriptLayoutProps,
   type TranscriptLayoutOutlineProps,
   type TranscriptLayoutRightRailProps,
+  type TranscriptLayoutTimelineProps,
+  type TranscriptLayoutDeepLinkProps,
+  type TranscriptLayoutHeadroomProps,
+  type TranscriptLayoutEmptyProps,
 } from "./TranscriptLayout";
 
 // Icons
@@ -151,7 +168,6 @@ export {
   TranscriptVirtualList,
   RenderedEventNode,
 } from "./TranscriptVirtualList";
-export { TranscriptVirtualListComponent } from "./TranscriptVirtualListComponent";
 
 export {
   TranscriptViewNodes,
@@ -161,6 +177,7 @@ export {
 
 // Outline components
 export { TranscriptOutline } from "./outline/TranscriptOutline";
+export { buildOutlineNodeList } from "./outline/useOutlineNodes";
 export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
 export {
   useOutlineWidth,
@@ -168,6 +185,11 @@ export {
 } from "./outline/useOutlineWidth";
 
 // Timeline utilities
+export {
+  buildEventNodes,
+  useEventNodes,
+  type EventNodesResult,
+} from "./hooks/useEventNodes";
 export * from "./timeline";
 
 // Search utilities

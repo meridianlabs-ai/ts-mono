@@ -279,6 +279,7 @@ test.describe("chat message rendering", () => {
                 document: `${MEDIA_ORIGIN}/document.png`,
                 filename: "document.png",
                 mime_type: "image/png",
+                citations: false,
               },
             ],
           },

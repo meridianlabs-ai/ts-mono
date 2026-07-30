@@ -1,12 +1,12 @@
 import React, { FC, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import {
   flatTree,
-  TranscriptVirtualListComponent,
+  TranscriptVirtualList,
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
@@ -134,7 +134,7 @@ export const SamplePrintView: FC = () => {
       </div>
 
       {view === kSampleTranscriptTabId && (
-        <TranscriptVirtualListComponent
+        <TranscriptVirtualList
           id="print-transcript"
           listHandle={listHandle}
           eventNodes={flattenedNodes}

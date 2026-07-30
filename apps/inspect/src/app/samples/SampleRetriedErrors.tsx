@@ -1,7 +1,11 @@
 import clsx from "clsx";
 import { FC, RefObject, useState } from "react";
 
-import { EvalRetryError } from "@tsmono/inspect-common";
+import {
+  EvalError,
+  EvalRetryError,
+  EvalSampleLimit,
+} from "@tsmono/inspect-common";
 
 import { ApplicationIcons } from "../appearance/icons";
 
@@ -12,15 +16,21 @@ import styles from "./SampleRetriedErrors.module.css";
 interface SampleRetriedErrorsProps {
   id: string;
   retries: EvalRetryError[];
+  // Final-run outcome — present when the last attempt also failed (retry
+  // limit reached) or terminated on a sample limit.
+  error?: EvalError | null;
+  limit?: EvalSampleLimit | null;
   scrollRef: RefObject<HTMLDivElement | null>;
 }
 
 export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
   id,
   retries,
+  error,
+  limit,
   scrollRef,
 }) => {
-  // Accordion: default to the most recent failure (closest to the success).
+  // Accordion: default to the most recent failure (closest to the final run).
   // Callers must pass key={id} so the state resets when the sample changes
   // (the same component instance can be reused on the inline display path).
   const [expandedIndex, setExpandedIndex] = useState<number | null>(
@@ -54,7 +64,11 @@ export const SampleRetriedErrors: FC<SampleRetriedErrorsProps> = ({
               />
             </div>
           ))}
-          <RetryTerminalAnchor retryCount={retries.length} />
+          <RetryTerminalAnchor
+            retryCount={retries.length}
+            error={error}
+            limit={limit}
+          />
         </div>
       </div>
     </div>

@@ -2,7 +2,6 @@ import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
-import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import type {
   ColumnFilter,
   FilterSpec,
@@ -11,6 +10,7 @@ import type {
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
+import { scopePrefix } from "../../client/database";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
@@ -138,7 +138,7 @@ export const SamplesPanel: FC = () => {
   const currentDirLogFiles = useMemo(() => {
     const files = [];
     for (const logFile of logFiles) {
-      const inCurrentDir = logFile.name.startsWith(currentDir);
+      const inCurrentDir = logFile.name.startsWith(scopePrefix(currentDir));
       const skipped = !showRetriedLogs && logFile.retried;
       if (inCurrentDir && !skipped) {
         files.push(logFile);
@@ -321,14 +321,11 @@ export const SamplesPanel: FC = () => {
       {}
     );
 
+    // A projection: sample-intrinsic derived values come off the listing row
+    // (attached at ingestion by `deriveSampleFields`); log-level context is
+    // the subsystem's read-time join.
     const allRows: SampleRow[] = scopedSamples.map(
-      ({ logFile, summary: sample, log }) => {
-        const tokens = sample.model_usage
-          ? Object.values(sample.model_usage).reduce(
-              (sum, u) => sum + (u.total_tokens ?? 0),
-              0
-            )
-          : undefined;
+      ({ logFile, summary: sample, derived, log }) => {
         const row: SampleRow = {
           logFile,
           sampleId: sample.id,
@@ -338,21 +335,19 @@ export const SamplesPanel: FC = () => {
           task: log.task || "",
           model: log.model || "",
           status: log.status,
-          input: inputString(sample.input).join("\n"),
-          target: Array.isArray(sample.target)
-            ? sample.target.join(", ")
-            : sample.target,
+          input: derived.input,
+          target: derived.target,
           error: sample.error,
           limit: sample.limit,
           retries: sample.retries,
-          fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
+          fallbacks: derived.fallbacks,
           completed: sample.completed,
-          tokens,
+          tokens: derived.tokens,
           duration: sample.total_time ?? undefined,
         };
-        if (sample.scores) {
-          for (const [scoreName, score] of Object.entries(sample.scores)) {
-            row[`${SCORE_FIELD_RAW_PREFIX}${scoreName}`] = score.value;
+        if (derived.scores) {
+          for (const [scoreName, value] of Object.entries(derived.scores)) {
+            row[`${SCORE_FIELD_RAW_PREFIX}${scoreName}`] = value;
           }
         }
         return row;

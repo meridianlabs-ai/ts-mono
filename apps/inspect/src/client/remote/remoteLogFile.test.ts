@@ -15,7 +15,9 @@
 
 import { describe, expect, test } from "vitest";
 
-import { headerFromLogStart, LogStart } from "./remoteLogFile";
+import { SampleSummary } from "../api/types";
+
+import { dedupeSummaries, headerFromLogStart, LogStart } from "./remoteLogFile";
 
 const baseEval = {
   // EvalSpec has more fields, but the helper only touches `tags` and
@@ -63,5 +65,40 @@ describe("headerFromLogStart", () => {
     // rely on stable references.
     expect(header.eval).toBe(start.eval);
     expect(header.plan).toBe(start.plan);
+  });
+});
+
+function makeSummary(
+  id: number | string,
+  epoch: number,
+  error?: string
+): SampleSummary {
+  // SampleSummary has more fields; the helper only touches id / epoch.
+  return { id, epoch, error } as SampleSummary;
+}
+
+describe("dedupeSummaries", () => {
+  test("keeps the last row per (id, epoch)", () => {
+    // a requeued sample journals its superseded prior attempt and, in a
+    // later journal file, its re-run — the re-run's row must win
+    const deduped = dedupeSummaries([
+      makeSummary("flaky", 1, "boom"),
+      makeSummary("steady", 1),
+      makeSummary("flaky", 1),
+    ]);
+    expect(deduped).toEqual([
+      makeSummary("flaky", 1),
+      makeSummary("steady", 1),
+    ]);
+  });
+
+  test("treats epochs of the same sample as distinct rows", () => {
+    const rows = [makeSummary("s1", 1), makeSummary("s1", 2)];
+    expect(dedupeSummaries(rows)).toEqual(rows);
+  });
+
+  test("does not conflate numeric and string ids", () => {
+    const rows = [makeSummary(1, 1), makeSummary("1", 1)];
+    expect(dedupeSummaries(rows)).toEqual(rows);
   });
 });

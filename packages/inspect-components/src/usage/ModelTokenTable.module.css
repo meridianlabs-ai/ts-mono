@@ -210,6 +210,22 @@
   margin-top: 0.15rem;
 }
 
+.connectionsCell {
+  width: 330px;
+  min-width: 240px;
+  vertical-align: top;
+}
+
+.table thead th.connectionsHead,
+.table tbody td.connectionsCell {
+  padding-left: 2rem;
+}
+
+.table tbody tr.connectionsStripRow td {
+  padding: 6px 0 18px;
+  border-top: 0;
+}
+
 .swatch {
   display: inline-block;
   width: 9px;

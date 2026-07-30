@@ -9,4 +9,10 @@ export {
   buildConfigsByModel,
   buildConfigsByRole,
 } from "./configsForUsage";
+export {
+  adaptiveMaxFromConfig,
+  buildConnectionLanes,
+  connectionWindow,
+} from "./connectionHistory";
+export type { ConnectionLaneData, ConnectionWindow } from "./connectionHistory";
 export { fmtClock, fmtCompactDuration } from "./timeFormat";

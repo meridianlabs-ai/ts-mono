@@ -1,4 +1,5 @@
-import { asyncJsonParseBytes } from "../../utils/json-worker";
+import { asyncJsonParseBytes } from "@tsmono/util";
+
 import { PendingSampleUrls, SampleData, SegmentRef } from "../api/types";
 import { ApiError } from "../api/view-server/request";
 

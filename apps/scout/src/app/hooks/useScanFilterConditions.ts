@@ -1,5 +1,4 @@
-import { Condition } from "../../query";
-import { SimpleCondition } from "../../query/types";
+import type { Condition, SimpleCondition } from "../../query";
 import { useStore } from "../../state/store";
 
 /**

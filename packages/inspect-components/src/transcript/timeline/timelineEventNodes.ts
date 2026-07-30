@@ -506,8 +506,9 @@ function collectFromContent(
         branchPrefix
       );
     } else if (!includeUtility && item.utility) {
-      // Skip utility spans — internal model calls (e.g. file path extraction)
-      // that should not appear in the event tree or outline.
+      // Elide utility spans — internal model calls (e.g. file path
+      // extraction). The swimlane header shows a hidden-utility count so
+      // these never disappear without a trace.
       continue;
     } else {
       // Emit synthetic span_begin

@@ -1,8 +1,9 @@
-import { useMemo } from "react";
-import { useLocation, useParams } from "react-router-dom";
+import { useCallback, useMemo } from "react";
+import { useLocation, useParams } from "react-router";
 
 import { useLogDir } from "../../app_config";
 import {
+  kSampleEventTabId,
   kSampleMessagesTabId,
   kSampleTabIds,
   kSampleTranscriptTabId,
@@ -330,21 +331,38 @@ export type SampleUrlBuilder = (
 
 export const useSampleUrlBuilder = () => {
   const location = useLocation();
-  const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
-    ? "/tasks"
-    : "/logs";
-  return (
-    logPath: string,
-    sampleId?: string | number,
-    sampleEpoch?: string | number,
-    sampleTabId?: string
-  ) => {
-    if (sampleId && sampleEpoch && location.pathname.startsWith("/samples/")) {
-      return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
-    } else {
-      return logSamplesUrl(logPath, sampleId, sampleEpoch, sampleTabId, prefix);
-    }
-  };
+  // Memoize on pathname so the returned builder keeps a stable identity across
+  // renders (e.g. streaming polls). Downstream memos (SampleDisplay's
+  // `messageOptions`, TranscriptPanel's event-url chain) key on this builder,
+  // so an unstable identity would defeat their memoization.
+  return useCallback(
+    (
+      logPath: string,
+      sampleId?: string | number,
+      sampleEpoch?: string | number,
+      sampleTabId?: string
+    ) => {
+      const prefix: RoutePrefix = location.pathname.startsWith("/tasks")
+        ? "/tasks"
+        : "/logs";
+      if (
+        sampleId &&
+        sampleEpoch &&
+        location.pathname.startsWith("/samples/")
+      ) {
+        return samplesSampleUrl(logPath, sampleId, sampleEpoch, sampleTabId);
+      } else {
+        return logSamplesUrl(
+          logPath,
+          sampleId,
+          sampleEpoch,
+          sampleTabId,
+          prefix
+        );
+      }
+    },
+    [location.pathname]
+  );
 };
 
 export const logSamplesUrl = (
@@ -415,7 +433,111 @@ export const sampleEventUrl = (
     sampleEpoch,
     kSampleTranscriptTabId
   );
-  return `${baseUrl}?event=${eventId}`;
+  return `${baseUrl}?event=${encodeURIComponent(eventId)}`;
+};
+
+/**
+ * Hash route for the focus-mode page (single focused turn). Renders
+ * only the given event and its descendants.
+ *
+ * Keeps the originating surface's prefix (`/logs`, `/tasks`, or `/samples` —
+ * all three routers wire the `event` tab) so exiting focus mode and the
+ * back/home buttons return to the surface the sample was opened from.
+ */
+const sampleEventFocusUrl = (
+  eventId: string,
+  logPath: string,
+  sampleId?: string | number,
+  sampleEpoch?: string | number,
+  surface: RoutePrefix | "/samples" = "/logs"
+) => {
+  const baseUrl =
+    surface === "/samples"
+      ? samplesSampleUrl(
+          logPath,
+          sampleId ?? "",
+          sampleEpoch ?? "",
+          kSampleEventTabId
+        )
+      : logSamplesUrl(
+          logPath,
+          sampleId,
+          sampleEpoch,
+          kSampleEventTabId,
+          surface
+        );
+  return `${baseUrl}?event=${encodeURIComponent(eventId)}`;
+};
+
+/**
+ * Builder for the focus-mode entry href: a `#`-prefixed hash-route URL for the
+ * single-event focus page. Relative `#…` so a ctrl/cmd- or middle-click opens
+ * it in a new browser tab of the same SPA, while a plain click is intercepted
+ * for in-window navigation (see `TranscriptLayout.onOpenEventFocus`). The
+ * VS Code webview has no browser-tab model, but in-window focus mode works
+ * there like any hash navigation, so the control is no longer suppressed.
+ *
+ * Returns undefined (hiding the control) when the log path / sample can't be
+ * resolved.
+ */
+export const useSampleEventFocusUrlBuilder = (): ((
+  eventId: string,
+  selectedTab?: string
+) => string | undefined) => {
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+  const location = useLocation();
+  const logFile = useStore((state) => state.logs.selectedLogFile);
+  const logDir = useLogDir();
+  const selectedSampleHandle = useStore(
+    (state) => state.log.selectedSampleHandle
+  );
+
+  // Preserve the originating surface so leaving focus mode returns to it.
+  const surface: RoutePrefix | "/samples" = location.pathname.startsWith(
+    "/samples/"
+  )
+    ? "/samples"
+    : location.pathname.startsWith("/tasks")
+      ? "/tasks"
+      : "/logs";
+
+  return useCallback(
+    (eventId: string, selectedTab?: string) => {
+      let targetLogPath = urlLogPath;
+      if (!targetLogPath && logFile) {
+        targetLogPath = makeLogsPath(logFile, logDir);
+      }
+      // Sample id + epoch normally come from the route, but the bare log URL
+      // (single-sample auto-display) omits them — fall back to the in-state
+      // selected sample so the focus-mode control still appears there.
+      const sampleId = urlSampleId ?? selectedSampleHandle?.id;
+      const sampleEpoch = urlEpoch ?? selectedSampleHandle?.epoch;
+      if (
+        !targetLogPath ||
+        sampleId === undefined ||
+        sampleEpoch === undefined
+      ) {
+        return undefined;
+      }
+      const base = `#${sampleEventFocusUrl(eventId, targetLogPath, sampleId, sampleEpoch, surface)}`;
+      return selectedTab
+        ? `${base}&tab=${encodeURIComponent(selectedTab)}`
+        : base;
+    },
+    [
+      urlLogPath,
+      urlSampleId,
+      urlEpoch,
+      logFile,
+      logDir,
+      selectedSampleHandle,
+      surface,
+    ]
+  );
 };
 
 export const useSampleMessageUrl = (
@@ -520,6 +642,46 @@ export const sampleMessageUrl = (
   return `${baseUrl}?message=${messageId}`;
 };
 
+/**
+ * Returns a builder for *shareable* message links: the relative hash route
+ * from `sampleMessageUrl` wrapped with the host page's origin/path via
+ * `toFullUrl`. Copy-to-clipboard consumers (ChatMessage's copy button) must
+ * use this rather than the bare route, which only works for in-app router
+ * navigation.
+ */
+export const useFullSampleMessageUrlBuilder = () => {
+  const builder = useSampleUrlBuilder();
+  const {
+    logPath: urlLogPath,
+    id: urlSampleId,
+    epoch: urlEpoch,
+  } = useLogOrSampleRouteParams();
+
+  const log_file = useStore((state) => state.logs.selectedLogFile);
+  const log_dir = useLogDir();
+
+  let targetLogPath = urlLogPath;
+  if (!targetLogPath && log_file) {
+    targetLogPath = makeLogsPath(log_file, log_dir);
+  }
+
+  return useCallback(
+    (messageId: string) =>
+      toFullUrlMaybe(
+        targetLogPath
+          ? sampleMessageUrl(
+              builder,
+              messageId,
+              targetLogPath,
+              urlSampleId,
+              urlEpoch
+            )
+          : undefined
+      ),
+    [builder, targetLogPath, urlSampleId, urlEpoch]
+  );
+};
+
 export const tasksUrl = (log_file: string, log_dir?: string) => {
   const path = makeLogsPath(log_file, log_dir);
   const decodedLogSegment = decodeUrlParam(path) || path;
@@ -600,14 +762,16 @@ export const logsUrlRaw = (
   }
 };
 
-export const supportsLinking = () => {
-  return (
-    location.hostname !== "localhost" &&
-    location.hostname !== "127.0.0.1" &&
-    location.protocol !== "vscode-webview:"
-  );
-};
-
 export const toFullUrl = (path: string) => {
   return `${window.location.origin}${window.location.pathname}${window.location.search}#${path}`;
+};
+
+export const toFullUrlMaybe = (route: string | undefined) =>
+  route ? toFullUrl(route) : undefined;
+
+// Inverse of `toFullUrl`: recover the hash route from an absolute URL. Safe to
+// split on the first `#` — origin/pathname/search never contain a raw `#`.
+export const routeFromFullUrl = (url: string) => {
+  const hashIndex = url.indexOf("#");
+  return hashIndex >= 0 ? url.slice(hashIndex + 1) : url;
 };

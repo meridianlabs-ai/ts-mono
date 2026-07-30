@@ -34,6 +34,10 @@ interface ExtendedFindContextType {
   registerVirtualList: (id: string, searchFn: ExtendedFindFn) => () => void;
   countAllMatches: (term: string) => number;
   registerMatchCounter: (id: string, countFn: ExtendedCountFn) => () => void;
+  // Bumped on every counter (un)registration. Counters re-register when
+  // their underlying data changes, so this doubles as a cheap content
+  // version for invalidating cached countAllMatches results.
+  getMatchCountersVersion: () => number;
 }
 
 const ExtendedFindContext = createContext<ExtendedFindContextType | null>(null);
@@ -47,6 +51,7 @@ export const ExtendedFindProvider = ({
 }: ExtendedFindProviderProps) => {
   const virtualLists = useRef<Map<string, ExtendedFindFn>>(new Map());
   const matchCounters = useRef<Map<string, ExtendedCountFn>>(new Map());
+  const matchCountersVersion = useRef(0);
 
   const extendedFindTerm = useCallback(
     async (term: string, direction: FindDirection): Promise<boolean> => {
@@ -106,10 +111,17 @@ export const ExtendedFindProvider = ({
   const registerMatchCounter = useCallback(
     (id: string, countFn: ExtendedCountFn): (() => void) => {
       matchCounters.current.set(id, countFn);
+      matchCountersVersion.current++;
       return () => {
         matchCounters.current.delete(id);
+        matchCountersVersion.current++;
       };
     },
+    []
+  );
+
+  const getMatchCountersVersion = useCallback(
+    () => matchCountersVersion.current,
     []
   );
 
@@ -118,6 +130,7 @@ export const ExtendedFindProvider = ({
     registerVirtualList,
     countAllMatches,
     registerMatchCounter,
+    getMatchCountersVersion,
   };
 
   return (

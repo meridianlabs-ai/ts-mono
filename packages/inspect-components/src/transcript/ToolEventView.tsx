@@ -75,8 +75,15 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const displayName = resolvedView?.title || title || name;
   const panelTitle = displayName ? `Tool: ${displayName}` : "Tool";
 
-  const turnLabel = context?.turnInfo
-    ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
+  // Full turn-nav cluster, not just a passive label: tool headers are what is
+  // stuck for most scroll positions of tool-heavy transcripts, so turn
+  // navigation must stay reachable there too (self-relative to this turn).
+  const turnNav = context?.turnInfo
+    ? {
+        turnNumber: context.turnInfo.turnNumber,
+        totalTurns: context.turnInfo.totalTurns,
+        isAnchor: context.turnIsAnchor ?? true,
+      }
     : undefined;
 
   const toolLabels = useMemo<ChatViewLabelOptions>(() => {
@@ -109,7 +116,9 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       description={description}
       contentType={contentType}
       output={event.result ?? ""}
-      error={showError ? event.error! : undefined}
+      selfAnnotation={context?.selfAnnotation}
+      inputScreenshot={context?.inputScreenshot}
+      error={showError && event.error ? event.error : undefined}
       view={resolvedView}
     />
   );
@@ -129,7 +138,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       icon={TranscriptIcons.solvers.use_tools}
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
-      turnLabel={turnLabel}
+      turnNav={turnNav}
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { LabeledValue } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";

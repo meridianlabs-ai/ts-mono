@@ -5,17 +5,7 @@ import type {
 } from "@tsmono/inspect-common/query";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 
-/**
- * Opaque pagination cursor for the client-side listing query. Mirrors scout's
- * cursor shape (`Pagination.cursor` is `{ [k]: unknown } | null`); we store a
- * simple offset.
- */
-export interface Cursor {
-  offset: number;
-  // Index signature so a Cursor satisfies the generated `Pagination.cursor`
-  // (`{ [key: string]: unknown } | null`).
-  [key: string]: unknown;
-}
+import type { Cursor } from "../../../client/database/listing";
 
 /**
  * Result of a listing query — mirrors scout's `TranscriptsResponse`

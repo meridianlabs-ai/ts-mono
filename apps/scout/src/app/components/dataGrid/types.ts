@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-table";
 
 import type { ScalarValue } from "../../../api/api";
-import type { SimpleCondition } from "../../../query/types";
+import type { SimpleCondition } from "../../../query";
 import type { ColumnFilter, FilterType } from "../../../state/store";
 import type { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
 

@@ -193,6 +193,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
           )}
           onKeyUp={keyUpHandler(item, index)}
           tabIndex={0}
+          role="button"
           onClick={() => {
             setCollapsed(item.id, !item.isCollapsed);
           }}
@@ -373,8 +374,8 @@ const processNodeRecursive = (
   }
 
   // For non-primitives (objects, arrays, functions, etc.)
-  let displayValue: string | number | boolean | null = null;
-  let processChildren = false;
+  let displayValue: string | number | boolean | null;
+  let processChildren: boolean;
   let childCount: number | undefined;
 
   if (Array.isArray(value)) {

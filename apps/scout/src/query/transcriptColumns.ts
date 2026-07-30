@@ -1,4 +1,4 @@
-import { Column } from "./column";
+import { Column } from "@tsmono/inspect-common/query";
 
 /**
  * Transcript-specific column definitions for building filter conditions.

@@ -1,15 +1,16 @@
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useCallback, useRef } from "react";
 
 import {
   ErrorPanel,
   ExtendedFindProvider,
+  FindBand,
   FindTargetProvider,
+  useFindBandShortcut,
 } from "@tsmono/react/components";
 
 import { useAppConfig } from "../../app_config";
 import { ActivityBar } from "../../components/ActivityBar";
-import { FindBand } from "../../components/FindBand";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
@@ -41,31 +42,12 @@ export const LogViewLayout: FC = () => {
   // The main application reference
   const mainAppRef = useRef<HTMLDivElement>(null);
 
-  // Global keydown handler for keyboard shortcuts
-  useEffect(() => {
-    if (nativeFind) {
-      return;
-    }
-
-    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault(); // Always prevent browser find
-        e.stopPropagation();
-        if (setShowFind) {
-          setShowFind(true);
-        }
-      } else if (e.key === "Escape") {
-        hideFind();
-      }
-    };
-
-    // Use capture phase to catch event before it reaches other handlers
-    document.addEventListener("keydown", handleGlobalKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeyDown, true);
-    };
-  }, [setShowFind, hideFind, nativeFind]);
+  const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+  useFindBandShortcut(openFind, {
+    onClose: hideFind,
+    isOpen: showFind,
+    enabled: !nativeFind,
+  });
 
   return (
     <ExtendedFindProvider>
@@ -79,7 +61,7 @@ export const LogViewLayout: FC = () => {
           )}
           tabIndex={0}
         >
-          {showFind ? <FindBand /> : ""}
+          {showFind ? <FindBand onClose={hideFind} /> : ""}
           {!singleFileMode ? (
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}

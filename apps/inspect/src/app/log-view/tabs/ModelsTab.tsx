@@ -24,7 +24,7 @@ export const useModelsTab = (
   return useMemo(() => {
     return {
       id: kLogViewModelsTabId,
-      label: "Models",
+      label: "Stats",
       scrollable: true,
       component: ModelTab,
       componentProps: {
@@ -126,6 +126,9 @@ export const ModelTab: FC<ModelTabProps> = ({
           args_by_role={argsByRole}
           role_aliases={roleAliases}
           meta={meta}
+          connection_limit_history={evalStats?.connection_limit_history}
+          started_at={evalStats?.started_at}
+          completed_at={evalStats?.completed_at}
         />
       </div>
     </div>
