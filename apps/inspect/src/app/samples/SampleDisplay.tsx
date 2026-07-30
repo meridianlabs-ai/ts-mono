@@ -72,7 +72,11 @@ import {
   kSampleTranscriptTabId,
   kSampleUsageTabId,
 } from "../../constants";
-import { kDefaultMessageRowOptions, useSampleMessages } from "../../log_data";
+import {
+  kDefaultMessageRowOptions,
+  useMessagesExport,
+  useSampleMessages,
+} from "../../log_data";
 import { setDocumentTitle } from "../../state/actions";
 import {
   useSelectedEvalSampleData,
@@ -222,10 +226,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Use sampleTabId from parsed route if available, otherwise use the one from state
   const effectiveSelectedTab = sampleTabId || selectedTab;
 
-  // The Messages tab's rows and export source, assembled by the data layer.
-  // Which feed serves the conversation (monolith fetch, chunked hydration,
-  // live stream) is subsystem-private; the tab-open gate keeps chunked
-  // hydration from ever being paid at sample open.
+  // The Messages tab's rows, assembled by the data layer. Which feed serves
+  // the conversation (monolith fetch, chunked hydration, live stream) is
+  // subsystem-private; the tab-open gate keeps chunked hydration from ever
+  // being paid at sample open.
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
@@ -236,6 +240,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     messagesTabOpen,
     running
   );
+  const exportMessages = useMessagesExport(selectedSampleHandle, sampleData);
 
   // Focus the panel when it loads
   useEffect(() => {
@@ -533,30 +538,26 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             }, 1250);
           }
         },
-        // offered only when a source exists — chunked samples before the
-        // Messages tab has hydrated, and live streaming samples, have no
-        // settled conversation to export, and a silent no-op menu item
-        // reads as broken
-        ...(sampleMessages.source
+        // offered only when a settled conversation exists to export — live
+        // streaming samples have none, and a silent no-op menu item reads
+        // as broken (chunked samples hydrate on demand inside the export)
+        ...(exportMessages
           ? {
               Messages: () => {
-                if (sampleMessages.source) {
-                  // the confirm icon must wait for the clipboard write — it
-                  // can reject (unfocused document), and flipping early
-                  // reads as a false success
-                  sampleMessages.source
-                    .exportText()
-                    .then((text) => navigator.clipboard.writeText(text))
-                    .then(() => {
-                      setIcon(ApplicationIcons.confirm);
-                      setTimeout(() => {
-                        setIcon(ApplicationIcons.copy);
-                      }, 1250);
-                    })
-                    .catch((error: unknown) => {
-                      console.error("Failed to copy messages:", error);
-                    });
-                }
+                // the confirm icon must wait for the clipboard write — it
+                // can reject (unfocused document), and flipping early
+                // reads as a false success
+                exportMessages()
+                  .then((text) => navigator.clipboard.writeText(text))
+                  .then(() => {
+                    setIcon(ApplicationIcons.confirm);
+                    setTimeout(() => {
+                      setIcon(ApplicationIcons.copy);
+                    }, 1250);
+                  })
+                  .catch((error: unknown) => {
+                    console.error("Failed to copy messages:", error);
+                  });
               },
             }
           : {}),
@@ -591,22 +592,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               JSON.stringify(sample, null, 2)
             );
           },
-          // offered only when a source exists (see the copy dropdown)
-          ...(sampleMessages.source
+          // offered only when a settled conversation exists to export (see
+          // the copy dropdown)
+          ...(exportMessages
             ? {
                 Messages: () => {
-                  if (sampleMessages.source) {
-                    sampleMessages.source
-                      .exportText()
-                      .then((text) =>
-                        text.length > 0
-                          ? api.download_file(`${sampleId}-messages.txt`, text)
-                          : undefined
-                      )
-                      .catch((error: unknown) => {
-                        console.error("Failed to download messages:", error);
-                      });
-                  }
+                  exportMessages()
+                    .then((text) =>
+                      text.length > 0
+                        ? api.download_file(`${sampleId}-messages.txt`, text)
+                        : undefined
+                    )
+                    .catch((error: unknown) => {
+                      console.error("Failed to download messages:", error);
+                    });
                 },
               }
             : {}),

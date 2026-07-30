@@ -68,19 +68,6 @@ describe("useSampleMessages", () => {
     await waitFor(() => expect(result.current.rows).toHaveLength(1200));
     expect(result.current.loading).toBe(false);
     expect(result.current.rows[0]?.startNumber).toBe(1);
-    expect(result.current.source).toBeDefined();
-  });
-
-  it("exports the settled conversation's text", async () => {
-    const sampleData = settledData(makeMessages(3));
-    const { result } = renderHook(
-      () => useSampleMessages(handle, sampleData, true, false),
-      { wrapper: makeWrapper() }
-    );
-
-    const text = await result.current.source!.exportText();
-    expect(text).toContain("message 0");
-    expect(text).toContain("message 2");
   });
 
   it("reports loading during a monolith sample fetch, never 'No messages'", () => {
@@ -120,7 +107,6 @@ describe("useSampleMessages", () => {
       "m-in",
       "m-out",
     ]);
-    expect(result.current.source).toBeUndefined();
   });
 
   it("keeps a pre-first-poll live sample on the waiting affordance", () => {
@@ -218,9 +204,8 @@ describe("useSampleMessages", () => {
       { wrapper: makeWrapper(), initialProps: { active: false } }
     );
 
-    // inactive: no read — but the source (copy/download) exists
+    // inactive: no read
     expect(result.current.rows).toHaveLength(0);
-    expect(result.current.source).toBeDefined();
 
     rerender({ active: true });
     await waitFor(() => expect(result.current.rows).toHaveLength(10));

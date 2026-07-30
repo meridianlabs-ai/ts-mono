@@ -30,6 +30,15 @@ export const hydrateFinalConversation = (
   return conversation.getMessages(0, conversation.messageCount);
 };
 
+export const chunkedMessagesQueryKey = (handle: SampleHandle | undefined) =>
+  [
+    "log_data",
+    "chunked-messages",
+    handle?.logFile ?? null,
+    handle?.id ?? null,
+    handle?.epoch ?? null,
+  ] as const;
+
 /**
  * The final conversation for the Messages tab, hydrated on first use and
  * cached alongside the sample queries.
@@ -39,13 +48,7 @@ export const useChunkedMessages = (
   chunked: ChunkedSample | undefined
 ): AsyncData<ChatMessage[]> =>
   useAsyncDataFromQuery({
-    queryKey: [
-      "log_data",
-      "chunked-messages",
-      handle?.logFile ?? null,
-      handle?.id ?? null,
-      handle?.epoch ?? null,
-    ],
+    queryKey: chunkedMessagesQueryKey(handle),
     queryFn:
       chunked && handle ? () => hydrateFinalConversation(chunked) : skipToken,
     gcTime: kSampleGcTimeMs,

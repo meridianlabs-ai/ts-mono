@@ -12,7 +12,6 @@ import { useChunkedMessages } from "./chunkedMessages";
 import {
   inMemoryMessageRows,
   kDefaultMessageRowOptions,
-  type SampleMessagesData,
 } from "./messageRows";
 import { useMessageRows } from "./messageRowsQuery";
 import {
@@ -33,9 +32,6 @@ export interface SampleMessages {
   /** The conversation failed to materialize (chunked hydration error,
    *  rows read error) — render an error affordance, never "No messages". */
   error: Error | undefined;
-  /** The settled conversation's source — `exportText` backs copy/download.
-   *  Undefined while loading and on the streaming path. */
-  source: SampleMessagesData | undefined;
 }
 
 /**
@@ -174,6 +170,5 @@ export const useSampleMessages = (
     rows: sourceRows.data ?? streamingRows ?? kNoRows,
     loading,
     error: (isChunked ? chunkedMessages.error : undefined) ?? sourceRows.error,
-    source,
   };
 };

@@ -148,6 +148,7 @@ export {
   type MessageRowsPage,
   type SampleMessagesData,
 } from "./messageRows";
+export { useMessagesExport } from "./messagesExport";
 export { useSampleMessages, type SampleMessages } from "./sampleMessages";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
