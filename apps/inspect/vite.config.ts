@@ -101,7 +101,7 @@ export default defineConfig(({ mode }) => {
             globals: {
               react: "React",
               "react-dom": "ReactDOM",
-              "react-router-dom": "ReactRouterDOM",
+              "react-router": "ReactRouterDOM",
             },
             assetFileNames: (assetInfo) => {
               if (assetInfo.name && assetInfo.name.endsWith(".css")) {

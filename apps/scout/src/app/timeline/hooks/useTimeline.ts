@@ -2,11 +2,11 @@
  * Scout-specific timeline state hook.
  *
  * Thin wrapper around the shared `useTimeline` that persists selection
- * state in URL search params via react-router-dom.
+ * state in URL search params via react-router.
  */
 
 import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import {
   clearDeepLinkParams,

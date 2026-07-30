@@ -1,10 +1,5 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
-import {
-  createHashRouter,
-  Outlet,
-  useLocation,
-  useParams,
-} from "react-router-dom";
+import { createHashRouter, Outlet, useLocation, useParams } from "react-router";
 
 import {
   ComponentNavigationProvider,

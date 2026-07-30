@@ -12,7 +12,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 import {

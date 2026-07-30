@@ -8,7 +8,7 @@
 // navigation (markers, outline links) must still use the bare hash route.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isHostedEnvironment } from "@tsmono/util";

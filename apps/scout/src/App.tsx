@@ -10,7 +10,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "@vscode/codicons/dist/codicon.css";
 
 import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router/dom";
 
 import "prismjs";
 import "prismjs/components/prism-bash";

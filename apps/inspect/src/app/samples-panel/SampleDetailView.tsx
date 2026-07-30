@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";

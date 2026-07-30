@@ -8,7 +8,7 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
