@@ -143,11 +143,7 @@ export {
   type ViewRow,
 } from "./chunked";
 export { resolvedEventsReader } from "./chunkedAttachments";
-export {
-  kDefaultMessageRowOptions,
-  type MessageRowsPage,
-  type SampleMessagesData,
-} from "./messageRows";
+export { kDefaultMessageRowOptions } from "./messageRows";
 export { useMessagesExport } from "./messagesExport";
 export { useSampleMessages } from "./sampleMessages";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
