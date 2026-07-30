@@ -9,11 +9,7 @@ import { AsyncData, loading as asyncLoading } from "@tsmono/util";
 import { Events } from "../@types/extraInspect";
 import { SampleHandle } from "../app/types";
 
-import { useChunkedMessages } from "./chunkedMessages";
-import {
-  inMemoryMessageRows,
-  kDefaultMessageRowOptions,
-} from "./messageRows";
+import { kDefaultMessageRowOptions } from "./messageRows";
 import { useMessageRows } from "./messageRowsQuery";
 import {
   messagesFromEvents,
@@ -77,14 +73,13 @@ const useStreamingRowsLatch = (
 };
 
 /**
- * The Messages tab's one entry point: which feed serves the conversation —
- * completed monolith messages, a hydrated chunked sample, or the live
- * event stream — is selected here, behind the SampleMessagesData seam.
- * The view consumes the result and reports two gates it owns: `active`
- * (the tab is open — the rows read and chunked hydration are
- * activation-latched on it, so neither is ever paid at sample open) and
- * `running` (live samples surface "waiting", not "loading", before their
- * first poll lands).
+ * The Messages tab's one entry point: the settled conversation's rows read
+ * through `useMessageRows`, with the live event stream serving rows until
+ * a settled feed exists. The view consumes the result and reports two
+ * gates it owns: `active` (the tab is open — the settled read and chunked
+ * hydration are activation-latched on it, so neither is ever paid at
+ * sample open) and `running` (live samples surface "waiting", not
+ * "loading", before their first poll lands).
  *
  * `data` is the rows to render (settled, streaming, or an empty settled
  * conversation); `loading` means data that will produce messages is still
@@ -98,7 +93,7 @@ export const useSampleMessages = (
   active: boolean,
   running: boolean
 ): AsyncData<MessageRow[]> => {
-  // Activation latch: the first Messages-tab open turns the rows read
+  // Activation latch: the first Messages-tab open turns the settled read
   // and chunked hydration on while the user stays on the sample. Ungated
   // they run at sample open (whole-conversation fold, hydration) while
   // another tab is shown; re-gating on `active` alone would drop the rows
@@ -121,53 +116,31 @@ export const useSampleMessages = (
   }
   const activated = active || (latch.key === sampleKey && latch.activated);
 
-  const isChunked = sampleData.chunked !== undefined;
-  const chunkedMessages = useChunkedMessages(
-    isChunked && activated ? handle : undefined,
-    sampleData.chunked
-  );
-
-  const residentMessages = isChunked
-    ? chunkedMessages.data
-    : sampleData.sample?.messages;
-  const source = useMemo(
-    () =>
-      residentMessages ? inMemoryMessageRows(residentMessages) : undefined,
-    [residentMessages]
-  );
-  // The one settled-rows path: every feed reads through the seam. The read
-  // is asynchronous — its pending frames are covered by a loading
-  // affordance at first activation and by the streaming bridge at a live
-  // finish. `activated` gates the read, or the whole-conversation fold
-  // would run at sample open with the tab closed.
-  const sourceRows = useMessageRows(handle, activated ? source : undefined);
-
+  const settled = useMessageRows(handle, sampleData, activated);
   const streamingRows = useStreamingRowsLatch(
     active,
-    sourceRows.data !== undefined || sourceRows.error !== undefined,
+    settled?.data !== undefined || settled?.error !== undefined,
     sampleData.running,
     sampleKey
   );
 
-  const loading =
-    // the seam's read is in flight and the streaming bridge isn't covering
-    // the gap
-    (activated &&
-      source !== undefined &&
-      sourceRows.loading &&
-      streamingRows === undefined) ||
-    // chunked hydration in flight
-    (isChunked && activated && chunkedMessages.loading) ||
-    // monolith member fetch/parse (`running` keeps the streaming path's
-    // pre-first-poll state on its "waiting" affordance instead)
-    (sampleData.status === "loading" && !running);
-
-  const rows = sourceRows.data ?? streamingRows;
-  const error =
-    (isChunked ? chunkedMessages.error : undefined) ?? sourceRows.error;
+  const status = sampleData.status;
   return useMemo(() => {
-    if (error !== undefined) return { error, loading: false };
-    if (rows !== undefined) return { data: rows, loading: false };
-    return loading ? asyncLoading : { data: kNoRows, loading: false };
-  }, [error, rows, loading]);
+    if (settled?.error !== undefined) {
+      return { error: settled.error, loading: false };
+    }
+    if (settled?.data !== undefined) {
+      return { data: settled.data, loading: false };
+    }
+    if (streamingRows !== undefined) {
+      return { data: streamingRows, loading: false };
+    }
+    // the settled read/hydration in flight, or the monolith member
+    // fetch/parse (`running` keeps the streaming path's pre-first-poll
+    // state on its "waiting" affordance instead)
+    if (settled?.loading || (status === "loading" && !running)) {
+      return asyncLoading;
+    }
+    return { data: kNoRows, loading: false };
+  }, [settled, streamingRows, status, running]);
 };
