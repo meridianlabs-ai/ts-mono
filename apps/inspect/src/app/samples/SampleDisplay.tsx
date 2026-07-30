@@ -15,7 +15,10 @@ import {
 import { useNavigate } from "react-router";
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
-import { ChatViewRowsVirtualList } from "@tsmono/inspect-components/chat";
+import {
+  ChatViewRowsVirtualList,
+  type MessageRow,
+} from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
   RecordTree,
@@ -120,6 +123,10 @@ interface SampleDisplayProps {
 }
 
 type ActivityRailItemId = "search" | "scans";
+
+// stable empty rows while the messages read is pending, so the list's
+// props don't churn per render
+const kNoMessageRows: MessageRow[] = [];
 
 /**
  * Component to display a sample with relevant context and visibility control.
@@ -919,7 +926,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                   <ChatViewRowsVirtualList
                     key={chatListId}
                     id={chatListId}
-                    rows={sampleMessages.rows}
+                    rows={sampleMessages.data ?? kNoMessageRows}
                     initialMessageId={sampleDetailNavigation.message}
                     followRequested={sampleDetailNavigation.follow}
                     display={chatDisplay}

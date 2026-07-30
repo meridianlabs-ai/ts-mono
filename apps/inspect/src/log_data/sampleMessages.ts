@@ -4,6 +4,7 @@ import {
   buildMessageRows,
   type MessageRow,
 } from "@tsmono/inspect-components/chat";
+import { AsyncData, loading as asyncLoading } from "@tsmono/util";
 
 import { Events } from "../@types/extraInspect";
 import { SampleHandle } from "../app/types";
@@ -21,18 +22,6 @@ import {
 import { type EvalSampleData } from "./sampleData";
 
 const kNoRows: MessageRow[] = [];
-
-export interface SampleMessages {
-  /** The rows the Messages tab renders. */
-  rows: MessageRow[];
-  /** Data that will produce messages is still in flight (monolith sample
-   *  fetch, chunked hydration, rows materialization) — render a loading
-   *  affordance, never "No messages". */
-  loading: boolean;
-  /** The conversation failed to materialize (chunked hydration error,
-   *  rows read error) — render an error affordance, never "No messages". */
-  error: Error | undefined;
-}
 
 /**
  * The streaming rows: derived from the event stream each poll while the
@@ -91,17 +80,24 @@ const useStreamingRowsLatch = (
  * The Messages tab's one entry point: which feed serves the conversation —
  * completed monolith messages, a hydrated chunked sample, or the live
  * event stream — is selected here, behind the SampleMessagesData seam.
- * The view consumes rows and reports two gates it owns: `active` (the tab
- * is open — the rows read and chunked hydration are activation-latched on
- * it, so neither is ever paid at sample open) and `running` (live samples
- * surface "waiting", not "loading", before their first poll lands).
+ * The view consumes the result and reports two gates it owns: `active`
+ * (the tab is open — the rows read and chunked hydration are
+ * activation-latched on it, so neither is ever paid at sample open) and
+ * `running` (live samples surface "waiting", not "loading", before their
+ * first poll lands).
+ *
+ * `data` is the rows to render (settled, streaming, or an empty settled
+ * conversation); `loading` means data that will produce messages is still
+ * in flight (monolith fetch, chunked hydration, rows materialization);
+ * `error` means the conversation failed to materialize. On loading and
+ * error the view renders that affordance, never "No messages".
  */
 export const useSampleMessages = (
   handle: SampleHandle | undefined,
   sampleData: EvalSampleData,
   active: boolean,
   running: boolean
-): SampleMessages => {
+): AsyncData<MessageRow[]> => {
   // Activation latch: the first Messages-tab open turns the rows read
   // and chunked hydration on while the user stays on the sample. Ungated
   // they run at sample open (whole-conversation fold, hydration) while
@@ -166,9 +162,12 @@ export const useSampleMessages = (
     // pre-first-poll state on its "waiting" affordance instead)
     (sampleData.status === "loading" && !running);
 
-  return {
-    rows: sourceRows.data ?? streamingRows ?? kNoRows,
-    loading,
-    error: (isChunked ? chunkedMessages.error : undefined) ?? sourceRows.error,
-  };
+  const rows = sourceRows.data ?? streamingRows;
+  const error =
+    (isChunked ? chunkedMessages.error : undefined) ?? sourceRows.error;
+  return useMemo(() => {
+    if (error !== undefined) return { error, loading: false };
+    if (rows !== undefined) return { data: rows, loading: false };
+    return loading ? asyncLoading : { data: kNoRows, loading: false };
+  }, [error, rows, loading]);
 };

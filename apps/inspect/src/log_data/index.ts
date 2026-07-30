@@ -149,7 +149,7 @@ export {
   type SampleMessagesData,
 } from "./messageRows";
 export { useMessagesExport } from "./messagesExport";
-export { useSampleMessages, type SampleMessages } from "./sampleMessages";
+export { useSampleMessages } from "./sampleMessages";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
 export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
