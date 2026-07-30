@@ -535,25 +535,33 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             }, 1250);
           }
         },
-        Messages: () => {
-          if (sampleMessages.source) {
-            // the confirm icon must wait for the clipboard write — it can
-            // reject (unfocused document), and flipping early reads as a
-            // false success
-            sampleMessages.source
-              .exportText()
-              .then((text) => navigator.clipboard.writeText(text))
-              .then(() => {
-                setIcon(ApplicationIcons.confirm);
-                setTimeout(() => {
-                  setIcon(ApplicationIcons.copy);
-                }, 1250);
-              })
-              .catch((error: unknown) => {
-                console.error("Failed to copy messages:", error);
-              });
-          }
-        },
+        // offered only when a source exists — chunked samples before the
+        // Messages tab has hydrated, and live streaming samples, have no
+        // settled conversation to export, and a silent no-op menu item
+        // reads as broken
+        ...(sampleMessages.source
+          ? {
+              Messages: () => {
+                if (sampleMessages.source) {
+                  // the confirm icon must wait for the clipboard write — it
+                  // can reject (unfocused document), and flipping early
+                  // reads as a false success
+                  sampleMessages.source
+                    .exportText()
+                    .then((text) => navigator.clipboard.writeText(text))
+                    .then(() => {
+                      setIcon(ApplicationIcons.confirm);
+                      setTimeout(() => {
+                        setIcon(ApplicationIcons.copy);
+                      }, 1250);
+                    })
+                    .catch((error: unknown) => {
+                      console.error("Failed to copy messages:", error);
+                    });
+                }
+              },
+            }
+          : {}),
         Transcript: () => {
           if (sampleEvents && sampleEvents.length > 0) {
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -585,20 +593,25 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               JSON.stringify(sample, null, 2)
             );
           },
-          Messages: () => {
-            if (sampleMessages.source) {
-              sampleMessages.source
-                .exportText()
-                .then((text) =>
-                  text.length > 0
-                    ? api.download_file(`${sampleId}-messages.txt`, text)
-                    : undefined
-                )
-                .catch((error: unknown) => {
-                  console.error("Failed to download messages:", error);
-                });
-            }
-          },
+          // offered only when a source exists (see the copy dropdown)
+          ...(sampleMessages.source
+            ? {
+                Messages: () => {
+                  if (sampleMessages.source) {
+                    sampleMessages.source
+                      .exportText()
+                      .then((text) =>
+                        text.length > 0
+                          ? api.download_file(`${sampleId}-messages.txt`, text)
+                          : undefined
+                      )
+                      .catch((error: unknown) => {
+                        console.error("Failed to download messages:", error);
+                      });
+                  }
+                },
+              }
+            : {}),
           Transcript: () => {
             if (sampleEvents && sampleEvents.length > 0) {
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
