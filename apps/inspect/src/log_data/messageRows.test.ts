@@ -8,6 +8,7 @@ import {
   resolveMessages,
 } from "@tsmono/inspect-components/chat";
 
+import { type Cursor } from "../client/database/listing";
 import {
   inMemoryMessageRows,
   paginationRange,
@@ -31,15 +32,9 @@ const messages: ChatMessage[] = [
   { id: "a-2", role: "assistant", content: "done" },
 ];
 
-const forward = (position: number | undefined, limit: number): Pagination => ({
-  cursor: position === undefined ? null : { position },
+const forward = (offset: number | undefined, limit: number): Pagination => ({
+  cursor: offset === undefined ? null : { offset },
   direction: "forward",
-  limit,
-});
-
-const backward = (position: number | undefined, limit: number): Pagination => ({
-  cursor: position === undefined ? null : { position },
-  direction: "backward",
   limit,
 });
 
@@ -69,7 +64,7 @@ describe("inMemoryMessageRows", () => {
     const all = await source.getRows(forward(undefined, 100));
 
     const pages: MessageRowsPage[] = [];
-    let cursor: { position: number } | null = null;
+    let cursor: Cursor | null = null;
     do {
       const page: MessageRowsPage = await source.getRows({
         cursor,
@@ -87,24 +82,34 @@ describe("inMemoryMessageRows", () => {
     expect(pages.at(-1)?.nextCursor).toBeNull();
   });
 
-  it("pages backward from the end to the start", async () => {
+  it("mints prevCursor as the forward anchor of the preceding page", async () => {
     const source = inMemoryMessageRows(messages);
-    const all = await source.getRows(forward(undefined, 100));
+    const total = await source.rowCount();
 
-    const rows: MessageRowsPage["rows"] = [];
-    let cursor: { position: number } | null = null;
-    for (;;) {
-      const page: MessageRowsPage = await source.getRows({
-        cursor,
-        direction: "backward",
-        limit: 2,
-      });
-      rows.unshift(...page.rows);
-      if (page.prevCursor === null) break;
-      cursor = page.prevCursor;
-    }
+    const tail = await source.getRows(forward(total - 2, 2));
+    expect(tail.prevCursor).toEqual({ offset: Math.max(0, total - 4) });
 
-    expect(rows).toEqual(all.rows);
+    const first = await source.getRows(forward(undefined, 2));
+    expect(first.prevCursor).toBeNull();
+  });
+
+  it("ignores Pagination.direction — backward requests read the same forward window", async () => {
+    const source = inMemoryMessageRows(messages);
+    const fwd = await source.getRows(forward(1, 2));
+    const bwd = await source.getRows({
+      cursor: { offset: 1 },
+      direction: "backward",
+      limit: 2,
+    });
+    expect(bwd).toEqual(fwd);
+  });
+
+  it("never mints a cursor that reproduces the same page", async () => {
+    const source = inMemoryMessageRows(messages);
+    const stuck = await source.getRows(forward(2, 0));
+    expect(stuck.rows).toEqual([]);
+    expect(stuck.nextCursor).toBeNull();
+    expect(stuck.prevCursor).toBeNull();
   });
 
   it("clamps an out-of-range cursor instead of failing", async () => {
@@ -132,32 +137,24 @@ describe("inMemoryMessageRows", () => {
 });
 
 describe("paginationRange", () => {
-  it("anchors cursorless reads at the start (forward) and end (backward)", () => {
+  it("anchors cursorless reads at the start", () => {
     expect(paginationRange(forward(undefined, 3), 10)).toEqual({
       lo: 0,
       hi: 3,
     });
-    expect(paginationRange(backward(undefined, 3), 10)).toEqual({
-      lo: 7,
-      hi: 10,
-    });
   });
 
-  it("treats the cursor as start (forward) and exclusive end (backward)", () => {
+  it("treats the cursor as the start of the range", () => {
     expect(paginationRange(forward(4, 3), 10)).toEqual({ lo: 4, hi: 7 });
-    expect(paginationRange(backward(4, 3), 10)).toEqual({ lo: 1, hi: 4 });
   });
 
   it("clamps at both boundaries", () => {
     expect(paginationRange(forward(9, 5), 10)).toEqual({ lo: 9, hi: 10 });
-    expect(paginationRange(backward(1, 5), 10)).toEqual({ lo: 0, hi: 1 });
     expect(paginationRange(forward(99, 5), 10)).toEqual({ lo: 10, hi: 10 });
   });
 
-  it("clamps negative cursor positions in both directions", () => {
+  it("clamps negative cursor offsets and limits", () => {
     expect(paginationRange(forward(-5, 3), 10)).toEqual({ lo: 0, hi: 3 });
-    // unclamped, hi < 0 slices from the sequence end and mints a
-    // self-referential nextCursor
-    expect(paginationRange(backward(-5, 3), 10)).toEqual({ lo: 0, hi: 0 });
+    expect(paginationRange(forward(4, -3), 10)).toEqual({ lo: 4, hi: 4 });
   });
 });

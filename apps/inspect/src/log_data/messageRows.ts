@@ -8,6 +8,8 @@ import {
   type MessageRowOptions,
 } from "@tsmono/inspect-components/chat";
 
+import { type Cursor } from "../client/database/listing";
+
 /**
  * The data-access interface for a sample's Messages tab. Consumers speak
  * positions in the folded row space — resolved rows with whole-conversation
@@ -15,9 +17,10 @@ import {
  * message array today, a windowed read over a chunked sample's message_refs
  * later.
  *
- * Cursors are opaque `{ position }` values meaning "index in the folded
- * row result"; every input and output is data (no closures cross the
- * interface).
+ * Cursors are the app's standard `{ offset }` cursors (shared with the
+ * listing layer), indexing the folded row space. Reads are forward-only:
+ * `Pagination.direction` is ignored (matching `pageRows`); read the tail
+ * by anchoring a forward read at `rowCount() - limit`.
  */
 export interface SampleMessagesData {
   /** Exact folded-row count for the whole conversation. */
@@ -36,39 +39,27 @@ export interface MessageRowsPage {
   /** Count of ALL rows, not just this page. */
   totalRowCount: number;
   /** Cursor for the page after this one (null at the end). */
-  nextCursor: MessageRowsCursor | null;
-  /** Cursor for the page before this one (null at the start). */
-  prevCursor: MessageRowsCursor | null;
+  nextCursor: Cursor | null;
+  /** Forward-read anchor of the preceding page (null at the start). The
+   *  window it opens may overlap this page's first rows when fewer than
+   *  `limit` rows precede it. */
+  prevCursor: Cursor | null;
 }
-
-/** Opaque to consumers; sources realize it as a row offset. */
-export interface MessageRowsCursor {
-  position: number;
-  [key: string]: unknown;
-}
-
-const cursorPosition = (pagination: Pagination): number | undefined => {
-  const position = pagination.cursor?.["position"];
-  return typeof position === "number" ? position : undefined;
-};
 
 /**
  * Resolve a `Pagination` to the half-open row range it requests against a
- * known total. Forward reads start AT the cursor; backward reads end just
- * BEFORE it. No cursor anchors at the start (forward) or the end
- * (backward).
+ * known total: `limit` rows starting AT the cursor's offset (or the start).
  */
 export const paginationRange = (
   pagination: Pagination,
   total: number
 ): { lo: number; hi: number } => {
-  const position = cursorPosition(pagination);
-  if (pagination.direction === "backward") {
-    const hi = Math.max(0, Math.min(position ?? total, total));
-    return { lo: Math.max(0, hi - pagination.limit), hi };
-  }
-  const lo = Math.max(0, Math.min(position ?? 0, total));
-  return { lo, hi: Math.min(lo + pagination.limit, total) };
+  const offset = pagination.cursor?.["offset"];
+  const lo = Math.max(
+    0,
+    Math.min(typeof offset === "number" ? offset : 0, total)
+  );
+  return { lo, hi: Math.min(lo + Math.max(pagination.limit, 0), total) };
 };
 
 // derived, not restated: the render-side defaults in messageRowOptions
@@ -96,12 +87,18 @@ export const inMemoryMessageRows = (
     getRows: (pagination) => {
       const all = allRows();
       const { lo, hi } = paginationRange(pagination, all.length);
+      // cursors are minted only when the page made progress (hi > lo), so a
+      // degenerate limit can never produce a self-referential cursor and a
+      // drain-until-null loop always terminates
       return Promise.resolve({
         rows: all.slice(lo, hi),
         offset: lo,
         totalRowCount: all.length,
-        nextCursor: hi < all.length ? { position: hi } : null,
-        prevCursor: lo > 0 ? { position: lo } : null,
+        nextCursor: hi < all.length && hi > lo ? { offset: hi } : null,
+        prevCursor:
+          lo > 0 && hi > lo
+            ? { offset: Math.max(0, lo - pagination.limit) }
+            : null,
       });
     },
     exportText: () => Promise.resolve(messagesToStr(messages)),
