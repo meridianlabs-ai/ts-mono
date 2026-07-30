@@ -13,8 +13,9 @@ import {
   ComponentStateHooks,
   ComponentStateProvider,
 } from "../state/ComponentStateContext";
+import { testIcons } from "../test/test-icons";
 
-import { ComponentIconProvider, ComponentIcons } from "./ComponentIconContext";
+import { ComponentIconProvider } from "./ComponentIconContext";
 import { LightboxCarousel } from "./LightboxCarousel";
 
 // Reactive Map-backed store: LightboxCarousel drives every piece of its state
@@ -50,30 +51,13 @@ function makeStateHooks(): ComponentStateHooks {
   };
 }
 
-const icons: ComponentIcons = {
-  arrowDown: "icon-arrowDown",
-  arrowUp: "icon-arrowUp",
-  chevronDown: "icon-chevronDown",
-  chevronUp: "icon-chevronUp",
-  clearText: "icon-clearText",
-  close: "icon-close",
-  code: "icon-code",
-  confirm: "icon-confirm",
-  copy: "icon-copy",
-  error: "icon-error",
-  menu: "icon-menu",
-  next: "icon-next",
-  noSamples: "icon-noSamples",
-  play: "icon-play",
-  previous: "icon-previous",
-  toggleRight: "icon-toggleRight",
-};
-
 const Wrapper: FC<{ children: ReactNode }> = ({ children }) => {
   const [hooks] = useState(makeStateHooks);
   return (
     <ComponentStateProvider hooks={hooks}>
-      <ComponentIconProvider icons={icons}>{children}</ComponentIconProvider>
+      <ComponentIconProvider icons={testIcons}>
+        {children}
+      </ComponentIconProvider>
     </ComponentStateProvider>
   );
 };

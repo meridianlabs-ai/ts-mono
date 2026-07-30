@@ -82,9 +82,6 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       e.stopPropagation();
     };
     window.addEventListener("keyup", handleKeyUp, true);
-    // removeEventListener only matches when the capture flag matches; omitting
-    // it here left a capture-phase listener on window that swallowed every
-    // keystroke app-wide, accumulating one more on each slide change.
     return () => window.removeEventListener("keyup", handleKeyUp, true);
   }, [closeLightbox, isOpen, showNext, showPrev]);
 
