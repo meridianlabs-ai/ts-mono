@@ -63,7 +63,7 @@ export const paginationRange = (
 ): { lo: number; hi: number } => {
   const position = cursorPosition(pagination);
   if (pagination.direction === "backward") {
-    const hi = Math.min(position ?? total, total);
+    const hi = Math.max(0, Math.min(position ?? total, total));
     return { lo: Math.max(0, hi - pagination.limit), hi };
   }
   const lo = Math.max(0, Math.min(position ?? 0, total));

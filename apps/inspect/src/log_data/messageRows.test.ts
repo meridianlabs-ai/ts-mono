@@ -153,4 +153,11 @@ describe("paginationRange", () => {
     expect(paginationRange(backward(1, 5), 10)).toEqual({ lo: 0, hi: 1 });
     expect(paginationRange(forward(99, 5), 10)).toEqual({ lo: 10, hi: 10 });
   });
+
+  it("clamps negative cursor positions in both directions", () => {
+    expect(paginationRange(forward(-5, 3), 10)).toEqual({ lo: 0, hi: 3 });
+    // unclamped, hi < 0 slices from the sequence end and mints a
+    // self-referential nextCursor
+    expect(paginationRange(backward(-5, 3), 10)).toEqual({ lo: 0, hi: 0 });
+  });
 });
