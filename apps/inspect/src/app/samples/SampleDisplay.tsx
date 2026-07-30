@@ -530,15 +530,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         },
         Messages: () => {
           if (sampleMessages.source) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            sampleMessages.source.exportText().then((text) => {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              navigator.clipboard.writeText(text);
-              setIcon(ApplicationIcons.confirm);
-              setTimeout(() => {
-                setIcon(ApplicationIcons.copy);
-              }, 1250);
-            });
+            // the confirm icon must wait for the clipboard write — it can
+            // reject (unfocused document), and flipping early reads as a
+            // false success
+            sampleMessages.source
+              .exportText()
+              .then((text) => navigator.clipboard.writeText(text))
+              .then(() => {
+                setIcon(ApplicationIcons.confirm);
+                setTimeout(() => {
+                  setIcon(ApplicationIcons.copy);
+                }, 1250);
+              })
+              .catch((error: unknown) => {
+                console.error("Failed to copy messages:", error);
+              });
           }
         },
         Transcript: () => {
@@ -574,13 +580,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
           },
           Messages: () => {
             if (sampleMessages.source) {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              sampleMessages.source.exportText().then((text) => {
-                if (text.length > 0) {
-                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
-                  api.download_file(`${sampleId}-messages.txt`, text);
-                }
-              });
+              sampleMessages.source
+                .exportText()
+                .then((text) =>
+                  text.length > 0
+                    ? api.download_file(`${sampleId}-messages.txt`, text)
+                    : undefined
+                )
+                .catch((error: unknown) => {
+                  console.error("Failed to download messages:", error);
+                });
             }
           },
           Transcript: () => {
