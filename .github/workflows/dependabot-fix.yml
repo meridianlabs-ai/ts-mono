@@ -1,0 +1,132 @@
+# Daily scheduled Claude Code run of the dependabot-fix skill
+# (.claude/skills/dependabot-fix/SKILL.md): clear open dependabot alerts via
+# pnpm overrides, one PR per batch.
+#
+# Standalone (not the agents-repo reusable workflow — that one is built around
+# issue/comment triggers). Uses claude-code-action automation mode (`prompt`).
+# Model auth is Workload Identity Federation (same IDs as
+# meridianlabs-ai/agents claude.yml); requires id-token: write.
+#
+# MARVIN_TOKEN (org secret, machine-account PAT) is required, for two reasons
+# GITHUB_TOKEN can't cover: reading the dependabot alerts API (no workflow
+# permission key exists for it), and opening a PR that triggers CI (recursion
+# guard blocks GITHUB_TOKEN-authored PRs). PAT must have Dependabot alerts:
+# read on this repo — the preflight step fails loudly if not.
+
+name: Dependabot Fix
+
+on:
+  schedule:
+    - cron: "0 10 * * *" # 6am EDT / 5am EST (cron is UTC-only)
+  workflow_dispatch:
+
+concurrency:
+  group: dependabot-fix
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read # checkout only; writes go through MARVIN_TOKEN
+      id-token: write # WIF OIDC exchange
+    steps:
+      - name: Preflight - MARVIN_TOKEN can read dependabot alerts
+        env:
+          GH_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::MARVIN_TOKEN secret is not set; this workflow cannot run without it."
+            exit 1
+          fi
+          if ! gh api "repos/$REPO/dependabot/alerts?per_page=1" --silent; then
+            echo "::error::MARVIN_TOKEN cannot read dependabot alerts on $REPO — grant the PAT 'Dependabot alerts: read'."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v6
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Cache Turbo
+        uses: actions/cache@v6
+        with:
+          path: .turbo
+          key: turbo-${{ github.sha }}
+          restore-keys: turbo-
+
+      # Pre-install so the agent's pnpm why/audit/check/build/test work
+      # immediately (and hit the pnpm store cache).
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - uses: anthropics/claude-code-action@v1
+        id: claude
+        with:
+          anthropic_federation_rule_id: fdrl_01GpNgJm9jE6ZfvcqoJYQL2Y
+          anthropic_organization_id: be5d0086-bc43-45d2-9184-20ecdd647aa7
+          anthropic_service_account_id: svac_01RL4wYD7ikbypwYKf4wFojv
+          anthropic_workspace_id: wrkspc_01RKCQ5DTPBatQ7kHLkaEueD
+          github_token: ${{ secrets.MARVIN_TOKEN }}
+          # Default-deny: headless runs auto-deny anything not allowed. gh for
+          # alerts API + PR creation, pnpm for the verify loop, git scoped to
+          # branch/commit/push + read-only subcommands, echo for the
+          # GITHUB_STEP_SUMMARY status line.
+          settings: |
+            {"permissions":{"allow":["Read","Edit","Write",
+            "Bash(pnpm:*)","Bash(gh:*)","Bash(grep:*)","Bash(echo:*)",
+            "Bash(git fetch:*)","Bash(git merge:*)",
+            "Bash(git checkout:*)","Bash(git switch:*)",
+            "Bash(git branch:*)","Bash(git status:*)","Bash(git log:*)",
+            "Bash(git diff:*)","Bash(git show:*)","Bash(git rev-parse:*)",
+            "Bash(git remote:*)","Bash(git add:*)","Bash(git commit:*)",
+            "Bash(git push:*)","Bash(git config:*)"]}}
+          claude_args: --model fable --fallback-model default
+          prompt: |
+            Run the dependabot-fix skill (.claude/skills/dependabot-fix/SKILL.md)
+            to clear the currently open GitHub dependabot security alerts.
+
+            This is an unattended scheduled run — follow the skill's
+            "Unattended runs" rules.
+
+            Finish every run — including no-op runs — by appending a brief
+            status (alerts fixed, alerts deferred, PR link or "no action") to
+            the file named by the GITHUB_STEP_SUMMARY environment variable.
+
+      # The action can finish green even when the agent errored (model
+      # overload etc.). Fail the run so a scheduled failure is visible.
+      - name: Surface agent errors
+        if: always()
+        env:
+          EXEC: ${{ steps.claude.outputs.execution_file }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          set -uo pipefail
+          file="${EXEC:-/home/runner/work/_temp/claude-execution-output.json}"
+          err=""
+          [ -f "$file" ] && err=$(jq -r '(if type=="array" then . else .messages end) | map(select(.type=="result" and .is_error==true)) | last | .result // empty' "$file" 2>/dev/null || true)
+          if [ -z "$err" ] && [ "$CLAUDE_OUTCOME" = "failure" ]; then
+            err="the Claude Code step failed before producing a result (see the job logs)."
+          fi
+          [ -z "$err" ] && { echo "No agent error detected."; exit 0; }
+          echo "::error::Claude run did not complete: $err"
+          exit 1
+
+      - name: Upload execution log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: claude-execution-output
+          path: /home/runner/work/_temp/claude-execution-output.json
+          if-no-files-found: ignore
