@@ -114,8 +114,15 @@ jobs:
         run: |
           set -uo pipefail
           file="${EXEC:-/home/runner/work/_temp/claude-execution-output.json}"
+          # The action re-points origin at an x-access-token URL embedding
+          # MARVIN_TOKEN; a git remote -v/git config --list in a tool result
+          # would land the raw PAT in this file, and artifacts are publicly
+          # downloadable without log masking. Scrub before upload.
+          [ -f "$file" ] && sed -E -i 's#x-access-token:[^@"]*@#x-access-token:***@#g' "$file"
           err=""
-          [ -f "$file" ] && err=$(jq -r '(if type=="array" then . else .messages end) | map(select(.type=="result" and .is_error==true)) | last | .result // empty' "$file" 2>/dev/null || true)
+          # SDK error results (error_max_turns, error_during_execution, ...)
+          # carry no .result field — fall back to .subtype.
+          [ -f "$file" ] && err=$(jq -r '(if type=="array" then . else .messages end) | map(select(.type=="result" and .is_error==true)) | last | (.result // .subtype) // empty' "$file" 2>/dev/null || true)
           if [ -z "$err" ] && [ "$CLAUDE_OUTCOME" = "failure" ]; then
             err="the Claude Code step failed before producing a result (see the job logs)."
           fi
@@ -128,5 +135,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: claude-execution-output
-          path: /home/runner/work/_temp/claude-execution-output.json
+          path: ${{ steps.claude.outputs.execution_file || '/home/runner/work/_temp/claude-execution-output.json' }}
           if-no-files-found: ignore
