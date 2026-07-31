@@ -29,9 +29,9 @@ describe("apiVscodeHttp", () => {
 
   test("download_file is unsupported in VS Code", () => {
     const { api } = fakeVscode();
-    expect(() => apiVscodeHttp(api, LOG_DIR).download_file("x", "data")).toThrow(
-      /not supported/i
-    );
+    expect(() =>
+      apiVscodeHttp(api, LOG_DIR).download_file("x", "data")
+    ).toThrow(/not supported/i);
   });
 
   test("client_events is disabled (returns empty array)", async () => {

@@ -69,9 +69,11 @@ describe("staticHttpApi identities", () => {
     // The test only ever calls fetch with a string URL.
     // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
-    expect(urls.some((url) => url.startsWith("https://example.com/bucket/a/")))
-      .toBe(true);
-    expect(urls.some((url) => url.startsWith("https://example.com/bucket/b/")))
-      .toBe(true);
+    expect(
+      urls.some((url) => url.startsWith("https://example.com/bucket/a/"))
+    ).toBe(true);
+    expect(
+      urls.some((url) => url.startsWith("https://example.com/bucket/b/"))
+    ).toBe(true);
   });
 });
