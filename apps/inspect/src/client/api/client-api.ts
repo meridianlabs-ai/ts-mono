@@ -1,8 +1,4 @@
-import {
-  EvalSample,
-  LogFilesResponse,
-  LogUpdate,
-} from "@tsmono/inspect-common/types";
+import { EvalSample, LogUpdate } from "@tsmono/inspect-common/types";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
 import { encodePathParts } from "../../utils/uri";
@@ -21,7 +17,6 @@ import {
   LogContents,
   LogDetails,
   LogPreview,
-  LogRoot,
   LogViewAPI,
   PendingSampleResponse,
   ProgressCallback,
@@ -62,16 +57,12 @@ interface LoadedLogFile {
 }
 
 /**
- * This provides an API implementation that will serve a single
- * file using an http parameter, designed to be deployed
- * to a webserver without inspect or the ability to enumerate log
- * files
+ * Adapt a backend `LogViewAPI` into the `ClientAPI` the app consumes:
+ * format handling (.eval zip vs JSON), per-log caching, sample-data path
+ * selection, and edit etag plumbing. Dir-agnostic — the dir binding lives
+ * in the backend instance (see the contract on `LogViewAPI`).
  */
-export const clientApi = (
-  api: LogViewAPI,
-  log_file?: string,
-  debug = false
-): ClientAPI => {
+export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
   let current_log: LogContents | undefined = undefined;
   let current_path: string | undefined = undefined;
 
@@ -376,53 +367,6 @@ export const clientApi = (
     );
   };
 
-  const get_log_dir = async (): Promise<string | undefined> => {
-    if (api.get_log_dir) {
-      return await api.get_log_dir();
-    } else {
-      const logRoot = await api.get_log_root();
-      return logRoot?.log_dir;
-    }
-  };
-
-  const get_logs = async (
-    mtime: number,
-    clientFileCount: number
-  ): Promise<LogFilesResponse> => {
-    if (api.get_logs) {
-      const result = await api.get_logs(mtime, clientFileCount);
-      return result;
-    } else {
-      const logRoot = await api.get_log_root();
-      return {
-        files: logRoot?.logs || [],
-        response_type: "full",
-      };
-    }
-  };
-
-  const get_log_root = async (): Promise<LogRoot> => {
-    const logFiles = await api.get_log_root();
-    if (logFiles) {
-      return logFiles;
-    } else if (log_file) {
-      // Is there an explicitly passed log file?
-      const summary = await get_log_details(log_file);
-      if (summary) {
-        return {
-          logs: [
-            {
-              name: log_file,
-              task: summary.eval.task,
-              task_id: summary.eval.task_id,
-            },
-          ],
-        };
-      }
-    }
-    throw new Error("Unable to determine log paths.");
-  };
-
   const get_log_pending_samples = (
     log_file: string,
     etag?: string
@@ -551,9 +495,11 @@ export const clientApi = (
     client_events: middleware("client_events", () => {
       return api.client_events();
     }),
-    get_log_dir: middleware("get_log_dir", get_log_dir),
-    get_logs: middleware("get_log_files", get_logs),
-    get_log_root: middleware("get_log_root", get_log_root),
+    get_logs: middleware(
+      "get_log_files",
+      (mtime: number, clientFileCount: number) =>
+        api.get_logs(mtime, clientFileCount)
+    ),
     get_eval_set: middleware("get_eval_set", (dir?: string) => {
       return api.get_eval_set(dir);
     }),

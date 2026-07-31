@@ -48,7 +48,7 @@ describe("resolveBootstrap", () => {
     expect(config.singleFileMode).toBe(true);
     expect(config.loader).toBe("direct");
     expect(config.logFile).toBe("foo.eval");
-    expect(config.api).toBeDefined();
+    expect(config.backend).toBeDefined();
   });
 
   it("?log_dir= → directory / replicator loader, no logFile", () => {

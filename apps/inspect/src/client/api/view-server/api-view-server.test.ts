@@ -32,7 +32,10 @@ describe("viewServerApi.eval_log_sample_data_direct", () => {
       } as unknown as Response);
     });
 
-    const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
 
     const result = await api.eval_log_sample_data_direct!(
       "log.eval",
@@ -73,7 +76,10 @@ describe("viewServerApi mutation requests", () => {
     );
     globalThis.fetch = fetchMock;
 
-    const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
     await api.log_message("log.eval", "hello");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -101,7 +107,10 @@ describe("viewServerApi mutation requests", () => {
     );
     globalThis.fetch = fetchMock;
 
-    const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
     await api.edit_log!("log.eval", {
       edits: [],
       provenance: {
@@ -141,22 +150,27 @@ describe("viewServerApi.get_eval_set", () => {
       text: () => Promise.resolve("{}"),
     } as unknown as Response);
 
-  test("sends no dir param at the listing root", async () => {
+  test("sends the construction log_dir with no dir param at the listing root", async () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
       okJson()
     );
     globalThis.fetch = fetchMock;
 
-    const api = viewServerApi({ apiBaseUrl: "https://viewer.test" });
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
     await api.get_eval_set("");
 
     // The test only ever calls fetch with a string URL.
     // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const url = String(fetchMock.mock.calls[0]?.[0]);
-    expect(url).toBe("https://viewer.test/eval-set");
+    expect(url).toBe(
+      "https://viewer.test/eval-set?log_dir=file%3A%2F%2F%2Fx%2Flogs"
+    );
   });
 
-  test("sends the subdir as dir alongside the configured log_dir", async () => {
+  test("sends the subdir as dir alongside the construction log_dir", async () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
       okJson()
     );
@@ -174,5 +188,58 @@ describe("viewServerApi.get_eval_set", () => {
     expect(url).toBe(
       "https://viewer.test/eval-set?log_dir=file%3A%2F%2F%2Fx%2Flogs&dir=sub%2Finner"
     );
+  });
+});
+
+describe("viewServerApi dir independence", () => {
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+    vi.restoreAllMocks();
+  });
+
+  const okJson = () =>
+    Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: "OK",
+      headers: new Headers(),
+      text: () => Promise.resolve("{}"),
+      // get_flow reads bytes rather than text.
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+    } as unknown as Response);
+
+  test("two instances over the same transport answer for their own dirs", async () => {
+    // The LogViewAPI contract: an instance is bound to its construction dir.
+    // Every dir-scoped request carries that dir explicitly, so nothing the
+    // server (or host) considers "current" can leak into the answers.
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      okJson()
+    );
+    globalThis.fetch = fetchMock;
+
+    const a = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///dir/a",
+    });
+    const b = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///dir/b",
+    });
+
+    await a.get_logs(0, 0);
+    await b.get_logs(0, 0);
+    await a.get_eval_set("");
+    await b.get_flow("");
+
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+    expect(urls).toEqual([
+      "https://viewer.test/log-files?log_dir=file%3A%2F%2F%2Fdir%2Fa",
+      "https://viewer.test/log-files?log_dir=file%3A%2F%2F%2Fdir%2Fb",
+      "https://viewer.test/eval-set?log_dir=file%3A%2F%2F%2Fdir%2Fa",
+      "https://viewer.test/flow?log_dir=file%3A%2F%2F%2Fdir%2Fb",
+    ]);
   });
 });

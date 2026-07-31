@@ -48,16 +48,61 @@ const LOADED_TIME = Date.now();
 // The time we fetched logs (used for finding client events since last fetch)
 let lastEvalTime = 0;
 
+/** Transport-only options — everything about *how* to reach the server. */
+export interface ViewServerTransport {
+  apiBaseUrl?: string;
+  headerProvider?: HeaderProvider;
+  customFetch?: typeof fetch;
+}
+
+const transportRequestApi = (transport: ViewServerTransport) =>
+  serverRequestApi(
+    transport.apiBaseUrl || __VIEW_SERVER_API_URL__,
+    transport.headerProvider,
+    transport.customFetch
+  );
+
 /**
- * Create a view server API with optional server-side log listing
+ * Bootstrap probe: the server's log root (`GET /logs`), optionally for an
+ * explicit dir. Dir discovery runs before any `LogViewAPI` exists — the api
+ * itself never answers "which dir?" (see #392) — so this is a standalone
+ * function over the transport rather than a method on the api.
+ */
+export async function fetchViewServerLogRoot(
+  transport: ViewServerTransport = {},
+  logDir?: string
+): Promise<LogRoot | undefined> {
+  const requestApi = transportRequestApi(transport);
+  const path = logDir ? `/logs?log_dir=${encodeURIComponent(logDir)}` : "/logs";
+  const logs = await requestApi.fetchString("GET", path);
+
+  // Note the last request time so we can get events
+  // since the last request
+  lastEvalTime = Date.now();
+  return logs.parsed as LogRoot | undefined;
+}
+
+/**
+ * Bootstrap probe: the server's configured log dir (`GET /log-dir`). Used
+ * only to resolve a bare single-file ref (`?log_file=foo.eval`) to a dir.
+ */
+export async function fetchViewServerLogDir(
+  transport: ViewServerTransport = {}
+): Promise<string | undefined> {
+  const requestApi = transportRequestApi(transport);
+  const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed as {
+    log_dir?: string;
+  };
+  return obj.log_dir;
+}
+
+/**
+ * Create a view server API bound to `logDir`. Every dir-scoped request
+ * carries `?log_dir=` so the instance's answers never depend on the
+ * server's configured dir (the `LogViewAPI` contract).
  */
 export function viewServerApi(
-  options: {
-    logDir?: string;
-    apiBaseUrl?: string;
-    headerProvider?: HeaderProvider;
-    customFetch?: typeof fetch;
-  } = {}
+  options: ViewServerTransport & { logDir: string }
 ): LogViewAPI {
   const { apiBaseUrl, logDir, headerProvider, customFetch } = options;
 
@@ -78,32 +123,8 @@ export function viewServerApi(
     return result.parsed as string[];
   };
 
-  const get_log_dir = async () => {
-    if (logDir) {
-      return logDir;
-    }
-    const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed as {
-      log_dir?: string;
-    };
-    return obj.log_dir;
-  };
-
-  const get_log_root = async () => {
-    const path = logDir
-      ? `/logs?log_dir=${encodeURIComponent(logDir)}`
-      : "/logs";
-    const logs = await requestApi.fetchString("GET", path);
-
-    // Note the last request time so we can get events
-    // since the last request
-    lastEvalTime = Date.now();
-    return logs.parsed as LogRoot | undefined;
-  };
-
   const get_logs = async (mtime: number, clientFileCount: number) => {
-    const path = logDir
-      ? `/log-files?log_dir=${encodeURIComponent(logDir)}`
-      : "/log-files";
+    const path = `/log-files?log_dir=${encodeURIComponent(logDir)}`;
 
     const headers: Record<string, string> = {};
     const token = log_file_token(mtime, clientFileCount);
@@ -128,14 +149,11 @@ export function viewServerApi(
   const get_eval_set = async (dir?: string) => {
     const basePath = "/eval-set";
     const params = new URLSearchParams();
-    if (logDir) {
-      params.append("log_dir", logDir);
-    }
+    params.append("log_dir", logDir);
     if (dir) {
       params.append("dir", dir);
     }
-    const query = params.toString();
-    const path = query ? `${basePath}?${query}` : basePath;
+    const path = `${basePath}?${params.toString()}`;
 
     try {
       const result = await requestApi.fetchString("GET", path);
@@ -156,14 +174,11 @@ export function viewServerApi(
   const get_flow = async (dir?: string) => {
     const basePath = "/flow";
     const params = new URLSearchParams();
-    if (logDir) {
-      params.append("log_dir", logDir);
-    }
+    params.append("log_dir", logDir);
     if (dir) {
       params.append("dir", dir);
     }
-    const query = params.toString();
-    const path = query ? `${basePath}?${query}` : basePath;
+    const path = `${basePath}?${params.toString()}`;
 
     try {
       const bytes = await requestApi.fetchBytes("GET", path);
@@ -605,9 +620,7 @@ export function viewServerApi(
 
   return {
     client_events,
-    get_log_root,
     get_logs,
-    get_log_dir,
     get_eval_set,
     get_flow,
     get_log_contents,

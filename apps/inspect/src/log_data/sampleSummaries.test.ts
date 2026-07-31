@@ -19,6 +19,10 @@ import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
 import { pendingSamplesKey } from "./pendingSamples";
+import {
+  activateFetchEngine,
+  deactivateFetchEngine,
+} from "./replicationControl";
 import { mergeSampleSummaries, useSampleSummaries } from "./sampleSummaries";
 
 const holder = vi.hoisted(() => ({
@@ -37,7 +41,6 @@ vi.mock("../app_config", () => ({
     return holder.api;
   },
   getAppConfig: () => ({ singleFileMode: false }),
-  getLogDir: () => "/logs",
 }));
 
 describe("mergeSampleSummaries", () => {
@@ -159,9 +162,20 @@ describe("useSampleSummaries during a running eval", () => {
     holder.service = db;
     holder.api = api;
     await db.openDatabase();
+    // What <FetchEngineController> does below the gate: start the engine
+    // from a config snapshot (acquisition paths only await readiness).
+    activateFetchEngine({
+      api,
+      singleFileMode: false,
+      loader: "replicator",
+      inspect_version: "test",
+      scout_version: null,
+      logDir: LOG_DIR,
+    });
   });
 
   afterEach(async () => {
+    deactivateFetchEngine();
     fetchEngine.stop();
     await db.closeDatabase();
     await Dexie.delete(DB_NAME);

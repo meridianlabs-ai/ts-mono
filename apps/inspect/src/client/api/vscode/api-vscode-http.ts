@@ -8,14 +8,31 @@ import { LogViewAPI } from "../types";
 import { viewServerApi } from "../view-server/api-view-server";
 
 /**
- * VS Code API that routes all data calls through the generic `http_request`
- * JSON-RPC proxy (mirrors apps/scout/src/api/api-vscode.ts). Only genuine host
- * actions and the disabled live-event channel are overridden.
+ * The `fetch` that rides the extension's generic `http_request` JSON-RPC
+ * proxy. The JSON-RPC client registers a window message listener, so build
+ * this ONCE per host and share it across the bootstrap probe and every
+ * per-dir api instance — a per-instance client would leak a listener on
+ * each dir switch.
  */
-export function apiVscodeHttp(vscode: VSCodeApi): LogViewAPI {
-  const rpcClient = webViewJsonRpcClient(vscode);
+export function createVscodeProxyFetch(vscode: VSCodeApi): typeof fetch {
+  return createJsonRpcFetch(webViewJsonRpcClient(vscode));
+}
+
+/**
+ * VS Code API bound to `logDir`, routing all data calls through the generic
+ * `http_request` JSON-RPC proxy (mirrors apps/scout/src/api/api-vscode.ts).
+ * Only genuine host actions and the disabled live-event channel are
+ * overridden. Because the underlying view-server api scopes every request
+ * with `?log_dir=`, answers never depend on the host's current selection.
+ */
+export function apiVscodeHttp(
+  vscode: VSCodeApi,
+  logDir: string,
+  proxyFetch: typeof fetch = createVscodeProxyFetch(vscode)
+): LogViewAPI {
   const serverApi = viewServerApi({
-    customFetch: createJsonRpcFetch(rpcClient),
+    logDir,
+    customFetch: proxyFetch,
   });
 
   // Host action: open a log file in the editor. One-way message handled by the
@@ -29,8 +46,8 @@ export function apiVscodeHttp(vscode: VSCodeApi): LogViewAPI {
     throw new Error("Downloading files is not supported in VS Code");
   };
 
-  // Live client-event polling is disabled in VS Code (parity with the legacy
-  // named-RPC path; mirrors Scout's disableSSE).
+  // Live client-event polling is disabled in VS Code (mirrors Scout's
+  // disableSSE).
   const client_events = (): Promise<string[]> => Promise.resolve([]);
 
   // download_log triggers a browser navigation that can't ride the proxy; drop it.

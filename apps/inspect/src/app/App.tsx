@@ -37,7 +37,7 @@ import {
   useLogDir,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
-import { imperativeLogData } from "../log_data";
+import { FetchEngineController, imperativeLogData } from "../log_data";
 import { selectLogFile } from "../state/actions.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
@@ -197,6 +197,7 @@ export const AppContent: FC = () => {
   return (
     <>
       <ThemePreferenceSyncController />
+      <FetchEngineController />
       <ComponentIconProvider icons={componentIcons}>
         <ComponentStateProvider hooks={inspectStateHooks}>
           <RouterProvider router={AppRouter} />
