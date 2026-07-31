@@ -606,9 +606,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 Messages: () => {
                   exportMessages()
                     .then((text) =>
-                      text.length > 0
-                        ? api.download_file(`${sampleId}-messages.txt`, text)
-                        : undefined
+                      api.download_file(`${sampleId}-messages.txt`, text)
                     )
                     .catch((error: unknown) => {
                       console.error("Failed to download messages:", error);
