@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useBreadcrumbTruncation } from "@tsmono/react/hooks";
 import { basename, dirname, ensureTrailingSlash } from "@tsmono/util";

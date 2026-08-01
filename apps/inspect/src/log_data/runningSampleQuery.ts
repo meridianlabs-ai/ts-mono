@@ -181,7 +181,7 @@ const finalizeRunningSample = async (
       handle.id,
       handle.epoch
     );
-    queryClient.setQueryData(sampleQueryKey(logDir, handle), sample);
+    queryClient.setQueryData(sampleQueryKey(handle), sample);
     return true;
   } catch (error) {
     if (bufferComplete) {
@@ -191,7 +191,7 @@ const finalizeRunningSample = async (
       const summary = await findLiveSummary(logDir, handle);
       if (summary?.error) {
         queryClient.setQueryData(
-          sampleQueryKey(logDir, handle),
+          sampleQueryKey(handle),
           synthesizeErroredSampleFromSummary(summary)
         );
         return true;

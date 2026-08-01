@@ -1,5 +1,5 @@
 import { FC, useContext, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router";
 
 import { AppModeContext } from "../../App";
 import { ApplicationIcons } from "../../icons";

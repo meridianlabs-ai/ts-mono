@@ -19,14 +19,10 @@ import {
 // navigation stays snappy without accumulating every visited sample.
 export const kSampleGcTimeMs = 30_000;
 
-export const sampleQueryKey = (
-  logDir: string,
-  handle: SampleHandle | undefined
-) =>
+export const sampleQueryKey = (handle: SampleHandle | undefined) =>
   [
     "log_data",
     "sample",
-    logDir,
     handle?.logFile ?? null,
     handle?.id ?? null,
     handle?.epoch ?? null,
@@ -48,17 +44,16 @@ export const withErrorSummaryFallback = (
     : result;
 
 /**
- * A completed sample's EvalSample, keyed `["log_data", "sample", logDir, logFile, id, epoch]`.
+ * A completed sample's EvalSample, keyed `["log_data", "sample", logFile, id, epoch]`.
  * Idles (`skipToken`) without a handle — callers pass the handle only for
  * samples on the completed path. `summary` feeds the error-summary fallback.
  */
 export const useSample = (
-  logDir: string,
   handle: SampleHandle | undefined,
   summary?: SampleSummary
 ): AsyncData<EvalSample> => {
   const result = useAsyncDataFromQuery({
-    queryKey: sampleQueryKey(logDir, handle),
+    queryKey: sampleQueryKey(handle),
     queryFn: handle
       ? () => fetchSample(getApi(), handle.logFile, handle.id, handle.epoch)
       : skipToken,
@@ -86,11 +81,10 @@ export const useSample = (
  * `loading` (the query stays pending until a writer lands data at the key).
  */
 export const usePassiveEvalSample = (
-  logDir: string,
   handle: SampleHandle | undefined
 ): AsyncData<EvalSample> =>
   useAsyncDataFromQuery<EvalSample>({
-    queryKey: sampleQueryKey(logDir, handle),
+    queryKey: sampleQueryKey(handle),
     queryFn: skipToken,
     gcTime: kSampleGcTimeMs,
   });

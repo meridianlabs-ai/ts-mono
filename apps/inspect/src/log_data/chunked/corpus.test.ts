@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 
 import { openZipFileFromBuffer } from "../../client/remote/remoteZipFile";
 import { hydrateFinalConversation } from "../chunkedMessages";
+import { chunkedConversation } from "../conversation";
 
 import { openChunkedSample, type ChunkedSample } from "./chunkedSample";
 import { decodeRange, type DecodeCtx } from "./decode";
@@ -149,6 +150,23 @@ describe("chunked corpus", () => {
       );
       expect(conversation.length).toBe(refWidths);
       expect(JSON.stringify(conversation)).not.toContain('"attachment://');
+
+      // windows through the conversation seam equal slices of the full
+      // hydration (positional reads never depend on what else was read)
+      const conv = chunkedConversation(sample);
+      expect(conv.messageCount).toBe(refWidths);
+      const n = conv.messageCount;
+      const windows: [number, number][] = [
+        [0, Math.min(3, n)],
+        [Math.floor(n / 2), Math.min(Math.floor(n / 2) + 3, n)],
+        [Math.max(0, n - 3), n],
+        [n, n + 5],
+      ];
+      for (const [lo, hi] of windows) {
+        expect(await conv.getMessages(lo, hi)).toStrictEqual(
+          conversation.slice(lo, hi)
+        );
+      }
 
       // decode walk, everything visible and expanded
       const expanded = new RowSpace(

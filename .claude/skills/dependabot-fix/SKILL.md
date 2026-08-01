@@ -84,13 +84,37 @@ second major line or a scoped override that missed a parent.
 
 ### 5. Ship
 
-**One PR for the whole batch** — fix every actionable alert first, then
-branch and commit once. Don't open per-alert PRs; the override edits all land
-in the same two files (package.json + lockfile) anyway, and one PR keeps
-review/CI cost flat. Commit message: concise list of packages bumped and
+**One PR for the whole batch** — and one batch PR *across runs*: before
+branching, check for a still-open PR from a previous run (any open PR whose
+head branch starts with `dependabot-fix/`). If one exists, continue it
+instead of opening a second: check out its branch, merge the default branch
+into it (conflicts land in package.json overrides and the lockfile), apply
+the new fixes on top, re-run the verify loop, push, and update the PR body
+to cover the full batch. Otherwise fix every actionable alert first, then
+branch (`dependabot-fix/<short-description>`) and commit once. Don't open
+per-alert PRs; the override edits all land in the same two files
+(package.json + lockfile) anyway, and one PR keeps review/CI cost flat.
+Commit message: concise list of packages bumped and
 alert numbers. PR body: one line per alert (number, package, severity).
+Never write alert numbers as `#N` in PR titles/bodies — GitHub autolinks
+that to PR/issue N. Write "dependabot alert N", ideally linked to
+`https://github.com/meridianlabs-ai/ts-mono/security/dependabot/N`.
 Alerts auto-close once the merged lockfile no longer contains vulnerable
 versions — don't dismiss them manually.
+
+## Unattended runs
+
+When run headless (e.g. the scheduled `dependabot-fix.yml` workflow) there is
+no user to ask, so wherever this skill says to ask, defer instead:
+
+- Alerts whose only patched version is still inside the soak window: defer —
+  never add a `minimumReleaseAgeExclude` entry. They fix cleanly on a later
+  run.
+- Unfixable alerts (no patched version, or the fix requires an incompatible
+  major): defer likewise.
+- List every deferred alert and the reason in the PR body.
+- If nothing is actionable and no open PR needs updating, stop — no branch,
+  no PR.
 
 ## Gotchas
 

@@ -11,6 +11,13 @@ export type {
 export type { Message, ResolvedMessage } from "./messages";
 export { resolveMessages } from "./messages";
 
+export type { MessageRow, MessageRowOptions } from "./rowsModel";
+export {
+  buildMessageRows,
+  countRowBlocks,
+  messageRowOptions,
+} from "./rowsModel";
+
 export type { MessagesToStrOptions } from "./messagesToStr";
 export { messagesToStr } from "./messagesToStr";
 
@@ -39,5 +46,11 @@ export { ChatMessage } from "./ChatMessage";
 export { ChatMessageRow } from "./ChatMessageRow";
 export type { ChatViewProps } from "./ChatView";
 export { ChatView } from "./ChatView";
-export type { ChatViewVirtualListProps } from "./ChatViewVirtualList";
-export { ChatViewVirtualList } from "./ChatViewVirtualList";
+export type {
+  ChatViewRowsVirtualListProps,
+  ChatViewVirtualListProps,
+} from "./ChatViewVirtualList";
+export {
+  ChatViewRowsVirtualList,
+  ChatViewVirtualList,
+} from "./ChatViewVirtualList";

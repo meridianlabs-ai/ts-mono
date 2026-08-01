@@ -1,7 +1,7 @@
 import { ColumnTable } from "arquero";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";

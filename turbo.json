@@ -1,5 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "//": "Shared tooling is outside every package's own input set, so without this a rule/compiler-option change is a cache hit and CI reports green without re-running lint or typecheck.",
+  "globalDependencies": [
+    "tooling/eslint-config/**",
+    "tooling/tsconfig/**",
+    "tooling/prettier-config/**"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

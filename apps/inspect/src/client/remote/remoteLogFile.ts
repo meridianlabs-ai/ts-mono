@@ -95,6 +95,29 @@ export const headerFromLogStart = (start: LogStart): EvalHeader => ({
   metadata: start.eval?.metadata ?? {},
 });
 
+const JOURNAL_SUMMARIES_DIR = "_journal/summaries/";
+
+// parseInt stops at the ".json" suffix
+const journalFileIndex = (filename: string): number =>
+  parseInt(filename.slice(JOURNAL_SUMMARIES_DIR.length), 10);
+
+/**
+ * Keep the last row per (id, epoch), matching the Python readers'
+ * last-entry-wins rule: a requeued sample's re-run is recorded after its
+ * superseded prior attempt.
+ *
+ * Exported for unit testing.
+ */
+export const dedupeSummaries = (
+  summaries: SampleSummary[]
+): SampleSummary[] => {
+  const byKey = new Map<string, SampleSummary>();
+  for (const summary of summaries) {
+    byKey.set(JSON.stringify([summary.id, summary.epoch]), summary);
+  }
+  return Array.from(byKey.values());
+};
+
 /**
  * Opens a remote log file and provides methods to read its contents.
  */
@@ -282,24 +305,28 @@ export const openRemoteLogFile = async (
    * Reads individual summary files when summaries.json is not available.
    */
   const readFallbackSummaries = async (): Promise<SampleSummary[]> => {
-    const summaryFiles = Array.from(
-      remoteZipFile.centralDirectory.keys()
-    ).filter(
-      (filename) =>
-        filename.startsWith("_journal/summaries/") && filename.endsWith(".json")
-    );
+    // sorted numerically so the merge below is deterministic: reads complete
+    // out of order, and dedupe needs the later journal file's rows to win
+    const summaryFiles = Array.from(remoteZipFile.centralDirectory.keys())
+      .filter(
+        (filename) =>
+          filename.startsWith(JOURNAL_SUMMARIES_DIR) &&
+          filename.endsWith(".json")
+      )
+      .sort((a, b) => journalFileIndex(a) - journalFileIndex(b));
 
-    const summaries: SampleSummary[] = [];
+    const perFile: SampleSummary[][] = [];
     const errors: unknown[] = [];
 
     await Promise.all(
-      summaryFiles.map((filename) =>
+      summaryFiles.map((filename, index) =>
         queue.enqueue(async () => {
           try {
-            const partialSummary = (await readJSONFile(
-              filename
-            )) as SampleSummary[];
-            summaries.push(...partialSummary);
+            const parsed = await readJSONFile(filename);
+            if (!Array.isArray(parsed)) {
+              throw new Error(`Expected an array in ${filename}`);
+            }
+            perFile[index] = parsed as SampleSummary[];
           } catch (error) {
             errors.push(error);
           }
@@ -314,7 +341,8 @@ export const openRemoteLogFile = async (
       );
     }
 
-    return summaries;
+    // flat() skips the holes failed reads leave behind
+    return dedupeSummaries(perFile.flat());
   };
 
   /**
@@ -322,7 +350,12 @@ export const openRemoteLogFile = async (
    */
   const readSampleSummaries = async (): Promise<SampleSummary[]> => {
     if (remoteZipFile.centralDirectory.has("summaries.json")) {
-      return (await readJSONFile("summaries.json")) as SampleSummary[];
+      // deduped defensively, like the Python reader: a log finalized before
+      // the recorder superseded re-logged samples in its flush buffer can
+      // carry both a requeued sample's rows
+      return dedupeSummaries(
+        (await readJSONFile("summaries.json")) as SampleSummary[]
+      );
     } else {
       return readFallbackSummaries();
     }
