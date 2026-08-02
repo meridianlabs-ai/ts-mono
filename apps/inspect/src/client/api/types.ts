@@ -221,6 +221,7 @@ export interface LogViewAPI {
     filecontents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
+  // No caller here; used by hawk.
   open_log_file: (logFile: string, log_dir: string) => Promise<void>;
   eval_pending_samples?: (
     log_file: string,

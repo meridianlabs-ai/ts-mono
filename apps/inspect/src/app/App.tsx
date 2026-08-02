@@ -30,15 +30,12 @@ import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
   AppConfigGate,
-  getApi,
   readEmbeddedStartupState,
   resolveEmbeddedLogDir,
   setLogRoot,
-  useLogDir,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
 import { imperativeLogData } from "../log_data";
-import { selectLogFile } from "../state/actions.ts";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
 import { storeImplementation, useStore } from "../state/store.ts";
@@ -111,15 +108,8 @@ const ThemePreferenceSyncController: FC = () => {
  * read the resolved app config.
  */
 export const AppContent: FC = () => {
-  const api = getApi();
-
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
-
-  // Below the single AppConfigGate, so the dir is resolved; used only for the
-  // host-message comparison below. Selecting + loading the log is owned by
-  // <LogLoadController>, in <LoaderMounts>.
-  const logDir = useLogDir();
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
@@ -146,24 +136,12 @@ export const AppContent: FC = () => {
           break;
         }
         case "backgroundUpdate": {
-          const decodedUrl = decodeURIComponent(e.data.url);
-          const log_dir = e.data.log_dir;
-          const isFocused = document.hasFocus();
-          if (!isFocused) {
-            if (log_dir === logDir) {
-              selectLogFile(decodedUrl);
-            } else {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              api.open_log_file(e.data.url, e.data.log_dir);
-            }
-          } else {
-            imperativeLogData.invalidateLogListing();
-          }
+          imperativeLogData.invalidateLogListing();
           break;
         }
       }
     },
-    [setInitialState, logDir, api, rehydrated]
+    [setInitialState, rehydrated]
   );
 
   // listen for updateState messages from vscode
