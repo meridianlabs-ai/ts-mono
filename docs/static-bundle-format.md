@@ -171,8 +171,12 @@ URLs (`encodeBase64Url`).
 - `status.json` — the scan `Status` object.
 - `scanners/<scanner>.arrow` — Arrow IPC stream for
   `getScannerDataframe` (LZ4-compressed IPC is fine; the viewer registers an
-  LZ4 codec). `<scanner>` is percent-encoded by the viewer when requested;
-  bundlers should keep scanner names filesystem-safe.
+  LZ4 codec). Bake it with the heavy per-row columns the viewer always
+  excludes from grid fetches (`input`, `scan_events`) stripped — the static
+  client ignores its `excludeColumns` argument, and those columns are served
+  from the per-row detail files instead. `<scanner>` is percent-encoded by
+  the viewer when requested; bundlers should keep scanner names
+  filesystem-safe.
 - `details/<scanner>/<uuid>.json.zst` — one file per result row:
 
 ```jsonc
