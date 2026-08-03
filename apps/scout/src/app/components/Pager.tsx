@@ -82,6 +82,8 @@ export const Pager: FC<PagerProps> = ({
           <button
             type="button"
             className={clsx("page-link")}
+            disabled={currentPage === 0}
+            aria-label="Previous page"
             onClick={() => {
               if (currentPage > 0 && setPage) {
                 setPage(currentPage - 1);
@@ -109,6 +111,12 @@ export const Pager: FC<PagerProps> = ({
             <button
               type="button"
               className={clsx("page-link")}
+              disabled={segment.type === "ellipsis"}
+              aria-current={
+                segment.type === "page" && segment.page === currentPage
+                  ? "page"
+                  : undefined
+              }
               onClick={() => {
                 if (
                   segment.type === "page" &&
@@ -132,6 +140,8 @@ export const Pager: FC<PagerProps> = ({
           <button
             type="button"
             className={clsx("page-link")}
+            disabled={currentPage + 1 >= pageCount}
+            aria-label="Next page"
             onClick={() => {
               if (currentPage < pageCount && setPage) {
                 setPage(currentPage + 1);

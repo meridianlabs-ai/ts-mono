@@ -179,13 +179,10 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
     }
   };
 
+  // Non-navigable rows render dimmed with `cursor: default` — presented as
+  // inert, so they get no tab stop to match.
   if (!isNavigable) {
-    // Selection only — the row has no result page to open.
-    return (
-      <div role="button" tabIndex={0} onKeyDown={handleKeyDown}>
-        {grid}
-      </div>
-    );
+    return grid;
   }
 
   return (
