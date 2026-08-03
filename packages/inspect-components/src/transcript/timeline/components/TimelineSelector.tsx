@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useCallback, useEffect, useState } from "react";
+import { FC, useCallback, useEffect, useRef, useState } from "react";
 
 import type { Timeline } from "../core";
 
@@ -28,6 +28,8 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
   onSelect,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const handleSelect = useCallback(
     (index: number) => {
@@ -40,7 +42,12 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key !== "Escape") return;
+      // Only pull focus back to the trigger when it was inside the menu.
+      const refocus =
+        containerRef.current?.contains(document.activeElement) ?? false;
+      setIsOpen(false);
+      if (refocus) triggerRef.current?.focus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -52,8 +59,9 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
   if (!active) return null;
 
   return (
-    <div className={styles.selectorContainer}>
+    <div ref={containerRef} className={styles.selectorContainer}>
       <button
+        ref={triggerRef}
         type="button"
         className={styles.selectorButton}
         onClick={() => setIsOpen((prev) => !prev)}

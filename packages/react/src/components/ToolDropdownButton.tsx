@@ -96,10 +96,20 @@ export const ToolDropdownButton = forwardRef<
       };
     }, [isOpen, computePosition]);
 
+    // The menu is portaled, so "is focus inside the menu" has to be asked of
+    // the menu node itself rather than a wrapper around the trigger.
+    const menuRef = useRef<HTMLDivElement | null>(null);
+
     useEffect(() => {
       if (!isOpen) return;
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === "Escape") setIsOpen(false);
+        if (e.key !== "Escape") return;
+        // Only pull focus back to the trigger when it was inside the menu —
+        // Escape is a document listener, so it also fires from anywhere else.
+        const refocus =
+          menuRef.current?.contains(document.activeElement) ?? false;
+        setIsOpen(false);
+        if (refocus) buttonRef.current?.focus();
       };
       document.addEventListener("keydown", handleKeyDown);
       return () => document.removeEventListener("keydown", handleKeyDown);
@@ -145,6 +155,7 @@ export const ToolDropdownButton = forwardRef<
                 onClick={() => setIsOpen(false)}
               />
               <div
+                ref={menuRef}
                 className={clsx(styles.dropdownMenu, dropdownClassName)}
                 style={{
                   top: menuPosition.top,

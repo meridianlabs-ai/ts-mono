@@ -168,6 +168,11 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   // Keyboard activation runs the whole row gesture: mouse clicks reach the
   // inner grid first (selection) and then bubble out to navigation.
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Only the row itself: Enter on a link inside the row must navigate
+    // that link, not get preventDefault()-ed into a row activation.
+    if (e.target !== e.currentTarget) {
+      return;
+    }
     if (e.key !== "Enter" && e.key !== " ") {
       return;
     }

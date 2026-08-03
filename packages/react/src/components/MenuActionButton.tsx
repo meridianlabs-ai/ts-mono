@@ -1,4 +1,4 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./MenuActionButton.module.css";
@@ -25,6 +25,8 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
 }) => {
   const icons = useComponentIcons();
   const [showMenu, setShowMenu] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const handleSelect = (value: string) => {
     setShowMenu(false);
@@ -34,15 +36,22 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
   useEffect(() => {
     if (!showMenu) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setShowMenu(false);
+      if (e.key !== "Escape") return;
+      // Only pull focus back to the trigger when it was inside the menu —
+      // Escape is a document listener, so it also fires from anywhere else.
+      const refocus =
+        wrapperRef.current?.contains(document.activeElement) ?? false;
+      setShowMenu(false);
+      if (refocus) triggerRef.current?.focus();
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [showMenu]);
 
   return (
-    <div className={styles.wrapper}>
+    <div ref={wrapperRef} className={styles.wrapper}>
       <button
+        ref={triggerRef}
         type="button"
         className={styles.iconButton}
         onClick={() => setShowMenu((prev) => !prev)}

@@ -118,6 +118,9 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
       tabIndex={0}
       onClick={handleClick}
       onKeyDown={(e) => {
+        // Only the card itself: Enter/Space bubbling up from the result
+        // panel's controls must keep its own default action.
+        if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleClick();

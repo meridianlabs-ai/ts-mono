@@ -99,6 +99,7 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+  border: none;
   border-bottom: 1px solid var(--vscode-panel-border);
 }
 

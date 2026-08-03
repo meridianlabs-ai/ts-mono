@@ -65,6 +65,9 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         tabIndex={0}
         onClick={activate}
         onKeyDown={(e) => {
+          // Only the row itself: Enter/Space bubbling up from a nested
+          // control must keep its own default action.
+          if (e.target !== e.currentTarget) return;
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             activate();
