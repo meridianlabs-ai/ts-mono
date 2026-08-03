@@ -59,6 +59,12 @@ export const LogViewLayout: FC = () => {
             singleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
+          // The VS Code webview focuses the nearest container tabstop when a
+          // non-interactive spot is clicked, and App.css suppresses the focus
+          // ring this one would otherwise show. Keep it until that interaction
+          // is retested in the extension.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+          tabIndex={0}
         >
           {showFind ? <FindBand onClose={hideFind} /> : ""}
           {!singleFileMode ? (
