@@ -46,6 +46,11 @@ export const OutlineRow: FC<OutlineRowProps> = ({
 
   const labelText = parsePackageName(labelForNode(node)).module;
 
+  const activate = () => {
+    onSelect?.(node.id);
+    onNavigateToEvent?.(node.id);
+  };
+
   return (
     <>
       <div
@@ -56,21 +61,33 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         )}
         style={{ paddingLeft: `${node.depth * 0.75}em` }}
         data-unsearchable={true}
-        onClick={() => {
-          onSelect?.(node.id);
-          onNavigateToEvent?.(node.id);
+        role="button"
+        tabIndex={0}
+        onClick={activate}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            activate();
+          }
         }}
       >
-        <div
-          className={styles.toggle}
-          onClick={() => {
-            if (node.children.length > 0) {
+        {node.children.length > 0 ? (
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={!collapsed}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} ${labelText}`}
+            onClick={() => {
               setCollapsed?.(node.id, !collapsed);
-            }
-          }}
-        >
-          {toggle ? <i className={clsx(toggle)} /> : undefined}
-        </div>
+            }}
+          >
+            {toggle ? (
+              <i className={clsx(toggle)} aria-hidden="true" />
+            ) : undefined}
+          </button>
+        ) : (
+          <div className={styles.toggle} />
+        )}
         <div
           className={clsx(styles.label)}
           data-depth={node.depth}

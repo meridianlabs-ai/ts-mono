@@ -246,11 +246,12 @@ export const RecordTree: FC<RecordTreeProps> = ({
   if (!scrollRef) {
     // No virtualization - render directly
     return (
+      // No tabIndex here: unlike the virtualized branch this div is not the
+      // scroll container, and every row is already its own tab stop.
       <div
         id={id}
         className={clsx(className, "samples-list")}
         style={{ width: "100%" }}
-        tabIndex={0}
       >
         {items.map((_, index) => renderRow(index))}
       </div>

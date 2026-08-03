@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useCallback, useState } from "react";
+import { FC, useCallback, useEffect, useState } from "react";
 
 import type { Timeline } from "../core";
 
@@ -37,6 +37,15 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
     [onSelect]
   );
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen]);
+
   if (timelines.length <= 1) return null;
 
   const active = timelines[activeIndex];
@@ -53,11 +62,19 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
         aria-expanded={isOpen}
       >
         {active.name}
-        <i className={clsx("bi-chevron-down", styles.chevron)} />
+        <i
+          className={clsx("bi-chevron-down", styles.chevron)}
+          aria-hidden="true"
+        />
       </button>
       {isOpen && (
         <>
-          <div className={styles.backdrop} onClick={() => setIsOpen(false)} />
+          {/* Mouse-only dismissal; Escape closes the menu. */}
+          <div
+            className={styles.backdrop}
+            role="presentation"
+            onClick={() => setIsOpen(false)}
+          />
           <div className={styles.dropdownMenu} role="listbox">
             {timelines.map((tl, i) => (
               <button

@@ -91,7 +91,6 @@ const Segment: FC<SegmentProps> = ({
       data-testid="bp-segment"
       data-branch={branch}
       aria-checked={isCurrent}
-      aria-pressed={isCurrent ? "true" : "false"}
       onClick={interactive ? handleClick : undefined}
       disabled={!interactive}
     >

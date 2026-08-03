@@ -71,7 +71,12 @@ export const RetryChip: FC<RetryChipProps> = ({
       </button>
       {open && (
         <>
-          <div className={styles.backdrop} onClick={() => setOpen(false)} />
+          {/* Mouse-only dismissal; Escape closes the menu. */}
+          <div
+            className={styles.backdrop}
+            role="presentation"
+            onClick={() => setOpen(false)}
+          />
           <div className={styles.menu}>
             {attempts.map((attempt, idx) => {
               const key = keyOf(attempt);
