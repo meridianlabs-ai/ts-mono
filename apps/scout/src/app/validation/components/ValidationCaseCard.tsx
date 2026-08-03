@@ -228,9 +228,12 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
   const labelsText = formatLabels(labels);
 
   return (
+    // Clicking the card is a shortcut for the checkbox below, which is the
+    // control keyboard and screen-reader users operate.
     <div
       className={`${styles.card} ${isSelected ? styles.selected : ""}`}
       style={gridStyle}
+      role="presentation"
       onClick={handleRowClick}
     >
       {/* Checkbox column */}

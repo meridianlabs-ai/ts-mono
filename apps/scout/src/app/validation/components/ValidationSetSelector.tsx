@@ -257,8 +257,9 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
       role="listbox"
     >
       {validationSets.map((uri) => (
-        <div
+        <button
           key={uri}
+          type="button"
           role="option"
           aria-selected={selectedUri === uri}
           className={`${styles.item} ${selectedUri === uri ? styles.selected : ""}`}
@@ -268,21 +269,22 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
           <div className={styles.secondaryText}>
             {getDisplayPath(uri, appConfig) || (hasNonRootDir ? "\u00A0" : "")}
           </div>
-        </div>
+        </button>
       ))}
 
       {/* Create new set option */}
       {allowCreate && onCreate && (
         <>
           {validationSets.length > 0 && <div className={styles.divider} />}
-          <div
+          <button
+            type="button"
             role="option"
             aria-selected={false}
             className={`${styles.item} ${styles.createOption}`}
             onClick={() => handleSelect("__create_new__")}
           >
             <div className={styles.primaryText}>Create new set...</div>
-          </div>
+          </button>
         </>
       )}
     </div>

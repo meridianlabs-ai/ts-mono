@@ -37,7 +37,8 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
       hoverDelay={-1}
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isDefaultFilter ? styles.selected : undefined
@@ -45,9 +46,10 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
           onClick={() => setDefaultFilter()}
         >
           Default
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isDebugFilter ? styles.selected : undefined
@@ -55,30 +57,23 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
           onClick={() => setDebugFilter()}
         >
           Debug
-        </a>
+        </button>
       </div>
 
       <div className={clsx(styles.grid, "text-size-smaller")}>
         {arrangedEventTypes(2).map((eventType) => {
           const isExcluded = excludedEventTypes.includes(eventType);
           return (
-            <div
-              key={eventType}
-              className={clsx(styles.row)}
-              onClick={() => {
-                toggleEventType(eventType, isExcluded);
-              }}
-            >
+            <label key={eventType} className={clsx(styles.row)}>
               <input
                 type="checkbox"
                 checked={!isExcluded}
-                onChange={(e) => {
-                  e.stopPropagation();
+                onChange={() => {
                   toggleEventType(eventType, isExcluded);
                 }}
               />
               {eventType}
-            </div>
+            </label>
           );
         })}
       </div>

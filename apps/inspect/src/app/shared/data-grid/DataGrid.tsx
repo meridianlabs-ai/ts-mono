@@ -849,6 +849,10 @@ export function DataGrid<TRow>({
                   ) : null;
 
                 return (
+                  // The cell widens the hit area for the mouse; the sortable
+                  // headerContent button inside is the keyboard control, and
+                  // the grid container owns focus for the whole widget.
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
                   <div
                     key={header.id}
                     className={clsx(
@@ -935,12 +939,16 @@ export function DataGrid<TRow>({
                           styles.headerFilter,
                           filterSpec && styles.headerFilterActive
                         )}
+                        role="presentation"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {filterControl}
                       </div>
                     )}
                     {header.column.getCanResize() && (
+                      // Pointer-only drag handle; column widths also reset
+                      // from the column menu, so nothing here is unreachable.
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions
                       <div
                         role="separator"
                         aria-orientation="vertical"
@@ -1031,6 +1039,9 @@ function GridRowInner<TRow>({
   onRowClick,
 }: GridRowProps<TRow>): ReactElement {
   return (
+    // Row selection from the keyboard is the grid container's arrow-key
+    // handler; the row click is the mouse path onto the same action.
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
     <div
       className={clsx(styles.row, isSelected && styles.rowSelected)}
       style={{
@@ -1140,6 +1151,9 @@ function RotatedHeaderCell<TRow>({
     : flexRender(header.column.columnDef.header, header.getContext());
 
   return (
+    // Drag/drop target only; the rotated label inside is the sortable
+    // control and the grid container owns focus.
+    // eslint-disable-next-line jsx-a11y/interactive-supports-focus
     <div
       className={clsx(
         styles.headerCell,
@@ -1164,6 +1178,10 @@ function RotatedHeaderCell<TRow>({
       onDragLeave={onHeaderDragLeave}
       onDrop={(e) => onHeaderDrop(e, header.column.id)}
     >
+      {/* Sortable columns get role/tabIndex/onKeyDown from the spread below;
+          for the rest this is a drag handle, not a control. The conditional
+          spread is invisible to the a11y rules. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className={clsx(
           styles.rotatedLabel,
@@ -1197,6 +1215,7 @@ function RotatedHeaderCell<TRow>({
           // label's sort handler. Stop them here.
           <span
             className={styles.rotatedFilter}
+            role="presentation"
             onClick={(e) => e.stopPropagation()}
           >
             <ColumnFilterControl
@@ -1219,6 +1238,8 @@ function RotatedHeaderCell<TRow>({
         aria-hidden="true"
       />
       {header.column.getCanResize() && (
+        // Pointer-only drag handle — see the upright header above.
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
         <div
           role="separator"
           aria-orientation="vertical"

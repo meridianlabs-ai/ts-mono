@@ -191,9 +191,7 @@ describe("streamRunningSampleTick", () => {
 
     const result = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(result.finalized).toBe(true);
-    const primed = queryClient.getQueryData<EvalSample>(
-      sampleQueryKey(LOG_DIR, handle)
-    );
+    const primed = queryClient.getQueryData<EvalSample>(sampleQueryKey(handle));
     expect(primed?.id).toBe("sample-1");
   });
 
@@ -206,9 +204,7 @@ describe("streamRunningSampleTick", () => {
 
     const result = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(result.finalized).toBe(false);
-    expect(
-      queryClient.getQueryData(sampleQueryKey(LOG_DIR, handle))
-    ).toBeUndefined();
+    expect(queryClient.getQueryData(sampleQueryKey(handle))).toBeUndefined();
   });
 
   it("synthesizes an errored sample from the live summary on a missing EvalSample", async () => {
@@ -225,9 +221,7 @@ describe("streamRunningSampleTick", () => {
 
     const result = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(result.finalized).toBe(true);
-    const primed = queryClient.getQueryData<EvalSample>(
-      sampleQueryKey(LOG_DIR, handle)
-    );
+    const primed = queryClient.getQueryData<EvalSample>(sampleQueryKey(handle));
     expect(primed?.error?.message).toBe("boom");
   });
 
@@ -254,9 +248,7 @@ describe("streamRunningSampleTick", () => {
 
     const result = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(result.finalized).toBe(true);
-    expect(
-      queryClient.getQueryData(sampleQueryKey(LOG_DIR, handle))
-    ).toBeDefined();
+    expect(queryClient.getQueryData(sampleQueryKey(handle))).toBeDefined();
   });
 
   it("a key change replaces the session: fresh cursors, no leaked events", async () => {

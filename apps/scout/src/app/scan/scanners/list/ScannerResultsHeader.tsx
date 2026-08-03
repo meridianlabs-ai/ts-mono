@@ -96,7 +96,11 @@ const ColumnHeader: FC<{
   );
 
   return (
-    <div className={clsx(className, styles.clickable)} onClick={handleSort}>
+    <button
+      type="button"
+      className={clsx(className, styles.clickable)}
+      onClick={handleSort}
+    >
       {label}
       {sort && (
         <i
@@ -105,8 +109,9 @@ const ColumnHeader: FC<{
               ? ApplicationIcons.arrows.up
               : ApplicationIcons.arrows.down
           )}
+          aria-hidden="true"
         />
       )}
-    </div>
+    </button>
   );
 };

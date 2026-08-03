@@ -25,7 +25,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           icon ? styles.withIcon : ""
         )}
       >
-        {icon && <i className={clsx(icon, styles.icon)} />}
+        {icon && <i className={clsx(icon, styles.icon)} aria-hidden="true" />}
         <input
           type="text"
           value={value}
@@ -35,7 +35,8 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           className={clsx(styles.input)}
           onFocus={onFocus}
         />
-        <i
+        <button
+          type="button"
           className={clsx(
             styles.clearText,
             value === "" ? styles.hidden : "",
@@ -48,7 +49,8 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
               } as ChangeEvent<HTMLInputElement>);
             }
           }}
-          role="button"
+          disabled={value === ""}
+          aria-label="Clear"
         />
       </div>
     );

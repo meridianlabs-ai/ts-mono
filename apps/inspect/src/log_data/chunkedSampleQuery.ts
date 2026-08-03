@@ -37,14 +37,10 @@ export interface ChunkedSampleData {
   evalSample: EvalSample;
 }
 
-const chunkedSampleQueryKey = (
-  logDir: string,
-  handle: SampleHandle | undefined
-) =>
+const chunkedSampleQueryKey = (handle: SampleHandle | undefined) =>
   [
     "log_data",
     "chunked-sample",
-    logDir,
     handle?.logFile ?? null,
     handle?.id ?? null,
     handle?.epoch ?? null,
@@ -85,11 +81,10 @@ const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
  * monolith path could never serve anyway.
  */
 export const useChunkedSample = (
-  logDir: string,
   handle: SampleHandle | undefined
 ): AsyncData<ChunkedSampleData | null> =>
   useAsyncDataFromQuery({
-    queryKey: chunkedSampleQueryKey(logDir, handle),
+    queryKey: chunkedSampleQueryKey(handle),
     queryFn: handle
       ? async (): Promise<ChunkedSampleData | null> => {
           let zip;

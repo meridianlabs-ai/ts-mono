@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, KeyboardEvent } from "react";
+import { FC } from "react";
 
 import styles from "./MessageLabel.module.css";
 
@@ -32,41 +32,31 @@ export const MessageLabel: FC<MessageLabelProps> = ({
   onActivate,
   className,
 }) => {
-  if (mode === "inline") {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (onActivate && (e.key === "Enter" || e.key === " ")) {
-        e.preventDefault();
-        onActivate();
-      }
-    };
+  const inline = mode === "inline";
+  const text = inline ? label : compactLabel(label);
+  const classes = clsx(
+    inline ? styles.inline : styles.badge,
+    onActivate && styles.interactive,
+    className
+  );
+  const title = text === label ? undefined : label;
+
+  if (onActivate) {
     return (
-      <a
-        className={clsx(
-          styles.inline,
-          onActivate && styles.interactive,
-          className
-        )}
+      <button
+        type="button"
+        className={classes}
         onClick={onActivate}
-        onKeyDown={onActivate ? onKeyDown : undefined}
-        tabIndex={onActivate ? 0 : undefined}
+        title={title}
       >
-        {label}
-      </a>
+        {text}
+      </button>
     );
   }
 
-  const compact = compactLabel(label);
   return (
-    <span
-      className={clsx(
-        styles.badge,
-        onActivate && styles.interactive,
-        className
-      )}
-      onClick={onActivate}
-      title={compact === label ? undefined : label}
-    >
-      {compact}
+    <span className={classes} title={title}>
+      {text}
     </span>
   );
 };

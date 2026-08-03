@@ -53,7 +53,10 @@ describe("ZustandDevtoolsPanel", () => {
     render(<ZustandDevtoolsPanel store={store} />);
 
     expect(screen.queryByText("42")).toBeNull();
-    act(() => screen.getByRole("button", { name: "Expand nested" }).click());
+    const toggle = screen.getByRole("button", { name: "nested:" });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    act(() => toggle.click());
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText("42")).toBeDefined();
   });
 
