@@ -53,5 +53,20 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  // TODO(a11y): pre-existing violations from enabling eslint-plugin-jsx-a11y.
+  // Remove this block as the underlying issues are fixed.
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "jsx-a11y/anchor-is-valid": "off",
+      "jsx-a11y/click-events-have-key-events": "off",
+      "jsx-a11y/interactive-supports-focus": "off",
+      "jsx-a11y/label-has-associated-control": "off",
+      "jsx-a11y/no-autofocus": "off",
+      "jsx-a11y/no-noninteractive-element-interactions": "off",
+      "jsx-a11y/no-noninteractive-tabindex": "off",
+      "jsx-a11y/no-static-element-interactions": "off",
+    },
   }
 );
