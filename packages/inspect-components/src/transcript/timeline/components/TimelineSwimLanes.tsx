@@ -638,6 +638,12 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
           <button
             type="button"
             className={styles.chevron}
+            // tabIndex -1 like the cell above so the grid keeps a single
+            // tab stop. That leaves the chevron pointer-only (as it was
+            // before it became a button): ArrowLeft/ArrowRight can't serve
+            // as the keyboard path here because useArrowStepper binds them
+            // at document capture for prev/next sample stepping.
+            tabIndex={-1}
             onClick={handleChevronClick}
             aria-expanded={isExpanded}
             aria-label={isExpanded ? "Collapse" : "Expand"}
