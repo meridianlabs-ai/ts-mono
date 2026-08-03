@@ -43,14 +43,19 @@ export const TimelineSelector: FC<TimelineSelectorProps> = ({
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      // This Escape closes the menu and nothing else: stop it here (the
+      // capture-phase registration below runs first) so an enclosing
+      // surface's own Escape handler — e.g. Modal's, on document bubble —
+      // doesn't also fire and close both layers at once.
+      e.stopPropagation();
       // Only pull focus back to the trigger when it was inside the menu.
       const refocus =
         containerRef.current?.contains(document.activeElement) ?? false;
       setIsOpen(false);
       if (refocus) triggerRef.current?.focus();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
   }, [isOpen]);
 
   if (timelines.length <= 1) return null;

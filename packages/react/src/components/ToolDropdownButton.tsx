@@ -104,6 +104,11 @@ export const ToolDropdownButton = forwardRef<
       if (!isOpen) return;
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key !== "Escape") return;
+        // This Escape closes the menu and nothing else: stop it here (the
+        // capture-phase registration below runs first) so an enclosing
+        // surface's own Escape handler — e.g. Modal's, on document bubble —
+        // doesn't also fire and close both layers at once.
+        e.stopPropagation();
         // Only pull focus back to the trigger when it was inside the menu —
         // Escape is a document listener, so it also fires from anywhere else.
         const refocus =
@@ -111,8 +116,8 @@ export const ToolDropdownButton = forwardRef<
         setIsOpen(false);
         if (refocus) buttonRef.current?.focus();
       };
-      document.addEventListener("keydown", handleKeyDown);
-      return () => document.removeEventListener("keydown", handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown, true);
+      return () => document.removeEventListener("keydown", handleKeyDown, true);
     }, [isOpen]);
 
     const handleItemClick = (fn: () => void) => {
