@@ -62,6 +62,12 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   const taskId = summary.transcriptTaskId;
   const taskRepeat = summary.transcriptTaskRepeat;
 
+  const selectRow = () => {
+    if (summary.identifier) {
+      setSelectedScanResult(summary.identifier);
+    }
+  };
+
   const grid = (
     <div
       style={gridDescriptor.gridStyle}
@@ -71,11 +77,8 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
         selectedScanResult === summary.identifier ? styles.selected : "",
         hasExplanation ? "" : styles.noExplanation
       )}
-      onClick={() => {
-        if (summary.identifier) {
-          setSelectedScanResult(summary.identifier);
-        }
-      }}
+      role="presentation"
+      onClick={selectRow}
     >
       {hasExplanation && (
         <div className={clsx(styles.result, "text-size-smaller")}>
@@ -162,16 +165,40 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
     navigate(scanResultUrl);
   };
 
-  return isNavigable ? (
+  // Keyboard activation runs the whole row gesture: mouse clicks reach the
+  // inner grid first (selection) and then bubble out to navigation.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "Enter" && e.key !== " ") {
+      return;
+    }
+    e.preventDefault();
+    selectRow();
+    if (scanResultUrl) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(scanResultUrl);
+    }
+  };
+
+  if (!isNavigable) {
+    // Selection only — the row has no result page to open.
+    return (
+      <div role="button" tabIndex={0} onKeyDown={handleKeyDown}>
+        {grid}
+      </div>
+    );
+  }
+
+  return (
     <div
       className={clsx(styles.link)}
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       style={{ cursor: "pointer" }}
     >
       {grid}
     </div>
-  ) : (
-    grid
   );
 };
 

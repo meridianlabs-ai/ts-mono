@@ -37,6 +37,7 @@ export const DurationInput: FC<DurationInputProps> = ({
         disabled={disabled}
         step="any"
         min="0"
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- the filter editor only renders inside a popover the user just opened
         autoFocus={autoFocus}
       />
       {parsedSeconds !== null && (

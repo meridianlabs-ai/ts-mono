@@ -40,7 +40,8 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
       hoverDelay={-1}
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isDefaultFilter ? styles.selected : undefined
@@ -48,9 +49,10 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
           onClick={() => setDefaultFilter()}
         >
           Default
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isDebugFilter ? styles.selected : undefined
@@ -58,9 +60,10 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
           onClick={() => setDebugFilter()}
         >
           Debug
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isNoneFilter ? styles.selected : undefined
@@ -68,7 +71,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
           onClick={() => setNoneFilter()}
         >
           None
-        </a>
+        </button>
       </div>
 
       <div className={clsx(styles.grid, "text-size-smaller")}>

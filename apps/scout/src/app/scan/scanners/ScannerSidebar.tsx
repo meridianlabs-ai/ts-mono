@@ -58,12 +58,14 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
   );
 
   return (
-    <div
+    <button
+      type="button"
       className={clsx(
         styles.entry,
         selectedScanner === entry.title ? styles.selected : ""
       )}
       key={index}
+      aria-current={selectedScanner === entry.title ? "true" : undefined}
       onClick={() => {
         handleClick(entry.title);
       }}
@@ -113,7 +115,7 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
           />
         </LabeledValue>
       )}
-    </div>
+    </button>
   );
 };
 

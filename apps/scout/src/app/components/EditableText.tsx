@@ -213,6 +213,11 @@ export const EditableText: FC<EditableTextProps> = ({
         <span
           ref={spanRef}
           contentEditable={editable}
+          role="textbox"
+          tabIndex={0}
+          aria-multiline="false"
+          aria-readonly={!editable}
+          aria-label={label ?? title}
           className={clsx(
             styles.text,
             !value ? styles.placeholder : "",
@@ -255,8 +260,9 @@ export const EditableText: FC<EditableTextProps> = ({
         >
           <div className={styles.mruList}>
             {filteredMru.map((item, index) => (
-              <div
+              <button
                 key={index}
+                type="button"
                 className={clsx(
                   styles.mruItem,
                   index === selectedMruIndex && styles.mruItemSelected
@@ -265,7 +271,7 @@ export const EditableText: FC<EditableTextProps> = ({
                 onMouseEnter={() => setSelectedMruIndex(index)}
               >
                 {item}
-              </div>
+              </button>
             ))}
           </div>
         </PopOver>

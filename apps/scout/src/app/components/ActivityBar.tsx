@@ -54,14 +54,16 @@ const Activity: FC<ActivityProps> = ({
   onSelect,
 }) => {
   return (
-    <div
+    <button
+      type="button"
       id={id}
       className={clsx(styles.activity, selected ? styles.selected : undefined)}
       title={description}
+      aria-current={selected ? "page" : undefined}
       onClick={(e) => onSelect(id, { openInNewTab: e.metaKey || e.ctrlKey })}
     >
-      <i className={clsx(styles.icon, icon)}></i>
+      <i className={clsx(styles.icon, icon)} aria-hidden="true"></i>
       <div className={clsx(styles.label)}>{label}</div>
-    </div>
+    </button>
   );
 };
