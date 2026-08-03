@@ -101,6 +101,7 @@ export const apiScoutServer = (
   const requestApi = serverRequestApi(apiBaseUrl, headerProvider, customFetch);
 
   return {
+    readOnly: false,
     capability: "workbench",
     getConfig: async (): Promise<AppConfig> => {
       const result = await requestApi.fetchString("GET", `/app-config`);

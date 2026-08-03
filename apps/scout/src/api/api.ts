@@ -132,6 +132,13 @@ export interface ScoutApiV2 {
 
   storage: ClientStorage;
   capability: "scans" | "workbench";
+
+  /**
+   * True when running against a static bundle (no backend). Mutation methods
+   * reject with StaticBundleError; live-update methods are no-ops. UI surfaces
+   * should disable scan/config/validation editing.
+   */
+  readOnly: boolean;
 }
 
 export const NoPersistence: ClientStorage = {

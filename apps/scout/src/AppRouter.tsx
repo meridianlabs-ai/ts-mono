@@ -7,6 +7,7 @@ import {
   useFindBandShortcut,
 } from "@tsmono/react/components";
 
+import { useStaticBundle } from "./api/useStaticBundle";
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
@@ -113,6 +114,19 @@ const ProjectPanelRoute = () => {
   return <ProjectPanel config={config} />;
 };
 
+const ValidationPanelRoute = () => {
+  const staticBundle = useStaticBundle();
+  return staticBundle ? (
+    <LoggingNavigate
+      to="/scans"
+      replace
+      reason="Validation unavailable in static bundle"
+    />
+  ) : (
+    <ValidationPanel />
+  );
+};
+
 export const createAppRouter = (config: AppRouterConfig) => {
   const AppLayout = createAppLayout(config);
   const transcriptsDir = config.config.transcripts;
@@ -153,7 +167,7 @@ export const createAppRouter = (config: AppRouterConfig) => {
           },
           {
             path: kValidationRouteUrlPattern,
-            element: <ValidationPanel />,
+            element: <ValidationPanelRoute />,
           },
           {
             path: kTranscriptEventDetailRoute,
