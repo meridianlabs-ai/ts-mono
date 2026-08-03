@@ -4,12 +4,14 @@
 }
 
 .carouselThumb {
+  display: block;
   background: black;
   color: white;
   padding: 4em 0;
   border: 0;
   margin: 5px;
   cursor: pointer;
+  font: inherit;
   text-align: center;
 }
 

@@ -1,4 +1,4 @@
-import { FC, useState } from "react";
+import { FC, useEffect, useState } from "react";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./MenuActionButton.module.css";
@@ -31,6 +31,15 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
     onSelect(value);
   };
 
+  useEffect(() => {
+    if (!showMenu) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowMenu(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [showMenu]);
+
   return (
     <div className={styles.wrapper}>
       <button
@@ -39,12 +48,19 @@ export const MenuActionButton: FC<MenuActionButtonProps> = ({
         onClick={() => setShowMenu((prev) => !prev)}
         title={title}
         disabled={disabled}
+        aria-haspopup="menu"
+        aria-expanded={showMenu}
       >
-        <i className={icons.menu} />
+        <i className={icons.menu} aria-hidden="true" />
       </button>
       {showMenu && (
         <>
-          <div className={styles.backdrop} onClick={() => setShowMenu(false)} />
+          {/* Mouse-only dismissal; Escape closes the menu for keyboard users. */}
+          <div
+            className={styles.backdrop}
+            role="presentation"
+            onClick={() => setShowMenu(false)}
+          />
           <div className={styles.menu}>
             {items.map((item) => (
               <button

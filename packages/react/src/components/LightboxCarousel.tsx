@@ -86,7 +86,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [closeLightbox, isOpen, showNext, showPrev]);
 
   const handleThumbClick = useCallback(
-    (e: MouseEvent<HTMLDivElement>) => {
+    (e: MouseEvent<HTMLButtonElement>) => {
       const index = Number(e.currentTarget.dataset.index);
       openLightbox(index);
     },
@@ -97,17 +97,21 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       <div className={clsx(styles.carouselThumbs)}>
         {slides.map((slide, index) => {
           return (
-            <div
+            <button
               key={index}
+              type="button"
               data-index={index}
               className={clsx(styles.carouselThumb)}
               onClick={handleThumbClick}
             >
               <div>{slide.label}</div>
               <div>
-                <i className={clsx(icons.play, styles.carouselPlayIcon)} />
+                <i
+                  className={clsx(icons.play, styles.carouselPlayIcon)}
+                  aria-hidden="true"
+                />
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

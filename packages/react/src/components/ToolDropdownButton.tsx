@@ -96,6 +96,15 @@ export const ToolDropdownButton = forwardRef<
       };
     }, [isOpen, computePosition]);
 
+    useEffect(() => {
+      if (!isOpen) return;
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setIsOpen(false);
+      };
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }, [isOpen]);
+
     const handleItemClick = (fn: () => void) => {
       fn();
       setIsOpen(false);
@@ -114,18 +123,25 @@ export const ToolDropdownButton = forwardRef<
             className
           )}
           onClick={() => setIsOpen(!isOpen)}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
           {...rest}
         >
-          {icon && <i className={`${icon}`} />}
+          {icon && <i className={`${icon}`} aria-hidden="true" />}
           {label}
-          <i className={clsx(icons.chevronDown, styles.chevron)} />
+          <i
+            className={clsx(icons.chevronDown, styles.chevron)}
+            aria-hidden="true"
+          />
         </button>
         {isOpen &&
           menuPosition &&
           createPortal(
             <>
+              {/* Mouse-only dismissal; Escape closes the menu for keyboard users. */}
               <div
                 className={styles.backdrop}
+                role="presentation"
                 onClick={() => setIsOpen(false)}
               />
               <div

@@ -25,6 +25,10 @@ export default tseslint.config(
       "react/prop-types": "off",
       ...reactHooksPlugin.configs.recommended.rules,
       ...jsxA11yPlugin.flatConfigs.recommended.rules,
+      // The rule can't see what a custom component does with an `autoFocus`
+      // prop, so flagging non-DOM elements is guesswork. Real DOM autoFocus
+      // is still an error.
+      "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
     },
     settings: {
       react: {
