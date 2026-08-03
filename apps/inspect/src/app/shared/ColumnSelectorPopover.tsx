@@ -171,25 +171,31 @@ export const ColumnSelectorPopover: FC<ColumnSelectorPopoverProps> = ({
           <div className={styles.headerRow}>
             {splitScores ? <b>Base</b> : <b>Columns</b>}
             <div className={clsx(styles.buttonContainer, "text-size-small")}>
-              <a
+              <button
+                type="button"
                 className={clsx(styles.button, "text-size-small")}
                 onClick={handleSelectAllBase}
               >
                 All
-              </a>
+              </button>
               |
-              <a
+              <button
+                type="button"
                 className={clsx(styles.button)}
                 onClick={handleDeselectAllBase}
               >
                 None
-              </a>
+              </button>
               {onResetToDefault && (
                 <>
                   |
-                  <a className={clsx(styles.button)} onClick={onResetToDefault}>
+                  <button
+                    type="button"
+                    className={clsx(styles.button)}
+                    onClick={onResetToDefault}
+                  >
                     Default
-                  </a>
+                  </button>
                 </>
               )}
             </div>
@@ -221,19 +227,21 @@ export const ColumnSelectorPopover: FC<ColumnSelectorPopoverProps> = ({
                 )}
               </div>
               <div className={styles.buttonContainer}>
-                <a
+                <button
+                  type="button"
                   className={clsx(styles.button)}
                   onClick={handleSelectAllScores}
                 >
                   All
-                </a>
+                </button>
                 |
-                <a
+                <button
+                  type="button"
                   className={clsx(styles.button)}
                   onClick={handleDeselectAllScores}
                 >
                   None
-                </a>
+                </button>
               </div>
             </div>
             <div className={styles.columnsLayout}>

@@ -59,7 +59,6 @@ export const LogViewLayout: FC = () => {
             singleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
-          tabIndex={0}
         >
           {showFind ? <FindBand onClose={hideFind} /> : ""}
           {!singleFileMode ? (

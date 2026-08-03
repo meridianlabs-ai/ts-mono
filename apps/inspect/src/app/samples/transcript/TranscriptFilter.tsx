@@ -77,22 +77,16 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
       <div className={clsx(styles.grid, "text-size-smaller")}>
         {arrangedEventTypes(2).map((eventType) => {
           return (
-            <div
-              key={eventType}
-              className={clsx(styles.row)}
-              onClick={() => {
-                filterEventType(eventType, filtered.includes(eventType));
-              }}
-            >
+            <label key={eventType} className={clsx(styles.row)}>
               <input
                 type="checkbox"
                 checked={!filtered.includes(eventType)}
                 onChange={(e) => {
                   filterEventType(eventType, e.target.checked);
                 }}
-              ></input>
+              />
               {eventTypes[eventType]}
-            </div>
+            </label>
           );
         })}
       </div>
