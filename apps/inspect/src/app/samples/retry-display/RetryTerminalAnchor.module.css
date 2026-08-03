@@ -4,20 +4,39 @@
   align-items: center;
 }
 
-.check {
+.marker {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--bs-success);
   color: #fff;
   flex: none;
   font-size: 10px;
   position: relative;
   /* Sits above the container's absolutely-positioned timeline rail. */
   z-index: 1;
+}
+
+.marker-success {
+  background: var(--bs-success);
+}
+
+.marker-error {
+  background: var(--bs-danger);
+}
+
+.marker-cancelled {
+  background: var(--bs-secondary);
+}
+
+.marker-limit {
+  background: var(--bs-warning);
+  /* White on Bootstrap's yellow fails contrast, and the theme bridge remaps
+     --bs-warning-text-emphasis to a light grey in dark themes while the amber
+     background never changes — so hardcode the dark emphasis tone. */
+  color: #664d03;
 }
 
 .copy {
@@ -30,11 +49,26 @@
   border-top: 1px solid var(--bs-border-color);
 }
 
-.success {
+.headline {
   font-weight: 700;
   font-size: 13.5px;
-  color: var(--bs-success-text-emphasis);
   white-space: nowrap;
+}
+
+.headline-success {
+  color: var(--bs-success-text-emphasis);
+}
+
+.headline-error {
+  color: var(--bs-danger-text-emphasis);
+}
+
+.headline-cancelled {
+  color: var(--bs-secondary-color);
+}
+
+.headline-limit {
+  color: var(--bs-warning-text-emphasis);
 }
 
 .detail {

@@ -98,11 +98,6 @@ export default defineConfig(({ mode }) => {
             id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",
           output: {
-            globals: {
-              react: "React",
-              "react-dom": "ReactDOM",
-              "react-router-dom": "ReactRouterDOM",
-            },
             assetFileNames: (assetInfo) => {
               if (assetInfo.name && assetInfo.name.endsWith(".css")) {
                 return "styles/[name].[ext]";

@@ -2,11 +2,11 @@
  * Scout-specific active timeline hook.
  *
  * Thin wrapper around the shared `useActiveTimeline` that persists the
- * active timeline index in URL search params via react-router-dom.
+ * active timeline index in URL search params via react-router.
  */
 
 import { useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import {
   useActiveTimeline as useActiveTimelineShared,

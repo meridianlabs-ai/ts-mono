@@ -1,7 +1,7 @@
 import { skipToken } from "@tanstack/react-query";
 import clsx from "clsx";
 import { FC, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
 import {

@@ -227,7 +227,7 @@ const labelForNode = (node: EventNode): string => {
 };
 
 export const summarizeNode = (node: EventNode): ReactNode => {
-  let entries: Record<string, unknown> = {};
+  let entries: Record<string, unknown>;
   switch (node.event.event) {
     case "sample_init":
       entries = {

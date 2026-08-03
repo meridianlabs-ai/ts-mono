@@ -1,5 +1,5 @@
 import { FC, useCallback, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate } from "react-router";
 
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";

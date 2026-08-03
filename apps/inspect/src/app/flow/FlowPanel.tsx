@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";

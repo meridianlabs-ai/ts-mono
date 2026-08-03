@@ -18,7 +18,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect, useRef } from "react";
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router/dom";
 
 import {
   ComponentIconProvider,

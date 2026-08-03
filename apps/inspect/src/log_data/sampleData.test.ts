@@ -248,18 +248,15 @@ describe("usePassiveEvalSampleData", () => {
     const Wrapper = ({ children }: { children: ReactNode }) =>
       createElement(QueryClientProvider, { client }, children);
 
-    const { result } = renderHook(
-      () => usePassiveEvalSampleData("/logs", handle),
-      {
-        wrapper: Wrapper,
-      }
-    );
+    const { result } = renderHook(() => usePassiveEvalSampleData(handle), {
+      wrapper: Wrapper,
+    });
     expect(result.current.loading).toBe(true);
     expect(result.current.data).toBeUndefined();
 
     const primed = sample({ events: [{} as never] });
     act(() => {
-      client.setQueryData(sampleQueryKey("/logs", handle), primed);
+      client.setQueryData(sampleQueryKey(handle), primed);
     });
     await waitFor(() => expect(result.current.data?.sample).toBe(primed));
     expect(result.current.data?.status).toBe("ok");

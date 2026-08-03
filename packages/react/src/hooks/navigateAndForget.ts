@@ -1,4 +1,4 @@
-import type { NavigateFunction, NavigateOptions, To } from "react-router-dom";
+import type { NavigateFunction, NavigateOptions, To } from "react-router";
 
 /**
  * Fire a react-router navigation and ignore its result. Data routers return

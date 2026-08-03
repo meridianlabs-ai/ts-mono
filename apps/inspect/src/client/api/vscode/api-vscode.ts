@@ -327,7 +327,8 @@ async function edit_log(
     }
     if (err.code === kJsonRpcMethodNotFound) {
       throw new Error(
-        "Log editing requires a newer Inspect VS Code extension."
+        "Log editing requires a newer Inspect VS Code extension.",
+        { cause: e }
       );
     }
     throw e;
@@ -402,7 +403,7 @@ async function list_searches(
     return parsePayload<SearchInputListResponse>(response);
   } catch (e: unknown) {
     if (asRpcError(e).code === kJsonRpcMethodNotFound) {
-      throw new Error(kSearchUnsupportedMessage);
+      throw new Error(kSearchUnsupportedMessage, { cause: e });
     }
     throw e;
   }
@@ -422,7 +423,7 @@ async function post_search(
     return parsePayload<SearchResponse>(response);
   } catch (e: unknown) {
     if (asRpcError(e).code === kJsonRpcMethodNotFound) {
-      throw new Error(kSearchUnsupportedMessage);
+      throw new Error(kSearchUnsupportedMessage, { cause: e });
     }
     throw e;
   }
@@ -449,7 +450,7 @@ async function get_search_result(
     const err = asRpcError(e);
     if (err.code === 404) return null;
     if (err.code === kJsonRpcMethodNotFound) {
-      throw new Error(kSearchUnsupportedMessage);
+      throw new Error(kSearchUnsupportedMessage, { cause: e });
     }
     throw e;
   }

@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { forwardRef, type PropsWithChildren } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {

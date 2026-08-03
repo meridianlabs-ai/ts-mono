@@ -256,8 +256,19 @@ export function useTranscriptTimeline(
   );
 
   const { selectedEvents, sourceSpans, branchScrollTarget } = useMemo(() => {
-    const parsed = parseSelection(state.selected);
-    const spans = getSelectedSpans(state.rows, state.selected);
+    // A key that matches no row is orphaned, not "nothing selected" — the
+    // utility toggle hiding the selected lane is the common way to get here.
+    // Scope to the root row instead of the unscoped stream, which would put
+    // the just-hidden events back on screen and inflate outline/turn counts.
+    // The stale key is deliberately kept so re-enabling the toggle restores
+    // the selection.
+    let selection = state.selected;
+    let spans = getSelectedSpans(state.rows, selection);
+    if (spans.length === 0 && state.rows.length > 0) {
+      selection = state.rows[0]!.key;
+      spans = getSelectedSpans(state.rows, selection);
+    }
+    const parsed = parseSelection(selection);
     if (spans.length === 0) {
       return {
         selectedEvents: events,
@@ -287,7 +298,7 @@ export function useTranscriptTimeline(
       includeUtility,
       regionIndex: parsed?.regionIndex ?? null,
       showBranches,
-      branchPrefix: getBranchPrefix(state.rows, state.selected),
+      branchPrefix: getBranchPrefix(state.rows, selection),
     });
     return {
       selectedEvents: collected.events,

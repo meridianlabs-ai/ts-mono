@@ -32,9 +32,11 @@ export interface EvalSampleData {
    *  draining), as opposed to waiting on live output. Drives the
    *  "Loading events…" affordances. */
   backfilling: boolean;
-  /** Set when the sample is stored in the chunked shape: the transcript
-   *  reads windowed rows through this instead of `sample.events` (which the
-   *  shell-synthesized `sample` carries empty). Absent on every other path. */
+  /** Set when a chunked-shape sample renders through the windowed path:
+   *  the transcript reads windowed rows through this instead of
+   *  `sample.events` (which the shell-synthesized `sample` carries empty).
+   *  Absent on every other path — including chunked samples that were fully
+   *  hydrated for timeline fidelity (their `sample` is complete). */
   chunked?: ChunkedSample;
 }
 
@@ -217,13 +219,11 @@ export const useEvalSampleData = (
   );
   const runningPath = summary?.completed === false;
   const chunked = useChunkedSample(
-    logDir,
     !runningPath && summary !== undefined ? handle : undefined
   );
   // Gated on the chunked classification settling null (monolith) so exactly
   // one path acquires the sample; the classification itself costs no fetch.
   const query = useSample(
-    logDir,
     !runningPath && summary !== undefined && chunked.data === null
       ? handle
       : undefined,
@@ -232,7 +232,7 @@ export const useEvalSampleData = (
   const running = useRunningSample(logDir, handle, summary);
   // The finalized EvalSample a running stream primed; read passively so the
   // completed-path fetch stays owned by useSample.
-  const finalizedSample = usePassiveEvalSample(logDir, handle);
+  const finalizedSample = usePassiveEvalSample(handle);
 
   return useMemo(
     () =>
@@ -258,9 +258,8 @@ export const useEvalSampleData = (
  * the title bar).
  */
 export const usePassiveEvalSampleData = (
-  logDir: string,
   handle: SampleHandle | undefined
 ): AsyncData<EvalSampleData> => {
-  const sample = usePassiveEvalSample(logDir, handle);
+  const sample = usePassiveEvalSample(handle);
   return useMapAsyncData(sample, settledSampleData);
 };

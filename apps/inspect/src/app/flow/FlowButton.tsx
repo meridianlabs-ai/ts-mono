@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { forwardRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 
 import { ApplicationIcons } from "../appearance/icons";
 import { useLogOrSampleRouteParams } from "../routing/url";

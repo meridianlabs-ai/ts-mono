@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { PopOver } from "@tsmono/react/components";
 

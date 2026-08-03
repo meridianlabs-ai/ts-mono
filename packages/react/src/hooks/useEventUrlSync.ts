@@ -3,7 +3,7 @@ import {
   useLocation,
   useNavigate,
   type SetURLSearchParams,
-} from "react-router-dom";
+} from "react-router";
 
 import { navigateAndForget } from "./navigateAndForget";
 

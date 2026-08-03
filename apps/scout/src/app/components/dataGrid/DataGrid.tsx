@@ -402,9 +402,9 @@ export function DataGrid<
         ? rows.findIndex((r) => r.id === focusedRowId)
         : -1;
 
-      let newFocusedIndex = focusedIndex;
-      let shouldUpdateSelection = false;
-      let shouldExtendSelection = false;
+      let newFocusedIndex: number;
+      let shouldUpdateSelection: boolean;
+      let shouldExtendSelection: boolean;
 
       switch (e.key) {
         case "ArrowDown":

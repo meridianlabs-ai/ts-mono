@@ -60,8 +60,8 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [isOpen, showOverlay, setShowOverlay]);
 
   const showNext = useCallback(() => {
-    setCurrentIndex(currentIndex + 1);
-  }, [setCurrentIndex, currentIndex]);
+    setCurrentIndex((currentIndex + 1) % slides.length);
+  }, [setCurrentIndex, currentIndex, slides.length]);
 
   const showPrev = useCallback(() => {
     setCurrentIndex((currentIndex - 1 + slides.length) % slides.length);
@@ -82,7 +82,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       e.stopPropagation();
     };
     window.addEventListener("keyup", handleKeyUp, true);
-    return () => window.removeEventListener("keyup", handleKeyUp);
+    return () => window.removeEventListener("keyup", handleKeyUp, true);
   }, [closeLightbox, isOpen, showNext, showPrev]);
 
   const handleThumbClick = useCallback(

@@ -394,10 +394,8 @@ export const useSelectedEvalSampleData = (): EvalSampleData => {
  */
 export const useSelectedSampleInvalidation = ():
   EvalSample["invalidation"] | undefined =>
-  usePassiveEvalSampleData(
-    useLogDir(),
-    useStore((state) => state.log.selectedSampleHandle)
-  ).data?.sample?.invalidation ?? undefined;
+  usePassiveEvalSampleData(useStore((state) => state.log.selectedSampleHandle))
+    .data?.sample?.invalidation ?? undefined;
 
 export const useLogSelection = () => {
   const selectedSampleSummary = useSelectedSampleSummary();

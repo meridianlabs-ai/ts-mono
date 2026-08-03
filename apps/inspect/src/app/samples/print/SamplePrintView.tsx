@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
