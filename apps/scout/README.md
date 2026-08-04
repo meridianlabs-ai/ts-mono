@@ -103,8 +103,9 @@ Python Pydantic models → openapi.json (in inspect_scout) → generated.ts → 
 1. **Schema source**: The OpenAPI schema lives in the inspect_scout Python
    repo at `src/inspect_scout/_view/openapi.json` — no copy is committed here
 2. **Generate types**: `scripts/generate-types.js` locates the Python repo
-   (requires running ts-mono as a submodule of inspect_scout) and runs
-   `openapi-typescript` against the schema
+   (requires running ts-mono as a submodule of inspect_scout, or setting
+   `TSMONO_PYTHON_ROOT_INSPECT_SCOUT` to a local inspect_scout checkout) and
+   runs `openapi-typescript` against the schema
 3. **Type adapter**: `src/types/api-types.ts` re-exports types with clean names
 4. **Usage**: Import types from `src/types/index.ts` in your code
 
