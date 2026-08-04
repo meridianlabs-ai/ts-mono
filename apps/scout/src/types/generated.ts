@@ -792,6 +792,8 @@ export interface components {
             project_dir: string;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2508,6 +2510,8 @@ export interface components {
             name?: string | null;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2566,6 +2570,8 @@ export interface components {
             name?: string | null;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2863,6 +2869,8 @@ export interface components {
             name?: string | null;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2954,6 +2962,8 @@ export interface components {
              * @default 25
              */
             max_transcripts: number;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Shuffle */
             shuffle?: boolean | number | null;
         };

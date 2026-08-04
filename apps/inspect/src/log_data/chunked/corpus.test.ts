@@ -12,9 +12,12 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { messagesToStr } from "@tsmono/inspect-components/chat";
+
 import { openZipFileFromBuffer } from "../../client/remote/remoteZipFile";
-import { hydrateFinalConversation } from "../chunkedMessages";
 import { chunkedConversation } from "../conversation";
+import { inMemoryMessageRows, type SampleMessagesData } from "../messageRows";
+import { windowedMessageRows } from "../messageRowsWindowed";
 
 import { openChunkedSample, type ChunkedSample } from "./chunkedSample";
 import { decodeRange, type DecodeCtx } from "./decode";
@@ -56,6 +59,23 @@ const openLog = async (name: string): Promise<OpenLog> => {
 const logNames = readdirSync(logsDir).filter((name) => name.endsWith(".eval"));
 
 const allVisible = () => true;
+
+/** Walk a source's pages forward — pinning the cursor mechanics the
+ *  production consumer (one whole-row-space read) doesn't exercise. */
+const drainRows = async (source: SampleMessagesData, pageSize: number) => {
+  const rows = [];
+  let cursor: Record<string, unknown> | null = null;
+  do {
+    const page = await source.getRows({
+      cursor,
+      direction: "forward",
+      limit: pageSize,
+    });
+    rows.push(...page.rows);
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return rows;
+};
 
 const decodeCtx = (
   sample: ChunkedSample,
@@ -142,8 +162,9 @@ describe("chunked corpus", () => {
       // the twin check: TS producer over reassembled events == persisted skeleton
       expect(sampleSkeleton(events)).toStrictEqual(sample.skeleton);
 
-      // the final conversation hydrates from message_refs, fully resolved
-      const conversation = await hydrateFinalConversation(sample);
+      // the final conversation reads from message_refs, fully resolved
+      const conv = chunkedConversation(sample);
+      const conversation = await conv.getMessages(0, conv.messageCount);
       const refWidths = sample.shell.message_refs.reduce(
         (n, [start, end]) => n + (end - start),
         0
@@ -152,8 +173,7 @@ describe("chunked corpus", () => {
       expect(JSON.stringify(conversation)).not.toContain('"attachment://');
 
       // windows through the conversation seam equal slices of the full
-      // hydration (positional reads never depend on what else was read)
-      const conv = chunkedConversation(sample);
+      // read (positional reads never depend on what else was read)
       expect(conv.messageCount).toBe(refWidths);
       const n = conv.messageCount;
       const windows: [number, number][] = [
@@ -167,6 +187,27 @@ describe("chunked corpus", () => {
           conversation.slice(lo, hi)
         );
       }
+
+      // the windowed rows source over real multi-chunk logs (chunk_size=3
+      // — every page crosses chunks) equals the in-memory fold of the
+      // whole conversation, at any page size
+      const rowsOracle = await inMemoryMessageRows(conversation).getRows({
+        cursor: null,
+        direction: "forward",
+        limit: Number.MAX_SAFE_INTEGER,
+      });
+      for (const pageSize of [1, 7, 1000]) {
+        const source = windowedMessageRows(chunkedConversation(sample));
+        expect(await drainRows(source, pageSize)).toEqual(rowsOracle.rows);
+      }
+
+      // exportText streams the exact whole-conversation text
+      const exportSource = windowedMessageRows(chunkedConversation(sample));
+      const parts: string[] = [];
+      for await (const part of exportSource.exportText()) {
+        parts.push(part);
+      }
+      expect(parts.join("")).toBe(messagesToStr(conversation));
 
       // decode walk, everything visible and expanded
       const expanded = new RowSpace(

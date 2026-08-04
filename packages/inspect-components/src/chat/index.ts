@@ -11,10 +11,17 @@ export type {
 export type { Message, ResolvedMessage } from "./messages";
 export { resolveMessages } from "./messages";
 
-export type { MessageRow, MessageRowOptions } from "./rowsModel";
+export type {
+  MessageRow,
+  MessageRowOptions,
+  ScannedRowFact,
+} from "./rowsModel";
 export {
   buildMessageRows,
+  buildMessageRowsWindow,
+  buildSystemMessageRow,
   countRowBlocks,
+  MessageRowScanner,
   messageRowOptions,
 } from "./rowsModel";
 

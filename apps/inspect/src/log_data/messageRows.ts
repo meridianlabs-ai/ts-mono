@@ -14,36 +14,37 @@ import { type Cursor } from "../client/database/listing";
  * The data-access interface for a sample's Messages tab. Consumers speak
  * positions in the folded row space — resolved rows with whole-conversation
  * numbering attached — and never learn where the rows come from: an inline
- * message array today, a windowed read over a chunked sample's message_refs
- * later.
+ * message array, or a windowed read over a chunked sample's message_refs.
  *
  * Cursors are the app's standard `{ offset }` cursors (shared with the
  * listing layer), indexing the folded row space. Reads are forward-only:
- * `Pagination.direction` is ignored (matching `pageRows`); read the tail
- * by anchoring a forward read at `rowCount() - limit`.
+ * `Pagination.direction` is ignored (matching `pageRows`). There is
+ * deliberately no total-count call: an exact total requires scanning the
+ * whole conversation, and no consumer needs one — pages report how many
+ * rows are known so far and whether that is everything.
  */
 export interface SampleMessagesData {
-  /** Exact folded-row count for the whole conversation. */
-  rowCount(): Promise<number>;
   /** One page of resolved rows. */
   getRows(pagination: Pagination): Promise<MessageRowsPage>;
-  /** The whole conversation as text (copy/download) — the only sanctioned
-   *  full materialization. */
-  exportText(): Promise<string>;
+  /** The whole conversation as text (copy/download), streamed in parts —
+   *  concatenating every part yields exactly the conversation text. A
+   *  windowed source bounds each part's residency rather than
+   *  materializing the whole text at once. */
+  exportText(): AsyncIterable<string>;
 }
 
 export interface MessageRowsPage {
   rows: MessageRow[];
   /** Absolute position of `rows[0]` in the folded row space. */
   offset: number;
-  /** Count of ALL rows, not just this page. */
-  totalRowCount: number;
+  /** Rows known to exist so far — the exact total once `exhausted`, a
+   *  monotonically growing lower bound before that (a lazy source only
+   *  scans as far as reads have required). */
+  knownRowCount: number;
+  /** Whether `knownRowCount` is the whole conversation. */
+  exhausted: boolean;
   /** Cursor for the page after this one (null at the end). */
   nextCursor: Cursor | null;
-  /** Forward-read anchor of the preceding page (null at the start). The
-   *  window it opens may overlap this page's first rows when fewer than
-   *  `limit` rows precede it. */
-  prevCursor: Cursor | null;
 }
 
 /**
@@ -83,7 +84,6 @@ export const inMemoryMessageRows = (
   };
 
   return {
-    rowCount: () => Promise.resolve(allRows().length),
     getRows: (pagination) => {
       const all = allRows();
       const { lo, hi } = paginationRange(pagination, all.length);
@@ -93,14 +93,14 @@ export const inMemoryMessageRows = (
       return Promise.resolve({
         rows: all.slice(lo, hi),
         offset: lo,
-        totalRowCount: all.length,
+        knownRowCount: all.length,
+        exhausted: true,
         nextCursor: hi < all.length && hi > lo ? { offset: hi } : null,
-        prevCursor:
-          lo > 0 && hi > lo
-            ? { offset: Math.max(0, lo - pagination.limit) }
-            : null,
       });
     },
-    exportText: () => Promise.resolve(messagesToStr(messages)),
+    // eslint-disable-next-line @typescript-eslint/require-await
+    exportText: async function* () {
+      yield messagesToStr(messages);
+    },
   };
 };

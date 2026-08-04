@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { ChatMessage } from "@tsmono/inspect-common/types";
 
-import { conversationRanges, inMemoryConversation } from "./conversation";
+import {
+  chunkedConversation,
+  conversationRanges,
+  inMemoryConversation,
+} from "./conversation";
+import { sequenceReaderOver, testChunkedSample } from "./testFixtures";
 
 const message = (id: string): ChatMessage => ({
   id,
@@ -43,6 +48,33 @@ describe("inMemoryConversation", () => {
     await expect(inMemoryConversation([]).getMessages(0, 10)).resolves.toEqual(
       []
     );
+  });
+});
+
+describe("chunkedConversation raw reads", () => {
+  const withAttachment: ChatMessage[] = [
+    { id: "m-0", role: "user", content: "attachment://0" },
+    { id: "m-1", role: "assistant", content: "plain" },
+  ];
+
+  it("serves unresolved refs without touching the attachments sequence", async () => {
+    const attachments = sequenceReaderOver(["the attachment body"]);
+    const attachmentReads = vi.spyOn(attachments, "getRange");
+    const chunked = {
+      ...testChunkedSample(sequenceReaderOver(withAttachment)),
+      attachments,
+    };
+    const conversation = chunkedConversation(chunked);
+
+    const raw = await conversation.getMessagesRaw(0, 2);
+    expect(raw.map((m) => m.content)).toEqual(["attachment://0", "plain"]);
+    expect(attachmentReads).not.toHaveBeenCalled();
+
+    const resolved = await conversation.getMessages(0, 2);
+    expect(resolved.map((m) => m.content)).toEqual([
+      "the attachment body",
+      "plain",
+    ]);
   });
 });
 

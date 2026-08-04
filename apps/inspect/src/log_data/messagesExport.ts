@@ -1,48 +1,31 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
-import { SampleHandle } from "../app/types";
-
-import {
-  chunkedMessagesQueryKey,
-  hydrateFinalConversation,
-} from "./chunkedMessages";
-import { inMemoryMessageRows } from "./messageRows";
 import { type EvalSampleData } from "./sampleData";
-import { kSampleGcTimeMs } from "./sampleQuery";
+import { sampleMessagesSource } from "./sampleMessagesSource";
 
 /**
- * Copy/Download > Messages: the settled conversation as text, produced on
- * demand. Undefined when there is no settled conversation to export (live
- * streaming samples, a sample still loading). Chunked samples hydrate on
- * first use, through the same query the Messages tab reads, so export
- * never requires the tab to have been opened.
+ * Copy/Download > Messages: the settled conversation's text parts, produced
+ * on demand through the same source the Messages tab reads (chunked samples
+ * stream window by window off the shared chunk caches — export never
+ * hydrates a conversation, and never requires the tab to have been opened).
+ * Concatenating the parts yields the whole text; sinks pick their assembly
+ * (join for the clipboard, a Blob for downloads so the browser owns the
+ * buffers). Undefined when there is no settled conversation to export
+ * (live streaming samples, a sample still loading).
  */
 export const useMessagesExport = (
-  handle: SampleHandle | undefined,
   sampleData: EvalSampleData
-): (() => Promise<string>) | undefined => {
-  const queryClient = useQueryClient();
-  const chunked = sampleData.chunked;
-  const messages =
-    chunked === undefined ? sampleData.sample?.messages : undefined;
-  return useMemo(() => {
-    if (chunked && handle) {
-      return async () => {
-        const hydrated = await queryClient.fetchQuery({
-          queryKey: chunkedMessagesQueryKey(handle),
-          queryFn: () => hydrateFinalConversation(chunked),
-          gcTime: kSampleGcTimeMs,
-          // a settled chunked conversation is immutable: reuse a resident
-          // hydration instead of re-fetching it per export
-          staleTime: Infinity,
-        });
-        return inMemoryMessageRows(hydrated).exportText();
-      };
+): (() => Promise<string[]>) | undefined =>
+  useMemo(() => {
+    const source = sampleMessagesSource(sampleData);
+    if (!source) {
+      return undefined;
     }
-    if (messages) {
-      return () => inMemoryMessageRows(messages).exportText();
-    }
-    return undefined;
-  }, [queryClient, chunked, handle, messages]);
-};
+    return async () => {
+      const parts: string[] = [];
+      for await (const part of source.exportText()) {
+        parts.push(part);
+      }
+      return parts;
+    };
+  }, [sampleData]);

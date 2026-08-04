@@ -247,7 +247,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     messagesTabOpen,
     running
   );
-  const exportMessages = useMessagesExport(selectedSampleHandle, sampleData);
+  const exportMessages = useMessagesExport(sampleData);
 
   // Focus the panel when it loads
   useEffect(() => {
@@ -547,7 +547,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         },
         // offered only when a settled conversation exists to export — live
         // streaming samples have none, and a silent no-op menu item reads
-        // as broken (chunked samples hydrate on demand inside the export)
+        // as broken (chunked samples stream the text on demand inside the
+        // export, window by window — never a whole-conversation hydration)
         ...(exportMessages
           ? {
               Messages: () => {
@@ -555,7 +556,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 // can reject (unfocused document), and flipping early
                 // reads as a false success
                 exportMessages()
-                  .then((text) => navigator.clipboard.writeText(text))
+                  .then((parts) =>
+                    navigator.clipboard.writeText(parts.join(""))
+                  )
                   .then(() => {
                     setIcon(ApplicationIcons.confirm);
                     setTimeout(() => {
@@ -605,8 +608,11 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             ? {
                 Messages: () => {
                   exportMessages()
-                    .then((text) =>
-                      api.download_file(`${sampleId}-messages.txt`, text)
+                    .then((parts) =>
+                      api.download_file(
+                        `${sampleId}-messages.txt`,
+                        new Blob(parts, { type: "text/plain" })
+                      )
                     )
                     .catch((error: unknown) => {
                       console.error("Failed to download messages:", error);
