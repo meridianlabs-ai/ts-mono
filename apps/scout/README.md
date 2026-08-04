@@ -97,11 +97,14 @@ Types are auto-generated from the FastAPI OpenAPI spec to keep client/server in 
 The type generation pipeline:
 
 ```
-Python Pydantic models → openapi.json → generated.ts → built app
+Python Pydantic models → openapi.json (in inspect_scout) → generated.ts → built app
 ```
 
-1. **Export schema**: Python script exports OpenAPI spec from FastAPI to `openapi.json`
-2. **Generate types**: `openapi-typescript` generates TypeScript types from schema
+1. **Schema source**: The OpenAPI schema lives in the inspect_scout Python
+   repo at `src/inspect_scout/_view/openapi.json` — no copy is committed here
+2. **Generate types**: `scripts/generate-types.js` locates the Python repo
+   (requires running ts-mono as a submodule of inspect_scout) and runs
+   `openapi-typescript` against the schema
 3. **Type adapter**: `src/types/api-types.ts` re-exports types with clean names
 4. **Usage**: Import types from `src/types/index.ts` in your code
 
@@ -110,29 +113,20 @@ Python Pydantic models → openapi.json → generated.ts → built app
 When Python Pydantic models change:
 
 ```bash
-# 1. Export updated OpenAPI schema
+# 1. Re-export the OpenAPI schema (from the inspect_scout repo root)
 .venv/bin/python scripts/export_openapi_schema.py
 
-# 2. Types regenerate automatically on next build
-pnpm build
-```
-
-Commit both `openapi.json` and `src/types/generated.ts`.
-
-### Manual Type Generation
-
-```bash
+# 2. Regenerate TypeScript types (from apps/scout in the submodule)
 pnpm types:generate
 ```
 
+Commit the updated schema in inspect_scout and `src/types/generated.ts` here.
+
 ### CI Validation
 
-CI automatically validates the type generation pipeline:
-
-- **`openapi-schema` job**: Regenerates `openapi.json` and fails if it differs from committed version
-- **`js-build` job**: Regenerates `generated.ts` and fails if it differs from committed version
-
-If CI fails, run the commands shown in the error message and commit the updated files.
+Schema and generated-type freshness is validated by inspect_scout's CI, which
+regenerates the files and fails if they differ from the committed versions. If
+that fails, run the commands above and commit the updated files.
 
 ## Tech Stack
 
