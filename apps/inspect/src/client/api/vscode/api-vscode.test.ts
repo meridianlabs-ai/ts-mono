@@ -24,7 +24,8 @@ function fakeVscode() {
 describe("apiVscode", () => {
   test("open_log_file posts a one-way displayLogFile message", async () => {
     const { api, posted } = fakeVscode();
-    await apiVscode(api, LOG_DIR, stubFetch).open_log_file("/logs/x.eval", "/logs");
+    const vsApi = apiVscode(api, LOG_DIR, stubFetch);
+    await vsApi.open_log_file("/logs/x.eval", "/logs");
     expect(posted).toContainEqual({
       type: "displayLogFile",
       url: "/logs/x.eval",
@@ -41,9 +42,8 @@ describe("apiVscode", () => {
 
   test("client_events is disabled (returns empty array)", async () => {
     const { api } = fakeVscode();
-    await expect(apiVscode(api, LOG_DIR, stubFetch).client_events()).resolves.toEqual(
-      []
-    );
+    const vsApi = apiVscode(api, LOG_DIR, stubFetch);
+    await expect(vsApi.client_events()).resolves.toEqual([]);
   });
 
   test("download_log is not exposed", () => {
