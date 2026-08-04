@@ -196,10 +196,18 @@ export const initAppConfig = (config: AppConfig): AppConfig =>
  * and the new config (api + logDir together) replaces the singleton and the
  * react-query mirror as one snapshot. In-flight responses from the old
  * instance are still about the old dir and land under the old dir's keys.
+ *
+ * A same-dir call is a no-op: preserving config identity keeps the fetch
+ * engine running and the api's caches warm (the host re-sends `updateState`
+ * for the dir the gate already resolved on VS Code single-file boot).
  */
 export const setLogRoot = (logDir: string, absLogDir?: string): void => {
+  const current = getAppConfig();
+  if (current.logDir === logDir && current.absLogDir === absLogDir) {
+    return;
+  }
   appConfig = {
-    ...getAppConfig(),
+    ...current,
     api: getBootstrap().backend.createApi(logDir),
     logDir,
     absLogDir,

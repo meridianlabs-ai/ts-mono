@@ -70,10 +70,11 @@ describe("apiVscodeHttp end-to-end over postMessage", () => {
       return okJson({ files: [], response_type: "full" });
     });
 
-    const listing = await apiVscodeHttp(vscode, "file:///logs/run-1").get_logs(
-      0,
-      0
-    );
+    const listing = await apiVscodeHttp(
+      vscode,
+      "file:///logs/run-1",
+      createVscodeProxyFetch(vscode)
+    ).get_logs(0, 0);
 
     expect(listing.files).toEqual([]);
     expect(received[0]?.method).toBe("http_request");
@@ -91,11 +92,11 @@ describe("apiVscodeHttp end-to-end over postMessage", () => {
       };
     });
 
-    const bytes = await apiVscodeHttp(vscode, "file:///logs").get_log_bytes(
-      "x.eval",
-      0,
-      3
-    );
+    const bytes = await apiVscodeHttp(
+      vscode,
+      "file:///logs",
+      createVscodeProxyFetch(vscode)
+    ).get_log_bytes("x.eval", 0, 3);
 
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
   });

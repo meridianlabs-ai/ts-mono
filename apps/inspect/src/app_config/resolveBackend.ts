@@ -76,7 +76,6 @@ const viewServerBackend = (logDirHint?: string): BackendBootstrap => ({
 
 const staticBackend = (
   log_dir?: string,
-  log_file?: string,
   abs_log_dir?: string,
   app_config?: AppConfig
 ): BackendBootstrap => ({
@@ -84,8 +83,7 @@ const staticBackend = (
     log_dir
       ? Promise.resolve(staticLogRoot(log_dir, abs_log_dir))
       : Promise.reject(new Error("Unable to determine log paths.")),
-  createApi: (logDir) =>
-    clientApi(staticHttpApi(logDir, log_file, abs_log_dir, app_config)),
+  createApi: (logDir) => clientApi(staticHttpApi(logDir, app_config)),
   capabilities: { downloadLogs: false, streamSamples: false },
 });
 
@@ -137,12 +135,7 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
                 scout_version: null,
               }
             : undefined;
-        return staticBackend(
-          log_dir,
-          data.log_file,
-          data.abs_log_dir,
-          app_config
-        );
+        return staticBackend(log_dir, data.abs_log_dir, app_config);
       }
     }
   }
@@ -159,7 +152,7 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
   }
 
   if (resolved_log_dir !== undefined || resolved_log_file !== undefined) {
-    return staticBackend(resolved_log_dir, resolved_log_file);
+    return staticBackend(resolved_log_dir);
   }
 
   // No signal information so use the standard

@@ -45,7 +45,11 @@ import {
 // The time that the view was initially loaded
 const LOADED_TIME = Date.now();
 
-// The time we fetched logs (used for finding client events since last fetch)
+// The time we fetched logs (used for finding client events since last fetch).
+// Known exemption from the LogViewAPI no-ambient-state contract: shared
+// across instances (and written by the bootstrap probe), but only read by
+// `client_events`, which is disabled on the one multi-instance transport
+// (VS Code). Move into the instance/transport if that changes.
 let lastEvalTime = 0;
 
 /** Transport-only options — everything about *how* to reach the server. */

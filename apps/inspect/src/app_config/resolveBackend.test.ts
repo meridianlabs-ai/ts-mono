@@ -156,12 +156,7 @@ describe("resolveBackend selection", () => {
 
     const api = backend.createApi("/embedded/logs");
     expect(api).toEqual({ __backend: "static-http" });
-    expect(mockStaticHttpApi).toHaveBeenCalledWith(
-      "/embedded/logs",
-      undefined,
-      undefined,
-      undefined
-    );
+    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", undefined);
   });
 
   it("#log_dir_context with log_file → static-http single-file with derived dir", () => {
@@ -170,14 +165,9 @@ describe("resolveBackend selection", () => {
 
     const api = backend.createApi("/embedded/logs");
     expect(api).toEqual({ __backend: "static-http" });
-    // Construction dir comes from the caller (the resolved config); the file
-    // rides along for single-file fetching.
-    expect(mockStaticHttpApi).toHaveBeenCalledWith(
-      "/embedded/logs",
-      "/embedded/logs/task.eval",
-      undefined,
-      undefined
-    );
+    // Construction dir comes from the caller (the resolved config); the api
+    // needs nothing else — single-file fetching passes file paths per call.
+    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", undefined);
   });
 
   it("?inspect_server=true with dir source → view-server backend probing that dir", async () => {
@@ -205,8 +195,6 @@ describe("resolveBackend selection", () => {
     expect(api).toEqual({ __backend: "static-http" });
     expect(mockStaticHttpApi).toHaveBeenCalledWith(
       "http://localhost:3000/logs",
-      undefined,
-      undefined,
       undefined
     );
     expect(mockViewServerApi).not.toHaveBeenCalled();
@@ -225,8 +213,6 @@ describe("resolveBackend selection", () => {
     expect(api).toEqual({ __backend: "static-http" });
     expect(mockStaticHttpApi).toHaveBeenCalledWith(
       "http://localhost:3000",
-      "foo.eval",
-      undefined,
       undefined
     );
     expect(mockViewServerApi).not.toHaveBeenCalled();

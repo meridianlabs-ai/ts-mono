@@ -24,11 +24,14 @@ export function createVscodeProxyFetch(vscode: VSCodeApi): typeof fetch {
  * Only genuine host actions and the disabled live-event channel are
  * overridden. Because the underlying view-server api scopes every request
  * with `?log_dir=`, answers never depend on the host's current selection.
+ *
+ * `proxyFetch` is required (no per-call default) so every instance shares
+ * the host's one proxy fetch — see `createVscodeProxyFetch`.
  */
 export function apiVscodeHttp(
   vscode: VSCodeApi,
   logDir: string,
-  proxyFetch: typeof fetch = createVscodeProxyFetch(vscode)
+  proxyFetch: typeof fetch
 ): LogViewAPI {
   const serverApi = viewServerApi({
     logDir,

@@ -47,7 +47,7 @@ export const staticLogRoot = (
   abs_log_dir?: string
 ): LogRoot => ({
   logs: [],
-  log_dir: canonicalDirUrl(log_dir.replace(" ", "+")),
+  log_dir: canonicalDirUrl(log_dir.replace(/ /g, "+")),
   abs_log_dir,
 });
 
@@ -59,16 +59,10 @@ export const staticLogRoot = (
  */
 export default function staticHttpApi(
   log_dir: string,
-  log_file?: string,
-  abs_log_dir?: string,
   app_config?: AppConfig
 ): LogViewAPI {
-  const resolved_log_dir = log_dir.replace(" ", "+");
-  const resolved_log_path = log_file ? log_file.replace(" ", "+") : undefined;
   return staticHttpApiForLog({
-    log_file: resolved_log_path,
-    log_dir: resolved_log_dir,
-    abs_log_dir,
+    log_dir: log_dir.replace(/ /g, "+"),
     app_config,
   });
 }
@@ -78,8 +72,6 @@ export default function staticHttpApi(
  */
 function staticHttpApiForLog(logInfo: {
   log_dir: string;
-  log_file?: string;
-  abs_log_dir?: string;
   app_config?: AppConfig;
 }): LogViewAPI {
   const log_dir = logInfo.log_dir;
