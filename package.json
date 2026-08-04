@@ -62,7 +62,7 @@
     "@tsmono/prettier-config": "workspace:*",
     "esbuild": "^0.28.1",
     "picocolors": "^1.1.1",
-    "prettier": "^3.9.5",
-    "turbo": "^2.10.5"
+    "prettier": "^3.9.6",
+    "turbo": "^2.10.7"
   }
 }
