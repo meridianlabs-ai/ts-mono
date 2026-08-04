@@ -79,7 +79,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^10.7.0",
     "eventsource": "^4.1.0",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.0",
     "markdown-it-mathjax3": "^5.2.0",
     "mathjax-full": "^3.2.2",
     "msw": "^2.15.0",
