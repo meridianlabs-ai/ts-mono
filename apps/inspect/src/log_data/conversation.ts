@@ -11,10 +11,7 @@ import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { type ChunkedSample } from "./chunked";
 import { log } from "./chunked/log";
-import {
-  prefetchAttachments,
-  withAttachmentsResolved,
-} from "./chunkedAttachments";
+import { withAttachmentsResolved } from "./chunkedAttachments";
 
 export interface SampleConversation {
   /** Exact length of the final conversation. Cheap for every format:
@@ -79,7 +76,7 @@ export const conversationRanges = (
 /**
  * A conversation over a chunked sample's `message_refs`: sequence ranges
  * fetched per read, attachment refs substituted before anything downstream
- * sees them. Attachment chunks are prefetched per range as ranges arrive,
+ * sees them. Attachments resolve per range as each range's messages arrive,
  * so attachment downloads overlap the remaining message downloads instead
  * of serializing behind the read's assembly.
  */
@@ -96,26 +93,21 @@ export const chunkedConversation = (
     const lo = Math.max(0, start);
     const hi = Math.min(Math.max(lo, end), messageCount);
     const ranges = conversationRanges(refs, lo, hi);
+    const label = `conversation [${lo}, ${hi})${resolve ? "" : " (raw)"}`;
     const parts = await Promise.all(
-      ranges.map(([rangeLo, rangeHi]) =>
-        chunked.messages.getRange(rangeLo, rangeHi).then((messages) => {
-          if (resolve) {
-            // best-effort warmup; the final resolve pass is the error surface
-            prefetchAttachments(messages, chunked).catch(() => undefined);
-          }
-          return messages;
-        })
-      )
+      ranges.map(async ([rangeLo, rangeHi], i) => {
+        const messages = await chunked.messages.getRange(rangeLo, rangeHi);
+        return resolve
+          ? withAttachmentsResolved(messages, chunked, `${label} range ${i}`)
+          : messages;
+      })
     );
     const messages = parts.flat();
-    const label = `conversation [${lo}, ${hi})${resolve ? "" : " (raw)"}`;
     log.info(
       `read ${label}: ${messages.length} messages via ` +
         `${ranges.length} range${ranges.length === 1 ? "" : "s"}`
     );
-    return resolve
-      ? withAttachmentsResolved(messages, chunked, label)
-      : messages;
+    return messages;
   };
   return {
     messageCount,
