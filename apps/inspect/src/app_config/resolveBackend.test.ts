@@ -11,9 +11,9 @@ import {
   viewServerApi,
 } from "../client/api/view-server/api-view-server";
 import {
-  apiVscodeHttp,
+  apiVscode,
   createVscodeProxyFetch,
-} from "../client/api/vscode/api-vscode-http";
+} from "../client/api/vscode/api-vscode";
 
 import { resolveBackend } from "./resolveBackend";
 import { UrlLogSource } from "./urlLogSource";
@@ -37,8 +37,8 @@ vi.mock("../client/api/static-http/api-static-http", () => ({
   default: vi.fn(() => ({ __backend: "static-http" })),
   staticLogRoot: vi.fn((log_dir: string) => ({ logs: [], log_dir })),
 }));
-vi.mock("../client/api/vscode/api-vscode-http", () => ({
-  apiVscodeHttp: vi.fn(() => ({ __backend: "vscode-http" })),
+vi.mock("../client/api/vscode/api-vscode", () => ({
+  apiVscode: vi.fn(() => ({ __backend: "vscode" })),
   createVscodeProxyFetch: vi.fn(() => ({ __transport: "proxy-fetch" })),
 }));
 // clientApi is the identity-ish wrapper here: it returns the backend it was
@@ -57,7 +57,7 @@ const mockStaticLogRoot = vi.mocked(staticLogRoot);
 const mockViewServerApi = vi.mocked(viewServerApi);
 const mockFetchLogRoot = vi.mocked(fetchViewServerLogRoot);
 const mockFetchLogDir = vi.mocked(fetchViewServerLogDir);
-const mockApiVscodeHttp = vi.mocked(apiVscodeHttp);
+const mockApiVscode = vi.mocked(apiVscode);
 const mockCreateProxyFetch = vi.mocked(createVscodeProxyFetch);
 
 const setSearch = (search: string) => {
@@ -97,12 +97,12 @@ afterEach(() => {
   mockViewServerApi.mockClear();
   mockFetchLogRoot.mockClear();
   mockFetchLogDir.mockClear();
-  mockApiVscodeHttp.mockClear();
+  mockApiVscode.mockClear();
   mockCreateProxyFetch.mockClear();
 });
 
 describe("resolveBackend selection", () => {
-  it("vscode host with http_request capability → vscode-http backend (wins over source)", async () => {
+  it("vscode host with http_request capability → vscode backend (wins over source)", async () => {
     const vscode = {} as NonNullable<ReturnType<typeof getVscodeApi>>;
     mockGetVscodeApi.mockReturnValue(vscode);
     addHostCapabilities(["http_request"]);
@@ -118,8 +118,8 @@ describe("resolveBackend selection", () => {
     expect(mockFetchLogRoot).toHaveBeenCalledWith({ customFetch: proxyFetch });
 
     const api = backend.createApi("file:///logs");
-    expect(api).toEqual({ __backend: "vscode-http" });
-    expect(mockApiVscodeHttp).toHaveBeenCalledWith(
+    expect(api).toEqual({ __backend: "vscode" });
+    expect(mockApiVscode).toHaveBeenCalledWith(
       vscode,
       "file:///logs",
       proxyFetch
@@ -144,7 +144,7 @@ describe("resolveBackend selection", () => {
     expect(() => backend.createApi("/logs")).toThrow(
       /update the Inspect AI extension/i
     );
-    expect(mockApiVscodeHttp).not.toHaveBeenCalled();
+    expect(mockApiVscode).not.toHaveBeenCalled();
   });
 
   it("#log_dir_context with log_dir → static-http backend with that dir", async () => {

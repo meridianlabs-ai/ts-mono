@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { VSCodeApi } from "@tsmono/util";
 
-import { apiVscodeHttp, createVscodeProxyFetch } from "./api-vscode-http";
+import { apiVscode, createVscodeProxyFetch } from "./api-vscode";
 
 type ProxyRequest = {
   method: string;
@@ -60,7 +60,7 @@ const okJson = (body: unknown): ProxyResponse => ({
   bodyEncoding: "utf8",
 });
 
-describe("apiVscodeHttp end-to-end over postMessage", () => {
+describe("apiVscode end-to-end over postMessage", () => {
   test("get_logs round-trips a GET carrying the construction dir", async () => {
     const { vscode, received } = connectFakeExtension((req) => {
       expect(req.method).toBe("GET");
@@ -70,7 +70,7 @@ describe("apiVscodeHttp end-to-end over postMessage", () => {
       return okJson({ files: [], response_type: "full" });
     });
 
-    const listing = await apiVscodeHttp(
+    const listing = await apiVscode(
       vscode,
       "file:///logs/run-1",
       createVscodeProxyFetch(vscode)
@@ -92,7 +92,7 @@ describe("apiVscodeHttp end-to-end over postMessage", () => {
       };
     });
 
-    const bytes = await apiVscodeHttp(
+    const bytes = await apiVscode(
       vscode,
       "file:///logs",
       createVscodeProxyFetch(vscode)
@@ -119,8 +119,8 @@ describe("apiVscodeHttp end-to-end over postMessage", () => {
     });
 
     const proxyFetch = createVscodeProxyFetch(vscode);
-    const a = apiVscodeHttp(vscode, dirA, proxyFetch);
-    const b = apiVscodeHttp(vscode, dirB, proxyFetch);
+    const a = apiVscode(vscode, dirA, proxyFetch);
+    const b = apiVscode(vscode, dirB, proxyFetch);
 
     const [listingA, listingB] = await Promise.all([
       a.get_logs(0, 0),

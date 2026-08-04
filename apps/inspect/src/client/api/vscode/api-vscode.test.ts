@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { VSCodeApi } from "@tsmono/util";
 
-import { apiVscodeHttp } from "./api-vscode-http";
+import { apiVscode } from "./api-vscode";
 
 const LOG_DIR = "file:///logs";
 
@@ -21,10 +21,10 @@ function fakeVscode() {
   return { api, posted };
 }
 
-describe("apiVscodeHttp", () => {
+describe("apiVscode", () => {
   test("open_log_file posts a one-way displayLogFile message", async () => {
     const { api, posted } = fakeVscode();
-    await apiVscodeHttp(api, LOG_DIR, stubFetch).open_log_file("/logs/x.eval", "/logs");
+    await apiVscode(api, LOG_DIR, stubFetch).open_log_file("/logs/x.eval", "/logs");
     expect(posted).toContainEqual({
       type: "displayLogFile",
       url: "/logs/x.eval",
@@ -35,26 +35,26 @@ describe("apiVscodeHttp", () => {
   test("download_file is unsupported in VS Code", () => {
     const { api } = fakeVscode();
     expect(() =>
-      apiVscodeHttp(api, LOG_DIR, stubFetch).download_file("x", "data")
+      apiVscode(api, LOG_DIR, stubFetch).download_file("x", "data")
     ).toThrow(/not supported/i);
   });
 
   test("client_events is disabled (returns empty array)", async () => {
     const { api } = fakeVscode();
-    await expect(apiVscodeHttp(api, LOG_DIR, stubFetch).client_events()).resolves.toEqual(
+    await expect(apiVscode(api, LOG_DIR, stubFetch).client_events()).resolves.toEqual(
       []
     );
   });
 
   test("download_log is not exposed", () => {
     const { api } = fakeVscode();
-    expect(apiVscodeHttp(api, LOG_DIR, stubFetch).download_log).toBeUndefined();
+    expect(apiVscode(api, LOG_DIR, stubFetch).download_log).toBeUndefined();
   });
 
   test("eval_log_sample_data_direct is not exposed", () => {
     const { api } = fakeVscode();
     expect(
-      apiVscodeHttp(api, LOG_DIR, stubFetch).eval_log_sample_data_direct
+      apiVscode(api, LOG_DIR, stubFetch).eval_log_sample_data_direct
     ).toBeUndefined();
   });
 });

@@ -14,9 +14,9 @@ import {
   viewServerApi,
 } from "../client/api/view-server/api-view-server";
 import {
-  apiVscodeHttp,
+  apiVscode,
   createVscodeProxyFetch,
-} from "../client/api/vscode/api-vscode-http";
+} from "../client/api/vscode/api-vscode";
 import { readHostCapabilities } from "../client/api/vscode/host-capabilities";
 
 import { UrlLogSource } from "./urlLogSource";
@@ -113,7 +113,7 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
     return {
       resolveLogRoot: () => fetchViewServerLogRoot({ customFetch: proxyFetch }),
       createApi: (logDir) =>
-        clientApi(apiVscodeHttp(vscode, logDir, proxyFetch)),
+        clientApi(apiVscode(vscode, logDir, proxyFetch)),
       capabilities: { downloadLogs: false, streamSamples: true },
     };
   }

@@ -28,7 +28,7 @@ export function createVscodeProxyFetch(vscode: VSCodeApi): typeof fetch {
  * `proxyFetch` is required (no per-call default) so every instance shares
  * the host's one proxy fetch — see `createVscodeProxyFetch`.
  */
-export function apiVscodeHttp(
+export function apiVscode(
   vscode: VSCodeApi,
   logDir: string,
   proxyFetch: typeof fetch
