@@ -16,7 +16,7 @@ import type {
 export type ColumnComparator = (
   a: unknown,
   b: unknown,
-  isDescending: boolean
+  isDescending?: boolean
 ) => number;
 
 export interface BaseColumnMeta<TRow = unknown> {

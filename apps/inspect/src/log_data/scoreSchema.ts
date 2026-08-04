@@ -1,19 +1,11 @@
-import { useCallback } from "react";
-
-import { useMapAsyncData } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
-
-import { useStableValue } from "../app/shared/useStableValue";
 import { Log } from "../client/api/types";
 import { scopePrefix } from "../client/database";
 
-import { useLogs } from "./logsContent";
-
 /**
  * Scorer/metric column discovery — the answer to "which score columns does
- * this scope offer", derived from the logs' results. That it is computed
- * from row content this subsystem holds (not from any particular payload)
- * is private; consumers get a content-stable map.
+ * this scope offer", derived from the logs' results. The pure computation
+ * lives here; `readLogsColumnFacts` (logsListingRead) runs it over a DB
+ * scan and `useLogColumnFacts` (app/log-list) serves it content-stabilized.
  */
 
 export interface ScorerMetricInfo {
@@ -97,34 +89,3 @@ export function scorerMapsEqual(a: ScorerMap, b: ScorerMap): boolean {
   }
   return true;
 }
-
-/**
- * The score columns available in a scope. Row content gets a new identity
- * on every detail flush while a directory loads, but the scorer
- * columns it implies almost never change — the result is content-stabilized
- * so consumers (and the column defs keyed on it) keep a stable reference
- * across flushes.
- */
-const asyncScorerMapsEqual = (
-  a: AsyncData<ScorerMap>,
-  b: AsyncData<ScorerMap>
-): boolean =>
-  a.loading === b.loading &&
-  a.error === b.error &&
-  (a.data !== undefined && b.data !== undefined
-    ? scorerMapsEqual(a.data, b.data)
-    : a.data === b.data);
-
-export const useScoreSchema = (
-  logDir: string,
-  scopeDir?: string
-): AsyncData<ScorerMap> => {
-  const logs = useLogs(logDir);
-  return useStableValue(
-    useMapAsyncData(
-      logs,
-      useCallback((rows: Log[]) => computeScorerMap(rows, scopeDir), [scopeDir])
-    ),
-    asyncScorerMapsEqual
-  );
-};

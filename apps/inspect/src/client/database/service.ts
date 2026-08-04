@@ -26,6 +26,12 @@ export type SampleSummariesScope = { file: string } | { prefix: string };
  *  listing-level operation names its scope. */
 export type LogScope = { prefix: string };
 
+/** What a listing read scans: a whole subtree (boundary-safe `prefix`
+ *  range) or exactly one directory's direct children (`parentDir` index
+ *  equality — the folder view's membership, so the scan skips subfolder
+ *  contents entirely). */
+export type LogQueryScope = LogScope | { parentDir: string };
+
 const newRow = (handle: LogHandle): Log => ({
   ...handle,
   depth: "listed",
@@ -80,38 +86,44 @@ export class DatabaseService {
   /**
    * Upsert the listing identity tier: new files get fresh listed-depth rows;
    * known files update identity fields only (depth, content, and retrieval
-   * facts are preserved).
+   * facts are preserved). One transaction, same rationale as `mergeRows`:
+   * listing syncs re-send known rows while the engine's throttled flushes
+   * land, and an unserialized read-modify-write that read before a
+   * concurrent commit would bulk-put the stale row back at its pre-flush
+   * depth.
    */
   async writeLogs(handles: LogHandle[]): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    const existingRecords = await db.logs
-      .where("file_path")
-      .anyOf(handles.map((handle) => handle.name))
-      .toArray();
-    const existingByPath = new Map(
-      existingRecords.map((record) => [record.file_path, record])
-    );
+    await db.transaction("rw", db.logs, async () => {
+      const existingRecords = await db.logs
+        .where("file_path")
+        .anyOf(handles.map((handle) => handle.name))
+        .toArray();
+      const existingByPath = new Map(
+        existingRecords.map((record) => [record.file_path, record])
+      );
 
-    const records = handles.map<LogRecord>((handle) => {
-      const existing = existingByPath.get(handle.name);
-      return existing
-        ? {
-            ...existing,
-            task: handle.task,
-            task_id: handle.task_id,
-            mtime: handle.mtime,
-            cached_at: now,
-          }
-        : toLogRecord(newRow(handle), undefined, now);
+      const records = handles.map<LogRecord>((handle) => {
+        const existing = existingByPath.get(handle.name);
+        return existing
+          ? {
+              ...existing,
+              task: handle.task,
+              task_id: handle.task_id,
+              mtime: handle.mtime,
+              cached_at: now,
+            }
+          : toLogRecord(newRow(handle), undefined, now);
+      });
+
+      log.debug(`Upserting ${records.length} log rows (identity tier)`);
+      await db.logs.bulkPut(records);
     });
-
-    log.debug(`Upserting ${records.length} log rows (identity tier)`);
-    await db.logs.bulkPut(records);
   }
 
-  async readLogs(scope: LogScope): Promise<Log[] | null> {
+  async readLogs(scope: LogQueryScope): Promise<Log[] | null> {
     try {
       if (!this.opened()) {
         log.debug("Database not open");
@@ -119,10 +131,17 @@ export class DatabaseService {
       }
 
       const db = this.getDb();
-      const records = await db.logs
-        .where("file_path")
-        .startsWith(scopePrefix(scope.prefix))
-        .toArray();
+      // `parentDir` must already be the stored `dirname` form (no trailing
+      // slash) — `parentDirCondition` owns that normalization. Stripping a
+      // slash here too would split the rule across layers: the listing
+      // plan's in-memory re-check compares the raw condition value, so a
+      // slash-terminated value this layer quietly fixed up would scan the
+      // right rows and then reject every one of them.
+      const records = await (
+        "parentDir" in scope
+          ? db.logs.where("parent_dir").equals(scope.parentDir)
+          : db.logs.where("file_path").startsWith(scopePrefix(scope.prefix))
+      ).toArray();
 
       // Sort by mtime (descending) if present, otherwise maintain insertion
       // order. Note: != null (not !==) catches both null and undefined.
@@ -151,51 +170,56 @@ export class DatabaseService {
     }
   }
 
+  // No catch here, unlike the sibling reads: an empty map is a legitimate
+  // success (every key deleted), so swallowing a failure into {} would be
+  // indistinguishable from mass deletion — the paged listing read drops
+  // missing keys as holes and would silently truncate the visible listing.
+  // Callers surface the rejection instead (React Query error state).
   async readLogRows(filePaths: string[]): Promise<Record<string, Log>> {
-    try {
-      const db = this.getDb();
-      const records = await db.logs
-        .where("file_path")
-        .anyOf(filePaths)
-        .toArray();
-      const result: Record<string, Log> = {};
-      for (const record of records) {
-        result[record.file_path] = fromLogRecord(record);
-      }
-      return result;
-    } catch (error) {
-      log.error("Error retrieving log rows:", error);
-      return {};
+    const db = this.getDb();
+    const records = await db.logs.where("file_path").anyOf(filePaths).toArray();
+    const result: Record<string, Log> = {};
+    for (const record of records) {
+      result[record.file_path] = fromLogRecord(record);
     }
+    return result;
   }
 
   /** Merge a set of per-file row patches, creating listed-depth rows for
-   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers. */
+   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers.
+   *  The read and the write-back run in one transaction: this is a
+   *  read-modify-write, and the engine's throttled flushes overlap (a
+   *  details ingest races the same settle's derived-preview write) — an
+   *  unserialized merge that read before a concurrent commit would bulk-put
+   *  the stale row back, silently erasing the other write's tier (nested
+   *  callers like writeLogDetails compose via Dexie sub-transactions). */
   private async mergeRows(
     patches: Record<string, Partial<Log>>
   ): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
     const files = Object.keys(patches);
-    const existing = await db.logs.where("file_path").anyOf(files).toArray();
-    const byPath = new Map(
-      existing.map((record) => [record.file_path, record])
-    );
-    const records = files.map<LogRecord>((file) => {
-      const patch = patches[file] ?? {};
-      const current = byPath.get(file);
-      const base =
-        current ?? toLogRecord(newRow({ name: file }), undefined, now);
-      return {
-        ...base,
-        ...patch,
-        depth: maxDepth(base.depth, patch.depth ?? base.depth),
-        file_path: file,
-        id: current?.id,
-        cached_at: now,
-      };
+    await db.transaction("rw", db.logs, async () => {
+      const existing = await db.logs.where("file_path").anyOf(files).toArray();
+      const byPath = new Map(
+        existing.map((record) => [record.file_path, record])
+      );
+      const records = files.map<LogRecord>((file) => {
+        const patch = patches[file] ?? {};
+        const current = byPath.get(file);
+        const base =
+          current ?? toLogRecord(newRow({ name: file }), undefined, now);
+        return {
+          ...base,
+          ...patch,
+          depth: maxDepth(base.depth, patch.depth ?? base.depth),
+          file_path: file,
+          id: current?.id,
+          cached_at: now,
+        };
+      });
+      await db.logs.bulkPut(records);
     });
-    await db.logs.bulkPut(records);
   }
 
   // === PREVIEWED TIER ===

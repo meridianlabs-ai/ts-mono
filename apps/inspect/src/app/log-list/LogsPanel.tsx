@@ -2,12 +2,18 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router";
 
+import { Column } from "@tsmono/inspect-common/query";
+import type { Condition } from "@tsmono/inspect-common/query";
 import { EvalSet } from "@tsmono/inspect-common/types";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { useLogDir } from "../../app_config";
 import {
+  createLogsListingData,
+  imperativeLogData,
+  invalidateDatabaseLogsListings,
+  parentDirCondition,
   useLogsSync,
   type LogListingRow,
   type LogsOverview,
@@ -33,12 +39,12 @@ import {
   type FileLogItemView,
 } from "./fileLogItem";
 import { useLogListColumns, type ScoresViewMode } from "./grid/columns/hooks";
-import type { LogListRow } from "./grid/columns/types";
 import { LogListGrid } from "./grid/LogListGrid";
 import { buildLogListRow } from "./grid/logListRow";
 import { useLogListData } from "./grid/useLogListData";
 import type { LogsListingDescriptor } from "./listing/useLogsListingQuery";
 import { FolderLogItem, PendingTaskItem } from "./LogItem";
+import { LogListErrorBanner } from "./LogListErrorBanner";
 import { LogListFooter } from "./LogListFooter";
 import styles from "./LogsPanel.module.css";
 import { useLogsOverview } from "./useLogsOverview";
@@ -83,13 +89,20 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // a half-initialized scope.
   const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
 
-  // Cache identity of the row universe: the listing/overview queries depend
-  // on everything the view mapping reads, so it carries the display toggle
-  // along with the view scope.
-  const universe =
-    scopeKey === undefined
+  // Row-universe membership as filter conditions over record columns
+  // (design/listing-data-interface.md): folder mode lists the current
+  // directory's direct children, and retried runs are hidden unless the
+  // toggle shows them. ANDed with the user's column filters in
+  // useLogListData; the data layer derives its scan prefix from the
+  // parent_dir term.
+  const scopeFilter = useMemo<Condition | undefined>(() => {
+    const dir = mode === "logs" ? parentDirCondition(currentDir) : undefined;
+    const retried = showRetriedLogs
       ? undefined
-      : `${scopeKey}::retried=${showRetriedLogs}`;
+      : new Column("retried").eq(false);
+    if (dir && retried) return dir.and(retried);
+    return dir ?? retried;
+  }, [mode, currentDir, showRetriedLogs]);
 
   const flowData = useFlowQuery(logPath || "").data;
 
@@ -100,50 +113,11 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   }, [logDir]);
 
   const itemView: FileLogItemView = useMemo(
-    () => ({ mode, logDir, currentDir, showRetriedLogs }),
-    [mode, logDir, currentDir, showRetriedLogs]
+    () => ({ mode, logDir, currentDir }),
+    [mode, logDir, currentDir]
   );
-
-  const isCandidate = useCallback(
-    (log: LogListingRow) => fileLogIdentity(log.name, itemView) !== undefined,
-    [itemView]
-  );
-  const overviewQuery = useLogsOverview({
-    logDir,
-    universe,
-    view: {
-      folderDir: mode === "logs" ? currentDir : undefined,
-      showRetriedLogs,
-      isCandidate,
-    },
-  });
-  const overview = overviewQuery.data;
 
   const busy = sync.busy;
-  // The navbar bar tracks the sync round-trip only — engine background
-  // fetching (`busy`) stays in the footer/overlay indications.
-  const navbarLoading = sync.loading || overviewQuery.loading;
-
-  // Presentation items with no database record: folders (pinned) and the
-  // eval set's not-yet-run tasks. File rows come from the listing query.
-  const logItems: Array<FolderLogItem | PendingTaskItem> = useMemo(() => {
-    const currentDirRelative = directoryRelativeUrl(currentDir, logDir);
-    const folderItems: Array<FolderLogItem | PendingTaskItem> = (
-      overview?.folders ?? []
-    ).map((folder) => ({
-      id: folder.name,
-      name: folder.name,
-      type: "folder",
-      url: logsUrl(
-        join(folder.name, decodeURIComponent(currentDirRelative)),
-        logDir
-      ),
-      itemCount: folder.itemCount,
-    }));
-    return appendPendingItems(evalSet, new Set(overview?.taskIds), folderItems);
-  }, [overview, evalSet, currentDir, logDir]);
-
-  const hasRetriedLogs = (overview?.retriedCount ?? 0) > 0;
 
   // In the folder view, scope the Metrics list to logs under the current
   // directory so descending into a subfolder shows only that folder's metrics.
@@ -169,10 +143,13 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     getValue,
     getComparator,
     getFilterType,
+    schema,
     accessorsKey,
   } = useLogListColumns(mode, scopeDir, scoresViewMode);
 
-  const toRow = useCallback(
+  // Shape a queried record into its display row — applied per loaded page
+  // above the data interface (in useLogListData).
+  const shapeRow = useCallback(
     (log: LogListingRow) => {
       const item = fileLogItem(log, itemView);
       return item === undefined ? undefined : buildLogListRow(item);
@@ -180,28 +157,75 @@ export const LogsPanel: FC<LogsPanelProps> = ({
     [itemView]
   );
 
-  // One descriptor shared by the row query (useLogListData) and the grid's
-  // find-band match query, so they can never disagree about the universe.
-  const listing = useMemo<LogsListingDescriptor<LogListRow>>(
-    () => ({
-      logDir,
-      // Match the row universe: folder mode lists the current directory, the
-      // flat tasks view lists the whole log dir (like `scopeDir` above) — a
-      // narrower scan prefix would silently drop matching rows outside it.
-      prefix: mode === "logs" ? currentDir : logDir,
-      universe,
-      toRow,
-    }),
-    [logDir, mode, currentDir, universe, toRow]
+  // The display row id for a record key — the find band's matches identify
+  // records by key (possibly unloaded rows), and selection steers by row id.
+  const rowIdForName = useCallback(
+    (name: string) => fileLogIdentity(name, itemView)?.id ?? name,
+    [itemView]
   );
+
+  // The view's listing data access. Memoized on the view inputs: a changed
+  // dir or column schema constructs a fresh instance with a fresh internal
+  // cache (see createLogsListingData).
+  const listingData = useMemo(
+    () => createLogsListingData({ logDir, schema }),
+    [logDir, schema]
+  );
+
+  // One descriptor shared by the row query (useLogListData) and the grid's
+  // find-band match query, so they can never disagree about the row
+  // universe — and so both read through one instance (sharing its snapshot
+  // cache).
+  const listing = useMemo<LogsListingDescriptor<LogListingRow>>(
+    () => ({ scopeKey, data: listingData }),
+    [scopeKey, listingData]
+  );
+
+  const overviewQuery = useLogsOverview({
+    logDir,
+    scopeKey,
+    data: listingData,
+    options: {
+      folderDir: mode === "logs" ? currentDir : undefined,
+      showRetriedLogs,
+    },
+  });
+  const overview = overviewQuery.data;
+
+  // The navbar bar tracks the sync round-trip only — engine background
+  // fetching (`busy`) stays in the footer/overlay indications.
+  const navbarLoading = sync.loading || overviewQuery.loading;
+
+  // Presentation items with no database record: folders (pinned) and the
+  // eval set's not-yet-run tasks. File rows come from the listing query.
+  const logItems: Array<FolderLogItem | PendingTaskItem> = useMemo(() => {
+    const currentDirRelative = directoryRelativeUrl(currentDir, logDir);
+    const folderItems: Array<FolderLogItem | PendingTaskItem> = (
+      overview?.folders ?? []
+    ).map((folder) => ({
+      id: folder.name,
+      name: folder.name,
+      type: "folder",
+      url: logsUrl(
+        join(folder.name, decodeURIComponent(currentDirRelative)),
+        logDir
+      ),
+      itemCount: folder.itemCount,
+    }));
+    return appendPendingItems(evalSet, new Set(overview?.taskIds), folderItems);
+  }, [overview, evalSet, currentDir, logDir]);
+
+  const hasRetriedLogs = (overview?.retriedCount ?? 0) > 0;
 
   const listData = useLogListData({
     overlayItems: logItems,
     scopeKey,
+    scopeFilter,
     getValue,
     getComparator,
     getFilterType,
     accessorsKey,
+    shapeRow,
     listing,
   });
 
@@ -214,6 +238,22 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // rather than a silently empty list.
   const listBusy = busy || listData.pending || overviewQuery.loading;
   const error = sync.error ?? overviewQuery.error ?? listData.error;
+  // Cold vs warm failure: with no rows to show the error replaces the panel
+  // body; with rows retained (earlier pages, the previous filter's
+  // placeholder, or overlay folders) the grid stays mounted — scroll,
+  // selection, and find state survive — and the failure surfaces as a
+  // banner above it.
+  const coldError = error !== undefined && listData.rows.length === 0;
+  const handleErrorRetry = useCallback(() => {
+    // Re-run everything that feeds the panel — the listing sync (network)
+    // and the row/overview reads (local): invalidation refetches errored
+    // active queries, so whichever source failed recovers, and the healthy
+    // ones are cheap local re-reads. Both invalidators are needed: a
+    // re-sync that writes nothing never reaches the (throttled) listing
+    // invalidation, so an errored row query would stay parked.
+    imperativeLogData.invalidateLogListing();
+    invalidateDatabaseLogsListings();
+  }, []);
 
   const currentColumnVisibility = useStore(
     (state) => state.logs.listing.columnVisibility
@@ -352,7 +392,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
         onScoresViewModeChange={setScoresViewMode}
       />
 
-      {error ? (
+      {coldError && error ? (
         <ErrorPanel
           title="Error"
           error={{ message: error.message, stack: error.stack }}
@@ -360,23 +400,41 @@ export const LogsPanel: FC<LogsPanelProps> = ({
       ) : (
         <>
           <div className={clsx(styles.list, "text-size-smaller")}>
-            {/* Keyed on the scope so switching folder/mode resets the grid
+            {error && (
+              <LogListErrorBanner
+                message={
+                  sync.error
+                    ? "Sync failed — the list may be out of date."
+                    : "Couldn't refresh the log listing — showing the last loaded rows."
+                }
+                detail={error.message}
+                onRetry={handleErrorRetry}
+              />
+            )}
+            <div className={styles.listBody}>
+              {/* Keyed on the scope so switching folder/mode resets the grid
                 wholesale — scroll, selection, and the find band's state
                 (term + matches) belong to one scope and reset together. */}
-            <LogListGrid
-              key={scopeKey ?? "pending"}
-              rows={listData.rows}
-              totalRowCount={totalRowCount}
-              sorting={listData.sorting}
-              columnFilters={listData.columnFilters}
-              filter={listData.filter}
-              orderBy={listData.orderBy}
-              currentPath={currentDir}
-              scopeKey={scopeKey}
-              mode={mode}
-              busy={listBusy}
-              listing={listing}
-            />
+              <LogListGrid
+                key={scopeKey ?? "pending"}
+                rows={listData.rows}
+                totalRowCount={totalRowCount}
+                sorting={listData.sorting}
+                columnFilters={listData.columnFilters}
+                filter={listData.filter}
+                orderBy={listData.orderBy}
+                currentPath={currentDir}
+                scopeKey={scopeKey}
+                mode={mode}
+                busy={listBusy}
+                listing={listing}
+                rowIdForName={rowIdForName}
+                hasMoreRows={listData.hasMoreRows}
+                fetchMoreRows={listData.fetchMoreRows}
+                ensureFileOffsetLoaded={listData.ensureFileOffsetLoaded}
+                autoFetchPaused={listData.autoFetchPaused}
+              />
+            </div>
           </div>
           <LogListFooter
             itemCount={totalRowCount}

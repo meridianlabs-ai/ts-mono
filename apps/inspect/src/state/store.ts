@@ -105,7 +105,7 @@ export const initializeStore = (
               log: state.log,
               logs: state.logs,
             }) as unknown as StoreState,
-          version: 4,
+          version: 5,
           onRehydrateStorage: (state: StoreState) => {
             return (hydrationState, error) => {
               log.debug("REHYDRATING STATE");

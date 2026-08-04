@@ -14,7 +14,6 @@ export interface FileLogItemView {
   /** The directory being listed (folder mode lists it; tasks mode ignores it
    *  and lists the whole `logDir`). */
   currentDir: string;
-  showRetriedLogs: boolean;
 }
 
 /**
@@ -56,20 +55,17 @@ export const fileLogIdentity = (
 };
 
 /**
- * Map a listing row to the file item it displays as under `view`, or
- * `undefined` when the view has no file row for it: a retried run while
- * retried logs are hidden, or (folder mode) a file that isn't directly in
- * the current directory.
- *
- * This is the row-universe membership + identity function for the log list:
- * LogsPanel builds its items through it, and the listing query applies it to
- * database records, so the two can never disagree about which files are rows.
+ * Map a listing row to the file item it displays as under `view` — pure
+ * shaping. Row-universe membership (folder scoping, retried-hiding) lives
+ * in the listing's filter conditions (`parent_dir`, `retried`);
+ * `undefined` here only means the view cannot *shape* the record (folder
+ * mode can't name a file outside the listed directory), which the scope
+ * condition excludes anyway.
  */
 export const fileLogItem = (
   logFile: LogListingRow,
   view: FileLogItemView
 ): FileLogItem | undefined => {
-  if (!view.showRetriedLogs && logFile.retried) return undefined;
   const identity = fileLogIdentity(logFile.name, view);
   return identity === undefined
     ? undefined

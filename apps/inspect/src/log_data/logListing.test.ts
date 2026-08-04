@@ -207,12 +207,16 @@ describe("computeLogsWithRetried", () => {
     expect(result.find((r) => r.name === b1.name)?.retried).toBe(false);
   });
 
-  it("leaves logs without task_id untouched (retried: undefined)", () => {
+  it("marks logs without task_id as retried: false (the mark is total)", () => {
+    // A task-id-less (legacy) log can never be grouped, so it is never a
+    // retry — and the mark must not be left undefined: the retried-hiding
+    // condition `retried = false` evaluates with SQL null semantics and
+    // would silently drop a partial column's rows.
     const legacy = log({ name: "/a/flow/legacy.eval", status: "success" });
     const result = computeLogsWithRetried([legacy]);
     const first = result[0];
     if (first === undefined) throw new Error("expected a result");
-    expect(first.retried).toBeUndefined();
+    expect(first.retried).toBe(false);
   });
 
   it("preserves input order", () => {

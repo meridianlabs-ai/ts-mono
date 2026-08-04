@@ -11,7 +11,6 @@ const view = (overrides?: Partial<FileLogItemView>): FileLogItemView => ({
   mode: "logs",
   logDir: "/logs",
   currentDir: "/logs",
-  showRetriedLogs: false,
   ...overrides,
 });
 
@@ -28,14 +27,10 @@ describe("fileLogItem", () => {
     expect(item?.log).toBe(log);
   });
 
-  it("hides retried rows unless the view shows them", () => {
+  it("shapes retried rows like any other (hiding is a filter condition)", () => {
     const log = row("/logs/2024_task.eval", true);
-    expect(fileLogItem(log, view({ mode: "tasks" }))).toBeUndefined();
-    expect(fileLogItem(log, view())).toBeUndefined();
-    expect(
-      fileLogItem(log, view({ mode: "tasks", showRetriedLogs: true }))
-    ).toBeDefined();
-    expect(fileLogItem(log, view({ showRetriedLogs: true }))).toBeDefined();
+    expect(fileLogItem(log, view({ mode: "tasks" }))).toBeDefined();
+    expect(fileLogItem(log, view())).toBeDefined();
   });
 
   it("maps a folder-mode row directly in the directory to its basename item", () => {

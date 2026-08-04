@@ -1,20 +1,11 @@
-import { useDeferredValue } from "react";
-
-import { useMapAsyncData } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
-
 import { EvalLogStatus } from "../@types/extraInspect";
 import { Log } from "../client/api/types";
 
-import { useLogs } from "./logsContent";
-
 /**
- * The listing read: one row per log file in the directory — the Log entity
- * row with retried runs marked. Content fills in as depth increases; that
- * the tiers are fetched separately is not observable here beyond attribute
- * columns being briefly undefined. Lives here (not in state/) so the
- * paged-listing migration can swap its internals (whole-dir read → paged
- * Dexie query) without touching consumers.
+ * The retried-run mark: one row per log file with retried runs marked — a
+ * cross-row derivation over a scan (the one fact a page's key-slice read
+ * cannot re-derive). Every listing projection (`logsListingRead`) runs its
+ * scans through this.
  */
 
 const isActiveStatus = (status: EvalLogStatus | undefined) =>
@@ -23,14 +14,18 @@ const isActiveStatus = (status: EvalLogStatus | undefined) =>
 export type LogListingRow = Log & { retried?: boolean };
 
 /**
- * Pure dedup logic for {@link useLogListing}.
- *
  * Groups logs by (parent directory, task_id) so that logs sharing a task_id
  * across different folders (e.g. copied log directories under a shared parent)
  * are not treated as retries of each other. Within each group, logs whose
  * status is `started` or `success` rank above other statuses; ties are
  * broken by filename descending so the newest run wins. The winner is
  * marked `retried: false`; the rest are marked `retried: true`.
+ *
+ * The mark is *total*: a log without a task_id (older log format) can never
+ * be grouped, so it gets `retried: false` rather than `undefined`. The
+ * retried-hiding membership rule is the condition `retried = false`, and
+ * the condition evaluator implements SQL null semantics (NULL fails every
+ * comparison) — a partial column would silently drop task-id-less logs.
  */
 export const computeLogsWithRetried = (logs: Log[]): LogListingRow[] => {
   const logsByGroup = logs.reduce((acc: Record<string, Log[]>, log) => {
@@ -65,18 +60,9 @@ export const computeLogsWithRetried = (logs: Log[]): LogListingRow[] => {
     (log) =>
       bestByName[log.name] ?? {
         ...log,
-        // task_id is optional for backward compatibility, only new logs files can be skippable
-        retried: log.task_id ? true : undefined,
+        // task_id is optional for backward compatibility; only new log files
+        // can be retried (a task-id-less log is never grouped).
+        retried: log.task_id ? true : false,
       }
   );
-};
-
-export const useLogListing = (logDir: string): AsyncData<LogListingRow[]> => {
-  const logs = useLogs(logDir);
-  // Deferred so the burst of row flushes during initial sync can't block
-  // click/scroll input — the listing renders from the prior rows and
-  // catches up when the main thread is idle.
-  const deferredLogs = useDeferredValue(logs);
-
-  return useMapAsyncData(deferredLogs, computeLogsWithRetried);
 };

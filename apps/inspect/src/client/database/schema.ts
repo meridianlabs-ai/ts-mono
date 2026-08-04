@@ -1,5 +1,7 @@
 import Dexie from "dexie";
 
+import { dirname } from "@tsmono/util";
+
 import { Log, SampleDerived, SampleSummary } from "../api/types";
 import { DERIVE_VERSION } from "../utils/derive";
 
@@ -11,6 +13,12 @@ export interface LogRecord extends Omit<Log, "name"> {
   // Auto-incrementing primary key for insertion order
   id?: number;
   file_path: string;
+  /** The record's exact parent directory (`dirname(file_path)`), stored and
+   *  indexed: the folder view's direct-children membership
+   *  (`parent_dir = <dir>`) reads it as an index equality instead of
+   *  scanning the whole subtree. Derived here (never patched) — a record's
+   *  `file_path` is immutable, so the column can't go stale. */
+  parent_dir: string;
   cached_at: string;
 }
 
@@ -20,11 +28,17 @@ export const toLogRecord = (
   cached_at: string
 ): LogRecord => {
   const { name, ...rest } = log;
-  return { ...rest, id, file_path: name, cached_at };
+  return { ...rest, id, file_path: name, parent_dir: dirname(name), cached_at };
 };
 
 export const fromLogRecord = (record: LogRecord): Log => {
-  const { id: _id, file_path, cached_at: _cached, ...rest } = record;
+  const {
+    id: _id,
+    file_path,
+    parent_dir: _parent,
+    cached_at: _cached,
+    ...rest
+  } = record;
   return { ...rest, name: file_path };
 };
 
@@ -58,7 +72,7 @@ export interface SyncScopeRecord {
 }
 
 // The schema's shape version — bump on any table/index change.
-const SCHEMA_VERSION = 13;
+const SCHEMA_VERSION = 14;
 
 // Runtime backstop for derive.ts's DeriveVersion type constraint: at 100 the
 // composition below aliases into the next schema version's namespace, and an
@@ -141,10 +155,11 @@ export class AppDatabase extends Dexie {
     this.version(DB_VERSION)
       .stores({
         // The Log entity rows. depth is indexed for backfill discovery
-        // (missing previews/details); mtime for listing order;
+        // (missing previews/details); mtime for listing order; parent_dir
+        // for the folder view's direct-children scans;
         // [depth+file_path] serves scoped per-depth counts without
         // materializing rows (see getCacheStats).
-        logs: "++id, &file_path, mtime, task, task_id, depth, cached_at, [depth+file_path]",
+        logs: "++id, &file_path, parent_dir, mtime, task, task_id, depth, cached_at, [depth+file_path]",
 
         // Sample summaries split out of details payloads. file_path serves
         // scope reads (equals / startsWith); summary.completed_at serves the

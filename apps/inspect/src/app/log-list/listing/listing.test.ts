@@ -7,12 +7,15 @@ import type {
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
-import { numberCompare } from "../grid/columns/comparators";
+import {
+  applyListingQuery,
+  evaluateCondition,
+  mergeSortedRows,
+  numberCompare,
+} from "../../../log_data";
+import type { ValueComparator } from "../../../log_data";
 
-import { applyListingQuery, mergeSortedRows } from "./applyListingQuery";
 import { combineFilters } from "./combineFilters";
-import { evaluateCondition } from "./evaluator";
-import type { ValueComparator } from "./types";
 
 interface Row {
   name: string;

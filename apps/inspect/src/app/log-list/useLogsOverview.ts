@@ -3,34 +3,42 @@ import { AsyncData } from "@tsmono/util";
 
 import {
   databaseLogsListingKeyRoot,
-  readLogsOverview,
+  type LogsListingData,
   type LogsOverview,
-  type LogsOverviewView,
+  type LogsOverviewOptions,
 } from "../../log_data";
 
-interface UseLogsOverviewParams {
+interface UseLogsOverviewParams<TRow> {
   logDir: string;
-  /** Cache identity of the view (see `useDatabaseLogsListingQuery`'s
-   *  `universe`) — everything `view` reads beyond the records. `undefined`
-   *  while the scope is hydrating (disables the query). */
-  universe: string | undefined;
-  view: LogsOverviewView;
+  /** The view's data scope (see `LogsListingDescriptor.scopeKey`).
+   *  `undefined` while the scope is hydrating (disables the query). */
+  scopeKey: string | undefined;
+  /** The panel's listing data access (shared with the row/match queries). */
+  data: LogsListingData<TRow>;
+  options: LogsOverviewOptions;
 }
 
 /**
- * The page-level aggregates beside the row query (see `readLogsOverview`).
- * Keyed under the listing root so the write path's throttled invalidation
- * refreshes it alongside the row queries.
+ * The page-level aggregates beside the row query (see the listing data's
+ * `getOverview`). Keyed under the listing root so the write path's
+ * throttled invalidation refreshes it alongside the row queries.
  */
-export const useLogsOverview = ({
+export const useLogsOverview = <TRow>({
   logDir,
-  universe,
-  view,
-}: UseLogsOverviewParams): AsyncData<LogsOverview> => {
+  scopeKey,
+  data,
+  options,
+}: UseLogsOverviewParams<TRow>): AsyncData<LogsOverview> => {
   return useAsyncDataFromQuery({
-    queryKey: [...databaseLogsListingKeyRoot, "overview", logDir, universe],
-    queryFn: () => readLogsOverview(logDir, view),
-    enabled: universe !== undefined,
+    queryKey: [
+      ...databaseLogsListingKeyRoot,
+      "overview",
+      logDir,
+      scopeKey,
+      options.showRetriedLogs,
+    ],
+    queryFn: () => data.getOverview(options),
+    enabled: scopeKey !== undefined,
     staleTime: 0,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

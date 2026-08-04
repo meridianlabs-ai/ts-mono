@@ -42,7 +42,10 @@ export const buildLogListRow = (item: LogListItem): LogListRow => {
     completedAt: log?.completed_at,
     itemCount: item.type === "folder" ? item.itemCount : undefined,
     log: item.type === "file" ? item.log : undefined,
-    path: item.type === "file" ? item.name : undefined,
+    // The record's full path (not the view-relative display name): the data
+    // layer's schema filters/sorts `path` by `log.name`, and display must
+    // agree with what a `path` condition matches.
+    path: log?.name,
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
     sandbox: details?.eval?.sandbox?.type,

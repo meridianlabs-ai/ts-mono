@@ -1,6 +1,6 @@
 import type { OrderByModel } from "@tsmono/inspect-common/query";
 
-import type { DatabaseListingPlan } from "../../../client/database/listing";
+import type { DatabaseListingPlan } from "../../client/database/listing";
 
 import { compareByOrderBy, evaluateCondition } from "./evaluator";
 import type { ListingQuery } from "./types";

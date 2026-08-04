@@ -5,27 +5,23 @@ import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import { basename, formatNumber, formatPrettyDecimal } from "@tsmono/util";
 
 import { useLogDir } from "../../../../app_config";
-import { scopePrefix } from "../../../../client/database";
 import { kModelNone } from "../../../../constants";
 import {
-  useLogListing,
-  useScoreSchema,
-  type LogListingRow,
+  createLogColumnSchema,
+  type LogColumnSchema,
   type ScorerMap,
+  type ValueComparator,
 } from "../../../../log_data";
 import { useStore } from "../../../../state/store";
 import { parseLogFileName } from "../../../../utils/evallog";
 import { formatDateTime, formatTime } from "../../../../utils/format";
 import { ApplicationIcons } from "../../../appearance/icons";
-import {
-  ColumnComparator,
-  ExtendedColumnDef,
-} from "../../../shared/data-grid/columnTypes";
+import { ExtendedColumnDef } from "../../../shared/data-grid/columnTypes";
 import sharedStyles from "../../../shared/gridCells.module.css";
 import { type PickerColumn } from "../../../shared/gridUtils";
+import { useLogColumnFacts } from "../../useLogColumnFacts";
 
 import localStyles from "./columns.module.css";
-import { dateCompare, numberCompare } from "./comparators";
 import { completedAtValue } from "./completedAt";
 import { LogListRow } from "./types";
 
@@ -36,7 +32,6 @@ type LogListColumn = ExtendedColumnDef<LogListRow>;
 const EmptyCell = () => <div>-</div>;
 
 const kNoScorerMap: ScorerMap = {};
-const kNoListingRows: LogListingRow[] = [];
 
 const displayModelRoles = (row: LogListRow | undefined): [string, string][] => {
   if (!row) return [];
@@ -90,17 +85,21 @@ export const useLogListColumns = (
    *  checkboxes for the currently active view mode. A lightweight shim
    *  (`colId` + `headerName`) of the full column defs. */
   pickerColumns: PickerColumn[];
-  /** Reads a row's raw value for a column id (for client-side filter/sort). */
+  /** Reads a shaped row's raw value for a column id. For overlay rows
+   *  (folders, pending tasks) and display concerns only — stored records
+   *  are evaluated by the data layer through `schema`. */
   getValue: (row: LogListRow, columnId: string) => unknown;
-  /** Per-column value comparator (from column meta) for client-side sort. */
-  getComparator: (columnId: string) => ColumnComparator | undefined;
-  /** Per-column filter type (from column meta) for client-side filtering. */
+  /** The data-layer column semantics (see `createLogColumnSchema`): the
+   *  source of truth for comparators and filter types, exposed here so the
+   *  grid's display config and the overlay's in-memory evaluation can't
+   *  drift from what the listing data computes. */
+  schema: LogColumnSchema;
+  /** `schema.getComparator` (per-column sort semantics). */
+  getComparator: (columnId: string) => ValueComparator | undefined;
+  /** `schema.getFilterType` (type-aware filter coercion and editors). */
   getFilterType: (columnId: string) => FilterType | undefined;
-  /** Cache identity of the accessors above: the scorer schema they're built
-   *  from. The schema arrives asynchronously, so a query that closes over
-   *  the accessors must carry this in its key — score-column semantics
-   *  (by-metric accessors, numeric comparators/filter types) change when it
-   *  lands, with no other query input changing. */
+  /** `schema.key` — the scorer schema arrives asynchronously, so a query
+   *  evaluated through the schema must carry this in its key. */
   accessorsKey: string;
   setColumnVisibility: (visibility: Record<string, boolean>) => void;
 } => {
@@ -111,10 +110,12 @@ export const useLogListColumns = (
     (state) => state.logsActions.setLogsColumnVisibility
   );
   const logDir = useLogDir();
-  // Settled schema only: column defs are decorative config — while the
-  // listing loads there are simply no scorer columns yet, and listing errors
+  // Settled facts only: column defs are decorative config — while the
+  // facts load there are simply no scorer columns yet, and listing errors
   // render in LogsPanel's error surface.
-  const scorerMap = useScoreSchema(logDir, scopeDir).data ?? kNoScorerMap;
+  const columnFacts = useLogColumnFacts(logDir, scopeDir).data;
+  const scorerMap = columnFacts?.scorerMap ?? kNoScorerMap;
+  const schema = useMemo(() => createLogColumnSchema(scorerMap), [scorerMap]);
 
   const allColumns = useMemo((): LogListColumn[] => {
     const baseColumns: LogListColumn[] = [
@@ -145,15 +146,19 @@ export const useLogListColumns = (
         header: "Task",
         size: 250,
         minSize: 150,
+        // Parse the basename: tasks-mode row names are relative paths,
+        // which the (anchored) file-name pattern rejects — and the data
+        // layer's schema parses basenames, so filter/sort must agree with
+        // what displays here.
         accessorFn: (row) => {
           if (row.type === "file") {
-            return row.task || parseLogFileName(row.name).name;
+            return row.task || parseLogFileName(basename(row.name)).name;
           }
           return row.name;
         },
         titleValue: (row) => {
           if (row.type === "file") {
-            return row.task || parseLogFileName(row.name).name;
+            return row.task || parseLogFileName(basename(row.name)).name;
           }
           return row.name;
         },
@@ -161,7 +166,7 @@ export const useLogListColumns = (
           const item = row.original;
           let value = item.name;
           if (item.type === "file") {
-            value = item.task || parseLogFileName(item.name).name;
+            value = item.task || parseLogFileName(basename(item.name)).name;
           }
           const href = item.url
             ? `${window.location.pathname}#${item.url}`
@@ -244,10 +249,12 @@ export const useLogListColumns = (
         size: 80,
         minSize: 60,
         maxSize: 120,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.score,
+        // File rows' search text comes from the schema — one formatting
+        // rule for the shaped-row search index and record-level Find.
+        // Overlay rows have no record (and no value in these columns).
         textValue: (row) =>
-          row.score === undefined ? null : formatPrettyDecimal(row.score),
+          row.log ? schema.getSearchText(row.log, "score") : null,
         cell: ({ row }) => {
           const item = row.original;
           if (item.score === undefined) {
@@ -316,7 +323,6 @@ export const useLogListColumns = (
         size: 130,
         minSize: 80,
         maxSize: 140,
-        meta: { sortComparator: dateCompare },
         // Raw value for sort/filter; the cell formats from row.original.
         accessorFn: (row) => completedAtValue(row),
         cell: ({ row }) => {
@@ -380,7 +386,6 @@ export const useLogListColumns = (
         size: 90,
         minSize: 60,
         maxSize: 120,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -396,7 +401,6 @@ export const useLogListColumns = (
         size: 130,
         minSize: 80,
         maxSize: 160,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -425,7 +429,6 @@ export const useLogListColumns = (
         size: 100,
         minSize: 60,
         maxSize: 140,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -441,12 +444,11 @@ export const useLogListColumns = (
         size: 120,
         minSize: 70,
         maxSize: 160,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.duration,
         titleValue: (row) =>
           row.duration === undefined ? undefined : formatTime(row.duration),
         textValue: (row) =>
-          row.duration === undefined ? null : formatTime(row.duration),
+          row.log ? schema.getSearchText(row.log, "duration") : null,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
           if (value === undefined || value === null) {
@@ -505,12 +507,9 @@ export const useLogListColumns = (
         size: 110,
         minSize: 80,
         maxSize: 140,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.percentCompleted,
         textValue: (row) =>
-          row.percentCompleted === undefined
-            ? null
-            : `${formatPrettyDecimal(row.percentCompleted)}%`,
+          row.log ? schema.getSearchText(row.log, "percentCompleted") : null,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
           if (value === undefined || value === null) {
@@ -525,7 +524,6 @@ export const useLogListColumns = (
         size: 110,
         minSize: 60,
         maxSize: 140,
-        meta: { sortComparator: numberCompare },
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
@@ -567,23 +565,15 @@ export const useLogListColumns = (
     // order so the column sequence is stable regardless of log iteration.
     const perScorerColumns: LogListColumn[] = Object.entries(scorerMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, { scorerName, metricName, valueType }]) => {
+      .map(([key, { scorerName, metricName }]) => {
         return {
           id: `score_${key}`,
           header: scorerMetricHeader(scorerName, metricName),
           size: 100,
           minSize: 100,
-          meta:
-            valueType === "number"
-              ? { sortComparator: numberCompare }
-              : undefined,
           accessorFn: (row) => row[`score_${key}`],
-          textValue: (row) => {
-            const value = row[`score_${key}`];
-            if (typeof value === "number") return formatPrettyDecimal(value);
-            if (typeof value === "boolean") return String(value);
-            return typeof value === "string" && value !== "" ? value : null;
-          },
+          textValue: (row) =>
+            row.log ? schema.getSearchText(row.log, `score_${key}`) : null,
           cell: ({ getValue }) => {
             const value = getValue<
               string | number | boolean | null | undefined
@@ -607,25 +597,17 @@ export const useLogListColumns = (
     // in alphabetical scorer order and returns the first non-empty value.
     // The cell additionally renders a "+N" badge with a tooltip when more
     // than one scorer on the same row produced the metric.
-    const metricGroups = new Map<
-      string,
-      { scorerName: string; valueType: string }[]
-    >();
-    for (const { scorerName, metricName, valueType } of Object.values(
-      scorerMap
-    )) {
+    const metricGroups = new Map<string, string[]>();
+    for (const { scorerName, metricName } of Object.values(scorerMap)) {
       const list = metricGroups.get(metricName) ?? [];
-      list.push({ scorerName, valueType });
+      list.push(scorerName);
       metricGroups.set(metricName, list);
     }
 
     const byMetricColumns: LogListColumn[] = [...metricGroups.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([metricName, entries]) => {
-        const scorerOrder = entries
-          .map((e) => e.scorerName)
-          .sort((a, b) => a.localeCompare(b));
-        const allNumeric = entries.every((e) => e.valueType === "number");
+      .map(([metricName, scorers]) => {
+        const scorerOrder = [...scorers].sort((a, b) => a.localeCompare(b));
 
         const readContributors = (
           row: LogListRow | undefined
@@ -652,15 +634,11 @@ export const useLogListColumns = (
           header: metricName,
           size: 100,
           minSize: 100,
-          meta: allNumeric ? { sortComparator: numberCompare } : undefined,
           accessorFn: (row) => readContributors(row)[0]?.value,
-          textValue: (row) => {
-            const first = readContributors(row)[0];
-            if (!first) return null;
-            return typeof first.value === "number"
-              ? formatPrettyDecimal(first.value)
-              : String(first.value);
-          },
+          textValue: (row) =>
+            row.log
+              ? schema.getSearchText(row.log, byMetricField(metricName))
+              : null,
           cell: ({ row }) => {
             const [first, ...extras] = readContributors(row.original);
             if (!first) return <EmptyCell />;
@@ -754,35 +732,24 @@ export const useLogListColumns = (
     }
 
     // Every column except the type icon is filterable (matches origin/main's
-    // `defaultColDef.filter: true` with the type column opted out). Derive the
-    // filter type from the sort comparator: numeric / date columns get their
-    // typed editors; everything else filters as text.
+    // `defaultColDef.filter: true` with the type column opted out). Filter
+    // types come from the data-layer schema, so the filter editors always
+    // match how the listing data coerces and compares the column.
     for (const col of allCols) {
       if (col.id === "type") continue;
-      const cmp = col.meta?.sortComparator;
-      const filterType: FilterType =
-        cmp === numberCompare
-          ? "number"
-          : cmp === dateCompare
-            ? "date"
-            : "string";
-      col.meta = { ...col.meta, filterable: true, filterType };
+      col.meta = {
+        ...col.meta,
+        filterable: true,
+        filterType: schema.getFilterType(col.id ?? "") ?? "string",
+      };
     }
 
     return allCols;
-  }, [scorerMap, mode]);
+  }, [scorerMap, mode, schema]);
 
   // Auto-promote `sampleLimits` to default-visible when any in-scope log
   // has a sample that ended with a limit (an ingestion-derived header fact).
-  const listingRows = useLogListing(logDir).data ?? kNoListingRows;
-  const hasSampleLimits = useMemo(() => {
-    const prefix = scopeDir ? scopePrefix(scopeDir) : undefined;
-    return listingRows.some(
-      (row) =>
-        (!prefix || row.name.startsWith(prefix)) &&
-        (row.header?.sampleLimits.length ?? 0) > 0
-    );
-  }, [listingRows, scopeDir]);
+  const hasSampleLimits = columnFacts?.hasSampleLimits ?? false;
 
   // Default hidden columns per mode
   const defaultHiddenFields = useMemo(() => {
@@ -846,8 +813,7 @@ export const useLogListColumns = (
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
 
-  // Lookup by column id for the client-side listing query's value/comparator
-  // accessors.
+  // Lookup by column id for the overlay rows' value accessor.
   const columnsById = useMemo(() => {
     const byId = new Map<string, LogListColumn>();
     for (const col of allColumns) {
@@ -867,38 +833,15 @@ export const useLogListColumns = (
     [columnsById]
   );
 
-  const getComparator = useCallback(
-    (columnId: string): ColumnComparator | undefined =>
-      columnsById.get(columnId)?.meta?.sortComparator,
-    [columnsById]
-  );
-
-  const getFilterType = useCallback(
-    (columnId: string): FilterType | undefined =>
-      columnsById.get(columnId)?.meta?.filterType,
-    [columnsById]
-  );
-
-  // Everything the accessors read beyond the row and the column id: the
-  // scorer schema (`mode` also shapes the column set, but only in ways the
-  // accessors don't observe — and it's part of the listing universe anyway).
-  const accessorsKey = useMemo(
-    () =>
-      Object.entries(scorerMap)
-        .map(([key, { valueType }]) => `${key}:${valueType}`)
-        .sort()
-        .join(","),
-    [scorerMap]
-  );
-
   return {
     columns: allColumns,
     visibility,
     pickerColumns,
     getValue,
-    getComparator,
-    getFilterType,
-    accessorsKey,
+    schema,
+    getComparator: schema.getComparator,
+    getFilterType: schema.getFilterType,
+    accessorsKey: schema.key,
     setColumnVisibility,
   };
 };

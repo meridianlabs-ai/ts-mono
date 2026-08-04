@@ -17,6 +17,7 @@ import {
 import { queryClient } from "../state/queryClient";
 
 import { invalidateDatabaseLogsListings } from "./databaseListings";
+import { getDatabaseService } from "./databaseServiceInstance";
 import type { LogsContentSink } from "./fetchEngine";
 import {
   invalidateSamplesListings,
@@ -38,6 +39,16 @@ import {
  * pairs the persistence with its cache update. Cache-only writes (the
  * `set*`/`merge*`/`seed*` primitives) are allowed; the invariant is
  * one-directional (db ⟹ cache).
+ *
+ * The collection's TIER depends on the listing source (step 7 of
+ * design/db-backed-listing-plan.md): where the database is the row source,
+ * the collection holds only identity-tier rows ({@link identityRow}) — its
+ * remaining consumers resolve names (`resolveLogKey`, `useLogs`), so
+ * mirroring headers there would keep O(dir) full rows resident for nothing.
+ * Cache-source scopes (db-less sessions, the out-of-namespace degrade) keep
+ * full rows — the mirror IS the row source there. Per-entity entries
+ * (`logKey`) always carry full rows: they feed the log view and re-seed
+ * from IndexedDB on remount, so GC bounds them by observation.
  */
 
 const log = createLogger("logsContent");
@@ -61,6 +72,25 @@ const newRow = (handle: LogHandle): Log => ({
 });
 
 /**
+ * The identity-tier projection of a row — what the collection retains when
+ * the database is the row source (see the module docstring). Keeps the
+ * handle columns (name resolution), truthful depth, and the retrieval
+ * facts; drops the content tiers (`header` alone is KBs per detailed row).
+ */
+const identityRow = (row: Log): Log => ({
+  name: row.name,
+  task: row.task,
+  task_id: row.task_id,
+  mtime: row.mtime,
+  depth: row.depth,
+  preview_fetch_error: row.preview_fetch_error,
+  preview_attempts: row.preview_attempts,
+  details_fetch_error: row.details_fetch_error,
+  details_attempts: row.details_attempts,
+  details_settled_seq: row.details_settled_seq,
+});
+
+/**
  * Push a fresh row to a log's per-entity entry WITHOUT creating one: a bulk
  * backfill writing `setQueryData` unconditionally would materialize every
  * row in memory, defeating GC. Unobserved / evicted keys re-seed from
@@ -81,9 +111,14 @@ const pushLog = (logDir: string, row: Log): void => {
 // ---------------------------------------------------------------------------
 
 /** Replace the collection with `rows` (already-complete Log rows, e.g. read
- *  back from the store) and refresh their observed per-entity entries. */
+ *  back from the store) and refresh their observed per-entity entries. The
+ *  per-entity pushes carry the full rows; the collection keeps only the
+ *  identity tier when the database is the row source. */
 export const setRows = (logDir: string, rows: Log[]): void => {
-  queryClient.setQueryData<Log[]>(logsKey(logDir), rows);
+  queryClient.setQueryData<Log[]>(
+    logsKey(logDir),
+    logsListingSource(logDir) === "database" ? rows.map(identityRow) : rows
+  );
   for (const row of rows) {
     pushLog(logDir, row);
   }
@@ -105,36 +140,56 @@ export const setListing = (logDir: string, handles: LogHandle[]): void => {
   );
 };
 
-/** Merge per-file row patches into the collection (appending rows for
- *  unknown files) and refresh observed per-entity entries. Depth ratchets. */
+/**
+ * Merge per-file row patches into the collection (appending rows for
+ * unknown files) and refresh observed per-entity entries. Depth ratchets.
+ *
+ * The two updates compose from different bases when the collection is
+ * identity-tier: a per-entity entry's own current value is the full row
+ * (seeded from IndexedDB, kept current by these pushes), so the patch
+ * merges over THAT — merging over the slim collection row would strip an
+ * observed log view's header the moment a later preview patch landed
+ * (`staleTime: Infinity` means it would never self-correct).
+ */
 const mergePatches = (
   logDir: string,
   patches: Record<string, Partial<Log>>
 ): void => {
+  const slim = logsListingSource(logDir) === "database";
   const rows = currentLogs(logDir);
   const seen = new Set<string>();
+  const mergeRow = (row: Log, patch: Partial<Log>): Log => ({
+    ...row,
+    ...patch,
+    depth: maxDepth(row.depth, patch.depth ?? row.depth),
+  });
   const next = rows.map((row) => {
     const patch = patches[row.name];
     if (patch === undefined) {
       return row;
     }
     seen.add(row.name);
-    return {
-      ...row,
-      ...patch,
-      depth: maxDepth(row.depth, patch.depth ?? row.depth),
-    };
+    const merged = mergeRow(row, patch);
+    return slim ? identityRow(merged) : merged;
   });
   for (const [name, patch] of Object.entries(patches)) {
     if (!seen.has(name)) {
-      next.push({ ...newRow({ name }), ...patch });
+      const appended = mergeRow(newRow({ name }), patch);
+      next.push(slim ? identityRow(appended) : appended);
     }
   }
   queryClient.setQueryData<Log[]>(logsKey(logDir), next);
-  for (const row of next) {
-    if (row.name in patches) {
-      pushLog(logDir, row);
+  const byName = new Map(rows.map((row) => [row.name, row]));
+  for (const [name, patch] of Object.entries(patches)) {
+    const key = logKey(logDir, name);
+    if (!queryClient.getQueryCache().find({ queryKey: key })) {
+      continue;
     }
+    const base =
+      queryClient.getQueryData<Log | null>(key) ??
+      byName.get(name) ??
+      newRow({ name });
+    queryClient.setQueryData<Log>(key, mergeRow(base, patch));
   }
 };
 
@@ -224,6 +279,26 @@ const cacheOnlyScopes = new Set<string>();
 export const isCacheOnlyListingScope = (logDir: string): boolean =>
   cacheOnlyScopes.has(scopePrefix(logDir));
 
+/**
+ * Where listing reads for `logDir` source their rows — an explicit,
+ * scope-level decision rather than a per-query fallback:
+ *
+ * - "database": the normal dir-mode path; IndexedDB holds the replicated
+ *   rows and is the row source. The cache mirror keeps identity-tier rows
+ *   only (see the module docstring).
+ * - "cache": the react-query logs cache is the row source (and holds full
+ *   rows). This serves the out-of-namespace degrade (listing persistence
+ *   skipped — see `namesInScope`) and db-less sessions (the database
+ *   failed to open; single-file mode renders no log list at all).
+ *
+ * Owned here so the read side (`logsListingRead`) and the mirror's write
+ * tier can't disagree about which store is authoritative.
+ */
+export const logsListingSource = (logDir: string): "database" | "cache" =>
+  getDatabaseService().opened() && !isCacheOnlyListingScope(logDir)
+    ? "database"
+    : "cache";
+
 const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
   const prefix = scopePrefix(logDir);
   const misnamed = handles.find((handle) => !handle.name.startsWith(prefix));
@@ -244,14 +319,28 @@ const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
  * The db write is a merge-upsert (rows keep depth/content) and the cache
  * holds the full re-read, so the full list is read back and returned for the
  * caller's continued sync logic.
+ *
+ * `changed` narrows the db write to the handles whose identity actually
+ * drifted (the engine diffs against its mirror — see `changedHandles`):
+ * the server's `>=`-mtime boundary re-sends make unchanged-listing syncs
+ * the steady state, and rewriting all rows for those held the store's
+ * single rw transaction long enough to starve every concurrent listing
+ * read at large scale. An unchanged sync also skips the listing
+ * invalidation — nothing it refetches would differ, and an errored row
+ * query's recovery deliberately stays with the retry banner / real writes
+ * (see `useDatabaseLogsListingQuery.error`). Defaulted to `handles`:
+ * callers that computed no diff persist everything, as before.
  */
 export const writeListing = async (
   db: DatabaseService | null | undefined,
   logDir: string,
-  handles: LogHandle[]
+  handles: LogHandle[],
+  changed: LogHandle[] = handles
 ): Promise<Log[]> => {
   if (db?.opened() && namesInScope(logDir, handles)) {
-    await db.writeLogs(handles);
+    if (changed.length > 0) {
+      await db.writeLogs(changed);
+    }
     await db.markScopeSynced(logDir);
     const all = await db.readLogs({ prefix: logDir });
     if (all) {
@@ -259,7 +348,9 @@ export const writeListing = async (
       // Invalidate only after the re-read rows land in the cache: a listing
       // refetch scheduled between the write and setRows would run against
       // the pre-write rows and drop the newly written files from its result.
-      invalidateDatabaseLogsListings();
+      if (changed.length > 0) {
+        invalidateDatabaseLogsListings();
+      }
       return all;
     }
     // A failed read-back degrades to the cache-only listing write below.
@@ -427,9 +518,12 @@ export const createLogsContentSink = (
     invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   },
+  currentRows: () => currentLogs(logDir),
+  isCacheOnlyScope: () => isCacheOnlyListingScope(logDir),
   setListing: (handles) => setListing(logDir, handles),
   mergePreviews: (previews) => mergePreviews(logDir, previews),
-  writeListing: (handles) => writeListing(db, logDir, handles),
+  writeListing: (handles, changed) =>
+    writeListing(db, logDir, handles, changed),
   writePreviews: (previews) => writePreviews(db, logDir, previews),
   writeDetails: (details) => writeDetails(db, logDir, details),
   mergeFetchStates: (states) => mergeFetchStates(logDir, states),

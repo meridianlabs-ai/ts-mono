@@ -247,6 +247,34 @@ describe("useSamplesListing", () => {
     await waitFor(() => expect(result.current.data).toHaveLength(2));
   });
 
+  it("serves rows with blank log context when the context join fails (transient store error)", async () => {
+    // The log context is decoration on summary rows that already read
+    // successfully — a readLogRows rejection (it propagates by design) must
+    // degrade to blank context columns, not replace the whole samples grid
+    // with an error state.
+    await writeDetails(db, LOG_DIR, {
+      [FILE_A]: payload(FILE_A, "success", [summary("s1")]),
+    });
+    vi.spyOn(db, "readLogRows").mockRejectedValue(
+      new Error("transient store failure")
+    );
+
+    globalThis.__TEST_DISABLE_RETRY = true;
+    try {
+      const { result } = renderHook(
+        () =>
+          useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
+        { wrapper }
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+      expect(result.current.error).toBeUndefined();
+      expect(result.current.data).toHaveLength(1);
+      expect(result.current.data?.[0]?.log).toEqual({});
+    } finally {
+      globalThis.__TEST_DISABLE_RETRY = undefined;
+    }
+  });
+
   it("db-less ingestion (cache-only writes) still serves an observed file scope", async () => {
     const unopened = createDatabaseService();
     holder.service = unopened;

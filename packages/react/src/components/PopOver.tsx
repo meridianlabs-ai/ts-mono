@@ -397,6 +397,12 @@ export const PopOver: React.FC<PopOverProps> = ({
   // here (a layout effect, so it runs after refs attach but before the browser
   // paints) lands the corrected position on the first painted frame. Gated to
   // fire once per open, on the render where popper first hands us a state.
+  //
+  // Deferred by a microtask because react-popper's own `updateState` modifier
+  // wraps its setState in `ReactDOM.flushSync`; running that synchronously from
+  // a layout effect means flushing while React is still committing, which React
+  // warns about and downgrades anyway. Microtasks drain before the browser
+  // paints, so the correction still lands on the first painted frame.
   const didPrePosition = useRef(false);
   useLayoutEffect(() => {
     if (!isOpen || !shouldShowPopover) {
@@ -405,7 +411,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
     if (forceUpdate && state && !didPrePosition.current) {
       didPrePosition.current = true;
-      forceUpdate();
+      queueMicrotask(forceUpdate);
     }
   }, [isOpen, shouldShowPopover, forceUpdate, state]);
 

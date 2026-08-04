@@ -249,11 +249,20 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
 // persistence round-trips (start()-time reset, settle-seq bumps, invalidation
 // resets) without a real database.
 const createFakeSink = (db?: DatabaseService) => {
+  // Depth-tracking analogue of the real sink's cache mirror: every write
+  // path ratchets it, so `currentRows` reflects what production backfill
+  // re-derivation (requeueMissing) would see in db-less sessions.
+  const mirror = new Map<string, Log>();
+  const upsert = (name: string, patch: Partial<Log>) => {
+    const current = mirror.get(name) ?? listedRow({ name });
+    mirror.set(name, { ...current, ...patch });
+  };
   const calls = {
     seedRows: [] as Log[][],
     setListing: [] as LogHandle[][],
     mergePreviews: [] as Record<string, LogPreview>[],
     writeListing: [] as LogHandle[][],
+    writeListingChanged: [] as LogHandle[][],
     writePreviews: [] as Record<string, LogPreview>[],
     writeDetails: [] as Record<string, LogDetails>[],
     mergeFetchStates: [] as Record<string, LogFetchState>[],
@@ -266,28 +275,44 @@ const createFakeSink = (db?: DatabaseService) => {
     clearAll: 0,
   };
   const sink: LogsContentSink = {
+    currentRows: () => [...mirror.values()],
+    isCacheOnlyScope: () => false,
     seedRows: (rows) => {
       calls.seedRows.push(rows);
+      rows.forEach((row) => mirror.set(row.name, { ...row }));
     },
     setListing: (handles) => {
       calls.setListing.push(handles);
+      handles.forEach((h) => upsert(h.name, h));
     },
     mergePreviews: (previews) => {
       calls.mergePreviews.push(previews);
+      Object.entries(previews).forEach(([name, preview]) =>
+        upsert(name, { depth: "previewed", status: preview.status })
+      );
     },
-    writeListing: async (handles) => {
+    writeListing: async (handles, changed) => {
       calls.writeListing.push(handles);
+      calls.writeListingChanged.push(changed);
       const known: Record<string, Log> = db
         ? await db.readLogRows(handles.map((h) => h.name))
         : {};
-      return handles.map((h) => known[h.name] ?? listedRow(h));
+      const rows = handles.map((h) => known[h.name] ?? listedRow(h));
+      rows.forEach((row) => mirror.set(row.name, { ...row }));
+      return rows;
     },
     writePreviews: (previews) => {
       calls.writePreviews.push(previews);
+      Object.entries(previews).forEach(([name, preview]) =>
+        upsert(name, { depth: "previewed", status: preview.status })
+      );
       return Promise.resolve();
     },
     writeDetails: (details) => {
       calls.writeDetails.push(details);
+      Object.entries(details).forEach(([name, detail]) =>
+        upsert(name, { depth: "detailed", status: detail.status })
+      );
       return Promise.resolve();
     },
     mergeFetchStates: (states) => {
@@ -301,17 +326,22 @@ const createFakeSink = (db?: DatabaseService) => {
     },
     resetDepth: async (names) => {
       calls.resetDepth.push(names);
-      names.forEach((name) => delete calls.fetchStates[name]);
+      names.forEach((name) => {
+        delete calls.fetchStates[name];
+        upsert(name, { depth: "listed", status: undefined });
+      });
       await db?.resetDepth(names);
     },
     clearFile: async (name) => {
       calls.clearFile.push(name);
       delete calls.fetchStates[name];
+      mirror.delete(name);
       await db?.clearCacheForFile(name);
     },
     clearAll: () => {
       calls.clearAll++;
       calls.fetchStates = {};
+      mirror.clear();
       return Promise.resolve();
     },
   };
@@ -527,7 +557,12 @@ describe("FetchEngine.start", () => {
     });
 
     expect(sinkCalls.seedRows).toEqual([rows]);
-    expect(engine.listing()).toEqual(rows);
+    // The engine retains bare handles, not the seeded full rows — keeping
+    // the read-back's content tiers would make it an O(dir) full-row holder.
+    expect(engine.listing()).toEqual([
+      handle("a.eval", 2),
+      handle("b.eval", 1),
+    ]);
     // Seeding is cache-only: nothing is re-persisted or fetched.
     expect(sinkCalls.writeDetails).toEqual([]);
     // All rows had zero attempts/errors/seq, so no fetch-state reset write.
@@ -563,7 +598,9 @@ describe("FetchEngine.applyListing", () => {
       "changed.eval",
       "added.eval",
     ]);
-    expect(engine.listing()).toEqual(full);
+    // `full` (the persisted read-back) carries row content; the engine's
+    // retained listing is the handle projection of it.
+    expect(engine.listing()).toEqual([kept, changed, added]);
 
     // Invalidated + missing details and previews get fetched; kept has both.
     await vi.waitFor(() => {
@@ -576,6 +613,56 @@ describe("FetchEngine.applyListing", () => {
         "changed.eval",
       ]);
     });
+  });
+
+  it("persists only handles whose identity drifted from the activated mirror", async () => {
+    const same = handle("same.eval", 1);
+    const bumped = handle("bumped.eval", 2);
+    const fresh = handle("fresh.eval", 3);
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb([
+        listedRow(same),
+        listedRow(handle("bumped.eval", 1)),
+      ]),
+    });
+
+    await engine.applyListing({
+      listing: [same, bumped, fresh],
+      invalidated: ["bumped.eval", "fresh.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+
+    // The sink still activates the full listing (its first argument feeds
+    // the cache fallback and the read-back), but only the drifted handles
+    // are marked for the identity write.
+    expect(sinkCalls.writeListing).toEqual([[same, bumped, fresh]]);
+    expect(sinkCalls.writeListingChanged).toEqual([[bumped, fresh]]);
+  });
+
+  it("an unchanged listing re-sync persists nothing", async () => {
+    // The server's `>=`-mtime filter re-sends boundary files on every poll,
+    // so unchanged listings are the steady state of the periodic re-sync —
+    // they must not rewrite the identity tier (a whole-dir rw transaction
+    // that starves concurrent listing reads at scale).
+    const a = handle("a.eval", 1);
+    const b = handle("b.eval", 2);
+    const fake = createFakeApi();
+    const { engine, sinkCalls } = await createEngine({
+      api: fake.api,
+      database: createFakeDb([listedRow(a), listedRow(b)]),
+    });
+
+    await engine.applyListing({
+      listing: [a, b],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    expect(sinkCalls.writeListingChanged).toEqual([[]]);
   });
 
   it("fetches invalidated details fresh (a memoized remote file would re-serve the stale snapshot)", async () => {
@@ -1882,5 +1969,308 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
     await Promise.all([first, second]);
 
     expect(fake.detailCalls.length).toBe(1);
+  });
+});
+
+// An unchanged server dir produces empty incremental sync responses, which
+// skip `applyListing` — the only backfill trigger a non-empty sync has. A
+// session that hydrates rows persisted below their target depth (interrupted
+// backfill, settled failures) must still resume fetching on those no-change
+// ticks, or the gap persists until a file's mtime changes server-side.
+describe("syncListing backfill re-arm (no-change syncs)", () => {
+  const emptyIncremental = (fake: ReturnType<typeof createFakeApi>) =>
+    ({
+      ...fake.api,
+      get_logs: vi
+        .fn()
+        .mockResolvedValue({ files: [], response_type: "incremental" }),
+    }) as unknown as ClientAPI;
+
+  it("an empty incremental sync resumes interrupted backfill from persisted rows", async () => {
+    const rows = [
+      listedRow(handle("a.eval", 10)),
+      listedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const { engine } = await createEngine({
+      api,
+      database: createFakeDb(rows),
+    });
+
+    await syncListing(api, engine);
+
+    await vi.waitFor(() => {
+      expect(fake.summaryCalls.flat().sort()).toEqual(["a.eval", "b.eval"]);
+      expect(fake.detailCalls.map((call) => call.file).sort()).toEqual([
+        "a.eval",
+        "b.eval",
+      ]);
+    });
+  });
+
+  it("a no-change sync leaves rows already at full depth alone", async () => {
+    const rows = [
+      detailedRow(handle("a.eval", 10)),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const { engine } = await createEngine({
+      api,
+      database: createFakeDb(rows),
+    });
+
+    await syncListing(api, engine);
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.detailCalls).toEqual([]);
+    expect(fake.summaryCalls).toEqual([]);
+  });
+
+  it("a no-change sync trusts persisted depth even when the cache mirror is empty", async () => {
+    // The real sink's mirror is a react-query entry that can be
+    // garbage-collected while unobserved — an empty mirror must not read as
+    // "everything is missing" (that re-fetched entire fully-cached dirs).
+    const rows = [
+      detailedRow(handle("a.eval", 10)),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const db = createFakeDb(rows);
+    const { sink } = createFakeSink(db);
+    const gcSink: LogsContentSink = { ...sink, currentRows: () => [] };
+    const { engine } = await createEngine({ api, database: db, sink: gcSink });
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+    expect(fake.detailCalls).toEqual([]);
+  });
+
+  it("a no-change sync on a cache-only scope derives backfill from the mirror, not the empty database", async () => {
+    // The out-of-namespace degrade (logsContent's namesInScope) skips listing
+    // persistence entirely, so the database stays empty for the scope while
+    // the mirror is the system of record. With the database open, an empty
+    // scoped read must not count as "everything is missing" — that re-fetched
+    // the entire dir on every no-change tick, forever (completed fetches
+    // persist under keys the scoped read never sees, so it never converged).
+    const rows = [
+      detailedRow(handle("a.eval", 10)),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const db = createFakeDb([]);
+    const { sink } = createFakeSink(db);
+    const degradedSink: LogsContentSink = {
+      ...sink,
+      currentRows: () => rows,
+      writeListing: () => Promise.resolve(rows),
+      isCacheOnlyScope: () => true,
+    };
+    const { engine } = await createEngine({
+      api,
+      database: db,
+      sink: degradedSink,
+    });
+    await engine.applyListing({
+      listing: rows.map(({ name, mtime }) => handle(name, mtime ?? undefined)),
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+      epoch: engine.epoch(),
+    });
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+    expect(fake.detailCalls).toEqual([]);
+  });
+
+  it("a no-change sync does not re-poll rows persisted as started", async () => {
+    // `applyListing` re-fetches started snapshots (the run may have finished
+    // since), but on no-change ticks that rule would poll every permanently
+    // "started" log forever — an unchanged dir refreshes them only via mtime
+    // invalidation.
+    const rows = [
+      detailedRow(handle("a.eval", 10), "started"),
+      detailedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi();
+    const api = emptyIncremental(fake);
+    const { engine } = await createEngine({
+      api,
+      database: createFakeDb(rows),
+    });
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.summaryCalls).toEqual([]);
+    expect(fake.detailCalls).toEqual([]);
+  });
+
+  it("a no-change sync does not re-fetch settled results still staged in the throttled flush buffers", async () => {
+    // Background settles stage their writes on a throttled flush, so a tick
+    // landing in that window reads pre-settle depths from the store; the
+    // just-completed batch must not re-derive as missing.
+    const rows = [
+      previewedRow(handle("a.eval", 10)),
+      previewedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi({ gated: true });
+    const api = emptyIncremental(fake);
+    const db = createFakeDb(rows);
+    const { sink, calls } = createFakeSink(db);
+    // Relay detail persistence into the fake db's row depth (production
+    // writeDetails lands depth in the store; the shared fake only mirrors
+    // the cache) so flushed writes converge and only the staged one is at
+    // stake.
+    const persistingSink: LogsContentSink = {
+      ...sink,
+      writeDetails: async (details) => {
+        await sink.writeDetails(details);
+        await db.writeFetchStates(
+          Object.fromEntries(
+            Object.keys(details).map((name) => [
+              name,
+              { depth: "detailed" } as unknown as LogFetchState,
+            ])
+          )
+        );
+      },
+    };
+    const { engine } = await createEngine(
+      { api, database: db, sink: persistingSink },
+      // Hold the throttle window open: the leading flush consumes the first
+      // settle, the second stays staged for the rest of the test.
+      { flushDelayMs: 60_000 }
+    );
+
+    await syncListing(api, engine);
+    await vi.waitFor(() => expect(fake.gates.length).toBe(2));
+
+    // First settle flushes immediately (leading edge) and lands in the db.
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(async () => {
+      expect(calls.writeDetails.length).toBe(1);
+      expect((await db.readLogRow("a.eval"))?.depth).toBe("detailed");
+    });
+
+    // Second settle stages on the trailing timer: buffered, db still
+    // pre-settle.
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    await tick();
+    expect(calls.writeDetails.length).toBe(1);
+    expect((await db.readLogRow("b.eval"))?.depth).toBe("previewed");
+
+    await syncListing(api, engine);
+    await tick();
+
+    expect(fake.detailCalls.length).toBe(2);
+    expect(fake.summaryCalls).toEqual([]);
+  });
+
+  it("a later no-change sync retries a settled backfill failure", async () => {
+    const fake = createFakeApi({ failFor: ["a.eval"] });
+    const api = emptyIncremental(fake);
+    const { engine, sinkCalls } = await createEngine({
+      api,
+      database: createFakeDb([listedRow(handle("a.eval", 10))]),
+    });
+
+    await syncListing(api, engine);
+    await vi.waitFor(() => {
+      expect(sinkCalls.fetchStates["a.eval"]?.details_attempts).toBe(1);
+      expect(engine.getStatus().syncing).toBe(false);
+    });
+
+    const callsBefore = fake.detailCalls.length;
+    await syncListing(api, engine);
+    await vi.waitFor(() =>
+      expect(fake.detailCalls.length).toBeGreaterThan(callsBefore)
+    );
+  });
+
+  it("a failed flush write un-latches idle so a later no-change sync re-derives the gap", async () => {
+    // A settle stages its write on the throttled flush; a no-change tick
+    // counts the staged settle at its settled depth and latches idle; the
+    // flush then fails (the write path swallows the rejection after the
+    // buffer was swapped out, so the updates are lost). The loss must clear
+    // the idle latch — otherwise the row sits below its fetched depth on an
+    // unchanged dir until a real listing change.
+    const rows = [
+      previewedRow(handle("a.eval", 10)),
+      previewedRow(handle("b.eval", 20)),
+    ];
+    const fake = createFakeApi({ gated: true });
+    const api = emptyIncremental(fake);
+    const db = createFakeDb(rows);
+    const { sink } = createFakeSink(db);
+    let writes = 0;
+    const failingSink: LogsContentSink = {
+      ...sink,
+      // First write (the leading-edge flush) persists and relays depth into
+      // the fake db (see the staged-flush test above for the rationale);
+      // the second (the trailing flush) fails.
+      writeDetails: async (details) => {
+        writes += 1;
+        if (writes === 2) {
+          throw new Error("database is closing");
+        }
+        await sink.writeDetails(details);
+        await db.writeFetchStates(
+          Object.fromEntries(
+            Object.keys(details).map((name) => [
+              name,
+              { depth: "detailed" } as unknown as LogFetchState,
+            ])
+          )
+        );
+      },
+    };
+    const { engine } = await createEngine(
+      { api, database: db, sink: failingSink },
+      { flushDelayMs: 200 }
+    );
+
+    await syncListing(api, engine);
+    await vi.waitFor(() => expect(fake.gates.length).toBe(2));
+
+    // a.eval settles; the leading-edge flush persists it.
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(async () => {
+      expect(writes).toBe(1);
+      expect((await db.readLogRow("a.eval"))?.depth).toBe("detailed");
+    });
+
+    // b.eval settles and stages on the trailing timer; a no-change tick in
+    // that window counts it at settled depth and latches idle.
+    fake.gates.shift()?.resolve();
+    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    await tick();
+    await syncListing(api, engine);
+    expect(fake.detailCalls.length).toBe(2);
+
+    // The trailing flush fires and fails; b.eval's staged write is lost.
+    await vi.waitFor(() => expect(writes).toBe(2));
+    await tick();
+
+    // The next no-change tick must re-derive b.eval's missing details
+    // instead of early-returning on the stale idle latch.
+    await syncListing(api, engine);
+    await vi.waitFor(() =>
+      expect(fake.detailCalls.map((call) => call.file)).toEqual([
+        "a.eval",
+        "b.eval",
+        "b.eval",
+      ])
+    );
   });
 });

@@ -306,6 +306,51 @@ describe("Database Service", () => {
       );
       expect(row).toBeNull();
     });
+
+    test("a concurrent preview write cannot clobber a details ingest (lost update)", async () => {
+      const file = "/test/logs/race.json";
+      // The backfill state before details land: a previewed row.
+      await databaseService.writeLogPreviews({
+        [file]: createTestLogSummary(),
+      });
+
+      // The fetch engine stages a details write AND a details-derived
+      // preview write on every ok settle; their throttled flushes race. A
+      // preview merge that reads the row before the details transaction
+      // commits and bulk-puts afterward would erase the detailed tier
+      // (depth back to previewed, header gone) — whatever the interleave,
+      // the detailed tier must survive.
+      await Promise.all([
+        writeLogDetails({ [file]: createTestLogInfo() }),
+        databaseService.writeLogPreviews({
+          [file]: createTestLogSummary(),
+        }),
+      ]);
+
+      const row = await databaseService.readLogRow(file);
+      expect(row?.depth).toBe("detailed");
+      expect(row?.header).toBeDefined();
+    });
+
+    test("a concurrent listing upsert cannot clobber a details ingest (lost update)", async () => {
+      const file = "/test/logs/race.json";
+      await databaseService.writeLogs([{ name: file, task: "task-1" }]);
+
+      // Incremental listing syncs re-send every known row through writeLogs
+      // while the engine's throttled details flushes land. A listing upsert
+      // that reads the row before the details transaction commits and
+      // bulk-puts the stale copy afterward would silently revert the row to
+      // its pre-flush depth — whatever the interleave, the detailed tier
+      // must survive.
+      await Promise.all([
+        writeLogDetails({ [file]: createTestLogInfo() }),
+        databaseService.writeLogs([{ name: file, task: "task-1" }]),
+      ]);
+
+      const row = await databaseService.readLogRow(file);
+      expect(row?.depth).toBe("detailed");
+      expect(row?.header).toBeDefined();
+    });
   });
 
   describe("Sample Summaries Store", () => {
@@ -700,6 +745,19 @@ describe("Database Service", () => {
       // Should return null when database is closed (graceful error handling)
       const result = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(result).toBeNull();
+    });
+
+    test("readLogRows propagates read failures instead of serving an empty map", async () => {
+      // Close database to simulate a mid-read failure. Unlike readLogs
+      // (whose null return is a distinguishable failure sentinel), an empty
+      // map is indistinguishable from "every key was deleted" — the paged
+      // listing read treats missing keys as holes to drop, so a swallowed
+      // failure would silently truncate the visible listing.
+      await databaseService.closeDatabase();
+
+      await expect(
+        databaseService.readLogRows(["/test/logs/a.json"])
+      ).rejects.toThrow();
     });
   });
 });

@@ -96,17 +96,50 @@ export {
   databaseLogsListingKey,
   databaseLogsListingKeyRoot,
   invalidateDatabaseLogsListings,
-  listingKeyUniverse,
+  listingKeyScope,
 } from "./databaseListings";
+export { logsListingEpoch } from "./logsListingEpoch";
 export {
-  readLogsListing,
-  readLogsListingMatches,
+  createLogsListingData,
+  readLogsColumnFacts,
   readLogsOverview,
+  readSamplesLogFacts,
+  type LogsColumnFacts,
+  type SamplesLogFacts,
+  type LogsListingData,
+  type LogsListingFindQuery,
+  type LogsListingMatch,
+  type LogsListingPageResult,
+  type LogsListingSnapshot,
+  type LogsListingView,
   type LogsOverview,
-  type LogsOverviewView,
+  type LogsOverviewOptions,
 } from "./logsListingRead";
+export {
+  applyListingQuery,
+  mergeSortedRows,
+} from "./listing/applyListingQuery";
+export { evaluateCondition, compareByOrderBy } from "./listing/evaluator";
+export {
+  completedAtFallback,
+  createLogColumnSchema,
+  dateCompare,
+  isMissingNumber,
+  numberCompare,
+  parentDirCondition,
+  type LogColumnSchema,
+} from "./listing/logColumnSchema";
+export { joinSearchText, primitiveText } from "./listing/searchText";
+export { createListingPlan } from "./listing/planner";
+export type {
+  FilterTypeAccessor,
+  ListingQuery,
+  LogsListingResult,
+  ValueAccessor,
+  ValueComparator,
+} from "./listing/types";
 export { useLogHeader, useLogFetchState } from "./log";
-export { type LogListingRow, useLogListing } from "./logListing";
+export { type LogListingRow } from "./logListing";
 export { resolveLogKey } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";
 export {
@@ -148,6 +181,10 @@ export { useMessagesExport } from "./messagesExport";
 export { useSampleMessages } from "./sampleMessages";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
-export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
+export {
+  type ScorerMap,
+  scorerMapsEqual,
+  scorerMetricKey,
+} from "./scoreSchema";
 export { useDatabaseStats } from "./useFetchEngineStatus";
 export { useLogsSync } from "./useLogsSync";

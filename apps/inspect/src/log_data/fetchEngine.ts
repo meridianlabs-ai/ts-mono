@@ -90,10 +90,27 @@ interface ClaimStamp {
  * about the split.
  */
 export interface LogsContentSink {
+  /** The cache mirror's current full row collection. NOT authoritative in
+   *  db mode — the mirror's react-query entry can be garbage-collected while
+   *  unobserved — so backfill re-derivation only reads it when there is no
+   *  database (there the mirror is the system of record). */
+  currentRows(): Log[];
+  /** Whether this scope's listing persistence degraded to cache-only
+   *  (out-of-namespace names — see logsContent's `namesInScope`). The degrade
+   *  skips the listing's db writes while the database stays open, so scoped
+   *  db reads see nothing: the mirror, not the database, is the system of
+   *  record for backfill re-derivation. */
+  isCacheOnlyScope(): boolean;
   seedRows(rows: Log[]): void;
   setListing(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
-  writeListing(handles: LogHandle[]): Promise<Log[]>;
+  /** Persist the listing identity tier and return the scope's full row list
+   *  (read back post-write). `handles` is the full activation list — the
+   *  cache fallback (db-less sessions, out-of-namespace scopes) stores it
+   *  whole; `changed` is the subset that actually needs an identity write
+   *  (empty: nothing drifted — skip the write and its invalidation, still
+   *  read back). */
+  writeListing(handles: LogHandle[], changed: LogHandle[]): Promise<Log[]>;
   writePreviews(previews: Record<string, LogPreview>): Promise<void>;
   writeDetails(details: Record<string, LogDetails>): Promise<void>;
   mergeFetchStates(states: Record<string, LogFetchState>): void;
@@ -127,11 +144,11 @@ export interface FetchEngineStatus {
 
 /**
  * A replication discovery result. `listing` is the server's listing (a delta
- * or the full list — `persistListing` upserts it into the database and
- * re-reads the full list; otherwise it's activated cache-only, for static
- * listings that carry no mtimes to sync by). `invalidated` names files whose
- * cached content is stale (new/changed); `deleted` names files that no longer
- * exist.
+ * or the full list — `persistListing` upserts what drifted from the engine's
+ * mirror (see `changedHandles`) into the database and re-reads the full
+ * list; otherwise it's activated cache-only, for static listings that carry
+ * no mtimes to sync by). `invalidated` names files whose cached content is
+ * stale (new/changed); `deleted` names files that no longer exist.
  */
 export interface ListingUpdate {
   listing: LogHandle[];
@@ -194,6 +211,46 @@ const emptyFetchState = (): LogFetchState => ({
   details_settled_seq: 0,
 });
 
+/** Project rows to bare handles before retaining them as `_handles`: the
+ *  sources are often full `Log` rows (db read-backs, headers included), and
+ *  structural typing would silently retain all of that — O(dir) full rows
+ *  for the life of the dir — when the engine only ever reads the handle
+ *  columns (name resolution, mtime diffing). */
+const toHandles = (rows: LogHandle[]): LogHandle[] =>
+  rows.map(({ name, task, task_id, mtime }) => ({
+    name,
+    task,
+    task_id,
+    mtime,
+  }));
+
+/** Handles whose identity tier needs (re)writing: new names, plus known
+ *  names whose identity fields drifted from the activated mirror. The
+ *  mirror is authoritative for what was last persisted (seeded from the db
+ *  at start, advanced only after a successful persist + read-back, reset by
+ *  clearData), so an unchanged listing sync diffs to [] — without this,
+ *  the server's `>=`-mtime boundary re-sends turn every poll tick into an
+ *  O(dir) identity rewrite whose single rw transaction starves every
+ *  concurrent listing read for the duration (tens of seconds at 50k rows).
+ *  Compares exactly the fields the identity upsert writes (and `toHandles`
+ *  retains); null/undefined are equivalent (server payloads use null, the
+ *  db round-trip yields undefined). */
+const changedHandles = (
+  listing: LogHandle[],
+  prev: LogHandle[]
+): LogHandle[] => {
+  const prevByName = new Map(prev.map((handle) => [handle.name, handle]));
+  return listing.filter((handle) => {
+    const known = prevByName.get(handle.name);
+    return (
+      known === undefined ||
+      (known.mtime ?? undefined) !== (handle.mtime ?? undefined) ||
+      (known.task ?? undefined) !== (handle.task ?? undefined) ||
+      (known.task_id ?? undefined) !== (handle.task_id ?? undefined)
+    );
+  });
+};
+
 export class FetchEngine {
   private _deps: FetchEngineDeps | undefined = undefined;
 
@@ -246,6 +303,11 @@ export class FetchEngine {
   // backfill gating (avoids a db round-trip per batch). Writes still go
   // through the sink so the db ⟹ cache invariant holds.
   private _fetchStates: Record<string, LogFetchState> = {};
+
+  // A `requeueMissing` pass found nothing to enqueue, so no-change sync
+  // ticks can skip re-deriving backfill until new work can exist again
+  // (an applied listing, or a settled failure worth retrying).
+  private _backfillIdle = false;
 
   // Batched sink writes for background completions (user-awaited completions
   // write immediately).
@@ -438,6 +500,9 @@ export class FetchEngine {
         };
         this._fetchStates[name] = next;
         updates[name] = next;
+        // A settled failure is a retry candidate for the next no-change
+        // sync's requeueMissing pass.
+        this._backfillIdle = false;
         return;
       }
       if (!row) {
@@ -625,7 +690,7 @@ export class FetchEngine {
       return;
     }
     deps.sink.seedRows(rows);
-    this._handles = rows;
+    this._handles = toHandles(rows);
 
     // A restart retries every previously-failed file once more — zero the
     // attempts (but keep the error text visible until it's superseded) and
@@ -668,6 +733,7 @@ export class FetchEngine {
     this._activeSettles.clear();
     this._latestDetailsClaim.clear();
     this._fetchStates = {};
+    this._backfillIdle = false;
     this._pendingPreviewWrites = {};
     this._pendingDetailWrites = {};
     const error = new Error("Fetch engine stopped");
@@ -877,7 +943,10 @@ export class FetchEngine {
     let full: Log[] | LogHandle[];
     let rows: Log[] | undefined;
     if (update.persistListing) {
-      rows = await deps.sink.writeListing(update.listing);
+      rows = await deps.sink.writeListing(
+        update.listing,
+        changedHandles(update.listing, this._handles)
+      );
       if (epoch !== this._epoch) {
         return this._handles;
       }
@@ -886,7 +955,7 @@ export class FetchEngine {
       deps.sink.setListing(update.listing);
       full = update.listing;
     }
-    this._handles = full;
+    this._handles = toHandles(full);
 
     const invalidatedSet = new Set(update.invalidated);
     const invalidated = full.filter((handle) =>
@@ -897,10 +966,94 @@ export class FetchEngine {
     // insertion order, so the Medium preview tail sorts ahead of the Medium
     // details backfill and a cold listing paints every preview before the
     // per-file detail fetches start.
-    this.queuePreviewBackfill(full, rows, invalidated);
-    this.queueDetailBackfill(full, rows, invalidated);
+    this._backfillIdle = false;
+    this.queuePreviewBackfill(full, rows, invalidated, {
+      refreshStarted: true,
+    });
+    this.queueDetailBackfill(full, rows, invalidated, {
+      refreshStarted: true,
+    });
     this._throttledUpdateDbStats();
     return full;
+  }
+
+  /**
+   * Re-arm preview/details backfill from persisted rows — the no-change sync
+   * path's stand-in for the re-arm `applyListing` performs on every applied
+   * sync. Without it, backfill lost mid-run (a restart drops the queue;
+   * settled failures leave gaps) never resumes while the server dir is
+   * unchanged, because an unchanged dir never reaches `applyListing`.
+   *
+   * Depth is read from the database, not the sink's cache mirror: the mirror
+   * is a react-query entry that can be garbage-collected while unobserved,
+   * and an empty mirror here would misread a fully-cached dir as all-missing
+   * and re-fetch the entire listing. Sessions where the database isn't the
+   * listing's system of record (db-less, the cache-only scope degrade — the
+   * latter leaves the db open but empty for the scope, so a scoped read
+   * would misread the dir as all-missing the same way) fall back to the
+   * mirror; a collected mirror there means the data is gone anyway.
+   *
+   * Unlike `applyListing`'s backfill, rows persisted as "started" are left
+   * alone: re-fetching them here would poll every permanently-started log on
+   * every no-change tick, forever. An unchanged dir refreshes them only when
+   * their file actually changes (mtime invalidation on a real listing sync).
+   *
+   * No-ops while queued work is still draining — claimed items are no longer
+   * in the queue, so re-deriving here would double-fetch them — and once a
+   * pass found nothing to enqueue, until new work can exist again.
+   */
+  public async requeueMissing(): Promise<void> {
+    const deps = this._deps;
+    if (
+      !deps ||
+      this._backfillIdle ||
+      this._queue.size > 0 ||
+      this._queue.isProcessing
+    ) {
+      return;
+    }
+    const epoch = this._epoch;
+    const rows =
+      deps.database?.opened() && !deps.sink.isCacheOnlyScope()
+        ? await deps.database.readLogs({ prefix: deps.logDir })
+        : deps.sink.currentRows();
+    if (
+      // A failed store read skips the pass (without latching idle) rather
+      // than re-deriving from nothing; the next no-change tick retries.
+      rows === null ||
+      epoch !== this._epoch ||
+      this._queue.size > 0 ||
+      this._queue.isProcessing
+    ) {
+      return;
+    }
+    // Settled fetches whose writes are still staged on the throttled flush
+    // aren't in the store rows yet — count them at their settled depth
+    // (buffers read after the await, so settles landing mid-read count
+    // too), or a tick in the flush window re-fetches the batch that just
+    // completed.
+    const effective = rows.map((row): Log => {
+      if (this._pendingDetailWrites[row.name] !== undefined) {
+        return row.depth === "detailed" ? row : { ...row, depth: "detailed" };
+      }
+      if (
+        this._pendingPreviewWrites[row.name] !== undefined &&
+        row.depth === "listed"
+      ) {
+        return { ...row, depth: "previewed" };
+      }
+      return row;
+    });
+    this.queuePreviewBackfill(this._handles, effective, [], {
+      refreshStarted: false,
+    });
+    this.queueDetailBackfill(this._handles, effective, [], {
+      refreshStarted: false,
+    });
+    // Claims are removed from the queue the moment a worker picks them up
+    // (possibly synchronously, within the enqueue above), so an empty queue
+    // alone doesn't mean nothing was missing — only idle-and-empty does.
+    this._backfillIdle = this._queue.size === 0 && !this._queue.isProcessing;
   }
 
   /** Clear all cached log data (database + cache). */
@@ -992,11 +1145,15 @@ export class FetchEngine {
    * the just-activated row list when the listing was persisted; a
    * cache-only activation has no store to read depth from, so everything
    * counts as missing (matching the db-less behavior before).
+   * `refreshStarted` additionally counts "started" rows as missing — a
+   * mid-run snapshot whose run may have finished since (see
+   * `requeueMissing` for why its path opts out).
    */
   private missingAtDepth(
     full: LogHandle[],
     rows: Log[] | undefined,
-    kind: LogWorkKind
+    kind: LogWorkKind,
+    refreshStarted: boolean
   ): LogHandle[] {
     if (rows === undefined) {
       return full;
@@ -1007,25 +1164,27 @@ export class FetchEngine {
       if (!row) {
         return true;
       }
+      const startedSnapshot = refreshStarted && row.status === "started";
       if (kind === "details") {
-        // A detailed row with "started" status is a mid-run snapshot — the
-        // run may have finished since, so it doesn't count as cached.
-        return row.depth !== "detailed" || row.status === "started";
+        return row.depth !== "detailed" || startedSnapshot;
       }
-      // A previewed "started" row is likewise a snapshot to re-fetch.
-      return row.depth === "listed" || row.status === "started";
+      return row.depth === "listed" || startedSnapshot;
     });
   }
 
   private queueDetailBackfill(
     full: LogHandle[],
     rows: Log[] | undefined,
-    invalidated: LogHandle[]
+    invalidated: LogHandle[],
+    { refreshStarted }: { refreshStarted: boolean }
   ): void {
     const seen = new Set(invalidated.map((handle) => handle.name));
-    const missing = this.missingAtDepth(full, rows, "details").filter(
-      (handle) => !seen.has(handle.name)
-    );
+    const missing = this.missingAtDepth(
+      full,
+      rows,
+      "details",
+      refreshStarted
+    ).filter((handle) => !seen.has(handle.name));
     if (invalidated.length > 0) {
       // An invalidated file changed on the server; a cache-tolerant read
       // (the client-api's memoized remote file) would re-serve the stale
@@ -1051,14 +1210,18 @@ export class FetchEngine {
   private queuePreviewBackfill(
     full: LogHandle[],
     rows: Log[] | undefined,
-    invalidated: LogHandle[]
+    invalidated: LogHandle[],
+    { refreshStarted }: { refreshStarted: boolean }
   ): void {
     const tasks = [...invalidated];
     const seen = new Set(tasks.map((task) => task.name));
 
-    const missing = this.missingAtDepth(full, rows, "preview").filter(
-      (handle) => !seen.has(handle.name)
-    );
+    const missing = this.missingAtDepth(
+      full,
+      rows,
+      "preview",
+      refreshStarted
+    ).filter((handle) => !seen.has(handle.name));
     const { normal, retry } = this.gateBackfill(missing, "preview");
     normal.forEach((handle) => {
       seen.add(handle.name);
@@ -1093,7 +1256,14 @@ export class FetchEngine {
       if (!deps || Object.keys(updates).length === 0) {
         return;
       }
-      await deps.sink.writePreviews(updates).catch(() => {});
+      await deps.sink.writePreviews(updates).catch(() => {
+        // The buffer was already swapped out, so the updates are lost — and
+        // requeueMissing may have counted them at their settled depth and
+        // latched idle. Un-latch so the next no-change tick re-derives the
+        // gap; otherwise the rows sit below their fetched depth until a real
+        // listing change.
+        this._backfillIdle = false;
+      });
       this._throttledUpdateDbStats();
     } finally {
       this._flushingPreviews = false;
@@ -1117,7 +1287,10 @@ export class FetchEngine {
       if (!deps || Object.keys(updates).length === 0) {
         return;
       }
-      await deps.sink.writeDetails(updates).catch(() => {});
+      await deps.sink.writeDetails(updates).catch(() => {
+        // See flushPreviewWrites: a lost flush must not leave backfill idle.
+        this._backfillIdle = false;
+      });
       this._throttledUpdateDbStats();
     } finally {
       this._flushingDetails = false;

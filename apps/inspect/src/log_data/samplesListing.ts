@@ -1,7 +1,7 @@
 import { keepPreviousData } from "@tanstack/react-query";
 
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
+import { AsyncData, createLogger } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
 import {
@@ -15,6 +15,8 @@ import { PreparedSampleSummary } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { getDatabaseService } from "./databaseServiceInstance";
+
+const log = createLogger("samplesListing");
 
 /**
  * The scoped samples read: sample summaries under a scope — one log file
@@ -130,7 +132,15 @@ const readSamplesListing = async (
   }
   const records = await db.readSampleSummaries(params.scope);
   const files = [...new Set(records.map((record) => record.file_path))];
-  const rows = await db.readLogRows(files);
+  // The log context decorates summary rows that already read successfully —
+  // degrade a failed join (readLogRows propagates rejections by design) to
+  // blank context columns rather than erroring the whole listing away.
+  const rows = await db
+    .readLogRows(files)
+    .catch((error: unknown): Record<string, Log> => {
+      log.error("Samples listing log-context read failed:", error);
+      return {};
+    });
   const contexts = new Map(files.map((file) => [file, rowContext(rows[file])]));
   return pageOf(
     records.map((record) => ({

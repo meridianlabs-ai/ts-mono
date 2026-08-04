@@ -5,7 +5,7 @@ import type {
 } from "@tsmono/inspect-common/query";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 
-import type { Cursor } from "../../../client/database/listing";
+import type { Cursor } from "../../client/database/listing";
 
 /**
  * Result of a listing query — mirrors scout's `TranscriptsResponse`
@@ -16,6 +16,12 @@ export interface LogsListingResult<TRow> {
   items: TRow[];
   /** Total rows after filtering, before pagination. */
   total_count: number;
+  /** Distinct task_ids across the whole filtered universe — like
+   *  `total_count`, snapshot-scoped rather than window-scoped, so the
+   *  pending-task anti-join can settle tasks whose file rows sit on
+   *  unloaded pages. Unset when `items` already spans the universe
+   *  (cache-path reads). */
+  universe_task_ids?: string[];
   next_cursor?: Cursor | null;
 }
 
@@ -27,7 +33,7 @@ export interface LogsListingResult<TRow> {
 export type ValueComparator = (
   a: unknown,
   b: unknown,
-  isDescending: boolean
+  isDescending?: boolean
 ) => number;
 
 /** Reads a row's value for a column id (built from the column defs). */

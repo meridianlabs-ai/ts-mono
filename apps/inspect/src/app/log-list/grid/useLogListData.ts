@@ -4,19 +4,20 @@ import { useMemo } from "react";
 import type { Condition, OrderByModel } from "@tsmono/inspect-common/query";
 import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 
-import { useLogsListing } from "../../../state/hooks";
-import { useKeyedMemo } from "../../shared/useKeyedMemo";
 import {
   applyListingQuery,
+  compareByOrderBy,
   mergeSortedRows,
-} from "../listing/applyListingQuery";
-import { combineFilters } from "../listing/combineFilters";
-import { compareByOrderBy } from "../listing/evaluator";
+} from "../../../log_data";
 import type {
   FilterTypeAccessor,
+  LogListingRow,
   ValueAccessor,
   ValueComparator,
-} from "../listing/types";
+} from "../../../log_data";
+import { useLogsListing } from "../../../state/hooks";
+import { useKeyedMemo } from "../../shared/useKeyedMemo";
+import { combineFilters } from "../listing/combineFilters";
 import {
   sortingStateToOrderBy,
   useDatabaseLogsListingQuery,
@@ -29,14 +30,19 @@ import { buildLogListRow } from "./logListRow";
 
 const kNoRows: LogListRow[] = [];
 
-/** Pending rows minus the tasks that already have a file row in `fileRows`
- *  (pending row ids are task ids; file rows carry their record's task_id). */
+/** Pending rows minus the tasks that already have a file row (pending row
+ *  ids are task ids; file rows carry their record's task_id). `fileRows` is
+ *  only the loaded page window under pagination, so the snapshot-scoped
+ *  `universeTaskIds` carries the tasks whose files sit on unloaded pages;
+ *  the window rows still count too — their bulkGot records can be fresher
+ *  than the snapshot (e.g. a preview landing task_id after the scan). */
 export const dropSettledPendingRows = (
   pendingRows: LogListRow[],
-  fileRows: LogListRow[]
+  fileRows: LogListRow[],
+  universeTaskIds?: string[]
 ): LogListRow[] => {
-  if (pendingRows.length === 0 || fileRows.length === 0) return pendingRows;
-  const fileTaskIds = new Set<string>();
+  if (pendingRows.length === 0) return pendingRows;
+  const fileTaskIds = new Set<string>(universeTaskIds);
   for (const row of fileRows) {
     const taskId = row.log?.task_id;
     if (taskId) fileTaskIds.add(taskId);
@@ -53,12 +59,22 @@ interface UseLogListDataParams {
   /** Per-scope sorting/filters are read under this key (`undefined` while
    *  logDir is still hydrating — defaults apply, nothing is written). */
   scopeKey?: string;
+  /** Row-universe membership as conditions over record columns
+   *  (`parent_dir`, `retried` — built in LogsPanel). ANDed with the user's
+   *  column filters for the data queries only: overlay rows (pending
+   *  tasks) have no record, so record-column terms would drop them all. */
+  scopeFilter?: Condition;
   getValue: ValueAccessor<LogListRow>;
   getComparator: (columnId: string) => ValueComparator | undefined;
   getFilterType?: FilterTypeAccessor;
-  /** Cache identity of the accessors (see `useLogListColumns`). */
+  /** Cache identity of the column schema (see `useLogListColumns`). */
   accessorsKey: string;
-  listing: LogsListingDescriptor<LogListRow>;
+  /** Shape a queried record into its display row (`undefined`: the view
+   *  can't shape it — a shaping guard, the conditions exclude such records
+   *  anyway). Pages come back as records; shaping runs here, above the
+   *  data interface, per loaded page. */
+  shapeRow: (log: LogListingRow) => LogListRow | undefined;
+  listing: LogsListingDescriptor<LogListingRow>;
 }
 
 export interface LogListData {
@@ -78,9 +94,22 @@ export interface LogListData {
   orderBy: OrderByModel[];
   /** The listing query has no result to show yet (first read in flight). */
   pending: boolean;
-  /** The listing read failed — `rows` carries only the overlay items, so
-   *  render this rather than an empty-looking list. */
+  /** The listing read failed. Warm — `rows` still carries the retained
+   *  pages (see `DatabaseLogsListing.result`) plus overlay items — so keep
+   *  rendering the list and surface this beside it; only when `rows` is
+   *  empty is there nothing to show (render an error state rather than an
+   *  empty-looking list). */
   error: Error | undefined;
+  /** More file rows exist beyond the loaded pages — gates the grid's
+   *  scroll-near-end fetch trigger. */
+  hasMoreRows: boolean;
+  /** Load the next page of file rows (in-flight-safe). */
+  fetchMoreRows: () => void;
+  /** Load pages until a snapshot offset is represented in `rows`. */
+  ensureFileOffsetLoaded: (offset: number) => void;
+  /** Pause the grid's commit-driven fetch chaining — a chained fetch can't
+   *  make progress right now (see `DatabaseLogsListing.autoFetchPaused`). */
+  autoFetchPaused: boolean;
 }
 
 /**
@@ -93,10 +122,12 @@ export interface LogListData {
 export const useLogListData = ({
   overlayItems,
   scopeKey,
+  scopeFilter,
   getValue,
   getComparator,
   getFilterType,
   accessorsKey,
+  shapeRow,
   listing,
 }: UseLogListDataParams): LogListData => {
   const { gridStateByScope } = useLogsListing();
@@ -139,21 +170,42 @@ export const useLogListData = ({
     () => (scopeKey ? gridStateByScope[scopeKey]?.columnFilters : undefined),
     [gridStateByScope, scopeKey]
   );
-  const filter = useMemo(() => combineFilters(columnFilters), [columnFilters]);
+  const userFilter = useMemo(
+    () => combineFilters(columnFilters),
+    [columnFilters]
+  );
+  // What the data queries run under: membership AND the user's filters.
+  const filter = useMemo(() => {
+    if (scopeFilter && userFilter) return scopeFilter.and(userFilter);
+    return scopeFilter ?? userFilter;
+  }, [scopeFilter, userFilter]);
 
   const {
-    data: result,
-    loading: pending,
+    result: { data: result, loading: pending },
     error,
-  } = useDatabaseLogsListingQuery<LogListRow>({
+    hasNextPage,
+    fetchNextPage,
+    ensureOffsetLoaded,
+    autoFetchPaused,
+  } = useDatabaseLogsListingQuery<LogListingRow>({
     filter,
     orderBy,
-    getValue,
-    getComparator,
-    getFilterType,
     accessorsKey,
     listing,
   });
+
+  // Pages arrive as stored records; shape them into display rows here,
+  // above the data interface — per loaded page, per shaping inputs.
+  const fileRows = useMemo(() => {
+    const records = result?.items;
+    if (records === undefined || records.length === 0) return kNoRows;
+    const rows: LogListRow[] = [];
+    for (const record of records) {
+      const row = shapeRow(record);
+      if (row !== undefined) rows.push(row);
+    }
+    return rows;
+  }, [result, shapeRow]);
 
   // The pending anti-join input (overview.taskIds) and the file rows are two
   // independent async reads of the same store, so a settle-order skew can
@@ -161,18 +213,21 @@ export const useLogListData = ({
   // renders. Re-derive against the queried page: a task with a file row is
   // not pending, whatever the overview's snapshot said.
   const visiblePendingRows = useMemo(
-    () => dropSettledPendingRows(pendingRows, result?.items ?? kNoRows),
-    [pendingRows, result]
+    () =>
+      dropSettledPendingRows(pendingRows, fileRows, result?.universe_task_ids),
+    [pendingRows, fileRows, result]
   );
 
   // Pending tasks have no database record: run the same query over them in
-  // memory and merge the (small) result into the query's page.
+  // memory and merge the (small) result into the query's page. Under the
+  // USER filter only — the scope conditions test record columns a pending
+  // row doesn't have (its membership is the anti-join above).
   const overlay = useMemo(
     () =>
       visiblePendingRows.length === 0
         ? undefined
         : applyListingQuery(visiblePendingRows, {
-            filter,
+            filter: userFilter,
             orderBy,
             getValue,
             getComparator,
@@ -180,7 +235,7 @@ export const useLogListData = ({
           }),
     [
       visiblePendingRows,
-      filter,
+      userFilter,
       orderBy,
       getValue,
       getComparator,
@@ -189,14 +244,13 @@ export const useLogListData = ({
   );
 
   const files = useMemo(() => {
-    const base = result?.items ?? kNoRows;
-    if (!overlay) return base;
+    if (!overlay) return fileRows;
     const compare =
       orderBy.length > 0
         ? compareByOrderBy(orderBy, getValue, getComparator)
         : undefined;
-    return mergeSortedRows(base, overlay.items, compare);
-  }, [result, overlay, orderBy, getValue, getComparator]);
+    return mergeSortedRows(fileRows, overlay.items, compare);
+  }, [fileRows, overlay, orderBy, getValue, getComparator]);
 
   const rows = useMemo(
     () => (folders.length > 0 ? [...folders, ...files] : files),
@@ -205,6 +259,8 @@ export const useLogListData = ({
 
   return {
     rows,
+    // Footer count over the whole filtered universe, not the loaded pages:
+    // total_count comes from the snapshot's key list.
     filteredCount:
       folders.length + (result?.total_count ?? 0) + (overlay?.total_count ?? 0),
     sorting,
@@ -213,5 +269,9 @@ export const useLogListData = ({
     orderBy,
     pending,
     error,
+    hasMoreRows: hasNextPage,
+    fetchMoreRows: fetchNextPage,
+    ensureFileOffsetLoaded: ensureOffsetLoaded,
+    autoFetchPaused,
   };
 };

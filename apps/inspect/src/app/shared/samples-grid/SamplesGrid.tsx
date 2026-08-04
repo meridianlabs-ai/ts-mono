@@ -14,8 +14,8 @@ import type {
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
+import type { ValueComparator } from "../../../log_data";
 import { combineFilters } from "../../log-list/listing/combineFilters";
-import type { ValueComparator } from "../../log-list/listing/types";
 import {
   sortingStateToOrderBy,
   useLogsListingQuery,

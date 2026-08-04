@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { compareByOrderBy } from "../../../../log_data";
 import { comparators } from "../../../shared/gridComparators";
-import { compareByOrderBy } from "../../listing/evaluator";
 
 import { completedAtValue } from "./completedAt";
 import { LogListRow } from "./types";

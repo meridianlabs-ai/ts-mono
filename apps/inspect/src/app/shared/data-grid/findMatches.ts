@@ -1,41 +1,26 @@
-import type { ExtendedColumnDef } from "./columnTypes";
+import { joinSearchText, primitiveText } from "../../../log_data";
 
-/** Objects/arrays are skipped rather than stringified ("[object Object]"
- *  must never be searchable text). */
-function primitiveText(value: unknown): string | null {
-  switch (typeof value) {
-    case "string":
-      return value;
-    case "number":
-    case "boolean":
-    case "bigint":
-      return String(value);
-    default:
-      return null;
-  }
-}
+import type { ExtendedColumnDef } from "./columnTypes";
 
 /**
  * One row's searchable text: lowercased plain-text built from the visible
- * columns' `textValue` (display formatting) or raw accessor value.
+ * columns' `textValue` (display formatting) or raw accessor value. The
+ * formatting and joining rules are the data layer's (`searchText.ts`), so
+ * shaped-row matching here can't drift from the record-level schema's.
  */
 export function rowSearchText<TRow>(
   row: TRow,
   columns: ExtendedColumnDef<TRow>[]
 ): string {
-  const parts: string[] = [];
-  for (const column of columns) {
-    let text: string | null = null;
-    if (column.textValue) {
-      text = column.textValue(row);
-    } else if ("accessorFn" in column && column.accessorFn) {
-      text = primitiveText(column.accessorFn(row, 0));
-    }
-    if (text) parts.push(text);
-  }
-  // Newline separator: never matches a typed term, so a term can't match
-  // across the boundary between adjacent columns' text.
-  return parts.join("\n").toLowerCase();
+  return joinSearchText(
+    columns.map((column) =>
+      column.textValue
+        ? column.textValue(row)
+        : "accessorFn" in column && column.accessorFn
+          ? primitiveText(column.accessorFn(row, 0))
+          : null
+    )
+  );
 }
 
 /**

@@ -1,4 +1,4 @@
-import { LogHandle } from "@tsmono/inspect-common";
+import type { LogListingRow } from "../../../../log_data";
 
 export interface LogListRow {
   id: string;
@@ -13,7 +13,9 @@ export interface LogListRow {
   status?: string;
   completedAt?: string;
   itemCount?: number;
-  log?: LogHandle;
+  /** The backing record for file rows (what `buildLogListRow` projected
+   *  this row from); unset for overlay rows (folders, pending tasks). */
+  log?: LogListingRow;
   path?: string;
   totalSamples?: number;
   completedSamples?: number;

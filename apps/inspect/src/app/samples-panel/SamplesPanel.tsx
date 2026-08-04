@@ -10,11 +10,8 @@ import type {
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
-import { scopePrefix } from "../../client/database";
 import { ActivityBar } from "../../components/ActivityBar";
 import {
-  LogListingRow,
-  useLogListing,
   useLogsSync,
   useSamplesListing,
   type SamplesListingRow,
@@ -45,6 +42,7 @@ import { SampleRow } from "../shared/samples-grid/types";
 import { useSampleGridState } from "../shared/samples-grid/useSampleGridState";
 
 import styles from "./SamplesPanel.module.css";
+import { useSamplesLogFacts } from "./useSamplesLogFacts";
 
 // Cross-log default: most-recently-completed first (matches the prior AG view).
 const kSamplesPanelDefaultSorting: SortingState = [
@@ -78,7 +76,6 @@ const completedAtTime = (row: SampleRow): number => {
 };
 
 const kNoSamplesRows: SamplesListingRow[] = [];
-const kNoLogRows: LogListingRow[] = [];
 
 export const SamplesPanel: FC = () => {
   const { samplesPath } = useSamplesRouteParams();
@@ -131,42 +128,27 @@ export const SamplesPanel: FC = () => {
   const scopedSamples = samplesListing.data ?? kNoSamplesRows;
 
   const evalSet = useEvalSet(samplesPath || "").data;
-  const logListing = useLogListing(logDir);
-  const logFiles = logListing.data ?? kNoLogRows;
-  const error = listing.error ?? samplesListing.error ?? logListing.error;
-
-  const currentDirLogFiles = useMemo(() => {
-    const files = [];
-    for (const logFile of logFiles) {
-      const inCurrentDir = logFile.name.startsWith(scopePrefix(currentDir));
-      const skipped = !showRetriedLogs && logFile.retried;
-      if (inCurrentDir && !skipped) {
-        files.push(logFile);
-      }
-    }
-    return files;
-  }, [currentDir, logFiles, showRetriedLogs]);
+  // Log-side facts (membership after retried-hiding, progress counts) —
+  // a data-layer projection, not the full log-row list.
+  const logFactsQuery = useSamplesLogFacts(logDir, currentDir, {
+    showRetriedLogs,
+  });
+  const logFacts = logFactsQuery.data;
+  const error = listing.error ?? samplesListing.error ?? logFactsQuery.error;
 
   const totalTaskCount = useMemo(() => {
-    const currentDirTaskIds = new Set(currentDirLogFiles.map((f) => f.task_id));
-    let count = currentDirLogFiles.length;
+    if (logFacts === undefined) return 0;
+    const scopeTaskIds = new Set(logFacts.taskIds);
+    let count = logFacts.fileNames.length;
     for (const task of evalSet?.tasks || []) {
-      if (!currentDirTaskIds.has(task.task_id)) {
+      if (!scopeTaskIds.has(task.task_id)) {
         count++;
       }
     }
     return count;
-  }, [currentDirLogFiles, evalSet]);
+  }, [logFacts, evalSet]);
 
-  const completedTaskCount = useMemo(() => {
-    let count = 0;
-    for (const logFile of currentDirLogFiles) {
-      if (logFile.status !== undefined && logFile.status !== "started") {
-        count++;
-      }
-    }
-    return count;
-  }, [currentDirLogFiles]);
+  const completedTaskCount = logFacts?.completedCount ?? 0;
 
   // Build the superset of columns.
   const allColumns = useMemo(
@@ -305,69 +287,59 @@ export const SamplesPanel: FC = () => {
     setPreviousSamplesPath,
   ]);
 
+  // Retried runs exist in scope (whether or not currently hidden) — shows
+  // the toggle in both of its states.
+  const hasRetriedLogs = (logFacts?.retriedCount ?? 0) > 0;
+
   // Transform the scoped samples into flat grid rows, pre-sorted by
   // completion time (descending) since interactive sorting is deferred.
-  const [sampleRows, hasRetriedLogs] = useMemo(() => {
-    let displayIndex = 1;
-
-    const anyLogInCurrentDirCouldBeSkipped = currentDirLogFiles.some(
-      (log) => log.retried
-    );
-    const logInCurrentDirByName = currentDirLogFiles.reduce(
-      (acc: Record<string, LogListingRow>, log) => {
-        acc[log.name] = log;
-        return acc;
-      },
-      {}
-    );
+  const sampleRows = useMemo(() => {
+    // A sample displays iff its log does: membership (subtree +
+    // retried-hiding) is the facts' post-hiding name set.
+    const memberNames = new Set(logFacts?.fileNames);
 
     // A projection: sample-intrinsic derived values come off the listing row
     // (attached at ingestion by `deriveSampleFields`); log-level context is
     // the subsystem's read-time join.
-    const allRows: SampleRow[] = scopedSamples.map(
-      ({ logFile, summary: sample, derived, log }) => {
-        const row: SampleRow = {
-          logFile,
-          sampleId: sample.id,
-          epoch: sample.epoch,
-          data: sample,
-          created: log.created ?? "",
-          task: log.task || "",
-          model: log.model || "",
-          status: log.status,
-          input: derived.input,
-          target: derived.target,
-          error: sample.error,
-          limit: sample.limit,
-          retries: sample.retries,
-          fallbacks: derived.fallbacks,
-          completed: sample.completed,
-          tokens: derived.tokens,
-          duration: sample.total_time ?? undefined,
-        };
-        if (derived.scores) {
-          for (const [scoreName, value] of Object.entries(derived.scores)) {
-            row[`${SCORE_FIELD_RAW_PREFIX}${scoreName}`] = value;
-          }
+    const rows: SampleRow[] = [];
+    for (const { logFile, summary: sample, derived, log } of scopedSamples) {
+      if (!memberNames.has(logFile)) continue;
+      const row: SampleRow = {
+        logFile,
+        sampleId: sample.id,
+        epoch: sample.epoch,
+        data: sample,
+        created: log.created ?? "",
+        task: log.task || "",
+        model: log.model || "",
+        status: log.status,
+        input: derived.input,
+        target: derived.target,
+        error: sample.error,
+        limit: sample.limit,
+        retries: sample.retries,
+        fallbacks: derived.fallbacks,
+        completed: sample.completed,
+        tokens: derived.tokens,
+        duration: sample.total_time ?? undefined,
+      };
+      if (derived.scores) {
+        for (const [scoreName, value] of Object.entries(derived.scores)) {
+          row[`${SCORE_FIELD_RAW_PREFIX}${scoreName}`] = value;
         }
-        return row;
       }
-    );
+      rows.push(row);
+    }
 
-    const _sampleRows = allRows.filter(
-      (row) => row.logFile in logInCurrentDirByName
-    );
     // Sort by completion time descending, then assign the display index so
     // the `#` column matches the rendered order.
-    _sampleRows.sort((a, b) => completedAtTime(b) - completedAtTime(a));
-    for (const row of _sampleRows) {
+    rows.sort((a, b) => completedAtTime(b) - completedAtTime(a));
+    let displayIndex = 1;
+    for (const row of rows) {
       row.displayIndex = displayIndex++;
     }
-    const _hasRetriedLogs =
-      _sampleRows.length < allRows.length || anyLogInCurrentDirCouldBeSkipped;
-
-    return [_sampleRows, _hasRetriedLogs];
-  }, [scopedSamples, currentDirLogFiles]);
+    return rows;
+  }, [scopedSamples, logFacts]);
 
   const { navigateToSampleDetail } = useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(
@@ -420,7 +392,8 @@ export const SamplesPanel: FC = () => {
   );
 
   const isEmptyAndLoading =
-    sampleRows.length === 0 && (listing.busy || samplesListing.loading);
+    sampleRows.length === 0 &&
+    (listing.busy || samplesListing.loading || logFactsQuery.loading);
 
   return (
     <div className={clsx(styles.panel)}>

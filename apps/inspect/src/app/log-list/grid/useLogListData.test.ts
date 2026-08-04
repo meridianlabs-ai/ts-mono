@@ -1,5 +1,7 @@
 import { describe, expect, test } from "vitest";
 
+import type { LogListingRow } from "../../../log_data";
+
 import type { LogListRow } from "./columns/types";
 import { dropSettledPendingRows } from "./useLogListData";
 
@@ -13,7 +15,7 @@ const file = (name: string, taskId?: string): LogListRow => ({
   id: name,
   name,
   type: "file",
-  log: { name, task_id: taskId ?? null },
+  log: { name, task_id: taskId ?? null } as LogListingRow,
 });
 
 describe("dropSettledPendingRows", () => {
@@ -24,6 +26,18 @@ describe("dropSettledPendingRows", () => {
     const rows = dropSettledPendingRows(
       [pending("t-a"), pending("t-b")],
       [file("/logs/a.eval", "t-a")]
+    );
+    expect(rows.map((row) => row.id)).toEqual(["t-b"]);
+  });
+
+  test("universe task ids settle pending tasks whose file row sits beyond the loaded window", () => {
+    // Under pagination `fileRows` is only the loaded page window: the file
+    // row claiming t-a may live on an unloaded page, reported only through
+    // the snapshot's universe task ids.
+    const rows = dropSettledPendingRows(
+      [pending("t-a"), pending("t-b")],
+      [file("/logs/z.eval", "t-z")],
+      ["t-a"]
     );
     expect(rows.map((row) => row.id)).toEqual(["t-b"]);
   });
