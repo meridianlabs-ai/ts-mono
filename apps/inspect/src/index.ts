@@ -16,6 +16,11 @@ export { clientApi } from "./client/api/client-api";
 export { default as simpleHttpApi } from "./client/api/static-http/api-static-http.ts";
 export { viewServerApi as createViewServerApi } from "./client/api/view-server/api-view-server.ts";
 
+// Embedder api injection — install a per-dir api factory before initializing
+// the store and rendering <App/>; setLogRoot re-points the viewer at a
+// different dir (rebuilding the api through the same factory).
+export { setApiFactory, setLogRoot } from "./app_config";
+
 // Client API - Types
 export type {
   Capabilities,

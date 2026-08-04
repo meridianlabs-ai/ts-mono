@@ -42,7 +42,7 @@ export interface BackendCapabilities {
  * stages by design (#392) — an api instance is immutable per dir, so the dir
  * must exist first, and a dir change means calling `createApi` again (see
  * `setLogRoot`). `createApi` is the seam an embedder-supplied api factory
- * plugs into (see PR #473).
+ * plugs into (see `setApiFactory`).
  */
 export interface BackendBootstrap {
   /** Discover the log root (dir mode). Runs once, before any `ClientAPI`. */
@@ -55,6 +55,51 @@ export interface BackendBootstrap {
   createApi: (logDir: string) => ClientAPI;
   capabilities: BackendCapabilities;
 }
+
+let embedderFactory:
+  | { createApi: (logDir: string) => ClientAPI; initialLogDir?: string }
+  | undefined;
+
+/**
+ * Install a per-dir api factory from an external embedder hosting the viewer
+ * in-process (e.g. one that serves logs through its own authenticated /
+ * multiplexed backend). When installed it supersedes every URL/DOM-derived
+ * backend; standalone `inspect view` never calls this and is unaffected.
+ *
+ * Call once, before `initializeStore` / rendering `<App/>`. The factory is
+ * pure per-dir construction: boot calls it with the resolved dir, and
+ * re-pointing the viewer at a different dir is `setLogRoot(dir)` — the one
+ * impure operation — which calls it again. `initialLogDir` seeds root
+ * discovery; without it the dir must arrive via the URL (`?log_dir=`).
+ */
+export const setApiFactory = (
+  createApi: (logDir: string) => ClientAPI,
+  initialLogDir?: string
+): void => {
+  embedderFactory = { createApi, initialLogDir };
+};
+
+/** Reset the installed embedder factory. For tests. */
+export const resetApiFactory = (): void => {
+  embedderFactory = undefined;
+};
+
+const embedderBackend = (
+  createApi: (logDir: string) => ClientAPI,
+  logDir?: string
+): BackendBootstrap => ({
+  resolveLogRoot: () =>
+    logDir !== undefined
+      ? Promise.resolve({ logs: [], log_dir: logDir })
+      : Promise.reject(
+          new Error(
+            "setApiFactory requires an initial log dir: pass initialLogDir " +
+              "or a ?log_dir= URL param."
+          )
+        ),
+  createApi,
+  capabilities: { downloadLogs: false, streamSamples: false },
+});
 
 // A backend that can't work at all (e.g. legacy VS Code host). Constructed
 // instead of throwing from resolveBackend so the error surfaces through the
@@ -90,10 +135,19 @@ const staticBackend = (
 /**
  * Resolves the backend bootstrap from the invocation-time log source (see
  * `app_config/urlLogSource.ts`) plus the ambient signals (vscode host,
- * embedded `#log_dir_context`, `?inspect_server=true`). Called once, by
+ * embedded `#log_dir_context`, `?inspect_server=true`). An embedder-installed
+ * factory (`setApiFactory`) supersedes them all. Called once, by
  * `resolveBootstrap()`.
  */
 export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
+  if (embedderFactory) {
+    return embedderBackend(
+      embedderFactory.createApi,
+      embedderFactory.initialLogDir ??
+        (source.kind === "dir" ? source.logDir : undefined)
+    );
+  }
+
   const vscode = getVscodeApi();
   if (vscode) {
     // VS Code runs either single-file (the extension embeds a `#logview-state`

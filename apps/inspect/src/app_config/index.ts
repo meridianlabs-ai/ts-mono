@@ -9,6 +9,7 @@ export {
   setLogRoot,
 } from "./appConfig";
 export { AppConfigGate } from "./AppConfigGate";
+export { setApiFactory } from "./resolveBackend";
 export {
   readEmbeddedStartupState, // TODO: This should be private/encapsulated
   resolveEmbeddedLogDir, // TODO: This should be private/encapsulated

@@ -5,6 +5,7 @@ import { getVscodeApi } from "@tsmono/util";
 import staticHttpApi, {
   staticLogRoot,
 } from "../client/api/static-http/api-static-http";
+import { ClientAPI } from "../client/api/types";
 import {
   fetchViewServerLogDir,
   fetchViewServerLogRoot,
@@ -16,7 +17,11 @@ import {
 } from "../client/api/vscode/api-vscode";
 
 import { AppConfigBootstrap, loadResolvedAppConfig } from "./appConfig";
-import { resolveBackend } from "./resolveBackend";
+import {
+  resetApiFactory,
+  resolveBackend,
+  setApiFactory,
+} from "./resolveBackend";
 import { UrlLogSource } from "./urlLogSource";
 
 // resolveBackend picks which backend bootstrap to build from the ambient
@@ -89,6 +94,7 @@ const fileSource = (logFile: string): UrlLogSource => ({
 const noneSource: UrlLogSource = { kind: "none" };
 
 afterEach(() => {
+  resetApiFactory();
   setSearch("");
   document.getElementById("log_dir_context")?.remove();
   document.getElementById("inspect-host-capabilities")?.remove();
@@ -239,6 +245,59 @@ describe("resolveBackend selection", () => {
       downloadLogs: true,
       streamSamples: true,
     });
+  });
+});
+
+describe("embedder api factory (setApiFactory)", () => {
+  const factoryApi = { __backend: "embedder" } as unknown as ClientAPI;
+
+  it("wins over every ambient signal (vscode host present)", async () => {
+    mockGetVscodeApi.mockReturnValue(
+      {} as NonNullable<ReturnType<typeof getVscodeApi>>
+    );
+    addHostCapabilities(["http_request"]);
+    const dirs: string[] = [];
+    setApiFactory((logDir) => {
+      dirs.push(logDir);
+      return factoryApi;
+    }, "file:///hawk/logs");
+
+    const backend = resolveBackend(noneSource);
+
+    await expect(backend.resolveLogRoot()).resolves.toEqual({
+      logs: [],
+      log_dir: "file:///hawk/logs",
+    });
+    expect(backend.createApi("file:///hawk/logs")).toBe(factoryApi);
+    // A dir change (setLogRoot) re-calls createApi on the same bootstrap.
+    backend.createApi("file:///other");
+    expect(dirs).toEqual(["file:///hawk/logs", "file:///other"]);
+    expect(mockApiVscode).not.toHaveBeenCalled();
+    expect(backend.capabilities).toEqual({
+      downloadLogs: false,
+      streamSamples: false,
+    });
+  });
+
+  it("without initialLogDir, a dir source seeds root discovery", async () => {
+    setApiFactory(() => factoryApi);
+
+    const backend = resolveBackend(dirSource("/logs"));
+
+    await expect(backend.resolveLogRoot()).resolves.toEqual({
+      logs: [],
+      log_dir: "/logs",
+    });
+  });
+
+  it("without any dir, root discovery rejects with an actionable message", async () => {
+    setApiFactory(() => factoryApi);
+
+    const backend = resolveBackend(noneSource);
+
+    await expect(backend.resolveLogRoot()).rejects.toThrow(
+      /initialLogDir or a \?log_dir= URL param/i
+    );
   });
 });
 
