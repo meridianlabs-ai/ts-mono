@@ -15,6 +15,7 @@ import {
   createVscodeProxyFetch,
 } from "../client/api/vscode/api-vscode";
 
+import { AppConfigBootstrap, loadResolvedAppConfig } from "./appConfig";
 import { resolveBackend } from "./resolveBackend";
 import { UrlLogSource } from "./urlLogSource";
 
@@ -91,6 +92,7 @@ afterEach(() => {
   setSearch("");
   document.getElementById("log_dir_context")?.remove();
   document.getElementById("inspect-host-capabilities")?.remove();
+  document.getElementById("logview-state")?.remove();
   mockGetVscodeApi.mockReset();
   mockStaticHttpApi.mockClear();
   mockStaticLogRoot.mockClear();
@@ -237,5 +239,40 @@ describe("resolveBackend selection", () => {
       downloadLogs: true,
       streamSamples: true,
     });
+  });
+});
+
+// The update-extension error must reach the user in BOTH VS Code launch
+// modes. The config gate renders the resolution rejection's message, so
+// pinning the message on loadResolvedAppConfig pins what the user reads.
+// The modes fail at different stages: dir mode in dir discovery
+// (resolveLogRoot), embedded single-file in construction (createApi — the
+// dir comes from #logview-state, so discovery never touches the backend).
+describe("legacy vscode host error reaches config resolution", () => {
+  const legacyHostBootstrap = (singleFileMode: boolean): AppConfigBootstrap => {
+    mockGetVscodeApi.mockReturnValue(
+      {} as NonNullable<ReturnType<typeof getVscodeApi>>
+    );
+    return {
+      backend: resolveBackend(noneSource),
+      singleFileMode,
+      loader: singleFileMode ? "direct" : "replicator",
+    };
+  };
+
+  it("dir mode: rejects with the update-extension message", async () => {
+    await expect(
+      loadResolvedAppConfig(legacyHostBootstrap(false))
+    ).rejects.toThrow(/update the Inspect AI extension/i);
+  });
+
+  it("single-file embedded mode: rejects with the update-extension message", async () => {
+    addJsonScript("logview-state", {
+      type: "updateState",
+      url: "/abs/logs/task.eval",
+    });
+    await expect(
+      loadResolvedAppConfig(legacyHostBootstrap(true))
+    ).rejects.toThrow(/update the Inspect AI extension/i);
   });
 });
