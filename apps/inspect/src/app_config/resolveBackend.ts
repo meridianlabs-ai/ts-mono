@@ -104,7 +104,9 @@ const embedderBackend = (
 ): BackendBootstrap => ({
   resolveLogRoot: () =>
     logDir !== undefined
-      ? Promise.resolve({ logs: [], log_dir: logDir })
+      ? // The embedder's dir is used verbatim — no `staticLogRoot`
+        // canonicalization, which is URL munging for http-served dirs.
+        Promise.resolve({ logs: [], log_dir: logDir })
       : Promise.reject(
           new Error(
             "setApiFactory requires an initial log dir: pass initialLogDir " +
@@ -113,8 +115,8 @@ const embedderBackend = (
         ),
   // A bare `?log_file=` ref must resolve against the embedder's declared
   // dir, not the folder serving the page (meaningless in-process).
-  resolveConfiguredDir:
-    logDir !== undefined ? () => Promise.resolve(logDir) : undefined,
+  // Resolving `undefined` reads the same as absent to the one consumer.
+  resolveConfiguredDir: () => Promise.resolve(logDir),
   createApi,
   capabilities: { downloadLogs: false, streamSamples: false },
 });

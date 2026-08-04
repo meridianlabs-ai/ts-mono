@@ -659,11 +659,11 @@ export class FetchEngine {
     this._fetchStates = reset;
     if (Object.keys(reset).length > 0) {
       await deps.sink.writeFetchStates(reset);
-      if (this._epoch !== epoch) {
-        return;
-      }
     }
 
+    // No fence needed past this point: updateDbStats reads live `this._deps`,
+    // so a superseded continuation recomputes the new session's stats (or
+    // no-ops when stopped) rather than writing stale state.
     await this.updateDbStats();
   }
 

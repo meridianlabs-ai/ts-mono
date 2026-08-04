@@ -13,14 +13,22 @@ const h = vi.hoisted(() => ({
   stop: vi.fn(),
   start: vi.fn(),
   ensure: vi.fn(),
+  epoch: 0,
   openDatabase: vi.fn(),
   touchSyncScope: vi.fn(),
   syncListing: vi.fn(),
 }));
 
 vi.mock("../app_config", () => ({ getAppConfig: h.getAppConfig }));
+// The mock engine keeps the real stop()-bumps-epoch contract — startEngine's
+// supersede fence reads it.
 vi.mock("./fetchEngine", () => ({
-  fetchEngine: { stop: h.stop, start: h.start, ensure: h.ensure },
+  fetchEngine: {
+    stop: h.stop,
+    start: h.start,
+    ensure: h.ensure,
+    epoch: () => h.epoch,
+  },
 }));
 vi.mock("./databaseServiceInstance", () => ({
   getDatabaseService: () => ({
@@ -43,7 +51,9 @@ const configFor = (logDir: string): AppConfig =>
 beforeEach(() => {
   vi.resetModules();
   h.getAppConfig.mockReset().mockReturnValue({ singleFileMode: false });
-  h.stop.mockReset();
+  h.stop.mockReset().mockImplementation(() => {
+    h.epoch += 1;
+  });
   h.start.mockReset().mockResolvedValue(undefined);
   h.ensure.mockReset().mockResolvedValue(undefined);
   h.openDatabase.mockReset().mockResolvedValue(undefined);

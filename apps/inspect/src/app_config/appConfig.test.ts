@@ -106,9 +106,8 @@ describe("setLogRoot", () => {
   });
 
   it("no-ops on an unchanged dir even when the config carries absLogDir", () => {
-    // The VS Code call site never passes absLogDir, so a config whose root
-    // came from the dir-mode probe (abs_log_dir set) must still no-op — a
-    // rebuild here would also clobber absLogDir to undefined.
+    // A config whose root came from the dir-mode probe (abs_log_dir set)
+    // must still no-op — a rebuild would clobber absLogDir to undefined.
     const prev = seedConfig("/abs/logs");
     setLogRoot("file:///logs");
     expect(getAppConfig()).toBe(prev);
