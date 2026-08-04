@@ -85,7 +85,7 @@ describe("resolveBootstrap", () => {
 });
 
 describe("setLogRoot", () => {
-  const seedConfig = (): AppConfig =>
+  const seedConfig = (absLogDir?: string): AppConfig =>
     initAppConfig({
       api: {} as ClientAPI,
       singleFileMode: true,
@@ -93,6 +93,7 @@ describe("setLogRoot", () => {
       inspect_version: "1",
       scout_version: null,
       logDir: "file:///logs",
+      absLogDir,
     });
 
   it("no-ops on an unchanged dir, preserving config identity", () => {
@@ -102,6 +103,16 @@ describe("setLogRoot", () => {
     const prev = seedConfig();
     setLogRoot("file:///logs");
     expect(getAppConfig()).toBe(prev);
+  });
+
+  it("no-ops on an unchanged dir even when the config carries absLogDir", () => {
+    // The VS Code call site never passes absLogDir, so a config whose root
+    // came from the dir-mode probe (abs_log_dir set) must still no-op — a
+    // rebuild here would also clobber absLogDir to undefined.
+    const prev = seedConfig("/abs/logs");
+    setLogRoot("file:///logs");
+    expect(getAppConfig()).toBe(prev);
+    expect(getAppConfig().absLogDir).toBe("/abs/logs");
   });
 
   it("rebuilds the whole config — fresh api + dir — for a new dir", () => {

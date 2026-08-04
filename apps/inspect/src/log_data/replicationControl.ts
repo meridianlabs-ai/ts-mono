@@ -25,11 +25,21 @@ export const openLogDirDatabase = async (
   }
 };
 
+// Bumped on every activation and deactivation. `startEngine` spans IndexedDB
+// awaits, so a dir switch can land while it's suspended; a start that resumes
+// superseded must never touch the engine — whichever continuation landed last
+// would win, leaving the engine wired for one dir while `activation.config`
+// claims another.
+let activationGeneration = 0;
+
 // Start the engine for a config snapshot — the composition root: the
 // database, api, and per-dir cache sink are wired here. Dir mode also opens
 // the per-dir database; single-file mode starts the engine alone (the
 // database stays unopened, so reads miss and writes are cache-only).
-const startEngine = async (config: AppConfig): Promise<void> => {
+const startEngine = async (
+  config: AppConfig,
+  generation: number
+): Promise<void> => {
   const { api, logDir } = config;
   // Bump the engine epoch before re-scoping, so an in-flight listing sync
   // for the old dir is fenced (see `ListingUpdate.epoch`) before its
@@ -46,6 +56,9 @@ const startEngine = async (config: AppConfig): Promise<void> => {
     return;
   }
   const opened = await openLogDirDatabase(logDir);
+  if (generation !== activationGeneration) {
+    throw staleDirError(logDir);
+  }
   if (!opened) {
     throw new Error("Database service not available");
   }
@@ -98,7 +111,12 @@ const settleWaiters = () => {
 };
 
 const beginActivation = (config: AppConfig) => {
-  const entry = { config, promise: startEngine(config), failed: false };
+  activationGeneration += 1;
+  const entry = {
+    config,
+    promise: startEngine(config, activationGeneration),
+    failed: false,
+  };
   // Mark the failure for retry, and observe the rejection so an activation
   // nobody awaits (e.g. failure before any query ran) doesn't surface as an
   // unhandled rejection; awaiting callers still see the original promise
@@ -124,6 +142,9 @@ export const activateFetchEngine = (config: AppConfig): void => {
 
 /** Stop the engine (controller unmount / config teardown before restart). */
 export const deactivateFetchEngine = (): void => {
+  // Supersede any still-settling start, so one resuming after a final
+  // unmount bails instead of re-wiring the stopped engine.
+  activationGeneration += 1;
   fetchEngine.stop();
   activation = null;
   deactivated = true;
@@ -152,11 +173,7 @@ const engineReady = (logDir: string): Promise<void> => {
     return Promise.reject(staleDirError(logDir));
   }
   return new Promise<void>((resolve, reject) => {
-    waiters.push({
-      logDir,
-      resolve: (ready) => resolve(ready),
-      reject,
-    });
+    waiters.push({ logDir, resolve, reject });
   });
 };
 

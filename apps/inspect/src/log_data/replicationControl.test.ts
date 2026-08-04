@@ -125,6 +125,51 @@ describe("fetch engine activation lifecycle", () => {
     expect(h.syncListing).not.toHaveBeenCalled();
   });
 
+  test("a superseded activation never wires the engine", async () => {
+    // Hold dirA's activation open across the database open, switch to dirB,
+    // then release: dirA's start must bail before touching the engine —
+    // otherwise whichever continuation lands last wins, leaving the engine
+    // wired for dirA while activation.config claims dirB.
+    let releaseA!: () => void;
+    h.openDatabase.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseA = resolve;
+        })
+    );
+    const { activateFetchEngine, deactivateFetchEngine, syncLogs } =
+      await control();
+
+    activateFetchEngine(configFor("dirA"));
+    deactivateFetchEngine();
+    activateFetchEngine(configFor("dirB"));
+    releaseA();
+    await expect(syncLogs("dirB")).resolves.toEqual([]);
+    // Let dirA's released continuation fully settle before asserting.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.start).toHaveBeenCalledTimes(1);
+    expect(h.start.mock.calls[0]?.[0]).toMatchObject({ logDir: "dirB" });
+  });
+
+  test("an activation resuming after a final deactivation never touches the engine", async () => {
+    let releaseA!: () => void;
+    h.openDatabase.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseA = resolve;
+        })
+    );
+    const { activateFetchEngine, deactivateFetchEngine } = await control();
+
+    activateFetchEngine(configFor("dirA"));
+    deactivateFetchEngine();
+    releaseA();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(h.start).not.toHaveBeenCalled();
+  });
+
   test("acquisition after a final deactivation rejects instead of hanging", async () => {
     const { activateFetchEngine, deactivateFetchEngine, syncLogs } =
       await control();

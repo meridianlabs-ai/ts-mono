@@ -616,11 +616,19 @@ export class FetchEngine {
    */
   public async start(deps: FetchEngineDeps): Promise<void> {
     this.stop();
+    // stop() bumped the epoch; a stop()/start() landing while this start is
+    // suspended below bumps it again. A superseded start bails before every
+    // state write — otherwise whichever continuation lands last would seed
+    // the new session with the old dir's rows.
+    const epoch = this._epoch;
     this._deps = deps;
     if (!deps.database) {
       return;
     }
     const rows = await deps.database.readLogs({ prefix: deps.logDir });
+    if (this._epoch !== epoch) {
+      return;
+    }
     if (!rows) {
       return;
     }
@@ -651,6 +659,9 @@ export class FetchEngine {
     this._fetchStates = reset;
     if (Object.keys(reset).length > 0) {
       await deps.sink.writeFetchStates(reset);
+      if (this._epoch !== epoch) {
+        return;
+      }
     }
 
     await this.updateDbStats();

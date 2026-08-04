@@ -299,6 +299,27 @@ describe("embedder api factory (setApiFactory)", () => {
       /initialLogDir or a \?log_dir= URL param/i
     );
   });
+
+  it("a bare single-file ref resolves against the embedder's dir", async () => {
+    // resolveSingleFileLogDir consults resolveConfiguredDir for a bare
+    // `?log_file=task.eval`; without this it would fall through to the
+    // folder serving the page, which is meaningless in-process.
+    setApiFactory(() => factoryApi, "file:///hawk/logs");
+
+    const backend = resolveBackend(fileSource("task.eval"));
+
+    await expect(backend.resolveConfiguredDir?.()).resolves.toBe(
+      "file:///hawk/logs"
+    );
+  });
+
+  it("installing after the backend has resolved throws instead of being ignored", () => {
+    resolveBackend(noneSource);
+
+    expect(() => setApiFactory(() => factoryApi)).toThrow(
+      /before initializeStore/i
+    );
+  });
 });
 
 // The update-extension error must reach the user in BOTH VS Code launch

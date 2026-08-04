@@ -533,6 +533,41 @@ describe("FetchEngine.start", () => {
     // All rows had zero attempts/errors/seq, so no fetch-state reset write.
     expect(sinkCalls.writeFetchStates).toEqual([]);
   });
+
+  it("a start superseded while its readLogs settles never seeds the new session", async () => {
+    // start() suspends on the database read; a stop()/start() (dir switch)
+    // landing in that window must win regardless of which continuation lands
+    // last — the superseded start bails instead of seeding the new session
+    // with the old dir's rows.
+    const rowsA = deferred<Log[]>();
+    const dbA = {
+      readLogs: () => rowsA.promise,
+    } as unknown as DatabaseService;
+    const rowB = previewedRow(handle("b.eval", 1));
+    const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    const sinkA = createFakeSink();
+    const sinkB = createFakeSink();
+    const { api } = createFakeApi();
+
+    const startA = engine.start({
+      api,
+      database: dbA,
+      sink: sinkA.sink,
+      logDir: "dirA",
+    });
+    await engine.start({
+      api,
+      database: createFakeDb([rowB]),
+      sink: sinkB.sink,
+      logDir: "dirB",
+    });
+    rowsA.resolve([previewedRow(handle("a.eval", 1))]);
+    await startA;
+
+    expect(sinkA.calls.seedRows).toEqual([]);
+    expect(sinkB.calls.seedRows).toEqual([[rowB]]);
+    expect(engine.listing()).toEqual([rowB]);
+  });
 });
 
 describe("FetchEngine.applyListing", () => {

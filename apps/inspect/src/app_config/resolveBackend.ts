@@ -60,28 +60,42 @@ let embedderFactory:
   | { createApi: (logDir: string) => ClientAPI; initialLogDir?: string }
   | undefined;
 
+// `resolveBackend` reads the factory exactly once (memoized via
+// `getBootstrap`), so an installation landing after that is silently inert —
+// fail loudly instead.
+let backendResolved = false;
+
 /**
  * Install a per-dir api factory from an external embedder hosting the viewer
  * in-process (e.g. one that serves logs through its own authenticated /
  * multiplexed backend). When installed it supersedes every URL/DOM-derived
  * backend; standalone `inspect view` never calls this and is unaffected.
  *
- * Call once, before `initializeStore` / rendering `<App/>`. The factory is
- * pure per-dir construction: boot calls it with the resolved dir, and
- * re-pointing the viewer at a different dir is `setLogRoot(dir)` — the one
- * impure operation — which calls it again. `initialLogDir` seeds root
+ * Call once, before `initializeStore` / rendering `<App/>`; installing after
+ * the backend has resolved throws (a late factory could only be ignored).
+ * The factory is pure per-dir construction: boot calls it with the resolved
+ * dir, and re-pointing the viewer at a different dir is `setLogRoot(dir)` —
+ * the one impure operation — which calls it again. `initialLogDir` seeds root
  * discovery; without it the dir must arrive via the URL (`?log_dir=`).
  */
 export const setApiFactory = (
   createApi: (logDir: string) => ClientAPI,
   initialLogDir?: string
 ): void => {
+  if (backendResolved) {
+    throw new Error(
+      "setApiFactory called after the backend was already resolved — the " +
+        "factory would be ignored. Install it before initializeStore() / " +
+        "rendering <App/>."
+    );
+  }
   embedderFactory = { createApi, initialLogDir };
 };
 
 /** Reset the installed embedder factory. For tests. */
 export const resetApiFactory = (): void => {
   embedderFactory = undefined;
+  backendResolved = false;
 };
 
 const embedderBackend = (
@@ -97,6 +111,10 @@ const embedderBackend = (
               "or a ?log_dir= URL param."
           )
         ),
+  // A bare `?log_file=` ref must resolve against the embedder's declared
+  // dir, not the folder serving the page (meaningless in-process).
+  resolveConfiguredDir:
+    logDir !== undefined ? () => Promise.resolve(logDir) : undefined,
   createApi,
   capabilities: { downloadLogs: false, streamSamples: false },
 });
@@ -140,6 +158,7 @@ const staticBackend = (
  * `resolveBootstrap()`.
  */
 export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
+  backendResolved = true;
   if (embedderFactory) {
     return embedderBackend(
       embedderFactory.createApi,

@@ -199,11 +199,14 @@ export const initAppConfig = (config: AppConfig): AppConfig =>
  *
  * A same-dir call is a no-op: preserving config identity keeps the fetch
  * engine running and the api's caches warm (the host re-sends `updateState`
- * for the dir the gate already resolved on VS Code single-file boot).
+ * for the dir the gate already resolved on VS Code single-file boot). The
+ * guard is on the dir alone — callers never update `absLogDir`
+ * independently, and comparing it would defeat the no-op whenever the
+ * resolved config carries an `abs_log_dir` the caller doesn't know.
  */
 export const setLogRoot = (logDir: string, absLogDir?: string): void => {
   const current = getAppConfig();
-  if (current.logDir === logDir && current.absLogDir === absLogDir) {
+  if (current.logDir === logDir) {
     return;
   }
   appConfig = {
