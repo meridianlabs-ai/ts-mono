@@ -223,7 +223,10 @@ export class FetchEngine {
   // Engine generation, bumped on every stop() — a batch claimed under an
   // earlier generation that settles after a stop()/start() (dir switch) is
   // discarded rather than recorded/waited-on/coalesced into the new
-  // session's state.
+  // session's state. Engine-owned by design: the engine must be safe against
+  // its own stop()/start() races for any caller, so start() can't outsource
+  // this to an injected cancellation token (see the supersede-fence note in
+  // replicationControl's startEngine, #492).
   private _epoch = 0;
   // Monotonic claim counter (never reset — a post-restart collision would
   // let an old read's commit slip past the seq check below).

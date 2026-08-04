@@ -40,6 +40,18 @@ const startEngine = async (config: AppConfig): Promise<void> => {
   // bumps it again (their `stop()`), and a superseded start must never touch
   // the engine — whichever continuation landed last would win, leaving the
   // engine wired for one dir while `activation.config` claims another.
+  //
+  // Deliberately NOT a per-activation AbortSignal (#492): the epoch exists
+  // regardless (the engine fences its own claimed batches, restarts, and
+  // listing syncs with it, for any caller — including same-dir restarts a
+  // dir-keyed token would miss), a signal's `throwIfAborted()` would be
+  // exactly as hand-placed as this re-check, and the dir matching below is
+  // the caller contract, not a fence — acquisition paths hold only a dir
+  // (waiters queue before any activation exists to hand them a token), and
+  // dir equality deliberately lets them span a same-dir re-activation
+  // (StrictMode remount, failed-start retry) where token identity would
+  // spuriously reject. A per-activation token would subsume neither
+  // mechanism — it would be a third.
   const epoch = fetchEngine.epoch();
   if (config.singleFileMode) {
     const database = getDatabaseService();
