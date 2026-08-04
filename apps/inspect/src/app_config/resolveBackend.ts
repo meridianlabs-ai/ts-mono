@@ -112,8 +112,7 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
     const proxyFetch = createVscodeProxyFetch(vscode);
     return {
       resolveLogRoot: () => fetchViewServerLogRoot({ customFetch: proxyFetch }),
-      createApi: (logDir) =>
-        clientApi(apiVscode(vscode, logDir, proxyFetch)),
+      createApi: (logDir) => clientApi(apiVscode(vscode, logDir, proxyFetch)),
       capabilities: { downloadLogs: false, streamSamples: true },
     };
   }
