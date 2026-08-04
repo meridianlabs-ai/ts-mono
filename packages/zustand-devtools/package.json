@@ -28,8 +28,8 @@
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.7.0",
     "jsdom": "^30.0.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
