@@ -97,7 +97,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
           <div className={styles.children}>
             {entries.length === 0 && <div className={styles.empty}>empty</div>}
             {entries.slice(0, limit).map((entry) => (
-              <TreeNode key={entry.key} name={entry.key} value={entry.value} />
+              <TreeNode key={entry.id} name={entry.key} value={entry.value} />
             ))}
             {entries.length > limit && (
               <button
