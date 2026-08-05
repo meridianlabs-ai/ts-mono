@@ -34,6 +34,7 @@ import { messageSearchText } from "./messageSearchText";
 import {
   buildMessageRows,
   messageRowOptions,
+  rowContainsMessage,
   type MessageRow,
 } from "./rowsModel";
 import {
@@ -130,18 +131,9 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         return undefined;
       }
 
-      const index = rows.findIndex((row) => {
-        const messageId = row.resolved.message.id === initialMessageId;
-        if (messageId) {
-          return true;
-        }
-
-        if (
-          row.resolved.toolMessages.find((tm) => tm.id === initialMessageId)
-        ) {
-          return true;
-        }
-      });
+      const index = rows.findIndex((row) =>
+        rowContainsMessage(row, initialMessageId)
+      );
       return index !== -1 ? index : undefined;
     }, [initialMessageId, rows]);
 
