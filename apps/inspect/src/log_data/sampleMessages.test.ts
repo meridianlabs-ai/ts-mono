@@ -1,8 +1,9 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { SampleHandle } from "../app/types";
 
+import { kMessageRowsPageSize } from "./messageRowsQuery";
 import { type EvalSampleData } from "./sampleData";
 import { useSampleMessages } from "./sampleMessages";
 import {
@@ -16,7 +17,7 @@ import {
 } from "./testFixtures";
 
 describe("useSampleMessages", () => {
-  it("reads a settled sample's rows through the seam", async () => {
+  it("reads a settled sample's rows through the seam, one page at a time", async () => {
     const sampleData = settledData(makeMessages(1200));
     const { result } = renderHook(
       () => useSampleMessages(handle, sampleData, true, false),
@@ -24,12 +25,21 @@ describe("useSampleMessages", () => {
     );
 
     // the read is asynchronous: a loading affordance covers the gap
-    expect(result.current.loading).toBe(true);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current.rows.loading).toBe(true);
+    expect(result.current.rows.data).toBeUndefined();
 
-    await waitFor(() => expect(result.current.data).toHaveLength(1200));
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data?.[0]?.startNumber).toBe(1);
+    // the settled feed is a paged prefix, not the whole conversation
+    await waitFor(() =>
+      expect(result.current.rows.data).toHaveLength(kMessageRowsPageSize)
+    );
+    expect(result.current.rows.loading).toBe(false);
+    expect(result.current.rows.data?.[0]?.startNumber).toBe(1);
+    expect(result.current.hasMore).toBe(true);
+
+    act(() => result.current.loadMore());
+    await waitFor(() =>
+      expect(result.current.rows.data).toHaveLength(2 * kMessageRowsPageSize)
+    );
   });
 
   it("reports loading during a monolith sample fetch, never 'No messages'", () => {
@@ -46,8 +56,8 @@ describe("useSampleMessages", () => {
       { wrapper: makeWrapper() }
     );
 
-    expect(result.current.loading).toBe(true);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current.rows.loading).toBe(true);
+    expect(result.current.rows.data).toBeUndefined();
   });
 
   it("derives streaming rows from the event feed with no source", () => {
@@ -64,8 +74,8 @@ describe("useSampleMessages", () => {
       { wrapper: makeWrapper() }
     );
 
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data?.map((r) => r.resolved.message.id)).toEqual([
+    expect(result.current.rows.loading).toBe(false);
+    expect(result.current.rows.data?.map((r) => r.resolved.message.id)).toEqual([
       "m-in",
       "m-out",
     ]);
@@ -86,8 +96,8 @@ describe("useSampleMessages", () => {
     );
 
     // running gates loading off: the view renders "Waiting for messages"
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toHaveLength(0);
+    expect(result.current.rows.loading).toBe(false);
+    expect(result.current.rows.data).toHaveLength(0);
   });
 
   it("swaps the streaming feed for settled rows without an empty frame", async () => {
@@ -111,15 +121,15 @@ describe("useSampleMessages", () => {
         initialProps: { data: streamingData, running: true },
       }
     );
-    expect(result.current.data).toHaveLength(2);
+    expect(result.current.rows.data).toHaveLength(2);
 
     rerender({ data: settledData(makeMessages(50)), running: false });
     // the bridge: streaming rows hold while the read is in flight
-    expect(result.current.data).toHaveLength(2);
-    expect(result.current.loading).toBe(false);
+    expect(result.current.rows.data).toHaveLength(2);
+    expect(result.current.rows.loading).toBe(false);
 
-    await waitFor(() => expect(result.current.data).toHaveLength(50));
-    expect(result.current.loading).toBe(false);
+    await waitFor(() => expect(result.current.rows.data).toHaveLength(50));
+    expect(result.current.rows.loading).toBe(false);
   });
 
   it("never bridges streaming rows across samples", async () => {
@@ -147,15 +157,15 @@ describe("useSampleMessages", () => {
         initialProps: { h: handle, data: streamingData, running: true },
       }
     );
-    expect(result.current.data).toHaveLength(2);
+    expect(result.current.rows.data).toHaveLength(2);
 
     // navigating mid-stream to a settled sample: the previous sample's
     // streaming rows must not cover the new sample's read
     rerender({ h: other, data: settledData(makeMessages(5)), running: false });
-    expect(result.current.data).toBeUndefined();
-    expect(result.current.loading).toBe(true);
+    expect(result.current.rows.data).toBeUndefined();
+    expect(result.current.rows.loading).toBe(true);
 
-    await waitFor(() => expect(result.current.data).toHaveLength(5));
+    await waitFor(() => expect(result.current.rows.data).toHaveLength(5));
   });
 
   it("defers all folding until the Messages tab first opens, then latches", async () => {
@@ -167,14 +177,14 @@ describe("useSampleMessages", () => {
     );
 
     // inactive: no read
-    expect(result.current.data).toHaveLength(0);
+    expect(result.current.rows.data).toHaveLength(0);
 
     rerender({ active: true });
-    await waitFor(() => expect(result.current.data).toHaveLength(10));
+    await waitFor(() => expect(result.current.rows.data).toHaveLength(10));
 
     // latched: switching away keeps the rows resident
     rerender({ active: false });
-    expect(result.current.data).toHaveLength(10);
+    expect(result.current.rows.data).toHaveLength(10);
   });
 
   it("keeps the streaming fold off while the tab has never been open", () => {
@@ -192,10 +202,10 @@ describe("useSampleMessages", () => {
       { wrapper: makeWrapper(), initialProps: { active: false } }
     );
 
-    expect(result.current.data).toHaveLength(0);
+    expect(result.current.rows.data).toHaveLength(0);
 
     rerender({ active: true });
-    expect(result.current.data).toHaveLength(2);
+    expect(result.current.rows.data).toHaveLength(2);
   });
 
   it("stops the streaming fold when the tab is hidden, latch or not", () => {
@@ -212,15 +222,15 @@ describe("useSampleMessages", () => {
         useSampleMessages(handle, streamingData, active, true),
       { wrapper: makeWrapper(), initialProps: { active: true } }
     );
-    expect(result.current.data).toHaveLength(2);
+    expect(result.current.rows.data).toHaveLength(2);
 
     // hidden mid-stream: the per-poll refold must not keep running (the
     // list is unmounted); returning rebuilds from the events
     rerender({ active: false });
-    expect(result.current.data).toHaveLength(0);
+    expect(result.current.rows.data).toHaveLength(0);
 
     rerender({ active: true });
-    expect(result.current.data).toHaveLength(2);
+    expect(result.current.rows.data).toHaveLength(2);
   });
 
   it("resets the latch when the sample changes", async () => {
@@ -231,20 +241,20 @@ describe("useSampleMessages", () => {
         useSampleMessages(h, sampleData, active, false),
       { wrapper: makeWrapper(), initialProps: { h: handle, active: true } }
     );
-    await waitFor(() => expect(result.current.data).toHaveLength(4));
+    await waitFor(() => expect(result.current.rows.data).toHaveLength(4));
 
     // a different sample arrives with the tab closed: no read until opened
     rerender({ h: other, active: false });
-    expect(result.current.data).toHaveLength(0);
+    expect(result.current.rows.data).toHaveLength(0);
 
     // returning to the previously-activated sample must NOT re-latch: the
     // hook mounts unkeyed, so a stale latch would read at sample open
     rerender({ h: handle, active: false });
-    expect(result.current.data).toHaveLength(0);
+    expect(result.current.rows.data).toHaveLength(0);
 
     // re-opening serves the cached rows synchronously
     rerender({ h: handle, active: true });
-    expect(result.current.data).toHaveLength(4);
+    expect(result.current.rows.data).toHaveLength(4);
   });
 
   it("surfaces a chunked hydration failure instead of 'No messages'", async () => {
@@ -267,10 +277,10 @@ describe("useSampleMessages", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.error).toBeInstanceOf(Error);
+      expect(result.current.rows.error).toBeInstanceOf(Error);
     });
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current.rows.loading).toBe(false);
+    expect(result.current.rows.data).toBeUndefined();
   });
 
   it("handles an empty settled conversation", async () => {
@@ -280,8 +290,8 @@ describe("useSampleMessages", () => {
       { wrapper: makeWrapper() }
     );
 
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.data).toHaveLength(0);
-    expect(result.current.error).toBeUndefined();
+    await waitFor(() => expect(result.current.rows.loading).toBe(false));
+    expect(result.current.rows.data).toHaveLength(0);
+    expect(result.current.rows.error).toBeUndefined();
   });
 });

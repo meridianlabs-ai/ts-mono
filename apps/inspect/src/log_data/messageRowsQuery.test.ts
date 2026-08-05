@@ -1,7 +1,7 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { useMessageRows } from "./messageRowsQuery";
+import { kMessageRowsPageSize, useMessageRows } from "./messageRowsQuery";
 import { type EvalSampleData } from "./sampleData";
 import {
   failingSequenceReader,
@@ -30,21 +30,49 @@ const renderRows = (data: EvalSampleData, activated = true) =>
   );
 
 describe("useMessageRows", () => {
-  it("materializes a settled conversation in one read", async () => {
+  it("serves a settled conversation one page at a time", async () => {
     const { result } = renderRows(settledData(makeMessages(1200)));
 
-    expect(result.current?.loading).toBe(true);
-    await waitFor(() => expect(result.current?.data).toHaveLength(1200));
-    expect(result.current?.loading).toBe(false);
-    expect(result.current?.data?.[1199]?.resolved.message.id).toBe("m-1199");
-    // whole-conversation numbering survives the read
-    expect(result.current?.data?.[1199]?.startNumber).toBe(1200);
+    expect(result.current?.rows.loading).toBe(true);
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(kMessageRowsPageSize)
+    );
+    expect(result.current?.hasMore).toBe(true);
+    // whole-conversation numbering survives the paged read
+    expect(result.current?.rows.data?.[99]?.startNumber).toBe(100);
+
+    act(() => result.current?.loadMore());
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(2 * kMessageRowsPageSize)
+    );
+    expect(result.current?.rows.data?.[199]?.resolved.message.id).toBe(
+      "m-199"
+    );
+    expect(result.current?.hasMore).toBe(true);
+  });
+
+  it("reports exhaustion on the last page", async () => {
+    const { result } = renderRows(settledData(makeMessages(150)));
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(kMessageRowsPageSize)
+    );
+    expect(result.current?.hasMore).toBe(true);
+
+    act(() => result.current?.loadMore());
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(150));
+    expect(result.current?.hasMore).toBe(false);
+  });
+
+  it("handles an empty settled conversation", async () => {
+    const { result } = renderRows(settledData([]));
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(0));
+    expect(result.current?.hasMore).toBe(false);
   });
 
   it("is idle without activation, even over a warm cache", async () => {
     const data = settledData(makeMessages(3));
     const { result, rerender } = renderRows(data);
-    await waitFor(() => expect(result.current?.data).toHaveLength(3));
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(3));
 
     rerender({ data, activated: false });
     expect(result.current).toBeUndefined();
@@ -58,24 +86,25 @@ describe("useMessageRows", () => {
   it("serves cached rows synchronously when the read reactivates", async () => {
     const data = settledData(makeMessages(3));
     const { result, rerender } = renderRows(data);
-    await waitFor(() => expect(result.current?.data).toHaveLength(3));
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(3));
 
     rerender({ data, activated: false });
     expect(result.current).toBeUndefined();
     rerender({ data, activated: true });
-    expect(result.current?.data).toHaveLength(3);
+    expect(result.current?.rows.data).toHaveLength(3);
   });
 
-  it("reads a chunked sample through hydration", async () => {
+  it("reads a chunked sample through the windowed source", async () => {
     const chunked = testChunkedSample(sequenceReaderOver(makeMessages(4)));
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
-    expect(result.current?.loading).toBe(true);
-    await waitFor(() => expect(result.current?.data).toHaveLength(4));
+    expect(result.current?.rows.loading).toBe(true);
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(4));
+    expect(result.current?.hasMore).toBe(false);
   });
 
-  it("surfaces a chunked hydration failure as error, not endless loading", async () => {
+  it("surfaces a chunked read failure as error, not endless loading", async () => {
     const chunked = testChunkedSample(
       failingSequenceReader(new Error("boom")),
       [[0, 2]]
@@ -83,8 +112,10 @@ describe("useMessageRows", () => {
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
-    await waitFor(() => expect(result.current?.error).toBeInstanceOf(Error));
-    expect(result.current?.loading).toBe(false);
-    expect(result.current?.data).toBeUndefined();
+    await waitFor(() =>
+      expect(result.current?.rows.error).toBeInstanceOf(Error)
+    );
+    expect(result.current?.rows.loading).toBe(false);
+    expect(result.current?.rows.data).toBeUndefined();
   });
 });
