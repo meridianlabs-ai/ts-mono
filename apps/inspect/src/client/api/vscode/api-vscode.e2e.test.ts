@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { VSCodeApi } from "@tsmono/util";
 
-import { apiVscodeHttp } from "./api-vscode-http";
+import { apiVscode, createVscodeProxyFetch } from "./api-vscode";
 
 type ProxyRequest = {
   method: string;
@@ -53,22 +53,30 @@ function connectFakeExtension(handler: (req: ProxyRequest) => ProxyResponse): {
   return { vscode, received };
 }
 
-describe("apiVscodeHttp end-to-end over postMessage", () => {
-  test("get_log_dir round-trips a GET through the http_request proxy", async () => {
+const okJson = (body: unknown): ProxyResponse => ({
+  status: 200,
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify(body),
+  bodyEncoding: "utf8",
+});
+
+describe("apiVscode end-to-end over postMessage", () => {
+  test("get_logs round-trips a GET carrying the construction dir", async () => {
     const { vscode, received } = connectFakeExtension((req) => {
       expect(req.method).toBe("GET");
-      expect(req.path).toBe("/api/log-dir");
-      return {
-        status: 200,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ log_dir: "/logs/run-1" }),
-        bodyEncoding: "utf8",
-      };
+      expect(req.path).toBe(
+        `/api/log-files?log_dir=${encodeURIComponent("file:///logs/run-1")}`
+      );
+      return okJson({ files: [], response_type: "full" });
     });
 
-    const logDir = await apiVscodeHttp(vscode).get_log_dir!();
+    const listing = await apiVscode(
+      vscode,
+      "file:///logs/run-1",
+      createVscodeProxyFetch(vscode)
+    ).get_logs(0, 0);
 
-    expect(logDir).toBe("/logs/run-1");
+    expect(listing.files).toEqual([]);
     expect(received[0]?.method).toBe("http_request");
   });
 
@@ -84,8 +92,46 @@ describe("apiVscodeHttp end-to-end over postMessage", () => {
       };
     });
 
-    const bytes = await apiVscodeHttp(vscode).get_log_bytes("x.eval", 0, 3);
+    const bytes = await apiVscode(
+      vscode,
+      "file:///logs",
+      createVscodeProxyFetch(vscode)
+    ).get_log_bytes("x.eval", 0, 3);
 
     expect(Array.from(bytes)).toEqual([1, 2, 3]);
+  });
+
+  test("two instances over ONE transport answer for their own dirs", async () => {
+    // The LogViewAPI contract, on the transport that motivated it: the host's
+    // "current" dir must never leak into an instance's answers. The fake
+    // extension answers every listing request with the dir it was asked
+    // about, so any instance that failed to scope its request would get the
+    // wrong files.
+    const dirA = "file:///dir/a";
+    const dirB = "file:///dir/b";
+    const { vscode } = connectFakeExtension((req) => {
+      const url = new URL(`vscode://host${req.path}`);
+      const dir = url.searchParams.get("log_dir");
+      return okJson({
+        files: [{ name: `${dir}/only.eval` }],
+        response_type: "full",
+      });
+    });
+
+    const proxyFetch = createVscodeProxyFetch(vscode);
+    const a = apiVscode(vscode, dirA, proxyFetch);
+    const b = apiVscode(vscode, dirB, proxyFetch);
+
+    const [listingA, listingB] = await Promise.all([
+      a.get_logs(0, 0),
+      b.get_logs(0, 0),
+    ]);
+
+    expect(listingA.files.map((f) => f.name)).toEqual([
+      "file:///dir/a/only.eval",
+    ]);
+    expect(listingB.files.map((f) => f.name)).toEqual([
+      "file:///dir/b/only.eval",
+    ]);
   });
 });

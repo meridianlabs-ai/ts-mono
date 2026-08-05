@@ -6,7 +6,7 @@
  * `model_dump(mode="json", exclude_none=True)` — optional fields are absent,
  * never null.
  */
-import type { Event } from "@tsmono/inspect-common";
+import type { Event, Timeline } from "@tsmono/inspect-common";
 
 export type SequenceName = "messages" | "events" | "calls" | "attachments";
 
@@ -19,16 +19,18 @@ export const SEQUENCE_NAMES: readonly SequenceName[] = [
 
 /**
  * The sample shell (`sample.json`): every EvalSample field except the
- * token-linear sequences and metadata, plus the two fields below. Sequence
- * items are fetched separately by range; the shell is cheap by construction.
+ * token-linear sequences and metadata, plus `message_refs`. Sequence items
+ * are fetched separately by range — the chunk layout is never persisted
+ * here; it's recovered from central-directory entry names (`format.ts`).
+ * The shell is cheap by construction.
  */
 export interface ChunkedSampleShell {
   id: string | number;
   epoch: number;
-  /** Cumulative end-exclusive chunk boundaries; last element = sequence count. */
-  sequences: Record<SequenceName, number[]>;
   /** Final conversation as half-open ranges into the messages sequence. */
   message_refs: [number, number][];
+  /** Producer-authored timelines (EvalSample.timelines, carried verbatim). */
+  timelines?: Timeline[];
   /** Remaining EvalSample shell fields (input, target, scores, store, ...). */
   [key: string]: unknown;
 }

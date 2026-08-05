@@ -54,6 +54,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
         value={value}
         onChange={handleChange}
         disabled={disabled}
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- see the note on ConditionRow's autoFocus
         autoFocus={autoFocus}
       >
         <option value="">(not set)</option>
@@ -113,6 +114,7 @@ const FilterValueInput: FC<FilterValueInputProps> = ({
       placeholder="Filter"
       disabled={disabled}
       step={filterType === "number" ? "any" : undefined}
+      // eslint-disable-next-line jsx-a11y/no-autofocus -- see the note on ConditionRow's autoFocus
       autoFocus={autoFocus}
     />
   );
@@ -141,6 +143,11 @@ interface ConditionRowProps {
    * `-op-b` / `-val-b` / `-val-b2`).
    */
   idSuffix: "" | "-b";
+  /**
+   * The filter editor only ever renders inside a popover the user just
+   * opened, where moving focus to the first field is the expected behaviour
+   * (WAI-ARIA APG dialog pattern) rather than a page-load focus steal.
+   */
   autoFocus?: boolean;
   suggestions: ScalarValue[];
   onCommit?: () => void;
@@ -295,6 +302,9 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
   );
 
   return (
+    // Escape/Enter are delegated from the fields inside, all of which are
+    // focusable in their own right — the container is not itself a control.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div className={styles.filterContent} onKeyDown={handleKeyDown}>
       <ConditionRow
         columnId={columnId}

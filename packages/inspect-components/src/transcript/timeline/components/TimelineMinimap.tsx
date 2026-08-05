@@ -190,15 +190,17 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
 
   return (
     <div className={styles.container}>
-      {/* Mode label — click to toggle time/tokens.
-          Both values are rendered so the cell sizes to the wider one. */}
-      <div
+      {/* Mode label — the toggle control for time/tokens. Both values are
+          rendered so the cell sizes to the wider one. */}
+      <button
+        type="button"
         className={clsx(styles.stableLabel, styles.alignRight)}
         onClick={toggle}
+        aria-label={isTokenMode ? "Show time" : "Show tokens"}
       >
         <span className={isTokenMode ? styles.hidden : undefined}>time</span>
         <span className={isTokenMode ? undefined : styles.hidden}>tokens</span>
-      </div>
+      </button>
 
       {/* Bar area */}
       <div className={styles.minimap}>
@@ -245,7 +247,12 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
 
             <div className={styles.marker} />
             <div className={styles.sectionTime}>
-              <span className={styles.sectionTimePill} onClick={toggle}>
+              {/* Mouse shortcut for the mode button at the start of the row. */}
+              <span
+                className={styles.sectionTimePill}
+                role="presentation"
+                onClick={toggle}
+              >
                 {sectionLabel}
               </span>
             </div>
@@ -254,9 +261,11 @@ export const TimelineMinimap: FC<TimelineMinimapProps> = ({
         )}
       </div>
 
-      {/* Right edge label — both values rendered for stable width */}
+      {/* Right edge label — both values rendered for stable width. Another
+          mouse shortcut for the mode button; not a separate control. */}
       <div
         className={clsx(styles.stableLabel, styles.alignLeft)}
+        role="presentation"
         onClick={toggle}
       >
         <span className={isTokenMode ? styles.hidden : undefined}>

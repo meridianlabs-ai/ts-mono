@@ -2,7 +2,7 @@ import JSON5 from "json5";
 
 import { dirname } from "@tsmono/util";
 
-import { ClientAPI, UpdateStateMessage } from "../client/api/types";
+import { UpdateStateMessage } from "../client/api/types";
 
 import { UrlLogSource } from "./urlLogSource";
 
@@ -58,17 +58,17 @@ const pageBaseDir = (fileRef: string): string =>
  * The log dir for a single-file session. In single-file mode we don't ask the
  * server for the log root (which would walk the whole directory); we resolve it
  * from the file itself: its own directory if it has one, else the backend's
- * configured dir, else the page folder. Always defined — never the dishonest
- * empty-string sentinel.
+ * configured dir (a bootstrap probe — no api instance exists yet), else the
+ * page folder. Always defined — never the dishonest empty-string sentinel.
  */
 export const resolveSingleFileLogDir = async (
   fileRef: string,
-  api: ClientAPI
+  resolveConfiguredDir?: () => Promise<string | undefined>
 ): Promise<string> => {
   const own = dirname(fileRef);
   if (own !== "") return own;
-  const fromApi = await api.get_log_dir?.();
-  if (fromApi) return fromApi;
+  const fromBackend = await resolveConfiguredDir?.();
+  if (fromBackend) return fromBackend;
   return pageBaseDir(fileRef);
 };
 

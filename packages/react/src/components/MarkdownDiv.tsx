@@ -108,6 +108,10 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
     }, [markdown, rendererName, cachedHtml, cacheKey, applyPostProcess]);
 
     return (
+      // The container is not itself a control: onClick delegates for the
+      // anchors inside the rendered markdown, which already fire click on
+      // Enter, so no separate key handler is needed.
+      // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
       <div
         ref={ref}
         dangerouslySetInnerHTML={{ __html: renderedHtml }}

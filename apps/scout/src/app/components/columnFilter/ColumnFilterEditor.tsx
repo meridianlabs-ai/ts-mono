@@ -117,6 +117,9 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
   );
 
   return (
+    // Escape/Enter are delegated from the fields inside, all of which are
+    // focusable in their own right — the container is not itself a control.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div className={styles.filterContent} onKeyDown={handleKeyDown}>
       {/* Column row - dropdown until selected, then static text */}
       <div
@@ -133,6 +136,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
             className={styles.filterSelect}
             value={columnId}
             onChange={handleColumnSelectChange}
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the editor only renders inside a popover the user just opened
             autoFocus
           >
             <option value="">Select column...</option>
@@ -173,6 +177,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
                 value={rawValue}
                 onChange={handleValueChange}
                 disabled={isValueDisabled}
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- see above
                 autoFocus={!isAddMode}
               >
                 <option value="">(not set)</option>
@@ -218,6 +223,7 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
                 placeholder="Filter"
                 disabled={isValueDisabled}
                 step={filterType === "number" ? "any" : undefined}
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- see above
                 autoFocus={!isAddMode}
               />
             )}

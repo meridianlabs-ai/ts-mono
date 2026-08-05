@@ -40,6 +40,7 @@ export const DurationInput: FC<DurationInputProps> = ({
         disabled={disabled}
         step="any"
         min="0"
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- see the note on ConditionRow's autoFocus
         autoFocus={autoFocus}
       />
       {parsedSeconds !== null && (

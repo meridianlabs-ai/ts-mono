@@ -164,15 +164,23 @@
   background: var(--zsd-hover);
 }
 
-.caret {
+.keyToggle {
+  display: flex;
   flex-shrink: 0;
-  width: 14px;
+  align-items: baseline;
+  gap: 4px;
   padding: 0;
   border: none;
   background: none;
+  font: inherit;
+  cursor: pointer;
+}
+
+.caret {
+  flex-shrink: 0;
+  width: 14px;
   color: var(--zsd-key);
   font-size: 9px;
-  cursor: pointer;
 }
 
 .caretSpacer {
@@ -183,10 +191,6 @@
 .key {
   color: var(--zsd-key);
   white-space: nowrap;
-}
-
-.keyExpandable {
-  cursor: pointer;
 }
 
 .value {

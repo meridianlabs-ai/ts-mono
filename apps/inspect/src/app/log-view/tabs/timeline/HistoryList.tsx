@@ -159,6 +159,7 @@ export const HistoryList: FC<HistoryListProps> = ({
     return () => observer.disconnect();
   }, [scrollRef, ordered.length]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns fresh closures by design; the virtualizer stays local to this file and is never handed to a memoized child
   const virtualizer = useVirtualizer({
     count: ordered.length,
     getScrollElement: () => scrollRef.current,
@@ -515,9 +516,21 @@ export const HistoryList: FC<HistoryListProps> = ({
                     width: "100%",
                     transform: `translateY(${item.start - scrollMargin}px)`,
                   }}
+                  role={key !== undefined ? "button" : undefined}
+                  tabIndex={key !== undefined ? 0 : undefined}
                   onClick={
                     key !== undefined
                       ? () => onSelectEvent(selected ? null : key)
+                      : undefined
+                  }
+                  onKeyDown={
+                    key !== undefined
+                      ? (event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            onSelectEvent(selected ? null : key);
+                          }
+                        }
                       : undefined
                   }
                   onMouseEnter={

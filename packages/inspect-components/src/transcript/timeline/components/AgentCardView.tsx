@@ -45,18 +45,20 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
   const iconClass = isBranch ? icons.fork : icons.agent;
   const label = isBranch ? "branch" : isUtility ? "utility" : "sub-agent";
 
-  return (
-    <div
-      className={clsx(
-        styles.card,
-        isUtility && styles.utilityCard,
-        isBranch && styles.branchCard,
-        className
-      )}
-      onClick={isBranch ? undefined : handleClick}
-    >
+  const cardClass = clsx(
+    styles.card,
+    isUtility && styles.utilityCard,
+    isBranch && styles.branchCard,
+    className
+  );
+
+  const content = (
+    <>
       <div className={clsx(styles.header, "text-size-small")}>
-        <i className={clsx(iconClass, styles.icon, "text-style-secondary")} />
+        <i
+          className={clsx(iconClass, styles.icon, "text-style-secondary")}
+          aria-hidden="true"
+        />
         <div
           className={clsx(
             styles.title,
@@ -77,6 +79,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
               styles.disclosure,
               "text-style-secondary"
             )}
+            aria-hidden="true"
           />
         )}
       </div>
@@ -86,7 +89,11 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
         </div>
       )}
       {resultOutput && (
-        <div className={styles.resultPanel} onClick={stopPropagation}>
+        <div
+          className={styles.resultPanel}
+          role="presentation"
+          onClick={stopPropagation}
+        >
           <ExpandablePanel
             id={`agent-result-${span.id}`}
             collapse={true}
@@ -96,6 +103,31 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
           </ExpandablePanel>
         </div>
       )}
+    </>
+  );
+
+  // Branch cards are inert; every other card navigates to its sub-agent.
+  if (isBranch) {
+    return <div className={cardClass}>{content}</div>;
+  }
+
+  return (
+    <div
+      className={cardClass}
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        // Only the card itself: Enter/Space bubbling up from the result
+        // panel's controls must keep its own default action.
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+    >
+      {content}
     </div>
   );
 };

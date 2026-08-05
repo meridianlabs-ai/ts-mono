@@ -79,16 +79,22 @@ export const Pager: FC<PagerProps> = ({
     <nav aria-label="Log Pagination">
       <ul className={clsx("pagination", styles.pager)}>
         <li className={clsx(currentPage === 0 ? "disabled" : "", styles.item)}>
-          <a
+          <button
+            type="button"
             className={clsx("page-link")}
+            disabled={currentPage === 0}
+            aria-label="Previous page"
             onClick={() => {
               if (currentPage > 0 && setPage) {
                 setPage(currentPage - 1);
               }
             }}
           >
-            <i className={clsx(ApplicationIcons.navbar.back)} />
-          </a>
+            <i
+              className={clsx(ApplicationIcons.navbar.back)}
+              aria-hidden="true"
+            />
+          </button>
         </li>
 
         {segments.map((segment) => (
@@ -102,8 +108,15 @@ export const Pager: FC<PagerProps> = ({
               styles.item
             )}
           >
-            <a
+            <button
+              type="button"
               className={clsx("page-link")}
+              disabled={segment.type === "ellipsis"}
+              aria-current={
+                segment.type === "page" && segment.page === currentPage
+                  ? "page"
+                  : undefined
+              }
               onClick={() => {
                 if (
                   segment.type === "page" &&
@@ -115,7 +128,7 @@ export const Pager: FC<PagerProps> = ({
               }}
             >
               {segment.type === "page" ? (segment.page || 0) + 1 : "..."}
-            </a>
+            </button>
           </li>
         ))}
         <li
@@ -124,16 +137,22 @@ export const Pager: FC<PagerProps> = ({
             styles.item
           )}
         >
-          <a
+          <button
+            type="button"
             className={clsx("page-link")}
+            disabled={currentPage + 1 >= pageCount}
+            aria-label="Next page"
             onClick={() => {
               if (currentPage < pageCount && setPage) {
                 setPage(currentPage + 1);
               }
             }}
           >
-            <i className={clsx(ApplicationIcons.navbar.forward)} />
-          </a>
+            <i
+              className={clsx(ApplicationIcons.navbar.forward)}
+              aria-hidden="true"
+            />
+          </button>
         </li>
       </ul>
     </nav>

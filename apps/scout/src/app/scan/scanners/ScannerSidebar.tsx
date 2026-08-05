@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { LabeledValue } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";
@@ -58,12 +58,14 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
   );
 
   return (
-    <div
+    <button
+      type="button"
       className={clsx(
         styles.entry,
         selectedScanner === entry.title ? styles.selected : ""
       )}
       key={index}
+      aria-current={selectedScanner === entry.title ? "true" : undefined}
       onClick={() => {
         handleClick(entry.title);
       }}
@@ -113,7 +115,7 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
           />
         </LabeledValue>
       )}
-    </div>
+    </button>
   );
 };
 

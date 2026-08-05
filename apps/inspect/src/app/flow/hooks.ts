@@ -5,9 +5,11 @@ import { useAppConfig } from "../../app_config";
 
 /**
  * The flow definition for `dir`. Keyed on the dir so navigation re-fetches,
- * and on the log root so a host-driven root switch (VS Code) re-fetches;
- * `staleTime: Infinity` because a dir's flow doesn't change under a fixed
- * root and dir.
+ * and on the log root because the root is part of the data's identity. `api`
+ * and `logDir` come from one config snapshot (the api instance is bound to
+ * that dir at construction), so the key and the fetch can't pair values from
+ * different roots. `staleTime: Infinity` because a dir's flow doesn't change
+ * under a fixed root and dir.
  */
 export const useFlowQuery = (dir: string): AsyncData<string | undefined> => {
   const { api, logDir } = useAppConfig();

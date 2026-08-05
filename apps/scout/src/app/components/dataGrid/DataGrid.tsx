@@ -402,9 +402,9 @@ export function DataGrid<
         ? rows.findIndex((r) => r.id === focusedRowId)
         : -1;
 
-      let newFocusedIndex = focusedIndex;
-      let shouldUpdateSelection = false;
-      let shouldExtendSelection = false;
+      let newFocusedIndex: number;
+      let shouldUpdateSelection: boolean;
+      let shouldExtendSelection: boolean;
 
       switch (e.key) {
         case "ArrowDown":
@@ -605,9 +605,15 @@ export function DataGrid<
   };
 
   return (
+    // A keyboard-scrollable region (WCAG 2.1.1) that also runs the table's
+    // arrow-key row navigation. The tab stop is the region itself, not a
+    // widget role the wrapper doesn't have — the <table> inside carries the
+    // structure.
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       ref={containerRef}
       className={clsx(className, styles.container)}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
       tabIndex={0}
       onKeyDown={handleKeyDown}
       onScroll={onScroll}
@@ -643,7 +649,8 @@ export function DataGrid<
                       .filter(Boolean)
                       .join("\n")}
                   >
-                    <div
+                    <button
+                      type="button"
                       className={clsx(
                         styles.headerContent,
                         align === "center" && styles.headerCellCenter
@@ -683,7 +690,7 @@ export function DataGrid<
                           />
                         ),
                       }[header.column.getIsSorted() as string] ?? null}
-                    </div>
+                    </button>
                     {columnMeta?.filterable && filterType ? (
                       <ColumnFilterControl
                         columnId={header.column.id}
@@ -702,11 +709,14 @@ export function DataGrid<
                         onOpenChange={onFilterColumnChange}
                       />
                     ) : null}
+                    {/* Pointer-only drag handle — column widths also reset
+                        from the header menu, so nothing is keyboard-only here. */}
                     <div
                       className={clsx(
                         styles.resizer,
                         header.column.getIsResizing() && styles.resizerActive
                       )}
+                      role="presentation"
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
                       onDoubleClick={() =>

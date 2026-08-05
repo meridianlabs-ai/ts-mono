@@ -1,4 +1,7 @@
 export interface Entry {
+  /** Unique among siblings — safe to use as a React key. */
+  id: string;
+  /** Display name; distinct Map keys may stringify identically. */
   key: string;
   value: unknown;
 }
@@ -16,20 +19,44 @@ export const isExpandable = (value: unknown): boolean =>
   typeof value === "object" && value !== null;
 
 const objectEntries = (o: object): Entry[] =>
-  Object.entries(o).map(([key, value]: [string, unknown]) => ({ key, value }));
+  Object.entries(o).map(([key, value]: [string, unknown]) => ({
+    id: key,
+    key,
+    value,
+  }));
+
+// Distinct Map keys can stringify identically (1 vs "1", any two objects), so
+// ids carry the key's type plus a per-collision counter. The counter (rather
+// than the entry index) keeps ids stable across unrelated insertions, which
+// preserves expanded state in the tree.
+const mapEntries = (m: Map<unknown, unknown>): Entry[] => {
+  const seen = new Map<string, number>();
+  return [...m.entries()].map(([k, v]: [unknown, unknown]) => {
+    const key = typeof k === "string" ? k : String(k);
+    const base = `${typeof k}:${key}`;
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    return { id: n === 0 ? base : `${base}:${n}`, key, value: v };
+  });
+};
 
 export const entriesOf = (value: unknown): Entry[] => {
   if (value instanceof Map) {
-    return [...value.entries()].map(([k, v]: [unknown, unknown]) => ({
-      key: typeof k === "string" ? k : String(k),
+    return mapEntries(value);
+  }
+  if (value instanceof Set) {
+    return [...value].map((v: unknown, i) => ({
+      id: String(i),
+      key: String(i),
       value: v,
     }));
   }
-  if (value instanceof Set) {
-    return [...value].map((v: unknown, i) => ({ key: String(i), value: v }));
-  }
   if (Array.isArray(value)) {
-    return value.map((v: unknown, i) => ({ key: String(i), value: v }));
+    return value.map((v: unknown, i) => ({
+      id: String(i),
+      key: String(i),
+      value: v,
+    }));
   }
   if (typeof value === "object" && value !== null) {
     return objectEntries(value);

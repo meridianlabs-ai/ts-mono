@@ -581,7 +581,7 @@ function inUnsearchableElement(range: Range) {
 }
 
 function selectionParentElement(range: Range) {
-  let element: Element | null = null;
+  let element: Element | null;
 
   if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
     // This is a direct element

@@ -223,7 +223,10 @@ export class FetchEngine {
   // Engine generation, bumped on every stop() — a batch claimed under an
   // earlier generation that settles after a stop()/start() (dir switch) is
   // discarded rather than recorded/waited-on/coalesced into the new
-  // session's state.
+  // session's state. Engine-owned by design: the engine must be safe against
+  // its own stop()/start() races for any caller, so start() can't outsource
+  // this to an injected cancellation token (see the supersede-fence note in
+  // replicationControl's startEngine, #492).
   private _epoch = 0;
   // Monotonic claim counter (never reset — a post-restart collision would
   // let an old read's commit slip past the seq check below).
@@ -616,11 +619,19 @@ export class FetchEngine {
    */
   public async start(deps: FetchEngineDeps): Promise<void> {
     this.stop();
+    // stop() bumped the epoch; a stop()/start() landing while this start is
+    // suspended below bumps it again. A superseded start bails before every
+    // state write — otherwise whichever continuation lands last would seed
+    // the new session with the old dir's rows.
+    const epoch = this._epoch;
     this._deps = deps;
     if (!deps.database) {
       return;
     }
     const rows = await deps.database.readLogs({ prefix: deps.logDir });
+    if (this._epoch !== epoch) {
+      return;
+    }
     if (!rows) {
       return;
     }
@@ -653,6 +664,9 @@ export class FetchEngine {
       await deps.sink.writeFetchStates(reset);
     }
 
+    // No fence needed past this point: updateDbStats reads live `this._deps`,
+    // so a superseded continuation recomputes the new session's stats (or
+    // no-ops when stopped) rather than writing stale state.
     await this.updateDbStats();
   }
 

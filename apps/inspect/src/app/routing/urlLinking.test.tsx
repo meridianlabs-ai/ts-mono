@@ -8,7 +8,7 @@
 // (which, when embedded — e.g. Hawk's /eval-set/<id> page — is not just "/").
 import { renderHook } from "@testing-library/react";
 import { ReactNode } from "react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { StoreState } from "../../state/store";

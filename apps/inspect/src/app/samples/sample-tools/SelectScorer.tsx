@@ -69,7 +69,8 @@ export const SelectScorer: FC<SelectScorerProps> = ({
         }}
       >
         <div className={clsx(styles.links, "text-size-smaller")}>
-          <a
+          <button
+            type="button"
             className={clsx(
               styles.link,
               !allScoresSelected ? styles.selected : undefined
@@ -82,9 +83,10 @@ export const SelectScorer: FC<SelectScorerProps> = ({
             }}
           >
             Default
-          </a>
+          </button>
           |
-          <a
+          <button
+            type="button"
             className={clsx(
               styles.link,
               allScoresSelected ? styles.selected : undefined
@@ -94,9 +96,10 @@ export const SelectScorer: FC<SelectScorerProps> = ({
             }}
           >
             All
-          </a>
+          </button>
           |
-          <a
+          <button
+            type="button"
             className={clsx(
               styles.link,
               noneSelected ? styles.selected : undefined
@@ -106,7 +109,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
             }}
           >
             None
-          </a>
+          </button>
         </div>
         <div className={styles.container}>
           <ScoreCheckboxes
@@ -154,21 +157,14 @@ const ScoreCheckboxes: FC<ScoreCheckboxesProps> = ({
         const key = `${sc.scorer}.${sc.name}`;
         const isChecked = selectedKeys ? selectedKeys.has(key) : false;
         return (
-          <div
-            key={key}
-            className={clsx(styles.row)}
-            onClick={() => handleToggle(sc, isChecked)}
-          >
+          <label key={key} className={clsx(styles.row)}>
             <input
               type="checkbox"
               checked={isChecked}
-              onChange={(e) => {
-                e.stopPropagation();
-                handleToggle(sc, isChecked);
-              }}
+              onChange={() => handleToggle(sc, isChecked)}
             />
             {sc.name}
-          </div>
+          </label>
         );
       })}
     </div>

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, memo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { MarkdownReference } from "@tsmono/react/components";
 import {
@@ -62,6 +62,12 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   const taskId = summary.transcriptTaskId;
   const taskRepeat = summary.transcriptTaskRepeat;
 
+  const selectRow = () => {
+    if (summary.identifier) {
+      setSelectedScanResult(summary.identifier);
+    }
+  };
+
   const grid = (
     <div
       style={gridDescriptor.gridStyle}
@@ -71,11 +77,8 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
         selectedScanResult === summary.identifier ? styles.selected : "",
         hasExplanation ? "" : styles.noExplanation
       )}
-      onClick={() => {
-        if (summary.identifier) {
-          setSelectedScanResult(summary.identifier);
-        }
-      }}
+      role="presentation"
+      onClick={selectRow}
     >
       {hasExplanation && (
         <div className={clsx(styles.result, "text-size-smaller")}>
@@ -162,16 +165,42 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
     navigate(scanResultUrl);
   };
 
-  return isNavigable ? (
+  // Keyboard activation runs the whole row gesture: mouse clicks reach the
+  // inner grid first (selection) and then bubble out to navigation.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Only the row itself: Enter on a link inside the row must navigate
+    // that link, not get preventDefault()-ed into a row activation.
+    if (e.target !== e.currentTarget) {
+      return;
+    }
+    if (e.key !== "Enter" && e.key !== " ") {
+      return;
+    }
+    e.preventDefault();
+    selectRow();
+    if (scanResultUrl) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(scanResultUrl);
+    }
+  };
+
+  // Non-navigable rows render dimmed with `cursor: default` — presented as
+  // inert, so they get no tab stop to match.
+  if (!isNavigable) {
+    return grid;
+  }
+
+  return (
     <div
       className={clsx(styles.link)}
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
       style={{ cursor: "pointer" }}
     >
       {grid}
     </div>
-  ) : (
-    grid
   );
 };
 

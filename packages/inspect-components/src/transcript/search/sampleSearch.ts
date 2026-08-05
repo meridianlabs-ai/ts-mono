@@ -128,7 +128,7 @@ function findVariantPositions(lowered: string, variants: string[]): number[] {
   for (const v of variants) {
     if (!v) continue;
     let from = 0;
-    let p = 0;
+    let p: number;
     while ((p = lowered.indexOf(v, from)) !== -1) {
       hits.push({ pos: p, len: v.length });
       from = p + v.length;

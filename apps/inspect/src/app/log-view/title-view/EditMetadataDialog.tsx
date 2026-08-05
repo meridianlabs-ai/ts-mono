@@ -388,16 +388,25 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       <div className={sharedStyles.body}>
         <div className={sharedStyles.section}>
           <div className={sharedStyles.labelRow}>
-            <label className={clsx("text-size-smaller", sharedStyles.label)}>
+            {/* Names the whole entry table, so it can't be a <label> — those
+                may only point at a single form control. */}
+            <span
+              id="edit-metadata-label"
+              className={clsx("text-size-smaller", sharedStyles.label)}
+            >
               Metadata
-            </label>
+            </span>
             <span className={clsx("text-size-smaller", sharedStyles.hint)}>
               Values are edited as plain text. Use JSON syntax for nested
               values.
             </span>
           </div>
 
-          <div className={styles.tableScroll}>
+          <div
+            className={styles.tableScroll}
+            role="group"
+            aria-labelledby="edit-metadata-label"
+          >
             <div className={styles.table}>
               {entries.length === 0 && (
                 <div className={clsx("text-size-smaller", styles.empty)}>

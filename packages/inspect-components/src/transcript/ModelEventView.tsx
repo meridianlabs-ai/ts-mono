@@ -215,18 +215,18 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
           hasHiddenMessages &&
           !showAllMessages && (
             <div className={clsx("text-size-small", styles.showAllLink)}>
-              <a
-                href="#"
-                onClick={(e) => {
-                  e.preventDefault();
+              <button
+                type="button"
+                onClick={() => {
                   setShowAllMessages(true);
                 }}
               >
                 <i
                   className={clsx(TranscriptIcons.expand, styles.showAllIcon)}
+                  aria-hidden="true"
                 />
                 Show all messages
-              </a>
+              </button>
             </div>
           )}
         <ChatView

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { PopOver } from "@tsmono/react/components";
 
@@ -300,7 +300,8 @@ const InlinePresets: FC<{
         <Fragment key={index}>
           {" | "}
           <span className={styles.presetItem}>
-            <a
+            <button
+              type="button"
               className={clsx(
                 styles.link,
                 matchingColumnPreset?.name === preset.name
@@ -311,7 +312,7 @@ const InlinePresets: FC<{
               title={`Load "${preset.name}" (${preset.columns.length} columns)`}
             >
               <span className={styles.presetLabel}>{preset.name}</span>
-            </a>
+            </button>
             <button
               type="button"
               className={styles.presetDelete}
@@ -355,7 +356,8 @@ const InlinePresets: FC<{
             >
               Save
             </button>
-            <a
+            <button
+              type="button"
               className={clsx(styles.link, styles.cancelButton)}
               onClick={() => {
                 setIsSaving(false);
@@ -364,7 +366,7 @@ const InlinePresets: FC<{
               }}
             >
               Cancel
-            </a>
+            </button>
             {saveError && (
               <span style={{ color: "var(--bs-danger, #dc3545)" }}>
                 {saveError}
@@ -425,7 +427,8 @@ export const ScannerDataframeColumnsPopover: FC<
       styles={{ maxWidth: "600px" }}
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isDefaultFilter ? styles.selected : undefined
@@ -433,9 +436,10 @@ export const ScannerDataframeColumnsPopover: FC<
           onClick={() => setDefaultFilter()}
         >
           Default
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isAllFilter ? styles.selected : undefined
@@ -443,9 +447,10 @@ export const ScannerDataframeColumnsPopover: FC<
           onClick={() => setAllFilter()}
         >
           All
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isNoneFilter ? styles.selected : undefined
@@ -453,7 +458,7 @@ export const ScannerDataframeColumnsPopover: FC<
           onClick={() => setNoneFilter()}
         >
           None
-        </a>
+        </button>
         <InlinePresets
           filtered={filtered}
           presets={presets}
@@ -477,22 +482,16 @@ export const ScannerDataframeColumnsPopover: FC<
                     {groupName}
                   </div>
                   {columns.map((column) => (
-                    <div
-                      key={column}
-                      className={clsx(styles.row)}
-                      onClick={() => {
-                        filterColumn(column, !filtered.includes(column));
-                      }}
-                    >
+                    <label key={column} className={clsx(styles.row)}>
                       <input
                         type="checkbox"
                         checked={filtered.includes(column)}
                         onChange={(e) => {
                           filterColumn(column, e.target.checked);
                         }}
-                      ></input>
+                      />
                       {column}
-                    </div>
+                    </label>
                   ))}
                 </div>
               ))}

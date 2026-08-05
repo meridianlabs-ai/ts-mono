@@ -1,4 +1,8 @@
-import { AppConfig, EvalSet } from "@tsmono/inspect-common/types";
+import {
+  AppConfig,
+  EvalSet,
+  LogFilesResponse,
+} from "@tsmono/inspect-common/types";
 import { fetchRange } from "@tsmono/util";
 
 import { isUri } from "../../../utils/uri";
@@ -34,23 +38,31 @@ const kFallbackAppConfig: AppConfig = {
 };
 
 /**
+ * Bootstrap: the log root a static deployment serves, resolved synchronously
+ * from its configured dir — no api instance involved (dir discovery precedes
+ * construction, see #392).
+ */
+export const staticLogRoot = (
+  log_dir: string,
+  abs_log_dir?: string
+): LogRoot => ({
+  logs: [],
+  log_dir: canonicalDirUrl(log_dir.replace(/ /g, "+")),
+  abs_log_dir,
+});
+
+/**
  * This provides an API implementation that will serve a single
  * file using an http parameter, designed to be deployed
  * to a webserver without inspect or the ability to enumerate log
  * files
  */
 export default function staticHttpApi(
-  log_dir?: string,
-  log_file?: string,
-  abs_log_dir?: string,
+  log_dir: string,
   app_config?: AppConfig
 ): LogViewAPI {
-  const resolved_log_dir = log_dir?.replace(" ", "+");
-  const resolved_log_path = log_file ? log_file.replace(" ", "+") : undefined;
   return staticHttpApiForLog({
-    log_file: resolved_log_path,
-    log_dir: resolved_log_dir,
-    abs_log_dir,
+    log_dir: log_dir.replace(/ /g, "+"),
     app_config,
   });
 }
@@ -59,22 +71,18 @@ export default function staticHttpApi(
  * Fetches a file from the specified URL and parses its content.
  */
 function staticHttpApiForLog(logInfo: {
-  log_dir?: string;
-  log_file?: string;
-  abs_log_dir?: string;
+  log_dir: string;
   app_config?: AppConfig;
 }): LogViewAPI {
   const log_dir = logInfo.log_dir;
-  const canonical_log_dir =
-    log_dir === undefined ? undefined : canonicalDirUrl(log_dir);
-  const abs_log_dir = logInfo.abs_log_dir;
+  const canonical_log_dir = canonicalDirUrl(log_dir);
   const app_config = logInfo.app_config ?? kFallbackAppConfig;
   let manifest: Record<string, LogPreview> | undefined = undefined;
   let manifestPromise: Promise<Record<string, LogPreview>> | undefined =
     undefined;
 
   const getManifest = async (): Promise<Record<string, LogPreview>> => {
-    if (!manifest && log_dir) {
+    if (!manifest) {
       if (!manifestPromise) {
         manifestPromise = fetchManifest(log_dir).then((manifestRaw) => {
           manifest = manifestRaw?.parsed || {};
@@ -95,27 +103,16 @@ function staticHttpApiForLog(logInfo: {
       // http
       return Promise.resolve([]);
     },
-    get_log_root: async (): Promise<LogRoot | undefined> => {
-      // First check based upon the log dir
-      if (log_dir && canonical_log_dir) {
-        const manifest = await getManifest();
-        if (manifest) {
-          const logs = Object.entries(manifest).map(([key, preview]) => {
-            return {
-              name: joinURI(canonical_log_dir, key),
-              task: preview.task,
-              task_id: preview.task_id,
-            };
-          });
-          return Promise.resolve({
-            logs: logs,
-            log_dir: canonical_log_dir,
-            abs_log_dir,
-          });
-        }
-      }
-
-      return undefined;
+    get_logs: async (): Promise<LogFilesResponse> => {
+      // No change detection against a static manifest — every listing is a
+      // full response and the caller's mtime/count token is ignored.
+      const manifest = await getManifest();
+      const files = Object.entries(manifest).map(([key, preview]) => ({
+        name: joinURI(canonical_log_dir, key),
+        task: preview.task,
+        task_id: preview.task_id,
+      }));
+      return { files, response_type: "full" };
     },
     get_eval_set: async (dir?: string) => {
       const dirSegments = [];
@@ -188,7 +185,7 @@ function staticHttpApiForLog(logInfo: {
       if (manifest) {
         const manifestAbs: Record<string, LogPreview> = {};
         Object.entries(manifest).forEach(([key, preview]) => {
-          manifestAbs[joinURI(canonical_log_dir || "", key)] = preview;
+          manifestAbs[joinURI(canonical_log_dir, key)] = preview;
         });
         const header = manifestAbs[log_file];
         if (header) {
@@ -202,22 +199,20 @@ function staticHttpApiForLog(logInfo: {
         return [];
       }
 
-      if (log_dir) {
-        const manifest = await getManifest();
-        if (manifest) {
-          const keys = Object.keys(manifest);
-          const result: LogPreview[] = [];
-          files.forEach((file) => {
-            const fileKey = keys.find((key) => {
-              return file.endsWith(key);
-            });
-            if (fileKey) {
-              // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-              result.push(manifest[fileKey]);
-            }
+      const manifest = await getManifest();
+      if (manifest) {
+        const keys = Object.keys(manifest);
+        const result: LogPreview[] = [];
+        files.forEach((file) => {
+          const fileKey = keys.find((key) => {
+            return file.endsWith(key);
           });
-          return result;
-        }
+          if (fileKey) {
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+            result.push(manifest[fileKey]);
+          }
+        });
+        return result;
       }
 
       // No log.json could be found, and there isn't a log file,

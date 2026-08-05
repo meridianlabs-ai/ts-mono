@@ -7,7 +7,7 @@ import {
   To,
   useLocation,
   useNavigate,
-} from "react-router-dom";
+} from "react-router";
 
 const NAVIGATION_LOGGING_ENABLED = false;
 

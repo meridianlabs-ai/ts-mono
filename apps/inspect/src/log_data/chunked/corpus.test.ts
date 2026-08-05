@@ -12,12 +12,16 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { messagesToStr } from "@tsmono/inspect-components/chat";
+
 import { openZipFileFromBuffer } from "../../client/remote/remoteZipFile";
-import { hydrateFinalConversation } from "../chunkedMessages";
+import { chunkedConversation } from "../conversation";
+import { inMemoryMessageRows, type SampleMessagesData } from "../messageRows";
+import { windowedMessageRows } from "../messageRowsWindowed";
 
 import { openChunkedSample, type ChunkedSample } from "./chunkedSample";
 import { decodeRange, type DecodeCtx } from "./decode";
-import { chunkStarts, classifySampleShape } from "./format";
+import { classifySampleShape } from "./format";
 import { RowSpace } from "./rowSpace";
 import { sampleSkeleton } from "./skeleton";
 
@@ -56,6 +60,23 @@ const logNames = readdirSync(logsDir).filter((name) => name.endsWith(".eval"));
 
 const allVisible = () => true;
 
+/** Walk a source's pages forward — pinning the cursor mechanics the
+ *  production consumer (one whole-row-space read) doesn't exercise. */
+const drainRows = async (source: SampleMessagesData, pageSize: number) => {
+  const rows = [];
+  let cursor: Record<string, unknown> | null = null;
+  do {
+    const page = await source.getRows({
+      cursor,
+      direction: "forward",
+      limit: pageSize,
+    });
+    rows.push(...page.rows);
+    cursor = page.nextCursor;
+  } while (cursor !== null);
+  return rows;
+};
+
 const decodeCtx = (
   sample: ChunkedSample,
   collapsed: ReadonlySet<string>,
@@ -83,28 +104,44 @@ describe("chunked corpus", () => {
       );
       const sample = await log.open(ref);
 
-      // every chunk named in the shell's boundaries exists in the directory
-      for (const [sequence, boundaries] of Object.entries(
-        sample.shell.sequences
-      )) {
-        for (const start of chunkStarts(boundaries)) {
-          expect(log.entryNames).toContain(
-            `samples/${ref.id}_epoch_${ref.epoch}/${sequence}/${start}.json`
-          );
+      // chunks recovered from entry names are contiguous and complete:
+      // each chunk's name is the index of its first item
+      for (const reader of [sample.messages, sample.calls]) {
+        let itemCount = 0;
+        for (let c = 0; c < reader.starts.length; c++) {
+          expect(reader.starts[c]).toBe(itemCount);
+          itemCount += (await reader.loadChunk(c)).length;
         }
       }
 
-      // full reassembly matches the sample totals
-      const events = await sample.events.getRange(0, sample.events.count);
-      expect(events.length).toBe(sample.events.count);
+      // full reassembly matches the sample totals (the events count is
+      // exact from the stats sidecar; message_refs bound the messages)
+      const events = await sample.events.getRange(0, sample.events.knownCount);
+      expect(events.length).toBe(sample.events.knownCount);
       expect(events.length).toBe(sample.skeleton.counts.events);
-      const messages = await sample.messages.getRange(0, sample.messages.count);
-      expect(messages.length).toBe(sample.messages.count);
+      const messages = await sample.messages.getRange(
+        0,
+        Number.MAX_SAFE_INTEGER
+      );
+      const lastStart = sample.messages.starts.at(-1);
+      if (lastStart !== undefined) {
+        expect(messages.length).toBeGreaterThan(lastStart);
+      }
+
+      // events/uuids.json resolves event uuids to ordinals (old logs may
+      // have events without uuids — those simply have no map entry)
+      const withUuid = events.flatMap((e, ordinal) =>
+        e.uuid ? [{ uuid: e.uuid, ordinal }] : []
+      );
+      for (const { uuid, ordinal } of withUuid.filter(
+        (_, i) => i === 0 || i === withUuid.length - 1
+      )) {
+        expect(await sample.uuidToOrdinal(uuid)).toBe(ordinal);
+      }
+      expect(await sample.uuidToOrdinal("no-such-uuid")).toBeUndefined();
 
       // the stats sidecar is a pure function of the chunking
-      expect(sample.stats.length).toBe(
-        sample.events.count === 0 ? 0 : sample.shell.sequences.events.length
-      );
+      expect(sample.stats.length).toBe(sample.events.starts.length);
       sample.stats.forEach((chunkStats, c) => {
         const [lo, hi] = sample.events.chunkBounds(c);
         expect(chunkStats.start).toBe(lo);
@@ -125,14 +162,52 @@ describe("chunked corpus", () => {
       // the twin check: TS producer over reassembled events == persisted skeleton
       expect(sampleSkeleton(events)).toStrictEqual(sample.skeleton);
 
-      // the final conversation hydrates from message_refs, fully resolved
-      const conversation = await hydrateFinalConversation(sample);
+      // the final conversation reads from message_refs, fully resolved
+      const conv = chunkedConversation(sample);
+      const conversation = await conv.getMessages(0, conv.messageCount);
       const refWidths = sample.shell.message_refs.reduce(
         (n, [start, end]) => n + (end - start),
         0
       );
       expect(conversation.length).toBe(refWidths);
       expect(JSON.stringify(conversation)).not.toContain('"attachment://');
+
+      // windows through the conversation seam equal slices of the full
+      // read (positional reads never depend on what else was read)
+      expect(conv.messageCount).toBe(refWidths);
+      const n = conv.messageCount;
+      const windows: [number, number][] = [
+        [0, Math.min(3, n)],
+        [Math.floor(n / 2), Math.min(Math.floor(n / 2) + 3, n)],
+        [Math.max(0, n - 3), n],
+        [n, n + 5],
+      ];
+      for (const [lo, hi] of windows) {
+        expect(await conv.getMessages(lo, hi)).toStrictEqual(
+          conversation.slice(lo, hi)
+        );
+      }
+
+      // the windowed rows source over real multi-chunk logs (chunk_size=3
+      // — every page crosses chunks) equals the in-memory fold of the
+      // whole conversation, at any page size
+      const rowsOracle = await inMemoryMessageRows(conversation).getRows({
+        cursor: null,
+        direction: "forward",
+        limit: Number.MAX_SAFE_INTEGER,
+      });
+      for (const pageSize of [1, 7, 1000]) {
+        const source = windowedMessageRows(chunkedConversation(sample));
+        expect(await drainRows(source, pageSize)).toEqual(rowsOracle.rows);
+      }
+
+      // exportText streams the exact whole-conversation text
+      const exportSource = windowedMessageRows(chunkedConversation(sample));
+      const parts: string[] = [];
+      for await (const part of exportSource.exportText()) {
+        parts.push(part);
+      }
+      expect(parts.join("")).toBe(messagesToStr(conversation));
 
       // decode walk, everything visible and expanded
       const expanded = new RowSpace(
@@ -208,7 +283,7 @@ describe("chunked corpus", () => {
       const filtered = await decodeRange(
         decodeCtx(sample, new Set(), (type) => type === "no_such_type"),
         0,
-        sample.events.count,
+        sample.events.knownCount,
         false
       );
       expect(filtered.every((row) => row.kind !== "event")).toBe(true);

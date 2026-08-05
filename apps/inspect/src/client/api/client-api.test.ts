@@ -36,7 +36,7 @@ const baseApi = (): LogViewAPI => ({
   client_events: vi.fn().mockResolvedValue([]),
   get_eval_set: vi.fn().mockResolvedValue(undefined),
   get_flow: vi.fn().mockResolvedValue(undefined),
-  get_log_root: vi.fn().mockResolvedValue(undefined),
+  get_logs: vi.fn().mockResolvedValue({ files: [], response_type: "full" }),
   get_log_contents: vi.fn(),
   get_log_info: vi.fn(),
   get_log_bytes: vi.fn(),

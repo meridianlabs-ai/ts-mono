@@ -84,23 +84,21 @@ describe("withErrorSummaryFallback", () => {
 });
 
 describe("sampleQueryKey", () => {
-  it("keys on dir, file, id and epoch", () => {
+  it("keys on file, id and epoch", () => {
     const handle: SampleHandle = { id: 7, epoch: 2, logFile: "log.eval" };
-    expect(sampleQueryKey("dir", handle)).toEqual([
+    expect(sampleQueryKey(handle)).toEqual([
       "log_data",
       "sample",
-      "dir",
       "log.eval",
       7,
       2,
     ]);
   });
 
-  it("parks idle observers on a null slot per dir", () => {
-    expect(sampleQueryKey("dir", undefined)).toEqual([
+  it("parks idle observers on a null slot", () => {
+    expect(sampleQueryKey(undefined)).toEqual([
       "log_data",
       "sample",
-      "dir",
       null,
       null,
       null,
@@ -119,7 +117,7 @@ describe("usePassiveEvalSample", () => {
     const client = new QueryClient();
     const handle: SampleHandle = { id: "s1", epoch: 1, logFile: "log.eval" };
     const { result, rerender } = renderHook(
-      ({ h }: { h: SampleHandle }) => usePassiveEvalSample("/logs", h),
+      ({ h }: { h: SampleHandle }) => usePassiveEvalSample(h),
       { wrapper: wrapperFor(client), initialProps: { h: handle } }
     );
 
@@ -131,7 +129,7 @@ describe("usePassiveEvalSample", () => {
     // finalize priming would); the passive observer must re-render with it.
     const sample = makeSample();
     act(() => {
-      client.setQueryData(sampleQueryKey("/logs", handle), sample);
+      client.setQueryData(sampleQueryKey(handle), sample);
     });
     await waitFor(() => expect(result.current.data).toBe(sample));
 

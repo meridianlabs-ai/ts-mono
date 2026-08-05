@@ -141,10 +141,16 @@ export const ValidationCaseLabelsEditor: FC<
           </div>
 
           <div className={styles.popoverField}>
-            <label className={clsx("text-size-smallest", styles.popoverLabel)}>
+            {/* A radio group takes a group name, not a <label> — a label may
+                only point at a single form control. */}
+            <span
+              id="validation-label-value"
+              className={clsx("text-size-smallest", styles.popoverLabel)}
+            >
               Value
-            </label>
+            </span>
             <VscodeRadioGroup
+              aria-labelledby="validation-label-value"
               onChange={(e) =>
                 setNewLabelValue((e.target as HTMLInputElement).value)
               }

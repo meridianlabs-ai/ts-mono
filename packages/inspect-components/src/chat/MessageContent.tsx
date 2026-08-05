@@ -260,6 +260,9 @@ const messageRenderers: Record<string, MessageRenderer> = {
         return <MediaReference source={c.audio} key={key} />;
       }
       return (
+        // Log content carries no caption track and none can be synthesised
+        // here; the audio is model input being replayed, not authored media.
+        // eslint-disable-next-line jsx-a11y/media-has-caption
         <audio controls key={key}>
           <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
         </audio>
@@ -273,6 +276,7 @@ const messageRenderers: Record<string, MessageRenderer> = {
         return <MediaReference source={c.video} key={key} />;
       }
       return (
+        // eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above
         <video width="500" height="375" controls key={key}>
           <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
         </video>

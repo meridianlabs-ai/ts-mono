@@ -8,7 +8,15 @@ import {
   vi,
 } from "vitest";
 
-import { resolveBootstrap } from "./appConfig";
+import { ClientAPI } from "../client/api/types";
+
+import {
+  AppConfig,
+  getAppConfig,
+  initAppConfig,
+  resolveBootstrap,
+  setLogRoot,
+} from "./appConfig";
 
 // resolveBootstrap covers the invocation → bootstrap mapping (singleFileMode /
 // loader / logFile). The async half (versions + logDir, incl. the embedded /
@@ -48,7 +56,7 @@ describe("resolveBootstrap", () => {
     expect(config.singleFileMode).toBe(true);
     expect(config.loader).toBe("direct");
     expect(config.logFile).toBe("foo.eval");
-    expect(config.api).toBeDefined();
+    expect(config.backend).toBeDefined();
   });
 
   it("?log_dir= → directory / replicator loader, no logFile", () => {
@@ -73,5 +81,45 @@ describe("resolveBootstrap", () => {
     const config = resolveBootstrap();
     expect(config.singleFileMode).toBe(true);
     expect(config.loader).toBe("direct");
+  });
+});
+
+describe("setLogRoot", () => {
+  const seedConfig = (absLogDir?: string): AppConfig =>
+    initAppConfig({
+      api: {} as ClientAPI,
+      singleFileMode: true,
+      loader: "direct",
+      inspect_version: "1",
+      scout_version: null,
+      logDir: "file:///logs",
+      absLogDir,
+    });
+
+  it("no-ops on an unchanged dir, preserving config identity", () => {
+    // A same-dir host updateState (e.g. the embedded startup blob
+    // re-dispatched through onMessage) must not rebuild the api or restart
+    // the fetch engine — both key off config identity.
+    const prev = seedConfig();
+    setLogRoot("file:///logs");
+    expect(getAppConfig()).toBe(prev);
+  });
+
+  it("no-ops on an unchanged dir even when the config carries absLogDir", () => {
+    // A config whose root came from the dir-mode probe (abs_log_dir set)
+    // must still no-op — a rebuild would clobber absLogDir to undefined.
+    const prev = seedConfig("/abs/logs");
+    setLogRoot("file:///logs");
+    expect(getAppConfig()).toBe(prev);
+    expect(getAppConfig().absLogDir).toBe("/abs/logs");
+  });
+
+  it("rebuilds the whole config — fresh api + dir — for a new dir", () => {
+    const prev = seedConfig();
+    setLogRoot("file:///other");
+    const next = getAppConfig();
+    expect(next).not.toBe(prev);
+    expect(next.logDir).toBe("file:///other");
+    expect(next.api).not.toBe(prev.api);
   });
 });

@@ -63,7 +63,7 @@ export class FilteredCursor {
 
   private async refill(): Promise<void> {
     while (this.buffer.length < REFILL && !this.exhausted) {
-      if (this.from >= this.store.count) {
+      if (this.from >= this.store.knownCount) {
         this.exhausted = true;
         return;
       }

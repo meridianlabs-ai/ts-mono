@@ -200,10 +200,19 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     >
       <div className={sharedStyles.body}>
         <div className={sharedStyles.section}>
-          <label className={clsx("text-size-smaller", sharedStyles.label)}>
+          {/* Names the chip box, so it can't be a <label> — those may only
+              point at a single form control. */}
+          <span
+            id="edit-tags-label"
+            className={clsx("text-size-smaller", sharedStyles.label)}
+          >
             Tags
-          </label>
-          <div className={styles.chipBox}>
+          </span>
+          <div
+            className={styles.chipBox}
+            role="group"
+            aria-labelledby="edit-tags-label"
+          >
             {tags.length === 0 && (
               <span className={clsx("text-size-smaller", styles.empty)}>
                 No tags yet — add one below.

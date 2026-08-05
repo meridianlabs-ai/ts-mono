@@ -318,8 +318,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
         {/* Target set selector */}
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Target validation set:</label>
+          <label htmlFor="copy-move-target-set" className={styles.label}>
+            Target validation set:
+          </label>
           <VscodeSingleSelect
+            id="copy-move-target-set"
             value={showNewSetInput ? "__new__" : (targetUri ?? "")}
             onChange={handleTargetChange}
             disabled={isProcessing}
@@ -338,8 +341,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
         {/* New set name input */}
         {showNewSetInput && (
           <div className={styles.fieldGroup}>
-            <label className={styles.label}>New set name:</label>
+            <label htmlFor="copy-move-new-set-name" className={styles.label}>
+              New set name:
+            </label>
             <VscodeTextfield
+              id="copy-move-new-set-name"
               value={newSetName}
               onInput={handleNewSetNameInput}
               placeholder="Enter name (without extension)"
@@ -356,8 +362,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
         {/* Split selector for target */}
         {(targetUri || (showNewSetInput && newSetName.trim())) && (
           <div className={styles.fieldGroup}>
-            <label className={styles.label}>Split assignment:</label>
+            <label htmlFor="copy-move-split" className={styles.label}>
+              Split assignment:
+            </label>
             <VscodeSingleSelect
+              id="copy-move-split"
               value={targetSplit}
               onChange={handleSplitChange}
               disabled={isProcessing}

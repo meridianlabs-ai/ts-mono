@@ -104,9 +104,15 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
         position &&
         createPortal(
           <>
-            <div className={styles.backdrop} onClick={() => setOpen(false)} />
+            {/* Mouse-only dismissal; Escape closes the picker. */}
+            <div
+              className={styles.backdrop}
+              role="presentation"
+              onClick={() => setOpen(false)}
+            />
             <div
               role="listbox"
+              tabIndex={-1}
               className={styles.menu}
               style={{
                 top: position.top,

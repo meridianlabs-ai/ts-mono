@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import {
   BreadcrumbSegment,

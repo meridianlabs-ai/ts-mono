@@ -3,7 +3,7 @@ import { selectLogFile } from "../state/actions";
 import { queryClient } from "../state/queryClient";
 
 import { APP_CONFIG_KEY } from "./hooks";
-import { resolveApi } from "./resolveApi";
+import { BackendBootstrap, resolveBackend } from "./resolveBackend";
 import {
   detectInitialSingleFileMode,
   readEmbeddedStartupState,
@@ -20,6 +20,12 @@ import { parseUrlLogSource } from "./urlLogSource";
  *   2. `useAppConfigAsync()` — how the gate itself waits on the config.
  *   3. `resolveAppConfig()`  — async, memoized; for non-react code that needs it.
  *   4. `getAppConfig()`      — sync, asserts resolved; the non-react escape hatch.
+ *
+ * `api` and `logDir` are one snapshot: the api instance is bound to `logDir`
+ * at construction and never answers about any other dir (see the contract on
+ * `ClientAPI`). A dir change replaces the whole config — new api, new dir,
+ * published together (`setLogRoot`) — so a query's key and its fetch can
+ * never pair values from different roots.
  */
 export interface AppConfig {
   api: ClientAPI;
@@ -36,11 +42,12 @@ export interface AppConfig {
  * The synchronously-knowable prefix of the config — resolved from the URL + DOM
  * before any network call. Infrastructure only: it's what the async resolution
  * builds on, and the one thing the pre-gate boot path (`main.tsx` / the store)
- * can read before the full config exists. Everything else uses `useAppConfig` /
- * `getAppConfig`.
+ * can read before the full config exists. No `ClientAPI` lives here — an api
+ * instance requires a resolved dir, so the bootstrap carries the backend's
+ * dir-discovery + construction recipe instead (see `BackendBootstrap`).
  */
 export interface AppConfigBootstrap {
-  api: ClientAPI;
+  backend: BackendBootstrap;
   singleFileMode: boolean;
   loader: "direct" | "replicator";
   logFile?: string;
@@ -54,7 +61,7 @@ export const resolveBootstrap = (): AppConfigBootstrap => {
   const source = parseUrlLogSource(window.location.search);
   const singleFileMode = detectInitialSingleFileMode(source, document);
   return {
-    api: resolveApi(source),
+    backend: resolveBackend(source),
     singleFileMode,
     loader: singleFileMode ? "direct" : "replicator",
     logFile: source.kind === "file" ? source.logFile : undefined,
@@ -87,16 +94,22 @@ const embeddedLogRoot = (): LogRoot | undefined => {
 
 /**
  * Resolve the log root for this session — the determination logic:
- * - directory mode → the backend enumerates the root (`get_log_root`)
+ * - directory mode → the backend enumerates the root (its bootstrap probe)
  * - single-file `?log_file=` → derive the dir from the file
  * - embedded (VS Code) → the dir seeded in the DOM
  */
 const resolveLogRoot = async (bs: AppConfigBootstrap): Promise<LogRoot> => {
   if (!bs.singleFileMode) {
-    return bs.api.get_log_root();
+    const root = await bs.backend.resolveLogRoot();
+    if (!root) {
+      throw new Error("Unable to determine log paths.");
+    }
+    return root;
   }
   if (bs.logFile !== undefined) {
-    return rootFromDir(await resolveSingleFileLogDir(bs.logFile, bs.api));
+    return rootFromDir(
+      await resolveSingleFileLogDir(bs.logFile, bs.backend.resolveConfiguredDir)
+    );
   }
   const embedded = embeddedLogRoot();
   if (!embedded) {
@@ -108,17 +121,16 @@ const resolveLogRoot = async (bs: AppConfigBootstrap): Promise<LogRoot> => {
 };
 
 /**
- * Resolve the full config from its bootstrap — the two things that need a
- * round-trip (versions + logDir), combined with the bootstrap. Framework-free
- * (no react-query) and throws on failure so the query surfaces the error.
+ * Resolve the full config from its bootstrap. Dir discovery runs first — an
+ * api instance is bound to one dir at construction, so no `ClientAPI` can
+ * exist until the dir is known — then the backend's factory builds the
+ * instance and the version round-trip runs through it. Framework-free (no
+ * react-query) and throws on failure so the query surfaces the error.
  */
 export const loadResolvedAppConfig = async (
   bs: AppConfigBootstrap
 ): Promise<AppConfig> => {
-  const [versions, logRoot] = await Promise.all([
-    bs.api.get_app_config(),
-    resolveLogRoot(bs),
-  ]);
+  const logRoot = await resolveLogRoot(bs);
   // Prefer the canonical URI form — the namespace file names live in — so
   // prefix scoping (IndexedDB reads, samples scopes) holds. log_dir alone is
   // a display form on local view servers (aliased/relative path).
@@ -126,8 +138,13 @@ export const loadResolvedAppConfig = async (
   if (!logDir) {
     throw new Error("Log dir not resolved");
   }
+  const api = bs.backend.createApi(logDir);
+  const versions = await api.get_app_config();
   return {
-    ...bs,
+    api,
+    singleFileMode: bs.singleFileMode,
+    loader: bs.loader,
+    logFile: bs.logFile,
     inspect_version: versions.inspect_version,
     scout_version: versions.scout_version ?? null,
     logDir,
@@ -173,24 +190,28 @@ export const initAppConfig = (config: AppConfig): AppConfig =>
   (appConfig = config);
 
 /**
- * Update the resolved `logDir` — embedded (VS Code) live navigation, the one
- * place it changes after resolution. Returns the new config so the caller can
- * mirror it into the react-query cache.
+ * Point the session at a different log dir — embedded (VS Code) live
+ * navigation, the one impure operation after resolution. Rebuilds, never
+ * mutates: the backend factory constructs a fresh api bound to the new dir,
+ * and the new config (api + logDir together) replaces the singleton and the
+ * react-query mirror as one snapshot. In-flight responses from the old
+ * instance are still about the old dir and land under the old dir's keys.
+ *
+ * A same-dir call is a no-op: preserving config identity keeps the fetch
+ * engine running and the api's caches warm (the host re-sends `updateState`
+ * for the dir the gate already resolved on VS Code single-file boot).
  */
-export const setResolvedLogDir = (
-  logDir: string,
-  absLogDir?: string
-): AppConfig => (appConfig = { ...getAppConfig(), logDir, absLogDir }); /**
- * Update the resolved log dir — embedded (VS Code) live navigation, the one
- * place logDir changes after resolution. Updates the config singleton (source of
- * truth) and mirrors it into the react-query cache so `useAppConfig` re-renders.
- */
-
-export const setLogRoot = (logDir: string, absLogDir?: string): void => {
-  const updated = setResolvedLogDir(logDir, absLogDir);
-  queryClient.setQueryData(APP_CONFIG_KEY, updated);
-}; /** Non-React accessor for slice / routing code (undefined until resolved). */
-
-export const getLogDir = (): string | undefined => peekAppConfig()?.logDir;
-export const getAbsLogDir = (): string | undefined =>
-  peekAppConfig()?.absLogDir;
+export const setLogRoot = (logDir: string): void => {
+  const current = getAppConfig();
+  if (current.logDir === logDir) {
+    return;
+  }
+  appConfig = {
+    ...current,
+    api: getBootstrap().backend.createApi(logDir),
+    logDir,
+    // The boot-time abs form described the old dir; there is none for this one.
+    absLogDir: undefined,
+  };
+  queryClient.setQueryData(APP_CONFIG_KEY, appConfig);
+};
