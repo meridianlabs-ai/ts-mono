@@ -1,7 +1,10 @@
 import { skipToken, useInfiniteQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
-import type { MessageRow } from "@tsmono/inspect-components/chat";
+import {
+  rowContainsMessage,
+  type MessageRow,
+} from "@tsmono/inspect-components/chat";
 import { AsyncData, loading as asyncLoading } from "@tsmono/util";
 
 import { SampleHandle } from "../app/types";
@@ -51,11 +54,20 @@ export const unpagedFeed = (rows: AsyncData<MessageRow[]>): MessageRowsFeed => (
  * activated); a loading feed while the first page is materializing; the
  * caller owns what covers those states (streaming rows, waiting/loading
  * affordances).
+ *
+ * `targetMessageId` is a `?message=` deep link's target: pages drain in
+ * serially until a loaded row renders that message (or the conversation
+ * is exhausted), and the feed reports loading until then — the list
+ * honors its initial scroll index at mount, so it must mount with the
+ * target resident. The prefix cost is deliberate: pages are
+ * forward-contiguous, so the covering prefix is the minimum the list can
+ * render anyway.
  */
 export const useMessageRows = (
   handle: SampleHandle | undefined,
   sampleData: EvalSampleData,
-  activated: boolean
+  activated: boolean,
+  targetMessageId?: string | null
 ): MessageRowsFeed | undefined => {
   const source = sampleMessagesSource(sampleData);
 
@@ -105,6 +117,22 @@ export const useMessageRows = (
   const pages = data?.pages;
   const rows = useMemo(() => pages?.flatMap((page) => page.rows), [pages]);
 
+  const targetLoaded = useMemo(
+    () =>
+      targetMessageId == null ||
+      (rows?.some((row) => rowContainsMessage(row, targetMessageId)) ?? false),
+    [rows, targetMessageId]
+  );
+  useEffect(() => {
+    if (!targetLoaded && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage({ cancelRefetch: false }).catch(() => undefined);
+    }
+    // `rows` is the re-fire key: a page can start AND land within one
+    // committed render (in-memory sources resolve in a microtask), so
+    // isFetchingNextPage never visibly flips and the other deps are
+    // unchanged after each drained page.
+  }, [rows, targetLoaded, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   return useMemo(() => {
     if (!activated || source === undefined) {
       // idle even over a warm cache: rows are served only once the caller
@@ -118,6 +146,12 @@ export const useMessageRows = (
       // a failed page read fails the tab, matching the one-shot read's
       // behavior; the next loadMore after remount retries the same page
       return unpagedFeed({ error, loading: false });
+    }
+    if (!targetLoaded && hasNextPage) {
+      // the deep-link target's covering prefix is still draining in; a
+      // target the conversation never renders (hasNextPage exhausts) falls
+      // through and mounts at the top, like any unresolved ?message=
+      return unpagedFeed(asyncLoading);
     }
     return {
       rows: { data: rows ?? [], loading: false },
@@ -138,6 +172,7 @@ export const useMessageRows = (
     isError,
     error,
     rows,
+    targetLoaded,
     hasNextPage,
     isFetchingNextPage,
     fetchNextPage,

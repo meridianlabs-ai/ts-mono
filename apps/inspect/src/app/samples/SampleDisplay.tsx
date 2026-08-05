@@ -241,11 +241,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (state) => state.log.selectedSampleHandle
   );
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
+  const sampleDetailNavigation = useSampleDetailNavigation();
   const sampleMessages = useSampleMessages(
     selectedSampleHandle,
     sampleData,
     messagesTabOpen,
-    running
+    running,
+    sampleDetailNavigation.message
   );
   const exportMessages = useMessagesExport(sampleData);
 
@@ -658,8 +660,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     !selectedSampleSummary?.error &&
     logDetails?.status !== "error" &&
     logDetails?.status !== "cancelled";
-
-  const sampleDetailNavigation = useSampleDetailNavigation();
 
   const displayModeContext = useMemo(
     () => ({ displayMode: displayMode ?? ("rendered" as const) }),

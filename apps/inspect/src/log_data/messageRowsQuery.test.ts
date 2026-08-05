@@ -104,6 +104,47 @@ describe("useMessageRows", () => {
     expect(result.current?.hasMore).toBe(false);
   });
 
+  it("drains pages until a deep-link target is resident before serving rows", async () => {
+    const servedLengths: number[] = [];
+    const { result } = renderHook(
+      () => {
+        const feed = useMessageRows(
+          handle,
+          settledData(makeMessages(300)),
+          true,
+          "m-150"
+        );
+        if (feed?.rows.data !== undefined) {
+          servedLengths.push(feed.rows.data.length);
+        }
+        return feed;
+      },
+      { wrapper: makeWrapper() }
+    );
+
+    // the drain stops at the covering page, not the conversation's end
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(2 * kMessageRowsPageSize)
+    );
+    expect(result.current?.hasMore).toBe(true);
+    // rows were never served without the target resident: the list mounts
+    // with its initial scroll index resolvable
+    expect(servedLengths.every((l) => l === 2 * kMessageRowsPageSize)).toBe(
+      true
+    );
+  });
+
+  it("a target the conversation never renders drains to exhaustion, then serves", async () => {
+    const { result } = renderHook(
+      () =>
+        useMessageRows(handle, settledData(makeMessages(250)), true, "nope"),
+      { wrapper: makeWrapper() }
+    );
+
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(250));
+    expect(result.current?.hasMore).toBe(false);
+  });
+
   it("surfaces a chunked read failure as error, not endless loading", async () => {
     const chunked = testChunkedSample(
       failingSequenceReader(new Error("boom")),

@@ -93,12 +93,17 @@ const useStreamingRowsLatch = (
  * to materialize. On loading and error the view renders that affordance,
  * never "No messages". Streaming rows are never paged (`hasMore` false):
  * the event feed always renders whole.
+ *
+ * `targetMessageId` (a `?message=` deep link) keeps the settled feed on
+ * loading until the target's covering page prefix is resident — see
+ * `useMessageRows`.
  */
 export const useSampleMessages = (
   handle: SampleHandle | undefined,
   sampleData: EvalSampleData,
   active: boolean,
-  running: boolean
+  running: boolean,
+  targetMessageId?: string | null
 ): MessageRowsFeed => {
   // Activation latch: the first Messages-tab open turns the settled read
   // and chunked hydration on while the user stays on the sample. Ungated
@@ -123,7 +128,12 @@ export const useSampleMessages = (
   }
   const activated = active || (latch.key === sampleKey && latch.activated);
 
-  const settled = useMessageRows(handle, sampleData, activated);
+  const settled = useMessageRows(
+    handle,
+    sampleData,
+    activated,
+    targetMessageId
+  );
   const streamingRows = useStreamingRowsLatch(
     active,
     settled?.rows.data !== undefined || settled?.rows.error !== undefined,
