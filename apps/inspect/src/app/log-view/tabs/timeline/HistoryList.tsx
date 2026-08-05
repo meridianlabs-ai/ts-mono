@@ -177,9 +177,12 @@ export const HistoryList: FC<HistoryListProps> = ({
       return;
     }
     if (scrolledKey.current === selectedEventKey) return;
-    scrolledKey.current = selectedEventKey;
     const index = ordered.findIndex((row) => rowKey(row) === selectedEventKey);
+    // Mark handled only after the row is found: the render right after a
+    // marker click can still filter by the stale deferred search, and the
+    // scroll must land once the row reappears.
     if (index >= 0) {
+      scrolledKey.current = selectedEventKey;
       virtualizer.scrollToIndex(index, { align: "auto" });
     }
   }, [selectedEventKey, ordered, virtualizer]);
@@ -208,8 +211,7 @@ export const HistoryList: FC<HistoryListProps> = ({
     switch (row.kind) {
       case "config": {
         const ordinal = ordinals.get(markerKey("config", row.index));
-        const inherited =
-          row.update.provenance.metadata?.["inherited"] === true;
+        const inherited = row.preRun === true;
         return (
           <Fragment>
             {ordinal !== undefined && (

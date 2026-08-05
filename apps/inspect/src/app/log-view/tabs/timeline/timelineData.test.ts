@@ -227,6 +227,28 @@ describe("configMarkers", () => {
     });
     expect(rows.map((row) => row.kind)).toEqual(["config"]);
   });
+
+  it("classifies inherited process updates as pre-run", () => {
+    const inherited = {
+      scope: "process",
+      changes: [
+        {
+          config: "generate",
+          name: "max_connections",
+          previous: 10,
+          value: 20,
+          cleared: false,
+        },
+      ],
+      provenance: {
+        timestamp: "2026-07-20T17:00:00+00:00",
+        author: "a",
+        metadata: { inherited: true },
+      },
+    } as ConfigUpdate;
+    const markers = configMarkers([inherited]);
+    expect(markers[0]?.preRun).toBe(true);
+  });
 });
 
 describe("logMarkers", () => {
@@ -302,6 +324,43 @@ describe("historyRows", () => {
       "sampleLimit",
       "runEnd",
     ]);
+  });
+
+  it("sorts an inherited pre-run update before run start at its real time", () => {
+    const stats = {
+      started_at: "2026-07-20T18:25:24+00:00",
+      completed_at: "2026-07-20T18:27:16+00:00",
+    } as EvalStats;
+    const inherited = {
+      scope: "process",
+      changes: [
+        {
+          config: "generate",
+          name: "max_connections",
+          previous: 10,
+          value: 20,
+          cleared: false,
+        },
+      ],
+      provenance: {
+        // Hours before the run — must not clamp to runStart.
+        timestamp: "2026-07-20T16:00:00+00:00",
+        author: "a",
+        metadata: { inherited: true },
+      },
+    } as ConfigUpdate;
+    const rows = historyRows({
+      status: "success",
+      stats,
+      configUpdates: [inherited],
+      samples: [],
+    });
+    expect(rows.map((row) => row.kind)).toEqual([
+      "config",
+      "runStart",
+      "runEnd",
+    ]);
+    expect(rows[0]?.time).toBe(epoch("2026-07-20T16:00:00+00:00"));
   });
 
   it("aggregates contiguous controller scaling runs per model", () => {

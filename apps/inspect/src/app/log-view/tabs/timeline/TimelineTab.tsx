@@ -197,8 +197,12 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
       const started = isoToEpoch(sample.started_at);
       if (started !== undefined) cover(started);
     }
+    // Inherited (pre-run) updates keep their original timestamps, which can
+    // predate the run by hours — covering them would compress the actual
+    // run into a sliver of the axis (the chart clamps them to the left edge
+    // instead).
     for (const marker of markers) {
-      if (!marker.postRun) cover(marker.time);
+      if (!marker.postRun && !marker.preRun) cover(marker.time);
     }
     for (const event of evalStats?.connection_limit_history ?? []) {
       cover(event.timestamp);

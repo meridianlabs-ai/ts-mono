@@ -895,7 +895,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           : 8;
     const boxW = ordinalBoxWidth(badge);
     const activate = () => {
-      if (!isLog) setMarkerHover({ x: mx, members: group.members });
+      setMarkerHover({ x: mx, members: group.members });
       onHoverMarker?.(keys);
     };
     const deactivate = () => {
@@ -950,9 +950,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
           width={size}
           height={size}
           transform={`rotate(45 ${mx} ${kMarkerTop})`}
-        >
-          {isLog && <title>{group.members[0]!.label}</title>}
-        </rect>
+        />
         {!isLog &&
           (active ? (
             // The diamond fills solid with the ordinal reversed out in white.
@@ -1047,43 +1045,92 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 
   // Hover popover: knob path, previous → value, author, scope, reason —
   // the label lives here and in the History row, not inline on the rail.
+  // Tag/metadata markers get the same treatment (edits, author, reason);
+  // mixed groups (post-run overflow folding) render both entry kinds.
   const renderMarkerPopover = () => {
     if (!markerHover) return null;
-    const members = markerHover.members.filter((m) => m.kind === "config");
+    const members = markerHover.members;
+    const configMembers = members.filter((m) => m.kind === "config");
     const first = members[0];
     const last = members[members.length - 1];
     if (!first || !last) return null;
-    const cluster = members.length > 1;
+    // Bylines compress once the popover carries more than one entry.
+    const compact = members.length > 1;
+    const logCount = members.length - configMembers.length;
+    const headerText =
+      configMembers.length === 0
+        ? logCount > 1
+          ? `${logCount} tag/metadata edits`
+          : "Tags & metadata"
+        : logCount === 0
+          ? compact
+            ? `${configMembers.length} config changes`
+            : "Config change"
+          : `${configMembers.length} config change` +
+            `${configMembers.length === 1 ? "" : "s"} · ${logCount} edit` +
+            `${logCount === 1 ? "" : "s"}`;
     const left = Math.min(
       Math.max(markerHover.x - 24, 0),
       Math.max(width - 300, 0)
     );
+    const metaFor = (
+      provenance: TimelineMarker["update"]["provenance"],
+      scope?: string,
+      suffix?: string
+    ) =>
+      compact ? (
+        <div className={styles.markerPopoverByline}>
+          {provenance.author}
+          {scope ? ` · ${scope}` : ""}
+          {suffix ?? ""}
+          {provenance.reason ? ` · “${provenance.reason}”` : ""}
+        </div>
+      ) : (
+        <div className={styles.markerPopoverMeta}>
+          <span className={styles.markerPopoverLabel}>by</span>
+          <span>{provenance.author}</span>
+          {scope ? (
+            <Fragment>
+              <span className={styles.markerPopoverLabel}>scope</span>
+              <span>
+                {scope}
+                {suffix ?? ""}
+              </span>
+            </Fragment>
+          ) : null}
+          {provenance.reason ? (
+            <Fragment>
+              <span className={styles.markerPopoverLabel}>why</span>
+              <span>{provenance.reason}</span>
+            </Fragment>
+          ) : null}
+        </div>
+      );
     return (
       <div
         className={styles.markerPopover}
         style={{ left, top: kMarkerTop + 14 }}
       >
         <div className={styles.markerPopoverHeader}>
-          <span className={styles.markerPopoverOrdinal}>
-            {ordinalBadge(members)}
-          </span>
-          <span>
-            {cluster ? `${members.length} config changes` : "Config change"}
-          </span>
+          {configMembers.length > 0 && (
+            <span className={styles.markerPopoverOrdinal}>
+              {ordinalBadge(configMembers)}
+            </span>
+          )}
+          <span>{headerText}</span>
           <span className={styles.markerPopoverTime}>
             {fmtTimeSec(first.time)}
-            {cluster ? ` – ${fmtTimeSec(last.time)}` : ""}
+            {compact ? ` – ${fmtTimeSec(last.time)}` : ""}
           </span>
         </div>
         <div className={styles.markerPopoverBody}>
           {members.map((member) => {
             if (member.kind !== "config") return null;
-            const provenance = member.update.provenance;
             return (
               <div key={member.index} className={styles.markerPopoverEntry}>
                 {member.update.changes.map((change, i) => (
                   <div key={i} className={styles.markerPopoverChange}>
-                    {cluster && i === 0 && (
+                    {compact && i === 0 && (
                       <span className={styles.markerPopoverOrdinal}>
                         {member.ordinal}
                       </span>
@@ -1103,30 +1150,63 @@ export const TimelineChart: FC<TimelineChartProps> = ({
                     )}
                   </div>
                 ))}
-                {cluster ? (
-                  <div className={styles.markerPopoverByline}>
-                    {provenance.author} · {member.update.scope}
-                    {member.update.changes.some(
-                      (change) => change.config === "concurrency"
-                    )
-                      ? " · audit-only, not folded"
-                      : ""}
-                    {provenance.reason ? ` · “${provenance.reason}”` : ""}
-                  </div>
-                ) : (
-                  <div className={styles.markerPopoverMeta}>
-                    <span className={styles.markerPopoverLabel}>by</span>
-                    <span>{provenance.author}</span>
-                    <span className={styles.markerPopoverLabel}>scope</span>
-                    <span>{member.update.scope}</span>
-                    {provenance.reason ? (
-                      <Fragment>
-                        <span className={styles.markerPopoverLabel}>why</span>
-                        <span>{provenance.reason}</span>
-                      </Fragment>
-                    ) : null}
-                  </div>
+                {metaFor(
+                  member.update.provenance,
+                  member.update.scope,
+                  (member.update.changes.some(
+                    (change) => change.config === "concurrency"
+                  )
+                    ? " · audit-only, not folded"
+                    : "") + (member.preRun ? " · inherited" : "")
                 )}
+              </div>
+            );
+          })}
+          {members.map((member) => {
+            if (member.kind !== "log") return null;
+            return (
+              <div
+                key={`log-${member.index}`}
+                className={styles.markerPopoverEntry}
+              >
+                {member.update.edits.map((edit, i) =>
+                  edit.type === "tags" ? (
+                    <div key={i} className={styles.markerPopoverChange}>
+                      <span className={styles.markerPopoverMuted}>tags </span>
+                      {[
+                        ...edit.tags_add.map((tag) => `+${tag}`),
+                        ...edit.tags_remove.map((tag) => `−${tag}`),
+                      ].join("  ")}
+                    </div>
+                  ) : (
+                    <Fragment key={i}>
+                      {Object.entries(edit.metadata_set).map(([key, value]) => (
+                        <div
+                          key={`set-${key}`}
+                          className={styles.markerPopoverChange}
+                        >
+                          {key}
+                          <span className={styles.markerPopoverMuted}>
+                            {" set to "}
+                          </span>
+                          {formatShort(value)}
+                        </div>
+                      ))}
+                      {edit.metadata_remove.map((key) => (
+                        <div
+                          key={`rm-${key}`}
+                          className={styles.markerPopoverChange}
+                        >
+                          {key}
+                          <span className={styles.markerPopoverMuted}>
+                            {" removed"}
+                          </span>
+                        </div>
+                      ))}
+                    </Fragment>
+                  )
+                )}
+                {metaFor(member.update.provenance)}
               </div>
             );
           })}
@@ -1322,6 +1402,15 @@ const SamplePopover: FC<SamplePopoverProps> = ({
           )}
           <div className={styles.popoverLabel}>Retries</div>
           <div>{sample.retries ?? 0}</div>
+          {/* Cancelled samples skip this — their exception text carries no
+              information beyond "cancelled" (same posture as the History
+              list). */}
+          {status === "error" && sample.error && (
+            <Fragment>
+              <div className={styles.popoverLabel}>Error</div>
+              <div className={styles.popoverError}>{sample.error}</div>
+            </Fragment>
+          )}
           {shownScores.map((row) => (
             <Fragment key={row.key}>
               <div className={styles.popoverLabel}>{row.name}</div>

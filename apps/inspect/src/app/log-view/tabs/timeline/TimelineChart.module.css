@@ -374,6 +374,14 @@
   font-size: 0.72rem;
 }
 
+.popoverError {
+  color: #b04a3c;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .popoverCallout {
   font-size: 0.72rem;
   color: #664d03;

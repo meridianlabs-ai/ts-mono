@@ -174,6 +174,11 @@ export type TimelineMarker = {
   /** Tooltip/aria text — markers render only their ordinal inline. */
   label: string;
   postRun: boolean;
+  /** Process-scoped update inherited from before this run started — its
+   *  timestamp predates the run, so it is launch context, not run activity:
+   *  it never widens the plotted window (the chart clamps it to the left
+   *  edge) and sorts by its real time in the History list. */
+  preRun: boolean;
   /** Chronological 1..N over config markers only (design canvas 36c). */
   ordinal?: number;
 } & (
@@ -215,6 +220,7 @@ export const configMarkers = (
         index,
         label,
         postRun: runEnd !== undefined && time > runEnd,
+        preRun: update.provenance.metadata?.["inherited"] === true,
       };
     })
     .filter((m): m is TimelineMarker => m !== undefined)
@@ -253,6 +259,7 @@ export const logMarkers = (
         index,
         label,
         postRun: runEnd !== undefined && time > runEnd,
+        preRun: false,
       };
     })
     .filter((m): m is TimelineMarker => m !== undefined)
@@ -334,7 +341,13 @@ export const kCategoryLong: Record<HistoryCategory, string> = {
   run: "Run",
 };
 
-export type HistoryRow = { time: number; postRun: boolean } & (
+export type HistoryRow = {
+  time: number;
+  postRun: boolean;
+  /** Inherited process update — launch context predating the run; sorts by
+   *  its real time instead of being clamped into the run window. */
+  preRun?: boolean;
+} & (
   | { kind: "config"; update: ConfigUpdate; index: number }
   | { kind: "logUpdate"; update: LogUpdate; index: number }
   | { kind: "runStart"; detail: string }
@@ -492,6 +505,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
       kind: "config",
       time,
       postRun: runEnd !== undefined && time > runEnd,
+      preRun: update.provenance.metadata?.["inherited"] === true,
       update,
       index,
     });
@@ -625,10 +639,15 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
   // skew can stamp a sample's completion milliseconds past run end, so
   // in-run rows sort by their time clamped to the run window, with the
   // lifecycle rows ranked to the outside of any resulting tie. Post-run
-  // rows (config/tag amendments) keep their real times. Display always
-  // shows the row's own time.
+  // rows (config/tag amendments) and pre-run rows (inherited process
+  // updates) keep their real times. Display always shows the row's own time.
   const sortTime = (row: HistoryRow): number => {
-    if (row.kind === "runStart" || row.kind === "runEnd" || row.postRun) {
+    if (
+      row.kind === "runStart" ||
+      row.kind === "runEnd" ||
+      row.postRun ||
+      row.preRun
+    ) {
       return row.time;
     }
     let time = row.time;
