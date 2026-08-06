@@ -87,14 +87,18 @@ describe("ChatViewRowsVirtualList paging", () => {
     rows: ReturnType<typeof rowsOf>;
     hasMoreRows?: boolean;
     onLoadMoreRows?: () => void;
-  }) =>
-    render(
-      <ComponentStateProvider hooks={makeStateStore().hooks}>
+  }) => {
+    const { hooks } = makeStateStore();
+    const ui = (p: typeof props) => (
+      <ComponentStateProvider hooks={hooks}>
         <ExtendedFindProvider>
-          <ChatViewRowsVirtualList id="chat" {...props} />
+          <ChatViewRowsVirtualList id="chat" {...p} />
         </ExtendedFindProvider>
       </ComponentStateProvider>
     );
+    const view = render(ui(props));
+    return { rerenderRows: (p: typeof props) => view.rerender(ui(p)) };
+  };
 
   it("requests the next page when the loaded end is within the margin", () => {
     // a loaded prefix shorter than the margin: the mount-time check alone
@@ -106,6 +110,21 @@ describe("ChatViewRowsVirtualList paging", () => {
       onLoadMoreRows: () => calls++,
     });
     expect(calls).toBeGreaterThan(0);
+  });
+
+  it("keeps paging when a page lands without the viewport moving", () => {
+    // the regrow re-check rides on VirtualList replaying the range to the
+    // new callback identity — no scroll event fires when rows are appended
+    let calls = 0;
+    const onLoadMoreRows = () => calls++;
+    const { rerenderRows } = mountRows({
+      rows: rowsOf(5),
+      hasMoreRows: true,
+      onLoadMoreRows,
+    });
+    const callsAfterMount = calls;
+    rerenderRows({ rows: rowsOf(10), hasMoreRows: true, onLoadMoreRows });
+    expect(calls).toBeGreaterThan(callsAfterMount);
   });
 
   it("never requests pages while the host reports no more rows", () => {

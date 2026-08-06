@@ -141,30 +141,23 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       itemCount: rows.length,
     });
 
-    // The near-end trigger re-checks on scroll (the range callback) AND when
-    // rows grow (the effect): a landing page doesn't move the viewport, so
-    // without the effect a user parked at the loaded end would stall after
-    // one page.
-    const visibleEndRef = useRef(0);
-    const maybeLoadMore = useCallback(() => {
-      if (
-        hasMoreRows &&
-        onLoadMoreRows &&
-        visibleEndRef.current >= rows.length - kLoadMoreMarginRows
-      ) {
-        onLoadMoreRows();
-      }
-    }, [hasMoreRows, onLoadMoreRows, rows.length]);
+    // The near-end trigger re-checks on scroll AND when rows grow: a landing
+    // page doesn't move the viewport, so the rows-grow case rides on
+    // VirtualList replaying the current range whenever this callback's
+    // identity (here, `rows.length`) changes — a user parked at the loaded
+    // end keeps paging without scrolling.
     const handleVisibleRangeChange = useCallback(
       (range: { startIndex: number; endIndex: number }) => {
-        visibleEndRef.current = range.endIndex;
-        maybeLoadMore();
+        if (
+          hasMoreRows &&
+          onLoadMoreRows &&
+          range.endIndex >= rows.length - kLoadMoreMarginRows
+        ) {
+          onLoadMoreRows();
+        }
       },
-      [maybeLoadMore]
+      [hasMoreRows, onLoadMoreRows, rows.length]
     );
-    useEffect(() => {
-      maybeLoadMore();
-    }, [maybeLoadMore]);
 
     const initialMessageIndex = useMemo(() => {
       if (initialMessageId === null || initialMessageId === undefined) {
