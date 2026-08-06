@@ -1,5 +1,5 @@
 import { skipToken, useInfiniteQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import {
   rowContainsMessage,
@@ -117,6 +117,15 @@ export const useMessageRows = (
   const pages = data?.pages;
   const rows = useMemo(() => pages?.flatMap((page) => page.rows), [pages]);
 
+  const fetchNext = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      // cancelRefetch false: callers repeat freely (scroll handlers, the
+      // drain effect) and a re-entrant call must not restart the in-flight
+      // page; failures surface through the query's own error state
+      fetchNextPage({ cancelRefetch: false }).catch(() => undefined);
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const targetLoaded = useMemo(
     () =>
       targetMessageId == null ||
@@ -124,57 +133,37 @@ export const useMessageRows = (
     [rows, targetMessageId]
   );
   useEffect(() => {
-    if (!targetLoaded && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage({ cancelRefetch: false }).catch(() => undefined);
+    if (!targetLoaded) {
+      fetchNext();
     }
     // `rows` is the re-fire key: a page can start AND land within one
     // committed render (in-memory sources resolve in a microtask), so
     // isFetchingNextPage never visibly flips and the other deps are
     // unchanged after each drained page.
-  }, [rows, targetLoaded, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [rows, targetLoaded, fetchNext]);
 
-  return useMemo(() => {
-    if (!activated || source === undefined) {
-      // idle even over a warm cache: rows are served only once the caller
-      // activates the read and a settled feed exists
-      return undefined;
-    }
-    if (isPending) {
-      return unpagedFeed(asyncLoading);
-    }
-    if (isError) {
-      // a failed page read fails the tab, matching the one-shot read's
-      // behavior; the next loadMore after remount retries the same page
-      return unpagedFeed({ error, loading: false });
-    }
-    if (!targetLoaded && hasNextPage) {
-      // the deep-link target's covering prefix is still draining in; a
-      // target the conversation never renders (hasNextPage exhausts) falls
-      // through and mounts at the top, like any unresolved ?message=
-      return unpagedFeed(asyncLoading);
-    }
-    return {
-      rows: { data: rows ?? [], loading: false },
-      hasMore: hasNextPage,
-      loadMore: () => {
-        if (hasNextPage && !isFetchingNextPage) {
-          // cancelRefetch false: scroll handlers call this repeatedly and a
-          // re-entrant call must not restart the in-flight page; failures
-          // surface through the query's own error state
-          fetchNextPage({ cancelRefetch: false }).catch(() => undefined);
-        }
-      },
-    };
-  }, [
-    activated,
-    source,
-    isPending,
-    isError,
-    error,
-    rows,
-    targetLoaded,
-    hasNextPage,
-    isFetchingNextPage,
-    fetchNextPage,
-  ]);
+  if (!activated || source === undefined) {
+    // idle even over a warm cache: rows are served only once the caller
+    // activates the read and a settled feed exists
+    return undefined;
+  }
+  if (isPending) {
+    return unpagedFeed(asyncLoading);
+  }
+  if (isError) {
+    // a failed page read fails the tab, matching the one-shot read's
+    // behavior; the next loadMore after remount retries the same page
+    return unpagedFeed({ error, loading: false });
+  }
+  if (!targetLoaded && hasNextPage) {
+    // the deep-link target's covering prefix is still draining in; a
+    // target the conversation never renders (hasNextPage exhausts) falls
+    // through and mounts at the top, like any unresolved ?message=
+    return unpagedFeed(asyncLoading);
+  }
+  return {
+    rows: { data: rows ?? [], loading: false },
+    hasMore: hasNextPage,
+    loadMore: fetchNext,
+  };
 };
