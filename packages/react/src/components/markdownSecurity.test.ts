@@ -154,11 +154,27 @@ describe("MarkdownDiv XSS security", () => {
       }
     );
 
-    it("does not link data-image markdown", async () => {
-      const result = await renderMarkdown(
-        "![alt](data:image/png;base64,AAAA)",
-        "full"
-      );
+    it.each(["full", "fragment"] as const)(
+      "%s renderer renders validated inline data images",
+      async (renderer) => {
+        const result = await renderMarkdown(
+          "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+          renderer
+        );
+        expect(result).toContain("<img");
+        expect(result).toContain(
+          'src="data:image/gif;base64,R0lGODlhAQABAAAAACw="'
+        );
+        expect(result).toContain('alt="pixel"');
+      }
+    );
+
+    it.each([
+      "data:image/svg+xml;base64,AAAA",
+      "data:image/png,AAAA",
+      "data:text/html;base64,AAAA",
+    ])("does not render %s as an image", async (source) => {
+      const result = await renderMarkdown(`![alt](${source})`, "full");
       expect(result).not.toContain("<img");
       expect(result).not.toContain("<a ");
       expect(result).toContain("alt");

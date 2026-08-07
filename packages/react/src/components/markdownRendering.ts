@@ -5,7 +5,11 @@
 
 import MarkdownIt from "markdown-it";
 
-import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
+import {
+  isRenderableImageSource,
+  parseAbsoluteHttpUrl,
+  parseDataUri,
+} from "@tsmono/util";
 
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
@@ -79,6 +83,14 @@ export const getMarkdownInstance = async (
     }
 
     const source = token.attrGet("src") ?? "";
+    const alt = token.content.trim();
+
+    // Base64 raster data URIs issue no network request, so rendering them
+    // inline cannot leak a fetch to an attacker-controlled host.
+    if (isRenderableImageSource(source)) {
+      return `<img src="${md.utils.escapeHtml(source)}" alt="${md.utils.escapeHtml(alt)}">`;
+    }
+
     const href = parseAbsoluteHttpUrl(source);
     const dataUri = parseDataUri(source);
     const visibleSource =
@@ -86,7 +98,6 @@ export const getMarkdownInstance = async (
       (dataUri
         ? `data:${dataUri.mimeType}${dataUri.base64 ? ";base64" : ""},...`
         : source);
-    const alt = token.content.trim();
     const label = alt ? `${alt} (${visibleSource})` : visibleSource;
     const escapedLabel = md.utils.escapeHtml(label);
 
