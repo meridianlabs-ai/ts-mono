@@ -189,12 +189,17 @@ describe("MarkdownDiv XSS security", () => {
       }
     );
 
-    it("escapes quotes in alt text so they cannot break out of the attribute", async () => {
-      const result = await renderMarkdown(
-        '![a"onerror="alert(1)](data:image/gif;base64,R0lGODlhAQABAAAAACw=)',
-        "full"
+    // Driven through the instance rather than renderMarkdown: the pipeline
+    // HTML-escapes its input first, which would mask whether the image rule
+    // escapes what it interpolates into src and alt.
+    it("escapes alt text inside the image rule itself", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        '![a"onerror="alert(1)](data:image/gif;base64,R0lGODlhAQABAAAAACw=)'
       );
+
       expect(result).toContain("<img");
+      expect(result).toContain("&quot;");
       expect(result).not.toContain('onerror="alert(1)"');
     });
 
