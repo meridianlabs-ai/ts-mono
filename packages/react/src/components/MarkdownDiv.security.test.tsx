@@ -188,6 +188,51 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.innerHTML).not.toContain("evil.example");
   });
 
+  it.each([
+    "fill",
+    "stroke",
+    "mask",
+    "filter",
+    "clip-path",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+  ])("removes an external url() from the %s attribute", async (attr) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<svg><rect ${attr}="url(https://evil.example/x.svg#p)"></rect></svg>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.innerHTML).not.toContain("evil.example");
+  });
+
+  it("keeps a same-document fragment reference", async () => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<svg><rect fill="url(#paint)"></rect></svg>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("rect")).not.toBeNull();
+    });
+
+    expect(container.querySelector("rect")?.getAttribute("fill")).toBe(
+      "url(#paint)"
+    );
+  });
+
   it("removes a src attribute from a non-img element", async () => {
     const { container } = render(
       <MarkdownDiv

@@ -195,6 +195,12 @@ const installHooks = (purify: DOMPurifyInstance): void => {
       hookEvent.keepAttr = false;
       node.removeAttribute(hookEvent.attrName);
     } else if (
+      PAINT_ATTRIBUTES.has(hookEvent.attrName) &&
+      !isSafePaintValue(hookEvent.attrValue)
+    ) {
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
+    } else if (
       URL_ATTRIBUTES.has(hookEvent.attrName) &&
       !isSafeUrlAttribute(hookEvent.attrValue)
     ) {
@@ -226,6 +232,22 @@ const sanitizeStyleAttributeHook = (
     node.removeAttribute(hookEvent.attrName);
   }
 };
+
+const PAINT_ATTRIBUTES = new Set([
+  "clip-path",
+  "fill",
+  "filter",
+  "marker-end",
+  "marker-mid",
+  "marker-start",
+  "mask",
+  "stroke",
+]);
+
+// These are presentation attributes, not style, so sanitizeStyleAttribute never
+// sees them. MathJax only emits same-document references and plain colours.
+const isSafePaintValue = (value: string): boolean =>
+  !/url\(/i.test(value) || /^\s*url\(\s*['"]?#/.test(value);
 
 const isSafeUrlAttribute = (value: string): boolean => {
   const trimmed = value.trim();
