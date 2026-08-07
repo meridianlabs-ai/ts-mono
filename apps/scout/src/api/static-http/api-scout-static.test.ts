@@ -172,6 +172,28 @@ describe("apiScoutStatic", () => {
     );
   });
 
+  it("emits one initial topic update to unblock app readiness", async () => {
+    const api = apiScoutStatic({ bundleBaseUrl: baseUrl });
+    const updates: unknown[] = [];
+    api.connectTopicUpdates((topicVersions) => updates.push(topicVersions));
+    expect(updates).toEqual([]);
+    await Promise.resolve();
+    expect(updates).toEqual([
+      { "project-config": "static", scans: "static", transcripts: "static" },
+    ]);
+  });
+
+  it("does not emit the initial topic update after unsubscribing", async () => {
+    const api = apiScoutStatic({ bundleBaseUrl: baseUrl });
+    const updates: unknown[] = [];
+    const unsubscribe = api.connectTopicUpdates((topicVersions) =>
+      updates.push(topicVersions)
+    );
+    unsubscribe();
+    await Promise.resolve();
+    expect(updates).toEqual([]);
+  });
+
   it("serves empty search and validation listings", async () => {
     const api = apiScoutStatic({ bundleBaseUrl: baseUrl });
     await expect(api.getSearches("grep", 10)).resolves.toEqual({ items: [] });

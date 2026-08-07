@@ -73,6 +73,13 @@ const unsupported = <T>(op: string): Promise<T> =>
 /** Mirror the Python bundler's filesystem-safe transcript id encoding. */
 const sanitizeTranscriptId = (id: string): string => id.replace(/[/\\]/g, "_");
 
+/** Constant topic versions for the one-and-only static bundle "update". */
+const kStaticTopicVersions: TopicVersions = {
+  "project-config": "static",
+  scans: "static",
+  transcripts: "static",
+};
+
 export const apiScoutStatic = (
   context: StaticBundleContext = {}
 ): ScoutApiV2 => {
@@ -148,11 +155,21 @@ export const apiScoutStatic = (
     getActiveScans: (): Promise<ActiveScansResponse> =>
       Promise.resolve({ items: {} }),
 
-    // Nothing changes in a static snapshot; never signal invalidations.
+    // Nothing changes in a static snapshot, so no invalidations are ever
+    // signaled — but the app gates rendering on the first update, so emit
+    // one constant snapshot of versions to unblock it.
     connectTopicUpdates: (
-      _onUpdate: (topVersions: TopicVersions) => void
+      onUpdate: (topVersions: TopicVersions) => void
     ): (() => void) => {
-      return () => {};
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) {
+          onUpdate(kStaticTopicVersions);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     },
 
     // --- Listings (filter/sort/paginate applied client-side) ---
