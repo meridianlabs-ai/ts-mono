@@ -6,9 +6,9 @@ import {
   isRenderableVideoSource,
 } from "./mediaSource";
 
-// isRenderableImageSource now lives in @tsmono/util and is covered by
-// packages/util/src/media.test.ts; this file covers only the predicates that
-// stayed behind because they key off generated inspect-common format types.
+// Covers the predicates that key off generated inspect-common format types.
+// isRenderableImageSource is pure MIME logic with no schema dependency, so it
+// belongs to @tsmono/util and is tested in packages/util/src/media.test.ts.
 describe("inline media policy", () => {
   it.each([
     ["data:audio/mpeg;base64,AAAA", "mp3"],
