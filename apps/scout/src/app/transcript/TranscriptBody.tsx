@@ -38,6 +38,7 @@ import {
 } from "@tsmono/react/hooks";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
 
+import { useStaticBundle } from "../../api/useStaticBundle";
 import { ApplicationIcons } from "../../icons";
 import {
   getRailParam,
@@ -155,6 +156,10 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const messagesReferenceLabels =
     searchScope === "messages" ? referenceLabels : undefined;
 
+  // Static bundle has no backend, so the Search (grep/LLM) and Validation
+  // (project-file writes) rail surfaces are hidden entirely.
+  const staticBundle = useStaticBundle();
+
   const handleTabChange = useCallback(
     (tabId: string) => {
       //  update both store and URL
@@ -242,8 +247,9 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 
   // The rail (Search / Validation) is mutually exclusive; the URL is the
   // source of truth. The panel docks to the right of content on the Messages
-  // and Events tabs only.
-  const activeRail = getRailParam(searchParams) ?? null;
+  // and Events tabs only. In a static bundle the rail is suppressed, so a
+  // stale ?rail= param must not reopen a panel.
+  const activeRail = staticBundle ? null : (getRailParam(searchParams) ?? null);
 
   const onRailSelect = useCallback(
     (id: RailPanelId) => {
@@ -438,28 +444,40 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
             />
           </div>
         </div>
-        <RailDock
-          rail={railNode}
-          panel={buildRailPanel("messages")}
-          scrollRef={scrollRef}
-          offsetTop={contentOffsetTop}
-          panelWidth={railPanelWidth}
-          onPanelWidthChange={setRailPanelWidth}
-          label={railLabel}
-        />
+        {!staticBundle && (
+          <RailDock
+            rail={railNode}
+            panel={buildRailPanel("messages")}
+            scrollRef={scrollRef}
+            offsetTop={contentOffsetTop}
+            panelWidth={railPanelWidth}
+            onPanelWidthChange={setRailPanelWidth}
+            label={railLabel}
+          />
+        )}
       </div>
     </TabPanel>
   );
 
-  const eventsRightRail = useMemo<TranscriptLayoutRightRailProps>(
-    () => ({
-      rail: railNode,
-      panel: buildRailPanel("events"),
-      label: railLabel,
-      panelWidth: railPanelWidth,
-      onPanelWidthChange: setRailPanelWidth,
-    }),
-    [railNode, buildRailPanel, railLabel, railPanelWidth, setRailPanelWidth]
+  const eventsRightRail = useMemo<TranscriptLayoutRightRailProps | undefined>(
+    () =>
+      staticBundle
+        ? undefined
+        : {
+            rail: railNode,
+            panel: buildRailPanel("events"),
+            label: railLabel,
+            panelWidth: railPanelWidth,
+            onPanelWidthChange: setRailPanelWidth,
+          },
+    [
+      staticBundle,
+      railNode,
+      buildRailPanel,
+      railLabel,
+      railPanelWidth,
+      setRailPanelWidth,
+    ]
   );
 
   const eventsPanel = hasEvents ? (
