@@ -15,6 +15,7 @@ const kToolIcons: Record<string, string> = {
   // code
   python: "bi-code-square",
   code_execution: "bi-code-square",
+  exec: "bi-code-square",
   // web
   web_search: "bi-search",
   WebSearch: "bi-search",
@@ -259,6 +260,14 @@ const extractInputMetadata = (
     return {
       inputArg: "cmd",
       contentType: "bash",
+    };
+  } else if (toolName === "exec" && typeof toolArgs.input === "string") {
+    // Codex CLI Code Mode: `input` is JavaScript source calling `tools.*` —
+    // often hundreds of characters with embedded string literals. Keyed on the
+    // arg shape so an unrelated `exec` tool keeps the default rendering.
+    return {
+      inputArg: "input",
+      contentType: "javascript",
     };
   } else if (toolName === "spawn_agent") {
     return {

@@ -50,6 +50,24 @@ describe("resolveToolInput", () => {
     }
   });
 
+  it("renders codex Code Mode exec source as the body, typed javascript", () => {
+    // Code Mode `input` is JS source calling tools.* — often hundreds of chars
+    // with embedded string literals. It must become the input body (highlighted,
+    // expandable), not be inlined into the single-line header summary.
+    const source =
+      'const patch = "*** Begin Patch\\n*** End Patch";\ntext(await tools.apply_patch(patch));';
+    const result = resolveToolInput("exec", { input: source });
+    expect(result.input).toBe(source);
+    expect(result.contentType).toBe("javascript");
+    expect(result.functionCall).toBe("exec");
+  });
+
+  it("leaves non-Code-Mode exec tools on the default rendering", () => {
+    const result = resolveToolInput("exec", { cmd: "ls -la" });
+    expect(result.input).toBeUndefined();
+    expect(result.functionCall).toBe('exec(cmd: "ls -la")');
+  });
+
   it("leaves unknown tools without a markdown content type", () => {
     expect(resolveToolInput("some_other_tool", {}).contentType).not.toBe(
       "markdown"
