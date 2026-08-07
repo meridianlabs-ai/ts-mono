@@ -3,31 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   isRenderableAudioSource,
   isRenderableImageDocument,
-  isRenderableImageSource,
   isRenderableVideoSource,
 } from "./mediaSource";
 
+// isRenderableImageSource now lives in @tsmono/util and is covered by
+// packages/util/src/media.test.ts; this file covers only the predicates that
+// stayed behind because they key off generated inspect-common format types.
 describe("inline media policy", () => {
-  it.each([
-    "data:image/png;base64,AAAA",
-    "data:image/jpeg;base64,AAAA",
-    "data:image/jpg;base64,AAAA",
-    "data:image/webp;base64,AAAA",
-  ])("allows raster image data URI %s", (source) => {
-    expect(isRenderableImageSource(source)).toBe(true);
-  });
-
-  it.each([
-    "https://example.com/image.png",
-    "file:///tmp/image.png",
-    "blob:https://example.com/id",
-    "data:image/svg+xml;base64,AAAA",
-    "data:text/html;base64,AAAA",
-    "data:image/png,AAAA",
-  ])("rejects image source %s", (source) => {
-    expect(isRenderableImageSource(source)).toBe(false);
-  });
-
   it.each([
     ["data:audio/mpeg;base64,AAAA", "mp3"],
     ["data:audio/wav;base64,AAAA", "wav"],

@@ -9,9 +9,7 @@ import {
   JSONPanel,
   MarkdownReference,
 } from "@tsmono/react/components";
-import { formatNumber, isJson } from "@tsmono/util";
-
-import { isRenderableImageSource } from "../media/mediaSource";
+import { formatNumber, isJson, isRenderableImageSource } from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
 import { useContentIcons } from "./IconsContext";

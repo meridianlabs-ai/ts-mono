@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode, useState } from "react";
 
-import { isRenderableImageSource } from "../../media/mediaSource";
+import { isRenderableImageSource } from "@tsmono/util";
+
 import { MessageContent } from "../MessageContent";
 import { MessagesContext } from "../MessageContents";
 

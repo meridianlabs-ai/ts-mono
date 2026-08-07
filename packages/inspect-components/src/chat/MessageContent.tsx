@@ -16,7 +16,7 @@ import type {
 import { ExpandablePanel } from "@tsmono/react/components";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
-import { isJson } from "@tsmono/util";
+import { isJson, isRenderableImageSource } from "@tsmono/util";
 
 import {
   useDisplayMode,
@@ -27,7 +27,6 @@ import { MediaReference } from "../media/MediaReference";
 import {
   audioMimeTypeForFormat,
   isRenderableAudioSource,
-  isRenderableImageSource,
   isRenderableVideoSource,
   videoMimeTypeForFormat,
 } from "../media/mediaSource";

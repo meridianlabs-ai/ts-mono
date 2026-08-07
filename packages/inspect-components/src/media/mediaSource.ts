@@ -2,11 +2,8 @@ import type { ContentAudio, ContentVideo } from "@tsmono/inspect-common/types";
 import {
   base64DataUriMimeType,
   isRasterImageMimeType,
-  isRenderableImageSource,
   normalizedImageMimeType,
 } from "@tsmono/util";
-
-export { isRenderableImageSource };
 
 const primaryAudioMimeTypes: Record<ContentAudio["format"], string> = {
   mp3: "audio/mpeg",

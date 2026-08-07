@@ -3,12 +3,11 @@ import { FC, ReactNode } from "react";
 
 import type { Content } from "@tsmono/inspect-common/types";
 import { ANSIDisplay } from "@tsmono/react/components";
-import { isAnsiOutput, isJson } from "@tsmono/util";
+import { isAnsiOutput, isJson, isRenderableImageSource } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
-import { isRenderableImageSource } from "../../media/mediaSource";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
 
