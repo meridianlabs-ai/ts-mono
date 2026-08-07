@@ -25,6 +25,7 @@ import { StopReasonBadge } from "./event/StopReasonBadge";
 import { formatTiming, formatTitle, isCancelError } from "./event/utils";
 import { TranscriptIcons } from "./icons";
 import styles from "./ModelEventView.module.css";
+import { summaryInputMessages } from "./modelSummaryMessages";
 import { retryAttemptKey } from "./timeline/retryGrouping";
 import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
@@ -82,45 +83,13 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const showStopReason =
     !!firstChoice && (!!stopDetails || firstChoice.stop_reason !== "stop");
 
-  // For any user messages which immediately preceded this model call, including a
-  // panel and display those user messages (exclude tool_call messages as they
-  // are already shown in the tool call above)
-  const userMessages = useMemo<ChatMessage[]>(() => {
-    const result: ChatMessage[] = [];
-
-    // When agent tool results have been filtered from input (shown on AgentCard
-    // instead), the trailing assistant message is the previous model call's output
-    // — just show it without crawling backward through system/user messages.
-    const agentResultsFiltered = !!(event as Record<string, unknown>)
-      .agentResultsFiltered;
-
-    if (!agentResultsFiltered) {
-      // if there is an assistant message immediately before then include this
-      // (as it could be an assistant compaction message)
-      let offset: number | undefined = undefined;
-      const lastMessage = event.input.at(-1);
-      if (lastMessage?.role === "assistant") {
-        result.push(lastMessage);
-        offset = -1;
-      }
-
-      for (const msg of event.input.slice(offset).reverse()) {
-        if (
-          (msg.role === "user" && !msg.tool_call_id) ||
-          msg.role === "system" ||
-          // If the client doesn't support tool events, then tools messages are allowed to be displayed
-          // in this view, since no tool events will be shown.
-          (context?.hasToolEvents === false && msg.role === "tool")
-        ) {
-          result.unshift(msg);
-        } else {
-          break;
-        }
-      }
-    }
-
-    return result;
-  }, [event, context?.hasToolEvents]);
+  const userMessages = useMemo<ChatMessage[]>(
+    () =>
+      summaryInputMessages(event, {
+        includeToolMessages: context?.hasToolEvents === false,
+      }),
+    [event, context?.hasToolEvents]
+  );
 
   const hasHiddenMessages = event.input.length > userMessages.length;
   const [showAllMessages, setShowAllMessages] = useState(false);

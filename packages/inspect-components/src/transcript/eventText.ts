@@ -1,5 +1,6 @@
 import type { Content } from "@tsmono/inspect-common/types";
 
+import { summaryInputMessages } from "./modelSummaryMessages";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -64,7 +65,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Extract text from model output
+      // Assistant `tool_calls` are deliberately absent: the following tool
+      // event draws them and already indexes `function`/`arguments`, so
+      // indexing here would double-count — and would be a phantom whenever
+      // ModelEventView omits them (`showToolCalls` false).
       if (modelEvent.output?.choices) {
         for (const choice of modelEvent.output.choices) {
           for (const text of extractContentText(choice.message.content)) {
@@ -72,14 +76,17 @@ export const extractEventFields = (event: EventType): [string, string][] => {
           }
         }
       }
-      // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
-          }
+      // Indexing the full input history counts text that never reaches the
+      // DOM, leaving `window.find` nothing to anchor on and freezing the
+      // counter mid-walk. Under-counts instead when a panel is expanded
+      // ("Show all messages", MESSAGES tab) — a miss beats a phantom.
+      //
+      // Keep this call option-free: `findAllMatches` re-derives fields from
+      // raw events, so anything node-specific desyncs the two indexers, as
+      // `agentResultsFiltered` (node-tree copy only) already can.
+      for (const msg of summaryInputMessages(modelEvent)) {
+        for (const text of extractContentText(msg.content)) {
+          fields.push([msg.role, text]);
         }
       }
       // API-call errors / tracebacks surfaced on the model event itself

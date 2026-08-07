@@ -150,6 +150,7 @@ describe("extractEventFields — model error / traceback", () => {
       event: {
         event: "model",
         model: "test/model",
+        input: [],
         error: "API rate limit exceeded",
         traceback: "Traceback (most recent call last): ...",
       },
@@ -306,6 +307,26 @@ describe("eventsToStr — extractEventFields sanitization", () => {
     expect(out).toContain("see image");
     expect(out).not.toContain("<image />");
     expect(out).not.toContain("_HUGE_PNG_");
+  });
+});
+
+describe("eventsToStr — model input mirrors the SUMMARY panel", () => {
+  it("omits head-of-history messages but keeps the trailing run", () => {
+    const event = {
+      ...modelEventWith("current answer"),
+      input: [
+        { role: "system", content: "HEAD_OF_HISTORY_SYSTEM" },
+        { role: "user", content: "HEAD_OF_HISTORY_USER" },
+        { role: "assistant", content: "old answer" },
+        { role: "tool", content: "OLD_TOOL_RESULT" },
+        { role: "user", content: "CURRENT_TURN" },
+      ],
+    } as unknown as ModelEvent;
+    const out = eventsToStr([event]);
+    expect(out).toContain("CURRENT_TURN");
+    expect(out).not.toContain("HEAD_OF_HISTORY_SYSTEM");
+    expect(out).not.toContain("HEAD_OF_HISTORY_USER");
+    expect(out).not.toContain("OLD_TOOL_RESULT");
   });
 });
 
@@ -887,5 +908,90 @@ describe("eventSearchText", () => {
       })
     );
     expect(texts).toEqual([]);
+  });
+});
+
+describe("extractEventFields — model input mirrors the SUMMARY panel", () => {
+  const modelEventNode = (
+    input: Record<string, unknown>[],
+    output: Record<string, unknown> = { choices: [] }
+  ) =>
+    makeNode({
+      event: "model",
+      model: "test/model",
+      role: null,
+      input,
+      output,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+
+  it("skips input messages the panel does not draw", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "system", content: "HEAD_OF_HISTORY" },
+        { role: "user", content: "OLD_TURN" },
+        { role: "assistant", content: "old answer" },
+        { role: "tool", content: "tool result" },
+        { role: "user", content: "CURRENT_TURN" },
+      ])
+    );
+    expect(texts).toContain("CURRENT_TURN");
+    expect(texts).not.toContain("HEAD_OF_HISTORY");
+    expect(texts).not.toContain("OLD_TURN");
+  });
+
+  it("indexes a first model call's input in full, since [system, user] is entirely a trailing run", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "system", content: "TASK_PROMPT" },
+        { role: "user", content: "TASK_QUESTION" },
+      ])
+    );
+    expect(texts).toContain("TASK_PROMPT");
+    expect(texts).toContain("TASK_QUESTION");
+  });
+
+  it("indexes a trailing assistant compaction message", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "user", content: "old turn" },
+        { role: "assistant", content: "COMPACTION_SUMMARY" },
+      ])
+    );
+    expect(texts).toContain("COMPACTION_SUMMARY");
+  });
+
+  it("skips trailing tool messages, which the panel omits by default", () => {
+    const texts = eventSearchText(
+      modelEventNode([
+        { role: "user", content: "prompt" },
+        { role: "tool", content: "TOOL_RESULT" },
+      ])
+    );
+    expect(texts).not.toContain("TOOL_RESULT");
+  });
+
+  it("skips assistant tool_calls, which the following tool event draws", () => {
+    const texts = eventSearchText(
+      modelEventNode([{ role: "user", content: "prompt" }], {
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "",
+              tool_calls: [
+                {
+                  id: "call-1",
+                  function: "CANCEL_SCORE",
+                  arguments: { job_id: "JOB_ID_BLOB" },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    );
+    expect(texts).not.toContain("CANCEL_SCORE");
+    expect(texts.join("\n")).not.toContain("JOB_ID_BLOB");
   });
 });
