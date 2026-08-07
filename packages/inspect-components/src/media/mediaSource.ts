@@ -1,9 +1,9 @@
 import type { ContentAudio, ContentVideo } from "@tsmono/inspect-common/types";
 import {
   base64DataUriMimeType,
+  isRasterImageMimeType,
   isRenderableImageSource,
   normalizedImageMimeType,
-  rasterImageMimeTypes,
 } from "@tsmono/util";
 
 export { isRenderableImageSource };
@@ -66,7 +66,7 @@ export const isRenderableImageDocument = (
   const normalizedSource = normalizedImageMimeType(sourceMimeType);
   const normalizedDeclared = normalizedImageMimeType(declaredMimeType);
   return (
-    rasterImageMimeTypes.has(normalizedSource) &&
+    isRasterImageMimeType(normalizedSource) &&
     normalizedSource === normalizedDeclared
   );
 };

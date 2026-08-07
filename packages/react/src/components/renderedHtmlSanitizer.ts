@@ -4,7 +4,7 @@ import createDOMPurify, {
   type UponSanitizeAttributeHookEvent,
 } from "dompurify";
 
-import { isRenderableImageSource } from "@tsmono/util";
+import { canonicalImageSource } from "@tsmono/util";
 
 const FORBIDDEN_TAGS = [
   "animate",
@@ -183,22 +183,45 @@ const installHooks = (purify: DOMPurifyInstance): void => {
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
       sanitizeStyleAttributeHook(node, hookEvent);
-    } else if (
+      return;
+    }
+
+    if (hookEvent.attrName === "src" && isImgElement(node)) {
+      const canonical = safeImgSrc(hookEvent.attrValue);
+      if (canonical === undefined) {
+        hookEvent.keepAttr = false;
+        node.removeAttribute(hookEvent.attrName);
+      } else {
+        hookEvent.attrValue = canonical;
+      }
+      return;
+    }
+
+    if (
       URL_ATTRIBUTES.has(hookEvent.attrName) &&
-      !isSafeUrlAttribute(node, hookEvent.attrName, hookEvent.attrValue)
+      !isSafeUrlAttribute(hookEvent.attrValue)
     ) {
       hookEvent.keepAttr = false;
       node.removeAttribute(hookEvent.attrName);
-      // A src-less img is a broken-image placeholder, so remove the element.
-      if (node.tagName.toLowerCase() === "img") {
-        node.remove();
-      }
     }
   });
 
   purify.addHook("afterSanitizeAttributes", (node) => {
+    if (!(node instanceof Element)) {
+      return;
+    }
+
+    // Catches every route to a src-less img — rejected above, stripped by
+    // DOMPurify's own checks, or never present — all of which would otherwise
+    // ship a broken-image placeholder.
+    if (isImgElement(node)) {
+      if (safeImgSrc(node.getAttribute("src") ?? "") === undefined) {
+        node.remove();
+      }
+      return;
+    }
+
     if (
-      node instanceof Element &&
       node.tagName.toLowerCase() === "a" &&
       node.getAttribute("target")?.toLowerCase() === "_blank"
     ) {
@@ -220,11 +243,24 @@ const sanitizeStyleAttributeHook = (
   }
 };
 
-const isSafeUrlAttribute = (
-  node: Element,
-  attrName: string,
-  value: string
-): boolean => {
+const isImgElement = (node: Element): boolean =>
+  node.tagName.toLowerCase() === "img";
+
+/**
+ * A remote src is not unsafe by protocol, but fetching it leaks a request to an
+ * attacker-chosen host, so an img src is limited to inline raster data.
+ *
+ * Returns the value to keep, so the attribute that lands in the DOM is the one
+ * that was validated.
+ */
+const safeImgSrc = (value: string): string | undefined => {
+  if (/[<>"'`]/.test(value.trim())) {
+    return undefined;
+  }
+  return canonicalImageSource(value);
+};
+
+const isSafeUrlAttribute = (value: string): boolean => {
   const trimmed = value.trim();
   if (!trimmed) {
     return true;
@@ -240,13 +276,6 @@ const isSafeUrlAttribute = (
       return charCode > 0x1f && charCode !== 0x7f && !/\s/.test(char);
     })
     .join("");
-
-  // Must precede the generic checks: a remote src is not unsafe by protocol,
-  // but loading it leaks a fetch to an attacker-controlled host, so an img src
-  // is allowed only when it is inline raster data that needs no request.
-  if (attrName === "src" && node.tagName.toLowerCase() === "img") {
-    return isRenderableImageSource(normalized);
-  }
 
   if (/^data:/i.test(normalized)) {
     return false;

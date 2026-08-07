@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  canonicalImageSource,
   isRenderableImageSource,
   parseAbsoluteHttpUrl,
   parseDataUri,
@@ -76,5 +77,32 @@ describe("isRenderableImageSource", () => {
     "not a url",
   ])("rejects %s", (source) => {
     expect(isRenderableImageSource(source)).toBe(false);
+  });
+});
+
+describe("canonicalImageSource", () => {
+  it.each([
+    ["data:image/png;base64,AAAA", "data:image/png;base64,AAAA"],
+    ["  data:image/png;base64,AAAA  ", "data:image/png;base64,AAAA"],
+    // The scheme is lowercased so DOMPurify's case-sensitive `data:` check
+    // accepts it; without this the attribute is stripped and the element
+    // survives as a broken-image placeholder.
+    ["DATA:IMAGE/PNG;BASE64,AAAA", "data:IMAGE/PNG;BASE64,AAAA"],
+  ])("canonicalizes %s", (source, expected) => {
+    expect(canonicalImageSource(source)).toBe(expected);
+  });
+
+  // Characters the URL parser rejects but String.trim()/\s strip: validating a
+  // stripped copy and emitting the raw value would let these reach the DOM,
+  // where the browser reads them as a relative path and fetches it.
+  it.each([
+    "da﻿ta:image/png;base64,AAAA",
+    "da ta:image/png;base64,AAAA",
+    "da﻿ta:image/png;base64,/../../../evil.png",
+    "https://example.com/image.png",
+    "data:image/svg+xml;base64,AAAA",
+    "",
+  ])("rejects %s", (source) => {
+    expect(canonicalImageSource(source)).toBeUndefined();
   });
 });

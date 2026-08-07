@@ -169,15 +169,33 @@ describe("MarkdownDiv XSS security", () => {
       }
     );
 
+    // markdown-it's own validateLink (GOOD_DATA_RE) permits only
+    // data:image/(gif|png|jpeg|webp), so these never reach the image rule and
+    // this block does NOT exercise isRenderableImageSource. The gate itself is
+    // pinned in MarkdownDiv.security.test.tsx, which drives the sanitizer
+    // directly; keep these as upstream-regression cover only.
     it.each([
       "data:image/svg+xml;base64,AAAA",
       "data:image/png,AAAA",
       "data:text/html;base64,AAAA",
-    ])("does not render %s as an image", async (source) => {
-      const result = await renderMarkdown(`![alt](${source})`, "full");
-      expect(result).not.toContain("<img");
-      expect(result).not.toContain("<a ");
-      expect(result).toContain("alt");
+      "data:image/avif;base64,AAAA",
+    ])(
+      "leaves %s as literal text, blocked upstream by markdown-it",
+      async (source) => {
+        const result = await renderMarkdown(`![alt](${source})`, "full");
+        expect(result).not.toContain("<img");
+        expect(result).not.toContain("<a ");
+        expect(result).toContain(`![alt](${source})`);
+      }
+    );
+
+    it("escapes quotes in alt text so they cannot break out of the attribute", async () => {
+      const result = await renderMarkdown(
+        '![a"onerror="alert(1)](data:image/gif;base64,R0lGODlhAQABAAAAACw=)',
+        "full"
+      );
+      expect(result).toContain("<img");
+      expect(result).not.toContain('onerror="alert(1)"');
     });
 
     it("does not auto-link plain URL text", async () => {
