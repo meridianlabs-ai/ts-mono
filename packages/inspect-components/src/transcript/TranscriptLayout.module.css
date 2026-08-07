@@ -21,6 +21,7 @@
   width: 100%;
   grid-template-columns: var(--outline-width, 180px) 1px 1fr;
   min-height: 100vh;
+  --transcript-toolbar-top: var(--outline-top, 0);
 }
 
 /* Embedded in another scroll container (e.g. a retry card): size to content

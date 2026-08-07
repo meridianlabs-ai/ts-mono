@@ -9,7 +9,13 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { eventSearchText, eventsToStr, extractEventFields } from "./eventText";
+import {
+  eventSearchText,
+  eventsToHtmlDocument,
+  eventsToMarkdown,
+  eventsToStr,
+  extractEventFields,
+} from "./eventText";
 import { EventNode } from "./types";
 
 const reasoning = (r: Partial<ContentReasoning>): ContentReasoning => ({
@@ -57,6 +63,49 @@ const modelEventWith = (
     style: null,
     metadata: null,
   }) as unknown as ModelEvent;
+
+describe("eventsToMarkdown", () => {
+  it("renders readable event headings and labeled fields", () => {
+    const out = eventsToMarkdown([
+      modelEventWith("A concise answer."),
+      modelEventWith("A second answer."),
+    ]);
+
+    expect(out).toContain("## Model");
+    expect(out).toContain("**Model:** test/model");
+    expect(out).toContain("**Output:** A concise answer.");
+    expect(out).toContain("\n\n---\n\n");
+  });
+
+  it("quotes multiline values without exposing redacted reasoning", () => {
+    const out = eventsToMarkdown([
+      modelEventWith([
+        reasoning({
+          reasoning: "OPAQUE_SIGNATURE_BLOB",
+          summary: "First line\nSecond line",
+          redacted: true,
+        }),
+      ]),
+    ]);
+
+    expect(out).toContain("> First line\n> Second line");
+    expect(out).not.toContain("OPAQUE_SIGNATURE_BLOB");
+  });
+});
+
+describe("eventsToHtmlDocument", () => {
+  it("escapes event content in the printable document", () => {
+    const html = eventsToHtmlDocument([
+      modelEventWith("<script>alert('nope')</script>"),
+    ]);
+
+    expect(html).toContain("<h2>Model</h2>");
+    expect(html).toContain(
+      "&lt;script&gt;alert(&#039;nope&#039;)&lt;/script&gt;"
+    );
+    expect(html).not.toContain("<script>alert");
+  });
+});
 
 describe("eventsToStr — reasoning content", () => {
   it("uses summary when redacted (Anthropic ≥4, OpenAI encrypted)", () => {
