@@ -2,12 +2,6 @@ import { ApplicationIcons } from "../icons";
 
 declare const __SCOUT_RUN_SCAN__: boolean;
 
-declare global {
-  interface Window {
-    __SCOUT_STATIC_BUNDLE__?: boolean;
-  }
-}
-
 export interface ActivityConfig {
   id: string;
   label: string;
@@ -58,18 +52,25 @@ const allActivities: ActivityConfig[] = [
   },
 ];
 
-const isStaticBundle = window.__SCOUT_STATIC_BUNDLE__ === true;
+export const activities = allActivities.filter(
+  (a) => !(a.id === "runScan" && !__SCOUT_RUN_SCAN__)
+);
 
-export const activities = allActivities.filter((a) => {
-  if (a.id === "runScan" && !__SCOUT_RUN_SCAN__) return false;
-  if (
-    isStaticBundle &&
-    (a.id === "runScan" || a.id === "project" || a.id === "validation")
-  ) {
-    return false;
-  }
-  return true;
-});
+const kStaticBundleHiddenActivities = new Set([
+  "runScan",
+  "project",
+  "validation",
+]);
+
+/**
+ * Activities to render, hiding backend-dependent surfaces in static bundles.
+ * Must be applied at render time: the static-bundle signal comes from the api
+ * object created in main.tsx, which runs after all module bodies evaluate.
+ */
+export const visibleActivities = (staticBundle: boolean): ActivityConfig[] =>
+  staticBundle
+    ? activities.filter((a) => !kStaticBundleHiddenActivities.has(a.id))
+    : activities;
 
 export const getActivityByRoute = (
   path: string

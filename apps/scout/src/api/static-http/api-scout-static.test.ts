@@ -70,6 +70,28 @@ describe("apiScoutStatic", () => {
     );
   });
 
+  it("retries the manifest fetch after a transient failure", async () => {
+    let attempts = 0;
+    server.use(
+      http.get(`${baseUrl}/manifest.json`, () => {
+        attempts++;
+        if (attempts === 1) {
+          return HttpResponse.text("boom", { status: 500 });
+        }
+        return HttpResponse.json(manifest);
+      }),
+      http.get(`${baseUrl}/transcripts/catalog/shard-0.json.zst`, () =>
+        HttpResponse.arrayBuffer(compress([info]).buffer as ArrayBuffer)
+      )
+    );
+    const api = apiScoutStatic({ bundleBaseUrl: baseUrl });
+    await expect(api.getTranscripts("/transcripts")).rejects.toThrow(/500/);
+    // rejection must not be cached: the retry refetches the manifest
+    const result = await api.getTranscripts("/transcripts");
+    expect(result.total_count).toBe(1);
+    expect(attempts).toBe(2);
+  });
+
   it("lists transcripts from catalog shards", async () => {
     useManifest(manifest);
     server.use(

@@ -51,6 +51,22 @@ describe("evaluateCondition", () => {
     expect(evaluateCondition(row({ model: "axb" }), tc.model.like("a.b"))).toBe(
       false
     );
+    // * and ? are SQL-literal too, not regex quantifiers
+    expect(evaluateCondition(row({ model: "a*b" }), tc.model.like("a*b"))).toBe(
+      true
+    );
+    expect(evaluateCondition(row({ model: "aab" }), tc.model.like("a*b"))).toBe(
+      false
+    );
+    expect(evaluateCondition(row({ model: "b" }), tc.model.like("a*b"))).toBe(
+      false
+    );
+    expect(evaluateCondition(row({ model: "a?" }), tc.model.like("a?"))).toBe(
+      true
+    );
+    expect(evaluateCondition(row({ model: "a" }), tc.model.like("a?"))).toBe(
+      false
+    );
   });
 
   it("handles NULL checks", () => {
@@ -75,6 +91,56 @@ describe("evaluateCondition", () => {
     expect(evaluateCondition(row({}), and)).toBe(true);
     expect(evaluateCondition(row({}), or)).toBe(true);
     expect(evaluateCondition(row({}), not)).toBe(false);
+  });
+
+  it("excludes NULL cells from comparisons and negations (SQL semantics)", () => {
+    const r = row({ score: null });
+    // a NULL operand makes the predicate unknown → row excluded
+    expect(evaluateCondition(r, tc.score.eq(0.5))).toBe(false);
+    expect(evaluateCondition(r, tc.score.ne(0.5))).toBe(false);
+    expect(evaluateCondition(r, tc.score.lt(0.5))).toBe(false);
+    expect(evaluateCondition(r, tc.score.lte(0.5))).toBe(false);
+    expect(evaluateCondition(r, tc.score.gt(0.5))).toBe(false);
+    expect(evaluateCondition(r, tc.score.gte(0.5))).toBe(false);
+    expect(evaluateCondition(r, tc.score.in([0.5]))).toBe(false);
+    expect(evaluateCondition(r, tc.score.notIn([0.5]))).toBe(false);
+    expect(evaluateCondition(r, tc.score.between(0, 1))).toBe(false);
+    expect(evaluateCondition(r, tc.score.notBetween(0, 1))).toBe(false);
+    expect(evaluateCondition(row({ model: null }), tc.model.like("g%"))).toBe(
+      false
+    );
+    expect(
+      evaluateCondition(row({ model: null }), tc.model.notLike("g%"))
+    ).toBe(false);
+  });
+
+  it("propagates unknown through NOT/AND/OR (Kleene logic)", () => {
+    const r = row({ score: null });
+    // NOT(unknown) is unknown → excluded, matching SQL
+    expect(evaluateCondition(r, tc.score.lt(0.5).not())).toBe(false);
+    // unknown AND true → unknown; unknown OR true → true
+    expect(
+      evaluateCondition(r, tc.score.lt(0.5).and(tc.model.eq("gpt-4")))
+    ).toBe(false);
+    expect(
+      evaluateCondition(r, tc.score.lt(0.5).or(tc.model.eq("gpt-4")))
+    ).toBe(true);
+    // false stays dominant over unknown for AND's negation
+    expect(
+      evaluateCondition(r, tc.score.lt(0.5).and(tc.model.eq("nope")).not())
+    ).toBe(true);
+  });
+
+  it("treats NULLs inside IN lists as SQL does", () => {
+    // match found → true regardless of NULLs in the list
+    expect(evaluateCondition(row({}), tc.model.in(["gpt-4", null]))).toBe(true);
+    // no match but list has NULL → unknown, so IN and NOT IN both exclude
+    expect(evaluateCondition(row({}), tc.model.in(["nope", null]))).toBe(false);
+    expect(evaluateCondition(row({}), tc.model.notIn(["nope", null]))).toBe(
+      false
+    );
+    // no match, no NULLs → NOT IN includes
+    expect(evaluateCondition(row({}), tc.model.notIn(["nope"]))).toBe(true);
   });
 
   it("resolves custom columns through the metadata object", () => {

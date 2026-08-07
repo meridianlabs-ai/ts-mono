@@ -213,6 +213,45 @@ describe("StaticCatalog full-load path", () => {
   });
 });
 
+describe("StaticCatalog failure recovery", () => {
+  it("retries shard fetches after a transient failure", async () => {
+    let attempts = 0;
+    const flakyManifest: CatalogManifest = {
+      ...manifest,
+      row_count: 2,
+      shards: [
+        {
+          path: "flaky/shard-0.json.zst",
+          row_count: 2,
+          min: "2026-01-01",
+          max: "2026-01-02",
+        },
+      ],
+    };
+    server.use(
+      http.get(`${baseUrl}/flaky/shard-0.json.zst`, () => {
+        attempts++;
+        if (attempts === 1) {
+          return HttpResponse.arrayBuffer(new ArrayBuffer(0), { status: 500 });
+        }
+        return HttpResponse.arrayBuffer(
+          compress(shardRows[0]).buffer as ArrayBuffer
+        );
+      })
+    );
+
+    const catalog = new StaticCatalog(baseUrl, flakyManifest);
+    const query = () =>
+      catalog.query(undefined, undefined, { limit: 10, direction: "forward" });
+
+    await expect(query()).rejects.toThrow(/500/);
+    // rejection must not be cached: the retry gets a fresh fetch
+    const result = await query();
+    expect(result.items.map((r) => r["transcript_id"])).toEqual(["t1", "t2"]);
+    expect(attempts).toBe(2);
+  });
+});
+
 describe("StaticCatalog distinct", () => {
   it("serves unfiltered distincts from the precomputed file", async () => {
     const catalog = new StaticCatalog(baseUrl, manifest);

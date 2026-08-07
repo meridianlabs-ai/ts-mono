@@ -29,23 +29,38 @@ export const resolveCell = (
   return undefined;
 };
 
+/**
+ * SQL three-valued truth: `null` is "unknown". Comparisons with a NULL
+ * operand are unknown (so the row is excluded), and unknown propagates
+ * through AND/OR/NOT per Kleene logic — matching how the server evaluates
+ * the same Condition in SQL.
+ */
+type Truth = boolean | null;
+
 /** Apply a Condition to a single row, returning whether it passes. */
 export const evaluateCondition = (
   row: Record<string, unknown>,
   condition: Condition
-): boolean => {
+): boolean => evaluateTruth(row, condition) === true;
+
+const evaluateTruth = (
+  row: Record<string, unknown>,
+  condition: Condition
+): Truth => {
   if (isCompoundCondition(condition)) {
+    const left = evaluateTruth(row, condition.left);
     if (condition.operator === "NOT") {
-      return !evaluateCondition(row, condition.left);
+      return left === null ? null : !left;
     }
-    const leftResult = evaluateCondition(row, condition.left);
-    const right = condition.right;
-    if (right === null) return leftResult;
+    if (condition.right === null) return left;
+    const right = evaluateTruth(row, condition.right);
     if (condition.operator === "AND") {
-      return leftResult && evaluateCondition(row, right);
+      if (left === false || right === false) return false;
+      return left === null || right === null ? null : true;
     }
     // OR
-    return leftResult || evaluateCondition(row, right);
+    if (left === true || right === true) return true;
+    return left === null || right === null ? null : false;
   }
 
   const cell = resolveCell(row, condition.left);
@@ -56,54 +71,64 @@ export const evaluateCondition = (
       return cell === null || cell === undefined;
     case "IS NOT NULL":
       return cell !== null && cell !== undefined;
+    default:
+      break;
+  }
+
+  // Every remaining operator is a comparison: a NULL cell makes it unknown.
+  if (cell === null || cell === undefined) return null;
+
+  switch (condition.operator) {
     case "=":
-      return cellEquals(cell, target);
+      return target === null ? null : cell === target;
     case "!=":
-      return !cellEquals(cell, target);
+      return target === null ? null : cell !== target;
     case "<":
-      return scalarCompare(cell, target) < 0;
+      return target === null ? null : scalarCompare(cell, target) < 0;
     case "<=":
-      return scalarCompare(cell, target) <= 0;
+      return target === null ? null : scalarCompare(cell, target) <= 0;
     case ">":
-      return scalarCompare(cell, target) > 0;
+      return target === null ? null : scalarCompare(cell, target) > 0;
     case ">=":
-      return scalarCompare(cell, target) >= 0;
+      return target === null ? null : scalarCompare(cell, target) >= 0;
     // Branch on the operator, not isScalarArray: isTuple claims any
     // 2-element array, which would misclassify a 2-value IN list.
     case "IN":
-      return Array.isArray(target) && target.some((v) => cellEquals(cell, v));
+      return inList(cell, target);
     case "NOT IN":
-      return Array.isArray(target) && !target.some((v) => cellEquals(cell, v));
+      return notTruth(inList(cell, target));
     case "LIKE":
       return likeMatch(cell, target, false);
     case "NOT LIKE":
-      return !likeMatch(cell, target, false);
+      return notTruth(likeMatch(cell, target, false));
     case "ILIKE":
       return likeMatch(cell, target, true);
     case "NOT ILIKE":
-      return !likeMatch(cell, target, true);
+      return notTruth(likeMatch(cell, target, true));
     case "BETWEEN":
-      return (
-        isTuple(target) &&
-        scalarCompare(cell, target[0]) >= 0 &&
-        scalarCompare(cell, target[1]) <= 0
-      );
+      return between(cell, target);
     case "NOT BETWEEN":
-      return (
-        isTuple(target) &&
-        (scalarCompare(cell, target[0]) < 0 ||
-          scalarCompare(cell, target[1]) > 0)
-      );
+      return notTruth(between(cell, target));
     default:
       return false;
   }
 };
 
-const cellEquals = (cell: unknown, target: unknown): boolean => {
-  if (cell === target) return true;
-  if (cell === null || target === null) return false;
-  if (cell === undefined || target === undefined) return false;
-  return cell === target;
+const notTruth = (t: Truth): Truth => (t === null ? null : !t);
+
+/** SQL IN: true on a match, unknown if no match but the list has NULLs. */
+const inList = (cell: unknown, target: unknown): Truth => {
+  if (!Array.isArray(target)) return false;
+  if (target.some((v) => v !== null && cell === v)) return true;
+  return target.includes(null) ? null : false;
+};
+
+const between = (cell: unknown, target: unknown): Truth => {
+  if (!isTuple(target)) return false;
+  if (target[0] === null || target[1] === null) return null;
+  return (
+    scalarCompare(cell, target[0]) >= 0 && scalarCompare(cell, target[1]) <= 0
+  );
 };
 
 const comparableString = (v: unknown): string => {
@@ -122,22 +147,37 @@ export const scalarCompare = (a: unknown, b: unknown): number => {
   return comparableString(a) < comparableString(b) ? -1 : 1;
 };
 
+// Compiled LIKE patterns are cached: the full-load path evaluates the same
+// condition against ~100k rows, and compiling a RegExp per row is wasteful.
+const likeRegexCache = new Map<string, RegExp>();
+
+const likeRegex = (pattern: string, caseInsensitive: boolean): RegExp => {
+  const key = (caseInsensitive ? "i:" : ":") + pattern;
+  let re = likeRegexCache.get(key);
+  if (!re) {
+    re = new RegExp(
+      "^" +
+        pattern
+          .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+          .replace(/%/g, ".*")
+          .replace(/_/g, ".") +
+        "$",
+      caseInsensitive ? "i" : ""
+    );
+    if (likeRegexCache.size >= 500) likeRegexCache.clear();
+    likeRegexCache.set(key, re);
+  }
+  return re;
+};
+
 const likeMatch = (
   cell: unknown,
   pattern: unknown,
   caseInsensitive: boolean
-): boolean => {
+): Truth => {
+  if (pattern === null) return null;
   if (typeof cell !== "string" || typeof pattern !== "string") return false;
-  const re = new RegExp(
-    "^" +
-      pattern
-        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-        .replace(/%/g, ".*")
-        .replace(/_/g, ".") +
-      "$",
-    caseInsensitive ? "i" : ""
-  );
-  return re.test(cell);
+  return likeRegex(pattern, caseInsensitive).test(cell);
 };
 
 /** Stable, multi-column sort matching SQL semantics. */

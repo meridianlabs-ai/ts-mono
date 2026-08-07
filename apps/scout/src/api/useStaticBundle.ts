@@ -6,8 +6,8 @@ import { useApi } from "../state/store";
  * editing, project config edits, scan launching — should hide themselves
  * via this hook.
  *
- * For module-init code that runs before React (e.g. the router activities
- * list), use `window.__SCOUT_STATIC_BUNDLE__` directly — it is set in
- * main.tsx before any other module imports.
+ * This is the only static-bundle signal: it derives from the api object
+ * created in main.tsx, so it must be consulted at render time (module-eval
+ * code runs before the api exists).
  */
 export const useStaticBundle = (): boolean => useApi().readOnly;

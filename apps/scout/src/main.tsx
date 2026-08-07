@@ -21,7 +21,6 @@ declare global {
   interface Window {
     __SCOUT_BASE_PATH__?: string;
     __SCOUT_DISABLE_SSE__?: boolean;
-    __SCOUT_STATIC_BUNDLE__?: boolean;
   }
 }
 
@@ -53,11 +52,6 @@ const readBundleContext = (): StaticBundleContext | undefined => {
 };
 
 const bundleContext = readBundleContext();
-
-// Set the static-bundle flag before any module reads it (e.g. router activities).
-if (bundleContext) {
-  window.__SCOUT_STATIC_BUNDLE__ = true;
-}
 
 // Find the root element and render into it
 const containerId = "app";

@@ -110,8 +110,30 @@ const ScanOrScanResultsRoute = () => {
 };
 
 const ProjectPanelRoute = () => {
+  const staticBundle = useStaticBundle();
   const config = useAppConfig();
-  return <ProjectPanel config={config} />;
+  return staticBundle ? (
+    <LoggingNavigate
+      to="/scans"
+      replace
+      reason="Project settings unavailable in static bundle"
+    />
+  ) : (
+    <ProjectPanel config={config} />
+  );
+};
+
+const RunScanPanelRoute = () => {
+  const staticBundle = useStaticBundle();
+  return staticBundle ? (
+    <LoggingNavigate
+      to="/scans"
+      replace
+      reason="Run Scan unavailable in static bundle"
+    />
+  ) : (
+    <RunScanPanel />
+  );
 };
 
 const ValidationPanelRoute = () => {
@@ -179,7 +201,7 @@ export const createAppRouter = (config: AppRouterConfig) => {
           },
           {
             path: "/run",
-            element: <RunScanPanel />,
+            element: <RunScanPanelRoute />,
           },
         ],
       },

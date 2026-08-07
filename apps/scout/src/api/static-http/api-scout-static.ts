@@ -90,19 +90,26 @@ export const apiScoutStatic = (
     if (!manifestPromise) {
       manifestPromise = fetchJson<BundleManifest>(
         joinUrl(baseUrl, "manifest.json")
-      ).then((manifest) => {
-        if (
-          manifest.format !== kBundleFormatName ||
-          manifest.version > kBundleFormatVersion
-        ) {
-          throw new Error(
-            `Unsupported bundle manifest (format=${manifest.format}, ` +
-              `version=${manifest.version}); this viewer supports ` +
-              `${kBundleFormatName} <= ${kBundleFormatVersion}.`
-          );
-        }
-        return manifest;
-      });
+      )
+        .then((manifest) => {
+          if (
+            manifest.format !== kBundleFormatName ||
+            manifest.version > kBundleFormatVersion
+          ) {
+            throw new Error(
+              `Unsupported bundle manifest (format=${manifest.format}, ` +
+                `version=${manifest.version}); this viewer supports ` +
+                `${kBundleFormatName} <= ${kBundleFormatVersion}.`
+            );
+          }
+          return manifest;
+        })
+        .catch((err: unknown) => {
+          // Evict on failure so a transient fetch error isn't cached forever;
+          // an unsupported-version rejection will simply recur on retry.
+          manifestPromise = undefined;
+          throw err;
+        });
     }
     return manifestPromise;
   };

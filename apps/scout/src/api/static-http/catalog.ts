@@ -100,10 +100,18 @@ export class StaticCatalog {
     return rows.some((row) => row[this.manifest.id_column] === id);
   }
 
+  // Cached promises are evicted on rejection so a transient fetch failure
+  // doesn't poison the cache — react-query retries then get a fresh attempt.
+
   private loadShard(entry: ShardEntry): Promise<Row[]> {
     let promise = this.shardRows.get(entry.path);
     if (!promise) {
-      promise = fetchJsonZst<Row[]>(joinUrl(this.baseUrl, entry.path));
+      promise = fetchJsonZst<Row[]>(joinUrl(this.baseUrl, entry.path)).catch(
+        (err: unknown) => {
+          this.shardRows.delete(entry.path);
+          throw err;
+        }
+      );
       this.shardRows.set(entry.path, promise);
     }
     return promise;
@@ -113,7 +121,12 @@ export class StaticCatalog {
     if (!this.allRowsPromise) {
       this.allRowsPromise = Promise.all(
         this.manifest.shards.map((s) => this.loadShard(s))
-      ).then((chunks) => chunks.flat());
+      )
+        .then((chunks) => chunks.flat())
+        .catch((err: unknown) => {
+          this.allRowsPromise = undefined;
+          throw err;
+        });
     }
     return this.allRowsPromise;
   }
@@ -122,7 +135,10 @@ export class StaticCatalog {
     if (!this.columnValuesPromise) {
       this.columnValuesPromise = fetchJson<ColumnValuesFile>(
         joinUrl(this.baseUrl, this.manifest.column_values!)
-      );
+      ).catch((err: unknown) => {
+        this.columnValuesPromise = undefined;
+        throw err;
+      });
     }
     return this.columnValuesPromise;
   }
