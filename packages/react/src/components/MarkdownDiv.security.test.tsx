@@ -20,7 +20,7 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
       expect(container.querySelector("mjx-container")).not.toBeNull();
     });
 
-    expect(container.querySelector('span[id^="mjx-"] > style')).not.toBeNull();
+    expect(container.querySelector("style")).toBeNull();
     expect(container.querySelector("animate")).toBeNull();
     expect(container.querySelector("[onbegin]")).toBeNull();
     expect(container.innerHTML).not.toContain("onbegin");
