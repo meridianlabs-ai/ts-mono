@@ -115,7 +115,11 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
                 >
                   Metadata
                 </div>
-                <div className={clsx(styles.fullWidth)}>
+                {/* Virtualized (and collapsed-by-default) tree: its DOM text
+                    is scroll/toggle-dependent, so keep it out of the pane's
+                    static find region — extraction and painting both skip
+                    find-ignored subtrees. */}
+                <div className={clsx(styles.fullWidth)} data-find-ignore="true">
                   <RecordTree
                     id={`${scorer}-metadataa`}
                     scrollRef={scrollRef}

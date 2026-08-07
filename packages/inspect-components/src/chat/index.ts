@@ -28,8 +28,6 @@ export {
 export type { MessagesToStrOptions } from "./messagesToStr";
 export { messagesToStr } from "./messagesToStr";
 
-export { messageSearchText } from "./messageSearchText";
-
 // Tool utilities
 export type { ToolCallResult } from "./tools/tool";
 export {

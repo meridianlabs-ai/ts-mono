@@ -4,7 +4,6 @@ import { useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
-import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
@@ -54,9 +53,7 @@ function mountFollow(props: {
 
   render(
     <ComponentStateProvider hooks={hooks}>
-      <ExtendedFindProvider>
-        <ChatViewVirtualList id="chat" messages={messages} {...props} />
-      </ExtendedFindProvider>
+      <ChatViewVirtualList id="chat" messages={messages} {...props} />
     </ComponentStateProvider>
   );
   return store.get("chat-chat::follow");

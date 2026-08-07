@@ -54,6 +54,7 @@ import {
   ToolDropdownButton,
   type ActivityRailItem,
 } from "@tsmono/react/components";
+import { StaticFindRegion } from "@tsmono/react/find";
 import {
   useChromeNavOwnership,
   useElementHeight,
@@ -127,6 +128,16 @@ type ActivityRailItemId = "search" | "scans";
 // stable empty rows while the messages read is pending, so the list's
 // props don't churn per render
 const kNoMessageRows: MessageRow[] = [];
+
+// Tabs whose pane content is intentionally NOT find-sourced (Metadata's
+// RecordTree is virtualized; Retries is an accordion whose closed bodies
+// unmount). On these the header region must yield too: with zero sources the
+// surface drops to the whole-DOM window.find fallback, which covers the pane
+// AND the header — a header-only source would leave the pane unfindable.
+const kFindFallbackSampleTabIds: string[] = [
+  kSampleMetdataTabId,
+  kSampleRetriesTabId,
+];
 
 /**
  * Component to display a sample with relevant context and visibility control.
@@ -813,6 +824,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 parent_id={id}
                 sample={selectedSampleSummary}
                 collapsed={headerCollapsed}
+                findRegionEnabled={
+                  !kFindFallbackSampleTabIds.includes(
+                    effectiveSelectedTab ?? ""
+                  ) &&
+                  // The chunked transcript registers no find source (its rows
+                  // are lazily fetched windows), so on a chunked sample's
+                  // transcript tab the header must yield too — otherwise it
+                  // would be the surface's ONLY source and the pane content
+                  // would be unfindable (see kFindFallbackSampleTabIds).
+                  !(
+                    isChunked &&
+                    (effectiveSelectedTab ?? kSampleTranscriptTabId) ===
+                      kSampleTranscriptTabId
+                  )
+                }
               />
             </div>
           </StickyScroll>
@@ -976,7 +1002,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     styles.metadataPanel
                   )}
                 >
-                  {sampleUsages}
+                  <StaticFindRegion
+                    findKey={`sample-usage:${sample?.uuid ?? String(sample?.id)}`}
+                    contentKey={sample}
+                  >
+                    {sampleUsages}
+                  </StaticFindRegion>
                 </div>
               </TabPanel>
             ) : null}
@@ -1011,19 +1042,24 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               >
                 <div className={clsx(styles.error)}>
                   {sample?.error ? (
-                    <Card key={`sample-error}`}>
-                      <CardHeader label={`Sample Error`} />
-                      <CardBody>
-                        <ANSIDisplay
-                          output={sample.error.traceback_ansi}
-                          className={clsx("text-size-small", styles.ansi)}
-                          style={{
-                            fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
-                            margin: "0.5em 0",
-                          }}
-                        />
-                      </CardBody>
-                    </Card>
+                    <StaticFindRegion
+                      findKey={`sample-error:${sample.uuid ?? String(sample.id)}`}
+                      contentKey={sample.error}
+                    >
+                      <Card key={`sample-error}`}>
+                        <CardHeader label={`Sample Error`} />
+                        <CardBody>
+                          <ANSIDisplay
+                            output={sample.error.traceback_ansi}
+                            className={clsx("text-size-small", styles.ansi)}
+                            style={{
+                              fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
+                              margin: "0.5em 0",
+                            }}
+                          />
+                        </CardBody>
+                      </Card>
+                    </StaticFindRegion>
                   ) : undefined}
                 </div>
               </TabPanel>

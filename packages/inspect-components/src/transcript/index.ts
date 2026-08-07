@@ -50,7 +50,7 @@ export {
 export { eventTitle, formatTiming, formatTitle } from "./event/utils";
 
 // Search text and event serialization
-export { eventSearchText, eventsToStr } from "./eventText";
+export { eventsToStr } from "./eventText";
 
 // Message ID resolution
 export {
@@ -191,6 +191,3 @@ export {
   type EventNodesResult,
 } from "./hooks/useEventNodes";
 export * from "./timeline";
-
-// Search utilities
-export * from "./search";

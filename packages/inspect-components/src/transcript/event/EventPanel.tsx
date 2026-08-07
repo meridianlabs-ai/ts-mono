@@ -13,6 +13,10 @@ import {
 } from "react";
 
 import { CopyButton, useStickyScroll } from "@tsmono/react/components";
+import {
+  registerFindExpandable,
+  registerFindTabSwitch,
+} from "@tsmono/react/find";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { MessageLabel } from "../../chat/MessageLabel";
@@ -170,8 +174,16 @@ export const EventPanel: FC<EventPanelProps> = ({
   const sharedSelectedNav = pillId(
     Math.max(0, sharedTab === undefined ? -1 : tabNames.indexOf(sharedTab))
   );
-  const selectedNav = sharedTabActive ? sharedSelectedNav : storedNav;
+  const userSelectedNav = sharedTabActive ? sharedSelectedNav : storedNav;
+  // Find-in-page overlay: when the current match can't be painted because
+  // this panel's selected tab doesn't render the corpus (default-tab) text,
+  // the FindController switches rendering to the default tab and restores the
+  // user's stored selection on step-away/close.
+  const [findTabSwitched, setFindTabSwitched] = useState(false);
+  const selectedNav = findTabSwitched ? defaultPillId : userSelectedNav;
   const setSelectedNav = (target: string) => {
+    // An explicit pick while find holds the default tab is a user takeover.
+    setFindTabSwitched(false);
     if (sharedTabActive && onSelectTab) {
       const name = tabNameAt(Number(target.slice(target.lastIndexOf("-") + 1)));
       if (name) onSelectTab(eventNodeId, name);
@@ -241,6 +253,45 @@ export const EventPanel: FC<EventPanelProps> = ({
   }, [setCollapsed, collapsed]);
 
   const [mouseOver, setMouseOver] = useState(false);
+
+  // Find-in-page overlay for the collapsed (display:none) body: when the
+  // current match is inside it, the FindController reveals exactly this panel
+  // via the expand registry and reverts on step-away/close. Never persisted.
+  const [findExpanded, setFindExpanded] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const bodyHidden = !!(
+    isCollapsible &&
+    collapsed &&
+    collapsibleContent &&
+    !findExpanded
+  );
+  const bodyHiddenRef = useRef(bodyHidden);
+  bodyHiddenRef.current = bodyHidden;
+  useEffect(() => {
+    const element = bodyRef.current;
+    if (!element) return;
+    return registerFindExpandable(element, {
+      isClipped: () => bodyHiddenRef.current,
+      expand: () => setFindExpanded(true),
+      collapse: () => setFindExpanded(false),
+    });
+  }, []);
+
+  // isDiverted reads the RENDERED tab (post-override), not the stored pick:
+  // once switchToDefault() applied, the panel reports undiverted.
+  const selectedNavRef = useRef(selectedNav);
+  selectedNavRef.current = selectedNav;
+  const defaultPillIdRef = useRef(defaultPillId);
+  defaultPillIdRef.current = defaultPillId;
+  useEffect(() => {
+    const element = bodyRef.current;
+    if (!element) return;
+    return registerFindTabSwitch(element, {
+      isDiverted: () => selectedNavRef.current !== defaultPillIdRef.current,
+      switchToDefault: () => setFindTabSwitched(true),
+      restore: () => setFindTabSwitched(false),
+    });
+  }, []);
 
   const titleEl =
     eventLabel || title || icon || filteredArrChildren.length > 1 ? (
@@ -348,13 +399,21 @@ export const EventPanel: FC<EventPanelProps> = ({
               setSelectedNav={setSelectedNav}
             />
           ) : collapsed && text ? (
-            <span className={clsx("text-style-secondary", styles.label)}>
+            // Collapse-state-dependent summary: excluded from find so the
+            // corpus doesn't vary with (uncached) collapse toggles.
+            <span
+              data-find-ignore="true"
+              className={clsx("text-style-secondary", styles.label)}
+            >
               {text}
             </span>
           ) : null}
         </div>
         {turnNav ? (
           <span
+            // Turn context is absent from the offscreen find corpus render —
+            // keep it invisible to find's paint walker too.
+            data-find-ignore="true"
             className={clsx(
               styles.turnNav,
               turnNav.isAnchor === false && styles.turnNavFollower
@@ -456,6 +515,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   const card = (
     <div
       id={`event-panel-${eventNodeId}`}
+      data-find-tab-switched={findTabSwitched || undefined}
       className={clsx(
         className,
         styles.card,
@@ -468,12 +528,11 @@ export const EventPanel: FC<EventPanelProps> = ({
     >
       {titleEl}
       <div
+        ref={bodyRef}
         className={clsx(
           "tab-content",
           styles.cardContent,
-          isCollapsible && collapsed && collapsibleContent
-            ? styles.hidden
-            : undefined
+          bodyHidden ? styles.hidden : undefined
         )}
       >
         {filteredArrChildren?.map((child, index) => {

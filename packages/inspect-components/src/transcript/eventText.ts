@@ -1,7 +1,6 @@
 import type { Content } from "@tsmono/inspect-common/types";
 
 import type { EventType } from "./types";
-import { EventNode } from "./types";
 
 // `type` -> required payload key. The payload-key check avoids collapsing
 // user data that happens to share a discriminator value but isn't a Content*.
@@ -400,13 +399,6 @@ export const extractEventFields = (event: EventType): [string, string][] => {
   }
 
   return fields;
-};
-
-/**
- * Extracts searchable text from an EventNode for find-in-page functionality.
- */
-export const eventSearchText = (node: EventNode): string[] => {
-  return extractEventFields(node.event).map(([, v]) => v);
 };
 
 /**

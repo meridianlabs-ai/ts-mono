@@ -4,6 +4,7 @@ import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
+import { useVirtualListFindSource } from "@tsmono/react/find";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 import { basename } from "@tsmono/util";
@@ -387,6 +388,24 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     [gridDescriptor]
   );
 
+  // Identifier keys (not indexes): sorting/filtering reorders rows, and the
+  // find cursor must stay attached to the same result across reorders.
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const findKeyOf = useCallback(
+    (entry: ScanResultSummary | ResultGroup, index: number) =>
+      isResultGroup(entry)
+        ? `group:${entry.label}`
+        : entry.identifier || `row:${index}`,
+    []
+  );
+  const findProbe = useVirtualListFindSource<ScanResultSummary | ResultGroup>({
+    items: rows,
+    renderRow,
+    listHandle,
+    scrollRef: containerRef,
+    keyOf: findKeyOf,
+  });
+
   let noContentMessage: string | undefined = undefined;
   if (!isLoading && scannerSummaries.length === 0) {
     noContentMessage = "No scan results are available.";
@@ -409,7 +428,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   }
 
   return (
-    <div className={clsx(styles.container)}>
+    <div ref={containerRef} className={clsx(styles.container)}>
       <ScannerResultsHeader gridDescriptor={gridDescriptor} />
       <LoadingBar loading={isLoading} />
       {noContentMessage && <NoContentsPanel text={noContentMessage} />}
@@ -423,6 +442,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           smoothScroll={false}
         />
       )}
+      {findProbe}
     </div>
   );
 };

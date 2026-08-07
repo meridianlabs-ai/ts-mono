@@ -8,6 +8,7 @@ import {
 } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { RenderedText } from "@tsmono/inspect-components/content";
+import { StaticFindRegion } from "@tsmono/react/find";
 import { arrayToString } from "@tsmono/util";
 
 import {
@@ -49,6 +50,12 @@ interface SampleSummaryViewProps {
    * when to flip this — typically driven by scroll/UI state.
    */
   collapsed?: boolean;
+  /**
+   * Register the header's fields as a find source. The parent turns this off
+   * on tabs whose pane content is not find-sourced: a header-only source
+   * would suppress the whole-DOM window.find fallback that covers that pane.
+   */
+  findRegionEnabled?: boolean;
 }
 
 interface SampleFields {
@@ -134,7 +141,9 @@ const MetaLine: FC<{ items: MetaItem[] }> = ({ items }) => (
 );
 
 const FieldLabel: FC<{ children: ReactNode }> = ({ children }) => (
-  <div className={clsx(styles.fieldLabel)} data-unsearchable={true}>
+  // Chrome, not content: keep "Input"/"Target"/"Answer" out of the find
+  // corpus of the surrounding static region.
+  <div data-find-ignore="true" className={clsx(styles.fieldLabel)}>
     {children}
   </div>
 );
@@ -152,6 +161,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   parent_id,
   sample,
   collapsed = false,
+  findRegionEnabled = true,
 }) => {
   const sampleDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
@@ -316,75 +326,86 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       >
         <div className={styles.left}>
           <MetaLine items={metaItems} />
-          <div className={styles.fields} style={{ gridTemplateColumns }}>
-            <div className={styles.field}>
-              <FieldLabel>Input</FieldLabel>
-              <div className={clsx(styles.fieldValue, styles.clamp)}>
-                <RenderedText
-                  markdown={truncateMarkdown(
-                    fields.input.join(" "),
-                    kBodyTruncate
-                  )}
-                />
-              </div>
-            </div>
-            {fields.target ? (
-              <div className={clsx(styles.field, styles.fieldTarget)}>
-                <FieldLabel>Target</FieldLabel>
-                <div className={clsx(styles.fieldValue, styles.clamp)}>
-                  <RenderedText
-                    markdown={truncateMarkdown(
-                      arrayToString(fields.target || "none"),
-                      kTargetTruncate
-                    )}
-                    className={clsx("no-last-para-padding")}
-                  />
-                </div>
-              </div>
-            ) : null}
-            {fields.answer ? (
+          {/* Input/Target/Answer prose: findable via the static region.
+              Only the rendered (truncated) text is in the DOM, so only
+              that much is findable. */}
+          <StaticFindRegion
+            findKey={`sample-fields:${parent_id}`}
+            contentKey={sample}
+            enabled={findRegionEnabled}
+          >
+            <div className={styles.fields} style={{ gridTemplateColumns }}>
               <div className={styles.field}>
-                <FieldLabel>Answer</FieldLabel>
+                <FieldLabel>Input</FieldLabel>
                 <div className={clsx(styles.fieldValue, styles.clamp)}>
                   <RenderedText
                     markdown={truncateMarkdown(
-                      fields.answer || "",
+                      fields.input.join(" "),
                       kBodyTruncate
                     )}
-                    className={clsx("no-last-para-padding")}
                   />
                 </div>
               </div>
-            ) : null}
-            {compactScores
-              ? visibleScores.map((scoreLabel) => {
-                  const selected = sampleDescriptor.evalDescriptor.score(
-                    sample,
-                    scoreLabel
-                  );
-                  const desc =
-                    sampleDescriptor.evalDescriptor.scoreDescriptor(scoreLabel);
-                  const label =
-                    visibleScores.length === 1 ? "Score" : scoreLabel.name;
-                  return (
-                    <div
-                      key={`${scoreLabel.scorer}-${scoreLabel.name}`}
-                      className={clsx(styles.field, styles.scoreField)}
-                      title={scoreLabel.name}
-                    >
-                      <FieldLabel>{label}</FieldLabel>
-                      <div className={styles.scoreFieldValue}>
-                        <ScoreValueDisplay
-                          value={selected?.value}
-                          scoreType={desc.scoreType}
-                          size={22}
-                        />
+              {fields.target ? (
+                <div className={clsx(styles.field, styles.fieldTarget)}>
+                  <FieldLabel>Target</FieldLabel>
+                  <div className={clsx(styles.fieldValue, styles.clamp)}>
+                    <RenderedText
+                      markdown={truncateMarkdown(
+                        arrayToString(fields.target || "none"),
+                        kTargetTruncate
+                      )}
+                      className={clsx("no-last-para-padding")}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {fields.answer ? (
+                <div className={styles.field}>
+                  <FieldLabel>Answer</FieldLabel>
+                  <div className={clsx(styles.fieldValue, styles.clamp)}>
+                    <RenderedText
+                      markdown={truncateMarkdown(
+                        fields.answer || "",
+                        kBodyTruncate
+                      )}
+                      className={clsx("no-last-para-padding")}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              {compactScores
+                ? visibleScores.map((scoreLabel) => {
+                    const selected = sampleDescriptor.evalDescriptor.score(
+                      sample,
+                      scoreLabel
+                    );
+                    const desc =
+                      sampleDescriptor.evalDescriptor.scoreDescriptor(
+                        scoreLabel
+                      );
+                    const label =
+                      visibleScores.length === 1 ? "Score" : scoreLabel.name;
+                    return (
+                      <div
+                        key={`${scoreLabel.scorer}-${scoreLabel.name}`}
+                        className={clsx(styles.field, styles.scoreField)}
+                        title={scoreLabel.name}
+                      >
+                        <FieldLabel>{label}</FieldLabel>
+                        <div className={styles.scoreFieldValue}>
+                          <ScoreValueDisplay
+                            value={selected?.value}
+                            scoreType={desc.scoreType}
+                            size={22}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })
-              : null}
-          </div>
+                    );
+                  })
+                : null}
+            </div>
+          </StaticFindRegion>
         </div>
         {showRight ? (
           <div className={styles.right}>

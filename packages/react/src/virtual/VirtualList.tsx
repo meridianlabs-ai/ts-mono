@@ -4,19 +4,12 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
   type Ref,
 } from "react";
 
-import {
-  useExtendedFind,
-  type ExtendedCountFn,
-  type ExtendedFindFn,
-} from "../components/ExtendedFindContext";
-import { prepareSearchTerm } from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
 import { usePreviousValue } from "../hooks/usePreviousValue";
@@ -53,31 +46,6 @@ function PaddingChunks({ height, prefix }: { height: number; prefix: string }) {
   return <>{chunks}</>;
 }
 
-// Lifted out of the component so the hot find-counter path is unit-testable
-// and lowercasing happens once, not per keystroke; `lowerTerm` pre-lowercased.
-export const countMatchesInTexts = (
-  lowerTextsByItem: string[][],
-  lowerTerm: string
-): number => {
-  // An empty term makes indexOf return its start position forever (pos += 0),
-  // so guard before the scan loop — this helper is exported and unit-tested
-  // directly, where the FindBand caller's own empty-term guard would not apply.
-  if (lowerTerm.length === 0) {
-    return 0;
-  }
-  let total = 0;
-  for (const texts of lowerTextsByItem) {
-    for (const lowerText of texts) {
-      let pos = 0;
-      while ((pos = lowerText.indexOf(lowerTerm, pos)) !== -1) {
-        total++;
-        pos += lowerTerm.length;
-      }
-    }
-  }
-  return total;
-};
-
 export function VirtualList<T>({
   persistenceKey,
   ref,
@@ -93,8 +61,6 @@ export function VirtualList<T>({
   scrollPaddingStart,
   components,
   smoothScroll = true,
-  itemSearchText,
-  findScope = "local",
   scrollToTopOnFinish = false,
   onVisibleRangeChange,
 }: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> }) {
@@ -685,83 +651,6 @@ export function VirtualList<T>({
       data.length,
     ]
   );
-
-  const { registerVirtualList, registerMatchCounter } = useExtendedFind();
-  const searchInData = useCallback<ExtendedFindFn>(
-    (term, direction, onContentReady) => {
-      if (!term || data.length === 0) return Promise.resolve(false);
-      const isForward = direction === "forward";
-      const len = data.length;
-      const range = visibleRangeRef.current;
-      const current = isForward ? range.endIndex : range.startIndex;
-      const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
-      const prepared = prepareSearchTerm(term);
-      for (let offset = 1; offset < len; offset++) {
-        const i = isForward
-          ? (current + offset) % len
-          : (current - offset + len) % len;
-        const item = data[i];
-        if (item === undefined) continue;
-        const texts = getText(item);
-        const textArray = Array.isArray(texts) ? texts : [texts];
-        const hit = textArray.some((text) => {
-          const lower = text.toLowerCase();
-          if (lower.includes(prepared.simple)) return true;
-          if (prepared.unquoted && lower.includes(prepared.unquoted))
-            return true;
-          if (prepared.jsonEscaped && lower.includes(prepared.jsonEscaped))
-            return true;
-          return false;
-        });
-        if (hit) {
-          // Starting a new settle cancels the previous landing while retaining
-          // ownership of the auto-scroll guard until the find landing finishes.
-          settleScrollToIndex(i, "center");
-          setTimeout(onContentReady, 200);
-          return Promise.resolve(true);
-        }
-      }
-      return Promise.resolve(false);
-    },
-    [data, itemSearchText, settleScrollToIndex]
-  );
-
-  // Pre-compute lowercased search text for every item once per data /
-  // accessor change, so the FindBand counter doesn't re-extract and
-  // re-lowercase the whole list on each keystroke.
-  const precomputedSearchTexts = useMemo(() => {
-    const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
-    return data.map((item) => {
-      const texts = getText(item);
-      const textArray = Array.isArray(texts) ? texts : [texts];
-      return textArray.map((t) => t.toLowerCase());
-    });
-  }, [data, itemSearchText]);
-
-  const countMatchesInData = useCallback<ExtendedCountFn>(
-    (term) => {
-      if (!term || precomputedSearchTexts.length === 0) return 0;
-      return countMatchesInTexts(precomputedSearchTexts, term.toLowerCase());
-    },
-    [precomputedSearchTexts]
-  );
-
-  useEffect(() => {
-    if (findScope === "none") return;
-    const u1 = registerVirtualList(persistenceKey, searchInData);
-    const u2 = registerMatchCounter(persistenceKey, countMatchesInData);
-    return () => {
-      u1();
-      u2();
-    };
-  }, [
-    findScope,
-    persistenceKey,
-    registerVirtualList,
-    registerMatchCounter,
-    searchInData,
-    countMatchesInData,
-  ]);
 
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;

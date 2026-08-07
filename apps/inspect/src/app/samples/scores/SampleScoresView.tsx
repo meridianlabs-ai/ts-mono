@@ -10,6 +10,7 @@ import {
   ExpandablePanel,
   NoContentsPanel,
 } from "@tsmono/react/components";
+import { StaticFindRegion } from "@tsmono/react/find";
 
 import { useEvalDescriptor } from "../../../state/hooks";
 
@@ -54,34 +55,42 @@ export const SampleScoresView: FC<SampleScoresViewProps> = ({
         styles.container
       )}
     >
-      <Card className={clsx(styles.scoreCard)}>
-        <CardBody>
-          <div
-            className={clsx(
-              "text-size-small",
-              "text-style-label",
-              "text-style-secondary"
-            )}
-          >
-            Input
-          </div>
-          <ExpandablePanel
-            lines={10}
-            id={`sample-score-${sample.id}-${sample.epoch}`}
-            collapse={true}
-          >
-            <RenderedText
-              markdown={scoreInput.join("\n")}
-              className={clsx(styles.wordBreak, "text-size-base")}
+      {/* Input/answer/explanation cells are fully rendered (the scorer
+          metadata subtree virtualizes and is find-ignored inside the grid),
+          so the static region's DOM extraction matches what can paint. */}
+      <StaticFindRegion
+        findKey={`sample-scores:${sample.id}-${sample.epoch}`}
+        contentKey={sample}
+      >
+        <Card className={clsx(styles.scoreCard)}>
+          <CardBody>
+            <div
+              className={clsx(
+                "text-size-small",
+                "text-style-label",
+                "text-style-secondary"
+              )}
+            >
+              Input
+            </div>
+            <ExpandablePanel
+              lines={10}
+              id={`sample-score-${sample.id}-${sample.epoch}`}
+              collapse={true}
+            >
+              <RenderedText
+                markdown={scoreInput.join("\n")}
+                className={clsx(styles.wordBreak, "text-size-base")}
+              />
+            </ExpandablePanel>
+            <SampleScoresGrid
+              evalSample={sample}
+              className={clsx(styles.scores)}
+              scrollRef={scrollRef}
             />
-          </ExpandablePanel>
-          <SampleScoresGrid
-            evalSample={sample}
-            className={clsx(styles.scores)}
-            scrollRef={scrollRef}
-          />
-        </CardBody>
-      </Card>
+          </CardBody>
+        </Card>
+      </StaticFindRegion>
     </div>
   );
 };

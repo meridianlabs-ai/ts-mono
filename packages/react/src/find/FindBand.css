@@ -57,3 +57,10 @@
   margin-top: -0.1rem;
   margin-bottom: -0.1rem;
 }
+
+/* Current-match indicator (CSS Custom Highlight API): vivid regardless of
+   focus, and never touches the document selection. */
+::highlight(tsmono-find-current) {
+  background-color: var(--inspect-find-match-background, #ff9632);
+  color: var(--inspect-find-match-foreground, #1a1a1a);
+}

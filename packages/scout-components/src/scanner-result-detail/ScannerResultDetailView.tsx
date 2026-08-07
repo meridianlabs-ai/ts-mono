@@ -3,6 +3,7 @@ import clsx from "clsx";
 import { FC, ReactNode, useCallback } from "react";
 
 import { MarkdownReference } from "@tsmono/react/components";
+import { StaticFindRegion } from "@tsmono/react/find";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
 
 import {
@@ -239,7 +240,14 @@ function renderField(
           open={open}
           onToggle={onToggle}
         >
-          <div>{data.answer}</div>
+          {/* Long-form prose pane: findable via the static region (no-op
+              outside a FindProvider). */}
+          <StaticFindRegion
+            findKey={`answer:${data.identifier ?? ""}`}
+            contentKey={data.answer}
+          >
+            <div>{data.answer}</div>
+          </StaticFindRegion>
         </Section>
       );
 
@@ -252,11 +260,16 @@ function renderField(
           open={open}
           onToggle={onToggle}
         >
-          <Explanation
-            explanation={data.explanation}
-            references={references}
-            options={options}
-          />
+          <StaticFindRegion
+            findKey={`explanation:${data.identifier ?? ""}`}
+            contentKey={data.explanation}
+          >
+            <Explanation
+              explanation={data.explanation}
+              references={references}
+              options={options}
+            />
+          </StaticFindRegion>
         </Section>
       );
 

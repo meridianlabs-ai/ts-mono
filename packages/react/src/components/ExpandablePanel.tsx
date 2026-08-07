@@ -10,10 +10,10 @@ import {
   useState,
 } from "react";
 
+import { registerFindExpandable } from "../find/expandRegistry";
 import { useCollapsedState, useResizeObserver } from "../hooks";
 
 import styles from "./ExpandablePanel.module.css";
-import { useFindTarget } from "./FindTargetContext";
 
 interface ExpandablePanelProps {
   id: string;
@@ -63,37 +63,23 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     );
     const contentRef = useResizeObserver(checkOverflow);
 
-    const findTarget = useFindTarget();
-    // Initialize optimistically: if there's an active find target when we
-    // mount, assume our subtree contains it and render expanded immediately.
-    // The post-render effect below will collapse us back if the term isn't
-    // actually present. This swaps a "collapsed→expanded" flash on remount
-    // (which the user sees on every search step as Virtuoso re-renders) for
-    // a much rarer "expanded→collapsed" flash on panels that don't match.
-    const [containsFindTarget, setContainsFindTarget] = useState(
-      () => findTarget !== null
-    );
-
-    // No dep array: intentionally re-runs after every render so that changes
-    // in children text (e.g. lazily loaded content) are picked up without an
-    // additional mechanism.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-run after every render to track subtree text changes
+    // Find-in-page overlay: when the CURRENT match sits inside this panel's
+    // clipped content, the FindController expands exactly this panel via the
+    // expand registry (and reverts it on step-away/close). Local state only —
+    // the user's persisted collapse choice is never touched.
+    const [findExpanded, setFindExpanded] = useState(false);
+    const effectiveCollapsed = collapsed && !findExpanded;
     useEffect(() => {
-      if (!findTarget) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React state with DOM subtree text; no external subscription possible
-        setContainsFindTarget(false);
-        return;
-      }
-      const root = contentRef.current;
-      if (!root) {
-        setContainsFindTarget(false);
-        return;
-      }
-      const text = (root.textContent ?? "").toLowerCase();
-      setContainsFindTarget(text.includes(findTarget.term.toLowerCase()));
-    });
-
-    const effectiveCollapsed = containsFindTarget ? false : collapsed;
+      const element = contentRef.current;
+      if (!element) return;
+      return registerFindExpandable(element, {
+        // DOM truth, not React state: the inline maxHeight below is exactly
+        // what clips, and it's committed by the time the controller asks.
+        isClipped: () => element.style.maxHeight !== "",
+        expand: () => setFindExpanded(true),
+        collapse: () => setFindExpanded(false),
+      });
+    }, [contentRef]);
 
     // `overflow: hidden` + `maxHeight` live on the inner content wrapper, not
     // the outer panel. Two reasons:
@@ -209,6 +195,9 @@ const MoreToggle: FC<MoreToggleProps> = ({
   const text = collapsed ? "more" : "less";
   return (
     <div
+      // Measurement-gated chrome: absent from the offscreen find corpus, so
+      // it must be invisible to find's paint walker too.
+      data-find-ignore="true"
       className={clsx(
         styles.moreToggle,
         border ? styles.bordered : undefined,

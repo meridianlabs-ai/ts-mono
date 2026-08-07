@@ -1,5 +1,7 @@
 import clsx from "clsx";
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useEffect, useRef, useState } from "react";
+
+import { registerFindExpandable } from "@tsmono/react/find";
 
 import styles from "./ToolBlock.module.css";
 
@@ -47,11 +49,40 @@ export const ToolBlock: FC<ToolBlockProps> = ({
       <div className={styles.header}>
         <i className={clsx("bi", icon, styles.icon)} />
         <span className={styles.title}>{title}</span>
-        {summary ? <span className={styles.summary}>{summary}</span> : null}
+        {summary ? <SummaryStrip>{summary}</SummaryStrip> : null}
         {pill ? <span className={styles.pill}>{pill}</span> : null}
       </div>
       {children}
     </div>
+  );
+};
+
+/** The one-line ellipsized args summary. For tools without a dedicated input
+ * zone the full args text lives ONLY on this line, so find-in-page reveals a
+ * horizontally clipped match by wrapping the strip itself: the strip registers
+ * as an expand boundary and the FindController expands/reverts it (an overlay —
+ * never persisted). */
+const SummaryStrip: FC<{ children: string }> = ({ children }) => {
+  const [findExpanded, setFindExpanded] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    return registerFindExpandable(element, {
+      // DOM truth: nowrap + ellipsis clips iff the line overflows (1px
+      // tolerance for sub-pixel rounding); once wrapped, nothing overflows.
+      isClipped: () => element.scrollWidth > element.clientWidth + 1,
+      expand: () => setFindExpanded(true),
+      collapse: () => setFindExpanded(false),
+    });
+  }, []);
+  return (
+    <span
+      ref={ref}
+      className={clsx(styles.summary, findExpanded && styles.summaryExpanded)}
+    >
+      {children}
+    </span>
   );
 };
 

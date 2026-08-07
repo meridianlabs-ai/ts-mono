@@ -98,8 +98,14 @@ export interface TranscriptViewNodesProps {
 }
 
 export interface TranscriptViewNodesHandle {
-  /** Scroll to an event by its ID. Expands collapsed ancestors first if needed. */
-  scrollToEvent: (eventId: string) => void;
+  /** Scroll to an event by its ID. Expands collapsed ancestors first if
+   *  needed. `align` defaults to "start"; `onDone` fires when the scroll has
+   *  settled (only on the virtualized path with the event already visible —
+   *  find pre-expands, so its calls always take that path). */
+  scrollToEvent: (
+    eventId: string,
+    opts?: { align?: "start" | "center"; onDone?: () => void }
+  ) => void;
   /** Read-only accessor for the current flattened nodes (post-collapse filter). */
   getFlattenedNodes: () => EventNode[];
   /** Read-only accessor for the virtual list's currently-rendered visible range. */
@@ -258,7 +264,11 @@ export const TranscriptViewNodes = forwardRef<
   // single choke point stamping the current turn, so a j/k/f fired before
   // the scroll tracker's next report steps from the declared target.
   const scrollRowToTop = useCallback(
-    (index: number, onDone?: () => void) => {
+    (
+      index: number,
+      onDone?: () => void,
+      align: "start" | "center" = "start"
+    ) => {
       onProgrammaticScroll?.(true);
       const rowId = flattenedNodesLatest.current[index]?.id;
       if (rowId !== undefined) {
@@ -276,7 +286,7 @@ export const TranscriptViewNodes = forwardRef<
       }
       handle.scrollToIndex({
         index,
-        align: "start",
+        align,
         behavior: "auto",
         onDone,
       });
@@ -285,19 +295,23 @@ export const TranscriptViewNodes = forwardRef<
   );
 
   const scrollToEvent = useCallback(
-    (eventId: string) => {
+    (
+      eventId: string,
+      opts?: { align?: "start" | "center"; onDone?: () => void }
+    ) => {
       // Imperative jumps are navigation too: collapse the chrome even when
       // the URL doesn't change (re-click) and the deep-link effect won't run.
       onHeadroomSetHidden?.(true);
       const tryScroll = (idx: number) => {
         if (listHandle.current) {
-          scrollRowToTop(idx);
+          scrollRowToTop(idx, opts?.onDone, opts?.align);
         } else {
           onProgrammaticScroll?.(true);
           const el = scrollRef?.current?.querySelector(
             `[id="${escapeAttr(eventId)}"]`
           );
           el?.scrollIntoView({ block: "start", behavior: "auto" });
+          opts?.onDone?.();
         }
       };
 
@@ -341,6 +355,7 @@ export const TranscriptViewNodes = forwardRef<
         `[id="${escapeAttr(eventId)}"]`
       );
       el?.scrollIntoView({ block: "start", behavior: "auto" });
+      opts?.onDone?.();
     },
     [
       flattenedNodes,

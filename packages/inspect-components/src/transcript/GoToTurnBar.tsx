@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 
+import { useOptionalFindSnapshot } from "@tsmono/react/find";
 import { isEditableTarget } from "@tsmono/util";
 
 import styles from "./GoToTurnBar.module.css";
@@ -70,6 +71,15 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
 
     useImperativeHandle(ref, () => ({ open: openBar }), [openBar]);
 
+    // Overlay exclusion with find-in-page: while its band is open, find owns
+    // Ctrl/Cmd+G (find-next), so this bar stands down — and if it was open
+    // when the band appeared, it closes (the band is now the topmost bar).
+    const findActive = useOptionalFindSnapshot().active;
+    const standDown = disabled || findActive;
+    useEffect(() => {
+      if (findActive && openRef.current) close(false);
+    }, [findActive, close]);
+
     useEffect(() => {
       if (!open) return;
       inputRef.current?.focus();
@@ -85,7 +95,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
     // an already-prevented, already-stopped event at the earliest phase
     // page JS can reach reliably keeps the chord in the transcript.
     useEffect(() => {
-      if (disabled) return;
+      if (standDown) return;
       const onKeyDown = (e: KeyboardEvent) => {
         if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "g") return;
         // Several transcripts can be mounted at once (e.g. one in a modal over
@@ -109,7 +119,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
       window.addEventListener("keydown", onKeyDown, { capture: true });
       return () =>
         window.removeEventListener("keydown", onKeyDown, { capture: true });
-    }, [openBar, disabled]);
+    }, [openBar, standDown]);
 
     useEffect(() => {
       if (!open) return;

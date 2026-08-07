@@ -231,3 +231,10 @@ a.turnButton {
     break-inside: avoid;
   }
 }
+
+/* Find temporarily switched this panel's tab — mark the active pill so the
+   user sees the diversion (matches the find-highlight colors). */
+.card[data-find-tab-switched] :global(.nav-link.active) {
+  background-color: var(--inspect-find-match-background, #ff9632);
+  color: var(--inspect-find-match-foreground, #1a1a1a);
+}

@@ -32,7 +32,7 @@ import { ScannerResultsSearch } from "./scanners/results/ScannerResultsSearch";
 import { ScannerPanel } from "./scanners/ScannerPanel";
 import styles from "./ScanPanelBody.module.css";
 
-const kTabIdScans = "scan-detail-tabs-results";
+export const kTabIdScans = "scan-detail-tabs-results";
 const kTabIdInfo = "scan-detail-tabs-info";
 const kTabIdJson = "scan-detail-tabs-json";
 

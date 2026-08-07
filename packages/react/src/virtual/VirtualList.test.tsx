@@ -8,7 +8,6 @@ import {
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExtendedFindProvider } from "../components/ExtendedFindContext";
 import {
   ComponentStateHooks,
   ComponentStateProvider,
@@ -24,9 +23,7 @@ const Wrapper: React.FC<{
   hooks: ComponentStateHooks;
   children: ReactNode;
 }> = ({ hooks, children }) => (
-  <ComponentStateProvider hooks={hooks}>
-    <ExtendedFindProvider>{children}</ExtendedFindProvider>
-  </ComponentStateProvider>
+  <ComponentStateProvider hooks={hooks}>{children}</ComponentStateProvider>
 );
 
 // jsdom has no scrollTo; VirtualList calls it during mount/follow.
