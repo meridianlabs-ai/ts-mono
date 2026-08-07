@@ -247,7 +247,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     sampleData,
     messagesTabOpen,
     running,
-    sampleDetailNavigation.message
+    // `?message=` is also set by transcript-bound links (scan refs, transcript
+    // search hits), and the settled read stays activated once this tab has been
+    // opened — without the gate those ids would drain pages for a hidden tab.
+    messagesTabOpen ? sampleDetailNavigation.message : null
   );
   const exportMessages = useMessagesExport(sampleData);
 
