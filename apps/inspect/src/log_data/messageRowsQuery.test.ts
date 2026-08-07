@@ -29,9 +29,16 @@ const renderRows = (data: EvalSampleData, activated = true) =>
     { wrapper: makeWrapper(), initialProps: { data, activated } }
   );
 
+/** Sample data settled behind the paged (windowed chunked) source. */
+const chunkedData = (count: number): EvalSampleData => ({
+  ...streamingData,
+  status: "ok",
+  chunked: testChunkedSample(sequenceReaderOver(makeMessages(count))),
+});
+
 describe("useMessageRows", () => {
-  it("serves a settled conversation one page at a time", async () => {
-    const { result } = renderRows(settledData(makeMessages(1200)));
+  it("serves a paged source's conversation one page at a time", async () => {
+    const { result } = renderRows(chunkedData(1200));
 
     expect(result.current?.rows.loading).toBe(true);
     await waitFor(() =>
@@ -51,8 +58,8 @@ describe("useMessageRows", () => {
     expect(result.current?.hasMore).toBe(true);
   });
 
-  it("reports exhaustion on the last page", async () => {
-    const { result } = renderRows(settledData(makeMessages(150)));
+  it("reports exhaustion on a paged source's last page", async () => {
+    const { result } = renderRows(chunkedData(150));
     await waitFor(() =>
       expect(result.current?.rows.data).toHaveLength(kMessageRowsPageSize)
     );
@@ -61,6 +68,17 @@ describe("useMessageRows", () => {
     act(() => result.current?.loadMore());
     await waitFor(() => expect(result.current?.rows.data).toHaveLength(150));
     expect(result.current?.hasMore).toBe(false);
+  });
+
+  it("serves a monolith conversation whole in one read", async () => {
+    // in-memory sources are unpaged: customers' non-chunked evals keep the
+    // pre-paging feed — every row loaded, nothing behind loadMore
+    const { result } = renderRows(settledData(makeMessages(1200)));
+
+    expect(result.current?.rows.loading).toBe(true);
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(1200));
+    expect(result.current?.hasMore).toBe(false);
+    expect(result.current?.rows.data?.[1199]?.startNumber).toBe(1200);
   });
 
   it("handles an empty settled conversation", async () => {
@@ -108,12 +126,7 @@ describe("useMessageRows", () => {
     const servedLengths: number[] = [];
     const { result } = renderHook(
       () => {
-        const feed = useMessageRows(
-          handle,
-          settledData(makeMessages(300)),
-          true,
-          "m-150"
-        );
+        const feed = useMessageRows(handle, chunkedData(300), true, "m-150");
         if (feed?.rows.data !== undefined) {
           servedLengths.push(feed.rows.data.length);
         }
@@ -136,8 +149,7 @@ describe("useMessageRows", () => {
 
   it("a target the conversation never renders drains to exhaustion, then serves", async () => {
     const { result } = renderHook(
-      () =>
-        useMessageRows(handle, settledData(makeMessages(250)), true, "nope"),
+      () => useMessageRows(handle, chunkedData(250), true, "nope"),
       { wrapper: makeWrapper() }
     );
 

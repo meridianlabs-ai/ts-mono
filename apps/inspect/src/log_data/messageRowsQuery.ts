@@ -13,7 +13,7 @@ import { type EvalSampleData } from "./sampleData";
 import { sampleMessagesSource } from "./sampleMessagesSource";
 import { kSampleGcTimeMs } from "./sampleQuery";
 
-/** Rows per page of the settled conversation read. */
+/** Rows per page of a chunked sample's settled conversation read. */
 export const kMessageRowsPageSize = 100;
 
 /**
@@ -39,15 +39,20 @@ export const unpagedFeed = (rows: AsyncData<MessageRow[]>): MessageRowsFeed => (
 });
 
 /**
- * The settled conversation's rows for a sample, paged through react-query's
+ * The settled conversation's rows for a sample, read through react-query's
  * infinite query. Which feed backs them — inline monolith messages or the
  * windowed source over a chunked sample's conversation — is selected behind
- * the SampleMessagesData seam (`sampleMessagesSource`); both serve
- * kMessageRowsPageSize rows per read, so the tab's first paint costs one
+ * the SampleMessagesData seam (`sampleMessagesSource`). Chunked samples
+ * read in kMessageRowsPageSize pages, so the tab's first paint costs one
  * page even on a huge conversation and scrolling extends the loaded prefix
- * page by page. Pages are forward-contiguous from row 0 (offset cursors);
- * there is deliberately no eviction — `maxPages` would punch holes in the
- * flattened prefix the list renders.
+ * page by page; monolith samples serve the whole row space in one read,
+ * exactly like the pre-paging feed — a TEMPORARY gate, because behaviors
+ * built on a fully loaded list (find scope, the live-finish row swap)
+ * aren't paging-aware yet and customers' non-chunked evals must not lose
+ * them. Once those work over a paged prefix, the gate can drop. Pages are
+ * forward-contiguous from row 0 (offset cursors); there is deliberately no
+ * eviction — `maxPages` would punch holes in the flattened prefix the list
+ * renders.
  *
  * Returns undefined while there is no settled conversation to read (a
  * live streaming sample, a sample still fetching, the Messages tab never
@@ -70,6 +75,7 @@ export const useMessageRows = (
   targetMessageId?: string | null
 ): MessageRowsFeed | undefined => {
   const source = sampleMessagesSource(sampleData);
+  const paged = sampleData.chunked !== undefined;
 
   const query = useInfiniteQuery({
     // CONTRACT: the key omits the source because every source is a pure
@@ -91,7 +97,7 @@ export const useMessageRows = (
             source.getRows({
               cursor: pageParam === 0 ? null : { offset: pageParam },
               direction: "forward",
-              limit: kMessageRowsPageSize,
+              limit: paged ? kMessageRowsPageSize : Number.MAX_SAFE_INTEGER,
             })
         : skipToken,
     initialPageParam: 0,

@@ -12,12 +12,13 @@ import {
   testMessages as makeMessages,
   makeWrapper,
   testModelEvent as modelEvent,
+  sequenceReaderOver,
   settledData,
   testChunkedSample,
 } from "./testFixtures";
 
 describe("useSampleMessages", () => {
-  it("reads a settled sample's rows through the seam, one page at a time", async () => {
+  it("reads a settled monolith sample's rows through the seam in one read", async () => {
     const sampleData = settledData(makeMessages(1200));
     const { result } = renderHook(
       () => useSampleMessages(handle, sampleData, true, false),
@@ -28,12 +29,28 @@ describe("useSampleMessages", () => {
     expect(result.current.rows.loading).toBe(true);
     expect(result.current.rows.data).toBeUndefined();
 
-    // the settled feed is a paged prefix, not the whole conversation
+    // monolith samples are unpaged: the settled feed is the whole
+    // conversation, exactly as before paging existed
+    await waitFor(() => expect(result.current.rows.data).toHaveLength(1200));
+    expect(result.current.rows.loading).toBe(false);
+    expect(result.current.rows.data?.[0]?.startNumber).toBe(1);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("reads a chunked sample's rows through the seam one page at a time", async () => {
+    const sampleData: EvalSampleData = {
+      ...settledData([]),
+      sample: undefined,
+      chunked: testChunkedSample(sequenceReaderOver(makeMessages(1200))),
+    };
+    const { result } = renderHook(
+      () => useSampleMessages(handle, sampleData, true, false),
+      { wrapper: makeWrapper() }
+    );
+
     await waitFor(() =>
       expect(result.current.rows.data).toHaveLength(kMessageRowsPageSize)
     );
-    expect(result.current.rows.loading).toBe(false);
-    expect(result.current.rows.data?.[0]?.startNumber).toBe(1);
     expect(result.current.hasMore).toBe(true);
 
     act(() => result.current.loadMore());
