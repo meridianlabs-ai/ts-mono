@@ -40,6 +40,10 @@ export const unpagedFeed = (
   loadMore: kNoLoadMore,
 });
 
+// one identity for every pending render — the returned feed is memoized so
+// consumers' own memos (useSampleMessages) see a stable value
+const kLoadingFeed = unpagedFeed(asyncLoading);
+
 /**
  * The settled conversation's rows for a sample, read through react-query's
  * infinite query. Which feed backs them — inline monolith messages or the
@@ -141,37 +145,53 @@ export const useMessageRows = (
     [rows, targetMessageId]
   );
   useEffect(() => {
-    if (!targetLoaded) {
+    // isError halts the drain: a failed page settles the query with
+    // hasNextPage still true, and re-firing fetchNext would retry the same
+    // page in an unbounded loop behind the error panel
+    if (!targetLoaded && !isError) {
       fetchNext();
     }
     // `rows` is the re-fire key: a page can start AND land within one
     // committed render (in-memory sources resolve in a microtask), so
     // isFetchingNextPage never visibly flips and the other deps are
     // unchanged after each drained page.
-  }, [rows, targetLoaded, fetchNext]);
+  }, [rows, targetLoaded, isError, fetchNext]);
 
-  if (!activated || source === undefined) {
-    // idle even over a warm cache: rows are served only once the caller
-    // activates the read and a settled feed exists
-    return undefined;
-  }
-  if (isPending) {
-    return unpagedFeed(asyncLoading);
-  }
-  if (isError) {
-    // a failed page read fails the tab, matching the one-shot read's
-    // behavior; the next loadMore after remount retries the same page
-    return unpagedFeed({ error, loading: false });
-  }
-  if (!targetLoaded && hasNextPage) {
-    // the deep-link target's covering prefix is still draining in; a
-    // target the conversation never renders (hasNextPage exhausts) falls
-    // through and mounts at the top, like any unresolved ?message=
-    return unpagedFeed(asyncLoading);
-  }
-  return {
-    rows: { data: rows ?? [], loading: false },
-    hasMore: hasNextPage,
-    loadMore: fetchNext,
-  };
+  const hasSource = source !== undefined;
+  return useMemo(() => {
+    if (!activated || !hasSource) {
+      // idle even over a warm cache: rows are served only once the caller
+      // activates the read and a settled feed exists
+      return undefined;
+    }
+    if (isPending) {
+      return kLoadingFeed;
+    }
+    if (isError) {
+      // a failed page read fails the tab, matching the one-shot read's
+      // behavior; the next loadMore after remount retries the same page
+      return unpagedFeed({ error, loading: false });
+    }
+    if (!targetLoaded && hasNextPage) {
+      // the deep-link target's covering prefix is still draining in; a
+      // target the conversation never renders (hasNextPage exhausts) falls
+      // through and mounts at the top, like any unresolved ?message=
+      return kLoadingFeed;
+    }
+    return {
+      rows: { data: rows ?? [], loading: false },
+      hasMore: hasNextPage,
+      loadMore: fetchNext,
+    };
+  }, [
+    activated,
+    hasSource,
+    isPending,
+    isError,
+    error,
+    targetLoaded,
+    hasNextPage,
+    rows,
+    fetchNext,
+  ]);
 };

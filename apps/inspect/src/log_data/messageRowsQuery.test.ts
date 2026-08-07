@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { ChatMessage } from "@tsmono/inspect-common/types";
+
+import { ChunkByteStore, SequenceReader } from "./chunked";
 import { kMessageRowsPageSize, useMessageRows } from "./messageRowsQuery";
 import { type EvalSampleData } from "./sampleData";
 import {
@@ -153,6 +156,56 @@ describe("useMessageRows", () => {
 
     await waitFor(() => expect(result.current?.rows.data).toHaveLength(250));
     expect(result.current?.hasMore).toBe(false);
+  });
+
+  it("halts the deep-link drain when a page read fails", async () => {
+    // two chunks: the first covers the scan's whole first batch (512
+    // messages), the second rejects — the drain must settle on the error,
+    // not refetch the failing page in an unbounded loop
+    const messages = makeMessages(700);
+    const encoder = new TextEncoder();
+    let failingReads = 0;
+    const reader = new SequenceReader<ChatMessage>(
+      new ChunkByteStore({
+        readFile: (name) => {
+          if (name !== "chunk/0.json") {
+            failingReads++;
+            return Promise.reject(new Error("boom"));
+          }
+          return Promise.resolve(
+            encoder.encode(JSON.stringify(messages.slice(0, 512)))
+          );
+        },
+      }),
+      (start) => `chunk/${start}.json`,
+      [0, 512],
+      700
+    );
+    const data: EvalSampleData = {
+      ...streamingData,
+      status: "ok",
+      chunked: testChunkedSample(reader),
+    };
+    const { result } = renderHook(
+      () => useMessageRows(handle, data, true, "m-650"),
+      { wrapper: makeWrapper() }
+    );
+
+    await waitFor(() =>
+      expect(result.current?.rows.error).toBeInstanceOf(Error)
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(failingReads).toBe(1);
+  });
+
+  it("keeps the served feed's identity stable across rerenders", async () => {
+    const data = settledData(makeMessages(3));
+    const { result, rerender } = renderRows(data);
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(3));
+
+    const served = result.current;
+    rerender({ data, activated: true });
+    expect(result.current).toBe(served);
   });
 
   it("surfaces a chunked read failure as error, not endless loading", async () => {
