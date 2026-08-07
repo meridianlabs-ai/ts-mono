@@ -106,8 +106,9 @@ const UNSAFE_CSS_PATTERN =
 
 const PURIFY_CONFIG: Config = {
   ADD_ATTR: [...MATHJAX_ATTRS, "target"],
-  // `img` is not in FORBIDDEN_TAGS, but every src is still gated on
-  // isRenderableImageSource below, so only inline raster data survives.
+  // Redundant today — `img` is already in DOMPurify's DEFAULT_DATA_URI_TAGS —
+  // but stated explicitly so a change to that default cannot silently break
+  // inline images. It grants no safety of its own: `safeImgSrc` is the gate.
   ADD_DATA_URI_TAGS: ["img"],
   ADD_TAGS: MATHJAX_TAGS,
   ALLOW_DATA_ATTR: true,

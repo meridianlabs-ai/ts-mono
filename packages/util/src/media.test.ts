@@ -84,17 +84,18 @@ describe("canonicalImageSource", () => {
   it.each([
     ["data:image/png;base64,AAAA", "data:image/png;base64,AAAA"],
     ["  data:image/png;base64,AAAA  ", "data:image/png;base64,AAAA"],
-    // The scheme is lowercased so DOMPurify's case-sensitive `data:` check
-    // accepts it; without this the attribute is stripped and the element
-    // survives as a broken-image placeholder.
+    // The scheme is lowercased because DOMPurify's `data:` check is
+    // case-sensitive: an uppercase scheme would have its src stripped, and the
+    // image would then be dropped as src-less rather than rendered.
     ["DATA:IMAGE/PNG;BASE64,AAAA", "data:IMAGE/PNG;BASE64,AAAA"],
   ])("canonicalizes %s", (source, expected) => {
     expect(canonicalImageSource(source)).toBe(expected);
   });
 
-  // Characters the URL parser rejects but String.trim()/\s strip: validating a
-  // stripped copy and emitting the raw value would let these reach the DOM,
-  // where the browser reads them as a relative path and fetches it.
+  // The URL parser rejects these, which is what keeps them out of the DOM: a
+  // caller that instead stripped them before checking would approve a string
+  // it is not about to emit, and the raw value reads as a fetchable relative
+  // path in the browser.
   it.each([
     "da﻿ta:image/png;base64,AAAA",
     "da ta:image/png;base64,AAAA",

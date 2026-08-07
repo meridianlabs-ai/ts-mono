@@ -126,8 +126,8 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     ["protocol-relative", "//example.com/pixel.png"],
     ["svg", "data:image/svg+xml;base64,AAAA"],
     ["not base64", "data:image/png,AAAA"],
-    // ADD_DATA_URI_TAGS lets DOMPurify accept any data: URI on an img, so the
-    // gate is the only thing rejecting a non-image payload here.
+    // DOMPurify accepts any data: URI on an img, so the gate is the only thing
+    // rejecting a non-image payload here.
     [
       "text/html payload",
       "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
@@ -136,10 +136,10 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     ["blob", "blob:https://example.com/id"],
     ["empty", ""],
     ["whitespace only", "   "],
-    // The gate validates a whitespace/control-stripped copy, so it must render
-    // the canonical value rather than the raw one: these characters are not in
-    // DOMPurify's ATTR_WHITESPACE, and a browser reads the survivor as a
-    // relative path and fetches it.
+    // These are not in DOMPurify's ATTR_WHITESPACE, so nothing downstream
+    // removes them. `da<U+FEFF>ta:` is not a valid scheme, so a browser reads
+    // the whole value as a relative path and fetches it — the traversal case
+    // steers that to an arbitrary same-origin path.
     ["U+FEFF in scheme", "da﻿ta:image/png;base64,AAAA"],
     ["U+202F in scheme", "da ta:image/png;base64,AAAA"],
     ["U+007F in scheme", "data:image/png;base64,AAAA"],
