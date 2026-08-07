@@ -4,8 +4,14 @@ import createDOMPurify, {
   type UponSanitizeAttributeHookEvent,
 } from "dompurify";
 
+// Everything here either fetches a subresource or animates one in. feimage is
+// currently unreachable because USE_PROFILES omits DOMPurify's svgFilters
+// profile — it is listed so that enabling that profile cannot silently open a
+// fetch vector. animatecolor is the one SMIL element the rest of this list
+// missed.
 const FORBIDDEN_TAGS = [
   "animate",
+  "animatecolor",
   "animatemotion",
   "animatetransform",
   "audio",
@@ -13,6 +19,7 @@ const FORBIDDEN_TAGS = [
   "button",
   "discard",
   "embed",
+  "feimage",
   "foreignobject",
   "form",
   "iframe",
@@ -21,6 +28,7 @@ const FORBIDDEN_TAGS = [
   "input",
   "link",
   "meta",
+  "mglyph",
   "mpath",
   "object",
   "picture",
@@ -28,6 +36,11 @@ const FORBIDDEN_TAGS = [
   "select",
   "set",
   "source",
+  // In DOMPurify's html profile by default, so it needs forbidding outright.
+  // MathJax's stylesheet ships as static app CSS (mathjaxStyles.css) instead:
+  // any rule for admitting a <style> from untrusted content is forgeable, and
+  // a surviving one is unscoped global CSS.
+  "style",
   "textarea",
   "track",
   "video",
@@ -39,7 +52,6 @@ const MATHJAX_TAGS = [
   "mjx-status",
   "mjx-tip",
   "mjx-tool",
-  "style",
 ];
 
 const MATHJAX_ATTRS = [
@@ -54,10 +66,8 @@ const MATHJAX_ATTRS = [
 
 const URL_ATTRIBUTES = new Set([
   "action",
-  "background",
   "formaction",
   "href",
-  "poster",
   "src",
   "xlink:href",
 ]);
@@ -100,6 +110,10 @@ const SAFE_STYLE_PROPERTIES = new Set([
   "width",
 ]);
 
+// Only style attributes reach this now; no <style> element survives. The
+// attribute path is sound because sanitizeStyleAttribute round-trips values
+// through the CSSOM, which normalizes escapes like `u\rl(` before this test
+// runs. A raw-text check alone would not catch them.
 const UNSAFE_CSS_PATTERN =
   /@import|behavior\s*:|binding\s*:|expression\s*\(|javascript\s*:|vbscript\s*:|url\s*\(/i;
 
@@ -108,7 +122,11 @@ const PURIFY_CONFIG: Config = {
   ADD_TAGS: MATHJAX_TAGS,
   ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
-  FORBID_ATTR: ["srcdoc", "srcset"],
+  // background fetches on every table element per HTML §15.3.3, and no
+  // protocol check helps: the dangerous value is an ordinary https URL.
+  // Dropping them from URL_ATTRIBUTES alone would mean nothing checks them,
+  // since isSafeUrlAttribute allows by default.
+  FORBID_ATTR: ["background", "poster", "srcdoc", "srcset"],
   FORBID_TAGS: FORBIDDEN_TAGS,
   USE_PROFILES: { html: true, mathMl: true, svg: true },
 };
@@ -166,19 +184,22 @@ const installHooks = (purify: DOMPurifyInstance): void => {
   }
   hooksInstalled = true;
 
-  purify.addHook("uponSanitizeElement", (node, hookEvent) => {
-    if (
-      hookEvent.tagName === "style" &&
-      node instanceof Element &&
-      !isAllowedMathJaxStyleElement(node)
-    ) {
-      node.remove();
-    }
-  });
-
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
       sanitizeStyleAttributeHook(node, hookEvent);
+    } else if (hookEvent.attrName === "src") {
+      // img is forbidden outright and every other src-bearing element is
+      // either forbidden or does not fetch, so nothing that survives needs a
+      // src. A protocol check would not help: the dangerous value is an
+      // ordinary https URL, which is exactly what mglyph carried through.
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
+    } else if (
+      PAINT_ATTRIBUTES.has(hookEvent.attrName) &&
+      !isSafePaintValue(hookEvent.attrValue)
+    ) {
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
     } else if (
       URL_ATTRIBUTES.has(hookEvent.attrName) &&
       !isSafeUrlAttribute(hookEvent.attrValue)
@@ -211,6 +232,22 @@ const sanitizeStyleAttributeHook = (
     node.removeAttribute(hookEvent.attrName);
   }
 };
+
+const PAINT_ATTRIBUTES = new Set([
+  "clip-path",
+  "fill",
+  "filter",
+  "marker-end",
+  "marker-mid",
+  "marker-start",
+  "mask",
+  "stroke",
+]);
+
+// These are presentation attributes, not style, so sanitizeStyleAttribute never
+// sees them. MathJax only emits same-document references and plain colours.
+const isSafePaintValue = (value: string): boolean =>
+  !/url\(/i.test(value) || /^\s*url\(\s*['"]?#/.test(value);
 
 const isSafeUrlAttribute = (value: string): boolean => {
   const trimmed = value.trim();
@@ -262,17 +299,4 @@ const sanitizeStyleAttribute = (style: string): string => {
   }
 
   return safeDeclarations.join(" ");
-};
-
-const isAllowedMathJaxStyleElement = (element: Element): boolean => {
-  const parent = element.parentElement;
-  const parentId = parent?.getAttribute("id") || "";
-  const css = element.textContent || "";
-
-  return (
-    parent?.tagName.toLowerCase() === "span" &&
-    /^mjx-[a-f0-9]+$/i.test(parentId) &&
-    css.includes(`#${parentId}`) &&
-    !UNSAFE_CSS_PATTERN.test(css)
-  );
 };
