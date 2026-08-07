@@ -34,8 +34,13 @@ interface FindBandProps {
 
 export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   const searchBoxRef = useRef<HTMLInputElement>(null);
-  const { extendedFindTerm, countAllMatches, getMatchCountersVersion } =
-    useExtendedFind();
+  const {
+    extendedFindTerm,
+    countAllMatches,
+    getMatchCountersVersion,
+    ordinalAtSelection,
+    beginFindSession,
+  } = useExtendedFind();
   const setFindTarget = useFindTargetSetter();
   const lastFoundItem = useRef<{
     text: string;
@@ -185,7 +190,15 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
             setFindTarget({ term: searchTerm, eventId: "" });
           }
 
-          if (isNewMatch) {
+          // A registered source can say exactly which match the selection is
+          // on; prefer that over counting presses, which labels the first hit
+          // "1 of N" wherever in the document it landed. The increment is the
+          // fallback for tabs that register no source (Scoring, Metadata,
+          // JSON), where nothing can map a selection to an index.
+          const ordinal = ordinalAtSelection(searchTerm);
+          if (ordinal !== null) {
+            setCurrentMatchIndex(ordinal + 1);
+          } else if (isNewMatch) {
             setCurrentMatchIndex((prev) => {
               if (back) {
                 return prev <= 1 ? total : prev - 1;
@@ -206,7 +219,13 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
 
       focusedElement?.focus();
     },
-    [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
+    [
+      setFindTarget,
+      extendedFindTerm,
+      countAllMatches,
+      getMatchCountersVersion,
+      ordinalAtSelection,
+    ]
   );
 
   useEffect(() => {
@@ -229,6 +248,17 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       setFindTarget(null);
     };
   }, [setFindTarget]);
+
+  // Opening the band starts a new find session. Sources that carry a
+  // navigation cursor across presses key it to this, so a cursor left over
+  // from the last time find was open is not resumed after the user has
+  // scrolled somewhere else in between. Deliberately its own effect: folding
+  // it into the mount effect above ties it to that effect's other
+  // dependencies, and a re-run would bump the session mid-search and discard
+  // the cursor on every press.
+  useEffect(() => {
+    beginFindSession();
+  }, [beginFindSession]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
