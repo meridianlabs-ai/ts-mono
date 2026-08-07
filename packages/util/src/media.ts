@@ -36,6 +36,42 @@ export const parseDataUri = (value: string): DataUri | undefined => {
   };
 };
 
+// SVG is deliberately absent: it can carry script, so it is never rendered
+// inline regardless of encoding.
+export const rasterImageMimeTypes = new Set([
+  "image/avif",
+  "image/bmp",
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/x-icon",
+]);
+
+export const imageMimeAliases = new Map([
+  ["image/jpg", "image/jpeg"],
+  ["image/vnd.microsoft.icon", "image/x-icon"],
+]);
+
+export const normalizedImageMimeType = (mimeType: string): string => {
+  const normalized = mimeType.trim().toLowerCase();
+  return imageMimeAliases.get(normalized) ?? normalized;
+};
+
+export const base64DataUriMimeType = (source: string): string | undefined => {
+  const dataUri = parseDataUri(source);
+  return dataUri?.base64 ? dataUri.mimeType : undefined;
+};
+
+/** Inline image data that is safe to render without a network request. */
+export const isRenderableImageSource = (source: string): boolean => {
+  const mimeType = base64DataUriMimeType(source);
+  return (
+    mimeType !== undefined &&
+    rasterImageMimeTypes.has(normalizedImageMimeType(mimeType))
+  );
+};
+
 export const parseAbsoluteHttpUrl = (value: string): string | undefined => {
   let url: URL;
   try {

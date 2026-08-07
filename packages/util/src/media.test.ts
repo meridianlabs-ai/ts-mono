@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAbsoluteHttpUrl, parseDataUri } from "./media";
+import {
+  isRenderableImageSource,
+  parseAbsoluteHttpUrl,
+  parseDataUri,
+} from "./media";
 
 describe("parseDataUri", () => {
   it.each([
@@ -41,5 +45,36 @@ describe("parseAbsoluteHttpUrl", () => {
     "custom://asset/1",
   ])("rejects %s", (value) => {
     expect(parseAbsoluteHttpUrl(value)).toBeUndefined();
+  });
+});
+
+describe("isRenderableImageSource", () => {
+  it.each([
+    "data:image/png;base64,AAAA",
+    "data:image/gif;base64,AAAA",
+    "data:image/jpeg;base64,AAAA",
+    "data:image/jpg;base64,AAAA",
+    "data:image/webp;base64,AAAA",
+    "data:image/avif;base64,AAAA",
+    "data:image/bmp;base64,AAAA",
+    "data:image/x-icon;base64,AAAA",
+    "data:image/vnd.microsoft.icon;base64,AAAA",
+    "data:IMAGE/PNG;BASE64,AAAA",
+  ])("allows %s", (source) => {
+    expect(isRenderableImageSource(source)).toBe(true);
+  });
+
+  it.each([
+    "data:image/svg+xml;base64,AAAA",
+    "data:image/svg+xml,%3Csvg%3E%3C/svg%3E",
+    "data:image/png,AAAA",
+    "data:text/html;base64,AAAA",
+    "https://example.com/image.png",
+    "file:///tmp/image.png",
+    "blob:https://example.com/id",
+    "",
+    "not a url",
+  ])("rejects %s", (source) => {
+    expect(isRenderableImageSource(source)).toBe(false);
   });
 });
