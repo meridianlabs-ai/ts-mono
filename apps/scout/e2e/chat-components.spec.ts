@@ -229,6 +229,36 @@ test.describe("chat message rendering", () => {
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
   });
 
+  test("renders inline data images embedded in markdown", async ({
+    page,
+    network,
+  }) => {
+    await openMessages(
+      page,
+      network,
+      createMessagesEventsResponse({
+        messages: [
+          {
+            role: "assistant",
+            content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+            id: null,
+          },
+        ],
+        events: [
+          createModelEvent({
+            uuid: "evt-1",
+            startSec: 0,
+            endSec: 2,
+            tokens: 30,
+            content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+          }),
+        ],
+      })
+    );
+
+    await expect(page.locator("img[src^='data:image/gif']")).toHaveCount(1);
+  });
+
   test("does not automatically load remote message media", async ({
     page,
     network,

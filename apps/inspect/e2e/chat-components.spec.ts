@@ -178,6 +178,21 @@ test.describe("chat message rendering", () => {
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
   });
 
+  test("renders inline data images embedded in markdown", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        source: "generate",
+        content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+      },
+    ]);
+
+    await expect(page.locator("img[src^='data:image/gif']")).toHaveCount(1);
+  });
+
   test("does not automatically load remote message media", async ({
     page,
     network,
