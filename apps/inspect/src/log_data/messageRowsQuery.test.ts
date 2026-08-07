@@ -52,9 +52,7 @@ describe("useMessageRows", () => {
     await waitFor(() =>
       expect(result.current?.rows.data).toHaveLength(2 * kMessageRowsPageSize)
     );
-    expect(result.current?.rows.data?.[199]?.resolved.message.id).toBe(
-      "m-199"
-    );
+    expect(result.current?.rows.data?.[199]?.resolved.message.id).toBe("m-199");
     expect(result.current?.hasMore).toBe(true);
   });
 

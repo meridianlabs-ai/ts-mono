@@ -92,10 +92,9 @@ describe("useSampleMessages", () => {
     );
 
     expect(result.current.rows.loading).toBe(false);
-    expect(result.current.rows.data?.map((r) => r.resolved.message.id)).toEqual([
-      "m-in",
-      "m-out",
-    ]);
+    expect(result.current.rows.data?.map((r) => r.resolved.message.id)).toEqual(
+      ["m-in", "m-out"]
+    );
   });
 
   it("keeps a pre-first-poll live sample on the waiting affordance", () => {

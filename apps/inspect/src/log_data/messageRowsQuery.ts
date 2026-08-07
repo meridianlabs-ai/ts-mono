@@ -32,7 +32,9 @@ export interface MessageRowsFeed {
 const kNoLoadMore = () => {};
 
 /** A feed over rows that are already everything there is. */
-export const unpagedFeed = (rows: AsyncData<MessageRow[]>): MessageRowsFeed => ({
+export const unpagedFeed = (
+  rows: AsyncData<MessageRow[]>
+): MessageRowsFeed => ({
   rows,
   hasMore: false,
   loadMore: kNoLoadMore,
