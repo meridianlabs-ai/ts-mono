@@ -23,6 +23,7 @@ export {
   countRowBlocks,
   MessageRowScanner,
   messageRowOptions,
+  rowContainsMessage,
 } from "./rowsModel";
 
 export type { MessagesToStrOptions } from "./messagesToStr";

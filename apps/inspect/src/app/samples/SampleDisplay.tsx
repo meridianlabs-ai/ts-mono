@@ -241,11 +241,16 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     (state) => state.log.selectedSampleHandle
   );
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
+  const sampleDetailNavigation = useSampleDetailNavigation();
   const sampleMessages = useSampleMessages(
     selectedSampleHandle,
     sampleData,
     messagesTabOpen,
-    running
+    running,
+    // `?message=` is also set by transcript-bound links (scan refs, transcript
+    // search hits), and the settled read stays activated once this tab has been
+    // opened — without the gate those ids would drain pages for a hidden tab.
+    messagesTabOpen ? sampleDetailNavigation.message : null
   );
   const exportMessages = useMessagesExport(sampleData);
 
@@ -659,8 +664,6 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     logDetails?.status !== "error" &&
     logDetails?.status !== "cancelled";
 
-  const sampleDetailNavigation = useSampleDetailNavigation();
-
   const displayModeContext = useMemo(
     () => ({ displayMode: displayMode ?? ("rendered" as const) }),
     [displayMode]
@@ -919,18 +922,20 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 panel={hasRail ? railPanel : undefined}
                 label={railLabel}
               >
-                {sampleMessages.error ? (
+                {sampleMessages.rows.error ? (
                   // inside the rail host: the activity rail is the sole
                   // search/scans entry point and must survive the error
                   <ErrorPanel
                     title="An error occurred while loading messages."
-                    error={sampleMessages.error}
+                    error={sampleMessages.rows.error}
                   />
                 ) : (
                   <ChatViewRowsVirtualList
                     key={chatListId}
                     id={chatListId}
-                    rows={sampleMessages.data ?? kNoMessageRows}
+                    rows={sampleMessages.rows.data ?? kNoMessageRows}
+                    hasMoreRows={sampleMessages.hasMore}
+                    onLoadMoreRows={sampleMessages.loadMore}
                     initialMessageId={sampleDetailNavigation.message}
                     followRequested={sampleDetailNavigation.follow}
                     display={chatDisplay}
@@ -940,7 +945,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     scrollRef={scrollRef}
                     tools={chatTools}
                     running={running}
-                    backfilling={backfilling || sampleMessages.loading}
+                    backfilling={backfilling || sampleMessages.rows.loading}
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     className={styles.fullWidth}
                   />

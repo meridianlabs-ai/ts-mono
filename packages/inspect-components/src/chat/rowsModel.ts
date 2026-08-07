@@ -25,6 +25,19 @@ export interface MessageRowOptions {
 }
 
 /**
+ * Whether a row renders the message with this id — as its head message or
+ * as one of its folded tool messages. The deep-link target scan and the
+ * data layer's target drain must agree on this, so it lives with the row
+ * type.
+ */
+export const rowContainsMessage = (
+  row: MessageRow,
+  messageId: string
+): boolean =>
+  row.resolved.message.id === messageId ||
+  row.resolved.toolMessages.some((tm) => tm.id === messageId);
+
+/**
  * Fold options from a view's tool options — the one place the fold
  * defaults ("complete", collapse on) are defined. Data-layer folds and
  * the chat components both derive from here, so pre-built rows and their

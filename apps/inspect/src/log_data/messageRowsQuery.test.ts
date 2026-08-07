@@ -1,7 +1,10 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { useMessageRows } from "./messageRowsQuery";
+import { ChatMessage } from "@tsmono/inspect-common/types";
+
+import { ChunkByteStore, SequenceReader } from "./chunked";
+import { kMessageRowsPageSize, useMessageRows } from "./messageRowsQuery";
 import { type EvalSampleData } from "./sampleData";
 import {
   failingSequenceReader,
@@ -29,22 +32,66 @@ const renderRows = (data: EvalSampleData, activated = true) =>
     { wrapper: makeWrapper(), initialProps: { data, activated } }
   );
 
+/** Sample data settled behind the paged (windowed chunked) source. */
+const chunkedData = (count: number): EvalSampleData => ({
+  ...streamingData,
+  status: "ok",
+  chunked: testChunkedSample(sequenceReaderOver(makeMessages(count))),
+});
+
 describe("useMessageRows", () => {
-  it("materializes a settled conversation in one read", async () => {
+  it("serves a paged source's conversation one page at a time", async () => {
+    const { result } = renderRows(chunkedData(1200));
+
+    expect(result.current?.rows.loading).toBe(true);
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(kMessageRowsPageSize)
+    );
+    expect(result.current?.hasMore).toBe(true);
+    // whole-conversation numbering survives the paged read
+    expect(result.current?.rows.data?.[99]?.startNumber).toBe(100);
+
+    act(() => result.current?.loadMore());
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(2 * kMessageRowsPageSize)
+    );
+    expect(result.current?.rows.data?.[199]?.resolved.message.id).toBe("m-199");
+    expect(result.current?.hasMore).toBe(true);
+  });
+
+  it("reports exhaustion on a paged source's last page", async () => {
+    const { result } = renderRows(chunkedData(150));
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(kMessageRowsPageSize)
+    );
+    expect(result.current?.hasMore).toBe(true);
+
+    act(() => result.current?.loadMore());
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(150));
+    expect(result.current?.hasMore).toBe(false);
+  });
+
+  it("serves a monolith conversation whole in one read", async () => {
+    // in-memory sources are unpaged: customers' non-chunked evals keep the
+    // pre-paging feed — every row loaded, nothing behind loadMore
     const { result } = renderRows(settledData(makeMessages(1200)));
 
-    expect(result.current?.loading).toBe(true);
-    await waitFor(() => expect(result.current?.data).toHaveLength(1200));
-    expect(result.current?.loading).toBe(false);
-    expect(result.current?.data?.[1199]?.resolved.message.id).toBe("m-1199");
-    // whole-conversation numbering survives the read
-    expect(result.current?.data?.[1199]?.startNumber).toBe(1200);
+    expect(result.current?.rows.loading).toBe(true);
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(1200));
+    expect(result.current?.hasMore).toBe(false);
+    expect(result.current?.rows.data?.[1199]?.startNumber).toBe(1200);
+  });
+
+  it("handles an empty settled conversation", async () => {
+    const { result } = renderRows(settledData([]));
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(0));
+    expect(result.current?.hasMore).toBe(false);
   });
 
   it("is idle without activation, even over a warm cache", async () => {
     const data = settledData(makeMessages(3));
     const { result, rerender } = renderRows(data);
-    await waitFor(() => expect(result.current?.data).toHaveLength(3));
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(3));
 
     rerender({ data, activated: false });
     expect(result.current).toBeUndefined();
@@ -58,24 +105,110 @@ describe("useMessageRows", () => {
   it("serves cached rows synchronously when the read reactivates", async () => {
     const data = settledData(makeMessages(3));
     const { result, rerender } = renderRows(data);
-    await waitFor(() => expect(result.current?.data).toHaveLength(3));
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(3));
 
     rerender({ data, activated: false });
     expect(result.current).toBeUndefined();
     rerender({ data, activated: true });
-    expect(result.current?.data).toHaveLength(3);
+    expect(result.current?.rows.data).toHaveLength(3);
   });
 
-  it("reads a chunked sample through hydration", async () => {
+  it("reads a chunked sample through the windowed source", async () => {
     const chunked = testChunkedSample(sequenceReaderOver(makeMessages(4)));
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
-    expect(result.current?.loading).toBe(true);
-    await waitFor(() => expect(result.current?.data).toHaveLength(4));
+    expect(result.current?.rows.loading).toBe(true);
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(4));
+    expect(result.current?.hasMore).toBe(false);
   });
 
-  it("surfaces a chunked hydration failure as error, not endless loading", async () => {
+  it("drains pages until a deep-link target is resident before serving rows", async () => {
+    const servedLengths: number[] = [];
+    const { result } = renderHook(
+      () => {
+        const feed = useMessageRows(handle, chunkedData(300), true, "m-150");
+        if (feed?.rows.data !== undefined) {
+          servedLengths.push(feed.rows.data.length);
+        }
+        return feed;
+      },
+      { wrapper: makeWrapper() }
+    );
+
+    // the drain stops at the covering page, not the conversation's end
+    await waitFor(() =>
+      expect(result.current?.rows.data).toHaveLength(2 * kMessageRowsPageSize)
+    );
+    expect(result.current?.hasMore).toBe(true);
+    // rows were never served without the target resident: the list mounts
+    // with its initial scroll index resolvable
+    expect(servedLengths.every((l) => l === 2 * kMessageRowsPageSize)).toBe(
+      true
+    );
+  });
+
+  it("a target the conversation never renders drains to exhaustion, then serves", async () => {
+    const { result } = renderHook(
+      () => useMessageRows(handle, chunkedData(250), true, "nope"),
+      { wrapper: makeWrapper() }
+    );
+
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(250));
+    expect(result.current?.hasMore).toBe(false);
+  });
+
+  it("halts the deep-link drain when a page read fails", async () => {
+    // two chunks: the first covers the scan's whole first batch (512
+    // messages), the second rejects — the drain must settle on the error,
+    // not refetch the failing page in an unbounded loop
+    const messages = makeMessages(700);
+    const encoder = new TextEncoder();
+    let failingReads = 0;
+    const reader = new SequenceReader<ChatMessage>(
+      new ChunkByteStore({
+        readFile: (name) => {
+          if (name !== "chunk/0.json") {
+            failingReads++;
+            return Promise.reject(new Error("boom"));
+          }
+          return Promise.resolve(
+            encoder.encode(JSON.stringify(messages.slice(0, 512)))
+          );
+        },
+      }),
+      (start) => `chunk/${start}.json`,
+      [0, 512],
+      700
+    );
+    const data: EvalSampleData = {
+      ...streamingData,
+      status: "ok",
+      chunked: testChunkedSample(reader),
+    };
+    const { result } = renderHook(
+      () => useMessageRows(handle, data, true, "m-650"),
+      { wrapper: makeWrapper() }
+    );
+
+    await waitFor(() =>
+      expect(result.current?.rows.error).toBeInstanceOf(Error)
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(failingReads).toBe(1);
+  });
+
+  it("keeps the served feed's identity stable across rerenders", async () => {
+    const data = settledData(makeMessages(3));
+    const { result, rerender } = renderRows(data);
+    await waitFor(() => expect(result.current?.rows.data).toHaveLength(3));
+
+    const served = result.current;
+    rerender({ data, activated: true });
+    expect(result.current).toBe(served);
+  });
+
+  it("surfaces a chunked read failure as error, not endless loading", async () => {
     const chunked = testChunkedSample(
       failingSequenceReader(new Error("boom")),
       [[0, 2]]
@@ -83,8 +216,10 @@ describe("useMessageRows", () => {
     const data: EvalSampleData = { ...streamingData, status: "ok", chunked };
     const { result } = renderRows(data);
 
-    await waitFor(() => expect(result.current?.error).toBeInstanceOf(Error));
-    expect(result.current?.loading).toBe(false);
-    expect(result.current?.data).toBeUndefined();
+    await waitFor(() =>
+      expect(result.current?.rows.error).toBeInstanceOf(Error)
+    );
+    expect(result.current?.rows.loading).toBe(false);
+    expect(result.current?.rows.data).toBeUndefined();
   });
 });

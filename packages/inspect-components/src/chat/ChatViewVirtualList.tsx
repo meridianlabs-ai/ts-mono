@@ -34,6 +34,7 @@ import { messageSearchText } from "./messageSearchText";
 import {
   buildMessageRows,
   messageRowOptions,
+  rowContainsMessage,
   type MessageRow,
 } from "./rowsModel";
 import {
@@ -65,9 +66,22 @@ const chatComponents = { Item: ChatItem };
 // Empirically tuned, sign-inverted vs naive TanStack math; don't "fix" without re-verifying against both chat and transcript surfaces.
 const kChatScrollPaddingStart = -15;
 
+// How close (in rows) the viewport gets to the loaded end before the next
+// page is requested — roughly a viewport of chat rows, so the fetch usually
+// lands before the user reaches the footer.
+const kLoadMoreMarginRows = 20;
+
 export interface ChatViewRowsVirtualListProps {
   id: string;
   rows: MessageRow[];
+  /** A paged host's signal that `rows` is a loaded prefix, not the whole
+   *  conversation: keeps a loading footer below the list and arms the
+   *  near-end trigger. */
+  hasMoreRows?: boolean;
+  /** Request the page after `rows`. Called whenever the viewport nears the
+   *  loaded end — possibly repeatedly, so the host owns the in-flight
+   *  guard. */
+  onLoadMoreRows?: () => void;
   className?: string | string[];
   initialMessageId?: string | null;
   /** Explicit `follow=1` URL param: arm live-tail at mount even on a
@@ -96,6 +110,8 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
   function ChatViewRowsVirtualList({
     id,
     rows,
+    hasMoreRows,
+    onLoadMoreRows,
     initialMessageId,
     followRequested,
     className,
@@ -125,23 +141,32 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       itemCount: rows.length,
     });
 
+    // The near-end trigger re-checks on scroll AND when rows grow: a landing
+    // page doesn't move the viewport, so the rows-grow case rides on
+    // VirtualList replaying the current range whenever this callback's
+    // identity (here, `rows.length`) changes — a user parked at the loaded
+    // end keeps paging without scrolling.
+    const handleVisibleRangeChange = useCallback(
+      (range: { startIndex: number; endIndex: number }) => {
+        if (
+          hasMoreRows &&
+          onLoadMoreRows &&
+          range.endIndex >= rows.length - kLoadMoreMarginRows
+        ) {
+          onLoadMoreRows();
+        }
+      },
+      [hasMoreRows, onLoadMoreRows, rows.length]
+    );
+
     const initialMessageIndex = useMemo(() => {
       if (initialMessageId === null || initialMessageId === undefined) {
         return undefined;
       }
 
-      const index = rows.findIndex((row) => {
-        const messageId = row.resolved.message.id === initialMessageId;
-        if (messageId) {
-          return true;
-        }
-
-        if (
-          row.resolved.toolMessages.find((tm) => tm.id === initialMessageId)
-        ) {
-          return true;
-        }
-      });
+      const index = rows.findIndex((row) =>
+        rowContainsMessage(row, initialMessageId)
+      );
       return index !== -1 ? index : undefined;
     }, [initialMessageId, rows]);
 
@@ -250,6 +275,8 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         components={chatComponents}
         smoothScroll={false}
         itemSearchText={rowSearchText}
+        showProgress={hasMoreRows}
+        onVisibleRangeChange={handleVisibleRangeChange}
       />
     );
   }

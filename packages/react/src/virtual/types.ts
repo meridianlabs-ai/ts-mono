@@ -67,6 +67,11 @@ export interface VirtualListProps<T> {
   itemSearchText?: (item: T) => string | string[];
   findScope?: "local" | "none";
   scrollToTopOnFinish?: boolean;
+  /** Called when the rendered range changes, AND replayed with the current
+   *  range whenever the callback's identity changes — callers rely on that
+   *  replay to re-check conditions that shift under a static viewport (e.g.
+   *  near-end paging when appended rows land). Keep the callback in the
+   *  notifying effect's deps. */
   onVisibleRangeChange?: (range: {
     startIndex: number;
     endIndex: number;
