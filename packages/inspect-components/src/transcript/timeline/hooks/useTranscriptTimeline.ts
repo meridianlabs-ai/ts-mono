@@ -172,8 +172,18 @@ export function useTranscriptTimeline(
   const {
     active: activeTimeline,
     activeIndex: activeTimelineIndex,
-    setActive: setActiveTimeline,
+    setActive: setActiveTimelineIndex,
   } = useActiveTimeline(timelines, activeTimelineProps);
+  const onSelectTimeline = timelineProps?.onSelect;
+
+  const setActiveTimeline = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= timelines.length) return;
+      onSelectTimeline?.(null);
+      setActiveTimelineIndex(index);
+    },
+    [onSelectTimeline, setActiveTimelineIndex, timelines.length]
+  );
 
   // timelines is always non-empty here (built from events or serverTimelines),
   // so activeTimeline is guaranteed to be defined.
