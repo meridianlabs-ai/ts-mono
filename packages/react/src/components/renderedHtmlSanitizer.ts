@@ -4,6 +4,8 @@ import createDOMPurify, {
   type UponSanitizeAttributeHookEvent,
 } from "dompurify";
 
+import { isRenderableImageSource } from "@tsmono/util";
+
 const FORBIDDEN_TAGS = [
   "animate",
   "animatemotion",
@@ -17,7 +19,6 @@ const FORBIDDEN_TAGS = [
   "form",
   "iframe",
   "image",
-  "img",
   "input",
   "link",
   "meta",
@@ -105,6 +106,9 @@ const UNSAFE_CSS_PATTERN =
 
 const PURIFY_CONFIG: Config = {
   ADD_ATTR: [...MATHJAX_ATTRS, "target"],
+  // `img` is not in FORBIDDEN_TAGS, but every src is still gated on
+  // isRenderableImageSource below, so only inline raster data survives.
+  ADD_DATA_URI_TAGS: ["img"],
   ADD_TAGS: MATHJAX_TAGS,
   ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
@@ -181,10 +185,14 @@ const installHooks = (purify: DOMPurifyInstance): void => {
       sanitizeStyleAttributeHook(node, hookEvent);
     } else if (
       URL_ATTRIBUTES.has(hookEvent.attrName) &&
-      !isSafeUrlAttribute(hookEvent.attrValue)
+      !isSafeUrlAttribute(node, hookEvent.attrName, hookEvent.attrValue)
     ) {
       hookEvent.keepAttr = false;
       node.removeAttribute(hookEvent.attrName);
+      // A src-less img is a broken-image placeholder, so remove the element.
+      if (node.tagName.toLowerCase() === "img") {
+        node.remove();
+      }
     }
   });
 
@@ -212,7 +220,11 @@ const sanitizeStyleAttributeHook = (
   }
 };
 
-const isSafeUrlAttribute = (value: string): boolean => {
+const isSafeUrlAttribute = (
+  node: Element,
+  attrName: string,
+  value: string
+): boolean => {
   const trimmed = value.trim();
   if (!trimmed) {
     return true;
@@ -228,6 +240,13 @@ const isSafeUrlAttribute = (value: string): boolean => {
       return charCode > 0x1f && charCode !== 0x7f && !/\s/.test(char);
     })
     .join("");
+
+  // Must precede the generic checks: a remote src is not unsafe by protocol,
+  // but loading it leaks a fetch to an attacker-controlled host, so an img src
+  // is allowed only when it is inline raster data that needs no request.
+  if (attrName === "src" && node.tagName.toLowerCase() === "img") {
+    return isRenderableImageSource(normalized);
+  }
 
   if (/^data:/i.test(normalized)) {
     return false;

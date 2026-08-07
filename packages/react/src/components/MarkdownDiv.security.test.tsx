@@ -85,14 +85,29 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(anchor?.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
-  it("does not render data-image markdown or post-processed image tags", async () => {
+  it("renders validated inline data images from markdown", async () => {
+    const dataImage =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    const { container } = render(
+      <MarkdownDiv markdown={`![pixel](${dataImage})`} />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(dataImage);
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe("pixel");
+  });
+
+  it("strips unsafe hrefs while keeping validated post-processed images", async () => {
     const dataImage =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
     const dataLink =
       "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==";
     const { container } = render(
       <MarkdownDiv
-        markdown={`![pixel](${dataImage})`}
+        markdown="text"
         postProcess={(html) =>
           `${html}<img src="${dataImage}"><a href="${dataLink}">unsafe</a>`
         }
@@ -100,10 +115,29 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector("a")).not.toBeNull();
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
+  });
+
+  it.each([
+    "https://example.com/pixel.png",
+    "//example.com/pixel.png",
+    "data:image/svg+xml;base64,AAAA",
+    "data:image/png,AAAA",
+  ])("removes img with src %s", async (source) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) => `${html}<img src="${source}">`}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
     });
 
     expect(container.querySelector("img")).toBeNull();
-    expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
   });
 });
