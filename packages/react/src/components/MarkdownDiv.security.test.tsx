@@ -106,4 +106,22 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
   });
+
+  it("does not let math break out of an attribute into real markup", async () => {
+    const payload = `$\\href{x"><span id="mjx-aa"><style>#mjx-aa{}body{background-image:image-set('https://evil.example/b.png' 1x)}</style><b z="}{z}$`;
+    const { container } = render(<MarkdownDiv markdown={payload} />);
+
+    await waitFor(() => {
+      expect(container.querySelector("mjx-container")).not.toBeNull();
+    });
+
+    // Count only injected styles: every math render emits one legitimate
+    // MathJax stylesheet, so a bare querySelector("style") would pass here for
+    // the wrong reason.
+    const injected = Array.from(container.querySelectorAll("style")).filter(
+      (s) => (s.textContent ?? "").includes("evil.example")
+    );
+    expect(injected).toHaveLength(0);
+    expect(container.querySelector("a[href]")).toBeNull();
+  });
 });
