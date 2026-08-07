@@ -124,4 +124,84 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(injected).toHaveLength(0);
     expect(container.querySelector("a[href]")).toBeNull();
   });
+
+  it.each(["table", "thead", "tbody", "tfoot", "tr", "td", "th"])(
+    "removes the background attribute from %s",
+    async (tag) => {
+      const { container } = render(
+        <MarkdownDiv
+          markdown="text"
+          postProcess={(html) =>
+            `${html}<table><${tag} background="https://evil.example/x.png"></${tag}></table>`
+          }
+        />
+      );
+
+      await waitFor(() => {
+        expect(container.textContent).toContain("text");
+      });
+
+      expect(container.querySelector("[background]")).toBeNull();
+      expect(container.innerHTML).not.toContain("evil.example");
+    }
+  );
+
+  it.each([
+    ["entity encoded", "&#104;ttps://evil.example/x.png"],
+    ["leading whitespace", "   https://evil.example/x.png"],
+  ])("removes a background attribute written as %s", async (_label, value) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) => `${html}<table background="${value}"></table>`}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector("[background]")).toBeNull();
+  });
+
+  // Each element needs its real parent namespace: mglyph is MathML, and inside
+  // <svg> it is dropped as unknown, which would pass for the wrong reason.
+  it.each([
+    ["mglyph", "math"],
+    ["feimage", "svg"],
+    ["animatecolor", "svg"],
+  ])("removes the %s element", async (tag, parent) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<${parent}><${tag} src="https://evil.example/x.png" href="https://evil.example/y.png"></${tag}></${parent}>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector(tag)).toBeNull();
+    expect(container.innerHTML).not.toContain("evil.example");
+  });
+
+  it("removes a src attribute from a non-img element", async () => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<math><mtext src="https://evil.example/x.png">m</mtext></math>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector("[src]")).toBeNull();
+  });
 });

@@ -4,8 +4,14 @@ import createDOMPurify, {
   type UponSanitizeAttributeHookEvent,
 } from "dompurify";
 
+// Everything here either fetches a subresource or animates one in. feimage is
+// currently unreachable because USE_PROFILES omits DOMPurify's svgFilters
+// profile — it is listed so that enabling that profile cannot silently open a
+// fetch vector. animatecolor is the one SMIL element the rest of this list
+// missed.
 const FORBIDDEN_TAGS = [
   "animate",
+  "animatecolor",
   "animatemotion",
   "animatetransform",
   "audio",
@@ -13,6 +19,7 @@ const FORBIDDEN_TAGS = [
   "button",
   "discard",
   "embed",
+  "feimage",
   "foreignobject",
   "form",
   "iframe",
@@ -21,6 +28,7 @@ const FORBIDDEN_TAGS = [
   "input",
   "link",
   "meta",
+  "mglyph",
   "mpath",
   "object",
   "picture",
@@ -58,10 +66,8 @@ const MATHJAX_ATTRS = [
 
 const URL_ATTRIBUTES = new Set([
   "action",
-  "background",
   "formaction",
   "href",
-  "poster",
   "src",
   "xlink:href",
 ]);
@@ -116,7 +122,11 @@ const PURIFY_CONFIG: Config = {
   ADD_TAGS: MATHJAX_TAGS,
   ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
-  FORBID_ATTR: ["srcdoc", "srcset"],
+  // background fetches on every table element per HTML §15.3.3, and no
+  // protocol check helps: the dangerous value is an ordinary https URL.
+  // Dropping them from URL_ATTRIBUTES alone would mean nothing checks them,
+  // since isSafeUrlAttribute allows by default.
+  FORBID_ATTR: ["background", "poster", "srcdoc", "srcset"],
   FORBID_TAGS: FORBIDDEN_TAGS,
   USE_PROFILES: { html: true, mathMl: true, svg: true },
 };
@@ -177,6 +187,13 @@ const installHooks = (purify: DOMPurifyInstance): void => {
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
       sanitizeStyleAttributeHook(node, hookEvent);
+    } else if (hookEvent.attrName === "src") {
+      // img is forbidden outright and every other src-bearing element is
+      // either forbidden or does not fetch, so nothing that survives needs a
+      // src. A protocol check would not help: the dangerous value is an
+      // ordinary https URL, which is exactly what mglyph carried through.
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
     } else if (
       URL_ATTRIBUTES.has(hookEvent.attrName) &&
       !isSafeUrlAttribute(hookEvent.attrValue)
