@@ -90,7 +90,9 @@ export const getMarkdownInstance = async (
     // canonical form, not the raw source — see canonicalImageSource.
     const canonicalSource = canonicalImageSource(source);
     if (canonicalSource !== undefined) {
-      return `<img src="${md.utils.escapeHtml(canonicalSource)}" alt="${md.utils.escapeHtml(alt)}">`;
+      const title = token.attrGet("title");
+      const titleAttr = title ? ` title="${md.utils.escapeHtml(title)}"` : "";
+      return `<img src="${md.utils.escapeHtml(canonicalSource)}" alt="${md.utils.escapeHtml(alt)}"${titleAttr}>`;
     }
 
     const href = parseAbsoluteHttpUrl(source);

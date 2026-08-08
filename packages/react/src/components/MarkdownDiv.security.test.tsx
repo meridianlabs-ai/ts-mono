@@ -100,6 +100,24 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.querySelector("img")?.getAttribute("alt")).toBe("pixel");
   });
 
+  it("keeps the markdown image title through sanitization", async () => {
+    const dataImage =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    // Paren-form title: the pipeline entity-escapes quotes before markdown-it
+    // runs, so a quoted title would never parse here.
+    const { container } = render(
+      <MarkdownDiv markdown={`![pixel](${dataImage} (hover text))`} />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("img")?.getAttribute("title")).toBe(
+      "hover text"
+    );
+  });
+
   it("strips unsafe hrefs while keeping validated post-processed images", async () => {
     const dataImage =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";

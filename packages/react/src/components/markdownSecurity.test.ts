@@ -203,6 +203,37 @@ describe("MarkdownDiv XSS security", () => {
       expect(result).not.toContain('onerror="alert(1)"');
     });
 
+    it("emits the markdown title on rendered images", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        '![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw= "hover text")'
+      );
+
+      expect(result).toContain("<img");
+      expect(result).toContain('title="hover text"');
+    });
+
+    it("escapes title text inside the image rule itself", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        '![a](data:image/gif;base64,R0lGODlhAQABAAAAACw= "t\\"onerror=\\"alert(1)")'
+      );
+
+      expect(result).toContain("<img");
+      expect(result).toContain("&quot;");
+      expect(result).not.toContain('onerror="alert(1)"');
+    });
+
+    it("omits the title attribute when markdown has none", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)"
+      );
+
+      expect(result).toContain("<img");
+      expect(result).not.toContain("title=");
+    });
+
     it("does not auto-link plain URL text", async () => {
       const result = await renderMarkdown(
         "https://example.com/image.png",
