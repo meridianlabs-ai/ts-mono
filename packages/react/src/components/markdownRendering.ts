@@ -6,7 +6,7 @@
 import MarkdownIt from "markdown-it";
 
 import {
-  isRenderableImageSource,
+  canonicalImageSource,
   parseAbsoluteHttpUrl,
   parseDataUri,
 } from "@tsmono/util";
@@ -86,9 +86,11 @@ export const getMarkdownInstance = async (
     const alt = token.content.trim();
 
     // Base64 raster data URIs issue no network request, so rendering them
-    // inline cannot leak a fetch to an attacker-controlled host.
-    if (isRenderableImageSource(source)) {
-      return `<img src="${md.utils.escapeHtml(source)}" alt="${md.utils.escapeHtml(alt)}">`;
+    // inline cannot leak a fetch to an attacker-controlled host. Emit the
+    // canonical form, not the raw source — see canonicalImageSource.
+    const canonicalSource = canonicalImageSource(source);
+    if (canonicalSource !== undefined) {
+      return `<img src="${md.utils.escapeHtml(canonicalSource)}" alt="${md.utils.escapeHtml(alt)}">`;
     }
 
     const href = parseAbsoluteHttpUrl(source);
