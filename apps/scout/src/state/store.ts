@@ -840,16 +840,19 @@ const ApiContext = createContext<ScoutApiV2 | null>(null);
 export const StoreProvider = StoreContext.Provider;
 export const ApiProvider = ApiContext.Provider;
 
+const selectWholeState = (state: StoreState) => state;
+
 export const useStore = <T>(selector?: (state: StoreState) => T) => {
-  const store = useContext(StoreContext);
-  if (!store) throw new Error("useStore must be used within StoreProvider");
+  // Named `use*` so React Compiler recognizes the call below as a hook. Under
+  // any other name it treats `store(selector)` as a plain call and memoizes it
+  // away, skipping zustand's useSyncExternalStore on later renders.
+  const useBoundStore = useContext(StoreContext);
+  if (!useBoundStore)
+    throw new Error("useStore must be used within StoreProvider");
 
-  // If no selector is provided, return the whole state
-  if (!selector) {
-    return store((state) => state) as T;
-  }
-
-  return store(selector);
+  return useBoundStore(
+    (selector ?? selectWholeState) as (state: StoreState) => T
+  );
 };
 
 export const useApi = (): ScoutApiV2 => {

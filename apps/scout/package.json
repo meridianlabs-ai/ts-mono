@@ -53,8 +53,10 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.29.7",
     "@msw/playwright": "^0.6.7",
     "@playwright/test": "^1.62.0",
+    "@rolldown/plugin-babel": "^0.2.3",
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-query-devtools": "^5.101.4",
     "@testing-library/react": "^16.3.1",
@@ -66,6 +68,7 @@
     "@tsmono/theme": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@tsmono/util": "workspace:*",
+    "@types/babel__core": "^7.20.5",
     "@types/bootstrap": "^5.2.11",
     "@types/css-modules": "^1.0.5",
     "@types/json5": "^2.2.0",
@@ -77,6 +80,7 @@
     "@types/react-dom": "^19.2.3",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vitejs/plugin-react": "^6.0.4",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.7.0",
     "eventsource": "^4.1.0",
     "jsdom": "^30.0.0",

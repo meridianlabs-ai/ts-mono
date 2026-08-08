@@ -1,7 +1,8 @@
 import { cpSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
-import react from "@vitejs/plugin-react";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import pc from "picocolors";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -41,6 +42,7 @@ export default defineConfig(({ mode }) => {
       react({
         jsxRuntime: "automatic",
       }),
+      babel({ presets: [reactCompilerPreset()] }),
     ],
     define: {
       __DEV_WATCH__: JSON.stringify(process.env.DEV_LOGGING === "true"),
