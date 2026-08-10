@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { getVscodeApi } from "@tsmono/util";
@@ -56,7 +57,11 @@ if (!container) {
 
 // Render into the root
 const root = createRoot(container);
-root.render(<App />);
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
 
 function restoreHash() {
   // Check if we need to restore a route
