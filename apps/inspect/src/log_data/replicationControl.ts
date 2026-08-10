@@ -29,7 +29,10 @@ export const openLogDirDatabase = async (
 // database, api, and per-dir cache sink are wired here. Dir mode also opens
 // the per-dir database; single-file mode starts the engine alone (the
 // database stays unopened, so reads miss and writes are cache-only).
-const startEngine = async (config: AppConfig): Promise<void> => {
+const startEngine = async (
+  config: AppConfig,
+  self?: Activation
+): Promise<void> => {
   const { api, logDir } = config;
   // Bump the engine epoch before re-scoping, so an in-flight listing sync
   // for the old dir is fenced (see `ListingUpdate.epoch`) before its
@@ -65,6 +68,16 @@ const startEngine = async (config: AppConfig): Promise<void> => {
   }
   const opened = await openLogDirDatabase(logDir);
   if (fetchEngine.epoch() !== epoch) {
+    // Superseded — but a supersede for the SAME dir (StrictMode remount,
+    // failed-start retry) is what the dir-equality contract above is meant to
+    // span, so it must not reject: callers already hold this promise, and
+    // react-query doesn't re-invoke `queryFn` on remount, so rejecting here
+    // strands the listing until the next poll (~50s). Adopt the live
+    // activation instead, so those callers settle with the running engine.
+    const current = activation;
+    if (current && current !== self && current.config.logDir === logDir) {
+      return current.promise;
+    }
     throw staleDirError(logDir);
   }
   if (!opened) {
@@ -83,11 +96,13 @@ const startEngine = async (config: AppConfig): Promise<void> => {
 // instead of re-awaiting the same rejection. Written only by
 // activate/deactivate (and the retry in `engineReady`) — acquisition paths
 // never start the engine themselves; they await `engineReady`.
-let activation: {
+type Activation = {
   config: AppConfig;
   promise: Promise<void>;
   failed: boolean;
-} | null = null;
+};
+
+let activation: Activation | null = null;
 
 // Set on controller unmount so a caller landing after a final deactivation
 // rejects instead of queueing a waiter that could never settle. Cleared on
@@ -118,8 +133,12 @@ const settleWaiters = () => {
   }
 };
 
-const beginActivation = (config: AppConfig) => {
-  const entry = { config, promise: startEngine(config), failed: false };
+const beginActivation = (config: AppConfig): Activation => {
+  // `self` lets a superseded start tell "a newer activation replaced me"
+  // (adopt it) from "I am still the current one" (a same-promise adopt would
+  // be a chaining cycle).
+  const entry = { config, failed: false } as Activation;
+  entry.promise = startEngine(config, entry);
   // Mark the failure for retry, and observe the rejection so an activation
   // nobody awaits (e.g. failure before any query ran) doesn't surface as an
   // unhandled rejection; awaiting callers still see the original promise
