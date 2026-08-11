@@ -90,7 +90,7 @@ describe("syncListing", () => {
     expect(applied[0]?.invalidated).toEqual([]);
   });
 
-  it("static local list (no mtimes): a changed server list invalidates everything, cache-only", async () => {
+  it("static local list (no mtimes): a changed server list deletes ghosts and persists", async () => {
     const local = [handle("a.eval"), handle("b.eval")];
     const server = [handle("a.eval"), handle("c.eval")];
     const { target, applied } = targetWith(local);
@@ -103,9 +103,9 @@ describe("syncListing", () => {
     expect(applied).toEqual([
       {
         listing: server,
-        invalidated: ["a.eval", "b.eval"],
-        deleted: [],
-        persistListing: false,
+        invalidated: ["a.eval", "c.eval"],
+        deleted: ["b.eval"],
+        persistListing: true,
         epoch: 7,
       },
     ]);
