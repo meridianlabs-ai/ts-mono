@@ -29,10 +29,7 @@ export const openLogDirDatabase = async (
 // database, api, and per-dir cache sink are wired here. Dir mode also opens
 // the per-dir database; single-file mode starts the engine alone (the
 // database stays unopened, so reads miss and writes are cache-only).
-const startEngine = async (
-  config: AppConfig,
-  self?: Activation
-): Promise<void> => {
+const startEngine = async (config: AppConfig, seq: number): Promise<void> => {
   const { api, logDir } = config;
   // Bump the engine epoch before re-scoping, so an in-flight listing sync
   // for the old dir is fenced (see `ListingUpdate.epoch`) before its
@@ -75,7 +72,7 @@ const startEngine = async (
     // strands the listing until the next poll (~50s). Adopt the live
     // activation instead, so those callers settle with the running engine.
     const current = activation;
-    if (current && current !== self && current.config.logDir === logDir) {
+    if (current && current.seq > seq && current.config.logDir === logDir) {
       return current.promise;
     }
     throw staleDirError(logDir);
@@ -97,11 +94,16 @@ const startEngine = async (
 // activate/deactivate (and the retry in `engineReady`) — acquisition paths
 // never start the engine themselves; they await `engineReady`.
 type Activation = {
+  // Monotonic id. A superseded start adopts only a *strictly newer*
+  // activation, which also rules out adopting itself — resolving a promise
+  // with itself is a chaining cycle.
+  seq: number;
   config: AppConfig;
   promise: Promise<void>;
   failed: boolean;
 };
 
+let activationSeq = 0;
 let activation: Activation | null = null;
 
 // Set on controller unmount so a caller landing after a final deactivation
@@ -134,11 +136,13 @@ const settleWaiters = () => {
 };
 
 const beginActivation = (config: AppConfig): Activation => {
-  // `self` lets a superseded start tell "a newer activation replaced me"
-  // (adopt it) from "I am still the current one" (a same-promise adopt would
-  // be a chaining cycle).
-  const entry = { config, failed: false } as Activation;
-  entry.promise = startEngine(config, entry);
+  const seq = ++activationSeq;
+  const entry: Activation = {
+    seq,
+    config,
+    promise: startEngine(config, seq),
+    failed: false,
+  };
   // Mark the failure for retry, and observe the rejection so an activation
   // nobody awaits (e.g. failure before any query ran) doesn't surface as an
   // unhandled rejection; awaiting callers still see the original promise
