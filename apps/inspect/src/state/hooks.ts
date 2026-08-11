@@ -360,8 +360,11 @@ export const useFilteredSamples = () => {
         ? filterSamples(samplesDescriptor, sampleSummaries, filter)
         : { result: sampleSummaries, error: undefined, allErrors: false };
 
-    const filtered =
-      error === undefined || !allErrors ? result : sampleSummaries;
+    // A filter that errored on every sample is reported rather than applied —
+    // the unfiltered list stays visible under the error annotation.
+    const failedAllSamples = error !== undefined && allErrors;
+
+    const filtered = failedAllSamples ? sampleSummaries : result;
 
     // Skip the clone + sort when the list is already ordered (the common case).
     const sorted =
@@ -371,7 +374,7 @@ export const useFilteredSamples = () => {
 
     return {
       samples: sorted,
-      filterError: error && allErrors ? error : undefined,
+      filterError: failedAllSamples ? error : undefined,
     };
   }, [samplesDescriptor, sampleSummaries, filter]);
 
