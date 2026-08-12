@@ -27,8 +27,9 @@ export const openLogDirDatabase = async (
 
 // Start the engine for a config snapshot — the composition root: the
 // database, api, and per-dir cache sink are wired here. Dir mode also opens
-// the per-dir database; single-file mode starts the engine alone (the
-// database stays unopened, so reads miss and writes are cache-only).
+// the per-dir database; single-file mode starts the engine with no database
+// (`database: null` per FetchEngineDeps — reads miss without probing
+// IndexedDB, writes are cache-only).
 const startEngine = async (config: AppConfig, seq: number): Promise<void> => {
   const { api, logDir } = config;
   // Bump the engine epoch before re-scoping, so an in-flight listing sync
@@ -54,11 +55,10 @@ const startEngine = async (config: AppConfig, seq: number): Promise<void> => {
   // mechanism — it would be a third.
   const epoch = fetchEngine.epoch();
   if (config.singleFileMode) {
-    const database = getDatabaseService();
     await fetchEngine.start({
       api,
-      database,
-      sink: createLogsContentSink(database, logDir),
+      database: null,
+      sink: createLogsContentSink(null, logDir),
       logDir,
     });
     return;

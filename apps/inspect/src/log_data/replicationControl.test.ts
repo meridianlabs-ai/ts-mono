@@ -89,6 +89,20 @@ describe("fetch engine activation lifecycle", () => {
     expect(h.start).toHaveBeenCalledTimes(1);
   });
 
+  test("a single-file activation starts the engine with no database", async () => {
+    // The engine's contract (FetchEngineDeps.database) spells "no
+    // persistence" as null; passing the unopened service instead made
+    // beginFetch probe a closed database on every fetch (#518).
+    const { activateFetchEngine, fetchLog } = await control();
+
+    activateFetchEngine({ ...configFor("dirA"), singleFileMode: true });
+    await fetchLog("dirA", "file.eval");
+
+    expect(h.openDatabase).not.toHaveBeenCalled();
+    expect(h.start).toHaveBeenCalledTimes(1);
+    expect(h.start.mock.calls[0]?.[0]).toMatchObject({ database: null });
+  });
+
   test("fetchLog rejects when a dir switch lands while its activation settles", async () => {
     // Hold dirA's activation open across the database open, switch to dirB,
     // then release: the resumed caller must not fetch into dirB's engine.
