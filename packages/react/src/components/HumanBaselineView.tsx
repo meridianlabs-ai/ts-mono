@@ -19,6 +19,7 @@ export interface SessionLog {
 }
 
 interface HumanBaselineViewProps {
+  id: string;
   started?: Date;
   running: boolean;
   completed?: boolean;
@@ -31,6 +32,7 @@ interface HumanBaselineViewProps {
  * Renders the HumanBaselineView component.
  */
 export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
+  id,
   started,
   runtime,
   answer,
@@ -60,7 +62,7 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
       label: title,
       render: () => (
         <AsciinemaPlayer
-          id={`player-${currentCount}`}
+          id={`${id}-player-${currentCount}`}
           inputUrl={createRevokableUrl(sessionLog.input)}
           outputUrl={createRevokableUrl(sessionLog.output)}
           timingUrl={createRevokableUrl(sessionLog.timing)}
@@ -94,7 +96,7 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
           />
         </div>
         <div className={"asciinema-body"}>
-          <LightboxCarousel id="ascii-cinema" slides={player_fns} />
+          <LightboxCarousel id={`${id}-ascii-cinema`} slides={player_fns} />
         </div>
       </div>
     </div>

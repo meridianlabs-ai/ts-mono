@@ -61,8 +61,8 @@ export const StateEventView: FC<StateEventViewProps> = ({
   const changePreview = useMemo(() => {
     const isStore = eventNode.event.event === "store";
     const afterClone = structuredClone(after) || {};
-    return generatePreview(event.changes, afterClone, isStore);
-  }, [event.changes, eventNode.event.event, after]);
+    return generatePreview(event.changes, afterClone, isStore, eventNode.id);
+  }, [event.changes, eventNode.event.event, after, eventNode.id]);
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
 
@@ -105,7 +105,8 @@ export const StateEventView: FC<StateEventViewProps> = ({
 const generatePreview = (
   changes: JsonChange[],
   resolvedState: Record<string, unknown>,
-  isStore: boolean
+  isStore: boolean,
+  eventNodeId: string
 ) => {
   const results: ReactNode[] = [];
   for (const changeType of [
@@ -163,14 +164,14 @@ const generatePreview = (
         }
       }
       if (matchingOps === requiredMatchCount) {
-        const el = changeType.render(changes, resolvedState);
+        const el = changeType.render(changes, resolvedState, eventNodeId);
         results.push(el);
         break;
       }
     } else if (changeType.match) {
       const matches = changeType.match(changes);
       if (matches) {
-        const el = changeType.render(changes, resolvedState);
+        const el = changeType.render(changes, resolvedState, eventNodeId);
         results.push(el);
         break;
       }
