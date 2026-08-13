@@ -1147,7 +1147,7 @@ export class FetchEngine {
   private async updateDbStats(): Promise<void> {
     const deps = this._deps;
     const database = deps?.database;
-    if (deps === undefined || database === null || database === undefined) {
+    if (!deps || !database) {
       return;
     }
     try {

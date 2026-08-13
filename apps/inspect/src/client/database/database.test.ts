@@ -125,14 +125,10 @@ describe("Database Service", () => {
   });
 
   afterEach(async () => {
-    // Clean up after each test (only if database is still open). The
-    // database name is a constant, so cross-test isolation comes from
-    // deleting it outright.
-    try {
-      databaseService.close();
-    } catch {
-      // Database might already be closed in error handling tests
-    }
+    // The database name is a constant, so cross-test isolation comes from
+    // deleting it outright. close() is idempotent — the error-handling
+    // test's early close is fine.
+    databaseService.close();
     await Dexie.delete(DB_NAME);
   });
 
