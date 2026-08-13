@@ -41,10 +41,21 @@ export interface VirtualListComponents {
 export interface VirtualListProps<T> {
   persistenceKey: string;
   ref?: Ref<VirtualListHandle>;
+  /** DOM id applied to the list's root element. */
+  id?: string;
   className?: string;
   scrollRef?: RefObject<HTMLElement | null>;
   data: T[];
   renderRow: (index: number, item: T) => ReactNode;
+  /** Estimated row height (px) used for rows not yet measured. */
+  estimatedItemHeight?: number;
+  /** Rows rendered beyond the visible range (items, not px). */
+  overscan?: number;
+  /** When false, a mount with no persisted snapshot leaves the scroll
+   *  container's position alone instead of resetting it to top. For embedded
+   *  lists whose container's scroll position is owned by the host (e.g. a
+   *  stateful tab scroller). */
+  resetScrollOnMount?: boolean;
   live?: boolean;
   /** This mount is owned by navigation (a `?event=`/`?message=` deep link, or
    *  an exit-focus landing): the deep-link landing owns the scroll position, so

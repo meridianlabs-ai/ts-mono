@@ -439,3 +439,121 @@ describe("VirtualList persist flush on unmount", () => {
     expect(el.scrollTop).toBe(300);
   });
 });
+
+describe("VirtualList embedded in a shared scroll container", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const mountEmbedded = (props?: { resetScrollOnMount?: boolean }) => {
+    const scrollRef = createRef<HTMLDivElement>();
+    const list = (
+      <div ref={scrollRef} data-scroller="">
+        <VirtualList<string>
+          persistenceKey="embedded-list"
+          id="embedded-root"
+          scrollRef={scrollRef}
+          data={["a", "b", "c"]}
+          renderRow={(_index: number, item: string) => <div>{item}</div>}
+          live={false}
+          {...props}
+        />
+      </div>
+    );
+    const hooks = makeStateHooks();
+    const view = render(<Wrapper hooks={hooks}>{list}</Wrapper>);
+    return {
+      ...view,
+      scrollRef,
+      rerenderSame: () =>
+        view.rerender(<Wrapper hooks={hooks}>{list}</Wrapper>),
+    };
+  };
+
+  it("resets a snapshot-less mount to top by default", () => {
+    const { scrollRef, unmount } = mountEmbedded();
+    const el = scrollRef.current!;
+    // A foreign scrollTop carried by the shared container (e.g. the previous
+    // tab's position).
+    el.scrollTop = 250;
+    vi.advanceTimersByTime(50);
+    expect(el.scrollTop).toBe(0);
+    unmount();
+  });
+
+  it("leaves the container position alone with resetScrollOnMount=false", () => {
+    // Hosts like a stateful tab scroller own the container's position;
+    // the list must not fight their restore.
+    const { scrollRef, unmount } = mountEmbedded({ resetScrollOnMount: false });
+    const el = scrollRef.current!;
+    el.scrollTop = 250;
+    vi.advanceTimersByTime(50);
+    expect(el.scrollTop).toBe(250);
+    unmount();
+  });
+
+  it("subtracts the list's offset in the container from its own padding", () => {
+    // Content above an embedded list occupies real DOM space; item
+    // coordinates include it (TanStack scrollMargin), so the list's spacer
+    // must not duplicate it. Layout is mocked before mount: the scroller is
+    // 800x600 at top 0, the list root sits 100px below it.
+    const proto = HTMLElement.prototype;
+    const origRectDesc = Object.getOwnPropertyDescriptor(
+      Element.prototype,
+      "getBoundingClientRect"
+    )!;
+    const origOffsetHeight = Object.getOwnPropertyDescriptor(
+      proto,
+      "offsetHeight"
+    );
+    const origOffsetWidth = Object.getOwnPropertyDescriptor(
+      proto,
+      "offsetWidth"
+    );
+    proto.getBoundingClientRect = function () {
+      if (this.hasAttribute("data-scroller"))
+        return { top: 0, left: 0, width: 800, height: 600 } as DOMRect;
+      if (this.id === "embedded-root")
+        return { top: 100, left: 0, width: 800, height: 1200 } as DOMRect;
+      return (origRectDesc.value as () => DOMRect).call(this);
+    };
+    Object.defineProperty(proto, "offsetHeight", {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(proto, "offsetWidth", {
+      configurable: true,
+      get: () => 800,
+    });
+
+    try {
+      const { unmount } = mountEmbedded();
+      const root = document.getElementById("embedded-root")!;
+
+      // All three (estimated 400px) rows land in or overscan past the 600px
+      // viewport, whose window starts at the container's scrollTop (0) —
+      // margin-inclusive item coordinates keep them aligned.
+      const rows = root.querySelectorAll("[data-item-index]");
+      expect(rows.length).toBe(3);
+      // No top/bottom spacer chunks: the 100px above the list is real
+      // content, and the rendered band covers the whole list height.
+      expect(root.children.length).toBe(1);
+      // Rows are positioned relative to the band, unaffected by the margin
+      // (each row measures at the mocked 600px offsetHeight).
+      expect((rows[0] as HTMLElement).style.top).toBe("0px");
+      expect((rows[1] as HTMLElement).style.top).toBe("600px");
+      unmount();
+    } finally {
+      Reflect.deleteProperty(proto, "getBoundingClientRect");
+      if (origOffsetHeight)
+        Object.defineProperty(proto, "offsetHeight", origOffsetHeight);
+      else Reflect.deleteProperty(proto, "offsetHeight");
+      if (origOffsetWidth)
+        Object.defineProperty(proto, "offsetWidth", origOffsetWidth);
+      else Reflect.deleteProperty(proto, "offsetWidth");
+    }
+  });
+});

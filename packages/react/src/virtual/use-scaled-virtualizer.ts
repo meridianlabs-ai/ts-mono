@@ -18,6 +18,11 @@ export type ScaledVirtualizerOptions = {
   getScrollElement: () => HTMLElement | null;
   overscan?: number;
   scrollPaddingStart?: number;
+  /** Offset (px) of the list within its scroll element, for embedded lists
+   *  with content above them in a shared scroller. Item coordinates include
+   *  it; getTotalSize() does not. NOT scale-aware — an embedded list large
+   *  enough to engage scaling (>~16M px) is unsupported. */
+  scrollMargin?: number;
 };
 
 export type ScaledVirtualizerResult = {
@@ -93,6 +98,7 @@ export function useScaledVirtualizer(
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
     scrollPaddingStart: opts.scrollPaddingStart ?? 0,
+    scrollMargin: opts.scrollMargin ?? 0,
     observeElementOffset: scaledObserveElementOffset,
     scrollToFn: scaledScrollToFn,
   });
