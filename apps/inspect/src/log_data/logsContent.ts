@@ -8,7 +8,7 @@ import {
   LogFetchState,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService, scopePrefix } from "../client/database";
+import { OpenDatabase, scopePrefix } from "../client/database";
 import {
   maxDepth,
   prepareLogDetails,
@@ -34,7 +34,7 @@ import {
  *
  * The invariant for this module: IndexedDB is never written without the same
  * write landing in the cache. The `write*` / `clear*` / `reset*` seam below
- * are the only callers of the `DatabaseService` mutators anywhere — each
+ * are the only callers of the `OpenDatabase` mutators anywhere — each
  * pairs the persistence with its cache update. Cache-only writes (the
  * `set*`/`merge*`/`seed*` primitives) are allowed; the invariant is
  * one-directional (db ⟹ cache).
@@ -193,7 +193,7 @@ const clearCache = (logDir: string): void => {
 };
 
 // ---------------------------------------------------------------------------
-// IndexedDB + cache seam. The only callers of the DatabaseService mutators.
+// IndexedDB + cache seam. The only callers of the OpenDatabase mutators.
 // Each persists to IndexedDB (when a database is open) and mirrors the same
 // write into the cache.
 // ---------------------------------------------------------------------------
@@ -246,11 +246,11 @@ const namesInScope = (logDir: string, handles: LogHandle[]): boolean => {
  * caller's continued sync logic.
  */
 export const writeListing = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   handles: LogHandle[]
 ): Promise<Log[]> => {
-  if (db?.opened() && namesInScope(logDir, handles)) {
+  if (db && namesInScope(logDir, handles)) {
     await db.writeLogs(handles);
     await db.markScopeSynced(logDir);
     const all = await db.readLogs({ prefix: logDir });
@@ -277,12 +277,12 @@ export const writeListing = async (
 // fire-and-forget call still reflects in the cache synchronously.
 
 export const writePreviews = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   previews: Record<string, LogPreview>
 ): Promise<void> => {
   mergePreviews(logDir, previews);
-  if (db?.opened()) {
+  if (db) {
     await db.writeLogPreviews(previews);
   }
   // Unconditional (after the db write, so a refetch reads committed rows):
@@ -304,7 +304,7 @@ export const writePreviews = async (
  * invalidation is unconditional.
  */
 export const writeDetails = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   details: Record<string, LogDetails>
 ): Promise<void> => {
@@ -324,7 +324,7 @@ export const writeDetails = async (
     logDir,
     Object.fromEntries(prepared.map(([name, file]) => [name, file.patch]))
   );
-  if (db?.opened()) {
+  if (db) {
     await db.writeLogDetails(Object.fromEntries(prepared));
     invalidateSamplesListings(logDir);
   }
@@ -332,12 +332,12 @@ export const writeDetails = async (
 };
 
 export const writeFetchStates = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   states: Record<string, LogFetchState>
 ): Promise<void> => {
   mergeFetchStates(logDir, states);
-  if (db?.opened()) {
+  if (db) {
     await db.writeFetchStates(states);
   }
 };
@@ -349,7 +349,7 @@ export const writeFetchStates = async (
  * apply to explicit resets.
  */
 export const resetDepth = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   names: string[]
 ): Promise<void> => {
@@ -370,7 +370,7 @@ export const resetDepth = async (
       pushLog(logDir, row);
     }
   }
-  if (db?.opened()) {
+  if (db) {
     await db.resetDepth(names);
   }
   invalidateDatabaseLogsListings();
@@ -378,12 +378,12 @@ export const resetDepth = async (
 };
 
 export const clearFile = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string,
   name: string
 ): Promise<void> => {
   evictFile(logDir, name);
-  if (db?.opened()) {
+  if (db) {
     await db.clearCacheForFile(name);
   }
   invalidateDatabaseLogsListings();
@@ -393,11 +393,11 @@ export const clearFile = async (
 };
 
 export const clearAll = async (
-  db: DatabaseService | null | undefined,
+  db: OpenDatabase | null | undefined,
   logDir: string
 ): Promise<void> => {
   clearCache(logDir);
-  if (db?.opened()) {
+  if (db) {
     // The whole database, not just this scope: the button this backs says
     // "Clear Local Database", and a scoped clear can't reach rows persisted
     // under out-of-namespace names (see namesInScope). It's all a cache —
@@ -413,7 +413,7 @@ export const clearAll = async (
  * framework-free (it sees callbacks, not this react-query-backed module).
  */
 export const createLogsContentSink = (
-  db: DatabaseService | null,
+  db: OpenDatabase | null,
   logDir: string
 ): LogsContentSink => ({
   seedRows: (rows) => {

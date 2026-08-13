@@ -9,7 +9,7 @@ import {
   LogFetchState,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { OpenDatabase } from "../client/database";
 import { toLogPreview } from "../client/utils/type-utils";
 import { WorkPriority, WorkQueue, WorkResult } from "../utils/workQueue";
 
@@ -105,9 +105,10 @@ export interface LogsContentSink {
 
 export interface FetchEngineDeps {
   api: ClientAPI;
-  /** Engine-private persistence; null when unavailable (e.g. single-file
-   *  sessions), in which case every read misses and writes are cache-only. */
-  database: DatabaseService | null;
+  /** Engine-private persistence; null when this session has none (e.g.
+   *  single-file sessions), in which case every read misses and writes are
+   *  cache-only. Holding a value proves the database is open. */
+  database: OpenDatabase | null;
   sink: LogsContentSink;
   /** The log dir this session replicates — the query scope for database
    *  reads (the database itself is unified across dirs). */
@@ -1146,7 +1147,7 @@ export class FetchEngine {
   private async updateDbStats(): Promise<void> {
     const deps = this._deps;
     const database = deps?.database;
-    if (deps === undefined || !database?.opened()) {
+    if (deps === undefined || database === null || database === undefined) {
       return;
     }
     try {

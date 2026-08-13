@@ -17,7 +17,7 @@ import {
 import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
-import { DatabaseManager, DatabaseService } from "../client/database";
+import { AppDatabase, OpenDatabase } from "../client/database";
 
 import {
   ChunkByteStore,
@@ -79,14 +79,14 @@ export {
 } from "../client/api/testClientApi";
 
 /**
- * A real, never-opened DatabaseService with the given methods overridden —
- * un-overridden calls fail loudly ("No database initialized") and `opened()`
- * reports false unless a fake supplies its own.
+ * A real OpenDatabase over a never-opened connection with the given methods
+ * overridden — un-overridden calls fail loudly with a Dexie error rather than
+ * silently missing.
  */
 export const testDatabaseService = (
-  overrides: Partial<DatabaseService> = {}
-): DatabaseService =>
-  Object.assign(new DatabaseService(new DatabaseManager()), overrides);
+  overrides: Partial<OpenDatabase> = {}
+): OpenDatabase =>
+  Object.assign(new OpenDatabase(new AppDatabase()), overrides);
 
 /** A model event whose input/output messages carry the given ids. */
 export const testModelEventWithIds = (
