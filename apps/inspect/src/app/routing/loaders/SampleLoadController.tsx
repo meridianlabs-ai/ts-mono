@@ -2,10 +2,17 @@ import { FC, useEffect } from "react";
 
 import { useStore } from "../../../state/store";
 
-// Virtuoso list keys that persist per sample and must reset with it.
+// Virtual list keys that persist per sample and must reset with it.
 const kSampleListKeys = ["transcript-tree"];
-// Whole property bags of per-sample scroll/list snapshots.
-const kSampleBagKeys = ["scrollPosition", "listPosition"];
+// Whole property bags of per-sample scroll/list snapshots. VirtualList
+// persists per persistenceKey ("transcript-tree" for the outline,
+// "metadata-grid-*" for record trees), so those are cleared by prefix too.
+const kSampleBagKeys = [
+  "scrollPosition",
+  "listPosition",
+  "transcript-tree",
+  "metadata-grid-",
+];
 
 /**
  * Reacts to the selected sample changing — no fetching (the sample queries are

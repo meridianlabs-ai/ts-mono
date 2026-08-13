@@ -80,10 +80,11 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
   getEventUrl,
 }) => {
   // Capture the outline's own scroll container (the StickyScroll div, which
-  // has overflow-y:auto) into state so the outline's Virtuoso can use it as
-  // its scroll parent. Resolving into state (rather than reading a ref during
-  // render) guarantees a re-render once the element mounts. Also mirror it
-  // into the optional external ref callers pass for wheel forwarding.
+  // has overflow-y:auto) into state so the outline's virtual list can use it
+  // as its scroll parent. Resolving into state (rather than reading a ref
+  // during render) guarantees a re-render once the element mounts. Also
+  // mirror it into the optional external ref callers pass for wheel
+  // forwarding.
   const [outlineScrollEl, setOutlineScrollEl] = useState<HTMLDivElement | null>(
     null
   );

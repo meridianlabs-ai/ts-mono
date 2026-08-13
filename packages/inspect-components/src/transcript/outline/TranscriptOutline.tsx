@@ -8,9 +8,9 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
-import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
+import { VirtualList } from "@tsmono/react/virtual";
+
 import { EventNode } from "../types";
 
 import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
@@ -42,8 +42,9 @@ interface TranscriptOutlineProps {
   className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** The element that actually scrolls the outline (its own overflow
-   *  container). Used as Virtuoso's scroll parent so virtualization tracks
-   *  the outline's internal scroll rather than the shared main scroller. */
+   *  container). Used as the virtual list's scroll parent so virtualization
+   *  tracks the outline's internal scroll rather than the shared main
+   *  scroller. */
   outlineScrollEl?: HTMLDivElement | null;
   style?: CSSProperties;
   /** Name of the agent/subagent currently being displayed. Shown as a static header. */
@@ -88,7 +89,7 @@ const EventPaddingNode: EventNode = {
 
 // Sentinel appended as the final list item while backfilling so the loading
 // affordance renders flush after the last outline row (a sibling would sit
-// below Virtuoso's trailing padding node).
+// below the list's trailing padding node).
 const OutlineLoadingNode: EventNode = { ...EventPaddingNode, id: "loading" };
 
 export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
@@ -111,8 +112,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   renderLink,
 }) => {
   const id = "transcript-tree";
-  const listHandle = useRef<VirtuosoHandle | null>(null);
-  const { getRestoreState } = useVirtuosoState(listHandle, id);
 
   const { collapsedIds, getCollapsed, setCollapsed } = useOutlineCollapse(
     defaultCollapsedIds,
@@ -212,6 +211,21 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     ]
   );
 
+  // Adapt the scroll parent element into the ref shape VirtualList resolves;
+  // a fresh identity per element change re-triggers its resolution effect.
+  const outlineScrollRef = useMemo(
+    () => ({ current: outlineScrollEl ?? null }),
+    [outlineScrollEl]
+  );
+
+  const listData = useMemo(
+    () =>
+      backfilling
+        ? [...outlineNodeList, OutlineLoadingNode, EventPaddingNode]
+        : [...outlineNodeList, EventPaddingNode],
+    [outlineNodeList, backfilling]
+  );
+
   return (
     <div ref={rootRef} style={style}>
       {agentName && (
@@ -225,27 +239,19 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
           {agentName}
         </div>
       )}
-      <Virtuoso
-        ref={listHandle}
-        customScrollParent={outlineScrollEl ?? undefined}
+      <VirtualList<EventNode>
+        persistenceKey={id}
         id={id}
-        data={
-          backfilling
-            ? [...outlineNodeList, OutlineLoadingNode, EventPaddingNode]
-            : [...outlineNodeList, EventPaddingNode]
-        }
-        defaultItemHeight={50}
-        itemContent={renderRow}
-        atBottomThreshold={30}
-        increaseViewportBy={{ top: 300, bottom: 300 }}
-        overscan={{
-          main: 10,
-          reverse: 10,
-        }}
+        scrollRef={outlineScrollRef}
+        data={listData}
+        renderRow={renderRow}
+        estimatedItemHeight={50}
+        overscan={10}
+        // The sticky sidebar container is created fresh per view; never yank
+        // its position on remount.
+        resetScrollOnMount={false}
+        findScope="none"
         className={clsx(className, "transcript-outline")}
-        skipAnimationFrameInResizeObserver={true}
-        restoreStateFrom={getRestoreState()}
-        tabIndex={0}
       />
     </div>
   );
