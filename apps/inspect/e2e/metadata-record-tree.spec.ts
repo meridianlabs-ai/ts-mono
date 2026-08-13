@@ -78,9 +78,7 @@ async function openMetadataTab(
   );
 
   const encodedFile = encodeURIComponent(LOG_FILE);
-  await page.goto(
-    `/#/logs/${encodedFile}/samples/sample/1/1/metadata`
-  );
+  await page.goto(`/#/logs/${encodedFile}/samples/sample/1/1/metadata`);
 }
 
 test("metadata tab renders a virtualized record tree", async ({
