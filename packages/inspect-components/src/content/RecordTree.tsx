@@ -256,6 +256,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
       renderRow={renderRow}
       estimatedItemHeight={50}
       overscan={10}
+      embedded={true}
       // The host (e.g. a stateful tab scroller) owns the shared container's
       // scroll position; only restore what this tree itself persisted.
       resetScrollOnMount={false}

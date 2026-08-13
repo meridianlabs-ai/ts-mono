@@ -51,6 +51,13 @@ export interface VirtualListProps<T> {
   estimatedItemHeight?: number;
   /** Rows rendered beyond the visible range (items, not px). */
   overscan?: number;
+  /** The list shares an external scroll container with content ABOVE it:
+   *  measure the list's offset in the container and feed it to the
+   *  virtualizer (TanStack scrollMargin) so windowing lines up with the
+   *  container's scrollTop. Off by default — hosts that already compensate
+   *  for chrome above the list (e.g. the transcript's scrollPaddingStart
+   *  landings) must not have the correction applied twice. */
+  embedded?: boolean;
   /** When false, a mount with no persisted snapshot leaves the scroll
    *  container's position alone instead of resetting it to top. For embedded
    *  lists whose container's scroll position is owned by the host (e.g. a

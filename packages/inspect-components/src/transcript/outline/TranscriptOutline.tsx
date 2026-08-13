@@ -247,6 +247,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         renderRow={renderRow}
         estimatedItemHeight={50}
         overscan={10}
+        embedded={true}
         // The sticky sidebar container is created fresh per view; never yank
         // its position on remount.
         resetScrollOnMount={false}

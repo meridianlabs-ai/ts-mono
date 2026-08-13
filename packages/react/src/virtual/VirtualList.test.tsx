@@ -459,6 +459,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
           data={["a", "b", "c"]}
           renderRow={(_index: number, item: string) => <div>{item}</div>}
           live={false}
+          embedded={true}
           {...props}
         />
       </div>

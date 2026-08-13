@@ -88,6 +88,7 @@ export function VirtualList<T>({
   renderRow,
   estimatedItemHeight = DEFAULT_ITEM_HEIGHT_PX,
   overscan,
+  embedded = false,
   resetScrollOnMount = true,
   live,
   navOwned,
@@ -113,11 +114,12 @@ export function VirtualList<T>({
   // above an embedded list in a shared scroller, so item coordinates must be
   // shifted by this margin (TanStack's scrollMargin) to line up with the
   // container's scrollTop — Virtuoso derived this from customScrollParent
-  // automatically.
+  // automatically. Only measured for `embedded` lists; hosts with their own
+  // chrome compensation keep margin 0.
   const [scrollMargin, setScrollMargin] = useState(0);
   const measureScrollMargin = useCallback(() => {
     const wrapper = wrapperRef.current;
-    const parent = externalScrollRef?.current ?? null;
+    const parent = embedded ? (externalScrollRef?.current ?? null) : null;
     let margin = 0;
     if (wrapper && parent) {
       const parentRect = parent.getBoundingClientRect();
@@ -135,7 +137,7 @@ export function VirtualList<T>({
       }
     }
     setScrollMargin((prev) => (prev === margin ? prev : margin));
-  }, [externalScrollRef]);
+  }, [embedded, externalScrollRef]);
   // Every commit: content above the list can shift it without this component
   // re-rendering in the same pass; the MutationObserver below catches the
   // out-of-band cases (a sibling list expanding, chrome collapsing).
