@@ -446,6 +446,69 @@ export function VirtualList<T>({
     []
   );
   const lastInitialKeyRef = useRef<string | null>(null);
+  // Restore a persisted pixel offset by RE-FORCING it until the virtualizer's
+  // re-measure compensation goes quiet. A one-shot write races the remount
+  // measurement pass: every row measured after the write that sits entirely
+  // above the fold shifts scrollTop by its estimate error (see
+  // shouldAdjustScrollPositionOnItemSizeChange), and which rows land after
+  // the write depends on re-render timing — virtual-core 3.17.7 moved that
+  // timing (notify(adjustedSync) -> flushSync) and drifted the restore by a
+  // full row (#519). Re-forcing until quiet makes the landing independent of
+  // when re-renders happen; it also absorbs the browser clamping an early
+  // write against a not-yet-grown (estimate-sized) scrollHeight. The target
+  // is a callback so per-frame writes see fresh clamp bounds as totals grow.
+  const settleRestoreScroll = useCallback(
+    (getTargetSpacerTop: () => number) => {
+      const el = getScrollElement();
+      if (!el) return;
+      isAutoScrollingRef.current = true;
+      cancelAnimationFrame(releaseFrameRef.current);
+      cancelAnimationFrame(settleFrameRef.current);
+      const keyAtStart = lastInitialKeyRef.current;
+      const finish = () => {
+        lastAutoScrollTopRef.current = el.scrollTop;
+        releaseFrameRef.current = requestAnimationFrame(() => {
+          isAutoScrollingRef.current = false;
+        });
+      };
+      el.scrollTop = getTargetSpacerTop();
+      let frames = 0;
+      let stable = 0;
+      let lastTop = el.scrollTop;
+      const settle = () => {
+        // A key change mid-settle means this restore belongs to the previous
+        // sample — stop before writing its offset into the new one's list.
+        // User input always wins over a pending restore.
+        if (
+          userInteractingRef.current ||
+          lastInitialKeyRef.current !== keyAtStart
+        ) {
+          finish();
+          return;
+        }
+        // Read BEFORE re-forcing: the drift being waited out (re-measure
+        // compensation nudging scrollTop after our write) happens between
+        // frames, and forcing first would hide it from the stability check.
+        const preTop = el.scrollTop;
+        el.scrollTop = getTargetSpacerTop();
+        // Any movement since last frame — external compensation (preTop) or
+        // our own re-force landing somewhere new (clamp released as content
+        // grew) — means the layout is still moving.
+        const moved =
+          Math.abs(preTop - lastTop) > 1 ||
+          Math.abs(el.scrollTop - lastTop) > 1;
+        stable = moved ? 0 : stable + 1;
+        lastTop = el.scrollTop;
+        if (stable < 3 && ++frames < 30) {
+          settleFrameRef.current = requestAnimationFrame(settle);
+        } else {
+          finish();
+        }
+      };
+      settleFrameRef.current = requestAnimationFrame(settle);
+    },
+    [getScrollElement]
+  );
   const lastInitialIndexRef = useRef<number | undefined>(undefined);
   // The no-snapshot "reset to top" is a one-shot per (re)key: re-firing on
   // every measurement would keep slamming scrollTop to 0 against an
@@ -497,17 +560,21 @@ export function VirtualList<T>({
         // wheel); a foreign scrollTop from a shared container doesn't block it.
         hasInitialScrolledRef.current = true;
         if (!userScrolledRef.current) {
-          const maxScroll = Math.max(
-            0,
-            virtualizer.getTotalSize() - el.clientHeight
-          );
-          const offset =
-            snapshot.totalCount === data.length
-              ? snapshot.scrollOffset
-              : Math.min(snapshot.scrollOffset, maxScroll);
-          el.scrollTop = toSpacerScroll(offset);
+          // settleRestoreScroll releases the auto-scroll guard itself.
+          settleRestoreScroll(() => {
+            const maxScroll = Math.max(
+              0,
+              virtualizer.getTotalSize() - el.clientHeight
+            );
+            const offset =
+              snapshot.totalCount === data.length
+                ? snapshot.scrollOffset
+                : Math.min(snapshot.scrollOffset, maxScroll);
+            return toSpacerScroll(offset);
+          });
+        } else {
+          release();
         }
-        release();
       } else if (!userScrolledRef.current && !hasResetTopRef.current) {
         // No snapshot: reset to top once WITHOUT committing the one-shot
         // guard (a snapshot may rehydrate later), but flag the reset so
@@ -533,6 +600,7 @@ export function VirtualList<T>({
     persistenceKey,
     initialIndex,
     settleScrollToIndex,
+    settleRestoreScroll,
     contentTotal,
     data.length,
     followOutput,

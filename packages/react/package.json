@@ -36,7 +36,7 @@
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.0.0",
-    "@tanstack/react-virtual": "^3.14.8",
+    "@tanstack/react-virtual": "^3.14.9",
     "@vscode-elements/react-elements": "^2.4.0",
     "json5": "^2.2.3",
     "mathjax-full": "^3.2.2",
@@ -48,7 +48,7 @@
     "@storybook/react": "^10.5.6",
     "@storybook/react-vite": "^10.5.6",
     "@tanstack/react-query": "^5.101.4",
-    "@tanstack/react-virtual": "^3.14.8",
+    "@tanstack/react-virtual": "^3.14.9",
     "@testing-library/react": "^16.3.1",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
