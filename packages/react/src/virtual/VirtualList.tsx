@@ -456,21 +456,29 @@ export function VirtualList<T>({
   // full row (#519). Re-forcing until quiet makes the landing independent of
   // when re-renders happen; it also absorbs the browser clamping an early
   // write against a not-yet-grown (estimate-sized) scrollHeight. The target
-  // is a callback so per-frame writes see fresh clamp bounds as totals grow.
+  // is a callback so per-frame writes see fresh clamp bounds — and, via the
+  // ref-backed converters, a fresh scale — as totals grow.
   const settleRestoreScroll = useCallback(
     (getTargetSpacerTop: () => number) => {
-      const el = getScrollElement();
-      if (!el) return;
+      // Guard bookkeeping mirrors settleScrollToIndex: every exit path —
+      // including a missing scroll element — must book the guard release, or
+      // the caller-taken auto-scroll guard leaks and persistence stays
+      // silently dead for the rest of the mount.
       isAutoScrollingRef.current = true;
       cancelAnimationFrame(releaseFrameRef.current);
       cancelAnimationFrame(settleFrameRef.current);
+      const el = getScrollElement();
       const keyAtStart = lastInitialKeyRef.current;
       const finish = () => {
-        lastAutoScrollTopRef.current = el.scrollTop;
+        if (el) lastAutoScrollTopRef.current = el.scrollTop;
         releaseFrameRef.current = requestAnimationFrame(() => {
           isAutoScrollingRef.current = false;
         });
       };
+      if (!el) {
+        finish();
+        return;
+      }
       el.scrollTop = getTargetSpacerTop();
       let frames = 0;
       let stable = 0;
@@ -562,9 +570,11 @@ export function VirtualList<T>({
         if (!userScrolledRef.current) {
           // settleRestoreScroll releases the auto-scroll guard itself.
           settleRestoreScroll(() => {
+            // Clamp in content space: getTotalSize() is content-space while
+            // clientHeight is spacer-space (they differ when scale > 1).
             const maxScroll = Math.max(
               0,
-              virtualizer.getTotalSize() - el.clientHeight
+              virtualizer.getTotalSize() - toContentScroll(el.clientHeight)
             );
             const offset =
               snapshot.totalCount === data.length
@@ -607,6 +617,7 @@ export function VirtualList<T>({
     live,
     getRestoreSnapshot,
     getScrollElement,
+    toContentScroll,
     toSpacerScroll,
     virtualizer,
   ]);

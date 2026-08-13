@@ -116,13 +116,17 @@ export function useScaledVirtualizer(
 
   const spacerHeight = scale === 1 ? contentTotal : SAFE_MAX_SPACER;
 
+  // Ref-backed (not closed over `scale`) so long-lived closures — the restore
+  // settle loop re-forces scrollTop across many frames while measurements
+  // change the scale — convert with the scale current at call time, not the
+  // one captured when the closure was created.
   const toContentScroll = useCallback(
-    (spacerScroll: number) => spacerScroll * scale,
-    [scale]
+    (spacerScroll: number) => spacerScroll * scaleRef.current,
+    []
   );
   const toSpacerScroll = useCallback(
-    (contentScroll: number) => contentScroll / scale,
-    [scale]
+    (contentScroll: number) => contentScroll / scaleRef.current,
+    []
   );
 
   return { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll };
