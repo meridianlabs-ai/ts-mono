@@ -605,7 +605,7 @@ function selectionParentElement(range: Range) {
 
 /**
  * Polls until the search term appears in a searchable (non-unsearchable) DOM
- * text node. After Virtuoso scrolls a virtual list item into view, the
+ * text node. After the virtual list scrolls an item into view, the
  * onContentReady callback may fire before the content is actually rendered,
  * especially for large scroll distances. This ensures we wait for the text
  * to be present before calling window.find().
