@@ -4,6 +4,7 @@ import { contentTexts } from "../chat/contentText";
 import { fenced, inlineCode, quoted } from "../content/markdownBlocks";
 
 import { eventTitle } from "./event/utils";
+import { recentInputMessages } from "./recentInputMessages";
 import { formatModifiedCall, formatSuspicion } from "./transform/toolSentinels";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
@@ -81,18 +82,27 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Extract text from model output
+      // Assistant `tool_calls` stay unindexed: the tool event that runs a call
+      // draws it and indexes `function`/`arguments` itself.
       for (const choice of modelEvent.output.choices) {
         for (const text of contentTexts(choice.message.content)) {
           fields.push(["output", text]);
         }
       }
-      // Extract text from user/system input messages shown in the view
-      for (const msg of modelEvent.input) {
-        if (msg.role === "user" || msg.role === "system") {
-          for (const text of contentTexts(msg.content)) {
-            fields.push([msg.role, text]);
-          }
+      // Only the input ModelEventView draws: Find counts an unrendered row
+      // from this text, then scrolls to it and has nothing to land on if the
+      // page doesn't show it. Raw events carry no tool-event context, so a
+      // tool message ends the run here, as it does where a tool event shows it.
+      const drawnMessages = recentInputMessages(modelEvent.input, {
+        agentResultsFiltered: readOptionalBoolean(
+          modelEvent,
+          "agentResultsFiltered"
+        ),
+        hasToolEvents: undefined,
+      });
+      for (const msg of drawnMessages) {
+        for (const text of contentTexts(msg.content)) {
+          fields.push([msg.role, text]);
         }
       }
       // API-call errors / tracebacks surfaced on the model event itself
