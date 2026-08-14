@@ -5,7 +5,12 @@ import {
 } from "@tanstack/react-virtual";
 import { useCallback, useMemo, useRef } from "react";
 
-import { computeScale, SAFE_MAX_SPACER } from "./scale-coordinate-space";
+import {
+  computeScale,
+  SAFE_MAX_SPACER,
+  toContent,
+  toSpacer,
+} from "./scale-coordinate-space";
 
 export type ScaledVirtualizerOptions = {
   count: number;
@@ -121,11 +126,11 @@ export function useScaledVirtualizer(
   // change the scale — convert with the scale current at call time, not the
   // one captured when the closure was created.
   const toContentScroll = useCallback(
-    (spacerScroll: number) => spacerScroll * scaleRef.current,
+    (spacerScroll: number) => toContent(spacerScroll, scaleRef.current),
     []
   );
   const toSpacerScroll = useCallback(
-    (contentScroll: number) => contentScroll / scaleRef.current,
+    (contentScroll: number) => toSpacer(contentScroll, scaleRef.current),
     []
   );
 

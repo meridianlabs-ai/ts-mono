@@ -499,14 +499,14 @@ export function VirtualList<T>({
         // frames, and forcing first would hide it from the stability check.
         const preTop = el.scrollTop;
         el.scrollTop = getTargetSpacerTop();
+        const postTop = el.scrollTop;
         // Any movement since last frame — external compensation (preTop) or
         // our own re-force landing somewhere new (clamp released as content
-        // grew) — means the layout is still moving.
+        // grew, postTop) — means the layout is still moving.
         const moved =
-          Math.abs(preTop - lastTop) > 1 ||
-          Math.abs(el.scrollTop - lastTop) > 1;
+          Math.abs(preTop - lastTop) > 1 || Math.abs(postTop - lastTop) > 1;
         stable = moved ? 0 : stable + 1;
-        lastTop = el.scrollTop;
+        lastTop = postTop;
         if (stable < 3 && ++frames < 30) {
           settleFrameRef.current = requestAnimationFrame(settle);
         } else {
@@ -569,18 +569,19 @@ export function VirtualList<T>({
         hasInitialScrolledRef.current = true;
         if (!userScrolledRef.current) {
           // settleRestoreScroll releases the auto-scroll guard itself.
+          // Whether to clamp is decided once at restore time (one-shot
+          // semantics); only the clamp BOUNDS are re-read per frame.
+          const clampToMax = snapshot.totalCount !== data.length;
           settleRestoreScroll(() => {
-            // Clamp in content space: getTotalSize() is content-space while
-            // clientHeight is spacer-space (they differ when scale > 1).
-            const maxScroll = Math.max(
+            const target = toSpacerScroll(snapshot.scrollOffset);
+            if (!clampToMax) return target;
+            // Clamped fully in spacer space (dividing by the positive scale
+            // distributes over min/max, so this equals the content-space clamp).
+            const maxSpacerTop = Math.max(
               0,
-              virtualizer.getTotalSize() - toContentScroll(el.clientHeight)
+              toSpacerScroll(virtualizer.getTotalSize()) - el.clientHeight
             );
-            const offset =
-              snapshot.totalCount === data.length
-                ? snapshot.scrollOffset
-                : Math.min(snapshot.scrollOffset, maxScroll);
-            return toSpacerScroll(offset);
+            return Math.min(target, maxSpacerTop);
           });
         } else {
           release();
@@ -617,7 +618,6 @@ export function VirtualList<T>({
     live,
     getRestoreSnapshot,
     getScrollElement,
-    toContentScroll,
     toSpacerScroll,
     virtualizer,
   ]);
