@@ -176,7 +176,10 @@ export {
 } from "./TranscriptViewNodes";
 
 // Outline components
-export { TranscriptOutline } from "./outline/TranscriptOutline";
+export {
+  TranscriptOutline,
+  kTranscriptOutlineListKey,
+} from "./outline/TranscriptOutline";
 export { buildOutlineNodeList } from "./outline/useOutlineNodes";
 export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
 export {

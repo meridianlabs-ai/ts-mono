@@ -7,14 +7,12 @@
  * collapse/expand, and tab flips.
  */
 
-import { http, HttpResponse } from "msw";
+import type { NetworkFixture } from "@msw/playwright";
+import type { Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures/app";
-import {
-  createEvalLog,
-  createEvalSample,
-  createLogDetails,
-} from "./fixtures/test-data";
+import { serveEvalLog } from "./fixtures/serve-log";
+import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 const LOG_FILE = "test-metadata-tree.json";
 
@@ -33,10 +31,7 @@ function buildMetadata(): Record<string, unknown> {
   return metadata;
 }
 
-async function openMetadataTab(
-  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
-  network: Parameters<Parameters<typeof test>[2]>[0]["network"]
-) {
+async function openMetadataTab(page: Page, network: NetworkFixture) {
   const sample = createEvalSample({
     id: 1,
     epoch: 1,
@@ -47,32 +42,11 @@ async function openMetadataTab(
     metadata: buildMetadata(),
   });
 
-  const evalLog = createEvalLog({ samples: [sample] });
-  const logDetails = createLogDetails(evalLog);
-
-  network.use(
-    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
-    http.get("*/api/log-files*", () =>
-      HttpResponse.json({
-        files: [
-          { name: LOG_FILE, task: "metadata-test", task_id: "metadata-test" },
-        ],
-        response_type: "full",
-      })
-    ),
-    http.get("*/api/logs/:file", () => HttpResponse.json(evalLog)),
-    http.get("*/api/log-headers*", () =>
-      HttpResponse.json([
-        {
-          eval_id: logDetails.eval.eval_id,
-          run_id: logDetails.eval.run_id,
-          model: logDetails.eval.model,
-          status: logDetails.status,
-          started_at: logDetails.stats?.started_at,
-          completed_at: logDetails.stats?.completed_at,
-        },
-      ])
-    )
+  serveEvalLog(
+    network,
+    createEvalLog({ samples: [sample] }),
+    LOG_FILE,
+    "metadata-test"
   );
 
   const encodedFile = encodeURIComponent(LOG_FILE);

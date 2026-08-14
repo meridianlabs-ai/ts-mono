@@ -83,13 +83,13 @@ export function VirtualList<T>({
   ref,
   id,
   className,
-  scrollRef: externalScrollRef,
+  scrollRef: externalScroll,
   data,
   renderRow,
   estimatedItemHeight = DEFAULT_ITEM_HEIGHT_PX,
   overscan,
   embedded = false,
-  resetScrollOnMount = true,
+  resetScrollOnMount: resetScrollOnMountProp,
   live,
   navOwned,
   followRequested,
@@ -103,9 +103,17 @@ export function VirtualList<T>({
   scrollToTopOnFinish = false,
   onVisibleRangeChange,
 }: VirtualListProps<T> & { ref?: Ref<VirtualListHandle> }) {
-  // Resolve externalScrollRef into state so TanStack gets a non-null
-  // scroll element even when the ref target mounts after us. Without
+  // An embedded list shares a container whose position the host owns;
+  // resetting it on mount would yank the host's scroller.
+  const resetScrollOnMount = resetScrollOnMountProp ?? !embedded;
+
+  // Resolve the external scroll target into state so TanStack gets a non-null
+  // scroll element even when a ref's target mounts after us. Without
   // this, the first trackpad swipe goes to the wrong scroll ancestor.
+  const externalScrollRef =
+    externalScroll instanceof HTMLElement ? null : (externalScroll ?? null);
+  const externalScrollEl =
+    externalScroll instanceof HTMLElement ? externalScroll : null;
   const internalScrollRef = useRef<HTMLDivElement | null>(null);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
@@ -119,7 +127,7 @@ export function VirtualList<T>({
   const [scrollMargin, setScrollMargin] = useState(0);
   const measureScrollMargin = useCallback(() => {
     const wrapper = wrapperRef.current;
-    const parent = embedded ? (externalScrollRef?.current ?? null) : null;
+    const parent = embedded ? (externalScrollEl ?? scrollParent) : null;
     let margin = 0;
     if (wrapper && parent) {
       const parentRect = parent.getBoundingClientRect();
@@ -137,20 +145,32 @@ export function VirtualList<T>({
       }
     }
     setScrollMargin((prev) => (prev === margin ? prev : margin));
-  }, [embedded, externalScrollRef]);
+  }, [embedded, externalScrollEl, scrollParent]);
   // Every commit: content above the list can shift it without this component
   // re-rendering in the same pass; the MutationObserver below catches the
   // out-of-band cases (a sibling list expanding, chrome collapsing).
   useLayoutEffect(measureScrollMargin);
 
+  // A concrete element needs no resolution: getScrollElement consults it
+  // directly (the host re-renders us when it changes), so only a ref target
+  // gets the observer below.
   useEffect(() => {
-    if (!externalScrollRef) return;
-    const sync = () => {
+    if (externalScrollRef === null) return;
+    const sync = (records?: MutationRecord[]) => {
       setScrollParent((prev) =>
         prev === externalScrollRef.current
           ? prev
           : (externalScrollRef.current ?? null)
       );
+      // The list's own row churn can't move the wrapper within its container;
+      // skip the forced-layout measure for own-subtree mutation batches.
+      const wrapper = wrapperRef.current;
+      if (
+        records &&
+        wrapper &&
+        records.every((r) => wrapper.contains(r.target))
+      )
+        return;
       measureScrollMargin();
     };
     sync();
@@ -159,8 +179,8 @@ export function VirtualList<T>({
     return () => observer.disconnect();
   }, [externalScrollRef, measureScrollMargin]);
   const getScrollElement = useCallback(
-    () => scrollParent ?? internalScrollRef.current,
-    [scrollParent]
+    () => externalScrollEl ?? scrollParent ?? internalScrollRef.current,
+    [externalScrollEl, scrollParent]
   );
 
   const { virtualizer, scale, toContentScroll, toSpacerScroll } =
@@ -817,7 +837,10 @@ export function VirtualList<T>({
     ]
   );
 
+  // Null when this list doesn't participate in find (opted out, or no
+  // provider mounted).
   const extendedFind = useExtendedFindOptional();
+  const findContext = findScope === "none" ? null : extendedFind;
   const searchInData = useCallback<ExtendedFindFn>(
     (term, direction, onContentReady) => {
       if (!term || data.length === 0) return Promise.resolve(false);
@@ -863,14 +886,14 @@ export function VirtualList<T>({
   // list doesn't participate in find — extraction can be expensive (default
   // accessor JSON.stringifies every item).
   const precomputedSearchTexts = useMemo(() => {
-    if (findScope === "none" || !extendedFind) return [];
+    if (!findContext) return [];
     const getText = itemSearchText ?? ((item: T) => JSON.stringify(item));
     return data.map((item) => {
       const texts = getText(item);
       const textArray = Array.isArray(texts) ? texts : [texts];
       return textArray.map((t) => t.toLowerCase());
     });
-  }, [data, itemSearchText, findScope, extendedFind]);
+  }, [data, itemSearchText, findContext]);
 
   const countMatchesInData = useCallback<ExtendedCountFn>(
     (term) => {
@@ -881,9 +904,9 @@ export function VirtualList<T>({
   );
 
   useEffect(() => {
-    if (findScope === "none" || !extendedFind) return;
-    const u1 = extendedFind.registerVirtualList(persistenceKey, searchInData);
-    const u2 = extendedFind.registerMatchCounter(
+    if (!findContext) return;
+    const u1 = findContext.registerVirtualList(persistenceKey, searchInData);
+    const u2 = findContext.registerMatchCounter(
       persistenceKey,
       countMatchesInData
     );
@@ -891,17 +914,11 @@ export function VirtualList<T>({
       u1();
       u2();
     };
-  }, [
-    findScope,
-    persistenceKey,
-    extendedFind,
-    searchInData,
-    countMatchesInData,
-  ]);
+  }, [findContext, persistenceKey, searchInData, countMatchesInData]);
 
   const ItemSlot = components?.Item;
   const FooterSlot = components?.Footer;
-  const ownsScroll = !externalScrollRef;
+  const ownsScroll = externalScroll === undefined;
 
   // Padding divs are in SPACER space (divided by scale) so no element exceeds
   // the browser's max height cap; the rendered band stays in content space.

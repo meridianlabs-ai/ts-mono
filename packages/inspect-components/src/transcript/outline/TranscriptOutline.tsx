@@ -69,6 +69,10 @@ interface TranscriptOutlineProps {
   renderLink?: (url: string, children: React.ReactNode) => React.ReactNode;
 }
 
+/** The outline list's DOM id and VirtualList persistence key. Exported so the
+ *  app's per-sample reset can clear the persisted snapshot by this key. */
+export const kTranscriptOutlineListKey = "transcript-tree";
+
 // Padding node at the end of the list for breathing room
 const EventPaddingNode: EventNode = {
   id: "padding",
@@ -111,7 +115,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   setSelectedOutlineId,
   renderLink,
 }) => {
-  const id = "transcript-tree";
+  const id = kTranscriptOutlineListKey;
 
   const { collapsedIds, getCollapsed, setCollapsed } = useOutlineCollapse(
     defaultCollapsedIds,
@@ -211,13 +215,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     ]
   );
 
-  // Adapt the scroll parent element into the ref shape VirtualList resolves;
-  // a fresh identity per element change re-triggers its resolution effect.
-  const outlineScrollRef = useMemo(
-    () => ({ current: outlineScrollEl ?? null }),
-    [outlineScrollEl]
-  );
-
   const listData = useMemo(
     () =>
       backfilling
@@ -242,15 +239,12 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
       <VirtualList<EventNode>
         persistenceKey={id}
         id={id}
-        scrollRef={outlineScrollRef}
+        scrollRef={outlineScrollEl ?? null}
         data={listData}
         renderRow={renderRow}
         estimatedItemHeight={50}
         overscan={10}
         embedded={true}
-        // The sticky sidebar container is created fresh per view; never yank
-        // its position on remount.
-        resetScrollOnMount={false}
         findScope="none"
         className={clsx(className, "transcript-outline")}
       />

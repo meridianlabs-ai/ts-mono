@@ -1,17 +1,19 @@
 import { FC, useEffect } from "react";
 
+import { kMetadataGridKeyPrefix } from "@tsmono/inspect-components/content";
+import { kTranscriptOutlineListKey } from "@tsmono/inspect-components/transcript";
+
 import { useStore } from "../../../state/store";
 
-// Virtual list keys that persist per sample and must reset with it.
-const kSampleListKeys = ["transcript-tree"];
-// Whole property bags of per-sample scroll/list snapshots. VirtualList
-// persists per persistenceKey ("transcript-tree" for the outline,
-// "metadata-grid-*" for record trees), so those are cleared by prefix too.
+// Whole property bags of per-sample scroll/list snapshots, cleared by prefix.
+// VirtualList persists per persistenceKey (the outline's list key, the record
+// trees' prefixed keys); "listPosition" is the legacy Virtuoso bag that old
+// sessions may still carry.
 const kSampleBagKeys = [
   "scrollPosition",
   "listPosition",
-  "transcript-tree",
-  "metadata-grid-",
+  kTranscriptOutlineListKey,
+  kMetadataGridKeyPrefix,
 ];
 
 /**
@@ -27,9 +29,6 @@ export const SampleLoadController: FC = () => {
     ? `${handle.logFile}:${handle.id}:${handle.epoch}`
     : undefined;
 
-  const clearListPosition = useStore(
-    (state) => state.appActions.clearListPosition
-  );
   const removeBagsByPrefix = useStore(
     (state) => state.appActions.removeBagsByPrefix
   );
@@ -47,9 +46,6 @@ export const SampleLoadController: FC = () => {
     if (identity === undefined) {
       return;
     }
-    for (const key of kSampleListKeys) {
-      clearListPosition(key);
-    }
     for (const bag of kSampleBagKeys) {
       removeBagsByPrefix(bag);
     }
@@ -58,7 +54,6 @@ export const SampleLoadController: FC = () => {
     setActiveTimelineIndex(0);
   }, [
     identity,
-    clearListPosition,
     removeBagsByPrefix,
     clearCollapsedEvents,
     setTimelineSelected,

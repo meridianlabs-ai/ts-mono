@@ -21,6 +21,10 @@ import { RenderedContent } from "./RenderedContent";
 
 const kRecordTreeKey = "record-tree-key";
 
+/** VirtualList persistence-key prefix for record trees. Exported so the app's
+ *  per-sample reset can clear the persisted snapshots by this prefix. */
+export const kMetadataGridKeyPrefix = "metadata-grid-";
+
 interface RecordTreeProps {
   id: string;
   record: Record<string, unknown>;
@@ -249,7 +253,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
   }
   return (
     <VirtualList<MetadataItem>
-      persistenceKey={`metadata-grid-${id}`}
+      persistenceKey={`${kMetadataGridKeyPrefix}${id}`}
       id={id}
       scrollRef={scrollRef}
       data={items}
@@ -257,9 +261,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
       estimatedItemHeight={50}
       overscan={10}
       embedded={true}
-      // The host (e.g. a stateful tab scroller) owns the shared container's
-      // scroll position; only restore what this tree itself persisted.
-      resetScrollOnMount={false}
       findScope="none"
       className={clsx(className, "samples-list")}
     />
