@@ -9,8 +9,6 @@
 
 import { http, HttpResponse } from "msw";
 
-import type { EvalSample } from "@tsmono/inspect-common/types";
-
 import { expect, test } from "./fixtures/app";
 import {
   createEvalLog,
@@ -46,8 +44,8 @@ async function openMetadataTab(
       { role: "user", content: "Hello", source: "input" },
       { role: "assistant", content: "Hi there", source: "generate" },
     ],
+    metadata: buildMetadata(),
   });
-  (sample as { metadata: EvalSample["metadata"] }).metadata = buildMetadata();
 
   const evalLog = createEvalLog({ samples: [sample] });
   const logDetails = createLogDetails(evalLog);

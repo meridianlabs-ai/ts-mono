@@ -89,6 +89,7 @@ export function createEvalSample(overrides: {
   epoch?: number;
   messages: ChatMessage[];
   target?: string | string[];
+  metadata?: EvalSample["metadata"];
 }): EvalSample {
   const lastAssistant = [...overrides.messages]
     .reverse()
@@ -108,7 +109,7 @@ export function createEvalSample(overrides: {
     ),
     messages: overrides.messages,
     events: [],
-    metadata: {},
+    metadata: overrides.metadata ?? {},
     store: {},
     model_usage: {},
     role_usage: {},

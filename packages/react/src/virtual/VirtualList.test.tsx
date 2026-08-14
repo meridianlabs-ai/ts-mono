@@ -410,9 +410,9 @@ describe("VirtualList persist flush on unmount", () => {
     el.scrollTop = 0;
     unmount();
 
-    const snapshot = store.get("flush-list::snapshot") as
-      { scrollOffset: number } | undefined;
-    expect(snapshot?.scrollOffset).toBe(500);
+    expect(store.get("flush-list::snapshot")).toMatchObject({
+      scrollOffset: 500,
+    });
 
     // And nothing fires later against the departed container.
     store.delete("flush-list::snapshot");
@@ -502,10 +502,7 @@ describe("VirtualList embedded in a shared scroll container", () => {
     // must not duplicate it. Layout is mocked before mount: the scroller is
     // 800x600 at top 0, the list root sits 100px below it.
     const proto = HTMLElement.prototype;
-    const origRectDesc = Object.getOwnPropertyDescriptor(
-      Element.prototype,
-      "getBoundingClientRect"
-    )!;
+    const origGetRect = Element.prototype.getBoundingClientRect;
     const origOffsetHeight = Object.getOwnPropertyDescriptor(
       proto,
       "offsetHeight"
@@ -516,10 +513,9 @@ describe("VirtualList embedded in a shared scroll container", () => {
     );
     proto.getBoundingClientRect = function () {
       if (this.hasAttribute("data-scroller"))
-        return { top: 0, left: 0, width: 800, height: 600 } as DOMRect;
-      if (this.id === "embedded-root")
-        return { top: 100, left: 0, width: 800, height: 1200 } as DOMRect;
-      return (origRectDesc.value as () => DOMRect).call(this);
+        return new DOMRect(0, 0, 800, 600);
+      if (this.id === "embedded-root") return new DOMRect(0, 100, 800, 1200);
+      return origGetRect.call(this);
     };
     Object.defineProperty(proto, "offsetHeight", {
       configurable: true,
@@ -537,15 +533,15 @@ describe("VirtualList embedded in a shared scroll container", () => {
       // All three (estimated 400px) rows land in or overscan past the 600px
       // viewport, whose window starts at the container's scrollTop (0) —
       // margin-inclusive item coordinates keep them aligned.
-      const rows = root.querySelectorAll("[data-item-index]");
+      const rows = root.querySelectorAll<HTMLElement>("[data-item-index]");
       expect(rows.length).toBe(3);
       // No top/bottom spacer chunks: the 100px above the list is real
       // content, and the rendered band covers the whole list height.
       expect(root.children.length).toBe(1);
       // Rows are positioned relative to the band, unaffected by the margin
       // (each row measures at the mocked 600px offsetHeight).
-      expect((rows[0] as HTMLElement).style.top).toBe("0px");
-      expect((rows[1] as HTMLElement).style.top).toBe("600px");
+      expect(rows.item(0).style.top).toBe("0px");
+      expect(rows.item(1).style.top).toBe("600px");
       unmount();
     } finally {
       Reflect.deleteProperty(proto, "getBoundingClientRect");
