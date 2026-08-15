@@ -3,6 +3,12 @@
      wrapper — keeps sticky behavior scoped to the panel instead of leaking
      to some arbitrary positioned ancestor up the tree. */
   position: relative;
+  /* Full width even as a flex item: event-panel tab panes are row flex
+     containers (`.tab-content > .active { display: flex }` in the theme), so
+     without this the panel shrink-wraps to narrow content (e.g. a column of
+     images) and the inline-right "more…" toggle lands on top of that content
+     instead of at the card's right edge. */
+  width: 100%;
 }
 
 .expandablePanel {

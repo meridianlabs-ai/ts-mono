@@ -1,6 +1,11 @@
 /**
- * Repro for: info events with image-heavy markdown show no "more" toggle
- * even though content is clipped.
+ * Regression test: info events with image-heavy markdown must show a usable
+ * "more" toggle at the card's right edge when their content is clipped.
+ *
+ * Event-panel tab panes are row flex containers (`.tab-content > .active`
+ * in the theme), so the ExpandablePanel used to shrink-wrap to the image
+ * column's width, leaving the toggle overlaid on the image inside the mask
+ * fade — effectively invisible.
  */
 import { deflateSync } from "node:zlib";
 
@@ -178,105 +183,40 @@ test("info event with images shows a more toggle when clipped", async ({
     )
       .map((p) => p.firstElementChild as HTMLElement)
       .find((w) => w && w.querySelector("img"));
-    if (!wrap) return { found: false };
+    if (!wrap) return null;
     const panel = wrap.parentElement!;
+    const tabPane = panel.closest(".tab-pane")!;
     const btn = panel.querySelector("button") as HTMLElement | null;
     const r = btn?.getBoundingClientRect();
     const hit = r
       ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
       : null;
-    const imgs = Array.from(wrap.querySelectorAll("img")).map((i) => ({
-      w: i.getBoundingClientRect().width,
-      h: i.getBoundingClientRect().height,
-      complete: (i as HTMLImageElement).complete,
-    }));
-    const rect = (el: Element | null) => {
-      if (!el) return null;
-      const b = el.getBoundingClientRect();
-      return { x: b.x, y: b.y, w: b.width, h: b.height };
-    };
-    const holder = btn?.closest("[class*=inlineToggleHolder]") ?? null;
-    const sticky = btn?.closest("[class*=inlineToggleSticky]") ?? null;
-    const chain: string[] = [];
-    let el: HTMLElement | null = btn;
-    while (el && chain.length < 14) {
-      const b = el.getBoundingClientRect();
-      chain.push(
-        `${el.tagName}.${el.className && typeof el.className === "string" ? el.className.split(" ")[0] : ""} pos=${getComputedStyle(el).position} rect=(${b.x.toFixed(0)},${b.y.toFixed(0)},${b.width.toFixed(0)}x${b.height.toFixed(0)})`
-      );
-      el = el.parentElement;
-    }
     return {
-      found: true,
-      wrapClass: wrap.className,
-      wrapStyle: wrap.getAttribute("style"),
-      wrapRect: rect(wrap),
-      panelRect: rect(panel),
-      holderRect: rect(holder),
-      stickyRect: rect(sticky),
+      wrapBoxH: wrap.getBoundingClientRect().height,
       wrapScrollH: wrap.scrollHeight,
-      btnInDom: !!btn,
-      btnRect: r ? { x: r.x, y: r.y, w: r.width, h: r.height } : null,
-      elementAtBtnCenter: hit
-        ? `${hit.tagName}.${(hit as HTMLElement).className}`
-        : "none",
-      ancestorChain: chain,
-      outerComputed: (() => {
-        const outer = panel.parentElement!;
-        const cs = getComputedStyle(outer);
-        const pcs = getComputedStyle(outer.parentElement!);
-        return {
-          outerDisplay: cs.display,
-          outerWidth: cs.width,
-          parentClass: outer.parentElement!.className,
-          parentDisplay: pcs.display,
-          parentFlexDirection: pcs.flexDirection,
-          parentAlignItems: pcs.alignItems,
-        };
-      })(),
-      imgs,
+      panelWidth: panel.getBoundingClientRect().width,
+      panelRight: panel.getBoundingClientRect().right,
+      tabPaneWidth: tabPane.getBoundingClientRect().width,
+      btnText: btn?.textContent ?? null,
+      btnRight: r ? r.right : null,
+      btnHitTestPassed: !!hit && (hit === btn || btn!.contains(hit)),
+      imgsComplete: Array.from(wrap.querySelectorAll("img")).every(
+        (i) => i.complete
+      ),
     };
   });
-  console.log("REPORT:", JSON.stringify(report, null, 2));
 
-  // Verify fix hypothesis: give the ExpandablePanel root full width so it
-  // doesn't shrink-wrap inside the flex tab-pane.
-  const fixed = await page.evaluate(() => {
-    const style = document.createElement("style");
-    style.textContent = `[class*="_outer_"] { width: 100%; }`;
-    document.head.appendChild(style);
-    return new Promise((resolve) => {
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          const wrap = Array.from(
-            document.querySelectorAll('[data-expandable-panel="true"]')
-          )
-            .map((p) => p.firstElementChild as HTMLElement)
-            .find((w) => w && w.querySelector("img"))!;
-          const panel = wrap.parentElement!;
-          const btn = panel.querySelector("button")!;
-          const r = btn.getBoundingClientRect();
-          const hit = document.elementFromPoint(
-            r.x + r.width / 2,
-            r.y + r.height / 2
-          );
-          resolve({
-            panelW: panel.getBoundingClientRect().width,
-            btnRect: { x: r.x, y: r.y },
-            hit: hit ? `${hit.tagName}.${(hit as HTMLElement).className}` : "none",
-          });
-        })
-      );
-    });
-  });
-  console.log("AFTER FIX:", JSON.stringify(fixed));
-  await page.screenshot({ path: "e2e-info-image-fixed.png" });
-
-  await page.screenshot({
-    path: "e2e-info-image-repro.png",
-    fullPage: false,
-  });
-
-  expect(report.found).toBe(true);
-  expect(report.btnInDom).toBe(true);
+  expect(report).not.toBeNull();
+  // Sanity: images loaded and the content really is clipped.
+  expect(report!.imgsComplete).toBe(true);
+  expect(report!.wrapScrollH).toBeGreaterThan(report!.wrapBoxH + 1);
+  // The panel must span the card rather than shrink-wrapping to the image
+  // column (the tab pane is a row flex container, so without an explicit
+  // width the panel hugs its narrow content and the toggle lands on top of
+  // the image inside the mask fade, where the user can't find it).
+  expect(report!.panelWidth).toBeGreaterThan(report!.tabPaneWidth - 2);
+  // The "more…" toggle sits at the card's right edge and receives clicks.
+  expect(report!.btnText).toContain("more");
+  expect(report!.btnRight).toBeGreaterThan(report!.panelRight - 40);
+  expect(report!.btnHitTestPassed).toBe(true);
 });
