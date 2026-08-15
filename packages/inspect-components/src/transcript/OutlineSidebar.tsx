@@ -54,6 +54,8 @@ export interface OutlineSidebarProps {
   defaultCollapsedIds: Record<string, boolean>;
   /** The main scroll container. */
   scrollRef: RefObject<HTMLDivElement | null>;
+  /** Transcript identity scoping the outline's persisted scroll state. */
+  listId?: string;
   running: boolean;
   backfilling: boolean;
   /** Resolved agent name header (outline.name or the selected row). */
@@ -72,6 +74,7 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
   eventNodes,
   defaultCollapsedIds,
   scrollRef,
+  listId,
   running,
   backfilling,
   agentName,
@@ -142,6 +145,7 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
               defaultCollapsedIds={defaultCollapsedIds}
               scrollRef={scrollRef}
               outlineScrollEl={outlineScrollEl}
+              listId={listId}
               running={running}
               backfilling={backfilling}
               agentName={agentName}

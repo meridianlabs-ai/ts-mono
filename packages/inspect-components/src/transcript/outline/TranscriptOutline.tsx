@@ -47,6 +47,10 @@ interface TranscriptOutlineProps {
    *  scroller. */
   outlineScrollEl?: HTMLDivElement | null;
   style?: CSSProperties;
+  /** Transcript identity scoping the outline's persisted scroll state. Without
+   *  it the state lives under a constant key, and hosts that never clear the
+   *  property bag leak one transcript's offset into the next. */
+  listId?: string;
   /** Name of the agent/subagent currently being displayed. Shown as a static header. */
   agentName?: string;
   /** Reports whether the outline has displayable nodes after filtering. */
@@ -69,8 +73,9 @@ interface TranscriptOutlineProps {
   renderLink?: (url: string, children: React.ReactNode) => React.ReactNode;
 }
 
-/** The outline list's DOM id and VirtualList persistence key. Exported so the
- *  app's per-sample reset can clear the persisted snapshot by this key. */
+/** The outline list's DOM id and VirtualList persistence-key prefix (the full
+ *  key appends the transcript's listId). Exported so the app's per-sample
+ *  reset can clear the persisted snapshots by this prefix. */
 export const kTranscriptOutlineListKey = "transcript-tree";
 
 // Padding node at the end of the list for breathing room
@@ -105,6 +110,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   scrollRef,
   outlineScrollEl,
   style,
+  listId,
   agentName,
   onHasNodesChange,
   onNavigateToEvent,
@@ -237,7 +243,10 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         </div>
       )}
       <VirtualList<EventNode>
-        persistenceKey={id}
+        // Scoped per transcript so a host that never clears the bag can't
+        // restore one transcript's offset into another; the "transcript-tree"
+        // prefix keeps inspect's per-sample bag clearing matching.
+        persistenceKey={listId ? `${id}:${listId}` : id}
         id={id}
         scrollRef={outlineScrollEl ?? null}
         data={listData}

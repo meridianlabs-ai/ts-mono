@@ -146,9 +146,13 @@ export function VirtualList<T>({
     }
     setScrollMargin((prev) => (prev === margin ? prev : margin));
   }, [embedded, externalScrollEl, scrollParent]);
-  // Every commit: content above the list can shift it without this component
-  // re-rendering in the same pass; the MutationObserver below catches the
-  // out-of-band cases (a sibling list expanding, chrome collapsing).
+  // Re-measured on every commit. Out-of-band shifts (content above changing
+  // without this list re-rendering) are only partially covered: the
+  // MutationObserver below exists only for ref-based hosts and fires on
+  // childList changes (e.g. a sibling list adding rows), not on pure
+  // size/attribute changes. A stale margin self-corrects on the next commit —
+  // any scroll of the container re-renders the list via the virtualizer and
+  // re-measures here.
   useLayoutEffect(measureScrollMargin);
 
   // A concrete element needs no resolution: getScrollElement consults it
