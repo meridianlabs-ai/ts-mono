@@ -129,7 +129,12 @@ export function VirtualList<T>({
     const wrapper = wrapperRef.current;
     const parent = embedded ? (externalScrollEl ?? scrollParent) : null;
     let margin = 0;
-    if (wrapper && parent) {
+    // parent === wrapper: an `embedded` list that owns its scroller (no
+    // external scroll target) — measuring the wrapper against itself would
+    // degenerate the margin to scrollTop and feed scroll position back into
+    // item coordinates. There is no content above the list inside its own
+    // scroller, so the margin is 0 by construction.
+    if (wrapper && parent && parent !== wrapper) {
       const parentRect = parent.getBoundingClientRect();
       // A zero-size parent rect means "not laid out" (display:none, or a
       // rect-less test DOM) — rect math would degenerate to scrollTop.

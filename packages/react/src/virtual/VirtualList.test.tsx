@@ -531,4 +531,47 @@ describe("VirtualList embedded in a shared scroll container", () => {
     expect(rows.item(1).style.top).toBe("600px");
     unmount();
   });
+
+  it("ignores embedded margin when the list owns its own scroller", () => {
+    // With no external scroll target, scrollParent resolves to the list's own
+    // wrapper. Measuring the wrapper against itself degenerates the margin to
+    // scrollTop, which feeds back into item coordinates so the window never
+    // advances — scrolling would appear frozen at the top.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if (this.id === "own-scroller") return new DOMRect(0, 0, 800, 600);
+        return new DOMRect();
+      }
+    );
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+
+    const data = Array.from({ length: 20 }, (_, i) => `item-${i}`);
+    const { unmount } = render(
+      <Wrapper hooks={makeStateHooks()}>
+        <VirtualList<string>
+          persistenceKey="own-scroll-list"
+          id="own-scroller"
+          data={data}
+          renderRow={(_index: number, item: string) => <div>{item}</div>}
+          live={false}
+          embedded={true}
+        />
+      </Wrapper>
+    );
+    const el = document.getElementById("own-scroller")!;
+    vi.advanceTimersByTime(50); // initial scroll settles
+
+    // Scroll deep into the (600px-per-row) list: the rendered window must
+    // move past the head rows.
+    el.scrollTop = 6000;
+    el.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(50);
+
+    const indices = Array.from(
+      el.querySelectorAll<HTMLElement>("[data-item-index]")
+    ).map((row) => Number(row.dataset.itemIndex));
+    expect(Math.min(...indices)).toBeGreaterThan(0);
+    unmount();
+  });
 });
