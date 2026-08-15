@@ -3,12 +3,15 @@
      wrapper — keeps sticky behavior scoped to the panel instead of leaking
      to some arbitrary positioned ancestor up the tree. */
   position: relative;
-  /* Full width even as a flex item: event-panel tab panes are row flex
-     containers (`.tab-content > .active { display: flex }` in the theme), so
-     without this the panel shrink-wraps to narrow content (e.g. a column of
-     images) and the inline-right "more…" toggle lands on top of that content
-     instead of at the card's right edge. */
-  width: 100%;
+  /* Fill the row when the panel is a flex item: event-panel tab panes are
+     row flex containers (`.tab-content > .active { display: flex }` in the
+     theme), so without this the panel shrink-wraps to narrow content (e.g. a
+     column of images) and the inline-right "more…" toggle lands on top of
+     that content instead of at the card's right edge. `flex-grow` rather
+     than `width: 100%` because it is inert in block flow — callers that pass
+     horizontal margins via `className` (e.g. RetryAttemptCard's errorPanel)
+     would overflow their container under an explicit 100% width. */
+  flex-grow: 1;
 }
 
 .expandablePanel {

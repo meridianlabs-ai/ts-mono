@@ -162,49 +162,68 @@ test("info event with images shows a more toggle when clipped", async ({
     await page.waitForTimeout(50);
   }
   await expect(page.getByText("Info: MITSUBA3")).toBeVisible();
-  // Nudge so the panel sits fully in view, then let images/RO settle.
-  await page.mouse.wheel(0, 200);
-  await page.waitForTimeout(2500);
 
-  // Bring the info panel fully into view, like the user's screenshot.
-  await page.evaluate(() => {
-    const wrap = Array.from(
-      document.querySelectorAll('[data-expandable-panel="true"]')
+  // Center the panel and measure in one pass, polling until the images have
+  // loaded and the panel is collapsed with clipped content (the resize
+  // observer needs a beat after image load to re-evaluate the toggle).
+  type Report = {
+    wrapBoxH: number;
+    wrapScrollH: number;
+    panelWidth: number;
+    panelRight: number;
+    tabPaneWidth: number;
+    btnText: string | null;
+    btnRight: number | null;
+    btnHitTestPassed: boolean;
+    imgsComplete: boolean;
+  };
+  let report: Report | null = null;
+  const measure = async (): Promise<Report | null> =>
+    page.evaluate(() => {
+      const wrap = Array.from(
+        document.querySelectorAll('[data-expandable-panel="true"]')
+      )
+        .map((p) => p.firstElementChild as HTMLElement)
+        .find((w) => w && w.querySelector("img"));
+      if (!wrap) return null;
+      // Keep the panel centered like the user's screenshot; virtualizer
+      // re-measures can shift it between polls.
+      wrap.scrollIntoView({ block: "center" });
+      const panel = wrap.parentElement!;
+      const tabPane = panel.closest(".tab-pane")!;
+      const btn = panel.querySelector("button") as HTMLElement | null;
+      const r = btn?.getBoundingClientRect();
+      const hit = r
+        ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+        : null;
+      return {
+        wrapBoxH: wrap.getBoundingClientRect().height,
+        wrapScrollH: wrap.scrollHeight,
+        panelWidth: panel.getBoundingClientRect().width,
+        panelRight: panel.getBoundingClientRect().right,
+        tabPaneWidth: tabPane.getBoundingClientRect().width,
+        btnText: btn?.textContent ?? null,
+        btnRight: r ? r.right : null,
+        btnHitTestPassed: !!hit && (hit === btn || btn!.contains(hit)),
+        imgsComplete: Array.from(wrap.querySelectorAll("img")).every(
+          (i) => i.complete
+        ),
+      };
+    });
+  await expect
+    .poll(
+      async () => {
+        report = await measure();
+        return (
+          report !== null &&
+          report.imgsComplete &&
+          report.wrapScrollH > report.wrapBoxH + 1 &&
+          report.btnText !== null
+        );
+      },
+      { timeout: 15_000 }
     )
-      .map((p) => p.firstElementChild as HTMLElement)
-      .find((w) => w && w.querySelector("img"));
-    wrap?.scrollIntoView({ block: "center" });
-  });
-  await page.waitForTimeout(1000);
-
-  const report = await page.evaluate(() => {
-    const wrap = Array.from(
-      document.querySelectorAll('[data-expandable-panel="true"]')
-    )
-      .map((p) => p.firstElementChild as HTMLElement)
-      .find((w) => w && w.querySelector("img"));
-    if (!wrap) return null;
-    const panel = wrap.parentElement!;
-    const tabPane = panel.closest(".tab-pane")!;
-    const btn = panel.querySelector("button") as HTMLElement | null;
-    const r = btn?.getBoundingClientRect();
-    const hit = r
-      ? document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
-      : null;
-    return {
-      wrapBoxH: wrap.getBoundingClientRect().height,
-      wrapScrollH: wrap.scrollHeight,
-      panelWidth: panel.getBoundingClientRect().width,
-      panelRight: panel.getBoundingClientRect().right,
-      tabPaneWidth: tabPane.getBoundingClientRect().width,
-      btnText: btn?.textContent ?? null,
-      btnRight: r ? r.right : null,
-      btnHitTestPassed: !!hit && (hit === btn || btn!.contains(hit)),
-      imgsComplete: Array.from(wrap.querySelectorAll("img")).every(
-        (i) => i.complete
-      ),
-    };
-  });
+    .toBe(true);
 
   expect(report).not.toBeNull();
   // Sanity: images loaded and the content really is clipped.
