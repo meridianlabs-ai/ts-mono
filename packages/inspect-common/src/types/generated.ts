@@ -1748,7 +1748,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_parse_failure" | "grader_refusal" | "grader_no_tool_call" | "grader_schema_mismatch") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -3136,7 +3136,7 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             /** Reason */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_parse_failure" | "grader_refusal" | "grader_no_tool_call" | "grader_schema_mismatch") | string | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3193,7 +3193,7 @@ export interface components {
              * Reason
              * @default UNCHANGED
              */
-            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_parse_failure" | "grader_refusal" | "grader_no_tool_call" | "grader_schema_mismatch") | string | "UNCHANGED" | null;
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
