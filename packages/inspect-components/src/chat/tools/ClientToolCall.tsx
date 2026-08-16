@@ -87,10 +87,12 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   // Tools without a dedicated input descriptor carry all their args in the
   // functionCall string; args too long for the one-line header summary get a
   // real input zone instead (mirroring ServerToolCall's multi-line args).
+  // Gate on the whitespace-collapsed length, not raw newlines: formatArg
+  // pretty-prints every object/array value, so even tiny args like
+  // `coordinate: [100, 200]` are multi-line as a formatting artifact.
   const argsBody = hasInput ? undefined : fullArgs(functionCall, title || tool);
-  const argsInInputZone =
-    !!argsBody &&
-    (argsBody.includes("\n") || argsBody.length > kMaxSummaryArgs);
+  const argsSummary = argsBody?.replace(/\s+/g, " ").trim();
+  const argsInInputZone = !!argsSummary && argsSummary.length > kMaxSummaryArgs;
   const showError = !!error;
   const showAnnotation = !!selfAnnotation && !!inputScreenshot;
   const showOutput = !showError && (hasOutputContent(output) || showAnnotation);
@@ -100,10 +102,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       id={id}
       icon={iconForTool(tool)}
       title={title || tool}
-      summary={
-        description ??
-        (argsInInputZone ? undefined : inlineArgs(functionCall, title || tool))
-      }
+      summary={description ?? (argsInInputZone ? undefined : argsSummary)}
       className={className}
     >
       {hasInput || argsInInputZone ? (
@@ -150,24 +149,11 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
  * line; they render in the input zone instead. */
 const kMaxSummaryArgs = 120;
 
-/** The args portion of the rendered function call with formatting preserved,
- * for the input zone when the args are too long to summarize inline. */
+/** The args portion of the rendered function call with formatting preserved;
+ * collapse whitespace for the single-line header summary. */
 const fullArgs = (functionCall: string, tool: string): string | undefined => {
   if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
     const inner = functionCall.slice(tool.length + 1, -1).trim();
-    return inner.length > 0 ? inner : undefined;
-  }
-  return functionCall !== tool ? functionCall : undefined;
-};
-
-/** The args portion of the rendered function call (the text inside the
- * parens), as a single-line header summary. */
-const inlineArgs = (functionCall: string, tool: string): string | undefined => {
-  if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
-    const inner = functionCall
-      .slice(tool.length + 1, -1)
-      .replace(/\s+/g, " ")
-      .trim();
     return inner.length > 0 ? inner : undefined;
   }
   return functionCall !== tool ? functionCall : undefined;

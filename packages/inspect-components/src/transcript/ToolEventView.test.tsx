@@ -98,6 +98,17 @@ describe("ToolEventView", () => {
     expect(input!.textContent).toContain("beta");
   });
 
+  it("keeps a small object arg on the header line only", () => {
+    // formatArg pretty-prints object/array values across multiple lines, but
+    // that formatting artifact alone must not promote args to the input zone.
+    const { container } = renderView("my_custom_tool", {
+      coordinate: [100, 200],
+    });
+
+    expect(container.querySelector(".tool-call-input")).toBeNull();
+    expect(container.textContent).toContain("coordinate: [ 100, 200 ]");
+  });
+
   it("keeps short args of an unknown tool on the header line only", () => {
     const { container } = renderView("my_custom_tool", { path: "foo.txt" });
 
