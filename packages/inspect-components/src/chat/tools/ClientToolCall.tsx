@@ -84,6 +84,13 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
 
   const hasInput =
     (input !== undefined && input !== null && input !== "") || !!view?.content;
+  // Tools without a dedicated input descriptor carry all their args in the
+  // functionCall string; args too long for the one-line header summary get a
+  // real input zone instead (mirroring ServerToolCall's multi-line args).
+  const argsBody = hasInput ? undefined : fullArgs(functionCall, title || tool);
+  const argsInInputZone =
+    !!argsBody &&
+    (argsBody.includes("\n") || argsBody.length > kMaxSummaryArgs);
   const showError = !!error;
   const showAnnotation = !!selfAnnotation && !!inputScreenshot;
   const showOutput = !showError && (hasOutputContent(output) || showAnnotation);
@@ -93,10 +100,13 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       id={id}
       icon={iconForTool(tool)}
       title={title || tool}
-      summary={description ?? inlineArgs(functionCall, title || tool)}
+      summary={
+        description ??
+        (argsInInputZone ? undefined : inlineArgs(functionCall, title || tool))
+      }
       className={className}
     >
-      {hasInput ? (
+      {hasInput || argsInInputZone ? (
         <ToolBlockInput>
           <ExpandablePanel
             id={`${id}-tool-input`}
@@ -106,9 +116,9 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
             className={clsx("text-size-small")}
           >
             <ToolInput
-              contentType={contentType}
-              contents={input}
-              toolCallView={view}
+              contentType={hasInput ? contentType : undefined}
+              contents={hasInput ? input : argsBody}
+              toolCallView={hasInput ? view : undefined}
             />
           </ExpandablePanel>
         </ToolBlockInput>
@@ -134,6 +144,20 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       ) : null}
     </ToolBlock>
   );
+};
+
+/** Args longer than this can't meaningfully summarize on the single header
+ * line; they render in the input zone instead. */
+const kMaxSummaryArgs = 120;
+
+/** The args portion of the rendered function call with formatting preserved,
+ * for the input zone when the args are too long to summarize inline. */
+const fullArgs = (functionCall: string, tool: string): string | undefined => {
+  if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
+    const inner = functionCall.slice(tool.length + 1, -1).trim();
+    return inner.length > 0 ? inner : undefined;
+  }
+  return functionCall !== tool ? functionCall : undefined;
 };
 
 /** The args portion of the rendered function call (the text inside the
