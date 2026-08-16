@@ -85,12 +85,7 @@ export function findAllMatches(
   eventToRow: Map<string, string>
 ): SampleMatch[] {
   if (!term) return [];
-  const prepared = prepareSearchTerm(term);
-  const variants = [
-    prepared.simple,
-    ...(prepared.unquoted ? [prepared.unquoted] : []),
-    ...(prepared.jsonEscaped ? [prepared.jsonEscaped] : []),
-  ];
+  const variants = searchVariants(term);
   const out: SampleMatch[] = [];
   for (const event of events) {
     const uuid = event.uuid;
@@ -123,7 +118,28 @@ export function findAllMatches(
  * matching `LiveVirtualList.searchInText` does for the chat counter so the
  * two counters agree on the total.
  */
-function findVariantPositions(lowered: string, variants: string[]): number[] {
+/**
+ * The lowercased forms a term is matched under.
+ *
+ * Exported so anything that has to agree with `findAllMatches`' enumeration —
+ * notably `matchAtSelection`, which maps a DOM selection onto the n-th match
+ * for an event — counts the same occurrences. Counting only `prepared.simple`
+ * there would mis-index every quoted term, since `findAllMatches` also counts
+ * the unquoted form.
+ */
+export function searchVariants(term: string): string[] {
+  const prepared = prepareSearchTerm(term);
+  return [
+    prepared.simple,
+    ...(prepared.unquoted ? [prepared.unquoted] : []),
+    ...(prepared.jsonEscaped ? [prepared.jsonEscaped] : []),
+  ];
+}
+
+export function findVariantPositions(
+  lowered: string,
+  variants: string[]
+): number[] {
   const hits: { pos: number; len: number }[] = [];
   for (const v of variants) {
     if (!v) continue;
