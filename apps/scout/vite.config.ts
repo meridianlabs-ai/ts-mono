@@ -1,7 +1,7 @@
 import { cpSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-swc";
 import pc from "picocolors";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -39,7 +39,16 @@ export default defineConfig(({ mode }) => {
   const baseConfig = {
     plugins: [
       react({
-        jsxRuntime: "automatic",
+        // Rust React Compiler via SWC. The escape hatch is required — the
+        // plugin has no first-class reactCompiler option yet. Needs
+        // plugin-react-swc >= 4.2.0 (earlier versions kept production builds
+        // on the non-SWC path even when options are mutated) and
+        // @swc/core >= 1.16.0 (where jsc.transform.reactCompiler landed).
+        useAtYourOwnRisk_mutateSwcOptions(options) {
+          options.jsc ??= {};
+          options.jsc.transform ??= {};
+          options.jsc.transform.reactCompiler = true;
+        },
       }),
     ],
     define: {

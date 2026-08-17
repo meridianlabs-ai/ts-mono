@@ -71,7 +71,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react-swc": "^4.3.3",
     "cross-env": "^10.1.0",
     "eslint": "^10.7.0",
     "fake-indexeddb": "^6.2.2",
