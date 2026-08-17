@@ -4,7 +4,7 @@ import { CSSProperties, FC, useState } from "react";
 import { CopyButton, MarkdownReference } from "@tsmono/react/components";
 
 import { copyValueText } from "./copyText";
-import styles from "./MetadataGrid.module.css";
+import styles from "./MetaDataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";
 
 interface MetadataGridProps {

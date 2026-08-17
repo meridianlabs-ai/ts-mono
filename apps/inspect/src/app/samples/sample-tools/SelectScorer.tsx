@@ -71,10 +71,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
         <div className={clsx(styles.links, "text-size-smaller")}>
           <button
             type="button"
-            className={clsx(
-              styles.link,
-              !allScoresSelected ? styles.selected : undefined
-            )}
+            className={clsx(!allScoresSelected ? styles.selected : undefined)}
             onClick={() => {
               const firstScore = scores[0];
               if (firstScore !== undefined) {
@@ -87,10 +84,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
           |
           <button
             type="button"
-            className={clsx(
-              styles.link,
-              allScoresSelected ? styles.selected : undefined
-            )}
+            className={clsx(allScoresSelected ? styles.selected : undefined)}
             onClick={() => {
               setSelectedScores(scores);
             }}
@@ -100,10 +94,7 @@ export const SelectScorer: FC<SelectScorerProps> = ({
           |
           <button
             type="button"
-            className={clsx(
-              styles.link,
-              noneSelected ? styles.selected : undefined
-            )}
+            className={clsx(noneSelected ? styles.selected : undefined)}
             onClick={() => {
               setSelectedScores([]);
             }}

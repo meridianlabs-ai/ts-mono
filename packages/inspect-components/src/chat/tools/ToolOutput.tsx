@@ -98,7 +98,6 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   if (displayMode === "rendered" && isAnsiOutput(text)) {
     return (
       <ANSIDisplay
-        className={styles.ansiOutput}
         output={text}
         style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
       />

@@ -120,7 +120,7 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
             <RecordTree
               id={`${eventNode.id}-score-metadata`}
               record={event.edit.metadata || {}}
-              className={styles.metadataTree}
+              className={styles.metadata}
               defaultExpandLevel={0}
               copyButton={true}
             />

@@ -520,7 +520,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       <TabPanel
         key="transcript-metadata"
         id={kTranscriptMetadataTabId}
-        className={clsx(styles.metadataTab)}
         title="Metadata"
         onSelected={() => {
           handleTabChange(kTranscriptMetadataTabId);
@@ -545,7 +544,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <TabPanel
       key="transcript-info"
       id={kTranscriptInfoTabId}
-      className={clsx(styles.infoTab)}
       title="Info"
       onSelected={() => {
         handleTabChange(kTranscriptInfoTabId);
@@ -569,8 +567,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       id={"transcript-body"}
       type="pills"
       tabsRef={tabsRef}
-      tabPanelsClassName={clsx(styles.tabSet)}
-      tabControlsClassName={clsx(styles.tabControl)}
       className={clsx(styles.tabs)}
       tools={tabTools}
     >

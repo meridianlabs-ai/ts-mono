@@ -11,7 +11,7 @@ import {
 
 import { ScanResultData } from "../../types";
 
-import styles from "./Metadata.module.css";
+import styles from "./MetadataPanel.module.css";
 
 interface MetadataPanelProps {
   resultData?: ScanResultData;

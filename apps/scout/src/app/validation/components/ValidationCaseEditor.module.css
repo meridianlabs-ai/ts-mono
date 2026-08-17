@@ -9,18 +9,6 @@
   overflow-y: auto;
 }
 
-.placeholder {
-  color: var(--bs-secondary-color);
-  font-size: 0.875rem;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-.textValue {
-  font-family: var(--bs-font-monospace);
-  font-size: var(--inspect-font-size-smaller);
-}
-
 .panel {
   background-color: var(--bs-body-bg);
   display: flex;
@@ -74,35 +62,6 @@
   margin-top: 0.25rem;
 }
 
-.headerActionButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
-  padding: 5px;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
-  cursor: pointer;
-  opacity: 0.6;
-  font-size: 12px;
-  pointer-events: auto;
-  position: relative;
-  z-index: 10;
-}
-
-.headerActionButton:hover:not(:disabled) {
-  opacity: 1;
-  background: var(--vscode-toolbar-hoverBackground);
-  color: var(--vscode-errorForeground);
-}
-
-.headerActionButton:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
 .infoBox {
   display: grid;
   grid-template-columns: auto 1fr;

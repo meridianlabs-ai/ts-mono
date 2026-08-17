@@ -60,20 +60,6 @@
   padding: 0;
 }
 
-.empty {
-  color: var(--bs-secondary);
-  font-style: italic;
-  font-size: var(--inspect-font-size-smallest);
-}
-
-.numVal {
-  color: var(--bs-code-color);
-}
-
-.boolVal {
-  color: var(--bs-success-text-emphasis, #198754);
-}
-
 /* ── Copy button (opt-in via copyButton option) ──────────────── */
 
 .rowsCopy {

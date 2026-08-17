@@ -17,10 +17,6 @@
   margin-top: 3px;
 }
 
-.filterNone {
-  margin-top: 2px;
-}
-
 .actionButtons {
   margin-left: auto;
   margin-top: 0.1rem;
@@ -36,10 +32,6 @@
 .actionButton {
   padding: 0.1rem 0.4rem;
   margin: 0;
-  font-size: var(--inspect-font-size-smallest);
-}
-
-.actionButtonDropDown {
   font-size: var(--inspect-font-size-smallest);
 }
 
@@ -59,19 +51,4 @@
 
 .filterChip {
   /* Filter chip specific styles can go here */
-}
-
-.addFilterColumnSelect {
-  width: 100%;
-  font-size: 12px;
-  padding: 4px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--bs-border-color);
-  background: var(--bs-body-bg);
-  color: var(--bs-body-color);
-  margin-bottom: 8px;
-}
-
-.columnsButton {
-  padding: 0.1rem 0.3rem;
 }

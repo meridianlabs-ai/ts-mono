@@ -2,7 +2,8 @@ import { ChangeEvent, FC, useMemo } from "react";
 
 import { formatTime } from "@tsmono/util";
 
-import styles from "./ColumnFilterEditor.module.css";
+import editorStyles from "./ColumnFilterEditor.module.css";
+import styles from "./DurationInput.module.css";
 
 export interface DurationInputProps {
   id: string;
@@ -31,7 +32,7 @@ export const DurationInput: FC<DurationInputProps> = ({
     <div className={styles.durationInputWrapper}>
       <input
         id={id}
-        className={styles.filterInput}
+        className={editorStyles.filterInput}
         type="number"
         spellCheck="false"
         value={value}

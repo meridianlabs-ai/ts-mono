@@ -120,7 +120,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
         </div>
       )}
 
-      <div className={clsx(styles.value, "text-size-smaller")}>
+      <div className={clsx("text-size-smaller")}>
         {!summary.scanError && (
           <Value
             value={summary.value}

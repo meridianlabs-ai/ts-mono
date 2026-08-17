@@ -13,7 +13,6 @@ export const ColumnHeader: FC<ColumnHeaderProps> = ({ label, actions }) => {
     <div className={clsx(styles.header)}>
       <div
         className={clsx(
-          styles.label,
           "text-size-smallest",
           "text-style-label",
           "text-style-secondary"

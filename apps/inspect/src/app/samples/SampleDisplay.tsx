@@ -834,11 +834,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             <TabPanel
               key={kSampleTranscriptTabId}
               id={kSampleTranscriptTabId}
-              className={clsx(
-                "sample-tab",
-                styles.transcriptContainer,
-                styles.overflowVisible
-              )}
+              className={clsx("sample-tab", styles.overflowVisible)}
               title="Transcript"
               onSelected={onSelectedTab}
               selected={

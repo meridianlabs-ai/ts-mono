@@ -6,8 +6,19 @@ import {
   kindOf,
   previewOf,
   toClipboardJson,
+  type ValueKind,
 } from "./entries";
-import styles from "./ZustandDevtoolsPanel.module.css";
+import styles from "./TreeNode.module.css";
+
+const kindClass: Record<ValueKind, string> = {
+  string: styles.string,
+  number: styles.number,
+  boolean: styles.boolean,
+  null: styles.null,
+  function: styles.function,
+  collection: styles.collection,
+  other: styles.other,
+};
 
 const CHUNK_SIZE = 100;
 const COPIED_FEEDBACK_MS = 1000;
@@ -78,7 +89,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
             key={flashKey}
             className={classes(
               styles.value,
-              styles[kindOf(value)],
+              kindClass[kindOf(value)],
               flashKey > 0 && styles.flash
             )}
           >

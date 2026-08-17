@@ -50,7 +50,6 @@ import {
 const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
   return (
     <div
-      className={clsx(styles.item)}
       data-index={props["data-index"]}
       data-item-index={props["data-item-index"]}
       data-known-size={props["data-known-size"]}

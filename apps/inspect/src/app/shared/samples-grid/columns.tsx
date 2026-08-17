@@ -39,7 +39,7 @@ import {
   resolveScale,
   type WireScoreColorScale,
 } from "./colorScale";
-import styles from "./SamplesGrid.module.css";
+import styles from "./gridCells.module.css";
 import { SampleRow } from "./types";
 
 export type SampleGridViewMode = "list" | "grid";

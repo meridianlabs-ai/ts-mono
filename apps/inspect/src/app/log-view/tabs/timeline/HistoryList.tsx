@@ -33,13 +33,13 @@ import {
 } from "./timelineData";
 
 const kPillClass: Record<HistoryCategory, string> = {
-  config: styles.pillConfig!,
-  connections: styles.pillConnections!,
-  limits: styles.pillLimits!,
-  errors: styles.pillErrors!,
-  cancels: styles.pillCancels!,
-  tags: styles.pillTags!,
-  run: styles.pillRun!,
+  config: styles.pillConfig,
+  connections: styles.pillConnections,
+  limits: styles.pillLimits,
+  errors: styles.pillErrors,
+  cancels: styles.pillCancels,
+  tags: styles.pillTags,
+  run: styles.pillRun,
 };
 
 // The chart-linkable rows: config ◆ and tag/metadata ◆ share the rail.

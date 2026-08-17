@@ -117,7 +117,10 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
       </div>
       {showOverlay && (
         <div
-          className={clsx(styles.lightboxOverlay, isOpen ? "open" : "closed")}
+          className={clsx(
+            styles.lightboxOverlay,
+            isOpen ? styles.open : styles.closed
+          )}
         >
           <div className={clsx(styles.lightboxButtonCloseWrapper)}>
             <button
@@ -131,7 +134,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
           {slides.length > 1 ? (
             <button
               type="button"
-              className={clsx(styles.lightboxPreviewButton, "prev")}
+              className={clsx(styles.lightboxPreviewButton, styles.prev)}
               onClick={showPrev}
             >
               <i className={icons.previous}></i>
@@ -142,7 +145,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
           {slides.length > 1 ? (
             <button
               type="button"
-              className={clsx(styles.lightboxPreviewButton, "next")}
+              className={clsx(styles.lightboxPreviewButton, styles.next)}
               onClick={showNext}
             >
               <i className={icons.next} />
@@ -152,7 +155,10 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
           )}
           <div
             key={`carousel-slide-${currentIndex}`}
-            className={clsx(styles.lightboxContent, isOpen ? "open" : "closed")}
+            className={clsx(
+              styles.lightboxContent,
+              isOpen ? styles.open : styles.closed
+            )}
           >
             {slides[currentIndex]?.render()}
           </div>

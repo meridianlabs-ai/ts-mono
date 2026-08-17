@@ -15,6 +15,7 @@ import { testIcons } from "../test/test-icons";
 
 import { ComponentIconProvider } from "./ComponentIconContext";
 import { LightboxCarousel } from "./LightboxCarousel";
+import styles from "./LightboxCarousel.module.css";
 
 // LightboxCarousel drives every piece of its state through useProperty, so a
 // set has to actually re-render for the lightbox to open or the slide to
@@ -56,10 +57,10 @@ async function renderOpened() {
   // openLightbox defers setIsOpen behind a 10ms timer so the fade starts from
   // opacity 0, but the overlay (and slide body) render as soon as showOverlay
   // flips. Waiting on the body alone would race the keyboard effect, which
-  // only attaches once isOpen is true — gate on the "open" class instead.
+  // only attaches once isOpen is true — gate on the open class instead.
   await waitFor(() => {
     expect(screen.getByText("slide-0-body")).toBeTruthy();
-    expect(document.querySelector(".open")).toBeTruthy();
+    expect(document.querySelector(`.${styles.open}`)).toBeTruthy();
   });
   return view;
 }

@@ -628,7 +628,7 @@ export const SecondaryDisplayValue: FC<{ label: string; value: string }> = ({
 
 const InfoBox: FC<{ children: ReactNode }> = ({ children }) => (
   <div className={clsx("text-size-smaller", styles.infoBox)}>
-    <i className={clsx(ApplicationIcons.info, styles.infoIcon)} />
+    <i className={clsx(ApplicationIcons.info)} />
     <div>{children}</div>
   </div>
 );
