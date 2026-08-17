@@ -1,6 +1,15 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testToolEvent,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 import {
   resolveMessageToEvent,
@@ -49,84 +58,36 @@ function makeModelEvent(opts: {
     role: "tool";
   }>;
 }): Event {
-  const input: Array<Record<string, unknown>> = [];
-  for (const id of opts.inputIds ?? []) {
-    input.push({
-      id,
-      role: "user",
-      content: "test",
-      source: null,
-      metadata: null,
-    });
-  }
-  for (const msg of opts.inputToolMessages ?? []) {
-    input.push({
-      id: msg.id,
-      role: "tool",
-      tool_call_id: msg.tool_call_id,
-      content: "tool result",
-      function: null,
-      error: null,
-      source: null,
-      metadata: null,
-    });
-  }
+  const input = [
+    ...(opts.inputIds ?? []).map((id) =>
+      testUserMessage({ id, content: "test" })
+    ),
+    ...(opts.inputToolMessages ?? []).map((msg) =>
+      testToolMessage({
+        id: msg.id,
+        tool_call_id: msg.tool_call_id,
+        content: "tool result",
+      })
+    ),
+  ];
 
-  const choices: Array<Record<string, unknown>> = [];
-  if (opts.outputId) {
-    choices.push({
-      message: {
-        id: opts.outputId,
-        role: "assistant",
-        content: "response",
-        source: null,
-        metadata: null,
-        tool_calls: null,
-        internal: null,
-      },
-      stop_reason: "stop",
-      logprobs: null,
-    });
-  }
+  const choices = opts.outputId
+    ? [
+        testChatCompletionChoice({
+          message: testAssistantMessage({
+            id: opts.outputId,
+            content: "response",
+          }),
+        }),
+      ]
+    : [];
 
-  return {
-    event: "model",
+  return testModelEvent({
     uuid: opts.uuid,
-    model: "test-model",
     input,
-    output: {
-      model: "test-model",
-      choices,
-      usage: {
-        input_tokens: 0,
-        output_tokens: 0,
-        total_tokens: 0,
-        input_tokens_cache_read: null,
-        input_tokens_cache_write: null,
-      },
-      error: null,
-      metadata: null,
-      time: null,
-      completion: "",
-    },
-    config: {} as Event & { event: "model" } extends { config: infer C }
-      ? C
-      : never,
-    tools: [],
-    tool_choice: "auto",
+    output: testModelOutput({ choices }),
     timestamp: kBaseDate.toISOString(),
-    span_id: null,
-    pending: null,
-    metadata: null,
-    role: null,
-    completed: null,
-    error: null,
-    cache: null,
-    call: null,
-    retries: null,
-    traceback: null,
-    working_start: 0,
-  } as unknown as Event;
+  });
 }
 
 function makeToolEvent(opts: {
@@ -134,26 +95,14 @@ function makeToolEvent(opts: {
   messageId?: string;
   agentSpanId?: string;
 }): Event {
-  return {
-    event: "tool",
+  return testToolEvent({
     uuid: opts.uuid,
     id: `tool-call-${opts.uuid}`,
-    function: "test_tool",
     message_id: opts.messageId ?? null,
     agent_span_id: opts.agentSpanId ?? null,
     result: "tool result text",
-    span_id: null,
-    pending: null,
-    metadata: null,
     timestamp: kBaseDate.toISOString(),
-    completed: null,
-    error: null,
-    events: [],
-    failed: null,
-    truncated: null,
-    view: null,
-    working_start: 0,
-  } as unknown as Event;
+  });
 }
 
 // =============================================================================

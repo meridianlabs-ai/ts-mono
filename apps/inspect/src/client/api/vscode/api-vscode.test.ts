@@ -13,11 +13,13 @@ const stubFetch: typeof fetch = () =>
 
 function fakeVscode() {
   const posted: unknown[] = [];
-  const api = {
-    postMessage: (msg: unknown) => posted.push(msg),
+  const api: VSCodeApi = {
+    postMessage: (msg: unknown) => {
+      posted.push(msg);
+    },
     getState: () => undefined,
-    setState: (s: unknown) => s,
-  } as unknown as VSCodeApi;
+    setState: () => {},
+  };
   return { api, posted };
 }
 

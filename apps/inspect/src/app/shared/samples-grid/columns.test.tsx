@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import { testScore } from "@tsmono/inspect-common/testing";
+
 import type { SampleSummary } from "../../../client/api/types";
-import type { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
+import { testSamplesDescriptor } from "../../samples/descriptor/testDescriptors";
 import {
   buildSampleFilterSpecRegistry,
   samplesOperatorsForKind,
@@ -16,17 +18,20 @@ const kField = `${SCORE_FIELD_RAW_PREFIX}quality`;
 // exercise raw-mode score-column discovery + colour-scale wiring without a
 // full SamplesDescriptor.
 const samplesWith = (values: number[]): SampleSummary[] =>
-  values.map(
-    (v, i) =>
-      ({
-        id: i,
-        epoch: 1,
-        scores: { quality: { value: v } },
-      }) as unknown as SampleSummary
-  );
+  values.map((v, i): SampleSummary => ({
+    id: i,
+    epoch: 1,
+    input: "input",
+    target: "target",
+    scores: { quality: testScore({ value: v }) },
+  }));
 
-const rowWith = (value: number): SampleRow =>
-  ({ [kField]: value }) as unknown as SampleRow;
+const rowWith = (value: number): SampleRow => ({
+  logFile: "log.eval",
+  sampleId: 1,
+  epoch: 1,
+  [kField]: value,
+});
 
 describe("buildSampleColumns score colour scales", () => {
   it("attaches a heat-map cellStyle that interpolates across the observed range", () => {
@@ -116,7 +121,7 @@ describe("buildSampleColumns TaskSamplesColumnId wire contract", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: false,
-      descriptor: {} as unknown as SamplesDescriptor,
+      descriptor: testSamplesDescriptor(),
     });
     const ids = new Set(cols.map((c) => c.id));
     const missing = kTaskSamplesColumnIds.filter((id) => !ids.has(id));
@@ -129,7 +134,7 @@ describe("buildSampleColumns registry-gated filterable pass", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: false,
-      descriptor: {} as unknown as SamplesDescriptor,
+      descriptor: testSamplesDescriptor(),
       filterSpecRegistry: buildSampleFilterSpecRegistry(undefined),
     });
     // sampleId is intentionally unregistered (mixed number/string ids don't
@@ -149,7 +154,7 @@ describe("buildSampleColumns registry-gated filterable pass", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: false,
-      descriptor: {} as unknown as SamplesDescriptor,
+      descriptor: testSamplesDescriptor(),
     });
     const sampleId = cols.find((c) => c.id === "sampleId");
     expect(sampleId?.meta?.filterable).toBe(true);

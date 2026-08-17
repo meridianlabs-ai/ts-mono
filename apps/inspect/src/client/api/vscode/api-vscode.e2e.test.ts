@@ -28,7 +28,7 @@ function connectFakeExtension(handler: (req: ProxyRequest) => ProxyResponse): {
   received: Array<{ method: string; params: unknown }>;
 } {
   const received: Array<{ method: string; params: unknown }> = [];
-  const vscode = {
+  const vscode: VSCodeApi = {
     postMessage: (data: unknown) => {
       const req = data as {
         jsonrpc: string;
@@ -48,8 +48,8 @@ function connectFakeExtension(handler: (req: ProxyRequest) => ProxyResponse): {
       });
     },
     getState: () => undefined,
-    setState: (s: unknown) => s,
-  } as unknown as VSCodeApi;
+    setState: () => {},
+  };
   return { vscode, received };
 }
 

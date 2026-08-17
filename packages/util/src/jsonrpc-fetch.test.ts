@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
 
-import type { JsonValue } from "./json-value";
+import type { JsonObject, JsonValue } from "./json-value";
 import type { JsonRpcParams } from "./jsonrpc";
 import type { HttpProxyRequest, HttpProxyResponse } from "./jsonrpc-fetch";
 import { createJsonRpcFetch, kMethodHttpRequest } from "./jsonrpc-fetch";
@@ -9,7 +9,15 @@ import { createJsonRpcFetch, kMethodHttpRequest } from "./jsonrpc-fetch";
 type RpcClient = (method: string, params?: JsonRpcParams) => Promise<JsonValue>;
 
 function mockRpcClient(response: HttpProxyResponse) {
-  return vi.fn<RpcClient>().mockResolvedValue(response as unknown as JsonValue);
+  const json: JsonObject = {
+    status: response.status,
+    headers: response.headers,
+    body: response.body,
+  };
+  if (response.bodyEncoding !== undefined) {
+    json.bodyEncoding = response.bodyEncoding;
+  }
+  return vi.fn<RpcClient>().mockResolvedValue(json);
 }
 
 // The proxy is always invoked as rpcClient(method, [request]); pull the first

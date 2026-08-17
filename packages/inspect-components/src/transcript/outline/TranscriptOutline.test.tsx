@@ -3,7 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { testInfoEvent } from "@tsmono/inspect-common/testing";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
@@ -79,17 +79,15 @@ const makeReactiveStateHooks = () => {
 const node = (id: string): EventNode =>
   new EventNode(
     id,
-    {
-      event: "info",
+    testInfoEvent({
       uuid: id,
       timestamp: "2026-01-01T00:00:00Z",
       source: "",
       data: "",
       pending: false,
-      working_start: 0,
       span_id: null,
       metadata: null,
-    } as unknown as Event,
+    }),
     0
   );
 

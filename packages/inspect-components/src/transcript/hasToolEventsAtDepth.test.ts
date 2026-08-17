@@ -1,20 +1,28 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testInfoEvent,
+  testModelEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
 import { EventNode } from "./types";
 
 // Only `event.event` (the discriminant) and `depth` affect the lookup, so the
-// rest of the Event payload is stubbed. Mirrors transform/flatten.test.ts.
+// rest of the Event payload is defaulted. Mirrors transform/flatten.test.ts.
+const events: Record<"tool" | "model" | "info", () => Event> = {
+  tool: testToolEvent,
+  model: testModelEvent,
+  info: testInfoEvent,
+};
+
 const node = (
-  eventType: string,
+  eventType: "tool" | "model" | "info",
   depth: number,
   id = `${eventType}-${depth}-${Math.random()}`
-): EventNode => {
-  const event = { event: eventType } as unknown as Event;
-  return new EventNode(id, event, depth);
-};
+): EventNode => new EventNode(id, events[eventType](), depth);
 
 // Faithful O(n^2) reference for computeHasToolEventsAtDepth: a LITERAL
 // transcription of the original per-index backward scan. The tool check

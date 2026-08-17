@@ -16,7 +16,14 @@ import type {
   CompactionEvent,
   ErrorEvent,
   EvalError,
+  EvalLog,
+  EvalMetric,
+  EvalPlan,
+  EvalResults,
   EvalSample,
+  EvalScore,
+  EvalSpec,
+  EvalStats,
   InfoEvent,
   InputEvent,
   LoggerEvent,
@@ -352,5 +359,86 @@ export const testEvalSample = (
   attachments: {},
   model_usage: {},
   role_usage: {},
+  ...overrides,
+});
+
+// ---------------------------------------------------------------------------
+// Eval log
+// ---------------------------------------------------------------------------
+
+export const testEvalSpec = (overrides: Partial<EvalSpec> = {}): EvalSpec => ({
+  eval_id: "eval_1",
+  run_id: "run_1",
+  created: TEST_TIMESTAMP,
+  task: "test_task",
+  task_id: "task_1",
+  task_version: 0,
+  task_args: {},
+  task_args_passed: {},
+  task_attribs: {},
+  dataset: {},
+  model: "test-model",
+  model_args: {},
+  model_generate_config: {},
+  config: {},
+  packages: {},
+  ...overrides,
+});
+
+export const testEvalPlan = (overrides: Partial<EvalPlan> = {}): EvalPlan => ({
+  name: "plan",
+  steps: [],
+  config: {},
+  ...overrides,
+});
+
+export const testEvalStats = (
+  overrides: Partial<EvalStats> = {}
+): EvalStats => ({
+  started_at: "",
+  completed_at: "",
+  model_usage: {},
+  role_usage: {},
+  connection_limit_history: [],
+  ...overrides,
+});
+
+export const testEvalMetric = (
+  overrides: Partial<EvalMetric> = {}
+): EvalMetric => ({
+  name: "accuracy",
+  value: 0,
+  params: {},
+  ...overrides,
+});
+
+export const testEvalScore = (
+  overrides: Partial<EvalScore> = {}
+): EvalScore => ({
+  name: "test-scorer",
+  scorer: "test-scorer",
+  metrics: {},
+  params: {},
+  ...overrides,
+});
+
+export const testEvalResults = (
+  overrides: Partial<EvalResults> = {}
+): EvalResults => ({
+  total_samples: 0,
+  completed_samples: 0,
+  scores: [],
+  ...overrides,
+});
+
+export const testEvalLog = (overrides: Partial<EvalLog> = {}): EvalLog => ({
+  version: 2,
+  status: "started",
+  eval: testEvalSpec(),
+  plan: testEvalPlan(),
+  stats: testEvalStats(),
+  tags: [],
+  metadata: {},
+  invalidated: false,
   ...overrides,
 });

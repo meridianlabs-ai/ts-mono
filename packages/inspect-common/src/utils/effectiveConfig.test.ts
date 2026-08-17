@@ -24,6 +24,10 @@ const update = (
   ...overrides,
 });
 
+/** Deliberately schema-invalid updates for the runtime-guard tests below. */
+const malformedUpdates = (updates: unknown[]): ConfigUpdate[] =>
+  updates as ConfigUpdate[];
+
 describe("effectiveEvalConfig", () => {
   it("returns the launch config unchanged when there are no updates", () => {
     const launch: EvalConfig = { epochs: 1, max_samples: 5 };
@@ -193,7 +197,7 @@ describe("effectiveEvalConfig", () => {
 
   it("skips updates whose changes is missing or not an array", () => {
     const launch: EvalConfig = { max_samples: 5 };
-    const malformed = [
+    const malformed = malformedUpdates([
       update([]),
       { ...update([]), changes: undefined },
       { ...update([]), changes: { config: "eval" } },
@@ -206,7 +210,7 @@ describe("effectiveEvalConfig", () => {
           cleared: false,
         },
       ]),
-    ] as unknown as ConfigUpdate[];
+    ]);
     expect(effectiveEvalConfig(launch, malformed).max_samples).toBe(10);
     expect(evalConfigChanges(malformed).get("max_samples")?.value).toBe(10);
     expect(concurrencyChanges(malformed)).toEqual([]);
@@ -214,7 +218,7 @@ describe("effectiveEvalConfig", () => {
 
   it("skips non-object elements inside changes", () => {
     const launch: EvalConfig = { max_samples: 5 };
-    const corrupt = [
+    const corrupt = malformedUpdates([
       {
         ...update([]),
         changes: [
@@ -230,14 +234,14 @@ describe("effectiveEvalConfig", () => {
           },
         ],
       },
-    ] as unknown as ConfigUpdate[];
+    ]);
     expect(effectiveEvalConfig(launch, corrupt).max_samples).toBe(10);
     expect(evalConfigChanges(corrupt).get("max_samples")?.value).toBe(10);
     expect(concurrencyChanges(corrupt)).toEqual([]);
   });
 
   it("tolerates a missing provenance", () => {
-    const bare = [
+    const bare = malformedUpdates([
       {
         ...update([
           {
@@ -257,7 +261,7 @@ describe("effectiveEvalConfig", () => {
         ]),
         provenance: undefined,
       },
-    ] as unknown as ConfigUpdate[];
+    ]);
     expect(evalConfigChanges(bare).get("max_samples")?.inherited).toBe(false);
     expect(concurrencyChanges(bare)[0]?.inherited).toBe(false);
   });

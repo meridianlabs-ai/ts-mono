@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ClientAPI } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
+import { testClientAPI } from "./testFixtures";
 import { clientEventsTick, useLogsSync } from "./useLogsSync";
 
 const syncLogs = vi.hoisted(() => vi.fn());
@@ -30,9 +31,9 @@ const invalidateQueries = vi
   .mockResolvedValue();
 
 const apiWith = (events: string[]): ClientAPI =>
-  ({
+  testClientAPI({
     client_events: vi.fn().mockResolvedValue(events),
-  }) as unknown as ClientAPI;
+  });
 
 afterEach(() => {
   vi.useRealTimers();

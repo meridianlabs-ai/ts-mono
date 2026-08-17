@@ -15,6 +15,9 @@
 
 import { describe, expect, test } from "vitest";
 
+import { testEvalPlan, testEvalSpec } from "@tsmono/inspect-common/testing";
+import type { EvalSpec } from "@tsmono/inspect-common/types";
+
 import { SampleSummary } from "../api/types";
 
 import {
@@ -24,19 +27,17 @@ import {
   readJournalConfigUpdatesFrom,
 } from "./remoteLogFile";
 
-const baseEval = {
-  // EvalSpec has more fields, but the helper only touches `tags` and
-  // `metadata`; we cast as needed to avoid building the full shape.
+const baseEval = testEvalSpec({
   task: "test_task",
   task_id: "task_id",
   created: "2026-05-20T00:00:00Z",
-};
+});
 
-function makeStart(eval_: Record<string, unknown>): LogStart {
+function makeStart(eval_: EvalSpec): LogStart {
   return {
     version: 2,
-    eval: eval_ as unknown as LogStart["eval"],
-    plan: {} as LogStart["plan"],
+    eval: eval_,
+    plan: testEvalPlan(),
   };
 }
 

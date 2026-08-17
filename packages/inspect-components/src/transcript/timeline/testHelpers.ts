@@ -5,7 +5,11 @@
  * markers, and useTimeline test files.
  */
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+} from "@tsmono/inspect-common/testing";
 
 import { TimelineEvent, TimelineSpan, type Timeline } from "./core";
 import { timelineScenarios } from "./syntheticNodes";
@@ -42,24 +46,19 @@ export function makeSyntheticEvent(
   endSec: number,
   tokens: number
 ): TimelineEvent {
-  const event = {
-    event: "model",
+  const event = testModelEvent({
     timestamp: ts(startSec).toISOString(),
     completed: ts(endSec).toISOString(),
     working_start: startSec,
     working_time: endSec - startSec,
-    output: {
-      usage: {
+    output: testModelOutput({
+      usage: testModelUsage({
         input_tokens: Math.floor(tokens * 0.6),
         output_tokens: tokens - Math.floor(tokens * 0.6),
         total_tokens: tokens,
-        input_tokens_cache_read: null,
-        input_tokens_cache_write: null,
-        reasoning_tokens: null,
-        total_cost: null,
-      },
-    },
-  } as unknown as Event;
+      }),
+    }),
+  });
   return new TimelineEvent(event);
 }
 

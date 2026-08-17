@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EvalSet } from "@tsmono/inspect-common/types";
 
 import { APP_CONFIG_KEY, AppConfig } from "../../app_config";
+import { testClientAPI } from "../../client/api/testClientApi";
 import { ClientAPI } from "../../client/api/types";
 
 import { useEvalSet } from "./useEvalSet";
@@ -25,7 +26,7 @@ const seedConfig = (
   get_eval_set: ClientAPI["get_eval_set"]
 ) => {
   const config = {
-    api: { get_eval_set } as unknown as ClientAPI,
+    api: testClientAPI({ get_eval_set }),
     singleFileMode: false,
     loader: "replicator",
     inspect_version: "1.0.0",
@@ -37,8 +38,7 @@ const seedConfig = (
   client.setQueryData(APP_CONFIG_KEY, config);
 };
 
-const evalSet = (id: string): EvalSet =>
-  ({ eval_set_id: id }) as unknown as EvalSet;
+const evalSet = (id: string): EvalSet => ({ eval_set_id: id, tasks: [] });
 
 afterEach(() => {
   vi.restoreAllMocks();

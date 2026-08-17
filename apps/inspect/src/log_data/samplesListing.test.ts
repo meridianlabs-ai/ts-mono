@@ -4,6 +4,8 @@ import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
+
 import { LogDetails, SampleSummary } from "../client/api/types";
 import {
   createDatabaseService,
@@ -14,6 +16,7 @@ import { queryClient } from "../state/queryClient";
 
 import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
 import { useSamplesListing } from "./samplesListing";
+import { testLogDetails } from "./testFixtures";
 
 // The module-under-test reads Dexie through the shared instance; route it to
 // this test's real (fake-indexeddb-backed) service.
@@ -47,10 +50,9 @@ const payload = (
   status: LogDetails["status"],
   sampleSummaries: SampleSummary[]
 ): LogDetails =>
-  ({
-    version: 2,
+  testLogDetails({
     status,
-    eval: {
+    eval: testEvalSpec({
       eval_id: `eval-${file}`,
       run_id: `run-${file}`,
       created: "2026-01-01T00:00:00Z",
@@ -58,9 +60,9 @@ const payload = (
       task_id: `tid-${file}`,
       task_version: 1,
       model: "mockllm/model",
-    },
+    }),
     sampleSummaries,
-  }) as unknown as LogDetails;
+  });
 
 const wrapper = ({ children }: { children: ReactNode }) =>
   createElement(QueryClientProvider, { client: queryClient }, children);

@@ -2,6 +2,13 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testInfoEvent,
+  testModelEvent,
+  testModelOutput,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { InMemoryStateWrapper } from "../testHelpers";
@@ -13,36 +20,27 @@ import { useTimelinePipeline } from "./useTimelinePipeline";
 // =============================================================================
 
 function makeModelEvent(uuid: string, startSec: number): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
-    model: "test-model",
-    input: [],
-    output: {
+    output: testModelOutput({
       choices: [
-        {
-          message: { role: "assistant", content: "response" },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({ content: "response" }),
+        }),
       ],
       completion: "response",
-      model: "test-model",
-    },
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    }),
     timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
     working_start: startSec,
     working_time: 1,
     error: null,
     pending: false,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 function makeInfoEvent(uuid: string, startSec: number): Event {
-  return {
-    event: "info",
+  return testInfoEvent({
     uuid,
     source: "test",
     data: "",
@@ -50,7 +48,7 @@ function makeInfoEvent(uuid: string, startSec: number): Event {
     working_start: startSec,
     pending: false,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 // =============================================================================

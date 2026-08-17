@@ -6,9 +6,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, ReactNode } from "react";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
+import {
+  ClientAPI,
+  LogDetails,
+  LogHeader,
+  SampleSummary,
+} from "../client/api/types";
+import { DatabaseManager, DatabaseService } from "../client/database";
 
 import {
   ChunkByteStore,
@@ -65,6 +73,75 @@ export const testEvalSample = (messages: ChatMessage[]): EvalSample => ({
   role_usage: {},
   output: { model: "test", completion: "", choices: [] },
 });
+
+export const testSampleSummary = (
+  overrides: Partial<SampleSummary> = {}
+): SampleSummary => ({
+  id: "s1",
+  epoch: 1,
+  input: "input",
+  target: "",
+  scores: null,
+  ...overrides,
+});
+
+export const testLogDetails = (
+  overrides: Partial<LogDetails> = {}
+): LogDetails => ({
+  version: 2,
+  status: "success",
+  eval: testEvalSpec(),
+  sampleSummaries: [],
+  ...overrides,
+});
+
+/** The stored form of a details payload (LogHeader), with sample facts zeroed. */
+export const testLogHeader = (
+  overrides: Partial<LogHeader> = {}
+): LogHeader => ({
+  eval: testEvalSpec(),
+  sampleCount: 0,
+  sampleErrorCount: 0,
+  sampleLimits: [],
+  ...overrides,
+});
+
+const notImplemented = (name: string) => () => {
+  throw new Error(`${name} not implemented in test`);
+};
+
+/**
+ * A complete ClientAPI whose required methods throw unless overridden.
+ * Optional methods stay undefined so presence-probing code paths behave as
+ * they would against a backend that lacks them.
+ */
+export const testClientAPI = (
+  overrides: Partial<ClientAPI> = {}
+): ClientAPI => ({
+  get_logs: notImplemented("get_logs"),
+  get_eval_set: notImplemented("get_eval_set"),
+  get_flow: notImplemented("get_flow"),
+  get_log_summaries: notImplemented("get_log_summaries"),
+  get_log_summaries_settled: notImplemented("get_log_summaries_settled"),
+  get_log_details: notImplemented("get_log_details"),
+  get_log_info: notImplemented("get_log_info"),
+  get_log_sample: notImplemented("get_log_sample"),
+  client_events: notImplemented("client_events"),
+  download_file: notImplemented("download_file"),
+  open_log_file: notImplemented("open_log_file"),
+  get_app_config: notImplemented("get_app_config"),
+  ...overrides,
+});
+
+/**
+ * A real, never-opened DatabaseService with the given methods overridden —
+ * un-overridden calls fail loudly ("No database initialized") and `opened()`
+ * reports false unless a fake supplies its own.
+ */
+export const testDatabaseService = (
+  overrides: Partial<DatabaseService> = {}
+): DatabaseService =>
+  Object.assign(new DatabaseService(new DatabaseManager()), overrides);
 
 export const testModelEvent = (inputId: string, outputId: string): Event => ({
   event: "model",

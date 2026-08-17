@@ -11,6 +11,19 @@
 
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testSystemMessage,
+  testToolCall,
+  testToolEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { buildTimeline, TimelineSpan } from "./core";
@@ -37,24 +50,18 @@ function spanBegin(
   type: string | null,
   parentId: string | null
 ): Event {
-  return {
+  return testSpanBeginEvent({
     ...base(),
-    event: "span_begin",
     id,
     name,
     type,
     parent_id: parentId,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 function spanEnd(id: string): Event {
-  return {
-    ...base(),
-    event: "span_end",
-    id,
-    span_id: null,
-  } as unknown as Event;
+  return testSpanEndEvent({ ...base(), id, span_id: null });
 }
 
 function modelTurn(
@@ -62,36 +69,36 @@ function modelTurn(
   systemPrompt: string,
   opts?: { toolCalls?: boolean }
 ): Event {
-  const message = opts?.toolCalls
-    ? {
-        role: "assistant",
-        content: "ok",
-        tool_calls: [{ id: "call_1", function: "agent", arguments: {} }],
-      }
-    : { role: "assistant", content: "ok" };
-  return {
+  const message = testAssistantMessage({
+    content: "ok",
+    ...(opts?.toolCalls
+      ? { tool_calls: [testToolCall({ id: "call_1", function: "agent" })] }
+      : {}),
+  });
+  return testModelEvent({
     ...base(),
-    event: "model",
     model: "mockllm/model",
     completed: ts(),
     span_id: spanId,
     input: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: "go" },
+      testSystemMessage({ content: systemPrompt }),
+      testUserMessage({ content: "go" }),
     ],
-    output: {
+    output: testModelOutput({
       choices: [
-        { message, stop_reason: opts?.toolCalls ? "tool_calls" : "stop" },
+        testChatCompletionChoice({
+          message,
+          stop_reason: opts?.toolCalls ? "tool_calls" : "stop",
+        }),
       ],
-      usage: { input_tokens: 5, output_tokens: 1 },
-    },
-  } as unknown as Event;
+      usage: testModelUsage({ input_tokens: 5, output_tokens: 1 }),
+    }),
+  });
 }
 
 function dispatchToolEvent(spanId: string): Event {
-  return {
+  return testToolEvent({
     ...base(),
-    event: "tool",
     id: "call_1",
     function: "agent",
     completed: ts(),
@@ -99,7 +106,7 @@ function dispatchToolEvent(spanId: string): Event {
     events: [],
     span_id: spanId,
     result: "Dispatched AGENT-1.",
-  } as unknown as Event;
+  });
 }
 
 function findSpan(span: TimelineSpan, name: string): TimelineSpan | null {

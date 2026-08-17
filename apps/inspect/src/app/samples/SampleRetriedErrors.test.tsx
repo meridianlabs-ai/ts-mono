@@ -4,6 +4,7 @@ import { createRef, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
+import { testErrorEvent } from "@tsmono/inspect-common/testing";
 
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
 
@@ -98,7 +99,7 @@ describe("SampleRetriedErrors", () => {
     const scrollRef = createRef<HTMLDivElement>();
     const withEvents = (n: number): EvalRetryError => ({
       ...makeRetry(n),
-      events: [{ event: "error" }] as unknown as EvalRetryError["events"],
+      events: [testErrorEvent()],
     });
     render(
       <SampleRetriedErrors

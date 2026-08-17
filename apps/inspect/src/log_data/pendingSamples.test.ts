@@ -15,6 +15,7 @@ import {
   pendingSamplesKey,
   shouldPollPendingSamples,
 } from "./pendingSamples";
+import { testClientAPI } from "./testFixtures";
 
 const engineFetch = vi.hoisted(() => vi.fn());
 vi.mock("./fetchEngine", () => ({
@@ -106,10 +107,10 @@ describe("fetchPendingSamples", () => {
     const getPending = vi.fn().mockResolvedValue(response);
     let currentInfo = info;
     return {
-      api: {
+      api: testClientAPI({
         get_log_pending_samples: getPending,
         get_log_info: vi.fn(() => Promise.resolve(currentInfo)),
-      } as unknown as ClientAPI,
+      }),
       getPending,
       setSize: (size: number) => {
         currentInfo = { size };
