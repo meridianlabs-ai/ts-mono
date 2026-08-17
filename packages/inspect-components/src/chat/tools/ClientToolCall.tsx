@@ -84,6 +84,15 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
 
   const hasInput =
     (input !== undefined && input !== null && input !== "") || !!view?.content;
+  // Tools without a dedicated input descriptor carry all their args in the
+  // functionCall string; args too long for the one-line header summary get a
+  // real input zone instead (mirroring ServerToolCall's multi-line args).
+  // Gate on the whitespace-collapsed length, not raw newlines: formatArg
+  // pretty-prints every object/array value, so even tiny args like
+  // `coordinate: [100, 200]` are multi-line as a formatting artifact.
+  const argsBody = hasInput ? undefined : fullArgs(functionCall, title || tool);
+  const argsSummary = argsBody?.replace(/\s+/g, " ").trim();
+  const argsInInputZone = !!argsSummary && argsSummary.length > kMaxSummaryArgs;
   const showError = !!error;
   const showAnnotation = !!selfAnnotation && !!inputScreenshot;
   const showOutput = !showError && (hasOutputContent(output) || showAnnotation);
@@ -93,10 +102,10 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       id={id}
       icon={iconForTool(tool)}
       title={title || tool}
-      summary={description ?? inlineArgs(functionCall, title || tool)}
+      summary={description ?? (argsInInputZone ? undefined : argsSummary)}
       className={className}
     >
-      {hasInput ? (
+      {hasInput || argsInInputZone ? (
         <ToolBlockInput>
           <ExpandablePanel
             id={`${id}-tool-input`}
@@ -106,9 +115,9 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
             className={clsx("text-size-small")}
           >
             <ToolInput
-              contentType={contentType}
-              contents={input}
-              toolCallView={view}
+              contentType={hasInput ? contentType : undefined}
+              contents={hasInput ? input : argsBody}
+              toolCallView={hasInput ? view : undefined}
             />
           </ExpandablePanel>
         </ToolBlockInput>
@@ -136,14 +145,15 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   );
 };
 
-/** The args portion of the rendered function call (the text inside the
- * parens), as a single-line header summary. */
-const inlineArgs = (functionCall: string, tool: string): string | undefined => {
+/** Args longer than this can't meaningfully summarize on the single header
+ * line; they render in the input zone instead. */
+const kMaxSummaryArgs = 120;
+
+/** The args portion of the rendered function call with formatting preserved;
+ * collapse whitespace for the single-line header summary. */
+const fullArgs = (functionCall: string, tool: string): string | undefined => {
   if (functionCall.startsWith(`${tool}(`) && functionCall.endsWith(")")) {
-    const inner = functionCall
-      .slice(tool.length + 1, -1)
-      .replace(/\s+/g, " ")
-      .trim();
+    const inner = functionCall.slice(tool.length + 1, -1).trim();
     return inner.length > 0 ? inner : undefined;
   }
   return functionCall !== tool ? functionCall : undefined;

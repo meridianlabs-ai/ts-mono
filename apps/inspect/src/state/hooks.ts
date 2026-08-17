@@ -353,35 +353,44 @@ export const useFilteredSamples = () => {
     (state) => state.logActions.clearFilterError
   );
 
-  return useMemo(() => {
+  const { samples, filterError } = useMemo(() => {
     // Apply text filter
     const { result, error, allErrors } =
       samplesDescriptor && filter
         ? filterSamples(samplesDescriptor, sampleSummaries, filter)
         : { result: sampleSummaries, error: undefined, allErrors: false };
 
-    if (error && allErrors) {
-      setFilterError(error);
+    // A filter that errored on every sample is reported rather than applied —
+    // the unfiltered list stays visible under the error annotation.
+    const failedAllSamples = error !== undefined && allErrors;
+
+    const filtered = failedAllSamples ? sampleSummaries : result;
+
+    // Skip the clone + sort when the list is already ordered (the common case).
+    const sorted =
+      filtered.length < 2 || samplesAreSorted(filtered)
+        ? filtered
+        : [...filtered].sort(compareSamples);
+
+    return {
+      samples: sorted,
+      filterError: failedAllSamples ? error : undefined,
+    };
+  }, [samplesDescriptor, sampleSummaries, filter]);
+
+  // Publishing the error is a side effect, so it belongs in an effect rather
+  // than the memo above: a store write during render makes SampleFilter update
+  // while SamplesTab is rendering, and leaves the memo impure — which React
+  // Compiler is free to cache, stranding a stale error on the filter input.
+  useEffect(() => {
+    if (filterError) {
+      setFilterError(filterError);
     } else {
       clearFilterError();
     }
+  }, [filterError, setFilterError, clearFilterError]);
 
-    const filtered =
-      error === undefined || !allErrors ? result : sampleSummaries;
-
-    // Skip the clone + sort when the list is already ordered (the common case).
-    if (filtered.length < 2 || samplesAreSorted(filtered)) {
-      return filtered;
-    }
-
-    return [...filtered].sort(compareSamples);
-  }, [
-    samplesDescriptor,
-    sampleSummaries,
-    filter,
-    setFilterError,
-    clearFilterError,
-  ]);
+  return samples;
 };
 
 // Provides the currently selected sample summary

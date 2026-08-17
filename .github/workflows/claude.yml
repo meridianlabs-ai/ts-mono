@@ -107,6 +107,14 @@ jobs:
       id-token: write
       actions: read
     with:
+      # The reusable workflow's default allowlist is Python-oriented (pytest,
+      # ruff, uv, ...) — useless here and it auto-denies every pnpm command in
+      # headless runs. The override lives in .github/claude-settings.json
+      # (claude-code-action accepts a path as well as inline JSON, resolved
+      # against this repo's checkout). It replaces the default entirely, so
+      # the file repeats the git/gh/file-edit entries alongside the pnpm/turbo
+      # swap-ins.
+      settings: .github/claude-settings.json
       # trigger_phrase is single-valued, so resolve it from the SAME source the
       # action will check for this event (comment > review > issue), not from a
       # union of all sources — otherwise a stale @claude in an enclosing issue
@@ -167,5 +175,7 @@ jobs:
       id-token: write
       actions: read
     with:
+      # Same allowlist override as the claude job above (see the comment there).
+      settings: .github/claude-settings.json
       trigger_phrase: "@auto"
       label_trigger: "auto"

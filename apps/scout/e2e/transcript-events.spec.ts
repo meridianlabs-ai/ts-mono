@@ -848,23 +848,19 @@ test.describe("transcript event rendering", () => {
     // WITHIN-VISIT tab flips still restore — the deliberate counterpart of
     // the fresh-visit top landing above. Two regressions, on this same
     // (fresh) visit to A:
-    // 1) events -> messages -> events lands back where the user was (a
-    //    one-shot scrollTop write against a freshly remounted virtualized
-    //    list lands on interim row measurements and drifts by the re-measure
-    //    delta);
+    // 1) events -> messages -> events lands back where the user was;
     // 2) a flip INSIDE the recorder's debounce window must not lose the
     //    position — the pending record is flushed with the value captured at
     //    scroll time, not cancelled.
     //
-    // Tolerance: the restore is a single scrollTop write against a freshly
-    // remounted virtualizer (DEFAULT_ITEM_HEIGHT_PX estimate, no re-issue/
-    // settle loop — pixel accuracy is deliberately not guaranteed), so it
-    // lands within the straddling row's re-measure delta of the recorded
-    // offset — deterministic
-    // ~77/94px here on CI Linux font metrics (deeper scroll -> taller straddle
-    // row). 120px stays well under one 400px row, so it still fails a top reset
-    // (~1000px off) or a full-row miss; it only tolerates the sub-row drift.
-    const RESTORE_REMEASURE_TOLERANCE_PX = 120;
+    // Tolerance: the restore re-forces the recorded offset until re-measure
+    // compensation goes quiet (VirtualList.settleRestoreScroll, #519), so it
+    // converges on the recorded pixel regardless of when the remount
+    // measurement pass re-renders — locally exact (<=2px). The margin only
+    // covers a post-settle re-measure (late fonts/async content) nudging
+    // scrollTop to preserve viewport content; a single row's estimate error
+    // (~76-249px against the flat 400px estimate) must fail again.
+    const RESTORE_REMEASURE_TOLERANCE_PX = 20;
     const flipToMessagesAndBack = async () => {
       await page.getByRole("tab", { name: "Messages" }).first().click();
       await expect(page.getByText("flip message 0").first()).toBeVisible();

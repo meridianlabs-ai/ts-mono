@@ -20,7 +20,8 @@ interface ChangeType {
   match?: (changes: JsonChange[]) => boolean;
   render: (
     changes: JsonChange[],
-    state: Record<string, unknown>
+    state: Record<string, unknown>,
+    eventNodeId: string
   ) => JSX.Element;
 }
 
@@ -113,7 +114,7 @@ const human_baseline_session: ChangeType = {
     replace: [],
     remove: [],
   },
-  render: (_changes, state: Record<string, unknown>) => {
+  render: (_changes, state: Record<string, unknown>, eventNodeId) => {
     // Read the session values
     const started = state[humanAgentKey("started_running")] as number;
     const runtime = state[humanAgentKey("accumulated_time")] as number;
@@ -161,6 +162,7 @@ const human_baseline_session: ChangeType = {
     return (
       <HumanBaselineView
         key="human_baseline_view"
+        id={eventNodeId}
         started={startedDate}
         running={running}
         completed={completed}

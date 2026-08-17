@@ -89,6 +89,20 @@ describe("fetch engine activation lifecycle", () => {
     expect(h.start).toHaveBeenCalledTimes(1);
   });
 
+  test("a single-file activation starts the engine with no database", async () => {
+    // The engine's contract (FetchEngineDeps.database) spells "no
+    // persistence" as null; passing the unopened service instead made
+    // beginFetch probe a closed database on every fetch (#518).
+    const { activateFetchEngine, fetchLog } = await control();
+
+    activateFetchEngine({ ...configFor("dirA"), singleFileMode: true });
+    await fetchLog("dirA", "file.eval");
+
+    expect(h.openDatabase).not.toHaveBeenCalled();
+    expect(h.start).toHaveBeenCalledTimes(1);
+    expect(h.start.mock.calls[0]?.[0]).toMatchObject({ database: null });
+  });
+
   test("fetchLog rejects when a dir switch lands while its activation settles", async () => {
     // Hold dirA's activation open across the database open, switch to dirB,
     // then release: the resumed caller must not fetch into dirB's engine.
@@ -178,6 +192,34 @@ describe("fetch engine activation lifecycle", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(h.start).not.toHaveBeenCalled();
+  });
+
+  test("a same-dir remount resolves the waiter queued against the first mount", async () => {
+    // StrictMode (and a failed-start retry) deactivates and re-activates the
+    // same dir. A caller that queued before the first activation holds mount
+    // #1's promise, and react-query won't re-invoke queryFn on remount — so
+    // mount #1 resuming into a bumped epoch must adopt the live activation
+    // rather than reject, or the listing stays broken until the next poll.
+    let releaseFirst!: () => void;
+    h.openDatabase.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        })
+    );
+    const { activateFetchEngine, deactivateFetchEngine, syncLogs } =
+      await control();
+
+    const pending = syncLogs("dirA");
+    activateFetchEngine(configFor("dirA"));
+
+    deactivateFetchEngine();
+    activateFetchEngine(configFor("dirA"));
+    releaseFirst();
+
+    await expect(pending).resolves.toEqual([]);
+    expect(h.start).toHaveBeenCalledTimes(1);
+    expect(h.start.mock.calls[0]?.[0]).toMatchObject({ logDir: "dirA" });
   });
 
   test("acquisition after a final deactivation rejects instead of hanging", async () => {
