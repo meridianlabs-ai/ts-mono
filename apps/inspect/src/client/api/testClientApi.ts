@@ -1,13 +1,21 @@
 /**
- * Cast-free ClientAPI fixture: every required member stubbed to throw,
- * spread-merged with per-test overrides.
+ * Cast-free fixtures for the client/api types: a ClientAPI whose members
+ * throw unless overridden, and complete minimal values of the log data
+ * shapes, spread-merged with per-test overrides.
  */
-import type { ClientAPI } from "./types";
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
-const notImplemented = (name: string) => (): never => {
+import type { ClientAPI, LogDetails, LogHeader, SampleSummary } from "./types";
+
+export const notImplemented = (name: string) => (): never => {
   throw new Error(`${name} not implemented in test`);
 };
 
+/**
+ * A complete ClientAPI whose required methods throw unless overridden.
+ * Optional methods stay undefined so presence-probing code paths behave as
+ * they would against a backend that lacks them.
+ */
 export const testClientAPI = (
   overrides: Partial<ClientAPI> = {}
 ): ClientAPI => ({
@@ -23,5 +31,37 @@ export const testClientAPI = (
   download_file: notImplemented("download_file"),
   open_log_file: notImplemented("open_log_file"),
   get_app_config: notImplemented("get_app_config"),
+  ...overrides,
+});
+
+export const testSampleSummary = (
+  overrides: Partial<SampleSummary> = {}
+): SampleSummary => ({
+  id: "s1",
+  epoch: 1,
+  input: "input",
+  target: "",
+  scores: null,
+  ...overrides,
+});
+
+export const testLogDetails = (
+  overrides: Partial<LogDetails> = {}
+): LogDetails => ({
+  version: 2,
+  status: "success",
+  eval: testEvalSpec(),
+  sampleSummaries: [],
+  ...overrides,
+});
+
+/** The stored form of a details payload (LogHeader), with sample facts zeroed. */
+export const testLogHeader = (
+  overrides: Partial<LogHeader> = {}
+): LogHeader => ({
+  eval: testEvalSpec(),
+  sampleCount: 0,
+  sampleErrorCount: 0,
+  sampleLimits: [],
   ...overrides,
 });

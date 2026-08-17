@@ -1,11 +1,12 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { testEvalLog, testEvalSpec } from "@tsmono/inspect-common/testing";
+import { testEvalLog } from "@tsmono/inspect-common/testing";
 
 import { openRemoteLogFile, RemoteLogFile } from "../remote/remoteLogFile";
 import { DirectFetchError } from "../remote/remotePendingSampleData";
 
 import { clientApi } from "./client-api";
+import { notImplemented, testLogDetails } from "./testClientApi";
 import {
   EditLogResult,
   LogDetails,
@@ -35,10 +36,6 @@ const okResponse = (has_more = false): SampleDataResponse => ({
   has_more,
 });
 
-const notImplemented = (name: string) => () => {
-  throw new Error(`${name} not implemented in test`);
-};
-
 const remoteLogFileWith = (
   overrides: Partial<RemoteLogFile> = {}
 ): RemoteLogFile => ({
@@ -47,13 +44,6 @@ const remoteLogFileWith = (
   readSample: vi.fn(notImplemented("readSample")),
   zipAccess: vi.fn(notImplemented("zipAccess")),
   readCompleteLog: vi.fn(notImplemented("readCompleteLog")),
-  ...overrides,
-});
-
-const detailsWith = (overrides: Partial<LogDetails> = {}): LogDetails => ({
-  eval: testEvalSpec(),
-  tags: [],
-  sampleSummaries: [],
   ...overrides,
 });
 
@@ -216,7 +206,7 @@ describe("clientApi.edit_log cache invalidation", () => {
     const remoteLogFile = remoteLogFileWith({
       readLogSummary: vi
         .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(detailsWith()),
+        .mockResolvedValue(testLogDetails()),
     });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
@@ -244,7 +234,7 @@ describe("clientApi.edit_log cache invalidation", () => {
     const remoteLogFile = remoteLogFileWith({
       readLogSummary: vi
         .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(detailsWith()),
+        .mockResolvedValue(testLogDetails()),
     });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
@@ -270,7 +260,7 @@ describe("clientApi.edit_log cache invalidation", () => {
     const remoteLogFile = remoteLogFileWith({
       readLogSummary: vi
         .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(detailsWith()),
+        .mockResolvedValue(testLogDetails()),
     });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
@@ -300,7 +290,7 @@ describe("clientApi.get_log_details running-log caching", () => {
     remoteLogFileWith({
       readLogSummary: vi
         .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(detailsWith({ status })),
+        .mockResolvedValue(testLogDetails({ status })),
     });
 
   test("a running log is not re-served from the memoized remote file", async () => {
@@ -462,7 +452,7 @@ describe("clientApi.edit_log etag plumbing", () => {
     const remoteLogFile = remoteLogFileWith({
       readLogSummary: vi
         .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValue(detailsWith({ etag: "initial-from-s3" })),
+        .mockResolvedValue(testLogDetails({ etag: "initial-from-s3" })),
     });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
@@ -490,8 +480,8 @@ describe("clientApi.edit_log etag plumbing", () => {
     const remoteLogFile = remoteLogFileWith({
       readLogSummary: vi
         .fn<RemoteLogFile["readLogSummary"]>()
-        .mockResolvedValueOnce(detailsWith({ etag: "v1" }))
-        .mockResolvedValueOnce(detailsWith({ etag: "v2" })),
+        .mockResolvedValueOnce(testLogDetails({ etag: "v1" }))
+        .mockResolvedValueOnce(testLogDetails({ etag: "v2" })),
     });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
