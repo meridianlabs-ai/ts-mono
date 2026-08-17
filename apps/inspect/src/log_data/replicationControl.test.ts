@@ -30,11 +30,11 @@ vi.mock("./fetchEngine", () => ({
     epoch: () => h.epoch,
   },
 }));
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => ({
-    openDatabase: h.openDatabase,
-    touchSyncScope: h.touchSyncScope,
-  }),
+vi.mock("./databaseInstance", () => ({
+  acquireDatabase: async () => {
+    await h.openDatabase();
+    return { touchSyncScope: h.touchSyncScope };
+  },
 }));
 vi.mock("./listingSync", () => ({ syncListing: h.syncListing }));
 vi.mock("./logsContent", () => ({ createLogsContentSink: () => ({}) }));

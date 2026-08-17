@@ -14,7 +14,7 @@ import { SampleSummariesScope } from "../client/database";
 import { PreparedSampleSummary } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
-import { getDatabaseService } from "./databaseServiceInstance";
+import { currentDatabase } from "./databaseInstance";
 
 /**
  * The scoped samples read: sample summaries under a scope — one log file
@@ -117,8 +117,8 @@ const pageOf = (
 const readSamplesListing = async (
   params: SamplesListingParams
 ): Promise<SamplesListingRow[]> => {
-  const db = getDatabaseService();
-  if (!db.opened()) {
+  const db = currentDatabase();
+  if (!db) {
     // Db-less sessions: the sink's pushes are the only source — behave as a
     // passive cache container (returning the current value, not []) so a
     // mount-time fetch settling after a push can't clobber it.
@@ -169,8 +169,8 @@ export const readSettledSummaries = async (
   logFile: string
 ): Promise<SampleSummary[]> => {
   const scope: SamplesScope = { file: logFile };
-  const db = getDatabaseService();
-  if (db.opened()) {
+  const db = currentDatabase();
+  if (db) {
     const records = await db.readSampleSummaries(scope);
     return records.map((record) => record.summary);
   }

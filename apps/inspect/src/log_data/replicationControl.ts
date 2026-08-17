@@ -1,24 +1,22 @@
 import { LogHandle } from "@tsmono/inspect-common";
 
 import { AppConfig, getAppConfig } from "../app_config";
-import { DatabaseService } from "../client/database";
+import { OpenDatabase } from "../client/database";
 
-import { getDatabaseService } from "./databaseServiceInstance";
+import { acquireDatabase } from "./databaseInstance";
 import { fetchEngine } from "./fetchEngine";
 import { syncListing } from "./listingSync";
 import { createLogsContentSink } from "./logsContent";
 
 // Open the (unified) IndexedDB and mark `logDir`'s sync scope active.
-// Returns the (already-constructed) DatabaseService once its database is
-// open, or undefined if unavailable.
+// Returns the open handle, or undefined if unavailable.
 export const openLogDirDatabase = async (
   logDir: string
-): Promise<DatabaseService | undefined> => {
-  const databaseService = getDatabaseService();
+): Promise<OpenDatabase | undefined> => {
   try {
-    await databaseService.openDatabase();
-    await databaseService.touchSyncScope(logDir);
-    return databaseService;
+    const database = await acquireDatabase();
+    await database.touchSyncScope(logDir);
+    return database;
   } catch (e) {
     console.log(e);
     return undefined;

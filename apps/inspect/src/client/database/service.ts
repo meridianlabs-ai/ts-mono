@@ -1,12 +1,15 @@
+import Dexie from "dexie";
+
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
 import { Log, LogFetchState, LogPreview } from "../api/types";
 import { maxDepth, PreparedLogDetails, previewTier } from "../utils/type-utils";
 
-import { DatabaseManager } from "./manager";
 import {
   AppDatabase,
+  DB_NAME,
+  deleteLegacyDatabases,
   fromLogRecord,
   LogRecord,
   SampleSummaryRecord,
@@ -15,7 +18,7 @@ import {
   toLogRecord,
 } from "./schema";
 
-const log = createLogger("DatabaseService");
+const log = createLogger("OpenDatabase");
 
 /** Scope of a sample-summaries read: one log file, or every file under a
  *  path prefix. */
@@ -35,44 +38,49 @@ const newRow = (handle: LogHandle): Log => ({
 });
 
 /**
- * Database service for caching and retrieving log data.
- * Works with a DatabaseManager instance to handle database operations.
+ * The read/write surface over the (single, per-origin) database. Constructed
+ * only with a live connection — obtaining one proves an open succeeded, so
+ * consumers holding an `OpenDatabase` never need an "is it open?" check
+ * (sessions without persistence hold `null` instead; see #518 for the bug
+ * class this shape rules out).
  */
-export class DatabaseService {
-  private manager: DatabaseManager;
+export class OpenDatabase {
+  private readonly db: AppDatabase;
 
-  constructor(manager: DatabaseManager) {
-    this.manager = manager;
+  constructor(db: AppDatabase) {
+    this.db = db;
   }
 
-  /**
-   * Get the current database instance.
-   * Throws an error if no database is open.
-   */
-  private getDb(): AppDatabase {
-    const db = this.manager.getDatabase();
-    if (!db) {
-      throw new Error("No database initialized. Call openDatabase first.");
+  /** Open the (unified) database and wrap the live connection. */
+  static async open(): Promise<OpenDatabase> {
+    if (await AppDatabase.checkVersionMismatch()) {
+      log.info("Recreating database due to version mismatch");
+      await Dexie.delete(DB_NAME);
     }
-    return db;
-  }
-
-  opened(): boolean {
-    return this.manager.getDatabase() !== null;
+    const db = new AppDatabase();
+    try {
+      await db.open();
+      log.debug("Successfully opened database");
+      // Pre-unification per-dir databases are dead weight; sweep them in the
+      // background. Genuine fire-and-forget: it cannot reject (fully
+      // try/caught), and a legacy database held open by an older tab would
+      // block its delete until that tab closes.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      void deleteLegacyDatabases();
+      return new OpenDatabase(db);
+    } catch (error) {
+      log.error("Failed to open database:", error);
+      throw error;
+    }
   }
 
   /**
-   * Open the (unified) database.
+   * Close the underlying connection. Test teardown only (a same-process
+   * `Dexie.delete` blocks on an open connection) — production never closes;
+   * a handle is valid for the life of the page.
    */
-  async openDatabase(): Promise<void> {
-    await this.manager.openDatabase();
-  }
-
-  /**
-   * Close the current database connection.
-   */
-  async closeDatabase(): Promise<void> {
-    await this.manager.close();
+  close(): void {
+    this.db.close();
   }
 
   // === LOG ROWS ===
@@ -83,7 +91,7 @@ export class DatabaseService {
    * facts are preserved).
    */
   async writeLogs(handles: LogHandle[]): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const now = new Date().toISOString();
 
     const existingRecords = await db.logs
@@ -113,12 +121,7 @@ export class DatabaseService {
 
   async readLogs(scope: LogScope): Promise<Log[] | null> {
     try {
-      if (!this.opened()) {
-        log.debug("Database not open");
-        return null;
-      }
-
-      const db = this.getDb();
+      const db = this.db;
       const records = await db.logs
         .where("file_path")
         .startsWith(scopePrefix(scope.prefix))
@@ -142,7 +145,7 @@ export class DatabaseService {
 
   async readLogRow(filePath: string): Promise<Log | null> {
     try {
-      const db = this.getDb();
+      const db = this.db;
       const record = await db.logs.where("file_path").equals(filePath).first();
       return record ? fromLogRecord(record) : null;
     } catch (error) {
@@ -153,7 +156,7 @@ export class DatabaseService {
 
   async readLogRows(filePaths: string[]): Promise<Record<string, Log>> {
     try {
-      const db = this.getDb();
+      const db = this.db;
       const records = await db.logs
         .where("file_path")
         .anyOf(filePaths)
@@ -174,7 +177,7 @@ export class DatabaseService {
   private async mergeRows(
     patches: Record<string, Partial<Log>>
   ): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const now = new Date().toISOString();
     const files = Object.keys(patches);
     const existing = await db.logs.where("file_path").anyOf(files).toArray();
@@ -226,7 +229,7 @@ export class DatabaseService {
   async writeLogDetails(
     details: Record<string, PreparedLogDetails>
   ): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const now = new Date().toISOString();
 
     const entries = Object.entries(details);
@@ -255,7 +258,7 @@ export class DatabaseService {
   async readSampleSummaries(
     scope: SampleSummariesScope
   ): Promise<SampleSummaryRecord[]> {
-    const db = this.getDb();
+    const db = this.db;
     const collection =
       "file" in scope
         ? db.sample_summaries.where("file_path").equals(scope.file)
@@ -282,7 +285,7 @@ export class DatabaseService {
    * with it.
    */
   async resetDepth(filePaths: string[]): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const now = new Date().toISOString();
     await db.transaction("rw", db.logs, db.sample_summaries, async () => {
       const records = await db.logs
@@ -309,7 +312,7 @@ export class DatabaseService {
 
   /** Remove a deleted file's row and its sample summaries. */
   async clearCacheForFile(filePath: string): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     log.debug(`Clearing cache for file: ${filePath}`);
 
     await Promise.all([
@@ -324,7 +327,7 @@ export class DatabaseService {
    * scope's namespace (see `namesInScope` in logsContent).
    */
   async clearAllData(): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     log.debug("Clearing all cached data");
     await db.transaction(
       "rw",
@@ -343,7 +346,7 @@ export class DatabaseService {
    * summaries, and the scope's sync record. Other scopes' rows are untouched.
    */
   async clearScope(scope: LogScope): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const prefix = scopePrefix(scope.prefix);
 
     log.debug(`Clearing caches under: ${prefix}`);
@@ -370,7 +373,7 @@ export class DatabaseService {
 
   /** Record that a scope is active (creating its row on first contact). */
   async touchSyncScope(prefix: string): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const key = scopePrefix(prefix);
     const now = new Date().toISOString();
     await db.transaction("rw", db.sync_scopes, async () => {
@@ -385,13 +388,13 @@ export class DatabaseService {
 
   /** Read a scope's sync record (undefined when never activated). */
   async getSyncScope(prefix: string): Promise<SyncScopeRecord | undefined> {
-    const db = this.getDb();
+    const db = this.db;
     return db.sync_scopes.get(scopePrefix(prefix));
   }
 
   /** Record that a listing sync persisted under a scope. */
   async markScopeSynced(prefix: string): Promise<void> {
-    const db = this.getDb();
+    const db = this.db;
     const key = scopePrefix(prefix);
     const now = new Date().toISOString();
     await db.transaction("rw", db.sync_scopes, async () => {
@@ -413,7 +416,7 @@ export class DatabaseService {
     logHeaders: number;
     sampleSummaries: number;
   }> {
-    const db = this.getDb();
+    const db = this.db;
     const prefix = scopePrefix(scope.prefix);
 
     // Index-only counts: this runs throttled but repeatedly during active
@@ -438,13 +441,4 @@ export class DatabaseService {
       sampleSummaries,
     };
   }
-}
-
-/**
- * Create a new database service instance.
- * Each service instance works with its own database manager.
- */
-export function createDatabaseService(): DatabaseService {
-  const manager = new DatabaseManager();
-  return new DatabaseService(manager);
 }

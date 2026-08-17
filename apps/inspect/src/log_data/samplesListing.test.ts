@@ -5,11 +5,7 @@ import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LogDetails, SampleSummary } from "../client/api/types";
-import {
-  createDatabaseService,
-  DatabaseService,
-  DB_NAME,
-} from "../client/database";
+import { DB_NAME, OpenDatabase } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
 import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
@@ -17,12 +13,9 @@ import { useSamplesListing } from "./samplesListing";
 
 // The module-under-test reads Dexie through the shared instance; route it to
 // this test's real (fake-indexeddb-backed) service.
-const holder = vi.hoisted(() => ({ service: null as DatabaseService | null }));
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => {
-    if (!holder.service) throw new Error("test service not initialized");
-    return holder.service;
-  },
+const holder = vi.hoisted(() => ({ service: null as OpenDatabase | null }));
+vi.mock("./databaseInstance", () => ({
+  currentDatabase: () => holder.service,
 }));
 
 const LOG_DIR = "/logs";
@@ -65,16 +58,15 @@ const payload = (
 const wrapper = ({ children }: { children: ReactNode }) =>
   createElement(QueryClientProvider, { client: queryClient }, children);
 
-let db: DatabaseService;
+let db: OpenDatabase;
 
 beforeEach(async () => {
-  db = createDatabaseService();
+  db = await OpenDatabase.open();
   holder.service = db;
-  await db.openDatabase();
 });
 
 afterEach(async () => {
-  await db.closeDatabase();
+  db.close();
   // The database name is a constant — cross-test isolation comes from
   // deleting it outright.
   await Dexie.delete(DB_NAME);
@@ -225,11 +217,10 @@ describe("useSamplesListing", () => {
     });
     queryClient.clear();
 
-    // Boot race: the samples listing mounts while openDatabase is still in
-    // flight, so the read sees an unopened service and settles empty
+    // Boot race: the samples listing mounts while the database open is still
+    // in flight, so the read sees no open handle and settles empty
     // (staleTime: Infinity — it will never refetch on its own).
-    const unopened = createDatabaseService();
-    holder.service = unopened;
+    holder.service = null;
     const { result } = renderHook(
       () => useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
       { wrapper }
@@ -248,15 +239,14 @@ describe("useSamplesListing", () => {
   });
 
   it("db-less ingestion (cache-only writes) still serves an observed file scope", async () => {
-    const unopened = createDatabaseService();
-    holder.service = unopened;
+    holder.service = null;
 
     const { result } = renderHook(
       () => useSamplesListing({ logDir: LOG_DIR, scope: { file: FILE_A } }),
       { wrapper }
     );
 
-    await writeDetails(unopened, LOG_DIR, {
+    await writeDetails(null, LOG_DIR, {
       [FILE_A]: payload(FILE_A, "success", [summary("s1")]),
     });
     await waitFor(() => expect(result.current.data).toHaveLength(1));

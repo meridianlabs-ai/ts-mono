@@ -1,7 +1,7 @@
 import { ensureTrailingSlash, isInDirectory } from "@tsmono/util";
 
 import type { Log } from "../client/api/types";
-import { scopePrefix } from "../client/database";
+import { scopePrefix, type OpenDatabase } from "../client/database";
 import {
   pageRows,
   type DatabaseListingPlan,
@@ -9,7 +9,7 @@ import {
 } from "../client/database/listing";
 import { directoryRelativeUrl, rootName } from "../utils/uri";
 
-import { getDatabaseService } from "./databaseServiceInstance";
+import { currentDatabase } from "./databaseInstance";
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";
 import { getLogRows, isCacheOnlyListingScope } from "./logsContent";
 
@@ -17,21 +17,20 @@ import { getLogRows, isCacheOnlyListingScope } from "./logsContent";
  * Where listing queries for `logDir` read their rows — an explicit,
  * scope-level decision rather than a per-query fallback:
  *
- * - "database": the normal dir-mode path; IndexedDB holds the replicated
- *   rows and is the row source.
- * - "cache": the react-query logs cache is the row source. This serves the
+ * - a database handle: the normal dir-mode path; IndexedDB holds the
+ *   replicated rows and is the row source.
+ * - null: the react-query logs cache is the row source. This serves the
  *   out-of-namespace degrade (listing persistence skipped — see
  *   `namesInScope` in logsContent) and db-less sessions (the database
  *   failed to open; single-file mode renders no log list at all).
  */
-const logsListingSource = (logDir: string): "database" | "cache" =>
-  getDatabaseService().opened() && !isCacheOnlyListingScope(logDir)
-    ? "database"
-    : "cache";
+const logsListingDatabase = (logDir: string): OpenDatabase | null =>
+  isCacheOnlyListingScope(logDir) ? null : currentDatabase();
 
 const scanRows = async (logDir: string, prefix: string): Promise<Log[]> => {
-  if (logsListingSource(logDir) === "database") {
-    const logs = await getDatabaseService().readLogs({ prefix });
+  const db = logsListingDatabase(logDir);
+  if (db) {
+    const logs = await db.readLogs({ prefix });
     if (logs !== null) return logs;
     // A failed db read degrades to the cache for this query only.
   }

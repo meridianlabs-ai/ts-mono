@@ -6,10 +6,7 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DB_NAME } from "../client/database/schema";
-import {
-  createDatabaseService,
-  DatabaseService,
-} from "../client/database/service";
+import { OpenDatabase } from "../client/database/service";
 import { queryClient } from "../state/queryClient";
 
 import { clearFile, writeListing, writePreviews } from "./logsContent";
@@ -21,16 +18,15 @@ vi.mock("./databaseListings", async (importOriginal) => ({
 }));
 
 describe("writeListing", () => {
-  let db: DatabaseService;
+  let db: OpenDatabase;
 
   beforeEach(async () => {
-    db = createDatabaseService();
-    await db.openDatabase();
+    db = await OpenDatabase.open();
   });
 
   afterEach(async () => {
     queryClient.clear();
-    await db.closeDatabase();
+    db.close();
     await Dexie.delete(DB_NAME);
   });
 
