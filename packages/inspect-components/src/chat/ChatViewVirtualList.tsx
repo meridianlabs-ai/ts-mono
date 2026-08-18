@@ -29,8 +29,8 @@ import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
 
 import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
+import { useChatFindSource } from "./find/useChatFindSource";
 import { computeMaxLabelLength } from "./labelLength";
-import { messageSearchText } from "./messageSearchText";
 import {
   buildMessageRows,
   messageRowOptions,
@@ -238,10 +238,12 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       ]
     );
 
-    const rowSearchText = useCallback(
-      (item: MessageRow): string | string[] => messageSearchText(item.resolved),
-      []
-    );
+    const findProbe = useChatFindSource({
+      items: rows,
+      renderRow,
+      listHandle,
+      scrollRef,
+    });
 
     // Show a placeholder instead of a blank tab when there's nothing to
     // render: a running sample may have no messages yet (before its first
@@ -259,25 +261,27 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     }
 
     return (
-      <VirtualList<MessageRow>
-        persistenceKey={`chat-${id}`}
-        ref={listHandle}
-        className={clsx(styles.list, className)}
-        scrollRef={scrollRef}
-        data={rows}
-        renderRow={renderRow}
-        initialIndex={initialMessageIndex}
-        scrollPaddingStart={kChatScrollPaddingStart}
-        live={running}
-        navOwned={navOwned}
-        followRequested={followRequested}
-        scrollToTopOnFinish={scrollToTopOnFinish}
-        components={chatComponents}
-        smoothScroll={false}
-        itemSearchText={rowSearchText}
-        showProgress={hasMoreRows}
-        onVisibleRangeChange={handleVisibleRangeChange}
-      />
+      <>
+        {findProbe}
+        <VirtualList<MessageRow>
+          persistenceKey={`chat-${id}`}
+          ref={listHandle}
+          className={clsx(styles.list, className)}
+          scrollRef={scrollRef}
+          data={rows}
+          renderRow={renderRow}
+          initialIndex={initialMessageIndex}
+          scrollPaddingStart={kChatScrollPaddingStart}
+          live={running}
+          navOwned={navOwned}
+          followRequested={followRequested}
+          scrollToTopOnFinish={scrollToTopOnFinish}
+          components={chatComponents}
+          smoothScroll={false}
+          showProgress={hasMoreRows}
+          onVisibleRangeChange={handleVisibleRangeChange}
+        />
+      </>
     );
   }
 );

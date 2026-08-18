@@ -60,7 +60,6 @@ export const OutlineRow: FC<OutlineRowProps> = ({
           selected ? styles.selected : ""
         )}
         style={{ paddingLeft: `${node.depth * 0.75}em` }}
-        data-unsearchable={true}
         role="button"
         tabIndex={0}
         onClick={activate}
@@ -132,7 +131,6 @@ export const OutlineLoadingRow: FC = () => (
   <div
     className={clsx(styles.eventRow, styles.loadingRow, "text-size-smaller")}
     style={{ paddingLeft: 0 }}
-    data-unsearchable={true}
   >
     <div className={styles.toggle} />
     <div className={clsx(styles.label)} role="status" aria-live="polite">

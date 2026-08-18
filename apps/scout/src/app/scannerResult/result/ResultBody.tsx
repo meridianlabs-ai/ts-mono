@@ -1,8 +1,12 @@
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+import type {
+  ChatViewDisplayOptions,
+  ChatViewLabelOptions,
+} from "@tsmono/inspect-components/chat";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useChromeNavOwnership } from "@tsmono/react/hooks";
 
@@ -104,6 +108,11 @@ const containerClass = (
   }
 };
 
+// Stable identities: these flow into ChatViewVirtualList's renderRow deps,
+// and a fresh object per render invalidates the find corpus cache for every
+// row (each headroom flip would restart find's "Counting…").
+const kIndentedDisplay: ChatViewDisplayOptions = { indented: true };
+
 const InputRenderer: FC<InputRendererProps> = ({
   resultData,
   inputData,
@@ -116,24 +125,28 @@ const InputRenderer: FC<InputRendererProps> = ({
   onHeadroomSetHidden,
   onHeadroomResetAnchor,
 }) => {
+  const messageReferences = resultData?.messageReferences;
+  const labelOptions = useMemo<ChatViewLabelOptions>(() => {
+    const messageLabels = messageReferences?.reduce((acc, ref) => {
+      if (ref.cite) {
+        acc[ref.id] = ref.cite;
+      }
+      return acc;
+    }, {});
+    return { highlight: highlightLabeled, messageLabels };
+  }, [messageReferences, highlightLabeled]);
+
   if (isTranscriptInput(inputData)) {
     if (inputData.input.messages && inputData.input.messages.length > 0) {
-      const labels = resultData?.messageReferences.reduce((acc, ref) => {
-        if (ref.cite) {
-          acc[ref.id] = ref.cite;
-        }
-        return acc;
-      }, {});
-
       return (
         <ChatViewVirtualList
           messages={inputData.input.messages || []}
           id={"scan-input-virtual-list"}
-          display={{ indented: true }}
+          display={kIndentedDisplay}
           className={className}
           scrollRef={scrollRef}
           initialMessageId={initialMessageId}
-          labels={{ highlight: highlightLabeled, messageLabels: labels }}
+          labels={labelOptions}
         />
       );
     } else if (inputData.input.events && inputData.input.events.length > 0) {
@@ -158,7 +171,7 @@ const InputRenderer: FC<InputRendererProps> = ({
       <ChatViewVirtualList
         messages={inputData.input}
         id={"scan-input-virtual-list"}
-        display={{ indented: true }}
+        display={kIndentedDisplay}
         className={className}
         scrollRef={scrollRef}
         initialMessageId={initialMessageId}
@@ -169,7 +182,7 @@ const InputRenderer: FC<InputRendererProps> = ({
       <ChatViewVirtualList
         messages={[inputData.input]}
         id={"scan-input-virtual-list"}
-        display={{ indented: true }}
+        display={kIndentedDisplay}
         className={className}
         scrollRef={scrollRef}
         initialMessageId={initialMessageId}

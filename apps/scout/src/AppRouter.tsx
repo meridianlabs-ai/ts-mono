@@ -1,17 +1,21 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
-import { createHashRouter, Outlet, useLocation, useParams } from "react-router";
-
 import {
-  ComponentNavigationProvider,
-  FindBand,
-  useFindBandShortcut,
-} from "@tsmono/react/components";
+  createHashRouter,
+  matchPath,
+  Outlet,
+  useLocation,
+  useParams,
+} from "react-router";
+
+import { ComponentNavigationProvider } from "@tsmono/react/components";
+import { FindBar, useFindBandShortcut } from "@tsmono/react/find";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
 import { ScanPanel } from "./app/scan/ScanPanel";
+import { kSegmentDataframe, kTabIdScans } from "./app/scan/ScanPanelBody";
 import { ScannerResultPanel } from "./app/scannerResult/ScannerResultPanel";
 import { ScansPanel } from "./app/scans/ScansPanel";
 import { useAppConfig } from "./app/server/useAppConfig";
@@ -60,16 +64,45 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
 
     const openFind = useCallback(() => setShowFind(true), [setShowFind]);
     const closeFind = useCallback(() => setShowFind(false), [setShowFind]);
+
+    // GRID screens defer to the browser's native find: the band only
+    // searches mounted (virtualized) rows, which would masquerade as
+    // find-across-all-grid-data. Keep the gated screens explicit.
+    const { pathname } = useLocation();
+    const selectedResultsTab = useStore((state) => state.selectedResultsTab);
+    const selectedResultsView = useStore((state) => state.selectedResultsView);
+    const scanMatch = matchPath(kScanRouteUrlPattern, pathname);
+    const onDataframeGrid =
+      scanMatch !== null &&
+      parseScanParams(scanMatch.params).scanResultUuid === undefined &&
+      // undefined = the default (results) tab
+      (selectedResultsTab === undefined ||
+        selectedResultsTab === kTabIdScans) &&
+      selectedResultsView === kSegmentDataframe;
+    const onGridScreen =
+      matchPath(kScansRootRouteUrlPattern, pathname) !== null ||
+      matchPath(kScansRouteUrlPattern, pathname) !== null ||
+      matchPath(kScansWithPathRouteUrlPattern, pathname) !== null ||
+      matchPath(kTranscriptsRouteUrlPattern, pathname) !== null ||
+      onDataframeGrid;
+
     // No onClose: scout has never had a global Escape handler — the band
     // closes via its own input's Escape or the close button.
-    useFindBandShortcut(openFind);
+    useFindBandShortcut(openFind, { enabled: !onGridScreen });
+
+    // A band opened elsewhere would linger inert over a grid screen.
+    useEffect(() => {
+      if (onGridScreen && showFind) {
+        setShowFind(false);
+      }
+    }, [onGridScreen, showFind, setShowFind]);
     useWindowMessaging();
     useRoutingInitializer(config.scans.dir);
 
     const content = <Outlet />;
     return (
       <ComponentNavigationProvider navigation={componentNavigation}>
-        {showFind && <FindBand onClose={closeFind} debounceMs={300} />}
+        {showFind && <FindBar onClose={closeFind} />}
 
         {routerConfig.mode === "workbench" && !singleFileMode ? (
           <ActivityBarLayout config={config}>{content}</ActivityBarLayout>

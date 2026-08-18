@@ -1,11 +1,6 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 
-import {
-  ExtendedFindProvider,
-  FindBand,
-  FindTargetProvider,
-  useFindBandShortcut,
-} from "@tsmono/react/components";
+import { FindBar, FindProvider, useFindBandShortcut } from "@tsmono/react/find";
 
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -98,22 +93,20 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   });
 
   return (
-    <ExtendedFindProvider>
-      <FindTargetProvider>
-        {showFind ? <FindBand onClose={hideFind} /> : ""}
-        <div className={styles.detail}>
-          <SampleNavbar
-            sampleId={sampleId}
-            epoch={epoch}
-            navigation={navigation}
-            navbarConfig={navbarConfig}
-          />
+    <FindProvider>
+      {showFind ? <FindBar onClose={hideFind} /> : ""}
+      <div className={styles.detail}>
+        <SampleNavbar
+          sampleId={sampleId}
+          epoch={epoch}
+          navigation={navigation}
+          navbarConfig={navbarConfig}
+        />
 
-          {sampleMatchesRequest && (
-            <InlineSampleDisplay className={styles.panel} />
-          )}
-        </div>
-      </FindTargetProvider>
-    </ExtendedFindProvider>
+        {sampleMatchesRequest && (
+          <InlineSampleDisplay className={styles.panel} />
+        )}
+      </div>
+    </FindProvider>
   );
 };

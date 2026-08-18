@@ -84,7 +84,6 @@ export const Navbar: FC<NavbarProps> = ({
         bordered === false ? null : styles.bordered
       )}
       aria-label="breadcrumb"
-      data-unsearchable={true}
     >
       <div className={clsx(styles.left)}>
         <Link to={backUrl} className={clsx(styles.toolbarButton)}>

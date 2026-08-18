@@ -230,7 +230,7 @@ export function useLogsListingMatches<TRow>({
   searchKey,
 }: UseLogsListingMatchesParams<TRow>): LogsListingMatches {
   const [matchTerm, setMatchTerm] = useState("");
-  // Same 100ms as the shared FindBand's debounce. The debounced callback
+  // Same 100ms as the shared FindBar's debounce. The debounced callback
   // always runs the latest closure, so the flush reads the current term.
   const syncMatchTerm = useDebouncedCallback(() => setMatchTerm(term), 100);
   useEffect(() => {

@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, MouseEvent, useMemo } from "react";
 
 import { JSONPanel, ToolButton } from "@tsmono/react/components";
+import { StaticFindRegion } from "@tsmono/react/find";
 import { filename } from "@tsmono/util";
 
 import { LogHeader } from "../../../client/api/types";
@@ -102,7 +103,12 @@ export const JsonTab: FC<JsonTabProps> = ({ logFile, json }) => {
   } else {
     return (
       <div className={styles.jsonTab}>
-        <JSONPanel id="task-json-contents" json={json} simple={true} />
+        <StaticFindRegion
+          findKey={`log-json:${logFile ?? ""}`}
+          contentKey={json}
+        >
+          <JSONPanel id="task-json-contents" json={json} simple={true} />
+        </StaticFindRegion>
       </div>
     );
   }

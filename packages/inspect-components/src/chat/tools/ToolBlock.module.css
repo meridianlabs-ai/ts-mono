@@ -54,6 +54,14 @@
   color: var(--bs-secondary-color);
 }
 
+/* Find-in-page reveal: wrap the strip so a match past the ellipsis becomes
+   visible; `anywhere` breaks the long unbroken runs args often contain. */
+.summaryExpanded {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
 .pill {
   flex: none;
   /* Right-aligned even when there is no args summary to push it over. */

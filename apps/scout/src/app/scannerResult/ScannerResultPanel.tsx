@@ -19,6 +19,7 @@ import {
   TabSet,
   ToolButton,
 } from "@tsmono/react/components";
+import { StaticFindRegion } from "@tsmono/react/find";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../icons";
@@ -433,12 +434,17 @@ export const ScannerResultPanel: FC = () => {
           handleTabChange(kTabIdJson);
         }}
       >
-        <JSONPanel
-          id="scan-result-json-contents"
-          data={resultData}
-          simple={true}
-          className={styles.json}
-        />
+        <StaticFindRegion
+          findKey={`scan-result-json:${resultData?.identifier ?? ""}`}
+          contentKey={resultData}
+        >
+          <JSONPanel
+            id="scan-result-json-contents"
+            data={resultData}
+            simple={true}
+            className={styles.json}
+          />
+        </StaticFindRegion>
       </TabPanel>
     </TabSet>
   );

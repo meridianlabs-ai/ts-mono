@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, ReactNode, useCallback, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import {
@@ -9,6 +9,7 @@ import {
   useFocusTurnNavigation,
 } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
+import { FindBar, FindProvider, useFindBandShortcut } from "@tsmono/react/find";
 import { navigateAndForget } from "@tsmono/react/hooks";
 
 import { useAppConfig } from "../../../app_config";
@@ -25,6 +26,7 @@ import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
 } from "../../../state/hooks";
+import { useStore } from "../../../state/store";
 import { useLogSampleNavigationActions } from "../../routing/sampleNavigation";
 import {
   logsUrl,
@@ -49,6 +51,20 @@ import styles from "./SampleEventView.module.css";
 export const SampleEventView: FC = () => {
   const { logPath, id: sampleId, epoch } = useLogOrSampleRouteParams();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Find band host (same wiring as the other shells). Focus pages disable
+  // virtualization and register no sources, so the band runs the sourceless
+  // window.find fallback; a sourced corpus here is a documented follow-up.
+  const showFind = useStore((state) => state.app.showFind);
+  const setShowFind = useStore((state) => state.appActions.setShowFind);
+  const hideFind = useStore((state) => state.appActions.hideFind);
+  const nativeFind = useStore((state) => state.app.nativeFind);
+  const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+  useFindBandShortcut(openFind, {
+    onClose: hideFind,
+    isOpen: showFind,
+    enabled: !nativeFind,
+  });
   const eventId = searchParams.get("event");
   const prefix = useRoutePrefix();
   const location = useLocation();
@@ -198,8 +214,9 @@ export const SampleEventView: FC = () => {
     />
   );
 
+  let content: ReactNode;
   if (!sample && runningEvents.length === 0) {
-    return (
+    content = (
       <div className={styles.root}>
         {header}
         <div className={styles.loading}>
@@ -208,11 +225,9 @@ export const SampleEventView: FC = () => {
         </div>
       </div>
     );
-  }
-
-  if (nav.slice.length === 0) {
+  } else if (nav.slice.length === 0) {
     // While streaming, the focused turn may simply not have arrived yet.
-    return (
+    content = (
       <div className={styles.root}>
         {header}
         {isRunning ? (
@@ -225,19 +240,26 @@ export const SampleEventView: FC = () => {
         )}
       </div>
     );
+  } else {
+    content = (
+      <FocusTurnView
+        nav={nav}
+        eventId={eventId}
+        header={header}
+        error={
+          sampleError
+            ? { label: "Sample error", message: sampleError.message }
+            : undefined
+        }
+        onExit={onExit}
+      />
+    );
   }
 
   return (
-    <FocusTurnView
-      nav={nav}
-      eventId={eventId}
-      header={header}
-      error={
-        sampleError
-          ? { label: "Sample error", message: sampleError.message }
-          : undefined
-      }
-      onExit={onExit}
-    />
+    <FindProvider>
+      {showFind ? <FindBar onClose={hideFind} /> : ""}
+      {content}
+    </FindProvider>
   );
 };

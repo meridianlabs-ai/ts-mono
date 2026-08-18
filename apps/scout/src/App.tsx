@@ -27,9 +27,8 @@ import {
   AppErrorBoundary,
   ComponentIconProvider,
   ComponentIcons,
-  ExtendedFindProvider,
-  FindTargetProvider,
 } from "@tsmono/react/components";
+import { FindProvider } from "@tsmono/react/find";
 import { ComponentStateProvider } from "@tsmono/react/state";
 
 import { useAppConfigAsync } from "./app/server/useAppConfig";
@@ -105,11 +104,9 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
       <ComponentIconProvider icons={componentIcons}>
         <ComponentStateProvider hooks={scoutStateHooks}>
           <AppModeContext.Provider value={mode}>
-            <ExtendedFindProvider>
-              <FindTargetProvider>
-                <RouterProvider router={router} />
-              </FindTargetProvider>
-            </ExtendedFindProvider>
+            <FindProvider>
+              <RouterProvider router={router} />
+            </FindProvider>
           </AppModeContext.Provider>
         </ComponentStateProvider>
       </ComponentIconProvider>

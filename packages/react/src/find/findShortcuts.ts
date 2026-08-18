@@ -15,5 +15,7 @@ export function isFindShortcut(e: FindShortcutKeyEvent): boolean {
 // Shift is deliberately not checked: Shift+G means find-previous, so callers
 // read e.shiftKey for direction. toLowerCase: Shift/CapsLock yield "G".
 export function isFindNextShortcut(e: FindShortcutKeyEvent): boolean {
-  return (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g";
+  return (
+    e.key === "F3" || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "g")
+  );
 }

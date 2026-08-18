@@ -19,8 +19,11 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
-import { eventSearchText, eventsToStr, extractEventFields } from "./eventText";
+import { eventsToStr, extractEventFields } from "./eventText";
 import { EventNode } from "./types";
+
+const eventSearchText = (node: EventNode): string[] =>
+  extractEventFields(node.event).map(([, v]) => v);
 
 const reasoning = (r: Partial<ContentReasoning>): ContentReasoning => ({
   type: "reasoning",

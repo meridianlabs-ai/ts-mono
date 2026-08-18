@@ -1,6 +1,7 @@
 import type { SortingState } from "@tanstack/react-table";
 import clsx from "clsx";
 import {
+  ChangeEvent,
   FC,
   KeyboardEvent as ReactKeyboardEvent,
   useCallback,
@@ -17,7 +18,7 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
+import { FindBandUI, useFindBandShortcut } from "@tsmono/react/find";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { useLogsListing } from "../../../state/hooks";
@@ -258,11 +259,14 @@ export const LogListGrid: FC<LogListGridProps> = ({
     return rows.filter((row) => matchSet.has(row.id)).map((row) => row.id);
   }, [findTerm, fileMatches.ids, overlayIndex, rows]);
 
-  const handleFindTermChange = useCallback(() => {
-    setFindTerm(findInputRef.current?.value ?? "");
-    // New term: jump back to the first match.
-    setCurrentMatchIndex(0);
-  }, []);
+  const handleFindTermChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      setFindTerm(e.target.value);
+      // New term: jump back to the first match.
+      setCurrentMatchIndex(0);
+    },
+    []
+  );
 
   const goToMatch = useCallback(
     (index: number) => {

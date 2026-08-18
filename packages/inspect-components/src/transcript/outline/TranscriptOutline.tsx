@@ -254,7 +254,6 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
         estimatedItemHeight={50}
         overscan={10}
         embedded={true}
-        findScope="none"
         className={clsx(className, "transcript-outline")}
       />
     </div>

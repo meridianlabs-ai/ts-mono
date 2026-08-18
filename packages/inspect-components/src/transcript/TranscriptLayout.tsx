@@ -26,6 +26,7 @@ import {
 } from "@tsmono/react/components";
 import { useElementHeight } from "@tsmono/react/hooks";
 
+import { useTranscriptFindSource } from "./find/useTranscriptFindSource";
 import { useDeepLinkResolution } from "./hooks/useDeepLinkResolution";
 import { useEventNodeData } from "./hooks/useEventNodeData";
 import { deriveFocusLanes, type FocusLane } from "./hooks/useFocusLaneScope";
@@ -42,7 +43,6 @@ import {
   type TranscriptLayoutOutlineProps,
 } from "./OutlineSidebar";
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
-import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { countUtilitySpans, type TimelineSpan } from "./timeline/core";
 import {
@@ -319,15 +319,21 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
 
-  useTranscriptSearchSource({
-    id: listId,
+  const findProbe = useTranscriptFindSource({
     events: searchableEvents,
     rows: timelineState.rows,
+    showSwimlanes,
+    includeUtility: timelineConfig.includeUtility,
+    showBranches: timelineConfig.showBranches,
+    running,
     selected: timelineSelection?.selected ?? null,
     onSelect: timelineSelection?.onSelect ?? (() => {}),
     viewNodesRef: eventsListRef ?? nullViewNodesRef,
-    onHeadroomResetAnchor,
-    onHeadroomSetHidden,
+    scrollRef,
+    eventNodes,
+    defaultCollapsedIds,
+    collapseState,
+    eventLabels: mergedEventNodeContext.eventLabels,
   });
 
   // ---------------------------------------------------------------------------
@@ -650,6 +656,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   return (
     <TimelineSelectContext.Provider value={selectBySpanId}>
       <TimelineRowSelectContext.Provider value={selectByRowKey}>
+        {findProbe}
         <div className={clsx(styles.root, className)}>
           <div className={styles.main}>
             {showSwimlanes && (

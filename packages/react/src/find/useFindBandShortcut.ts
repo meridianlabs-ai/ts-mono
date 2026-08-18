@@ -26,18 +26,28 @@ export function useFindBandShortcut(
   useEffect(() => {
     if (!enabled) return;
 
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleOpenKey = (e: KeyboardEvent) => {
       if (isFindShortcut(e)) {
         e.preventDefault();
         e.stopPropagation();
         onOpen();
-      } else if (e.key === "Escape" && isOpen && onClose) {
+      }
+    };
+    // Escape closes topmost-only: bubble phase, so an overlay above the band
+    // (e.g. the transcript's go-to-turn bar) can consume its Escape first
+    // via stopPropagation.
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && onClose) {
         onClose();
       }
     };
 
     // Capture phase so the shortcut wins before the browser's own find.
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("keydown", handleOpenKey, true);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("keydown", handleOpenKey, true);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [enabled, onOpen, onClose, isOpen]);
 }

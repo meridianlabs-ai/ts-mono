@@ -4,7 +4,6 @@ import { createRef, useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { testInfoEvent } from "@tsmono/inspect-common/testing";
-import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
@@ -126,18 +125,16 @@ describe("TranscriptVirtualList finish scroll-to-top", () => {
     const nodes = [node("e1", 0), node("e2", 0)];
     const view = (running: boolean) => (
       <ComponentStateProvider hooks={hooks}>
-        <ExtendedFindProvider>
-          <div ref={scrollRef}>
-            <TranscriptVirtualList
-              id="finish-test"
-              listHandle={createRef<VirtualListHandle | null>()}
-              eventNodes={nodes}
-              scrollRef={scrollRef}
-              running={running}
-              scrollToTopOnFinish={scrollToTopOnFinish}
-            />
-          </div>
-        </ExtendedFindProvider>
+        <div ref={scrollRef}>
+          <TranscriptVirtualList
+            id="finish-test"
+            listHandle={createRef<VirtualListHandle | null>()}
+            eventNodes={nodes}
+            scrollRef={scrollRef}
+            running={running}
+            scrollToTopOnFinish={scrollToTopOnFinish}
+          />
+        </div>
       </ComponentStateProvider>
     );
     const rendered = render(view(true));

@@ -28,7 +28,6 @@ export const Navbar: FC<NavbarProps> = ({
         bordered ? styles.bordered : undefined
       )}
       aria-label="breadcrumb"
-      data-unsearchable={true}
     >
       <div className={clsx(leftButtons ? styles.leftButtons : undefined)}>
         {leftButtons && <NavButtons buttons={leftButtons} />}

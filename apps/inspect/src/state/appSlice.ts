@@ -1,5 +1,4 @@
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { clearDocumentSelection } from "@tsmono/util";
 
 import { AppState } from "../app/types";
 import { Capabilities } from "../client/api/types";
@@ -122,12 +121,11 @@ export const createAppSlice = (
           state.app.showFind = show;
         }),
 
-      hideFind: () => {
-        clearDocumentSelection();
+      // No selection cleanup: find never touches the document selection.
+      hideFind: () =>
         set((state) => {
           state.app.showFind = false;
-        });
-      },
+        }),
       setNativeFind: (nativeFind: boolean) =>
         set((state) => {
           state.app.nativeFind = nativeFind;
