@@ -43,8 +43,8 @@ export const syncListing = async (
         .filter((file) => !serverNames.has(file.name))
         .map((file) => file.name);
 
-      // Static manifests have no mtimes, so changed surviving rows must be
-      // treated as changed and absent rows must be cleared from persisted state.
+      // Static manifests have no mtimes, so surviving rows must be treated as
+      // changed and absent rows must be cleared from persisted state.
       return engine.applyListing({
         listing: serverLogs.files,
         invalidated: serverLogs.files.map((file) => file.name),
