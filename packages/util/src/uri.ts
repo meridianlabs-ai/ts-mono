@@ -24,17 +24,7 @@ export const directoryRelativeUrl = (file: string, dir?: string): string => {
 
   // Check if file is within the log directory
   if (normalizedFile.startsWith(dirWithSlash)) {
-    // Get the relative path
-    const relativePath = normalizedFile.substring(dirWithSlash.length);
-
-    // Split the path into segments and encode each segment
-    const segments = relativePath.split("/");
-    const encodedSegments = segments.map((segment) =>
-      encodeURIComponent(segment)
-    );
-
-    // Join the encoded segments back together
-    return encodedSegments.join("/");
+    return encodePathSegments(normalizedFile.substring(dirWithSlash.length));
   }
 
   return encodePathSegments(normalizedFile);
@@ -58,7 +48,7 @@ export const join = (file: string, dir?: string): string => {
     : normalizedLogDir + "/";
 
   if (
-    normalizedFile === normalizedLogDir ||
+    normalizedFile + "/" === dirWithSlash ||
     normalizedFile.startsWith(dirWithSlash)
   ) {
     return normalizedFile;

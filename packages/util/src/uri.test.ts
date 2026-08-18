@@ -48,6 +48,7 @@ describe("join", () => {
       "file:///logs/nested/run.eval",
     ],
     ["/logs", "/logs", "/logs"],
+    ["/logs", "/logs/", "/logs"],
     ["/logs-archive/run.eval", "/logs", "/logs//logs-archive/run.eval"],
   ])("joins %j to %j", (file, dir, expected) => {
     expect(join(file, dir)).toBe(expected);
