@@ -127,11 +127,11 @@ export interface FetchEngineStatus {
 
 /**
  * A replication discovery result. `listing` is the server's listing (a delta
- * or the full list — `persistListing` upserts it into the database and
- * re-reads the full list; otherwise it's activated cache-only, for static
- * listings that carry no mtimes to sync by). `invalidated` names files whose
- * cached content is stale (new/changed); `deleted` names files that no longer
- * exist.
+ * or the full list). `persistListing` upserts it into the database and re-reads
+ * the full list; otherwise it is activated cache-only. Static listings use the
+ * cache-only path when unchanged and persist when manifest membership changes.
+ * `invalidated` names files whose cached content is stale (new/changed);
+ * `deleted` names files that no longer exist.
  */
 export interface ListingUpdate {
   listing: LogHandle[];
