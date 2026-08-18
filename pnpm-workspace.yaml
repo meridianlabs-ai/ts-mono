@@ -43,7 +43,6 @@ overrides:
   "brace-expansion@2": ^2.1.4
   "brace-expansion@5": ^5.0.9
   "@microsoft/api-extractor": ^7.57.6
-  rollup: ^4.59.0
   fast-uri: ^3.1.5
   immutable: ^5.1.8
   ws: ^8.20.1
@@ -58,7 +57,6 @@ overrides:
 # demonstrably needs its postinstall (esbuild gets binaries via
 # optionalDependencies; unrs-resolver has a JS fallback).
 allowBuilds:
-  "@parcel/watcher": false
   esbuild: false
   msw: false
   unrs-resolver: false

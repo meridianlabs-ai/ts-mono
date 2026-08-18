@@ -18,7 +18,6 @@ overrides:
   brace-expansion@2: ^2.1.4
   brace-expansion@5: ^5.0.9
   '@microsoft/api-extractor': ^7.57.6
-  rollup: ^4.59.0
   fast-uri: ^3.1.5
   immutable: ^5.1.8
   ws: ^8.20.1
@@ -1820,7 +1819,7 @@ packages:
     resolution: {integrity: sha512-MfPp06CjRLfXQ3wY0R8vJDYBy/MvVcc9OulEfR0B8Iv9ko+GCNaRZ+EpJYFl27LhKsZK0o420sYCRHCjfCgeUg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
-      rollup: ^4.59.0
+      rollup: ^1.20.0||^2.0.0||^3.0.0||^4.0.0
     peerDependenciesMeta:
       rollup:
         optional: true
@@ -1934,7 +1933,7 @@ packages:
     resolution: {integrity: sha512-IaX8FlM0H36HNFhJ2+4L9bCldqfvHGqcLg841SJNyK/DhfMlM7JsvY/GDH2ZFuWrUf8FSOx96GRRnHq6XfRKag==}
     peerDependencies:
       esbuild: ^0.28.2
-      rollup: ^4.59.0
+      rollup: '*'
       storybook: ^10.5.7
       vite: '*'
       webpack: '*'
@@ -4532,7 +4531,7 @@ packages:
       '@vue/language-core': ^3.1.5
       esbuild: ^0.28.2
       rolldown: '*'
-      rollup: ^4.59.0
+      rollup: '>=3'
       typescript: '>=4'
       vite: '>=3'
       webpack: ^4 || ^5
@@ -4589,7 +4588,7 @@ packages:
     resolution: {integrity: sha512-gIth6NdCEHWPiiRMCK3N6C8WjvdsrtEQrmsiG8h6Ov+lFP+b07Y+wcs9H0H7n146l0PDTYK4cQN1vgeG1pMdRQ==}
     peerDependencies:
       '@microsoft/api-extractor': ^7.57.6
-      rollup: ^4.59.0
+      rollup: '>=3'
       vite: '>=3'
     peerDependenciesMeta:
       '@microsoft/api-extractor':
