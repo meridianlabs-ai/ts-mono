@@ -16,8 +16,11 @@ describe("LoadingBar", () => {
   });
 
   it("does not render the animation when idle", () => {
-    render(<LoadingBar loading={false} />);
+    const { container } = render(<LoadingBar loading={false} />);
 
-    expect(screen.getByRole("progressbar").childElementCount).toBe(0);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    const progressbar = container.querySelector('[role="progressbar"]');
+    expect(progressbar?.getAttribute("aria-hidden")).toBe("true");
+    expect(progressbar?.childElementCount).toBe(0);
   });
 });
