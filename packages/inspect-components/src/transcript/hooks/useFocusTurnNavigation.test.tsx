@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // jsdom: the hook mounts window key listeners via
 // useTranscriptKeyboardNavigation.
 import { renderHook } from "@testing-library/react";
