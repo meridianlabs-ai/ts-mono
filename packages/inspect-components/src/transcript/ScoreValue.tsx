@@ -7,18 +7,37 @@ import { isRecord } from "@tsmono/util";
 
 interface ScoreProps {
   score: JsonValue;
-  className?: string;
+  className?: string | string[];
   maxRows?: number;
+  /** When false, rows beyond maxRows are hidden with no expand toggle. */
+  expandable?: boolean;
 }
 
-export const ScoreValue: FC<ScoreProps> = ({ score, className, maxRows }) => {
-  return <div className={clsx(className)}>{renderScore(score, maxRows)}</div>;
-};
+export const ScoreValue: FC<ScoreProps> = ({
+  score,
+  className,
+  maxRows,
+  expandable = true,
+}) => (
+  <div className={clsx(className)}>
+    {renderScore(score, maxRows, expandable)}
+  </div>
+);
 
-export const renderScore = (value: JsonValue, maxRows?: number): ReactNode => {
+export const renderScore = (
+  value: JsonValue,
+  maxRows?: number,
+  expandable = true
+): ReactNode => {
   if (Array.isArray(value)) {
     return value.join(", ");
   } else if (isRecord(value) && typeof value === "object") {
+    if (maxRows != null && !expandable) {
+      const visibleEntries = Object.fromEntries(
+        Object.entries(value).slice(0, maxRows)
+      );
+      return <MetaDataGrid entries={visibleEntries} />;
+    }
     return <MetaDataGrid entries={value} maxRows={maxRows} />;
   } else {
     return String(value);
