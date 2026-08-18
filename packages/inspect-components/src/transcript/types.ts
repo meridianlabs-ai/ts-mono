@@ -222,6 +222,11 @@ export interface TranscriptEventState {
 
 export type TranscriptState = Record<string, TranscriptEventState>;
 
+export interface TranscriptExportSelection {
+  selectedIds: ReadonlySet<string>;
+  onToggle: (eventId: string) => void;
+}
+
 /**
  * Context passed to event view components by the virtual list renderer.
  * Merged from scout (hasToolEvents) and inspect (turnInfo).

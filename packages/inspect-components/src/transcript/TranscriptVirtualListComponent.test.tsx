@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef, useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -70,6 +70,34 @@ describe("TranscriptVirtualList relativeIndent", () => {
         container.querySelector<HTMLElement>("#m1")?.style.paddingLeft ?? "0"
       )
     ).toBeCloseTo(1.7);
+  });
+});
+
+describe("TranscriptVirtualList evidence selection", () => {
+  it("renders accessible checkboxes and reports toggles", () => {
+    const onToggle = vi.fn();
+    render(
+      <ComponentStateProvider hooks={stateHooks}>
+        <TranscriptVirtualList
+          id="export-test"
+          listHandle={createRef<VirtualListHandle | null>()}
+          eventNodes={nestedSlice}
+          disableVirtualization={true}
+          exportSelection={{
+            selectedIds: new Set(["m1"]),
+            onToggle,
+          }}
+        />
+      </ComponentStateProvider>
+    );
+
+    const selected = screen.getByRole("checkbox", {
+      name: "Select info event for export",
+      checked: true,
+    });
+    expect(selected).toBeDefined();
+    fireEvent.click(selected);
+    expect(onToggle).toHaveBeenCalledWith("m1");
   });
 });
 

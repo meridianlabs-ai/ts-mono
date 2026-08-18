@@ -13,6 +13,7 @@ import {
   useCallback,
   useMemo,
   useRef,
+  useState,
 } from "react";
 
 import type {
@@ -57,6 +58,7 @@ import {
   TimelineRowSelectContext,
   TimelineSelectContext,
 } from "./TimelineSelectContext";
+import { TranscriptEvidenceToolbar } from "./TranscriptEvidenceToolbar";
 import styles from "./TranscriptLayout.module.css";
 import {
   TranscriptViewNodes,
@@ -65,6 +67,7 @@ import {
 import {
   EventNode,
   type EventNodeContext,
+  type EventType,
   type TranscriptCollapseState,
 } from "./types";
 
@@ -316,6 +319,52 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     defaultCollapsedIds,
     eventNodeContext: mergedEventNodeContext,
   } = useEventNodeData(nodeFeed, running, eventNodeContext);
+
+  const [exportActive, setExportActive] = useState(false);
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const availableEventIds = useMemo(
+    () =>
+      new Set(
+        events
+          .map((event) => event.uuid)
+          .filter((eventId): eventId is string => typeof eventId === "string")
+      ),
+    [events]
+  );
+  const validSelectedExportIds = useMemo(
+    () =>
+      new Set(
+        [...selectedExportIds].filter((eventId) =>
+          availableEventIds.has(eventId)
+        )
+      ),
+    [availableEventIds, selectedExportIds]
+  );
+  const selectedExportEvents = useMemo(
+    () =>
+      events.filter(
+        (event) =>
+          typeof event.uuid === "string" && selectedExportIds.has(event.uuid)
+      ) as EventType[],
+    [events, selectedExportIds]
+  );
+  const toggleExportEvent = useCallback((eventId: string) => {
+    setSelectedExportIds((current) => {
+      const next = new Set(current);
+      if (next.has(eventId)) next.delete(eventId);
+      else next.add(eventId);
+      return next;
+    });
+  }, []);
+  const exportSelection = useMemo(
+    () =>
+      exportActive
+        ? { selectedIds: validSelectedExportIds, onToggle: toggleExportEvent }
+        : undefined,
+    [exportActive, validSelectedExportIds, toggleExportEvent]
+  );
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
 
@@ -695,6 +744,15 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 } as CSSProperties
               }
             >
+              {hasMatchingEvents ? (
+                <TranscriptEvidenceToolbar
+                  active={exportActive}
+                  events={selectedExportEvents}
+                  onActivate={() => setExportActive(true)}
+                  onCancel={() => setExportActive(false)}
+                  onClear={() => setSelectedExportIds(new Set())}
+                />
+              ) : null}
               {outline && (
                 <OutlineSidebar
                   outline={outline}
@@ -753,6 +811,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   }
                   onNavigatedToEvent={onNavigatedToEvent}
                   keyboardNavDisabled={keyboardNavDisabled}
+                  exportSelection={exportSelection}
                 />
               ) : emptyText !== null ? (
                 <NoContentsPanel text={emptyText} busy={emptyBusy} />

@@ -25,7 +25,12 @@ import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { computeVisualActionContext } from "./transcriptVisualActions";
 import { kTranscriptScrollPaddingStart } from "./turnNavigation";
-import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
+import {
+  EventNode,
+  EventNodeContext,
+  EventPanelCallbacks,
+  TranscriptExportSelection,
+} from "./types";
 
 interface TranscriptVirtualListComponentProps {
   id: string;
@@ -57,6 +62,7 @@ interface TranscriptVirtualListComponentProps {
   eventCallbacks?: EventPanelCallbacks;
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
+  exportSelection?: TranscriptExportSelection;
   /** External ref filled with the virtual list's visible range, for find machinery. */
   visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
@@ -86,6 +92,7 @@ export const TranscriptVirtualListComponent: FC<
   renderAgentCard,
   eventCallbacks,
   eventNodeContext,
+  exportSelection,
   visibleRangeRef,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
@@ -221,12 +228,29 @@ export const TranscriptVirtualListComponent: FC<
             attachedClass
           )}
           style={{
-            paddingLeft: `${depth <= 1 ? depth * 0.7 : (0.7 + depth - 1) * 1}em`,
+            paddingLeft: exportSelection
+              ? `calc(${
+                  depth <= 1 ? depth * 0.7 : (0.7 + depth - 1) * 1
+                }em + 2rem)`
+              : `${depth <= 1 ? depth * 0.7 : (0.7 + depth - 1) * 1}em`,
             // The right inset visually belongs to the transcript's nested card
             // chrome; the focus page strips cards, so indent left-only there.
             paddingRight: relativeIndent || depth === 0 ? undefined : "0.7em",
           }}
         >
+          {exportSelection ? (
+            <label
+              className={styles.exportSelection}
+              title="Include event in evidence export"
+            >
+              <input
+                type="checkbox"
+                checked={exportSelection.selectedIds.has(item.id)}
+                onChange={() => exportSelection.onToggle(item.id)}
+                aria-label={`Select ${item.event.event} event for export`}
+              />
+            </label>
+          ) : null}
           {renderedNode}
         </div>
       );
@@ -239,6 +263,7 @@ export const TranscriptVirtualListComponent: FC<
       eventCallbacks,
       eventLabels,
       relativeIndent,
+      exportSelection,
     ]
   );
 
