@@ -7,11 +7,10 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
+import { ErrorPanel, LoadingBar, ProgressBar } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
 import { scopePrefix } from "../../client/database";
-import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
   useLogListing,
@@ -478,7 +477,7 @@ export const SamplesPanel: FC = () => {
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={listing.busy} />
+      <LoadingBar loading={listing.busy} />
       <div className={clsx(styles.list, "text-size-smaller")}>
         {error ? (
           <ErrorPanel
