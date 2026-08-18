@@ -4,6 +4,18 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testErrorEvent,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { InMemoryStateWrapper } from "../testHelpers";
@@ -25,12 +37,9 @@ import {
 // A model event carrying the uuid that computeLaneFirstAnchors keys turn
 // anchors by (the id the focus page parks `?event=` on).
 const model = (uuid: string): TimelineEvent =>
-  new TimelineEvent({
-    event: "model",
-    uuid,
-    timestamp: "2026-01-01T00:00:00Z",
-    working_start: 0,
-  } as unknown as Event);
+  new TimelineEvent(
+    testModelEvent({ uuid, timestamp: "2026-01-01T00:00:00Z" })
+  );
 
 const span = (
   id: string,
@@ -221,7 +230,7 @@ describe("deriveFocusLanes — petri branch row keeps its main ancestry", () => 
   })();
   const targetRoot = (() => {
     const r = span("t-main", "main", "agent", [model("m-t")]);
-    (r as unknown as { branches: TimelineSpan[] }).branches = [branch];
+    r.branches = [branch];
     return r;
   })();
   const auditorRoot = span("a-main", "main", "agent", [model("m-a")]);
@@ -274,8 +283,23 @@ describe("deriveFocusLanes — timeline whose root is a branch span", () => {
 });
 
 describe("appendSampleTerminalEvents", () => {
-  const ev = (event: string, uuid: string): Event =>
-    ({ event, uuid, timestamp: "2026-01-01T00:00:00Z" }) as unknown as Event;
+  const ev = (
+    event: "span_begin" | "span_end" | "model" | "score" | "error",
+    uuid: string
+  ): Event => {
+    switch (event) {
+      case "span_begin":
+        return testSpanBeginEvent({ uuid });
+      case "span_end":
+        return testSpanEndEvent({ uuid });
+      case "model":
+        return testModelEvent({ uuid });
+      case "score":
+        return testScoreEvent({ uuid });
+      case "error":
+        return testErrorEvent({ uuid });
+    }
+  };
 
   it("appends trailing score/error events missing from a carved lane", () => {
     // Real logs nest turns in a solver span; the focus lane's events end at
@@ -327,30 +351,30 @@ describe("useFocusLaneScope — utility-agents toggle", () => {
   const iso = (secs: number) =>
     new Date(Date.UTC(2026, 0, 1, 0, 0, secs)).toISOString();
   const modelEvent = (uuid: string, warmup: boolean, secs: number): Event =>
-    ({
-      event: "model",
+    testModelEvent({
       uuid,
       timestamp: iso(secs),
       completed: iso(secs),
-      working_start: 0,
       pending: false,
       metadata: null,
       span_id: null,
       model: "mockllm/model",
       config: warmup ? { max_tokens: 1 } : {},
-      input: warmup
-        ? [{ role: "user", content: "warmup" }]
-        : [{ role: "user", content: "do the task please" }],
-      output: {
+      input: [
+        testUserMessage({
+          content: warmup ? "warmup" : "do the task please",
+        }),
+      ],
+      output: testModelOutput({
         choices: [
-          {
-            message: { role: "assistant", content: "ok" },
+          testChatCompletionChoice({
+            message: testAssistantMessage({ content: "ok" }),
             stop_reason: warmup ? "max_tokens" : "stop",
-          },
+          }),
         ],
-        usage: { input_tokens: 5, output_tokens: 1 },
-      },
-    }) as unknown as Event;
+        usage: testModelUsage({ input_tokens: 5, output_tokens: 1 }),
+      }),
+    });
 
   const events: Event[] = [
     modelEvent("m-main", false, 1),

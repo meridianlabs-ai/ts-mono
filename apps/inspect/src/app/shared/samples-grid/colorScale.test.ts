@@ -41,7 +41,10 @@ describe("resolveScale", () => {
   });
 
   test("unknown palette name returns null", () => {
-    const bogus = "rainbow" as unknown as WireScoreColorScale;
+    // Wire data is unvalidated — widen to string first so a single assertion
+    // models the bogus palette name arriving off the wire.
+    const bogusName: string = "rainbow";
+    const bogus = bogusName as WireScoreColorScale;
     expect(resolveScale(bogus, { min: 0, max: 1 })).toBeNull();
   });
 
@@ -85,9 +88,8 @@ describe("resolveScale", () => {
   });
 
   test("object form rejects unknown palette name", () => {
-    const bogus = {
-      palette: "rainbow",
-    } as unknown as WireScoreColorScale;
+    const bogusName: string = "rainbow";
+    const bogus = { palette: bogusName } as WireScoreColorScale;
     expect(resolveScale(bogus, { min: 0, max: 1 })).toBeNull();
   });
 });

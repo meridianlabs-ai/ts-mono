@@ -2,7 +2,8 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ToolEvent } from "@tsmono/inspect-common/types";
+import { testToolEvent } from "@tsmono/inspect-common/testing";
+import type { JsonValue, ToolEvent } from "@tsmono/inspect-common/types";
 import { ComponentNavigationProvider } from "@tsmono/react/components";
 import {
   ComponentStateHooks,
@@ -10,7 +11,7 @@ import {
 } from "@tsmono/react/state";
 
 import { ToolEventView } from "./ToolEventView";
-import type { EventNode } from "./types";
+import { EventNode } from "./types";
 
 const stateHooks: ComponentStateHooks = {
   useValue: (_id, _prop, defaultValue) => defaultValue,
@@ -23,31 +24,23 @@ const stateHooks: ComponentStateHooks = {
 
 function makeNode(
   fn: string,
-  args: Record<string, unknown>
+  args: Record<string, JsonValue>
 ): EventNode<ToolEvent> {
-  return {
-    id: "tool-1",
-    children: [],
-    event: {
-      event: "tool",
+  return new EventNode<ToolEvent>(
+    "tool-1",
+    testToolEvent({
       id: "tool-call-1",
       function: fn,
       arguments: args,
       result: "done",
-      view: null,
-      error: null,
-      pending: false,
       timestamp: new Date(0).toISOString(),
-      working_start: 0,
-      span_id: null,
       uuid: "tool-1",
-      metadata: null,
-      events: [],
-    },
-  } as unknown as EventNode<ToolEvent>;
+    }),
+    0
+  );
 }
 
-const renderView = (fn: string, args: Record<string, unknown>) =>
+const renderView = (fn: string, args: Record<string, JsonValue>) =>
   render(
     <ComponentStateProvider hooks={stateHooks}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>

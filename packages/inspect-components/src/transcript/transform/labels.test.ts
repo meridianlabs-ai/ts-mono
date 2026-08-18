@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testToolEvent,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
+import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
 
 import { buildToolLabels, scopeMessageLabels } from "./labels";
 
@@ -8,26 +17,24 @@ import { buildToolLabels, scopeMessageLabels } from "./labels";
 // Fixtures
 // =============================================================================
 
-interface FixtureMessage {
-  id?: string;
-  role: string;
-  tool_call_id?: string;
-}
-
-function modelEvent(input: FixtureMessage[], choiceIds: string[] = []): Event {
-  return {
-    event: "model",
+function modelEvent(
+  input: ModelEvent["input"],
+  choiceIds: string[] = []
+): Event {
+  return testModelEvent({
     input,
-    output: {
-      choices: choiceIds.map((id) => ({
-        message: { id, role: "assistant", content: "" },
-      })),
-    },
-  } as unknown as Event;
+    output: testModelOutput({
+      choices: choiceIds.map((id) =>
+        testChatCompletionChoice({
+          message: testAssistantMessage({ id, content: "" }),
+        })
+      ),
+    }),
+  });
 }
 
 function toolEvent(id: string, messageId: string | null): Event {
-  return { event: "tool", id, message_id: messageId } as unknown as Event;
+  return testToolEvent({ id, message_id: messageId });
 }
 
 // =============================================================================
@@ -42,7 +49,7 @@ describe("scopeMessageLabels", () => {
   it.each([
     {
       desc: "model input message",
-      events: [modelEvent([{ id: "m1", role: "user" }])],
+      events: [modelEvent([testUserMessage({ id: "m1" })])],
     },
     {
       desc: "model output choice",
@@ -59,7 +66,7 @@ describe("scopeMessageLabels", () => {
   });
 
   it("returns undefined when no labeled message is present", () => {
-    const events = [modelEvent([{ id: "m1", role: "user" }])];
+    const events = [modelEvent([testUserMessage({ id: "m1" })])];
     expect(scopeMessageLabels(events, { other: "X" })).toBeUndefined();
   });
 });
@@ -81,8 +88,8 @@ describe("buildToolLabels", () => {
   it("labels tool calls via tool-role input messages on model events", () => {
     const events = [
       modelEvent([
-        { id: "m1", role: "tool", tool_call_id: "call1" },
-        { id: "m2", role: "user", tool_call_id: "call2" },
+        testToolMessage({ id: "m1", tool_call_id: "call1" }),
+        testUserMessage({ id: "m2", tool_call_id: ["call2"] }),
       ]),
     ];
     // The user-role message must not produce a label even though m2 is labeled.

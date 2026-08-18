@@ -2,7 +2,17 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+} from "@tsmono/inspect-common/testing";
 import type {
+  AnchorEvent,
   Event,
   Timeline as ServerTimeline,
   TimelineEvent as ServerTimelineEvent,
@@ -16,40 +26,32 @@ import { useTranscriptTimeline } from "./useTranscriptTimeline";
 // =============================================================================
 
 function makeModelEvent(uuid: string, startSec: number, endSec: number): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
-    model: "test-model",
-    input: [],
-    output: {
+    output: testModelOutput({
       choices: [
-        {
-          message: {
-            role: "assistant",
+        testChatCompletionChoice({
+          message: testAssistantMessage({
             content: "response",
             source: "generate",
-          },
+          }),
           stop_reason: "stop",
-        },
+        }),
       ],
       completion: "response",
-      model: "test-model",
-      usage: {
+      usage: testModelUsage({
         input_tokens: 60,
         output_tokens: 40,
         total_tokens: 100,
-      },
+      }),
       time: endSec - startSec,
-    },
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    }),
     timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
     working_start: startSec,
     working_time: endSec - startSec,
     error: null,
     traceback_ansi: null,
-  } as unknown as Event;
+  });
 }
 
 function spanBegin(
@@ -58,32 +60,28 @@ function spanBegin(
   type: string | null,
   parentId: string | null
 ): Event {
-  return {
-    event: "span_begin",
+  return testSpanBeginEvent({
     id,
     name,
     type,
     parent_id: parentId,
     span_id: null,
     timestamp: new Date(1705312800000).toISOString(),
-    working_start: 0,
     pending: null,
     uuid: null,
     metadata: null,
-  } as unknown as Event;
+  });
 }
 
 function spanEnd(id: string): Event {
-  return {
-    event: "span_end",
+  return testSpanEndEvent({
     id,
     span_id: null,
     timestamp: new Date(1705312800000).toISOString(),
-    working_start: 0,
     pending: null,
     uuid: null,
     metadata: null,
-  } as unknown as Event;
+  });
 }
 
 function makeServerEvent(uuid: string): ServerTimelineEvent {
@@ -310,7 +308,7 @@ function makeAnchorEvent(
     pending: null,
     metadata: null,
     source: null,
-  } as unknown as Event;
+  } satisfies AnchorEvent;
 }
 
 describe("useTranscriptTimeline punch-down views", () => {

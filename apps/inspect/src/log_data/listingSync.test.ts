@@ -6,13 +6,14 @@ import { ClientAPI } from "../client/api/types";
 
 import { ListingUpdate } from "./fetchEngine";
 import { ListingTarget, syncListing } from "./listingSync";
+import { testClientAPI } from "./testFixtures";
 
 const handle = (name: string, mtime?: number): LogHandle => ({ name, mtime });
 
 const apiWith = (response: LogFilesResponse): ClientAPI =>
-  ({
+  testClientAPI({
     get_logs: vi.fn().mockResolvedValue(response),
-  }) as unknown as ClientAPI;
+  });
 
 const targetWith = (local: LogHandle[]) => {
   const applied: ListingUpdate[] = [];

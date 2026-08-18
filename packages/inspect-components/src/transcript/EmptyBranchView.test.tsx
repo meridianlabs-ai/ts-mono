@@ -2,31 +2,28 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { testSpanBeginEvent } from "@tsmono/inspect-common/testing";
 import type { SpanBeginEvent } from "@tsmono/inspect-common/types";
 
 import { EmptyBranchView } from "./EmptyBranchView";
-import type { EventNode } from "./types";
+import { EventNode } from "./types";
 
 function makeNode(
   metadata: Record<string, unknown> | null
 ): EventNode<SpanBeginEvent> {
-  return {
-    id: "node-1",
-    children: [],
-    event: {
-      event: "span_begin",
+  return new EventNode<SpanBeginEvent>(
+    "node-1",
+    testSpanBeginEvent({
       name: "Branch 2 (empty)",
       id: "emptybranch-empty",
       span_id: "emptybranch-empty",
       type: "empty_branch",
       timestamp: new Date(0).toISOString(),
-      parent_id: null,
-      pending: false,
-      working_start: 0,
       uuid: "emptybranch-empty",
       metadata,
-    },
-  } as unknown as EventNode<SpanBeginEvent>;
+    }),
+    0
+  );
 }
 
 describe("EmptyBranchView", () => {

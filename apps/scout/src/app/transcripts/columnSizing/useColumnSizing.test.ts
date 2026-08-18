@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { TranscriptColumn } from "../columns";
 
@@ -24,9 +24,7 @@ vi.mock("../../../state/store", () => ({
 describe("useColumnSizing", () => {
   // Dynamic imports ensure modules resolve against the vi.mock above
   const loadUseStore = async () =>
-    (await import("../../../state/store")).useStore as unknown as ReturnType<
-      typeof vi.fn
-    >;
+    (await import("../../../state/store")).useStore as Mock;
   const loadUseColumnSizing = async () =>
     (await import("./useColumnSizing")).useColumnSizing;
 

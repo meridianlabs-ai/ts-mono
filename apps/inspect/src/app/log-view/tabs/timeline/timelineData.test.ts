@@ -148,12 +148,11 @@ describe("rowCategory", () => {
 });
 
 describe("withConfigOrdinals", () => {
-  const configUpdate = (timestamp: string): ConfigUpdate =>
-    ({
-      scope: "task",
-      changes: [],
-      provenance: { timestamp, author: "a", metadata: {} },
-    }) as unknown as ConfigUpdate;
+  const configUpdate = (timestamp: string): ConfigUpdate => ({
+    scope: "task",
+    changes: [],
+    provenance: { timestamp, author: "a", metadata: {} },
+  });
 
   it("numbers config markers chronologically, skipping tag edits", () => {
     const config = configMarkers(
@@ -453,11 +452,11 @@ describe("historyRows", () => {
         },
       ],
     } as EvalStats;
-    const configUpdate = {
-      scope: "eval",
+    const configUpdate: ConfigUpdate = {
+      scope: "task",
       changes: [],
-      provenance: { timestamp: when, author: "cteague" },
-    } as unknown as ConfigUpdate;
+      provenance: { timestamp: when, author: "cteague", metadata: {} },
+    };
     const rows = historyRows({
       status: "success",
       stats,

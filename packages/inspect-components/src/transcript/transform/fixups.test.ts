@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { testToolEvent } from "@tsmono/inspect-common/testing";
 import type { Event, ToolEvent } from "@tsmono/inspect-common/types";
 
 import { fixupEventStream } from "./fixups";
@@ -9,20 +10,14 @@ const toolEvent = (
   uuid: string | null,
   pending: boolean
 ): ToolEvent =>
-  ({
-    event: "tool",
-    type: "function",
+  testToolEvent({
     id,
     uuid,
     pending,
     timestamp: "2026-01-01T00:00:00Z",
-    working_start: 0,
     function: "noop",
-    arguments: {},
-    events: [],
-    result: "",
     span_id: null,
-  }) as unknown as ToolEvent;
+  });
 
 const eventIds = (events: Event[]) =>
   events.filter((e): e is ToolEvent => e.event === "tool").map((e) => e.id);

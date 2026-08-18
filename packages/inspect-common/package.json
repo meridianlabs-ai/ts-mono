@@ -9,6 +9,7 @@
     ".": "./src/types/index.ts",
     "./types": "./src/types/index.ts",
     "./utils": "./src/utils/index.ts",
+    "./testing": "./src/testing/index.ts",
     "./query": "./src/query/index.ts"
   },
   "scripts": {

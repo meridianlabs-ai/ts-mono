@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testModelEvent,
+  testModelOutput,
+  testStateEvent,
+} from "@tsmono/inspect-common/testing";
 import type {
   Event,
   ModelEvent,
@@ -8,46 +13,32 @@ import type {
 
 import { correctRetryTimestamps } from "./retryOrdering";
 
-const NULL_CONFIG = {} as ModelEvent["config"];
-const EMPTY_OUTPUT = {
-  choices: [],
+const EMPTY_OUTPUT = testModelOutput({
   usage: null,
   time: null,
   metadata: null,
   error: null,
-} as unknown as ModelEvent["output"];
+});
 
 function model(
   timestamp: string,
   options?: { error?: string; spanId?: string | null }
 ): ModelEvent {
-  return {
-    event: "model",
+  return testModelEvent({
     model: "test",
     role: null,
-    input: [],
     input_refs: null,
-    tools: [],
-    tool_choice: "auto",
-    config: NULL_CONFIG,
     output: EMPTY_OUTPUT,
     cache: null,
     call: null,
     error: options?.error ?? null,
     span_id: options?.spanId === undefined ? null : options.spanId,
     timestamp,
-    working_start: 0,
-  } as unknown as ModelEvent;
+  });
 }
 
 function state(timestamp: string): StateEvent {
-  return {
-    event: "state",
-    changes: [],
-    span_id: null,
-    timestamp,
-    working_start: 0,
-  } as unknown as StateEvent;
+  return testStateEvent({ span_id: null, timestamp });
 }
 
 function timestamps(events: Event[]): string[] {

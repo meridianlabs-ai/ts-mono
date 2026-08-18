@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testModelEvent,
+  testModelOutput,
+  testStateEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type {
   Event,
   ModelEvent,
@@ -8,14 +14,18 @@ import type {
 
 import { groupRetryAttempts, retryAttemptKey } from "./retryGrouping";
 
-const NULL_CONFIG = {} as ModelEvent["config"];
-const EMPTY_OUTPUT = {
-  choices: [],
+const EMPTY_OUTPUT = testModelOutput({
   usage: null,
   time: null,
   metadata: null,
   error: null,
-} as unknown as ModelEvent["output"];
+});
+
+const toolInfo = (name: string): ModelEvent["tools"][number] => ({
+  name,
+  description: "",
+  parameters: { type: "object", properties: {}, required: [] },
+});
 
 function model(
   timestamp: string,
@@ -30,34 +40,25 @@ function model(
   }
 ): ModelEvent {
   const inputLen = options?.inputLen ?? 0;
-  return {
-    event: "model",
+  return testModelEvent({
     model: options?.name ?? "test",
     role: null,
-    input: Array.from({ length: inputLen }, () => ({}) as never),
+    input: Array.from({ length: inputLen }, () => testUserMessage()),
     input_refs: null,
-    tools: (options?.tools ?? []).map((name) => ({ name }) as never),
+    tools: (options?.tools ?? []).map(toolInfo),
     tool_choice: options?.toolChoice ?? "auto",
-    config: NULL_CONFIG,
     output: EMPTY_OUTPUT,
     cache: null,
     call: null,
     error: options?.error ?? null,
     span_id: options?.spanId === undefined ? null : options.spanId,
     timestamp,
-    working_start: 0,
     uuid: options?.uuid ?? null,
-  } as unknown as ModelEvent;
+  });
 }
 
 function state(timestamp: string): StateEvent {
-  return {
-    event: "state",
-    changes: [],
-    span_id: null,
-    timestamp,
-    working_start: 0,
-  } as unknown as StateEvent;
+  return testStateEvent({ span_id: null, timestamp });
 }
 
 describe("groupRetryAttempts", () => {

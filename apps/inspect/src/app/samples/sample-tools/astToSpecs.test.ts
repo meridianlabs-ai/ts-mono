@@ -6,7 +6,11 @@ import type {
 } from "@tsmono/inspect-components/columnFilter";
 
 import type { ScoreLabel } from "../../types";
-import type { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
+import {
+  testEvalDescriptor,
+  testScoreDescriptor,
+} from "../descriptor/testDescriptors";
+import type { EvalDescriptor } from "../descriptor/types";
 
 import { astToSpecs, parseFilterSpecs } from "./astToSpecs";
 import { parseFilter } from "./filterAst";
@@ -18,13 +22,13 @@ const registry = buildSampleFilterSpecRegistry(undefined);
 const descriptorWith = (
   scores: Array<{ name: string; scorer: string; scoreType: string }>
 ): EvalDescriptor =>
-  ({
+  testEvalDescriptor({
     scores: scores.map(({ name, scorer }) => ({ name, scorer })),
     scoreDescriptor: ({ name, scorer }: ScoreLabel) => {
       const match = scores.find((s) => s.name === name && s.scorer === scorer);
-      return { scoreType: match?.scoreType ?? "other" } as ScoreDescriptor;
+      return testScoreDescriptor({ scoreType: match?.scoreType ?? "other" });
     },
-  }) as unknown as EvalDescriptor;
+  });
 
 const toSpecs = (text: string): Record<string, ColumnFilter> | null =>
   parseFilterSpecs(text, registry);

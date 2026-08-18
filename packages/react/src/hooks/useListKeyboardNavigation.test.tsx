@@ -17,10 +17,7 @@ function Harness({ jumpToEnd }: { jumpToEnd: () => void }) {
   return (
     <div
       ref={(el) => {
-        if (el)
-          (
-            el as unknown as { checkVisibility: () => boolean }
-          ).checkVisibility = () => true;
+        if (el) el.checkVisibility = () => true;
         scrollRef.current = el;
       }}
     />

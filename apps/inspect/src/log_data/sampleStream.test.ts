@@ -3,13 +3,14 @@
    assertions reach into their dynamically-shaped fields. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ClientAPI, SampleData, SampleDataResponse } from "../client/api/types";
+import { SampleData, SampleDataResponse } from "../client/api/types";
 
 import {
   createSampleStreamSession,
   hasSampleDataUpdates,
   shouldFinalizeStreamingSample,
 } from "./sampleStream";
+import { testClientAPI } from "./testFixtures";
 
 const emptySampleData: SampleData = {
   events: [],
@@ -73,7 +74,7 @@ const mockApi = {
   get_log_sample_data: vi.fn(),
   log_message: vi.fn(),
 };
-const api = mockApi as unknown as ClientAPI;
+const api = testClientAPI(mockApi);
 
 const makeSession = () =>
   createSampleStreamSession(api, "log.eval", "sample-1", 1);

@@ -3,12 +3,15 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
+
 import { Log, LogDetails } from "../client/api/types";
 import { toLogHeader } from "../client/utils/type-utils";
 import { queryClient } from "../state/queryClient";
 
 import { useLogHeader } from "./log";
 import { clearFile, logKey, logsKey, writeDetails } from "./logsContent";
+import { testLogDetails } from "./testFixtures";
 
 const fetchLog = vi.hoisted(() => vi.fn());
 vi.mock("./replicationControl", () => ({ fetchLog }));
@@ -25,12 +28,14 @@ const LOG_DIR = "/logs";
 const LOG_FILE = "log.eval";
 
 const makeDetails = (name: string): LogDetails =>
-  ({
-    version: 2,
-    status: "success",
-    eval: { eval_id: name, run_id: `run-${name}`, task: "task", model: "m" },
-    sampleSummaries: [],
-  }) as unknown as LogDetails;
+  testLogDetails({
+    eval: testEvalSpec({
+      eval_id: name,
+      run_id: `run-${name}`,
+      task: "task",
+      model: "m",
+    }),
+  });
 
 const detailedRow = (name: string): Log => ({
   name,

@@ -12,6 +12,7 @@ import {
   SampleNotFoundError,
   synthesizeErroredSampleFromSummary,
 } from "./sampleFetch";
+import { testClientAPI } from "./testFixtures";
 
 const msg = (id: string, role: string, content: string) => ({
   id,
@@ -169,8 +170,8 @@ describe("resolveSample", () => {
 });
 
 describe("fetchSample", () => {
-  const makeApi = (get_log_sample: ReturnType<typeof vi.fn>) =>
-    ({ get_log_sample }) as unknown as ClientAPI;
+  const makeApi = (get_log_sample: ClientAPI["get_log_sample"]) =>
+    testClientAPI({ get_log_sample });
 
   it("fetches with the handle's coordinates and normalizes the EvalSample", async () => {
     const get_log_sample = vi.fn().mockResolvedValue(

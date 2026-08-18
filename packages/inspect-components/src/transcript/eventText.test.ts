@@ -1,11 +1,21 @@
 import { describe, expect, it, test } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testStateEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type {
   CompactionEvent,
   ContentImage,
   ContentReasoning,
   ContentToolUse,
+  JsonValue,
   ModelEvent,
+  StateEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -22,41 +32,19 @@ const reasoning = (r: Partial<ContentReasoning>): ContentReasoning => ({
 const modelEventWith = (
   content: ModelEvent["output"]["choices"][number]["message"]["content"]
 ): ModelEvent =>
-  ({
-    event: "model",
+  testModelEvent({
     uuid: "u",
-    span_id: null,
     timestamp: "2026-04-29T00:00:00Z",
-    working_start: 0,
-    pending: false,
     model: "test/model",
-    role: null,
-    input: [],
-    tools: [],
-    tool_choice: null,
-    config: {},
-    output: {
+    output: testModelOutput({
       model: "test/model",
       choices: [
-        {
-          message: {
-            role: "assistant",
-            content,
-            source: "generate",
-          },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({ content, source: "generate" }),
+        }),
       ],
-      usage: null,
-    },
-    error: null,
-    cache: null,
-    call: null,
-    completed: null,
-    working_time: null,
-    style: null,
-    metadata: null,
-  }) as unknown as ModelEvent;
+    }),
+  });
 
 describe("eventsToStr — reasoning content", () => {
   it("uses summary when redacted (Anthropic ≥4, OpenAI encrypted)", () => {
@@ -130,13 +118,13 @@ describe("eventsToStr — tool_use content", () => {
   it("includes result and error text for tool_use blocks", () => {
     const toolUse: ContentToolUse = {
       type: "tool_use",
+      tool_type: "web_search",
       id: "tu-1",
       name: "search",
       arguments: '{"q":"hi"}',
       result: "Found 3 hits",
       error: "rate-limited",
-      caller: { type: "direct" },
-    } as unknown as ContentToolUse;
+    };
     const out = eventsToStr([modelEventWith([toolUse])]);
     expect(out).toContain("search");
     expect(out).toContain("Found 3 hits");
@@ -146,14 +134,15 @@ describe("eventsToStr — tool_use content", () => {
 
 describe("extractEventFields — model error / traceback", () => {
   it("includes the model event error and traceback in search text", () => {
-    const node = {
-      event: {
-        event: "model",
+    const node = new EventNode(
+      "model-1",
+      testModelEvent({
         model: "test/model",
         error: "API rate limit exceeded",
         traceback: "Traceback (most recent call last): ...",
-      },
-    } as unknown as EventNode;
+      }),
+      0
+    );
     const texts = eventSearchText(node);
     expect(texts).toContain("API rate limit exceeded");
     expect(texts).toContain("Traceback (most recent call last): ...");
@@ -165,8 +154,8 @@ describe("eventsToStr — multimodal content placeholders", () => {
   const image: ContentImage = {
     type: "image",
     image: data,
-    detail: null,
-  } as unknown as ContentImage;
+    detail: "auto",
+  };
 
   it("emits <image /> placeholder, no base64 leak", () => {
     const out = eventsToStr([modelEventWith([image])]);
@@ -197,15 +186,12 @@ describe("eventsToStr — multimodal content placeholders", () => {
 // sanitizeStringify isn't exported; exercised here via state events, whose
 // `value` field is routed through the helper.
 describe("eventsToStr — sanitizeStringify (via state events)", () => {
-  const stateEvent = (value: unknown) =>
-    ({
-      event: "state",
+  const stateEvent = (value: JsonValue): StateEvent =>
+    testStateEvent({
       uuid: "s",
-      span_id: null,
       timestamp: "2026-04-29T00:00:00Z",
-      working_start: 0,
-      changes: [{ op: "replace", path: "/x", value }],
-    }) as unknown as Parameters<typeof eventsToStr>[0][number];
+      changes: [{ op: "replace", path: "/x", value, replaced: null }],
+    });
 
   it("redacts ContentReasoning to summary when redacted", () => {
     const out = eventsToStr([
@@ -273,33 +259,24 @@ describe("eventsToStr — sanitizeStringify (via state events)", () => {
   });
 });
 
-const toolEvent = (result: unknown): ToolEvent =>
-  ({
-    event: "tool",
+const toolEvent = (result: ToolEvent["result"]): ToolEvent =>
+  testToolEvent({
     uuid: "t",
-    span_id: null,
     timestamp: "2026-04-29T00:00:00Z",
-    working_start: 0,
-    pending: false,
     function: "view_image",
     arguments: { path: "/foo.png" },
     result,
-    truncated: null,
-    view: null,
-    error: null,
-    events: [],
-    completed: null,
-    working_time: null,
-    agent: null,
-    failed: null,
-    metadata: null,
-  }) as unknown as ToolEvent;
+  });
 
 describe("eventsToStr — extractEventFields sanitization", () => {
   it("walks a tool result array: text renders, data: image drops (no placeholder, no leak)", () => {
     const out = eventsToStr([
       toolEvent([
-        { type: "image", image: "data:image/png;base64,_HUGE_PNG_" },
+        {
+          type: "image",
+          image: "data:image/png;base64,_HUGE_PNG_",
+          detail: "auto",
+        },
         { type: "text", text: "see image" },
       ]),
     ]);
@@ -311,24 +288,23 @@ describe("eventsToStr — extractEventFields sanitization", () => {
 
 const compactionEvent = (
   partial: Partial<CompactionEvent> = {}
-): CompactionEvent =>
-  ({
-    event: "compaction",
-    uuid: "VYVv8bWPCmD5fJYzrYq5MT",
-    span_id: "SPJ9XpwBYA3GuLzkGwmdwR",
-    timestamp: "2026-04-25T03:12:30.042596+00:00",
-    working_start: 4195.599,
-    source: "inspect",
-    type: "summary",
-    tokens_before: 263089,
-    tokens_after: 1923,
-    metadata: {
-      strategy: "CompactionSummary",
-      messages_before: 190,
-      messages_after: 3,
-    },
-    ...partial,
-  }) as unknown as CompactionEvent;
+): CompactionEvent => ({
+  event: "compaction",
+  uuid: "VYVv8bWPCmD5fJYzrYq5MT",
+  span_id: "SPJ9XpwBYA3GuLzkGwmdwR",
+  timestamp: "2026-04-25T03:12:30.042596+00:00",
+  working_start: 4195.599,
+  source: "inspect",
+  type: "summary",
+  tokens_before: 263089,
+  tokens_after: 1923,
+  metadata: {
+    strategy: "CompactionSummary",
+    messages_before: 190,
+    messages_after: 3,
+  },
+  ...partial,
+});
 
 describe("eventsToStr — compaction event", () => {
   it("renders only UI-visible fields (tokens + metadata), not full event JSON", () => {

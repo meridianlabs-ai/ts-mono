@@ -1,11 +1,15 @@
 import { describe, expect, test, vi } from "vitest";
 
-import { openRemoteLogFile } from "../remote/remoteLogFile";
+import { testEvalLog } from "@tsmono/inspect-common/testing";
+
+import { openRemoteLogFile, RemoteLogFile } from "../remote/remoteLogFile";
 import { DirectFetchError } from "../remote/remotePendingSampleData";
 
 import { clientApi } from "./client-api";
+import { notImplemented, testLogDetails } from "./testClientApi";
 import {
   EditLogResult,
+  LogDetails,
   LogPreview,
   LogViewAPI,
   SampleData,
@@ -30,6 +34,17 @@ const okResponse = (has_more = false): SampleDataResponse => ({
   status: "OK",
   sampleData: emptySampleData,
   has_more,
+});
+
+const remoteLogFileWith = (
+  overrides: Partial<RemoteLogFile> = {}
+): RemoteLogFile => ({
+  readEvalBasicInfo: vi.fn(notImplemented("readEvalBasicInfo")),
+  readLogSummary: vi.fn(notImplemented("readLogSummary")),
+  readSample: vi.fn(notImplemented("readSample")),
+  zipAccess: vi.fn(notImplemented("zipAccess")),
+  readCompleteLog: vi.fn(notImplemented("readCompleteLog")),
+  ...overrides,
 });
 
 const baseApi = (): LogViewAPI => ({
@@ -177,10 +192,7 @@ describe("clientApi.edit_log cache invalidation", () => {
   // shows the pre-edit tags. The JSON path uses no cache in
   // get_log_details, so we don't exercise it here.
 
-  const sampleSummary = { tags: [] as string[], sampleSummaries: [] };
-  const okEdit: EditLogResult = {
-    log: {} as unknown as EditLogResult["log"],
-  };
+  const okEdit: EditLogResult = { log: testEvalLog() };
   const okUpdate = {
     edits: [],
     provenance: {
@@ -191,10 +203,11 @@ describe("clientApi.edit_log cache invalidation", () => {
   };
 
   test("subsequent reads on the same .eval file re-open after an edit", async () => {
-    const readLogSummary = vi.fn().mockResolvedValue(sampleSummary);
-    const remoteLogFile = { readLogSummary } as unknown as Awaited<
-      ReturnType<typeof openRemoteLogFile>
-    >;
+    const remoteLogFile = remoteLogFileWith({
+      readLogSummary: vi
+        .fn<RemoteLogFile["readLogSummary"]>()
+        .mockResolvedValue(testLogDetails()),
+    });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
     openMock.mockResolvedValue(remoteLogFile);
@@ -218,10 +231,11 @@ describe("clientApi.edit_log cache invalidation", () => {
   });
 
   test("an edit on a different log preserves the cached one", async () => {
-    const readLogSummary = vi.fn().mockResolvedValue(sampleSummary);
-    const remoteLogFile = { readLogSummary } as unknown as Awaited<
-      ReturnType<typeof openRemoteLogFile>
-    >;
+    const remoteLogFile = remoteLogFileWith({
+      readLogSummary: vi
+        .fn<RemoteLogFile["readLogSummary"]>()
+        .mockResolvedValue(testLogDetails()),
+    });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
     openMock.mockResolvedValue(remoteLogFile);
@@ -243,10 +257,11 @@ describe("clientApi.edit_log cache invalidation", () => {
     // Cache is dropped only after the underlying call resolves; a
     // rejection propagates without disturbing the cached reader. This
     // matters so a 412 conflict doesn't trigger an unnecessary refetch.
-    const readLogSummary = vi.fn().mockResolvedValue(sampleSummary);
-    const remoteLogFile = { readLogSummary } as unknown as Awaited<
-      ReturnType<typeof openRemoteLogFile>
-    >;
+    const remoteLogFile = remoteLogFileWith({
+      readLogSummary: vi
+        .fn<RemoteLogFile["readLogSummary"]>()
+        .mockResolvedValue(testLogDetails()),
+    });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
     openMock.mockResolvedValue(remoteLogFile);
@@ -271,12 +286,12 @@ describe("clientApi.get_log_details running-log caching", () => {
   // for cached reads leaves live views permanently stale (any consumer that
   // reads without an explicit cached=false lands on it).
 
-  const remoteFileWith = (status: string) =>
-    ({
+  const remoteFileWith = (status: LogDetails["status"]) =>
+    remoteLogFileWith({
       readLogSummary: vi
-        .fn()
-        .mockResolvedValue({ status, sampleSummaries: [] }),
-    }) as unknown as Awaited<ReturnType<typeof openRemoteLogFile>>;
+        .fn<RemoteLogFile["readLogSummary"]>()
+        .mockResolvedValue(testLogDetails({ status })),
+    });
 
   test("a running log is not re-served from the memoized remote file", async () => {
     const openMock = vi.mocked(openRemoteLogFile);
@@ -329,7 +344,7 @@ describe("clientApi.edit_log etag plumbing", () => {
       timestamp: "2026-01-01T00:00:00Z",
     },
   };
-  const okLog = {} as unknown as EditLogResult["log"];
+  const okLog = testEvalLog();
 
   test("carries the etag from a successful edit forward to the next edit on the same log", async () => {
     const edit_log = vi
@@ -434,14 +449,11 @@ describe("clientApi.edit_log etag plumbing", () => {
     // `get_log_info` S3 head_object response), so the *first* save in
     // a session also carries `If-Match`. Without this seeding, only
     // chained edits would be protected.
-    const readLogSummary = vi.fn().mockResolvedValue({
-      tags: [] as string[],
-      sampleSummaries: [],
-      etag: "initial-from-s3",
+    const remoteLogFile = remoteLogFileWith({
+      readLogSummary: vi
+        .fn<RemoteLogFile["readLogSummary"]>()
+        .mockResolvedValue(testLogDetails({ etag: "initial-from-s3" })),
     });
-    const remoteLogFile = { readLogSummary } as unknown as Awaited<
-      ReturnType<typeof openRemoteLogFile>
-    >;
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
     openMock.mockResolvedValue(remoteLogFile);
@@ -465,21 +477,12 @@ describe("clientApi.edit_log etag plumbing", () => {
     // cached etag must update to the new value — otherwise the next
     // edit would race using the stale etag and get a (correct but
     // confusing) 412 even though the user's local view is in sync.
-    const readLogSummary = vi
-      .fn()
-      .mockResolvedValueOnce({
-        tags: [],
-        sampleSummaries: [],
-        etag: "v1",
-      })
-      .mockResolvedValueOnce({
-        tags: [],
-        sampleSummaries: [],
-        etag: "v2",
-      });
-    const remoteLogFile = { readLogSummary } as unknown as Awaited<
-      ReturnType<typeof openRemoteLogFile>
-    >;
+    const remoteLogFile = remoteLogFileWith({
+      readLogSummary: vi
+        .fn<RemoteLogFile["readLogSummary"]>()
+        .mockResolvedValueOnce(testLogDetails({ etag: "v1" }))
+        .mockResolvedValueOnce(testLogDetails({ etag: "v2" })),
+    });
     const openMock = vi.mocked(openRemoteLogFile);
     openMock.mockReset();
     openMock.mockResolvedValue(remoteLogFile);
@@ -503,8 +506,14 @@ describe("clientApi.get_log_summaries_settled", () => {
   // /log-headers request must not fail every other file in that batch — see
   // the TODO in client-api.ts for the server-side fix this works around.
 
-  const previewFor = (id: string): LogPreview =>
-    ({ eval_id: id, run_id: `run-${id}` }) as unknown as LogPreview;
+  const previewFor = (id: string): LogPreview => ({
+    eval_id: id,
+    run_id: `run-${id}`,
+    task: "test_task",
+    task_id: `task-${id}`,
+    task_version: 0,
+    model: "test-model",
+  });
 
   test("wraps the batched endpoint's results as ok when it returns the full set", async () => {
     const previews = [previewFor("a"), previewFor("b")];

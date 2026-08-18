@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { AppConfig } from "../app_config";
 
+import { testClientAPI } from "./testFixtures";
+
 // The activation lifecycle under test is module state (the current
 // activation, waiters, pending sync), so every test re-imports a fresh module
 // via `control()` after `vi.resetModules()`. Collaborators are mocked at the
@@ -41,12 +43,14 @@ vi.mock("./logsContent", () => ({ createLogsContentSink: () => ({}) }));
 
 const control = () => import("./replicationControl");
 
-const configFor = (logDir: string): AppConfig =>
-  ({
-    logDir,
-    api: { __dir: logDir },
-    singleFileMode: false,
-  }) as unknown as AppConfig;
+const configFor = (logDir: string): AppConfig => ({
+  logDir,
+  api: testClientAPI(),
+  singleFileMode: false,
+  loader: "replicator",
+  inspect_version: "test",
+  scout_version: null,
+});
 
 beforeEach(() => {
   vi.resetModules();

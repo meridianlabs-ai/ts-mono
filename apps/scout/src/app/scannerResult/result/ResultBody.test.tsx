@@ -3,12 +3,12 @@ import { act, cleanup, render } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { testModelEvent } from "@tsmono/inspect-common/testing";
 
 import { apiScoutServer } from "../../../api/api-scout-server";
 import { createStore, StoreProvider } from "../../../state/store";
+import { createScanResultData } from "../../../test/objectFactories";
 import type { ScannerInput } from "../../../types/api-types";
-import type { ScanResultData } from "../../types";
 
 import { ResultBody } from "./ResultBody";
 
@@ -27,14 +27,12 @@ afterEach(() => {
   capturedHeadroomHidden = undefined;
 });
 
-const eventsInput = {
+const eventsInput: ScannerInput = {
   input_type: "events",
-  input: [
-    { event: "model", uuid: "m1", timestamp: "2026-01-01T00:00:00Z" },
-  ] as unknown as Event[],
-} as unknown as ScannerInput;
+  input: [testModelEvent({ uuid: "m1", timestamp: "2026-01-01T00:00:00Z" })],
+};
 
-const resultData = { messageReferences: [] } as unknown as ScanResultData;
+const resultData = createScanResultData();
 
 const mountBody = (showFind: boolean) => {
   const store = createStore(apiScoutServer());

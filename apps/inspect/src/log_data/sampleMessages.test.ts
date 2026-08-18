@@ -11,7 +11,7 @@ import {
   testHandle as handle,
   testMessages as makeMessages,
   makeWrapper,
-  testModelEvent as modelEvent,
+  testModelEventWithIds as modelEvent,
   sequenceReaderOver,
   settledData,
   testChunkedSample,

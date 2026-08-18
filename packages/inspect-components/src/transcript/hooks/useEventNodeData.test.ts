@@ -2,6 +2,14 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testToolEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { useEventNodeData } from "./useEventNodeData";
@@ -11,41 +19,31 @@ import { useEventNodeData } from "./useEventNodeData";
 // =============================================================================
 
 function makeModelEvent(uuid: string, messageId: string): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
-    model: "test-model",
-    input: [{ id: messageId, role: "user", content: "hi" }],
-    output: {
+    input: [testUserMessage({ id: messageId, content: "hi" })],
+    output: testModelOutput({
       choices: [
-        {
-          message: { role: "assistant", content: "response" },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({ content: "response" }),
+        }),
       ],
       completion: "response",
-      model: "test-model",
-    },
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    }),
     timestamp: "2024-01-01T00:00:00Z",
-    working_start: 0,
     working_time: 1,
     error: null,
     pending: false,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 function makeToolEvent(id: string, messageId: string): Event {
-  return {
-    event: "tool",
+  return testToolEvent({
     id,
     uuid: `uuid-${id}`,
     message_id: messageId,
     function: "search",
-    arguments: {},
     result: "ok",
     error: null,
     agent: null,
@@ -54,8 +52,7 @@ function makeToolEvent(id: string, messageId: string): Event {
     working_start: 1,
     pending: false,
     span_id: null,
-    events: [],
-  } as unknown as Event;
+  });
 }
 
 // =============================================================================

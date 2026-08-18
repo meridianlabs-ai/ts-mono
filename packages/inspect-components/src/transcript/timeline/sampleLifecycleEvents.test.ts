@@ -10,6 +10,17 @@
 
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testSampleLimitEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { buildTimeline, TimelineEvent, type TimelineSpan } from "./core";
@@ -34,52 +45,47 @@ function spanBegin(
   type: string | null,
   parentId: string | null
 ): Event {
-  return {
+  return testSpanBeginEvent({
     ...base(),
-    event: "span_begin",
     id,
     name,
     type,
     parent_id: parentId,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 function spanEnd(id: string): Event {
-  return {
-    ...base(),
-    event: "span_end",
-    id,
-    span_id: null,
-  } as unknown as Event;
+  return testSpanEndEvent({ ...base(), id, span_id: null });
 }
 
 function modelTurn(spanId: string): Event {
-  return {
+  return testModelEvent({
     ...base(),
-    event: "model",
     model: "mockllm/model",
     completed: ts(),
     span_id: spanId,
-    input: [{ role: "user", content: "go" }],
-    output: {
+    input: [testUserMessage({ content: "go" })],
+    output: testModelOutput({
       choices: [
-        { message: { role: "assistant", content: "ok" }, stop_reason: "stop" },
+        testChatCompletionChoice({
+          message: testAssistantMessage({ content: "ok" }),
+          stop_reason: "stop",
+        }),
       ],
-      usage: { input_tokens: 5, output_tokens: 1 },
-    },
-  } as unknown as Event;
+      usage: testModelUsage({ input_tokens: 5, output_tokens: 1 }),
+    }),
+  });
 }
 
 function sampleLimitEvent(): Event {
-  return {
+  return testSampleLimitEvent({
     ...base(),
-    event: "sample_limit",
     type: "operator",
     message: "Sample completed: interrupted by operator",
     limit: null,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 /** Recursively collect the underlying Events from a span's content tree. */

@@ -17,19 +17,16 @@ describe("viewServerApi.eval_log_sample_data_direct", () => {
       // eslint-disable-next-line @typescript-eslint/no-base-to-string
       const url = String(input);
       expect(url).toContain("/pending-sample-data-urls?");
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        text: () =>
-          Promise.resolve(
-            JSON.stringify({
-              segments: [],
-              complete: true,
-              has_more: false,
-            })
-          ),
-      } as unknown as Response);
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            segments: [],
+            complete: true,
+            has_more: false,
+          }),
+          { status: 200, statusText: "OK" }
+        )
+      );
     });
 
     const api = viewServerApi({
@@ -67,12 +64,9 @@ describe("viewServerApi mutation requests", () => {
 
   test("posts client messages with the viewer request header", async () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      Promise.resolve({
-        ok: true,
-        status: 204,
-        statusText: "No Content",
-        text: () => Promise.resolve(""),
-      } as unknown as Response)
+      Promise.resolve(
+        new Response(null, { status: 204, statusText: "No Content" })
+      )
     );
     globalThis.fetch = fetchMock;
 
@@ -97,13 +91,7 @@ describe("viewServerApi mutation requests", () => {
 
   test("adds the viewer request header to log edits", async () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: "OK",
-        headers: new Headers(),
-        text: () => Promise.resolve("{}"),
-      } as unknown as Response)
+      Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }))
     );
     globalThis.fetch = fetchMock;
 
@@ -142,13 +130,7 @@ describe("viewServerApi.get_eval_set", () => {
   });
 
   const okJson = () =>
-    Promise.resolve({
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      headers: new Headers(),
-      text: () => Promise.resolve("{}"),
-    } as unknown as Response);
+    Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }));
 
   test("sends the construction log_dir with no dir param at the listing root", async () => {
     const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
@@ -199,16 +181,9 @@ describe("viewServerApi dir independence", () => {
     vi.restoreAllMocks();
   });
 
+  // get_flow reads this as bytes rather than text; "{}" decodes fine either way.
   const okJson = () =>
-    Promise.resolve({
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      headers: new Headers(),
-      text: () => Promise.resolve("{}"),
-      // get_flow reads bytes rather than text.
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    } as unknown as Response);
+    Promise.resolve(new Response("{}", { status: 200, statusText: "OK" }));
 
   test("two instances over the same transport answer for their own dirs", async () => {
     // The LogViewAPI contract: an instance is bound to its construction dir.

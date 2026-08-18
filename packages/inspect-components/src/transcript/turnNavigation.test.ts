@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testInfoEvent,
+  testModelEvent,
+  testSpanBeginEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import type { TurnInfo } from "./outline/tree-visitors";
@@ -13,7 +19,8 @@ import {
 } from "./turnNavigation";
 import { EventNode } from "./types";
 
-const node = (id: string): EventNode => ({ id }) as unknown as EventNode;
+const node = (id: string): EventNode =>
+  new EventNode(id, testInfoEvent({ uuid: id }), 0);
 
 const treeNode = (
   id: string,
@@ -100,17 +107,14 @@ describe("anchorIndexForTurn", () => {
 });
 
 describe("resolveEventTurnAnchor", () => {
-  const flatNode = (
-    id: string,
-    event: Record<string, unknown>,
-    depth: number
-  ): EventNode => new EventNode(id, event as unknown as Event, depth);
+  const flatNode = (id: string, event: Event, depth: number): EventNode =>
+    new EventNode(id, event, depth);
   const agentSpan = (id: string, name: string, depth: number): EventNode =>
-    flatNode(id, { event: "span_begin", type: "agent", name }, depth);
+    flatNode(id, testSpanBeginEvent({ type: "agent", name }), depth);
   const model = (id: string, depth: number): EventNode =>
-    flatNode(id, { event: "model" }, depth);
+    flatNode(id, testModelEvent(), depth);
   const tool = (id: string, depth: number): EventNode =>
-    flatNode(id, { event: "tool" }, depth);
+    flatNode(id, testToolEvent(), depth);
 
   // main turn m1 spawns a subagent (with its own turns) and CONTINUES with a
   // tool afterwards — the regression case: a document-order back-scan from t1
@@ -150,11 +154,7 @@ describe("computeTranscriptTurns", () => {
   const agentSpan = (id: string, children: EventNode[]): EventNode => {
     const n = new EventNode(
       id,
-      {
-        event: "span_begin",
-        type: "agent",
-        name: "sub",
-      } as unknown as Event,
+      testSpanBeginEvent({ type: "agent", name: "sub" }),
       0
     );
     n.children = children;

@@ -1,9 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import { testScore } from "@tsmono/inspect-common/testing";
+
 import { SampleSummary } from "../../../client/api/types";
 import type { ScoreLabel } from "../../types";
 import type { SamplesDescriptor } from "../descriptor/samplesDescriptor";
-import type { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
+import {
+  testEvalDescriptor,
+  testSamplesDescriptor,
+  testScoreDescriptor,
+} from "../descriptor/testDescriptors";
+import type { EvalDescriptor } from "../descriptor/types";
 
 import {
   bannedShortScoreNames,
@@ -16,21 +23,21 @@ import {
 const descriptorWith = (
   scores: Array<{ name: string; scorer: string; scoreType: string }>
 ): EvalDescriptor =>
-  ({
+  testEvalDescriptor({
     scores: scores.map(({ name, scorer }) => ({ name, scorer })),
     scoreDescriptor: ({ name, scorer }: ScoreLabel) => {
       const match = scores.find((s) => s.name === name && s.scorer === scorer);
-      return { scoreType: match?.scoreType ?? "other" } as ScoreDescriptor;
+      return testScoreDescriptor({ scoreType: match?.scoreType ?? "other" });
     },
-  }) as unknown as EvalDescriptor;
+  });
 
 const samplesDescriptorWith = (
   scores: Array<{ name: string; scorer: string; scoreType: string }>
 ): SamplesDescriptor =>
-  ({
+  testSamplesDescriptor({
     evalDescriptor: descriptorWith(scores),
     selectedScorerDescriptor: () => undefined,
-  }) as unknown as SamplesDescriptor;
+  });
 
 const sample = (overrides: Partial<SampleSummary> = {}): SampleSummary => ({
   id: "s1",
@@ -81,8 +88,8 @@ describe("filterExpression built-in shadowing", () => {
   ]);
   const s = sample({
     scores: {
-      grader: { value: { epoch: 99 } },
-    } as unknown as SampleSummary["scores"],
+      grader: testScore({ value: { epoch: 99 } }),
+    },
   });
 
   it("a bare built-in name reads the sample, not a score named after it", () => {

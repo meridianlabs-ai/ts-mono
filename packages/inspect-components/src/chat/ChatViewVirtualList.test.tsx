@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
@@ -16,10 +17,10 @@ import {
 } from "./ChatViewVirtualList";
 import { buildMessageRows, messageRowOptions } from "./rowsModel";
 
-const messages = [
-  { id: "m-1", role: "assistant", content: "one" },
-  { id: "m-2", role: "assistant", content: "two" },
-] as unknown as ChatMessage[];
+const messages: ChatMessage[] = [
+  testAssistantMessage({ id: "m-1", content: "one" }),
+  testAssistantMessage({ id: "m-2", content: "two" }),
+];
 
 // jsdom has no scrollTo; VirtualList calls it during mount/follow.
 beforeEach(() => {
