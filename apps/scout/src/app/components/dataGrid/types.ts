@@ -1,5 +1,6 @@
 import {
   ColumnSizingState,
+  RowData,
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
@@ -18,7 +19,7 @@ import type { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
  * @template TState - The table state type (must extend DataGridTableState)
  */
 export interface DataGridProps<
-  TData,
+  TData extends RowData,
   TColumn extends ExtendedColumnDef<TData>,
   TState extends DataGridTableState = DataGridTableState,
 > {

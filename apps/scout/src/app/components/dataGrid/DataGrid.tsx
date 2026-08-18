@@ -1,11 +1,11 @@
 import {
   ColumnSizingState,
   flexRender,
-  getCoreRowModel,
   OnChangeFn,
+  RowData,
   RowSelectionState,
   SortingState,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
@@ -34,6 +34,7 @@ import {
 } from "../columnTypes";
 
 import styles from "./DataGrid.module.css";
+import { dataGridFeatures } from "./tableFeatures";
 import type { DataGridProps, DataGridTableState } from "./types";
 
 /**
@@ -41,7 +42,7 @@ import type { DataGridProps, DataGridTableState } from "./types";
  * row selection, keyboard navigation, and column reordering.
  */
 export function DataGrid<
-  TData,
+  TData extends RowData,
   TColumn extends ExtendedColumnDef<TData, BaseColumnMeta>,
   TState extends DataGridTableState = DataGridTableState,
 >({
@@ -297,15 +298,10 @@ export function DataGrid<
     resetDragState();
   }, [resetDragState]);
 
-  // Create table instance
-  // useReactTable returns unmemoizable functions
-  // https://github.com/TanStack/table/issues/5567
-  // https://github.com/facebook/react/issues/33057
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: dataGridFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     columnResizeMode: "onChange",
     enableColumnResizing: true,
@@ -543,6 +539,7 @@ export function DataGrid<
   );
 
   // Create virtualizer
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,

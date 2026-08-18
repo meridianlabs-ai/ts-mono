@@ -8,7 +8,6 @@ import {
   ColumnSizingStrategyKey,
   getColumnConstraints,
   getSizingStrategy,
-  SizingStrategy,
 } from "../../components/columnSizing";
 import { TranscriptColumn } from "../columns";
 
@@ -165,9 +164,7 @@ export function useColumnSizing({
         columnSizing: currentSizing,
       } = latestRef.current;
 
-      const strategy = getSizingStrategy(
-        strategyKey
-      ) as SizingStrategy<TranscriptInfo>;
+      const strategy = getSizingStrategy(strategyKey);
       const calculatedSizing = strategy.computeSizes({
         tableElement: tableRef.current,
         columns: cols,
@@ -210,9 +207,7 @@ export function useColumnSizing({
           columnConstraints: constraints,
         } = latestRef.current;
 
-        const strategy = getSizingStrategy(
-          strategyKey
-        ) as SizingStrategy<TranscriptInfo>;
+        const strategy = getSizingStrategy(strategyKey);
         const allSizes = strategy.computeSizes({
           tableElement: tableRef.current,
           columns: cols,

@@ -1,4 +1,3 @@
-import { ColumnDef } from "@tanstack/react-table";
 import clsx from "clsx";
 
 import {
@@ -13,6 +12,7 @@ import { ApplicationIcons } from "../../icons";
 import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
+import type { ExtendedColumnDef } from "../components/columnTypes";
 import { valueAsString } from "../utils/format";
 
 import styles from "./columns.module.css";
@@ -71,7 +71,7 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   error: "Error message that terminated the task.",
 };
 
-export type TranscriptColumn = ColumnDef<TranscriptInfo> & {
+export type TranscriptColumn = ExtendedColumnDef<TranscriptInfo> & {
   meta?: {
     align?: "left" | "center" | "right";
     filterable?: boolean;

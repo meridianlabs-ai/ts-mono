@@ -143,7 +143,7 @@ export function buildSampleColumns(
       maxSize: 80,
       enableSorting: false,
       enableResizing: false,
-      pinned: "left",
+      pinned: "start",
       accessorFn: (row) => row.displayIndex,
       cell: ({ row }) => {
         const value = row.original.displayIndex;

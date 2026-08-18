@@ -1,10 +1,12 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, RowData } from "@tanstack/react-table";
 import type { CSSProperties } from "react";
 
 import type {
   FilterType,
   UiOperator,
 } from "@tsmono/inspect-components/columnFilter";
+
+import type { DataGridFeatures } from "./tableFeatures";
 
 /**
  * Value comparator carried on a column for client-side sorting. Sorts
@@ -50,14 +52,17 @@ export interface BaseColumnMeta<TRow = unknown> {
  * plus a few rendering helpers. `size` / `minSize` / `maxSize` come from
  * TanStack's own `ColumnDef`.
  */
-export type ExtendedColumnDef<TRow> = ColumnDef<TRow> & {
+export type ExtendedColumnDef<TRow extends RowData> = ColumnDef<
+  DataGridFeatures,
+  TRow
+> & {
   meta?: BaseColumnMeta<TRow>;
   /**
    * Pin the column to the left edge: it orders before unpinned columns,
    * stays visible under horizontal scroll (sticky), and is excluded from
    * drag-reorder.
    */
-  pinned?: "left";
+  pinned?: "start";
   /**
    * Flex weight (AG `initialFlex`): the column absorbs leftover grid width
    * proportionally to its weight, floored at `minSize`. `size` serves as
