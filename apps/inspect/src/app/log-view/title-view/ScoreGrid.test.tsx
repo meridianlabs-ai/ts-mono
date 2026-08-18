@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, test } from "vitest";
 
 import { ScoreSummary } from "../../../scoring/types";
@@ -38,6 +44,19 @@ const groupedScores: ScoreSummary[] = [
     ],
   },
 ];
+
+const score = (scorer: string): ScoreSummary => ({
+  scorer,
+  scoredSamples: 1,
+  unscoredSamples: 0,
+  metrics: [{ name: "accuracy", value: 1 }],
+});
+
+const renderedScorers = () =>
+  screen
+    .getAllByRole("row")
+    .slice(1)
+    .map((row) => within(row).getAllByRole("cell")[0]?.textContent?.trim());
 
 describe("ScoreGrid", () => {
   // Auto-cleanup needs vitest `globals: true`, which this config doesn't set.
@@ -80,6 +99,26 @@ describe("ScoreGrid", () => {
     const scorerOrder = [cells[0]?.textContent, cells[3]?.textContent];
     expect(scorerOrder[0]).toContain("match");
     expect(scorerOrder[1]).toContain("model_graded");
+  });
+
+  test("sorts scorer names case-insensitively", () => {
+    render(
+      <ScoreGrid
+        scoreGroups={[[score("Zebra"), score("apple"), score("Banana")]]}
+      />
+    );
+    fireEvent.click(screen.getByRole("columnheader", { name: "Scorer" }));
+    expect(renderedScorers()).toEqual(["apple", "Banana", "Zebra"]);
+  });
+
+  test("sorts numbered scorer names naturally", () => {
+    render(
+      <ScoreGrid
+        scoreGroups={[[score("scorer10"), score("Scorer2"), score("scorer1")]]}
+      />
+    );
+    fireEvent.click(screen.getByRole("columnheader", { name: "Scorer" }));
+    expect(renderedScorers()).toEqual(["scorer1", "Scorer2", "scorer10"]);
   });
 
   test("compact card is not sortable", () => {

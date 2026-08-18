@@ -5,6 +5,8 @@ import {
   flexRender,
   Header,
   rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_text,
   SortingState,
   tableFeatures,
   useTable,
@@ -39,6 +41,7 @@ const scoreGridFeatures = tableFeatures({
   columnVisibilityFeature,
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, text: sortFn_text },
 });
 
 type ScoreGridFeatures = typeof scoreGridFeatures;
