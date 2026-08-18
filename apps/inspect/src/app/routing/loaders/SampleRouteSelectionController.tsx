@@ -24,7 +24,11 @@ export const SampleRouteSelectionController: FC = () => {
       if (selectedLogFile !== routeLogPath) {
         selectLogFile(routeLogPath);
       }
-      selectSample(sampleId, parseInt(epoch, 10), routeLogPath);
+      const targetEpoch = parseInt(epoch, 10);
+      if (isNaN(targetEpoch)) {
+        return;
+      }
+      selectSample(sampleId, targetEpoch, routeLogPath);
     }
   }, [routeLogPath, sampleId, epoch, selectedLogFile]);
 
