@@ -9,7 +9,7 @@ interface ScoreProps {
   score: JsonValue;
   className?: string | string[];
   maxRows?: number;
-  /** When false, rows beyond maxRows are hidden with no expand toggle. */
+  /** When false, raw entries beyond maxRows are hidden with no expand toggle. */
   expandable?: boolean;
 }
 
@@ -31,8 +31,9 @@ export const renderScore = (
 ): ReactNode => {
   if (Array.isArray(value)) {
     return value.join(", ");
-  } else if (isRecord(value) && typeof value === "object") {
+  } else if (isRecord(value)) {
     if (maxRows != null && !expandable) {
+      // Slice raw entries so fixed previews count nested groups without rendering MetaDataGrid's expander.
       const visibleEntries = Object.fromEntries(
         Object.entries(value).slice(0, maxRows)
       );

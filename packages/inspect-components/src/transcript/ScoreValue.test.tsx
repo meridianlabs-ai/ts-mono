@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import {
   ComponentIconProvider,
   ComponentIcons,
@@ -42,15 +43,21 @@ const stateHooks: ComponentStateHooks = {
   useRemoveByPrefix: () => () => {},
 };
 
-const renderScore = (expandable?: boolean) =>
+const defaultScore = { first: "one", second: "two", third: "three" };
+
+const renderScore = (
+  expandable?: boolean,
+  score: JsonValue = defaultScore,
+  maxRows = 2
+) =>
   render(
     <ComponentStateProvider hooks={stateHooks}>
       <ComponentIconProvider icons={icons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
           <ScoreValue
-            score={{ first: "one", second: "two", third: "three" }}
+            score={score}
             className={["score", "preview"]}
-            maxRows={2}
+            maxRows={maxRows}
             expandable={expandable}
           />
         </ComponentNavigationProvider>
@@ -85,6 +92,20 @@ describe("ScoreValue object rows", () => {
 
     expect(screen.getByText("first")).toBeDefined();
     expect(screen.getByText("second")).toBeDefined();
+    expect(screen.queryByText("third")).toBeNull();
+    expect(screen.queryByRole("button", { name: /more|less/i })).toBeNull();
+  });
+
+  it("counts nested groups toward the fixed-preview maxRows", () => {
+    renderScore(
+      false,
+      { first: "one", details: { nested: "value" }, third: "three" },
+      1
+    );
+
+    expect(screen.getByText("first")).toBeDefined();
+    expect(screen.queryByText("details")).toBeNull();
+    expect(screen.queryByText("nested")).toBeNull();
     expect(screen.queryByText("third")).toBeNull();
     expect(screen.queryByRole("button", { name: /more|less/i })).toBeNull();
   });
