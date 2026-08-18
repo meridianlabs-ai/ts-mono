@@ -5,34 +5,15 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import {
   ComponentIconProvider,
-  ComponentIcons,
   ComponentNavigationProvider,
 } from "@tsmono/react/components";
 import {
   ComponentStateHooks,
   ComponentStateProvider,
 } from "@tsmono/react/state";
+import { testIcons } from "@tsmono/react/testing";
 
 import { ScoreValue } from "./ScoreValue";
-
-const icons: ComponentIcons = {
-  arrowDown: "icon-arrow-down",
-  arrowUp: "icon-arrow-up",
-  chevronDown: "icon-chevron-down",
-  chevronUp: "icon-chevron-up",
-  clearText: "icon-clear-text",
-  close: "icon-close",
-  code: "icon-code",
-  confirm: "icon-confirm",
-  copy: "icon-copy",
-  error: "icon-error",
-  menu: "icon-menu",
-  next: "icon-next",
-  noSamples: "icon-no-samples",
-  play: "icon-play",
-  previous: "icon-previous",
-  toggleRight: "icon-toggle-right",
-};
 
 const stateHooks: ComponentStateHooks = {
   useValue: (_id, _prop, defaultValue) => defaultValue,
@@ -52,7 +33,7 @@ const renderScore = (
 ) =>
   render(
     <ComponentStateProvider hooks={stateHooks}>
-      <ComponentIconProvider icons={icons}>
+      <ComponentIconProvider icons={testIcons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
           <ScoreValue
             score={score}

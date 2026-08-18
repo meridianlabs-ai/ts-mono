@@ -11,6 +11,7 @@
     "./components": "./src/components/index.ts",
     "./icons": "./src/icons/index.ts",
     "./state": "./src/state/index.ts",
+    "./testing": "./src/test/index.ts",
     "./virtual": "./src/virtual/index.ts"
   },
   "scripts": {
