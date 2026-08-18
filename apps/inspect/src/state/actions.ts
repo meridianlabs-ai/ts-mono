@@ -4,10 +4,10 @@
 // consumers need to re-render on that change (see e.g. the navigation hooks).
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
+import { isUri, join, prettyDirUri } from "@tsmono/util";
 
 import { getAppConfig } from "../app_config";
 import { imperativeLogData } from "../log_data";
-import { isUri, join, prettyDirUri } from "../utils/uri";
 
 import { storeImplementation, StoreState } from "./store";
 

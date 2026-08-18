@@ -1,4 +1,9 @@
-import { ensureTrailingSlash, isInDirectory } from "@tsmono/util";
+import {
+  directoryRelativeUrl,
+  ensureTrailingSlash,
+  isInDirectory,
+  rootName,
+} from "@tsmono/util";
 
 import type { Log } from "../client/api/types";
 import { scopePrefix } from "../client/database";
@@ -7,7 +12,6 @@ import {
   type DatabaseListingPlan,
   type DatabaseListingResult,
 } from "../client/database/listing";
-import { directoryRelativeUrl, rootName } from "../utils/uri";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import { computeLogsWithRetried, type LogListingRow } from "./logListing";

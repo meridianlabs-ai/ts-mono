@@ -7,7 +7,7 @@
  */
 import { describe, expect, test } from "vitest";
 
-import { directoryRelativeUrl } from "../../utils/uri";
+import { directoryRelativeUrl } from "@tsmono/util";
 
 // Constants copied from src/constants.ts to avoid import chain issues
 const kSampleTabIds = [
@@ -606,7 +606,7 @@ describe("decodeUrlParam", () => {
 });
 
 /**
- * Helper function to encode path parts, copied from src/utils/uri.ts
+ * Helper function to encode path parts, matching @tsmono/util.
  */
 function encodePathParts(url: string): string {
   if (!url) return url;

@@ -1,6 +1,16 @@
+/** First segment of a relative path ("" when empty). */
+export const rootName = (relativePath: string): string =>
+  relativePath.split("/")[0] ?? "";
+
+const encodePathSegments = (path: string): string =>
+  path
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
 export const directoryRelativeUrl = (file: string, dir?: string): string => {
   if (!dir) {
-    return encodeURIComponent(file);
+    return encodePathSegments(file);
   }
 
   // Normalize paths to ensure consistent directory separators
@@ -27,8 +37,7 @@ export const directoryRelativeUrl = (file: string, dir?: string): string => {
     return encodedSegments.join("/");
   }
 
-  // If path can't be made relative, return undefined
-  return encodeURIComponent(file);
+  return encodePathSegments(normalizedFile);
 };
 
 export const join = (file: string, dir?: string): string => {
@@ -47,6 +56,13 @@ export const join = (file: string, dir?: string): string => {
   const dirWithSlash = normalizedLogDir.endsWith("/")
     ? normalizedLogDir
     : normalizedLogDir + "/";
+
+  if (
+    normalizedFile === normalizedLogDir ||
+    normalizedFile.startsWith(dirWithSlash)
+  ) {
+    return normalizedFile;
+  }
 
   return dirWithSlash + normalizedFile;
 };

@@ -8,6 +8,7 @@ import type {
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
+import { join } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import { scopePrefix } from "../../client/database";
@@ -22,7 +23,6 @@ import {
 import { selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
 import { useFlowQuery } from "../flow/hooks";
