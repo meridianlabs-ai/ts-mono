@@ -92,7 +92,7 @@
     "zstd-codec": "^0.1.5"
   },
   "dependencies": {
-    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-table": "^9.1.2",
     "@tanstack/react-virtual": "^3.14.9",
     "@uwdata/flechette": "^2.5.0",
     "@vscode-elements/react-elements": "^2.4.0",
