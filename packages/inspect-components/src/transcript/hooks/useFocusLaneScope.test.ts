@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 // jsdom: the timeline barrel transitively imports vscode-elements web
 // components, which touch CSSStyleSheet at module load.
 import { act, renderHook } from "@testing-library/react";

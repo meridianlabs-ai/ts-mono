@@ -14,7 +14,7 @@ export const LoadingBar: FC<LoadingBarProps> = ({ loading }) => {
         className={clsx(styles.container)}
         role="progressbar"
         aria-label="Progress bar"
-        aria-valuenow={25}
+        aria-hidden={!loading}
         aria-valuemin={0}
         aria-valuemax={100}
       >

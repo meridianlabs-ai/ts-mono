@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { render } from "@testing-library/react";
 import { useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
