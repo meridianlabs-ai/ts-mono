@@ -43,6 +43,7 @@ export function useListPositionManager(
 
   // Track previous selected value to detect navigate-up
   const prevSelectedRef = useRef(selected);
+  const prevBaseListIdRef = useRef(baseListId);
   const isFirstRender = useRef(true);
 
   useEffect(() => {
@@ -50,11 +51,16 @@ export function useListPositionManager(
     if (isFirstRender.current) {
       isFirstRender.current = false;
       prevSelectedRef.current = selected;
+      prevBaseListIdRef.current = baseListId;
       return;
     }
 
     const prevSelected = prevSelectedRef.current;
+    if (prevSelected === selected && prevBaseListIdRef.current === baseListId) {
+      return;
+    }
     prevSelectedRef.current = selected;
+    prevBaseListIdRef.current = baseListId;
 
     // Clear saved Virtuoso state for the target agent
     const targetVirtuosoKey = `${kVirtuosoKeyPrefix}${effectiveListId}`;
