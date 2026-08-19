@@ -12,6 +12,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
+  dynamicDefaultExcludeEvents,
   clearDeepLinkParams,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
@@ -117,10 +118,15 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // Event type filtering
   // ---------------------------------------------------------------------------
 
-  const filteredEventTypes = useStore(
+  const storedEventTypes = useStore(
     (state) => state.sample.eventFilter.filteredTypes
   );
-  const { isDefaultFilter } = useTranscriptFilter();
+  const defaultExcludeEvents = useMemo(
+    () => dynamicDefaultExcludeEvents(events),
+    [events]
+  );
+  const filteredEventTypes = storedEventTypes ?? defaultExcludeEvents;
+  const { isDefaultFilter } = useTranscriptFilter(defaultExcludeEvents);
 
   // ---------------------------------------------------------------------------
   // Store-backed timeline selection adapters

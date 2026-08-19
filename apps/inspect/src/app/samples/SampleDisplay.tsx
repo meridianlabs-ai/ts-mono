@@ -24,6 +24,7 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import {
+  dynamicDefaultExcludeEvents,
   eventsToStr,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
@@ -239,6 +240,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // being paid at sample open.
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
+  );
+
+  // Dynamic Default event-filter exclusions: store events with rich renderers
+  // (e.g. human-baseline terminal sessions) are visible by default. Chunked
+  // transcripts stream events lazily, so they keep the static defaults.
+  const defaultExcludeEvents = useMemo(
+    () => dynamicDefaultExcludeEvents(sampleEvents),
+    [sampleEvents]
   );
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
   const sampleDetailNavigation = useSampleDetailNavigation();
@@ -851,6 +860,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 showing={isShowing}
                 setShowing={setShowing}
                 positionEl={filterButtonEl}
+                defaultExcludeEvents={defaultExcludeEvents}
               />
 
               {sampleData.chunked ? (

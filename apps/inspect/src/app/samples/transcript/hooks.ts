@@ -32,8 +32,14 @@ const eventTypes: Record<AllEventTypes, string> = {
   step: "Step",
 } as const;
 
-export const useTranscriptFilter = () => {
-  const filtered = useStore((state) => state.sample.eventFilter.filteredTypes);
+export const useTranscriptFilter = (
+  defaultExcludeEvents: readonly string[] = kDefaultExcludeEvents
+) => {
+  const stored = useStore((state) => state.sample.eventFilter.filteredTypes);
+  const filtered = useMemo(
+    () => stored ?? [...defaultExcludeEvents],
+    [stored, defaultExcludeEvents]
+  );
   const setFilteredEventTypes = useStore(
     (state) => state.sampleActions.setFilteredEventTypes
   );
@@ -56,7 +62,8 @@ export const useTranscriptFilter = () => {
   }, [setFilteredEventTypes]);
 
   const setDefaultFilter = useCallback(() => {
-    setFilteredEventTypes([...kDefaultExcludeEvents]);
+    // null = dynamic default (resolved per sample)
+    setFilteredEventTypes(null);
   }, [setFilteredEventTypes]);
 
   const setNoneFilter = useCallback(() => {
@@ -64,11 +71,8 @@ export const useTranscriptFilter = () => {
   }, [setFilteredEventTypes]);
 
   const isDefaultFilter = useMemo(() => {
-    return (
-      filtered.length === kDefaultExcludeEvents.length &&
-      [...filtered].every((type) => kDefaultExcludeEvents.includes(type))
-    );
-  }, [filtered]);
+    return stored === null;
+  }, [stored]);
 
   const isDebugFilter = useMemo(() => {
     return filtered.length === 0;
@@ -87,8 +91,8 @@ export const useTranscriptFilter = () => {
 
     // Sort keys alphabetically with default disabled keys at the end
     const sortedKeys = keys.sort((a, b) => {
-      const aIsDefault = kDefaultExcludeEvents.includes(a);
-      const bIsDefault = kDefaultExcludeEvents.includes(b);
+      const aIsDefault = defaultExcludeEvents.includes(a);
+      const bIsDefault = defaultExcludeEvents.includes(b);
 
       // If one is in default exclude set and the other isn't, default goes to end
       if (aIsDefault && !bIsDefault) return 1;
@@ -127,7 +131,7 @@ export const useTranscriptFilter = () => {
     }
 
     return arrangedKeys;
-  }, []);
+  }, [defaultExcludeEvents]);
 
   return {
     filtered,
