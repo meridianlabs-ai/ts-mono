@@ -10,8 +10,8 @@ import {
 } from "react";
 
 import {
-  kDefaultExcludeEvents,
   getSelectedSpans,
+  kDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   spanHasBranches,

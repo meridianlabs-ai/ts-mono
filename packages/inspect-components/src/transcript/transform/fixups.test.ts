@@ -80,15 +80,27 @@ describe("fixupEventStream — pending coalescing", () => {
 
 describe("fixupEventStream — store event echo dedupe", () => {
   const changes: JsonChange[] = [
-    { op: "add", path: "/HumanAgentState:logs", value: { "s.output": "x" }, replaced: null },
-    { op: "add", path: "/HumanAgentState:answer", value: "INC-1042", replaced: null },
+    {
+      op: "add",
+      path: "/HumanAgentState:logs",
+      value: { "s.output": "x" },
+      replaced: null,
+    },
+    {
+      op: "add",
+      path: "/HumanAgentState:answer",
+      value: "INC-1042",
+      replaced: null,
+    },
   ];
 
   const storeEvent = (uuid: string, c: JsonChange[] = changes): StoreEvent =>
     testStoreEvent({ uuid, changes: c });
 
   const storeUuids = (events: Event[]) =>
-    events.filter((e): e is StoreEvent => e.event === "store").map((e) => e.uuid);
+    events
+      .filter((e): e is StoreEvent => e.event === "store")
+      .map((e) => e.uuid);
 
   it("keeps only the last of identical store events separated by span closes", () => {
     // inspect_ai emits a store diff at every enclosing span end, so a write

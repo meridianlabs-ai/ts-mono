@@ -400,7 +400,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   }, [collapsedMode, setCollapsedMode]);
 
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
-    useTranscriptFilter();
+    useTranscriptFilter(defaultExcludeEvents);
 
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
@@ -899,6 +899,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     backfilling={backfilling}
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     events={sampleEvents}
+                    defaultExcludeEvents={defaultExcludeEvents}
                     timelines={sample?.timelines ?? undefined}
                     eventNodeContext={transcriptEventNodeContext}
                     initialEventId={sampleDetailNavigation.event}

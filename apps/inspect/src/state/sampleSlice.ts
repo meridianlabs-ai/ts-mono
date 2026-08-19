@@ -1,4 +1,3 @@
-
 import { SampleState } from "../app/types";
 
 import { StoreState } from "./store";

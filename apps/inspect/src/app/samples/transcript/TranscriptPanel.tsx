@@ -12,8 +12,8 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
-  dynamicDefaultExcludeEvents,
   clearDeepLinkParams,
+  dynamicDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
@@ -78,6 +78,10 @@ interface TranscriptPanelProps {
   events: Events;
   timelines?: ServerTimeline[];
 
+  /** Dynamic default event-filter exclusions, memoized by the host over the
+   *  same events (falls back to computing locally). */
+  defaultExcludeEvents?: readonly string[];
+
   /** Extra event-node context (e.g. scan cite labels) merged by the layout. */
   eventNodeContext?: Partial<EventNodeContext>;
 
@@ -112,6 +116,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     timelines: serverTimelines,
     eventNodeContext,
     rightRail,
+    defaultExcludeEvents: defaultExcludeEventsProp,
   } = props;
 
   // ---------------------------------------------------------------------------
@@ -122,8 +127,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     (state) => state.sample.eventFilter.filteredTypes
   );
   const defaultExcludeEvents = useMemo(
-    () => dynamicDefaultExcludeEvents(events),
-    [events]
+    () => defaultExcludeEventsProp ?? dynamicDefaultExcludeEvents(events),
+    [defaultExcludeEventsProp, events]
   );
   const filteredEventTypes = storedEventTypes ?? defaultExcludeEvents;
   const { isDefaultFilter } = useTranscriptFilter(defaultExcludeEvents);
