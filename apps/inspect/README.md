@@ -53,12 +53,12 @@ factory with it, and renders:
 ```tsx
 import {
     App,
-    Capabilities,
     clientApi,
     createViewServerApi,
     initializeStore,
     setApiFactory,
 } from "@meridianlabs/log-viewer";
+import type { Capabilities } from "@meridianlabs/log-viewer";
 
 import "@meridianlabs/log-viewer/styles/index.css";
 
