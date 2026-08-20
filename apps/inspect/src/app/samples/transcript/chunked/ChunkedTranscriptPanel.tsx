@@ -11,6 +11,7 @@ import {
 
 import {
   getSelectedSpans,
+  kDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   spanHasBranches,
@@ -60,8 +61,14 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   offsetTop,
   chunked,
 }) => {
-  const hiddenTypes = useStore(
+  const hiddenTypesStored = useStore(
     (state) => state.sample.eventFilter.filteredTypes
+  );
+  // Chunked transcripts stream events lazily, so the dynamic default (which
+  // inspects the full event list) is not computed here; static defaults apply.
+  const hiddenTypes = useMemo(
+    () => hiddenTypesStored ?? [...kDefaultExcludeEvents],
+    [hiddenTypesStored]
   );
   const collapsedOverrides = useStore(
     (state) => state.sample.collapsedEvents?.[kTranscriptCollapseScope]

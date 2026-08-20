@@ -21,11 +21,41 @@ export const fixupEventStream = (
   // show them other times (when an eval is running)
   const collapsed = processPendingEvents(events, filterPending);
 
+  // Collapse the per-span-level echoes of a single store mutation
+  const deduped = dedupeStoreEventEchoes(collapsed);
+
   // We need to inject a step event for sample_init if it doesn't exist
-  const fixedUp = collapseSampleInit(collapsed);
+  const fixedUp = collapseSampleInit(deduped);
 
   // Inject step events before and after groups of sandbox events
   return groupSandboxEvents(fixedUp);
+};
+
+// inspect_ai snapshots the store at every span begin and emits a StoreEvent
+// diff at every span end, so a mutation inside nested spans is re-reported
+// once per enclosing level — identical changes separated only by span_end /
+// state events (the span-close cascade). Drop each such echo in favor of the
+// next one, keeping only the outermost (last, least-indented) report. Store
+// events separated by any substantive event are genuine repeat reports and
+// are kept.
+const dedupeStoreEventEchoes = (events: Event[]): Event[] => {
+  const echoTransparent = (e: Event) =>
+    e.event === "span_end" || e.event === "state";
+
+  return events.filter((event, i) => {
+    if (event.event !== "store") {
+      return true;
+    }
+    let j = i + 1;
+    while (j < events.length && echoTransparent(events[j]!)) {
+      j++;
+    }
+    const next = events[j];
+    return !(
+      next?.event === "store" &&
+      JSON.stringify(next.changes) === JSON.stringify(event.changes)
+    );
+  });
 };
 
 const processPendingEvents = (events: Event[], filter: boolean): Event[] => {
