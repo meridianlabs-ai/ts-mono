@@ -44,17 +44,8 @@ export function useListPositionManager(
   // Track previous selected value to detect navigate-up
   const prevSelectedRef = useRef(selected);
   const prevBaseListIdRef = useRef(baseListId);
-  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    // Skip the first render -- don't clear positions on mount
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      prevSelectedRef.current = selected;
-      prevBaseListIdRef.current = baseListId;
-      return;
-    }
-
     const prevSelected = prevSelectedRef.current;
     if (prevSelected === selected && prevBaseListIdRef.current === baseListId) {
       return;
