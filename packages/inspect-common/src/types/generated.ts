@@ -659,16 +659,15 @@ export interface components {
          * ArchiveSnapshots
          * @description One complete compressed tar archive per checkpoint.
          *
-         *     Best choice when the captured data is dominated by large,
-         *     high-entropy, frequently-rewritten files (training state, database
-         *     files, encrypted containers), where incremental backup stores
-         *     roughly the full dataset again at every checkpoint. Combined with
-         *     ``retention=SnapshotRetention(keep_last=N)``, storage is reclaimed
-         *     mid-run as older checkpoints are thinned.
+         *     Captures with tools already present in effectively every image
+         *     (tar, dd, sha256sum, zstd or gzip) — nothing is injected into the
+         *     sandbox. Each checkpoint's archive is self-contained, so restore
+         *     reads a single file. Best choice when restic injection is
+         *     impractical, or when the captured data is dominated by large,
+         *     high-entropy, frequently-rewritten files where incremental backup
+         *     stores roughly the full dataset again at every checkpoint anyway.
          */
-        ArchiveSnapshots: {
-            retention?: components["schemas"]["SnapshotRetention"] | null;
-        };
+        ArchiveSnapshots: Record<string, never>;
         /** AttachmentData */
         AttachmentData: {
             /** Content */
@@ -2889,8 +2888,8 @@ export interface components {
          * @description Incremental restic-based sandbox snapshots (the default).
          *
          *     Each checkpoint stores only data changed since the previous one.
-         *     Best choice when most files are stable across checkpoints. Storage
-         *     is never reclaimed mid-run (restic retains all snapshots).
+         *     Best choice when most files are stable across checkpoints. Requires
+         *     injecting a restic binary into the sandbox.
          */
         ResticSnapshots: Record<string, never>;
         /**
@@ -3360,19 +3359,6 @@ export interface components {
             snapshot_id: string;
         } & {
             [key: string]: unknown;
-        };
-        /**
-         * SnapshotRetention
-         * @description Mid-run retention policy for a sandbox snapshot strategy.
-         *
-         *     Applied after each committed checkpoint, best-effort. The policy
-         *     always retains at least the latest committed checkpoint (the hard
-         *     floor); a strategy may retain more than the policy asks (restic
-         *     keeps everything).
-         */
-        SnapshotRetention: {
-            /** Keep Last */
-            keep_last?: number | null;
         };
         /**
          * SpanBeginEvent
