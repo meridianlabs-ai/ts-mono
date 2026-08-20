@@ -12,13 +12,13 @@ npm package.
 Run commands from this directory (or orchestrate from the repo root via
 Turbo — see [scripts.md](../../docs/scripts.md)):
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start the Vite dev server |
-| `pnpm build` | Build the bundled app |
-| `pnpm build:lib` | Build the embeddable library into `lib/` |
-| `pnpm test` | Run unit/integration tests (vitest) |
-| `pnpm e2e` | Run Playwright e2e tests |
+| Command          | Description                               |
+| ---------------- | ----------------------------------------- |
+| `pnpm dev`       | Start the Vite dev server                 |
+| `pnpm build`     | Build the bundled app                     |
+| `pnpm build:lib` | Build the embeddable library into `lib/`  |
+| `pnpm test`      | Run unit/integration tests (vitest)       |
+| `pnpm e2e`       | Run Playwright e2e tests                  |
 | `pnpm check-all` | Type check, lint, format, test, and build |
 
 Built output is not committed; the library is built at publish time
@@ -52,39 +52,40 @@ factory with it, and renders:
 
 ```tsx
 import {
-  App,
-  Capabilities,
-  clientApi,
-  createViewServerApi,
-  initializeStore,
-  setApiFactory,
+    App,
+    Capabilities,
+    clientApi,
+    createViewServerApi,
+    initializeStore,
+    setApiFactory,
 } from "@meridianlabs/log-viewer";
+
 import "@meridianlabs/log-viewer/styles/index.css";
 
 // Install the API factory first — installing after the backend has
 // resolved throws.
 setApiFactory(
-  (logDir) =>
-    clientApi(
-      createViewServerApi({
-        logDir,
-        // Optional transport options: apiBaseUrl, headerProvider, customFetch
-        apiBaseUrl: "https://mycompany.com/api",
-      })
-    ),
-  "s3://my-bucket/logs" // initialLogDir; omit to require ?log_dir= in the URL
+    (logDir) =>
+        clientApi(
+            createViewServerApi({
+                logDir,
+                // Optional transport options: apiBaseUrl, headerProvider, customFetch
+                apiBaseUrl: "https://mycompany.com/api",
+            })
+        ),
+    "s3://my-bucket/logs" // initialLogDir; omit to require ?log_dir= in the URL
 );
 
 const capabilities: Capabilities = {
-  downloadFiles: true,
-  downloadLogs: false,
-  webWorkers: true,
-  streamSamples: false,
+    downloadFiles: true,
+    downloadLogs: false,
+    webWorkers: true,
+    streamSamples: false,
 };
 initializeStore(capabilities);
 
 export function MyApp() {
-  return <App />;
+    return <App />;
 }
 ```
 
