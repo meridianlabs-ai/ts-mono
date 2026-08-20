@@ -655,6 +655,20 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ArchiveSnapshots
+         * @description One complete compressed tar archive per checkpoint.
+         *
+         *     Best choice when the captured data is dominated by large,
+         *     high-entropy, frequently-rewritten files (training state, database
+         *     files, encrypted containers), where incremental backup stores
+         *     roughly the full dataset again at every checkpoint. Combined with
+         *     ``retention=SnapshotRetention(keep_last=N)``, storage is reclaimed
+         *     mid-run as older checkpoints are thinned.
+         */
+        ArchiveSnapshots: {
+            retention?: components["schemas"]["SnapshotRetention"] | null;
+        };
         /** AttachmentData */
         AttachmentData: {
             /** Content */
@@ -957,19 +971,22 @@ export interface components {
          *
          *     These fields can be specified on ``Sample(checkpoint=...)`` and are
          *     also accepted at the task and eval layers (where they participate in
-         *     the per-field merge — precedence: eval > sample > task).
+         *     the per-field merge — precedence: eval > sample > task). Capture
+         *     configuration — what to snapshot and with which strategy — is a
+         *     property of the sample's workload, so it lives here.
          *
-         *     The fields excluded from this base class — ``checkpoints_location``
-         *     and ``retention`` — are eval-wide concerns that the sample layer must
-         *     not influence. They live only on the derived :class:`CheckpointConfig`,
-         *     which is the type used at the task and eval layers.
+         *     Excluded from the sample layer: ``checkpoints_location`` and
+         *     ``retention``. These are eval-wide storage-policy concerns that the
+         *     sample layer must not influence; they live only on
+         *     :class:`CheckpointConfig`, the subclass used at the task and eval
+         *     layers.
          */
         CheckpointSampleConfig: {
             /** Max Consecutive Failures */
             max_consecutive_failures?: number | null;
             /** Sandbox Paths */
             sandbox_paths?: {
-                [key: string]: string[];
+                [key: string]: string[] | components["schemas"]["SandboxSnapshotConfig"];
             } | null;
             /** Trigger */
             trigger?: components["schemas"]["Manual"] | components["schemas"]["TurnInterval"] | components["schemas"]["TimeInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | null;
@@ -2868,6 +2885,15 @@ export interface components {
             strict?: boolean | null;
         };
         /**
+         * ResticSnapshots
+         * @description Incremental restic-based sandbox snapshots (the default).
+         *
+         *     Each checkpoint stores only data changed since the previous one.
+         *     Best choice when most files are stable across checkpoints. Storage
+         *     is never reclaimed mid-run (restic retains all snapshots).
+         */
+        ResticSnapshots: Record<string, never>;
+        /**
          * Result
          * @description Scan result.
          */
@@ -3083,6 +3109,22 @@ export interface components {
             uuid?: string | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * SandboxSnapshotConfig
+         * @description Per-sandbox snapshot configuration: what to capture and how.
+         *
+         *     Used as a ``sandbox_paths`` value in place of a bare path list when
+         *     a sandbox needs a non-default snapshot strategy. The ``paths``
+         *     field carries the same semantics as a bare path-list value
+         *     (``None`` = the sandbox default user's home directory; an empty
+         *     list opts the sandbox out entirely).
+         */
+        SandboxSnapshotConfig: {
+            /** Paths */
+            paths?: string[] | null;
+            /** Strategy */
+            strategy?: components["schemas"]["ResticSnapshots"] | components["schemas"]["ArchiveSnapshots"] | null;
         };
         /**
          * ScannerResultField
@@ -3318,6 +3360,19 @@ export interface components {
             snapshot_id: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * SnapshotRetention
+         * @description Mid-run retention policy for a sandbox snapshot strategy.
+         *
+         *     Applied after each committed checkpoint, best-effort. The policy
+         *     always retains at least the latest committed checkpoint (the hard
+         *     floor); a strategy may retain more than the policy asks (restic
+         *     keeps everything).
+         */
+        SnapshotRetention: {
+            /** Keep Last */
+            keep_last?: number | null;
         };
         /**
          * SpanBeginEvent
