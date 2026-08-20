@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testSystemMessage,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { recentInputMessages } from "./recentInputMessages";
@@ -12,17 +18,23 @@ import { recentInputMessages } from "./recentInputMessages";
 // ContentText.internal.
 
 let nextId = 0;
-const msg = (role: string, text = "content"): ChatMessage =>
-  ({
-    id: `m${nextId++}`,
-    role,
-    content: text,
-  }) as unknown as ChatMessage;
+const msg = (role: ChatMessage["role"], text = "content"): ChatMessage => {
+  const id = `m${nextId++}`;
+  switch (role) {
+    case "system":
+      return testSystemMessage({ id, content: text });
+    case "user":
+      return testUserMessage({ id, content: text });
+    case "assistant":
+      return testAssistantMessage({ id, content: text });
+    case "tool":
+      return testToolMessage({ id, content: text });
+  }
+};
 
 const handoffMsg = (text = "Agent message from /root:\ntask"): ChatMessage =>
-  ({
+  testUserMessage({
     id: `m${nextId++}`,
-    role: "user",
     content: [
       {
         type: "text",
@@ -36,15 +48,14 @@ const handoffMsg = (text = "Agent message from /root:\ntask"): ChatMessage =>
         },
       },
     ],
-  }) as unknown as ChatMessage;
+  });
 
 const toolCallUser = (): ChatMessage =>
-  ({
+  testUserMessage({
     id: `m${nextId++}`,
-    role: "user",
     content: "output",
-    tool_call_id: "call_1",
-  }) as unknown as ChatMessage;
+    tool_call_id: ["call_1"],
+  });
 
 const defaults = { agentResultsFiltered: false, hasToolEvents: undefined };
 
@@ -160,11 +171,10 @@ describe("recentInputMessages (Multi-Agent V2 fork boundary)", () => {
   });
 
   it("ignores agent_message payloads on non-user messages", () => {
-    const sys = {
+    const sys = testSystemMessage({
       id: `m${nextId++}`,
-      role: "system",
       content: [{ type: "text", text: "x", internal: { agent_message: {} } }],
-    } as unknown as ChatMessage;
+    });
     const input = [msg("system"), sys, msg("user")];
     expect(recentInputMessages(input, defaults)).toEqual(input);
   });

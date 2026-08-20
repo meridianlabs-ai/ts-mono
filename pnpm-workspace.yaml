@@ -14,3 +14,49 @@ minimumReleaseAge: 10080
 # has aged 7 days; the advisory fix is the reason we want them early.
 minimumReleaseAgeExclude:
   - dompurify
+
+# eslint-plugin-react and eslint-plugin-jsx-a11y work with eslint 10 but
+# haven't published releases declaring ^10 peer support yet; drop these rules
+# when they do. openapi-typescript declares typescript ^5.x and the repo-wide
+# typescript is the 6.x preview alias (@typescript/typescript6); drop that
+# rule once it declares ^6 support.
+peerDependencyRules:
+  allowedVersions:
+    "eslint-plugin-react>eslint": ^10.0.0
+    "eslint-plugin-jsx-a11y>eslint": ^10.0.0
+    "openapi-typescript>typescript": ^6.0.0
+
+overrides:
+  yaml: ^2.4.2
+  # react-popper (used by packages/react PopOver) never published react-19
+  # peer support (declares ^16.8 || ^17 || ^18); widen it. Deletable only by
+  # migrating PopOver off react-popper (e.g. to floating-ui).
+  "react-popper>react": ^19.2.0
+  "react-popper>react-dom": ^19.1.1
+  glob: ^10.5.0
+  js-yaml: ^4.3.1
+  "@codemirror/state": ^6.5.4
+  lodash: ">=4.17.23"
+  seroval: ">=1.4.1"
+  seroval-plugins: ">=1.4.1"
+  "minimatch@3": ^5.1.9
+  "brace-expansion@2": ^2.1.4
+  "brace-expansion@5": ^5.0.9
+  "@microsoft/api-extractor": ^7.57.6
+  fast-uri: ^3.1.5
+  immutable: ^5.1.8
+  ws: ^8.20.1
+  esbuild: ^0.28.2
+  "@babel/core": ^7.29.6
+  undici: ^7.28.0
+  dompurify: ^3.4.13
+  "nanoid@3": ^3.3.18
+
+# All false = same behavior as pnpm 10, which ignored these build scripts (no
+# approvals were configured anywhere). Flip one to true only if something
+# demonstrably needs its postinstall (esbuild gets binaries via
+# optionalDependencies; unrs-resolver has a JS fallback).
+allowBuilds:
+  esbuild: false
+  msw: false
+  unrs-resolver: false

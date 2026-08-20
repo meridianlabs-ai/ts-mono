@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import {
   act,
   cleanup,
@@ -16,7 +15,10 @@ import {
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testModelEvent,
+  testSpanBeginEvent,
+} from "@tsmono/inspect-common/testing";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
@@ -50,11 +52,14 @@ vi.mock("./TranscriptVirtualList", () => ({
     eventCallbacks?: EventPanelCallbacks;
   }) => {
     listHandle.current = {
-      scrollToIndex: ({ onDone }: { onDone?: () => void }) => {
+      scrollToIndex: ({ onDone }) => {
         onDone?.();
       },
       scrollTo: () => {},
-    } as unknown as VirtualListHandle;
+      getState: () => {},
+      jumpToStart: () => {},
+      jumpToEnd: () => {},
+    };
     capturedEventCallbacks = eventCallbacks;
     return (
       <div>
@@ -128,31 +133,21 @@ beforeEach(() => {
   Element.prototype.checkVisibility = function () {
     return true;
   };
-  vi.stubGlobal(
-    "requestAnimationFrame",
-    (cb: FrameRequestCallback) =>
-      setTimeout(() => cb(performance.now()), 0) as unknown as number
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(performance.now()), 0)
   );
-  vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
+  vi.stubGlobal("cancelAnimationFrame", (id: ReturnType<typeof setTimeout>) =>
+    clearTimeout(id)
+  );
 });
 
 const ts = "2026-01-01T00:00:00Z";
 const model = (id: string, depth = 0): EventNode =>
-  new EventNode(
-    id,
-    { event: "model", uuid: id, timestamp: ts } as unknown as Event,
-    depth
-  );
+  new EventNode(id, testModelEvent({ uuid: id, timestamp: ts }), depth);
 const agentSpan = (id: string, children: EventNode[]): EventNode => {
   const n = new EventNode(
     id,
-    {
-      event: "span_begin",
-      type: "agent",
-      name: "sub",
-      uuid: id,
-      timestamp: ts,
-    } as unknown as Event,
+    testSpanBeginEvent({ type: "agent", name: "sub", uuid: id, timestamp: ts }),
     0
   );
   n.children = children;

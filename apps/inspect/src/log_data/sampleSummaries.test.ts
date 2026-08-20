@@ -4,6 +4,8 @@ import Dexie from "dexie";
 import { createElement, ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
+
 import {
   ClientAPI,
   LogDetails,
@@ -24,6 +26,7 @@ import {
   deactivateFetchEngine,
 } from "./replicationControl";
 import { mergeSampleSummaries, useSampleSummaries } from "./sampleSummaries";
+import { testClientAPI, testLogDetails } from "./testFixtures";
 
 const holder = vi.hoisted(() => ({
   service: null as DatabaseService | null,
@@ -117,10 +120,9 @@ describe("useSampleSummaries during a running eval", () => {
   let serverInfo: { size: number };
 
   const details = (sampleSummaries: SampleSummary[]): LogDetails =>
-    ({
-      version: 2,
+    testLogDetails({
       status: "started",
-      eval: {
+      eval: testEvalSpec({
         eval_id: "eval-run",
         run_id: "run-run",
         created: "2026-01-01T00:00:00Z",
@@ -128,11 +130,11 @@ describe("useSampleSummaries during a running eval", () => {
         task_id: "tid-run",
         task_version: 1,
         model: "mockllm/model",
-      },
+      }),
       sampleSummaries,
-    }) as unknown as LogDetails;
+    });
 
-  const api = {
+  const api = testClientAPI({
     get_log_details: vi.fn(() => Promise.resolve(serverDetails)),
     get_log_info: vi.fn(() => Promise.resolve(serverInfo)),
     get_log_pending_samples: vi.fn(
@@ -150,7 +152,7 @@ describe("useSampleSummaries during a running eval", () => {
               }
         )
     ),
-  } as unknown as ClientAPI;
+  });
 
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);

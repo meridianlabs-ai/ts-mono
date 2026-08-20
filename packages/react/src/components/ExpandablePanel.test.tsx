@@ -38,9 +38,7 @@ vi.spyOn(window, "getComputedStyle").mockImplementation((el, pseudo) => {
     return new Proxy(style, {
       get(target, prop) {
         if (prop === "fontSize") return "16px";
-        const val = (target as unknown as Record<string, unknown>)[
-          prop as string
-        ];
+        const val: unknown = Reflect.get(target, prop);
         return typeof val === "function"
           ? (val as () => unknown).bind(target)
           : val;

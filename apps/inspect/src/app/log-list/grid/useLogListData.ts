@@ -2,7 +2,10 @@ import type { SortingState } from "@tanstack/react-table";
 import { useMemo } from "react";
 
 import type { Condition, OrderByModel } from "@tsmono/inspect-common/query";
-import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
+import {
+  combineFilters,
+  type ColumnFilter,
+} from "@tsmono/inspect-components/columnFilter";
 
 import { useLogsListing } from "../../../state/hooks";
 import { useKeyedMemo } from "../../shared/useKeyedMemo";
@@ -10,7 +13,6 @@ import {
   applyListingQuery,
   mergeSortedRows,
 } from "../listing/applyListingQuery";
-import { combineFilters } from "../listing/combineFilters";
 import { compareByOrderBy } from "../listing/evaluator";
 import type {
   FilterTypeAccessor,

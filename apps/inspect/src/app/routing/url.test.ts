@@ -7,7 +7,7 @@
  */
 import { describe, expect, test } from "vitest";
 
-import { directoryRelativeUrl } from "../../utils/uri";
+import { directoryRelativeUrl, encodePathParts } from "@tsmono/util";
 
 // Constants copied from src/constants.ts to avoid import chain issues
 const kSampleTabIds = [
@@ -604,31 +604,6 @@ describe("decodeUrlParam", () => {
     expect(decodeUrlParam("%ZZ")).toBe("%ZZ");
   });
 });
-
-/**
- * Helper function to encode path parts, copied from src/utils/uri.ts
- */
-function encodePathParts(url: string): string {
-  if (!url) return url;
-
-  try {
-    const fullUrl = new URL(url);
-    fullUrl.pathname = fullUrl.pathname
-      .split("/")
-      .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
-      )
-      .join("/");
-    return fullUrl.toString();
-  } catch {
-    return url
-      .split("/")
-      .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
-      )
-      .join("/");
-  }
-}
 
 /**
  * URL construction function copied from src/app/routing/url.ts

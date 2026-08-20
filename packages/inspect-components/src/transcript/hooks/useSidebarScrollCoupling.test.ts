@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
 import type { RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -31,8 +30,8 @@ function makeScroller(options: ScrollerOptions = {}) {
     configurable: true,
   });
   el.scrollTop = options.scrollTop ?? 0;
-  const scrollBy = vi.fn<(opts: { top: number }) => void>();
-  (el as unknown as { scrollBy: typeof scrollBy }).scrollBy = scrollBy;
+  const scrollBy = vi.fn();
+  el.scrollBy = scrollBy;
   return { el, scrollBy };
 }
 

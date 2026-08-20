@@ -9,6 +9,7 @@ import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import {
   createInitialSearchPanelState,
   normalizeSearchPanelState,
@@ -26,25 +27,12 @@ import {
   ScanResultSummary,
   SortColumn,
 } from "../app/types";
-import type { SimpleCondition } from "../query";
 import { TranscriptInfo } from "../types/api-types";
 
-// Filter types for columns
-export type FilterType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "date"
-  | "datetime"
-  | "duration"
-  | "unknown";
-
-// Column filter with metadata
-export interface ColumnFilter {
-  columnId: string;
-  filterType: FilterType;
-  condition: SimpleCondition | null;
-}
+export type {
+  ColumnFilter,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 
 // Transcripts table UI state
 export interface TranscriptsTableState {

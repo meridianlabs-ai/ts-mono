@@ -3780,7 +3780,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "unknown" | "output_limit";
+            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "sandbox_unavailable" | "unknown" | "output_limit";
         };
         /**
          * ToolCallView

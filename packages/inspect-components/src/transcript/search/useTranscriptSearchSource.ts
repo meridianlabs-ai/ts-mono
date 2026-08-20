@@ -446,7 +446,7 @@ function positionSelectionAroundTerm(
 
 /**
  * If the current selection no longer covers `term` inside the panel
- * (because a late settling pass — Virtuoso re-render, lazy syntax
+ * (because a late settling pass — virtual-list re-render, lazy syntax
  * highlighting, ExpandablePanel auto-expand reflow — detached the text
  * node `window.find` was anchored on), re-anchor the selection to the
  * first occurrence of `term` in the panel. Returns false (no-op) when
@@ -511,7 +511,7 @@ async function waitForRow(
 
 /**
  * Wait until the event panel is actually rendered to the DOM. After
- * `scrollToEvent` triggers a Virtuoso scroll for an off-screen target, the
+ * `scrollToEvent` triggers a virtual-list scroll for an off-screen target, the
  * panel takes several frames to mount. Returns false on timeout. The budget
  * is shorter than for row mount because we use this to detect unreachable
  * matches and skip them — too long a wait makes skipping feel laggy.

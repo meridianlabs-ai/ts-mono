@@ -141,9 +141,14 @@ export const ExtendedFindProvider = ({
 };
 
 export const useExtendedFind = (): ExtendedFindContextType => {
-  const context = useContext(ExtendedFindContext);
+  const context = useExtendedFindOptional();
   if (!context) {
     throw new Error("useSearch must be used within a SearchProvider");
   }
   return context;
 };
+
+/** Null outside an ExtendedFindProvider, for components (e.g. VirtualList)
+ *  that integrate with find when available but must not require it. */
+export const useExtendedFindOptional = (): ExtendedFindContextType | null =>
+  useContext(ExtendedFindContext);

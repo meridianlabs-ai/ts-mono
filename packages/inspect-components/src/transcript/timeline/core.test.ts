@@ -8,6 +8,16 @@
 
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type {
   Event,
   Timeline as ServerTimeline,
@@ -68,7 +78,7 @@ function makeEvent(
 }
 
 function makeServerEvent(uuid: string): ServerTimelineEvent {
-  return { type: "event", event: uuid } as unknown as ServerTimelineEvent;
+  return { type: "event", event: uuid };
 }
 
 function makeServerSpan(
@@ -709,48 +719,43 @@ describe("utility wrapper ids", () => {
     const ts = () =>
       new Date(Date.UTC(2026, 0, 1, 0, 0, ++clock)).toISOString();
     const warmup = () =>
-      ({
-        event: "model",
+      testModelEvent({
         uuid: null,
         timestamp: ts(),
         completed: ts(),
-        working_start: 0,
         pending: false,
         metadata: null,
         span_id: "monitor",
         model: "mockllm/model",
         config: { max_tokens: 1 },
-        input: [{ role: "user", content: "warmup" }],
-        output: {
+        input: [testUserMessage({ content: "warmup" })],
+        output: testModelOutput({
           choices: [
-            {
-              message: { role: "assistant", content: "w" },
+            testChatCompletionChoice({
+              message: testAssistantMessage({ content: "w" }),
               stop_reason: "max_tokens",
-            },
+            }),
           ],
-          usage: { input_tokens: 5, output_tokens: 1 },
-        },
-      }) as unknown as Event;
-    const spanEvt = (evt: object) =>
-      ({
-        timestamp: ts(),
-        working_start: 0,
-        pending: false,
-        metadata: null,
-        uuid: null,
-        ...evt,
-      }) as unknown as Event;
+          usage: testModelUsage({ input_tokens: 5, output_tokens: 1 }),
+        }),
+      });
+    const spanMeta = () => ({
+      timestamp: ts(),
+      pending: false,
+      metadata: null,
+      uuid: null,
+    });
 
     const timeline = buildTimeline([
-      spanEvt({
-        event: "span_begin",
+      testSpanBeginEvent({
+        ...spanMeta(),
         id: "solvers",
         name: "solvers",
         type: "solvers",
         parent_id: null,
       }),
-      spanEvt({
-        event: "span_begin",
+      testSpanBeginEvent({
+        ...spanMeta(),
         id: "monitor",
         name: "monitor",
         type: "agent",
@@ -758,8 +763,8 @@ describe("utility wrapper ids", () => {
       }),
       warmup(),
       warmup(),
-      spanEvt({ event: "span_end", id: "monitor" }),
-      spanEvt({ event: "span_end", id: "solvers" }),
+      testSpanEndEvent({ ...spanMeta(), id: "monitor" }),
+      testSpanEndEvent({ ...spanMeta(), id: "solvers" }),
     ]);
 
     const wrappers = timeline.root.content.filter(

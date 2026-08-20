@@ -61,6 +61,17 @@
   /* Filter chip specific styles can go here */
 }
 
+.addFilterColumnSelect {
+  width: 100%;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--bs-border-color);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  margin-bottom: 8px;
+}
+
 .columnsButton {
   padding: 0.1rem 0.3rem;
 }

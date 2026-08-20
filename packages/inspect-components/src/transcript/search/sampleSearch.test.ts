@@ -1,11 +1,13 @@
-// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
-import type {
-  Event,
-  InfoEvent,
-  ModelEvent,
-} from "@tsmono/inspect-common/types";
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testInfoEvent,
+  testModelEvent,
+  testModelOutput,
+} from "@tsmono/inspect-common/testing";
+import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan } from "../timeline/core";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
@@ -13,17 +15,17 @@ import type { SwimlaneRow } from "../timeline/swimlaneRows";
 import { buildEventToRowMap, findAllMatches } from "./sampleSearch";
 
 const ev = (uuid: string): TimelineEvent =>
-  new TimelineEvent({
-    event: "info",
-    uuid,
-    timestamp: "2026-04-29T00:00:00Z",
-    pending: false,
-    span_id: null,
-    working_start: 0,
-    source: null,
-    data: null,
-    metadata: null,
-  } as unknown as InfoEvent);
+  new TimelineEvent(
+    testInfoEvent({
+      uuid,
+      timestamp: "2026-04-29T00:00:00Z",
+      pending: false,
+      span_id: null,
+      source: null,
+      data: null,
+      metadata: null,
+    })
+  );
 
 const span = (
   id: string,
@@ -109,38 +111,32 @@ describe("buildEventToRowMap", () => {
 });
 
 const modelEv = (uuid: string, output: string): ModelEvent =>
-  ({
-    event: "model",
+  testModelEvent({
     uuid,
     span_id: null,
     timestamp: "2026-04-29T00:00:00Z",
-    working_start: 0,
     pending: false,
     model: "test/model",
     role: null,
-    input: [],
-    tools: [],
-    tool_choice: "auto",
-    config: {},
-    output: {
+    output: testModelOutput({
       model: "test/model",
-      completion: "",
       choices: [
-        {
-          message: { role: "assistant", content: output, source: "generate" },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({
+            content: output,
+            source: "generate",
+          }),
+        }),
       ],
       usage: null,
-    },
+    }),
     error: null,
     cache: null,
     call: null,
     completed: null,
     working_time: null,
-    style: null,
     metadata: null,
-  }) as unknown as ModelEvent;
+  });
 
 describe("findAllMatches", () => {
   it("returns empty for empty term", () => {

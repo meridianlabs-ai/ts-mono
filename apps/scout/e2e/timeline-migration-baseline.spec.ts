@@ -80,7 +80,7 @@ test("transcript panel renders swimlanes, outline, and event list together", asy
     swimlane.getByRole("row").filter({ hasText: "Explore" })
   ).toBeVisible();
 
-  // Outline sidebar is visible (rendered as a Virtuoso list with id="transcript-tree")
+  // Outline sidebar is visible (rendered as a virtual list with id="transcript-tree")
   const outline = page.locator("#transcript-tree");
   await expect(outline).toBeVisible();
 

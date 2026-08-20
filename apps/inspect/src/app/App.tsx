@@ -25,7 +25,7 @@ import {
   ComponentIcons,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { basename } from "@tsmono/util";
+import { basename, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
@@ -46,7 +46,6 @@ import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
 } from "../state/userSettings.ts";
-import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";

@@ -342,6 +342,8 @@ describe("poolRetunes", () => {
   });
 
   it("skips journal entries whose changes is missing or not an array", () => {
+    // Intentionally malformed: `changes` is absent, so a plain assertion from
+    // the (valid-subset) literal documents exactly what is missing.
     const malformed = {
       scope: "task",
       provenance: {
@@ -349,7 +351,7 @@ describe("poolRetunes", () => {
         timestamp: "2026-07-18T10:05:00Z",
         metadata: {},
       },
-    } as unknown as ConfigUpdate;
+    } as ConfigUpdate;
     expect(poolRetunes([malformed], "openai/gpt-4o")).toEqual({});
   });
 

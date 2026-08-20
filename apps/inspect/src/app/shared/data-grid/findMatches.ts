@@ -1,3 +1,5 @@
+import type { RowData } from "@tanstack/react-table";
+
 import type { ExtendedColumnDef } from "./columnTypes";
 
 /** Objects/arrays are skipped rather than stringified ("[object Object]"
@@ -19,7 +21,7 @@ function primitiveText(value: unknown): string | null {
  * One row's searchable text: lowercased plain-text built from the visible
  * columns' `textValue` (display formatting) or raw accessor value.
  */
-export function rowSearchText<TRow>(
+export function rowSearchText<TRow extends RowData>(
   row: TRow,
   columns: ExtendedColumnDef<TRow>[]
 ): string {
@@ -43,7 +45,7 @@ export function rowSearchText<TRow>(
  * Data-level — searches all rows, not just the virtualized window.
  * Insertion order follows `rows`, so match order is row order.
  */
-export function buildSearchIndex<TRow>(
+export function buildSearchIndex<TRow extends RowData>(
   rows: TRow[],
   columns: ExtendedColumnDef<TRow>[],
   getRowId: (row: TRow) => string

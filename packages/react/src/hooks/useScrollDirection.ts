@@ -43,7 +43,7 @@ export interface UseScrollDirectionResult {
    *
    *  @param debounce When true, each scroll event that arrives during the
    *    lock resets the expiry timer so the lock stays active until scrolling
-   *    stops (useful for Virtuoso multi-pass settling). When false (default),
+   *    stops (useful for virtual-list multi-pass settling). When false (default),
    *    the lock uses a fixed timeout matching the CSS transition duration. */
   resetAnchor: (debounce?: boolean) => void;
   /** Imperatively set the hidden state. Used by callers that drive scroll
@@ -93,7 +93,7 @@ export function useScrollDirection(
   const transitionLockedRef = useRef(false);
   // True when the lock was set by resetAnchor (programmatic scroll).
   // Programmatic locks debounce: each scroll event resets the timer so the
-  // lock stays active while Virtuoso settles. Transition locks (from
+  // lock stays active while the virtual list settles. Transition locks (from
   // setHidden) use a fixed timeout so direction reversals aren't delayed.
   const programmaticLockRef = useRef(false);
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

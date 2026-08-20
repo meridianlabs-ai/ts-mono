@@ -41,10 +41,31 @@ export interface VirtualListComponents {
 export interface VirtualListProps<T> {
   persistenceKey: string;
   ref?: Ref<VirtualListHandle>;
+  /** DOM id applied to the list's root element. */
+  id?: string;
   className?: string;
-  scrollRef?: RefObject<HTMLElement | null>;
+  /** External scroll container: the element itself when the host has already
+   *  resolved it, or a ref for targets that mount late. Omit for a
+   *  self-scrolling list. */
+  scrollRef?: RefObject<HTMLElement | null> | HTMLElement | null;
   data: T[];
   renderRow: (index: number, item: T) => ReactNode;
+  /** Estimated row height (px) used for rows not yet measured. */
+  estimatedItemHeight?: number;
+  /** Rows rendered beyond the visible range (items, not px). */
+  overscan?: number;
+  /** The list shares an external scroll container with content ABOVE it:
+   *  measure the list's offset in the container and feed it to the
+   *  virtualizer (TanStack scrollMargin) so windowing lines up with the
+   *  container's scrollTop. Off by default — hosts that already compensate
+   *  for chrome above the list (e.g. the transcript's scrollPaddingStart
+   *  landings) must not have the correction applied twice. */
+  embedded?: boolean;
+  /** When false, a mount with no persisted snapshot leaves the scroll
+   *  container's position alone instead of resetting it to top. Defaults to
+   *  `!embedded`: an embedded list shares a container whose position the host
+   *  owns (e.g. a stateful tab scroller), so resetting would yank it. */
+  resetScrollOnMount?: boolean;
   live?: boolean;
   /** This mount is owned by navigation (a `?event=`/`?message=` deep link, or
    *  an exit-focus landing): the deep-link landing owns the scroll position, so

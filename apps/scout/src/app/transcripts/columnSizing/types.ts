@@ -39,4 +39,4 @@ export interface SizingStrategyContext extends Omit<
  * Interface for column sizing strategies.
  * Each strategy computes column sizes differently.
  */
-export type SizingStrategy = GenericSizingStrategy<TranscriptInfo>;
+export type SizingStrategy = GenericSizingStrategy;

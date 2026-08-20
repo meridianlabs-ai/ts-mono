@@ -1,9 +1,8 @@
-// @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { createRef, useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { testInfoEvent } from "@tsmono/inspect-common/testing";
 import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   ComponentStateProvider,
@@ -19,16 +18,16 @@ import { EventNode } from "./types";
 
 afterEach(cleanup);
 
-const node = (id: string, event: string, depth: number): EventNode =>
+const node = (id: string, depth: number): EventNode =>
   new EventNode(
     id,
-    { event, uuid: id, timestamp: "2026-01-01T00:00:00Z" } as unknown as Event,
+    testInfoEvent({ uuid: id, timestamp: "2026-01-01T00:00:00Z" }),
     depth
   );
 
 // A focus slice starting inside an agent span: rows keep their ABSOLUTE
 // transcript depths (2 and 3 here).
-const nestedSlice = [node("m1", "info", 2), node("t1", "info", 3)];
+const nestedSlice = [node("m1", 2), node("t1", 3)];
 
 const stateHooks: ComponentStateHooks = {
   useValue: () => undefined,
@@ -123,7 +122,7 @@ describe("TranscriptVirtualList finish scroll-to-top", () => {
   const mountLive = (scrollToTopOnFinish: boolean | undefined) => {
     const scrollRef = createRef<HTMLDivElement>();
     const hooks = makeReactiveStateHooks();
-    const nodes = [node("e1", "info", 0), node("e2", "info", 0)];
+    const nodes = [node("e1", 0), node("e2", 0)];
     const view = (running: boolean) => (
       <ComponentStateProvider hooks={hooks}>
         <ExtendedFindProvider>

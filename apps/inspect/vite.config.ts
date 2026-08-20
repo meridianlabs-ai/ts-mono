@@ -78,7 +78,7 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: "lib",
         lib: {
-          entry: resolve(__dirname, "src/index.ts"),
+          entry: resolve(import.meta.dirname, "src/index.ts"),
           name: "InspectAILogViewer",
           fileName: "index",
           formats: ["es"],
@@ -117,7 +117,9 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
-        inlineThemeBootstrap(resolve(__dirname, "src/theme/bootstrap.ts")),
+        inlineThemeBootstrap(
+          resolve(import.meta.dirname, "src/theme/bootstrap.ts")
+        ),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
         copyToPythonRepo(),
       ],

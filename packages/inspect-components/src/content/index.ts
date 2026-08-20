@@ -8,7 +8,7 @@ export type { DisplayMode, DisplayModeContextType } from "./DisplayModeContext";
 export type { ContentIcons } from "./IconsContext";
 export { IconsContext, useContentIcons } from "./IconsContext";
 export { MetaDataGrid } from "./MetaDataGrid";
-export { RecordTree, toTreeItems } from "./RecordTree";
+export { RecordTree, kMetadataGridKeyPrefix, toTreeItems } from "./RecordTree";
 export { RenderedContent } from "./RenderedContent";
 export { RenderedText } from "./RenderedText";
 export { resolveStoreKeys } from "./record_processors/store";

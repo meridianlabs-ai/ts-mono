@@ -6,11 +6,11 @@ import {
   ExtendedFindProvider,
   FindBand,
   FindTargetProvider,
+  LoadingBar,
   useFindBandShortcut,
 } from "@tsmono/react/components";
 
 import { useAppConfig } from "../../app_config";
-import { ActivityBar } from "../../components/ActivityBar";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
@@ -73,7 +73,7 @@ export const LogViewLayout: FC = () => {
               currentPath={logPath}
             />
           ) : (
-            <ActivityBar animating={logLoading} />
+            <LoadingBar loading={logLoading} />
           )}
           {logError ? (
             <ErrorPanel

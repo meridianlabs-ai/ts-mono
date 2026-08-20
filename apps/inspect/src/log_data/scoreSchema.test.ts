@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testEvalMetric,
+  testEvalResults,
+  testEvalScore,
+} from "@tsmono/inspect-common/testing";
+
 import { Log, LogHeader } from "../client/api/types";
 
 import { computeScorerMap, scorerMapsEqual } from "./scoreSchema";
+import { testLogHeader } from "./testFixtures";
 
 // Wrap header fixtures as detailed-depth Log rows (the fn's input shape).
 const fromMap = (map: Record<string, LogHeader>): Log[] =>
@@ -18,16 +25,23 @@ const fromMap = (map: Record<string, LogHeader>): Log[] =>
 const details = (
   scores: Array<{ name: string; metrics: Record<string, number | string> }>
 ): LogHeader =>
-  ({
-    results: {
-      scores: scores.map((s) => ({
-        name: s.name,
-        metrics: Object.fromEntries(
-          Object.entries(s.metrics).map(([m, value]) => [m, { value }])
-        ),
-      })),
-    },
-  }) as unknown as LogHeader;
+  testLogHeader({
+    results: testEvalResults({
+      scores: scores.map((s) =>
+        testEvalScore({
+          name: s.name,
+          metrics: Object.fromEntries(
+            Object.entries(s.metrics).map(([m, value]) => [
+              m,
+              // `as number` widens past the schema: real logs carry string
+              // metric values, and computeScorerMap branches on typeof.
+              testEvalMetric({ name: m, value: value as number }),
+            ])
+          ),
+        })
+      ),
+    }),
+  });
 
 describe("computeScorerMap", () => {
   it("collects one entry per (scorer, metric) pair across logs", () => {
@@ -89,7 +103,7 @@ describe("computeScorerMap", () => {
   it("skips logs without score results", () => {
     const map = computeScorerMap(
       fromMap({
-        "/dir/a.eval": { sampleSummaries: [] } as unknown as LogHeader,
+        "/dir/a.eval": testLogHeader(),
       })
     );
     expect(map).toEqual({});

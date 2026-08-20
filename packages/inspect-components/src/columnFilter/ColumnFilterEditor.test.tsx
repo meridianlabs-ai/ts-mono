@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -94,6 +93,22 @@ describe("ColumnFilterEditor", () => {
     );
     expect(screen.getByRole("spinbutton", { name: "Start" })).not.toBeNull();
     expect(screen.getByRole("spinbutton", { name: "End" })).not.toBeNull();
+  });
+
+  it("does not render a duration helper for an empty value", () => {
+    const editor = (value: string) => (
+      <ColumnFilterEditor
+        columnId="duration"
+        filterType="duration"
+        operatorOptions={OPERATORS_BY_TYPE.duration}
+        condition={condition({ operator: "=", value })}
+      />
+    );
+    const { rerender } = render(editor(""));
+    expect(screen.queryByText("0 sec")).toBeNull();
+    // ...but an explicit 0 still renders it, so the guard is not vacuous
+    rerender(editor("0"));
+    expect(screen.getByText("0 sec")).not.toBeNull();
   });
 
   it("omits the second condition row when second is undefined", () => {

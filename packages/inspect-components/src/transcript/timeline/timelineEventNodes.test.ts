@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { testModelEvent } from "@tsmono/inspect-common/testing";
 import type {
   AnchorEvent,
   CompactionEvent,
   Event,
   InfoEvent,
-  ModelEvent,
   SpanBeginEvent,
   SpanEndEvent,
   ToolEvent,
@@ -85,30 +85,26 @@ function makeAnchor(
 }
 
 function makeModel(sec: number, label = "m"): TimelineEvent {
-  return new TimelineEvent({
-    event: "model",
-    timestamp: ts(sec).toISOString(),
-    working_start: sec,
-    pending: null,
-    span_id: null,
-    uuid: `model-${label}-${sec}`,
-    metadata: null,
-    model: "synthetic",
-    role: null,
-    input: [],
-    tools: [],
-    tool_choice: null,
-    config: {} as ModelEvent["config"],
-    output: {} as ModelEvent["output"],
-    error: null,
-    cache: null,
-    call: null,
-    completed: ts(sec).toISOString(),
-    working_time: 0,
-    retries: null,
-    traceback: null,
-    traceback_ansi: null,
-  } as unknown as ModelEvent);
+  return new TimelineEvent(
+    testModelEvent({
+      timestamp: ts(sec).toISOString(),
+      working_start: sec,
+      pending: null,
+      span_id: null,
+      uuid: `model-${label}-${sec}`,
+      metadata: null,
+      model: "synthetic",
+      role: null,
+      error: null,
+      cache: null,
+      call: null,
+      completed: ts(sec).toISOString(),
+      working_time: 0,
+      retries: null,
+      traceback: null,
+      traceback_ansi: null,
+    })
+  );
 }
 
 /** A branch span that forks from the given anchor. */

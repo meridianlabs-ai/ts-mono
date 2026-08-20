@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { TranscriptInfo } from "../../../types/api-types";
 import {
   getSizingStrategy,
   sizingStrategies,
-  SizingStrategy,
 } from "../../components/columnSizing";
 import { TranscriptColumn } from "../columns";
 
 describe("sizingStrategies", () => {
   describe("default strategy", () => {
-    const strategy = sizingStrategies.default as SizingStrategy<TranscriptInfo>;
+    const strategy = sizingStrategies.default;
 
     it("extracts sizes from columns", () => {
       const columns: TranscriptColumn[] = [
@@ -77,9 +75,7 @@ describe("sizingStrategies", () => {
   });
 
   describe("fit-content strategy", () => {
-    const strategy = sizingStrategies[
-      "fit-content"
-    ] as SizingStrategy<TranscriptInfo>;
+    const strategy = sizingStrategies["fit-content"];
 
     it("falls back to default sizes when no table element", () => {
       const columns: TranscriptColumn[] = [

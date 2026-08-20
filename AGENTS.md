@@ -14,6 +14,18 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
 - **Tooling defaults are fully strict** — new packages get strictest rules;
   legacy code (apps/scout, packages/util) relaxes via local overrides
 
+## Code Style — Type Safety
+
+  Value type safety; avoid casts. `as` (and especially `as unknown as`)
+  silences exactly the errors the compiler exists to catch — in tests and
+  mock data too. Instead:
+  - Build fixtures that genuinely satisfy the real types
+  - When a function truly takes untrusted input (e.g. persisted state),
+    type the parameter `unknown` and narrow with a type guard — don't cast
+    the test data to lie about it
+  - A cast is a last resort for boundaries TypeScript can't express, with
+    a comment saying why
+
 ## Code Style — Comments                                                       
                                                                                 
   Add comments only for non-obvious decisions:                                  

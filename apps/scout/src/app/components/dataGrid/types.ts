@@ -1,11 +1,13 @@
 import {
   ColumnSizingState,
+  RowData,
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
 
+import type { FilterSpec } from "@tsmono/inspect-components/columnFilter";
+
 import type { ScalarValue } from "../../../api/api";
-import type { SimpleCondition } from "../../../query";
 import type { ColumnFilter, FilterType } from "../../../state/store";
 import type { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
 
@@ -18,7 +20,7 @@ import type { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
  * @template TState - The table state type (must extend DataGridTableState)
  */
 export interface DataGridProps<
-  TData,
+  TData extends RowData,
   TColumn extends ExtendedColumnDef<TData>,
   TState extends DataGridTableState = DataGridTableState,
 > {
@@ -88,16 +90,12 @@ export interface DataGridTableState {
   columnFilters: Record<string, ColumnFilter>;
 }
 
-/**
- * Handler for column filter changes.
- */
+/** Handler for column filter changes. */
 export type ColumnFilterChangeHandler = (
   columnId: string,
   filterType: FilterType,
-  condition: SimpleCondition | null
+  spec: FilterSpec | null
 ) => void;
 
-/**
- * Re-export column types for convenience
- */
+/** Re-export column types for convenience. */
 export type { ExtendedColumnDef, BaseColumnMeta };

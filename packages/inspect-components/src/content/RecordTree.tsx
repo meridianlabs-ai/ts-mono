@@ -6,14 +6,11 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
 } from "react";
-import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
 import { CopyButton, ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
-
-import { useVirtuosoState } from "../virtuoso/useVirtuosoState";
+import { VirtualList } from "@tsmono/react/virtual";
 
 import { copyValueText } from "./copyText";
 import { useContentIcons } from "./IconsContext";
@@ -23,6 +20,10 @@ import styles from "./RecordTree.module.css";
 import { RenderedContent } from "./RenderedContent";
 
 const kRecordTreeKey = "record-tree-key";
+
+/** VirtualList persistence-key prefix for record trees. Exported so the app's
+ *  per-sample reset can clear the persisted snapshots by this prefix. */
+export const kMetadataGridKeyPrefix = "metadata-grid-";
 
 interface RecordTreeProps {
   id: string;
@@ -49,13 +50,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
   copyButton = false,
 }) => {
   const icons = useContentIcons();
-
-  // The virtual list handle and state
-  const listHandle = useRef<VirtuosoHandle | null>(null);
-  const { getRestoreState } = useVirtuosoState(
-    listHandle,
-    `metadata-grid-${id}`
-  );
 
   // Collapse state — persisted user choices only. Defaults are applied on
   // the fly at render time by `isItemCollapsed`, so we never bootstrap
@@ -246,8 +240,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
   if (!scrollRef) {
     // No virtualization - render directly
     return (
-      // No tabIndex here: unlike the virtualized branch this div is not the
-      // scroll container, and every row is already its own tab stop.
+      // No tabIndex: neither branch is the scroll container (the host's
+      // scroller is), and every row is already its own tab stop.
       <div
         id={id}
         className={clsx(className, "samples-list")}
@@ -258,36 +252,17 @@ export const RecordTree: FC<RecordTreeProps> = ({
     );
   }
   return (
-    <Virtuoso
-      ref={listHandle}
-      // Latent only — see meridianlabs-ai/ts-mono#90. Reading `.current`
-      // during render yields `null` on the first commit, so Virtuoso
-      // initially receives `customScrollParent={undefined}` and only
-      // picks up the real parent on the next re-render. Virtuoso
-      // re-renders frequently enough in practice that no user-visible
-      // symptom has been observed. The prescribed fix changes this prop
-      // API to `HTMLDivElement | null`, which cascades through PlanCard,
-      // SampleDisplay (also reads `scrollRef.current.focus()` and feeds
-      // `useScrollDirection`), SampleScoresGrid, and their parents —
-      // wide ripple for a non-firing bug. Suppress until that migration
-      // happens or a real symptom appears.
-      // eslint-disable-next-line react-hooks/refs
-      customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
+    <VirtualList<MetadataItem>
+      persistenceKey={`${kMetadataGridKeyPrefix}${id}`}
       id={id}
-      style={{ width: "100%", height: "100%" }}
+      scrollRef={scrollRef}
       data={items}
-      defaultItemHeight={50}
-      itemContent={renderRow}
-      atBottomThreshold={30}
-      increaseViewportBy={{ top: 300, bottom: 300 }}
-      overscan={{
-        main: 10,
-        reverse: 10,
-      }}
+      renderRow={renderRow}
+      estimatedItemHeight={50}
+      overscan={10}
+      embedded={true}
+      findScope="none"
       className={clsx(className, "samples-list")}
-      skipAnimationFrameInResizeObserver={true}
-      restoreStateFrom={getRestoreState()}
-      tabIndex={0}
     />
   );
 };

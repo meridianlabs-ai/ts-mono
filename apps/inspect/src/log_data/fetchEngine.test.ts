@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import {
   ClientAPI,
@@ -16,21 +17,29 @@ import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
 import { syncListing } from "./listingSync";
+import {
+  testClientAPI,
+  testDatabaseService,
+  testLogDetails,
+} from "./testFixtures";
 
 // --- fakes (no jsdom, no react-query) ---
 
 const makeDetails = (
   name: string,
   status: "success" | "started" | "error" = "success",
-  extra: Record<string, unknown> = {}
+  extra: Partial<LogDetails> = {}
 ): LogDetails =>
-  ({
-    version: 2,
+  testLogDetails({
     status,
-    eval: { eval_id: name, run_id: `run-${name}`, task: "task", model: "m" },
-    sampleSummaries: [],
+    eval: testEvalSpec({
+      eval_id: name,
+      run_id: `run-${name}`,
+      task: "task",
+      model: "m",
+    }),
     ...extra,
-  }) as unknown as LogDetails;
+  });
 
 // The stored/cached form of the same fixture (what a db row's header holds).
 const makeHeader = (
@@ -42,8 +51,15 @@ const makeHeader = (
 const makePreview = (
   name: string,
   status: "success" | "started" = "success"
-): LogPreview =>
-  ({ eval_id: name, run_id: `run-${name}`, status }) as unknown as LogPreview;
+): LogPreview => ({
+  eval_id: name,
+  run_id: `run-${name}`,
+  task: "task",
+  task_id: "task_1",
+  task_version: 0,
+  model: "m",
+  status,
+});
 
 const handle = (name: string, mtime?: number): LogHandle =>
   mtime === undefined ? { name } : { name, mtime };
@@ -175,7 +191,7 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
   };
 
   return {
-    api: api as unknown as ClientAPI,
+    api: testClientAPI(api),
     detailCalls,
     summaryCalls,
     callOrder,
@@ -192,7 +208,7 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
     initialRows.map((row) => [row.name, { ...row }])
   );
 
-  const fake = {
+  return testDatabaseService({
     opened: () => true,
     readLogs: () =>
       Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
@@ -238,10 +254,8 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
         logSummaries: 0,
         logHeaders: 0,
         sampleSummaries: 0,
-        logHandle: null,
       }),
-  };
-  return fake as unknown as DatabaseService;
+  });
 };
 
 // `db`, when provided, is a realism relay — mirrors how the real sink
@@ -540,9 +554,7 @@ describe("FetchEngine.start", () => {
     // last — the superseded start bails instead of seeding the new session
     // with the old dir's rows.
     const rowsA = deferred<Log[]>();
-    const dbA = {
-      readLogs: () => rowsA.promise,
-    } as unknown as DatabaseService;
+    const dbA = testDatabaseService({ readLogs: () => rowsA.promise });
     const rowB = previewedRow(handle("b.eval", 1));
     const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
     const sinkA = createFakeSink();

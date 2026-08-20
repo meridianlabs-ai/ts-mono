@@ -45,6 +45,7 @@ import {
   CardBody,
   CardHeader,
   ErrorPanel,
+  LoadingBar,
   NoContentsPanel,
   RailDock,
   StickyScroll,
@@ -64,7 +65,6 @@ import { isHostedEnvironment, isVscode } from "@tsmono/util";
 import { Events } from "../../@types/extraInspect";
 import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
-import { ActivityBar } from "../../components/ActivityBar";
 import {
   kSampleErrorTabId,
   kSampleJsonTabId,
@@ -820,7 +820,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             </div>
           </StickyScroll>
         ) : undefined}
-        <ActivityBar animating={showActivity} />
+        <LoadingBar loading={showActivity} />
 
         <div style={tabsContainerStyle}>
           <TabSet

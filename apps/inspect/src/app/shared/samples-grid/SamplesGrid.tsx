@@ -8,13 +8,13 @@ import {
   useState,
 } from "react";
 
-import type {
-  ColumnFilter,
-  FilterSpec,
-  FilterType,
+import {
+  combineFilters,
+  type ColumnFilter,
+  type FilterSpec,
+  type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
-import { combineFilters } from "../../log-list/listing/combineFilters";
 import type { ValueComparator } from "../../log-list/listing/types";
 import {
   sortingStateToOrderBy,

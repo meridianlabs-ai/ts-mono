@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
 import type { RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -103,9 +102,9 @@ describe("useOutlineScrollSync", () => {
   function renderSync() {
     const { allNodesList, outlineNodeList } = makeNodes();
     const setSelectedOutlineId = vi.fn<(id: string) => void>();
-    const scrollRef = {
-      current: { scrollTop: 100 },
-    } as unknown as RefObject<HTMLDivElement>;
+    const scrollEl = document.createElement("div");
+    scrollEl.scrollTop = 100;
+    const scrollRef: RefObject<HTMLDivElement> = { current: scrollEl };
     const view = renderHook(() =>
       useOutlineScrollSync({
         allNodesList,

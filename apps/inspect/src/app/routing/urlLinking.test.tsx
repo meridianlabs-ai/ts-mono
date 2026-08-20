@@ -29,12 +29,15 @@ const mockStore = vi.hoisted(() => ({
 
 vi.mock("../../state/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../state/store")>();
+  const { testStoreState } = await import("../../state/testStore");
+  const base = testStoreState();
   return {
     ...actual,
     useStore: (selector: (s: StoreState) => unknown) =>
       selector({
-        logs: { selectedLogFile: mockStore.selectedLogFile },
-      } as unknown as StoreState),
+        ...base,
+        logs: { ...base.logs, selectedLogFile: mockStore.selectedLogFile },
+      }),
   };
 });
 

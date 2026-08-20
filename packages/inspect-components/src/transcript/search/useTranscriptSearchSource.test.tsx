@@ -1,8 +1,13 @@
-// @vitest-environment jsdom
 import { act, render } from "@testing-library/react";
 import { useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+} from "@tsmono/inspect-common/testing";
 import type { ModelEvent } from "@tsmono/inspect-common/types";
 import {
   ExtendedFindProvider,
@@ -23,38 +28,32 @@ import { useTranscriptSearchSource } from "./useTranscriptSearchSource";
 // =============================================================================
 
 const ev = (uuid: string, output: string): ModelEvent =>
-  ({
-    event: "model",
+  testModelEvent({
     uuid,
     span_id: null,
     timestamp: "2026-04-29T00:00:00Z",
-    working_start: 0,
     pending: false,
     model: "test/model",
     role: null,
-    input: [],
-    tools: [],
-    tool_choice: "auto",
-    config: {},
-    output: {
+    output: testModelOutput({
       model: "test/model",
-      completion: "",
       choices: [
-        {
-          message: { role: "assistant", content: output, source: "generate" },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({
+            content: output,
+            source: "generate",
+          }),
+        }),
       ],
       usage: null,
-    },
+    }),
     error: null,
     cache: null,
     call: null,
     completed: null,
     working_time: null,
-    style: null,
     metadata: null,
-  }) as unknown as ModelEvent;
+  });
 
 function makeRow(key: string, agent: TimelineSpan, depth = 0): SwimlaneRow {
   return {

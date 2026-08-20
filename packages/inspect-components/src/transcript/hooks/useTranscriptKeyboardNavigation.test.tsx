@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -31,10 +30,7 @@ function Harness({
   return (
     <div
       ref={(el) => {
-        if (el)
-          (
-            el as unknown as { checkVisibility: () => boolean }
-          ).checkVisibility = () => visible;
+        if (el) el.checkVisibility = () => visible;
         scrollRef.current = el;
       }}
     />

@@ -1,8 +1,13 @@
-// @vitest-environment jsdom
 import { renderHook } from "@testing-library/react";
 import { useMemo } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+} from "@tsmono/inspect-common/testing";
 import type {
   Event,
   Timeline as ServerTimeline,
@@ -24,35 +29,26 @@ function makeModelEvent(
   startSec: number,
   outputMessageId?: string
 ): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
-    model: "test-model",
-    input: [],
-    output: {
+    output: testModelOutput({
       choices: [
-        {
-          message: {
+        testChatCompletionChoice({
+          message: testAssistantMessage({
             id: outputMessageId,
-            role: "assistant",
             content: "response",
-          },
-          stop_reason: "stop",
-        },
+          }),
+        }),
       ],
       completion: "response",
-      model: "test-model",
-    },
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    }),
     timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
     working_start: startSec,
     working_time: 1,
     error: null,
     pending: false,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 function makeServerEvent(uuid: string): ServerTimelineEvent {

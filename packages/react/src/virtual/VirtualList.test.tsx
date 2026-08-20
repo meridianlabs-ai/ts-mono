@@ -410,9 +410,9 @@ describe("VirtualList persist flush on unmount", () => {
     el.scrollTop = 0;
     unmount();
 
-    const snapshot = store.get("flush-list::snapshot") as
-      { scrollOffset: number } | undefined;
-    expect(snapshot?.scrollOffset).toBe(500);
+    expect(store.get("flush-list::snapshot")).toMatchObject({
+      scrollOffset: 500,
+    });
 
     // And nothing fires later against the departed container.
     store.delete("flush-list::snapshot");
@@ -437,5 +437,141 @@ describe("VirtualList persist flush on unmount", () => {
     unmount();
     vi.advanceTimersByTime(50);
     expect(el.scrollTop).toBe(300);
+  });
+});
+
+describe("VirtualList embedded in a shared scroll container", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const mountEmbedded = (props?: { resetScrollOnMount?: boolean }) => {
+    const scrollRef = createRef<HTMLDivElement>();
+    const list = (
+      <div ref={scrollRef} data-scroller="">
+        <VirtualList<string>
+          persistenceKey="embedded-list"
+          id="embedded-root"
+          scrollRef={scrollRef}
+          data={["a", "b", "c"]}
+          renderRow={(_index: number, item: string) => <div>{item}</div>}
+          live={false}
+          embedded={true}
+          {...props}
+        />
+      </div>
+    );
+    const hooks = makeStateHooks();
+    const view = render(<Wrapper hooks={hooks}>{list}</Wrapper>);
+    return {
+      ...view,
+      scrollRef,
+      rerenderSame: () =>
+        view.rerender(<Wrapper hooks={hooks}>{list}</Wrapper>),
+    };
+  };
+
+  it("leaves the container position alone by default (host owns it)", () => {
+    // Hosts like a stateful tab scroller own the container's position;
+    // the list must not fight their restore.
+    const { scrollRef, unmount } = mountEmbedded();
+    const el = scrollRef.current!;
+    el.scrollTop = 250;
+    vi.advanceTimersByTime(50);
+    expect(el.scrollTop).toBe(250);
+    unmount();
+  });
+
+  it("resets a snapshot-less mount to top with resetScrollOnMount=true", () => {
+    const { scrollRef, unmount } = mountEmbedded({ resetScrollOnMount: true });
+    const el = scrollRef.current!;
+    // A foreign scrollTop carried by the shared container (e.g. the previous
+    // tab's position).
+    el.scrollTop = 250;
+    vi.advanceTimersByTime(50);
+    expect(el.scrollTop).toBe(0);
+    unmount();
+  });
+
+  it("subtracts the list's offset in the container from its own padding", () => {
+    // Content above an embedded list occupies real DOM space; item
+    // coordinates include it (TanStack scrollMargin), so the list's spacer
+    // must not duplicate it. Layout is mocked before mount: the scroller is
+    // 800x600 at top 0, the list root sits 100px below it.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if (this.hasAttribute("data-scroller"))
+          return new DOMRect(0, 0, 800, 600);
+        if (this.id === "embedded-root") return new DOMRect(0, 100, 800, 1200);
+        // jsdom's real implementation also returns a zero rect.
+        return new DOMRect();
+      }
+    );
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+
+    const { unmount } = mountEmbedded();
+    const root = document.getElementById("embedded-root")!;
+
+    // All three (estimated 400px) rows land in or overscan past the 600px
+    // viewport, whose window starts at the container's scrollTop (0) —
+    // margin-inclusive item coordinates keep them aligned.
+    const rows = root.querySelectorAll<HTMLElement>("[data-item-index]");
+    expect(rows.length).toBe(3);
+    // No top/bottom spacer chunks: the 100px above the list is real
+    // content, and the rendered band covers the whole list height.
+    expect(root.children.length).toBe(1);
+    // Rows are positioned relative to the band, unaffected by the margin
+    // (each row measures at the mocked 600px offsetHeight).
+    expect(rows.item(0).style.top).toBe("0px");
+    expect(rows.item(1).style.top).toBe("600px");
+    unmount();
+  });
+
+  it("ignores embedded margin when the list owns its own scroller", () => {
+    // With no external scroll target, scrollParent resolves to the list's own
+    // wrapper. Measuring the wrapper against itself degenerates the margin to
+    // scrollTop, which feeds back into item coordinates so the window never
+    // advances — scrolling would appear frozen at the top.
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        if (this.id === "own-scroller") return new DOMRect(0, 0, 800, 600);
+        return new DOMRect();
+      }
+    );
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(600);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+
+    const data = Array.from({ length: 20 }, (_, i) => `item-${i}`);
+    const { unmount } = render(
+      <Wrapper hooks={makeStateHooks()}>
+        <VirtualList<string>
+          persistenceKey="own-scroll-list"
+          id="own-scroller"
+          data={data}
+          renderRow={(_index: number, item: string) => <div>{item}</div>}
+          live={false}
+          embedded={true}
+        />
+      </Wrapper>
+    );
+    const el = document.getElementById("own-scroller")!;
+    vi.advanceTimersByTime(50); // initial scroll settles
+
+    // Scroll deep into the (600px-per-row) list: the rendered window must
+    // move past the head rows.
+    el.scrollTop = 6000;
+    el.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(50);
+
+    const indices = Array.from(
+      el.querySelectorAll<HTMLElement>("[data-item-index]")
+    ).map((row) => Number(row.dataset.itemIndex));
+    expect(Math.min(...indices)).toBeGreaterThan(0);
+    unmount();
   });
 });

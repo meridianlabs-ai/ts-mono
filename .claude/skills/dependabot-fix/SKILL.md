@@ -1,6 +1,6 @@
 ---
 name: dependabot-fix
-description: Recurring maintenance task — clear the current batch of GitHub dependabot security alerts by adding or updating pnpm override entries in the root package.json. Use whenever the user mentions dependabot alerts, security advisories, CVEs/GHSAs, vulnerable dependencies, pnpm audit findings, or asks to "fix security issues" — even if they don't mention overrides.
+description: Recurring maintenance task — clear the current batch of GitHub dependabot security alerts by adding or updating pnpm override entries in pnpm-workspace.yaml. Use whenever the user mentions dependabot alerts, security advisories, CVEs/GHSAs, vulnerable dependencies, pnpm audit findings, or asks to "fix security issues" — even if they don't mention overrides.
 ---
 
 # Fix dependabot alerts via pnpm overrides
@@ -13,9 +13,10 @@ batch, ship one PR.
 Scope: **indirect (transitive) deps only.** When the vulnerable package is a
 direct dependency, dependabot generally opens its own bump PR — merge that
 instead. This skill exists for the alerts dependabot can't auto-fix. The repo's
-convention is to force patched versions via `pnpm.overrides` in the root
-`package.json`. The entries already there are the residue of past runs —
-follow their style, and expect this run to raise some of them (a package
+convention is to force patched versions via `overrides` in `pnpm-workspace.yaml`
+(NOT the `pnpm` field in package.json — pnpm 11 stops reading that field, so an
+override added there silently does nothing). The entries already there are
+the residue of past runs — follow their style, and expect this run to raise some of them (a package
 patched at `^3.1.2` last time may need `^3.1.4` today; advisories often
 outrun old pins).
 
@@ -51,15 +52,15 @@ Key questions:
 
 ### 3. Add/update the override
 
-Edit `pnpm.overrides` in root `package.json`. Match the existing style
-(caret range at the first patched version, e.g. `"fast-uri": "^3.1.4"`).
+Edit `overrides` in `pnpm-workspace.yaml`. Match the existing style
+(caret range at the first patched version, e.g. `fast-uri: ^3.1.4`).
 
 For multi-major packages, scope the override so each major stays on its own
 patched line:
 
-```jsonc
-"pkg@1": "^1.1.12",   // version-scoped: only rewrites deps wanting 1.x
-"parent>pkg": "^3.1.3" // parent-scoped: only rewrites parent's dep
+```yaml
+"pkg@1": ^1.1.12       # version-scoped: only rewrites deps wanting 1.x
+"parent>pkg": ^3.1.3   # parent-scoped: only rewrites parent's dep
 ```
 
 If an override for the package already exists, raise its version rather than

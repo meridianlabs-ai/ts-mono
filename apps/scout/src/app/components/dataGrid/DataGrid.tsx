@@ -1,11 +1,11 @@
 import {
   ColumnSizingState,
   flexRender,
-  getCoreRowModel,
   OnChangeFn,
+  RowData,
   RowSelectionState,
   SortingState,
-  useReactTable,
+  useTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
@@ -21,12 +21,15 @@ import {
   useState,
 } from "react";
 
+import {
+  ColumnFilterControl,
+  type FilterSpec,
+} from "@tsmono/inspect-components/columnFilter";
+
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import { ApplicationIcons } from "../../../icons";
-import type { SimpleCondition } from "../../../query";
 import { openRouteInNewTab } from "../../../router/url";
-import { FilterType } from "../../../state/store";
-import { ColumnFilterControl } from "../columnFilter";
+import type { FilterType } from "../../../state/store";
 import {
   BaseColumnMeta,
   ExtendedColumnDef,
@@ -34,6 +37,7 @@ import {
 } from "../columnTypes";
 
 import styles from "./DataGrid.module.css";
+import { dataGridFeatures } from "./tableFeatures";
 import type { DataGridProps, DataGridTableState } from "./types";
 
 /**
@@ -41,7 +45,7 @@ import type { DataGridProps, DataGridTableState } from "./types";
  * row selection, keyboard navigation, and column reordering.
  */
 export function DataGrid<
-  TData,
+  TData extends RowData,
   TColumn extends ExtendedColumnDef<TData, BaseColumnMeta>,
   TState extends DataGridTableState = DataGridTableState,
 >({
@@ -110,13 +114,9 @@ export function DataGrid<
 
   // Column filter change handler
   const handleColumnFilterChange = useCallback(
-    (
-      columnId: string,
-      filterType: FilterType,
-      condition: SimpleCondition | null
-    ) => {
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
       onStateChange((prev) => {
-        if (condition === null) {
+        if (spec === null) {
           // Remove the filter entirely
           const newFilters = { ...prev.columnFilters };
           delete newFilters[columnId];
@@ -133,7 +133,7 @@ export function DataGrid<
             [columnId]: {
               columnId,
               filterType,
-              condition,
+              spec,
             },
           },
         };
@@ -297,15 +297,10 @@ export function DataGrid<
     resetDragState();
   }, [resetDragState]);
 
-  // Create table instance
-  // useReactTable returns unmemoizable functions
-  // https://github.com/TanStack/table/issues/5567
-  // https://github.com/facebook/react/issues/33057
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: dataGridFeatures,
     data,
     columns,
-    getCoreRowModel: getCoreRowModel(),
     manualSorting: true,
     columnResizeMode: "onChange",
     enableColumnResizing: true,
@@ -543,6 +538,7 @@ export function DataGrid<
   );
 
   // Create virtualizer
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
@@ -695,14 +691,12 @@ export function DataGrid<
                       <ColumnFilterControl
                         columnId={header.column.id}
                         filterType={filterType}
-                        condition={
-                          columnFilters[header.column.id]?.condition ?? null
-                        }
-                        onChange={(condition) =>
+                        spec={columnFilters[header.column.id]?.spec ?? null}
+                        onChange={(spec) =>
                           handleColumnFilterChange(
                             header.column.id,
                             filterType,
-                            condition
+                            spec
                           )
                         }
                         suggestions={filterSuggestions}

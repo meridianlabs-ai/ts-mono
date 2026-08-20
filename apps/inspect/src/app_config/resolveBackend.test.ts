@@ -5,7 +5,7 @@ import { getVscodeApi } from "@tsmono/util";
 import staticHttpApi, {
   staticLogRoot,
 } from "../client/api/static-http/api-static-http";
-import { ClientAPI } from "../client/api/types";
+import { testClientAPI } from "../client/api/testClientApi";
 import {
   fetchViewServerLogDir,
   fetchViewServerLogRoot,
@@ -249,7 +249,7 @@ describe("resolveBackend selection", () => {
 });
 
 describe("embedder api factory (setApiFactory)", () => {
-  const factoryApi = { __backend: "embedder" } as unknown as ClientAPI;
+  const factoryApi = testClientAPI();
 
   it("wins over every ambient signal (vscode host present)", async () => {
     mockGetVscodeApi.mockReturnValue(

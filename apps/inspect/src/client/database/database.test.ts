@@ -12,6 +12,7 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 
 import { LogHandle } from "@tsmono/inspect-common";
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import {
   LogDetails,
@@ -47,7 +48,7 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
   return {
     version: 1,
     status: "success",
-    eval: {
+    eval: testEvalSpec({
       eval_set_id: "set-1",
       eval_id: "eval-1",
       run_id: "run-1",
@@ -58,9 +59,6 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
       task_file: "test.py",
       task_display_name: "Test Task",
       task_registry_name: "test",
-      task_attribs: {},
-      task_args: {},
-      task_args_passed: {},
       solver: null,
       solver_args: {},
       tags: [],
@@ -73,9 +71,8 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
       },
       sandbox: null,
       model: "gpt-4",
-      model_generate_config: {},
       model_base_url: null,
-    } as unknown as LogDetails["eval"],
+    }),
     plan: undefined,
     results: null,
     stats: undefined,

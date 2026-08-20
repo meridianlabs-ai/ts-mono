@@ -6,6 +6,17 @@
  */
 import { describe, expect, it } from "vitest";
 
+import {
+  testInfoEvent,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testScore,
+  testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testStateEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { buildTimeline, TimelineSpan, type Timeline } from "./core";
@@ -26,63 +37,38 @@ const spanBegin = (
   name: string,
   type: string | null,
   sec: number
-) =>
-  ({
-    event: "span_begin",
-    id,
-    parent_id,
-    name,
-    type,
-    timestamp: at(sec),
-  }) as unknown as Event;
+) => testSpanBeginEvent({ id, parent_id, name, type, timestamp: at(sec) });
 
 const spanEnd = (id: string, sec: number) =>
-  ({ event: "span_end", id, timestamp: at(sec) }) as unknown as Event;
+  testSpanEndEvent({ id, timestamp: at(sec) });
 
 const modelEvent = (span_id: string, sec: number) =>
-  ({
-    event: "model",
+  testModelEvent({
     span_id,
-    model: "test-model",
     timestamp: at(sec),
     completed: at(sec + 1),
-    output: {
-      usage: {
+    output: testModelOutput({
+      usage: testModelUsage({
         input_tokens: 6,
         output_tokens: 4,
         total_tokens: 10,
-        input_tokens_cache_read: null,
-        input_tokens_cache_write: null,
-        reasoning_tokens: null,
-        total_cost: null,
-      },
-    },
-  }) as unknown as Event;
+      }),
+    }),
+  });
 
 const infoEvent = (span_id: string, sec: number) =>
-  ({
-    event: "info",
-    span_id,
-    data: "solver-level info",
-    timestamp: at(sec),
-  }) as unknown as Event;
+  testInfoEvent({ span_id, data: "solver-level info", timestamp: at(sec) });
 
 const scoreEvent = (span_id: string, sec: number, intermediate: boolean) =>
-  ({
-    event: "score",
+  testScoreEvent({
     span_id,
     intermediate,
-    score: { value: 1, answer: null, explanation: null, metadata: null },
+    score: testScore({ value: 1 }),
     timestamp: at(sec),
-  }) as unknown as Event;
+  });
 
 const stateEvent = (span_id: string, sec: number) =>
-  ({
-    event: "state",
-    span_id,
-    changes: [],
-    timestamp: at(sec),
-  }) as unknown as Event;
+  testStateEvent({ span_id, timestamp: at(sec) });
 
 // --- assertion helper: collect every leaf event type in the built tree ------
 function collectEventTypes(span: TimelineSpan): string[] {

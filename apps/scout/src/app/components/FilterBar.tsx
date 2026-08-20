@@ -1,22 +1,27 @@
 import { clsx } from "clsx";
 import { FC, useCallback, useRef, useState } from "react";
 
+import {
+  ColumnFilterEditor,
+  editorConditionProps,
+  isColumnFilter,
+  NO_VALUE_OPERATORS,
+  OPERATOR_LABELS,
+  RANGE_VALUE_OPERATORS,
+  useColumnFilterPopover,
+  type FilterCondition,
+  type FilterSpec,
+} from "@tsmono/inspect-components/columnFilter";
 import { PopOver, ToolDropdownButton } from "@tsmono/react/components";
 
 import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../icons";
-import type { SimpleCondition } from "../../query";
 import type { ColumnFilter } from "../../state/store";
-import { valueAsString } from "../utils/format";
 
 import { AddFilterButton, type AddFilterPopoverState } from "./AddFilterButton";
 import { Chip } from "./Chip";
 import { ChipGroup } from "./ChipGroup";
-import {
-  ColumnFilterEditor,
-  useColumnFilterPopover,
-  type AvailableColumn,
-} from "./columnFilter";
+import type { AvailableColumn } from "./columnFilter";
 import { ColumnPickerButton } from "./ColumnPickerButton";
 import { ColumnsPopover, type ColumnInfo } from "./ColumnsPopover";
 import styles from "./FilterBar.module.css";
@@ -29,8 +34,8 @@ const kCopyCodeDescriptors = [
 export interface FilterBarProps {
   /** Current column filters */
   filters: Record<string, ColumnFilter>;
-  /** Callback when a filter condition is changed */
-  onFilterChange: (columnId: string, condition: SimpleCondition | null) => void;
+  /** Callback when a filter spec is changed */
+  onFilterChange: (columnId: string, spec: FilterSpec | null) => void;
   /** Callback when a filter is removed */
   onRemoveFilter: (columnId: string) => void;
   /** Optional code representations for copy functionality */
@@ -71,40 +76,31 @@ export const FilterBar: FC<FilterBarProps> = ({
   defaultVisibleColumns,
   onVisibleColumnsChange,
 }) => {
-  // Filter editing state
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
   const chipRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
   const editingFilter = editingColumnId ? filters[editingColumnId] : null;
 
   const handleFilterChange = useCallback(
-    (condition: SimpleCondition | null) => {
+    (spec: FilterSpec | null) => {
       if (!editingColumnId) return;
-      onFilterChange(editingColumnId, condition);
+      onFilterChange(editingColumnId, spec);
     },
     [editingColumnId, onFilterChange]
   );
 
+  const popover = useColumnFilterPopover({
+    columnId: editingColumnId ?? "",
+    filterType: editingFilter?.filterType ?? "string",
+    spec: editingFilter?.spec ?? null,
+    onChange: handleFilterChange,
+  });
   const {
     isOpen: isEditorOpen,
     setIsOpen: setIsEditorOpen,
-    operator,
-    setOperator,
     operatorOptions,
-    value: rawValue,
-    setValue: setRawValue,
-    value2: rawValue2,
-    setValue2: setRawValue2,
-    isValueDisabled,
-    isRangeOperator,
     commitAndClose,
     cancelAndClose,
-  } = useColumnFilterPopover({
-    columnId: editingColumnId ?? "",
-    filterType: editingFilter?.filterType ?? "string",
-    condition: editingFilter?.condition ?? null,
-    onChange: handleFilterChange,
-  });
+  } = popover;
 
   const editFilter = useCallback(
     (columnId: string) => () => {
@@ -115,7 +111,6 @@ export const FilterBar: FC<FilterBarProps> = ({
     [setIsEditorOpen, onFilterColumnChange]
   );
 
-  // Notify parent when editor closes
   const handleEditorOpenChange = useCallback(
     (open: boolean) => {
       setIsEditorOpen(open);
@@ -125,8 +120,6 @@ export const FilterBar: FC<FilterBarProps> = ({
     },
     [setIsEditorOpen, onFilterColumnChange]
   );
-
-  const filterEntries = Object.values(filters);
 
   return (
     <div className={styles.container}>
@@ -141,31 +134,24 @@ export const FilterBar: FC<FilterBarProps> = ({
         Filter:
       </div>
       <ChipGroup className={styles.filterBar}>
-        {filterEntries.length > 0
-          ? filterEntries.map((filter) => {
-              if (!filter || !filter.condition) {
-                return null;
-              }
-              return (
-                <Chip
-                  key={filter.columnId}
-                  ref={(el) => {
-                    chipRefs.current[filter.columnId] = el;
-                  }}
-                  label={filter.columnId}
-                  value={formatFilterCondition(filter.condition)}
-                  title={`Edit ${filter.columnId} filter`}
-                  closeTitle="Remove filter"
-                  className={clsx(styles.filterChip, "text-size-smallest")}
-                  onClose={() => {
-                    onRemoveFilter(filter.columnId);
-                  }}
-                  onClick={editFilter(filter.columnId)}
-                />
-              );
-            })
-          : null}
-        {/* Add Filter Button - rendered internally */}
+        {/* isColumnFilter drops entries persisted by pre-FilterSpec builds */}
+        {Object.values(filters)
+          .filter(isColumnFilter)
+          .map((filter) => (
+            <Chip
+              key={filter.columnId}
+              ref={(element) => {
+                chipRefs.current[filter.columnId] = element;
+              }}
+              label={filter.columnId}
+              value={formatFilterSpec(filter.spec)}
+              title={`Edit ${filter.columnId} filter`}
+              closeTitle="Remove filter"
+              className={clsx(styles.filterChip, "text-size-smallest")}
+              onClose={() => onRemoveFilter(filter.columnId)}
+              onClick={editFilter(filter.columnId)}
+            />
+          ))}
         <AddFilterButton
           idPrefix={popoverIdPrefix}
           popoverState={addFilterPopoverState}
@@ -173,7 +159,6 @@ export const FilterBar: FC<FilterBarProps> = ({
         />
       </ChipGroup>
 
-      {/* Edit filter popover */}
       {editingColumnId && editingFilter && (
         <PopOver
           id={`${popoverIdPrefix}-editor-${editingColumnId}`}
@@ -193,15 +178,8 @@ export const FilterBar: FC<FilterBarProps> = ({
           <ColumnFilterEditor
             columnId={editingColumnId}
             filterType={editingFilter.filterType}
-            operator={operator}
             operatorOptions={operatorOptions}
-            rawValue={rawValue}
-            rawValue2={rawValue2}
-            isValueDisabled={isValueDisabled}
-            isRangeOperator={isRangeOperator}
-            onOperatorChange={setOperator}
-            onValueChange={setRawValue}
-            onValue2Change={setRawValue2}
+            {...editorConditionProps(popover)}
             onCommit={commitAndClose}
             onCancel={cancelAndClose}
             suggestions={filterSuggestions}
@@ -213,7 +191,6 @@ export const FilterBar: FC<FilterBarProps> = ({
         {filterCodeValues !== undefined && (
           <CopyQueryButton itemValues={filterCodeValues} />
         )}
-        {/* Column Picker - rendered if columns and handler provided */}
         {columns && onVisibleColumnsChange && (
           <>
             <div className={styles.sep}></div>
@@ -278,52 +255,23 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
   );
 };
 
-const formatRepresentativeType = (value: unknown): string => {
-  if (value === null) {
-    return "NULL";
-  } else if (Array.isArray(value)) {
-    return `[${value.map((v) => formatRepresentativeType(v)).join(", ")}]`;
-  } else if (typeof value === "object") {
-    return "{...}";
-  } else if (typeof value === "string") {
-    return `'${value}'`;
-  } else {
-    return valueAsString(value);
+const formatFilterCondition = (condition: FilterCondition): string => {
+  const label = OPERATOR_LABELS[condition.operator];
+  if (NO_VALUE_OPERATORS.has(condition.operator)) {
+    return label;
   }
+  if (RANGE_VALUE_OPERATORS.has(condition.operator)) {
+    return `${label} ${condition.value} to ${condition.value2 ?? ""}`;
+  }
+  return `${label} ${condition.value}`;
 };
 
-/**
- * Formats a filter condition for display in a chip.
- * Handles special formatting for BETWEEN, IN, and other operators.
- */
-const formatFilterCondition = (condition: SimpleCondition): string => {
-  const { operator, right } = condition;
-
-  // BETWEEN / NOT BETWEEN: show as "BETWEEN value1 AND value2"
-  if (
-    (operator === "BETWEEN" || operator === "NOT BETWEEN") &&
-    Array.isArray(right) &&
-    right.length === 2
-  ) {
-    const v1 = formatRepresentativeType(right[0]);
-    const v2 = formatRepresentativeType(right[1]);
-    return `${operator} ${v1} AND ${v2}`;
+const formatFilterSpec = (spec: FilterSpec): string => {
+  const primary = formatFilterCondition(spec);
+  if (!spec.join || !spec.second) {
+    return primary;
   }
-
-  // IN / NOT IN: show as "IN (value1, value2, ...)"
-  if ((operator === "IN" || operator === "NOT IN") && Array.isArray(right)) {
-    const values = right.map((v) => formatRepresentativeType(v)).join(", ");
-    return `${operator} (${values})`;
-  }
-
-  // IS NULL / IS NOT NULL: no value needed
-  if (operator === "IS NULL" || operator === "IS NOT NULL") {
-    return operator;
-  }
-
-  // Default: "operator value"
-  return `${operator} ${formatRepresentativeType(right)}`;
+  return `${primary} ${spec.join.toUpperCase()} ${formatFilterCondition(spec.second)}`;
 };
 
-// Export types for convenience
 export type { AddFilterPopoverState, AvailableColumn, ColumnInfo };

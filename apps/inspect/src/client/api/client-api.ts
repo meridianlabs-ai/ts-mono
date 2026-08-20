@@ -1,7 +1,7 @@
 import { EvalSample, LogUpdate } from "@tsmono/inspect-common/types";
+import { encodePathParts } from "@tsmono/util";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
-import { encodePathParts } from "../../utils/uri";
 import { WorkResult } from "../../utils/workQueue";
 import {
   openRemoteLogFile,

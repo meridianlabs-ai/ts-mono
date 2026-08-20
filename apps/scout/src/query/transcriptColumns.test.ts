@@ -5,9 +5,11 @@ import { Column } from "@tsmono/inspect-common/query";
 import { transcriptColumns } from "./index";
 import { TranscriptColumns } from "./transcriptColumns";
 
-// The proxy resolves arbitrary field names to Columns at runtime; the class
-// type only declares the predefined columns, so dynamic access needs a cast.
-const dynamic = transcriptColumns as unknown as Record<string, Column>;
+// The proxy resolves arbitrary field names to Columns at runtime (and blocks
+// underscore-prefixed ones); the class type only declares the predefined
+// columns, so widen with an index signature for dynamic access.
+const dynamic = transcriptColumns as TranscriptColumns &
+  Record<string, Column | undefined>;
 
 describe("transcriptColumns", () => {
   it("builds conditions from predefined columns", () => {
@@ -48,9 +50,7 @@ describe("transcriptColumns", () => {
   });
 
   it("blocks access to private members through the proxy", () => {
-    expect(
-      (transcriptColumns as unknown as Record<string, unknown>)._instance
-    ).toBeUndefined();
+    expect(dynamic._instance).toBeUndefined();
   });
 
   it("returns a shared singleton instance", () => {

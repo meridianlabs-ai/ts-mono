@@ -1,9 +1,10 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 
+import { directoryRelativeUrl } from "@tsmono/util";
+
 import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
-import { directoryRelativeUrl } from "../../utils/uri";
 import {
   samplesSampleUrl,
   samplesUrl,

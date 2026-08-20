@@ -3,9 +3,8 @@ import {
   EvalSet,
   LogFilesResponse,
 } from "@tsmono/inspect-common/types";
-import { fetchRange } from "@tsmono/util";
+import { fetchRange, isUri } from "@tsmono/util";
 
-import { isUri } from "../../../utils/uri";
 import { fetchSize } from "../../remote/remoteZipFile";
 import { download_file } from "../shared/api-shared";
 import { Capabilities, LogPreview, LogRoot, LogViewAPI } from "../types";
