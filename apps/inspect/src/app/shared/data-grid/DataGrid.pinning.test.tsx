@@ -60,10 +60,7 @@ const dragHeader = async (from: string, to: string) => {
 };
 
 const headerOrder = () =>
-  screen
-    .getAllByRole("columnheader")
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    .map((cell) => cell.textContent.trim() ?? "");
+  screen.getAllByRole("columnheader").map((cell) => cell.textContent.trim());
 
 const headerCell = (label: string) =>
   screen.getByText(label).closest('[role="columnheader"]') as HTMLElement;

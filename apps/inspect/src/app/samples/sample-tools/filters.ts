@@ -19,7 +19,8 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  scoreType: string;
+  // undefined when the descriptor lookup fails at runtime (types lie at the wire)
+  scoreType: string | undefined;
 }
 
 /**
@@ -208,14 +209,7 @@ export const sampleFilterItems = (
       throw new Error("Unable to create a canonical name for a score");
     }
     const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
-
-    // This is not a filterable score
-    if (descriptor.filterable === false) {
-      return;
-    }
-
-    const scoreType = descriptor.scoreType;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: scoreDescriptor() can return undefined despite its declared type
     if (!descriptor) {
       items.push({
         shortName,
@@ -223,10 +217,17 @@ export const sampleFilterItems = (
         canonicalName,
         tooltip: undefined,
         categories: [],
-        scoreType,
+        scoreType: undefined,
       });
       return;
     }
+
+    // This is not a filterable score
+    if (descriptor.filterable === false) {
+      return;
+    }
+
+    const scoreType = descriptor.scoreType;
     let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
     let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {
