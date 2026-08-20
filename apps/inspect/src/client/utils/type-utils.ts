@@ -1,4 +1,5 @@
 import { EvalMetric, EvalResults } from "@tsmono/inspect-common/types";
+import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
 
 import {
   EvalHeader,
@@ -98,7 +99,7 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
     ? Object.fromEntries(
         Object.entries(header.eval.model_roles).map(([role, cfg]) => [
           role,
-          cfg.model,
+          modelRoleModelNames(cfg),
         ])
       )
     : undefined;

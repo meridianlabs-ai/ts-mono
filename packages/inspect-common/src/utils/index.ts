@@ -10,5 +10,6 @@ export { expandEvents } from "./expandEvents";
 export { formatConfigValue } from "./formatConfigValue";
 export { inputString } from "./inputString";
 export { modelFallbackLines, totalModelFallbacks } from "./modelFallbacks";
+export { modelRoleConfigs, modelRoleModelNames } from "./modelRoles";
 export { sampleLimitMessage } from "./sampleLimit";
 export { isoToEpoch } from "./time";

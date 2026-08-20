@@ -10,6 +10,7 @@ import {
   SearchRequest,
   SearchResponse,
 } from "@tsmono/inspect-common/types";
+import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { EvalScores } from "../../../@types/extraInspect";
@@ -230,7 +231,7 @@ export function viewServerApi(
       ? Object.fromEntries(
           Object.entries(header.eval.model_roles).map(([role, cfg]) => [
             role,
-            cfg.model,
+            modelRoleModelNames(cfg),
           ])
         )
       : undefined;

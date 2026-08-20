@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import { EvalSpec, ModelConfig } from "@tsmono/inspect-common/types";
+import { modelRoleConfigs } from "@tsmono/inspect-common/utils";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
@@ -26,8 +27,15 @@ export const ModelCard: FC<ModelCardProps> = ({ evalSpec }) => {
       config: evalSpec.model_generate_config,
       args: evalSpec.model_args,
     },
-    ...evalSpec.model_roles,
   };
+  for (const [role, value] of Object.entries(evalSpec.model_roles ?? {})) {
+    const configs = modelRoleConfigs(value);
+    configs.forEach((config, i) => {
+      const key =
+        configs.length === 1 ? role : `${role} (${i + 1}/${configs.length})`;
+      modelsInfo[key] = config;
+    });
+  }
 
   const noneEl = <span className="text-style-secondary">None</span>;
 

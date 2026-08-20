@@ -1,4 +1,5 @@
 import { EvalSpec } from "@tsmono/inspect-common/types";
+import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
 
 import { kModelNone } from "../constants";
 
@@ -14,7 +15,7 @@ export const formatModelText = (evalSpec?: EvalSpec): string | undefined => {
   const roles = evalSpec.model_roles;
   if (roles && Object.keys(roles).length > 0) {
     return Object.entries(roles)
-      .map(([role, data]) => `${role}: ${data.model}`)
+      .map(([role, data]) => `${role}: ${modelRoleModelNames(data)}`)
       .join(", ");
   }
   if (evalSpec.model && evalSpec.model !== kModelNone) {
