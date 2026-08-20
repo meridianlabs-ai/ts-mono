@@ -92,8 +92,14 @@ export default defineConfig(({ mode }) => {
           // mathjax is heavy and registers globals; keep it external so the
           // consumer installs/dedupes it once instead of each viewer
           // shipping its own copy.
+          //
+          // use-sync-external-store (via @tanstack/react-store) is CJS-only
+          // and `require`s react internally; bundling it alongside external
+          // react leaves a runtime `__require("react")` that throws in
+          // browsers. Externalize it (declared in dependencies) so the
+          // consumer's bundler does the CJS interop.
           external: (id: string) =>
-            /^(react|react-dom)(\/|$)/.test(id) ||
+            /^(react|react-dom|use-sync-external-store)(\/|$)/.test(id) ||
             id === "mathjax-full" ||
             id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",
