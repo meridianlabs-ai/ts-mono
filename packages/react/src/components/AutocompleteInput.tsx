@@ -279,7 +279,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
       const highlighted = listRef.current.children[
         highlightedIndex
       ] as HTMLElement;
-      highlighted?.scrollIntoView({ block: "nearest" });
+      highlighted.scrollIntoView({ block: "nearest" });
     }
   }, [highlightedIndex, showDropdown]);
 

@@ -155,6 +155,7 @@ const changeText = (change: ConfigValueChange): string => {
   if (
     change.value === null &&
     change.previous !== null &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
     change.previous !== undefined
   ) {
     return `${change.name} lifted`;
@@ -220,6 +221,7 @@ export const configMarkers = (
         index,
         label,
         postRun: runEnd !== undefined && time > runEnd,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
         preRun: update.provenance.metadata?.["inherited"] === true,
       };
     })
@@ -505,6 +507,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
       kind: "config",
       time,
       postRun: runEnd !== undefined && time > runEnd,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
       preRun: update.provenance.metadata?.["inherited"] === true,
       update,
       index,
@@ -593,6 +596,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
         time,
         postRun: false,
         sample,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
         line: `${fallback.model} → ${fallback.fallback_model}${(fallback.count ?? 1) > 1 ? ` × ${fallback.count}` : ""}`,
       });
     }

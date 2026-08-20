@@ -72,6 +72,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.role === "system" ||
     message.role === "user" ||
     message.role === "assistant" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
@@ -83,6 +84,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   if (
     displayMode === "rendered" &&
     isNonSubagentTool &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     message.role === "tool" &&
     message.function
   ) {

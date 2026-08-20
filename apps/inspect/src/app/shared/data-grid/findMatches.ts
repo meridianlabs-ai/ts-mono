@@ -30,6 +30,7 @@ export function rowSearchText<TRow extends RowData>(
     let text: string | null = null;
     if (column.textValue) {
       text = column.textValue(row);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if ("accessorFn" in column && column.accessorFn) {
       text = primitiveText(column.accessorFn(row, 0));
     }

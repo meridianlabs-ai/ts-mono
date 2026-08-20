@@ -700,6 +700,7 @@ const extractInput = (
   };
 
   // No args
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!args) {
     return {
       args: [],

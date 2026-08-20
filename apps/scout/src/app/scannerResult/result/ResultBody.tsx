@@ -117,6 +117,7 @@ const InputRenderer: FC<InputRendererProps> = ({
   onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (inputData.input.messages && inputData.input.messages.length > 0) {
       const labels = resultData?.messageReferences.reduce((acc, ref) => {
         if (ref.cite) {
@@ -127,6 +128,7 @@ const InputRenderer: FC<InputRendererProps> = ({
 
       return (
         <ChatViewVirtualList
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           messages={inputData.input.messages || []}
           id={"scan-input-virtual-list"}
           display={{ indented: true }}
@@ -136,6 +138,7 @@ const InputRenderer: FC<InputRendererProps> = ({
           labels={{ highlight: highlightLabeled, messageLabels: labels }}
         />
       );
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (inputData.input.events && inputData.input.events.length > 0) {
       return (
         <TimelineEventsView

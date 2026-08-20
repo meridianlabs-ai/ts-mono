@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router";

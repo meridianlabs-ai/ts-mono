@@ -457,6 +457,7 @@ function collectFromContent(
       // already shown on the AgentCard, so don't duplicate them inline.
       if (item.event.event === "model" && pendingToolCallIds.size > 0) {
         const modelEvent = item.event;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (modelEvent.input && Array.isArray(modelEvent.input)) {
           const filteredInput = (
             modelEvent.input as Array<Record<string, unknown>>
@@ -674,6 +675,7 @@ function buildPath(rows: SwimlaneRow[], selectedKey: string): PathSegment[] {
   const byKey = new Map(rows.map((r) => [r.key, r]));
   const keys: string[] = [selectedKey];
   let k = selectedKey;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     const parent = getParentKeyFromBranch(k);
     if (!parent || !byKey.has(parent)) break;

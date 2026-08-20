@@ -252,7 +252,8 @@ export const ScannerResultPanel: FC = () => {
 
   const hasError =
     selectedResult?.scanError !== undefined &&
-    selectedResult?.scanError !== null;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    selectedResult.scanError !== null;
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
   const setHighlightLabeled = useStore((state) => state.setHighlightLabeled);
@@ -285,7 +286,7 @@ export const ScannerResultPanel: FC = () => {
     if (
       selectedTab === kTabIdInput &&
       selectedResult?.inputType === "transcript" &&
-      selectedResult?.messageReferences.length > 0
+      selectedResult.messageReferences.length > 0
     ) {
       toolButtons.push(
         <ToolButton
@@ -376,6 +377,7 @@ export const ScannerResultPanel: FC = () => {
           id={kTabIdResult}
           selected={
             selectedTab === kTabIdResult ||
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             (!hasError && selectedTab === undefined)
           }
           title="Result"
@@ -385,6 +387,7 @@ export const ScannerResultPanel: FC = () => {
           }}
           className={styles.fullHeight}
         >
+          {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
           {resultData && inputData && (
             <ResultPanel resultData={resultData} inputData={inputData} />
           )}

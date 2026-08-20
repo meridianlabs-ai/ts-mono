@@ -81,6 +81,7 @@ export const LogsPanel: FC<LogsPanelProps> = ({
   // a different scope (different dir), so each folder also remembers its
   // own state. `undefined` until logDir hydrates so we never write under
   // a half-initialized scope.
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const scopeKey = logDir === undefined ? undefined : `${mode}::${currentDir}`;
 
   // Cache identity of the row universe: the listing/overview queries depend

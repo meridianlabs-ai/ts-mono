@@ -46,6 +46,7 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   error: undefined,
   running: kNoRunningEvents,
   eventsCleared:
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
     sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
   backfilling: false,
 });
@@ -186,6 +187,7 @@ export const deriveSampleData = ({
   const loading = chunked.loading || query.loading;
   return {
     sample: undefined,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     status: loading ? "loading" : query.error ? "error" : "ok",
     error: loading ? undefined : query.error,
     running: kNoRunningEvents,

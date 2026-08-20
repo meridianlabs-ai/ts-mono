@@ -247,12 +247,14 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
     () =>
       window
         ? guideSegments(
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
             evalSpec?.config?.max_samples,
             "max_samples",
             markers,
             window
           )
         : [],
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
     [evalSpec?.config?.max_samples, markers, window]
   );
 

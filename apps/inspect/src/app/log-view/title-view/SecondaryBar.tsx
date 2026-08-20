@@ -79,6 +79,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   const epochs = effectiveConfig.epochs || 1;
   const hyperparameters: Record<string, unknown> = {
     ...effectiveGenerateConfig(evalPlan?.config || {}, configUpdates),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     ...(evalSpec.task_args || {}),
   };
 
@@ -148,8 +149,8 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
 
   if (evalStats) {
     const totalDuration = formatDuration(
-      new Date(evalStats?.started_at),
-      new Date(evalStats?.completed_at)
+      new Date(evalStats.started_at),
+      new Date(evalStats.completed_at)
     );
     values.push({
       size: "minmax(12%, auto)",
@@ -260,6 +261,7 @@ interface ParamSummaryProps {
  * A component that displays a summary of parameters.
  */
 const ParamSummary: FC<ParamSummaryProps> = ({ params }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!params) {
     return null;
   }

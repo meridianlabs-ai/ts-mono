@@ -14,6 +14,7 @@ export default tseslint.config(
     },
     rules: {
       "import-x/no-duplicates": "error",
+      "@typescript-eslint/no-unnecessary-condition": "error",
       // Disallow `void` as an escape hatch for floating promises — prefixing a
       // hanging promise with `void` silently drops errors. Mark genuine cases
       // with an eslint-disable-next-line comment so the issue stays visible.

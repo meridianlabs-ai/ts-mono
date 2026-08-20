@@ -265,6 +265,7 @@ function computeBarFromMapping(
 export function spanHasEvents(span: TimelineSpan): boolean {
   for (const item of span.content) {
     if (item.type === "event") return true;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (item.type === "span" && spanHasEvents(item)) return true;
   }
   return false;

@@ -18,7 +18,7 @@ export const SolversDetailView: FC<SolversDetailViewProps> = ({ steps }) => {
     </div>
   );
 
-  const details = steps?.map((step, index) => {
+  const details = steps.map((step, index) => {
     return (
       <Fragment key={`solver-step-${index}`}>
         <DetailStep

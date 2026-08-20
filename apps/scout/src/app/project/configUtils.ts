@@ -213,6 +213,7 @@ export function initializeEditedConfig(
 ): Partial<ProjectConfigInput> {
   return {
     transcripts: serverConfig.transcripts ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     filter: serverConfig.filter ?? null,
     scans: serverConfig.scans ?? null,
     max_transcripts: serverConfig.max_transcripts ?? null,

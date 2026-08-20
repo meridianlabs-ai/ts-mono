@@ -164,10 +164,12 @@ export class MarkdownRenderQueue {
 
         try {
           const result = await task();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           if (!cancelled) {
             resolve(result);
           }
         } catch (error) {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           if (!cancelled) {
             reject(error instanceof Error ? error : new Error(String(error)));
           }

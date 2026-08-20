@@ -47,7 +47,7 @@ export const usePrismHighlight = (
           return Array.from(mutation.addedNodes).some((node) => {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const el = node as HTMLElement;
-              return el.querySelector?.("pre code") || el.matches?.("pre code");
+              return el.querySelector("pre code") || el.matches("pre code");
             }
             return false;
           });

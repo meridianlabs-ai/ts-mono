@@ -92,6 +92,7 @@ export async function expandResultsetRows(
 
       // If the row has an empty result set, just leave it
       // intact
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!results || results.length === 0) {
         const expandedRow = { ...row };
         expandedRow.value = null;

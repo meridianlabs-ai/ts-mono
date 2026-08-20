@@ -204,6 +204,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
         }
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: activeElement can be null; the cast hides it
       focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
@@ -223,6 +224,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       if (scrollTimeoutRef.current !== null) {
         window.clearTimeout(scrollTimeoutRef.current);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (focusTimeout !== null) {
         window.clearTimeout(focusTimeout);
       }

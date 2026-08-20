@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import type { CSSProperties } from "react";
 
@@ -540,6 +541,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
       const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
+      // intentional ?. — scoreDescriptor() can return undefined despite its declared type
       const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
       // Pass/fail and boolean already render as semantically-coloured
@@ -549,6 +551,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
         scoreType !== kScoreTypePassFail && scoreType !== kScoreTypeBoolean;
       const valueToStyle = acceptsColorScale
         ? cellStyleFor(label.name, {
+            // intentional ?. — scoreDescriptor() can return undefined despite its declared type
             min: scoreDesc?.min,
             max: scoreDesc?.max,
           })

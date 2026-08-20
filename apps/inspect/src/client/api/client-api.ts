@@ -153,7 +153,7 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
        * @type {import("./Types.js").SampleSummary[]}
        */
       const sampleSummaries = logContents.parsed.samples
-        ? logContents.parsed.samples?.map((sample) => {
+        ? logContents.parsed.samples.map((sample) => {
             return {
               id: sample.id,
               epoch: sample.epoch,

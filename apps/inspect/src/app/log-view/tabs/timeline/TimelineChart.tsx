@@ -107,6 +107,7 @@ const sampleTokens = (sample: SampleSummary): number | undefined => {
   if (!usage) return undefined;
   let total = 0;
   for (const u of Object.values(usage)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     total += u.total_tokens ?? 0;
   }
   return total > 0 ? total : undefined;
@@ -1294,18 +1295,22 @@ const scoreRowsFor = (
 ): ScoreRow[] => {
   if (!sample.scores) return [];
   if (evalDescriptor && evalDescriptor.scores.length > 0) {
-    return evalDescriptor.scores
-      .map((label) => ({
-        key: `${label.scorer}.${label.name}`,
-        name: label.name,
-        value: evalDescriptor.score(sample, label)?.value,
-        scoreType: evalDescriptor.scoreDescriptor(label).scoreType,
-      }))
-      .filter((row) => row.value !== undefined && row.value !== null);
+    return (
+      evalDescriptor.scores
+        .map((label) => ({
+          key: `${label.scorer}.${label.name}`,
+          name: label.name,
+          value: evalDescriptor.score(sample, label)?.value,
+          scoreType: evalDescriptor.scoreDescriptor(label).scoreType,
+        }))
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        .filter((row) => row.value !== undefined && row.value !== null)
+    );
   }
   return Object.entries(sample.scores).map(([name, score]) => ({
     key: name,
     name,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
     value: formatShort(score?.value),
     scoreType: kScoreTypeOther,
   }));

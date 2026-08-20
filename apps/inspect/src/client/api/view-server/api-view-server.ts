@@ -549,6 +549,7 @@ export function viewServerApi(
 
   const get_user_info = async (): Promise<UserInfo> => {
     const result = await requestApi.fetchString("GET", "/user-info");
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return (result.parsed as UserInfo) ?? {};
   };
 

@@ -171,11 +171,13 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
 const entryRecords = (
   entries: { name: string; value: unknown }[] | Record<string, unknown>
 ): { name: string; value: unknown }[] => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!entries) {
     return [];
   }
 
   if (!Array.isArray(entries)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return Object.entries(entries || {}).map(([key, value]) => {
       return { name: key, value };
     });

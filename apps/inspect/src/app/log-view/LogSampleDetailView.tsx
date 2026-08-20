@@ -50,7 +50,9 @@ export const LogSampleDetailView: FC = () => {
 
   // Use route params if available, otherwise fall back to state
   const logPath = routeLogPath || selectedLogFile;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
   const sampleId = routeSampleId || selectedSampleHandle?.id?.toString();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
   const epoch = routeEpoch || selectedSampleHandle?.epoch?.toString();
 
   // Load the log and select the sample when route params change

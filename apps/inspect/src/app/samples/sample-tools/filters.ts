@@ -26,6 +26,7 @@ export interface SampleFilterItem {
  * Coerces a value to the type expected by the score.
  */
 const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -169,6 +170,7 @@ export const sampleVariables = (
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     target: arrayToString(sample.target ?? ""),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
@@ -212,7 +214,8 @@ export const sampleFilterItems = (
       return;
     }
 
-    const scoreType = descriptor?.scoreType;
+    const scoreType = descriptor.scoreType;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!descriptor) {
       items.push({
         shortName,

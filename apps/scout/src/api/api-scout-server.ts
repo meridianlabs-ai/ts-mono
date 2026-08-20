@@ -188,6 +188,7 @@ export const apiScoutServer = (
         "POST",
         `/transcripts/${encodeBase64Url(transcriptsDir)}/distinct`,
         {},
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         JSON.stringify({ column, filter: filter ?? null })
       );
       return asyncJsonParse<ScalarValue[]>(result.raw);
@@ -280,6 +281,7 @@ export const apiScoutServer = (
             parsed.input_data
           ),
         },
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         scanEvents: parsed.scan_events ?? [],
       };
     },

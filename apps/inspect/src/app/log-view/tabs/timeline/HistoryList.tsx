@@ -240,6 +240,7 @@ export const HistoryList: FC<HistoryListProps> = ({
                         matching limitLifted and changeText. */}
                     {change.value === null &&
                     change.previous !== null &&
+                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                     change.previous !== undefined ? (
                       <span className={styles.muted}> (limit lifted)</span>
                     ) : null}

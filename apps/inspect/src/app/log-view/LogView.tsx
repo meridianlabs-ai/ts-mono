@@ -99,6 +99,7 @@ export const LogView: FC = () => {
   // in a contravariant position.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tabs: Record<string, TabDescriptor<any>> = {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
     task: taskTabConfig,
     model: modelsTabConfig,
@@ -130,7 +131,7 @@ export const LogView: FC = () => {
 
   const onSelected = useCallback(
     (e: MouseEvent<HTMLElement>) => {
-      const id = e.currentTarget?.id;
+      const id = e.currentTarget.id;
       if (id) {
         setSelectedTab(id);
         navigation.selectTab(id);
@@ -147,6 +148,7 @@ export const LogView: FC = () => {
     );
   } else {
     const tabTools = Object.values(tabs)
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;

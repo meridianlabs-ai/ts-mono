@@ -19,7 +19,8 @@ describe("useBreadcrumbTruncation", () => {
     vi.stubGlobal("ResizeObserver", ResizeObserverStub);
     vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockImplementation(
       function (this: HTMLElement) {
-        return (this.textContent?.length ?? 0) * 10;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        return (this.textContent.length ?? 0) * 10;
       }
     );
   });

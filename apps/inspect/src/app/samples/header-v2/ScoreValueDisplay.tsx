@@ -149,6 +149,7 @@ function toneMiniPillClass(tone: Tone): string | undefined {
 }
 
 function formatPlainValue(v: ScoreValue | undefined): string {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (v === undefined || v === null) return "";
   if (Array.isArray(v)) return v.join(", ");
   if (typeof v === "object") return JSON.stringify(v);
