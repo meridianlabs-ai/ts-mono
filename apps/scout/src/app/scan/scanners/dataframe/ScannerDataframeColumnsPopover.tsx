@@ -98,11 +98,9 @@ const useDataframeColumns = () => {
   const filterColumn = useCallback(
     (column: string, show: boolean) => {
       if (show && !filteredColumns.includes(column)) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        setFilteredColumns([...(filteredColumns || []), column]);
+        setFilteredColumns([...filteredColumns, column]);
       } else if (!show) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        setFilteredColumns(filteredColumns.filter((c) => c !== column) || []);
+        setFilteredColumns(filteredColumns.filter((c) => c !== column));
       }
     },
     [filteredColumns, setFilteredColumns]
@@ -182,8 +180,7 @@ const useDataframeColumns = () => {
     setAllFilter,
     setNoneFilter,
     filterColumn,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    filtered: filteredColumns || [],
+    filtered: filteredColumns,
     arrangedColumns,
   };
 };
