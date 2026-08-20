@@ -7,7 +7,6 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
 Design docs live per-app; consult them when working in the relevant area:
 
 - [Viewer startup/data-layer domain ownership](apps/inspect/design/domain-ownership.md) (inspect)
-- [useEffect audit — working doc of effects to fix](apps/inspect/design/useeffect-audit.md) (inspect)
 - [Frontend testing: integration tests + MSW](apps/scout/design/front-end-testing.md) (scout)
 - [React Query patterns: queryOptions, skipToken](apps/scout/design/react-query.md) (scout)
 
