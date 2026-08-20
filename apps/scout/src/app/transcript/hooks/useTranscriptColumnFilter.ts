@@ -53,7 +53,7 @@ export const useTranscriptColumnFilter = () => {
     return (
       excludedEventTypes.length === kDefaultExcludeEvents.length &&
       excludedEventTypes.every((type) =>
-        kDefaultExcludeEvents.includes(type as EventTypeValue)
+        kDefaultExcludeEvents.some((t) => t === type)
       )
     );
   }, [excludedEventTypes]);
