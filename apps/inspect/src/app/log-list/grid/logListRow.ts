@@ -17,7 +17,7 @@ export const buildLogListRow = (item: LogListItem): LogListRow => {
   const derived = log?.derived;
 
   const taskArgsSource =
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
     details?.eval?.task_args_passed ?? details?.eval?.task_args;
 
   const row: LogListRow = {
@@ -46,11 +46,11 @@ export const buildLogListRow = (item: LogListItem): LogListRow => {
     path: item.type === "file" ? item.name : undefined,
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
     sandbox: details?.eval?.sandbox?.type,
     totalTokens: derived?.total_tokens,
     duration: derived?.duration,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
     taskFile: details?.eval?.task_file ?? undefined,
     taskArgs: derived?.task_args,
     taskArgsRaw: taskArgsSource ?? undefined,

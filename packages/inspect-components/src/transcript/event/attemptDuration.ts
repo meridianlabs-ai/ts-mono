@@ -9,7 +9,7 @@ import type { ModelEvent } from "@tsmono/inspect-common/types";
  * dependable duration can be derived.
  */
 export function attemptDurationSec(event: ModelEvent): number | null {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
   const explicit = event.output?.time ?? event.working_time;
   if (typeof explicit === "number" && !Number.isNaN(explicit)) {
     return explicit;

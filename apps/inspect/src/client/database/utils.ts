@@ -5,7 +5,7 @@ export function toLogOverview(header: EvalHeader): LogPreview {
 
   // Get the first metric from the first score's metrics
   let primary_metric = undefined;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
   const firstScore = results?.scores?.[0];
   if (firstScore) {
     // Get the first metric from the score's metrics object

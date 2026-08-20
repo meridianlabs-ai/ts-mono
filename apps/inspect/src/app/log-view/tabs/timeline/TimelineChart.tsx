@@ -1310,7 +1310,7 @@ const scoreRowsFor = (
   return Object.entries(sample.scores).map(([name, score]) => ({
     key: name,
     name,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
     value: formatShort(score?.value),
     scoreType: kScoreTypeOther,
   }));

@@ -26,6 +26,15 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
   - A cast is a last resort for boundaries TypeScript can't express, with
     a comment saying why
 
+  **Parsed data: the types lie (#555).** Eval logs, journal files, API
+  responses, and persisted state are cast at the boundary, not validated —
+  old files omit fields the types declare required. Defensive `?.`/guards
+  on such data are intentional; do not remove them because the type (or
+  `no-unnecessary-condition`) says they're impossible. They carry
+  suppressions marked `intentional: data isn't validated at the wire
+  (#555)` and can only be removed by fixing issue #555 (validate at the
+  boundary).
+
 ## Code Style — Comments                                                       
                                                                                 
   Add comments only for non-obvious decisions:                                  

@@ -336,9 +336,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const printLogPath = urlLogPath || selectedLogFile;
-  // intentional ?. — data isn't validated at the wire; old files may omit type-required fields
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
-  // intentional ?. — data isn't validated at the wire; old files may omit type-required fields
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
 
   const handlePrintClick = useCallback(() => {

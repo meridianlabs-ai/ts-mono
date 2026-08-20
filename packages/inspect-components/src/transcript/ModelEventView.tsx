@@ -64,7 +64,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const isCancelled = isCancelError(event.error);
   const isFailed = !!event.error && !isCancelled;
 
-  // intentional ?. — data isn't validated at the wire; old files may omit type-required fields
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const totalUsage = event.output?.usage?.total_tokens;
   const callTime = event.output?.time;
 
@@ -80,7 +80,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   // Stop reason / refusal detail for the (primary) generated choice. `category`
   // and `explanation` are only present on a refusal/content-filter stop. Skip the
   // panel for a plain "stop" with no details — otherwise it shows on every call.
-  // intentional ?. — data isn't validated at the wire; old files may omit type-required fields
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const firstChoice = event.output?.choices?.[0];
   const stopDetails = firstChoice?.stop_details;
   const showStopReason =
@@ -143,7 +143,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       ? `${panelTitle} · Cancelled${formatFailureTime(event)}`
       : formatTitle(panelTitle, totalUsage, callTime);
 
-  // intentional ?. — data isn't validated at the wire; old files may omit type-required fields
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const fallback = event.output?.fallback;
   const fallbackBadge = fallback ? (
     <span className={styles.fallbackBadge}>

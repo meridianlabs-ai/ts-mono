@@ -175,7 +175,7 @@ export const TranscriptEventPanel: FC = () => {
         header={header}
         className={styles.focusRoot}
         error={
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
           transcript?.error
             ? { label: "Transcript error", message: transcript.error }
             : undefined

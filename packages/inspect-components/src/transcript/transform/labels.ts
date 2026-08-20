@@ -60,9 +60,9 @@ export const scopeMessageLabels = (
       for (const message of event.input ?? []) {
         if (message.id) present.add(message.id);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
       for (const choice of event.output?.choices ?? []) {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
         if (choice.message?.id) present.add(choice.message.id);
       }
     } else if (event.event === "tool" && event.message_id) {

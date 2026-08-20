@@ -148,7 +148,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
     if (event.event === "model") {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire; old files may omit type-required fields
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
       const outMsg = event.output?.choices?.[0]?.message;
       if (outMsg && "id" in outMsg && outMsg.id === messageId) {
         return i;
