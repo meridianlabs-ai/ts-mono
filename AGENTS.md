@@ -2,6 +2,15 @@
 
 TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code extension, etc.
 
+## Documentation
+
+Design docs live per-app; consult them when working in the relevant area:
+
+- [Viewer startup/data-layer domain ownership](apps/inspect/design/domain-ownership.md) (inspect)
+- [useEffect audit — working doc of effects to fix](apps/inspect/design/useeffect-audit.md) (inspect)
+- [Frontend testing: integration tests + MSW](apps/scout/design/front-end-testing.md) (scout)
+- [React Query patterns: queryOptions, skipToken](apps/scout/design/react-query.md) (scout)
+
 ## Conventions
 
 - **Consumed via git submodule** — see [submodule-guide.md](docs/submodule-guide.md)
@@ -35,4 +44,22 @@ TypeScript monorepo sharing code between inspect_ai, inspect_scout, vs code exte
                                                                                 
   Skip comments that narrate the code. Good names already say what.             
   No multi-line comment blocks; no "this function does X" headers — use         
-  docstrings only on public APIs.       
+  docstrings only on public APIs.
+
+## Testing
+
+- Test observable behavior, not implementation details — tests shouldn't
+  break on refactors or minor DOM restructuring
+- Don't test what the type system already enforces
+- Prefer integration tests over heavily-mocked unit tests; mock at the
+  network level (MSW), not internal modules — see
+  [front-end-testing.md](apps/scout/design/front-end-testing.md)
+- Tests must be isolated and deterministic; no shared mutable state or
+  order dependencies
+
+## Pull Requests
+
+- For changes that affect UI appearance (styles, layout, theming, CSS
+  refactors), include before/after screenshots in the PR description —
+  both light and dark themes when the change touches themed surfaces.
+  A visual diff catches regressions review of the CSS alone won't.
