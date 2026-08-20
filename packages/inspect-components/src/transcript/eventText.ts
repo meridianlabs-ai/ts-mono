@@ -1,5 +1,6 @@
 import type { Content } from "@tsmono/inspect-common/types";
 
+import { recentInputMessages } from "./recentInputMessages";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -64,7 +65,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (modelEvent.model) {
         fields.push(["model", modelEvent.model]);
       }
-      // Extract text from model output
+      // Assistant `tool_calls` stay unindexed: the following tool event draws
+      // them and indexes `function`/`arguments` itself, and ModelEventView
+      // drops them entirely when `showToolCalls` is false.
       if (modelEvent.output?.choices) {
         for (const choice of modelEvent.output.choices) {
           for (const text of extractContentText(choice.message.content)) {
@@ -72,14 +75,21 @@ export const extractEventFields = (event: EventType): [string, string][] => {
           }
         }
       }
-      // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
-          }
+      // Index only the messages ModelEventView draws. Text outside them never
+      // reaches the DOM, so `window.find` has nothing to anchor on and the
+      // match counter freezes mid-walk. This under-counts an expanded panel
+      // ("Show all messages", MESSAGES tab) — a miss beats a phantom.
+      //
+      // `hasToolEvents` stays undefined because `findAllMatches` re-derives
+      // fields from raw events, where no node context exists.
+      const drawnMessages = recentInputMessages(modelEvent.input, {
+        agentResultsFiltered: !!(modelEvent as Record<string, unknown>)
+          .agentResultsFiltered,
+        hasToolEvents: undefined,
+      });
+      for (const msg of drawnMessages) {
+        for (const text of extractContentText(msg.content)) {
+          fields.push([msg.role, text]);
         }
       }
       // API-call errors / tracebacks surfaced on the model event itself

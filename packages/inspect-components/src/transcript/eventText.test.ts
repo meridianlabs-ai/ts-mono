@@ -138,6 +138,7 @@ describe("extractEventFields — model error / traceback", () => {
       "model-1",
       testModelEvent({
         model: "test/model",
+        input: [],
         error: "API rate limit exceeded",
         traceback: "Traceback (most recent call last): ...",
       }),
@@ -863,5 +864,95 @@ describe("eventSearchText", () => {
       })
     );
     expect(texts).toEqual([]);
+  });
+});
+
+describe("extractEventFields — model input mirrors the SUMMARY panel", () => {
+  const modelEventNode = (
+    input: Record<string, unknown>[],
+    output: Record<string, unknown> = { choices: [] }
+  ) =>
+    makeNode({
+      event: "model",
+      model: "test/model",
+      role: null,
+      input,
+      output,
+      timestamp: "2024-01-01T00:00:00Z",
+    });
+
+  it.each([
+    {
+      desc: "skips input messages the panel does not draw",
+      input: [
+        { role: "system", content: "HEAD_OF_HISTORY" },
+        { role: "user", content: "OLD_TURN" },
+        { role: "assistant", content: "old answer" },
+        { role: "tool", content: "tool result" },
+        { role: "user", content: "CURRENT_TURN" },
+      ],
+      indexed: ["CURRENT_TURN"],
+      skipped: ["HEAD_OF_HISTORY", "OLD_TURN"],
+    },
+    {
+      // [system, user] is entirely a trailing run, so nothing is hidden
+      desc: "indexes a first model call's input in full",
+      input: [
+        { role: "system", content: "TASK_PROMPT" },
+        { role: "user", content: "TASK_QUESTION" },
+      ],
+      indexed: ["TASK_PROMPT", "TASK_QUESTION"],
+      skipped: [],
+    },
+    {
+      desc: "indexes a trailing assistant compaction message, and only that",
+      input: [
+        { role: "user", content: "OLD_TURN" },
+        { role: "assistant", content: "COMPACTION_SUMMARY" },
+      ],
+      indexed: ["COMPACTION_SUMMARY"],
+      skipped: ["OLD_TURN"],
+    },
+    {
+      desc: "stops at a trailing tool message, which the panel omits by default",
+      input: [
+        { role: "user", content: "PROMPT" },
+        { role: "tool", content: "TOOL_RESULT" },
+      ],
+      indexed: [],
+      skipped: ["TOOL_RESULT", "PROMPT"],
+    },
+  ])("$desc", ({ input, indexed, skipped }) => {
+    const texts = eventSearchText(modelEventNode(input));
+    for (const text of indexed) {
+      expect(texts).toContain(text);
+    }
+    for (const text of skipped) {
+      expect(texts).not.toContain(text);
+    }
+  });
+
+  it("skips assistant tool_calls, which the following tool event draws", () => {
+    const texts = eventSearchText(
+      modelEventNode([{ role: "user", content: "prompt" }], {
+        choices: [
+          {
+            message: {
+              role: "assistant",
+              content: "",
+              tool_calls: [
+                {
+                  id: "call-1",
+                  function: "CANCEL_SCORE",
+                  arguments: { job_id: "JOB_ID_BLOB" },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    );
+    expect(texts).not.toContain("CANCEL_SCORE");
+    expect(texts.join("\n")).not.toContain("JOB_ID_BLOB");
   });
 });
