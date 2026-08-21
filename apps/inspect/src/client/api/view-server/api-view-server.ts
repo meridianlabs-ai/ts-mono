@@ -14,7 +14,7 @@ import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { EvalScores } from "../../../@types/extraInspect";
 import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleData";
-import { normalizeEvalHeader, normalizeEvalLog } from "../../utils/normalize";
+import { normalizeEvalLog } from "../../utils/normalize";
 import { download_file } from "../shared/api-shared";
 import {
   Capabilities,
@@ -280,9 +280,10 @@ export function viewServerApi(
       "GET",
       `/log-headers?${params.toString()}`
     );
-    // Boundary normalization (#555): see get_log_contents.
+    // Boundary normalization (#555): see get_log_contents. normalizeEvalLog
+    // (not normalizeEvalHeader) so v1-shaped results reshape here too.
     const logHeaders = Array.isArray(result.parsed)
-      ? result.parsed.map(normalizeEvalHeader)
+      ? result.parsed.map(normalizeEvalLog)
       : [];
     return logHeaders.map(toLogPreview);
   };
