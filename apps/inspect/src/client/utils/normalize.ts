@@ -66,14 +66,47 @@ export const normalizeLogStart = (raw: unknown): LogStart => {
 };
 
 /**
- * Normalize a whole raw EvalLog (static `.json` deployments). Callers apply
- * format-version migrations (e.g. the v1 `results.scorer` reshape) before
- * this runs — this fills read-time defaults only.
+ * Format-version migration: v1 logs stored a single `results.scorer` object
+ * (with sibling `metrics`) instead of a `scores` array, and samples carried
+ * a single `score` keyed by that scorer's name.
  */
-export const normalizeEvalLog = (raw: unknown): EvalLog => {
-  if (!isRecord(raw)) {
+const migrateV1Log = (
+  raw: Record<string, unknown>
+): Record<string, unknown> => {
+  if (raw["version"] !== 1) {
+    return raw;
+  }
+  const results = raw["results"];
+  if (!isRecord(results) || !isRecord(results["scorer"])) {
+    return raw;
+  }
+  const { scorer, metrics, ...restResults } = results;
+  const score = { ...scorer, scorer: scorer["name"], metrics };
+  const scorerName = typeof scorer["name"] === "string" ? scorer["name"] : "";
+  const samples = Array.isArray(raw["samples"])
+    ? raw["samples"].map((sample: unknown) => {
+        if (!isRecord(sample) || !("score" in sample)) return sample;
+        const { score: sampleScore, ...rest } = sample;
+        return { ...rest, scores: { [scorerName]: sampleScore } };
+      })
+    : raw["samples"];
+  return {
+    ...raw,
+    results: { ...restResults, scores: [score] },
+    samples,
+  };
+};
+
+/**
+ * Normalize a whole raw EvalLog (static `.json` deployments and the view
+ * server's `/logs/{file}` responses): format-version migrations, then
+ * read-time defaults.
+ */
+export const normalizeEvalLog = (rawInput: unknown): EvalLog => {
+  if (!isRecord(rawInput)) {
     throw new Error("Invalid eval log: expected an object");
   }
+  const raw = migrateV1Log(rawInput);
   const header = normalizeEvalHeader(raw);
   const samples = Array.isArray(raw["samples"])
     ? raw["samples"].map(normalizeEvalSample)

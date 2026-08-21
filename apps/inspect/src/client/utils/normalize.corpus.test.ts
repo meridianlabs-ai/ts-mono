@@ -87,35 +87,47 @@ describe("normalization over the real .eval fixture corpus", () => {
       expect(sample.output.completion, context).toBeTypeOf("string");
       expect(Array.isArray(sample.output.choices), context).toBe(true);
 
-      for (const event of sample.events) {
-        const eventContext = `${context} ${event.event}`;
-        expect(event.working_start, eventContext).toBeTypeOf("number");
-        expect(event.timestamp, eventContext).toBeTypeOf("string");
-        if (event.event === "model") {
-          expect(isRecord(event.config), eventContext).toBe(true);
-          expect(isRecord(event.output), eventContext).toBe(true);
-          expect(event.output.completion, eventContext).toBeTypeOf("string");
-          expect(Array.isArray(event.output.choices), eventContext).toBe(true);
-          expect(Array.isArray(event.input), eventContext).toBe(true);
-          expect(Array.isArray(event.tools), eventContext).toBe(true);
-          expect(event.tool_choice, eventContext).toBeDefined();
+      // Recursive: tool/subtask events nest child event streams, and the
+      // normalizer must fill them the way pydantic validates nested models.
+      const assertEventInvariants = (events: unknown[], context: string) => {
+        for (const event of events) {
+          if (!isRecord(event)) continue;
+          const eventContext = `${context} ${String(event["event"])}`;
+          expect(event["working_start"], eventContext).toBeTypeOf("number");
+          expect(event["timestamp"], eventContext).toBeTypeOf("string");
+          if (event["event"] === "model") {
+            expect(isRecord(event["config"]), eventContext).toBe(true);
+            const output = event["output"];
+            expect(isRecord(output), eventContext).toBe(true);
+            if (isRecord(output)) {
+              expect(output["completion"], eventContext).toBeTypeOf("string");
+              expect(Array.isArray(output["choices"]), eventContext).toBe(true);
+            }
+            expect(Array.isArray(event["input"]), eventContext).toBe(true);
+            expect(Array.isArray(event["tools"]), eventContext).toBe(true);
+            expect(event["tool_choice"], eventContext).toBeDefined();
+          }
+          if (event["event"] === "error") {
+            expect(isRecord(event["error"]), eventContext).toBe(true);
+          }
+          if (event["event"] === "logger") {
+            expect(isRecord(event["message"]), eventContext).toBe(true);
+          }
+          if (event["event"] === "score") {
+            expect(event["intermediate"], eventContext).toBeTypeOf("boolean");
+          }
+          if (event["event"] === "state" || event["event"] === "store") {
+            expect(Array.isArray(event["changes"]), eventContext).toBe(true);
+          }
+          if (event["event"] === "tool" || event["event"] === "subtask") {
+            expect(Array.isArray(event["events"]), eventContext).toBe(true);
+            if (Array.isArray(event["events"])) {
+              assertEventInvariants(event["events"], `${eventContext} >`);
+            }
+          }
         }
-        if (event.event === "error") {
-          expect(event.error.message, eventContext).toBeTypeOf("string");
-        }
-        if (event.event === "logger") {
-          expect(event.message.message, eventContext).toBeTypeOf("string");
-        }
-        if (event.event === "score") {
-          expect(event.intermediate, eventContext).toBeTypeOf("boolean");
-        }
-        if (event.event === "state" || event.event === "store") {
-          expect(Array.isArray(event.changes), eventContext).toBe(true);
-        }
-        if (event.event === "tool" || event.event === "subtask") {
-          expect(Array.isArray(event.events), eventContext).toBe(true);
-        }
-      }
+      };
+      assertEventInvariants(sample.events, context);
     }
   });
 });

@@ -100,14 +100,21 @@ const eventFixes = (
       if (typeof raw["function"] !== "string") fix("function", "");
       if (!isRecord(raw["arguments"])) fix("arguments", {});
       if (raw["result"] === undefined) fix("result", "");
-      if (!Array.isArray(raw["events"])) fix("events", []);
       if (raw["type"] === undefined) fix("type", "function");
+      {
+        // Nested events normalize recursively, like pydantic's nested models.
+        const nested = normalizeEvents(raw["events"]);
+        if (nested !== raw["events"]) fix("events", nested);
+      }
       break;
     case "subtask":
       if (typeof raw["name"] !== "string") fix("name", "");
       if (!isRecord(raw["input"])) fix("input", {});
       if (raw["result"] === undefined) fix("result", null);
-      if (!Array.isArray(raw["events"])) fix("events", []);
+      {
+        const nested = normalizeEvents(raw["events"]);
+        if (nested !== raw["events"]) fix("events", nested);
+      }
       break;
     case "input":
       if (typeof raw["input"] !== "string") fix("input", "");

@@ -104,4 +104,37 @@ describe("normalizeEvalLog", () => {
     const log = normalizeEvalLog({ eval: minimalEval });
     expect(log.samples).toBeUndefined();
   });
+
+  it("migrates v1 logs: results.scorer → scores[], sample.score → scores map", () => {
+    const log = normalizeEvalLog({
+      version: 1,
+      eval: minimalEval,
+      results: {
+        total_samples: 2,
+        completed_samples: 2,
+        scorer: { name: "match", params: {} },
+        metrics: { accuracy: { name: "accuracy", value: 0.5, params: {} } },
+      },
+      samples: [{ id: 1, epoch: 1, input: "q", score: { value: "C" } }],
+    });
+    expect(log.results?.scores).toEqual([
+      {
+        name: "match",
+        scorer: "match",
+        params: {},
+        metrics: { accuracy: { name: "accuracy", value: 0.5, params: {} } },
+      },
+    ]);
+    expect(log.samples?.[0]?.scores).toEqual({ match: { value: "C" } });
+    expect(log.samples?.[0] && "score" in log.samples[0]).toBe(false);
+  });
+
+  it("leaves v2 logs untouched by the v1 migration", () => {
+    const log = normalizeEvalLog({
+      version: 2,
+      eval: minimalEval,
+      results: { scores: [{ name: "match", scorer: "match" }] },
+    });
+    expect(log.results?.scores).toHaveLength(1);
+  });
 });

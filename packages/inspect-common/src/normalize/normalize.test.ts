@@ -361,6 +361,55 @@ describe("per-event-type read-time defaults", () => {
     ).toMatchObject({ tool_choice: "none" });
   });
 
+  it("tool/subtask: normalizes nested events recursively", () => {
+    const legacyNested = { event: "model", timestamp: "t", model: "m" };
+    const tool = normalizeEvent({
+      ...base,
+      event: "tool",
+      id: "call1",
+      function: "agent",
+      arguments: {},
+      result: "",
+      events: [legacyNested],
+    });
+    expect(tool).toMatchObject({
+      events: [
+        {
+          event: "model",
+          working_start: 0,
+          config: {},
+          output: { model: "", choices: [], completion: "" },
+        },
+      ],
+    });
+
+    const subtask = normalizeEvent({
+      ...base,
+      event: "subtask",
+      name: "calc",
+      input: {},
+      result: null,
+      events: [legacyNested],
+    });
+    expect(subtask).toMatchObject({
+      events: [{ event: "model", working_start: 0, config: {} }],
+    });
+  });
+
+  it("tool: preserves identity when nested events are already clean", () => {
+    const clean = {
+      ...base,
+      event: "tool",
+      id: "call1",
+      function: "bash",
+      arguments: {},
+      result: "",
+      type: "function",
+      events: [{ ...base, event: "state", changes: [] }],
+    };
+    expect(normalizeEvent(clean)).toBe(clean);
+  });
+
   it("normalizeEvents preserves array identity when every event is clean", () => {
     const events = [
       { event: "step", action: "begin", name: "solve", ...base },
