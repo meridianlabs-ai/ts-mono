@@ -49,8 +49,7 @@ interface PendingFailed {
 function toolChoiceEqual(a: ToolChoice, b: ToolChoice): boolean {
   if (a === b) return true;
   if (typeof a === "string" || typeof b === "string") return a === b;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
-  return a?.name === b?.name;
+  return a.name === b.name;
 }
 
 function toolsEqual(a: ModelEvent["tools"], b: ModelEvent["tools"]): boolean {

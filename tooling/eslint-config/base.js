@@ -40,7 +40,12 @@ export default tseslint.config(
     },
     rules: {
       "import-x/no-duplicates": "error",
-      "@typescript-eslint/no-unnecessary-condition": "error",
+      // only-allowed-literals: `while (true)` is an idiom, not a bug — the
+      // rule still flags every other always-truthy/falsy condition.
+      "@typescript-eslint/no-unnecessary-condition": [
+        "error",
+        { allowConstantLoopConditions: "only-allowed-literals" },
+      ],
       // Disallow `void` as an escape hatch for floating promises — prefixing a
       // hanging promise with `void` silently drops errors. Mark genuine cases
       // with an eslint-disable-next-line comment so the issue stays visible.

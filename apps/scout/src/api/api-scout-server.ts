@@ -1,5 +1,6 @@
 import { decompress as decompressZstd } from "fzstd";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import type { Event } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 import { ApiError, asyncJsonParse, encodeBase64Url } from "@tsmono/util";
@@ -166,7 +167,12 @@ export const apiScoutServer = (
       ]);
 
       const { messages, timelines, attachments } = parsed;
-      const events = expandEvents(parsed.events, parsed.events_data ?? null);
+      // Boundary normalization (#555): transcripts can come from old logs
+      // whose events omit fields the types declare required.
+      const events = expandEvents(
+        normalizeEvents(parsed.events),
+        parsed.events_data ?? null
+      );
 
       return {
         ...info,

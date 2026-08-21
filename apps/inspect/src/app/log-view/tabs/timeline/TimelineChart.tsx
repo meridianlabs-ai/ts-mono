@@ -1301,7 +1301,8 @@ const scoreRowsFor = (
           key: `${label.scorer}.${label.name}`,
           name: label.name,
           value: evalDescriptor.score(sample, label)?.value,
-          scoreType: evalDescriptor.scoreDescriptor(label).scoreType,
+          scoreType:
+            evalDescriptor.scoreDescriptor(label)?.scoreType ?? kScoreTypeOther,
         }))
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         .filter((row) => row.value !== undefined && row.value !== null)
@@ -1310,7 +1311,7 @@ const scoreRowsFor = (
   return Object.entries(sample.scores).map(([name, score]) => ({
     key: name,
     name,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: sample summaries aren't boundary-normalized yet (#555); old summaries may omit type-required fields
     value: formatShort(score?.value),
     scoreType: kScoreTypeOther,
   }));

@@ -457,40 +457,37 @@ function collectFromContent(
       // already shown on the AgentCard, so don't duplicate them inline.
       if (item.event.event === "model" && pendingToolCallIds.size > 0) {
         const modelEvent = item.event;
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (modelEvent.input && Array.isArray(modelEvent.input)) {
-          const filteredInput = (
-            modelEvent.input as Array<Record<string, unknown>>
-          ).filter(
-            (msg) =>
-              !(
-                msg.role === "tool" &&
-                typeof msg.tool_call_id === "string" &&
-                pendingToolCallIds.has(msg.tool_call_id)
-              )
+        const filteredInput = (
+          modelEvent.input as Array<Record<string, unknown>>
+        ).filter(
+          (msg) =>
+            !(
+              msg.role === "tool" &&
+              typeof msg.tool_call_id === "string" &&
+              pendingToolCallIds.has(msg.tool_call_id)
+            )
+        );
+        if (filteredInput.length !== modelEvent.input.length) {
+          // Mark the event so ModelEventView knows agent tool results were
+          // filtered and it should not crawl backward through input messages.
+          const patched = {
+            ...modelEvent,
+            input: filteredInput,
+            agentResultsFiltered: true,
+          } as unknown as Event;
+          out.push(patched);
+          pendingToolCallIds.clear();
+          // Emit branches forked at this event after the event itself
+          emitInlineBranches(
+            item,
+            branchByBranchedFrom,
+            branches ?? [],
+            emittedBranchedFroms,
+            out,
+            sourceSpans,
+            branchPrefix
           );
-          if (filteredInput.length !== modelEvent.input.length) {
-            // Mark the event so ModelEventView knows agent tool results were
-            // filtered and it should not crawl backward through input messages.
-            const patched = {
-              ...modelEvent,
-              input: filteredInput,
-              agentResultsFiltered: true,
-            } as unknown as Event;
-            out.push(patched);
-            pendingToolCallIds.clear();
-            // Emit branches forked at this event after the event itself
-            emitInlineBranches(
-              item,
-              branchByBranchedFrom,
-              branches ?? [],
-              emittedBranchedFroms,
-              out,
-              sourceSpans,
-              branchPrefix
-            );
-            continue;
-          }
+          continue;
         }
       }
 
@@ -675,7 +672,6 @@ function buildPath(rows: SwimlaneRow[], selectedKey: string): PathSegment[] {
   const byKey = new Map(rows.map((r) => [r.key, r]));
   const keys: string[] = [selectedKey];
   let k = selectedKey;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     const parent = getParentKeyFromBranch(k);
     if (!parent || !byKey.has(parent)) break;

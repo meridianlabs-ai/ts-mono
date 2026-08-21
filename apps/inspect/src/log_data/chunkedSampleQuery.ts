@@ -1,5 +1,6 @@
 import { skipToken } from "@tanstack/react-query";
 
+import { normalizeEvalSample } from "@tsmono/inspect-common/normalize";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
@@ -56,15 +57,15 @@ const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
     ...shell
   } = chunked.shell;
   // The shell is the EvalSample serialization minus the four sequences and
-  // metadata (design/large-samples.md, "Chunked on-disk layout") — the same
-  // parse-boundary lift as remoteLogFile's `readJSONFile(...) as EvalSample`.
-  return {
+  // metadata (design/large-samples.md, "Chunked on-disk layout");
+  // normalizeEvalSample is the parse-boundary lift.
+  return normalizeEvalSample({
     ...shell,
     messages: [],
     events: [],
     attachments: {},
     metadata: (await chunked.readMetadata?.()) ?? {},
-  } as unknown as EvalSample;
+  });
 };
 
 /**

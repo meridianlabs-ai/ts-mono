@@ -277,8 +277,7 @@ export const filterEmptySpans = (
   eventNodes: EventNode<EventType>[]
 ): EventNode<EventType>[] => {
   return eventNodes.filter((node) => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (node.children && node.children.length > 0) {
+    if (node.children.length > 0) {
       node.children = filterEmptySpans(node.children);
     }
     // Preserve nodes with a sourceSpan (e.g. agent cards)
@@ -291,8 +290,7 @@ export const filterEmptySpans = (
     }
     return (
       (node.event.event !== "span_begin" && node.event.event !== "step") ||
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      (node.children && node.children.length > 0)
+      node.children.length > 0
     );
   });
 };

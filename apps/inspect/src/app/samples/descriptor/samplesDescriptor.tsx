@@ -173,8 +173,9 @@ export const createEvalDescriptor = (
     }
   }
 
-  const scoreDescriptor = (scoreLabel: ScoreLabel): ScoreDescriptor => {
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+  const scoreDescriptor = (
+    scoreLabel: ScoreLabel
+  ): ScoreDescriptor | undefined => {
     return scoreDescriptorMap[scoreLabelKey(scoreLabel)];
   };
 
