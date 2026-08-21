@@ -201,7 +201,7 @@ export function useDeepLinkResolution(
     if (deepLinkTimelineIndex < 0) return;
     prevDeepLinkRef.current = key;
     if (deepLinkTimelineIndex === activeTimelineIndex) return;
-    setActiveTimeline(deepLinkTimelineIndex);
+    setActiveTimeline(deepLinkTimelineIndex, { preserveDeepLink: true });
   }, [
     initialEventId,
     initialMessageId,
