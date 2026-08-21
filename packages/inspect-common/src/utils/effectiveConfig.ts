@@ -34,6 +34,7 @@ const EVAL_CONFIG_KEYS: Record<keyof EvalConfig, true> = {
   sample_id: true,
   sample_shuffle: true,
   sandbox_cleanup: true,
+  sandbox_prebuilt: true,
   score_display: true,
   score_on_error: true,
   time_limit: true,

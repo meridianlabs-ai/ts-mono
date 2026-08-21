@@ -1424,6 +1424,8 @@ export interface components {
             sample_shuffle?: boolean | number | null;
             /** Sandbox Cleanup */
             sandbox_cleanup?: boolean | null;
+            /** Sandbox Prebuilt */
+            sandbox_prebuilt?: boolean | null;
             /** Score Display */
             score_display?: boolean | null;
             /** Score On Error */
