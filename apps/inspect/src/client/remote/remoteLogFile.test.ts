@@ -77,12 +77,22 @@ describe("headerFromLogStart", () => {
 describe("readJournalConfigUpdatesFrom", () => {
   const prefix = "_journal/config_updates/";
 
+  // A minimally-valid ConfigUpdate payload carrying the entry name as its
+  // change name, so ordering assertions can read it back out.
+  const updateFor = (name: string) => ({
+    changes: [{ name, config: "eval", value: 1 }],
+    scope: "task",
+    provenance: { timestamp: "", author: "", metadata: {} },
+  });
+  const changeNames = (updates: { changes: { name: string }[] }[]) =>
+    updates.map((update) => update.changes[0]?.name);
+
   test("orders entries numerically, not lexicographically", async () => {
     const names = [`${prefix}10.json`, `${prefix}2.json`, `${prefix}1.json`];
     const reads: string[] = [];
     const updates = await readJournalConfigUpdatesFrom(names, (name) => {
       reads.push(name);
-      return Promise.resolve({ name });
+      return Promise.resolve(updateFor(name));
     });
     expect(reads).toEqual([
       `${prefix}1.json`,
@@ -100,9 +110,9 @@ describe("readJournalConfigUpdatesFrom", () => {
       `${prefix}2.txt`,
     ];
     const updates = await readJournalConfigUpdatesFrom(names, (name) =>
-      Promise.resolve({ name })
+      Promise.resolve(updateFor(name))
     );
-    expect(updates).toEqual([{ name: `${prefix}1.json` }]);
+    expect(changeNames(updates)).toEqual([`${prefix}1.json`]);
   });
 
   test("stops at the first failed read, not splicing around it", async () => {
@@ -111,9 +121,19 @@ describe("readJournalConfigUpdatesFrom", () => {
     const updates = await readJournalConfigUpdatesFrom(names, (name) =>
       name.endsWith("2.json")
         ? Promise.reject(new Error("corrupt entry"))
-        : Promise.resolve({ name })
+        : Promise.resolve(updateFor(name))
     );
-    expect(updates).toEqual([{ name: `${prefix}1.json` }]);
+    expect(changeNames(updates)).toEqual([`${prefix}1.json`]);
+  });
+
+  test("drops malformed entries instead of poisoning the fold", async () => {
+    const names = [`${prefix}1.json`, `${prefix}2.json`];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) =>
+      Promise.resolve(
+        name.endsWith("1.json") ? { changes: "not-an-array" } : updateFor(name)
+      )
+    );
+    expect(changeNames(updates)).toEqual([`${prefix}2.json`]);
   });
 
   test("returns empty when no journal entries exist", async () => {

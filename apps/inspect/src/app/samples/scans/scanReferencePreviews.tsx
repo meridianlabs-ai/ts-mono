@@ -70,8 +70,7 @@ export function buildScanReferencePreviews(
     if (event.event === "model") {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       for (const msg of event.input ?? []) addMessage(msg);
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
-      for (const choice of event.output?.choices ?? []) {
+      for (const choice of event.output.choices) {
         addMessage(choice.message);
       }
     }

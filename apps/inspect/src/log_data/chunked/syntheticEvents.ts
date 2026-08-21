@@ -46,6 +46,7 @@
  * seeded (span.begin), since timeline-derived outline span rows anchor by
  * span id rather than synthetic uuid.
  */
+import { normalizeEvent } from "@tsmono/inspect-common/normalize";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { formatPyTimestamp, parsePyTimestamp } from "./pyTimestamp";
@@ -63,10 +64,16 @@ const isStepSpan = (span: SkeletonSpan): boolean => /^step-\d+$/.test(span.id);
 /**
  * Single choke point for constructing events the pipeline treats as real.
  * The synthesized objects carry every field the transcript pipeline reads
- * (see module docstring); the cast acknowledges they are not full payloads.
+ * (see module docstring); normalizeEvent fills the remaining type-required
+ * fields (config, output defaults, ...) the pipeline may read unguarded.
  */
-const synth = (fields: Record<string, unknown>): Event =>
-  fields as unknown as Event;
+const synth = (fields: Record<string, unknown>): Event => {
+  const event = normalizeEvent(fields);
+  if (event === undefined) {
+    throw new Error("synthetic event payload must carry an `event` tag");
+  }
+  return event;
+};
 
 export const syntheticEventsFromSkeleton = (
   skel: SampleSkeleton

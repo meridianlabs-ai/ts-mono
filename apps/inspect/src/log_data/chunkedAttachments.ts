@@ -9,6 +9,8 @@
  * resolved here — they stay lazy (Confounder 1: the last event references
  * essentially the whole conversation).
  */
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
+
 import { resolveAttachments } from "../utils/attachments";
 
 import {
@@ -82,12 +84,17 @@ export const withAttachmentsResolved = async <T>(
 };
 
 /**
- * The sample's events reader with attachment refs resolved per chunk.
- * Chunk-level caching means each chunk resolves once.
+ * The sample's events reader with boundary normalization (#555) applied and
+ * attachment refs resolved per chunk. Chunk-level caching means each chunk
+ * normalizes and resolves once.
  */
 export const resolvedEventsReader = (
   chunked: ChunkedSample
 ): SequenceReader<ChunkedEvent> =>
   chunked.events.withTransform((items, start) =>
-    withAttachmentsResolved(items, chunked, `events chunk ${start}`)
+    withAttachmentsResolved(
+      normalizeEvents(items),
+      chunked,
+      `events chunk ${start}`
+    )
   );

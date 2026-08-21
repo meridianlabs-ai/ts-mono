@@ -128,8 +128,7 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
 const primaryMetric = (
   evalResults?: EvalResults | null
 ): EvalMetric | undefined => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
-  const firstScore = evalResults?.scores?.[0];
+  const firstScore = evalResults?.scores[0];
   if (firstScore) {
     const metrics = Object.values(firstScore.metrics);
     if (metrics.length > 0) {

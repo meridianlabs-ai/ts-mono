@@ -1,6 +1,7 @@
 import { EvalLog } from "@tsmono/inspect-common/types";
 import { asyncJsonParse, encodePathParts } from "@tsmono/util";
 
+import { normalizeEvalLog } from "../../utils/normalize";
 import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";
 
 /**
@@ -89,7 +90,7 @@ export const fetchLogFile = async (
     }
     return {
       raw: text,
-      parsed: log,
+      parsed: normalizeEvalLog(log),
     };
   });
 };

@@ -1,4 +1,4 @@
-import type { Event } from "@tsmono/inspect-common/types";
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
 import type { ScannerInputResponse, Transcript } from "../types/api-types";
@@ -27,7 +27,12 @@ export function expandInputEvents(
 
   if (inputType === "transcript") {
     const transcript = input as Transcript;
-    const expanded = expandEvents(transcript.events, inputData);
+    // Boundary normalization (#555): transcripts can come from old logs
+    // whose events omit fields the types declare required.
+    const expanded = expandEvents(
+      normalizeEvents(transcript.events),
+      inputData
+    );
     const result =
       expanded === transcript.events
         ? input
@@ -36,7 +41,9 @@ export function expandInputEvents(
   }
 
   if (inputType === "events") {
-    return withAttachmentsResolved(expandEvents(input as Event[], inputData));
+    return withAttachmentsResolved(
+      expandEvents(normalizeEvents(input), inputData)
+    );
   }
 
   return withAttachmentsResolved(input);
