@@ -138,10 +138,21 @@ export function useTimelinePipeline(
 
   const showSwimlanes = useMemo(() => {
     if (showSwimlanesOption === "auto") {
-      return hasTimeline || regionCounts.size > 0 || timelines.length > 1;
+      return (
+        hasTimeline ||
+        regionCounts.size > 0 ||
+        timelines.length > 1 ||
+        timeline.views.stack.length > 0
+      );
     }
     return showSwimlanesOption;
-  }, [showSwimlanesOption, hasTimeline, regionCounts, timelines.length]);
+  }, [
+    showSwimlanesOption,
+    hasTimeline,
+    regionCounts,
+    timelines.length,
+    timeline.views.stack.length,
+  ]);
 
   const swimlanesDefaultCollapsed = useMemo(() => {
     if (

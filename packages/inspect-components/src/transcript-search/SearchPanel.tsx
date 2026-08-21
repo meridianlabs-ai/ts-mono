@@ -731,6 +731,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
@@ -739,7 +740,8 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : ref.type === "event"
+            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              ref.type === "event"
               ? getEventUrl(ref.id)
               : undefined;
         refs.push({

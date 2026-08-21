@@ -56,7 +56,7 @@ const renderedScorers = () =>
   screen
     .getAllByRole("row")
     .slice(1)
-    .map((row) => within(row).getAllByRole("cell")[0]?.textContent?.trim());
+    .map((row) => within(row).getAllByRole("cell")[0]?.textContent.trim());
 
 describe("ScoreGrid", () => {
   // Auto-cleanup needs vitest `globals: true`, which this config doesn't set.

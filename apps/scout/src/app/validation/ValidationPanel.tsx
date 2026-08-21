@@ -215,7 +215,7 @@ export const ValidationPanel: FC = () => {
   }
 
   // Check for empty state (no validation sets available)
-  const hasNoValidationSets = !setsError && validationSets?.length === 0;
+  const hasNoValidationSets = !setsError && validationSets.length === 0;
 
   if (hasNoValidationSets) {
     return (
@@ -260,6 +260,7 @@ export const ValidationPanel: FC = () => {
           </div>
         ) : (
           <ValidationSetSelector
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             validationSets={validationSets ?? []}
             selectedUri={selectedUri}
             onSelect={handleSelectSet}
@@ -341,7 +342,8 @@ export const ValidationPanel: FC = () => {
               <div className={styles.error}>
                 Error loading cases: {casesError.message}
               </div>
-            ) : cases ? (
+            ) : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            cases ? (
               <ValidationCasesList
                 cases={cases}
                 transcriptsDir={transcriptsDir}
@@ -357,6 +359,7 @@ export const ValidationPanel: FC = () => {
           </>
         )}
 
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
         {!selectedUri && !setsLoading && (
           <div className={styles.emptyState}>
             Select a validation set to view its cases.

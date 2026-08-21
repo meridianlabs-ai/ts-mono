@@ -4,8 +4,10 @@
 export const clearDocumentSelection = () => {
   const sel = window.getSelection();
   if (sel) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (sel.removeAllRanges) {
       sel.removeAllRanges();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (sel.empty) {
       sel.empty();
     }

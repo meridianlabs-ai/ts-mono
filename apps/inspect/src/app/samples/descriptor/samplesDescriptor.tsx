@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { ReactNode } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
@@ -371,7 +372,7 @@ export const createSamplesDescriptor = (
     }
   );
 
-  const firstSelectedScore = selectedScores?.[0];
+  const firstSelectedScore = selectedScores[0];
 
   return {
     evalDescriptor,
@@ -388,5 +389,5 @@ export const createSamplesDescriptor = (
 };
 
 const scoreLabelKey = (scoreLabel: ScoreLabel) => {
-  return `${scoreLabel?.scorer}.${scoreLabel.name}`;
+  return `${scoreLabel.scorer}.${scoreLabel.name}`;
 };

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import {
   FC,
@@ -218,14 +219,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
   const { excludedEventTypes, isDebugFilter, isDefaultFilter } =
     useTranscriptColumnFilter();
-
-  // Pre-filter events by excluded types before feeding into the timeline pipeline
-  const filteredEvents = useMemo(() => {
-    if (excludedEventTypes.length === 0) return transcript.events;
-    return transcript.events.filter(
-      (event) => !excludedEventTypes.includes(event.event)
-    );
-  }, [transcript.events, excludedEventTypes]);
 
   // Transcript collapse (toolbar button state)
   const eventsCollapsed = useStore((state) => state.transcriptState.collapsed);
@@ -475,7 +468,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       scrollable={false}
     >
       <TimelineEventsView
-        events={filteredEvents}
+        events={transcript.events}
+        hiddenEventTypes={excludedEventTypes}
         scrollRef={scrollRef}
         offsetTop={contentOffsetTop}
         initialEventId={eventParam}

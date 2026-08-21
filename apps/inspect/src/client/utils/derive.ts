@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
@@ -50,7 +51,7 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
   }
 
   let duration: number | undefined;
-  if (header.stats?.started_at && header.stats?.completed_at) {
+  if (header.stats?.started_at && header.stats.completed_at) {
     const start = new Date(header.stats.started_at).getTime();
     const end = new Date(header.stats.completed_at).getTime();
     if (start && end && end > start) {

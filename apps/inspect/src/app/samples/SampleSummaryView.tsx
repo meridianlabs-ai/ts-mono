@@ -88,6 +88,7 @@ const resolveSample = (
 
   const target = sample.target;
   const answer =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     sample && sampleDescriptor
       ? sampleDescriptor.selectedScorerDescriptor(sample)?.answer()
       : undefined;
@@ -167,13 +168,12 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   // Filter out scores whose descriptor renders empty — they shouldn't
   // contribute to the count or layout decisions.
-  const visibleScores =
-    selectedScores?.filter((scoreLabel) => {
-      const rendered = sampleDescriptor.evalDescriptor
-        .score(sample, scoreLabel)
-        ?.render();
-      return rendered !== undefined && rendered !== "";
-    }) ?? [];
+  const visibleScores = selectedScores.filter((scoreLabel) => {
+    const rendered = sampleDescriptor.evalDescriptor
+      .score(sample, scoreLabel)
+      ?.render();
+    return rendered !== undefined && rendered !== "";
+  });
   const scoreCount = visibleScores.length;
 
   // Two-column grid widens the right side once the score panel needs
@@ -226,6 +226,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   }
   if (
     fields.retries !== undefined &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     fields.retries !== null &&
     fields.retries > 0
   ) {

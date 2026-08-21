@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { FC } from "react";
 
@@ -37,8 +38,8 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
           </CardBody>
         </Card>
 
-        {resultData?.scanModelUsage &&
-          Object.keys(resultData?.scanModelUsage).length > 0 && (
+        {resultData.scanModelUsage &&
+          Object.keys(resultData.scanModelUsage).length > 0 && (
             <Card>
               <CardHeader label="Model Usage" type="modern" />
               <CardBody>
@@ -46,14 +47,14 @@ export const InfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
               </CardBody>
             </Card>
           )}
-        {resultData?.scanMetadata &&
+        {resultData.scanMetadata &&
           Object.keys(resultData.scanMetadata).length > 0 && (
             <Card>
               <CardHeader label="Metadata" type="modern" />
               <CardBody>
                 <RecordTree
-                  id={`scan-metadata-${resultData?.identifier}`}
-                  record={resultData?.scanMetadata || {}}
+                  id={`scan-metadata-${resultData.identifier}`}
+                  record={resultData.scanMetadata || {}}
                   copyButton={true}
                 />
               </CardBody>
@@ -70,7 +71,7 @@ export const ScannerInfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
       <div className={clsx(styles.scanInfo)}>
         <LabeledValue label="Name">{resultData?.scannerName}</LabeledValue>
         {resultData?.scannerFile && resultData.scannerFile !== null && (
-          <LabeledValue label="File">{resultData?.scannerFile}</LabeledValue>
+          <LabeledValue label="File">{resultData.scannerFile}</LabeledValue>
         )}
         {(resultData?.scanTotalTokens || 0) > 0 && (
           <LabeledValue label="Tokens">
@@ -82,15 +83,15 @@ export const ScannerInfoPanel: FC<InfoPanelProps> = ({ resultData }) => {
       </div>
       {resultData?.scanTags && resultData.scanTags.length > 0 && (
         <LabeledValue label="Tags">
-          {(resultData?.scanTags || []).join(", ")}
+          {(resultData.scanTags || []).join(", ")}
         </LabeledValue>
       )}
       {resultData?.scannerParams &&
         Object.keys(resultData.scannerParams).length > 0 && (
           <LabeledValue label="Params">
             <RecordTree
-              id={`scanner-params-${resultData?.identifier}`}
-              record={resultData?.scannerParams}
+              id={`scanner-params-${resultData.identifier}`}
+              record={resultData.scannerParams}
             />
           </LabeledValue>
         )}

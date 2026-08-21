@@ -108,6 +108,7 @@ export function useStatefulScrollPosition<
       }
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (element.addEventListener) {
       element.addEventListener("scroll", handleScroll);
     } else {
@@ -118,6 +119,7 @@ export function useStatefulScrollPosition<
       if (pollTimer !== undefined) {
         clearTimeout(pollTimer);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (element.removeEventListener) {
         element.removeEventListener("scroll", handleScroll);
       } else {

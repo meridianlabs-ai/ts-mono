@@ -1,11 +1,6 @@
 // @vitest-environment jsdom
 import { render } from "@testing-library/react";
-import {
-  createRef,
-  useSyncExternalStore,
-  type ReactNode,
-  type RefObject,
-} from "react";
+import { createRef, type ReactNode, type RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ExtendedFindProvider } from "../components/ExtendedFindContext";
@@ -15,6 +10,7 @@ import {
 } from "../state/ComponentStateContext";
 import {
   makeReactiveStateHooks,
+  makeReactiveStateStore,
   makeStateHooks,
 } from "../test/component-state-hooks";
 
@@ -173,51 +169,11 @@ describe("VirtualList follow arming (nav ownership)", () => {
   // A reactive store whose backing Map the test can read, so we can assert the
   // effective initial follow VirtualList writes through as the single source of
   // truth (the `<id>::follow` key).
-  const makeInspectableHooks = () => {
-    const store = new Map<string, unknown>();
-    const listeners = new Set<() => void>();
-    let version = 0;
-    const subscribe = (cb: () => void) => {
-      listeners.add(cb);
-      return () => {
-        listeners.delete(cb);
-      };
-    };
-    const emit = () => {
-      version++;
-      listeners.forEach((l) => l());
-    };
-    const key = (id: string, prop: string) => `${id}::${prop}`;
-    const setValue = (id: string, prop: string, value: unknown) => {
-      const k = key(id, prop);
-      if (!store.has(k) || store.get(k) !== value) {
-        store.set(k, value);
-        emit();
-      }
-    };
-    const hooks: ComponentStateHooks = {
-      useValue: (id: string, prop: string, defaultValue?: unknown) => {
-        useSyncExternalStore(subscribe, () => version);
-        return store.has(key(id, prop))
-          ? store.get(key(id, prop))
-          : defaultValue;
-      },
-      useSetValue: () => setValue,
-      useRemoveValue: () => (id: string, prop: string) => {
-        if (store.delete(key(id, prop))) emit();
-      },
-      useEntries: () => undefined,
-      useRemoveAll: () => () => {},
-      useRemoveByPrefix: () => () => {},
-    };
-    return { hooks, store };
-  };
-
   const mountFollow = (
     props: Partial<React.ComponentProps<typeof VirtualList<string>>>,
     seedFollow?: boolean
   ) => {
-    const { hooks, store } = makeInspectableHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("follow-list::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     const view = render(
@@ -294,7 +250,7 @@ describe("VirtualList follow arming (nav ownership)", () => {
   // false→true flip a late-loading stream produces (data arrives after the
   // first render, so the sample only becomes live on a later commit).
   const mountFlippable = (initialLive: boolean, seedFollow?: boolean) => {
-    const { hooks, store } = makeInspectableHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("follow-list::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     const props = {

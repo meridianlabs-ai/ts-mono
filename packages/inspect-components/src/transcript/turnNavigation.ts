@@ -115,9 +115,11 @@ export function anchorIndexForEvent(
 function agentBoundaryName(node: EventNode): string | undefined {
   const event = node.event;
   if (event.event === "span_begin" && event.type === "agent") {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return event.name ?? "agent";
   }
   if (event.event === "subtask") {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return event.name ?? "subtask";
   }
   return undefined;
@@ -180,7 +182,7 @@ export function focusedTurnNodes(
   if (!target) return [];
   const end = flat.indexOf(slice[slice.length - 1]!) + 1;
   const isLastTurn =
-    target?.event.event === "model" &&
+    target.event.event === "model" &&
     !flat.slice(end).some((n) => n.event.event === "model");
   const trailing = isLastTurn
     ? flat.slice(end).filter((n) => kSampleTerminalEvents.has(n.event.event))

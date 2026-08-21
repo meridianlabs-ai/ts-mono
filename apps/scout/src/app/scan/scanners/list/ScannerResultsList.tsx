@@ -47,6 +47,7 @@ interface ResultGroup {
 const isResultGroup = (
   entry: ResultGroup | ScanResultSummary
 ): entry is ResultGroup => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return "type" in entry && entry.type === "group";
 };
 
@@ -486,6 +487,7 @@ const optimalColumnLayout = (
         return Math.max(max, len);
       } else {
         const valStr =
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           s.value !== undefined && s.value !== null
             ? valueAsString(s.value)
             : "";
@@ -498,6 +500,7 @@ const optimalColumnLayout = (
   }
 
   const hasValidations = scannerSummaries.some(
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     (s) => s.validationResult !== undefined && s.validationResult !== null
   );
   if (hasValidations) {

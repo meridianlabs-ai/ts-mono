@@ -159,6 +159,7 @@ export const initalializeLogSlice = (
   set: (fn: (state: StoreState) => void) => void
 ) => {
   set((state) => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!state.log) {
       state.log = initialState;
     }

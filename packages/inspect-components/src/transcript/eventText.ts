@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import type { Content } from "@tsmono/inspect-common/types";
 
 import type { EventType } from "./types";
@@ -65,6 +66,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["model", modelEvent.model]);
       }
       // Extract text from model output
+      // intentional ?. — log data isn't validated at the wire (#555); old files may omit type-required fields
       if (modelEvent.output?.choices) {
         for (const choice of modelEvent.output.choices) {
           for (const text of extractContentText(choice.message.content)) {
@@ -135,6 +137,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "error": {
       const errorEvent = event;
+      // intentional ?. — log data isn't validated at the wire (#555); old files may omit type-required fields
       if (errorEvent.error?.message) {
         fields.push(["message", errorEvent.error.message]);
       }
@@ -146,6 +149,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "logger": {
       const loggerEvent = event;
+      // intentional ?. — log data isn't validated at the wire (#555); old files may omit type-required fields
       if (loggerEvent.message?.message) {
         fields.push(["message", loggerEvent.message.message]);
       }

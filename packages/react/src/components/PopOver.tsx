@@ -155,6 +155,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
 
     // Add event listeners to the positionEl (the trigger element)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (positionEl && isOpen) {
       positionEl.addEventListener("mousemove", handleMouseMove);
       positionEl.addEventListener("mouseleave", handleMouseLeave);
@@ -245,7 +246,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       options: { padding: 8 },
       fn({ state, name, options }) {
         const padding =
-          typeof options?.padding === "number" ? options.padding : 8;
+          typeof options.padding === "number" ? options.padding : 8;
         state.modifiersData[name] = {
           width: Math.max(0, window.innerWidth - 2 * padding),
           height: Math.max(0, window.innerHeight - 2 * padding),
@@ -466,6 +467,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // Define arrow data-* attribute based on placement
   const getArrowDataPlacement = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!state || !state.placement) return placement;
     return state.placement;
   };

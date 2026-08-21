@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import {
   CSSProperties,
@@ -335,7 +336,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const printLogPath = urlLogPath || selectedLogFile;
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
+  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
 
   const handlePrintClick = useCallback(() => {
@@ -1011,7 +1014,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
                 <div className={clsx(styles.error)}>
-                  {sample?.error ? (
+                  {sample.error ? (
                     <Card key={`sample-error}`}>
                       <CardHeader label={`Sample Error`} />
                       <CardBody>
@@ -1283,14 +1286,14 @@ const metadataViewsForSample = (
     );
   }
 
-  if (Object.keys(sample?.metadata).length > 0) {
+  if (Object.keys(sample.metadata).length > 0) {
     sampleMetadatas.push(
       <Card key={`sample-metadata-${id}`}>
         <CardHeader label="Metadata" />
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-metadata-${id}`}
-            record={sample?.metadata}
+            record={sample.metadata}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             copyButton={true}
@@ -1300,14 +1303,14 @@ const metadataViewsForSample = (
     );
   }
 
-  if (Object.keys(sample?.store).length > 0) {
+  if (Object.keys(sample.store).length > 0) {
     sampleMetadatas.push(
       <Card key={`sample-store-${id}`}>
         <CardHeader label="Store" />
         <CardBody padded={false}>
           <RecordTree
             id={`task-sample-store-${id}`}
-            record={sample?.store}
+            record={sample.store}
             className={clsx("tab-pane", styles.noTop)}
             scrollRef={scrollRef}
             processStore={true}

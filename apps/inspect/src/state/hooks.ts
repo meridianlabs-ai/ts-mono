@@ -150,6 +150,7 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
     if (!stored) return undefined;
     return {
       column: stored.column ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       dir: stored.dir ?? "asc",
     };
   }, [stored]);
@@ -304,6 +305,7 @@ export const useEvalDescriptor = () => {
   const scores = useScores();
   const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
   }, [scores, sampleSummaries]);
 };

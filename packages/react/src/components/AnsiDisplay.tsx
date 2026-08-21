@@ -153,6 +153,7 @@ const computeCSSProperties = (outputRun: ANSIOutputRun) => {
 
 const computeStyles = (styles: ANSIStyle[]) => {
   let cssProperties = {};
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (styles) {
     styles.forEach((style) => {
       switch (style) {

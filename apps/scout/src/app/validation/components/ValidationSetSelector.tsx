@@ -367,8 +367,9 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             const trimmedName = newSetName.trim();
             const extensionError = getExtensionError(trimmedName);
             const displayError = validationError || extensionError;
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
             const displayDir = appConfig?.project_dir?.startsWith("file://")
-              ? appConfig?.project_dir.slice(7)
+              ? appConfig.project_dir.slice(7)
               : appConfig?.project_dir;
 
             // Show hint only if no error and we have a name and projectDir
