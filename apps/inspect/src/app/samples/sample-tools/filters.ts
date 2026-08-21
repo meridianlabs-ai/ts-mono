@@ -19,15 +19,17 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  // undefined when the descriptor lookup fails at runtime (types lie at the wire)
+  // undefined when no samples carry the score (descriptor lookup misses)
   scoreType: string | undefined;
 }
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -209,7 +211,7 @@ export const sampleFilterItems = (
       throw new Error("Unable to create a canonical name for a score");
     }
     const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: scoreDescriptor() can return undefined despite its declared type
+
     if (!descriptor) {
       items.push({
         shortName,

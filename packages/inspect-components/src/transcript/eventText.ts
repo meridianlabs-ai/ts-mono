@@ -72,12 +72,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         }
       }
       // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
+      for (const msg of modelEvent.input) {
+        if (msg.role === "user" || msg.role === "system") {
+          for (const text of extractContentText(msg.content)) {
+            fields.push([msg.role, text]);
           }
         }
       }

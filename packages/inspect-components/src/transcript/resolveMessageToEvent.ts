@@ -309,62 +309,56 @@ function matchEvent(
     // Priority 2: Agent card result via bridge flow
     // Priority 3.5: Tool call bridge — tool-role message whose tool_call_id
     // matches a sibling ToolEvent's id. Redirects to the ToolEvent.
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (event.input) {
-      for (const msg of event.input) {
-        if (msg.role === "tool" && msg.id === messageId) {
-          const toolCallId = (msg as { tool_call_id?: string | null })
-            .tool_call_id;
-          if (toolCallId) {
-            // Check agent card result first (highest priority of the two)
-            const candidateSpanId = `agent-${toolCallId}`;
-            if (agentSpanIds.has(candidateSpanId)) {
-              matches.push({
-                priority: PRIORITY_AGENT_CARD_RESULT,
-                eventId: candidateSpanId,
-                agentSpanId: agentContext,
-              });
-              continue; // Don't also match as model input or tool bridge
-            }
+    for (const msg of event.input) {
+      if (msg.role === "tool" && msg.id === messageId) {
+        const toolCallId = (msg as { tool_call_id?: string | null })
+          .tool_call_id;
+        if (toolCallId) {
+          // Check agent card result first (highest priority of the two)
+          const candidateSpanId = `agent-${toolCallId}`;
+          if (agentSpanIds.has(candidateSpanId)) {
+            matches.push({
+              priority: PRIORITY_AGENT_CARD_RESULT,
+              eventId: candidateSpanId,
+              agentSpanId: agentContext,
+            });
+            continue; // Don't also match as model input or tool bridge
+          }
 
-            // Check tool call bridge — redirect to the tool event that produced this result
-            const toolUuid = toolCallIdToUuid.get(toolCallId);
-            if (toolUuid) {
-              matches.push({
-                priority: PRIORITY_TOOL_CALL_BRIDGE,
-                eventId: toolUuid,
-                agentSpanId: agentContext,
-              });
-              continue; // Don't also match as model input
-            }
+          // Check tool call bridge — redirect to the tool event that produced this result
+          const toolUuid = toolCallIdToUuid.get(toolCallId);
+          if (toolUuid) {
+            matches.push({
+              priority: PRIORITY_TOOL_CALL_BRIDGE,
+              eventId: toolUuid,
+              agentSpanId: agentContext,
+            });
+            continue; // Don't also match as model input
           }
         }
       }
     }
 
     // Priority 4: ModelEvent input
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (event.input) {
-      for (const msg of event.input) {
-        if (msg.id === messageId) {
-          // Skip if already matched as agent card result or tool bridge
-          if (
-            matches.some(
-              (m) =>
-                (m.priority === PRIORITY_AGENT_CARD_RESULT ||
-                  m.priority === PRIORITY_TOOL_CALL_BRIDGE) &&
-                m.eventId !== uuid
-            )
-          ) {
-            continue;
-          }
-          matches.push({
-            priority: PRIORITY_MODEL_INPUT,
-            eventId: uuid,
-            agentSpanId: agentContext,
-          });
-          break; // One input match is sufficient
+    for (const msg of event.input) {
+      if (msg.id === messageId) {
+        // Skip if already matched as agent card result or tool bridge
+        if (
+          matches.some(
+            (m) =>
+              (m.priority === PRIORITY_AGENT_CARD_RESULT ||
+                m.priority === PRIORITY_TOOL_CALL_BRIDGE) &&
+              m.eventId !== uuid
+          )
+        ) {
+          continue;
         }
+        matches.push({
+          priority: PRIORITY_MODEL_INPUT,
+          eventId: uuid,
+          agentSpanId: agentContext,
+        });
+        break; // One input match is sufficient
       }
     }
   } else if (event.event === "tool") {

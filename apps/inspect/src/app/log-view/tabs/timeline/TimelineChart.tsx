@@ -1301,7 +1301,8 @@ const scoreRowsFor = (
           key: `${label.scorer}.${label.name}`,
           name: label.name,
           value: evalDescriptor.score(sample, label)?.value,
-          scoreType: evalDescriptor.scoreDescriptor(label).scoreType,
+          scoreType:
+            evalDescriptor.scoreDescriptor(label)?.scoreType ?? kScoreTypeOther,
         }))
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         .filter((row) => row.value !== undefined && row.value !== null)

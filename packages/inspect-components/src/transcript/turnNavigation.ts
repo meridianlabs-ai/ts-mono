@@ -115,12 +115,10 @@ export function anchorIndexForEvent(
 function agentBoundaryName(node: EventNode): string | undefined {
   const event = node.event;
   if (event.event === "span_begin" && event.type === "agent") {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    return event.name ?? "agent";
+    return event.name || "agent";
   }
   if (event.event === "subtask") {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    return event.name ?? "subtask";
+    return event.name || "subtask";
   }
   return undefined;
 }

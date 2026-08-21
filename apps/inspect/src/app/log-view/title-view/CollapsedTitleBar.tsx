@@ -51,8 +51,7 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
     ? displayScorersFromRunningMetrics(runningMetrics)
     : toDisplayScorers(evalResults?.scores);
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const expandedScorers = expandGroupedMetrics(scorers ?? []);
+  const expandedScorers = expandGroupedMetrics(scorers);
   const totalMetrics = expandedScorers.reduce(
     (n, s) => n + s.metrics.length,
     0

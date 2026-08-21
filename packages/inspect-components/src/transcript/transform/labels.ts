@@ -26,8 +26,7 @@ export const buildToolLabels = (
         : undefined;
       if (label) toolLabels[event.id] = label;
     } else if (event.event === "model") {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      for (const message of event.input ?? []) {
+      for (const message of event.input) {
         if (message.role !== "tool" || !message.id) continue;
         const label = messageLabels[message.id];
         if (label && message.tool_call_id) {
@@ -56,8 +55,7 @@ export const scopeMessageLabels = (
   const present = new Set<string>();
   for (const event of events) {
     if (event.event === "model") {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      for (const message of event.input ?? []) {
+      for (const message of event.input) {
         if (message.id) present.add(message.id);
       }
       for (const choice of event.output.choices) {

@@ -68,8 +68,7 @@ export function buildScanReferencePreviews(
     }
 
     if (event.event === "model") {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      for (const msg of event.input ?? []) addMessage(msg);
+      for (const msg of event.input) addMessage(msg);
       for (const choice of event.output.choices) {
         addMessage(choice.message);
       }

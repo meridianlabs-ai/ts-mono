@@ -52,10 +52,8 @@ export const transformTree = (roots: EventNode[]): EventNode[] => {
     }
 
     // Return all processed nodes
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    return currentNodes && currentNodes.length === 1 && currentNodes[0]
-      ? currentNodes[0]
-      : currentNodes;
+    const only = currentNodes.length === 1 ? currentNodes[0] : undefined;
+    return only ?? currentNodes;
   };
 
   // Process all nodes first
@@ -66,8 +64,7 @@ export const transformTree = (roots: EventNode[]): EventNode[] => {
   for (const transformer of treeNodeTransformers) {
     if (transformer.flush) {
       const flushResults = transformer.flush();
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (flushResults && flushResults.length > 0) {
+      if (flushResults.length > 0) {
         flushedNodes.push(...flushResults);
       }
     }

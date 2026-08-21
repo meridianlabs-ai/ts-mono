@@ -349,7 +349,6 @@ export function useTranscriptTimeline(
     keys.set(rowKey, 100);
 
     let childKey = rowKey;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       const parentKey = getParentKeyFromBranch(childKey);
       if (!parentKey) break;
@@ -496,7 +495,6 @@ function computeBranchMappings(
   // Nearest ancestor row whose logical start has been computed.
   const nearestAncestor = (key: string): SwimlaneRow | undefined => {
     let k = key;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     while (true) {
       const i = k.lastIndexOf("/");
       if (i < 0) return root;

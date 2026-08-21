@@ -15,6 +15,7 @@ import {
   EvalSampleWorkingTime,
 } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
+import { kScoreTypeOther } from "../../constants";
 import {
   resolveScorePanelView,
   useEvalScorePanelView,
@@ -377,7 +378,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                       <div className={styles.scoreFieldValue}>
                         <ScoreValueDisplay
                           value={selected?.value}
-                          scoreType={desc.scoreType}
+                          scoreType={desc?.scoreType ?? kScoreTypeOther}
                           size={22}
                         />
                       </div>

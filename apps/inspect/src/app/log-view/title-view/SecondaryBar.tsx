@@ -79,8 +79,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   const epochs = effectiveConfig.epochs || 1;
   const hyperparameters: Record<string, unknown> = {
     ...effectiveGenerateConfig(evalPlan?.config || {}, configUpdates),
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    ...(evalSpec.task_args || {}),
+    ...evalSpec.task_args,
   };
 
   const hasConfig =
@@ -261,10 +260,6 @@ interface ParamSummaryProps {
  * A component that displays a summary of parameters.
  */
 const ParamSummary: FC<ParamSummaryProps> = ({ params }) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!params) {
-    return null;
-  }
   const paraValues = Object.keys(params).map((key) => {
     const val = params[key];
     if (Array.isArray(val) || typeof val === "object") {

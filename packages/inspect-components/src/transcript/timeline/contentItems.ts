@@ -165,8 +165,7 @@ function findEventByMessageId(items: ContentItem[], messageId: string): number {
     const item = items[i];
     if (!item || item.type !== "event") continue;
     const event = item.eventNode.event;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (event.event === "model" && event.input) {
+    if (event.event === "model") {
       const input = event.input as Array<Record<string, unknown>>;
       for (const msg of input) {
         if (typeof msg.id === "string" && msg.id === messageId) {
