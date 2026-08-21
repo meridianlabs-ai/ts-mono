@@ -73,5 +73,10 @@ jobs:
       # ts-mono: pnpm/turbo permissions override (see claude.yml's stubs for
       # rationale) — replaces the reusable workflow's Python-oriented default.
       settings: .github/claude-settings.json
+      # Companion PRs here anchor to FORK issues (claude/issue-N-* numbers
+      # reference meridianlabs-ai/inspect_ai), so the workflow's repo-local
+      # mention derivation cannot find the responsible human — name the
+      # pilot owner explicitly for convergence/escalation handoffs.
+      handoff_mention: ransomr
       pr_number: ${{ github.event.issue.number }}
       comment_author: ${{ github.event.comment.user.login }}
