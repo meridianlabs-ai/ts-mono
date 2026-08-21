@@ -28,6 +28,10 @@ import { useTimelineSearchParams } from "../hooks/useTimeline";
 interface TimelineEventsViewProps {
   /** Raw events to display. Runs the full timeline pipeline internally. */
   events: Event[];
+  /** Event types hidden from the rendered list. Applied inside the timeline
+   *  pipeline (not by pre-filtering `events`) so structural events like
+   *  anchors still resolve fork points. */
+  hiddenEventTypes?: readonly string[];
   /** Scroll container for StickyScroll and virtual list. */
   scrollRef: RefObject<HTMLDivElement | null>;
   /** Base offset for sticky positioning (e.g. tab bar height). Default: 0. */
@@ -91,6 +95,7 @@ interface TimelineEventsViewProps {
 
 export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   events,
+  hiddenEventTypes,
   scrollRef,
   offsetTop = 0,
   initialEventId,
@@ -249,6 +254,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   return (
     <TranscriptLayout
       events={events}
+      hiddenEventTypes={hiddenEventTypes}
       scrollRef={scrollRef}
       offsetTop={offsetTop}
       timeline={{

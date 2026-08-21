@@ -26,7 +26,11 @@ export function makeStateHooks(): ComponentStateHooks {
 // Reactive variant: like production (zustand-selector adapters in both apps), a
 // set re-renders every subscribed component. The non-reactive version above
 // cannot exercise an effect whose own setProperty call re-runs it; this one can.
-export function makeReactiveStateHooks(): ComponentStateHooks {
+// Also returns the backing Map so tests can seed and assert on stored values.
+export function makeReactiveStateStore(): {
+  hooks: ComponentStateHooks;
+  store: Map<string, unknown>;
+} {
   const store = new Map<string, unknown>();
   const listeners = new Set<() => void>();
   let version = 0;
@@ -53,7 +57,7 @@ export function makeReactiveStateHooks(): ComponentStateHooks {
   const removeValue = (id: string, prop: string) => {
     if (store.delete(getKey(id, prop))) emit();
   };
-  return {
+  const hooks: ComponentStateHooks = {
     useValue: (id: string, prop: string, defaultValue?: unknown) => {
       useSyncExternalStore(subscribe, () => version);
       return store.has(getKey(id, prop))
@@ -66,4 +70,9 @@ export function makeReactiveStateHooks(): ComponentStateHooks {
     useRemoveAll: () => () => {},
     useRemoveByPrefix: () => () => {},
   };
+  return { hooks, store };
+}
+
+export function makeReactiveStateHooks(): ComponentStateHooks {
+  return makeReactiveStateStore().hooks;
 }

@@ -2,24 +2,16 @@ import { useCallback, useMemo } from "react";
 
 import {
   eventTypeValues,
+  kDefaultExcludeEvents,
   type EventTypeValue,
 } from "@tsmono/inspect-components/transcript";
 
 import { useStore } from "../../../state/store";
 
-export const kDefaultExcludedEventTypes: EventTypeValue[] = [
-  "branch",
-  "checkpoint",
-  "sample_init",
-  "sandbox",
-  "state",
-  "store",
-];
-
 export const useTranscriptColumnFilter = () => {
   const excludedEventTypes =
     useStore((state) => state.transcriptState.excludedTypes) ||
-    kDefaultExcludedEventTypes;
+    kDefaultExcludeEvents;
 
   const setTranscriptState = useStore((state) => state.setTranscriptState);
 
@@ -54,14 +46,14 @@ export const useTranscriptColumnFilter = () => {
   }, [setExcludedEventTypes]);
 
   const setDefaultFilter = useCallback(() => {
-    setExcludedEventTypes([...kDefaultExcludedEventTypes]);
+    setExcludedEventTypes([...kDefaultExcludeEvents]);
   }, [setExcludedEventTypes]);
 
   const isDefaultFilter = useMemo(() => {
     return (
-      excludedEventTypes.length === kDefaultExcludedEventTypes.length &&
+      excludedEventTypes.length === kDefaultExcludeEvents.length &&
       excludedEventTypes.every((type) =>
-        kDefaultExcludedEventTypes.includes(type as EventTypeValue)
+        kDefaultExcludeEvents.some((t) => t === type)
       )
     );
   }, [excludedEventTypes]);
@@ -73,8 +65,8 @@ export const useTranscriptColumnFilter = () => {
   const arrangedEventTypes = useCallback((columns: number = 1) => {
     // Sort keys alphabetically with default disabled keys at the end
     const sortedKeys = [...eventTypeValues].sort((a, b) => {
-      const aIsDefault = kDefaultExcludedEventTypes.includes(a);
-      const bIsDefault = kDefaultExcludedEventTypes.includes(b);
+      const aIsDefault = kDefaultExcludeEvents.includes(a);
+      const bIsDefault = kDefaultExcludeEvents.includes(b);
 
       // If one is in default exclude set and the other isn't, default goes to end
       if (aIsDefault && !bIsDefault) return 1;

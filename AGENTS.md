@@ -64,6 +64,16 @@ Design docs live per-app; consult them when working in the relevant area:
   [front-end-testing.md](apps/scout/design/front-end-testing.md)
 - Tests must be isolated and deterministic; no shared mutable state or
   order dependencies
+- **Fixture placement**: builders for a package's public types live in that
+  package's testing subpath export — `@tsmono/inspect-common/testing`,
+  `@tsmono/react/testing`, `@tsmono/inspect-components/transcript/test-helpers`.
+  Builders for app-private types stay in the app (e.g.
+  `apps/scout/src/test/objectFactories.ts`,
+  `apps/inspect/src/log_data/testFixtures.ts`). Thin test-local wrappers
+  that parameterize a shared builder (fixed timestamps, positional args)
+  are fine; a test file re-declaring the field list of a shared type is
+  the sign the builder belongs upstream. Production code never imports
+  from a testing export.
 
 ## Pull Requests
 

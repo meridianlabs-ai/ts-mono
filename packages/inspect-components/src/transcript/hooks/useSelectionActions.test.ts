@@ -107,7 +107,7 @@ describe("useSelectionActions", () => {
     expect(result.current.hasScrollTarget).toBe(false);
   });
 
-  it("anchors and restores the scroll position for navigator clicks", () => {
+  it("anchors and restores the scroll position once for navigator clicks", () => {
     const { state } = makeTimelineState([]);
     const { ref, scrollTo } = makeScrollRef(123);
     const { result } = renderHook(() =>
@@ -120,8 +120,12 @@ describe("useSelectionActions", () => {
     expect(result.current.hasScrollTarget).toBe(true);
 
     // The restore runs in rAF after the selection lands.
-    flushFrames();
+    act(flushFrames);
     expect(scrollTo).toHaveBeenCalledWith({ top: 123 });
+    expect(result.current.hasScrollTarget).toBe(false);
+
+    act(() => result.current.selectByRowKey("root/c"));
+    expect(result.current.hasScrollTarget).toBe(false);
   });
 
   it("reports a pending scroll target for deep links", () => {
