@@ -140,7 +140,7 @@ describe("TagStrip", () => {
       expect(tagRow!.children.length).toBe(8);
       const chips = within(tagRow!)
         .getAllByRole("button")
-        .filter((b) => /^tag-\d+$/.test(b.textContent ?? ""));
+        .filter((b) => /^tag-\d+$/.test(b.textContent));
       expect(chips).toHaveLength(6);
       const overflow = within(tagRow!).getByText("…");
       expect(overflow.title).toMatch(/^74 more tags: /);
