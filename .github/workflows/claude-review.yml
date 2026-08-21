@@ -51,6 +51,9 @@ jobs:
     # read-only. Absent -> those steps no-op.
     secrets:
       MARVIN_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+    with:
+      # companion branches reference the fork's tracker (mention derivation)
+      anchor_repo: meridianlabs-ai/inspect_ai
     permissions:
       contents: read
       pull-requests: write
