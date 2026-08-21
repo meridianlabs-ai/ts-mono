@@ -47,6 +47,7 @@ jobs:
       # ts-mono: pnpm/turbo permissions override (see claude.yml's stubs for
       # rationale) — replaces the reusable workflow's Python-oriented default.
       settings: .github/claude-settings.json
+      anchor_repo: meridianlabs-ai/inspect_ai
       head_branch: ${{ github.event.workflow_run.head_branch }}
       pr_number: ${{ github.event.workflow_run.pull_requests[0].number }}
       ci_run_id: ${{ github.event.workflow_run.id }}
@@ -73,10 +74,10 @@ jobs:
       # ts-mono: pnpm/turbo permissions override (see claude.yml's stubs for
       # rationale) — replaces the reusable workflow's Python-oriented default.
       settings: .github/claude-settings.json
-      # Companion PRs here anchor to FORK issues (claude/issue-N-* numbers
-      # reference meridianlabs-ai/inspect_ai), so the workflow's repo-local
-      # mention derivation cannot find the responsible human — name the
-      # pilot owner explicitly for convergence/escalation handoffs.
-      handoff_mention: ransomr
+      # Companion PRs here anchor to FORK issues: same-named branches
+      # reference meridianlabs-ai/inspect_ai's tracker, so mention
+      # derivation resolves them there (whoever owns the anchor issue —
+      # no login named in config).
+      anchor_repo: meridianlabs-ai/inspect_ai
       pr_number: ${{ github.event.issue.number }}
       comment_author: ${{ github.event.comment.user.login }}

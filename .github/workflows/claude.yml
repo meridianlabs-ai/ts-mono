@@ -115,6 +115,7 @@ jobs:
       # the file repeats the git/gh/file-edit entries alongside the pnpm/turbo
       # swap-ins.
       settings: .github/claude-settings.json
+      anchor_repo: meridianlabs-ai/inspect_ai
       # trigger_phrase is single-valued, so resolve it from the SAME source the
       # action will check for this event (comment > review > issue), not from a
       # union of all sources — otherwise a stale @claude in an enclosing issue
@@ -193,5 +194,6 @@ jobs:
       # the file repeats the git/gh/file-edit entries alongside the pnpm/turbo
       # swap-ins.
       settings: .github/claude-settings.json
+      anchor_repo: meridianlabs-ai/inspect_ai
       trigger_phrase: "@auto"
       label_trigger: "auto"
