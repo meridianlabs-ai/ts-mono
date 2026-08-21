@@ -10,7 +10,7 @@ import {
   SearchRequest,
   SearchResponse,
 } from "@tsmono/inspect-common/types";
-import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { EvalScores } from "../../../@types/extraInspect";
@@ -227,14 +227,7 @@ export function viewServerApi(
     const evalMetrics = Object.values(metric || {});
     const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;
 
-    const model_roles = header.eval.model_roles
-      ? Object.fromEntries(
-          Object.entries(header.eval.model_roles).map(([role, cfg]) => [
-            role,
-            modelRoleModelNames(cfg),
-          ])
-        )
-      : undefined;
+    const model_roles = modelRoleNames(header.eval.model_roles);
 
     return {
       eval_id: header.eval.eval_id,

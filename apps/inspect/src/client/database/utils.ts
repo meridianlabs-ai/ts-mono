@@ -1,4 +1,4 @@
-import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
 
 import { EvalHeader, LogPreview } from "../api/types";
 
@@ -18,14 +18,7 @@ export function toLogOverview(header: EvalHeader): LogPreview {
     }
   }
 
-  const model_roles = evalSpec.model_roles
-    ? Object.fromEntries(
-        Object.entries(evalSpec.model_roles).map(([role, cfg]) => [
-          role,
-          modelRoleModelNames(cfg),
-        ])
-      )
-    : undefined;
+  const model_roles = modelRoleNames(evalSpec.model_roles);
 
   return {
     eval_id: evalSpec.eval_id,
