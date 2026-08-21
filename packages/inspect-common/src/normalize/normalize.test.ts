@@ -252,4 +252,148 @@ describe("normalizeEvalSample input validation", () => {
     expect(sample.model_usage).toEqual({});
     expect(sample.attachments).toEqual({});
   });
+
+  it("fills fallback counts and retry-error tracebacks", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      model_fallbacks: [{ model: "a", fallback_model: "b" }],
+      error_retries: [{ message: "boom" }],
+    });
+    expect(sample.model_fallbacks).toEqual([
+      { model: "a", fallback_model: "b", count: 1 },
+    ]);
+    expect(sample.error_retries).toEqual([
+      { message: "boom", traceback: "", traceback_ansi: "" },
+    ]);
+  });
+});
+
+describe("per-event-type read-time defaults", () => {
+  // Each case mirrors a pydantic default (field default / default_factory)
+  // that old or crafted logs omit; the base fields are always exercised too.
+  const base = { timestamp: "t", working_start: 0 };
+
+  it("error: fills the error payload", () => {
+    const event = normalizeEvent({ ...base, event: "error" });
+    expect(event).toMatchObject({
+      error: { message: "", traceback: "", traceback_ansi: "" },
+    });
+  });
+
+  it("logger: fills a complete LoggingMessage", () => {
+    const event = normalizeEvent({ ...base, event: "logger" });
+    expect(event).toMatchObject({
+      message: {
+        level: "info",
+        message: "",
+        created: 0,
+        filename: "unknown",
+        module: "unknown",
+        lineno: 0,
+      },
+    });
+  });
+
+  it("score: fills score, history, and intermediate", () => {
+    const event = normalizeEvent({ ...base, event: "score" });
+    expect(event).toMatchObject({
+      score: { value: null, history: [] },
+      intermediate: false,
+    });
+  });
+
+  it("tool: fills call structure and child events", () => {
+    const event = normalizeEvent({ ...base, event: "tool" });
+    expect(event).toMatchObject({
+      id: "",
+      function: "",
+      arguments: {},
+      result: "",
+      events: [],
+      type: "function",
+    });
+  });
+
+  it("subtask: fills name, input, result, and child events", () => {
+    const event = normalizeEvent({ ...base, event: "subtask" });
+    expect(event).toMatchObject({
+      name: "",
+      input: {},
+      result: null,
+      events: [],
+    });
+  });
+
+  it("input: fills input and input_ansi", () => {
+    const event = normalizeEvent({ ...base, event: "input" });
+    expect(event).toMatchObject({ input: "", input_ansi: "" });
+  });
+
+  it("sample_init: fills sample and state", () => {
+    const event = normalizeEvent({ ...base, event: "sample_init" });
+    expect(event).toMatchObject({ sample: {}, state: null });
+  });
+
+  it("info: fills data; compaction: fills type", () => {
+    expect(normalizeEvent({ ...base, event: "info" })).toMatchObject({
+      data: null,
+    });
+    expect(normalizeEvent({ ...base, event: "compaction" })).toMatchObject({
+      type: "summary",
+    });
+  });
+
+  it("span_begin / span_end: fill ids and names", () => {
+    expect(normalizeEvent({ ...base, event: "span_begin" })).toMatchObject({
+      id: "",
+      name: "",
+    });
+    expect(normalizeEvent({ ...base, event: "span_end" })).toMatchObject({
+      id: "",
+    });
+  });
+
+  it("model: fills tool_choice", () => {
+    expect(
+      normalizeEvent({ ...base, event: "model", model: "m" })
+    ).toMatchObject({ tool_choice: "none" });
+  });
+
+  it("normalizeEvents preserves array identity when every event is clean", () => {
+    const events = [
+      { event: "step", action: "begin", name: "solve", ...base },
+      { event: "step", action: "end", name: "solve", ...base },
+    ];
+    expect(normalizeEvents(events)).toBe(events);
+  });
+});
+
+describe("normalizeEvalSpec remaining defaults", () => {
+  it("backfills solver_args_passed from solver_args", () => {
+    const spec = normalizeEvalSpec({ task: "t", solver_args: { turns: 3 } });
+    expect(spec.solver_args_passed).toEqual({ turns: 3 });
+  });
+
+  it("nulls solver_args_passed when solver_args is absent", () => {
+    const spec = normalizeEvalSpec({ task: "t" });
+    expect(spec.solver_args_passed).toBeNull();
+    expect(spec.task_version).toBe(0);
+  });
+});
+
+describe("normalizeEvalPlan on garbage input", () => {
+  it("produces a complete default plan", () => {
+    expect(normalizeEvalPlan(undefined)).toEqual({
+      name: "plan",
+      steps: [],
+      config: {},
+    });
+    expect(normalizeEvalPlan("bad")).toEqual({
+      name: "plan",
+      steps: [],
+      config: {},
+    });
+  });
 });
