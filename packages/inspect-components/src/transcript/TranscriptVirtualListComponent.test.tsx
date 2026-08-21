@@ -74,7 +74,8 @@ describe("TranscriptVirtualList relativeIndent", () => {
 });
 
 // The finish-scroll behavior under test only reproduces with a store that
-// actually re-renders on setProperty, hence the reactive fake below.
+// actually re-renders on setProperty, hence the reactive fake from
+// @tsmono/react/testing.
 describe("TranscriptVirtualList finish scroll-to-top", () => {
   beforeEach(() => {
     vi.useFakeTimers();
