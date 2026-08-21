@@ -458,7 +458,7 @@ export const openRemoteLogFile = async (
       return {
         version: evalLogHeader.version ?? 2,
         status: evalLogHeader.status ?? "started",
-        invalidated: false,
+        invalidated: evalLogHeader.invalidated ?? false,
         eval: evalLogHeader.eval,
         plan: evalLogHeader.plan,
         results: evalLogHeader.results,

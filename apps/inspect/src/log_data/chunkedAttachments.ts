@@ -9,7 +9,7 @@
  * resolved here — they stay lazy (Confounder 1: the last event references
  * essentially the whole conversation).
  */
-import { normalizeEvents } from "@tsmono/inspect-common/normalize";
+import { normalizeEvent } from "@tsmono/inspect-common/normalize";
 
 import { resolveAttachments } from "../utils/attachments";
 
@@ -87,13 +87,19 @@ export const withAttachmentsResolved = async <T>(
  * The sample's events reader with boundary normalization (#555) applied and
  * attachment refs resolved per chunk. Chunk-level caching means each chunk
  * normalizes and resolves once.
+ *
+ * Per-entry (not normalizeEvents): SequenceReader's index math derives from
+ * fixed chunk starts, so the transform must be count-preserving — a dropped
+ * entry would silently shift every later ordinal. Un-event-shaped entries
+ * (impossible from our own chunker) pass through unchanged rather than
+ * being dropped.
  */
 export const resolvedEventsReader = (
   chunked: ChunkedSample
 ): SequenceReader<ChunkedEvent> =>
   chunked.events.withTransform((items, start) =>
     withAttachmentsResolved(
-      normalizeEvents(items),
+      items.map((item) => normalizeEvent(item) ?? item),
       chunked,
       `events chunk ${start}`
     )

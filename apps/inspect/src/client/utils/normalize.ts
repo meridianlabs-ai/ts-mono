@@ -35,6 +35,8 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
   return {
     version: typeof raw["version"] === "number" ? raw["version"] : 2,
     status: (raw["status"] ?? "started") as EvalLogStatus,
+    invalidated:
+      typeof raw["invalidated"] === "boolean" ? raw["invalidated"] : undefined,
     eval: evalSpec,
     plan: normalizeEvalPlan(raw["plan"]),
     results: normalizeEvalResults(raw["results"]),

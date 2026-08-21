@@ -425,6 +425,8 @@ export interface FetchResponse {
 export interface EvalHeader {
   version?: EvalLogVersion;
   status?: EvalLogStatus;
+  /** Log invalidation flag; absent on journal-synthesized headers. */
+  invalidated?: boolean;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;

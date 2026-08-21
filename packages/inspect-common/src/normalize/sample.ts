@@ -75,6 +75,12 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
       for (const field of ["message", "traceback", "traceback_ansi"]) {
         if (typeof fixed[field] !== "string") fixed[field] = "";
       }
+      // Retry events render through the same transcript components as the
+      // main stream; normalize recursively. The field is optional — absent
+      // stays absent.
+      if (fixed["events"] !== undefined) {
+        fixed["events"] = normalizeEvents(fixed["events"]);
+      }
       return fixed;
     });
   }

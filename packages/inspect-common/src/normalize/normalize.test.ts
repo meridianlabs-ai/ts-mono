@@ -268,6 +268,28 @@ describe("normalizeEvalSample input validation", () => {
       { message: "boom", traceback: "", traceback_ansi: "" },
     ]);
   });
+
+  it("normalizes retry-error events recursively", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      error_retries: [
+        {
+          message: "boom",
+          traceback: "tb",
+          traceback_ansi: "tb",
+          events: [{ event: "model", timestamp: "t", model: "m" }],
+        },
+      ],
+    });
+    expect(sample.error_retries?.[0]?.events?.[0]).toMatchObject({
+      event: "model",
+      working_start: 0,
+      config: {},
+      output: { model: "", choices: [], completion: "" },
+    });
+  });
 });
 
 describe("per-event-type read-time defaults", () => {
