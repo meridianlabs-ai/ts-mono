@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { createRef, useSyncExternalStore } from "react";
+import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { testInfoEvent } from "@tsmono/inspect-common/testing";
@@ -8,6 +8,7 @@ import {
   ComponentStateProvider,
   type ComponentStateHooks,
 } from "@tsmono/react/state";
+import { makeReactiveStateHooks } from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
@@ -72,44 +73,8 @@ describe("TranscriptVirtualList relativeIndent", () => {
   });
 });
 
-// Reactive Map-backed ComponentStateHooks, mirroring production's
-// zustand-selector adapters: a set re-renders every subscribed component,
-// with stable action references. The finish-scroll behavior under test only
-// reproduces with a store that actually re-renders on setProperty.
-function makeReactiveStateHooks(): ComponentStateHooks {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const subscribe = (cb: () => void) => {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  };
-  const getKey = (id: string, prop: string) => `${id}::${prop}`;
-  const setValue = (id: string, prop: string, value: unknown) => {
-    const key = getKey(id, prop);
-    if (!store.has(key) || store.get(key) !== value) {
-      store.set(key, value);
-      version++;
-      listeners.forEach((l) => l());
-    }
-  };
-  return {
-    useValue: (id: string, prop: string, defaultValue?: unknown) => {
-      useSyncExternalStore(subscribe, () => version);
-      return store.has(getKey(id, prop))
-        ? store.get(getKey(id, prop))
-        : defaultValue;
-    },
-    useSetValue: () => setValue,
-    useRemoveValue: () => () => {},
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-}
-
+// The finish-scroll behavior under test only reproduces with a store that
+// actually re-renders on setProperty, hence the reactive fake below.
 describe("TranscriptVirtualList finish scroll-to-top", () => {
   beforeEach(() => {
     vi.useFakeTimers();
