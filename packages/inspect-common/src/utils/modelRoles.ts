@@ -14,8 +14,10 @@ export const modelRoleConfigs = (value: ModelRoleValue) =>
 
 /**
  * Display string for a model role binding: the model name, comma-separated
- * when the role is bound to a list of models (matching inspect_ai's
- * `LogOverview` rendering).
+ * when the role is bound to a list of models. The viewer joins with `", "`
+ * for legibility; inspect_ai's Python surfaces (`to_overview`, the eval-set
+ * manifest) deliberately join with a bare `","` to stay round-trippable
+ * through `--model-role` flag syntax.
  */
 export const modelRoleModelNames = (value: ModelRoleValue): string =>
   modelRoleConfigs(value)
@@ -25,10 +27,11 @@ export const modelRoleModelNames = (value: ModelRoleValue): string =>
 /**
  * The individual model names inside a `modelRoleModelNames` display string —
  * the inverse, for consumers that key by single model (e.g. matching a
- * role's alias against a connection lane).
+ * role's alias against a connection lane). Tolerates the no-space `","` join
+ * used by inspect_ai's Python surfaces (model names cannot contain commas).
  */
 export const splitModelRoleNames = (names: string): string[] =>
-  names.split(kModelNameSeparator);
+  names.split(",").map((s) => s.trim());
 
 /**
  * Role → display-name record for a spec's model roles, dropping roles with

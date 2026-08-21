@@ -77,4 +77,11 @@ describe("splitModelRoleNames", () => {
     ]);
     expect(splitModelRoleNames("mockllm/model")).toEqual(["mockllm/model"]);
   });
+
+  it("tolerates the no-space join used by inspect_ai's Python surfaces", () => {
+    expect(splitModelRoleNames("mockllm/model_a,mockllm/model_b")).toEqual([
+      "mockllm/model_a",
+      "mockllm/model_b",
+    ]);
+  });
 });
