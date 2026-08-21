@@ -7,12 +7,12 @@ import {
   testChatCompletionChoice,
   testModelEvent,
   testModelOutput,
+  testTimelineEvent,
+  testTimelineSpan,
 } from "@tsmono/inspect-common/testing";
 import type {
   Event,
   Timeline as ServerTimeline,
-  TimelineEvent as ServerTimelineEvent,
-  TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
 
 import { useTranscriptTimeline, type SelectOptions } from "../timeline/hooks";
@@ -51,44 +51,22 @@ function makeModelEvent(
   });
 }
 
-function makeServerEvent(uuid: string): ServerTimelineEvent {
-  return { type: "event", event: uuid };
-}
-
-function makeServerSpan(
-  overrides: Partial<ServerTimelineSpan> & { id: string; name: string }
-): ServerTimelineSpan {
-  return {
-    type: "span",
-    span_type: null,
-    content: [],
-    branches: [],
-    branched_from: null,
-    description: null,
-    utility: false,
-    tool_invoked: false,
-    agent_result: null,
-    outline: null,
-    ...overrides,
-  };
-}
-
 /** evt-1 at root, evt-2 inside a utility-flagged agent span "util-a". */
 function makeUtilityTimeline(): ServerTimeline {
   return {
     name: "default",
     description: "Test timeline",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root",
       name: "Transcript",
       content: [
-        makeServerEvent("evt-1"),
-        makeServerSpan({
+        testTimelineEvent({ event: "evt-1" }),
+        testTimelineSpan({
           id: "util-a",
           name: "Util A",
           span_type: "agent",
           utility: true,
-          content: [makeServerEvent("evt-2")],
+          content: [testTimelineEvent({ event: "evt-2" })],
         }),
       ],
     }),
@@ -100,16 +78,16 @@ function makeAgentTimeline(): ServerTimeline {
   return {
     name: "default",
     description: "Test timeline",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root",
       name: "Transcript",
       content: [
-        makeServerEvent("evt-1"),
-        makeServerSpan({
+        testTimelineEvent({ event: "evt-1" }),
+        testTimelineSpan({
           id: "agent-a",
           name: "Agent A",
           span_type: "agent",
-          content: [makeServerEvent("evt-2")],
+          content: [testTimelineEvent({ event: "evt-2" })],
         }),
       ],
     }),
@@ -291,19 +269,19 @@ describe("useDeepLinkResolution → cross-timeline switch", () => {
   const timelineA: ServerTimeline = {
     name: "A",
     description: "Timeline A",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root-a",
       name: "A",
-      content: [makeServerEvent("evt-1")],
+      content: [testTimelineEvent({ event: "evt-1" })],
     }),
   };
   const timelineB: ServerTimeline = {
     name: "B",
     description: "Timeline B",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root-b",
       name: "B",
-      content: [makeServerEvent("evt-9")],
+      content: [testTimelineEvent({ event: "evt-9" })],
     }),
   };
 

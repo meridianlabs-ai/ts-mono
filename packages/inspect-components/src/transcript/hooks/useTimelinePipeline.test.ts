@@ -2,18 +2,19 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
+  testAnchorEvent,
   testAssistantMessage,
   testChatCompletionChoice,
   testInfoEvent,
   testModelEvent,
   testModelOutput,
+  testTimelineEvent,
+  testTimelineSpan,
 } from "@tsmono/inspect-common/testing";
 import type {
   AnchorEvent,
   Event,
   Timeline as ServerTimeline,
-  TimelineEvent as ServerTimelineEvent,
-  TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
 
 import { InMemoryStateWrapper } from "../testHelpers";
@@ -61,39 +62,12 @@ function makeAnchorEvent(
   anchorId: string,
   startSec: number
 ): AnchorEvent {
-  return {
-    event: "anchor",
+  return testAnchorEvent({
     uuid,
     anchor_id: anchorId,
     timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
     working_start: startSec,
-    span_id: null,
-    pending: null,
-    metadata: null,
-    source: null,
-  };
-}
-
-function makeServerEvent(uuid: string): ServerTimelineEvent {
-  return { type: "event", event: uuid };
-}
-
-function makeServerSpan(
-  overrides: Partial<ServerTimelineSpan> & { id: string; name: string }
-): ServerTimelineSpan {
-  return {
-    type: "span",
-    span_type: null,
-    content: [],
-    branches: [],
-    branched_from: null,
-    description: null,
-    utility: false,
-    tool_invoked: false,
-    agent_result: null,
-    outline: null,
-    ...overrides,
-  };
+  });
 }
 
 // =============================================================================
@@ -136,17 +110,20 @@ describe("useTimelinePipeline", () => {
       {
         name: "default",
         description: "Flat branch",
-        root: makeServerSpan({
+        root: testTimelineSpan({
           id: "root",
           name: "Transcript",
-          content: [makeServerEvent("main"), makeServerEvent("anchor")],
+          content: [
+            testTimelineEvent({ event: "main" }),
+            testTimelineEvent({ event: "anchor" }),
+          ],
           branches: [
-            makeServerSpan({
+            testTimelineSpan({
               id: "branch-1",
               name: "Branch 1",
               span_type: "branch",
               branched_from: "fork-1",
-              content: [makeServerEvent("branch-event")],
+              content: [testTimelineEvent({ event: "branch-event" })],
             }),
           ],
         }),
