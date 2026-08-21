@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { testEvalSpec, testModelConfig } from "@tsmono/inspect-common/testing";
 
 import { kModelNone } from "../constants";
+
 import { formatModelText } from "./evalModel";
 
 describe("formatModelText", () => {
