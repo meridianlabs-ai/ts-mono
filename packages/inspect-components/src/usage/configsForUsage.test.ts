@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { testEvalSpec } from "@tsmono/inspect-common/testing";
+import { testEvalSpec, testModelConfig } from "@tsmono/inspect-common/testing";
 import type { ModelConfig } from "@tsmono/inspect-common/types";
 
-import { buildArgsByRole, buildConfigsByRole } from "./configsForUsage";
+import {
+  buildArgsByModel,
+  buildArgsByRole,
+  buildConfigsByModel,
+  buildConfigsByRole,
+} from "./configsForUsage";
 
 const config = (
   model: string,
   cfg: ModelConfig["config"] = {},
   args: ModelConfig["args"] = {}
-): ModelConfig => ({ model, config: cfg, args });
+): ModelConfig => testModelConfig({ model, config: cfg, args });
 
 describe("buildConfigsByRole", () => {
   it("keeps a single binding's config as-is", () => {
@@ -43,6 +48,40 @@ describe("buildConfigsByRole", () => {
       },
     });
     expect(buildConfigsByRole(spec)).toEqual({ grader: { temperature: 0.7 } });
+  });
+});
+
+describe("buildConfigsByModel", () => {
+  it("gives each model of a list role its own entry", () => {
+    const spec = testEvalSpec({
+      model_roles: {
+        grader: [
+          config("mockllm/model_a", { temperature: 0 }),
+          config("mockllm/model_b", { temperature: 1 }),
+        ],
+      },
+    });
+    expect(buildConfigsByModel(spec)).toEqual({
+      "mockllm/model_a": { temperature: 0 },
+      "mockllm/model_b": { temperature: 1 },
+    });
+  });
+});
+
+describe("buildArgsByModel", () => {
+  it("gives each model of a list role its own entry", () => {
+    const spec = testEvalSpec({
+      model_roles: {
+        grader: [
+          config("mockllm/model_a", {}, { seed: 1 }),
+          config("mockllm/model_b", {}, { seed: 2 }),
+        ],
+      },
+    });
+    expect(buildArgsByModel(spec)).toEqual({
+      "mockllm/model_a": { seed: 1 },
+      "mockllm/model_b": { seed: 2 },
+    });
   });
 });
 
