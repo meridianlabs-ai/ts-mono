@@ -130,21 +130,25 @@ export interface PendingSamples {
   etag?: string;
 }
 
+// Required fields mirror the generated EvalSampleSummary — summaries are
+// boundary-normalized (#555, normalizeSampleSummary), so consumers can read
+// them unguarded.
 export interface SampleSummary {
-  uuid?: string;
+  uuid?: string | null;
   id: number | string;
   epoch: number;
   input: EvalSample["input"];
   target: EvalSampleTarget;
-  scores: EvalSampleScore | null | undefined;
-  error?: string;
-  limit?: string;
-  metadata?: Record<string, unknown>;
-  completed?: boolean;
-  retries?: number;
+  scores?: EvalSampleScore | null;
+  error?: string | null;
+  limit?: string | null;
+  metadata: Record<string, unknown>;
+  completed: boolean;
+  retries?: number | null;
   // Per-sample timing and token usage; populated by Inspect's Python
   // EvalSampleSummary.summary() and serialized into summaries.json.
-  model_usage?: Record<string, ModelUsage>;
+  model_usage: Record<string, ModelUsage>;
+  role_usage: Record<string, ModelUsage>;
   model_fallbacks?: ModelFallback[] | null;
   started_at?: string | null;
   completed_at?: string | null;

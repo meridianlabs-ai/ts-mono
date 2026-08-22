@@ -20,3 +20,4 @@ export {
   normalizeEvalSpec,
 } from "./log";
 export { normalizeEvalSample } from "./sample";
+export { normalizeSampleSummaries, normalizeSampleSummary } from "./summary";

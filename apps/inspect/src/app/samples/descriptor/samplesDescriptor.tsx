@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import { ReactNode } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
@@ -76,21 +75,20 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: ScoreLabel
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer.scorer];
       if (sampleScore && sampleScore.answer) {
         return sampleScore.answer;
       }
-    } else {
-      return undefined;
     }
+    return undefined;
   };
 
   const scoreExplanation = (
     sample: BasicSampleData,
     scorer: string
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.explanation) {
         return sampleScore.explanation;
@@ -104,7 +102,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: string
   ): Record<string, unknown> | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.metadata) {
         return sampleScore.metadata;
@@ -120,11 +118,6 @@ export const createEvalDescriptor = (
         samples
           .filter((sample) => !!sample.scores)
           .filter((sample) => {
-            // There is no selected scorer, so include this value
-            if (!scoreLabel) {
-              return true;
-            }
-
             // There are no scores, so exclude this
             if (!sample.scores) {
               return false;
@@ -144,9 +137,6 @@ export const createEvalDescriptor = (
           })
           .map((sample) => {
             return scoreValue(sample, scoreLabel);
-          })
-          .filter((value) => {
-            return value !== null;
           })
           .filter((value) => {
             return value !== undefined;
@@ -185,13 +175,11 @@ export const createEvalDescriptor = (
   ): ReactNode => {
     const descriptor = scoreDescriptor(scoreLabel);
     const score = scoreValue(sample, scoreLabel);
-    if (score === null) {
-      return "null";
-    } else if (score === undefined) {
+    if (score === undefined) {
       return "";
     } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
-    } else if (descriptor && descriptor.render) {
+    } else if (descriptor) {
       return descriptor.render(score);
     } else {
       return <span>{valueAsString(score)}</span>;
@@ -213,7 +201,7 @@ export const createEvalDescriptor = (
         return scoreAnswer(sample, scoreLabel) || "";
       },
       scores: () => {
-        if (!sample || !sample.scores) {
+        if (!sample.scores) {
           return [];
         }
         const myScoreDescriptor = scoreDescriptor(scoreLabel);

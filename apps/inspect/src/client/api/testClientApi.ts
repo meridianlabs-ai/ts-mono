@@ -42,6 +42,10 @@ export const testSampleSummary = (
   input: "input",
   target: "",
   scores: null,
+  metadata: {},
+  completed: true,
+  model_usage: {},
+  role_usage: {},
   ...overrides,
 });
 

@@ -39,17 +39,19 @@ Design docs live per-app; consult them when working in the relevant area:
   fields the generated types declare required (pydantic fills them at
   read time on the Python side). Every raw parse of such data must run
   through `@tsmono/inspect-common/normalize` (`normalizeEvalSample`,
-  `normalizeEvents`, `normalizeEvalSpec`, ...) — the chokepoints in
-  `remoteLogFile.ts`, `resolveSample`, `static-http/fetch.ts`, and the
-  scout event ingestion already do. Downstream of those, trust the types:
-  no defensive `?.` on normalized data. When a new required-with-default
-  field lands in the schema, add the matching fill to the normalizer
-  (mirroring pydantic's default), not a guard at the read site.
+  `normalizeEvents`, `normalizeEvalSpec`, `normalizeSampleSummary`, ...) —
+  the chokepoints in `remoteLogFile.ts` (samples and summaries),
+  `resolveSample`, `static-http/fetch.ts`, the pending-samples transport,
+  and the scout event ingestion already do. Downstream of those, trust the
+  types: no defensive `?.` on normalized data. When a new
+  required-with-default field lands in the schema, add the matching fill to
+  the normalizer (mirroring pydantic's default), not a guard at the read
+  site.
 
   Surfaces NOT yet normalized still carry `#555` suppressions and keep
-  their guards: sample summaries, API responses, and persisted
-  webview/store state. Do not remove those guards until their boundary
-  normalizes; the suppression comment names the surface.
+  their guards: API responses and persisted webview/store state. Do not
+  remove those guards until their boundary normalizes; the suppression
+  comment names the surface.
 
 ## Code Style — Comments                                                       
                                                                                 

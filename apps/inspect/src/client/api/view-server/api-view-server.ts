@@ -1,3 +1,4 @@
+import { normalizeSampleSummaries } from "@tsmono/inspect-common/normalize";
 import {
   AppConfig,
   EvalLog,
@@ -329,9 +330,13 @@ export function viewServerApi(
     const request: Request<PendingSampleResponse> = {
       headers,
       parse: async (text: string) => {
-        const pendingSamples = await asyncJsonParse<PendingSamples | undefined>(
-          text
-        );
+        const parsed = await asyncJsonParse<PendingSamples | undefined>(text);
+        // Boundary normalization (#555): the pending buffer is served by
+        // whatever inspect_ai version is running the eval — fill the
+        // read-time defaults old servers omit.
+        const pendingSamples = parsed
+          ? { ...parsed, samples: normalizeSampleSummaries(parsed.samples) }
+          : parsed;
         return {
           status: "OK",
           pendingSamples,

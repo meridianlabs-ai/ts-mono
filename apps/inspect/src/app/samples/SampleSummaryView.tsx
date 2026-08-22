@@ -59,7 +59,7 @@ interface SampleFields {
   target: EvalSampleTarget;
   answer?: string;
   limit?: string;
-  retries?: number;
+  retries?: number | null;
   model_fallbacks?: ModelFallback[] | null;
   working_time?: EvalSampleWorkingTime;
   total_time?: EvalSample["total_time"];
@@ -227,7 +227,6 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   }
   if (
     fields.retries !== undefined &&
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     fields.retries !== null &&
     fields.retries > 0
   ) {

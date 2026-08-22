@@ -589,8 +589,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
         time,
         postRun: false,
         sample,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: sample summaries aren't boundary-normalized yet (#555); old summaries may omit type-required fields
-        line: `${fallback.model} → ${fallback.fallback_model}${(fallback.count ?? 1) > 1 ? ` × ${fallback.count}` : ""}`,
+        line: `${fallback.model} → ${fallback.fallback_model}${fallback.count > 1 ? ` × ${fallback.count}` : ""}`,
       });
     }
   }

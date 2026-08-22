@@ -103,12 +103,9 @@ const sameSample = (a: SampleSummary, b: SampleSummary): boolean =>
   a.id === b.id && a.epoch === b.epoch;
 
 const sampleTokens = (sample: SampleSummary): number | undefined => {
-  const usage = sample.model_usage;
-  if (!usage) return undefined;
   let total = 0;
-  for (const u of Object.values(usage)) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    total += u.total_tokens ?? 0;
+  for (const u of Object.values(sample.model_usage)) {
+    total += u.total_tokens;
   }
   return total > 0 ? total : undefined;
 };
@@ -1311,8 +1308,7 @@ const scoreRowsFor = (
   return Object.entries(sample.scores).map(([name, score]) => ({
     key: name,
     name,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: sample summaries aren't boundary-normalized yet (#555); old summaries may omit type-required fields
-    value: formatShort(score?.value),
+    value: formatShort(score.value),
     scoreType: kScoreTypeOther,
   }));
 };

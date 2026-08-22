@@ -14,7 +14,10 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { normalizeEvalSample } from "@tsmono/inspect-common/normalize";
+import {
+  normalizeEvalSample,
+  normalizeSampleSummaries,
+} from "@tsmono/inspect-common/normalize";
 import { isRecord } from "@tsmono/util";
 
 import { openZipFileFromBuffer } from "../remote/remoteZipFile";
@@ -62,6 +65,43 @@ describe("normalization over the real .eval fixture corpus", () => {
       const start = normalizeLogStart(await readJson("_journal/start.json"));
       expect(start.eval.eval_id).toBeTypeOf("string");
       expect(isRecord(start.eval.task_args_passed)).toBe(true);
+    }
+
+    // Summary path: summaries.json (finalized) and the per-flush journal
+    // files (running / fallback reads) both feed readSampleSummaries. Real
+    // vintage rows carry only id/epoch/input/scores/target — the fills are
+    // what downstream now reads unguarded.
+    const summaryEntries = entries.filter(
+      (entry) =>
+        entry === "summaries.json" ||
+        (entry.startsWith("_journal/summaries/") && entry.endsWith(".json"))
+    );
+    expect(summaryEntries.length).toBeGreaterThan(0);
+    for (const entry of summaryEntries) {
+      const summaries = normalizeSampleSummaries(await readJson(entry));
+      const context = `${name} ${entry}`;
+      expect(summaries.length, context).toBeGreaterThan(0);
+      for (const summary of summaries) {
+        expect(typeof summary.completed, context).toBe("boolean");
+        expect(isRecord(summary.metadata), context).toBe(true);
+        expect(isRecord(summary.model_usage), context).toBe(true);
+        expect(isRecord(summary.role_usage), context).toBe(true);
+        expect(
+          isRecord(summary.scores) || summary.scores === null,
+          context
+        ).toBe(true);
+        expect(
+          typeof summary.input === "string" || Array.isArray(summary.input),
+          context
+        ).toBe(true);
+        expect(
+          typeof summary.target === "string" || Array.isArray(summary.target),
+          context
+        ).toBe(true);
+        for (const fallback of summary.model_fallbacks ?? []) {
+          expect(typeof fallback.count, context).toBe("number");
+        }
+      }
     }
 
     // Sample path: the invariants the transcript renders unguarded.
