@@ -132,13 +132,15 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
           />
         )}
       </div>
-      {hasValidations && summary.validationResult !== undefined && (
+      {hasValidations && (
         <div className={clsx("text-size-smaller")}>
-          <ValidationResult
-            result={summary.validationResult}
-            target={summary.validationTarget}
-            label={summary.label}
-          />
+          {summary.validationResult !== undefined && (
+            <ValidationResult
+              result={summary.validationResult}
+              target={summary.validationTarget}
+              label={summary.label}
+            />
+          )}
         </div>
       )}
       {hasErrors && (
