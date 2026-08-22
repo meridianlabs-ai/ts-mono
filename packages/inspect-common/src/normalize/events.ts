@@ -66,7 +66,9 @@ const eventFixes = (
       if (!isRecord(raw["config"])) fix("config", {});
       if (!Array.isArray(raw["tools"])) fix("tools", []);
       if (!Array.isArray(raw["input"])) fix("input", []);
-      if (raw["tool_choice"] === undefined) fix("tool_choice", "none");
+      // == null: these fields' types don't admit null, so an explicit wire
+      // null must fill like an absence (same below for tool/compaction).
+      if (raw["tool_choice"] == null) fix("tool_choice", "none");
       {
         const output = normalizeModelOutput(raw["output"]);
         if (output !== raw["output"]) fix("output", output);
@@ -99,8 +101,8 @@ const eventFixes = (
       if (typeof raw["id"] !== "string") fix("id", "");
       if (typeof raw["function"] !== "string") fix("function", "");
       if (!isRecord(raw["arguments"])) fix("arguments", {});
-      if (raw["result"] === undefined) fix("result", "");
-      if (raw["type"] === undefined) fix("type", "function");
+      if (raw["result"] == null) fix("result", "");
+      if (raw["type"] == null) fix("type", "function");
       {
         // Nested events normalize recursively, like pydantic's nested models.
         const nested = normalizeEvents(raw["events"]);
@@ -128,7 +130,7 @@ const eventFixes = (
       if (raw["data"] === undefined) fix("data", null);
       break;
     case "compaction":
-      if (raw["type"] === undefined) fix("type", "summary");
+      if (raw["type"] == null) fix("type", "summary");
       break;
     case "span_begin":
       if (typeof raw["id"] !== "string") fix("id", "");

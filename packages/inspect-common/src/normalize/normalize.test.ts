@@ -377,10 +377,18 @@ describe("per-event-type read-time defaults", () => {
     });
   });
 
-  it("model: fills tool_choice", () => {
+  it("model: fills tool_choice, treating explicit null like absence", () => {
     expect(
       normalizeEvent({ ...base, event: "model", model: "m" })
     ).toMatchObject({ tool_choice: "none" });
+    // tool_choice's type doesn't admit null, so a wire null must fill too —
+    // toolChoiceEqual reads `.name` on non-string values unguarded.
+    expect(
+      normalizeEvent({ ...base, event: "model", model: "m", tool_choice: null })
+    ).toMatchObject({ tool_choice: "none" });
+    expect(
+      normalizeEvent({ ...base, event: "tool", result: null, type: null })
+    ).toMatchObject({ result: "", type: "function" });
   });
 
   it("tool/subtask: normalizes nested events recursively", () => {
