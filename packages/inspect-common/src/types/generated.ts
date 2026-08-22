@@ -1934,7 +1934,7 @@ export interface components {
             model_generate_config: components["schemas"]["GenerateConfig"];
             /** Model Roles */
             model_roles?: {
-                [key: string]: components["schemas"]["ModelConfig"];
+                [key: string]: components["schemas"]["ModelConfig"] | components["schemas"]["ModelConfig"][];
             } | null;
             /** Packages */
             packages: {

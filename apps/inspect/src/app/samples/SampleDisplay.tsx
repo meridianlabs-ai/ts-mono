@@ -16,6 +16,7 @@ import {
 import { useNavigate } from "react-router";
 
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import {
   ChatViewRowsVirtualList,
   type MessageRow,
@@ -1140,14 +1141,10 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
   sample,
   evalSpec,
 }) => {
-  const roleAliases = useMemo(() => {
-    if (!evalSpec?.model_roles) return undefined;
-    const roles: Record<string, string> = {};
-    for (const [role, config] of Object.entries(evalSpec.model_roles)) {
-      if (config.model) roles[role] = config.model;
-    }
-    return Object.keys(roles).length > 0 ? roles : undefined;
-  }, [evalSpec]);
+  const roleAliases = useMemo(
+    () => modelRoleNames(evalSpec?.model_roles),
+    [evalSpec]
+  );
 
   const configsByModel = useMemo(
     () => buildConfigsByModel(evalSpec),

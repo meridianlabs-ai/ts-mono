@@ -5,6 +5,7 @@ import {
   EvalSpec,
   EvalStats,
 } from "@tsmono/inspect-common/types";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import {
   buildArgsByModel,
   buildArgsByRole,
@@ -67,16 +68,10 @@ export const ModelTab: FC<ModelTabProps> = ({
   const argsByModel = useMemo(() => buildArgsByModel(evalSpec), [evalSpec]);
   const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
 
-  const roleAliases = useMemo(() => {
-    if (!evalSpec?.model_roles) return undefined;
-    const roles: Record<string, string> = {};
-    for (const [role, config] of Object.entries(evalSpec.model_roles)) {
-      if (config.model) {
-        roles[role] = config.model;
-      }
-    }
-    return Object.keys(roles).length > 0 ? roles : undefined;
-  }, [evalSpec]);
+  const roleAliases = useMemo(
+    () => modelRoleNames(evalSpec?.model_roles),
+    [evalSpec]
+  );
 
   const meta = useMemo<MetaItem[]>(() => {
     const items: MetaItem[] = [];
