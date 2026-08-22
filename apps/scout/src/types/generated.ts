@@ -806,7 +806,7 @@ export interface components {
             transcripts?: components["schemas"]["AppDir"] | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Output"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2526,7 +2526,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Input"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2586,7 +2586,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Output"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2629,6 +2629,28 @@ export interface components {
              * @enum {string}
              */
             type: "message" | "event";
+        };
+        /**
+         * RegisteredPredicateSpec
+         * @description Portable reference to a registered custom predicate.
+         */
+        RegisteredPredicateSpec: {
+            /** Args */
+            args: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** File */
+            file?: string | null;
+            /**
+             * Kind
+             * @default registered
+             * @constant
+             */
+            kind: "registered";
+            /** Name */
+            name: string;
+            /** Package Version */
+            package_version?: string | null;
         };
         /**
          * RenameValidationSetRequest
@@ -2885,7 +2907,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Input"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -3091,7 +3113,7 @@ export interface components {
             transcripts?: components["schemas"]["ScanTranscripts"] | null;
             /** Validation */
             validation?: {
-                [key: string]: components["schemas"]["ValidationSet-Output"];
+                [key: string]: components["schemas"]["ValidationSetSpec"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -4137,6 +4159,25 @@ export interface components {
             every: number;
         };
         /**
+         * UnavailablePredicateSpec
+         * @description Inert marker for a custom predicate unavailable during resume.
+         */
+        UnavailablePredicateSpec: {
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Kind
+             * @default unavailable
+             * @constant
+             */
+            kind: "unavailable";
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "anonymous" | "legacy";
+        };
+        /**
          * UrlCitation
          * @description A citation that refers to a URL.
          */
@@ -4300,7 +4341,7 @@ export interface components {
          * ValidationSet
          * @description Validation set for a scanner.
          */
-        "ValidationSet-Input": {
+        ValidationSet: {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
             /**
@@ -4312,14 +4353,17 @@ export interface components {
             split?: string | string[] | null;
         };
         /**
-         * ValidationSet
-         * @description Validation set for a scanner.
+         * ValidationSetSpec
+         * @description Data-only validation set stored in portable scan specifications.
          */
-        "ValidationSet-Output": {
+        ValidationSetSpec: {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
-            /** Predicate */
-            predicate?: string | null;
+            /**
+             * Predicate
+             * @default eq
+             */
+            predicate?: ("gt" | "gte" | "lt" | "lte" | "eq" | "ne" | "contains" | "startswith" | "endswith" | "icontains" | "iequals") | components["schemas"]["RegisteredPredicateSpec"] | components["schemas"]["UnavailablePredicateSpec"] | null;
             /** Split */
             split?: string | string[] | null;
         };
