@@ -234,18 +234,13 @@ export const parseScanResultSummaries = async (
         value: value ?? null,
         valueType,
         transcriptTaskSet: (r.transcript_task_set ?? undefined) as
-          | string
-          | undefined,
+          string | undefined,
         transcriptTaskId: (r.transcript_task_id ?? undefined) as
-          | string
-          | number
-          | undefined,
+          string | number | undefined,
         transcriptTaskRepeat: (r.transcript_task_repeat ?? undefined) as
-          | number
-          | undefined,
+          number | undefined,
         transcriptModel: (r.transcript_model ?? undefined) as
-          | string
-          | undefined,
+          string | undefined,
         transcriptMetadata,
         transcriptSourceId: r.transcript_source_id as string,
         scanError: typeof r.scan_error === "string" ? r.scan_error : undefined,
