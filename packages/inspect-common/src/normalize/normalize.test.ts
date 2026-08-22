@@ -321,7 +321,7 @@ describe("per-event-type read-time defaults", () => {
   it("score: fills score, history, and intermediate", () => {
     const event = normalizeEvent({ ...base, event: "score" });
     expect(event).toMatchObject({
-      score: { value: null, history: [] },
+      score: { value: "", history: [] },
       intermediate: false,
     });
   });

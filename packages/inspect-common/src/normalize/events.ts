@@ -90,7 +90,9 @@ const eventFixes = (
         });
       break;
     case "score":
-      if (!isRecord(raw["score"])) fix("score", { value: null, history: [] });
+      // "" because Score.value doesn't admit null; pydantic would reject a
+      // score-less ScoreEvent outright, so this is degradation, not parity.
+      if (!isRecord(raw["score"])) fix("score", { value: "", history: [] });
       if (typeof raw["intermediate"] !== "boolean") fix("intermediate", false);
       break;
     case "state":

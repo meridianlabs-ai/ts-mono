@@ -33,6 +33,9 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
   // are wire data TypeScript can't verify; each is optional on EvalHeader so
   // absence stays representable.
   return {
+    // Spread first so fields the schema grows later survive parsing (matching
+    // normalizeEvalSample/normalizeEvent); normalized fields override below.
+    ...raw,
     version: typeof raw["version"] === "number" ? raw["version"] : 2,
     status: (raw["status"] ?? "started") as EvalLogStatus,
     invalidated:

@@ -49,6 +49,14 @@ describe("normalizeEvalHeader", () => {
     expect(header.metadata).toEqual({ from: "log" });
   });
 
+  it("preserves fields it doesn't model (future schema growth)", () => {
+    const header = normalizeEvalHeader({
+      eval: minimalEval,
+      some_future_field: { nested: true },
+    });
+    expect(header).toMatchObject({ some_future_field: { nested: true } });
+  });
+
   it("normalizes config_updates, dropping malformed entries", () => {
     const header = normalizeEvalHeader({
       eval: minimalEval,
@@ -98,6 +106,14 @@ describe("normalizeEvalLog", () => {
     const event = log.samples?.[0]?.events[0];
     expect(event?.working_start).toBe(0);
     expect(event?.event === "model" && event.config).toEqual({});
+  });
+
+  it("preserves log-level fields it doesn't model", () => {
+    const log = normalizeEvalLog({
+      eval: minimalEval,
+      some_future_field: 7,
+    });
+    expect(log).toMatchObject({ some_future_field: 7 });
   });
 
   it("leaves samples absent when the file carries none (header-only log)", () => {
