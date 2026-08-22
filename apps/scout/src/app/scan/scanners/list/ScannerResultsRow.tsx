@@ -132,7 +132,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
           />
         )}
       </div>
-      {hasValidations && (
+      {hasValidations && summary.validationResult !== undefined && (
         <div className={clsx("text-size-smaller")}>
           <ValidationResult
             result={summary.validationResult}
