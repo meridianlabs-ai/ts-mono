@@ -42,7 +42,10 @@ export const normalizeValidationResult = async (
         result[label] = entry;
       }
     }
-    return result;
+    // A record with no boolean entries left carries no usable validation —
+    // treat it like "never validated" so it doesn't count toward
+    // hasValidations or render an empty cell.
+    return Object.keys(result).length > 0 ? result : undefined;
   }
   return undefined;
 };

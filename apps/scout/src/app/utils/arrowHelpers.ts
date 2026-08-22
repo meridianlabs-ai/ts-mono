@@ -222,19 +222,30 @@ export const parseScanResultSummaries = async (
 
       const baseSummary = {
         identifier: r.identifier as string,
-        uuid: r.uuid as string | undefined,
-        label: r.label as string | undefined,
-        explanation: r.explanation as string,
+        // Null cells fold into undefined (synthetic rows and arquero
+        // .objects() both yield null) so optional fields stay honest.
+        uuid: (r.uuid ?? undefined) as string | undefined,
+        label: (r.label ?? undefined) as string | undefined,
+        explanation: (r.explanation ?? undefined) as string | undefined,
         eventReferences: (eventReferences ?? []) as ScanResultReference[],
         messageReferences: (messageReferences ?? []) as ScanResultReference[],
         validationResult: validationResult,
         validationTarget: validationTarget,
         value: value ?? null,
         valueType,
-        transcriptTaskSet: r.transcript_task_set as string | undefined,
-        transcriptTaskId: r.transcript_task_id as string | number | undefined,
-        transcriptTaskRepeat: r.transcript_task_repeat as number | undefined,
-        transcriptModel: r.transcript_model as string | undefined,
+        transcriptTaskSet: (r.transcript_task_set ?? undefined) as
+          | string
+          | undefined,
+        transcriptTaskId: (r.transcript_task_id ?? undefined) as
+          | string
+          | number
+          | undefined,
+        transcriptTaskRepeat: (r.transcript_task_repeat ?? undefined) as
+          | number
+          | undefined,
+        transcriptModel: (r.transcript_model ?? undefined) as
+          | string
+          | undefined,
         transcriptMetadata,
         transcriptSourceId: r.transcript_source_id as string,
         scanError: typeof r.scan_error === "string" ? r.scan_error : undefined,

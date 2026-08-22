@@ -33,6 +33,11 @@ describe("normalizeValidationResult", () => {
     });
   });
 
+  it("treats records with no boolean entries as never validated", async () => {
+    expect(await normalizeValidationResult("{}")).toBeUndefined();
+    expect(await normalizeValidationResult('{"a":null}')).toBeUndefined();
+  });
+
   it("returns undefined for absent or unusable values", async () => {
     expect(await normalizeValidationResult(null)).toBeUndefined();
     expect(await normalizeValidationResult(undefined)).toBeUndefined();
