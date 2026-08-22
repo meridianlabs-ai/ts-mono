@@ -1749,6 +1749,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -3135,6 +3137,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3187,6 +3191,11 @@ export interface components {
                 [key: string]: unknown;
             } | "UNCHANGED";
             provenance?: components["schemas"]["ProvenanceData"] | null;
+            /**
+             * Reason
+             * @default UNCHANGED
+             */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
