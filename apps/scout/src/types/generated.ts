@@ -2962,6 +2962,12 @@ export interface components {
              * @default 25
              */
             max_transcripts: number;
+            /**
+             * Record Input
+             * @default copy
+             * @enum {string}
+             */
+            record_input: "copy" | "reference";
             /** Results Buffer */
             results_buffer?: number | null;
             /** Shuffle */

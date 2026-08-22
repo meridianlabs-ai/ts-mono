@@ -151,31 +151,31 @@ export function isTranscriptInput(
   input_type: "transcript";
   input: Transcript;
 } {
-  return input.input_type === "transcript";
+  return input.input_type === "transcript" && input.input != null;
 }
 
 export function isMessageInput(input: ScannerInput): input is ScannerInput & {
   input_type: "message";
   input: ChatMessage;
 } {
-  return input.input_type === "message";
+  return input.input_type === "message" && input.input != null;
 }
 
 export function isMessagesInput(input: ScannerInput): input is ScannerInput & {
   input_type: "messages";
   input: ChatMessage[];
 } {
-  return input.input_type === "messages";
+  return input.input_type === "messages" && input.input != null;
 }
 
 export function isEventInput(
   input: ScannerInput
 ): input is ScannerInput & { input_type: "event"; input: EventType } {
-  return input.input_type === "event";
+  return input.input_type === "event" && input.input != null;
 }
 
 export function isEventsInput(
   input: ScannerInput
 ): input is ScannerInput & { input_type: "events"; input: Event[] } {
-  return input.input_type === "events";
+  return input.input_type === "events" && input.input != null;
 }
