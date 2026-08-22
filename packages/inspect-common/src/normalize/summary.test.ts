@@ -80,6 +80,14 @@ describe("normalizeSampleSummary", () => {
     expect(normalizeSampleSummary(42)).toBeUndefined();
   });
 
+  it("drops rows missing id or epoch (no pydantic default to fill)", () => {
+    expect(normalizeSampleSummary({ epoch: 1, input: "q" })).toBeUndefined();
+    expect(normalizeSampleSummary({ id: "s1", input: "q" })).toBeUndefined();
+    expect(
+      normalizeSampleSummary({ id: "s1", epoch: "1", input: "q" })
+    ).toBeUndefined();
+  });
+
   it("preserves identity when nothing needs filling", () => {
     const clean = {
       id: "s1",

@@ -15,6 +15,14 @@ export const normalizeSampleSummary = (
   if (!isRecord(raw)) {
     return undefined;
   }
+  // id/epoch have no pydantic default — a row missing them would refuse to
+  // parse upstream, so it drops here rather than passing through as a lie.
+  if (typeof raw["id"] !== "string" && typeof raw["id"] !== "number") {
+    return undefined;
+  }
+  if (typeof raw["epoch"] !== "number") {
+    return undefined;
+  }
   let fixes: Record<string, unknown> | undefined;
   const fix = (field: string, value: unknown) => {
     fixes ??= {};
