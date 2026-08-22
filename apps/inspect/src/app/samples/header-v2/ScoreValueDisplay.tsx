@@ -9,7 +9,8 @@ import { scoreTone, Tone } from "./scoreTone";
 import styles from "./ScoreValueDisplay.module.css";
 
 interface ScoreValueDisplayProps {
-  value: ScoreValue | undefined;
+  // null: dict-valued scores admit null entries (see scoreValue).
+  value: ScoreValue | null | undefined;
   scoreType: string;
   /** Pixel diameter for grade / bool circles. Plain text scales with
    *  the surrounding font size and ignores this. */
@@ -75,7 +76,10 @@ const CircleValue: FC<ScoreValueDisplayProps> = ({
   return null;
 };
 
-const isCircleScoreType = (scoreType: string, value: ScoreValue | undefined) =>
+const isCircleScoreType = (
+  scoreType: string,
+  value: ScoreValue | null | undefined
+) =>
   (scoreType === kScoreTypePassFail && value !== undefined) ||
   scoreType === kScoreTypeBoolean;
 
@@ -148,8 +152,7 @@ function toneMiniPillClass(tone: Tone): string | undefined {
   return styles.miniPillNeutral;
 }
 
-function formatPlainValue(v: ScoreValue | undefined): string {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+function formatPlainValue(v: ScoreValue | null | undefined): string {
   if (v === undefined || v === null) return "";
   if (Array.isArray(v)) return v.join(", ");
   if (typeof v === "object") return JSON.stringify(v);

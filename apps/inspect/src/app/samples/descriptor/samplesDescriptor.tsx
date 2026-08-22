@@ -35,10 +35,13 @@ export const createEvalDescriptor = (
     return undefined;
   }
 
+  // null is not part of ScoreValue, but dict-valued scores admit null
+  // entries (Score.value's dict form is {[key]: string|number|boolean|null}),
+  // so the dict path below can genuinely return it.
   const scoreValue = (
     sample: BasicSampleData,
     scoreLabel?: ScoreLabel
-  ): ScoreValue | undefined => {
+  ): ScoreValue | null | undefined => {
     // no scores, no value
     if (
       !sample.scores ||
@@ -58,7 +61,10 @@ export const createEvalDescriptor = (
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const temp = sample.scores[scoreLabel.scorer].value;
-        return (temp as Record<string, ScoreValue>)[scoreLabel.name];
+        // Boundary cast: the dict form of Score.value, null-admitting.
+        return (temp as Record<string, string | number | boolean | null>)[
+          scoreLabel.name
+        ];
       } else {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         return sample.scores[scoreLabel.scorer].value;
@@ -139,7 +145,9 @@ export const createEvalDescriptor = (
             return scoreValue(sample, scoreLabel);
           })
           .filter((value) => {
-            return value !== undefined;
+            // null sub-scores are legal in dict values; typeof null is
+            // "object", so letting them through would skew type detection.
+            return value !== undefined && value !== null;
           })
           // NaN is the canonical "unscored" sentinel (see Score.unscored()).
           // Excluding it from type detection keeps a column of "C"/"I" strings
@@ -175,7 +183,9 @@ export const createEvalDescriptor = (
   ): ReactNode => {
     const descriptor = scoreDescriptor(scoreLabel);
     const score = scoreValue(sample, scoreLabel);
-    if (score === undefined) {
+    if (score === null) {
+      return "null";
+    } else if (score === undefined) {
       return "";
     } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
