@@ -1,11 +1,12 @@
 import { FC, ReactNode } from "react";
 import { useLocation } from "react-router";
 
+import { useStaticBundle } from "../../api/useStaticBundle";
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import {
-  activities,
   getActivityById,
   getActivityByRoute,
+  visibleActivities,
 } from "../../router/activities";
 import { openRouteInNewTab } from "../../router/url";
 import { AppConfig } from "../../types/api-types";
@@ -28,6 +29,7 @@ export const ActivityBarLayout: FC<ActivityBarLayoutProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useLoggingNavigate("ActivityBarLayout");
+  const staticBundle = useStaticBundle();
 
   // Determine the currently selected activity based on the current route
   const currentActivity = getActivityByRoute(location.pathname);
@@ -53,7 +55,7 @@ export const ActivityBarLayout: FC<ActivityBarLayoutProps> = ({
       <ProjectBar config={config} />
       <div className={styles.layout}>
         <ActivityBar
-          activities={activities.map((a) => ({
+          activities={visibleActivities(staticBundle).map((a) => ({
             id: a.id,
             label: a.label,
             icon: a.icon,

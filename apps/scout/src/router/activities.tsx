@@ -52,10 +52,25 @@ const allActivities: ActivityConfig[] = [
   },
 ];
 
-export const activities = allActivities.filter((a) => {
-  if (a.id === "runScan" && !__SCOUT_RUN_SCAN__) return false;
-  return true;
-});
+export const activities = allActivities.filter(
+  (a) => !(a.id === "runScan" && !__SCOUT_RUN_SCAN__)
+);
+
+const kStaticBundleHiddenActivities = new Set([
+  "runScan",
+  "project",
+  "validation",
+]);
+
+/**
+ * Activities to render, hiding backend-dependent surfaces in static bundles.
+ * Must be applied at render time: the static-bundle signal comes from the api
+ * object created in main.tsx, which runs after all module bodies evaluate.
+ */
+export const visibleActivities = (staticBundle: boolean): ActivityConfig[] =>
+  staticBundle
+    ? activities.filter((a) => !kStaticBundleHiddenActivities.has(a.id))
+    : activities;
 
 export const getActivityByRoute = (
   path: string
