@@ -4,23 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { useListPositionManager } from "./useListPositionManager";
 
-const stateHooks = vi.hoisted(() => ({
-  removeByPrefix: vi.fn(),
-  removeValue: vi.fn(),
-}));
-
-vi.mock("@tsmono/react/state", () => ({
-  useComponentStateHooks: () => ({
-    useRemoveByPrefix: () => stateHooks.removeByPrefix,
-    useRemoveValue: () => stateHooks.removeValue,
-  }),
-}));
-
 describe("useListPositionManager", () => {
   it("does not reset scroll when a consumed target changes without a selection change", () => {
     const scrollTo = vi.fn();
+    const scrollElement = document.createElement("div");
+    Object.defineProperty(scrollElement, "scrollTo", { value: scrollTo });
     const scrollRef: RefObject<HTMLDivElement | null> = {
-      current: { scrollTo } as unknown as HTMLDivElement,
+      current: scrollElement,
     };
 
     const { rerender } = renderHook(

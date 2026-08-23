@@ -1,8 +1,4 @@
-import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
-
-import { useComponentStateHooks } from "@tsmono/react/state";
-
-const kVirtuosoKeyPrefix = "live-virtual-list-";
+import { RefObject, useEffect, useMemo, useRef } from "react";
 
 interface ListPositionManagerResult {
   /** The effective list ID incorporating the current selection. */
@@ -10,17 +6,15 @@ interface ListPositionManagerResult {
 }
 
 /**
- * Manages per-agent Virtuoso scroll position lifecycle.
+ * Manages per-agent transcript list identity and scroll reset.
  *
  * When `selected` changes (agent selection in swimlanes):
- * - Clears saved Virtuoso state for the target agent so it mounts fresh
- * - When navigating "up" (from a child to a parent), clears all child positions
  * - Scrolls the container to top (unless `hasScrollTarget` is true, in which
  *   case the caller has a specific event to scroll to and we leave the
  *   container alone so the imperative scroll wins)
  */
 /** Strip `/branch-…` segments so all selections within a branch tree share
- *  one list id (in-place Virtuoso update, scroll preserved). */
+ *  one list id (in-place VirtualList update, scroll preserved). */
 function listIdRoot(selected: string | null): string | null {
   return selected?.replace(/\/branch-[^/]+/g, "") ?? null;
 }
@@ -31,10 +25,6 @@ export function useListPositionManager(
   scrollRef: RefObject<HTMLDivElement | null>,
   hasScrollTarget: boolean = false
 ): ListPositionManagerResult {
-  const { useRemoveValue, useRemoveByPrefix } = useComponentStateHooks();
-  const removeValue = useRemoveValue();
-  const removeByPrefix = useRemoveByPrefix();
-
   const idSelection = useMemo(() => listIdRoot(selected), [selected]);
   const effectiveListId = useMemo(
     () => (idSelection ? `${baseListId}:${idSelection}` : baseListId),
@@ -46,25 +36,14 @@ export function useListPositionManager(
   const prevBaseListIdRef = useRef(baseListId);
 
   useEffect(() => {
-    const prevSelected = prevSelectedRef.current;
-    if (prevSelected === selected && prevBaseListIdRef.current === baseListId) {
+    if (
+      prevSelectedRef.current === selected &&
+      prevBaseListIdRef.current === baseListId
+    ) {
       return;
     }
     prevSelectedRef.current = selected;
     prevBaseListIdRef.current = baseListId;
-
-    // Clear saved Virtuoso state for the target agent
-    const targetVirtuosoKey = `${kVirtuosoKeyPrefix}${effectiveListId}`;
-    removeValue("listPosition", targetVirtuosoKey);
-
-    // When navigating "up" in breadcrumbs (from child to parent),
-    // also discard all child positions
-    if (selected && prevSelected && prevSelected.startsWith(selected + "/")) {
-      removeByPrefix(
-        "listPosition",
-        `${kVirtuosoKeyPrefix}${baseListId}:${selected}/`
-      );
-    }
 
     // Scroll to top for the new selection — unless the caller has a deep-link
     // target queued (e.g. URL `?event=` from branch-resolution navigation), in
@@ -72,27 +51,7 @@ export function useListPositionManager(
     if (!hasScrollTarget) {
       scrollRef.current?.scrollTo({ top: 0 });
     }
-  }, [
-    selected,
-    effectiveListId,
-    baseListId,
-    scrollRef,
-    removeValue,
-    removeByPrefix,
-    hasScrollTarget,
-  ]);
-
-  /**
-   * Clean up all per-agent positions when the component unmounts
-   * (e.g. navigating to a different transcript).
-   */
-  const cleanupPrefix = useCallback(() => {
-    removeByPrefix("listPosition", `${kVirtuosoKeyPrefix}${baseListId}:`);
-  }, [baseListId, removeByPrefix]);
-
-  useEffect(() => {
-    return cleanupPrefix;
-  }, [cleanupPrefix]);
+  }, [selected, baseListId, scrollRef, hasScrollTarget]);
 
   return { effectiveListId };
 }

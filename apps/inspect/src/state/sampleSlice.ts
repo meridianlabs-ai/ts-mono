@@ -65,9 +65,8 @@ export const createSampleSlice = (
           state.sample.activeTimelineIndex = 0;
           state.log.selectedSampleHandle = undefined;
 
-          // Clear persisted scroll/list positions
+          // Clear persisted scroll positions
           delete state.app.propertyBags["scrollPosition"];
-          delete state.app.propertyBags["listPosition"];
         });
       },
       setCollapsedEvents: (
