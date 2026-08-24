@@ -19,6 +19,7 @@ import { ScoreGrid } from "./ScoreGrid";
 import { UnscoredSamples } from "./UnscoredSamplesView";
 
 const kMaxPrimaryScoreRows = 3;
+const kMaxPrimaryMetricColumns = 5;
 
 export const displayScorersFromRunningMetrics = (metrics?: RunningMetric[]) => {
   if (!metrics) {
@@ -85,23 +86,35 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
   if (onlyScorer) {
     const showReducer = !!onlyScorer.reducer;
     const metrics = onlyScorer.metrics;
+    const primaryMetrics = metrics.slice(0, kMaxPrimaryMetricColumns);
+    const showMore = primaryMetrics.length < metrics.length;
     const unscoredSamples = onlyScorer.unscoredSamples || 0;
     const scoredSamples = onlyScorer.scoredSamples || 0;
     return (
-      <div className={styles.simpleMetricsRows}>
-        {metrics.map((metric, i) => {
-          return (
-            <VerticalMetric
-              key={`simple-metric-${i}`}
-              reducer={onlyScorer.reducer}
-              metric={metric}
-              isFirst={i === 0}
-              showReducer={showReducer}
-              unscoredSamples={unscoredSamples}
-              scoredSamples={scoredSamples}
-            />
-          );
-        })}
+      <div className={styles.metricsSummary}>
+        <div className={styles.simpleMetricsRows}>
+          {primaryMetrics.map((metric, i) => {
+            return (
+              <VerticalMetric
+                key={`simple-metric-${i}`}
+                reducer={onlyScorer.reducer}
+                metric={metric}
+                isFirst={i === 0}
+                showReducer={showReducer}
+                unscoredSamples={unscoredSamples}
+                scoredSamples={scoredSamples}
+              />
+            );
+          })}
+        </div>
+        {showMore ? (
+          <ScoringDetail
+            grouped={groupScorers(expandedScorers)}
+            showReducer={showReducer}
+            showing={showing}
+            setShowing={setShowing}
+          />
+        ) : undefined}
       </div>
     );
   } else {
@@ -139,6 +152,18 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
       }
     }
 
+    if (
+      primaryResults.some(
+        (score) => score.metrics.length > kMaxPrimaryMetricColumns
+      )
+    ) {
+      primaryResults = primaryResults.map((score) => ({
+        ...score,
+        metrics: score.metrics.slice(0, kMaxPrimaryMetricColumns),
+      }));
+      showMore = true;
+    }
+
     return (
       <div className={clsx(styles.metricsSummary)}>
         <ScoreGrid
@@ -147,41 +172,60 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
           compact
         />
         {showMore ? (
-          <>
-            <Modal
-              id="results-metrics"
-              show={showing}
-              onHide={() => setShowing(false)}
-              title={"Scoring Detail"}
-              width="min(1000px, 90vw)"
-              overflow="hidden"
-              padded={false}
-              className={styles.scoringDetailModal}
-              footer={
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setShowing(false)}
-                >
-                  Close
-                </button>
-              }
-            >
-              <ScoreGrid scoreGroups={grouped} showReducer={showReducer} />
-            </Modal>
-            <LinkButton
-              className={styles.moreButton}
-              text={"All scoring..."}
-              onClick={() => {
-                setShowing(true);
-              }}
-            />
-          </>
+          <ScoringDetail
+            grouped={grouped}
+            showReducer={showReducer}
+            showing={showing}
+            setShowing={setShowing}
+          />
         ) : undefined}
       </div>
     );
   }
 };
+
+interface ScoringDetailProps {
+  grouped: ScoreSummary[][];
+  showReducer: boolean;
+  showing: boolean;
+  setShowing: (showing: boolean) => void;
+}
+
+const ScoringDetail: FC<ScoringDetailProps> = ({
+  grouped,
+  showReducer,
+  showing,
+  setShowing,
+}) => (
+  <>
+    <Modal
+      id="results-metrics"
+      show={showing}
+      onHide={() => setShowing(false)}
+      title="Scoring Detail"
+      width="min(1000px, 90vw)"
+      overflow="hidden"
+      padded={false}
+      className={styles.scoringDetailModal}
+      footer={
+        <button
+          type="button"
+          className="btn btn-secondary"
+          onClick={() => setShowing(false)}
+        >
+          Close
+        </button>
+      }
+    >
+      <ScoreGrid scoreGroups={grouped} showReducer={showReducer} />
+    </Modal>
+    <LinkButton
+      className={styles.moreButton}
+      text="All scoring..."
+      onClick={() => setShowing(true)}
+    />
+  </>
+);
 
 interface VerticalMetricProps {
   metric: MetricSummary;
