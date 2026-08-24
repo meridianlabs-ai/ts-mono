@@ -70,6 +70,7 @@
     "@tsmono/util": "workspace:*",
     "@types/bootstrap": "^5.2.11",
     "@types/lz4js": "^0.2.2",
+    "@types/node": "^26.2.0",
     "@types/prismjs": "^1.26.5",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
