@@ -117,6 +117,28 @@ test.describe("Top-level views", () => {
     expect(page.url()).toMatch(/#\/logs\//);
   });
 
+  test("log header can be collapsed and expanded manually", async ({
+  page,
+  network,
+}) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await gridCell(page, "task-alpha").click();
+    await page.waitForURL(/#\/tasks\//);
+
+    const collapse = page.getByRole("button", { name: "Collapse header" });
+    await expect(collapse).toBeVisible();
+    await collapse.click();
+
+    const expand = page.getByRole("button", { name: "Expand header" });
+    await expect(expand).toBeVisible();
+    await expect(page.locator("#task-title-collapsed")).toBeVisible();
+    await expand.click();
+
+    await expect(collapse).toBeVisible();
+    await expect(page.locator("#task-title")).toBeVisible();
+  });
+
   test("Tasks view does not show folder grouping", async ({
     page,
     network,
