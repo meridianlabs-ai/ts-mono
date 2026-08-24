@@ -1,14 +1,11 @@
 import { render } from "@testing-library/react";
-import { useSyncExternalStore } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { ExtendedFindProvider } from "@tsmono/react/components";
-import {
-  ComponentStateProvider,
-  type ComponentStateHooks,
-} from "@tsmono/react/state";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeReactiveStateStore } from "@tsmono/react/testing";
 
 import {
   ChatViewRowsVirtualList,
@@ -26,41 +23,13 @@ beforeEach(() => {
   Element.prototype.scrollTo = function () {};
 });
 
-/** An inspectable in-memory ComponentStateHooks store. */
-function makeStateStore() {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const key = (id: string, prop: string) => `${id}::${prop}`;
-  const write = (id: string, prop: string, value: unknown) => {
-    store.set(key(id, prop), value);
-    version++;
-    listeners.forEach((l) => l());
-  };
-  const hooks: ComponentStateHooks = {
-    useValue: (id, prop, defaultValue) => {
-      useSyncExternalStore(
-        (cb) => (listeners.add(cb), () => listeners.delete(cb)),
-        () => version
-      );
-      return store.has(key(id, prop)) ? store.get(key(id, prop)) : defaultValue;
-    },
-    useSetValue: () => write,
-    useRemoveValue: () => (id, prop) => write(id, prop, undefined),
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-  return { store, hooks };
-}
-
 /** Mounts the list over an inspectable store and returns the persisted follow flag. */
 function mountFollow(props: {
   running: boolean;
   initialMessageId?: string;
   followRequested?: boolean;
 }) {
-  const { store, hooks } = makeStateStore();
+  const { store, hooks } = makeReactiveStateStore();
 
   render(
     <ComponentStateProvider hooks={hooks}>
@@ -88,7 +57,7 @@ describe("ChatViewRowsVirtualList paging", () => {
     hasMoreRows?: boolean;
     onLoadMoreRows?: () => void;
   }) => {
-    const { hooks } = makeStateStore();
+    const { hooks } = makeReactiveStateStore();
     const ui = (p: typeof props) => (
       <ComponentStateProvider hooks={hooks}>
         <ExtendedFindProvider>

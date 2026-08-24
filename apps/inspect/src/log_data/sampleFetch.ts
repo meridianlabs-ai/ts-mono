@@ -1,3 +1,4 @@
+import { normalizeEvalSample } from "@tsmono/inspect-common/normalize";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
@@ -18,45 +19,34 @@ export class SampleNotFoundError extends Error {
 }
 
 /**
- * Migrates and resolves attachments for a sample
+ * Accepts raw sample JSON of any vintage and produces a fully-resolved
+ * EvalSample: boundary normalization (legacy-shape migration + read-time
+ * defaults, see `normalizeEvalSample`), then pool-ref expansion and
+ * `attachment://` resolution.
  */
-// Accepts raw sample JSON of any vintage (old logs nested events under
-// `transcript`, and callers/tests pass partial shapes), normalizing it into
-// an EvalSample. This is an inherently dynamic boundary, so the body operates
-// on `any` rather than reconstructing the full union-typed sample shape.
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
-export const resolveSample = (sample: any): EvalSample => {
-  sample = { ...sample };
-
-  // Migrates old versions of samples to the new structure
-  if (sample.transcript) {
-    sample.events = sample.transcript.events;
-    sample.attachments = sample.transcript.content;
-  }
+export const resolveSample = (raw: unknown): EvalSample => {
+  const sample = normalizeEvalSample(raw);
 
   // Resolve pool refs BEFORE attachments (pool messages may
   // contain attachment:// refs that need resolving in the next step)
   sample.events = expandEvents(sample.events, sample.events_data ?? null);
   sample.events_data = null;
 
-  sample.attachments = sample.attachments || {};
-  sample.input = resolveAttachments(sample.input, sample.attachments);
-  sample.messages = resolveAttachments(sample.messages, sample.attachments);
-  sample.events = resolveAttachments(sample.events, sample.attachments);
+  const attachments = sample.attachments;
+  sample.input = resolveAttachments(sample.input, attachments);
+  sample.messages = resolveAttachments(sample.messages, attachments);
+  sample.events = resolveAttachments(sample.events, attachments);
   // Retry-attempt events carry their own attachment:// refs into the shared
   // sample.attachments map; resolve them too before the map is cleared.
   if (sample.error_retries) {
-    sample.error_retries = sample.error_retries.map(
-      (retry: Record<string, unknown>) => ({
-        ...retry,
-        events: resolveAttachments(retry.events, sample.attachments),
-      })
-    );
+    sample.error_retries = sample.error_retries.map((retry) => ({
+      ...retry,
+      events: resolveAttachments(retry.events, attachments),
+    }));
   }
   sample.attachments = {};
   return sample;
 };
-/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 
 /**
  * Fetch a completed sample's EvalSample and normalize it (legacy-shape migration,
@@ -94,7 +84,9 @@ export const synthesizeErroredSampleFromSummary = (
     );
   }
   const errorMessage = summary.error;
-  return {
+  // normalizeEvalSample fills the remaining required fields (output
+  // completion, role_usage, ...) the summary can't supply.
+  return normalizeEvalSample({
     id: summary.id,
     epoch: summary.epoch,
     uuid: summary.uuid,
@@ -124,5 +116,5 @@ export const synthesizeErroredSampleFromSummary = (
       usage: null,
     },
     store: {},
-  } as unknown as EvalSample;
+  });
 };

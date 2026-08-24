@@ -14,6 +14,7 @@ import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { EvalScores } from "../../../@types/extraInspect";
 import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleData";
+import { normalizeEvalLog } from "../../utils/normalize";
 import { download_file } from "../shared/api-shared";
 import {
   Capabilities,
@@ -209,7 +210,10 @@ export function viewServerApi(
       "GET",
       `/logs/${encodeURIComponent(file)}?header-only=${headerOnly}`
     );
-    return result as LogContents;
+    // Boundary normalization (#555): an older inspect_ai server (version
+    // skew is routine in the VS Code extension) serves shapes the current
+    // generated types don't admit.
+    return { raw: result.raw, parsed: normalizeEvalLog(result.parsed) };
   };
 
   const get_log_info = async (file: string): Promise<LogInfo> => {
@@ -276,7 +280,11 @@ export function viewServerApi(
       "GET",
       `/log-headers?${params.toString()}`
     );
-    const logHeaders = result.parsed as EvalHeader[];
+    // Boundary normalization (#555): see get_log_contents. normalizeEvalLog
+    // (not normalizeEvalHeader) so v1-shaped results reshape here too.
+    const logHeaders = Array.isArray(result.parsed)
+      ? result.parsed.map(normalizeEvalLog)
+      : [];
     return logHeaders.map(toLogPreview);
   };
 
@@ -549,6 +557,7 @@ export function viewServerApi(
 
   const get_user_info = async (): Promise<UserInfo> => {
     const result = await requestApi.fetchString("GET", "/user-info");
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return (result.parsed as UserInfo) ?? {};
   };
 

@@ -21,7 +21,7 @@ import {
   outlineCollapseState,
   type OutlineCollapseState,
 } from "./outline/useOutlineCollapse";
-import styles from "./TranscriptLayout.module.css";
+import styles from "./OutlineSidebar.module.css";
 import { EventNode, type TranscriptCollapseState } from "./types";
 
 export interface TranscriptLayoutOutlineProps {
@@ -112,7 +112,7 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
       <StickyScroll
         ref={handleOutlineScrollRef}
         scrollRef={scrollRef}
-        className={styles.outline}
+        className={clsx(styles.outline, !isCollapsed && styles.expanded)}
         offsetTop={offsetTop}
       >
         {!isCollapsed ? (

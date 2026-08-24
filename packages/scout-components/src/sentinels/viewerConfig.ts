@@ -134,6 +134,7 @@ function scannerResultViewEntries(
 ): Array<{ pattern: string; view: ScannerResultView }> {
   if (!viewer) return [];
   const raw = viewer.scanner_result_view;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];
@@ -235,6 +236,7 @@ function coerceField(
     if (!kBuiltinNames.has(entry.name)) return null;
     return entry;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (entry.kind === "metadata") return entry;
   return null;
 }

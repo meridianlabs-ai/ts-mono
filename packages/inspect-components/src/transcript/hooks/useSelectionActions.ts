@@ -57,11 +57,6 @@ export function useSelectionActions(
   // Scroll-anchor for inline fork-navigator clicks: the prefix above the
   // clicked navigator is unchanged across the selection, so capturing and
   // restoring scrollTop keeps the navigator at the same viewport position.
-  //
-  // Known issue: the anchor is never cleared after its restore runs, so the
-  // first anchored click latches hasScrollTarget true and suppresses the
-  // scroll-to-top for all later plain row selections. Pre-existing behavior,
-  // tracked in https://github.com/meridianlabs-ai/ts-mono/issues/440.
   const [scrollAnchor, setScrollAnchor] = useState<{
     scrollTop: number;
   } | null>(null);
@@ -103,6 +98,7 @@ export function useSelectionActions(
     if (!scrollAnchor) return;
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ top: scrollAnchor.scrollTop });
+      setScrollAnchor(null);
     });
   }, [scrollAnchor, scrollRef]);
 

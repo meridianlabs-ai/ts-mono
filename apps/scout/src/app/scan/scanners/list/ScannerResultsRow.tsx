@@ -42,6 +42,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   );
 
   // Generate the route to the scan result using the current scan path and the entry's uuid
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const isNavigable = summary.identifier !== undefined && !!scansDir;
   const scanResultUrl = isNavigable
     ? scanResultRoute(scansDir, scanPath, summary.identifier, searchParams)
@@ -120,7 +121,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
         </div>
       )}
 
-      <div className={clsx(styles.value, "text-size-smaller")}>
+      <div className={clsx("text-size-smaller")}>
         {!summary.scanError && (
           <Value
             value={summary.value}

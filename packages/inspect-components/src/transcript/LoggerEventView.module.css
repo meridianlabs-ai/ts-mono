@@ -4,7 +4,3 @@
   grid-template-columns: 1fr max-content;
   column-gap: 1em;
 }
-
-.jsonPanel {
-  padding: 0 !important;
-}

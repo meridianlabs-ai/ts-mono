@@ -338,6 +338,7 @@ export const SamplesPanel: FC = () => {
           target: derived.target,
           error: sample.error,
           limit: sample.limit,
+          limit_reason: sample.limit_reason,
           retries: sample.retries,
           fallbacks: derived.fallbacks,
           completed: sample.completed,

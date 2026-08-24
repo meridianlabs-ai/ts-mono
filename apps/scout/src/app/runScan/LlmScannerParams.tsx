@@ -7,7 +7,7 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC } from "react";
 
-import styles from "./RunScanPanel.module.css";
+import styles from "./LlmScannerParams.module.css";
 
 function getInputValue(e: Event): string {
   return (e.target as HTMLInputElement).value;

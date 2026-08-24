@@ -127,6 +127,7 @@ const generatePreview = (
         switch (op) {
           case "add":
             if (
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
               changeType.signature.add &&
               changeType.signature.add.length > 0
             ) {
@@ -139,6 +140,7 @@ const generatePreview = (
             break;
           case "remove":
             if (
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
               changeType.signature.remove &&
               changeType.signature.remove.length > 0
             ) {
@@ -151,6 +153,7 @@ const generatePreview = (
             break;
           case "replace":
             if (
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
               changeType.signature.replace &&
               changeType.signature.replace.length > 0
             ) {

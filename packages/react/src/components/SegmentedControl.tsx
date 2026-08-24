@@ -39,6 +39,7 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
     [onSegmentChange]
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const selectedId = selectedIdProp ?? segments[0]?.id ?? "";
 
   return (

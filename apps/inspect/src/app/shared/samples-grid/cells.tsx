@@ -5,7 +5,7 @@ import { RenderedText } from "@tsmono/inspect-components/content";
 
 import { truncateMarkdown } from "../../../utils/markdown";
 
-import styles from "./SamplesGrid.module.css";
+import styles from "./gridCells.module.css";
 
 interface MarkdownCellDivProps {
   semanticClass: string;

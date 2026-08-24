@@ -6,7 +6,8 @@ import { BasicSampleData } from "../../../client/api/types";
 
 export interface EvalDescriptor {
   scores: ScoreLabel[];
-  scoreDescriptor: (scoreLabel: ScoreLabel) => ScoreDescriptor;
+  /** Undefined when no samples carry the score (e.g. a stale filter label). */
+  scoreDescriptor: (scoreLabel: ScoreLabel) => ScoreDescriptor | undefined;
   scorerDescriptor: (
     sample: BasicSampleData,
     scoreLabel: ScoreLabel

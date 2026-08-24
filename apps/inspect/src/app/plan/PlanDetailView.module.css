@@ -13,14 +13,6 @@
   padding-right: 0.6rem;
 }
 
-.oneCol {
-  flex: 0 0 100%;
-}
-
-.twoCol {
-  flex: 0 0 50%;
-}
-
 .planCol {
   margin-top: 0;
   margin-bottom: 0.5em;
@@ -38,12 +30,4 @@
   flex-wrap: wrap;
   padding-bottom: 1em;
   margin-bottom: 0.5em;
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto;
-  margin-left: 0.5em;
-  gap: 1em;
 }

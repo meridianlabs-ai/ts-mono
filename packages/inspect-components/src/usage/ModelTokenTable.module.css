@@ -189,13 +189,6 @@
   text-align: right;
 }
 
-.totalCell {
-  vertical-align: top;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--bs-body-color);
-}
-
 .perSampleCell {
   vertical-align: top;
   color: var(--bs-secondary);
@@ -208,14 +201,6 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-top: 0.15rem;
-}
-
-.swatch {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  flex-shrink: 0;
 }
 
 .swatchSmall {

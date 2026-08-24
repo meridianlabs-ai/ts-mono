@@ -15,6 +15,7 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
       );
     },
     render: (score) => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (score === null || score === undefined) {
         return "[null]";
       }
@@ -27,6 +28,7 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
           );
         }
         const formattedValue =
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           value && isNumeric(value)
             ? formatPrettyDecimal(
                 typeof value === "number"

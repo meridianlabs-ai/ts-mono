@@ -34,6 +34,7 @@ const EVAL_CONFIG_KEYS: Record<keyof EvalConfig, true> = {
   sample_id: true,
   sample_shuffle: true,
   sandbox_cleanup: true,
+  sandbox_prebuilt: true,
   score_display: true,
   score_on_error: true,
   time_limit: true,
@@ -189,13 +190,9 @@ const changesFor = (
         previous: change.previous,
         cleared: change.cleared,
         limitLifted:
-          !change.cleared &&
-          change.value === null &&
-          change.previous !== null &&
-          change.previous !== undefined,
+          !change.cleared && change.value === null && change.previous !== null,
         scope: update.scope,
-        // provenance?. — the cast doesn't guarantee it exists either.
-        inherited: update.provenance?.metadata?.["inherited"] === true,
+        inherited: update.provenance.metadata["inherited"] === true,
         provenance: update.provenance,
       });
     }
@@ -245,7 +242,7 @@ export const concurrencyChanges = (
         cleared: change.cleared,
         limitLifted: false,
         scope: update.scope,
-        inherited: update.provenance?.metadata?.["inherited"] === true,
+        inherited: update.provenance.metadata["inherited"] === true,
         provenance: update.provenance,
       });
     }

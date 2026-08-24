@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import type { CSSProperties } from "react";
 
@@ -39,7 +40,7 @@ import {
   resolveScale,
   type WireScoreColorScale,
 } from "./colorScale";
-import styles from "./SamplesGrid.module.css";
+import styles from "./gridCells.module.css";
 import { SampleRow } from "./types";
 
 export type SampleGridViewMode = "list" | "grid";
@@ -405,7 +406,13 @@ export function buildSampleColumns(
       size: shape ? (shape.limitSize ?? 1) * 16 : 100,
       minSize: 28,
       accessorFn: (row) => row.limit ?? row.data?.limit,
-      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+      cell: ({ getValue, row }) => (
+        <div
+          title={row.original.limit_reason ?? row.original.data?.limit_reason}
+        >
+          {valueAsString(getValue() ?? "")}
+        </div>
+      ),
     },
     {
       id: "retries",

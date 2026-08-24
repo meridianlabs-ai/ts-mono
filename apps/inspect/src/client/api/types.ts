@@ -139,6 +139,7 @@ export interface SampleSummary {
   scores: EvalSampleScore | null | undefined;
   error?: string;
   limit?: string;
+  limit_reason?: string;
   metadata?: Record<string, unknown>;
   completed?: boolean;
   retries?: number;
@@ -425,6 +426,8 @@ export interface FetchResponse {
 export interface EvalHeader {
   version?: EvalLogVersion;
   status?: EvalLogStatus;
+  /** Log invalidation flag; absent on journal-synthesized headers. */
+  invalidated?: boolean;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;

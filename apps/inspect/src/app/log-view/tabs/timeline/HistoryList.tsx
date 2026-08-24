@@ -33,13 +33,13 @@ import {
 } from "./timelineData";
 
 const kPillClass: Record<HistoryCategory, string> = {
-  config: styles.pillConfig!,
-  connections: styles.pillConnections!,
-  limits: styles.pillLimits!,
-  errors: styles.pillErrors!,
-  cancels: styles.pillCancels!,
-  tags: styles.pillTags!,
-  run: styles.pillRun!,
+  config: styles.pillConfig,
+  connections: styles.pillConnections,
+  limits: styles.pillLimits,
+  errors: styles.pillErrors,
+  cancels: styles.pillCancels,
+  tags: styles.pillTags,
+  run: styles.pillRun,
 };
 
 // The chart-linkable rows: config ◆ and tag/metadata ◆ share the rail.
@@ -240,6 +240,7 @@ export const HistoryList: FC<HistoryListProps> = ({
                         matching limitLifted and changeText. */}
                     {change.value === null &&
                     change.previous !== null &&
+                    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                     change.previous !== undefined ? (
                       <span className={styles.muted}> (limit lifted)</span>
                     ) : null}

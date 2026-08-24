@@ -19,13 +19,17 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  scoreType: string;
+  // undefined when no samples carry the score (descriptor lookup misses)
+  scoreType: string | undefined;
 }
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -169,6 +173,7 @@ export const sampleVariables = (
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     target: arrayToString(sample.target ?? ""),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
@@ -207,12 +212,6 @@ export const sampleFilterItems = (
     }
     const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
 
-    // This is not a filterable score
-    if (descriptor.filterable === false) {
-      return;
-    }
-
-    const scoreType = descriptor?.scoreType;
     if (!descriptor) {
       items.push({
         shortName,
@@ -220,10 +219,17 @@ export const sampleFilterItems = (
         canonicalName,
         tooltip: undefined,
         categories: [],
-        scoreType,
+        scoreType: undefined,
       });
       return;
     }
+
+    // This is not a filterable score
+    if (descriptor.filterable === false) {
+      return;
+    }
+
+    const scoreType = descriptor.scoreType;
     let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
     let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {

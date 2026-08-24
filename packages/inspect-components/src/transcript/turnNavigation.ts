@@ -115,10 +115,10 @@ export function anchorIndexForEvent(
 function agentBoundaryName(node: EventNode): string | undefined {
   const event = node.event;
   if (event.event === "span_begin" && event.type === "agent") {
-    return event.name ?? "agent";
+    return event.name || "agent";
   }
   if (event.event === "subtask") {
-    return event.name ?? "subtask";
+    return event.name || "subtask";
   }
   return undefined;
 }
@@ -180,7 +180,7 @@ export function focusedTurnNodes(
   if (!target) return [];
   const end = flat.indexOf(slice[slice.length - 1]!) + 1;
   const isLastTurn =
-    target?.event.event === "model" &&
+    target.event.event === "model" &&
     !flat.slice(end).some((n) => n.event.event === "model");
   const trailing = isLastTurn
     ? flat.slice(end).filter((n) => kSampleTerminalEvents.has(n.event.event))

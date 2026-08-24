@@ -28,6 +28,13 @@ const shouldSubmitOnEnter = (
   return target.matches(TEXT_INPUT_SELECTOR);
 };
 
+const OVERFLOW_CLASS: Record<NonNullable<ModalProps["overflow"]>, string> = {
+  auto: styles.overflowAuto,
+  hidden: styles.overflowHidden,
+  scroll: styles.overflowScroll,
+  visible: styles.overflowVisible,
+};
+
 interface ModalProps {
   show: boolean;
   onHide: () => void;
@@ -117,6 +124,7 @@ export const Modal: FC<ModalProps> = ({
     }, 0);
     return () => {
       window.clearTimeout(timer);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: activeElement cast hides null/non-HTMLElement; .focus may be absent
       previouslyFocused?.focus?.();
     };
   }, [show]);
@@ -162,9 +170,7 @@ export const Modal: FC<ModalProps> = ({
         <div
           className={clsx(
             styles.body,
-            styles[
-              `overflow${overflow.charAt(0).toUpperCase()}${overflow.slice(1)}`
-            ],
+            OVERFLOW_CLASS[overflow],
             !padded && styles.noPadding,
             bodyClassName
           )}

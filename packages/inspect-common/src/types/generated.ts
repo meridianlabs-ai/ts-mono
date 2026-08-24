@@ -1424,6 +1424,8 @@ export interface components {
             sample_shuffle?: boolean | number | null;
             /** Sandbox Cleanup */
             sandbox_cleanup?: boolean | null;
+            /** Sandbox Prebuilt */
+            sandbox_prebuilt?: boolean | null;
             /** Score Display */
             score_display?: boolean | null;
             /** Score On Error */
@@ -1714,6 +1716,8 @@ export interface components {
         EvalSampleLimit: {
             /** Limit */
             limit: number;
+            /** Reason */
+            reason?: string | null;
             /**
              * Type
              * @enum {string}
@@ -1780,6 +1784,8 @@ export interface components {
             input: string | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Limit */
             limit?: string | null;
+            /** Limit Reason */
+            limit_reason?: string | null;
             /** Message Count */
             message_count?: number | null;
             /** Metadata */

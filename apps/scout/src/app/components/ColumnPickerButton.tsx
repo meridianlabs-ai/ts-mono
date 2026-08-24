@@ -5,7 +5,7 @@ import { ToolButton } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../icons";
 
-import styles from "./FilterBar.module.css";
+import styles from "./ColumnPickerButton.module.css";
 
 export interface ColumnPickerRenderProps {
   positionEl: HTMLButtonElement | null;

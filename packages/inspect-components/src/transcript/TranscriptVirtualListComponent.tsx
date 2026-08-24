@@ -164,7 +164,6 @@ export const TranscriptVirtualListComponent: FC<
 
   const renderRow = useCallback(
     (index: number, item: EventNode) => {
-      const paddingClass = index === 0 ? styles.first : undefined;
       const depth = relativeIndent
         ? item.depth - (eventNodes[0]?.depth ?? 0)
         : item.depth;
@@ -216,7 +215,6 @@ export const TranscriptVirtualListComponent: FC<
           key={item.id}
           className={clsx(
             styles.node,
-            paddingClass,
             isLast ? styles.last : undefined,
             attachedClass
           )}

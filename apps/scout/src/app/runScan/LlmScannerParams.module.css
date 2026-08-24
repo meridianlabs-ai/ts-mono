@@ -1,0 +1,22 @@
+.formRow {
+  display: flex;
+  gap: 2rem;
+}
+
+.formColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.checkboxGroup {
+  display: flex;
+  gap: 1.5rem;
+}

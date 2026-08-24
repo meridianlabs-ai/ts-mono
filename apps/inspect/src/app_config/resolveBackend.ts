@@ -198,6 +198,7 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
   if (scriptEl) {
     // Read the contents
     const context = scriptEl.textContent;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (context !== null) {
       const data = JSON5.parse<LogDirContext>(context);
       if (data.log_dir || data.log_file) {

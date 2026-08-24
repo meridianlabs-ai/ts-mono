@@ -7,7 +7,9 @@
  * break loudly (at typecheck) when the generated types move, casts don't.
  */
 import type {
+  AnchorEvent,
   ApprovalEvent,
+  BranchEvent,
   ChatCompletionChoice,
   ChatMessageAssistant,
   ChatMessageSystem,
@@ -40,6 +42,9 @@ import type {
   StateEvent,
   StepEvent,
   SubtaskEvent,
+  Timeline,
+  TimelineEvent,
+  TimelineSpan,
   ToolCall,
   ToolEvent,
 } from "../types";
@@ -196,6 +201,26 @@ export const testInfoEvent = (
   ...overrides,
 });
 
+export const testAnchorEvent = (
+  overrides: Partial<AnchorEvent> = {}
+): AnchorEvent => ({
+  event: "anchor",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  anchor_id: "anchor-1",
+  ...overrides,
+});
+
+export const testBranchEvent = (
+  overrides: Partial<BranchEvent> = {}
+): BranchEvent => ({
+  event: "branch",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  from_anchor: "anchor-1",
+  ...overrides,
+});
+
 export const testScore = (overrides: Partial<Score> = {}): Score => ({
   value: 1,
   history: [],
@@ -337,6 +362,38 @@ export const testInputEvent = (
   working_start: 0,
   input: "",
   input_ansi: "",
+  ...overrides,
+});
+
+// ---------------------------------------------------------------------------
+// Timelines
+// ---------------------------------------------------------------------------
+
+export const testTimelineEvent = (
+  overrides: Partial<TimelineEvent> = {}
+): TimelineEvent => ({
+  type: "event",
+  event: "evt-1",
+  ...overrides,
+});
+
+export const testTimelineSpan = (
+  overrides: Partial<TimelineSpan> = {}
+): TimelineSpan => ({
+  type: "span",
+  id: "span-1",
+  name: "span",
+  content: [],
+  branches: [],
+  tool_invoked: false,
+  utility: false,
+  ...overrides,
+});
+
+export const testTimeline = (overrides: Partial<Timeline> = {}): Timeline => ({
+  name: "default",
+  description: "Test timeline",
+  root: testTimelineSpan({ id: "root", name: "Transcript" }),
   ...overrides,
 });
 

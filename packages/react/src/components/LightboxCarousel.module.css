@@ -76,11 +76,11 @@
 }
 
 .lightboxPreviewButton.next {
-  left: 10px;
+  right: 10px;
 }
 
 .lightboxPreviewButton.prev {
-  right: 10px;
+  left: 10px;
 }
 
 .lightboxContent {

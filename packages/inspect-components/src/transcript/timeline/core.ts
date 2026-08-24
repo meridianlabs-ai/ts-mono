@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 /**
  * Transcript nodes: hierarchical structure for visualization and scanning.
  *
@@ -502,7 +503,7 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
  */
 function getEventTokens(event: Event): number {
   if (event.event === "model") {
-    const usage = event.output?.usage;
+    const usage = event.output.usage;
     if (usage) {
       const inputTokens = usage.input_tokens ?? 0;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
@@ -1314,8 +1315,8 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
  * Check whether a ModelEvent's output contains tool calls.
  */
 function hasToolCalls(event: ModelEvent): boolean {
-  const choices = event.output?.choices;
-  if (choices && choices.length > 0) {
+  const choices = event.output.choices;
+  if (choices.length > 0) {
     const msg = choices[0]!.message;
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       return true;
@@ -1409,7 +1410,7 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 }
 
 function isWarmupCall(event: ModelEvent): boolean {
-  if (event.config?.max_tokens == null || event.config.max_tokens > 1) {
+  if (event.config.max_tokens == null || event.config.max_tokens > 1) {
     return false;
   }
   // Check that the last user message is a single word

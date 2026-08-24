@@ -1,14 +1,21 @@
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import {
+  testAnchorEvent,
   testAssistantMessage,
   testChatCompletionChoice,
   testInfoEvent,
   testModelEvent,
   testModelOutput,
+  testTimelineEvent,
+  testTimelineSpan,
 } from "@tsmono/inspect-common/testing";
-import type { Event } from "@tsmono/inspect-common/types";
+import type {
+  AnchorEvent,
+  Event,
+  Timeline as ServerTimeline,
+} from "@tsmono/inspect-common/types";
 
 import { InMemoryStateWrapper } from "../testHelpers";
 
@@ -50,6 +57,19 @@ function makeInfoEvent(uuid: string, startSec: number): Event {
   });
 }
 
+function makeAnchorEvent(
+  uuid: string,
+  anchorId: string,
+  startSec: number
+): AnchorEvent {
+  return testAnchorEvent({
+    uuid,
+    anchor_id: anchorId,
+    timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
+    working_start: startSec,
+  });
+}
+
 // =============================================================================
 // useTimelinePipeline
 // =============================================================================
@@ -78,6 +98,58 @@ describe("useTimelinePipeline", () => {
     expect(result.current.showSwimlanes).toBe(true);
     // With swimlanes on the feed carries the (empty) source-span map.
     expect(result.current.nodeFeed.sourceSpans).toBeInstanceOf(Map);
+  });
+
+  it("keeps swimlane navigation visible in a flat punched-down branch", () => {
+    const branchEvents = [
+      makeModelEvent("main", 0),
+      makeAnchorEvent("anchor", "fork-1", 1),
+      makeModelEvent("branch-event", 2),
+    ];
+    const serverTimelines: ServerTimeline[] = [
+      {
+        name: "default",
+        description: "Flat branch",
+        root: testTimelineSpan({
+          id: "root",
+          name: "Transcript",
+          content: [
+            testTimelineEvent({ event: "main" }),
+            testTimelineEvent({ event: "anchor" }),
+          ],
+          branches: [
+            testTimelineSpan({
+              id: "branch-1",
+              name: "Branch 1",
+              span_type: "branch",
+              branched_from: "fork-1",
+              content: [testTimelineEvent({ event: "branch-event" })],
+            }),
+          ],
+        }),
+      },
+    ];
+    const { result } = renderHook(
+      () =>
+        useTimelinePipeline({
+          events: branchEvents,
+          serverTimelines,
+          agentConfig: { showBranches: true },
+        }),
+      { wrapper: InMemoryStateWrapper }
+    );
+    const branchRow = result.current.timeline.state.rows.find(
+      (row) => row.branch
+    );
+    expect(branchRow).toBeDefined();
+
+    act(() =>
+      result.current.timeline.views.pushByRowKey(branchRow!.key, "Branch 1")
+    );
+
+    expect(result.current.timeline.views.stack).toHaveLength(1);
+    expect(result.current.timeline.hasTimeline).toBe(false);
+    expect(result.current.showSwimlanes).toBe(true);
   });
 
   it("filters hidden event types from the node feed and search set", () => {

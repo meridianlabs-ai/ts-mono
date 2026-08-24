@@ -152,11 +152,7 @@ const changeText = (change: ConfigValueChange): string => {
   }
   // "lifted" needs a limit that existed — a knob first set to null (or a
   // null → null no-op) is a plain transition, matching limitLifted.
-  if (
-    change.value === null &&
-    change.previous !== null &&
-    change.previous !== undefined
-  ) {
+  if (change.value === null && change.previous !== null) {
     return `${change.name} lifted`;
   }
   return `${change.name} ${formatShort(change.previous)}→${formatShort(change.value)}`;
@@ -220,7 +216,7 @@ export const configMarkers = (
         index,
         label,
         postRun: runEnd !== undefined && time > runEnd,
-        preRun: update.provenance.metadata?.["inherited"] === true,
+        preRun: update.provenance.metadata["inherited"] === true,
       };
     })
     .filter((m): m is TimelineMarker => m !== undefined)
@@ -505,7 +501,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
       kind: "config",
       time,
       postRun: runEnd !== undefined && time > runEnd,
-      preRun: update.provenance.metadata?.["inherited"] === true,
+      preRun: update.provenance.metadata["inherited"] === true,
       update,
       index,
     });
@@ -593,6 +589,7 @@ export const historyRows = (inputs: HistoryInputs): HistoryRow[] => {
         time,
         postRun: false,
         sample,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: sample summaries aren't boundary-normalized yet (#555); old summaries may omit type-required fields
         line: `${fallback.model} → ${fallback.fallback_model}${(fallback.count ?? 1) > 1 ? ` × ${fallback.count}` : ""}`,
       });
     }

@@ -68,6 +68,7 @@ export const parseScanResultData = async (
     transcript_agent_args_raw
       ? parseJson(transcript_agent_args_raw)
       : Promise.resolve(undefined),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     transcript_score_raw !== null && transcript_score_raw !== undefined
       ? parseJsonValue(transcript_score_raw)
       : Promise.resolve(undefined),
@@ -171,6 +172,7 @@ export const parseScanResultData = async (
     scannerName,
     scannerParams: scannerParams as Record<string, JsonValue>,
     transcriptId,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     transcriptMetadata: transcriptMetadata ?? {},
     transcriptSourceId,
     transcriptSourceUri,
@@ -243,6 +245,7 @@ export const parseScanResultSummaries = async (
         transcriptTaskId: r.transcript_task_id as string | number | undefined,
         transcriptTaskRepeat: r.transcript_task_repeat as number | undefined,
         transcriptModel: r.transcript_model as string | undefined,
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         transcriptMetadata: transcriptMetadata ?? {},
         transcriptSourceId: r.transcript_source_id as string,
         scanError: r.scan_error as string,

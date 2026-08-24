@@ -78,7 +78,7 @@ export const MarkdownDivWithReferences = forwardRef<
   // Post-process the rendered HTML to inject reference links
   const postProcess = useCallback(
     (html: string): string =>
-      injectReferenceLinks(html, references, styles.cite ?? "cite"),
+      injectReferenceLinks(html, references, styles.cite),
     [references]
   );
 

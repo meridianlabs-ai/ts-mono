@@ -102,6 +102,7 @@ export const MessageContent: FC<MessageContentProps> = ({
           references
         );
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (content) {
           const renderer = messageRenderers[content.type];
           if (renderer) {

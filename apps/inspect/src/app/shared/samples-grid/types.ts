@@ -37,6 +37,7 @@ export interface SampleRow {
   target?: string;
   error?: string;
   limit?: string;
+  limit_reason?: string;
   retries?: number;
   fallbacks?: number;
   tokens?: number;

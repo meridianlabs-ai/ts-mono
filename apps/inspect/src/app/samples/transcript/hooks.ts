@@ -66,7 +66,7 @@ export const useTranscriptFilter = () => {
   const isDefaultFilter = useMemo(() => {
     return (
       filtered.length === kDefaultExcludeEvents.length &&
-      [...filtered].every((type) => kDefaultExcludeEvents.includes(type))
+      filtered.every((type) => kDefaultExcludeEvents.some((t) => t === type))
     );
   }, [filtered]);
 
