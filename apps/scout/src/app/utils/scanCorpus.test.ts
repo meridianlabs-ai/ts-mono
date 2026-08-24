@@ -66,9 +66,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     const table = await loadFixture(name);
     expect(table.numRows()).toBeGreaterThan(0);
 
-    const summaries = await parseScanResultSummaries(
-      table.objects()
-    );
+    const summaries = await parseScanResultSummaries(table.objects());
     expect(summaries.length).toBe(table.numRows());
 
     for (const summary of summaries) {
@@ -103,9 +101,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     // doubles the row count (synthetic missing-label rows may add more).
     expect(table.numRows()).toBeGreaterThanOrEqual(8);
 
-    const summaries = await parseScanResultSummaries(
-      table.objects()
-    );
+    const summaries = await parseScanResultSummaries(table.objects());
     const labeled = summaries.filter((s) => s.label !== undefined);
     expect(labeled.length).toBeGreaterThan(0);
     for (const summary of labeled) {
