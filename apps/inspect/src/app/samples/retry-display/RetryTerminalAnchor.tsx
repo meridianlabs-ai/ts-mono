@@ -77,7 +77,10 @@ export const RetryTerminalAnchor: FC<RetryTerminalAnchorProps> = ({
         <i className={icon} />
       </span>
       <div className={styles.copy}>
-        <span className={clsx(styles.headline, headlineByOutcome[outcome])}>
+        <span
+          className={clsx(styles.headline, headlineByOutcome[outcome])}
+          title={limit?.reason ?? undefined}
+        >
           {headline}
         </span>
         <span

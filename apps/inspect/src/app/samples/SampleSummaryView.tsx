@@ -59,6 +59,7 @@ interface SampleFields {
   target: EvalSampleTarget;
   answer?: string;
   limit?: string;
+  limit_reason?: string;
   retries?: number | null;
   model_fallbacks?: ModelFallback[] | null;
   working_time?: EvalSampleWorkingTime;
@@ -93,7 +94,15 @@ const resolveSample = (
     sample && sampleDescriptor
       ? sampleDescriptor.selectedScorerDescriptor(sample)?.answer()
       : undefined;
-  const limit = isEvalSample(sample) ? sample.limit?.type : undefined;
+  // the sole caller passes a SampleSummary (useSelectedSampleSummary), so the
+  // summary branch is the one that renders — reading only the EvalSample side
+  // left the whole limit item dead
+  const limit = isEvalSample(sample)
+    ? sample.limit?.type
+    : (sample.limit ?? undefined);
+  const limit_reason = isEvalSample(sample)
+    ? (sample.limit?.reason ?? undefined)
+    : (sample.limit_reason ?? undefined);
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
   const cancelled = isCancelled(sample);
@@ -109,6 +118,7 @@ const resolveSample = (
     target,
     answer,
     limit,
+    limit_reason,
     retries,
     model_fallbacks: sample.model_fallbacks,
     working_time,
@@ -223,7 +233,11 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     });
   }
   if (fields.limit) {
-    metaItems.push({ key: "limit", content: `Limit: ${fields.limit}` });
+    metaItems.push({
+      key: "limit",
+      content: `Limit: ${fields.limit}`,
+      title: fields.limit_reason,
+    });
   }
   if (
     fields.retries !== undefined &&

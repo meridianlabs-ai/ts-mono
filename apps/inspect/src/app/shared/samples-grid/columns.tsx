@@ -403,7 +403,17 @@ export function buildSampleColumns(
       size: shape ? shape.limitSize * 16 : 100,
       minSize: 28,
       accessorFn: (row) => row.limit ?? row.data?.limit,
-      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+      cell: ({ getValue, row }) => (
+        <div
+          title={
+            row.original.limit_reason ??
+            row.original.data?.limit_reason ??
+            undefined
+          }
+        >
+          {valueAsString(getValue() ?? "")}
+        </div>
+      ),
     },
     {
       id: "retries",

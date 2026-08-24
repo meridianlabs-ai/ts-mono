@@ -1716,6 +1716,8 @@ export interface components {
         EvalSampleLimit: {
             /** Limit */
             limit: number;
+            /** Reason */
+            reason?: string | null;
             /**
              * Type
              * @enum {string}
@@ -1780,6 +1782,8 @@ export interface components {
             input: string | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Limit */
             limit?: string | null;
+            /** Limit Reason */
+            limit_reason?: string | null;
             /** Message Count */
             message_count?: number | null;
             /** Metadata */

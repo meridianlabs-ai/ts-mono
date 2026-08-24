@@ -166,6 +166,7 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
               // The summary's limit is the flattened form of the sample's
               // limit object (mirrors Python's EvalSample.summary()).
               limit: sample.limit?.type,
+              limit_reason: sample.limit?.reason,
               retries: sample.error_retries?.length,
               // A sample serialized into the log body is settled by
               // definition.

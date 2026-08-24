@@ -453,6 +453,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           : sample.target,
         error: sample.error,
         limit: sample.limit,
+        limit_reason: sample.limit_reason,
         retries: sample.retries,
         fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
         tokens,

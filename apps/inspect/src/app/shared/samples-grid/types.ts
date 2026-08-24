@@ -38,6 +38,7 @@ export interface SampleRow {
   // null mirrors the summary's wire shape (SampleSummary.error et al.)
   error?: string | null;
   limit?: string | null;
+  limit_reason?: string | null;
   retries?: number | null;
   fallbacks?: number;
   tokens?: number;
