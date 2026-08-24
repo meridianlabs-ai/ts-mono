@@ -80,6 +80,23 @@ describe("normalizeSampleSummary", () => {
     expect(normalizeSampleSummary(42)).toBeUndefined();
   });
 
+  it("fills token defaults inside usage entries", () => {
+    const summary = normalizeSampleSummary({
+      id: "s1",
+      epoch: 1,
+      input: "q",
+      target: "t",
+      scores: null,
+      model_usage: { "openai/gpt-4": { input_tokens: 10 } },
+      role_usage: { grader: "not-a-record" },
+    });
+    expect(summary?.model_usage).toEqual({
+      "openai/gpt-4": { input_tokens: 10, output_tokens: 0, total_tokens: 0 },
+    });
+    // Non-record entries drop — pydantic would refuse them outright.
+    expect(summary?.role_usage).toEqual({});
+  });
+
   it("drops rows missing id or epoch (no pydantic default to fill)", () => {
     expect(normalizeSampleSummary({ epoch: 1, input: "q" })).toBeUndefined();
     expect(normalizeSampleSummary({ id: "s1", input: "q" })).toBeUndefined();

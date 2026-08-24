@@ -1,6 +1,35 @@
 import { isRecord } from "@tsmono/util";
 
-import type { EvalSampleSummary } from "../types";
+import type { EvalSampleSummary, ModelUsage } from "../types";
+
+import { normalizeModelUsage } from "./events";
+
+/**
+ * Normalize a raw model-usage map (model name → ModelUsage): token defaults
+ * filled per entry, non-record entries dropped, non-record input becomes {}.
+ * Identity-preserving on clean input.
+ */
+export const normalizeModelUsageMap = (
+  raw: unknown
+): Record<string, ModelUsage> => {
+  if (!isRecord(raw)) {
+    return {};
+  }
+  let changed = false;
+  const usage: Record<string, ModelUsage> = {};
+  for (const [model, entry] of Object.entries(raw)) {
+    const normalized = normalizeModelUsage(entry);
+    if (normalized === undefined) {
+      changed = true;
+      continue;
+    }
+    if (normalized !== entry) changed = true;
+    usage[model] = normalized;
+  }
+  // Boundary lift (#555): every entry round-tripped unchanged, so the
+  // original record already satisfies the type.
+  return changed ? usage : (raw as Record<string, ModelUsage>);
+};
 
 /**
  * Normalize one raw sample summary (summaries.json, journal summaries, the
@@ -36,8 +65,12 @@ export const normalizeSampleSummary = (
     fix("target", "");
   }
   if (!isRecord(raw["scores"]) && raw["scores"] !== null) fix("scores", null);
-  for (const field of ["metadata", "model_usage", "role_usage"]) {
-    if (!isRecord(raw[field])) fix(field, {});
+  if (!isRecord(raw["metadata"])) fix("metadata", {});
+  // Usage entries carry their own required-with-default token fields, read
+  // unguarded by the tokens column — fill inside, not just the map.
+  for (const field of ["model_usage", "role_usage"]) {
+    const usage = normalizeModelUsageMap(raw[field]);
+    if (usage !== raw[field]) fix(field, usage);
   }
   // Deliberate divergence from pydantic's `completed: bool = False`: an
   // absent `completed` means a pre-field-era log whose summaries are all

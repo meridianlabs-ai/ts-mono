@@ -50,7 +50,9 @@ const CircleValue: FC<ScoreValueDisplayProps> = ({
     fontSize: Math.round(size * 0.55),
   };
 
-  if (scoreType === kScoreTypePassFail && value !== undefined) {
+  // != null: a null dict sub-score falls through to plain text (rendered
+  // empty) instead of a circle whose glyph would read "null".
+  if (scoreType === kScoreTypePassFail && value != null) {
     return (
       <span
         className={clsx(styles.circle, toneCircleClass(tone))}
@@ -80,7 +82,7 @@ const isCircleScoreType = (
   scoreType: string,
   value: ScoreValue | null | undefined
 ) =>
-  (scoreType === kScoreTypePassFail && value !== undefined) ||
+  (scoreType === kScoreTypePassFail && value != null) ||
   scoreType === kScoreTypeBoolean;
 
 export const ScoreValueDisplay: FC<ScoreValueDisplayProps> = ({

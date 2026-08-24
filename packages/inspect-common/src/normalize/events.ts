@@ -1,6 +1,26 @@
 import { isRecord } from "@tsmono/util";
 
-import type { Event, ModelOutput } from "../types";
+import type { Event, ModelOutput, ModelUsage } from "../types";
+
+/**
+ * Fill pydantic token defaults on one raw ModelUsage record
+ * (`input_tokens`/`output_tokens`/`total_tokens` default to 0 upstream).
+ * Returns undefined for non-records — pydantic would refuse them outright.
+ * Identity-preserving on clean input.
+ */
+export const normalizeModelUsage = (raw: unknown): ModelUsage | undefined => {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+  const fixes: Record<string, unknown> = {};
+  for (const field of ["input_tokens", "output_tokens", "total_tokens"]) {
+    if (typeof raw[field] !== "number") fixes[field] = 0;
+  }
+  const out = Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
+  // Boundary lift (#555): token defaults are filled above; remaining
+  // content is what the writer serialized.
+  return out as ModelUsage;
+};
 
 /**
  * The ModelOutput pydantic constructs when a field is absent
@@ -27,13 +47,8 @@ export const normalizeModelOutput = (raw: unknown): ModelOutput => {
   if (typeof raw["completion"] !== "string") fixes["completion"] = "";
   const usage = raw["usage"];
   if (isRecord(usage)) {
-    const usageFixes: Record<string, unknown> = {};
-    for (const field of ["input_tokens", "output_tokens", "total_tokens"]) {
-      if (typeof usage[field] !== "number") usageFixes[field] = 0;
-    }
-    if (Object.keys(usageFixes).length > 0) {
-      fixes["usage"] = { ...usage, ...usageFixes };
-    }
+    const normalized = normalizeModelUsage(usage);
+    if (normalized !== usage) fixes["usage"] = normalized;
   }
   const out = Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
   // Boundary lift: structural defaults are filled above; remaining content
