@@ -106,13 +106,13 @@
     "bootstrap-icons": "^1.13.1",
     "clsx": "^2.1.1",
     "fzstd": "^0.1.1",
-    "immer": "^11.1.16",
+    "immer": "^11.1.17",
     "json5": "^2.2.3",
     "jsondiffpatch": "^0.7.6",
     "lz4js": "^0.2.0",
     "prismjs": "^1.30.0",
     "react-router": "^8.3.0",
     "use-sync-external-store": "^1.6.0",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.15"
   }
 }
