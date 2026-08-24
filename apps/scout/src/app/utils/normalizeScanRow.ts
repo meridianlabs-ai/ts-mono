@@ -1,4 +1,7 @@
-import { normalizeEvents } from "@tsmono/inspect-common/normalize";
+import {
+  normalizeEvents,
+  normalizeModelUsage,
+} from "@tsmono/inspect-common/normalize";
 import type {
   Event,
   JsonValue,
@@ -91,10 +94,9 @@ export const normalizeTranscriptMetadata = async (
 };
 
 /**
- * Fill pydantic token defaults on parsed scan_model_usage entries
- * (input_tokens/output_tokens/total_tokens default to 0 upstream), mirroring
- * normalizeModelOutput's usage handling in @tsmono/inspect-common. Entries
- * that aren't records are dropped — pydantic would refuse them outright.
+ * Fill pydantic token defaults on parsed scan_model_usage entries via the
+ * shared normalizeModelUsage. Entries that aren't records are dropped —
+ * pydantic would refuse them outright.
  */
 export const normalizeScanModelUsage = (
   raw: unknown
@@ -103,28 +105,19 @@ export const normalizeScanModelUsage = (
     return {};
   }
   let changed = false;
-  const usage: Record<string, unknown> = {};
+  const usage: Record<string, ModelUsage> = {};
   for (const [model, entry] of Object.entries(raw)) {
-    if (!isRecord(entry)) {
+    const normalized = normalizeModelUsage(entry);
+    if (normalized === undefined) {
       changed = true;
       continue;
     }
-    const fixes: Record<string, unknown> = {};
-    for (const field of ["input_tokens", "output_tokens", "total_tokens"]) {
-      if (typeof entry[field] !== "number") {
-        fixes[field] = 0;
-      }
-    }
-    if (Object.keys(fixes).length > 0) {
-      changed = true;
-      usage[model] = { ...entry, ...fixes };
-    } else {
-      usage[model] = entry;
-    }
+    if (normalized !== entry) changed = true;
+    usage[model] = normalized;
   }
-  // Boundary lift (#555): token defaults are filled above; remaining content
-  // is what the writer serialized.
-  return (changed ? usage : raw) as Record<string, ModelUsage>;
+  // Boundary lift (#555): every entry round-tripped unchanged, so the
+  // original record already satisfies the type.
+  return changed ? usage : (raw as Record<string, ModelUsage>);
 };
 
 /** Absent scan_events stays absent; present events get event-level fills. */

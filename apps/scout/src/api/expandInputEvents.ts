@@ -1,4 +1,7 @@
-import { normalizeEvents } from "@tsmono/inspect-common/normalize";
+import {
+  normalizeEvent,
+  normalizeEvents,
+} from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
 import type { ScannerInputResponse, Transcript } from "../types/api-types";
@@ -45,6 +48,10 @@ export function expandInputEvents(
     return withAttachmentsResolved(
       inputData ? expandEvents(normalized, inputData) : normalized
     );
+  }
+
+  if (inputType === "event") {
+    return withAttachmentsResolved(normalizeEvent(input) ?? input);
   }
 
   return withAttachmentsResolved(input);

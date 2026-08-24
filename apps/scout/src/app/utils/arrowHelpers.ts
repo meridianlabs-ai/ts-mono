@@ -87,7 +87,9 @@ export const parseScanResultData = async (
   const scanErrorRefusal =
     getOptionalColumn<boolean>(filtered, "scan_error_refusal") ?? false;
   const scanId = filtered.get("scan_id", 0) as string;
-  const scanTotalTokens = filtered.get("scan_total_tokens", 0) as number;
+  // Synthetic missing-label rows null this cell (createSyntheticRows).
+  const scanTotalTokens =
+    (filtered.get("scan_total_tokens", 0) as number | null) ?? 0;
   const scannerFile = filtered.get("scanner_file", 0) as string;
   const scannerKey = filtered.get("scanner_key", 0) as string;
   const scannerName = filtered.get("scanner_name", 0) as string;
@@ -244,7 +246,8 @@ export const parseScanResultSummaries = async (
         transcriptMetadata,
         transcriptSourceId: r.transcript_source_id as string,
         scanError: typeof r.scan_error === "string" ? r.scan_error : undefined,
-        scanErrorRefusal: r.scan_error_refusal as boolean,
+        // ?? false matches the parseScanResultData path's default.
+        scanErrorRefusal: (r.scan_error_refusal ?? false) as boolean,
         timestamp: r.timestamp ? (r.timestamp as string) : undefined,
       };
 

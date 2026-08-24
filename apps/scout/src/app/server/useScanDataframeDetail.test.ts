@@ -9,6 +9,7 @@ import { encodeBase64Url, isRecord } from "@tsmono/util";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { Transcript } from "../../types/api-types";
+import { isTranscriptInput } from "../types";
 
 import { useScanDataframeDetail } from "./useScanDataframeDetail";
 
@@ -171,7 +172,10 @@ it("normalizes legacy scan_events and transcript-input events (#555)", async () 
 
   // transcript input: normalized even though input_data is null (old scans
   // predate the column), recursively into nested tool-event streams.
-  const transcript = detail.input.input as Transcript;
+  if (!isTranscriptInput(detail.input)) {
+    throw new Error("expected transcript input");
+  }
+  const transcript: Transcript = detail.input.input;
   expect(transcript.events).toHaveLength(2);
   for (const event of transcript.events) {
     expectNormalized(event);

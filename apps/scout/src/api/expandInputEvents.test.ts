@@ -86,6 +86,24 @@ describe("expandInputEvents", () => {
     ]);
   });
 
+  it("normalizes single-event inputs", () => {
+    // Wire data of an older vintage than the generated type admits.
+    const legacyEvent = {
+      event: "model",
+      timestamp: "t",
+      model: "m",
+    } as unknown as ScannerInputResponse["input"];
+
+    const result = expandInputEvents(legacyEvent, "event", null);
+
+    expect(result).toMatchObject({
+      event: "model",
+      working_start: 0,
+      config: {},
+      tools: [],
+    });
+  });
+
   it("normalizes bare event-list inputs too", () => {
     // Wire data of an older vintage than the generated type admits.
     const legacyEvents = [

@@ -12,7 +12,12 @@
  * Every raw parse of eval-log or journal data must run through one of
  * these before the result is treated as typed.
  */
-export { defaultModelOutput, normalizeEvent, normalizeEvents } from "./events";
+export {
+  defaultModelOutput,
+  normalizeEvent,
+  normalizeEvents,
+  normalizeModelUsage,
+} from "./events";
 export {
   normalizeConfigUpdates,
   normalizeEvalPlan,
