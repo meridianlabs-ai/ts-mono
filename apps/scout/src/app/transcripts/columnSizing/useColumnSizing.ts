@@ -41,6 +41,25 @@ interface UseColumnSizingResult {
  * Hook for managing column sizing with min/max constraints and auto-sizing.
  * Manually resized columns are preserved during auto-sizing operations.
  */
+// Merge: use calculated sizes for non-manually-resized columns, preserve
+// existing sizes for manually resized columns. Module-level so the hook
+// stays compilable: React Compiler can't lower loops inside try/catch.
+const mergeCalculatedSizing = (
+  calculatedSizing: ColumnSizingState,
+  resizedSet: Set<string>,
+  currentSizing: ColumnSizingState
+): ColumnSizingState => {
+  const newSizing: ColumnSizingState = {};
+  for (const [columnId, size] of Object.entries(calculatedSizing)) {
+    if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
+      newSizing[columnId] = currentSizing[columnId];
+    } else {
+      newSizing[columnId] = size;
+    }
+  }
+  return newSizing;
+};
+
 export function useColumnSizing({
   columns,
   tableRef,
@@ -172,26 +191,23 @@ export function useColumnSizing({
         constraints,
       });
 
-      // Merge: use calculated sizes for non-manually-resized columns,
-      // preserve existing sizes for manually resized columns
-      const newSizing: ColumnSizingState = {};
-      for (const [columnId, size] of Object.entries(calculatedSizing)) {
-        if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
-          // Preserve manually resized column's current size
-          newSizing[columnId] = currentSizing[columnId];
-        } else {
-          // Use calculated size
-          newSizing[columnId] = size;
-        }
-      }
+      const newSizing = mergeCalculatedSizing(
+        calculatedSizing,
+        resizedSet,
+        currentSizing
+      );
 
       setTableState((prev) => ({
         ...prev,
         columnSizing: newSizing,
       }));
-    } finally {
+    } catch (err) {
+      // Rethrowing catch instead of finally: React Compiler can't lower
+      // try/finally, and the ref reset must survive a computeSizes throw.
       isAutoSizingRef.current = false;
+      throw err;
     }
+    isAutoSizingRef.current = false;
   }, [tableRef, setTableState]);
 
   // Reset a single column to its auto-calculated size
@@ -233,9 +249,13 @@ export function useColumnSizing({
             };
           });
         }
-      } finally {
+      } catch (err) {
+        // Rethrowing catch instead of finally: React Compiler can't lower
+        // try/finally, and the ref reset must survive a computeSizes throw.
         isAutoSizingRef.current = false;
+        throw err;
       }
+      isAutoSizingRef.current = false;
     },
     [tableRef, setTableState]
   );

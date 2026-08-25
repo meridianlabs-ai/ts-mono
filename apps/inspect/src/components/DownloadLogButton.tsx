@@ -33,11 +33,12 @@ export const DownloadLogButton = ({
     } catch (error) {
       console.error("Failed to download log:", error);
       setDownloadState("error");
-    } finally {
-      setTimeout(() => {
-        setDownloadState("idle");
-      }, 1250);
     }
+    // Not a finally clause: React Compiler can't lower try/finally, and the
+    // catch never rethrows, so running after the block is equivalent.
+    setTimeout(() => {
+      setDownloadState("idle");
+    }, 1250);
   };
 
   const getIcon = (): string => {

@@ -39,9 +39,10 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
       console.error("Failed to clear database:", error);
       setClearMessage("Failed to clear database");
       setTimeout(() => setClearMessage(null), 3000);
-    } finally {
-      setIsClearing(false);
     }
+    // Not a finally clause: React Compiler can't lower try/finally, and the
+    // catch never rethrows, so running after the block is equivalent.
+    setIsClearing(false);
   };
 
   return (

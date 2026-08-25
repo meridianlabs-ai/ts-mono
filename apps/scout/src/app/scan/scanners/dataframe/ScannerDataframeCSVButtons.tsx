@@ -111,13 +111,15 @@ export const ScannerDataframeDownloadCSVButton: FC = () => {
   const handleDownload = useCallback(() => {
     if (!gridApi) return;
 
+    // Hoisted out of the try: React Compiler can't lower value blocks
+    // (?? here) inside try/catch and would bail out the component.
+    const scannerName = sanitizeFilename(selectedScanner ?? "scan");
+    // Use visible columns from column selector, falling back to defaults
+    const columnKeys = visibleColumns ?? defaultColumns;
+
     try {
       const timestamp = getFileTimestamp();
-      const scannerName = sanitizeFilename(selectedScanner ?? "scan");
       const fileName = `${scannerName}_${timestamp}.csv`;
-
-      // Use visible columns from column selector, falling back to defaults
-      const columnKeys = visibleColumns ?? defaultColumns;
 
       gridApi.exportDataAsCsv({ fileName, columnKeys });
       setStatus("success");

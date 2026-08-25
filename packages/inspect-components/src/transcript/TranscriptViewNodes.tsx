@@ -444,7 +444,7 @@ export const TranscriptViewNodes = forwardRef<
     container.addEventListener("keydown", abort, { passive: true });
     const settle = () => {
       if (cancelled) return;
-      attempts++;
+      attempts += 1;
       const el = container.querySelector<HTMLElement>(selector);
       if (el) {
         const delta =
