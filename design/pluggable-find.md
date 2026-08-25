@@ -393,6 +393,36 @@ Worker offload and chunked/range-request scanning for the standalone viewer
 are internal optimizations of the default source — they slot in whenever
 without contract changes (that's the point of the contract).
 
+## Phase 1 notes (implementation deviations)
+
+Phase 1 landed with the contract as specified, with these recorded
+adjustments:
+
+- **`FindSurface.reveal` is a function property, not a method**
+  (`reveal: (match, signal) => Promise<RevealOutcome>`). Semantically
+  identical; declared this way so the coordinator can detach it without a
+  `this` dependency (and the repo's unbound-method lint holds).
+- **Step direction is coordinator state, not a `reveal()` parameter.** The
+  transcript headroom needs the user's step direction (Next collapses the
+  swimlane, Prev reveals it), but `reveal(match, signal)` deliberately
+  stays direction-free. Surfaces that care read `lastDirection` from the
+  coordinator's state (via a non-subscribing getter).
+- **The default in-memory source reports exact totals** (`relation: "eq"`)
+  even when `limit` caps the streamed page — it materializes internally,
+  so it knows the true count. `"gte"` remains for sources that genuinely
+  stop scanning (the coordinator also uses it for interim totals while a
+  survey streams). Consequently the "M+" rendering is reachable today only
+  through such sources, not the defaults.
+- **Transcript revealability = the row map.** Phase 1 excludes anchors
+  `buildEventToRowMap` can't address (replacing `SKIP_LIMIT`); an event
+  that is in the map but still never mounts degrades to `reveal() →
+  "missing"` plus the row-flash rule (D10) rather than being skipped. The
+  full "node tree" precomputation can tighten this later without contract
+  changes.
+- **Surveys cap at 2000 matches, cursor steps page at 200** (open
+  question 5's provisional numbers); per-row drawn highlights cap at 1000
+  ranges.
+
 ## Open questions (for review)
 
 1. **Package home for the contract**: `@tsmono/react` next to the
