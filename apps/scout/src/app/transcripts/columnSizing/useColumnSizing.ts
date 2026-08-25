@@ -8,6 +8,7 @@ import {
   ColumnSizingStrategyKey,
   getColumnConstraints,
   getSizingStrategy,
+  mergeCalculatedSizing,
 } from "../../components/columnSizing";
 import { TranscriptColumn } from "../columns";
 
@@ -41,25 +42,6 @@ interface UseColumnSizingResult {
  * Hook for managing column sizing with min/max constraints and auto-sizing.
  * Manually resized columns are preserved during auto-sizing operations.
  */
-// Merge: use calculated sizes for non-manually-resized columns, preserve
-// existing sizes for manually resized columns. Module-level so the hook
-// stays compilable: React Compiler can't lower loops inside try/catch.
-const mergeCalculatedSizing = (
-  calculatedSizing: ColumnSizingState,
-  resizedSet: Set<string>,
-  currentSizing: ColumnSizingState
-): ColumnSizingState => {
-  const newSizing: ColumnSizingState = {};
-  for (const [columnId, size] of Object.entries(calculatedSizing)) {
-    if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
-      newSizing[columnId] = currentSizing[columnId];
-    } else {
-      newSizing[columnId] = size;
-    }
-  }
-  return newSizing;
-};
-
 export function useColumnSizing({
   columns,
   tableRef,
