@@ -1,11 +1,11 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 
 import {
-  ExtendedFindProvider,
   FindBand,
   FindTargetProvider,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { FindProvider } from "@tsmono/react/find";
 
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -98,7 +98,7 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   });
 
   return (
-    <ExtendedFindProvider>
+    <FindProvider>
       <FindTargetProvider>
         {showFind ? <FindBand onClose={hideFind} /> : ""}
         <div className={styles.detail}>
@@ -114,6 +114,6 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
           )}
         </div>
       </FindTargetProvider>
-    </ExtendedFindProvider>
+    </FindProvider>
   );
 };

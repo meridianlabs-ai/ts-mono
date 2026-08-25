@@ -3,7 +3,6 @@ import { render } from "@testing-library/react";
 import { createRef, type ReactNode, type RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ExtendedFindProvider } from "../components/ExtendedFindContext";
 import {
   ComponentStateHooks,
   ComponentStateProvider,
@@ -21,7 +20,7 @@ const Wrapper: React.FC<{
   children: ReactNode;
 }> = ({ hooks, children }) => (
   <ComponentStateProvider hooks={hooks}>
-    <ExtendedFindProvider>{children}</ExtendedFindProvider>
+    <>{children}</>
   </ComponentStateProvider>
 );
 

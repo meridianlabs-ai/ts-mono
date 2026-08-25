@@ -261,7 +261,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
       estimatedItemHeight={50}
       overscan={10}
       embedded={true}
-      findScope="none"
       className={clsx(className, "samples-list")}
     />
   );

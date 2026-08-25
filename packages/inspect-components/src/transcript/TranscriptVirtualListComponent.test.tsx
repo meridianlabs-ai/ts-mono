@@ -3,7 +3,6 @@ import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { testInfoEvent } from "@tsmono/inspect-common/testing";
-import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
@@ -91,7 +90,7 @@ describe("TranscriptVirtualList finish scroll-to-top", () => {
     const nodes = [node("e1", 0), node("e2", 0)];
     const view = (running: boolean) => (
       <ComponentStateProvider hooks={hooks}>
-        <ExtendedFindProvider>
+        <>
           <div ref={scrollRef}>
             <TranscriptVirtualList
               id="finish-test"
@@ -102,7 +101,7 @@ describe("TranscriptVirtualList finish scroll-to-top", () => {
               scrollToTopOnFinish={scrollToTopOnFinish}
             />
           </div>
-        </ExtendedFindProvider>
+        </>
       </ComponentStateProvider>
     );
     const rendered = render(view(true));

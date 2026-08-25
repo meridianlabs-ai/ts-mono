@@ -38,7 +38,6 @@ import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
 import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
-import { messageSearchText } from "./messageSearchText";
 import {
   buildMessageRows,
   messageRowOptions,
@@ -309,11 +308,6 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       ]
     );
 
-    const rowSearchText = useCallback(
-      (item: MessageRow): string | string[] => messageSearchText(item.resolved),
-      []
-    );
-
     // Show a placeholder instead of a blank tab when there's nothing to
     // render: a running sample may have no messages yet (before its first
     // message event arrives), and a finished one may be empty (e.g. an early
@@ -345,7 +339,6 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         scrollToTopOnFinish={scrollToTopOnFinish}
         components={chatComponents}
         smoothScroll={false}
-        itemSearchText={rowSearchText}
         showProgress={hasMoreRows}
         onVisibleRangeChange={handleVisibleRangeChange}
       />

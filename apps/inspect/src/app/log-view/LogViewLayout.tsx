@@ -3,12 +3,12 @@ import { FC, useCallback, useRef } from "react";
 
 import {
   ErrorPanel,
-  ExtendedFindProvider,
   FindBand,
   FindTargetProvider,
   LoadingBar,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { FindProvider } from "@tsmono/react/find";
 
 import { useAppConfig } from "../../app_config";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
@@ -50,7 +50,7 @@ export const LogViewLayout: FC = () => {
   });
 
   return (
-    <ExtendedFindProvider>
+    <FindProvider>
       <FindTargetProvider>
         <div
           ref={mainAppRef}
@@ -85,6 +85,6 @@ export const LogViewLayout: FC = () => {
           )}
         </div>
       </FindTargetProvider>
-    </ExtendedFindProvider>
+    </FindProvider>
   );
 };

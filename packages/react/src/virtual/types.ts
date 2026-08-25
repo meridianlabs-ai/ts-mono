@@ -85,8 +85,6 @@ export interface VirtualListProps<T> {
   scrollPaddingStart?: number;
   components?: VirtualListComponents;
   smoothScroll?: boolean;
-  itemSearchText?: (item: T) => string | string[];
-  findScope?: "local" | "none";
   scrollToTopOnFinish?: boolean;
   /** Called when the rendered range changes, AND replayed with the current
    *  range whenever the callback's identity changes — callers rely on that

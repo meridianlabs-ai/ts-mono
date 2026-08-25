@@ -21,7 +21,6 @@ import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
 
 import { EventLabelContext } from "./EventLabelContext";
-import { eventSearchText } from "./eventText";
 import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
@@ -294,8 +293,6 @@ export const TranscriptVirtualListComponent: FC<
         live={running === true}
         smoothScroll={running === true && !isBackfilling}
         scrollToTopOnFinish={scrollToTopOnFinish}
-        itemSearchText={eventSearchText}
-        findScope="none"
         showProgress={showFooter}
         components={components}
         onVisibleRangeChange={(range) => {

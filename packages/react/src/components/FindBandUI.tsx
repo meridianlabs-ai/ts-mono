@@ -14,6 +14,8 @@ interface FindBandUIProps {
   value?: string;
   matchCount?: number;
   matchIndex?: number;
+  /** The count is a lower bound (source relation "gte"): renders "M+". */
+  countIsLowerBound?: boolean;
   noResults?: boolean;
   disableNav?: boolean;
   inputRef?: RefObject<HTMLInputElement | null>;
@@ -29,6 +31,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
   value,
   matchCount,
   matchIndex,
+  countIsLowerBound = false,
   noResults = false,
   disableNav,
   inputRef: externalRef,
@@ -55,7 +58,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
   // content), which would otherwise display as "0 of N".
   const statusText =
     !noResults && hasCount && matchCount > 0
-      ? `${matchIndex + 1} of ${matchCount}`
+      ? `${matchIndex + 1} of ${matchCount.toLocaleString()}${countIsLowerBound ? "+" : ""}`
       : "No results";
 
   // "findBand" (unhashed) is a deliberate public hook for embedders whose CSS

@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
-import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   FindProvider,
   useFindCoordinator,
@@ -41,9 +40,9 @@ function mountFollow(props: {
 
   render(
     <ComponentStateProvider hooks={hooks}>
-      <ExtendedFindProvider>
+      <>
         <ChatViewVirtualList id="chat" messages={messages} {...props} />
-      </ExtendedFindProvider>
+      </>
     </ComponentStateProvider>
   );
   return store.get("chat-chat::follow");
@@ -68,9 +67,9 @@ describe("ChatViewRowsVirtualList paging", () => {
     const { hooks } = makeReactiveStateStore();
     const ui = (p: typeof props) => (
       <ComponentStateProvider hooks={hooks}>
-        <ExtendedFindProvider>
+        <>
           <ChatViewRowsVirtualList id="chat" {...p} />
-        </ExtendedFindProvider>
+        </>
       </ComponentStateProvider>
     );
     const view = render(ui(props));
