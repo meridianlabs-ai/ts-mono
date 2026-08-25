@@ -1,5 +1,5 @@
 import type { Event } from "@tsmono/inspect-common/types";
-import { prepareSearchTerm } from "@tsmono/react/components";
+import { findTermOccurrences } from "@tsmono/react/find";
 
 import { extractEventFields } from "../eventText";
 import { TimelineSpan } from "../timeline/core";
@@ -85,12 +85,6 @@ export function findAllMatches(
   eventToRow: Map<string, string>
 ): SampleMatch[] {
   if (!term) return [];
-  const prepared = prepareSearchTerm(term);
-  const variants = [
-    prepared.simple,
-    ...(prepared.unquoted ? [prepared.unquoted] : []),
-    ...(prepared.jsonEscaped ? [prepared.jsonEscaped] : []),
-  ];
   const out: SampleMatch[] = [];
   for (const event of events) {
     const uuid = event.uuid;
@@ -100,8 +94,10 @@ export function findAllMatches(
     const fields = extractEventFields(event);
     let fieldIndex = 0;
     for (const [fieldKey, text] of fields) {
-      const positions = findVariantPositions(text.toLowerCase(), variants);
-      for (let i = 0; i < positions.length; i++) {
+      // findTermOccurrences is the same variant scan the row highlighter
+      // runs, so counts and highlights agree.
+      const occurrences = findTermOccurrences(text, term);
+      for (let i = 0; i < occurrences.length; i++) {
         out.push({
           rowKey,
           eventId: uuid,
@@ -111,36 +107,6 @@ export function findAllMatches(
         });
       }
       fieldIndex++;
-    }
-  }
-  return out;
-}
-
-/**
- * Find every occurrence of any `variants` substring in `lowered`, deduped by
- * range so a JSON-quoted form `"foo"` matched by both `simple` and `unquoted`
- * counts as one occurrence (the longer variant wins). Mirrors the variant
- * matching `LiveVirtualList.searchInText` does for the chat counter so the
- * two counters agree on the total.
- */
-function findVariantPositions(lowered: string, variants: string[]): number[] {
-  const hits: { pos: number; len: number }[] = [];
-  for (const v of variants) {
-    if (!v) continue;
-    let from = 0;
-    let p: number;
-    while ((p = lowered.indexOf(v, from)) !== -1) {
-      hits.push({ pos: p, len: v.length });
-      from = p + v.length;
-    }
-  }
-  hits.sort((a, b) => a.pos - b.pos || b.len - a.len);
-  const out: number[] = [];
-  let endOfLast = -1;
-  for (const h of hits) {
-    if (h.pos >= endOfLast) {
-      out.push(h.pos);
-      endOfLast = h.pos + h.len;
     }
   }
   return out;
