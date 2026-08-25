@@ -4,6 +4,8 @@ import {
   ReactNode,
   useContext,
   useEffect,
+  useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -70,14 +72,43 @@ export const useFindState = (): FindState => {
   );
 };
 
+/** Non-subscribing accessor for surfaces whose reveal() needs the current
+ *  term/direction: reading through the getter avoids re-rendering a heavy
+ *  host (e.g. the whole transcript layout) on every keystroke. */
+export const useFindStateGetter = (): (() => FindState) => {
+  const store = useContext(FindCoordinatorContext);
+  // Memoized so consumers can put the getter in dependency arrays.
+  return useMemo(
+    () => (store ? () => store.getState() : () => IDLE_STATE),
+    [store]
+  );
+};
+
 /** Register a surface for as long as the component is mounted. No-op
- *  outside a FindProvider. Re-registers whenever `surface` changes
- *  identity — sources are memoized on their data, so a data change
- *  re-registers and the coordinator re-surveys (store invalidation). */
+ *  outside a FindProvider. Re-registers only when the scope or SOURCE
+ *  changes identity — sources are memoized on their data, so a data change
+ *  re-registers and the coordinator re-surveys (store invalidation).
+ *  reveal() is read through a ref: it closes over fast-moving view state
+ *  (selection, scroll handles), and re-registering per closure identity
+ *  would re-survey — or, with registration notifying state subscribers,
+ *  loop — on every render. */
 export const useFindSurface = (surface: FindSurface | null): void => {
   const store = useContext(FindCoordinatorContext);
+  const revealRef = useRef<FindSurface["reveal"] | null>(null);
   useEffect(() => {
-    if (!store || !surface) return;
-    return store.registerSurface(surface);
-  }, [store, surface]);
+    revealRef.current = surface?.reveal ?? null;
+  });
+  const scopeId = surface?.scopeId;
+  const source = surface?.source;
+  useEffect(() => {
+    if (!store || scopeId === undefined || source === undefined) return;
+    return store.registerSurface({
+      scopeId,
+      source,
+      reveal: (match, signal) =>
+        revealRef.current
+          ? revealRef.current(match, signal)
+          : Promise.resolve("missing"),
+    });
+  }, [store, scopeId, source]);
 };

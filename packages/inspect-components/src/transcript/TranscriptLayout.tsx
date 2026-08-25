@@ -42,7 +42,7 @@ import {
   type TranscriptLayoutOutlineProps,
 } from "./OutlineSidebar";
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
-import { useTranscriptSearchSource } from "./search";
+import { useTranscriptFindSurface } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { countUtilitySpans, type TimelineSpan } from "./timeline/core";
 import {
@@ -217,6 +217,9 @@ export interface TranscriptLayoutProps {
 // Component
 // =============================================================================
 
+// Stable fallback so the find surface's reveal callback doesn't churn.
+const noopSelect = () => {};
+
 function renderAgentCard(node: EventNode, agentCardClassName?: string) {
   const span = node.sourceSpan as TimelineSpan | undefined;
   if (!span) return null;
@@ -319,12 +322,11 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
 
-  useTranscriptSearchSource({
-    id: listId,
+  useTranscriptFindSurface({
     events: searchableEvents,
     rows: timelineState.rows,
     selected: timelineSelection?.selected ?? null,
-    onSelect: timelineSelection?.onSelect ?? (() => {}),
+    onSelect: timelineSelection?.onSelect ?? noopSelect,
     viewNodesRef: eventsListRef ?? nullViewNodesRef,
     onHeadroomResetAnchor,
     onHeadroomSetHidden,

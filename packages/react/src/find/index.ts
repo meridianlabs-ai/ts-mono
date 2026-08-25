@@ -4,6 +4,7 @@ export {
   useFindCoordinator,
   useFindCoordinatorOptional,
   useFindState,
+  useFindStateGetter,
   useFindSurface,
 } from "./FindCoordinatorContext";
 export { FindStore, FIND_SURVEY_LIMIT, FIND_STEP_LIMIT } from "./findStore";

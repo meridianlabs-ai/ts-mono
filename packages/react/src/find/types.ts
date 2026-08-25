@@ -95,8 +95,10 @@ export interface FindSurface {
   source: FindSource;
   /** Perform whatever navigation reveals the match: switch swimlane row,
    *  expand collapsed ancestors, scroll (via the anchor-reveal primitive,
-   *  D8). Must not require the anchor to be in memory. */
-  reveal(match: FindMatch, signal: AbortSignal): Promise<RevealOutcome>;
+   *  D8). Must not require the anchor to be in memory. (Declared as a
+   *  function property, not a method, so implementations never depend on
+   *  `this` when the coordinator detaches it.) */
+  reveal: (match: FindMatch, signal: AbortSignal) => Promise<RevealOutcome>;
 }
 
 export type FindDirection = "forward" | "backward";

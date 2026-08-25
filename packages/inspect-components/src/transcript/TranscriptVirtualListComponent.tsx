@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import {
+  CSSProperties,
   FC,
   memo,
   ReactElement,
@@ -12,6 +13,7 @@ import {
   useState,
 } from "react";
 
+import { useFindHighlights } from "@tsmono/react/find";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
@@ -60,6 +62,25 @@ interface TranscriptVirtualListComponentProps {
   /** External ref filled with the virtual list's visible range, for find machinery. */
   visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
+
+// Row wrapper defined at module scope for a stable component identity. It
+// renders the same div the row always had (id = event uuid) plus the find
+// highlight hook — the node id doubles as the find anchor for event rows;
+// synthetic ids (agent cards) simply never match an anchor.
+const TranscriptRow: FC<{
+  id: string;
+  className?: string;
+  style?: CSSProperties;
+  children: ReactNode;
+}> = ({ id, className, style, children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useFindHighlights(ref, id);
+  return (
+    <div ref={ref} id={id} className={className} style={style}>
+      {children}
+    </div>
+  );
+};
 
 /**
  * Renders the Transcript component.
@@ -210,7 +231,7 @@ export const TranscriptVirtualListComponent: FC<
       );
 
       return (
-        <div
+        <TranscriptRow
           id={item.id}
           key={item.id}
           className={clsx(
@@ -226,7 +247,7 @@ export const TranscriptVirtualListComponent: FC<
           }}
         >
           {renderedNode}
-        </div>
+        </TranscriptRow>
       );
     },
     [

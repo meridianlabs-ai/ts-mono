@@ -74,6 +74,12 @@ export class FindStore implements FindCoordinator {
   getState = (): FindState => this.state;
 
   private set(partial: Partial<FindState>): void {
+    // Skip no-op updates: registration churn (React cleanup+setup pairs)
+    // resets to values already in place, and notifying subscribers for
+    // those would re-render every state consumer per churn.
+    // Object.keys erases key types — a boundary TS can't express.
+    const keys = Object.keys(partial) as (keyof FindState)[];
+    if (keys.every((k) => Object.is(this.state[k], partial[k]))) return;
     this.state = { ...this.state, ...partial };
     for (const l of this.listeners) l();
   }
