@@ -13,6 +13,13 @@ import {
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { NoContentsPanel } from "@tsmono/react/components";
+import {
+  FindAnchorContainer,
+  useFindSurface,
+  type FindMatch,
+  type FindSurface,
+  type RevealOutcome,
+} from "@tsmono/react/find";
 import { useListKeyboardNavigation } from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
 import type {
@@ -20,6 +27,7 @@ import type {
   VirtualListItemProps,
 } from "@tsmono/react/virtual";
 
+import { createMessageRowsFindSource, MESSAGES_FIND_SCOPE } from "../find";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import {
   isLivePlaceholderMessage,
@@ -61,6 +69,38 @@ const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
 };
 
 const chatComponents = { Item: ChatItem };
+
+// Frame budget for a scrolled-to row to mount; matches the transcript
+// surface's reveal budget.
+const ANCHOR_DOM_BUDGET = 30;
+
+function raf(): Promise<void> {
+  return new Promise((resolve) =>
+    typeof requestAnimationFrame !== "undefined"
+      ? requestAnimationFrame(() => resolve())
+      : setTimeout(resolve, 0)
+  );
+}
+
+const escapeAttr = (id: string): string =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- CSS.escape is missing in some embedder hosts
+  typeof CSS !== "undefined" && CSS.escape
+    ? CSS.escape(id)
+    : id.replace(/"/g, '\\"');
+
+async function waitForAnchorInDOM(
+  anchorId: string,
+  signal: AbortSignal
+): Promise<boolean> {
+  if (typeof document === "undefined") return false;
+  const selector = `[data-find-anchor="${escapeAttr(anchorId)}"]`;
+  for (let i = 0; i < ANCHOR_DOM_BUDGET; i++) {
+    if (signal.aborted) return false;
+    if (document.querySelector(selector)) return true;
+    await raf();
+  }
+  return false;
+}
 
 // Empirically tuned, sign-inverted vs naive TanStack math; don't "fix" without re-verifying against both chat and transcript surfaces.
 const kChatScrollPaddingStart = -15;
@@ -140,6 +180,36 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       itemCount: rows.length,
     });
 
+    // ---- Find surface (scope "messages") --------------------------------
+    const source = useMemo(() => createMessageRowsFindSource(rows), [rows]);
+    // reveal() runs across awaits; a ref so a page landing mid-reveal is seen.
+    const rowsRef = useRef(rows);
+    useEffect(() => {
+      rowsRef.current = rows;
+    }, [rows]);
+    const reveal = useCallback(
+      async (match: FindMatch, signal: AbortSignal): Promise<RevealOutcome> => {
+        const currentRows = rowsRef.current;
+        const anchorId = match.anchor.id;
+        const hinted = match.ordinal;
+        const index =
+          hinted !== undefined &&
+          currentRows[hinted]?.resolved.message.id === anchorId
+            ? hinted
+            : currentRows.findIndex((r) => r.resolved.message.id === anchorId);
+        if (index < 0) return "missing";
+        listHandle.current?.scrollToIndex({ index, align: "center" });
+        const mounted = await waitForAnchorInDOM(anchorId, signal);
+        return mounted ? "revealed" : "missing";
+      },
+      []
+    );
+    const surface = useMemo<FindSurface>(
+      () => ({ scopeId: MESSAGES_FIND_SCOPE, source, reveal }),
+      [source, reveal]
+    );
+    useFindSurface(surface);
+
     // The near-end trigger re-checks on scroll AND when rows grow: a landing
     // page doesn't move the viewport, so the rows-grow case rides on
     // VirtualList replaying the current range whenever this callback's
@@ -199,8 +269,10 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             item.resolved.message,
             item.resolved.toolMessages.length
           );
+        // The anchor wrapper carries the row's find highlights and lets
+        // reveal() detect the row has mounted (data-find-anchor).
         return (
-          <>
+          <FindAnchorContainer anchorId={item.resolved.message.id ?? null}>
             <ChatMessageRow
               index={index}
               parentName={id || "chat-virtual-list"}
@@ -221,7 +293,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
                 )}
               </div>
             ) : null}
-          </>
+          </FindAnchorContainer>
         );
       },
       [

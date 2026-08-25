@@ -1,9 +1,17 @@
-import { render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
+import { useEffect } from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { testAssistantMessage } from "@tsmono/inspect-common/testing";
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { ExtendedFindProvider } from "@tsmono/react/components";
+import {
+  FindProvider,
+  useFindCoordinator,
+  useFindState,
+  type FindCoordinator,
+  type FindState,
+} from "@tsmono/react/find";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeReactiveStateStore } from "@tsmono/react/testing";
 
@@ -104,6 +112,63 @@ describe("ChatViewRowsVirtualList paging", () => {
       onLoadMoreRows: () => calls++,
     });
     expect(calls).toBe(0);
+  });
+});
+
+describe("ChatViewVirtualList find surface", () => {
+  function mountWithFind() {
+    const { hooks } = makeReactiveStateStore();
+    const captured: { coordinator?: FindCoordinator; state?: FindState } = {};
+    const Probe = () => {
+      const coordinator = useFindCoordinator();
+      const state = useFindState();
+      useEffect(() => {
+        captured.coordinator = coordinator;
+      }, [coordinator]);
+      captured.state = state;
+      return null;
+    };
+    render(
+      <ComponentStateProvider hooks={hooks}>
+        <FindProvider>
+          <Probe />
+          <ChatViewVirtualList id="chat" messages={messages} />
+        </FindProvider>
+      </ComponentStateProvider>
+    );
+    const coordinator = captured.coordinator;
+    if (!coordinator) throw new Error("coordinator not mounted");
+    return {
+      coordinator,
+      state: () => {
+        if (!captured.state) throw new Error("state not captured");
+        return captured.state;
+      },
+    };
+  }
+
+  it("registers a messages surface and counts matches over the rows", async () => {
+    const h = mountWithFind();
+    expect(h.state().scopeId).toBe("messages");
+
+    act(() => h.coordinator.setTerm("two"));
+    await waitFor(() => expect(h.state().total?.value).toBe(1));
+    expect(h.state().matches[0]).toMatchObject({
+      anchor: { kind: "message", id: "m-2" },
+    });
+
+    act(() => h.coordinator.setTerm("zzz"));
+    await waitFor(() => expect(h.state().noResults).toBe(true));
+  });
+
+  it("activates the first match and steps with wrap", async () => {
+    const h = mountWithFind();
+    act(() => h.coordinator.setTerm("one"));
+    // reveal resolves once the anchored row is in the DOM
+    await waitFor(() => expect(h.state().activeIndex).toBe(0));
+
+    act(() => h.coordinator.next()); // single match: wraps to itself
+    await waitFor(() => expect(h.state().activeIndex).toBe(0));
   });
 });
 
