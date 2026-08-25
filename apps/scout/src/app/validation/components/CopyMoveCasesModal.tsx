@@ -280,9 +280,6 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     } catch (err) {
       setError(errorMessage(err, "Operation failed"));
     }
-    // Not a finally clause: React Compiler can't lower try/finally. Every
-    // early return inside the try already resets isProcessing itself, and
-    // the catch never rethrows, so running after the block is equivalent.
     setIsProcessing(false);
   };
 

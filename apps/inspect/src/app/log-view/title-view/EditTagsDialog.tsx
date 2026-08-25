@@ -166,8 +166,6 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     } catch (err) {
       setError(formatEditError(err));
     }
-    // Not a finally clause: React Compiler can't lower try/finally, and the
-    // catch never rethrows, so running after the block is equivalent.
     window.clearTimeout(indicatorTimer);
     setSubmitting(false);
     inFlightRef.current = false;
