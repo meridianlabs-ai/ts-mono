@@ -21,8 +21,9 @@ pointing at a local checkout (see [Generated types](#generated-types)).
 ## Getting started
 
 Requires Node.js >= 22.13. pnpm is the only supported package manager, and
-[corepack](https://nodejs.org/api/corepack.html) (built into Node.js) installs
-the pinned version for you:
+[corepack](https://nodejs.org/api/corepack.html) installs the pinned version
+for you (corepack ships with Node.js 22/24; Node 25+ no longer bundles it —
+`npm install -g corepack` first):
 
 ```bash
 corepack enable   # once
@@ -45,13 +46,18 @@ across workspaces:
 | `pnpm typecheck` | Typecheck only                                       |
 | `pnpm format`    | Format with Prettier                                 |
 
-Scope any of these to one workspace with `--filter`:
+Scope any of these to one workspace with `--filter`. Extra args to the root
+scripts pass through to `turbo run`, so Turbo's task graph still applies
+(e.g. `generate:css` runs before `lint`/`typecheck`):
 
 ```bash
-pnpm --filter scout dev
-pnpm --filter @meridianlabs/log-viewer test
-pnpm --filter @tsmono/inspect-common typecheck
+pnpm dev --filter=scout
+pnpm test --filter=@meridianlabs/log-viewer
+pnpm check --filter=scout
 ```
+
+(Prefer this over `pnpm --filter <workspace> <script>`, which runs the leaf
+script directly and skips Turbo's dependency graph.)
 
 Workspace scripts are single-concern leaf commands; all composition lives in
 `turbo.json` — see [scripts.md](docs/scripts.md) for the conventions.

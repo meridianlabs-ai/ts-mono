@@ -13,12 +13,13 @@ For repo setup (corepack, pnpm, install), see the
 ## Development
 
 Run commands from this directory, or from the repo root with
-`pnpm --filter scout <command>`:
+`pnpm <command> --filter=scout` (the root scripts pass the filter through to
+`turbo run`, preserving task dependencies):
 
 | Command           | Description                                        |
 | ----------------- | -------------------------------------------------- |
 | `pnpm dev`        | Start the Vite dev server on :5174                 |
-| `pnpm build`      | Build the app (copies output into the Python repo) |
+| `pnpm build`      | Build the app (copied into the Python repo when running as a submodule) |
 | `pnpm watch`      | Rebuild on change                                  |
 | `pnpm test`       | Run unit/integration tests (vitest)                |
 | `pnpm test:watch` | Run tests in watch mode                            |
@@ -46,7 +47,7 @@ Python Pydantic models → openapi.json (in inspect_scout) → src/types/generat
    `TSMONO_PYTHON_ROOT_INSPECT_SCOUT` to a local checkout) and runs
    `openapi-typescript` against the schema
 3. **Type adapter**: `src/types/api-types.ts` re-exports types with clean names
-4. **Usage**: import types from `src/types/index.ts`
+4. **Usage**: import types from `src/types/api-types.ts`
 
 (`packages/inspect-common` has a parallel pipeline for inspect_ai's schema.)
 

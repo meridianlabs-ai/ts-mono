@@ -13,8 +13,9 @@ For repo setup (corepack, pnpm, install), see the
 ## Development
 
 Run commands from this directory, or from the repo root with
-`pnpm --filter @meridianlabs/log-viewer <command>` (see
-[scripts.md](../../docs/scripts.md) for Turbo orchestration):
+`pnpm <command> --filter=@meridianlabs/log-viewer` (the root scripts pass the
+filter through to `turbo run`, preserving task dependencies — see
+[scripts.md](../../docs/scripts.md)):
 
 | Command          | Description                               |
 | ---------------- | ----------------------------------------- |
