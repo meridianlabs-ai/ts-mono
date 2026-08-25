@@ -9,7 +9,6 @@ import {
   createRef,
   useCallback,
   useState,
-  useSyncExternalStore,
   type MutableRefObject,
   type ReactNode,
 } from "react";
@@ -23,6 +22,7 @@ import {
   ComponentStateProvider,
   type ComponentStateHooks,
 } from "@tsmono/react/state";
+import { makeReactiveStateStore } from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
@@ -70,46 +70,6 @@ vi.mock("./TranscriptVirtualList", () => ({
     );
   },
 }));
-
-// TranscriptViewNodes reads AND writes the transcript's `follow` property
-// (live-tail state). A reactive Map-backed store (like production zustand)
-// whose backing Map the tests can read/seed.
-const makeReactiveHooks = () => {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const subscribe = (cb: () => void) => {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  };
-  const emit = () => {
-    version++;
-    listeners.forEach((l) => l());
-  };
-  const key = (id: string, prop: string) => `${id}::${prop}`;
-  const hooks: ComponentStateHooks = {
-    useValue: (id, prop, defaultValue) => {
-      useSyncExternalStore(subscribe, () => version);
-      return store.has(key(id, prop)) ? store.get(key(id, prop)) : defaultValue;
-    },
-    useSetValue: () => (id, prop, value) => {
-      const k = key(id, prop);
-      if (!store.has(k) || store.get(k) !== value) {
-        store.set(k, value);
-        emit();
-      }
-    },
-    useRemoveValue: () => (id, prop) => {
-      if (store.delete(key(id, prop))) emit();
-    },
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-  return { hooks, store };
-};
 
 const noopStateHooks: ComponentStateHooks = {
   useValue: (_id, _prop, defaultValue) => defaultValue,
@@ -423,7 +383,7 @@ describe("TranscriptViewNodes j-past-last arms follow (S4)", () => {
     running: boolean,
     seedFollow?: boolean
   ) => {
-    const { hooks, store } = makeReactiveHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("test::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     const onNavigatedToEvent = vi.fn();
@@ -490,7 +450,7 @@ describe("TranscriptViewNodes focus-entry follow arming (S3)", () => {
   const eventNodes = [model("m1"), model("m2")];
 
   const renderWrapper = (running: boolean, seedFollow?: boolean) => {
-    const { hooks, store } = makeReactiveHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("test::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     capturedEventCallbacks = undefined;
@@ -542,7 +502,7 @@ describe("TranscriptViewNodes `f` focus targeting (following vs current turn)", 
     seedFollow: boolean | undefined,
     initialEventId: string
   ) => {
-    const { hooks, store } = makeReactiveHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("test::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     const opened: string[] = [];

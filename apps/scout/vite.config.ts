@@ -1,7 +1,7 @@
 import { cpSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-swc";
 import pc from "picocolors";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -39,7 +39,16 @@ export default defineConfig(({ mode }) => {
   const baseConfig = {
     plugins: [
       react({
-        jsxRuntime: "automatic",
+        // Rust React Compiler via SWC. The escape hatch is required — the
+        // plugin has no first-class reactCompiler option yet. Needs
+        // plugin-react-swc >= 4.2.0 (earlier versions kept production builds
+        // on the non-SWC path even when options are mutated) and
+        // @swc/core >= 1.16.0 (where jsc.transform.reactCompiler landed).
+        useAtYourOwnRisk_mutateSwcOptions(options) {
+          options.jsc ??= {};
+          options.jsc.transform ??= {};
+          options.jsc.transform.reactCompiler = true;
+        },
       }),
     ],
     define: {
@@ -78,8 +87,16 @@ export default defineConfig(({ mode }) => {
           // mathjax is heavy and registers globals; keep it external so the
           // consumer installs/dedupes it once instead of each viewer
           // shipping its own copy.
+          //
+          // use-sync-external-store (via @tanstack/react-store) is CJS-only
+          // and `require`s react internally; bundling it alongside external
+          // react leaves a runtime `__require("react")` that throws in
+          // browsers. Externalize it (declared in dependencies) so the
+          // consumer's bundler does the CJS interop.
           external: (id: string) =>
-            /^(react|react-dom|@tanstack\/react-query)(\/|$)/.test(id) ||
+            /^(react|react-dom|@tanstack\/react-query|use-sync-external-store)(\/|$)/.test(
+              id
+            ) ||
             id === "mathjax-full" ||
             id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",

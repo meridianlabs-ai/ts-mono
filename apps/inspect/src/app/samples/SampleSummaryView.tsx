@@ -15,6 +15,7 @@ import {
   EvalSampleWorkingTime,
 } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
+import { kScoreTypeOther } from "../../constants";
 import {
   resolveScorePanelView,
   useEvalScorePanelView,
@@ -58,7 +59,8 @@ interface SampleFields {
   target: EvalSampleTarget;
   answer?: string;
   limit?: string;
-  retries?: number;
+  limit_reason?: string;
+  retries?: number | null;
   model_fallbacks?: ModelFallback[] | null;
   working_time?: EvalSampleWorkingTime;
   total_time?: EvalSample["total_time"];
@@ -88,10 +90,19 @@ const resolveSample = (
 
   const target = sample.target;
   const answer =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     sample && sampleDescriptor
       ? sampleDescriptor.selectedScorerDescriptor(sample)?.answer()
       : undefined;
-  const limit = isEvalSample(sample) ? sample.limit?.type : undefined;
+  // the sole caller passes a SampleSummary (useSelectedSampleSummary), so the
+  // summary branch is the one that renders — reading only the EvalSample side
+  // left the whole limit item dead
+  const limit = isEvalSample(sample)
+    ? sample.limit?.type
+    : (sample.limit ?? undefined);
+  const limit_reason = isEvalSample(sample)
+    ? (sample.limit?.reason ?? undefined)
+    : (sample.limit_reason ?? undefined);
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
   const cancelled = isCancelled(sample);
@@ -107,6 +118,7 @@ const resolveSample = (
     target,
     answer,
     limit,
+    limit_reason,
     retries,
     model_fallbacks: sample.model_fallbacks,
     working_time,
@@ -167,13 +179,12 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   // Filter out scores whose descriptor renders empty — they shouldn't
   // contribute to the count or layout decisions.
-  const visibleScores =
-    selectedScores?.filter((scoreLabel) => {
-      const rendered = sampleDescriptor.evalDescriptor
-        .score(sample, scoreLabel)
-        ?.render();
-      return rendered !== undefined && rendered !== "";
-    }) ?? [];
+  const visibleScores = selectedScores.filter((scoreLabel) => {
+    const rendered = sampleDescriptor.evalDescriptor
+      .score(sample, scoreLabel)
+      ?.render();
+    return rendered !== undefined && rendered !== "";
+  });
   const scoreCount = visibleScores.length;
 
   // Two-column grid widens the right side once the score panel needs
@@ -222,7 +233,11 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     });
   }
   if (fields.limit) {
-    metaItems.push({ key: "limit", content: `Limit: ${fields.limit}` });
+    metaItems.push({
+      key: "limit",
+      content: `Limit: ${fields.limit}`,
+      title: fields.limit_reason,
+    });
   }
   if (
     fields.retries !== undefined &&
@@ -376,7 +391,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                       <div className={styles.scoreFieldValue}>
                         <ScoreValueDisplay
                           value={selected?.value}
-                          scoreType={desc.scoreType}
+                          scoreType={desc?.scoreType ?? kScoreTypeOther}
                           size={22}
                         />
                       </div>

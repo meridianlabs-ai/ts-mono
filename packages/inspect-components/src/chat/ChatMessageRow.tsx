@@ -122,6 +122,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     resolvedMessage.message.tool_calls &&
     resolvedMessage.message.tool_calls.length
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const toolMessages = resolvedMessage.toolMessages || [];
     let idx = 0;
     for (const tool_call of resolvedMessage.message.tool_calls) {

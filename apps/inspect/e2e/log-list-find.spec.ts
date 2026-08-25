@@ -64,7 +64,7 @@ function findInput(page: Page) {
 }
 
 function matchStatus(page: Page) {
-  return page.locator(".findBand-match-count");
+  return page.getByTestId("find-band-match-count");
 }
 
 async function openFindBand(page: Page) {
@@ -107,9 +107,9 @@ test.describe("Log-list find band", () => {
     await findInput(page).fill("task-");
 
     await expect(matchStatus(page)).toHaveText("1 of 3");
-    await page.locator(".findBand button.next").click();
+    await page.getByTestId("find-band-next").click();
     await expect(matchStatus(page)).toHaveText("2 of 3");
-    await page.locator(".findBand button.prev").click();
+    await page.getByTestId("find-band-prev").click();
     await expect(matchStatus(page)).toHaveText("1 of 3");
   });
 

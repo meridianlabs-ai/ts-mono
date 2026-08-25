@@ -1,11 +1,11 @@
 import clsx from "clsx";
 import { CSSProperties, FC, useMemo, useRef } from "react";
 
-import "./JsonPanel.css";
-
 import { maybeBase64 } from "@tsmono/util";
 
 import { usePrismHighlight } from "../hooks/usePrismHighlight";
+
+import styles from "./JsonPanel.module.css";
 
 interface JSONPanelProps {
   id?: string;
@@ -38,7 +38,11 @@ export const JSONPanel: FC<JSONPanelProps> = ({
   return (
     <div ref={sourceCodeRef}>
       <pre
-        className={clsx("json-panel", simple ? "simple" : "", className)}
+        className={clsx(
+          styles.jsonPanel,
+          simple ? styles.simple : "",
+          className
+        )}
         style={style}
       >
         <code id={id} className={clsx("source-code", "language-javascript")}>

@@ -294,6 +294,7 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!record) {
     return [];
   }
@@ -358,6 +359,7 @@ const processNodeRecursive = (
     processChildren = true;
     childCount = value.length;
     displayValue = `Array(${value.length})`;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (typeof value === "object" && value !== null) {
     processChildren = true;
     childCount = Object.keys(value).length;
@@ -411,6 +413,7 @@ const processNodeRecursive = (
           );
         });
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (typeof value === "object" && value !== null) {
       // Process object properties
       Object.entries(value as Record<string, unknown>).forEach(

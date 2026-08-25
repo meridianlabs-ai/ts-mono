@@ -26,7 +26,11 @@ import {
   deactivateFetchEngine,
 } from "./replicationControl";
 import { mergeSampleSummaries, useSampleSummaries } from "./sampleSummaries";
-import { testClientAPI, testLogDetails } from "./testFixtures";
+import {
+  testClientAPI,
+  testLogDetails,
+  testSampleSummary,
+} from "./testFixtures";
 
 const holder = vi.hoisted(() => ({
   service: null as DatabaseService | null,
@@ -98,14 +102,12 @@ describe("mergeSampleSummaries", () => {
 
 const createSampleSummary = (
   overrides: Partial<SampleSummary> = {}
-): SampleSummary => ({
-  id: "it_has_begun (hard)",
-  epoch: 1,
-  input: "input",
-  target: "target",
-  scores: null,
-  ...overrides,
-});
+): SampleSummary =>
+  testSampleSummary({
+    id: "it_has_begun (hard)",
+    target: "target",
+    ...overrides,
+  });
 
 describe("useSampleSummaries during a running eval", () => {
   const LOG_DIR = "/logs";

@@ -19,9 +19,9 @@ export function barrelOnly(dirs) {
         : ["error", { patterns: restrictedDirs.map(pattern) }],
   });
   return [
-    { files: ["src/**"], rules: rules(dirs) },
+    { files: ["src/**/*.{ts,tsx}"], rules: rules(dirs) },
     ...dirs.map((dir) => ({
-      files: [`src/${dir}/**`],
+      files: [`src/${dir}/**/*.{ts,tsx}`],
       rules: rules(dirs.filter((d) => d !== dir)),
     })),
   ];

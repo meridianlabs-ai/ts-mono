@@ -16,7 +16,7 @@ import { queryClient } from "../state/queryClient";
 
 import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
 import { useSamplesListing } from "./samplesListing";
-import { testLogDetails } from "./testFixtures";
+import { testLogDetails, testSampleSummary } from "./testFixtures";
 
 // The module-under-test reads Dexie through the shared instance; route it to
 // this test's real (fake-indexeddb-backed) service.
@@ -35,15 +35,13 @@ const FILE_B = "/logs/sub/2026-01-02T00-00-00_task-b_B.eval";
 const summary = (
   id: string,
   overrides: Partial<SampleSummary> = {}
-): SampleSummary => ({
-  id,
-  epoch: 1,
-  input: `input-${id}`,
-  target: `target-${id}`,
-  scores: null,
-  completed: true,
-  ...overrides,
-});
+): SampleSummary =>
+  testSampleSummary({
+    id,
+    input: `input-${id}`,
+    target: `target-${id}`,
+    ...overrides,
+  });
 
 const payload = (
   file: string,

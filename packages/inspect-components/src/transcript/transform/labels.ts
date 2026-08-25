@@ -26,7 +26,7 @@ export const buildToolLabels = (
         : undefined;
       if (label) toolLabels[event.id] = label;
     } else if (event.event === "model") {
-      for (const message of event.input ?? []) {
+      for (const message of event.input) {
         if (message.role !== "tool" || !message.id) continue;
         const label = messageLabels[message.id];
         if (label && message.tool_call_id) {
@@ -55,11 +55,11 @@ export const scopeMessageLabels = (
   const present = new Set<string>();
   for (const event of events) {
     if (event.event === "model") {
-      for (const message of event.input ?? []) {
+      for (const message of event.input) {
         if (message.id) present.add(message.id);
       }
-      for (const choice of event.output?.choices ?? []) {
-        if (choice.message?.id) present.add(choice.message.id);
+      for (const choice of event.output.choices) {
+        if (choice.message.id) present.add(choice.message.id);
       }
     } else if (event.event === "tool" && event.message_id) {
       present.add(event.message_id);

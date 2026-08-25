@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeConfigUpdates } from "../normalize";
 import type { ConfigUpdate, EvalConfig, GenerateConfig } from "../types";
 
 import {
@@ -240,8 +241,11 @@ describe("effectiveEvalConfig", () => {
     expect(concurrencyChanges(corrupt)).toEqual([]);
   });
 
-  it("tolerates a missing provenance", () => {
-    const bare = malformedUpdates([
+  it("tolerates a missing provenance once boundary-normalized", () => {
+    // A crafted log omitting provenance is repaired at the parse boundary
+    // (normalizeConfigUpdates fills it); the fold itself may then read
+    // provenance unguarded.
+    const bare = normalizeConfigUpdates([
       {
         ...update([
           {

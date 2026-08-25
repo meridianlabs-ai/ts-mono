@@ -50,7 +50,7 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
   }
 
   let duration: number | undefined;
-  if (header.stats?.started_at && header.stats?.completed_at) {
+  if (header.stats?.started_at && header.stats.completed_at) {
     const start = new Date(header.stats.started_at).getTime();
     const end = new Date(header.stats.completed_at).getTime();
     if (start && end && end > start) {
@@ -58,17 +58,13 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
     }
   }
 
-  // Prefer `task_args_passed` (the args the user actually supplied at the
-  // call site) over `task_args` (which would also include defaulted values).
-  const taskArgsSource = header.eval.task_args_passed ?? header.eval.task_args;
+  // `task_args_passed` (the args the user actually supplied at the call
+  // site, filled by normalizeEvalSpec) rather than `task_args` (which would
+  // also include defaulted values).
   let task_args: string | undefined;
-  if (taskArgsSource) {
-    const entries = Object.entries(taskArgsSource);
-    if (entries.length > 0) {
-      task_args = entries
-        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
-        .join(", ");
-    }
+  const entries = Object.entries(header.eval.task_args_passed);
+  if (entries.length > 0) {
+    task_args = entries.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
   }
 
   let percent_completed: number | undefined;
@@ -88,11 +84,9 @@ export const deriveLogFields = (header: LogHeader): LogDerived => {
   let scores: Record<string, Record<string, number>> | undefined;
   if (header.results?.scores) {
     for (const evalScore of header.results.scores) {
-      if (evalScore.metrics) {
-        for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
-          scores ??= {};
-          (scores[evalScore.name] ??= {})[metricName] = metric.value;
-        }
+      for (const [metricName, metric] of Object.entries(evalScore.metrics)) {
+        scores ??= {};
+        (scores[evalScore.name] ??= {})[metricName] = metric.value;
       }
     }
   }
@@ -131,13 +125,12 @@ export const deriveSampleFacts = (
  *  read-time consumers (filter variables, sample rows) must agree. */
 export const totalSampleTokens = (
   modelUsage: SampleSummary["model_usage"]
-): number | undefined =>
-  modelUsage
-    ? Object.values(modelUsage).reduce(
-        (sum, u) => sum + (u.total_tokens ?? 0),
-        0
-      )
+): number | undefined => {
+  const usages = Object.values(modelUsage);
+  return usages.length > 0
+    ? usages.reduce((sum, u) => sum + u.total_tokens, 0)
     : undefined;
+};
 
 export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
   let scores: Record<string, unknown> | undefined;
@@ -148,13 +141,11 @@ export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
     }
   }
 
-  // Tolerate partial summaries (e.g. a running log's provisional rows):
-  // ingestion of a whole payload must not fail on one malformed sample.
   return {
     tokens: totalSampleTokens(summary.model_usage),
-    input:
-      summary.input !== undefined ? inputString(summary.input).join("\n") : "",
-    target: arrayToString(summary.target ?? ""),
+    input: inputString(summary.input).join("\n"),
+    target: arrayToString(summary.target),
+    // 0 fallbacks stores as undefined so the column renders empty
     fallbacks: totalModelFallbacks(summary.model_fallbacks) || undefined,
     scores,
   };

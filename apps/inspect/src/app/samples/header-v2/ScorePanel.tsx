@@ -6,7 +6,11 @@ import { ToolDropdownButton } from "@tsmono/react/components";
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData } from "../../../client/api/types";
-import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
+import {
+  kScoreTypeBoolean,
+  kScoreTypeOther,
+  kScoreTypePassFail,
+} from "../../../constants";
 import {
   resolveScorePanelSort,
   resolveScorePanelView,
@@ -40,7 +44,8 @@ interface ScorePanelProps {
 interface RenderedScore {
   label: ScoreLabel;
   key: string;
-  value: ScoreValue | undefined;
+  // null: dict-valued scores admit null entries (see scoreValue).
+  value: ScoreValue | null | undefined;
   scoreType: string;
   tone: Tone;
   /** 0–1, only set for numeric values. Drives the chip's blue
@@ -78,16 +83,17 @@ export const ScorePanel: FC<ScorePanelProps> = ({
     const initial = scores.map((label) => {
       const selected = evalDescriptor.score(sample, label);
       const descriptor = evalDescriptor.scoreDescriptor(label);
+      const scoreType = descriptor?.scoreType ?? kScoreTypeOther;
       // Pass/fail and boolean already render via semantic tones; opting
       // them into a configured color scale would clash with the
       // chipFail / chipWarn border. Match the grid's exclusion at
       // columns.tsx:559-560.
       const acceptsColorScale =
         colorScalesEnabled &&
-        descriptor.scoreType !== kScoreTypePassFail &&
-        descriptor.scoreType !== kScoreTypeBoolean;
+        scoreType !== kScoreTypePassFail &&
+        scoreType !== kScoreTypeBoolean;
       let bgColor: string | undefined;
-      if (acceptsColorScale) {
+      if (acceptsColorScale && descriptor) {
         const wire = wireScoreColorScales[label.name];
         if (wire) {
           const resolved = resolveScale(wire, {
@@ -103,8 +109,8 @@ export const ScorePanel: FC<ScorePanelProps> = ({
         label,
         key: `${label.scorer}__${label.name}`,
         value: selected?.value,
-        scoreType: descriptor.scoreType,
-        tone: scoreTone(selected?.value, descriptor.scoreType),
+        scoreType,
+        tone: scoreTone(selected?.value, scoreType),
         bgColor,
       };
     });

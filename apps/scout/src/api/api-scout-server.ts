@@ -1,6 +1,6 @@
 import { decompress as decompressZstd } from "fzstd";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 import { ApiError, asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
@@ -166,7 +166,12 @@ export const apiScoutServer = (
       ]);
 
       const { messages, timelines, attachments } = parsed;
-      const events = expandEvents(parsed.events, parsed.events_data ?? null);
+      // Boundary normalization (#555): transcripts can come from old logs
+      // whose events omit fields the types declare required.
+      const events = expandEvents(
+        normalizeEvents(parsed.events),
+        parsed.events_data ?? null
+      );
 
       return {
         ...info,
@@ -188,6 +193,7 @@ export const apiScoutServer = (
         "POST",
         `/transcripts/${encodeBase64Url(transcriptsDir)}/distinct`,
         {},
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         JSON.stringify({ column, filter: filter ?? null })
       );
       return asyncJsonParse<ScalarValue[]>(result.raw);
@@ -268,7 +274,7 @@ export const apiScoutServer = (
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=scan_events`
       );
       const parsed = await asyncJsonParse<
-        ScannerInputResponse & { scan_events: Event[] }
+        ScannerInputResponse & { scan_events?: unknown }
       >(raw);
 
       return {
@@ -280,7 +286,9 @@ export const apiScoutServer = (
             parsed.input_data
           ),
         },
-        scanEvents: parsed.scan_events ?? [],
+        // Boundary normalization (#555): scan events are written by many
+        // inspect_scout versions and can omit required-with-default fields.
+        scanEvents: normalizeEvents(parsed.scan_events),
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>

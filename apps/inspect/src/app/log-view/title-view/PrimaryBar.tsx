@@ -89,9 +89,9 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
                   styles.taskModel,
                   "text-size-base"
                 )}
-                title={evalSpec?.model}
+                title={evalSpec.model}
               >
-                {evalSpec?.model}
+                {evalSpec.model}
               </div>
             ) : (
               ""

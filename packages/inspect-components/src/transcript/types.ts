@@ -110,7 +110,7 @@ export const eventTypeValues = [
 ] as const;
 
 // Event types the transcript hides by default (the "Events: Default" filter).
-export const kDefaultExcludeEvents = [
+export const kDefaultExcludeEvents: readonly EventTypeValue[] = [
   "sample_init",
   "sandbox",
   "state",

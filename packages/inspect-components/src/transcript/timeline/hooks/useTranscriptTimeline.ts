@@ -201,7 +201,7 @@ export function useTranscriptTimeline(
           priorSelected: timelineProps?.selected ?? null,
         },
       ]);
-      timelineProps?.onSelect?.(null);
+      timelineProps?.onSelect(null);
     },
     [baseTimeline.root, timelineProps]
   );
@@ -209,7 +209,7 @@ export function useTranscriptTimeline(
     const top = viewStack.at(-1);
     if (!top) return;
     setViewStack((s) => s.slice(0, -1));
-    timelineProps?.onSelect?.(top.priorSelected);
+    timelineProps?.onSelect(top.priorSelected);
   }, [viewStack, timelineProps]);
 
   const state = useTimeline(timeline, timelineOptions, timelineProps);
@@ -372,6 +372,7 @@ export function useTranscriptTimeline(
     (timeline.root.content.some(
       (item) =>
         item.type === "span" ||
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         (item.type === "event" && item.event.event === "span_begin")
     ) ||
       timeline.root.branches.length > 0);

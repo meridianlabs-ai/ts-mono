@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { FC, useMemo, useRef, useState } from "react";
 
@@ -63,8 +64,8 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   const isCancelled = isCancelError(event.error);
   const isFailed = !!event.error && !isCancelled;
 
-  const totalUsage = event.output?.usage?.total_tokens;
-  const callTime = event.output?.time;
+  const totalUsage = event.output.usage?.total_tokens;
+  const callTime = event.output.time;
 
   // Note: despite the type system saying otherwise, this has appeared empirically
   // to sometimes be undefined
@@ -78,7 +79,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
   // Stop reason / refusal detail for the (primary) generated choice. `category`
   // and `explanation` are only present on a refusal/content-filter stop. Skip the
   // panel for a plain "stop" with no details — otherwise it shows on every call.
-  const firstChoice = event.output?.choices?.[0];
+  const firstChoice = event.output.choices[0];
   const stopDetails = firstChoice?.stop_details;
   const showStopReason =
     !!firstChoice && (!!stopDetails || firstChoice.stop_reason !== "stop");
@@ -140,7 +141,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       ? `${panelTitle} · Cancelled${formatFailureTime(event)}`
       : formatTitle(panelTitle, totalUsage, callTime);
 
-  const fallback = event.output?.fallback;
+  const fallback = event.output.fallback;
   const fallbackBadge = fallback ? (
     <span className={styles.fallbackBadge}>
       · fallback → {fallback.fallback_model}

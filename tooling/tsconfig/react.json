@@ -4,5 +4,6 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ESNext"]
-  }
+  },
+  "files": ["./css.d.ts"]
 }

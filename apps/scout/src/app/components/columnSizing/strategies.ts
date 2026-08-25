@@ -22,5 +22,6 @@ export const sizingStrategies: Record<ColumnSizingStrategyKey, SizingStrategy> =
 export function getSizingStrategy(
   key: ColumnSizingStrategyKey
 ): SizingStrategy {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return sizingStrategies[key] ?? sizingStrategies.default;
 }

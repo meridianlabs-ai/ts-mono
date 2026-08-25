@@ -119,6 +119,7 @@ export const toClipboardJson = (value: unknown): string => {
   };
   try {
     return (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       JSON.stringify(value, (_key, v: unknown) => replace(v), 2) ?? "undefined"
     );
   } catch (error) {

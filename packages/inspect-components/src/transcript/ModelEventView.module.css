@@ -19,10 +19,6 @@
   margin-top: 0;
 }
 
-.tools {
-  grid-column: -1/1;
-}
-
 .codePre {
   background: var(--bs-light);
   width: 100%;

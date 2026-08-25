@@ -1,3 +1,4 @@
+import { normalizeEvent } from "@tsmono/inspect-common/normalize";
 import {
   AttachmentData,
   ChatMessage,
@@ -280,8 +281,18 @@ function processEvents(
   for (const eventData of sampleData.events) {
     const existingIndex = state.eventMapping[eventData.event_id];
 
+    // Boundary normalization (#555): pending-sample-data events arrive raw —
+    // the direct transport reads filestore segments without pydantic, and
+    // the proxy can front an older server. Fill read-time defaults before
+    // ref resolution; un-event-shaped payloads pass through unchanged.
+    // The cast is the same boundary lift as the transports' casts: Event and
+    // the hand-written SampleEvent union differ only in member breadth.
+    const event =
+      (normalizeEvent(eventData.event) as SampleEvent | undefined) ??
+      eventData.event;
+
     const withAttachments = resolveAttachments<SampleEvent>(
-      eventData.event,
+      event,
       state.attachments,
       (attachmentId: string) => {
         const snapshot = {

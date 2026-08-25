@@ -276,10 +276,11 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   // Scroll highlighted item into view
   useEffect(() => {
     if (listRef.current && showDropdown && highlightedIndex >= 0) {
-      const highlighted = listRef.current.children[
-        highlightedIndex
-      ] as HTMLElement;
-      highlighted?.scrollIntoView({ block: "nearest" });
+      // item() is honestly typed `Element | null`, covering an out-of-bounds
+      // index if the highlight/suggestions invariant ever breaks
+      listRef.current.children
+        .item(highlightedIndex)
+        ?.scrollIntoView({ block: "nearest" });
     }
   }, [highlightedIndex, showDropdown]);
 

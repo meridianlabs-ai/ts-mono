@@ -212,6 +212,7 @@ export const ConfigValueCell: FC<ConfigValueCellProps> = ({
 }) => {
   const showPrior =
     !change.cleared &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     change.previous !== undefined &&
     change.previous !== change.value;
 

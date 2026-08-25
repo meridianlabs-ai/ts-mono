@@ -41,13 +41,13 @@ interface CanonicalNameCompletionProps {
 }
 
 const isLiteral = (token: Token): boolean =>
-  ["string", "unterminatedString", "number"].includes(token?.type);
+  ["string", "unterminatedString", "number"].includes(token.type);
 
 const isLogicalOp = (token: Token): boolean =>
-  ["and", "or", "not"].includes(token?.text);
+  ["and", "or", "not"].includes(token.text);
 
 const autocompleteImmediatelyAfter = (token: Token): boolean =>
-  ["(", "."].includes(token?.text);
+  ["(", "."].includes(token.text);
 
 const applyWithCall = (
   view: EditorView,
@@ -160,7 +160,7 @@ const getMemberScoreItems = (
   filterItems: SampleFilterItem[],
   scorer: string
 ): SampleFilterItem[] =>
-  filterItems.filter((item) => item?.qualifiedName?.startsWith(`${scorer}.`));
+  filterItems.filter((item) => item.qualifiedName?.startsWith(`${scorer}.`));
 
 const getSampleIds = (samples: SampleSummary[]): Set<string | number> => {
   const ids = new Set<string | number>();
@@ -184,11 +184,9 @@ const getMetadataPropertyValues = (
 ): Set<unknown> => {
   const values = new Set<unknown>();
   for (const sample of samples) {
-    if (sample.metadata) {
-      const value = getNestedProperty(sample.metadata, propertyPath);
-      if (value !== undefined && value !== null) {
-        values.add(value);
-      }
+    const value = getNestedProperty(sample.metadata, propertyPath);
+    if (value !== undefined && value !== null) {
+      values.add(value);
     }
   }
   return values;
@@ -256,18 +254,16 @@ const getMetadataKeysForPath = (
 ): Set<string> => {
   const keys = new Set<string>();
   for (const sample of samples) {
-    if (sample.metadata) {
-      const parentObj = parentPath
-        ? getNestedProperty(sample.metadata, parentPath)
-        : sample.metadata;
-      if (
-        parentObj &&
-        typeof parentObj === "object" &&
-        !Array.isArray(parentObj)
-      ) {
-        for (const key of Object.keys(parentObj)) {
-          keys.add(key);
-        }
+    const parentObj = parentPath
+      ? getNestedProperty(sample.metadata, parentPath)
+      : sample.metadata;
+    if (
+      parentObj &&
+      typeof parentObj === "object" &&
+      !Array.isArray(parentObj)
+    ) {
+      for (const key of Object.keys(parentObj)) {
+        keys.add(key);
       }
     }
   }
@@ -413,9 +409,7 @@ export function getCompletions(
       // Only include metadata if at least one sample has metadata
       return (
         samples &&
-        samples.some(
-          (sample) => sample.metadata && Object.keys(sample.metadata).length > 0
-        )
+        samples.some((sample) => Object.keys(sample.metadata).length > 0)
       );
     }
     return true;
@@ -448,21 +442,23 @@ export function getCompletions(
     ? tokens.length - 1
     : tokens.length;
 
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const prevToken = (index: number): Token => tokens[currentTokenIndex - index];
+  const prevToken = (index: number): Token | undefined =>
+    tokens[currentTokenIndex - index];
   const currentToken = prevToken(0);
   const completionStart = currentToken ? currentToken.from : context.pos;
   const completingAtEnd = context.pos === doc.length;
 
   const findFilterItem = (endIndex: number): SampleFilterItem | undefined => {
-    if (prevToken(endIndex)?.type !== "variable") return undefined;
+    const start = prevToken(endIndex);
+    if (start?.type !== "variable") return undefined;
 
-    let name = prevToken(endIndex).text;
+    let name = start.text;
     let i = endIndex;
 
     while (prevToken(i + 1)?.text === ".") {
-      if (prevToken(i + 2)?.type === "variable") {
-        name = `${prevToken(i + 2).text}.${name}`;
+      const member = prevToken(i + 2);
+      if (member?.type === "variable") {
+        name = `${member.text}.${name}`;
         i += 2;
       } else {
         break;
@@ -578,10 +574,11 @@ export function getCompletions(
     makeCompletions(options.map(makeLiteralCompletion));
 
   // Handle specific completion scenarios
-  if (!prevToken(1)) return newExpressionCompletions();
+  const prev1 = prevToken(1);
+  if (!prev1) return newExpressionCompletions();
 
   // Member access
-  if (prevToken(1)?.text === ".") {
+  if (prev1.text === ".") {
     const varName = prevToken(2)?.text;
 
     // Check if this is metadata property access (metadata.* or metadata.*.*)
@@ -602,7 +599,7 @@ export function getCompletions(
   }
 
   // Function call or bracketed expression start
-  if (prevToken(1)?.text === "(") {
+  if (prev1.text === "(") {
     if (prevToken(2)?.type === "mathFunction") return variableCompletions();
     if (prevToken(2)?.type === "sampleFunction") return noCompletions();
     return newExpressionCompletions();
@@ -614,11 +611,11 @@ export function getCompletions(
   // comparing function call result to something) or with a logical connector
   // (if a new subexpression is starting). Very hard to figure out what is
   // going on without an AST, which we don't have here.
-  if (prevToken(1)?.text === ")") return noCompletions();
+  if (prev1.text === ")") return noCompletions();
 
   // Variable type-based relation suggestions
-  if (prevToken(1)?.type === "variable") {
-    const varName = prevToken(1)?.text;
+  if (prev1.type === "variable") {
+    const varName = prev1.text;
 
     // Check if this is a metadata property access (metadata.property or metadata.nested.property)
     if (isMetadataProperty(tokens, currentTokenIndex)) {
@@ -665,7 +662,7 @@ export function getCompletions(
   }
 
   // RHS comparison suggestions
-  if (prevToken(1)?.type === "relation") {
+  if (prev1.type === "relation") {
     const varName = prevToken(2)?.text;
 
     // Check if this is a metadata property comparison (relation after metadata.property or metadata.nested.property)
@@ -748,6 +745,7 @@ export function getCompletions(
     // Epoch value completions (suggest actual epoch numbers from loaded samples)
     if (varName === "epoch" && samples) {
       const epochValues = Array.from(
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         new Set(samples.map((s) => s.epoch).filter((e) => e !== undefined))
       ).sort((a, b) => a - b);
       const epochCompletions = epochValues.map((e) =>
@@ -759,19 +757,19 @@ export function getCompletions(
     }
 
     const item = findFilterItem(2);
-    if (item?.categories?.length) {
+    if (item?.categories.length) {
       return rhsCompletions(item.categories);
     }
     return variableCompletions();
   }
 
   // Post-subexpression connector suggestions
-  if (isLiteral(prevToken(1)) && prevToken(2)?.type === "relation") {
+  if (isLiteral(prev1) && prevToken(2)?.type === "relation") {
     return logicalOpCompletions();
   }
 
   // New subexpression after logical connector
-  if (isLogicalOp(prevToken(1))) return newExpressionCompletions();
+  if (isLogicalOp(prev1)) return newExpressionCompletions();
 
   // Something unusual is going on. We don't have any good guesses, but the user
   // can trigger completion manually with Ctrl+Space if they want.

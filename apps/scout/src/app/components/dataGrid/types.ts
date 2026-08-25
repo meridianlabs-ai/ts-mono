@@ -5,8 +5,9 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 
+import type { FilterSpec } from "@tsmono/inspect-components/columnFilter";
+
 import type { ScalarValue } from "../../../api/api";
-import type { SimpleCondition } from "../../../query";
 import type { ColumnFilter, FilterType } from "../../../state/store";
 import type { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
 
@@ -89,16 +90,12 @@ export interface DataGridTableState {
   columnFilters: Record<string, ColumnFilter>;
 }
 
-/**
- * Handler for column filter changes.
- */
+/** Handler for column filter changes. */
 export type ColumnFilterChangeHandler = (
   columnId: string,
   filterType: FilterType,
-  condition: SimpleCondition | null
+  spec: FilterSpec | null
 ) => void;
 
-/**
- * Re-export column types for convenience
- */
+/** Re-export column types for convenience. */
 export type { ExtendedColumnDef, BaseColumnMeta };

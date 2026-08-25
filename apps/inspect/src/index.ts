@@ -21,6 +21,12 @@ export { viewServerApi as createViewServerApi } from "./client/api/view-server/a
 // different dir (rebuilding the api through the same factory).
 export { setApiFactory, setLogRoot } from "./app_config";
 
+// Embedder react-query provider — wrap chrome that calls the viewer's selection
+// hooks outside <App/> so they resolve the viewer's react-query client.
+// useViewerReady gates that chrome until app config resolves (the hooks throw
+// before then).
+export { InspectQueryClientProvider, useViewerReady } from "./embed";
+
 // Client API - Types
 export type {
   Capabilities,

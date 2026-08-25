@@ -1,7 +1,9 @@
 import { useCallback, useMemo } from "react";
 
-import type { SimpleCondition } from "../../query";
-import { ColumnFilter } from "../../state/store";
+import type {
+  ColumnFilter,
+  FilterSpec,
+} from "@tsmono/inspect-components/columnFilter";
 
 /**
  * Base table state interface that filter bar handlers can work with.
@@ -15,12 +17,9 @@ interface BaseTableState {
 
 interface FilterBarHandlers {
   /**
-   * Update a filter's condition or remove it if condition is null
+   * Update a filter's spec or remove it if spec is null
    */
-  handleFilterChange: (
-    columnId: string,
-    condition: SimpleCondition | null
-  ) => void;
+  handleFilterChange: (columnId: string, spec: FilterSpec | null) => void;
   /**
    * Remove a filter by column ID
    */
@@ -46,20 +45,17 @@ function createFilterBarHandlers<
   setTableState: (updater: TState | ((prev: TState) => TState)) => void,
   defaultVisibleColumns: readonly TColumnKey[]
 ): FilterBarHandlers {
-  const handleFilterChange = (
-    columnId: string,
-    condition: SimpleCondition | null
-  ) => {
+  const handleFilterChange = (columnId: string, spec: FilterSpec | null) => {
     setTableState((prevState) => {
       const newFilters = { ...prevState.columnFilters };
-      if (condition === null) {
+      if (spec === null) {
         delete newFilters[columnId];
       } else {
         const existingFilter = newFilters[columnId];
         if (existingFilter) {
           newFilters[columnId] = {
             ...existingFilter,
-            condition,
+            spec,
           };
         }
       }
@@ -156,8 +152,8 @@ export function useFilterBarHandlers<
 
   // Wrap in useCallback for consistent return types
   const handleFilterChange = useCallback(
-    (columnId: string, condition: SimpleCondition | null) => {
-      handlers.handleFilterChange(columnId, condition);
+    (columnId: string, spec: FilterSpec | null) => {
+      handlers.handleFilterChange(columnId, spec);
     },
     [handlers]
   );

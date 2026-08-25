@@ -23,14 +23,6 @@
   padding: 0.5em;
 }
 
-.expandableTogglable {
-  margin-bottom: 1em;
-}
-
-.expandableContents {
-  font-size: var(--inspect-font-size-base);
-}
-
 /* Fade-out at the bottom of truncated content to signal "more below".
    Applied only when collapsed AND the content overflows.
 

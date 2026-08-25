@@ -14,6 +14,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { LogHandle } from "@tsmono/inspect-common";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
+import { testSampleSummary } from "../api/testClientApi";
 import {
   LogDetails,
   LogFetchState,
@@ -86,7 +87,7 @@ function createTestLogInfo(overrides: Partial<LogDetails> = {}): LogDetails {
 function createTestSampleSummary(
   overrides: Partial<SampleSummary> = {}
 ): SampleSummary {
-  return {
+  return testSampleSummary({
     id: 1,
     epoch: 0,
     input: "test input",
@@ -100,9 +101,8 @@ function createTestSampleSummary(
         history: [],
       },
     },
-    completed: true,
     ...overrides,
-  };
+  });
 }
 
 describe("Database Service", () => {

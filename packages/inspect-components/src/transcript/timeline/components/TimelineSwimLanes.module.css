@@ -295,11 +295,6 @@
   border-radius: 0;
 }
 
-.parallelBadge {
-  font-size: var(--inspect-font-size-smallest);
-  color: var(--vscode-descriptionForeground);
-}
-
 /* Markers */
 
 .marker {

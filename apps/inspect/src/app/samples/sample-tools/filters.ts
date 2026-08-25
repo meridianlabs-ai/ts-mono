@@ -19,13 +19,17 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  scoreType: string;
+  // undefined when no samples carry the score (descriptor lookup misses)
+  scoreType: string | undefined;
 }
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -163,13 +167,13 @@ export const sampleVariables = (
     epoch: sample.epoch,
     has_error: !!sample.error,
     has_limit: !!sample.limit,
-    has_retries: sample.retries !== undefined && sample.retries > 0,
+    has_retries: (sample.retries ?? 0) > 0,
     has_fallbacks: totalModelFallbacks(sample.model_fallbacks) > 0,
-    completed: sample.completed ?? true,
+    completed: sample.completed,
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
-    target: arrayToString(sample.target ?? ""),
+    target: arrayToString(sample.target),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
     error: sample.error ?? null,
@@ -207,12 +211,6 @@ export const sampleFilterItems = (
     }
     const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
 
-    // This is not a filterable score
-    if (descriptor.filterable === false) {
-      return;
-    }
-
-    const scoreType = descriptor?.scoreType;
     if (!descriptor) {
       items.push({
         shortName,
@@ -220,10 +218,17 @@ export const sampleFilterItems = (
         canonicalName,
         tooltip: undefined,
         categories: [],
-        scoreType,
+        scoreType: undefined,
       });
       return;
     }
+
+    // This is not a filterable score
+    if (descriptor.filterable === false) {
+      return;
+    }
+
+    const scoreType = descriptor.scoreType;
     let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
     let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {
@@ -318,8 +323,7 @@ export const filterExpression = (
       // Handle metadata property access
       if (name.startsWith(kSampleMetadataPrefix)) {
         const propertyPath = name.substring(kSampleMetadataPrefix.length);
-        const metadata = sample.metadata || {};
-        return getNestedPropertyValue(metadata, propertyPath);
+        return getNestedPropertyValue(sample.metadata, propertyPath);
       }
       // Score variables exist only if the sample completed successfully.
       return sample.error ? undefined : get(name);

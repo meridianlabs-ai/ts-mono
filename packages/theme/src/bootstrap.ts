@@ -228,6 +228,7 @@ let mediaListenerInstalled = false;
 let bodyClassObserverInstalled = false;
 
 const hostIsDarkFromBody = (): boolean | null => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (typeof document === "undefined" || !document.body) return null;
   const cls = document.body.classList;
   // VS Code high contrast: `vscode-high-contrast` is the HC-dark theme,
@@ -248,6 +249,7 @@ const installBodyClassObserver = (): void => {
   if (
     bodyClassObserverInstalled ||
     typeof MutationObserver === "undefined" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     !document.body
   ) {
     return;
@@ -306,6 +308,7 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       if (result.hostIsDark !== null) {
         setDocumentBaseScheme(result.hostIsDark);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (result.kind === "apply") {
       // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
       // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
@@ -327,6 +330,7 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       // Adding `vscode-light` would activate the bridge in light mode and
       // silently re-skin every `--bs-*` token.
       if (result.toggleBodyClass) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: document.body is null while parsing <head>
         document.body?.classList.toggle("vscode-dark", result.isDark);
       }
     }

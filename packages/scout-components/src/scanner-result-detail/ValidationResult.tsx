@@ -21,6 +21,7 @@ export const ValidationResult: FC<ValidationResultProps> = ({
         targetValue={valueStr(resolveTargetValue(target, label))}
       />
     );
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (result !== null && typeof result === "object") {
     const entries = Object.entries(result);
 

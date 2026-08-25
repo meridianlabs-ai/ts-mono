@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { formatDateTime, formatTime } from "@tsmono/util";
@@ -5,9 +6,7 @@ import { formatDateTime, formatTime } from "@tsmono/util";
 import { useRevokableUrls } from "../hooks";
 
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
-
-import "./HumanBaselineView.css";
-
+import styles from "./HumanBaselineView.module.css";
 import { LightboxCarousel } from "./LightboxCarousel";
 
 export interface SessionLog {
@@ -68,7 +67,6 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
           timingUrl={createRevokableUrl(sessionLog.timing)}
           rows={rows}
           cols={cols}
-          className={"asciinema-player"}
           style={{
             height: `${rows * 2}em`,
             width: `${cols * 2}em`,
@@ -81,21 +79,23 @@ export const HumanBaselineView: FC<HumanBaselineViewProps> = ({
   }
 
   return (
-    <div className={"asciinema-wrapper"}>
-      <div className={"asciinema-container"}>
-        <div className={"asciinema-header-left text-style-label"}>
+    <div className={styles.asciinemaWrapper}>
+      <div className={styles.asciinemaContainer}>
+        <div className={clsx(styles.asciinemaHeaderLeft, "text-style-label")}>
           {started ? formatDateTime(started) : ""}
           {runtime ? ` (${formatTime(Math.floor(runtime))})` : ""}
         </div>
-        <div className={"asciinema-header-center text-style-label"}></div>
-        <div className={"asciinema-header-right"}>
+        <div
+          className={clsx(styles.asciinemaHeaderCenter, "text-style-label")}
+        ></div>
+        <div className={styles.asciinemaHeaderRight}>
           <StatusMessage
             completed={completed}
             running={running}
             answer={answer}
           />
         </div>
-        <div className={"asciinema-body"}>
+        <div className={styles.asciinemaBody}>
           <LightboxCarousel id={`${id}-ascii-cinema`} slides={player_fns} />
         </div>
       </div>
@@ -120,9 +120,11 @@ const StatusMessage: FC<StatusMessageProps> = ({
     return (
       <div>
         <span
-          className={
-            "text-style-label text-style-secondary asciinema-player-status"
-          }
+          className={clsx(
+            "text-style-label",
+            "text-style-secondary",
+            styles.asciinemaPlayerStatus
+          )}
         >
           Answer
         </span>
