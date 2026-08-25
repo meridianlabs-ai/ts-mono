@@ -1,115 +1,56 @@
 # Inspect Scout Viewer
 
-A React-based web viewer for Inspect AI evaluation logs.
+React web app for
+[Inspect Scout](https://github.com/meridianlabs-ai/inspect_scout) — browse
+scans, scanner results, and transcripts. The production build is copied into
+the inspect_scout Python package (via the
+[submodule workflow](../../docs/submodule-guide.md)) and served by Scout's
+view server.
 
-## Prerequisites
-
-This project uses [pnpm](https://pnpm.io/) as its package manager, managed through [corepack](https://nodejs.org/api/corepack.html).
-
-### Setup
-
-**Enable corepack** (required once):
-
-```bash
-corepack enable
-```
-
-That's it! Corepack is built into Node.js 16.9+ and will automatically install the correct pnpm version (specified in `package.json`) when you run pnpm commands.
-
-**Alternative:** If you prefer to install pnpm manually, see the [official pnpm installation guide](https://pnpm.io/installation).
-
-### Install Dependencies
-
-```bash
-pnpm install
-```
+For repo setup (corepack, pnpm, install), see the
+[root README](../../README.md).
 
 ## Development
 
-Start the development server:
+Run commands from this directory, or from the repo root with
+`pnpm --filter scout <command>`:
 
-```bash
-pnpm dev
-```
+| Command           | Description                                        |
+| ----------------- | -------------------------------------------------- |
+| `pnpm dev`        | Start the Vite dev server on :5174                 |
+| `pnpm build`      | Build the app (copies output into the Python repo) |
+| `pnpm watch`      | Rebuild on change                                  |
+| `pnpm test`       | Run unit/integration tests (vitest)                |
+| `pnpm test:watch` | Run tests in watch mode                            |
+| `pnpm e2e`        | Run Playwright e2e tests (`e2e:ui`, `e2e:headed`)  |
+| `pnpm lint`       | Lint (`lint:fix` to auto-fix)                      |
+| `pnpm typecheck`  | Type check                                         |
+| `pnpm format`     | Format with Prettier                               |
 
-Build for production:
+The dev server proxies `/api` to a Scout view server expected at
+`http://127.0.0.1:7576`.
 
-```bash
-pnpm build
-```
+## TypeScript types from OpenAPI
 
-Watch mode for development:
-
-```bash
-pnpm watch
-```
-
-Preview production build:
-
-```bash
-pnpm preview
-```
-
-## Code Quality
-
-Run linting:
-
-```bash
-pnpm lint
-```
-
-Auto-fix linting issues:
-
-```bash
-pnpm lint:fix
-```
-
-Format code:
-
-```bash
-pnpm format
-```
-
-Check formatting:
-
-```bash
-pnpm format:check
-```
-
-Type check:
-
-```bash
-pnpm typecheck
-```
-
-Run all checks (lint, format, typecheck):
-
-```bash
-pnpm check
-```
-
-## TypeScript Types from OpenAPI
-
-Types are auto-generated from the FastAPI OpenAPI spec to keep client/server in sync.
-
-### How It Works
-
-The type generation pipeline:
+API types are generated from inspect_scout's FastAPI OpenAPI spec to keep
+client and server in sync:
 
 ```
-Python Pydantic models → openapi.json (in inspect_scout) → generated.ts → built app
+Python Pydantic models → openapi.json (in inspect_scout) → src/types/generated.ts
 ```
 
-1. **Schema source**: The OpenAPI schema lives in the inspect_scout Python
-   repo at `src/inspect_scout/_view/openapi.json` — no copy is committed here
+1. **Schema source**: the schema lives in the inspect_scout Python repo at
+   `src/inspect_scout/_view/openapi.json` — no copy is committed here
 2. **Generate types**: `scripts/generate-types.js` locates the Python repo
    (requires running ts-mono as a submodule of inspect_scout, or setting
-   `TSMONO_PYTHON_ROOT_INSPECT_SCOUT` to a local inspect_scout checkout) and
-   runs `openapi-typescript` against the schema
+   `TSMONO_PYTHON_ROOT_INSPECT_SCOUT` to a local checkout) and runs
+   `openapi-typescript` against the schema
 3. **Type adapter**: `src/types/api-types.ts` re-exports types with clean names
-4. **Usage**: Import types from `src/types/index.ts` in your code
+4. **Usage**: import types from `src/types/index.ts`
 
-### Updating Types After API Changes
+(`packages/inspect-common` has a parallel pipeline for inspect_ai's schema.)
+
+### Updating types after API changes
 
 When Python Pydantic models change:
 
@@ -122,18 +63,11 @@ pnpm types:generate
 ```
 
 Commit the updated schema in inspect_scout and `src/types/generated.ts` here.
+inspect_scout's CI regenerates both and fails if they differ from what's
+committed.
 
-### CI Validation
+## Tech stack
 
-Schema and generated-type freshness is validated by inspect_scout's CI, which
-regenerates the files and fails if they differ from the committed versions. If
-that fails, run the commands above and commit the updated files.
-
-## Tech Stack
-
-- React 19
-- TypeScript
-- Vite
-- Bootstrap 5
-- AG Grid
-- React Router
+React 19, TypeScript, Vite, react-router, zustand, TanStack
+(Query/Table/Virtual), Bootstrap 5, vitest + MSW, Playwright. AG Grid remains
+in the dataframe view only — new tables use TanStack Table.

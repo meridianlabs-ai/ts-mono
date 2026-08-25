@@ -7,14 +7,18 @@ Inspect VS Code extension, and can be embedded in external applications via
 the [`@meridianlabs/log-viewer`](https://www.npmjs.com/package/@meridianlabs/log-viewer)
 npm package.
 
+For repo setup (corepack, pnpm, install), see the
+[root README](../../README.md).
+
 ## Development
 
-Run commands from this directory (or orchestrate from the repo root via
-Turbo — see [scripts.md](../../docs/scripts.md)):
+Run commands from this directory, or from the repo root with
+`pnpm --filter @meridianlabs/log-viewer <command>` (see
+[scripts.md](../../docs/scripts.md) for Turbo orchestration):
 
 | Command          | Description                               |
 | ---------------- | ----------------------------------------- |
-| `pnpm dev`       | Start the Vite dev server                 |
+| `pnpm dev`       | Start the Vite dev server on :5173        |
 | `pnpm build`     | Build the bundled app                     |
 | `pnpm build:lib` | Build the embeddable library into `lib/`  |
 | `pnpm test`      | Run unit/integration tests (vitest)       |
