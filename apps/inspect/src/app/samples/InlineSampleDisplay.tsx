@@ -82,7 +82,7 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
         {/* The transcript provides its own StickyScrollProvider (with the
             chrome offset) around its event panels; no container-level
             provider is needed here. */}
-        <div className={styles.body}>
+        <div>
           {sampleData.error ? (
             <ErrorPanel
               title="Unable to load sample"

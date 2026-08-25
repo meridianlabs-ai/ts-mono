@@ -18,6 +18,7 @@ export {
   APP_CONFIG_KEY, // TODO: Exported for tests?! review
   getApi,
   useAppConfig,
+  useAppConfigAsync,
   useAbsLogDir,
   useLogDir,
 } from "./hooks";

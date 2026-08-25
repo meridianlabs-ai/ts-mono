@@ -91,6 +91,7 @@ const stepDescriptor = (
     return { ...rootStepDescriptor };
   } else if (event.type === "scorer") {
     return { ...rootStepDescriptor };
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (event.event === "step") {
     if (event.name === kSandboxSignalName) {
       return { ...rootStepDescriptor, name: "Sandbox Events" };

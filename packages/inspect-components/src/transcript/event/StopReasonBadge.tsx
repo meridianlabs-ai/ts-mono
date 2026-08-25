@@ -62,6 +62,7 @@ export const StopReasonBadge: FC<StopReasonBadgeProps> = ({
   reason,
   details,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const toneClass = TONE_CLASS[STOP_TONE[reason] ?? "gray"];
   const entries = detailEntries(details);
 

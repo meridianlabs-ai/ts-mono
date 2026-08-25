@@ -2,7 +2,7 @@ import { FC } from "react";
 
 import { DownloadButton } from "../components/DownloadButton";
 
-import "./DownloadPanel.css";
+import styles from "./DownloadPanel.module.css";
 
 interface DownloadPanelProps {
   message: string;
@@ -19,8 +19,8 @@ export const DownloadPanel: FC<DownloadPanelProps> = ({
 }) => {
   return (
     <div>
-      <div className={"download-panel"}>
-        <div className={"download-panel-message"}>{message}</div>
+      <div className={styles.downloadPanel}>
+        <div className={styles.downloadPanelMessage}>{message}</div>
         <DownloadButton
           label={buttonLabel}
           fileName={fileName}

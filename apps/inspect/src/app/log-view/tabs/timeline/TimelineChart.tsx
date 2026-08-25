@@ -103,11 +103,9 @@ const sameSample = (a: SampleSummary, b: SampleSummary): boolean =>
   a.id === b.id && a.epoch === b.epoch;
 
 const sampleTokens = (sample: SampleSummary): number | undefined => {
-  const usage = sample.model_usage;
-  if (!usage) return undefined;
   let total = 0;
-  for (const u of Object.values(usage)) {
-    total += u.total_tokens ?? 0;
+  for (const u of Object.values(sample.model_usage)) {
+    total += u.total_tokens;
   }
   return total > 0 ? total : undefined;
 };
@@ -1282,7 +1280,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 interface ScoreRow {
   key: string;
   name: string;
-  value: ScoreValue | undefined;
+  // null: dict-valued scores admit null entries (see scoreValue).
+  value: ScoreValue | null | undefined;
   scoreType: string;
 }
 
@@ -1299,14 +1298,15 @@ const scoreRowsFor = (
         key: `${label.scorer}.${label.name}`,
         name: label.name,
         value: evalDescriptor.score(sample, label)?.value,
-        scoreType: evalDescriptor.scoreDescriptor(label).scoreType,
+        scoreType:
+          evalDescriptor.scoreDescriptor(label)?.scoreType ?? kScoreTypeOther,
       }))
       .filter((row) => row.value !== undefined && row.value !== null);
   }
   return Object.entries(sample.scores).map(([name, score]) => ({
     key: name,
     name,
-    value: formatShort(score?.value),
+    value: formatShort(score.value),
     scoreType: kScoreTypeOther,
   }));
 };

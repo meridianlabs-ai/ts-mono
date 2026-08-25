@@ -9,6 +9,7 @@ import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import {
   createInitialSearchPanelState,
   normalizeSearchPanelState,
@@ -26,25 +27,12 @@ import {
   ScanResultSummary,
   SortColumn,
 } from "../app/types";
-import type { SimpleCondition } from "../query";
 import { TranscriptInfo } from "../types/api-types";
 
-// Filter types for columns
-export type FilterType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "date"
-  | "datetime"
-  | "duration"
-  | "unknown";
-
-// Column filter with metadata
-export interface ColumnFilter {
-  columnId: string;
-  filterType: FilterType;
-  condition: SimpleCondition | null;
-}
+export type {
+  ColumnFilter,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 
 // Transcripts table UI state
 export interface TranscriptsTableState {
@@ -840,17 +828,20 @@ const ApiContext = createContext<ScoutApiV2 | null>(null);
 export const StoreProvider = StoreContext.Provider;
 export const ApiProvider = ApiContext.Provider;
 
-export const useStore = <T>(selector?: (state: StoreState) => T) => {
-  const store = useContext(StoreContext);
-  if (!store) throw new Error("useStore must be used within StoreProvider");
+const selectWholeState = (state: StoreState) => state;
 
-  // If no selector is provided, return the whole state
-  if (!selector) {
-    return store((state) => state) as T;
-  }
+export function useStore(): StoreState;
+export function useStore<T>(selector: (state: StoreState) => T): T;
+export function useStore<T>(selector?: (state: StoreState) => T) {
+  // Named `use*` so React Compiler recognizes the call below as a hook. Under
+  // any other name it treats `store(selector)` as a plain call and memoizes it
+  // away, skipping zustand's useSyncExternalStore on later renders.
+  const useBoundStore = useContext(StoreContext);
+  if (!useBoundStore)
+    throw new Error("useStore must be used within StoreProvider");
 
-  return store(selector);
-};
+  return useBoundStore<T | StoreState>(selector ?? selectWholeState);
+}
 
 export const useApi = (): ScoutApiV2 => {
   const api = useContext(ApiContext);

@@ -101,11 +101,13 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
 
   // Figure out whether grouping should be shown
   const groupOptions: Array<ResultGroup> = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!visibleScannerResults || visibleScannerResults.length === 0) {
       return [];
     }
 
     const hasLabel = visibleScannerResults.some(
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       (summary) => summary.label !== undefined && summary.label !== null
     );
 

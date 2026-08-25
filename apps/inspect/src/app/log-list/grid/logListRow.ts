@@ -16,8 +16,7 @@ export const buildLogListRow = (item: LogListItem): LogListRow => {
   const details = log?.header;
   const derived = log?.derived;
 
-  const taskArgsSource =
-    details?.eval?.task_args_passed ?? details?.eval?.task_args;
+  const taskArgsSource = details?.eval.task_args_passed;
 
   const row: LogListRow = {
     id: item.id,
@@ -45,10 +44,10 @@ export const buildLogListRow = (item: LogListItem): LogListRow => {
     path: item.type === "file" ? item.name : undefined,
     totalSamples: details?.results?.total_samples,
     completedSamples: details?.results?.completed_samples,
-    sandbox: details?.eval?.sandbox?.type,
+    sandbox: details?.eval.sandbox?.type,
     totalTokens: derived?.total_tokens,
     duration: derived?.duration,
-    taskFile: details?.eval?.task_file ?? undefined,
+    taskFile: details?.eval.task_file ?? undefined,
     taskArgs: derived?.task_args,
     taskArgsRaw: taskArgsSource ?? undefined,
     tags: details?.tags,

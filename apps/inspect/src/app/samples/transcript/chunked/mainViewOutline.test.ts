@@ -13,6 +13,7 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
   testModelEvent,
   testScore,
@@ -81,7 +82,12 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
     ) as SampleSkeleton;
     samples.push({
       key: `${parsed.id}/${parsed.epoch}`,
-      events: resolveAttachments(parsed.events, parsed.attachments ?? {}),
+      // The real pipeline normalizes events at the parse boundary (#555)
+      // before attachment resolution; mirror it so old fixtures load.
+      events: resolveAttachments(
+        normalizeEvents(parsed.events),
+        parsed.attachments ?? {}
+      ),
       skeleton,
     });
   }

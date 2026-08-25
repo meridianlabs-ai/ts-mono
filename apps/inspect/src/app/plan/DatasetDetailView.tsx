@@ -20,6 +20,7 @@ export const DatasetDetailView: FC<DatasetDetailViewProps> = ({
     Object.entries(dataset).filter(([key]) => key !== "sample_ids")
   );
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!dataset || Object.keys(filtered).length === 0) {
     return (
       <span className={clsx("text-size-base", styles.item)} style={style}>

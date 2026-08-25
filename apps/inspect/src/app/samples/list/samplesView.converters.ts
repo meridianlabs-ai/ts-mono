@@ -47,10 +47,12 @@ export const liftEvalView = (
   return {
     name: wire.name,
     columns: wire.columns
-      ? wire.columns.map((c) => ({ id: c.id, visible: c.visible ?? true }))
+      ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        wire.columns.map((c) => ({ id: c.id, visible: c.visible ?? true }))
       : fallback.columns,
     sort: wire.sort
-      ? wire.sort.map((s) => ({ colId: s.column, dir: s.dir ?? "asc" }))
+      ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        wire.sort.map((s) => ({ colId: s.column, dir: s.dir ?? "asc" }))
       : fallback.sort,
     filters: { dsl: "", extraColumnFilters: {} },
     multiline: wire.multiline ?? fallback.multiline,
@@ -106,6 +108,7 @@ export const resolveSamplesView = (
 ): SamplesViewState => {
   if (!stored) return liftEvalView(evalDefault);
   const lifted = liftEvalView(evalDefault);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const overrides = stored.userOverrides ?? {};
   return {
     ...stored,

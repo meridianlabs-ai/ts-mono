@@ -28,6 +28,7 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
     // the call to func could have a side effect of mutating timeout if it makes
     // a call to throttled below
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!timeout) {
       args = null;
     }
@@ -90,6 +91,7 @@ export function debounce<T extends (...args: any[]) => unknown>(
         // that the call to func could have a side effect of mutating timeout if
         // it makes a call to debounced below
 
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (!timeout) {
           args = null!;
         }

@@ -446,13 +446,14 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         data: sample,
         answer:
           samplesDescriptor.selectedScorerDescriptor(sample)?.answer() ?? "",
-        completed: sample.completed ?? true,
+        completed: sample.completed,
         input: inputString(sample.input).join(" "),
         target: Array.isArray(sample.target)
           ? sample.target.join(", ")
           : sample.target,
         error: sample.error,
         limit: sample.limit,
+        limit_reason: sample.limit_reason,
         retries: sample.retries,
         fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
         tokens,

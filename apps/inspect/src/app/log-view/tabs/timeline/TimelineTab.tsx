@@ -247,13 +247,13 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
     () =>
       window
         ? guideSegments(
-            evalSpec?.config?.max_samples,
+            evalSpec?.config.max_samples,
             "max_samples",
             markers,
             window
           )
         : [],
-    [evalSpec?.config?.max_samples, markers, window]
+    [evalSpec?.config.max_samples, markers, window]
   );
 
   // ── band picker (state keyed per log) ────────────────────────────────

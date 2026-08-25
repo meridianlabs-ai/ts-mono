@@ -1,8 +1,12 @@
 {
   "extends": "@tsmono/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["css-modules"]
+    "types": []
   },
   "include": ["src", "vitest.config.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist"],
+  "cmkOptions": {
+    "enabled": true,
+    "dtsOutDir": "."
+  }
 }

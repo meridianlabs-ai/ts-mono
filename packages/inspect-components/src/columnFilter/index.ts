@@ -1,7 +1,9 @@
 export { ColumnFilterControl } from "./ColumnFilterControl";
 export { ColumnFilterButton } from "./ColumnFilterButton";
 export { ColumnFilterEditor } from "./ColumnFilterEditor";
+export { combineFilters } from "./combineFilters";
 export { DurationInput } from "./DurationInput";
+export { editorConditionProps } from "./editorConditionProps";
 export { useColumnFilter } from "./useColumnFilter";
 export { useColumnFilterPopover } from "./useColumnFilterPopover";
 export {

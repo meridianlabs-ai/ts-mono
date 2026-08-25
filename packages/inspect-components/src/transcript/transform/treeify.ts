@@ -244,6 +244,7 @@ const injectScorersSpan = (events: Event[]): Event[] => {
     if (
       event.event === SPAN_BEGIN &&
       event.type === TYPE_SCORER &&
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       !hasCollectedScorers
     ) {
       collecting = event.span_id ?? null;
@@ -276,7 +277,7 @@ export const filterEmptySpans = (
   eventNodes: EventNode<EventType>[]
 ): EventNode<EventType>[] => {
   return eventNodes.filter((node) => {
-    if (node.children && node.children.length > 0) {
+    if (node.children.length > 0) {
       node.children = filterEmptySpans(node.children);
     }
     // Preserve nodes with a sourceSpan (e.g. agent cards)
@@ -289,7 +290,7 @@ export const filterEmptySpans = (
     }
     return (
       (node.event.event !== "span_begin" && node.event.event !== "step") ||
-      (node.children && node.children.length > 0)
+      node.children.length > 0
     );
   });
 };

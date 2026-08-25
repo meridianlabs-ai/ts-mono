@@ -211,6 +211,7 @@ function renderField(
     case "validation":
       if (
         data.validationResult === undefined ||
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         data.validationResult === null
       ) {
         return null;

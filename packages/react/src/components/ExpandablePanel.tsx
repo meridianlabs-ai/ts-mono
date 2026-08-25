@@ -89,6 +89,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
         setContainsFindTarget(false);
         return;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       const text = (root.textContent ?? "").toLowerCase();
       setContainsFindTarget(text.includes(findTarget.term.toLowerCase()));
     });
@@ -157,7 +158,6 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             ref={contentRef}
             style={contentStyles}
             className={clsx(
-              styles.expandableContentWrap,
               effectiveCollapsed && showToggle
                 ? styles.expandableTruncated
                 : undefined

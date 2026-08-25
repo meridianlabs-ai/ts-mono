@@ -43,18 +43,15 @@ export function useListPositionManager(
 
   // Track previous selected value to detect navigate-up
   const prevSelectedRef = useRef(selected);
-  const isFirstRender = useRef(true);
+  const prevBaseListIdRef = useRef(baseListId);
 
   useEffect(() => {
-    // Skip the first render -- don't clear positions on mount
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      prevSelectedRef.current = selected;
+    const prevSelected = prevSelectedRef.current;
+    if (prevSelected === selected && prevBaseListIdRef.current === baseListId) {
       return;
     }
-
-    const prevSelected = prevSelectedRef.current;
     prevSelectedRef.current = selected;
+    prevBaseListIdRef.current = baseListId;
 
     // Clear saved Virtuoso state for the target agent
     const targetVirtuosoKey = `${kVirtuosoKeyPrefix}${effectiveListId}`;

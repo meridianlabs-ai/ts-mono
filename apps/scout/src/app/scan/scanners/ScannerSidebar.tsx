@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router";
@@ -270,10 +271,8 @@ const NumericResultsTable: FC<{
     <div className={clsx(styles.numericResultTable)}>
       {Object.entries(validations).map(([key, value]) => (
         <Fragment key={key}>
-          <div className={clsx(styles.numericResultKey)}>{key}</div>
-          <div className={clsx(styles.numericResultValue)}>
-            {formatter ? formatter(value) : value}
-          </div>
+          <div>{key}</div>
+          <div>{formatter ? formatter(value) : value}</div>
         </Fragment>
       ))}
     </div>

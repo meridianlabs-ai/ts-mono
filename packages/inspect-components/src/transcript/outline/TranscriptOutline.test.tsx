@@ -1,5 +1,4 @@
 import { cleanup, render } from "@testing-library/react";
-import { useSyncExternalStore } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { testInfoEvent } from "@tsmono/inspect-common/testing";
@@ -7,6 +6,7 @@ import {
   ComponentStateProvider,
   type ComponentStateHooks,
 } from "@tsmono/react/state";
+import { makeReactiveStateHooks } from "@tsmono/react/testing";
 
 import { EventNode } from "../types";
 
@@ -31,49 +31,6 @@ describe("outlineNodeRunning", () => {
     ).toBe(false);
   });
 });
-
-// A reactive component-state store backed by a Map the test can inspect, so
-// VirtualList's persisted snapshots survive across mounts like production.
-const makeReactiveStateHooks = () => {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const subscribe = (cb: () => void) => {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  };
-  const emit = () => {
-    version++;
-    listeners.forEach((l) => l());
-  };
-  const getKey = (id: string, prop: string) => `${id}::${prop}`;
-  const hooks: ComponentStateHooks = {
-    useValue: (id: string, prop: string, defaultValue?: unknown) => {
-      useSyncExternalStore(subscribe, () => version);
-      return store.has(getKey(id, prop))
-        ? store.get(getKey(id, prop))
-        : defaultValue;
-    },
-    useSetValue: () => (id: string, prop: string, value: unknown) => {
-      if (
-        !store.has(getKey(id, prop)) ||
-        store.get(getKey(id, prop)) !== value
-      ) {
-        store.set(getKey(id, prop), value);
-        emit();
-      }
-    },
-    useRemoveValue: () => (id: string, prop: string) => {
-      if (store.delete(getKey(id, prop))) emit();
-    },
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-  return { hooks, store };
-};
 
 const node = (id: string): EventNode =>
   new EventNode(
@@ -120,7 +77,7 @@ describe("TranscriptOutline persistence scoping", () => {
     // Hosts that never clear the property bag (scout has no equivalent of
     // inspect's SampleLoadController) rely on the persistence key itself
     // being scoped per transcript.
-    const { hooks } = makeReactiveStateHooks();
+    const hooks = makeReactiveStateHooks();
 
     // Transcript A: user scrolls the outline's sticky container; the
     // debounced persist records the offset.
@@ -146,7 +103,7 @@ describe("TranscriptOutline persistence scoping", () => {
   });
 
   it("restores the offset when the same transcript remounts", () => {
-    const { hooks } = makeReactiveStateHooks();
+    const hooks = makeReactiveStateHooks();
 
     const scrollElA = document.createElement("div");
     document.body.appendChild(scrollElA);

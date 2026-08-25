@@ -124,6 +124,7 @@ export const useWindowMessaging = (): void => {
       navigate,
       setSingleFileMode,
       setSelectedScanner,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       scansDir: scansDir ?? "",
     };
   }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);

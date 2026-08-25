@@ -14,3 +14,4 @@ libs/**/*.css
 libs/**/*.js
 preact/**/*.js
 preact/**/*.mjs
+*.module.css.d.ts

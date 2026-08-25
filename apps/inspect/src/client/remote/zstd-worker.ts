@@ -147,6 +147,7 @@ function getZstdWorker(): Promise<Worker> {
     // Wait for init confirmation before resolving
     const initHandler = (event: MessageEvent) => {
       const message = event.data as ZstdInitMessage;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (message.type === "init_complete") {
         zstdWorker!.removeEventListener("message", initHandler);
         if (message.success) {

@@ -79,7 +79,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   const epochs = effectiveConfig.epochs || 1;
   const hyperparameters: Record<string, unknown> = {
     ...effectiveGenerateConfig(evalPlan?.config || {}, configUpdates),
-    ...(evalSpec.task_args || {}),
+    ...evalSpec.task_args,
   };
 
   const hasConfig =
@@ -148,8 +148,8 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
 
   if (evalStats) {
     const totalDuration = formatDuration(
-      new Date(evalStats?.started_at),
-      new Date(evalStats?.completed_at)
+      new Date(evalStats.started_at),
+      new Date(evalStats.completed_at)
     );
     values.push({
       size: "minmax(12%, auto)",
@@ -260,9 +260,6 @@ interface ParamSummaryProps {
  * A component that displays a summary of parameters.
  */
 const ParamSummary: FC<ParamSummaryProps> = ({ params }) => {
-  if (!params) {
-    return null;
-  }
   const paraValues = Object.keys(params).map((key) => {
     const val = params[key];
     if (Array.isArray(val) || typeof val === "object") {

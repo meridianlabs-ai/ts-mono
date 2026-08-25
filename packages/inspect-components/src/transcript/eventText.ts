@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import type { Content } from "@tsmono/inspect-common/types";
 
 import type { EventType } from "./types";
@@ -65,20 +66,16 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["model", modelEvent.model]);
       }
       // Extract text from model output
-      if (modelEvent.output?.choices) {
-        for (const choice of modelEvent.output.choices) {
-          for (const text of extractContentText(choice.message.content)) {
-            fields.push(["output", text]);
-          }
+      for (const choice of modelEvent.output.choices) {
+        for (const text of extractContentText(choice.message.content)) {
+          fields.push(["output", text]);
         }
       }
       // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
+      for (const msg of modelEvent.input) {
+        if (msg.role === "user" || msg.role === "system") {
+          for (const text of extractContentText(msg.content)) {
+            fields.push([msg.role, text]);
           }
         }
       }
@@ -135,10 +132,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "error": {
       const errorEvent = event;
-      if (errorEvent.error?.message) {
+      if (errorEvent.error.message) {
         fields.push(["message", errorEvent.error.message]);
       }
-      if (errorEvent.error?.traceback) {
+      if (errorEvent.error.traceback) {
         fields.push(["traceback", errorEvent.error.traceback]);
       }
       break;
@@ -146,11 +143,11 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "logger": {
       const loggerEvent = event;
-      if (loggerEvent.message?.message) {
+      if (loggerEvent.message.message) {
         fields.push(["message", loggerEvent.message.message]);
       }
       // Filename shown in the view
-      if (loggerEvent.message?.filename) {
+      if (loggerEvent.message.filename) {
         fields.push(["filename", loggerEvent.message.filename]);
       }
       break;

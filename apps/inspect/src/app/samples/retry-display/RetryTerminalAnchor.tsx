@@ -26,6 +26,20 @@ const deriveOutcome = (
   return limit ? "limit" : "success";
 };
 
+const markerByOutcome: Record<Outcome, string> = {
+  success: styles.markerSuccess,
+  error: styles.markerError,
+  cancelled: styles.markerCancelled,
+  limit: styles.markerLimit,
+};
+
+const headlineByOutcome: Record<Outcome, string> = {
+  success: styles.headlineSuccess,
+  error: styles.headlineError,
+  cancelled: styles.headlineCancelled,
+  limit: styles.headlineLimit,
+};
+
 // Orientation only — the final run is the sample the user is already
 // viewing. Deliberately not a link, no score, no chevron.
 export const RetryTerminalAnchor: FC<RetryTerminalAnchorProps> = ({
@@ -57,13 +71,16 @@ export const RetryTerminalAnchor: FC<RetryTerminalAnchorProps> = ({
   return (
     <div className={styles.row}>
       <span
-        className={clsx(styles.marker, styles[`marker-${outcome}`])}
+        className={clsx(styles.marker, markerByOutcome[outcome])}
         aria-hidden="true"
       >
         <i className={icon} />
       </span>
       <div className={styles.copy}>
-        <span className={clsx(styles.headline, styles[`headline-${outcome}`])}>
+        <span
+          className={clsx(styles.headline, headlineByOutcome[outcome])}
+          title={limit?.reason ?? undefined}
+        >
           {headline}
         </span>
         <span

@@ -18,10 +18,10 @@ export const kConnectionReasonLabel: Record<
 };
 
 const kReasonBadge: Record<ConnectionLimitChange["reason"], string> = {
-  slow_start: styles.badgeSlowStart!,
-  steady_state_up: styles.badgeSteadyUp!,
-  rate_limit: styles.badgeRateLimit!,
-  manual: styles.badgeManual!,
+  slow_start: styles.badgeSlowStart,
+  steady_state_up: styles.badgeSteadyUp,
+  rate_limit: styles.badgeRateLimit,
+  manual: styles.badgeManual,
 };
 
 export interface LimitTransitionProps {

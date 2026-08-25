@@ -53,11 +53,11 @@ const CAT_LABEL: Record<CategoryKey, string> = {
 };
 
 const CAT_SWATCH: Record<CategoryKey, string> = {
-  input: styles.catInput!,
-  cacheRead: styles.catCacheRead!,
-  cacheWrite: styles.catCacheWrite!,
-  output: styles.catOutput!,
-  reasoning: styles.catReasoning!,
+  input: styles.catInput,
+  cacheRead: styles.catCacheRead,
+  cacheWrite: styles.catCacheWrite,
+  output: styles.catOutput,
+  reasoning: styles.catReasoning,
 };
 
 const buildCategories = (usage: ModelUsageData): Category[] => {
@@ -129,6 +129,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
   timing,
   className,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!usage) return null;
 
   const categories = buildCategories(usage);

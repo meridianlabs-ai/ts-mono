@@ -23,6 +23,7 @@ export function useVirtualListState(
   const getRestoreSnapshot = useCallback(():
     VirtualListStateSnapshot | undefined => {
     if (!stored) return undefined;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (stored.version !== CURRENT_VERSION) return undefined;
     return stored;
   }, [stored]);

@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "run_id": "PV42ZvREM6CdVdjeiEGW9e",
+    "created": "2024-11-05T13:32:37-05:00",
+    "task": "input_task",
+    "task_id": "hxs4q9azL3ySGkjJirypKZ",
+    "task_version": 0,
+    "task_file": "input.py",
+    "task_attribs": {},
+    "task_args": {},
+    "dataset": { "samples": 1, "sample_ids": [1], "shuffled": false },
+    "model": "openai/gpt-4o-mini",
+    "model_args": {},
+    "config": { "log_images": true },
+    "packages": { "inspect_ai": "0.3.43.dev33+g6c96d92d" }
+  },
+  "plan": {
+    "name": "plan",
+    "steps": [
+      { "solver": "input_solver", "params": {} },
+      { "solver": "generate", "params": {} }
+    ],
+    "config": { "max_connections": 4 }
+  },
+  "results": {
+    "total_samples": 1,
+    "completed_samples": 1,
+    "scores": [
+      {
+        "name": "model_graded_fact",
+        "scorer": "model_graded_fact",
+        "params": {
+          "instructions": "Please check whether the answer to this question is correct and written with a tone of voice and lingo common to Gen Z. Please explain your thinking and if you feel both criteria are met please include the GRADE: C as the last line in your message, otherwise end with GRADE: I."
+        },
+        "metrics": {
+          "accuracy": { "name": "accuracy", "value": 1.0, "options": {} },
+          "stderr": { "name": "stderr", "value": 0.0, "options": {} }
+        }
+      }
+    ]
+  },
+  "stats": {
+    "started_at": "2024-11-05T13:32:37-05:00",
+    "completed_at": "2024-11-05T13:33:01-05:00",
+    "model_usage": {
+      "openai/gpt-4o-mini": {
+        "input_tokens": 287,
+        "output_tokens": 202,
+        "total_tokens": 489
+      }
+    }
+  }
+}

@@ -93,7 +93,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     const directLabel = event.message_id
       ? messageLabels[event.message_id]
       : undefined;
-    const label = directLabel ?? context?.toolLabels?.[event.id];
+    const label = directLabel ?? context.toolLabels?.[event.id];
     return { messageLabels: label ? { [event.id]: label } : {} };
   }, [context?.messageLabels, context?.toolLabels, event.id, event.message_id]);
 
@@ -115,6 +115,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       input={input}
       description={description}
       contentType={contentType}
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       output={event.result ?? ""}
       selfAnnotation={context?.selfAnnotation}
       inputScreenshot={context?.inputScreenshot}

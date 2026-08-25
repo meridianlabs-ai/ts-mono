@@ -36,7 +36,6 @@ export const SamplesViewOptionsPopover: FC<SamplesViewOptionsPopoverProps> = ({
       hoverDelay={-1}
       closeOnMouseLeave={false}
       offset={[0, 1]}
-      className={styles.popover}
     >
       <div className={clsx(styles.container, "text-size-small")}>
         <label className={styles.row}>

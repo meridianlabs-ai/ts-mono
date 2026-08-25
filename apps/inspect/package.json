@@ -18,6 +18,7 @@
     "directory": "src/inspect_ai/_view/ts-mono/apps/inspect"
   },
   "scripts": {
+    "generate:css": "cmk",
     "build": "vite build",
     "build:lib": "vite build --mode library",
     "build:app": "vite build --mode development",
@@ -31,8 +32,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' --max-warnings 0",
-    "lint:fix": "eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' --fix --max-warnings 0",
+    "lint": "TSMONO_TYPED_LINT=1 eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' 'src/**/*.module.css' --max-warnings 0",
+    "lint:fix": "eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' 'src/**/*.module.css' --fix --max-warnings 0",
     "tsc": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
@@ -50,6 +51,7 @@
   "devDependencies": {
     "@msw/playwright": "^0.6.7",
     "@playwright/test": "^1.62.1",
+    "@swc/core": "^1.16.0",
     "@tanstack/react-devtools": "^0.10.9",
     "@tanstack/react-query-devtools": "^5.101.4",
     "@testing-library/dom": "^10.4.1",
@@ -70,7 +72,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@vitejs/plugin-react-swc": "^4.3.3",
     "cross-env": "^10.1.0",
     "eslint": "^10.7.0",
     "fake-indexeddb": "^6.2.2",
@@ -117,6 +119,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.0",
+    "use-sync-external-store": "^1.6.0",
     "zustand": "^5.0.14"
   },
   "peerDependencies": {

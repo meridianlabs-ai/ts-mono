@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 /**
  * Fixture-driven tests for buildTimeline().
  *

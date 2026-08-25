@@ -21,12 +21,15 @@ import {
   useState,
 } from "react";
 
+import {
+  ColumnFilterControl,
+  type FilterSpec,
+} from "@tsmono/inspect-components/columnFilter";
+
 import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import { ApplicationIcons } from "../../../icons";
-import type { SimpleCondition } from "../../../query";
 import { openRouteInNewTab } from "../../../router/url";
-import { FilterType } from "../../../state/store";
-import { ColumnFilterControl } from "../columnFilter";
+import type { FilterType } from "../../../state/store";
 import {
   BaseColumnMeta,
   ExtendedColumnDef,
@@ -111,13 +114,9 @@ export function DataGrid<
 
   // Column filter change handler
   const handleColumnFilterChange = useCallback(
-    (
-      columnId: string,
-      filterType: FilterType,
-      condition: SimpleCondition | null
-    ) => {
+    (columnId: string, filterType: FilterType, spec: FilterSpec | null) => {
       onStateChange((prev) => {
-        if (condition === null) {
+        if (spec === null) {
           // Remove the filter entirely
           const newFilters = { ...prev.columnFilters };
           delete newFilters[columnId];
@@ -134,7 +133,7 @@ export function DataGrid<
             [columnId]: {
               columnId,
               filterType,
-              condition,
+              spec,
             },
           },
         };
@@ -210,6 +209,7 @@ export function DataGrid<
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (columnOrder && columnOrder.length > 0) {
       return columnOrder;
     }
@@ -692,14 +692,12 @@ export function DataGrid<
                       <ColumnFilterControl
                         columnId={header.column.id}
                         filterType={filterType}
-                        condition={
-                          columnFilters[header.column.id]?.condition ?? null
-                        }
-                        onChange={(condition) =>
+                        spec={columnFilters[header.column.id]?.spec ?? null}
+                        onChange={(spec) =>
                           handleColumnFilterChange(
                             header.column.id,
                             filterType,
-                            condition
+                            spec
                           )
                         }
                         suggestions={filterSuggestions}

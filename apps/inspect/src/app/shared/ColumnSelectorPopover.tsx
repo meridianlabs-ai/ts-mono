@@ -164,7 +164,6 @@ export const ColumnSelectorPopover: FC<ColumnSelectorPopoverProps> = ({
       hoverDelay={-1}
       closeOnMouseLeave={false}
       offset={[0, 1]}
-      className={styles.popover}
     >
       <div className={clsx(styles.scrollableContainer, "text-size-small")}>
         <div className={clsx(styles.section)}>

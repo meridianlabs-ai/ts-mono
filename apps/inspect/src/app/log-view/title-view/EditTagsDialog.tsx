@@ -61,7 +61,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   useEffect(() => {
     if (!showing) return;
     let cancelled = false;
-    if (api?.get_user_info) {
+    if (api.get_user_info) {
       api
         .get_user_info()
         .then((info) => {
@@ -117,7 +117,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   };
 
   const canSave =
-    !submitting && hasChanges && author.trim().length > 0 && !!api?.edit_log;
+    !submitting && hasChanges && author.trim().length > 0 && !!api.edit_log;
 
   // Re-entry guard: prevents a second save from starting if the user
   // clicks twice before the first finishes. Kept in a ref (not state)
@@ -125,7 +125,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   const inFlightRef = useRef(false);
 
   const handleSave = async () => {
-    if (!canSave || inFlightRef.current || !api?.edit_log) return;
+    if (!canSave || inFlightRef.current || !api.edit_log) return;
     inFlightRef.current = true;
     // NOTE: we intentionally do NOT call `setError(undefined)` here.
     // Clearing then re-setting the same error on a quick failure made

@@ -18,8 +18,10 @@ export const metricDisplayName = (metric: MetricSummary): string => {
 };
 
 export const firstMetric = (results: EvalResults) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const scores = results.scores || [];
-  const firstScore = scores.length > 0 ? results.scores?.[0] : undefined;
+  const firstScore = scores.length > 0 ? results.scores[0] : undefined;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (firstScore === undefined || firstScore.metrics === undefined) {
     return undefined;
   }
