@@ -103,12 +103,9 @@ const sameSample = (a: SampleSummary, b: SampleSummary): boolean =>
   a.id === b.id && a.epoch === b.epoch;
 
 const sampleTokens = (sample: SampleSummary): number | undefined => {
-  const usage = sample.model_usage;
-  if (!usage) return undefined;
   let total = 0;
-  for (const u of Object.values(usage)) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    total += u.total_tokens ?? 0;
+  for (const u of Object.values(sample.model_usage)) {
+    total += u.total_tokens;
   }
   return total > 0 ? total : undefined;
 };
@@ -1283,7 +1280,8 @@ export const TimelineChart: FC<TimelineChartProps> = ({
 interface ScoreRow {
   key: string;
   name: string;
-  value: ScoreValue | undefined;
+  // null: dict-valued scores admit null entries (see scoreValue).
+  value: ScoreValue | null | undefined;
   scoreType: string;
 }
 
@@ -1295,24 +1293,20 @@ const scoreRowsFor = (
 ): ScoreRow[] => {
   if (!sample.scores) return [];
   if (evalDescriptor && evalDescriptor.scores.length > 0) {
-    return (
-      evalDescriptor.scores
-        .map((label) => ({
-          key: `${label.scorer}.${label.name}`,
-          name: label.name,
-          value: evalDescriptor.score(sample, label)?.value,
-          scoreType:
-            evalDescriptor.scoreDescriptor(label)?.scoreType ?? kScoreTypeOther,
-        }))
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        .filter((row) => row.value !== undefined && row.value !== null)
-    );
+    return evalDescriptor.scores
+      .map((label) => ({
+        key: `${label.scorer}.${label.name}`,
+        name: label.name,
+        value: evalDescriptor.score(sample, label)?.value,
+        scoreType:
+          evalDescriptor.scoreDescriptor(label)?.scoreType ?? kScoreTypeOther,
+      }))
+      .filter((row) => row.value !== undefined && row.value !== null);
   }
   return Object.entries(sample.scores).map(([name, score]) => ({
     key: name,
     name,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: sample summaries aren't boundary-normalized yet (#555); old summaries may omit type-required fields
-    value: formatShort(score?.value),
+    value: formatShort(score.value),
     scoreType: kScoreTypeOther,
   }));
 };

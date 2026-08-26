@@ -3,6 +3,7 @@ import { isRecord } from "@tsmono/util";
 import type { EvalSample } from "../types";
 
 import { normalizeEvents, normalizeModelOutput } from "./events";
+import { normalizeModelUsageMap } from "./summary";
 
 /**
  * Normalize a raw EvalSample of any vintage into the current shape:
@@ -47,14 +48,12 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
   if (!Array.isArray(sample["messages"])) sample["messages"] = [];
   sample["output"] = normalizeModelOutput(sample["output"]);
   if (!isRecord(sample["scores"])) sample["scores"] = null;
-  for (const field of [
-    "metadata",
-    "store",
-    "model_usage",
-    "role_usage",
-    "attachments",
-  ]) {
+  for (const field of ["metadata", "store", "attachments"]) {
     if (!isRecord(sample[field])) sample[field] = {};
+  }
+  // Usage entries carry their own required-with-default token fields.
+  for (const field of ["model_usage", "role_usage"]) {
+    sample[field] = normalizeModelUsageMap(sample[field]);
   }
   sample["events"] = normalizeEvents(sample["events"]);
 

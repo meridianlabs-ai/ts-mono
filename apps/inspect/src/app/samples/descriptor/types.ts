@@ -40,7 +40,8 @@ export interface ScoreDescriptor {
 }
 
 export interface SelectedScore {
-  value?: ScoreValue;
+  // null: dict-valued scores admit null entries (see scoreValue).
+  value?: ScoreValue | null;
   render: () => ReactNode;
 }
 

@@ -12,7 +12,7 @@ import {
   SampleNotFoundError,
   synthesizeErroredSampleFromSummary,
 } from "./sampleFetch";
-import { testClientAPI } from "./testFixtures";
+import { testClientAPI, testSampleSummary } from "./testFixtures";
 
 const msg = (id: string, role: string, content: string) => ({
   id,
@@ -213,18 +213,14 @@ describe("fetchSample", () => {
 });
 
 describe("synthesizeErroredSampleFromSummary", () => {
-  const baseSummary = (
-    overrides: Partial<SampleSummary> = {}
-  ): SampleSummary => ({
-    id: "rocket-medium-vision",
-    epoch: 1,
-    input: "task input",
-    target: "expected target",
-    scores: null,
-    error: "RuntimeError: server.py exited before becoming ready",
-    completed: true,
-    ...overrides,
-  });
+  const baseSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
+    testSampleSummary({
+      id: "rocket-medium-vision",
+      input: "task input",
+      target: "expected target",
+      error: "RuntimeError: server.py exited before becoming ready",
+      ...overrides,
+    });
 
   it("populates EvalSample.error from the summary's error string", () => {
     const sample = synthesizeErroredSampleFromSummary(baseSummary());

@@ -40,10 +40,12 @@ export const ZustandDevtoolsPanel: FC<ZustandDevtoolsPanelProps> = ({
     (onChange: () => void) => {
       let timeout: number | null = null;
       const unsubscribe = store.subscribe(() => {
-        timeout ??= window.setTimeout(() => {
-          timeout = null;
-          onChange();
-        }, THROTTLE_MS);
+        if (timeout === null) {
+          timeout = window.setTimeout(() => {
+            timeout = null;
+            onChange();
+          }, THROTTLE_MS);
+        }
       });
       return () => {
         if (timeout !== null) window.clearTimeout(timeout);

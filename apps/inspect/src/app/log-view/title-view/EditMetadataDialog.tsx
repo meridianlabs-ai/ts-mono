@@ -119,6 +119,17 @@ export const serializeEntry = (entry: MetaEntry): unknown => {
   }
 };
 
+// Module-level so the dialog stays compilable: React Compiler can't lower
+// loops inside try/catch, and serializeEntry must run under the catch that
+// classifies MetadataParseError.
+const buildMetadataSet = (entries: MetaEntry[]): Record<string, unknown> => {
+  const metadata_set: Record<string, unknown> = {};
+  for (const entry of entries) {
+    metadata_set[entry.key] = serializeEntry(entry);
+  }
+  return metadata_set;
+};
+
 const seedFor = (type: NewType): unknown => {
   switch (type) {
     case "string":
@@ -312,13 +323,19 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
     // Don't clear `error` here — see EditTagsDialog for the no-flash
     // rationale. Delayed "Saving…" indicator likewise.
     const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
+    // Hoisted out of the try: React Compiler can't lower value blocks
+    // (||, ?., ternaries) inside try/catch and would bail out. Only
+    // serializeEntry stays inside — its MetadataParseError is what the
+    // catch classifies.
+    const changedEntries = entries.filter((e) => e.isNew || e.dirty);
+    const provenance = {
+      author: author.trim(),
+      reason: reason.trim() || undefined,
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    };
     try {
-      const metadata_set: Record<string, unknown> = {};
-      for (const entry of entries) {
-        if (entry.isNew || entry.dirty) {
-          metadata_set[entry.key] = serializeEntry(entry);
-        }
-      }
+      const metadata_set = buildMetadataSet(changedEntries);
       const edit: MetadataEdit = {
         type: "metadata",
         metadata_set,
@@ -326,15 +343,12 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       };
       await api.edit_log(logFile, {
         edits: [edit],
-        provenance: {
-          author: author.trim(),
-          reason: reason.trim() || undefined,
-          metadata: {},
-          timestamp: new Date().toISOString(),
-        },
+        provenance,
       });
       setShowing(false);
-      onSaved?.();
+      if (onSaved) {
+        onSaved();
+      }
     } catch (err) {
       if (err instanceof MetadataParseError) {
         // Show a per-key message and bail out before any network call.
@@ -347,11 +361,10 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       } else {
         setError(formatEditError(err));
       }
-    } finally {
-      window.clearTimeout(indicatorTimer);
-      setSubmitting(false);
-      inFlightRef.current = false;
     }
+    window.clearTimeout(indicatorTimer);
+    setSubmitting(false);
+    inFlightRef.current = false;
   };
 
   return (

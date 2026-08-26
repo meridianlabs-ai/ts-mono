@@ -13,19 +13,47 @@
  * after deserialization.
  */
 
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 import { testEvalPlan, testEvalSpec } from "@tsmono/inspect-common/testing";
 import type { EvalSpec } from "@tsmono/inspect-common/types";
 
-import { SampleSummary } from "../api/types";
+import { notImplemented, testSampleSummary } from "../api/testClientApi";
+import { LogViewAPI, SampleSummary } from "../api/types";
 
 import {
   dedupeSummaries,
   headerFromLogStart,
   LogStart,
+  openRemoteLogFile,
   readJournalConfigUpdatesFrom,
 } from "./remoteLogFile";
+
+// In-memory zip served to openRemoteLogFile: entry name → JSON content.
+// Populated per-test; the openRemoteZipFile mock snapshots it at open time.
+const zipEntries = vi.hoisted(() => new Map<string, unknown>());
+
+vi.mock("./remoteZipFile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./remoteZipFile")>()),
+  openRemoteZipFile: vi.fn(() =>
+    Promise.resolve({
+      centralDirectory: new Map(
+        Array.from(zipEntries.keys(), (name) => [name, { entry: name }])
+      ),
+      readFile: (name: string) =>
+        Promise.resolve(
+          new TextEncoder().encode(JSON.stringify(zipEntries.get(name)))
+        ),
+    })
+  ),
+}));
+
+// jsdom has no Worker, so replace the worker-backed parse with a direct one
+vi.mock("@tsmono/util", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tsmono/util")>()),
+  asyncJsonParseBytes: (bytes: Uint8Array) =>
+    Promise.resolve(JSON.parse(new TextDecoder().decode(bytes))),
+}));
 
 const baseEval = testEvalSpec({
   task: "test_task",
@@ -149,9 +177,81 @@ function makeSummary(
   epoch: number,
   error?: string
 ): SampleSummary {
-  // SampleSummary has more fields; the helper only touches id / epoch.
-  return { id, epoch, error } as SampleSummary;
+  return testSampleSummary({ id, epoch, error });
 }
+
+// Wiring tests for boundary normalization (#555): these fail if the
+// normalizeSampleSummaries call is removed from readSampleSummaries /
+// readFallbackSummaries, not just if the normalizer itself regresses.
+describe("readLogSummary summary normalization", () => {
+  const fakeApi = (): LogViewAPI => ({
+    client_events: notImplemented("client_events"),
+    get_eval_set: notImplemented("get_eval_set"),
+    get_flow: notImplemented("get_flow"),
+    get_logs: notImplemented("get_logs"),
+    get_log_contents: notImplemented("get_log_contents"),
+    get_log_info: () => Promise.resolve({ size: 1024 }),
+    get_log_bytes: notImplemented("get_log_bytes"),
+    get_log_summaries: notImplemented("get_log_summaries"),
+    log_message: notImplemented("log_message"),
+    download_file: notImplemented("download_file"),
+    open_log_file: notImplemented("open_log_file"),
+    get_app_config: notImplemented("get_app_config"),
+  });
+
+  // A finalized 2024-era header; normalizeEvalHeader fills the rest.
+  const vintageHeader = {
+    version: 2,
+    status: "success",
+    eval: {
+      task: "demo",
+      task_id: "t1",
+      run_id: "r1",
+      created: "2024-11-05T13:32:37-05:00",
+      model: "mockllm/model",
+      dataset: {},
+      config: {},
+    },
+  };
+
+  // The five fields real vintage summary rows carry.
+  const vintageRow = {
+    id: "s1",
+    epoch: 1,
+    input: "q",
+    target: "a",
+    scores: null,
+  };
+
+  const expectedFills = {
+    id: "s1",
+    completed: true,
+    metadata: {},
+    model_usage: {},
+    role_usage: {},
+  };
+
+  beforeEach(() => {
+    zipEntries.clear();
+    zipEntries.set("header.json", vintageHeader);
+  });
+
+  test("fills read-time defaults on vintage summaries.json rows", async () => {
+    zipEntries.set("summaries.json", [vintageRow]);
+    const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
+    const details = await remoteLog.readLogSummary();
+    expect(details.sampleSummaries).toHaveLength(1);
+    expect(details.sampleSummaries[0]).toMatchObject(expectedFills);
+  });
+
+  test("fills read-time defaults on journal fallback rows", async () => {
+    zipEntries.set("_journal/summaries/1.json", [vintageRow]);
+    const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
+    const details = await remoteLog.readLogSummary();
+    expect(details.sampleSummaries).toHaveLength(1);
+    expect(details.sampleSummaries[0]).toMatchObject(expectedFills);
+  });
+});
 
 describe("dedupeSummaries", () => {
   test("keeps the last row per (id, epoch)", () => {

@@ -14,10 +14,9 @@ export type Tone = "pass" | "fail" | "warn" | "neutral";
  * vocabulary.
  */
 export function scoreTone(
-  value: ScoreValue | undefined,
+  value: ScoreValue | null | undefined,
   scoreType: string
 ): Tone {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (value === undefined || value === null) return "neutral";
 
   if (scoreType === kScoreTypePassFail) {

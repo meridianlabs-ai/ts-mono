@@ -60,7 +60,7 @@ export interface SyncScopeRecord {
 // The schema's shape version — bump on any table/index change, or when the
 // shape of stored row content changes (e.g. boundary normalization now fills
 // fields rows cached before it existed would lack).
-const SCHEMA_VERSION = 14;
+const SCHEMA_VERSION = 15;
 
 // Runtime backstop for derive.ts's DeriveVersion type constraint: at 100 the
 // composition below aliases into the next schema version's namespace, and an
