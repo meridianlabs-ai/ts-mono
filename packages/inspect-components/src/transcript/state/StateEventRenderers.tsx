@@ -16,6 +16,9 @@ interface Signature {
 
 interface ChangeType {
   type: string;
+  /** Render events matching this signature under the Default event filter
+   *  (rich previews like the human-baseline terminal session). */
+  defaultVisible?: boolean;
   signature?: Signature;
   match?: (changes: JsonChange[]) => boolean;
   render: (
@@ -109,6 +112,7 @@ const humanAgentKey = (key: string) => {
 };
 const human_baseline_session: ChangeType = {
   type: "human_baseline_session",
+  defaultVisible: true,
   signature: {
     add: ["HumanAgentState:logs"],
     replace: [],
@@ -294,6 +298,44 @@ export const RenderableChangeTypes: ChangeType[] = [
 export const StoreSpecificRenderableTypes: ChangeType[] = [
   human_baseline_session,
 ];
+
+/** Whether `changes` satisfy a signature (every add/remove/replace pattern matched). */
+export const matchesChangeSignature = (
+  changes: JsonChange[],
+  signature: Signature
+): boolean => {
+  const required =
+    signature.add.length + signature.remove.length + signature.replace.length;
+  let matching = 0;
+  for (const change of changes) {
+    const patterns =
+      change.op === "add"
+        ? signature.add
+        : change.op === "remove"
+          ? signature.remove
+          : change.op === "replace"
+            ? signature.replace
+            : [];
+    for (const pattern of patterns) {
+      if (change.path.match(pattern)) {
+        matching++;
+      }
+    }
+  }
+  return required > 0 && matching === required;
+};
+
+/** Whether a store event's changes match a renderer marked default-visible
+ *  (e.g. the human-baseline terminal session view). */
+export const storeEventHasDefaultVisiblePreview = (
+  changes: JsonChange[]
+): boolean =>
+  StoreSpecificRenderableTypes.some(
+    (changeType) =>
+      changeType.defaultVisible &&
+      changeType.signature &&
+      matchesChangeSignature(changes, changeType.signature)
+  );
 
 interface ToolParameters {
   type: string;

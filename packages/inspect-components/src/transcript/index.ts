@@ -7,6 +7,7 @@ export {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
+export { dynamicDefaultExcludeEvents } from "./eventFilter";
 export type {
   EventNodeContext,
   EventNodeSpan,

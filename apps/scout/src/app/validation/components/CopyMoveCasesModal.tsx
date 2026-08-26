@@ -34,6 +34,11 @@ const KEEP_ORIGINAL_SPLIT = "__keep__";
 /** Sentinel value meaning "remove split (set to null)" */
 const NO_SPLIT = "__none__";
 
+// Module-level so components stay compilable: React Compiler can't lower
+// value blocks (the ternary here) inside try/catch.
+const errorMessage = (err: unknown, fallback: string): string =>
+  err instanceof Error ? err.message : fallback;
+
 interface CopyMoveCasesModalProps {
   /** Whether to show the modal */
   show: boolean;
@@ -169,9 +174,7 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
       await createSetMutation.mutateAsync({ path: newUri, cases: [] });
       return newUri;
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create validation set";
-      setError(message);
+      setError(errorMessage(err, "Failed to create validation set"));
       return undefined;
     }
   };
@@ -262,7 +265,7 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
           await deleteCasesMutation.mutateAsync(selectedIds);
         } catch (err) {
           // Cases were copied but deletion failed - inform user
-          const message = err instanceof Error ? err.message : "Unknown error";
+          const message = errorMessage(err, "Unknown error");
           setError(
             `Cases copied successfully, but failed to delete from source: ${message}`
           );
@@ -275,11 +278,9 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
       onSuccess();
       handleHide();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Operation failed";
-      setError(message);
-    } finally {
-      setIsProcessing(false);
+      setError(errorMessage(err, "Operation failed"));
     }
+    setIsProcessing(false);
   };
 
   const title = mode === "copy" ? "Copy Cases" : "Move Cases";

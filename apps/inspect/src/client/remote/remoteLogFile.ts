@@ -1,4 +1,7 @@
-import { normalizeEvalSample } from "@tsmono/inspect-common/normalize";
+import {
+  normalizeEvalSample,
+  normalizeSampleSummaries,
+} from "@tsmono/inspect-common/normalize";
 import {
   ConfigUpdate,
   EvalLog,
@@ -377,7 +380,7 @@ export const openRemoteLogFile = async (
             if (!Array.isArray(parsed)) {
               throw new Error(`Expected an array in ${filename}`);
             }
-            perFile[index] = parsed as SampleSummary[];
+            perFile[index] = normalizeSampleSummaries(parsed);
           } catch (error) {
             errors.push(error);
           }
@@ -405,7 +408,7 @@ export const openRemoteLogFile = async (
       // the recorder superseded re-logged samples in its flush buffer can
       // carry both a requeued sample's rows
       return dedupeSummaries(
-        (await readJSONFile("summaries.json")) as SampleSummary[]
+        normalizeSampleSummaries(await readJSONFile("summaries.json"))
       );
     } else {
       return readFallbackSummaries();

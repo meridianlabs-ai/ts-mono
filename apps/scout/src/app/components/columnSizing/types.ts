@@ -73,6 +73,28 @@ export function clampSize(
 }
 
 /**
+ * Merge freshly calculated sizes with the current sizing state: calculated
+ * sizes win except for manually resized columns, whose current size is
+ * preserved. Module-level (not inline in the hooks) so they stay compilable:
+ * React Compiler can't lower loops inside try/catch.
+ */
+export function mergeCalculatedSizing(
+  calculatedSizing: ColumnSizingState,
+  resizedSet: Set<string>,
+  currentSizing: ColumnSizingState
+): ColumnSizingState {
+  const newSizing: ColumnSizingState = {};
+  for (const [columnId, size] of Object.entries(calculatedSizing)) {
+    if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
+      newSizing[columnId] = currentSizing[columnId];
+    } else {
+      newSizing[columnId] = size;
+    }
+  }
+  return newSizing;
+}
+
+/**
  * Get the column ID from a column definition.
  */
 export function getColumnId<TData extends RowData>(

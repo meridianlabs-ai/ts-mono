@@ -321,4 +321,47 @@ describe("viewServerApi boundary normalization", () => {
     // primary_metric only exists because the v1 scorer→scores reshape ran
     expect(previews[0]?.primary_metric?.value).toBe(0.5);
   });
+
+  test("eval_pending_samples normalizes old-shaped pending summaries", async () => {
+    globalThis.fetch = vi.fn((input: RequestInfo | URL) => {
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      expect(String(input)).toContain("/pending-samples?");
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            refresh: 5,
+            samples: [
+              // an old server's row: only the original five fields
+              {
+                id: "s1",
+                epoch: 1,
+                input: "q",
+                target: "a",
+                scores: null,
+              },
+              "garbage-entry",
+            ],
+          }),
+          { status: 200, statusText: "OK" }
+        )
+      );
+    });
+
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
+    const result = await api.eval_pending_samples!("running.eval");
+
+    expect(result.status).toBe("OK");
+    const samples = result.pendingSamples?.samples;
+    expect(samples).toHaveLength(1);
+    expect(samples?.[0]).toMatchObject({
+      id: "s1",
+      completed: true,
+      metadata: {},
+      model_usage: {},
+      role_usage: {},
+    });
+  });
 });

@@ -250,10 +250,7 @@ export const ScannerResultPanel: FC = () => {
     return hasNonSpanEvents;
   }, [detailScanEvents]);
 
-  const hasError =
-    selectedResult?.scanError !== undefined &&
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    selectedResult.scanError !== null;
+  const hasError = selectedResult?.scanError !== undefined;
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
   const setHighlightLabeled = useStore((state) => state.setHighlightLabeled);
@@ -375,11 +372,7 @@ export const ScannerResultPanel: FC = () => {
       {!hasError ? (
         <TabPanel
           id={kTabIdResult}
-          selected={
-            selectedTab === kTabIdResult ||
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            (!hasError && selectedTab === undefined)
-          }
+          selected={selectedTab === kTabIdResult || selectedTab === undefined}
           title="Result"
           scrollable={false}
           onSelected={() => {
@@ -387,8 +380,7 @@ export const ScannerResultPanel: FC = () => {
           }}
           className={styles.fullHeight}
         >
-          {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
-          {resultData && inputData && (
+          {inputData && (
             <ResultPanel resultData={resultData} inputData={inputData} />
           )}
         </TabPanel>

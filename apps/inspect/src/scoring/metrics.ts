@@ -1,7 +1,6 @@
-import { EvalResults } from "@tsmono/inspect-common/types";
-
 import { EvalScores } from "../@types/extraInspect";
 
+import { ResolvedHeadlineMetric } from "./headline";
 import { MetricSummary, ScoreSummary } from "./types";
 
 export const metricDisplayName = (metric: MetricSummary): string => {
@@ -15,31 +14,6 @@ export const metricDisplayName = (metric: MetricSummary): string => {
   const metricName = !modifier ? metric.name : `${metric.name}[${modifier}]`;
 
   return metricName;
-};
-
-export const firstMetric = (results: EvalResults) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const scores = results.scores || [];
-  const firstScore = scores.length > 0 ? results.scores[0] : undefined;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (firstScore === undefined || firstScore.metrics === undefined) {
-    return undefined;
-  }
-
-  const metrics = firstScore.metrics;
-  if (Object.keys(metrics).length === 0) {
-    return undefined;
-  }
-
-  const firstKey = Object.keys(metrics)[0];
-  if (firstKey === undefined) {
-    return undefined;
-  }
-  const metric = metrics[firstKey];
-  if (metric === undefined) {
-    return undefined;
-  }
-  return metric;
 };
 
 type MetricModifier = (metric: MetricSummary) => string | undefined;
@@ -77,21 +51,37 @@ const metricModifiers: MetricModifier[] = [
   groupMetricModifier,
 ];
 
-export const toDisplayScorers = (scores?: EvalScores): ScoreSummary[] => {
+/**
+ * Display rows for a log's scores, with the headline marked.
+ *
+ * `headline` must have been resolved from the same `scores` — the mark is by
+ * object identity, since two scores can be alike in every field a headline
+ * reference names.
+ */
+export const toDisplayScorers = (
+  scores?: EvalScores,
+  headline?: ResolvedHeadlineMetric
+): ScoreSummary[] => {
   if (!scores) {
     return [];
   }
 
   return scores.map((score) => {
+    // mark the headline here, where the score's full identity is still
+    // available; expansion and grouping downstream drop what it matches on
+    const isHeadline = headline !== undefined && score === headline.score;
     return {
       scorer: score.name,
+      scorerName: score.scorer,
       reducer: score.reducer === null ? undefined : score.reducer,
-      metrics: Object.values(score.metrics).map((metric) => {
+      metrics: Object.entries(score.metrics).map(([metricKey, metric]) => {
         return {
           name: metric.name,
+          metricKey,
           group: metric.group,
           value: metric.value,
           params: metric.params,
+          headline: isHeadline && metricKey === headline.name,
         };
       }),
       unscoredSamples:
@@ -166,6 +156,7 @@ export const expandGroupedMetrics = (
     if (nonGroupedMetrics.length > 0) {
       result.push({
         scorer: scorer.scorer,
+        scorerName: scorer.scorerName,
         reducer: scorer.reducer,
         metrics: nonGroupedMetrics,
         unscoredSamples: scorer.unscoredSamples,
@@ -176,6 +167,7 @@ export const expandGroupedMetrics = (
     for (const [baseMetricName, metrics] of metricsByBase.entries()) {
       result.push({
         scorer: scorer.scorer,
+        scorerName: scorer.scorerName,
         reducer: baseMetricName,
         metrics: metrics,
         unscoredSamples: scorer.unscoredSamples,

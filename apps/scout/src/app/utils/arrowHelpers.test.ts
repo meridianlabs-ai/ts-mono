@@ -150,6 +150,47 @@ describe("parseScanResultSummaries", () => {
       }
     }
   );
+
+  it("normalizes a legacy-shaped row at the parse boundary", async () => {
+    const legacyRow = {
+      ...typicalSummaryRow,
+      // Raw booleans (pre Jan 7 2026 storage) instead of JSON strings
+      validation_result: false,
+      validation_target: true,
+      scan_error: null,
+      // Identity lives only inside transcript_metadata (old scans)
+      transcript_task_set: undefined,
+      transcript_task_id: undefined,
+      transcript_task_repeat: undefined,
+      transcript_model: undefined,
+    };
+    const [result] = await parseScanResultSummaries([legacyRow]);
+    expect(result).toBeDefined();
+    expect(result?.validationResult).toBe(false);
+    expect(result?.validationTarget).toBe(true);
+    expect(result?.scanError).toBeUndefined();
+    expect(result?.transcriptModel).toBe("gpt-4");
+    expect(result?.transcriptTaskSet).toBe("test-task");
+    expect(result?.transcriptTaskId).toBe("task-1");
+    expect(result?.transcriptTaskRepeat).toBe(1);
+    expect(result?.transcriptMetadata).toEqual({
+      model: "gpt-4",
+      task_name: "test-task",
+      id: "task-1",
+      epoch: 1,
+    });
+  });
+
+  it("treats unusable validation values as not validated", async () => {
+    const row = {
+      ...typicalSummaryRow,
+      validation_result: null,
+      validation_target: undefined,
+    };
+    const [result] = await parseScanResultSummaries([row]);
+    expect(result?.validationResult).toBeUndefined();
+    expect(result?.validationTarget).toBeUndefined();
+  });
 });
 
 const nullMetadataColumnData: Record<string, unknown> = {
@@ -185,5 +226,35 @@ describe("parseScanResultData", () => {
     const table = from([dataWithoutEvents]);
     const result = await parseScanResultData(table);
     expect(result.scanEvents).toBeUndefined();
+  });
+
+  it("fills event-level defaults on legacy scan_events", async () => {
+    const data = {
+      ...typicalColumnData,
+      // Legacy model event missing working_start and output
+      scan_events: JSON.stringify([
+        { event: "model", timestamp: "2024-01-01T00:00:00Z" },
+      ]),
+    };
+    const table = from([data]);
+    const result = await parseScanResultData(table);
+    const event = result.scanEvents?.[0];
+    if (event?.event !== "model") {
+      throw new Error("expected a model event");
+    }
+    expect(event.working_start).toBe(0);
+    expect(event.output).toEqual({ model: "", choices: [], completion: "" });
+  });
+
+  it("fills pydantic token defaults on scan_model_usage", async () => {
+    const data = {
+      ...typicalColumnData,
+      scan_model_usage: '{"openai/gpt-4":{"input_tokens":10}}',
+    };
+    const table = from([data]);
+    const result = await parseScanResultData(table);
+    expect(result.scanModelUsage).toEqual({
+      "openai/gpt-4": { input_tokens: 10, output_tokens: 0, total_tokens: 0 },
+    });
   });
 });

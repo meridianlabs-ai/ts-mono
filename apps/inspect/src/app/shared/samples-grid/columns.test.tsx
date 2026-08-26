@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { testScore } from "@tsmono/inspect-common/testing";
 
+import { testSampleSummary } from "../../../client/api/testClientApi";
 import type { SampleSummary } from "../../../client/api/types";
 import { testSamplesDescriptor } from "../../samples/descriptor/testDescriptors";
 import {
@@ -18,13 +19,13 @@ const kField = `${SCORE_FIELD_RAW_PREFIX}quality`;
 // exercise raw-mode score-column discovery + colour-scale wiring without a
 // full SamplesDescriptor.
 const samplesWith = (values: number[]): SampleSummary[] =>
-  values.map((v, i): SampleSummary => ({
-    id: i,
-    epoch: 1,
-    input: "input",
-    target: "target",
-    scores: { quality: testScore({ value: v }) },
-  }));
+  values.map((v, i): SampleSummary =>
+    testSampleSummary({
+      id: i,
+      target: "target",
+      scores: { quality: testScore({ value: v }) },
+    })
+  );
 
 const rowWith = (value: number): SampleRow => ({
   logFile: "log.eval",

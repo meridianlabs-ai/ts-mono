@@ -16,17 +16,12 @@ import {
   usePassiveEvalSampleData,
 } from "./sampleData";
 import { sampleQueryKey } from "./sampleQuery";
+import { testSampleSummary } from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "run.eval", id: "s1", epoch: 1 };
 
-const summary = (overrides: Partial<SampleSummary> = {}): SampleSummary => ({
-  id: "s1",
-  epoch: 1,
-  input: "input",
-  target: "target",
-  scores: null,
-  ...overrides,
-});
+const summary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
+  testSampleSummary({ target: "target", ...overrides });
 
 const sample = (overrides: Partial<EvalSample> = {}): EvalSample =>
   ({

@@ -167,14 +167,13 @@ export const sampleVariables = (
     epoch: sample.epoch,
     has_error: !!sample.error,
     has_limit: !!sample.limit,
-    has_retries: sample.retries !== undefined && sample.retries > 0,
+    has_retries: (sample.retries ?? 0) > 0,
     has_fallbacks: totalModelFallbacks(sample.model_fallbacks) > 0,
-    completed: sample.completed ?? true,
+    completed: sample.completed,
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    target: arrayToString(sample.target ?? ""),
+    target: arrayToString(sample.target),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
     error: sample.error ?? null,
@@ -324,8 +323,7 @@ export const filterExpression = (
       // Handle metadata property access
       if (name.startsWith(kSampleMetadataPrefix)) {
         const propertyPath = name.substring(kSampleMetadataPrefix.length);
-        const metadata = sample.metadata || {};
-        return getNestedPropertyValue(metadata, propertyPath);
+        return getNestedPropertyValue(sample.metadata, propertyPath);
       }
       // Score variables exist only if the sample completed successfully.
       return sample.error ? undefined : get(name);

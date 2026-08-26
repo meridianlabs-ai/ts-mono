@@ -1,10 +1,6 @@
 import { ColumnTable } from "arquero";
 
-import type {
-  Event,
-  JsonValue,
-  ModelUsage,
-} from "@tsmono/inspect-common/types";
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import { asyncJsonParse, isJson } from "@tsmono/util";
 
 import {
@@ -13,6 +9,15 @@ import {
   ScanResultSummary,
   ScanResultValueType,
 } from "../types";
+
+import {
+  normalizeScanEvents,
+  normalizeScanModelUsage,
+  normalizeTranscriptMetadata,
+  normalizeValidationResult,
+  normalizeValidationTarget,
+  resolveTranscriptIdentityFromMetadata,
+} from "./normalizeScanRow";
 
 export const parseScanResultData = async (
   filtered: ColumnTable
@@ -30,7 +35,6 @@ export const parseScanResultData = async (
     0
   );
 
-  // Note that validation_result and validation_target will always a JSON deserializable string as of Jan 7 2026, but prior to this it could be stored as a boolean directly. This conditionality deals with that.
   const [
     eventReferences,
     inputIds,
@@ -57,21 +61,14 @@ export const parseScanResultData = async (
     parseJson(filtered.get("scan_model_usage", 0) as string),
     parseJson(filtered.get("scan_tags", 0) as string),
     parseJson(filtered.get("scanner_params", 0) as string),
-    tryParseJson<Record<string, JsonValue>>(
-      filtered.get("transcript_metadata", 0)
-    ),
-    tryParseJson<boolean | Record<string, boolean>>(
-      filtered.get("validation_result", 0)
-    ),
-    tryParseJson<JsonValue>(filtered.get("validation_target", 0)),
+    normalizeTranscriptMetadata(filtered.get("transcript_metadata", 0)),
+    normalizeValidationResult(filtered.get("validation_result", 0)),
+    normalizeValidationTarget(filtered.get("validation_target", 0)),
     parseSimpleValue(filtered.get("value", 0), valueType),
     transcript_agent_args_raw
       ? parseJson(transcript_agent_args_raw)
       : Promise.resolve(undefined),
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    transcript_score_raw !== null && transcript_score_raw !== undefined
-      ? parseJsonValue(transcript_score_raw)
-      : Promise.resolve(undefined),
+    parseJsonValue(transcript_score_raw),
   ]);
 
   const identifier = filtered.get("identifier", 0) as string;
@@ -90,16 +87,16 @@ export const parseScanResultData = async (
   const scanErrorRefusal =
     getOptionalColumn<boolean>(filtered, "scan_error_refusal") ?? false;
   const scanId = filtered.get("scan_id", 0) as string;
-  const scanTotalTokens = filtered.get("scan_total_tokens", 0) as number;
+  // Synthetic missing-label rows null this cell (createSyntheticRows).
+  const scanTotalTokens =
+    (filtered.get("scan_total_tokens", 0) as number | null) ?? 0;
   const scannerFile = filtered.get("scanner_file", 0) as string;
   const scannerKey = filtered.get("scanner_key", 0) as string;
   const scannerName = filtered.get("scanner_name", 0) as string;
   const transcriptId = filtered.get("transcript_id", 0) as string;
   const transcriptSourceId = filtered.get("transcript_source_id", 0) as string;
-  const transcriptSourceUri = filtered.get(
-    "transcript_source_uri",
-    0
-  ) as string;
+  const transcriptSourceUri =
+    (filtered.get("transcript_source_uri", 0) as string | null) ?? "";
 
   const transcriptTaskSet = getOptionalColumn<string>(
     filtered,
@@ -153,27 +150,26 @@ export const parseScanResultData = async (
     timestamp,
     answer,
     label,
-    eventReferences: eventReferences as ScanResultReference[],
+    eventReferences: (eventReferences ?? []) as ScanResultReference[],
     explanation,
-    inputIds: inputIds as string[],
-    messageReferences: messageReferences as ScanResultReference[],
-    metadata: metadata as Record<string, JsonValue>,
+    inputIds: (inputIds ?? []) as string[],
+    messageReferences: (messageReferences ?? []) as ScanResultReference[],
+    metadata: (metadata ?? {}) as Record<string, JsonValue>,
     scanError,
     scanErrorTraceback,
     scanErrorRefusal,
-    scanEvents: scanEvents as Event[] | undefined,
+    scanEvents: normalizeScanEvents(scanEvents),
     scanId,
-    scanMetadata: scanMetadata as Record<string, JsonValue>,
-    scanModelUsage: scanModelUsage as Record<string, ModelUsage>,
-    scanTags: scanTags as string[],
+    scanMetadata: (scanMetadata ?? {}) as Record<string, JsonValue>,
+    scanModelUsage: normalizeScanModelUsage(scanModelUsage),
+    scanTags: (scanTags ?? []) as string[],
     scanTotalTokens,
     scannerFile,
     scannerKey,
     scannerName,
-    scannerParams: scannerParams as Record<string, JsonValue>,
+    scannerParams: (scannerParams ?? {}) as Record<string, JsonValue>,
     transcriptId,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    transcriptMetadata: transcriptMetadata ?? {},
+    transcriptMetadata,
     transcriptSourceId,
     transcriptSourceUri,
     transcriptTaskSet,
@@ -196,10 +192,7 @@ export const parseScanResultData = async (
     valueType,
   };
 
-  // Resolve old values from the metadata if not present directly
-  // this should only be hit if the scan was old enough to not have
-  // these fields
-  resolveTranscriptPropertiesFromMetadata(baseData);
+  resolveTranscriptIdentityFromMetadata(baseData);
 
   return { ...baseData, inputType };
 };
@@ -213,7 +206,6 @@ export const parseScanResultSummaries = async (
 
       const valueType = r.value_type as ScanResultValueType;
 
-      // Note that validation_result and validation_target will always a JSON deserializable string as of Jan 7 2026, but prior to this it could be stored as a boolean directly. This conditionality deals with that.
       const [
         validationResult,
         validationTarget,
@@ -222,9 +214,9 @@ export const parseScanResultSummaries = async (
         messageReferences,
         value,
       ] = await Promise.all([
-        tryParseJson<boolean | Record<string, boolean>>(r.validation_result),
-        tryParseJson<JsonValue>(r.validation_target),
-        tryParseJson<Record<string, JsonValue>>(r.transcript_metadata),
+        normalizeValidationResult(r.validation_result),
+        normalizeValidationTarget(r.validation_target),
+        normalizeTranscriptMetadata(r.transcript_metadata),
         parseJson(r.event_references as string),
         parseJson(r.message_references as string),
         parseSimpleValue(r.value, valueType),
@@ -232,28 +224,34 @@ export const parseScanResultSummaries = async (
 
       const baseSummary = {
         identifier: r.identifier as string,
-        uuid: r.uuid as string | undefined,
-        label: r.label as string | undefined,
-        explanation: r.explanation as string,
-        eventReferences: eventReferences as ScanResultReference[],
-        messageReferences: messageReferences as ScanResultReference[],
+        // Null cells fold into undefined (synthetic rows and arquero
+        // .objects() both yield null) so optional fields stay honest.
+        uuid: (r.uuid ?? undefined) as string | undefined,
+        label: (r.label ?? undefined) as string | undefined,
+        explanation: (r.explanation ?? undefined) as string | undefined,
+        eventReferences: (eventReferences ?? []) as ScanResultReference[],
+        messageReferences: (messageReferences ?? []) as ScanResultReference[],
         validationResult: validationResult,
         validationTarget: validationTarget,
         value: value ?? null,
         valueType,
-        transcriptTaskSet: r.transcript_task_set as string | undefined,
-        transcriptTaskId: r.transcript_task_id as string | number | undefined,
-        transcriptTaskRepeat: r.transcript_task_repeat as number | undefined,
-        transcriptModel: r.transcript_model as string | undefined,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        transcriptMetadata: transcriptMetadata ?? {},
+        transcriptTaskSet: (r.transcript_task_set ?? undefined) as
+          string | undefined,
+        transcriptTaskId: (r.transcript_task_id ?? undefined) as
+          string | number | undefined,
+        transcriptTaskRepeat: (r.transcript_task_repeat ?? undefined) as
+          number | undefined,
+        transcriptModel: (r.transcript_model ?? undefined) as
+          string | undefined,
+        transcriptMetadata,
         transcriptSourceId: r.transcript_source_id as string,
-        scanError: r.scan_error as string,
-        scanErrorRefusal: r.scan_error_refusal as boolean,
+        scanError: typeof r.scan_error === "string" ? r.scan_error : undefined,
+        // ?? false matches the parseScanResultData path's default.
+        scanErrorRefusal: (r.scan_error_refusal ?? false) as boolean,
         timestamp: r.timestamp ? (r.timestamp as string) : undefined,
       };
 
-      resolveTranscriptPropertiesFromMetadata(baseSummary);
+      resolveTranscriptIdentityFromMetadata(baseSummary);
 
       const inputType = r.input_type as
         "transcript" | "message" | "messages" | "event" | "events";
@@ -262,43 +260,8 @@ export const parseScanResultSummaries = async (
     })
   );
 
-function resolveTranscriptPropertiesFromMetadata<
-  T extends {
-    transcriptModel?: string;
-    transcriptTaskSet?: string;
-    transcriptTaskId?: string | number;
-    transcriptTaskRepeat?: number;
-    transcriptMetadata: Record<string, unknown>;
-  },
->(data: T): void {
-  if (data.transcriptModel === undefined) {
-    data.transcriptModel = data.transcriptMetadata["model"] as string;
-  }
-
-  if (data.transcriptTaskSet === undefined) {
-    data.transcriptTaskSet = data.transcriptMetadata["task_name"] as string;
-  }
-
-  if (data.transcriptTaskId === undefined) {
-    data.transcriptTaskId = data.transcriptMetadata["id"] as string | number;
-  }
-
-  if (data.transcriptTaskRepeat === undefined) {
-    data.transcriptTaskRepeat = data.transcriptMetadata["epoch"] as number;
-  }
-}
-
 const parseJson = async <T>(text: string | null): Promise<T | undefined> =>
   text !== null ? asyncJsonParse<T>(text) : undefined;
-
-const tryParseJson = async <T>(text: unknown): Promise<T> => {
-  try {
-    return await asyncJsonParse<T>(text as string);
-  } catch {
-    console.error("Failed to parse JSON, returning raw value", { text });
-    return text as T;
-  }
-};
 
 const parseSimpleValue = (
   val: unknown,
@@ -327,7 +290,11 @@ function getOptionalColumn<T>(
   columnName: string,
   rowIndex: number = 0
 ): T | undefined {
-  return table.columnNames().includes(columnName)
-    ? (table.get(columnName, rowIndex) as T)
-    : undefined;
+  if (!table.columnNames().includes(columnName)) {
+    return undefined;
+  }
+  // Boundary cast: arquero cells are untyped. Null cells fold into undefined
+  // so optional fields stay honestly optional for downstream consumers.
+  const value = table.get(columnName, rowIndex) as T | null | undefined;
+  return value ?? undefined;
 }

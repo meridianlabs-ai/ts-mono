@@ -10,6 +10,7 @@ import { useAbsLogDir, useLogDir } from "../../../app_config";
 import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
+import { resolveHeadlineMetric } from "../../../scoring/headline";
 import { toDisplayScorers } from "../../../scoring/metrics";
 import { useEffectiveEvalConfig } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
@@ -127,8 +128,15 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
             scorers={
               runningMetrics
                 ? displayScorersFromRunningMetrics(runningMetrics)
-                : toDisplayScorers(evalResults?.scores)
+                : toDisplayScorers(
+                    evalResults?.scores,
+                    resolveHeadlineMetric(
+                      evalResults,
+                      evalSpec?.headline_metric
+                    )
+                  )
             }
+            headlineDeclared={evalSpec?.headline_metric != null}
           />
         ) : undefined}
         {status === "cancelled" ? (

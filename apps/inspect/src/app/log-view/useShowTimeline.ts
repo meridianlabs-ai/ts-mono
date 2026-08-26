@@ -88,9 +88,10 @@ export const useShowTimelineForModel = (): ((
       const newTab =
         !!event && (event.metaKey || event.ctrlKey || event.shiftKey);
       if (!newTab) {
+        const bandId = timelineBandId("connections", model);
         setPropertyValue(kTimelineBag, bandsKey, {
           ...bands,
-          [timelineBandId("connections", model)]: true,
+          [bandId]: true,
         });
       }
       showTimeline(event);

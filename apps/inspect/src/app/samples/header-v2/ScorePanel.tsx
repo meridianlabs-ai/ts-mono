@@ -44,7 +44,8 @@ interface ScorePanelProps {
 interface RenderedScore {
   label: ScoreLabel;
   key: string;
-  value: ScoreValue | undefined;
+  // null: dict-valued scores admit null entries (see scoreValue).
+  value: ScoreValue | null | undefined;
   scoreType: string;
   tone: Tone;
   /** 0–1, only set for numeric values. Drives the chip's blue
