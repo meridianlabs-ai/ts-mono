@@ -5,6 +5,12 @@ interface ListPositionManagerResult {
   effectiveListId: string;
 }
 
+/** Strip `/branch-…` segments so all selections within a branch tree share
+ *  one list id (in-place VirtualList update, scroll preserved). */
+function listIdRoot(selected: string | null): string | null {
+  return selected?.replace(/\/branch-[^/]+/g, "") ?? null;
+}
+
 /**
  * Manages per-agent transcript list identity and scroll reset.
  *
@@ -13,12 +19,6 @@ interface ListPositionManagerResult {
  *   case the caller has a specific event to scroll to and we leave the
  *   container alone so the imperative scroll wins)
  */
-/** Strip `/branch-…` segments so all selections within a branch tree share
- *  one list id (in-place VirtualList update, scroll preserved). */
-function listIdRoot(selected: string | null): string | null {
-  return selected?.replace(/\/branch-[^/]+/g, "") ?? null;
-}
-
 export function useListPositionManager(
   baseListId: string,
   selected: string | null,
@@ -31,7 +31,7 @@ export function useListPositionManager(
     [baseListId, idSelection]
   );
 
-  // Track previous selected value to detect navigate-up
+  // Track previous values so the effect only fires on a real selection/list change
   const prevSelectedRef = useRef(selected);
   const prevBaseListIdRef = useRef(baseListId);
 
