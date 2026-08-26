@@ -76,11 +76,12 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
           return undefined;
         }
         const scoreData = evalSample.scores[scorer];
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+        if (!scoreData) {
+          return undefined;
+        }
         const explanation = scoreData.explanation || "(No Explanation)";
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const answer = scoreData.answer;
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+        const reason = scoreData.reason;
         const metadata = scoreData.metadata || {};
 
         return (
@@ -102,6 +103,31 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
                 }}
               />
             </div>
+
+            {reason ? (
+              <Fragment key={`${scorer}-reason`}>
+                <div
+                  className={clsx(
+                    "text-size-smaller",
+                    "text-style-label",
+                    "text-style-secondary",
+                    styles.fullWidth
+                  )}
+                >
+                  Reason
+                </div>
+                <div className={clsx(styles.fullWidth, "text-size-base")}>
+                  {reason}
+                </div>
+                <div
+                  className={clsx(
+                    styles.separator,
+                    styles.separatorPadded,
+                    styles.fullWidth
+                  )}
+                ></div>
+              </Fragment>
+            ) : undefined}
 
             {Object.keys(metadata).length > 0 ? (
               <Fragment key={`${scorer}-metadata`}>
