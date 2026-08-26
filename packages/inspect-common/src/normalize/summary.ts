@@ -26,8 +26,7 @@ export const normalizeModelUsageMap = (
     if (normalized !== entry) changed = true;
     usage[model] = normalized;
   }
-  // Boundary lift (#555): every entry round-tripped unchanged, so the
-  // original record already satisfies the type.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): every entry round-tripped unchanged, so raw already satisfies the type
   return changed ? usage : (raw as Record<string, ModelUsage>);
 };
 
@@ -95,8 +94,7 @@ export const normalizeSampleSummary = (
   }
 
   const summary = fixes ? { ...raw, ...fixes } : raw;
-  // Boundary lift (#555): required fields are filled above; remaining
-  // content is wire data TypeScript can't verify.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return summary as unknown as EvalSampleSummary;
 };
 
@@ -120,8 +118,6 @@ export const normalizeSampleSummaries = (raw: unknown): EvalSampleSummary[] => {
       summaries.push(summary);
     }
   }
-  // Boundary lift (#555): every entry round-tripped through
-  // normalizeSampleSummary unchanged, so the original array already
-  // satisfies EvalSampleSummary[].
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): every entry round-tripped through normalizeSampleSummary unchanged, so raw already satisfies the type
   return changed ? summaries : (raw as EvalSampleSummary[]);
 };

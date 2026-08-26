@@ -29,6 +29,7 @@
     "preview": "vite preview",
     "prepublishOnly": "pnpm run build:lib",
     "lint": "TSMONO_TYPED_LINT=1 eslint . --max-warnings 0",
+    "lint:prune": "TSMONO_TYPED_LINT=1 eslint . --prune-suppressions",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

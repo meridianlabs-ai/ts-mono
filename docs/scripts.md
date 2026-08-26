@@ -40,8 +40,38 @@ Workspaces with CSS modules define `"generate:css": "cmk"`. It generates `*.modu
 
 The five `@typescript-eslint/no-unsafe-*` rules are off unless `TSMONO_TYPED_LINT` is set. Every workspace `lint` script sets it inline (`TSMONO_TYPED_LINT=1 eslint …`), so batch runs (`pnpm lint`, `--filter` runs, turbo, CI) enforce them; editor eslint servers never run the scripts, leaving those errors to tsc there.
 
+## `eslint-suppressions.json`
+
+Every workspace carries an ESLint [bulk-suppressions][] ledger recording the
+type-assertion violations (`@typescript-eslint/no-unsafe-type-assertion`,
+`@typescript-eslint/consistent-type-assertions`) that predate those rules. It
+is a per-file, per-rule count, read automatically from the workspace root —
+`lint` needs no extra flag. Only the recorded backlog is excused: a cast in an
+unlisted file fails, and a listed file that goes over its count un-suppresses
+*every* cast in it, so adding one to a file with a backlog means clearing that
+file.
+
+The ledger is a burn-down list, not a standard. It has two rules:
+
+- **Never grow it to land code.** A boundary a cast genuinely needs gets an
+  `eslint-disable-next-line … --` directive naming the boundary, at the cast,
+  where a reviewer sees it.
+- **Prune when you fix.** Removing a counted cast leaves a stale entry, and
+  `lint` fails on stale entries by design (`--pass-on-unpruned-suppressions`
+  is deliberately not set) — so the count in the diff always matches the
+  casts in the diff. Run `pnpm lint:prune` (`turbo run lint:prune`) and
+  commit the result.
+
+`lint:prune` rewrites the ledger in place over exactly the file set that
+workspace's `lint` covers, so it is `"cache": false` in `turbo.json`.
+
+The files are Prettier-ignored per workspace: ESLint rewrites them without a
+trailing newline on every prune, which would otherwise fail `format:check`.
+
+[bulk-suppressions]: https://eslint.org/docs/latest/use/suppressions
+
 ## Adding a new workspace
 
-1. Define leaf scripts: `lint`, `typecheck`, `test` (and `format:check` if the package has its own Prettier config; `generate:css` if it has CSS modules)
+1. Define leaf scripts: `lint`, `lint:prune`, `typecheck`, `test` (and `format:check` if the package has its own Prettier config; `generate:css` if it has CSS modules)
 2. Add `"check": "true"` so Turbo includes it in `turbo run check`
 3. Do **not** add orchestration logic to the workspace's scripts — that's Turbo's job

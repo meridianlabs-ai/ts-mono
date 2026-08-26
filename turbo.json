@@ -18,6 +18,10 @@
     "lint": {
       "dependsOn": ["generate:css", "^generate:css"]
     },
+    "lint:prune": {
+      "dependsOn": ["generate:css", "^generate:css"],
+      "cache": false
+    },
     "typecheck": {
       "dependsOn": ["generate:css", "^generate:css"]
     },

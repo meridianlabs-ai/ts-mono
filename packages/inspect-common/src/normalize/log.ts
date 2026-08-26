@@ -44,8 +44,7 @@ export const normalizeEvalSpec = (raw: unknown): EvalSpec => {
   ]) {
     if (!isRecord(spec[field])) spec[field] = {};
   }
-  // Boundary lift (#555): required fields are filled above; remaining
-  // content is wire data TypeScript can't verify.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return spec as unknown as EvalSpec;
 };
 
@@ -55,7 +54,7 @@ export const normalizeEvalPlan = (raw: unknown): EvalPlan => {
   if (typeof plan["name"] !== "string") plan["name"] = "plan";
   if (!Array.isArray(plan["steps"])) plan["steps"] = [];
   if (!isRecord(plan["config"])) plan["config"] = {};
-  // Boundary lift (#555): see normalizeEvalSpec.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return plan as unknown as EvalPlan;
 };
 
@@ -73,7 +72,7 @@ export const normalizeEvalResults = (raw: unknown): EvalResults | null => {
   if (typeof results["completed_samples"] !== "number")
     results["completed_samples"] = 0;
   if (!Array.isArray(results["scores"])) results["scores"] = [];
-  // Boundary lift (#555): see normalizeEvalSpec.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return results as unknown as EvalResults;
 };
 
@@ -116,7 +115,7 @@ export const normalizeConfigUpdates = (raw: unknown): ConfigUpdate[] => {
       provenance,
       scope: entry["scope"] === "process" ? "process" : "task",
     };
-    // Boundary lift (#555): see normalizeEvalSpec.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
     updates.push(update as unknown as ConfigUpdate);
   }
   return updates;

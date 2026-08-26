@@ -33,6 +33,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "TSMONO_TYPED_LINT=1 eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' 'src/**/*.module.css' --max-warnings 0",
+    "lint:prune": "TSMONO_TYPED_LINT=1 eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' 'src/**/*.module.css' --prune-suppressions",
     "lint:fix": "eslint 'src/**/*.{js,jsx,mjs,ts,tsx}' 'src/**/*.module.css' --fix --max-warnings 0",
     "tsc": "tsc --noEmit",
     "typecheck": "tsc --noEmit",

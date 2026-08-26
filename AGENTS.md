@@ -34,6 +34,22 @@ Design docs live per-app; consult them when working in the relevant area:
   - A cast is a last resort for boundaries TypeScript can't express, with
     a comment saying why
 
+  **This is lint-enforced.** `@typescript-eslint/no-unsafe-type-assertion`
+  errors on every assertion that isn't a provably-safe widening — narrowing
+  (`raw as Event`), sideways, and every `as unknown as T` — and
+  `consistent-type-assertions` rejects `{ ... } as T` object literals, where
+  `satisfies T` checks the literal instead of asserting over it. Neither has
+  an autofix; the fix is a type guard, a discriminant check, a real fixture,
+  or `satisfies`.
+
+  A cast that is genuinely a boundary keeps an
+  `eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion --`
+  directive naming the boundary (see the normalizer's `boundary lift (#555)`
+  directives for the pattern). Pre-existing casts elsewhere are counted in
+  each package's `eslint-suppressions.json` — a burn-down ledger, not a
+  standard. Never add a file or raise a count there to land new code; when
+  you remove casts, run `pnpm lint:prune` so the ledger shrinks with them.
+
   **Parsed data is normalized at the boundary (#555).** Eval-log and
   journal JSON is written by many inspect_ai versions: old files omit
   fields the generated types declare required (pydantic fills them at

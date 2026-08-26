@@ -9,6 +9,7 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "lint:prune": "turbo run lint:prune",
     "typecheck": "turbo run typecheck",
     "check": "manypkg check && turbo run check",
     "manypkg:check": "manypkg check",
