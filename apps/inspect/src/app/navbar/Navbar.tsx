@@ -120,7 +120,6 @@ export const Navbar: FC<NavbarProps> = ({
                       )}
                       <li
                         className={clsx(
-                          styles.pathLink,
                           "breadcrumb-item",
                           isLast ? "active" : undefined
                         )}
@@ -128,9 +127,7 @@ export const Navbar: FC<NavbarProps> = ({
                         {segment.url && !isLast ? (
                           <Link to={segment.url}>{segment.text}</Link>
                         ) : (
-                          <span className={clsx(styles.pathSegment)}>
-                            {segment.text}
-                          </span>
+                          <span>{segment.text}</span>
                         )}
                       </li>
                     </Fragment>

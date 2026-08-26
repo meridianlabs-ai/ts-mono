@@ -184,11 +184,9 @@ const getMetadataPropertyValues = (
 ): Set<unknown> => {
   const values = new Set<unknown>();
   for (const sample of samples) {
-    if (sample.metadata) {
-      const value = getNestedProperty(sample.metadata, propertyPath);
-      if (value !== undefined && value !== null) {
-        values.add(value);
-      }
+    const value = getNestedProperty(sample.metadata, propertyPath);
+    if (value !== undefined && value !== null) {
+      values.add(value);
     }
   }
   return values;
@@ -256,18 +254,16 @@ const getMetadataKeysForPath = (
 ): Set<string> => {
   const keys = new Set<string>();
   for (const sample of samples) {
-    if (sample.metadata) {
-      const parentObj = parentPath
-        ? getNestedProperty(sample.metadata, parentPath)
-        : sample.metadata;
-      if (
-        parentObj &&
-        typeof parentObj === "object" &&
-        !Array.isArray(parentObj)
-      ) {
-        for (const key of Object.keys(parentObj)) {
-          keys.add(key);
-        }
+    const parentObj = parentPath
+      ? getNestedProperty(sample.metadata, parentPath)
+      : sample.metadata;
+    if (
+      parentObj &&
+      typeof parentObj === "object" &&
+      !Array.isArray(parentObj)
+    ) {
+      for (const key of Object.keys(parentObj)) {
+        keys.add(key);
       }
     }
   }
@@ -413,9 +409,7 @@ export function getCompletions(
       // Only include metadata if at least one sample has metadata
       return (
         samples &&
-        samples.some(
-          (sample) => sample.metadata && Object.keys(sample.metadata).length > 0
-        )
+        samples.some((sample) => Object.keys(sample.metadata).length > 0)
       );
     }
     return true;
@@ -448,25 +442,23 @@ export function getCompletions(
     ? tokens.length - 1
     : tokens.length;
 
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const prevToken = (index: number): Token => tokens[currentTokenIndex - index];
+  const prevToken = (index: number): Token | undefined =>
+    tokens[currentTokenIndex - index];
   const currentToken = prevToken(0);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const completionStart = currentToken ? currentToken.from : context.pos;
   const completingAtEnd = context.pos === doc.length;
 
   const findFilterItem = (endIndex: number): SampleFilterItem | undefined => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
-    if (prevToken(endIndex)?.type !== "variable") return undefined;
+    const start = prevToken(endIndex);
+    if (start?.type !== "variable") return undefined;
 
-    let name = prevToken(endIndex).text;
+    let name = start.text;
     let i = endIndex;
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
     while (prevToken(i + 1)?.text === ".") {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
-      if (prevToken(i + 2)?.type === "variable") {
-        name = `${prevToken(i + 2).text}.${name}`;
+      const member = prevToken(i + 2);
+      if (member?.type === "variable") {
+        name = `${member.text}.${name}`;
         i += 2;
       } else {
         break;
@@ -582,12 +574,11 @@ export function getCompletions(
     makeCompletions(options.map(makeLiteralCompletion));
 
   // Handle specific completion scenarios
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!prevToken(1)) return newExpressionCompletions();
+  const prev1 = prevToken(1);
+  if (!prev1) return newExpressionCompletions();
 
   // Member access
-  if (prevToken(1).text === ".") {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
+  if (prev1.text === ".") {
     const varName = prevToken(2)?.text;
 
     // Check if this is metadata property access (metadata.* or metadata.*.*)
@@ -608,10 +599,8 @@ export function getCompletions(
   }
 
   // Function call or bracketed expression start
-  if (prevToken(1).text === "(") {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
+  if (prev1.text === "(") {
     if (prevToken(2)?.type === "mathFunction") return variableCompletions();
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
     if (prevToken(2)?.type === "sampleFunction") return noCompletions();
     return newExpressionCompletions();
   }
@@ -622,11 +611,11 @@ export function getCompletions(
   // comparing function call result to something) or with a logical connector
   // (if a new subexpression is starting). Very hard to figure out what is
   // going on without an AST, which we don't have here.
-  if (prevToken(1).text === ")") return noCompletions();
+  if (prev1.text === ")") return noCompletions();
 
   // Variable type-based relation suggestions
-  if (prevToken(1).type === "variable") {
-    const varName = prevToken(1).text;
+  if (prev1.type === "variable") {
+    const varName = prev1.text;
 
     // Check if this is a metadata property access (metadata.property or metadata.nested.property)
     if (isMetadataProperty(tokens, currentTokenIndex)) {
@@ -673,8 +662,7 @@ export function getCompletions(
   }
 
   // RHS comparison suggestions
-  if (prevToken(1).type === "relation") {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
+  if (prev1.type === "relation") {
     const varName = prevToken(2)?.text;
 
     // Check if this is a metadata property comparison (relation after metadata.property or metadata.nested.property)
@@ -689,7 +677,6 @@ export function getCompletions(
       );
 
       // Get the current query for prefix filtering
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
       const currentQuery = currentToken?.text || "";
 
       // Pre-filter values to only show prefix matches
@@ -722,7 +709,6 @@ export function getCompletions(
       const sampleIds = Array.from(getSampleIds(samples));
 
       // Get the current query for prefix filtering
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
       const currentQuery = currentToken?.text || "";
 
       // Pre-filter IDs to only show prefix matches
@@ -743,7 +729,6 @@ export function getCompletions(
     if (varName === kSampleUuidVariable && samples) {
       const sampleUuids = Array.from(getSampleUuids(samples));
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
       const currentQuery = currentToken?.text || "";
       const filteredUuids = currentQuery
         ? sampleUuids.filter((uuid) =>
@@ -779,13 +764,12 @@ export function getCompletions(
   }
 
   // Post-subexpression connector suggestions
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: prevToken can return undefined despite its declared type
-  if (isLiteral(prevToken(1)) && prevToken(2)?.type === "relation") {
+  if (isLiteral(prev1) && prevToken(2)?.type === "relation") {
     return logicalOpCompletions();
   }
 
   // New subexpression after logical connector
-  if (isLogicalOp(prevToken(1))) return newExpressionCompletions();
+  if (isLogicalOp(prev1)) return newExpressionCompletions();
 
   // Something unusual is going on. We don't have any good guesses, but the user
   // can trigger completion manually with Ctrl+Space if they want.

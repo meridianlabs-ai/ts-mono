@@ -13,6 +13,7 @@ import { EventNode, EventPanelCallbacks } from "../types";
 
 import { StateDiffView } from "./StateDiffView";
 import {
+  matchesChangeSignature,
   RenderableChangeTypes,
   StoreSpecificRenderableTypes,
 } from "./StateEventRenderers";
@@ -114,59 +115,7 @@ const generatePreview = (
     ...(isStore ? StoreSpecificRenderableTypes : []),
   ]) {
     if (changeType.signature) {
-      // Note that we currently only have renderers that depend upon
-      // add, remove, replace, but we should likely add
-      // move, copy, test
-      const requiredMatchCount =
-        changeType.signature.remove.length +
-        changeType.signature.replace.length +
-        changeType.signature.add.length;
-      let matchingOps = 0;
-      for (const change of changes) {
-        const op = change.op;
-        switch (op) {
-          case "add":
-            if (
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              changeType.signature.add &&
-              changeType.signature.add.length > 0
-            ) {
-              changeType.signature.add.forEach((signature) => {
-                if (change.path.match(signature)) {
-                  matchingOps++;
-                }
-              });
-            }
-            break;
-          case "remove":
-            if (
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              changeType.signature.remove &&
-              changeType.signature.remove.length > 0
-            ) {
-              changeType.signature.remove.forEach((signature) => {
-                if (change.path.match(signature)) {
-                  matchingOps++;
-                }
-              });
-            }
-            break;
-          case "replace":
-            if (
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              changeType.signature.replace &&
-              changeType.signature.replace.length > 0
-            ) {
-              changeType.signature.replace.forEach((signature) => {
-                if (change.path.match(signature)) {
-                  matchingOps++;
-                }
-              });
-            }
-            break;
-        }
-      }
-      if (matchingOps === requiredMatchCount) {
+      if (matchesChangeSignature(changes, changeType.signature)) {
         const el = changeType.render(changes, resolvedState, eventNodeId);
         results.push(el);
         break;

@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "turbo run build",
@@ -25,12 +25,14 @@
     "workspaceProtocol": "require"
   },
   "devDependencies": {
+    "@css-modules-kit/codegen": "^1.4.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
     "@manypkg/cli": "^0.25.1",
     "@tsmono/prettier-config": "workspace:*",
     "esbuild": "^0.28.2",
     "picocolors": "^1.1.1",
     "prettier": "^3.9.6",
-    "turbo": "^2.10.9"
+    "turbo": "^2.10.10",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }

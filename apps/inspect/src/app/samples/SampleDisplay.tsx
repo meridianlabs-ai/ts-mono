@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import {
   CSSProperties,
@@ -26,6 +25,7 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import {
+  dynamicDefaultExcludeEvents,
   eventsToStr,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
@@ -242,6 +242,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
+
+  // Dynamic Default event-filter exclusions: store events with rich renderers
+  // (e.g. human-baseline terminal sessions) are visible by default. Chunked
+  // transcripts stream events lazily, so they keep the static defaults.
+  const defaultExcludeEvents = useMemo(
+    () => dynamicDefaultExcludeEvents(sampleEvents),
+    [sampleEvents]
+  );
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
   const sampleDetailNavigation = useSampleDetailNavigation();
   const sampleMessages = useSampleMessages(
@@ -337,9 +345,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const printLogPath = urlLogPath || selectedLogFile;
-  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
   const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
-  // intentional ?. — data isn't validated at the wire (#555); old files may omit type-required fields
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
 
   const handlePrintClick = useCallback(() => {
@@ -395,7 +403,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   }, [collapsedMode, setCollapsedMode]);
 
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
-    useTranscriptFilter();
+    useTranscriptFilter(defaultExcludeEvents);
 
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
@@ -581,7 +589,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             }
           : {}),
         Transcript: () => {
-          if (sampleEvents && sampleEvents.length > 0) {
+          if (sampleEvents.length > 0) {
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigator.clipboard.writeText(eventsToStr(sampleEvents));
             setIcon(ApplicationIcons.confirm);
@@ -594,8 +602,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     />
   );
 
-  if (downloadFiles && sample && api.download_file) {
-    const sampleId = sample.id ?? "sample";
+  if (downloadFiles && sample) {
+    const sampleId = sample.id;
     tools.push(
       <ToolDropdownButton
         key="sample-download"
@@ -630,7 +638,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               }
             : {}),
           Transcript: () => {
-            if (sampleEvents && sampleEvents.length > 0) {
+            if (sampleEvents.length > 0) {
               // eslint-disable-next-line @typescript-eslint/no-floating-promises
               api.download_file(
                 `${sampleId}-transcript.txt`,
@@ -838,15 +846,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
             <TabPanel
               key={kSampleTranscriptTabId}
               id={kSampleTranscriptTabId}
-              className={clsx(
-                "sample-tab",
-                styles.transcriptContainer,
-                styles.overflowVisible
-              )}
+              className={clsx("sample-tab", styles.overflowVisible)}
               title="Transcript"
               onSelected={onSelectedTab}
               selected={
                 effectiveSelectedTab === kSampleTranscriptTabId ||
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); a restored store may omit the tab selection
                 effectiveSelectedTab === undefined
               }
               scrollable={false}
@@ -855,6 +860,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 showing={isShowing}
                 setShowing={setShowing}
                 positionEl={filterButtonEl}
+                defaultExcludeEvents={defaultExcludeEvents}
               />
 
               {sampleData.chunked ? (
@@ -869,7 +875,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     chunked={sampleData.chunked}
                   />
                 </div>
-              ) : !sampleEvents || sampleEvents.length === 0 ? (
+              ) : sampleEvents.length === 0 ? (
                 sampleData.status === "loading" ? null : (
                   <NoContentsPanel
                     text={
@@ -893,6 +899,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     backfilling={backfilling}
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     events={sampleEvents}
+                    defaultExcludeEvents={defaultExcludeEvents}
                     timelines={sample?.timelines ?? undefined}
                     eventNodeContext={transcriptEventNodeContext}
                     initialEventId={sampleDetailNavigation.event}
@@ -1019,21 +1026,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
                 <div className={clsx(styles.error)}>
-                  {sample.error ? (
-                    <Card key={`sample-error}`}>
-                      <CardHeader label={`Sample Error`} />
-                      <CardBody>
-                        <ANSIDisplay
-                          output={sample.error.traceback_ansi}
-                          className={clsx("text-size-small", styles.ansi)}
-                          style={{
-                            fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
-                            margin: "0.5em 0",
-                          }}
-                        />
-                      </CardBody>
-                    </Card>
-                  ) : undefined}
+                  <Card key={`sample-error}`}>
+                    <CardHeader label={`Sample Error`} />
+                    <CardBody>
+                      <ANSIDisplay
+                        output={sample.error.traceback_ansi}
+                        className={clsx("text-size-small", styles.ansi)}
+                        style={{
+                          fontSize: "clamp(0.3rem, 1.1vw, 0.8rem)",
+                          margin: "0.5em 0",
+                        }}
+                      />
+                    </CardBody>
+                  </Card>
                 </div>
               </TabPanel>
             )}
@@ -1195,8 +1200,8 @@ const SampleUsagePanel: FC<SampleUsagePanelProps> = ({
   return (
     <UsagePanel
       key={`sample-usage-${id}`}
-      model_usage={sample.model_usage ?? undefined}
-      role_usage={sample.role_usage ?? undefined}
+      model_usage={sample.model_usage}
+      role_usage={sample.role_usage}
       configs_by_model={configsByModel}
       configs_by_role={configsByRole}
       args_by_model={argsByModel}
@@ -1216,8 +1221,8 @@ const usageViewsForSample = (
   const views = [];
 
   if (
-    (sample.model_usage && Object.keys(sample.model_usage).length > 0) ||
-    (sample.role_usage && Object.keys(sample.role_usage).length > 0)
+    Object.keys(sample.model_usage).length > 0 ||
+    Object.keys(sample.role_usage).length > 0
   ) {
     views.push(
       <SampleUsagePanel
@@ -1264,10 +1269,7 @@ const metadataViewsForSample = (
     if (sample.invalidation.reason) {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
-    if (
-      sample.invalidation.metadata &&
-      Object.keys(sample.invalidation.metadata).length > 0
-    ) {
+    if (Object.keys(sample.invalidation.metadata).length > 0) {
       invalidationRecord["Metadata"] = sample.invalidation.metadata;
     }
 

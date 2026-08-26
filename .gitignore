@@ -29,3 +29,4 @@ storybook-static/
 packages/util/bench/fixtures/
 
 .superpowers/
+*.module.css.d.ts

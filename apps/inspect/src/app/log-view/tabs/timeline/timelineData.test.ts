@@ -7,6 +7,7 @@ import {
   LogUpdate,
 } from "@tsmono/inspect-common/types";
 
+import { testSampleSummary } from "../../../../client/api/testClientApi";
 import { SampleSummary } from "../../../../client/api/types";
 
 import {
@@ -26,14 +27,8 @@ import {
 
 const epoch = (iso: string): number => Date.parse(iso) / 1000;
 
-const sample = (overrides: Partial<SampleSummary>): SampleSummary => ({
-  id: 1,
-  epoch: 1,
-  input: "input",
-  target: "target",
-  scores: null,
-  ...overrides,
-});
+const sample = (overrides: Partial<SampleSummary>): SampleSummary =>
+  testSampleSummary({ id: 1, target: "target", ...overrides });
 
 describe("sampleStatus", () => {
   it("separates cancellations and still-running samples from errors", () => {

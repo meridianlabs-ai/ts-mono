@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import { type SampleMessagesData } from "./messageRows";
 import { type EvalSampleData } from "./sampleData";
 import { sampleMessagesSource } from "./sampleMessagesSource";
 
@@ -21,11 +22,17 @@ export const useMessagesExport = (
     if (!source) {
       return undefined;
     }
-    return async () => {
-      const parts: string[] = [];
-      for await (const part of source.exportText()) {
-        parts.push(part);
-      }
-      return parts;
-    };
+    return () => collectExportText(source);
   }, [sampleData]);
+
+// Module-level so the hook stays compilable: React Compiler can't lower
+// for-await inside a component/hook body.
+const collectExportText = async (
+  source: SampleMessagesData
+): Promise<string[]> => {
+  const parts: string[] = [];
+  for await (const part of source.exportText()) {
+    parts.push(part);
+  }
+  return parts;
+};

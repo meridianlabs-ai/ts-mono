@@ -162,6 +162,9 @@ export function createLogDetails(evalLog: EvalLog): LogDetails {
       target: sample.target,
       scores: sample.scores ?? null,
       metadata: sample.metadata,
+      completed: true,
+      model_usage: sample.model_usage,
+      role_usage: sample.role_usage,
     })
   );
 

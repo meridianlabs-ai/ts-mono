@@ -19,15 +19,17 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  // undefined when the descriptor lookup fails at runtime (types lie at the wire)
+  // undefined when no samples carry the score (descriptor lookup misses)
   scoreType: string | undefined;
 }
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -165,14 +167,13 @@ export const sampleVariables = (
     epoch: sample.epoch,
     has_error: !!sample.error,
     has_limit: !!sample.limit,
-    has_retries: sample.retries !== undefined && sample.retries > 0,
+    has_retries: (sample.retries ?? 0) > 0,
     has_fallbacks: totalModelFallbacks(sample.model_fallbacks) > 0,
-    completed: sample.completed ?? true,
+    completed: sample.completed,
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    target: arrayToString(sample.target ?? ""),
+    target: arrayToString(sample.target),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
     error: sample.error ?? null,
@@ -209,7 +210,7 @@ export const sampleFilterItems = (
       throw new Error("Unable to create a canonical name for a score");
     }
     const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: scoreDescriptor() can return undefined despite its declared type
+
     if (!descriptor) {
       items.push({
         shortName,
@@ -322,8 +323,7 @@ export const filterExpression = (
       // Handle metadata property access
       if (name.startsWith(kSampleMetadataPrefix)) {
         const propertyPath = name.substring(kSampleMetadataPrefix.length);
-        const metadata = sample.metadata || {};
-        return getNestedPropertyValue(metadata, propertyPath);
+        return getNestedPropertyValue(sample.metadata, propertyPath);
       }
       // Score variables exist only if the sample completed successfully.
       return sample.error ? undefined : get(name);

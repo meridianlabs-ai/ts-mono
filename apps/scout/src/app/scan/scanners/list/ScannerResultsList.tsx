@@ -420,7 +420,6 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           ref={listHandle}
           data={rows}
           renderRow={renderRow}
-          className={clsx(styles.list)}
           smoothScroll={false}
         />
       )}
@@ -501,8 +500,7 @@ const optimalColumnLayout = (
   }
 
   const hasValidations = scannerSummaries.some(
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    (s) => s.validationResult !== undefined && s.validationResult !== null
+    (s) => s.validationResult !== undefined
   );
   if (hasValidations) {
     columns.push("validations");

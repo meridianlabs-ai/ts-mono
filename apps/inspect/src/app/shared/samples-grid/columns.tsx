@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import type { CSSProperties } from "react";
 
@@ -40,7 +39,7 @@ import {
   resolveScale,
   type WireScoreColorScale,
 } from "./colorScale";
-import styles from "./SamplesGrid.module.css";
+import styles from "./gridCells.module.css";
 import { SampleRow } from "./types";
 
 export type SampleGridViewMode = "list" | "grid";
@@ -240,9 +239,9 @@ export function buildSampleColumns(
   cols.push({
     id: "sampleId",
     header: "Id",
-    size: shape ? Math.max(35, (shape.idSize ?? 2) * 16) : 120,
+    size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
-    accessorFn: (row) => String(row.sampleId ?? ""),
+    accessorFn: (row) => String(row.sampleId),
     cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
@@ -340,7 +339,7 @@ export function buildSampleColumns(
     accessorFn: (row) => row.tokens,
     cell: ({ getValue }) => {
       const value = getValue<number | undefined>();
-      return value === undefined || value === null ? (
+      return value === undefined ? (
         <EmptyCell />
       ) : (
         <div>{formatNumber(value)}</div>
@@ -358,12 +357,10 @@ export function buildSampleColumns(
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.duration,
     titleValue: (row) =>
-      row.duration === undefined || row.duration === null
-        ? undefined
-        : formatTime(row.duration),
+      row.duration === undefined ? undefined : formatTime(row.duration),
     cell: ({ getValue }) => {
       const value = getValue<number | undefined>();
-      return value === undefined || value === null ? (
+      return value === undefined ? (
         <EmptyCell />
       ) : (
         <div>{formatTime(value)}</div>
@@ -403,15 +400,25 @@ export function buildSampleColumns(
     {
       id: "limit",
       header: "Limit",
-      size: shape ? (shape.limitSize ?? 1) * 16 : 100,
+      size: shape ? shape.limitSize * 16 : 100,
       minSize: 28,
       accessorFn: (row) => row.limit ?? row.data?.limit,
-      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+      cell: ({ getValue, row }) => (
+        <div
+          title={
+            row.original.limit_reason ??
+            row.original.data?.limit_reason ??
+            undefined
+          }
+        >
+          {valueAsString(getValue() ?? "")}
+        </div>
+      ),
     },
     {
       id: "retries",
       header: "Retries",
-      size: shape ? (shape.retriesSize ?? 1) * 16 : 80,
+      size: shape ? shape.retriesSize * 16 : 80,
       minSize: 28,
       meta: { align: "center", sortComparator: numberCompare },
       accessorFn: (row) => row.retries ?? row.data?.retries,
@@ -541,7 +548,6 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
       const colId = perScorerFieldKey(label);
       const headerName = useLabelHeader ? labelFor(label.name) : "Score";
       const scoreDesc = descriptor.evalDescriptor.scoreDescriptor(label);
-      // intentional ?. — scoreDescriptor() can return undefined despite its declared type
       const scoreType = scoreDesc?.scoreType;
       const isNumeric = scoreType === kScoreTypeNumeric;
       // Pass/fail and boolean already render as semantically-coloured
@@ -551,7 +557,6 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
         scoreType !== kScoreTypePassFail && scoreType !== kScoreTypeBoolean;
       const valueToStyle = acceptsColorScale
         ? cellStyleFor(label.name, {
-            // intentional ?. — scoreDescriptor() can return undefined despite its declared type
             min: scoreDesc?.min,
             max: scoreDesc?.max,
           })

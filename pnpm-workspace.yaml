@@ -57,6 +57,9 @@ overrides:
 # demonstrably needs its postinstall (esbuild gets binaries via
 # optionalDependencies; unrs-resolver has a JS fallback).
 allowBuilds:
+  # Same shape as esbuild: the native binding arrives via optionalDependencies
+  # (@swc/core-<platform>); the postinstall is only a fallback downloader.
+  "@swc/core": false
   esbuild: false
   msw: false
   unrs-resolver: false

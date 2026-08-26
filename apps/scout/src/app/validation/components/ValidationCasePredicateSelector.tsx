@@ -69,7 +69,6 @@ export const ValidationCasePredicateSelector: FC<
         position={position}
         value={value ?? defaultValue}
         onChange={handleChange}
-        className={styles.select}
         disabled={disabled}
       >
         {PREDICATES.map((predicate) => (

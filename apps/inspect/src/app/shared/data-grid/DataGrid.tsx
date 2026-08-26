@@ -379,7 +379,7 @@ export function DataGrid<TRow extends RowData>({
       // the AG grid's ghost looked like. Guarded: jsdom has no setDragImage.
       if (typeof e.dataTransfer.setDragImage === "function") {
         const chip = document.createElement("div");
-        chip.className = styles.dragGhost ?? "";
+        chip.className = styles.dragGhost;
         chip.textContent = label;
         document.body.appendChild(chip);
         e.dataTransfer.setDragImage(chip, 12, 14);

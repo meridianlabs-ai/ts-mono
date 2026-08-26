@@ -14,7 +14,7 @@ import {
 } from "../../types/api-types";
 import { useActiveScan } from "../server/useActiveScan";
 
-import styles from "./RunScanPanel.module.css";
+import styles from "./ActiveScanView.module.css";
 
 const formatMemory = (bytes: number): string => {
   const gb = bytes / (1024 * 1024 * 1024);

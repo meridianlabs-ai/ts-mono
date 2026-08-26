@@ -1,4 +1,7 @@
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  normalizeEvent,
+  normalizeEvents,
+} from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
 import type { ScannerInputResponse, Transcript } from "../types/api-types";
@@ -14,20 +17,25 @@ export function expandInputEvents(
   inputType: ScannerInputResponse["input_type"],
   inputData: ScannerInputResponse["input_data"]
 ): ScannerInputResponse["input"] {
-  if (!inputData) return input;
-
   // EventsData is `additionalProperties: true`, so `attachments` isn't part
   // of its generated type; narrow just enough to read it back out.
-  const attachments = (inputData as { attachments?: Record<string, string> })
-    .attachments;
+  const attachments = inputData
+    ? (inputData as { attachments?: Record<string, string> }).attachments
+    : undefined;
   const withAttachmentsResolved = (value: ScannerInputResponse["input"]) =>
     attachments && Object.keys(attachments).length > 0
       ? resolveAttachments(value, attachments)
       : value;
 
+  // Boundary normalization (#555) applies with or without input_data: old
+  // scans predate the input_data column entirely, and their transcript
+  // events are exactly the ones that omit required-with-default fields.
   if (inputType === "transcript") {
     const transcript = input as Transcript;
-    const expanded = expandEvents(transcript.events, inputData);
+    const normalized = normalizeEvents(transcript.events);
+    const expanded = inputData
+      ? expandEvents(normalized, inputData)
+      : normalized;
     const result =
       expanded === transcript.events
         ? input
@@ -36,7 +44,14 @@ export function expandInputEvents(
   }
 
   if (inputType === "events") {
-    return withAttachmentsResolved(expandEvents(input as Event[], inputData));
+    const normalized = normalizeEvents(input);
+    return withAttachmentsResolved(
+      inputData ? expandEvents(normalized, inputData) : normalized
+    );
+  }
+
+  if (inputType === "event") {
+    return withAttachmentsResolved(normalizeEvent(input) ?? input);
   }
 
   return withAttachmentsResolved(input);

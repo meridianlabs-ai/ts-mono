@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { testScore } from "@tsmono/inspect-common/testing";
 
+import { testSampleSummary } from "../../../client/api/testClientApi";
 import { SampleSummary } from "../../../client/api/types";
 import type { ScoreLabel } from "../../types";
 import type { SamplesDescriptor } from "../descriptor/samplesDescriptor";
@@ -39,15 +40,13 @@ const samplesDescriptorWith = (
     selectedScorerDescriptor: () => undefined,
   });
 
-const sample = (overrides: Partial<SampleSummary> = {}): SampleSummary => ({
-  id: "s1",
-  epoch: 2,
-  input: "the input",
-  target: "the target",
-  scores: null,
-  completed: true,
-  ...overrides,
-});
+const sample = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
+  testSampleSummary({
+    epoch: 2,
+    input: "the input",
+    target: "the target",
+    ...overrides,
+  });
 
 describe("builtinFilterVariables", () => {
   it("covers every name the per-sample namespace defines", () => {

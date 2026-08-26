@@ -1,4 +1,4 @@
-.message-band {
+.messageBand {
   grid-template-columns: max-content auto max-content;
   align-items: center;
   column-gap: 0.5em;
@@ -8,25 +8,25 @@
   display: grid;
 }
 
-.message-band.hidden {
+.messageBand.hidden {
   display: none;
 }
 
-.message-band.info {
+.messageBand.info {
   background-color: var(--bs-light);
 }
 
-.message-band.warning {
+.messageBand.warning {
   background-color: var(--bs-warning-bg-subtle);
   color: var(--bs-warning-text-emphasis);
 }
 
-.message-band.error {
+.messageBand.error {
   background-color: var(--bs-error-bg-subtle);
   color: var(--bs-error-text-emphasis);
 }
 
-.message-band-btn {
+.messageBandBtn {
   font-size: var(--inspect-font-size-title-secondary);
   margin: 0;
   padding: 0;
@@ -34,10 +34,10 @@
   line-height: var(--inspect-font-size-title-secondary);
 }
 
-.message-band-btn.error {
+.messageBandBtn.error {
   color: var(--bs-error-text-emphasis);
 }
 
-.message-band-btn.warning {
+.messageBandBtn.warning {
   color: var(--bs-warning-text-emphasis);
 }

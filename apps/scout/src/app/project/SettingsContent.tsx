@@ -21,9 +21,10 @@ import {
   SelectField,
   TextField,
 } from "./components/FormFields";
+import fieldStyles from "./components/FormFields.module.css";
 import { filterNullValues } from "./configUtils";
 import { useBatchConfig, useNestedConfig } from "./hooks/useNestedConfig";
-import styles from "./ProjectPanel.module.css";
+import styles from "./SettingsContent.module.css";
 
 // Constants for select options
 const LOG_LEVELS = [
@@ -234,7 +235,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="scanning" className={styles.section}>
         <div className={styles.sectionHeader}>Scanning</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeLabel>Filter</VscodeLabel>
           <VscodeFormHelper>
             SQL WHERE clause(s) for filtering transcripts. This will constrain
@@ -268,7 +269,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           placeholder="No limit"
         />
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeLabel>Shuffle</VscodeLabel>
           <VscodeFormHelper>
             Shuffle the order of transcripts (optionally specify a seed)
@@ -328,7 +329,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="miscellaneous" className={styles.section}>
         <div className={styles.sectionHeader}>Miscellaneous</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeLabel>Tags</VscodeLabel>
           <VscodeFormHelper>
             One or more tags to apply to scans (comma-separated)
@@ -580,7 +581,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="cache" className={styles.section}>
         <div className={styles.sectionHeader}>Cache</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeCheckbox
             id="field-cache-enabled"
             checked={cache.enabled}
@@ -609,7 +610,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
               validate={validateCacheExpiry}
             />
 
-            <div className={styles.field}>
+            <div className={fieldStyles.field}>
               <VscodeLabel>Per Epoch</VscodeLabel>
               <VscodeFormHelper>
                 Maintain separate cache entries per epoch
@@ -634,7 +635,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="batch" className={styles.section}>
         <div className={styles.sectionHeader}>Batch</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeCheckbox
             id="field-batch-enabled"
             checked={batch.enabled}

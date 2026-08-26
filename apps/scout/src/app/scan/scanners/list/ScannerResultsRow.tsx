@@ -121,7 +121,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
         </div>
       )}
 
-      <div className={clsx(styles.value, "text-size-smaller")}>
+      <div className={clsx("text-size-smaller")}>
         {!summary.scanError && (
           <Value
             value={summary.value}
@@ -134,11 +134,13 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
       </div>
       {hasValidations && (
         <div className={clsx("text-size-smaller")}>
-          <ValidationResult
-            result={summary.validationResult}
-            target={summary.validationTarget}
-            label={summary.label}
-          />
+          {summary.validationResult !== undefined && (
+            <ValidationResult
+              result={summary.validationResult}
+              target={summary.validationTarget}
+              label={summary.label}
+            />
+          )}
         </div>
       )}
       {hasErrors && (

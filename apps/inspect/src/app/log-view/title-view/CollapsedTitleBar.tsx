@@ -8,6 +8,7 @@ import { formatPrettyDecimal } from "@tsmono/util";
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
+import { leadWith, resolveHeadlineMetric } from "../../../scoring/headline";
 import {
   expandGroupedMetrics,
   metricDisplayName,
@@ -49,10 +50,12 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
 
   const scorers = runningMetrics
     ? displayScorersFromRunningMetrics(runningMetrics)
-    : toDisplayScorers(evalResults?.scores);
+    : toDisplayScorers(
+        evalResults?.scores,
+        resolveHeadlineMetric(evalResults, evalSpec?.headline_metric)
+      );
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const expandedScorers = expandGroupedMetrics(scorers ?? []);
+  const expandedScorers = expandGroupedMetrics(scorers);
   const totalMetrics = expandedScorers.reduce(
     (n, s) => n + s.metrics.length,
     0
@@ -112,7 +115,12 @@ interface InlineMetricsProps {
 }
 
 const InlineMetrics: FC<InlineMetricsProps> = ({ scorers }) => {
-  const items: { key: string; label: string; value: string }[] = [];
+  const items: {
+    key: string;
+    label: string;
+    value: string;
+    headline: boolean;
+  }[] = [];
   scorers.forEach((scorer, scorerIdx) => {
     scorer.metrics.forEach((metric, metricIdx) => {
       items.push({
@@ -123,13 +131,19 @@ const InlineMetrics: FC<InlineMetricsProps> = ({ scorers }) => {
           metric.value !== undefined && metric.value !== null
             ? formatPrettyDecimal(metric.value)
             : "n/a",
+        headline: metric.headline === true,
       });
     });
   });
+  // collapsing shows only a few metrics inline, so lead with the headline
+  const ordered = leadWith(
+    items,
+    items.findIndex((item) => item.headline)
+  );
 
   return (
     <div className={styles.inlineMetrics}>
-      {items.map((item) => (
+      {ordered.map((item) => (
         <span key={item.key} className={styles.inlineMetric}>
           <span className={clsx("text-style-label", styles.inlineMetricLabel)}>
             {item.label}

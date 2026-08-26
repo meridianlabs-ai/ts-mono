@@ -12,7 +12,7 @@ import styles from "./status.module.css";
 type SampleStatus = "running" | "ok" | "error" | "cancelled";
 export const deriveSampleStatus = (
   completed?: boolean,
-  error?: string
+  error?: string | null
 ): SampleStatus => {
   if (error) {
     return errorType(error) === "CancelledError" ? "cancelled" : "error";
@@ -39,7 +39,7 @@ export const isCancelled = (sample: SampleSummary | EvalSample): boolean => {
 export const kDefaultSampleSortValue = "3:ok";
 export const statusSortValue = (
   status: SampleStatus,
-  error?: string
+  error?: string | null
 ): string => {
   switch (status) {
     case "running":

@@ -40,9 +40,7 @@ export const LabeledValue: FC<LabeledValueProps> = ({
       >
         {label}
       </div>
-      <div className={clsx(styles.labeledValueValue)} style={{ ...valueStyle }}>
-        {children}
-      </div>
+      <div style={{ ...valueStyle }}>{children}</div>
     </div>
   );
 };

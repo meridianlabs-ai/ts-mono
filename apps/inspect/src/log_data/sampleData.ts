@@ -45,9 +45,7 @@ const settledSampleData = (sample: EvalSample): EvalSampleData => ({
   status: "ok",
   error: undefined,
   running: kNoRunningEvents,
-  eventsCleared:
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
-    sample.events.length === 0 && (sample.messages?.length ?? 0) > 0,
+  eventsCleared: sample.events.length === 0 && sample.messages.length > 0,
   backfilling: false,
 });
 

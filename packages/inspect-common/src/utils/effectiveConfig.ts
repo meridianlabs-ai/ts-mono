@@ -34,6 +34,7 @@ const EVAL_CONFIG_KEYS: Record<keyof EvalConfig, true> = {
   sample_id: true,
   sample_shuffle: true,
   sandbox_cleanup: true,
+  sandbox_prebuilt: true,
   score_display: true,
   score_on_error: true,
   time_limit: true,
@@ -189,14 +190,9 @@ const changesFor = (
         previous: change.previous,
         cleared: change.cleared,
         limitLifted:
-          !change.cleared &&
-          change.value === null &&
-          change.previous !== null &&
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard: crafted logs can carry undefined previous despite JsonValue
-          change.previous !== undefined,
+          !change.cleared && change.value === null && change.previous !== null,
         scope: update.scope,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard: crafted logs can omit provenance despite the type (#555; see malformedUpdates tests)
-        inherited: update.provenance?.metadata?.["inherited"] === true,
+        inherited: update.provenance.metadata["inherited"] === true,
         provenance: update.provenance,
       });
     }
@@ -246,8 +242,7 @@ export const concurrencyChanges = (
         cleared: change.cleared,
         limitLifted: false,
         scope: update.scope,
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- runtime guard: crafted logs can omit provenance despite the type (#555; see malformedUpdates tests)
-        inherited: update.provenance?.metadata?.["inherited"] === true,
+        inherited: update.provenance.metadata["inherited"] === true,
         provenance: update.provenance,
       });
     }

@@ -53,11 +53,11 @@ const CAT_LABEL: Record<CategoryKey, string> = {
 };
 
 const CAT_SWATCH: Record<CategoryKey, string> = {
-  input: styles.catInput!,
-  cacheRead: styles.catCacheRead!,
-  cacheWrite: styles.catCacheWrite!,
-  output: styles.catOutput!,
-  reasoning: styles.catReasoning!,
+  input: styles.catInput,
+  cacheRead: styles.catCacheRead,
+  cacheWrite: styles.catCacheWrite,
+  output: styles.catOutput,
+  reasoning: styles.catReasoning,
 };
 
 const buildCategories = (usage: ModelUsageData): Category[] => {

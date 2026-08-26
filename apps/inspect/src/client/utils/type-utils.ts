@@ -1,6 +1,6 @@
-import { EvalMetric, EvalResults } from "@tsmono/inspect-common/types";
 import { modelRoleNames } from "@tsmono/inspect-common/utils";
 
+import { headlineMetric } from "../../scoring/headline";
 import {
   EvalHeader,
   Log,
@@ -115,20 +115,6 @@ export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
     started_at: header.stats?.started_at,
     completed_at: header.stats?.completed_at,
 
-    primary_metric: primaryMetric(header.results),
+    primary_metric: headlineMetric(header.results, header.eval.headline_metric),
   };
-};
-
-const primaryMetric = (
-  evalResults?: EvalResults | null
-): EvalMetric | undefined => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
-  const firstScore = evalResults?.scores?.[0];
-  if (firstScore) {
-    const metrics = Object.values(firstScore.metrics);
-    if (metrics.length > 0) {
-      return metrics[0];
-    }
-  }
-  return undefined;
 };

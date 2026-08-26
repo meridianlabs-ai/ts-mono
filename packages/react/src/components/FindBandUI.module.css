@@ -27,7 +27,7 @@
   background: var(--inspect-input-background);
 }
 
-.findBand-match-count {
+.matchCount {
   font-size: 0.85em;
   margin-top: auto;
   margin-bottom: auto;
@@ -37,19 +37,22 @@
   opacity: 0.7;
 }
 
-.findBand-no-results {
+.noResults {
   opacity: 1;
   color: var(--bs-danger, #dc3545);
 }
 
-.findBand .btn.next,
-.findBand .btn.prev {
+/* `.btn` stays global (bootstrap); keep it in the compound selector so
+   specificity still beats bootstrap's `.btn:hover` etc. regardless of
+   stylesheet order. */
+.findBand .next:global(.btn),
+.findBand .prev:global(.btn) {
   padding: 0;
   border: none;
   background: none;
 }
 
-.findBand .btn.close {
+.findBand .close:global(.btn) {
   padding: 0;
   border: none;
   background: none;

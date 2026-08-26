@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { ComponentProps } from "react";
 import { afterEach, describe, expect, it } from "vitest";

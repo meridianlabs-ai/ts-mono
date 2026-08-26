@@ -126,45 +126,6 @@
   padding-right: 1rem;
 }
 
-/* Make text fields wider */
-.field :global(vscode-textfield) {
-  width: 400px !important;
-}
-
-.field :global(vscode-textfield[type="number"]) {
-  width: 250px !important;
-}
-
-.field :global(vscode-textarea) {
-  width: 400px !important;
-}
-
-.field :global(vscode-single-select) {
-  width: 250px !important;
-}
-
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.sectionHeader {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--vscode-foreground);
-  padding: 0.35rem 0.75rem 0.35rem 1rem;
-  margin-left: -0.75rem;
-  background: var(--vscode-sideBarSectionHeader-background);
-  border-radius: 3px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-}
-
 .loading,
 .error {
   font-size: 13px;

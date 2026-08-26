@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -38,7 +39,7 @@ describe("StopReasonBadge", () => {
     expect(screen.getByText("Stop Reason")).toBeDefined();
     const badge = container.querySelector(`.${styles.badge}`);
     expect(badge).not.toBeNull();
-    expect(badge!.classList.contains(styles.rose!)).toBe(true);
+    expect(badge!.classList.contains(styles.rose)).toBe(true);
     expect(badge!.textContent).toBe("content_filter");
   });
 
@@ -51,12 +52,12 @@ describe("StopReasonBadge", () => {
     const cases: Array<
       [Parameters<typeof StopReasonBadge>[0]["reason"], string]
     > = [
-      ["stop", styles.neutral!],
-      ["max_tokens", styles.amber!],
-      ["model_length", styles.amber!],
-      ["tool_calls", styles.blue!],
-      ["content_filter", styles.rose!],
-      ["unknown", styles.gray!],
+      ["stop", styles.neutral],
+      ["max_tokens", styles.amber],
+      ["model_length", styles.amber],
+      ["tool_calls", styles.blue],
+      ["content_filter", styles.rose],
+      ["unknown", styles.gray],
     ];
     for (const [reason, toneClass] of cases) {
       const { container, unmount } = render(

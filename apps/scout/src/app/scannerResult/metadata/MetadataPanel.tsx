@@ -11,7 +11,7 @@ import {
 
 import { ScanResultData } from "../../types";
 
-import styles from "./Metadata.module.css";
+import styles from "./MetadataPanel.module.css";
 
 interface MetadataPanelProps {
   resultData?: ScanResultData;
@@ -29,8 +29,7 @@ export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
             <CardBody>
               <RecordTree
                 id={`result-metadata-${resultData.identifier}`}
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                record={resultData.metadata || {}}
+                record={resultData.metadata}
                 copyButton={true}
               />
             </CardBody>

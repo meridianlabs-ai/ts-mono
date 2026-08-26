@@ -30,9 +30,9 @@ export interface ScanResultSummary {
   eventReferences: ScanResultReference[];
   messageReferences: ScanResultReference[];
 
-  // Validation
-  validationResult: boolean | Record<string, boolean>;
-  validationTarget: JsonValue;
+  // Validation — absent when the result was never validated
+  validationResult?: boolean | Record<string, boolean>;
+  validationTarget?: JsonValue;
 
   // Value
   value: string | boolean | number | null | unknown[] | object;

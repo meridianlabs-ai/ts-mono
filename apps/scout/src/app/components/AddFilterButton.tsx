@@ -10,9 +10,10 @@ import { PopOver } from "@tsmono/react/components";
 import { ScalarValue } from "../../api/api";
 import { ApplicationIcons } from "../../icons";
 
+import styles from "./AddFilterButton.module.css";
 import { Chip } from "./Chip";
 import type { useAddFilterPopover } from "./columnFilter";
-import styles from "./FilterBar.module.css";
+import filterStyles from "./FilterBar.module.css";
 
 export type AddFilterPopoverState = ReturnType<typeof useAddFilterPopover>;
 
@@ -52,7 +53,7 @@ export const AddFilterButton: FC<AddFilterButtonProps> = ({
         icon={ApplicationIcons.add}
         value="Add"
         title="Add a new filter"
-        className={clsx(styles.filterChip, "text-size-smallest")}
+        className={clsx(filterStyles.filterChip, "text-size-smallest")}
         onClick={() => setIsOpen(true)}
       />
       <PopOver

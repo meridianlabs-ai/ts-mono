@@ -122,7 +122,7 @@ export const ScoreEditEventView: FC<ScoreEditEventViewProps> = ({
               id={`${eventNode.id}-score-metadata`}
               // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
               record={event.edit.metadata || {}}
-              className={styles.metadataTree}
+              className={styles.metadata}
               defaultExpandLevel={0}
               copyButton={true}
             />

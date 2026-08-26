@@ -124,4 +124,8 @@ export const initializeStore = (
   // Set the implementation and initialize it
   storeImplementation = store;
   store.getState().initialize(capabilities);
+
+  // Purge the legacy Virtuoso list-position bags that pre-#525 sessions
+  // persisted; nothing reads or clears them anymore.
+  store.getState().appActions.removeBagsByPrefix("listPosition");
 };

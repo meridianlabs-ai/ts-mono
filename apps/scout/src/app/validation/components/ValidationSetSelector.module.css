@@ -59,15 +59,6 @@
   white-space: nowrap;
 }
 
-.triggerSecondary {
-  font-size: calc(var(--vscode-font-size, 13px) - 2px);
-  color: var(--vscode-descriptionForeground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 0.7;
-}
-
 .triggerPlaceholder {
   font-size: var(--vscode-font-size, 13px);
   color: var(--vscode-input-placeholderForeground);
@@ -137,11 +128,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.loading {
-  color: var(--vscode-descriptionForeground);
-  font-style: italic;
 }
 
 .error {

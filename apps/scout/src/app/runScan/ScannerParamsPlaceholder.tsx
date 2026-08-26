@@ -1,6 +1,6 @@
 import { FC } from "react";
 
-import styles from "./RunScanPanel.module.css";
+import styles from "./ScannerParamsPlaceholder.module.css";
 
 interface Props {
   scannerName: string;

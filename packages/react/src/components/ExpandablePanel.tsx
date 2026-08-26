@@ -158,7 +158,6 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             ref={contentRef}
             style={contentStyles}
             className={clsx(
-              styles.expandableContentWrap,
               effectiveCollapsed && showToggle
                 ? styles.expandableTruncated
                 : undefined

@@ -1,5 +1,6 @@
 import { skipToken } from "@tanstack/react-query";
 
+import { normalizeEvalSample } from "@tsmono/inspect-common/normalize";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
@@ -56,15 +57,15 @@ const shellEvalSample = async (chunked: ChunkedSample): Promise<EvalSample> => {
     ...shell
   } = chunked.shell;
   // The shell is the EvalSample serialization minus the four sequences and
-  // metadata (design/large-samples.md, "Chunked on-disk layout") — the same
-  // parse-boundary lift as remoteLogFile's `readJSONFile(...) as EvalSample`.
-  return {
+  // metadata (design/large-samples.md, "Chunked on-disk layout");
+  // normalizeEvalSample is the parse-boundary lift.
+  return normalizeEvalSample({
     ...shell,
     messages: [],
     events: [],
     attachments: {},
     metadata: (await chunked.readMetadata?.()) ?? {},
-  } as unknown as EvalSample;
+  });
 };
 
 /**
@@ -87,9 +88,15 @@ export const useChunkedSample = (
     queryKey: chunkedSampleQueryKey(handle),
     queryFn: handle
       ? async (): Promise<ChunkedSampleData | null> => {
+          // The api guard lives outside the try: React Compiler can't lower
+          // value blocks (?. here) inside try/catch and would bail out.
+          const api = getApi();
+          if (!api.get_log_zip_access) {
+            return null;
+          }
           let zip;
           try {
-            zip = await getApi().get_log_zip_access?.(handle.logFile);
+            zip = await api.get_log_zip_access(handle.logFile);
           } catch {
             return null;
           }
