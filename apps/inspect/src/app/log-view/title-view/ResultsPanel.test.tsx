@@ -123,14 +123,19 @@ describe("ResultsPanel", () => {
         { name: "no", value: 0.7, group: "frequency", headline },
       ],
     });
-    renderPanel([groupedScore("scorer_1", true), groupedScore("scorer_2", false)], true);
+    renderPanel(
+      [groupedScore("scorer_1", true), groupedScore("scorer_2", false)],
+      true
+    );
 
     // the whole "frequency" run leads (headline first within it), so the
     // sub-metric names keep the group header that gives them meaning
     expect(
       screen.getByRole("columnheader", { name: "frequency" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "no" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "no" })
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("columnheader", { name: "yes" })
     ).toBeInTheDocument();

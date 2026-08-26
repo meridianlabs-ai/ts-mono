@@ -12,10 +12,7 @@ import {
   expandGroupedMetrics,
   metricDisplayName,
 } from "../../../scoring/metrics";
-import {
-  groupScorers,
-  leadWithMetricColumn,
-} from "../../../scoring/scores";
+import { groupScorers, leadWithMetricColumn } from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ResultsPanel.module.css";
@@ -108,32 +105,37 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({
     const showMore = primaryMetrics.length < metrics.length;
     const unscoredSamples = onlyScorer.unscoredSamples || 0;
     const scoredSamples = onlyScorer.scoredSamples || 0;
-    return (
-      <div className={styles.metricsSummary}>
-        <div className={styles.simpleMetricsRows}>
-          {primaryMetrics.map((metric, i) => {
-            return (
-              <VerticalMetric
-                key={`simple-metric-${i}`}
-                reducer={onlyScorer.reducer}
-                metric={metric}
-                isFirst={i === 0}
-                showReducer={showReducer}
-                unscoredSamples={unscoredSamples}
-                scoredSamples={scoredSamples}
-              />
-            );
-          })}
-        </div>
-        {showMore ? (
-          <ScoringDetail
-            grouped={groupScorers(expandedScorers)}
-            showReducer={showReducer}
-            showing={showing}
-            setShowing={setShowing}
-          />
-        ) : undefined}
+    const metricsRow = (
+      <div className={styles.simpleMetricsRows}>
+        {primaryMetrics.map((metric, i) => {
+          return (
+            <VerticalMetric
+              key={`simple-metric-${i}`}
+              reducer={onlyScorer.reducer}
+              metric={metric}
+              isFirst={i === 0}
+              showReducer={showReducer}
+              unscoredSamples={unscoredSamples}
+              scoredSamples={scoredSamples}
+            />
+          );
+        })}
       </div>
+    );
+    // the wrapper (and its margin) exists to seat the "All scoring..." link;
+    // when nothing is truncated, render exactly what pre-cap versions did
+    return showMore ? (
+      <div className={styles.metricsSummary}>
+        {metricsRow}
+        <ScoringDetail
+          grouped={groupScorers(expandedScorers)}
+          showReducer={showReducer}
+          showing={showing}
+          setShowing={setShowing}
+        />
+      </div>
+    ) : (
+      metricsRow
     );
   } else {
     const showReducer =
