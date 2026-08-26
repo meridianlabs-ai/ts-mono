@@ -1661,6 +1661,8 @@ export interface components {
             input: string | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             invalidation?: components["schemas"]["ProvenanceData"] | null;
             limit?: components["schemas"]["EvalSampleLimit"] | null;
+            /** Message Limit */
+            message_limit?: number | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Metadata */
@@ -1693,6 +1695,8 @@ export interface components {
             };
             /** Target */
             target: string | string[];
+            /** Time Limit */
+            time_limit?: number | null;
             /** Timelines */
             timelines?: components["schemas"]["Timeline"][] | null;
             /** Token Limit */
@@ -1752,6 +1756,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -1787,6 +1793,8 @@ export interface components {
             limit_reason?: string | null;
             /** Message Count */
             message_count?: number | null;
+            /** Message Limit */
+            message_limit?: number | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -1811,6 +1819,8 @@ export interface components {
             started_at?: string | null;
             /** Target */
             target: string | string[];
+            /** Time Limit */
+            time_limit?: number | null;
             /** Token Limit */
             token_limit?: number | null;
             /** Token Limit Type */
@@ -3168,6 +3178,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3220,6 +3232,11 @@ export interface components {
                 [key: string]: unknown;
             } | "UNCHANGED";
             provenance?: components["schemas"]["ProvenanceData"] | null;
+            /**
+             * Reason
+             * @default UNCHANGED
+             */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
