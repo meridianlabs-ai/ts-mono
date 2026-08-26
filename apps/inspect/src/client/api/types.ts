@@ -116,11 +116,16 @@ export interface PendingSampleUrls {
 // Client-side types — looser than generated server types because they're
 // also constructed locally (from URL params, manifests, etc.)
 export interface RunningMetric {
+  /** `EvalScore.name` — one of its value keys for a dict-valued scorer. */
   scorer: string;
+  /** `EvalScore.scorer`. Absent in logs written before it was recorded. */
+  scorer_name?: string | null;
   name: string;
   value?: number | null;
   reducer?: string;
   params?: Record<string, unknown>;
+  /** Whether this is the eval's headline metric. */
+  headline?: boolean;
 }
 
 export interface PendingSamples {

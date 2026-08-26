@@ -88,9 +88,15 @@ export const useChunkedSample = (
     queryKey: chunkedSampleQueryKey(handle),
     queryFn: handle
       ? async (): Promise<ChunkedSampleData | null> => {
+          // The api guard lives outside the try: React Compiler can't lower
+          // value blocks (?. here) inside try/catch and would bail out.
+          const api = getApi();
+          if (!api.get_log_zip_access) {
+            return null;
+          }
           let zip;
           try {
-            zip = await getApi().get_log_zip_access?.(handle.logFile);
+            zip = await api.get_log_zip_access(handle.logFile);
           } catch {
             return null;
           }

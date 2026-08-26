@@ -7,6 +7,7 @@ import { formatPrettyDecimal } from "@tsmono/util";
 
 import { RunningMetric } from "../../../client/api/types";
 import { LinkButton } from "../../../components/LinkButton";
+import { leadWith } from "../../../scoring/headline";
 import {
   expandGroupedMetrics,
   metricDisplayName,
@@ -25,11 +26,11 @@ export const displayScorersFromRunningMetrics = (metrics?: RunningMetric[]) => {
     return [];
   }
 
-  const getKey = (metric: RunningMetric) => {
-    return metric.reducer
-      ? `${metric.scorer}-${metric.reducer}`
-      : metric.scorer;
-  };
+  // include the originating scorer: two dict-valued scorers can emit the same
+  // score name, and grouping on the name alone merges them into one row.
+  // JSON-encoded so a separator inside any component can't forge a collision
+  const getKey = (metric: RunningMetric) =>
+    JSON.stringify([metric.scorer_name ?? null, metric.scorer, metric.reducer]);
 
   const scorers: Record<string, ScoreSummary> = {};
   metrics.forEach((metric) => {
@@ -40,16 +41,19 @@ export const displayScorersFromRunningMetrics = (metrics?: RunningMetric[]) => {
           name: metric.name,
           value: metric.value,
           params: metric.params,
+          headline: metric.headline,
         });
       } else {
         scorers[key] = {
           scorer: metric.scorer,
+          scorerName: metric.scorer_name ?? undefined,
           reducer: metric.reducer,
           metrics: [
             {
               name: metric.name,
               value: metric.value,
               params: metric.params,
+              headline: metric.headline,
             },
           ],
         };
@@ -62,9 +66,16 @@ export const displayScorersFromRunningMetrics = (metrics?: RunningMetric[]) => {
 
 interface ResultsPanelProps {
   scorers?: ScoreSummary[];
+  /** Whether the task declared its headline. Undeclared, the mark is just the
+   * first metric of the first score, and must not outrank the existing
+   * preference for a group that fits. */
+  headlineDeclared?: boolean;
 }
 
-export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
+export const ResultsPanel: FC<ResultsPanelProps> = ({
+  scorers,
+  headlineDeclared,
+}) => {
   const [showing, setShowing] = useProperty(
     "results-panel-metrics",
     "modal-showing",
@@ -84,7 +95,10 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
     expandedScorers.length === 1 ? expandedScorers[0] : undefined;
   if (onlyScorer) {
     const showReducer = !!onlyScorer.reducer;
-    const metrics = onlyScorer.metrics;
+    const metrics = leadWith(
+      onlyScorer.metrics,
+      onlyScorer.metrics.findIndex((metric) => metric.headline)
+    );
     const unscoredSamples = onlyScorer.unscoredSamples || 0;
     const scoredSamples = onlyScorer.scoredSamples || 0;
     return (
@@ -114,8 +128,20 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
       return undefined;
     }
 
-    // Try to select metrics with a group size 5 or less, if possible
-    let primaryResults = grouped[0];
+    // Lead with the group holding the headline metric, and within it the
+    // headline's own score, so truncation below can't drop the headline
+    const holdsHeadline = (group: ScoreSummary[]) =>
+      group.findIndex((score) => score.metrics.some((m) => m.headline));
+    const headlineGroup = grouped.findIndex(
+      (group) => holdsHeadline(group) !== -1
+    );
+    let primaryResults =
+      headlineGroup !== -1
+        ? leadWith(
+            grouped[headlineGroup] as ScoreSummary[],
+            holdsHeadline(grouped[headlineGroup] as ScoreSummary[])
+          )
+        : grouped[0];
 
     // If there are no primary results, nothing to show here
     if (!primaryResults) {
@@ -124,9 +150,14 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({ scorers }) => {
 
     let showMore = grouped.length > 1;
     if (primaryResults.length > kMaxPrimaryScoreRows) {
-      const shorterResults = grouped.find((g) => {
-        return g.length <= kMaxPrimaryScoreRows;
-      });
+      // a declared headline's group stays selected even when oversized (it
+      // truncates below); otherwise prefer a group that fits
+      const shorterResults =
+        headlineDeclared && headlineGroup !== -1
+          ? undefined
+          : grouped.find((g) => {
+              return g.length <= kMaxPrimaryScoreRows;
+            });
       if (shorterResults) {
         primaryResults = shorterResults;
       }

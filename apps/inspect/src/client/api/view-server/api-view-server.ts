@@ -13,7 +13,7 @@ import {
 } from "@tsmono/inspect-common/types";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
-import { EvalScores } from "../../../@types/extraInspect";
+import { headlineMetric } from "../../../scoring/headline";
 import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleData";
 import { normalizeEvalLog } from "../../utils/normalize";
 import { download_file } from "../shared/api-shared";
@@ -226,10 +226,10 @@ export function viewServerApi(
   };
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
-    const scores: EvalScores = Object.values(header.results?.scores || {});
-    const metric = scores[0]?.metrics;
-    const evalMetrics = Object.values(metric || {});
-    const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;
+    const primary_metric = headlineMetric(
+      header.results,
+      header.eval.headline_metric
+    );
 
     const model_roles = header.eval.model_roles
       ? Object.fromEntries(

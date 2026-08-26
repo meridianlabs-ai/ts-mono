@@ -130,7 +130,11 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
     const metricColumns: ColumnDef<ScoreGridFeatures, ScoreGridRow>[] = [];
     let idx = 0;
     for (const [runIdx, run] of runs.entries()) {
-      const children = run.metrics.map((m) => leafCol(m.name, idx++));
+      // Indexing arithmetic (not idx++ in the lambda) keeps this compilable
+      // by React Compiler, which can't lower captured UpdateExpressions.
+      const runStart = idx;
+      const children = run.metrics.map((m, i) => leafCol(m.name, runStart + i));
+      idx += run.metrics.length;
       if (isGroupRun(run)) {
         metricColumns.push({
           id: `group_${runIdx}`,
