@@ -45,15 +45,6 @@ const likeToRegExp = (pattern: string, caseInsensitive: boolean): RegExp => {
   return new RegExp(`^${out}$`, caseInsensitive ? "is" : "s");
 };
 
-const matchesLike = (
-  value: unknown,
-  pattern: unknown,
-  caseInsensitive: boolean
-): boolean => {
-  if (isNullish(value) || typeof pattern !== "string") return false;
-  return likeToRegExp(pattern, caseInsensitive).test(String(value));
-};
-
 const lt = (a: unknown, b: unknown): boolean => {
   if (typeof a === "number" && typeof b === "number") return a < b;
   if (typeof a === "string" && typeof b === "string") return a < b;
@@ -96,105 +87,124 @@ const coerce = (v: unknown, filterType: FilterType | undefined): unknown => {
   }
 };
 
-const applyOperator = (
-  rawValue: unknown,
+type ValuePredicate = (rawValue: unknown) => boolean;
+
+/**
+ * Compile the row-independent half of a simple condition once: the right-hand
+ * operand is coerced once, and LIKE patterns are translated to RegExp once.
+ * The returned predicate does only row-dependent work.
+ */
+const compileOperator = (
   operator: OperatorModel,
   rawRight: unknown,
   filterType: FilterType | undefined
-): boolean => {
+): ValuePredicate => {
   // IS NULL / IS NOT NULL test the raw value before any coercion.
-  if (operator === "IS NULL") return isNullish(rawValue);
-  if (operator === "IS NOT NULL") return !isNullish(rawValue);
+  if (operator === "IS NULL") return isNullish;
+  if (operator === "IS NOT NULL") return (rawValue) => !isNullish(rawValue);
 
-  // SQL three-valued logic: NULL compared with anything is NULL, which a
-  // WHERE clause drops — negative operators (!=, NOT IN, NOT LIKE) included.
-  if (isNullish(rawValue)) return false;
-
-  const value = coerce(rawValue, filterType);
   const right = Array.isArray(rawRight)
     ? rawRight.map((r) => coerce(r, filterType))
     : coerce(rawRight, filterType);
+  const caseInsensitive = operator === "ILIKE" || operator === "NOT ILIKE";
+  const like =
+    typeof right === "string" &&
+    (operator === "LIKE" || operator === "NOT LIKE" || caseInsensitive)
+      ? likeToRegExp(right, caseInsensitive)
+      : null;
 
-  switch (operator) {
-    case "=":
-      return value === right;
-    case "!=":
-      return value !== right;
-    case "<":
-      return lt(value, right);
-    case "<=":
-      return lte(value, right);
-    case ">":
-      return lt(right, value);
-    case ">=":
-      return lte(right, value);
-    case "IN":
-      return Array.isArray(right) && right.includes(value);
-    case "NOT IN":
-      return Array.isArray(right) && !right.includes(value);
-    case "LIKE":
-      return matchesLike(value, right, false);
-    case "NOT LIKE":
-      return !matchesLike(value, right, false);
-    case "ILIKE":
-      return matchesLike(value, right, true);
-    case "NOT ILIKE":
-      return !matchesLike(value, right, true);
-    // Positive comparisons, not `!lt && !lt` — `lt` returns false for
-    // non-comparable pairs (NaN, mixed types), which would match vacuously.
-    case "BETWEEN":
-      return (
-        Array.isArray(right) &&
-        right.length === 2 &&
-        lte(right[0], value) &&
-        lte(value, right[1])
-      );
-    case "NOT BETWEEN":
-      return !(
-        Array.isArray(right) &&
-        right.length === 2 &&
-        lte(right[0], value) &&
-        lte(value, right[1])
-      );
-    default:
-      return true;
-  }
-};
+  return (rawValue) => {
+    // SQL three-valued logic: NULL compared with anything is NULL, which a
+    // WHERE clause drops — negative operators (!=, NOT IN, NOT LIKE) included.
+    if (isNullish(rawValue)) return false;
 
-/** Evaluate a `Condition` tree against a row. `getFilterType` enables
- *  type-aware coercion of the compared values (dates/numbers). */
-export function evaluateCondition<TRow>(
-  row: TRow,
-  condition: Condition,
-  getValue: ValueAccessor<TRow>,
-  getFilterType?: FilterTypeAccessor
-): boolean {
-  if (condition.compound) {
-    switch (condition.operator) {
-      case "AND":
+    const value = coerce(rawValue, filterType);
+
+    switch (operator) {
+      case "=":
+        return value === right;
+      case "!=":
+        return value !== right;
+      case "<":
+        return lt(value, right);
+      case "<=":
+        return lte(value, right);
+      case ">":
+        return lt(right, value);
+      case ">=":
+        return lte(right, value);
+      case "IN":
+        return Array.isArray(right) && right.includes(value);
+      case "NOT IN":
+        return Array.isArray(right) && !right.includes(value);
+      case "LIKE":
+      case "ILIKE":
+        return like?.test(String(value)) ?? false;
+      case "NOT LIKE":
+      case "NOT ILIKE":
+        return !(like?.test(String(value)) ?? false);
+      // Positive comparisons, not `!lt && !lt` — `lt` returns false for
+      // non-comparable pairs (NaN, mixed types), which would match vacuously.
+      case "BETWEEN":
         return (
-          evaluateCondition(row, condition.left, getValue, getFilterType) &&
-          (condition.right == null ||
-            evaluateCondition(row, condition.right, getValue, getFilterType))
+          Array.isArray(right) &&
+          right.length === 2 &&
+          lte(right[0], value) &&
+          lte(value, right[1])
         );
-      case "OR":
-        return (
-          evaluateCondition(row, condition.left, getValue, getFilterType) ||
-          (condition.right != null &&
-            evaluateCondition(row, condition.right, getValue, getFilterType))
+      case "NOT BETWEEN":
+        return !(
+          Array.isArray(right) &&
+          right.length === 2 &&
+          lte(right[0], value) &&
+          lte(value, right[1])
         );
-      case "NOT":
-        return !evaluateCondition(row, condition.left, getValue, getFilterType);
       default:
         return true;
     }
+  };
+};
+
+/**
+ * Compile a condition tree into a row predicate. Filter metadata and constant
+ * operands are resolved once per condition rather than once per row.
+ */
+export function compileCondition<TRow>(
+  condition: Condition,
+  getValue: ValueAccessor<TRow>,
+  getFilterType?: FilterTypeAccessor
+): (row: TRow) => boolean {
+  if (condition.compound) {
+    switch (condition.operator) {
+      case "AND": {
+        const left = compileCondition(condition.left, getValue, getFilterType);
+        const right = condition.right
+          ? compileCondition(condition.right, getValue, getFilterType)
+          : undefined;
+        return (row) => left(row) && (right?.(row) ?? true);
+      }
+      case "OR": {
+        const left = compileCondition(condition.left, getValue, getFilterType);
+        const right = condition.right
+          ? compileCondition(condition.right, getValue, getFilterType)
+          : undefined;
+        return (row) => left(row) || (right?.(row) ?? false);
+      }
+      case "NOT": {
+        const left = compileCondition(condition.left, getValue, getFilterType);
+        return (row) => !left(row);
+      }
+      default:
+        return () => true;
+    }
   }
-  return applyOperator(
-    getValue(row, condition.left),
+
+  const test = compileOperator(
     condition.operator,
     condition.right,
     getFilterType?.(condition.left)
   );
+  return (row) => test(getValue(row, condition.left));
 }
 
 // Default (string-ish) compare: missing values sort as smallest — first
