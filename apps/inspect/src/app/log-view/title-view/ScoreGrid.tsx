@@ -58,7 +58,10 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
   compact,
 }) => {
   return (
+    // data-testid: stable hook for tests that assert on this container's
+    // scroll behavior, so they don't depend on the internal wrapper depth
     <div
+      data-testid="score-grid"
       className={clsx(
         className,
         compact ? styles.cardContainer : styles.gridContainer

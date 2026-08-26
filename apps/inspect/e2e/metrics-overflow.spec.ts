@@ -106,7 +106,7 @@ test("many metrics stay bounded in the title and scroll in the dialog", async ({
     dialog.getByRole("columnheader", { name: "metric_13" })
   ).toBeAttached();
 
-  const scroller = dialog.locator("table").first().locator("../..");
+  const scroller = dialog.getByTestId("score-grid");
   const scrollState = await scroller.evaluate((element) => ({
     clientWidth: element.clientWidth,
     overflowX: getComputedStyle(element).overflowX,

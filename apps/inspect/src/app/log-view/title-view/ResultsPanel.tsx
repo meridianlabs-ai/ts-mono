@@ -12,7 +12,10 @@ import {
   expandGroupedMetrics,
   metricDisplayName,
 } from "../../../scoring/metrics";
-import { groupScorers } from "../../../scoring/scores";
+import {
+  groupScorers,
+  leadWithMetricColumn,
+} from "../../../scoring/scores";
 import { MetricSummary, ScoreSummary } from "../../../scoring/types";
 
 import styles from "./ResultsPanel.module.css";
@@ -189,9 +192,9 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({
         (score) => score.metrics.length > kMaxPrimaryMetricColumns
       )
     ) {
-      // scores in a group share an ordered metric signature, so front the
-      // headline's column at the same index in every row: the cap can't drop
-      // the headline and the grid's columns stay aligned
+      // scores in a group share an ordered metric signature, so fronting the
+      // same column index in every row keeps the grid's columns aligned while
+      // ensuring the cap can't drop the headline
       const headlineColumn = primaryResults.reduce(
         (found, score) =>
           found !== -1
@@ -201,7 +204,7 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({
       );
       primaryResults = primaryResults.map((score) => ({
         ...score,
-        metrics: leadWith(score.metrics, headlineColumn).slice(
+        metrics: leadWithMetricColumn(score.metrics, headlineColumn).slice(
           0,
           kMaxPrimaryMetricColumns
         ),

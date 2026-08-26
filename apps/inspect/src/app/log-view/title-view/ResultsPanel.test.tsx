@@ -17,37 +17,27 @@ import { ScoreSummary } from "../../../scoring/types";
 
 import { ResultsPanel } from "./ResultsPanel";
 
-const metric = (index: number, headline = false) => ({
-  name: `metric_${index}`,
-  value: index / 10,
-  headline,
-});
-
-const score = (
+const scoreSummary = (
   scorer: string,
-  metricCount: number,
+  metricNames: string[],
   headlineIndex?: number
 ): ScoreSummary => ({
   scorer,
   scoredSamples: 2,
   unscoredSamples: 0,
-  metrics: Array.from({ length: metricCount }, (_, index) =>
-    metric(index + 1, index === headlineIndex)
-  ),
-});
-
-const scoreSummary = (
-  scorer: string,
-  metrics: string[],
-  headline = false
-): ScoreSummary => ({
-  scorer,
-  metrics: metrics.map((name, i) => ({
+  metrics: metricNames.map((name, i) => ({
     name,
-    value: i / 10,
-    headline: headline && i === 0,
+    value: (i + 1) / 10,
+    headline: i === headlineIndex,
   })),
 });
+
+const score = (scorer: string, metricCount: number, headlineIndex?: number) =>
+  scoreSummary(
+    scorer,
+    Array.from({ length: metricCount }, (_, i) => `metric_${i + 1}`),
+    headlineIndex
+  );
 
 const Wrapper = ({ children }: { children: ReactNode }) => {
   const [hooks] = useState(makeReactiveStateHooks);
@@ -123,13 +113,38 @@ describe("ResultsPanel", () => {
       screen.queryByRole("columnheader", { name: "metric_5" })
     ).not.toBeInTheDocument();
   });
+
+  test("a grouped headline fronted by the cap keeps its group header", () => {
+    const groupedScore = (scorer: string, headline: boolean): ScoreSummary => ({
+      ...score(scorer, 5),
+      metrics: [
+        ...score(scorer, 5).metrics,
+        { name: "yes", value: 0.6, group: "frequency" },
+        { name: "no", value: 0.7, group: "frequency", headline },
+      ],
+    });
+    renderPanel([groupedScore("scorer_1", true), groupedScore("scorer_2", false)], true);
+
+    // the whole "frequency" run leads (headline first within it), so the
+    // sub-metric names keep the group header that gives them meaning
+    expect(
+      screen.getByRole("columnheader", { name: "frequency" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "no" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("columnheader", { name: "yes" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("columnheader", { name: "metric_4" })
+    ).not.toBeInTheDocument();
+  });
 });
 
 // four scorers share a metric signature and so group together; the fifth has
 // its own signature and is the only group that fits kMaxPrimaryScoreRows
 const oversizedFirstGroup = (headline: boolean): ScoreSummary[] => [
   ...["a", "b", "c", "d"].map((s, i) =>
-    scoreSummary(s, ["accuracy", "stderr"], headline && i === 0)
+    scoreSummary(s, ["accuracy", "stderr"], headline && i === 0 ? 0 : undefined)
   ),
   scoreSummary("solo", ["bleu"]),
 ];
