@@ -41,6 +41,7 @@ import type {
   SpanEndEvent,
   StateEvent,
   StepEvent,
+  StoreEvent,
   SubtaskEvent,
   Timeline,
   TimelineEvent,
@@ -185,6 +186,16 @@ export const testStateEvent = (
   overrides: Partial<StateEvent> = {}
 ): StateEvent => ({
   event: "state",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  changes: [],
+  ...overrides,
+});
+
+export const testStoreEvent = (
+  overrides: Partial<StoreEvent> = {}
+): StoreEvent => ({
+  event: "store",
   timestamp: TEST_TIMESTAMP,
   working_start: 0,
   changes: [],

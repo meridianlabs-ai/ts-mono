@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { groupMetricRuns, isGroupRun } from "./scores";
+import { groupMetricRuns, isGroupRun, leadWithMetricColumn } from "./scores";
 import { MetricSummary } from "./types";
 
 const m = (name: string, group?: string | null): MetricSummary => ({
@@ -66,5 +66,56 @@ describe("isGroupRun", () => {
     expect(
       isGroupRun({ group: "frequency", metrics: [m("yes", "frequency")] })
     ).toBe(false);
+  });
+});
+
+describe("leadWithMetricColumn", () => {
+  const metrics = [
+    m("mean"),
+    m("stderr"),
+    m("yes", "frequency"),
+    m("no", "frequency"),
+    m("var"),
+  ];
+
+  test("no-op when the headline is absent or already first", () => {
+    expect(leadWithMetricColumn(metrics, -1)).toEqual(metrics);
+    expect(leadWithMetricColumn(metrics, 0)).toEqual(metrics);
+    expect(leadWithMetricColumn(metrics, 99)).toEqual(metrics);
+  });
+
+  test("an ungrouped headline moves alone", () => {
+    expect(leadWithMetricColumn(metrics, 4).map((x) => x.name)).toEqual([
+      "var",
+      "mean",
+      "stderr",
+      "yes",
+      "no",
+    ]);
+  });
+
+  test("a grouped headline brings its whole run, leading it", () => {
+    expect(leadWithMetricColumn(metrics, 3).map((x) => x.name)).toEqual([
+      "no",
+      "yes",
+      "mean",
+      "stderr",
+      "var",
+    ]);
+  });
+
+  test("adjacent runs of a different group stay behind", () => {
+    const twoRuns = [
+      m("a", "first"),
+      m("b", "first"),
+      m("c", "second"),
+      m("d", "second"),
+    ];
+    expect(leadWithMetricColumn(twoRuns, 3).map((x) => x.name)).toEqual([
+      "d",
+      "c",
+      "a",
+      "b",
+    ]);
   });
 });

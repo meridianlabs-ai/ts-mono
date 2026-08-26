@@ -1585,6 +1585,7 @@ export interface components {
              */
             completed_samples: number;
             early_stopping?: components["schemas"]["EarlyStoppingSummary"] | null;
+            headline?: components["schemas"]["HeadlineMetric"] | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -1755,6 +1756,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -1925,6 +1928,7 @@ export interface components {
             eval_id: string;
             /** Eval Set Id */
             eval_set_id?: string | null;
+            headline_metric?: components["schemas"]["HeadlineMetric"] | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -2192,6 +2196,33 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HeadlineMetric
+         * @description Reference to the headline metric of an eval.
+         *
+         *     The headline metric is the single number that best summarises an eval (e.g.
+         *     for a leaderboard or log listing). Set fields narrow ``EvalResults.scores``
+         *     in turn; unset ones resolve by convention. A ``metric`` on its own selects
+         *     the first score *carrying* that metric, so ``HeadlineMetric(metric="accuracy")``
+         *     skips scores that don't report one. With no ``metric``, the first metric of
+         *     the first remaining score is used — the default when nothing is declared.
+         *
+         *     Fields are matched literally. ``Task(headline_metric=...)`` additionally
+         *     accepts a ``"<scorer>.<score>"`` shorthand string, which is split into these
+         *     fields before it reaches the model — scorer names may themselves contain a
+         *     dot (``@scorer(name="judge.v2")``), so the shorthand is only applied where
+         *     it is unambiguously requested.
+         */
+        HeadlineMetric: {
+            /** Metric */
+            metric?: string | null;
+            /** Reducer */
+            reducer?: string | null;
+            /** Score */
+            score?: string | null;
+            /** Scorer */
+            scorer?: string | null;
         };
         /**
          * ImageOutput
@@ -3147,6 +3178,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3199,6 +3232,11 @@ export interface components {
                 [key: string]: unknown;
             } | "UNCHANGED";
             provenance?: components["schemas"]["ProvenanceData"] | null;
+            /**
+             * Reason
+             * @default UNCHANGED
+             */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3569,6 +3607,11 @@ export interface components {
         };
         /** TaskDisplayMetric */
         TaskDisplayMetric: {
+            /**
+             * Headline
+             * @default false
+             */
+            headline: boolean;
             /** Name */
             name: string;
             /** Params */
@@ -3579,6 +3622,8 @@ export interface components {
             reducer?: string | null;
             /** Scorer */
             scorer: string;
+            /** Scorer Name */
+            scorer_name?: string | null;
             /** Value */
             value?: number | null;
         };

@@ -141,6 +141,14 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     // before any network IO) don't flash the indicator on and off.
     // For slower saves the indicator still appears.
     const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
+    // Hoisted out of the try: React Compiler can't lower value blocks
+    // (||, ?.) inside try/catch and would bail out the component.
+    const provenance = {
+      author: author.trim(),
+      reason: reason.trim() || undefined,
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    };
     try {
       const edit: TagsEdit = {
         type: "tags",
@@ -149,22 +157,18 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
       };
       await api.edit_log(logFile, {
         edits: [edit],
-        provenance: {
-          author: author.trim(),
-          reason: reason.trim() || undefined,
-          metadata: {},
-          timestamp: new Date().toISOString(),
-        },
+        provenance,
       });
       setShowing(false);
-      onSaved?.();
+      if (onSaved) {
+        onSaved();
+      }
     } catch (err) {
       setError(formatEditError(err));
-    } finally {
-      window.clearTimeout(indicatorTimer);
-      setSubmitting(false);
-      inFlightRef.current = false;
     }
+    window.clearTimeout(indicatorTimer);
+    setSubmitting(false);
+    inFlightRef.current = false;
   };
 
   return (

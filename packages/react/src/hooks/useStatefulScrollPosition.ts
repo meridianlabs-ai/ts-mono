@@ -100,7 +100,7 @@ export function useStatefulScrollPosition<
             return;
           }
 
-          attempts++;
+          attempts += 1;
           pollTimer = setTimeout(pollForRender, 100);
         };
 

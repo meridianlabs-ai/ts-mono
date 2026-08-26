@@ -8,6 +8,7 @@ import {
   testEvalStats,
 } from "@tsmono/inspect-common/testing";
 
+import { testSampleSummary } from "../api/testClientApi";
 import { LogHeader, SampleSummary } from "../api/types";
 
 import { deriveLogFields, deriveSampleFields } from "./derive";
@@ -32,17 +33,14 @@ const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader => ({
   ...overrides,
 });
 
-const makeSummary = (
-  overrides: Partial<SampleSummary> = {}
-): SampleSummary => ({
-  id: 1,
-  epoch: 0,
-  input: "test input",
-  target: "test target",
-  scores: null,
-  completed: true,
-  ...overrides,
-});
+const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
+  testSampleSummary({
+    id: 1,
+    epoch: 0,
+    input: "test input",
+    target: "test target",
+    ...overrides,
+  });
 
 describe("deriveLogFields", () => {
   test("sums total tokens across models", () => {

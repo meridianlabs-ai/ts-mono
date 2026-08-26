@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
+import { testSampleSummary } from "../client/api/testClientApi";
 import { SampleSummary } from "../client/api/types";
 
 import {
@@ -12,13 +13,8 @@ import {
   ScorePanelSortState,
 } from "./hooks";
 
-const s = (id: string | number, epoch: number): SampleSummary => ({
-  id,
-  epoch,
-  input: "",
-  target: "",
-  scores: null,
-});
+const s = (id: string | number, epoch: number): SampleSummary =>
+  testSampleSummary({ id, epoch, input: "" });
 
 describe("compareSamples / samplesAreSorted", () => {
   it("orders numeric ids ascending then epoch ascending", () => {

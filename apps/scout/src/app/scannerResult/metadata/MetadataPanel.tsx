@@ -29,8 +29,7 @@ export const MetadataPanel: FC<MetadataPanelProps> = ({ resultData }) => {
             <CardBody>
               <RecordTree
                 id={`result-metadata-${resultData.identifier}`}
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-                record={resultData.metadata || {}}
+                record={resultData.metadata}
                 copyButton={true}
               />
             </CardBody>

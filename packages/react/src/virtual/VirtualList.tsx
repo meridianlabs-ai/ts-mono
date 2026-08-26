@@ -500,7 +500,7 @@ export function VirtualList<T>({
         jump();
         stable = Math.abs(el.scrollTop - lastTop) <= 1 ? stable + 1 : 0;
         lastTop = el.scrollTop;
-        if (stable < 3 && ++frames < 30) {
+        if (stable < 3 && (frames += 1) < 30) {
           settleFrameRef.current = requestAnimationFrame(settle);
         } else {
           finish();
@@ -579,7 +579,7 @@ export function VirtualList<T>({
           Math.abs(preTop - lastTop) > 1 || Math.abs(postTop - lastTop) > 1;
         stable = moved ? 0 : stable + 1;
         lastTop = postTop;
-        if (stable < 3 && ++frames < 30) {
+        if (stable < 3 && (frames += 1) < 30) {
           settleFrameRef.current = requestAnimationFrame(settle);
         } else {
           finish();

@@ -60,7 +60,7 @@ interface SampleFields {
   answer?: string;
   limit?: string;
   limit_reason?: string;
-  retries?: number;
+  retries?: number | null;
   model_fallbacks?: ModelFallback[] | null;
   working_time?: EvalSampleWorkingTime;
   total_time?: EvalSample["total_time"];
@@ -97,10 +97,12 @@ const resolveSample = (
   // the sole caller passes a SampleSummary (useSelectedSampleSummary), so the
   // summary branch is the one that renders — reading only the EvalSample side
   // left the whole limit item dead
-  const limit = isEvalSample(sample) ? sample.limit?.type : sample.limit;
+  const limit = isEvalSample(sample)
+    ? sample.limit?.type
+    : (sample.limit ?? undefined);
   const limit_reason = isEvalSample(sample)
     ? (sample.limit?.reason ?? undefined)
-    : sample.limit_reason;
+    : (sample.limit_reason ?? undefined);
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
   const cancelled = isCancelled(sample);
@@ -239,7 +241,6 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   }
   if (
     fields.retries !== undefined &&
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     fields.retries !== null &&
     fields.retries > 0
   ) {

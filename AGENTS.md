@@ -39,17 +39,47 @@ Design docs live per-app; consult them when working in the relevant area:
   fields the generated types declare required (pydantic fills them at
   read time on the Python side). Every raw parse of such data must run
   through `@tsmono/inspect-common/normalize` (`normalizeEvalSample`,
-  `normalizeEvents`, `normalizeEvalSpec`, ...) — the chokepoints in
-  `remoteLogFile.ts`, `resolveSample`, `static-http/fetch.ts`, and the
-  scout event ingestion already do. Downstream of those, trust the types:
-  no defensive `?.` on normalized data. When a new required-with-default
-  field lands in the schema, add the matching fill to the normalizer
-  (mirroring pydantic's default), not a guard at the read site.
+  `normalizeEvents`, `normalizeEvalSpec`, `normalizeSampleSummary`, ...) —
+  the chokepoints in `remoteLogFile.ts` (samples and summaries),
+  `resolveSample`, `static-http/fetch.ts`, the pending-samples transport,
+  and the scout event ingestion already do. Downstream of those, trust the
+  types: no defensive `?.` on normalized data. When a new
+  required-with-default field lands in the schema, add the matching fill to
+  the normalizer (mirroring pydantic's default), not a guard at the read
+  site.
 
   Surfaces NOT yet normalized still carry `#555` suppressions and keep
-  their guards: sample summaries, API responses, and persisted
-  webview/store state. Do not remove those guards until their boundary
-  normalizes; the suppression comment names the surface.
+  their guards: API responses and persisted webview/store state. Do not
+  remove those guards until their boundary normalizes; the suppression
+  comment names the surface.
+
+## Code Style — React Compiler & Memoization
+
+  **React Compiler is enabled** in both apps' vite builds (SWC
+  `reactCompiler`, see #536). It auto-memoizes components and hooks, so
+  manual memoization is dead weight in new code:
+
+  - Do NOT write `useMemo`, `useCallback`, or `React.memo` for
+    performance. Write plain functions and values; the compiler inserts
+    memoization finer-grained than hand-written deps arrays.
+  - Much existing code predates the compiler and memoizes everything —
+    do not copy that style into new code.
+  - The remaining legitimate use is referential identity as a
+    *correctness* requirement TypeScript/compiler can't see (e.g. a
+    render-time cache like `useKeyedMemo`/`useStableValue`, marked
+    `"use no memo"`). Those carry a comment saying why.
+  - The compiler bails out per-function; in a bailed-out component,
+    existing manual memoization is load-bearing. Don't bulk-strip
+    `useMemo`/`useCallback` from code you aren't otherwise changing, and
+    before removing it from a component you are changing, confirm the
+    component compiles (React DevTools shows a ✨ badge; the
+    `react-hooks` ESLint rules flag most bail-out causes).
+  - Unsupported syntax anywhere in a component/hook body bails out the
+    whole function — keep gnarly imperative code (`try/finally`,
+    mutation-heavy loops, `for await`) in module-level helpers instead
+    of inline in the component.
+  - Vitest runs uncompiled code (the SWC plugin is vite-only); only e2e
+    and the real apps exercise compiled output.
 
 ## Code Style — Comments                                                       
                                                                                 

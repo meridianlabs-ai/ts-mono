@@ -8,6 +8,8 @@ import styles from "./TranscriptFilter.module.css";
 
 export interface TranscriptFilterProps {
   showing: boolean;
+  /** Resolved dynamic default exclusions for the current sample. */
+  defaultExcludeEvents?: string[];
   setShowing: (showing: boolean) => void;
   positionEl: HTMLElement | null;
 }
@@ -16,6 +18,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
   showing,
   positionEl,
   setShowing,
+  defaultExcludeEvents,
 }) => {
   const {
     isDefaultFilter,
@@ -28,7 +31,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
     eventTypes,
     filtered,
     arrangedEventTypes,
-  } = useTranscriptFilter();
+  } = useTranscriptFilter(defaultExcludeEvents);
 
   return (
     <PopOver
