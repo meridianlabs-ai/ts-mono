@@ -7,8 +7,6 @@ import {
 } from "@codemirror/autocomplete";
 import { EditorView } from "codemirror";
 
-import { isRecord } from "@tsmono/util";
-
 import { SampleSummary } from "../../../../client/api/types";
 import {
   kScoreTypeBoolean,
@@ -199,7 +197,10 @@ const getNestedProperty = (obj: unknown, path: string): unknown => {
   let current: unknown = obj;
   for (const key of keys) {
     if (current && typeof current === "object" && key in current) {
-      current = isRecord(current) ? current[key] : undefined;
+      // Arrays step too (`list.length`, `list.0`), so plain record access
+      // is not enough; Reflect.get reads any object member by string key.
+      const member: unknown = Reflect.get(current, key);
+      current = member;
     } else {
       return undefined;
     }

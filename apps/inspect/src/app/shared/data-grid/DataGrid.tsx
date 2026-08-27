@@ -32,6 +32,7 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { isRecord } from "@tsmono/util";
 
 import { computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
@@ -582,15 +583,14 @@ export function DataGrid<TRow extends RowData>({
     sortDescFirst: false,
     enableMultiSort: true,
     // TanStack's default multi-sort trigger is shift-only; also accept
-    // cmd/ctrl to match the AG grid this replaced.
+    // cmd/ctrl to match the AG grid this replaced. Read the modifier keys
+    // structurally: JSX handlers deliver React SyntheticEvents here, which
+    // carry the flags but are not instances of the native event classes.
     isMultiSortEvent: (e) => {
-      if (
-        !(e instanceof globalThis.MouseEvent) &&
-        !(e instanceof globalThis.KeyboardEvent)
-      ) {
-        return false;
-      }
-      return e.shiftKey || e.metaKey || e.ctrlKey;
+      if (!isRecord(e)) return false;
+      return (
+        e["shiftKey"] === true || e["metaKey"] === true || e["ctrlKey"] === true
+      );
     },
     enableSortingRemoval: true,
     enableColumnResizing: true,

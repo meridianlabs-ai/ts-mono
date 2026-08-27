@@ -5,11 +5,11 @@ import { kScoreTypeList } from "../../../../constants";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 // List score entries come off the wire as numbers, numeric strings, booleans
-// or null; only the first two have a decimal form worth formatting.
+// or null. Only truthy numerics get the pretty-decimal form; booleans and
+// falsy values (0, null, "") keep their String() text, as they always have.
 const formatListEntry = (value: unknown): string => {
-  if (typeof value === "number") return formatPrettyDecimal(value);
-  if (typeof value === "boolean") return formatPrettyDecimal(value ? 1 : 0);
-  if (typeof value === "string" && isNumeric(value)) {
+  if (typeof value === "number" && value) return formatPrettyDecimal(value);
+  if (typeof value === "string" && value && isNumeric(value)) {
     return formatPrettyDecimal(parseFloat(value));
   }
   return String(value);

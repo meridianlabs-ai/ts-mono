@@ -6,7 +6,7 @@ import type {
   StateEvent,
   StoreEvent,
 } from "@tsmono/inspect-common/types";
-import { formatDateTime, isRecord } from "@tsmono/util";
+import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "../event/EventPanel";
 import { EventNode, EventPanelCallbacks } from "../types";
@@ -189,11 +189,33 @@ const summarizeChanges = (changes: JsonChange[]): string => {
   return changeList.join(", ");
 };
 
-/** State blobs are unvalidated; keep an array of strings, drop anything else. */
-const readStringArray = (value: unknown): string[] | undefined =>
-  Array.isArray(value) && value.every((v) => typeof v === "string")
-    ? value
-    : undefined;
+/**
+ * JSON-pointer paths step through arrays as well as objects — a numeric
+ * segment addresses an array index — so the synthesized-diff traversal
+ * carries both shapes.
+ */
+type PathContainer = Record<string, unknown> | unknown[];
+
+const isPathContainer = (value: unknown): value is PathContainer =>
+  typeof value === "object" && value !== null;
+
+const getChild = (container: PathContainer, key: string): unknown =>
+  Array.isArray(container) ? container[Number(key)] : container[key];
+
+const setChild = (
+  container: PathContainer,
+  key: string,
+  value: unknown
+): void => {
+  if (Array.isArray(container)) {
+    container[Number(key)] = value;
+  } else {
+    container[key] = value;
+  }
+};
+
+const asArray = (value: unknown): unknown[] | undefined =>
+  Array.isArray(value) ? value : undefined;
 
 /**
  * Renders a view displaying a list of state changes.
@@ -247,7 +269,7 @@ function setPath(
   value: unknown
 ): void {
   const keys = parsePath(path);
-  let current: Record<string, unknown> = target;
+  let current: PathContainer = target;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
@@ -255,17 +277,17 @@ function setPath(
       // If the next key is a number, create an array, otherwise an object
       const nextKey = keys[i + 1];
       if (nextKey) {
-        current[key] = isArrayIndex(nextKey) ? [] : {};
+        setChild(current, key, isArrayIndex(nextKey) ? [] : {});
       }
-      const next = current[key];
-      if (!isRecord(next)) return;
+      const next = getChild(current, key);
+      if (!isPathContainer(next)) return;
       current = next;
     }
   }
 
   const lastKey = keys[keys.length - 1];
   if (lastKey) {
-    current[lastKey] = value;
+    setChild(current, lastKey, value);
   }
 }
 
@@ -274,7 +296,7 @@ function setPath(
  */
 function initializeArrays(target: Record<string, unknown>, path: string): void {
   const keys = parsePath(path);
-  let current: Record<string, unknown> = target;
+  let current: PathContainer = target;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
@@ -283,22 +305,21 @@ function initializeArrays(target: Record<string, unknown>, path: string): void {
       continue;
     }
 
+    const existing = getChild(current, key);
     if (isArrayIndex(nextKey)) {
-      current[key] = initializeArray(readStringArray(current[key]), nextKey);
+      setChild(current, key, initializeArray(asArray(existing), nextKey));
     } else {
-      current[key] = initializeObject(
-        isRecord(current[key]) ? current[key] : undefined
-      );
+      setChild(current, key, isPathContainer(existing) ? existing : {});
     }
 
-    const next = current[key];
-    if (!isRecord(next)) return;
+    const next = getChild(current, key);
+    if (!isPathContainer(next)) return;
     current = next;
   }
 
   const lastKey = keys[keys.length - 1];
   if (lastKey && isArrayIndex(lastKey)) {
-    initializeArray(readStringArray(current[lastKey]), lastKey);
+    initializeArray(asArray(getChild(current, lastKey)), lastKey);
   }
 }
 
@@ -320,9 +341,9 @@ function isArrayIndex(key: string): boolean {
  * Initializes an array at a given key, ensuring it is large enough
  */
 function initializeArray(
-  current: Array<string> | undefined,
+  current: unknown[] | undefined,
   nextKey: string
-): Array<string> {
+): unknown[] {
   if (!Array.isArray(current)) {
     current = [];
   }
@@ -331,11 +352,4 @@ function initializeArray(
     current.push("");
   }
   return current;
-}
-
-/**
- * Initializes an object at a given key if it doesn't exist
- */
-function initializeObject(current?: object): object {
-  return current ?? {};
 }

@@ -150,8 +150,11 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
   const keys = path.split(".");
   let current: unknown = obj;
   for (const key of keys) {
-    if (isRecord(current) && key in current) {
-      current = current[key];
+    if (current && typeof current === "object" && key in current) {
+      // Arrays step too (`list.length`, `list.0`), so plain record access
+      // is not enough; Reflect.get reads any object member by string key.
+      const member: unknown = Reflect.get(current, key);
+      current = member;
     } else {
       return undefined;
     }

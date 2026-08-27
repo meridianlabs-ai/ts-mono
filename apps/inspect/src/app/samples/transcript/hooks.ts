@@ -88,9 +88,10 @@ export const useTranscriptFilter = (
 
   const arrangedEventTypes = useCallback(
     (columns: number = 1) => {
-      const keys = Object.keys(eventTypes).filter(
-        (key): key is AllEventTypes => key in eventTypes
-      );
+      // Object.keys widens to string[]; eventTypes is a module-local literal
+      // declared Record<AllEventTypes, string>, so its keys are exactly that.
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Object.keys boundary
+      const keys = Object.keys(eventTypes) as AllEventTypes[];
 
       // Sort keys alphabetically with default disabled keys at the end
       const sortedKeys = keys.sort((a, b) => {

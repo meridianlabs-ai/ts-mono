@@ -196,9 +196,11 @@ export function computeConfigToSave(
   }
 
   // `filter` is the config's one required field; everything else is optional,
-  // so the assembled record is a ProjectConfigInput once filter is pinned. It
-  // drops out of the loop above only when it is both unchanged and empty, in
-  // which case the server's own value stands.
+  // so the assembled record is a ProjectConfigInput once filter is pinned.
+  // Two paths leave it unset: unchanged-and-empty (dropped by the loop) and
+  // cleared in the editor (the change survives as undefined). Either way the
+  // server's own value stands — a required field can't be cleared, so an
+  // emptied filter reverts on save rather than producing an invalid config.
   const filter = result["filter"];
   return {
     ...result,

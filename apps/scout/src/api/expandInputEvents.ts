@@ -31,17 +31,26 @@ export function expandInputEvents(
   // Boundary normalization (#555) applies with or without input_data: old
   // scans predate the input_data column entirely, and their transcript
   // events are exactly the ones that omit required-with-default fields.
-  if (inputType === "transcript" && isTranscript(input)) {
-    const transcript = input;
-    const normalized = normalizeEvents(transcript.events);
-    const expanded = inputData
-      ? expandEvents(normalized, inputData)
-      : normalized;
-    const result =
-      expanded === transcript.events
-        ? transcript
-        : { ...transcript, events: expanded };
-    return withAttachmentsResolved(result);
+  if (inputType === "transcript") {
+    if (isTranscript(input)) {
+      const transcript = input;
+      const normalized = normalizeEvents(transcript.events);
+      const expanded = inputData
+        ? expandEvents(normalized, inputData)
+        : normalized;
+      const result =
+        expanded === transcript.events
+          ? transcript
+          : { ...transcript, events: expanded };
+      return withAttachmentsResolved(result);
+    }
+    // A stored transcript whose `events` is missing or malformed — exactly
+    // the legacy-writer case this boundary exists for — is repaired to an
+    // empty events list rather than handed downstream raw.
+    if (isRecord(input)) {
+      return withAttachmentsResolved(asInput({ ...input, events: [] }));
+    }
+    return withAttachmentsResolved(asInput(input));
   }
 
   if (inputType === "events") {

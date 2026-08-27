@@ -307,8 +307,11 @@ const maybeWebSearchResult = (
     return undefined;
   }
   const objArray = asJsonObjArray(content.result);
-  if (objArray !== undefined) {
-    return { result: objArray.filter(isWebResult) };
+  // No recognizable entries (e.g. error results): fall through to the raw
+  // rendering rather than presenting an empty results panel.
+  const results = objArray?.filter(isWebResult);
+  if (results !== undefined && results.length > 0) {
+    return { result: results };
   }
 };
 
@@ -319,8 +322,10 @@ const maybeListTools = (
     return undefined;
   }
   const objArray = asJsonObjArray(content.result);
-  if (objArray !== undefined) {
-    return { result: objArray.filter(isToolInfo) };
+  // Same as web search: an all-filtered-out result reads as unrecognized.
+  const results = objArray?.filter(isToolInfo);
+  if (results !== undefined && results.length > 0) {
+    return { result: results };
   }
 };
 

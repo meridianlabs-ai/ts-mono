@@ -12,12 +12,6 @@ interface ToolTodo {
   status: "pending" | "in_progress" | "completed";
 }
 
-interface RawTodo {
-  content?: string;
-  step?: string;
-  status: ToolTodo["status"];
-}
-
 const kTodoStatuses: readonly ToolTodo["status"][] = [
   "pending",
   "in_progress",
@@ -27,20 +21,25 @@ const kTodoStatuses: readonly ToolTodo["status"][] = [
 const isTodoStatus = (value: unknown): value is ToolTodo["status"] =>
   kTodoStatuses.some((status) => status === value);
 
-const isRawTodo = (item: unknown): item is RawTodo =>
-  isRecord(item) &&
-  (typeof item["content"] === "string" || typeof item["step"] === "string") &&
-  isTodoStatus(item["status"]);
-
-const toToolTodos = (obj: unknown): ToolTodo[] => {
-  if (Array.isArray(obj) && obj.every(isRawTodo)) {
-    return obj.map((o) => ({
-      content: o.content ?? o.step ?? "",
-      status: o.status,
-    }));
-  }
-  return [];
+// One malformed entry shouldn't hide the rest of the list: keep every item
+// with readable text, and let an unrecognized status fall back to the
+// default (unchecked) rendering.
+const toToolTodo = (item: unknown): ToolTodo | undefined => {
+  if (!isRecord(item)) return undefined;
+  const text = [item["content"], item["step"]].find(
+    (value): value is string => typeof value === "string"
+  );
+  if (text === undefined) return undefined;
+  return {
+    content: text,
+    status: isTodoStatus(item["status"]) ? item["status"] : "pending",
+  };
 };
+
+const toToolTodos = (obj: unknown): ToolTodo[] =>
+  Array.isArray(obj)
+    ? obj.map(toToolTodo).filter((todo) => todo !== undefined)
+    : [];
 
 export const TodoWriteInput: FC<{
   contents: unknown;
