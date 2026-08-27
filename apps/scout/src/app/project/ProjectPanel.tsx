@@ -13,6 +13,7 @@ import { ApiError } from "@tsmono/util";
 import { AppConfig, ProjectConfigInput } from "../../types/api-types";
 import { appAliasedPath } from "../server/useAppConfig";
 import {
+  ProjectConfigWithEtag,
   useProjectConfig,
   useUpdateProjectConfig,
 } from "../server/useProjectConfig";
@@ -183,6 +184,18 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     []
   );
 
+  // Re-initialize from the server's response rather than recording the editor
+  // state as saved: what was persisted can diverge from the editor (e.g.
+  // computeConfigToSave pins the required `filter` back to the server's value
+  // when the editor cleared it), and the panel must show what actually saved.
+  const applySaved = useCallback((saved: ProjectConfigWithEtag) => {
+    setConflictError(false);
+    lastSavedEtagRef.current = saved.etag;
+    const initialized = initializeEditedConfig(asConfigInput(saved.config));
+    setEditedConfig(initialized);
+    setOriginalConfig(deepCopy(initialized));
+  }, []);
+
   const handleSave = useCallback(
     (force = false) => {
       if (!data || !editedConfig || !originalConfig) return;
@@ -197,9 +210,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         { config: updatedConfig, etag: force ? null : data.etag },
         {
           onSuccess: (responseData) => {
-            setConflictError(false);
-            lastSavedEtagRef.current = responseData.etag;
-            setOriginalConfig(deepCopy(editedConfig));
+            applySaved(responseData);
             // Restore focus after save completes (delay to let React finish rendering)
             const fieldId = focusedFieldIdRef.current;
             setTimeout(() => {
@@ -219,7 +230,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         }
       );
     },
-    [data, editedConfig, originalConfig, mutation]
+    [data, editedConfig, originalConfig, mutation, applySaved]
   );
 
   // Keep saveRef updated for keyboard shortcut
@@ -240,9 +251,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
       { config: updatedConfig, etag: force ? null : data.etag },
       {
         onSuccess: (responseData) => {
-          setConflictError(false);
-          lastSavedEtagRef.current = responseData.etag;
-          setOriginalConfig(deepCopy(editedConfig));
+          applySaved(responseData);
           // Restore focus after the click event fully completes (delay to let React finish rendering)
           const fieldId = focusedFieldIdRef.current;
           setTimeout(() => {
@@ -279,9 +288,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
       { config: updatedConfig, etag: data.etag },
       {
         onSuccess: (responseData) => {
-          setConflictError(false);
-          lastSavedEtagRef.current = responseData.etag;
-          setOriginalConfig(deepCopy(editedConfig));
+          applySaved(responseData);
           blocker.proceed?.();
         },
         onError: (err) => {
