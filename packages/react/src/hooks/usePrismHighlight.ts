@@ -45,9 +45,8 @@ export const usePrismHighlight = (
       const hasNewCodeBlocks = mutations.some((mutation) => {
         if (mutation.type === "childList") {
           return Array.from(mutation.addedNodes).some((node) => {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-              const el = node as HTMLElement;
-              return el.querySelector("pre code") || el.matches("pre code");
+            if (node instanceof Element) {
+              return node.querySelector("pre code") || node.matches("pre code");
             }
             return false;
           });

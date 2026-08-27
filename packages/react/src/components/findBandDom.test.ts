@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { isRecord } from "@tsmono/util";
+
 import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
 
 // DOMRectList is array-like with item(); an array plus item() satisfies it.
@@ -185,10 +187,11 @@ describe("scrollRangeToCenter", () => {
 
     scrollRangeToCenter(range);
 
-    expect(scrollToMock).toHaveBeenCalledWith({
-      top: expect.any(Number) as number,
-      behavior: "auto",
-    });
+    expect(scrollToMock).toHaveBeenCalledOnce();
+    const options: unknown = scrollToMock.mock.calls[0]?.[0];
+    if (!isRecord(options)) throw new Error("scrollTo called without options");
+    expect(typeof options["top"]).toBe("number");
+    expect(options["behavior"]).toBe("auto");
   });
 
   test("uses smooth behavior when specified", () => {
@@ -207,10 +210,11 @@ describe("scrollRangeToCenter", () => {
 
     scrollRangeToCenter(range, { behavior: "smooth" });
 
-    expect(scrollToMock).toHaveBeenCalledWith({
-      top: expect.any(Number) as number,
-      behavior: "smooth",
-    });
+    expect(scrollToMock).toHaveBeenCalledOnce();
+    const options: unknown = scrollToMock.mock.calls[0]?.[0];
+    if (!isRecord(options)) throw new Error("scrollTo called without options");
+    expect(typeof options["top"]).toBe("number");
+    expect(options["behavior"]).toBe("smooth");
   });
 
   test("falls back to scrollIntoView when no scrollable parent and fallback enabled", () => {

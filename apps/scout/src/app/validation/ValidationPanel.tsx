@@ -5,16 +5,14 @@ import {
   VscodeSingleSelect,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import {
-  ChangeEvent,
-  FC,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
-import { Modal, NonIdealState, TextInput } from "@tsmono/react/components";
+import {
+  Modal,
+  NonIdealState,
+  TextInput,
+  type TextInputChange,
+} from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../icons";
@@ -244,7 +242,7 @@ export const ValidationPanel: FC = () => {
     setSplitFilter(value || undefined);
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: TextInputChange) => {
     setSearchText(e.target.value || undefined);
   };
 

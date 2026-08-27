@@ -7,7 +7,12 @@ import {
   MarkdownDivWithReferences,
   MarkdownReference,
 } from "@tsmono/react/components";
-import { formatPrettyDecimal, printArray, printObject } from "@tsmono/util";
+import {
+  formatPrettyDecimal,
+  isRecord,
+  printArray,
+  printObject,
+} from "@tsmono/util";
 
 import {
   isArrayValue,
@@ -244,13 +249,13 @@ const renderValue = (
     return <pre className={clsx(styles.value)}>null</pre>;
   } else if (Array.isArray(val)) {
     return printArray(val, 35);
-  } else if (typeof val === "object") {
+  } else if (isRecord(val)) {
     return !interactive ? (
       printObject(val, 35)
     ) : (
       <RecordTree
         id={`value-record-${identifier ?? "na"}-${index}`}
-        record={val as Record<string, unknown>}
+        record={val}
       />
     );
   } else {

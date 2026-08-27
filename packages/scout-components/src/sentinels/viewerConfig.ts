@@ -46,6 +46,9 @@ const kBuiltinNames: ReadonlySet<ScannerResultField["name"]> = new Set(
   kBuiltinFieldOrder
 );
 
+const isBuiltinName = (value: string): value is ScannerResultField["name"] =>
+  kBuiltinFieldOrder.some((name) => name === value);
+
 /** Built-in default order when no scanner pattern matches. */
 export const kDefaultFields: readonly ResolvedField[] = kBuiltinFieldOrder.map(
   (name) => ({ kind: "builtin", name, collapsed: false })
@@ -223,10 +226,10 @@ function coerceField(
         collapsed: false,
       };
     }
-    if (kBuiltinNames.has(entry as ScannerResultField["name"])) {
+    if (isBuiltinName(entry)) {
       return {
         kind: "builtin",
-        name: entry as ScannerResultField["name"],
+        name: entry,
         collapsed: false,
       };
     }

@@ -7,8 +7,10 @@ import {
   useState,
 } from "react";
 
+import { isReadonlyArray } from "@tsmono/util";
+
 const asArray = <T>(v: T | ReadonlyArray<T>): ReadonlyArray<T> =>
-  Array.isArray(v) ? (v as ReadonlyArray<T>) : [v as T];
+  isReadonlyArray(v) ? v : [v];
 
 export interface UseScrollDirectionOptions {
   /** Minimum px delta before recognizing a direction change. Default: 15 */

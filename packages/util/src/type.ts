@@ -20,6 +20,15 @@ export const toArray = <T>(val: T | T[]): Array<T> => {
 };
 
 /**
+ * Narrows a `T | ReadonlyArray<T>` union, which `Array.isArray` cannot do on
+ * its own — its signature only knows about mutable arrays. Unsound if `T` is
+ * itself an array type.
+ */
+export const isReadonlyArray = <T>(
+  value: T | ReadonlyArray<T>
+): value is ReadonlyArray<T> => Array.isArray(value);
+
+/**
  * Checks if a given value is a Record.
  */
 export const isRecord = (value: unknown): value is Record<string, unknown> => {

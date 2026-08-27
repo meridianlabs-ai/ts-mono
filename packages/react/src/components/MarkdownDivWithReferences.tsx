@@ -58,7 +58,7 @@ export const MarkdownDivWithReferences = forwardRef<
 
   const handleLinkClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const anchor = (e.target as HTMLElement).closest("a");
+      const anchor = e.target instanceof Element ? e.target.closest("a") : null;
       if (anchor) {
         const href = anchor.getAttribute("href");
         // If this is a hash link, forward on to react-router

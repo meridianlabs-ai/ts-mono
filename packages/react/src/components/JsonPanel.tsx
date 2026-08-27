@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { CSSProperties, FC, useMemo, useRef } from "react";
 
-import { maybeBase64 } from "@tsmono/util";
+import { isRecord, maybeBase64 } from "@tsmono/util";
 
 import { usePrismHighlight } from "../hooks/usePrismHighlight";
 
@@ -62,11 +62,10 @@ const resolveBase64 = (value: unknown): unknown => {
   }
 
   // Handle objects recursively
-  if (value && typeof value === "object") {
+  if (isRecord(value)) {
     const resolvedObject: Record<string, unknown> = {};
     for (const key of Object.keys(value)) {
-      const record = value as Record<string, unknown>;
-      resolvedObject[key] = resolveBase64(record[key]);
+      resolvedObject[key] = resolveBase64(value[key]);
     }
     return resolvedObject;
   }

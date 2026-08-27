@@ -22,7 +22,19 @@ class FakeResizeObserver {
   observe(el: Element) {
     // Fire synchronously so React batches the setShowToggle(true) update
     // inside the same act() wrapping as the initial render.
-    this.cb([{ target: el, contentRect: {} } as ResizeObserverEntry], this);
+    const box: ResizeObserverSize = { blockSize: 0, inlineSize: 0 };
+    this.cb(
+      [
+        {
+          target: el,
+          contentRect: new DOMRectReadOnly(0, 0, 0, 0),
+          borderBoxSize: [box],
+          contentBoxSize: [box],
+          devicePixelContentBoxSize: [box],
+        },
+      ],
+      this
+    );
   }
   unobserve() {}
   disconnect() {}
@@ -39,9 +51,9 @@ vi.spyOn(window, "getComputedStyle").mockImplementation((el, pseudo) => {
       get(target, prop) {
         if (prop === "fontSize") return "16px";
         const val: unknown = Reflect.get(target, prop);
-        return typeof val === "function"
-          ? (val as () => unknown).bind(target)
-          : val;
+        if (typeof val !== "function") return val;
+        const bound: unknown = val.bind(target);
+        return bound;
       },
     });
   }
@@ -83,10 +95,11 @@ const longContent = (
 // panel leaves it empty. Asserting on the inline style sidesteps the CSS
 // module classname (which would change if the rule were renamed).
 function isTruncated(container: HTMLElement): boolean {
-  const wrap = container.querySelector('[data-expandable-panel="true"]')
-    ?.firstElementChild as HTMLElement | null;
-  expect(wrap).toBeTruthy();
-  return wrap!.style.maxHeight !== "";
+  const wrap = container.querySelector(
+    '[data-expandable-panel="true"]'
+  )?.firstElementChild;
+  expect(wrap).toBeInstanceOf(HTMLElement);
+  return wrap instanceof HTMLElement && wrap.style.maxHeight !== "";
 }
 
 describe("ExpandablePanel auto-expand on find target", () => {

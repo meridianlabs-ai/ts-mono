@@ -2,9 +2,9 @@ import {
   VscodeOption,
   VscodeSingleSelect,
 } from "@vscode-elements/react-elements";
-import { ChangeEvent, FC, useMemo } from "react";
+import { FC, useMemo } from "react";
 
-import { TextInput } from "@tsmono/react/components";
+import { TextInput, type TextInputChange } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../icons";
 import { ValidationCase } from "../../../types/api-types";
@@ -38,7 +38,7 @@ export const ValidationFilterBar: FC<ValidationFilterBarProps> = ({
     onSplitFilterChange(value || undefined);
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: TextInputChange) => {
     onSearchTextChange(e.target.value || undefined);
   };
 

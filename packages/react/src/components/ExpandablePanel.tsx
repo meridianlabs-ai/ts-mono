@@ -42,7 +42,8 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
 
     const checkOverflow = useCallback(
       (entry: ResizeObserverEntry) => {
-        const element = entry.target as HTMLDivElement;
+        const element = entry.target;
+        if (!(element instanceof HTMLElement)) return;
 
         // `maxHeight` is set in `rem` below, which resolves against the root
         // font-size — not the element's. Measuring against the element's own
