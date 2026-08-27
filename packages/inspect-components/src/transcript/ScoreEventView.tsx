@@ -59,6 +59,17 @@ export const ScoreEventView: FC<ScoreEventViewProps> = ({
         <div className={clsx(styles.wrappingContent)}>
           <RenderedText markdown={event.score.explanation || ""} />
         </div>
+        {event.score.reason ? (
+          <Fragment>
+            <div className={clsx(styles.separator)}></div>
+            <div className={"text-style-label"}>Reason</div>
+            {/* reason is a categorical literal (refusal, grader_failed, ...) or
+                a short custom string — render verbatim, not as markdown. */}
+            <div className={clsx(styles.wrappingContent)}>
+              {event.score.reason}
+            </div>
+          </Fragment>
+        ) : null}
         <div className={clsx(styles.separator)}></div>
         <div className={"text-style-label"}>Score</div>
         <ScoreValue score={event.score.value} />
