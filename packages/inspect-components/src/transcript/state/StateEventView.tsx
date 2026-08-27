@@ -218,9 +218,10 @@ const asArray = (value: unknown): unknown[] | undefined =>
   Array.isArray(value) ? value : undefined;
 
 /**
- * Renders a view displaying a list of state changes.
+ * Synthesizes before/after objects from a list of JSON-patch changes so the
+ * pair can be diffed. Exported for tests.
  */
-const synthesizeComparable = (
+export const synthesizeComparable = (
   changes: JsonChange[]
 ): [Record<string, unknown>, Record<string, unknown>] => {
   const before: Record<string, unknown> = {};
@@ -273,16 +274,18 @@ function setPath(
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    if (key && !(key in current)) {
+    if (!key) return;
+    const existing = getChild(current, key);
+    let next: PathContainer;
+    if (isPathContainer(existing)) {
+      next = existing;
+    } else {
       // If the next key is a number, create an array, otherwise an object
       const nextKey = keys[i + 1];
-      if (nextKey) {
-        setChild(current, key, isArrayIndex(nextKey) ? [] : {});
-      }
-      const next = getChild(current, key);
-      if (!isPathContainer(next)) return;
-      current = next;
+      next = nextKey && isArrayIndex(nextKey) ? [] : {};
+      setChild(current, key, next);
     }
+    current = next;
   }
 
   const lastKey = keys[keys.length - 1];
