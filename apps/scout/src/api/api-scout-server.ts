@@ -52,16 +52,23 @@ export type HeaderProvider = () => Promise<Record<string, string>>;
 
 type TopicUpdateCallback = (topVersions: TopicVersions) => void;
 
-const kInvalidationTopics: readonly InvalidationTopic[] = [
-  "project-config",
-  "scans",
-  "transcripts",
-];
+// `satisfies` ties this to the generated union: regenerating the API types
+// with a new invalidation topic errors here until the topic is added, so new
+// topics can't be silently stripped from invalidation frames.
+const kInvalidationTopics = {
+  "project-config": true,
+  scans: true,
+  transcripts: true,
+} satisfies Record<InvalidationTopic, true>;
+
+const isInvalidationTopic = (key: string): key is InvalidationTopic =>
+  Object.hasOwn(kInvalidationTopics, key);
 
 /**
- * Topic versions arrive as wire text on both the polling and SSE paths. A
- * frame reports only the topics it knows about, so unrecognized keys and
- * non-string versions are dropped; unparseable text isn't an update at all.
+ * Topic versions arrive as wire text on both the polling and SSE paths.
+ * Unrecognized keys and non-string versions are dropped, but any parseable
+ * JSON frame still counts as an update (it marks the connection live);
+ * only unparseable text isn't an update at all.
  */
 const parseTopicVersions = (text: string): TopicVersions | undefined => {
   let parsed: unknown;
@@ -70,14 +77,12 @@ const parseTopicVersions = (text: string): TopicVersions | undefined => {
   } catch {
     return undefined;
   }
-  if (!isRecord(parsed)) {
-    return undefined;
-  }
   const versions: TopicVersions = {};
-  for (const topic of kInvalidationTopics) {
-    const version = parsed[topic];
-    if (typeof version === "string") {
-      versions[topic] = version;
+  if (isRecord(parsed)) {
+    for (const [key, version] of Object.entries(parsed)) {
+      if (isInvalidationTopic(key) && typeof version === "string") {
+        versions[key] = version;
+      }
     }
   }
   return versions;
