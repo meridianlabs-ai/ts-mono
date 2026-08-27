@@ -6,7 +6,7 @@ import {
   EvalSample,
 } from "@tsmono/inspect-common/types";
 import { effectiveEvalConfig } from "@tsmono/inspect-common/utils";
-import { AsyncData, createLogger } from "@tsmono/util";
+import { AsyncData, createLogger, isRecord } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
 import {
@@ -40,6 +40,15 @@ export interface ScorePanelSortState {
   column: ScorePanelSortColumn;
   dir: "asc" | "desc";
 }
+// Property bags hold unknown — these are what the casts stood in for.
+const isScoreView = (value: unknown): value is ScoreView =>
+  value === "grid" || value === "chips";
+
+const isScorePanelSortState = (value: unknown): value is ScorePanelSortState =>
+  isRecord(value) &&
+  (value["dir"] === "asc" || value["dir"] === "desc") &&
+  (value["column"] === null || typeof value["column"] === "string");
+
 const kDefaultScorePanelSort: ScorePanelSortState = {
   column: null,
   dir: "asc",
@@ -55,11 +64,11 @@ export const useScorePanelView = (): [
   ScoreView | undefined,
   (view: ScoreView) => void,
 ] => {
-  const stored = useStore(
-    (state) =>
-      state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey] as
-        ScoreView | undefined
-  );
+  const stored = useStore((state) => {
+    const value =
+      state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey];
+    return isScoreView(value) ? value : undefined;
+  });
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
   );
@@ -92,11 +101,11 @@ export const useScorePanelSort = (): [
   ScorePanelSortState | undefined,
   (sort: ScorePanelSortState) => void,
 ] => {
-  const stored = useStore(
-    (state) =>
-      state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey] as
-        ScorePanelSortState | undefined
-  );
+  const stored = useStore((state) => {
+    const value =
+      state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey];
+    return isScorePanelSortState(value) ? value : undefined;
+  });
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
   );

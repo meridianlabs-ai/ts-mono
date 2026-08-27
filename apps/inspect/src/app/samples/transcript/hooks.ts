@@ -88,7 +88,9 @@ export const useTranscriptFilter = (
 
   const arrangedEventTypes = useCallback(
     (columns: number = 1) => {
-      const keys = Object.keys(eventTypes) as AllEventTypes[];
+      const keys = Object.keys(eventTypes).filter(
+        (key): key is AllEventTypes => key in eventTypes
+      );
 
       // Sort keys alphabetically with default disabled keys at the end
       const sortedKeys = keys.sort((a, b) => {

@@ -4,15 +4,27 @@ import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeList } from "../../../../constants";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
+// List score entries come off the wire as numbers, numeric strings, booleans
+// or null; only the first two have a decimal form worth formatting.
+const formatListEntry = (value: unknown): string => {
+  if (typeof value === "number") return formatPrettyDecimal(value);
+  if (typeof value === "boolean") return formatPrettyDecimal(value ? 1 : 0);
+  if (typeof value === "string" && isNumeric(value)) {
+    return formatPrettyDecimal(parseFloat(value));
+  }
+  return String(value);
+};
+
+// A list score's value is an array; anything else has no length to sort by.
+const listLength = (value: unknown): number =>
+  Array.isArray(value) ? value.length : 0;
+
 export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
   return {
     scoreType: kScoreTypeList,
     filterable: false,
     compare: (a: SelectedScore, b: SelectedScore) => {
-      return (
-        (a.value as unknown as unknown[]).length -
-        (b.value as unknown as unknown[]).length
-      );
+      return listLength(a.value) - listLength(b.value);
     },
     render: (score) => {
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
@@ -20,23 +32,14 @@ export const listScoreDescriptor = (_values: ScoreValue[]): ScoreDescriptor => {
         return "[null]";
       }
 
+      if (!Array.isArray(score)) {
+        throw new Error(
+          "Unexpected use of list score descriptor for non-list object"
+        );
+      }
       const formattedScores: string[] = [];
-      (score as []).forEach((value) => {
-        if (!Array.isArray(score)) {
-          throw new Error(
-            "Unexpected use of list score descriptor for non-lisß object"
-          );
-        }
-        const formattedValue =
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          value && isNumeric(value)
-            ? formatPrettyDecimal(
-                typeof value === "number"
-                  ? value
-                  : parseFloat(value === true ? "1" : value)
-              )
-            : String(value);
-        formattedScores.push(formattedValue);
+      score.forEach((value: unknown) => {
+        formattedScores.push(formatListEntry(value));
       });
 
       return <div key={`score-value`}>[{formattedScores.join(", ")}]</div>;

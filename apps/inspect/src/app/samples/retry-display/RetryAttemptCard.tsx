@@ -18,6 +18,9 @@ import styles from "./RetryAttemptCard.module.css";
 
 export type RetryView = "error" | "events";
 
+const isRetryView = (value: string): value is RetryView =>
+  value === "error" || value === "events";
+
 const kViewSegments = [
   { id: "error", label: "Error", icon: "bi bi-exclamation-triangle" },
   { id: "events", label: "Events", icon: "bi bi-list-ul" },
@@ -97,7 +100,9 @@ export const RetryAttemptCard: FC<RetryAttemptCardProps> = ({
                 <SegmentedControl
                   segments={kViewSegments}
                   selectedId={view}
-                  onSegmentChange={(id) => setView(id as RetryView)}
+                  onSegmentChange={(id) => {
+                    if (isRetryView(id)) setView(id);
+                  }}
                 />
               </div>
               <span className={styles.hairline} aria-hidden="true" />

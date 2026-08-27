@@ -7,6 +7,8 @@ import {
 } from "@codemirror/autocomplete";
 import { EditorView } from "codemirror";
 
+import { isRecord } from "@tsmono/util";
+
 import { SampleSummary } from "../../../../client/api/types";
 import {
   kScoreTypeBoolean,
@@ -197,7 +199,7 @@ const getNestedProperty = (obj: unknown, path: string): unknown => {
   let current: unknown = obj;
   for (const key of keys) {
     if (current && typeof current === "object" && key in current) {
-      current = (current as Record<string, unknown>)[key];
+      current = isRecord(current) ? current[key] : undefined;
     } else {
       return undefined;
     }

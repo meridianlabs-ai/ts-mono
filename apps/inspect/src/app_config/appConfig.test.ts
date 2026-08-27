@@ -8,7 +8,7 @@ import {
   vi,
 } from "vitest";
 
-import { ClientAPI } from "../client/api/types";
+import { testClientAPI } from "../client/api/testClientApi";
 
 import {
   AppConfig,
@@ -87,7 +87,7 @@ describe("resolveBootstrap", () => {
 describe("setLogRoot", () => {
   const seedConfig = (absLogDir?: string): AppConfig =>
     initAppConfig({
-      api: {} as ClientAPI,
+      api: testClientAPI(),
       singleFileMode: true,
       loader: "direct",
       inspect_version: "1",

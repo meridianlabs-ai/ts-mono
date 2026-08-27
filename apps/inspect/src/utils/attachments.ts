@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- structural rewrite boundary: this walks an arbitrary value replacing attachment:// refs and returns the same shape, which TypeScript can't express as T over a generic */
 export const resolveAttachments = <T>(
   value: T,
   attachments: Record<string, string>,
@@ -14,14 +15,14 @@ export const resolveAttachments = <T>(
   // Handle arrays recursively
   if (Array.isArray(value)) {
     let hasChanged = false;
-    const resolvedArray = (value as unknown[]).map((v) => {
-      const resolved = resolveAttachments(v, attachments);
+    const resolvedArray = value.map((v: unknown) => {
+      const resolved: unknown = resolveAttachments(v, attachments);
       if (resolved !== v) hasChanged = true;
       return resolved;
     });
 
     // Only return the new array if something actually changed
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- hasChanged is set inside the map callback above, which flow analysis doesn't track
     return hasChanged ? (resolvedArray as unknown as T) : value;
   }
 
@@ -83,3 +84,4 @@ export const resolveAttachments = <T>(
   // Return unchanged for other types
   return value;
 };
+/* eslint-enable @typescript-eslint/no-unsafe-type-assertion */

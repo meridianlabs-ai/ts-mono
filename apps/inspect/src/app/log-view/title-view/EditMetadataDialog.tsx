@@ -25,6 +25,18 @@ import { ProvenanceFields } from "./ProvenanceFields";
 
 type NewType = "string" | "number" | "boolean" | "object" | "array" | "null";
 
+const kNewTypes: readonly NewType[] = [
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "array",
+  "null",
+];
+
+const asNewType = (value: string): NewType =>
+  kNewTypes.find((type) => type === value) ?? "string";
+
 export interface MetaEntry {
   key: string;
   // String form used in the textarea. We persist as a string and parse on
@@ -461,7 +473,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
               )}
               value={newType}
               onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                setNewType(e.target.value as NewType)
+                setNewType(asNewType(e.target.value))
               }
               aria-label="Type for new key"
               disabled={submitting}

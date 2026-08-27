@@ -89,6 +89,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
             <div className={clsx(styles.cell, "text-size-base")}>{answer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>
               <SampleScores
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- SampleScores reads only `scores`, which EvalSample and SampleSummary both carry; the prop names the listing shape
                 sample={evalSample as unknown as SampleSummary}
                 scorer={scorer}
               />

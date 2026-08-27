@@ -68,6 +68,7 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
   for (const entry of original.centralDirectory.keys()) {
     const match = /^samples\/(.+)_epoch_(\d+)\.json$/.exec(entry);
     if (!match) continue;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the .eval fixture on disk is the shape this suite is written against
     const parsed = JSON.parse(
       decoder.decode(await original.readFile(entry))
     ) as {
@@ -77,6 +78,7 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
       attachments?: Record<string, string>;
     };
     const skeletonEntry = `samples/${parsed.id}_epoch_${parsed.epoch}/skeleton.json`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- see above
     const skeleton = JSON.parse(
       decoder.decode(await chunked.readFile(skeletonEntry))
     ) as SampleSkeleton;

@@ -1,6 +1,5 @@
 import clsx from "clsx";
 import {
-  CSSProperties,
   FC,
   Fragment,
   MouseEvent,
@@ -88,6 +87,7 @@ import {
   useSelectedSampleSummary,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
+import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
@@ -721,9 +721,9 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const tabsContainerStyle = useMemo(
     () =>
-      ({
+      cssVars({
         "--inspect-sample-header-height": `${effectiveHeaderHeight}px`,
-      }) as CSSProperties,
+      }),
     [effectiveHeaderHeight]
   );
 

@@ -253,6 +253,7 @@ function processMessagePool(sampleData: SampleData, state: StreamState) {
     if (state.messagePoolEntryIds.has(entry.id)) continue;
 
     state.messagePoolEntryIds.add(entry.id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- wire boundary (#555): pool entries are JSON strings the server wrote; the transcript renders defensively
     state.messagePool.push(JSON.parse(entry.data) as ChatMessage);
   }
 }
@@ -263,6 +264,7 @@ function processCallPool(sampleData: SampleData, state: StreamState) {
     if (state.callPoolEntryIds.has(entry.id)) continue;
 
     state.callPoolEntryIds.add(entry.id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- wire boundary (#555): see processMessagePool
     state.callPool.push(JSON.parse(entry.data) as JsonValue);
   }
 }
@@ -285,9 +287,8 @@ function processEvents(
     // the direct transport reads filestore segments without pydantic, and
     // the proxy can front an older server. Fill read-time defaults before
     // ref resolution; un-event-shaped payloads pass through unchanged.
-    // The cast is the same boundary lift as the transports' casts: Event and
-    // the hand-written SampleEvent union differ only in member breadth.
     const event =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): the same lift the transports make — Event and the hand-written SampleEvent union differ only in member breadth
       (normalizeEvent(eventData.event) as SampleEvent | undefined) ??
       eventData.event;
 

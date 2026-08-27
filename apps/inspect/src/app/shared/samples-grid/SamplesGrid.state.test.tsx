@@ -32,7 +32,9 @@ const getRowId = (row: SampleRow) => `${row.sampleId}-${row.epoch}`;
 // header sort state via `aria-sort`.
 const displayedInputs = (spy: ReturnType<typeof vi.fn>): string[] => {
   const lastCall = spy.mock.calls.at(-1);
-  return ((lastCall?.[0] ?? []) as SampleRow[]).map((r) => r.input ?? "");
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the spy is an untyped vi.fn(); these are the rows SamplesGrid passed to onDisplayedRowsChange
+  const rows = (lastCall?.[0] ?? []) as SampleRow[];
+  return rows.map((r) => r.input ?? "");
 };
 
 const headerFor = (label: string) =>

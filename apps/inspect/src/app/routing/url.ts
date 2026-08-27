@@ -39,13 +39,13 @@ export const useDecodedParams = <
   const params = useParams<T>();
 
   const decodedParams = useMemo(() => {
-    const decoded = {} as T;
+    const decoded: Record<string, string | undefined> = {};
     Object.entries(params).forEach(([key, value]) => {
-      (decoded as Record<string, string | undefined>)[key] = decodeUrlParam(
-        value as string
-      );
+      decoded[key] =
+        typeof value === "string" ? decodeUrlParam(value) : undefined;
     });
-    return decoded;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- a mapped type over a generic key union has no empty value to build from; every key of T is filled above
+    return decoded as T;
   }, [params]);
 
   return decodedParams;

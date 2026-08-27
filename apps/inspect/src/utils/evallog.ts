@@ -40,6 +40,6 @@ export const parseLogFileName = (logFileName: string): ParsedLogFileName => {
     // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
     name: match[2],
     taskId: match[3],
-    extension: match[4] as "eval" | "json",
+    extension: match[4] === "json" ? "json" : "eval",
   };
 };

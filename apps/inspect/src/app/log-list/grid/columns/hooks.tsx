@@ -638,11 +638,12 @@ export const useLogListColumns = (
           }[] = [];
           for (const scorer of scorerOrder) {
             const v = row[`score_${scorer}/${metricName}`];
-            if (v !== undefined && v !== null && v !== "") {
-              contributors.push({
-                scorer,
-                value: v as string | number | boolean,
-              });
+            if (
+              typeof v === "string" ||
+              typeof v === "number" ||
+              typeof v === "boolean"
+            ) {
+              if (v !== "") contributors.push({ scorer, value: v });
             }
           }
           return contributors;
@@ -823,7 +824,8 @@ export const useLogListColumns = (
   const visibility = useMemo<Record<string, boolean>>(() => {
     const v: Record<string, boolean> = {};
     for (const col of allColumns) {
-      const field = col.id as string;
+      const field = col.id;
+      if (field === undefined) continue;
       const isScoreColumn =
         field.startsWith("score_") || field.startsWith("metric_");
       const defaultVisible = isScoreColumn
@@ -838,12 +840,16 @@ export const useLogListColumns = (
   // column sets registered for layout stability, but the picker should only
   // list the checkboxes relevant to the current view mode.
   const pickerColumns = useMemo((): PickerColumn[] => {
-    return allColumns
-      .filter((col) => matchesActiveMode(col.id as string))
-      .map((col) => ({
-        colId: col.id as string,
-        headerName: typeof col.header === "string" ? col.header : "",
-      }));
+    return allColumns.flatMap((col) =>
+      col.id === undefined || !matchesActiveMode(col.id)
+        ? []
+        : [
+            {
+              colId: col.id,
+              headerName: typeof col.header === "string" ? col.header : "",
+            },
+          ]
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps -- matchesActiveMode is recreated each render but is safe to exclude
   }, [allColumns, viewMode]);
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { testEvalSample } from "@tsmono/inspect-common/testing";
+import { expectEvent, testEvalSample } from "@tsmono/inspect-common/testing";
 import { EvalSample } from "@tsmono/inspect-common/types";
 
 import { initAppConfig } from "../app_config";
@@ -55,6 +55,7 @@ const eventData = (id: number, eventId: string, data: string) => ({
   event_id: eventId,
   sample_id: "sample-1",
   epoch: 1,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately partial: the query under test only reads the event's discriminant and data
   event: { event: "info", data } as never,
 });
 
@@ -169,7 +170,7 @@ describe("streamRunningSampleTick", () => {
     const first = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(first.finalized).toBe(false);
     expect(first.events).toHaveLength(1);
-    expect((first.events[0] as { data: string }).data).toBe("hello");
+    expect(expectEvent(first.events[0], "info").data).toBe("hello");
 
     const second = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(second).toBe(first);

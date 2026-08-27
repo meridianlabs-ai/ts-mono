@@ -33,8 +33,7 @@ const details = (
           metrics: Object.fromEntries(
             Object.entries(s.metrics).map(([m, value]) => [
               m,
-              // `as number` widens past the schema: real logs carry string
-              // metric values, and computeScorerMap branches on typeof.
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: real logs carry string metric values, and computeScorerMap branches on typeof
               testEvalMetric({ name: m, value: value as number }),
             ])
           ),

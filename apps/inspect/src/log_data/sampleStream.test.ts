@@ -3,6 +3,8 @@
    assertions reach into their dynamically-shaped fields. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { expectEvent } from "@tsmono/inspect-common/testing";
+
 import { SampleData, SampleDataResponse } from "../client/api/types";
 
 import {
@@ -33,6 +35,7 @@ const eventData = (id: number, eventId: string, event: unknown) => ({
   event_id: eventId,
   sample_id: "sample-1",
   epoch: 1,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately partial: these cases feed the stream decoder events built inline below
   event: event as never,
 });
 
@@ -249,10 +252,12 @@ describe("createSampleStreamSession", () => {
     const session = makeSession();
     const { events } = await session.tick(false);
 
-    expect((events[0] as any).data).toBe("direct content");
+    expect(expectEvent(events[0], "info").data).toBe("direct content");
     // The pooled message's attachment:// ref is only visible after ref
     // expansion; the second resolution pass must have caught it.
-    expect((events[1] as any).input[0].content).toBe("pooled content");
+    expect(expectEvent(events[1], "model").input[0]?.content).toBe(
+      "pooled content"
+    );
   });
 
   it("does not let duplicate streamed pool rows shift refs", async () => {
@@ -307,12 +312,12 @@ describe("createSampleStreamSession", () => {
     const session = makeSession();
     const { events } = await session.tick(false);
 
-    expect((events[0] as any).input).toEqual([
+    expect(expectEvent(events[0], "model").input).toEqual([
       inputSystem,
       inputUser,
       inputAssistant,
     ]);
-    expect((events[0] as any).call.request.messages).toEqual([
+    expect(expectEvent(events[0], "model").call?.request.messages).toEqual([
       system,
       user,
       assistant,

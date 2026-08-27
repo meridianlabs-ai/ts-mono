@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString } from "@tsmono/util";
+import { arrayToString, isRecord } from "@tsmono/util";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
@@ -61,10 +61,9 @@ export const createEvalDescriptor = (
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const temp = sample.scores[scoreLabel.scorer].value;
-        // Boundary cast: the dict form of Score.value, null-admitting.
-        return (temp as Record<string, string | number | boolean | null>)[
-          scoreLabel.name
-        ];
+        // The dict form of Score.value; the typeof check above is what
+        // distinguishes it from the scalar forms.
+        return isRecord(temp) ? temp[scoreLabel.name] : undefined;
       } else {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         return sample.scores[scoreLabel.scorer].value;

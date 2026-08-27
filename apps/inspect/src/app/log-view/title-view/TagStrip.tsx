@@ -118,7 +118,9 @@ export const TagStrip: FC<TagStripProps> = ({
   useLayoutEffect(() => {
     if (!enableCollapse || !rowRef.current) return;
     const el = rowRef.current;
-    const kids = Array.from(el.children) as HTMLElement[];
+    const kids = Array.from(el.children).filter(
+      (kid): kid is HTMLElement => kid instanceof HTMLElement
+    );
     if (kids.length < 2) return;
     // Distinct offsetTop values across the row's flex items = number
     // of layout rows (flex-wrap: wrap puts each wrapped run on its

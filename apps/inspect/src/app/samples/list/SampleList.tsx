@@ -165,7 +165,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         <MessageBand
           id={`sample-warning-message-${warning.type}-${warning.msg}`}
           message={warning.msg}
-          type={warning.type as "info" | "warning" | "error"}
+          type={
+            warning.type === "error" || warning.type === "warning"
+              ? warning.type
+              : "info"
+          }
           key={`sample-warning-message-${warning.type}-${warning.msg}`}
         />
       ))}

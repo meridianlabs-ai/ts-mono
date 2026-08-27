@@ -7,6 +7,16 @@ import {
   type WireScoreColorScale,
 } from "./colorScale";
 
+// resolveScale returns a union; these cases assert on the gradient stops.
+const expectGradient = (
+  scale: ResolvedScale | null
+): Extract<ResolvedScale, { kind: "gradient" }> => {
+  if (scale?.kind !== "gradient") {
+    throw new Error(`expected a gradient scale, got ${JSON.stringify(scale)}`);
+  }
+  return scale;
+};
+
 describe("resolveScale", () => {
   test("named palette resolves to gradient with descriptor bounds", () => {
     const r = resolveScale("good-high", { min: 0, max: 1 });
@@ -21,10 +31,7 @@ describe("resolveScale", () => {
   });
 
   test("good-low flips low and high stops", () => {
-    const r = resolveScale("good-low", { min: 0, max: 1 }) as Extract<
-      ResolvedScale,
-      { kind: "gradient" }
-    >;
+    const r = expectGradient(resolveScale("good-low", { min: 0, max: 1 }));
     expect(r.low).toBe("var(--bs-success-bg-subtle)");
     expect(r.high).toBe("var(--bs-danger-bg-subtle)");
   });
@@ -43,8 +50,8 @@ describe("resolveScale", () => {
   test("unknown palette name returns null", () => {
     // Wire data is unvalidated — widen to string first so a single assertion
     // models the bogus palette name arriving off the wire.
-    const bogusName: string = "rainbow";
-    const bogus = bogusName as WireScoreColorScale;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: the case covers a palette name off the wire that no WireScoreColorScale can hold
+    const bogus = "rainbow" as WireScoreColorScale;
     expect(resolveScale(bogus, { min: 0, max: 1 })).toBeNull();
   });
 
@@ -64,10 +71,9 @@ describe("resolveScale", () => {
     // Eval-author pinned the conceptual range to 1..10. Descriptor's
     // observed range is much narrower (1..3); we want the gradient
     // anchored at 1..10 so a "5" lands at the midpoint, not at the top.
-    const r = resolveScale(
-      { palette: "good-low", min: 1, max: 10 },
-      { min: 1, max: 3 }
-    ) as Extract<ResolvedScale, { kind: "gradient" }>;
+    const r = expectGradient(
+      resolveScale({ palette: "good-low", min: 1, max: 10 }, { min: 1, max: 3 })
+    );
     expect(r.kind).toBe("gradient");
     expect(r.min).toBe(1);
     expect(r.max).toBe(10);
@@ -75,10 +81,9 @@ describe("resolveScale", () => {
 
   test("object form falls back to descriptor bounds for omitted side", () => {
     // Author specifies only max; min comes from the descriptor.
-    const r = resolveScale(
-      { palette: "good-high", max: 10 },
-      { min: 0, max: 3 }
-    ) as Extract<ResolvedScale, { kind: "gradient" }>;
+    const r = expectGradient(
+      resolveScale({ palette: "good-high", max: 10 }, { min: 0, max: 3 })
+    );
     expect(r.min).toBe(0);
     expect(r.max).toBe(10);
   });
@@ -89,6 +94,7 @@ describe("resolveScale", () => {
 
   test("object form rejects unknown palette name", () => {
     const bogusName: string = "rainbow";
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately out of contract: see above
     const bogus = { palette: bogusName } as WireScoreColorScale;
     expect(resolveScale(bogus, { min: 0, max: 1 })).toBeNull();
   });

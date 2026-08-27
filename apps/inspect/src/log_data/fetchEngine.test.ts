@@ -274,7 +274,10 @@ const createFakeSink = (db?: DatabaseService) => {
     writeFetchStates: [] as Record<string, LogFetchState>[],
     // Accumulated view of the latest fetch-state per file, as observed
     // through either merge or write calls — stands in for the cache mirror.
-    fetchStates: {} as Record<string, LogFetchState>,
+    fetchStates: {} satisfies Record<string, LogFetchState> as Record<
+      string,
+      LogFetchState
+    >,
     resetDepth: [] as string[][],
     clearFile: [] as string[],
     clearAll: 0,

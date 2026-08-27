@@ -18,8 +18,7 @@ describe("resolvedEventsReader", () => {
       [0],
       chunkItems.length
     );
-    // Only `events` is read when the chunk carries no attachment:// refs;
-    // the remaining ChunkedSample surface is irrelevant to this transform.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately partial: only `events` is read when the chunk carries no attachment:// refs
     return { events } as unknown as ChunkedSample;
   };
 

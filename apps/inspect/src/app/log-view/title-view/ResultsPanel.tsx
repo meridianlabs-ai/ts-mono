@@ -154,13 +154,11 @@ export const ResultsPanel: FC<ResultsPanelProps> = ({
     const headlineGroup = grouped.findIndex(
       (group) => holdsHeadline(group) !== -1
     );
-    let primaryResults =
-      headlineGroup !== -1
-        ? leadWith(
-            grouped[headlineGroup] as ScoreSummary[],
-            holdsHeadline(grouped[headlineGroup] as ScoreSummary[])
-          )
-        : grouped[0];
+    const headlineScores =
+      headlineGroup === -1 ? undefined : grouped[headlineGroup];
+    let primaryResults = headlineScores
+      ? leadWith(headlineScores, holdsHeadline(headlineScores))
+      : grouped[0];
 
     // If there are no primary results, nothing to show here
     if (!primaryResults) {
