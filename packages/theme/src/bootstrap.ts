@@ -217,8 +217,6 @@ declare global {
     // <html data-bs-theme>), so co-resident viewers share it. Don't namespace
     // per app — hosts like hawk call this exact name.
     __APPLY_BROWSER_THEME__?: () => void;
-    /** Injected by the VS Code webview host; absent everywhere else. */
-    acquireVsCodeApi?: () => unknown;
   }
 }
 
@@ -243,8 +241,11 @@ const hostIsDarkFromBody = (): boolean | null => {
   return null;
 };
 
+// `in` rather than a global declaration: @tsmono/util declares this same
+// property with its own VSCodeApi type, and this module stays dependency-free
+// for the inline bootstrap <script>, so a second declaration would collide.
 const isVscodeWebview = (): boolean =>
-  typeof window.acquireVsCodeApi === "function";
+  "acquireVsCodeApi" in window && typeof window.acquireVsCodeApi === "function";
 
 const installBodyClassObserver = (): void => {
   if (

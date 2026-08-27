@@ -16,7 +16,7 @@ import type {
 import { ExpandablePanel } from "@tsmono/react/components";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
-import { isJson, isRenderableImageSource } from "@tsmono/util";
+import { isJson, isRecord, isRenderableImageSource } from "@tsmono/util";
 
 import {
   useDisplayMode,
@@ -51,8 +51,6 @@ type ContentObject =
   | ContentTool
   | ContentData
   | ContentToolUse;
-
-type ContentType = string | string[] | ContentObject;
 
 type Contents = string | string[] | ContentObject[];
 
@@ -143,7 +141,7 @@ export const MessageContent: FC<MessageContentProps> = ({
 interface MessageRenderer {
   render: (
     key: string,
-    content: ContentType,
+    content: ContentObject,
     isLast: boolean,
     context: MessagesContext,
     displayMode: DisplayMode,
@@ -151,12 +149,16 @@ interface MessageRenderer {
   ) => ReactNode;
 }
 
+// Each renderer re-checks its own discriminant: the lookup below is keyed by
+// `content.type`, but TypeScript can't tie a `Record` key to its value's type,
+// so `content` arrives here as the full union.
 const messageRenderers: Record<string, MessageRenderer> = {
   text: {
     render: (key, content, isLast, _context, displayMode, references) => {
       // The context provides a way to share context between different
       // rendering. In this case, we'll use it to keep track of citations
-      const c = content as ContentText;
+      if (content.type !== "text") return undefined;
+      const c = content;
       const cites = c.citations ?? [];
 
       if (!c.text && !cites.length) {
@@ -164,30 +166,32 @@ const messageRenderers: Record<string, MessageRenderer> = {
       }
 
       if (displayMode === "rendered" && isJson(c.text)) {
-        const obj = JSON.parse(c.text) as Record<string, unknown>;
-        return <JsonMessageContent id={`${key}-json`} json={obj} />;
-      } else {
-        return (
-          <Fragment key={key}>
-            <RenderedText
-              markdown={c.text}
-              className={clsx(
-                isLast ? "no-last-para-padding" : "",
-                styles.breakable
-              )}
-              references={references}
-            />
-            {c.citations && c.citations.length > 0 ? (
-              <MessageCitations citations={c.citations} />
-            ) : undefined}
-          </Fragment>
-        );
+        const parsed: unknown = JSON.parse(c.text);
+        if (isRecord(parsed)) {
+          return <JsonMessageContent id={`${key}-json`} json={parsed} />;
+        }
       }
+      return (
+        <Fragment key={key}>
+          <RenderedText
+            markdown={c.text}
+            className={clsx(
+              isLast ? "no-last-para-padding" : "",
+              styles.breakable
+            )}
+            references={references}
+          />
+          {c.citations && c.citations.length > 0 ? (
+            <MessageCitations citations={c.citations} />
+          ) : undefined}
+        </Fragment>
+      );
     },
   },
   reasoning: {
     render: (key, content, isLast) => {
-      const r = content as ContentReasoning;
+      if (content.type !== "reasoning") return undefined;
+      const r = content;
 
       // Possible titles
       let title = "Reasoning";
@@ -238,7 +242,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
   },
   image: {
     render: (key, content) => {
-      const c = content as ContentImage;
+      if (content.type !== "image") return undefined;
+      const c = content;
       if (isRenderableImageSource(c.image)) {
         return (
           <img
@@ -255,7 +260,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
   },
   audio: {
     render: (key, content) => {
-      const c = content as ContentAudio;
+      if (content.type !== "audio") return undefined;
+      const c = content;
       if (!isRenderableAudioSource(c.audio, c.format)) {
         return <MediaReference source={c.audio} key={key} />;
       }
@@ -271,7 +277,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
   },
   video: {
     render: (key, content) => {
-      const c = content as ContentVideo;
+      if (content.type !== "video") return undefined;
+      const c = content;
       if (!isRenderableVideoSource(c.video, c.format)) {
         return <MediaReference source={c.video} key={key} />;
       }
@@ -285,7 +292,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
   },
   tool: {
     render: (key, content) => {
-      const c = content as ContentTool;
+      if (content.type !== "tool") return undefined;
+      const c = content;
       return <ToolOutput output={c.content} key={key} />;
     },
   },
@@ -294,19 +302,22 @@ const messageRenderers: Record<string, MessageRenderer> = {
   // so the block carries its own frame.
   tool_use: {
     render: (key, content) => {
-      const c = content as ContentToolUse;
+      if (content.type !== "tool_use") return undefined;
+      const c = content;
       return <ServerToolCall id={key} content={c} flush={false} />;
     },
   },
   data: {
     render: (key, content) => {
-      const c = content as ContentData;
+      if (content.type !== "data") return undefined;
+      const c = content;
       return <ContentDataView id={key} contentData={c} />;
     },
   },
   document: {
     render: (key, content) => {
-      const c = content as ContentDocument;
+      if (content.type !== "document") return undefined;
+      const c = content;
       return <ContentDocumentView id={key} document={c} />;
     },
   },

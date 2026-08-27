@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  testErrorEvent,
   testInfoEvent,
   testModelEvent,
+  testSampleLimitEvent,
+  testSandboxEvent,
+  testScoreEvent,
   testSpanBeginEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -22,13 +26,28 @@ import { EventNode } from "./types";
 const node = (id: string): EventNode =>
   new EventNode(id, testInfoEvent({ uuid: id }), 0);
 
+// The tree shapes below only care about an event's discriminant; these are the
+// real builders for the types they use.
+const kEventBuilders = {
+  model: testModelEvent,
+  tool: testToolEvent,
+  span_begin: testSpanBeginEvent,
+  sandbox: testSandboxEvent,
+  score: testScoreEvent,
+  error: testErrorEvent,
+  sample_limit: testSampleLimitEvent,
+} satisfies Partial<Record<Event["event"], () => Event>>;
+
+const testEventOfType = (type: keyof typeof kEventBuilders): Event =>
+  kEventBuilders[type]();
+
 const treeNode = (
   id: string,
-  type: string,
+  type: keyof typeof kEventBuilders,
   depth: number,
   children: EventNode[] = []
 ): EventNode => {
-  const n = new EventNode(id, { event: type } as Event, depth);
+  const n = new EventNode(id, testEventOfType(type), depth);
   n.children = children;
   return n;
 };

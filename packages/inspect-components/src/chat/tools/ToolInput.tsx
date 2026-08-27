@@ -3,6 +3,7 @@ import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { usePrismHighlight } from "@tsmono/react/hooks";
+import { isRecord } from "@tsmono/util";
 
 import { RenderedText } from "../../content/RenderedText";
 
@@ -44,7 +45,9 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
   } else {
     return (
       <RenderTool
-        contents={contents as string | object}
+        contents={
+          typeof contents === "string" || isRecord(contents) ? contents : ""
+        }
         contentType={contentType || ""}
         parentRef={sourceCodeRef}
         className={className}

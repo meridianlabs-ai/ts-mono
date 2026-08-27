@@ -12,6 +12,7 @@ import type {
   SpanBeginEvent,
   SpanEndEvent,
 } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { EventNode } from "../types";
 
@@ -470,6 +471,7 @@ function collectFromContent(
         if (filteredInput.length !== modelEvent.input.length) {
           // Mark the event so ModelEventView knows agent tool results were
           // filtered and it should not crawl backward through input messages.
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- marker field: `agentResultsFiltered` is a view-layer flag ModelEventView reads, not part of the generated ModelEvent
           const patched = {
             ...modelEvent,
             input: filteredInput,
@@ -643,6 +645,14 @@ export interface ForkNavGroup {
 export interface ForkNavData {
   groups: ForkNavGroup[];
 }
+
+/**
+ * Shallow shape check for fork_nav metadata read off an event. Deliberately
+ * only checks the outer shape — `forkNavToBranchPointProps` returns null for
+ * groups it can't use, so a deep walk here would duplicate that.
+ */
+export const isForkNavData = (value: unknown): value is ForkNavData =>
+  isRecord(value) && Array.isArray(value["groups"]);
 
 export interface EmptyBranchData {
   /** Branch (trajectory) name, for display. */

@@ -44,7 +44,10 @@ describe("StopReasonBadge", () => {
   });
 
   it("falls back to the gray tone for unmapped reasons", () => {
-    const { container } = render(<StopReasonBadge reason={"weird" as never} />);
+    const { container } = render(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: the case covers an unrecognised stop reason
+      <StopReasonBadge reason={"weird" as never} />
+    );
     expect(container.querySelector(`.${styles.gray}`)).not.toBeNull();
   });
 

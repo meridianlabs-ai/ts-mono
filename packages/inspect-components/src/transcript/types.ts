@@ -50,6 +50,14 @@ export const kCollapsibleEventTypes = [
   TYPE_SUBTASK,
 ];
 
+export type CollapsibleEvent =
+  StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent;
+
+export const isCollapsibleEvent = (
+  event: EventType
+): event is CollapsibleEvent =>
+  kCollapsibleEventTypes.some((type) => type === event.event);
+
 /** Event types whose *content* can be collapsed (panel-level collapse). */
 export const kContentCollapsibleEventTypes: string[] = [
   "model",
@@ -147,6 +155,32 @@ export class EventNode<T extends EventType = EventType> {
     this.depth = depth;
   }
 }
+
+const isEventNodeOf = <T extends EventType["event"]>(
+  node: EventNode,
+  type: T
+): node is EventNode<Extract<EventType, { event: T }>> =>
+  node.event.event === type;
+
+/**
+ * Re-reads an event node's discriminant to get a node typed to it.
+ *
+ * A `switch (node.event.event)` narrows the event but not the `EventNode`
+ * wrapping it — TypeScript cannot re-key a generic class instance from a
+ * discriminant on one of its fields. One string compare per branch buys back
+ * the type the case already established.
+ */
+export const eventNodeOf = <T extends EventType["event"]>(
+  node: EventNode,
+  type: T
+): EventNode<Extract<EventType, { event: T }>> => {
+  if (!isEventNodeOf(node, type)) {
+    throw new Error(
+      `expected a "${type}" event node, got "${node.event.event}"`
+    );
+  }
+  return node;
+};
 
 /**
  * Props threaded from app-level stores through the virtual list

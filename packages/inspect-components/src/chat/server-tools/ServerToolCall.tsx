@@ -3,7 +3,7 @@ import { FC } from "react";
 
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
-import { asJsonObjArray, isJson } from "@tsmono/util";
+import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedContent } from "../../content/RenderedContent";
@@ -229,19 +229,13 @@ const maybeCodeExecution = (
     return undefined;
   }
   try {
-    const parsed = JSON.parse(content.result) as Record<string, unknown>;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (typeof parsed !== "object" || parsed === null) {
+    const parsed: unknown = JSON.parse(content.result);
+    if (!isRecord(parsed)) {
       return undefined;
     }
     // The execution payload nests under `content` (Anthropic's
     // code_execution_tool_result shape); fall back to the top level.
-    const payload =
-      typeof parsed.content === "object" &&
-      parsed.content !== null &&
-      !Array.isArray(parsed.content)
-        ? (parsed.content as Record<string, unknown>)
-        : parsed;
+    const payload = isRecord(parsed.content) ? parsed.content : parsed;
     const str = (value: unknown): string | undefined =>
       typeof value === "string" && value.length > 0 ? value : undefined;
     return {
@@ -263,7 +257,8 @@ const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
     // See if this looks like a JSON object
     if (isJson(content.arguments)) {
       try {
-        return JSON.parse(content.arguments) as Record<string, unknown>;
+        const parsed: unknown = JSON.parse(content.arguments);
+        if (isRecord(parsed)) return parsed;
       } catch (e) {
         console.warn("Failed to parse arguments as JSON", e);
       }
@@ -313,7 +308,7 @@ const maybeWebSearchResult = (
   }
   const objArray = asJsonObjArray(content.result);
   if (objArray !== undefined) {
-    return { result: objArray as WebResult[] };
+    return { result: objArray.filter(isWebResult) };
   }
 };
 
@@ -325,7 +320,7 @@ const maybeListTools = (
   }
   const objArray = asJsonObjArray(content.result);
   if (objArray !== undefined) {
-    return { result: objArray as ToolInfo[] };
+    return { result: objArray.filter(isToolInfo) };
   }
 };
 
@@ -335,8 +330,18 @@ interface WebResult {
   type: string;
 }
 
+/** Shallow: the list below renders title and url, and skips entries lacking them. */
+const isWebResult = (value: unknown): value is WebResult =>
+  isRecord(value) &&
+  typeof value["title"] === "string" &&
+  typeof value["url"] === "string";
+
 interface ToolInfo {
   name: string;
   description: string;
   input_schema: Record<string, unknown>;
 }
+
+/** Shallow: the list below keys on name and renders description. */
+const isToolInfo = (value: unknown): value is ToolInfo =>
+  isRecord(value) && typeof value["name"] === "string";

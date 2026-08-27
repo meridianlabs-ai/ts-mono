@@ -10,6 +10,7 @@ import type {
   SpanEndEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { TimelineEvent, TimelineSpan } from "./core";
 import { computeFlatSwimlaneRows, computeSwimlaneRows } from "./swimlaneRows";
@@ -21,6 +22,7 @@ import {
   computeCompactionRegions,
   findTerminatorTool,
   getParentKeyFromBranch,
+  isForkNavData,
   parseSelection,
   type EmptyBranchData,
   type ForkNavData,
@@ -128,6 +130,27 @@ function makeBranch(
 // =============================================================================
 // parseSelection
 // =============================================================================
+
+// The fork/branch markers carry their payload in `metadata`; these check the
+// shape the assertions below read, and name what was there when it's wrong.
+const expectForkNav = (metadata: unknown): ForkNavData => {
+  const data = isRecord(metadata) ? metadata["fork_nav"] : undefined;
+  if (!isForkNavData(data)) {
+    throw new Error(`not fork_nav metadata: ${JSON.stringify(metadata)}`);
+  }
+  return data;
+};
+
+const expectEmptyBranch = (metadata: unknown): EmptyBranchData => {
+  const data = isRecord(metadata) ? metadata["empty_branch"] : undefined;
+  if (!isRecord(data) || typeof data["branchName"] !== "string") {
+    throw new Error(`not empty_branch metadata: ${JSON.stringify(metadata)}`);
+  }
+  return { branchName: data["branchName"], terminator: readTerminator(data) };
+};
+
+const readTerminator = (data: Record<string, unknown>): string | null =>
+  typeof data["terminator"] === "string" ? data["terminator"] : null;
 
 describe("parseSelection", () => {
   it("returns null for null input", () => {
@@ -402,8 +425,7 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
     );
     expect(forkBegins).toHaveLength(1);
 
-    const data = (forkBegins[0]!.metadata as { fork_nav: ForkNavData })
-      .fork_nav;
+    const data = expectForkNav(forkBegins[0]!.metadata);
     expect(data.groups).toHaveLength(2);
     expect(data.groups.map((g) => g.anchorId)).toEqual(["A1", "A2"]);
   });
@@ -481,7 +503,7 @@ describe("collectPathWithNavigators — adjacent fork merge", () => {
         e.event === "span_begin" && e.type === "fork_nav"
     );
     if (!forkBegin) throw new Error("expected a fork_nav span_begin");
-    const data = (forkBegin.metadata as { fork_nav: ForkNavData }).fork_nav;
+    const data = expectForkNav(forkBegin.metadata);
 
     expect(data.groups[0]!.selectedIndex).toBe(0);
     expect(data.groups[1]!.selectedIndex).toBe(1);
@@ -687,8 +709,7 @@ describe("collectPathWithNavigators — empty leaf marker", () => {
         e.event === "span_begin" && e.type === "empty_branch"
     );
     expect(markers).toHaveLength(1);
-    const data = (markers[0]!.metadata as { empty_branch: EmptyBranchData })
-      .empty_branch;
+    const data = expectEmptyBranch(markers[0]!.metadata);
     expect(data.branchName).toBe("Branch 2");
     expect(data.terminator).toBeNull();
   });
@@ -731,8 +752,7 @@ describe("collectPathWithNavigators — empty leaf marker", () => {
         e.event === "span_begin" && e.type === "empty_branch"
     );
     expect(marker).toBeDefined();
-    const data = (marker!.metadata as { empty_branch: EmptyBranchData })
-      .empty_branch;
+    const data = expectEmptyBranch(marker!.metadata);
     expect(data.terminator).toBe("restart_conversation");
   });
 

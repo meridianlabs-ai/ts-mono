@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import type { ContentData } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { RecordTree } from "../../content/RecordTree";
 
@@ -9,7 +10,7 @@ import { CompactionData, kCompactionMetadata } from "./CompactionData";
 import styles from "./ContentDataView.module.css";
 import { FallbackData, kFallbackMetadata } from "./FallbackData";
 import { WebSearch } from "./WebSearch";
-import { WebSearchContentData, WebSearchResults } from "./WebSearchResults";
+import { isWebSearchContentData, WebSearchResults } from "./WebSearchResults";
 
 export interface ContentDataProps {
   id: string;
@@ -78,8 +79,9 @@ const webSearchServerToolRenderer: ContentDataRenderer = {
     return data.type === "server_tool_use" && data.name === "web_search";
   },
   render: (_id: string, data: RenderableData): ReactNode => {
-    const input = data.input as Record<string, string> | undefined;
-    return <WebSearch query={input?.query ?? ""} />;
+    const input = data.input;
+    const query = isRecord(input) ? input["query"] : undefined;
+    return <WebSearch query={typeof query === "string" ? query : ""} />;
   },
 };
 
@@ -91,8 +93,9 @@ const webSearchResultsServerToolRenderer: ContentDataRenderer = {
     );
   },
   render: (_id: string, data: RenderableData): ReactNode => {
-    const results: WebSearchContentData[] =
-      data.content as WebSearchContentData[];
+    const results = Array.isArray(data.content)
+      ? data.content.filter(isWebSearchContentData)
+      : [];
     return <WebSearchResults results={results} />;
   },
 };

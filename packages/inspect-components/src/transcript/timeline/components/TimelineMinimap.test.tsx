@@ -55,7 +55,7 @@ describe("TimelineMinimap", () => {
       `.${styles.selectionRegion}`
     )!;
     expect(region).not.toBeNull();
-    region.getBoundingClientRect = () => ({ left: 100, width: 200 }) as DOMRect;
+    region.getBoundingClientRect = () => new DOMRect(100, 0, 200, 0);
     region.setPointerCapture = () => {};
 
     fireEvent.pointerDown(region, { clientX: 250, pointerId: 1 });
@@ -70,7 +70,7 @@ describe("TimelineMinimap", () => {
     const region = container.querySelector<HTMLDivElement>(
       `.${styles.selectionRegion}`
     )!;
-    region.getBoundingClientRect = () => ({ left: 100, width: 200 }) as DOMRect;
+    region.getBoundingClientRect = () => new DOMRect(100, 0, 200, 0);
     region.setPointerCapture = () => {};
 
     fireEvent.pointerDown(region, { clientX: 0, pointerId: 1 });

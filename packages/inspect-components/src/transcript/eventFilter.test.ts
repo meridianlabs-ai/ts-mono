@@ -1,22 +1,32 @@
 import { describe, expect, it } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testStateEvent,
+  testStoreEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
+import type { Event, JsonChange } from "@tsmono/inspect-common/types";
 
 import { dynamicDefaultExcludeEvents } from "./eventFilter";
 import { kDefaultExcludeEvents } from "./types";
 
-const storeEvent = (changes: { op: string; path: string; value?: unknown }[]) =>
-  ({ event: "store", changes }) as unknown as Event;
+const storeEvent = (changes: JsonChange[]): Event =>
+  testStoreEvent({ changes });
 
-const toolEvent = () => ({ event: "tool" }) as unknown as Event;
+const toolEvent = (): Event => testToolEvent();
 
 describe("dynamicDefaultExcludeEvents", () => {
   it("keeps store events visible when a human-baseline session is present", () => {
     const events = [
       toolEvent(),
       storeEvent([
-        { op: "add", path: "/HumanAgentState:logs", value: {} },
-        { op: "add", path: "/HumanAgentState:answer", value: "x" },
+        { op: "add", path: "/HumanAgentState:logs", value: {}, replaced: null },
+        {
+          op: "add",
+          path: "/HumanAgentState:answer",
+          value: "x",
+          replaced: null,
+        },
       ]),
     ];
     const excluded = dynamicDefaultExcludeEvents(events);
@@ -31,7 +41,14 @@ describe("dynamicDefaultExcludeEvents", () => {
 
   it("excludes store events for ordinary store diffs", () => {
     const events = [
-      storeEvent([{ op: "add", path: "/SomeOtherState:counter", value: 1 }]),
+      storeEvent([
+        {
+          op: "add",
+          path: "/SomeOtherState:counter",
+          value: 1,
+          replaced: null,
+        },
+      ]),
     ];
     expect(dynamicDefaultExcludeEvents(events)).toEqual([
       ...kDefaultExcludeEvents,
@@ -46,10 +63,17 @@ describe("dynamicDefaultExcludeEvents", () => {
   });
 
   it("ignores non-store events even when their paths match", () => {
-    const stateEvent = {
-      event: "state",
-      changes: [{ op: "add", path: "/store/HumanAgentState:logs", value: {} }],
-    } as unknown as Event;
+    const stateEvent = testStateEvent({
+      changes: [
+        {
+          op: "add",
+          path: "/store/HumanAgentState:logs",
+          value: {},
+          from: null,
+          replaced: null,
+        },
+      ],
+    });
     expect(dynamicDefaultExcludeEvents([stateEvent])).toEqual([
       ...kDefaultExcludeEvents,
     ]);

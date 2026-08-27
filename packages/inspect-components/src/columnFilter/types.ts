@@ -1,3 +1,5 @@
+import { isRecord } from "@tsmono/util";
+
 /** Column value kind, selecting the filter editor + operator set. */
 export type FilterType =
   | "string"
@@ -36,6 +38,9 @@ export const UI_OPERATORS = [
  */
 export type UiOperator = (typeof UI_OPERATORS)[number];
 
+export const isUiOperator = (value: unknown): value is UiOperator =>
+  UI_OPERATORS.some((operator) => operator === value);
+
 /**
  * A single filter condition: the operator plus the raw input strings exactly
  * as typed, so reopening the editor restores what the user entered.
@@ -66,11 +71,10 @@ export interface ColumnFilter {
 }
 
 const isConditionShaped = (value: unknown): value is FilterCondition => {
-  if (typeof value !== "object" || value === null) return false;
-  const c = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
+  const c = value;
   return (
-    typeof c.operator === "string" &&
-    (UI_OPERATORS as readonly string[]).includes(c.operator) &&
+    isUiOperator(c.operator) &&
     typeof c.value === "string" &&
     (c.value2 === undefined || typeof c.value2 === "string")
   );
@@ -85,13 +89,13 @@ const isConditionShaped = (value: unknown): value is FilterCondition => {
  * `second` must itself be condition-shaped.
  */
 export const isColumnFilter = (value: unknown): value is ColumnFilter => {
-  if (typeof value !== "object" || value === null) return false;
-  const v = value as Record<string, unknown>;
+  if (!isRecord(value)) return false;
+  const v = value;
   if (typeof v.columnId !== "string" || typeof v.filterType !== "string") {
     return false;
   }
-  const spec = v.spec as Record<string, unknown> | undefined;
-  if (!isConditionShaped(spec)) return false;
+  const spec = v.spec;
+  if (!isRecord(spec) || !isConditionShaped(spec)) return false;
 
   const hasJoin = spec.join !== undefined;
   const hasSecond = spec.second !== undefined;

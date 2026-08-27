@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { CSSProperties, FC, useState } from "react";
 
 import { CopyButton, MarkdownReference } from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
 import styles from "./MetaDataGrid.module.css";
@@ -156,7 +157,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
             </header>
             <MetaDataGrid
               id={groupId}
-              entries={entry.value as Record<string, unknown>}
+              entries={isRecord(entry.value) ? entry.value : {}}
               options={options}
               references={references}
               depth={depth + 1}

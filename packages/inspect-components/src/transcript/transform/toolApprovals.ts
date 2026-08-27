@@ -6,6 +6,7 @@
 
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 
+import { eventNodeOf } from "../types";
 import type { EventNode } from "../types";
 
 export interface ToolApprovalPairing {
@@ -50,7 +51,7 @@ export function pairToolApprovals(
           hiddenApprovalIds.add(n.id);
           if (toolNodeId) approvalScrollRedirects.set(n.id, toolNodeId);
         } else if (toolNodeId) {
-          toolApprovals.set(n.event.call.id, n as EventNode<ApprovalEvent>);
+          toolApprovals.set(n.event.call.id, eventNodeOf(n, "approval"));
           hiddenApprovalIds.add(n.id);
           approvalScrollRedirects.set(n.id, toolNodeId);
         }

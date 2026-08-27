@@ -44,7 +44,7 @@ import {
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
-import { countUtilitySpans, type TimelineSpan } from "./timeline/core";
+import { countUtilitySpans, TimelineSpan } from "./timeline/core";
 import {
   type SelectOptions,
   type TimelineOptions,
@@ -217,9 +217,17 @@ export interface TranscriptLayoutProps {
 // Component
 // =============================================================================
 
+/**
+ * CSS custom properties for a `style` prop. csstype's `Properties` declares no
+ * `--*` index signature, so a custom-property literal can't be written inline;
+ * React passes these straight through to the DOM.
+ */
+const cssVars = (vars: Record<`--${string}`, string | number>): CSSProperties =>
+  vars;
+
 function renderAgentCard(node: EventNode, agentCardClassName?: string) {
-  const span = node.sourceSpan as TimelineSpan | undefined;
-  if (!span) return null;
+  const span = node.sourceSpan;
+  if (!(span instanceof TimelineSpan)) return null;
   return <AgentCardView span={span} className={agentCardClassName} />;
 }
 
@@ -686,14 +694,12 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                 !outline && styles.noOutline,
                 outline && isOutlineCollapsed && styles.outlineCollapsed
               )}
-              style={
-                {
-                  "--outline-top": `${effectiveOffsetTop}px`,
-                  "--scroller-height": scrollerHeight
-                    ? `${scrollerHeight}px`
-                    : "100vh",
-                } as CSSProperties
-              }
+              style={cssVars({
+                "--outline-top": `${effectiveOffsetTop}px`,
+                "--scroller-height": scrollerHeight
+                  ? `${scrollerHeight}px`
+                  : "100vh",
+              })}
             >
               {outline && (
                 <OutlineSidebar

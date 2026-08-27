@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import type { Content } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import type { EventType } from "./types";
 import { EventNode } from "./types";
@@ -18,17 +19,29 @@ const SANITIZED_CONTENT_KEYS: Record<string, string> = {
 // readable text (matching MessageContent.tsx), other Content* become a
 // `<type />` placeholder (matching the UI's <img>/<audio>/etc. tags). Returns
 // undefined for anything else, so the caller preserves the original value.
+const readOptionalBoolean = (value: unknown, key: string): boolean => {
+  if (!isRecord(value)) return false;
+  return value[key] === true;
+};
+
+const readOptionalString = (
+  value: unknown,
+  key: string
+): string | undefined => {
+  if (!isRecord(value)) return undefined;
+  const raw = value[key];
+  return typeof raw === "string" ? raw : undefined;
+};
+
 const sanitizeContent = (val: unknown): string | undefined => {
   if (val === null || typeof val !== "object" || !("type" in val)) {
     return undefined;
   }
   if (val.type === "reasoning" && "reasoning" in val) {
-    const r = val as {
-      reasoning?: string | null;
-      summary?: string | null;
-      redacted?: boolean;
-    };
-    return r.redacted ? (r.summary ?? "") : r.reasoning || r.summary || "";
+    const reasoning = readOptionalString(val, "reasoning");
+    const summary = readOptionalString(val, "summary");
+    const redacted = readOptionalBoolean(val, "redacted");
+    return redacted ? (summary ?? "") : reasoning || summary || "";
   }
   if (typeof val.type === "string") {
     const payloadKey = SANITIZED_CONTENT_KEYS[val.type];

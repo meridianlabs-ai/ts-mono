@@ -6,7 +6,7 @@ import type {
   StateEvent,
   StoreEvent,
 } from "@tsmono/inspect-common/types";
-import { formatDateTime } from "@tsmono/util";
+import { formatDateTime, isRecord } from "@tsmono/util";
 
 import { EventPanel } from "../event/EventPanel";
 import { EventNode, EventPanelCallbacks } from "../types";
@@ -61,7 +61,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
   // appearing attached to state.
   const changePreview = useMemo(() => {
     const isStore = eventNode.event.event === "store";
-    const afterClone = structuredClone(after) || {};
+    const afterClone = structuredClone(after);
     return generatePreview(event.changes, afterClone, isStore, eventNode.id);
   }, [event.changes, eventNode.event.event, after, eventNode.id]);
   // Compute the title
@@ -91,8 +91,8 @@ export const StateEventView: FC<StateEventViewProps> = ({
         </div>
       ) : undefined}
       <StateDiffView
-        before={before as object}
-        after={after as object}
+        before={before}
+        after={after}
         data-name="Diff"
         className={clsx(styles.diff)}
       />
@@ -168,20 +168,19 @@ const summarizeChanges = (changes: JsonChange[]): string => {
   }
 
   const changeList: string[] = [];
-  const totalOpCount = Object.keys(changeMap).reduce((prev, current) => {
-    return prev + changeMap[current as JsonChangeOp].length;
-  }, 0);
+  const totalOpCount = Object.values(changeMap).reduce(
+    (prev, opChanges) => prev + opChanges.length,
+    0
+  );
 
   if (totalOpCount > 2) {
-    Object.keys(changeMap).forEach((key) => {
-      const opChanges = changeMap[key as JsonChangeOp];
+    Object.entries(changeMap).forEach(([key, opChanges]) => {
       if (opChanges.length > 0) {
         changeList.push(`${key} ${opChanges.length}`);
       }
     });
   } else {
-    Object.keys(changeMap).forEach((key) => {
-      const opChanges = changeMap[key as JsonChangeOp];
+    Object.entries(changeMap).forEach(([key, opChanges]) => {
       if (opChanges.length > 0) {
         changeList.push(`${key} ${opChanges.join(", ")}`);
       }
@@ -190,12 +189,20 @@ const summarizeChanges = (changes: JsonChange[]): string => {
   return changeList.join(", ");
 };
 
+/** State blobs are unvalidated; keep an array of strings, drop anything else. */
+const readStringArray = (value: unknown): string[] | undefined =>
+  Array.isArray(value) && value.every((v) => typeof v === "string")
+    ? value
+    : undefined;
+
 /**
  * Renders a view displaying a list of state changes.
  */
-const synthesizeComparable = (changes: JsonChange[]) => {
-  const before = {};
-  const after = {};
+const synthesizeComparable = (
+  changes: JsonChange[]
+): [Record<string, unknown>, Record<string, unknown>] => {
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
 
   for (const change of changes) {
     switch (change.op) {
@@ -250,7 +257,9 @@ function setPath(
       if (nextKey) {
         current[key] = isArrayIndex(nextKey) ? [] : {};
       }
-      current = current[key] as Record<string, unknown>;
+      const next = current[key];
+      if (!isRecord(next)) return;
+      current = next;
     }
   }
 
@@ -275,21 +284,21 @@ function initializeArrays(target: Record<string, unknown>, path: string): void {
     }
 
     if (isArrayIndex(nextKey)) {
-      current[key] = initializeArray(
-        current[key] as string[] | undefined,
-        nextKey
-      );
+      current[key] = initializeArray(readStringArray(current[key]), nextKey);
     } else {
-      current[key] = initializeObject(current[key] as object | undefined);
+      current[key] = initializeObject(
+        isRecord(current[key]) ? current[key] : undefined
+      );
     }
 
-    current = current[key] as Record<string, unknown>;
+    const next = current[key];
+    if (!isRecord(next)) return;
+    current = next;
   }
 
   const lastKey = keys[keys.length - 1];
   if (lastKey && isArrayIndex(lastKey)) {
-    const lastValue = current[lastKey] as string[] | undefined;
-    initializeArray(lastValue, lastKey);
+    initializeArray(readStringArray(current[lastKey]), lastKey);
   }
 }
 

@@ -344,6 +344,7 @@ describe("poolRetunes", () => {
   it("skips journal entries whose changes is missing or not an array", () => {
     // Intentionally malformed: `changes` is absent, so a plain assertion from
     // the (valid-subset) literal documents exactly what is missing.
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately out of contract: the point of the case is a journal entry with no `changes` at all
     const malformed = {
       scope: "task",
       provenance: {

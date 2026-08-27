@@ -290,7 +290,9 @@ function chatMessageRowEqual(
   prev: ChatMessageRowProps,
   next: ChatMessageRowProps
 ): boolean {
-  const keys = Object.keys(prev) as (keyof ChatMessageRowProps)[];
+  const keys: (keyof ChatMessageRowProps)[] = Object.keys(prev).filter(
+    (key): key is keyof ChatMessageRowProps => key in prev
+  );
   if (keys.length !== Object.keys(next).length) return false;
   for (const key of keys) {
     if (key === "resolvedMessage") {

@@ -70,12 +70,13 @@ describe("typed media rendering", () => {
   });
 
   it("does not preview remote image documents", () => {
-    const document = {
+    const document: ContentDocument = {
       type: "document",
       document: `${remoteUrl}.png`,
       filename: "remote.png",
       mime_type: "image/png",
-    } as ContentDocument;
+      citations: false,
+    };
     const { container } = render(
       <ContentDocumentView id="document" document={document} />
     );
@@ -89,12 +90,13 @@ describe("typed media rendering", () => {
   it.each(["image/png", "IMAGE/PNG"])(
     "previews inline image documents with matching MIME type %s",
     (mimeType) => {
-      const document = {
+      const document: ContentDocument = {
         type: "document",
         document: "data:image/png;base64,AAAA",
         filename: "inline.png",
         mime_type: mimeType,
-      } as ContentDocument;
+        citations: false,
+      };
       const { container } = render(
         <ContentDocumentView id="document" document={document} />
       );
