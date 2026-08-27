@@ -187,8 +187,11 @@ jobs:
   e2e:
     needs: changes
     if: needs.changes.outputs.e2e-apps != '[]'
-    continue-on-error: true  # TODO: remove once e2e tests prove stable
     runs-on: ubuntu-latest
+    # Successful runs finish well inside 7 minutes; past 20 the job has hung
+    # rather than run long. Without this, nine hung jobs ran to the 6h default
+    # cap — three of them on main.
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
