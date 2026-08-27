@@ -11,6 +11,7 @@ import {
   SearchRequest,
   SearchResponse,
 } from "@tsmono/inspect-common/types";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { headlineMetric } from "../../../scoring/headline";
@@ -241,14 +242,7 @@ export function viewServerApi(
       header.eval.headline_metric
     );
 
-    const model_roles = header.eval.model_roles
-      ? Object.fromEntries(
-          Object.entries(header.eval.model_roles).map(([role, cfg]) => [
-            role,
-            cfg.model,
-          ])
-        )
-      : undefined;
+    const model_roles = modelRoleNames(header.eval.model_roles);
 
     return {
       eval_id: header.eval.eval_id,

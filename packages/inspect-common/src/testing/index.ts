@@ -30,6 +30,7 @@ import type {
   InfoEvent,
   InputEvent,
   LoggerEvent,
+  ModelConfig,
   ModelEvent,
   ModelOutput,
   ModelUsage,
@@ -434,6 +435,15 @@ export const testEvalSample = (
 // ---------------------------------------------------------------------------
 // Eval log
 // ---------------------------------------------------------------------------
+
+export const testModelConfig = (
+  overrides: Partial<ModelConfig> = {}
+): ModelConfig => ({
+  model: "mockllm/model",
+  config: {},
+  args: {},
+  ...overrides,
+});
 
 export const testEvalSpec = (overrides: Partial<EvalSpec> = {}): EvalSpec => ({
   eval_id: "eval_1",

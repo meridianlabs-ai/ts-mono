@@ -1,3 +1,5 @@
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
+
 import { headlineMetric } from "../../scoring/headline";
 import {
   EvalHeader,
@@ -93,14 +95,7 @@ export const prepareLogDetails = (details: LogDetails): PreparedLogDetails => {
 };
 
 export const toLogPreview = (header: EvalHeader | LogDetails): LogPreview => {
-  const model_roles = header.eval.model_roles
-    ? Object.fromEntries(
-        Object.entries(header.eval.model_roles).map(([role, cfg]) => [
-          role,
-          cfg.model,
-        ])
-      )
-    : undefined;
+  const model_roles = modelRoleNames(header.eval.model_roles);
 
   return {
     eval_id: header.eval.eval_id,
