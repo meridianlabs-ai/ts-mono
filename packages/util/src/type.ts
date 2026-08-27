@@ -2,7 +2,7 @@
  * Checks if a given value is numeric.
  */
 export const isNumeric = (n: unknown): boolean => {
-  return !isNaN(parseFloat(n as any)) && isFinite(n as any);
+  return !isNaN(parseFloat(String(n))) && isFinite(Number(n));
 };
 
 /**

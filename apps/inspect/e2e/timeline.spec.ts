@@ -54,7 +54,7 @@ function createModelEvent(overrides?: {
       output_tokens: Math.floor(tokens * 0.4),
       total_tokens: tokens,
     },
-    time: overrides?.endSec ? overrides.endSec - (overrides?.startSec ?? 0) : 3,
+    time: overrides?.endSec ? overrides.endSec - (overrides.startSec ?? 0) : 3,
   };
 
   return {
@@ -69,7 +69,7 @@ function createModelEvent(overrides?: {
     timestamp: "2025-01-15T10:00:00Z",
     working_start: overrides?.startSec ?? 0,
     working_time: overrides?.endSec
-      ? overrides.endSec - (overrides?.startSec ?? 0)
+      ? overrides.endSec - (overrides.startSec ?? 0)
       : 3,
     error: null,
     traceback_ansi: null,
@@ -140,11 +140,15 @@ async function openTranscriptWithTimeline(
     }),
   ];
 
-  const sample = createEvalSample({ id: sampleId, epoch: 1, messages });
-  (sample as { events: Events }).events = events;
-  (sample as { timelines: Timeline[] }).timelines = options?.timelines ?? [
-    createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
-  ];
+  const sample = createEvalSample({
+    id: sampleId,
+    epoch: 1,
+    messages,
+    events,
+    timelines: options?.timelines ?? [
+      createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
+    ],
+  });
 
   const evalLog = createEvalLog({ samples: [sample] });
   const logDetails = createLogDetails(evalLog);

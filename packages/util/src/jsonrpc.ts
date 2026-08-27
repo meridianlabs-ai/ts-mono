@@ -87,7 +87,8 @@ const toErrorData = (data: unknown): JsonRpcErrorData =>
   typeof data === "string"
     ? { description: data }
     : typeof data === "object" && data !== null
-      ? (data as JsonRpcErrorData)
+      ? // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- wire boundary: a peer's error payload, structurally unverifiable short of walking it
+        (data as JsonRpcErrorData)
       : { description: JSON.stringify(data) };
 
 export function jsonRpcError(
@@ -190,8 +191,7 @@ function isJsonRpcMessage(message: unknown): message is JsonRpcMessage {
 }
 
 function isJsonRpcRequest(message: JsonRpcMessage): message is JsonRpcRequest {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  return (message as JsonRpcRequest).method !== undefined;
+  return "method" in message;
 }
 
 function asJsonRpcMessage(data: unknown): JsonRpcMessage | null {

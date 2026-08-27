@@ -111,7 +111,8 @@ describe("jsonParse", () => {
       const text = "[".repeat(depth) + "NaN" + "]".repeat(depth);
       let node: unknown = jsonParse(text);
       for (let i = 0; i < depth; i++) {
-        node = (node as unknown[])[0];
+        if (!Array.isArray(node)) break;
+        node = node[0];
       }
       expect(node).toBeNaN();
     });

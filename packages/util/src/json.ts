@@ -12,13 +12,16 @@ export const isJson = (text: string): boolean => {
   return false;
 };
 
+const isObject = (value: unknown): value is object =>
+  typeof value === "object" && value !== null;
+
 export const asJsonObjArray = (text: string): object[] | undefined => {
   text = text.trim();
   if (text.startsWith("[") && text.endsWith("]")) {
     try {
-      const arr = JSON.parse(text) as unknown;
-      if (Array.isArray(arr) && arr.every((item) => typeof item === "object")) {
-        return arr as object[];
+      const arr: unknown = JSON.parse(text);
+      if (Array.isArray(arr) && arr.every(isObject)) {
+        return arr;
       } else {
         return undefined;
       }

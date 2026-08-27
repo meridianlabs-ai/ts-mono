@@ -90,6 +90,8 @@ export function createEvalSample(overrides: {
   messages: ChatMessage[];
   target?: string | string[];
   metadata?: EvalSample["metadata"];
+  events?: EvalSample["events"];
+  timelines?: EvalSample["timelines"];
 }): EvalSample {
   const lastAssistant = [...overrides.messages]
     .reverse()
@@ -100,7 +102,7 @@ export function createEvalSample(overrides: {
     epoch: overrides.epoch ?? 1,
     input: overrides.messages
       .filter((m) => m.role === "user")
-      .map((m) => m.content)
+      .map((m) => (typeof m.content === "string" ? m.content : ""))
       .join("\n"),
     output: createModelOutput(
       typeof lastAssistant?.content === "string"
@@ -108,7 +110,8 @@ export function createEvalSample(overrides: {
         : "Response"
     ),
     messages: overrides.messages,
-    events: [],
+    events: overrides.events ?? [],
+    timelines: overrides.timelines,
     metadata: overrides.metadata ?? {},
     store: {},
     model_usage: {},

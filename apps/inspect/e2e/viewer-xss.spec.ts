@@ -120,7 +120,7 @@ test("print metadata remains literal and the print tab has no opener", async ({
   await expect(printPage.getByText(task, { exact: true })).toBeVisible();
   await expect(printPage.getByText(model, { exact: true })).toBeVisible();
 
-  expect(await printPage.evaluate(() => window.opener)).toBeNull();
+  expect(await printPage.evaluate(() => window.opener === null)).toBe(true);
   expect(
     await printPage.evaluate(
       () => (window as Window & { __printXss?: boolean }).__printXss

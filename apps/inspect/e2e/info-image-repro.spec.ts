@@ -183,8 +183,8 @@ test("info event with images shows a more toggle when clipped", async ({
       const wrap = Array.from(
         document.querySelectorAll('[data-expandable-panel="true"]')
       )
-        .map((p) => p.firstElementChild as HTMLElement)
-        .find((w) => w && w.querySelector("img"));
+        .map((p) => p.firstElementChild)
+        .find((w) => w !== null && w.querySelector("img") !== null);
       if (!wrap) return null;
       // Keep the panel centered like the user's screenshot; virtualizer
       // re-measures can shift it between polls.

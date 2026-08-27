@@ -26,7 +26,29 @@ function firstRequest(
   rpcClient: ReturnType<typeof mockRpcClient>
 ): HttpProxyRequest {
   const params = rpcClient.mock.calls[0]?.[1];
-  return (params as HttpProxyRequest[])[0]!;
+  const request = Array.isArray(params) ? params[0] : undefined;
+  if (!isHttpProxyRequest(request)) {
+    throw new Error(`not an HttpProxyRequest: ${JSON.stringify(params)}`);
+  }
+  return request;
+}
+
+const kHttpMethods: readonly HttpProxyRequest["method"][] = [
+  "GET",
+  "POST",
+  "PUT",
+  "DELETE",
+];
+
+function isHttpProxyRequest(value: unknown): value is HttpProxyRequest {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "method" in value &&
+    kHttpMethods.some((m) => m === value.method) &&
+    "path" in value &&
+    typeof value.path === "string"
+  );
 }
 
 const validResponse: HttpProxyResponse = {
@@ -197,6 +219,7 @@ describe("createJsonRpcFetch", () => {
       const rpcClient = mockRpcClient(validResponse);
       const fetch = createJsonRpcFetch(rpcClient);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: this covers the runtime String() path for a body RequestInit's types forbid
       await fetch("/api/test", { method: "POST", body: 12345 as never });
 
       const request = firstRequest(rpcClient);
