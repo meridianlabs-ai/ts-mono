@@ -101,6 +101,9 @@ export type ErrorScope =
 export type ResultGroup =
   "source" | "label" | "id" | "epoch" | "model" | "none";
 
+/** The scanner input kinds a scan row can carry (the generated union). */
+export type ScannerInputType = ScannerInputResponse["input_type"];
+
 export type ScanResultValueType =
   "boolean" | "number" | "string" | "array" | "object" | "null";
 

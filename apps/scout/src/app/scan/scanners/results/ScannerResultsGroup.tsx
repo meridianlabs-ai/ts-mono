@@ -18,8 +18,7 @@ export const ScannerResultsGroup: FC<ScannerResultsGroupProps> = ({
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
-      const sel = e.target;
-      setGroupResultsBy(sel.value as ResultGroup);
+      setGroupResultsBy(toVal(e.target.value));
     },
     [setGroupResultsBy]
   );

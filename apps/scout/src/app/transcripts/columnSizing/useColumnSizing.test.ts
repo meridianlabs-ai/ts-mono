@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, renderHook } from "@testing-library/react";
 import React from "react";
-import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranscriptColumn } from "../columns";
 
@@ -13,18 +13,17 @@ const mockStoreState = {
     sizingStrategy: "default" as const,
     manuallyResizedColumns: [] as string[],
   },
+  setTranscriptsTableState: mockSetTableState,
 };
 
-vi.mock("../../../state/store", () => ({
-  useStore: vi.fn((selector: (state: typeof mockStoreState) => unknown) =>
-    selector(mockStoreState)
-  ),
-}));
+// The double stands in for the whole store, so it is held untyped here and
+// fed the slice of state this hook actually selects.
+const storeDouble = vi.hoisted(() => ({ useStore: vi.fn() }));
+
+vi.mock("../../../state/store", () => storeDouble);
 
 describe("useColumnSizing", () => {
-  // Dynamic imports ensure modules resolve against the vi.mock above
-  const loadUseStore = async () =>
-    (await import("../../../state/store")).useStore as Mock;
+  // Dynamic import ensures the module resolves against the vi.mock above
   const loadUseColumnSizing = async () =>
     (await import("./useColumnSizing")).useColumnSizing;
 
@@ -45,9 +44,9 @@ describe("useColumnSizing", () => {
     },
   ];
 
-  const mockTableRef = {
+  const mockTableRef: React.RefObject<HTMLTableElement | null> = {
     current: null,
-  } as React.RefObject<HTMLTableElement | null>;
+  };
 
   const mockData: never[] = [];
 
@@ -63,27 +62,16 @@ describe("useColumnSizing", () => {
       manuallyResizedColumns: [],
     };
 
-    const useStore = await loadUseStore();
     useColumnSizing = await loadUseColumnSizing();
 
     // Setup useStore mock to return setTableState
-    useStore.mockImplementation(
-      (
-        selector?: (
-          state: typeof mockStoreState & {
-            setTranscriptsTableState: typeof mockSetTableState;
-          }
-        ) => unknown
-      ) => {
+    storeDouble.useStore.mockImplementation(
+      (selector?: (state: typeof mockStoreState) => unknown) => {
         if (!selector) return undefined;
         if (selector.toString().includes("setTranscriptsTableState")) {
           return mockSetTableState;
         }
-        return selector(
-          mockStoreState as typeof mockStoreState & {
-            setTranscriptsTableState: typeof mockSetTableState;
-          }
-        );
+        return selector(mockStoreState);
       }
     );
   });

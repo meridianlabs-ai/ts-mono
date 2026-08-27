@@ -2,13 +2,19 @@ import { decompress as decompressZstd } from "fzstd";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
-import { ApiError, asyncJsonParse, encodeBase64Url } from "@tsmono/util";
+import {
+  ApiError,
+  asyncJsonParse,
+  encodeBase64Url,
+  isRecord,
+} from "@tsmono/util";
 
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
+  InvalidationTopic,
   MessagesEventsResponse,
   Pagination,
   ProjectConfig,
@@ -45,6 +51,37 @@ import { serverRequestApi } from "./request";
 export type HeaderProvider = () => Promise<Record<string, string>>;
 
 type TopicUpdateCallback = (topVersions: TopicVersions) => void;
+
+const kInvalidationTopics: readonly InvalidationTopic[] = [
+  "project-config",
+  "scans",
+  "transcripts",
+];
+
+/**
+ * Topic versions arrive as wire text on both the polling and SSE paths. A
+ * frame reports only the topics it knows about, so unrecognized keys and
+ * non-string versions are dropped; unparseable text isn't an update at all.
+ */
+const parseTopicVersions = (text: string): TopicVersions | undefined => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  if (!isRecord(parsed)) {
+    return undefined;
+  }
+  const versions: TopicVersions = {};
+  for (const topic of kInvalidationTopics) {
+    const version = parsed[topic];
+    if (typeof version === "string") {
+      versions[topic] = version;
+    }
+  }
+  return versions;
+};
 
 const ENCODING_ZSTD: RawEncoding = "zstd";
 
@@ -502,8 +539,13 @@ const connectTopicUpdatesViaPolling = (
     (customFetch ?? fetch)(`${apiBaseUrl}/topics`, {
       signal: controller.signal,
     })
-      .then<TopicVersions>((res) => res.json())
-      .then(onUpdate)
+      .then((res) => res.text())
+      .then((text) => {
+        const versions = parseTopicVersions(text);
+        if (versions) {
+          onUpdate(versions);
+        }
+      })
       .catch((error: unknown) => {
         const name =
           error && typeof error === "object" && "name" in error
@@ -533,8 +575,14 @@ const connectTopicUpdatesViaSSE = (
 
   const connect = () => {
     eventSource = new EventSource(`${apiBaseUrl}/topics/stream`);
-    eventSource.onmessage = (e) =>
-      onUpdate(JSON.parse(e.data as string) as TopicVersions);
+    eventSource.onmessage = (e) => {
+      const data: unknown = e.data;
+      const versions =
+        typeof data === "string" ? parseTopicVersions(data) : undefined;
+      if (versions) {
+        onUpdate(versions);
+      }
+    };
     eventSource.onerror = () => {
       eventSource?.close();
       timeoutId = setTimeout(connect, 5000);

@@ -10,6 +10,7 @@ import { AutocompleteInput, PopOver } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../icons";
 import { Chip } from "../../components/Chip";
+import { eventValue } from "../../utils/formEvents";
 
 import styles from "./ValidationCaseLabelsEditor.module.css";
 
@@ -151,9 +152,7 @@ export const ValidationCaseLabelsEditor: FC<
             </span>
             <VscodeRadioGroup
               aria-labelledby="validation-label-value"
-              onChange={(e) =>
-                setNewLabelValue((e.target as HTMLInputElement).value)
-              }
+              onChange={(e) => setNewLabelValue(eventValue(e))}
             >
               <VscodeRadio
                 name="label-value"

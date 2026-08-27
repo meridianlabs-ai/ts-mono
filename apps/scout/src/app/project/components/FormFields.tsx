@@ -8,16 +8,12 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, ReactNode, useEffect, useState } from "react";
 
+import { eventValue } from "../../utils/formEvents";
+
 import styles from "./FormFields.module.css";
 
-// Helper to extract input value with proper typing
-function getInputValue(e: Event): string {
-  return (e.target as HTMLInputElement).value;
-}
-
-function getSelectValue(e: Event): string {
-  return (e.target as HTMLSelectElement).value;
-}
+const getInputValue = eventValue;
+const getSelectValue = eventValue;
 
 // Helper to disable spellcheck on web component shadow DOM elements
 function createSpellcheckRef(selector: "input" | "textarea") {
@@ -338,8 +334,10 @@ export function SelectField<T extends string>({
         value={value ?? ""}
         disabled={disabled}
         onChange={(e) => {
+          // The select's own options are its value set; anything else is the
+          // "Default" placeholder.
           const val = getSelectValue(e);
-          onChange(val ? (val as T) : null);
+          onChange(options.find((option) => option === val) ?? null);
         }}
       >
         <VscodeOption value="">{defaultLabel}</VscodeOption>

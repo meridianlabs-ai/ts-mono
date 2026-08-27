@@ -26,6 +26,7 @@ import {
   useValidationCases,
   useValidationSets,
 } from "../server/useValidations";
+import { eventValue } from "../utils/formEvents";
 
 import { ValidationCasesList } from "./components/ValidationCasesList";
 import { ValidationSetSelector } from "./components/ValidationSetSelector";
@@ -198,7 +199,7 @@ export const ValidationPanel: FC = () => {
   };
 
   const handleNameInput = (e: Event) => {
-    const value = (e.target as HTMLInputElement).value;
+    const value = eventValue(e);
     setNewName(value);
   };
 
@@ -238,7 +239,7 @@ export const ValidationPanel: FC = () => {
 
   // Filter handlers
   const handleSplitFilterChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     setSplitFilter(value || undefined);
   };
 

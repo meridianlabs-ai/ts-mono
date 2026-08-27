@@ -3,6 +3,18 @@ import { useCallback, useMemo } from "react";
 import { filterNullValues } from "../configUtils";
 
 /**
+ * The nested-config editors send a patch: the fields the user touched merged
+ * over whatever the parent config already held. The generated API type
+ * describes a whole CachePolicy/BatchConfig with no type for "the parts of
+ * one", and the server fills the rest on PUT.
+ */
+const asNestedConfig = <T extends Record<string, unknown>>(
+  patch: Partial<T>
+): T =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- config patch boundary: see above
+  patch as T;
+
+/**
  * Hook for managing nested config sections like cache and batch.
  *
  * These configs can be:
@@ -45,10 +57,12 @@ export function useNestedConfig<T extends Record<string, unknown>>(
         typeof configValue === "object" && configValue !== null
           ? filterNullValues(configValue)
           : {};
-      updateParent({
-        ...existingConfig,
-        ...updates,
-      } as T);
+      updateParent(
+        asNestedConfig<T>({
+          ...existingConfig,
+          ...updates,
+        })
+      );
     },
     [configValue, updateParent]
   );
@@ -80,19 +94,21 @@ export function useBatchConfig<T extends Record<string, unknown>>(
           : {};
       const size =
         typeof configValue === "number" ? configValue : existingConfig.size;
-      updateParent({
-        ...(size !== undefined ? { size } : {}),
-        ...existingConfig,
-        ...updates,
-      } as T);
+      updateParent(
+        asNestedConfig<T>({
+          ...(size !== undefined ? { size } : {}),
+          ...existingConfig,
+          ...updates,
+        })
+      );
     },
     [configValue, updateParent]
   );
 
   const currentBatchSize = useMemo(() => {
     if (typeof configValue === "object" && configValue !== null) {
-      return (configValue as Record<string, unknown>).size as
-        number | undefined;
+      const size = configValue.size;
+      return typeof size === "number" ? size : undefined;
     }
     return simpleBatchSize ?? undefined;
   }, [configValue, simpleBatchSize]);

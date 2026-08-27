@@ -18,6 +18,7 @@ import {
 } from "../server/useProjectConfig";
 
 import {
+  asConfigInput,
   computeConfigToSave,
   configsEqual,
   deepCopy,
@@ -77,9 +78,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   // Capture focused element ID on mousedown (before click moves focus to button)
   // We store the ID since React may recreate the DOM element
   const handleSaveMouseDown = useCallback(() => {
-    const el = document.activeElement as HTMLElement;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (el && el !== document.body && el.id) {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement && el !== document.body && el.id) {
       focusedFieldIdRef.current = el.id;
     } else {
       focusedFieldIdRef.current = null;
@@ -112,9 +112,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         // Guard against double-save during pending mutation
         if (!mutation.isPending) {
           // Capture focused element ID for restoration after save
-          const el = document.activeElement as HTMLElement;
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          if (el && el !== document.body && el.id) {
+          const el = document.activeElement;
+          if (el instanceof HTMLElement && el !== document.body && el.id) {
             focusedFieldIdRef.current = el.id;
           } else {
             focusedFieldIdRef.current = null;
@@ -141,9 +140,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
     // If editedConfig is null (initial load or after reload), initialize
     if (!editedConfig) {
-      const initialized = initializeEditedConfig(
-        data.config as ProjectConfigInput
-      );
+      const initialized = initializeEditedConfig(asConfigInput(data.config));
       // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
       /* eslint-disable react-hooks/set-state-in-effect */
       setEditedConfig(initialized);
@@ -161,9 +158,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     // Etag changed unexpectedly - reinitialize
     // (With current flow this shouldn't happen since external changes
     // are detected via 412 on save, but handle it just in case)
-    const initialized = initializeEditedConfig(
-      data.config as ProjectConfigInput
-    );
+    const initialized = initializeEditedConfig(asConfigInput(data.config));
     setEditedConfig(initialized);
     setOriginalConfig(deepCopy(initialized));
     lastSavedEtagRef.current = data.etag;
@@ -195,7 +190,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
       const updatedConfig = computeConfigToSave(
         editedConfig,
         originalConfig,
-        data.config as ProjectConfigInput
+        asConfigInput(data.config)
       );
 
       mutation.mutate(
@@ -238,7 +233,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     const updatedConfig = computeConfigToSave(
       editedConfig,
       originalConfig,
-      data.config as ProjectConfigInput
+      asConfigInput(data.config)
     );
 
     mutation.mutate(
@@ -277,7 +272,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     const updatedConfig = computeConfigToSave(
       editedConfig,
       originalConfig,
-      data.config as ProjectConfigInput
+      asConfigInput(data.config)
     );
 
     mutation.mutate(

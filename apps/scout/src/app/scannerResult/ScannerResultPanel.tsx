@@ -90,7 +90,10 @@ export const ScannerResultPanel: FC = () => {
     const kScrollThreshold = 100;
 
     const onScroll = (e: Event) => {
-      const target = e.target as Element;
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
       const scrolled = target.scrollTop > kScrollThreshold;
       if (scrolled && !headerCollapsedRef.current) {
         // Collapsing frees vertical space (~140px). If the container's

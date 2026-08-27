@@ -8,6 +8,7 @@ import { TextInput, type TextInputChange } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../icons";
 import { ValidationCase } from "../../../types/api-types";
+import { eventValue } from "../../utils/formEvents";
 import { extractUniqueSplits } from "../utils";
 
 import styles from "./ValidationFilterBar.module.css";
@@ -34,7 +35,7 @@ export const ValidationFilterBar: FC<ValidationFilterBarProps> = ({
   const splits = useMemo(() => extractUniqueSplits(cases), [cases]);
 
   const handleSplitChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     onSplitFilterChange(value || undefined);
   };
 

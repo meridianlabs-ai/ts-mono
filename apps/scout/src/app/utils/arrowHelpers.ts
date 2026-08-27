@@ -1,39 +1,38 @@
 import { ColumnTable } from "arquero";
 
-import type { JsonValue } from "@tsmono/inspect-common/types";
-import { asyncJsonParse, isJson } from "@tsmono/util";
+import { asyncJsonParse, isRecord } from "@tsmono/util";
+
+import { ScanResultData, ScanResultSummary } from "../types";
 
 import {
-  ScanResultData,
-  ScanResultReference,
-  ScanResultSummary,
-  ScanResultValueType,
-} from "../types";
-
+  optionalBooleanCell,
+  optionalIdCell,
+  optionalNumberCell,
+  optionalStringCell,
+  rawCell,
+  stringCell,
+} from "./arrowCells";
 import {
+  normalizeAgentArgs,
+  normalizeInputType,
+  normalizeJsonRecord,
+  normalizeReferences,
   normalizeScanEvents,
   normalizeScanModelUsage,
+  normalizeScanValue,
+  normalizeStringList,
   normalizeTranscriptMetadata,
+  normalizeTranscriptScore,
   normalizeValidationResult,
   normalizeValidationTarget,
+  normalizeValueType,
   resolveTranscriptIdentityFromMetadata,
 } from "./normalizeScanRow";
 
 export const parseScanResultData = async (
   filtered: ColumnTable
 ): Promise<ScanResultData> => {
-  const valueType = filtered.get("value_type", 0) as ScanResultValueType;
-
-  const transcript_agent_args_raw = getOptionalColumn<string>(
-    filtered,
-    "transcript_agent_args",
-    0
-  );
-  const transcript_score_raw = getOptionalColumn<string>(
-    filtered,
-    "transcript_score",
-    0
-  );
+  const valueType = normalizeValueType(rawCell(filtered, "value_type", 0));
 
   const [
     eventReferences,
@@ -52,249 +51,181 @@ export const parseScanResultData = async (
     transcriptAgentArgs,
     transcriptScore,
   ] = await Promise.all([
-    parseJson(filtered.get("event_references", 0) as string),
-    parseJson(filtered.get("input_ids", 0) as string),
-    parseJson(filtered.get("message_references", 0) as string),
-    parseJson(filtered.get("metadata", 0) as string),
-    parseJson(getOptionalColumn<string>(filtered, "scan_events") ?? null),
-    parseJson(filtered.get("scan_metadata", 0) as string),
-    parseJson(filtered.get("scan_model_usage", 0) as string),
-    parseJson(filtered.get("scan_tags", 0) as string),
-    parseJson(filtered.get("scanner_params", 0) as string),
-    normalizeTranscriptMetadata(filtered.get("transcript_metadata", 0)),
-    normalizeValidationResult(filtered.get("validation_result", 0)),
-    normalizeValidationTarget(filtered.get("validation_target", 0)),
-    parseSimpleValue(filtered.get("value", 0), valueType),
-    transcript_agent_args_raw
-      ? parseJson(transcript_agent_args_raw)
-      : Promise.resolve(undefined),
-    parseJsonValue(transcript_score_raw),
+    normalizeReferences(rawCell(filtered, "event_references", 0)),
+    normalizeStringList(rawCell(filtered, "input_ids", 0)),
+    normalizeReferences(rawCell(filtered, "message_references", 0)),
+    normalizeJsonRecord(rawCell(filtered, "metadata", 0)),
+    parseScanEventsCell(filtered),
+    normalizeJsonRecord(rawCell(filtered, "scan_metadata", 0)),
+    parseModelUsageCell(filtered),
+    normalizeStringList(rawCell(filtered, "scan_tags", 0)),
+    normalizeJsonRecord(rawCell(filtered, "scanner_params", 0)),
+    normalizeTranscriptMetadata(rawCell(filtered, "transcript_metadata", 0)),
+    normalizeValidationResult(rawCell(filtered, "validation_result", 0)),
+    normalizeValidationTarget(rawCell(filtered, "validation_target", 0)),
+    normalizeScanValue(rawCell(filtered, "value", 0), valueType),
+    normalizeAgentArgs(rawCell(filtered, "transcript_agent_args", 0)),
+    normalizeTranscriptScore(rawCell(filtered, "transcript_score", 0)),
   ]);
 
-  const identifier = filtered.get("identifier", 0) as string;
-  const uuid = getOptionalColumn<string>(filtered, "uuid");
-  const timestamp = getOptionalColumn<string>(filtered, "timestamp");
-  const answer = getOptionalColumn<string>(filtered, "answer");
-  const label = getOptionalColumn<string>(filtered, "label");
-  const explanation = getOptionalColumn<string>(filtered, "explanation");
-  const inputType = filtered.get("input_type", 0) as
-    "transcript" | "message" | "messages" | "event" | "events";
-  const scanError = getOptionalColumn<string>(filtered, "scan_error");
-  const scanErrorTraceback = getOptionalColumn<string>(
-    filtered,
-    "scan_error_traceback"
-  );
-  const scanErrorRefusal =
-    getOptionalColumn<boolean>(filtered, "scan_error_refusal") ?? false;
-  const scanId = filtered.get("scan_id", 0) as string;
-  // Synthetic missing-label rows null this cell (createSyntheticRows).
-  const scanTotalTokens =
-    (filtered.get("scan_total_tokens", 0) as number | null) ?? 0;
-  const scannerFile = filtered.get("scanner_file", 0) as string;
-  const scannerKey = filtered.get("scanner_key", 0) as string;
-  const scannerName = filtered.get("scanner_name", 0) as string;
-  const transcriptId = filtered.get("transcript_id", 0) as string;
-  const transcriptSourceId = filtered.get("transcript_source_id", 0) as string;
-  const transcriptSourceUri =
-    (filtered.get("transcript_source_uri", 0) as string | null) ?? "";
-
-  const transcriptTaskSet = getOptionalColumn<string>(
-    filtered,
-    "transcript_task_set"
-  );
-  const transcriptTaskId = getOptionalColumn<string | number>(
-    filtered,
-    "transcript_task_id"
-  );
-  const transcriptTaskRepeat = getOptionalColumn<number>(
-    filtered,
-    "transcript_task_repeat"
-  );
-  const transcriptDate = getOptionalColumn<string>(filtered, "transcript_date");
-  const transcriptAgent = getOptionalColumn<string>(
-    filtered,
-    "transcript_agent"
-  );
-  const transcriptModel = getOptionalColumn<string>(
-    filtered,
-    "transcript_model"
-  );
-  const transcriptSuccess = getOptionalColumn<boolean>(
-    filtered,
-    "transcript_success"
-  );
-  const transcriptTotalTime = getOptionalColumn<number>(
-    filtered,
-    "transcript_total_time"
-  );
-  const transcriptTotalTokens = getOptionalColumn<number>(
-    filtered,
-    "transcript_total_tokens"
-  );
-  const transcriptMessageCount = getOptionalColumn<number>(
-    filtered,
-    "transcript_message_count"
-  );
-  const transcriptError = getOptionalColumn<string>(
-    filtered,
-    "transcript_error"
-  );
-  const transcriptLimit = getOptionalColumn<string>(
-    filtered,
-    "transcript_limit"
-  );
-
   const baseData = {
-    identifier,
-    uuid,
-    timestamp,
-    answer,
-    label,
-    eventReferences: (eventReferences ?? []) as ScanResultReference[],
-    explanation,
-    inputIds: (inputIds ?? []) as string[],
-    messageReferences: (messageReferences ?? []) as ScanResultReference[],
-    metadata: (metadata ?? {}) as Record<string, JsonValue>,
-    scanError,
-    scanErrorTraceback,
-    scanErrorRefusal,
-    scanEvents: normalizeScanEvents(scanEvents),
-    scanId,
-    scanMetadata: (scanMetadata ?? {}) as Record<string, JsonValue>,
-    scanModelUsage: normalizeScanModelUsage(scanModelUsage),
-    scanTags: (scanTags ?? []) as string[],
-    scanTotalTokens,
-    scannerFile,
-    scannerKey,
-    scannerName,
-    scannerParams: (scannerParams ?? {}) as Record<string, JsonValue>,
-    transcriptId,
+    identifier: stringCell(filtered, "identifier"),
+    uuid: optionalStringCell(filtered, "uuid"),
+    timestamp: optionalStringCell(filtered, "timestamp"),
+    answer: optionalStringCell(filtered, "answer"),
+    label: optionalStringCell(filtered, "label"),
+    eventReferences,
+    explanation: optionalStringCell(filtered, "explanation"),
+    inputIds,
+    messageReferences,
+    metadata,
+    scanError: optionalStringCell(filtered, "scan_error"),
+    scanErrorTraceback: optionalStringCell(filtered, "scan_error_traceback"),
+    scanErrorRefusal:
+      optionalBooleanCell(filtered, "scan_error_refusal") ?? false,
+    scanEvents,
+    scanId: stringCell(filtered, "scan_id"),
+    scanMetadata,
+    scanModelUsage,
+    scanTags,
+    // Synthetic missing-label rows null this cell (createSyntheticRows).
+    scanTotalTokens: optionalNumberCell(filtered, "scan_total_tokens") ?? 0,
+    scannerFile: stringCell(filtered, "scanner_file"),
+    scannerKey: stringCell(filtered, "scanner_key"),
+    scannerName: stringCell(filtered, "scanner_name"),
+    scannerParams,
+    transcriptId: stringCell(filtered, "transcript_id"),
     transcriptMetadata,
-    transcriptSourceId,
-    transcriptSourceUri,
-    transcriptTaskSet,
-    transcriptTaskId,
-    transcriptTaskRepeat,
-    transcriptAgent,
-    transcriptAgentArgs: transcriptAgentArgs as Record<string, unknown>,
-    transcriptDate,
-    transcriptModel,
+    transcriptSourceId: stringCell(filtered, "transcript_source_id"),
+    transcriptSourceUri: stringCell(filtered, "transcript_source_uri"),
+    transcriptTaskSet: optionalStringCell(filtered, "transcript_task_set"),
+    transcriptTaskId: optionalIdCell(filtered, "transcript_task_id"),
+    transcriptTaskRepeat: optionalNumberCell(
+      filtered,
+      "transcript_task_repeat"
+    ),
+    transcriptAgent: optionalStringCell(filtered, "transcript_agent"),
+    transcriptAgentArgs,
+    transcriptDate: optionalStringCell(filtered, "transcript_date"),
+    transcriptModel: optionalStringCell(filtered, "transcript_model"),
     transcriptScore,
-    transcriptSuccess,
-    transcriptTotalTime,
-    transcriptTotalTokens,
-    transcriptMessageCount,
-    transcriptError,
-    transcriptLimit,
+    transcriptSuccess: optionalBooleanCell(filtered, "transcript_success"),
+    transcriptTotalTime: optionalNumberCell(filtered, "transcript_total_time"),
+    transcriptTotalTokens: optionalNumberCell(
+      filtered,
+      "transcript_total_tokens"
+    ),
+    transcriptMessageCount: optionalNumberCell(
+      filtered,
+      "transcript_message_count"
+    ),
+    transcriptError: optionalStringCell(filtered, "transcript_error"),
+    transcriptLimit: optionalStringCell(filtered, "transcript_limit"),
     validationResult,
     validationTarget,
-    value: value ?? null,
+    value,
     valueType,
   };
 
   resolveTranscriptIdentityFromMetadata(baseData);
 
-  return { ...baseData, inputType };
+  return {
+    ...baseData,
+    inputType: normalizeInputType(rawCell(filtered, "input_type", 0)),
+  };
 };
 
 export const parseScanResultSummaries = async (
   rowData: object[]
 ): Promise<ScanResultSummary[]> =>
-  Promise.all(
-    rowData.map(async (row) => {
-      const r = row as Record<string, unknown>;
+  Promise.all(rowData.map((row) => parseScanResultSummary(row)));
 
-      const valueType = r.value_type as ScanResultValueType;
+const parseScanResultSummary = async (
+  row: object
+): Promise<ScanResultSummary> => {
+  const cell = rowCell(row);
+  const valueType = normalizeValueType(cell("value_type"));
 
-      const [
-        validationResult,
-        validationTarget,
-        transcriptMetadata,
-        eventReferences,
-        messageReferences,
-        value,
-      ] = await Promise.all([
-        normalizeValidationResult(r.validation_result),
-        normalizeValidationTarget(r.validation_target),
-        normalizeTranscriptMetadata(r.transcript_metadata),
-        parseJson(r.event_references as string),
-        parseJson(r.message_references as string),
-        parseSimpleValue(r.value, valueType),
-      ]);
+  const [
+    validationResult,
+    validationTarget,
+    transcriptMetadata,
+    eventReferences,
+    messageReferences,
+    value,
+  ] = await Promise.all([
+    normalizeValidationResult(cell("validation_result")),
+    normalizeValidationTarget(cell("validation_target")),
+    normalizeTranscriptMetadata(cell("transcript_metadata")),
+    normalizeReferences(cell("event_references")),
+    normalizeReferences(cell("message_references")),
+    normalizeScanValue(cell("value"), valueType),
+  ]);
 
-      const baseSummary = {
-        identifier: r.identifier as string,
-        // Null cells fold into undefined (synthetic rows and arquero
-        // .objects() both yield null) so optional fields stay honest.
-        uuid: (r.uuid ?? undefined) as string | undefined,
-        label: (r.label ?? undefined) as string | undefined,
-        explanation: (r.explanation ?? undefined) as string | undefined,
-        eventReferences: (eventReferences ?? []) as ScanResultReference[],
-        messageReferences: (messageReferences ?? []) as ScanResultReference[],
-        validationResult: validationResult,
-        validationTarget: validationTarget,
-        value: value ?? null,
-        valueType,
-        transcriptTaskSet: (r.transcript_task_set ?? undefined) as
-          string | undefined,
-        transcriptTaskId: (r.transcript_task_id ?? undefined) as
-          string | number | undefined,
-        transcriptTaskRepeat: (r.transcript_task_repeat ?? undefined) as
-          number | undefined,
-        transcriptModel: (r.transcript_model ?? undefined) as
-          string | undefined,
-        transcriptMetadata,
-        transcriptSourceId: r.transcript_source_id as string,
-        scanError: typeof r.scan_error === "string" ? r.scan_error : undefined,
-        // ?? false matches the parseScanResultData path's default.
-        scanErrorRefusal: (r.scan_error_refusal ?? false) as boolean,
-        timestamp: r.timestamp ? (r.timestamp as string) : undefined,
-      };
+  const baseSummary = {
+    identifier: stringOf(cell("identifier")) ?? "",
+    // Null cells fold into undefined (synthetic rows and arquero .objects()
+    // both yield null) so optional fields stay honest.
+    uuid: stringOf(cell("uuid")),
+    label: stringOf(cell("label")),
+    explanation: stringOf(cell("explanation")),
+    eventReferences,
+    messageReferences,
+    validationResult,
+    validationTarget,
+    value,
+    valueType,
+    transcriptTaskSet: stringOf(cell("transcript_task_set")),
+    transcriptTaskId: idOf(cell("transcript_task_id")),
+    transcriptTaskRepeat: numberOf(cell("transcript_task_repeat")),
+    transcriptModel: stringOf(cell("transcript_model")),
+    transcriptMetadata,
+    transcriptSourceId: stringOf(cell("transcript_source_id")) ?? "",
+    scanError: stringOf(cell("scan_error")),
+    // ?? false matches the parseScanResultData path's default.
+    scanErrorRefusal: booleanOf(cell("scan_error_refusal")) ?? false,
+    timestamp: stringOf(cell("timestamp")),
+  };
 
-      resolveTranscriptIdentityFromMetadata(baseSummary);
+  resolveTranscriptIdentityFromMetadata(baseSummary);
 
-      const inputType = r.input_type as
-        "transcript" | "message" | "messages" | "event" | "events";
-
-      return { ...baseSummary, inputType };
-    })
-  );
-
-const parseJson = async <T>(text: string | null): Promise<T | undefined> =>
-  text !== null ? asyncJsonParse<T>(text) : undefined;
-
-const parseSimpleValue = (
-  val: unknown,
-  valueType: ScanResultValueType
-): Promise<
-  string | number | boolean | null | unknown[] | object | undefined
-> =>
-  valueType === "object" || valueType === "array"
-    ? parseJson<object | unknown[]>(val as string)
-    : Promise.resolve(val as string | number | boolean | null);
-
-const parseJsonValue = (val?: unknown): Promise<JsonValue | undefined> => {
-  if (!val) {
-    return Promise.resolve(undefined);
-  }
-
-  if (typeof val === "string" && isJson(val)) {
-    return parseJson<JsonValue>(val).then((parsed) => parsed as JsonValue);
-  } else {
-    return Promise.resolve(val as JsonValue);
-  }
+  return { ...baseSummary, inputType: normalizeInputType(cell("input_type")) };
 };
 
-function getOptionalColumn<T>(
-  table: ColumnTable,
-  columnName: string,
-  rowIndex: number = 0
-): T | undefined {
-  if (!table.columnNames().includes(columnName)) {
-    return undefined;
-  }
-  // Boundary cast: arquero cells are untyped. Null cells fold into undefined
-  // so optional fields stay honestly optional for downstream consumers.
-  const value = table.get(columnName, rowIndex) as T | null | undefined;
-  return value ?? undefined;
-}
+/**
+ * Summary rows arrive as arquero `.objects()` output, typed `object` with no
+ * index signature. Reading a column off one is the same untyped-cell boundary
+ * the ColumnTable readers cross, so it gets the same treatment: `unknown` out,
+ * narrowed by the `*Of` helpers below.
+ */
+const rowCell =
+  (row: object) =>
+  (column: string): unknown =>
+    isRecord(row) ? row[column] : undefined;
+
+const stringOf = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+const numberOf = (value: unknown): number | undefined =>
+  typeof value === "number" ? value : undefined;
+
+const booleanOf = (value: unknown): boolean | undefined =>
+  typeof value === "boolean" ? value : undefined;
+
+const idOf = (value: unknown): string | number | undefined =>
+  stringOf(value) ?? numberOf(value);
+
+const parseScanEventsCell = async (filtered: ColumnTable) => {
+  const raw = rawCell(filtered, "scan_events", 0);
+  return normalizeScanEvents(
+    raw === undefined ? undefined : await parseJsonCell(raw)
+  );
+};
+
+const parseModelUsageCell = async (filtered: ColumnTable) =>
+  normalizeScanModelUsage(
+    await parseJsonCell(rawCell(filtered, "scan_model_usage", 0))
+  );
+
+const parseJsonCell = async (raw: unknown): Promise<unknown> =>
+  typeof raw === "string" ? await asyncJsonParse<unknown>(raw) : undefined;

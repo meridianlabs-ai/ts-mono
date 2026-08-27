@@ -3,10 +3,11 @@ import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { basename } from "@tsmono/util";
+import { basename, isRecord } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
@@ -170,7 +171,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           : groupResultsBy === "label"
             ? item.label || "Unlabeled"
             : groupResultsBy === "epoch"
-              ? (item.transcriptMetadata.epoch as number)
+              ? epochOf(item.transcriptMetadata)
               : groupResultsBy === "model"
                 ? item.transcriptModel || "Unknown"
                 : resultIdentifierStr(item) || "Unknown";
@@ -455,16 +456,14 @@ const optimalColumnLayout = (
   const hasValueObjs = scannerSummaries.some((s) => s.valueType === "object");
   if (hasValueObjs) {
     const obj = scannerSummaries[0]?.value;
-    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+    if (isRecord(obj)) {
       // measure the length of the longest key
       const maxKeyLen = Object.keys(obj).reduce((max, key) => {
         return Math.max(max, key.length);
       }, 0);
 
       // measure the length of the longest value
-      const maxValueLen = Object.values(
-        obj as Record<string, unknown>
-      ).reduce<number>((max, val) => {
+      const maxValueLen = Object.values(obj).reduce<number>((max, val) => {
         const valStr =
           val !== undefined && val !== null ? valueAsString(val) : "";
         return Math.max(max, valStr.length);
@@ -478,19 +477,16 @@ const optimalColumnLayout = (
     }
   } else {
     const maxValueLen = scannerSummaries.reduce((max: number, s) => {
-      if (s.valueType === "array") {
-        const len = (s.value as unknown[]).reduce<number>((prev, val) => {
+      const values = arrayValues(s.value);
+      if (values) {
+        const len = values.reduce<number>((prev, val) => {
           const valStr =
             val !== undefined && val !== null ? valueAsString(val) : "";
           return Math.max(prev, valStr.length);
         }, 0);
         return Math.max(max, len);
       } else {
-        const valStr =
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-          s.value !== undefined && s.value !== null
-            ? valueAsString(s.value)
-            : "";
+        const valStr = s.value !== null ? valueAsString(s.value) : "";
         return Math.max(max, valStr.length);
       }
     }, 0);
@@ -534,3 +530,13 @@ const optimalColumnLayout = (
     columns,
   };
 };
+
+/** Grouping by epoch keys on the number; anything else groups as unknown. */
+const epochOf = (metadata: Record<string, JsonValue>): number | string => {
+  const epoch = metadata["epoch"];
+  return typeof epoch === "number" ? epoch : "Unknown";
+};
+
+/** An array-valued cell, read as untyped entries. */
+const arrayValues = (value: unknown): unknown[] | undefined =>
+  Array.isArray(value) ? Array.from<unknown>(value) : undefined;

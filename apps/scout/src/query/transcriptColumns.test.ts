@@ -1,15 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { Column } from "@tsmono/inspect-common/query";
-
 import { transcriptColumns } from "./index";
-import { TranscriptColumns } from "./transcriptColumns";
-
-// The proxy resolves arbitrary field names to Columns at runtime (and blocks
-// underscore-prefixed ones); the class type only declares the predefined
-// columns, so widen with an index signature for dynamic access.
-const dynamic = transcriptColumns as TranscriptColumns &
-  Record<string, Column | undefined>;
+import { transcriptColumn, TranscriptColumns } from "./transcriptColumns";
 
 describe("transcriptColumns", () => {
   it("builds conditions from predefined columns", () => {
@@ -30,7 +22,7 @@ describe("transcriptColumns", () => {
   });
 
   it("creates columns for arbitrary fields via the proxy", () => {
-    expect(dynamic.custom_field!.eq("value").toJSON()).toEqual({
+    expect(transcriptColumn("custom_field")?.eq("value").toJSON()).toEqual({
       is_compound: false,
       left: "custom_field",
       operator: "=",
@@ -50,7 +42,7 @@ describe("transcriptColumns", () => {
   });
 
   it("blocks access to private members through the proxy", () => {
-    expect(dynamic._instance).toBeUndefined();
+    expect(transcriptColumn("_instance")).toBeUndefined();
   });
 
   it("returns a shared singleton instance", () => {

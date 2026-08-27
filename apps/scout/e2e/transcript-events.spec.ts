@@ -32,6 +32,16 @@ import {
   createTranscriptsResponse,
 } from "./fixtures/test-data";
 
+declare global {
+  interface Window {
+    /**
+     * Set by the no-flash test's init script: the headroom element's class at
+     * DOM insertion plus the pre-change class of every later flip.
+     */
+    __chromeClassLog?: string[];
+  }
+}
+
 const TRANSCRIPTS_DIR = "/home/test/project/.transcripts";
 const TRANSCRIPT_ID = "t-events-001";
 
@@ -459,8 +469,7 @@ test.describe("transcript event rendering", () => {
     // dev-server CSS-module naming (`_titleHeadroom_hash`).
     await page.addInitScript(() => {
       const log: string[] = [];
-      (window as unknown as { __chromeClassLog: string[] }).__chromeClassLog =
-        log;
+      window.__chromeClassLog = log;
       const cls = (el: Element) => el.getAttribute("class") ?? "";
       // `_titleHeadroom_` (trailing underscore) excludes `_titleHeadroomInner_`.
       const isHeadroom = (el: Element) => cls(el).includes("_titleHeadroom_");
@@ -543,10 +552,7 @@ test.describe("transcript event rendering", () => {
 
     // No-flash invariant: the headroom was already collapsed when it entered
     // the DOM, and never left the collapsed state during the landing.
-    const log = await page.evaluate(
-      () =>
-        (window as unknown as { __chromeClassLog: string[] }).__chromeClassLog
-    );
+    const log = (await page.evaluate(() => window.__chromeClassLog)) ?? [];
     expect(log.shift()).toBe("__observer_installed__");
     expect(log.length).toBeGreaterThan(0);
     for (const entry of log) {
@@ -705,12 +711,12 @@ test.describe("transcript event rendering", () => {
           ])
         )
       ),
-      http.get("*/api/v2/transcripts/:dir/:id/info", ({ params }) =>
-        HttpResponse.json<TranscriptInfo>(
-          createTranscriptInfo({
-            transcript_id: params.id as string,
-          })
-        )
+      http.get<{ dir: string; id: string }>(
+        "*/api/v2/transcripts/:dir/:id/info",
+        ({ params }) =>
+          HttpResponse.json<TranscriptInfo>(
+            createTranscriptInfo({ transcript_id: params.id })
+          )
       ),
       http.get(
         "*/api/v2/transcripts/:dir/:id/messages-events",

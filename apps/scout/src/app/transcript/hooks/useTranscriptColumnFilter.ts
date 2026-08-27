@@ -8,6 +8,9 @@ import {
 
 import { useStore } from "../../../state/store";
 
+const isEventTypeValue = (value: string): value is EventTypeValue =>
+  eventTypeValues.some((type) => type === value);
+
 export const useTranscriptColumnFilter = () => {
   const excludedEventTypes =
     useStore((state) => state.transcriptState.excludedTypes) ||
@@ -27,8 +30,11 @@ export const useTranscriptColumnFilter = () => {
 
   const toggleEventType = useCallback(
     (type: EventTypeValue, isCurrentlyExcluded: boolean) => {
+      // The persisted list is plain strings: a name retired since it was
+      // stored isn't an event type any more.
+      const excluded: readonly string[] = excludedEventTypes;
       const newExcluded = new Set<EventTypeValue>(
-        excludedEventTypes as EventTypeValue[]
+        excluded.filter(isEventTypeValue)
       );
       if (isCurrentlyExcluded) {
         newExcluded.delete(type);

@@ -39,8 +39,8 @@ type PaginationBody = {
 const handlePaginatedTranscripts = (
   pages: Map<string | null, { ids: string[]; nextCursor: string | null }>
 ) =>
-  http.post(endpoint, async ({ request }) => {
-    const body = (await request.json()) as PaginationBody;
+  http.post<never, PaginationBody>(endpoint, async ({ request }) => {
+    const body = await request.json();
     const cursorObj = body.pagination?.cursor ?? null;
     const cursorKey = cursorObj?.page ?? null;
     const page = pages.get(cursorKey);

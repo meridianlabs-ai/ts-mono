@@ -12,6 +12,7 @@ import {
   DEFAULT_COLUMN_ORDER,
   DEFAULT_VISIBLE_COLUMNS,
   FILTER_COLUMNS,
+  isScanColumnKey,
   ScanColumnKey,
 } from "./columns";
 
@@ -43,6 +44,7 @@ export const ScansFilterBar: FC<{
     useFilterBarHandlers<ScanColumnKey, ScansTableState>({
       setTableState: setScansTableState,
       defaultVisibleColumns: DEFAULT_VISIBLE_COLUMNS,
+      isColumnKey: isScanColumnKey,
     });
 
   // Add filter popover state
@@ -58,7 +60,7 @@ export const ScansFilterBar: FC<{
     (newVisibleColumns: string[]) => {
       setScansTableState((prevState) => ({
         ...prevState,
-        visibleColumns: newVisibleColumns as ScanColumnKey[],
+        visibleColumns: newVisibleColumns.filter(isScanColumnKey),
       }));
     },
     [setScansTableState]
