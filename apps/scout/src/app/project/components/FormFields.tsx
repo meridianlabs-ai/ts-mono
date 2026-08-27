@@ -149,21 +149,33 @@ export function objectToKeyValueLines(
 }
 
 /**
- * Parse key=value lines into an object, or return as string if it looks like a path.
- * Numeric values are preserved as numbers.
+ * Parse key=value lines into an object. With allowPath, input that looks
+ * like a file path is returned as a string instead (for fields that accept
+ * a config-file path in place of pairs). Numeric values are preserved as
+ * numbers.
  */
 export function parseKeyValueLines(
-  text: string | null
+  text: string | null,
+  allowPath: false
+): Record<string, string | number> | null;
+export function parseKeyValueLines(
+  text: string | null,
+  allowPath: boolean
+): Record<string, string | number> | string | null;
+export function parseKeyValueLines(
+  text: string | null,
+  allowPath: boolean
 ): Record<string, string | number> | string | null {
   if (!text?.trim()) return null;
 
   // If it looks like a file path, return as string
   const trimmed = text.trim();
   if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("./") ||
-    trimmed.startsWith("~") ||
-    /^[a-zA-Z]:\\/.test(trimmed) // Windows path
+    allowPath &&
+    (trimmed.startsWith("/") ||
+      trimmed.startsWith("./") ||
+      trimmed.startsWith("~") ||
+      /^[a-zA-Z]:\\/.test(trimmed)) // Windows path
   ) {
     return trimmed;
   }
@@ -192,27 +204,41 @@ export function parseKeyValueLines(
   return Object.keys(result).length > 0 ? result : null;
 }
 
-interface KeyValueFieldProps {
+interface KeyValueFieldBaseProps {
   id?: string;
   label: string;
   helper?: ReactNode;
   value: Record<string, unknown> | string | null | undefined;
-  onChange: (value: Record<string, string | number> | string | null) => void;
   placeholder?: string;
   disabled?: boolean;
   rows?: number;
 }
 
-export const KeyValueField: FC<KeyValueFieldProps> = ({
-  id,
-  label,
-  helper,
-  value,
-  onChange,
-  placeholder = "key=value",
-  disabled,
-  rows = 3,
-}) => {
+interface KeyValuePairsFieldProps extends KeyValueFieldBaseProps {
+  allowPath?: false;
+  onChange: (value: Record<string, string | number> | null) => void;
+}
+
+/** For fields (e.g. model_args) that accept a config-file path in place of pairs. */
+interface KeyValueOrPathFieldProps extends KeyValueFieldBaseProps {
+  allowPath: true;
+  onChange: (value: Record<string, string | number> | string | null) => void;
+}
+
+type KeyValueFieldProps = KeyValuePairsFieldProps | KeyValueOrPathFieldProps;
+
+export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
+  const {
+    id,
+    label,
+    helper,
+    value,
+    placeholder = "key=value",
+    disabled,
+    rows = 3,
+  } = props;
+  const allowPath = props.allowPath ?? false;
+
   // Use local state to allow free typing without losing input
   const [text, setText] = useState(() => objectToKeyValueLines(value));
 
@@ -220,8 +246,8 @@ export const KeyValueField: FC<KeyValueFieldProps> = ({
   useEffect(() => {
     const configText = objectToKeyValueLines(value);
     // Only sync if parsed values differ (avoids cursor jump while typing)
-    const currentParsed = parseKeyValueLines(text);
-    const valueParsed = parseKeyValueLines(configText);
+    const currentParsed = parseKeyValueLines(text, allowPath);
+    const valueParsed = parseKeyValueLines(configText, allowPath);
     if (JSON.stringify(currentParsed) !== JSON.stringify(valueParsed)) {
       // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -234,7 +260,11 @@ export const KeyValueField: FC<KeyValueFieldProps> = ({
   const handleInput = (newText: string) => {
     setText(newText);
     // Also update config immediately so Ctrl+S works
-    onChange(parseKeyValueLines(newText));
+    if (props.allowPath) {
+      props.onChange(parseKeyValueLines(newText, true));
+    } else {
+      props.onChange(parseKeyValueLines(newText, false));
+    }
   };
 
   return (

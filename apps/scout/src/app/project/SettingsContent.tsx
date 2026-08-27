@@ -346,14 +346,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           label="Metadata"
           helper="Key/value pairs to apply to scans (one per line)"
           value={config.metadata}
-          onChange={(v) => {
-            // parseKeyValueLines returns the raw text for path-like input;
-            // metadata only holds key/value pairs, so ignore it and keep the
-            // last valid value rather than wiping saved metadata.
-            if (typeof v !== "string") {
-              onChange({ metadata: v });
-            }
-          }}
+          onChange={(v) => onChange({ metadata: v })}
           placeholder="key=value"
         />
 
@@ -400,6 +393,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           label="Model Args"
           helper="Model creation args (key=value per line, or path to config file)"
           value={config.model_args}
+          allowPath
           onChange={(v) => onChange({ model_args: v })}
           placeholder="key=value or /path/to/config.yaml"
         />
