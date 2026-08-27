@@ -3121,7 +3121,7 @@ export interface components {
             model?: components["schemas"]["ModelConfig-Output"] | null;
             /** Model Roles */
             model_roles?: {
-                [key: string]: components["schemas"]["ModelConfig-Output"];
+                [key: string]: components["schemas"]["ModelConfig-Output"] | components["schemas"]["ModelConfig-Output"][];
             } | null;
             options: components["schemas"]["ScanOptions"];
             /** Packages */
