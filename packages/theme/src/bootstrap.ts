@@ -41,7 +41,7 @@ const THEME_PREFERENCES: readonly ThemePreference[] = [
 ];
 
 export const isThemePreference = (value: unknown): value is ThemePreference =>
-  THEME_PREFERENCES.includes(value as ThemePreference);
+  THEME_PREFERENCES.some((preference) => preference === value);
 
 /**
  * Read a persisted preference out of the zustand-persist-compatible settings
@@ -217,6 +217,8 @@ declare global {
     // <html data-bs-theme>), so co-resident viewers share it. Don't namespace
     // per app — hosts like hawk call this exact name.
     __APPLY_BROWSER_THEME__?: () => void;
+    /** Injected by the VS Code webview host; absent everywhere else. */
+    acquireVsCodeApi?: () => unknown;
   }
 }
 
@@ -242,8 +244,7 @@ const hostIsDarkFromBody = (): boolean | null => {
 };
 
 const isVscodeWebview = (): boolean =>
-  typeof (window as { acquireVsCodeApi?: unknown }).acquireVsCodeApi ===
-  "function";
+  typeof window.acquireVsCodeApi === "function";
 
 const installBodyClassObserver = (): void => {
   if (

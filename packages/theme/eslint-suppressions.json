@@ -1,7 +1,0 @@
-{
-  "src/bootstrap.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
-    }
-  }
-}

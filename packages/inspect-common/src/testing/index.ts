@@ -26,6 +26,7 @@ import type {
   EvalScore,
   EvalSpec,
   EvalStats,
+  Event,
   InfoEvent,
   InputEvent,
   LoggerEvent,
@@ -510,3 +511,32 @@ export const testEvalLog = (overrides: Partial<EvalLog> = {}): EvalLog => ({
   invalidated: false,
   ...overrides,
 });
+
+/**
+ * Narrows one event out of the `Event` union by its discriminant, throwing if
+ * it is something else. Tests reach for `events[0] as ModelEvent` because the
+ * union is 20-odd members wide; this checks the claim instead of asserting it,
+ * and fails with the type it actually got.
+ */
+export const expectEvent = <T extends Event["event"]>(
+  event: unknown,
+  type: T
+): Extract<Event, { event: T }> => {
+  if (!isEventOfType(event, type)) {
+    const actual =
+      typeof event === "object" && event !== null && "event" in event
+        ? String(event.event)
+        : String(event);
+    throw new Error(`expected a "${type}" event, got "${actual}"`);
+  }
+  return event;
+};
+
+const isEventOfType = <T extends Event["event"]>(
+  event: unknown,
+  type: T
+): event is Extract<Event, { event: T }> =>
+  typeof event === "object" &&
+  event !== null &&
+  "event" in event &&
+  event.event === type;

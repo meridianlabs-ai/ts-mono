@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { ModelEvent, StateEvent } from "../types";
+import { expectEvent } from "../testing";
+import type { ModelEvent } from "../types";
 
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
 import legacySample from "./fixtures/legacy-sample-2024-11.json";
@@ -138,11 +139,14 @@ describe("normalizeEvents", () => {
   });
 
   it("fills model-event structure crafted logs omit", () => {
-    const event = normalizeEvent({
-      event: "model",
-      timestamp: "t",
-      model: "m",
-    }) as ModelEvent;
+    const event = expectEvent(
+      normalizeEvent({
+        event: "model",
+        timestamp: "t",
+        model: "m",
+      }),
+      "model"
+    );
     expect(event.working_start).toBe(0);
     expect(event.config).toEqual({});
     expect(event.output).toEqual({ model: "", choices: [], completion: "" });
@@ -151,17 +155,20 @@ describe("normalizeEvents", () => {
   });
 
   it("fills usage token counts when usage is present but partial", () => {
-    const event = normalizeEvent({
-      event: "model",
-      timestamp: "t",
-      working_start: 0,
-      model: "m",
-      config: {},
-      input: [],
-      tools: [],
-      tool_choice: "auto",
-      output: { model: "m", choices: [], completion: "", usage: {} },
-    }) as ModelEvent;
+    const event = expectEvent(
+      normalizeEvent({
+        event: "model",
+        timestamp: "t",
+        working_start: 0,
+        model: "m",
+        config: {},
+        input: [],
+        tools: [],
+        tool_choice: "auto",
+        output: { model: "m", choices: [], completion: "", usage: {} },
+      }),
+      "model"
+    );
     expect(event.output.usage).toEqual({
       input_tokens: 0,
       output_tokens: 0,
@@ -170,12 +177,15 @@ describe("normalizeEvents", () => {
   });
 
   it("fills malformed state-event changes with an empty array", () => {
-    const event = normalizeEvent({
-      event: "state",
-      timestamp: "t",
-      working_start: 0,
-      changes: "not-an-array",
-    }) as StateEvent;
+    const event = expectEvent(
+      normalizeEvent({
+        event: "state",
+        timestamp: "t",
+        working_start: 0,
+        changes: "not-an-array",
+      }),
+      "state"
+    );
     expect(event.changes).toEqual([]);
   });
 });

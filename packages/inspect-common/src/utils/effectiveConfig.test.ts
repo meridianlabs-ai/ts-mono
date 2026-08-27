@@ -27,6 +27,7 @@ const update = (
 
 /** Deliberately schema-invalid updates for the runtime-guard tests below. */
 const malformedUpdates = (updates: unknown[]): ConfigUpdate[] =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: these cases exist to prove the fold survives journal entries no valid ConfigUpdate could be
   updates as ConfigUpdate[];
 
 describe("effectiveEvalConfig", () => {

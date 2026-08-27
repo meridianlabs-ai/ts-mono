@@ -91,16 +91,17 @@ const GENERATE_CONFIG_KEYS: Record<keyof GenerateConfig, true> = {
 const isChangeRecord = (change: unknown): change is object =>
   typeof change === "object" && change !== null;
 
-const foldConfig = <T extends object>(
-  launch: T,
-  updates: ConfigUpdate[] | null | undefined,
+const foldConfigRecord = (
+  launch: object,
+  updates: ConfigUpdate[],
   family: "eval" | "generate",
   knownKeys: Record<string, true>
-): T => {
-  if (!updates || updates.length === 0) {
-    return launch;
-  }
-  const launchRecord = launch as Record<string, unknown>;
+): Record<string, unknown> => {
+  // Copying through entries is what gives the fold an indexable view of a
+  // generated config interface, which has no index signature of its own.
+  const launchRecord: Record<string, unknown> = Object.fromEntries(
+    Object.entries(launch)
+  );
   const result: Record<string, unknown> = { ...launchRecord };
   for (const update of updates) {
     // Journal entries are cast, not validated — a malformed `changes`
@@ -125,7 +126,20 @@ const foldConfig = <T extends object>(
       }
     }
   }
-  return result as T;
+  return result;
+};
+
+const foldConfig = <T extends object>(
+  launch: T,
+  updates: ConfigUpdate[] | null | undefined,
+  family: "eval" | "generate",
+  knownKeys: Record<string, true>
+): T => {
+  if (!updates || updates.length === 0) {
+    return launch;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the fold returns launch's own keys with journal overrides applied, which TypeScript cannot express as T over a generic interface
+  return foldConfigRecord(launch, updates, family, knownKeys) as T;
 };
 
 /**
