@@ -55,9 +55,8 @@ export default tseslint.config(
       // them). This rule allows only the direction that can't lie — widening,
       // and `as const` — and flags every narrowing or sideways claim. Real
       // boundaries TypeScript can't express (wire data, worker messages, DOM
-      // lookups) take an eslint-disable-next-line naming the boundary; the
-      // pre-existing violations live in each package's
-      // eslint-suppressions.json instead, so they burn down rather than hide.
+      // lookups) take an eslint-disable-next-line naming the boundary, at the
+      // cast, where a reviewer sees it.
       "@typescript-eslint/no-unsafe-type-assertion": "error",
       // `{ ... } as T` is the same lie in fixture form: it skips the excess
       // property check and hides fields the literal forgot. `satisfies T` (or

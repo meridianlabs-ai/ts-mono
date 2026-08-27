@@ -16,7 +16,6 @@
   "scripts": {
     "types:generate": "node scripts/generate-types.js",
     "lint": "TSMONO_TYPED_LINT=1 eslint . --max-warnings 0",
-    "lint:prune": "TSMONO_TYPED_LINT=1 eslint . --prune-suppressions",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",

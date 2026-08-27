@@ -45,10 +45,11 @@ Design docs live per-app; consult them when working in the relevant area:
   A cast that is genuinely a boundary keeps an
   `eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion --`
   directive naming the boundary (see the normalizer's `boundary lift (#555)`
-  directives for the pattern). Pre-existing casts elsewhere are counted in
-  each package's `eslint-suppressions.json` — a burn-down ledger, not a
-  standard. Never add a file or raise a count there to land new code; when
-  you remove casts, run `pnpm lint:prune` so the ledger shrinks with them.
+  directives for the pattern). There is no repo-wide backlog to add to: the
+  ~80 directives that remain each name a distinct surface. When the same
+  cast would repeat across an untyped boundary, funnel it through one
+  documented helper rather than per call site (see `asResponse` in the
+  view-server client, `arrowCells.ts` and `formEvents.ts` in scout).
 
   **Parsed data is normalized at the boundary (#555).** Eval-log and
   journal JSON is written by many inspect_ai versions: old files omit
