@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  normalizeInputType,
   normalizeScanEvents,
   normalizeScanModelUsage,
   normalizeTranscriptMetadata,
@@ -8,6 +9,20 @@ import {
   normalizeValidationTarget,
   resolveTranscriptIdentityFromMetadata,
 } from "./normalizeScanRow";
+
+describe("normalizeInputType", () => {
+  it("keeps known input types", () => {
+    expect(normalizeInputType("transcript")).toBe("transcript");
+    expect(normalizeInputType("messages")).toBe("messages");
+    expect(normalizeInputType("timeline")).toBe("timeline");
+  });
+
+  it("returns undefined for unknown input types rather than claiming transcript", () => {
+    expect(normalizeInputType("some-future-kind")).toBeUndefined();
+    expect(normalizeInputType(undefined)).toBeUndefined();
+    expect(normalizeInputType(42)).toBeUndefined();
+  });
+});
 
 describe("normalizeValidationResult", () => {
   it("keeps legacy raw booleans (pre Jan 7 2026 storage)", async () => {

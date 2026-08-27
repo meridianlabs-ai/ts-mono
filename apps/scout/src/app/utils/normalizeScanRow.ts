@@ -134,8 +134,14 @@ const kInputTypes: readonly ScannerInputType[] = [
   "timelines",
 ];
 
-export const normalizeInputType = (raw: unknown): ScannerInputType =>
-  kInputTypes.find((type) => type === raw) ?? "transcript";
+/**
+ * An unrecognized input_type (a newer inspect_scout adding a scanner input
+ * kind) stays undefined so the viewer falls back to neutral source-id
+ * rendering rather than pretending the row is a transcript.
+ */
+export const normalizeInputType = (
+  raw: unknown
+): ScannerInputType | undefined => kInputTypes.find((type) => type === raw);
 
 /**
  * The `value` cell: JSON-encoded for object/array results, the raw scalar

@@ -23,8 +23,8 @@ export interface ScanResultSummary {
   label?: string;
   timestamp?: string;
 
-  // Input
-  inputType: ScannerInputResponse["input_type"];
+  // Input — absent when the row's input_type isn't one this viewer knows
+  inputType?: ScannerInputResponse["input_type"];
 
   // Refs
   eventReferences: ScanResultReference[];
