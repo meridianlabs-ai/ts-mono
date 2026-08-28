@@ -217,6 +217,18 @@ const setChild = (
 const asArray = (value: unknown): unknown[] | undefined =>
   Array.isArray(value) ? value : undefined;
 
+// An array can't hold a non-numeric key — string props set on an array are
+// invisible to JSON.stringify and the diff renderer's array walk — so when a
+// path needs one (a dict with mixed numeric/non-numeric keys), re-key the
+// array as a plain object.
+const arrayToObject = (arr: unknown[]): Record<string, unknown> => {
+  const obj: Record<string, unknown> = {};
+  arr.forEach((item, index) => {
+    obj[index] = item;
+  });
+  return obj;
+};
+
 /**
  * Synthesizes before/after objects from a list of JSON-patch changes so the
  * pair can be diffed. Exported for tests.
@@ -275,13 +287,23 @@ function setPath(
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
     if (!key) return;
+    const nextKey = keys[i + 1];
     const existing = getChild(current, key);
     let next: PathContainer;
     if (isPathContainer(existing)) {
-      next = existing;
+      next =
+        Array.isArray(existing) && nextKey && !isArrayIndex(nextKey)
+          ? arrayToObject(existing)
+          : existing;
+      if (next !== existing) {
+        setChild(current, key, next);
+      }
     } else {
-      // If the next key is a number, create an array, otherwise an object
-      const nextKey = keys[i + 1];
+      // If the next key is a number, create an array, otherwise an object.
+      // A scalar already here gets overwritten: a change list writing /a and
+      // then /a/b onto the same side loses the /a scalar. Coherent jsonpatch
+      // output doesn't produce that shape, so we accept the (silent) drop
+      // rather than complicate the synthesis.
       next = nextKey && isArrayIndex(nextKey) ? [] : {};
       setChild(current, key, next);
     }
@@ -310,7 +332,13 @@ function initializeArrays(target: Record<string, unknown>, path: string): void {
 
     const existing = getChild(current, key);
     if (isArrayIndex(nextKey)) {
-      setChild(current, key, initializeArray(asArray(existing), nextKey));
+      // A plain object holds numeric-string keys fine — only build (or pad)
+      // an array when there's no object here to reuse.
+      if (Array.isArray(existing) || !isPathContainer(existing)) {
+        setChild(current, key, initializeArray(asArray(existing), nextKey));
+      }
+    } else if (Array.isArray(existing)) {
+      setChild(current, key, arrayToObject(existing));
     } else {
       setChild(current, key, isPathContainer(existing) ? existing : {});
     }

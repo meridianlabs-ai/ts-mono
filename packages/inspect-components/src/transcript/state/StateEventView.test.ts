@@ -45,4 +45,25 @@ describe("synthesizeComparable", () => {
     expect(before).toEqual({});
     expect(after).toEqual({ a: 1 });
   });
+
+  // A Python dict with mixed numeric-string and non-numeric keys arrives as
+  // sibling paths like /a/0 and /a/name; the numeric one alone looks like an
+  // array index. Both values must survive as a plain object — string props
+  // set on an array are invisible to JSON.stringify and the diff renderer.
+  it("re-keys an array as an object when a non-numeric sibling key lands in it", () => {
+    const [before, after] = synthesizeComparable([
+      add("/a/0", "m"),
+      add("/a/name", "y"),
+    ]);
+    expect(after).toEqual({ a: { 0: "m", name: "y" } });
+    expect(before).toEqual({ a: {} });
+  });
+
+  it("keeps object entries when a numeric sibling key follows a non-numeric one", () => {
+    const [, after] = synthesizeComparable([
+      add("/a/name", "y"),
+      add("/a/0", "m"),
+    ]);
+    expect(after).toEqual({ a: { name: "y", 0: "m" } });
+  });
 });
