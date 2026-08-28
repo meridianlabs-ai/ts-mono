@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router";
@@ -137,6 +136,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     return [];
   }
   const entries: ScanResultsOutlineEntry[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   const scanners = status.summary.scanners || {};
   for (const scanner of Object.keys(scanners)) {
     // The summary
@@ -147,6 +147,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
 
     const formattedParams: string[] = [];
     if (scanInfo) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
       const params = scanInfo.params || {};
       for (const [key, value] of Object.entries(params)) {
         formattedParams.push(`${key}=${JSON.stringify(value)}`);
@@ -197,15 +198,19 @@ const resolveValidations = (
   const result: Record<string, number> = {};
 
   // Add metrics in display order: accuracy, precision, recall, f1
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.accuracy !== null && m.accuracy !== undefined) {
     result["accuracy"] = m.accuracy;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.precision !== null && m.precision !== undefined) {
     result["precision"] = m.precision;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.recall !== null && m.recall !== undefined) {
     result["recall"] = m.recall;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.f1 !== null && m.f1 !== undefined) {
     result["f1"] = m.f1;
   }

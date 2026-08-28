@@ -23,9 +23,8 @@
     }
   },
   "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 6
     },
     "react-hooks/exhaustive-deps": {
       "count": 1
@@ -879,9 +878,8 @@
     }
   },
   "apps/scout/src/app/scan/scanners/ScannerSidebar.tsx": {
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 6
     }
   },
   "apps/scout/src/app/scan/ScanPanelBody.tsx": {
@@ -934,9 +932,8 @@
       "count": 2,
       "undescribed": 2
     },
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 6
     },
     "react-hooks/refs": {
       "count": 1
@@ -1307,9 +1304,8 @@
     }
   },
   "packages/inspect-components/src/transcript/eventText.ts": {
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 7
     }
   },
   "packages/inspect-components/src/transcript/FocusTurnView.tsx": {
@@ -1334,9 +1330,8 @@
     }
   },
   "packages/inspect-components/src/transcript/ModelEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 6
     }
   },
   "packages/inspect-components/src/transcript/ScoreEditEventView.tsx": {
@@ -1379,16 +1374,11 @@
     }
   },
   "packages/inspect-components/src/transcript/timeline/core.ts": {
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unnecessary-condition": {
+      "count": 8
     }
   },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {
-    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 2
     }

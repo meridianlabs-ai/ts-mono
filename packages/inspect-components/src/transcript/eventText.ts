@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import type { Content } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
@@ -123,6 +122,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["function", toolEvent.function]);
       }
       // Tool arguments
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (toolEvent.arguments) {
         fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       }
@@ -238,6 +238,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["type", subtaskEvent.type]);
       }
       // Input/result shown in summary
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (subtaskEvent.input) {
         fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
       }
@@ -267,6 +268,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (scoreEvent.score.explanation) {
         fields.push(["explanation", scoreEvent.score.explanation]);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (scoreEvent.score.value !== undefined) {
         const val = scoreEvent.score.value;
         fields.push([
@@ -327,6 +329,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sampleLimitEvent.message) {
         fields.push(["message", sampleLimitEvent.message]);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (sampleLimitEvent.type) {
         fields.push(["type", sampleLimitEvent.type]);
       }
@@ -362,6 +365,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "approval": {
       const approvalEvent = event;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (approvalEvent.decision) {
         fields.push(["decision", approvalEvent.decision]);
       }
@@ -376,6 +380,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "sandbox": {
       const sandboxEvent = event;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (sandboxEvent.action) {
         fields.push(["action", sandboxEvent.action]);
       }
@@ -396,6 +401,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
         fields.push(["path", change.path]);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
         if (change.value !== undefined) {
           fields.push([
             "value",

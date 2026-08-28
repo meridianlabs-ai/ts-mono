@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { FC, useMemo, useRef, useState } from "react";
 
@@ -69,6 +68,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
 
   // Note: despite the type system saying otherwise, this has appeared empirically
   // to sometimes be undefined
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
   const outputMessages = event.output?.choices?.map((choice) => {
     return choice.message;
   });
@@ -111,7 +111,9 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     // "no visible content".
     const outputs =
       event.pending || isCancelled
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
         ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
         : outputMessages || [];
     return showAllMessages
       ? [...event.input, ...outputs]
@@ -265,6 +267,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
       <div data-name="Messages" className={styles.container}>
         <ChatView
           id={`${eventNode.id}-model-input-full`}
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
           messages={[...event.input, ...(outputMessages || [])]}
           tools={{
             collapseToolMessages: context?.hasToolEvents !== false,
@@ -306,10 +309,12 @@ interface APIViewProps {
 
 export const APIView: FC<APIViewProps> = ({ call, className }) => {
   const requestCode = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
     return JSON.stringify(call.request, undefined, 2) ?? "";
   }, [call.request]);
 
   const responseCode = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
     return JSON.stringify(call.response, undefined, 2) ?? "";
   }, [call.response]);
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unnecessary-condition */
 import clsx from "clsx";
 import { useCallback, useMemo } from "react";
 
@@ -385,6 +384,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
           if (value === undefined || value === null) {
             return <EmptyCell />;
           }
@@ -401,6 +401,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.completedSamples,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
           if (value === undefined || value === null) {
             return <EmptyCell />;
           }
@@ -430,6 +431,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.totalTokens,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
           if (value === undefined || value === null) {
             return <EmptyCell />;
           }
@@ -450,6 +452,7 @@ export const useLogListColumns = (
           row.duration === undefined ? null : formatTime(row.duration),
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
           if (value === undefined || value === null) {
             return <EmptyCell />;
           }
@@ -514,6 +517,7 @@ export const useLogListColumns = (
             : `${formatPrettyDecimal(row.percentCompleted)}%`,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
           if (value === undefined || value === null) {
             return <EmptyCell />;
           }
@@ -530,6 +534,7 @@ export const useLogListColumns = (
         accessorFn: (row) => row.sampleErrors,
         cell: ({ getValue }) => {
           const value = getValue<number | undefined>();
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- getValue's type argument is an unchecked assertion; row data may contain nulls the type omits
           if (value === undefined || value === null) {
             return <EmptyCell />;
           }
