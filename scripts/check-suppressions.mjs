@@ -33,14 +33,23 @@ const DESCRIPTION_SEP = /\s--(?:\s|$)/;
 
 const stripBlockClose = (text) => text.split("*/")[0];
 
-const parseEslintDirective = (rest) => {
+// Bare `eslint-disable` (no -line/-next-line) suppresses until eslint-enable
+// or end of file. Key it distinguishably so swapping a line-scoped directive
+// for the file-wide form is a ledger diff, not a count-neutral no-op.
+const FILE_WIDE = " (file-wide)";
+
+const parseEslintDirective = (directive, rest) => {
+  const scope = directive === "eslint-disable" ? FILE_WIDE : "";
   const [rulesPart, ...descParts] = stripBlockClose(rest).split(DESCRIPTION_SEP);
   const rules = rulesPart
     .split(",")
     .map((r) => r.trim())
     .filter(Boolean);
   const described = descParts.join(" ").trim().length > 0;
-  return (rules.length ? rules : ["*"]).map((rule) => ({ rule, described }));
+  return (rules.length ? rules : ["*"]).map((rule) => ({
+    rule: rule + scope,
+    described,
+  }));
 };
 
 const parseTsDirective = (directive, rest) => {
@@ -57,7 +66,7 @@ export const scanSource = (text) =>
   [...text.matchAll(DIRECTIVE_RE)].flatMap(
     ([, eslintDirective, tsDirective, rest]) =>
       eslintDirective
-        ? parseEslintDirective(rest)
+        ? parseEslintDirective(eslintDirective, rest)
         : parseTsDirective(tsDirective, rest),
   );
 
@@ -116,11 +125,20 @@ export const diffLedgers = (ledger, actual) => {
     );
 };
 
+// The ratchet ignores the file-wide suffix: scope is a per-entry property
+// the ledger diff already surfaces, while the ratchet tracks the repo-wide
+// reason-less total per rule — a line ↔ file-wide swap moves between keys
+// without changing that total.
+const baseRule = (rule) =>
+  rule.endsWith(FILE_WIDE) ? rule.slice(0, -FILE_WIDE.length) : rule;
+
 const undescribedByRule = (ledger) => {
   const byRule = new Map();
   for (const rules of Object.values(ledger))
-    for (const [rule, tally] of Object.entries(rules))
-      byRule.set(rule, (byRule.get(rule) ?? 0) + (tally.undescribed ?? 0));
+    for (const [rule, tally] of Object.entries(rules)) {
+      const key = baseRule(rule);
+      byRule.set(key, (byRule.get(key) ?? 0) + (tally.undescribed ?? 0));
+    }
   return byRule;
 };
 
