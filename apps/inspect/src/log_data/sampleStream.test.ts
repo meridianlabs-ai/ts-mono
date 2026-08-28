@@ -289,7 +289,8 @@ describe("createSampleStreamSession", () => {
     await session.tick(false);
 
     const reportedIds = mockApi.log_message.mock.calls.map(
-      ([, message]) => /Unable to resolve attachment (\S+)/.exec(message)?.[1]
+      ([, message]) =>
+        /Unable to resolve attachment (\S+)/.exec(String(message))?.[1]
     );
     expect(reportedIds).toEqual(["missing", "also-missing"]);
     expect(warn).toHaveBeenCalledTimes(2);
