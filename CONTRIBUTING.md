@@ -77,3 +77,7 @@ In the rare case a suppression is correct:
 
 To remove one, delete the comment and run `pnpm suppressions:update`. The
 total only goes down over time.
+
+Moving or renaming a file is handled the same way: `pnpm suppressions:update`
+moves its ledger entries. The reason-less baseline is tracked per rule
+across the whole repo, so a move never trips the ratchet.

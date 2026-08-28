@@ -32,13 +32,21 @@ const [basePath, headPath] = process.argv.slice(2);
 const base = flatten(load(basePath));
 const head = flatten(load(headPath));
 
+const NONE = { count: 0, undescribed: 0 };
+
+// Undescribed-only changes count too (someone added/removed a `-- reason`):
+// otherwise such a ledger diff would render nothing and the workflow would
+// falsely reset the sticky comment to "no longer changes the ledger".
 const rows = [...new Set([...base.keys(), ...head.keys()])]
   .map((key) => ({
     key,
-    before: base.get(key)?.count ?? 0,
-    after: head.get(key)?.count ?? 0,
+    before: base.get(key) ?? NONE,
+    after: head.get(key) ?? NONE,
   }))
-  .filter(({ before, after }) => before !== after)
+  .filter(
+    ({ before, after }) =>
+      before.count !== after.count || before.undescribed !== after.undescribed,
+  )
   .sort((a, b) => a.key.localeCompare(b.key));
 
 if (rows.length === 0) process.exit(0);
@@ -54,8 +62,14 @@ const heading =
 const table = rows
   .map(({ key, before, after }) => {
     const [file, rule] = key.split("\t");
-    const change = after - before;
-    return `| \`${file}\` | \`${rule}\` | ${change > 0 ? "+" : ""}${change} |`;
+    const change = after.count - before.count;
+    const changeCell =
+      change === 0 ? "±0" : `${change > 0 ? "+" : ""}${change}`;
+    const reasonNote =
+      before.undescribed === after.undescribed
+        ? ""
+        : ` (reason-less ${before.undescribed} → ${after.undescribed})`;
+    return `| \`${file}\` | \`${rule}\` | ${changeCell}${reasonNote} |`;
   })
   .join("\n");
 

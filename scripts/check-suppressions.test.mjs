@@ -94,11 +94,22 @@ test("diffLedgers reports growth and shrink", () => {
     { "a.ts": { r: { count: 3 } } },
   );
   assert.deepEqual(
-    diffs.map(({ before, after }) => [before, after]),
+    diffs.map(({ before, after }) => [before.count, after.count]),
     [
       [2, 3],
       [1, 0],
     ],
+  );
+});
+
+test("diffLedgers reports an undescribed-only change (reason added)", () => {
+  const diffs = diffLedgers(
+    { "a.ts": { r: { count: 2, undescribed: 2 } } },
+    { "a.ts": { r: { count: 2, undescribed: 1 } } },
+  );
+  assert.deepEqual(
+    diffs.map(({ before, after }) => [before.undescribed, after.undescribed]),
+    [[2, 1]],
   );
 });
 
@@ -126,6 +137,26 @@ test("ratchet flags a new file with an undescribed suppression", () => {
     ratchetViolations({}, { "new.ts": { r: { count: 1, undescribed: 1 } } })
       .length,
     1,
+  );
+});
+
+test("ratchet is per rule across files: a file move does not trip it", () => {
+  assert.deepEqual(
+    ratchetViolations(
+      { "old.ts": { r: { count: 2, undescribed: 2 } } },
+      { "new.ts": { r: { count: 2, undescribed: 2 } } },
+    ),
+    [],
+  );
+});
+
+test("ratchet still fires when a move also adds a reason-less suppression", () => {
+  assert.deepEqual(
+    ratchetViolations(
+      { "old.ts": { r: { count: 2, undescribed: 2 } } },
+      { "new.ts": { r: { count: 3, undescribed: 3 } } },
+    ),
+    [{ rule: "r", before: 2, after: 3 }],
   );
 });
 

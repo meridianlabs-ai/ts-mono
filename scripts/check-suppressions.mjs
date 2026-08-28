@@ -4,13 +4,15 @@
 // add, remove, or move fails CI until the ledger is regenerated, so every
 // change shows up as a reviewable ledger diff in the PR.
 //
-// The per-entry `undescribed` count (suppressions lacking a `-- reason`)
-// is a ratchet: --update refuses to increase it, so new suppressions must
-// carry a reason while the baselined reason-less ones burn down over time.
-// See CONTRIBUTING.md.
+// The `undescribed` count (suppressions lacking a `-- reason`) is a
+// ratchet: --update refuses to increase any rule's repo-wide total, so new
+// suppressions must carry a reason while the baselined reason-less ones
+// burn down over time. The ratchet is per rule, not per file, so moving a
+// file doesn't trip it. See CONTRIBUTING.md.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const LEDGER_PATH = "suppressions.json";
 const UPDATE_HINT = "run `pnpm suppressions:update`";
@@ -93,28 +95,42 @@ const entries = (ledger) =>
     ]),
   );
 
-// Every (file, rule) pair whose count differs between ledger and code.
+const NONE = { count: 0, undescribed: 0 };
+
+// Every (file, rule) pair whose count or undescribed count differs between
+// ledger and code — adding a `-- reason` must be recorded too, or a stale
+// undescribed allowance would let the reason be deleted again unnoticed.
 export const diffLedgers = (ledger, actual) => {
   const before = new Map(entries(ledger));
   const after = new Map(entries(actual));
   return [...new Set([...before.keys(), ...after.keys()])]
     .map((key) => ({
       key,
-      before: before.get(key)?.count ?? 0,
-      after: after.get(key)?.count ?? 0,
+      before: before.get(key) ?? NONE,
+      after: after.get(key) ?? NONE,
     }))
-    .filter(({ before, after }) => before !== after);
+    .filter(
+      ({ before, after }) =>
+        before.count !== after.count ||
+        before.undescribed !== after.undescribed,
+    );
 };
 
-// Every (file, rule) pair where reason-less suppressions grew.
+const undescribedByRule = (ledger) => {
+  const byRule = new Map();
+  for (const rules of Object.values(ledger))
+    for (const [rule, tally] of Object.entries(rules))
+      byRule.set(rule, (byRule.get(rule) ?? 0) + (tally.undescribed ?? 0));
+  return byRule;
+};
+
+// Every rule whose repo-wide reason-less count grew. Summed across files so
+// moving a file never trips the ratchet; a move still shows in the ledger
+// diff via diffLedgers, and --update records it.
 export const ratchetViolations = (ledger, actual) => {
-  const before = new Map(entries(ledger));
-  return entries(actual)
-    .map(([key, { undescribed }]) => ({
-      key,
-      before: before.get(key)?.undescribed ?? 0,
-      after: undescribed,
-    }))
+  const before = undescribedByRule(ledger);
+  return [...undescribedByRule(actual)]
+    .map(([rule, after]) => ({ rule, before: before.get(rule) ?? 0, after }))
     .filter(({ before, after }) => after > before);
 };
 
@@ -150,6 +166,15 @@ const summarize = (ledger) => {
 };
 
 const main = () => {
+  // git ls-files scopes to cwd and LEDGER_PATH is relative — anchor both to
+  // the repo root so invocation from a subdirectory can't scan or write a
+  // partial ledger.
+  process.chdir(
+    execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      encoding: "utf8",
+    }).trim(),
+  );
+
   const update = process.argv.includes("--update");
   // No ledger yet: the first --update captures the baseline as-is.
   const bootstrap = !existsSync(LEDGER_PATH);
@@ -157,10 +182,10 @@ const main = () => {
   const actual = scanRepo();
 
   const violations = update && bootstrap ? [] : ratchetViolations(ledger, actual);
-  for (const { key, before, after } of violations) {
+  for (const { rule, before, after } of violations) {
     console.error(
-      `UNDESCRIBED: ${keyOf(key)} — ${after} suppression(s) without a \`-- reason\`, ledger allows ${before}.` +
-        ` New suppressions need a reason in the comment. If the file moved, rename its ledger entry by hand instead.`,
+      `UNDESCRIBED: ${rule} — ${after} suppression(s) without a \`-- reason\` repo-wide, ledger allows ${before}.` +
+        ` New suppressions need a reason in the comment.`,
     );
   }
 
@@ -174,10 +199,12 @@ const main = () => {
   const diffs = diffLedgers(ledger, actual);
   for (const { key, before, after } of diffs) {
     console.error(
-      after > before
-        ? `NEW: ${keyOf(key)} — ${after} in code, ${before} in ledger. Fix the code instead if at all possible;` +
+      after.count > before.count
+        ? `NEW: ${keyOf(key)} — ${after.count} in code, ${before.count} in ledger. Fix the code instead if at all possible;` +
             ` a genuinely unavoidable suppression needs a \`-- reason\` — then ${UPDATE_HINT} and get maintainer sign-off on the ledger diff.`
-        : `REMOVED: ${keyOf(key)} — ${after} in code, ${before} in ledger. ${UPDATE_HINT} to record the shrink.`,
+        : after.count < before.count
+          ? `REMOVED: ${keyOf(key)} — ${after.count} in code, ${before.count} in ledger. ${UPDATE_HINT} to record the shrink.`
+          : `REASONS: ${keyOf(key)} — ${after.undescribed} without a \`-- reason\` in code, ${before.undescribed} in ledger. ${UPDATE_HINT} to record it.`,
     );
   }
 
@@ -185,4 +212,6 @@ const main = () => {
   console.log(`suppressions ledger matches: ${summarize(actual)}.`);
 };
 
-if (process.argv[1] === new URL(import.meta.url).pathname) main();
+// fileURLToPath, not URL.pathname: pathname percent-encodes spaces etc.,
+// which would make this guard silently false on such checkouts.
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();
