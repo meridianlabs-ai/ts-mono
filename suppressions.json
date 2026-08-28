@@ -1,4 +1,9 @@
 {
+  "apps/inspect/src/app_config/resolveBackend.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/inspect/src/app_config/resolveBackend.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -30,6 +35,11 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/inspect/src/app/log-list/listing/databaseListing.test.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-list/LogsPanel.tsx": {
@@ -84,6 +94,11 @@
       "count": 1
     }
   },
+  "apps/inspect/src/app/log-view/tabs/timeline/timelineData.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
+    }
+  },
   "apps/inspect/src/app/log-view/title-view/CollapsedTitleBar.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -125,6 +140,11 @@
       "count": 1
     }
   },
+  "apps/inspect/src/app/routing/url.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/inspect/src/app/samples-panel/SampleDetailView.tsx": {
     "@ts-expect-error": {
       "count": 6
@@ -141,8 +161,8 @@
   },
   "apps/inspect/src/app/samples/descriptor/score/ListScoreDescriptor.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
+      "count": 1,
+      "undescribed": 1
     }
   },
   "apps/inspect/src/app/samples/descriptor/score/ObjectScoreDescriptor.tsx": {
@@ -199,7 +219,20 @@
       "count": 1
     }
   },
+  "apps/inspect/src/app/samples/transcript/chunked/mainViewOutline.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
+    }
+  },
+  "apps/inspect/src/app/samples/transcript/hooks.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/inspect/src/app/shared/data-grid/DataGrid.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    },
     "jsx-a11y/click-events-have-key-events": {
       "count": 4,
       "undescribed": 4
@@ -225,16 +258,34 @@
       "undescribed": 1
     }
   },
+  "apps/inspect/src/app/shared/data-grid/findMatches.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/inspect/src/app/shared/data-grid/findMatches.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
     }
   },
+  "apps/inspect/src/app/shared/samples-grid/colorScale.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
+    }
+  },
   "apps/inspect/src/app/shared/samples-grid/colorScale.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/inspect/src/app/shared/samples-grid/SamplesGrid.state.test.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/app/shared/useKeyedMemo.ts": {
@@ -252,6 +303,9 @@
       "count": 1
     },
     "@typescript-eslint/no-unsafe-assignment": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }
   },
@@ -280,12 +334,20 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/client/api/view-server/request.test.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/inspect/src/client/api/vscode/api-vscode.e2e.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/client/database/manager.ts": {
@@ -297,6 +359,9 @@
   "apps/inspect/src/client/remote/remoteLogFile.ts": {
     "@ts-expect-error": {
       "count": 3
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/client/remote/remotePendingSampleData.test.ts": {
@@ -315,14 +380,46 @@
       "count": 3
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
+    }
+  },
+  "apps/inspect/src/client/utils/normalize.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
     }
   },
   "apps/inspect/src/components/DownloadButton.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/inspect/src/log_data/chunked/chunkedSample.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "apps/inspect/src/log_data/chunked/chunkStore.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "apps/inspect/src/log_data/chunked/outlineRows.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "apps/inspect/src/log_data/chunked/skeleton.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "apps/inspect/src/log_data/chunkedAttachments.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/databaseListings.ts": {
@@ -343,10 +440,31 @@
       "undescribed": 3
     }
   },
+  "apps/inspect/src/log_data/logsListingRead.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/inspect/src/log_data/messageRows.ts": {
     "@typescript-eslint/require-await": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/inspect/src/log_data/runningSampleQuery.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "apps/inspect/src/log_data/sampleData.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/sampleData.ts": {
@@ -389,12 +507,23 @@
     "@typescript-eslint/no-unsafe-return": {
       "count": 1,
       "undescribed": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/sampleStream.ts": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 3
+    }
+  },
+  "apps/inspect/src/log_data/scoreSchema.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/log_data/scoreSchema.ts": {
@@ -413,6 +542,9 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/state/hooks.ts": {
@@ -421,10 +553,26 @@
       "undescribed": 2
     }
   },
+  "apps/inspect/src/state/logSlice.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/inspect/src/state/logSlice.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/inspect/src/state/logsSlice.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/state/logsSlice.ts": {
@@ -439,15 +587,24 @@
       "undescribed": 1
     }
   },
+  "apps/inspect/src/state/store.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 3
+    }
+  },
   "apps/inspect/src/utils/attachments.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/utils/evallog.ts": {
     "@ts-expect-error": {
       "count": 2
+    }
+  },
+  "apps/inspect/src/utils/markdown.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/inspect/src/utils/workQueue.ts": {
@@ -470,6 +627,16 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/scout/src/api/attachmentsHelpers.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "apps/scout/src/api/expandInputEvents.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/scout/src/App.tsx": {
@@ -623,14 +790,15 @@
       "undescribed": 1
     }
   },
+  "apps/scout/src/app/project/hooks/useNestedConfig.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "apps/scout/src/app/project/ProjectPanel.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
     },
     "react-hooks/set-state-in-effect": {
       "count": 1,
@@ -687,8 +855,8 @@
       "undescribed": 1
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
+      "count": 1,
+      "undescribed": 1
     }
   },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsRow.tsx": {
@@ -789,9 +957,8 @@
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/scout/src/app/transcripts/TranscriptsGrid.tsx": {
@@ -804,6 +971,11 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "apps/scout/src/app/utils/normalizeScanRow.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "apps/scout/src/app/utils/refs.tsx": {
@@ -878,6 +1050,41 @@
       "undescribed": 1
     }
   },
+  "packages/inspect-common/src/normalize/events.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/inspect-common/src/normalize/log.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 4
+    }
+  },
+  "packages/inspect-common/src/normalize/sample.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/inspect-common/src/normalize/summary.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 3
+    }
+  },
+  "packages/inspect-common/src/types/openapi-ts-behavior.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/inspect-common/src/utils/effectiveConfig.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/inspect-common/src/utils/effectiveConfig.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "packages/inspect-common/src/utils/modelFallbacks.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2,
@@ -926,8 +1133,8 @@
   },
   "packages/inspect-components/src/chat/server-tools/ServerToolCall.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
+      "count": 2,
+      "undescribed": 2
     }
   },
   "packages/inspect-components/src/chat/tools/ClientToolCall.tsx": {
@@ -991,8 +1198,8 @@
   },
   "packages/inspect-components/src/content/RecordTree.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
+      "count": 2,
+      "undescribed": 2
     }
   },
   "packages/inspect-components/src/content/RenderedContent.tsx": {
@@ -1031,6 +1238,11 @@
     "@typescript-eslint/unbound-method": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "packages/inspect-components/src/content/RenderedText.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
     }
   },
   "packages/inspect-components/src/content/types.ts": {
@@ -1076,10 +1288,23 @@
       "undescribed": 1
     }
   },
+  "packages/inspect-components/src/transcript/event/StopReasonBadge.test.tsx": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "packages/inspect-components/src/transcript/event/StopReasonBadge.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "packages/inspect-components/src/transcript/eventText.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript/eventText.ts": {
@@ -1127,12 +1352,6 @@
       "undescribed": 1
     }
   },
-  "packages/inspect-components/src/transcript/state/StateEventRenderers.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "packages/inspect-components/src/transcript/StepEventView.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -1170,6 +1389,9 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
     }
   },
   "packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts": {
@@ -1188,6 +1410,11 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "packages/inspect-components/src/transcript/timeline/timelineEventNodes.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/ToolEventView.tsx": {
@@ -1216,6 +1443,14 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2,
       "undescribed": 2
+    }
+  },
+  "packages/inspect-components/src/usage/connectionHistory.test.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "packages/inspect-components/src/usage/ModelUsagePanel.tsx": {
@@ -1273,7 +1508,7 @@
       "undescribed": 6
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
+      "count": 1,
       "undescribed": 1
     }
   },
@@ -1302,6 +1537,9 @@
     }
   },
   "packages/react/src/components/markdownRendering.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    },
     "no-misleading-character-class": {
       "count": 1,
       "undescribed": 1
@@ -1359,6 +1597,19 @@
   },
   "packages/react/src/hooks/useListKeyboardNavigation.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useProperty.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/react/src/hooks/useRequiredParams.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }
   },
@@ -1427,6 +1678,11 @@
       "undescribed": 1
     }
   },
+  "packages/scout-components/src/sentinels/viewerConfig.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "packages/scout-components/src/sentinels/viewerConfig.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2,
@@ -1443,6 +1699,19 @@
     "no-control-regex": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "packages/util/src/asyncData.ts": {
+    "@typescript-eslint/consistent-type-assertions": {
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
+  "packages/util/src/brand.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "packages/util/src/browser.ts": {
@@ -1462,10 +1731,19 @@
       "undescribed": 1
     }
   },
+  "packages/util/src/json-worker.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 2
+    }
+  },
+  "packages/util/src/jsonrpc-fetch.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
+    }
+  },
   "packages/util/src/jsonrpc.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+    "@typescript-eslint/no-unsafe-type-assertion": {
+      "count": 1
     }
   },
   "packages/util/src/queue.ts": {
