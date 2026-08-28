@@ -27,7 +27,6 @@ peerDependencyRules:
     "openapi-typescript>typescript": ^6.0.0
 
 overrides:
-  yaml: ^2.4.2
   # react-popper (used by packages/react PopOver) never published react-19
   # peer support (declares ^16.8 || ^17 || ^18); widen it. Deletable only by
   # migrating PopOver off react-popper (e.g. to floating-ui).
@@ -35,7 +34,6 @@ overrides:
   "react-popper>react-dom": ^19.1.1
   glob: ^10.5.0
   js-yaml: ^4.3.1
-  "@codemirror/state": ^6.5.4
   seroval: ">=1.4.1"
   seroval-plugins: ">=1.4.1"
   "minimatch@3": ^5.1.9
