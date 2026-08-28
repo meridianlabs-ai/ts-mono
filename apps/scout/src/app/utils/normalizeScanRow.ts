@@ -112,28 +112,37 @@ export const normalizeTranscriptScore = async (
   return typeof raw === "number" || typeof raw === "boolean" ? raw : undefined;
 };
 
-const kValueTypes: readonly ScanResultValueType[] = [
-  "boolean",
-  "number",
-  "string",
-  "array",
-  "object",
-  "null",
-];
+// `satisfies` ties these to the generated unions: regenerating the schema
+// with a new value/input kind errors here until the map is updated, so a
+// statically-known kind can't silently normalize to the fallback.
+const kValueTypes = {
+  boolean: true,
+  number: true,
+  string: true,
+  array: true,
+  object: true,
+  null: true,
+} satisfies Record<ScanResultValueType, true>;
+
+const isValueType = (raw: string): raw is ScanResultValueType =>
+  Object.hasOwn(kValueTypes, raw);
 
 /** An unrecognized value_type renders like a null result rather than lying. */
 export const normalizeValueType = (raw: unknown): ScanResultValueType =>
-  kValueTypes.find((type) => type === raw) ?? "null";
+  typeof raw === "string" && isValueType(raw) ? raw : "null";
 
-const kInputTypes: readonly ScannerInputType[] = [
-  "transcript",
-  "event",
-  "events",
-  "message",
-  "messages",
-  "timeline",
-  "timelines",
-];
+const kInputTypes = {
+  transcript: true,
+  event: true,
+  events: true,
+  message: true,
+  messages: true,
+  timeline: true,
+  timelines: true,
+} satisfies Record<ScannerInputType, true>;
+
+const isInputType = (raw: string): raw is ScannerInputType =>
+  Object.hasOwn(kInputTypes, raw);
 
 /**
  * An unrecognized input_type (a newer inspect_scout adding a scanner input
@@ -142,7 +151,8 @@ const kInputTypes: readonly ScannerInputType[] = [
  */
 export const normalizeInputType = (
   raw: unknown
-): ScannerInputType | undefined => kInputTypes.find((type) => type === raw);
+): ScannerInputType | undefined =>
+  typeof raw === "string" && isInputType(raw) ? raw : undefined;
 
 /**
  * The `value` cell: JSON-encoded for object/array results, the raw scalar
