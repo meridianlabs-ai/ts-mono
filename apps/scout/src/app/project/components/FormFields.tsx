@@ -259,7 +259,13 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
 
   const handleInput = (newText: string) => {
     setText(newText);
-    // Also update config immediately so Ctrl+S works
+    // Update config immediately so Ctrl+S works — except when non-empty text
+    // parses to nothing (mid-edit, or a pasted path in a pairs-only field):
+    // propagating null there would wipe the saved value on save. Clearing
+    // the field is the explicit way to persist null.
+    if (newText.trim() && parseKeyValueLines(newText, allowPath) === null) {
+      return;
+    }
     if (props.allowPath) {
       props.onChange(parseKeyValueLines(newText, true));
     } else {
