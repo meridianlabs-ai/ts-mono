@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return --
+/* eslint-disable @typescript-eslint/no-explicit-any --
    Mock event fixtures are intentionally minimal `any` stubs, and the
    assertions reach into their dynamically-shaped fields. */
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -294,6 +294,37 @@ describe("createSampleStreamSession", () => {
     );
     expect(reportedIds).toEqual(["missing", "also-missing"]);
     expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("reports attachment misses that only surface after pool expansion", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        message_pool: [
+          messagePoolEntry(
+            1,
+            chatMessage("m1", "user", "attachment://pooled-missing")
+          ),
+        ],
+        events: [
+          eventData(1, "e1", {
+            event: "model",
+            input: [],
+            input_refs: [[0, 1]],
+          }),
+        ],
+      })
+    );
+
+    const session = makeSession();
+    await session.tick(false);
+
+    const reportedIds = mockApi.log_message.mock.calls.map(
+      ([, message]) =>
+        /Unable to resolve attachment (\S+)/.exec(String(message))?.[1]
+    );
+    expect(reportedIds).toEqual(["pooled-missing"]);
     warn.mockRestore();
   });
 

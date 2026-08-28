@@ -299,31 +299,33 @@ function processEvents(
       (normalizeEvent(eventData.event) as SampleEvent | undefined) ??
       eventData.event;
 
+    const reportAttachmentMiss = (attachmentId: string) => {
+      if (state.reportedAttachmentMisses.has(attachmentId)) {
+        return;
+      }
+      state.reportedAttachmentMisses.add(attachmentId);
+
+      const snapshot = {
+        eventId: eventData.event_id,
+        attachmentId,
+        available_attachment_count: Object.keys(state.attachments).length,
+      };
+
+      if (api.log_message) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        api.log_message(
+          logFile,
+          `Unable to resolve attachment ${attachmentId}\n` +
+            JSON.stringify(snapshot)
+        );
+      }
+      console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
+    };
+
     const withAttachments = resolveAttachments<SampleEvent>(
       event,
       state.attachments,
-      (attachmentId: string) => {
-        if (state.reportedAttachmentMisses.has(attachmentId)) {
-          return;
-        }
-        state.reportedAttachmentMisses.add(attachmentId);
-
-        const snapshot = {
-          eventId: eventData.event_id,
-          attachmentId,
-          available_attachment_count: Object.keys(state.attachments).length,
-        };
-
-        if (api.log_message) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          api.log_message(
-            logFile,
-            `Unable to resolve attachment ${attachmentId}\n` +
-              JSON.stringify(snapshot)
-          );
-        }
-        console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
-      }
+      reportAttachmentMiss
     );
 
     const withPoolRefs = resolvePoolRefs(withAttachments, state);
@@ -332,7 +334,8 @@ function processEvents(
     // may contain attachment:// URIs that weren't visible before expansion.
     const resolvedEvent = resolveAttachments<SampleEvent>(
       withPoolRefs,
-      state.attachments
+      state.attachments,
+      reportAttachmentMiss
     );
 
     if (existingIndex !== undefined) {
