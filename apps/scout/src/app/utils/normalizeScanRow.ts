@@ -42,14 +42,15 @@ const parseJsonLenient = async (
 const parseJsonCell = async (raw: unknown): Promise<JsonValue | undefined> =>
   typeof raw === "string" ? await parseJsonLenient(raw) : undefined;
 
-/** A JSON object column (metadata, scan_metadata, scanner_params). */
+/**
+ * A JSON object column (metadata, scan_metadata, scanner_params,
+ * transcript_metadata). Absent or malformed cells become an empty record.
+ */
 export const normalizeJsonRecord = async (
   raw: unknown
 ): Promise<Record<string, JsonValue>> => {
   const parsed = await parseJsonCell(raw);
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
-    ? parsed
-    : {};
+  return isRecord(parsed) ? parsed : {};
 };
 
 /** A JSON array-of-strings column (input_ids, scan_tags). */
@@ -209,25 +210,6 @@ export const normalizeValidationTarget = async (
     return raw;
   }
   return undefined;
-};
-
-/** Absent or malformed transcript_metadata becomes an empty record. */
-export const normalizeTranscriptMetadata = async (
-  raw: unknown
-): Promise<Record<string, JsonValue>> => {
-  if (typeof raw !== "string") {
-    return {};
-  }
-  try {
-    const parsed = await asyncJsonParse<JsonValue>(raw);
-    return typeof parsed === "object" &&
-      parsed !== null &&
-      !Array.isArray(parsed)
-      ? parsed
-      : {};
-  } catch {
-    return {};
-  }
 };
 
 /**
