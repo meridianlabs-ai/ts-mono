@@ -111,10 +111,10 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
     // "no visible content".
     const outputs =
       event.pending || isCancelled
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-        ? (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
-        : outputMessages || [];
+        ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
+          (outputMessages || []).filter((m) => !isLivePlaceholderMessage(m))
+        : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: model-event data observed to defy the types at runtime; verify normalizer coverage before removing (#555)
+          outputMessages || [];
     return showAllMessages
       ? [...event.input, ...outputs]
       : [...userMessages, ...outputs];
