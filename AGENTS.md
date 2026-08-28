@@ -70,6 +70,23 @@ Design docs live per-app; consult them when working in the relevant area:
   remove those guards until their boundary normalizes; the suppression
   comment names the surface.
 
+## Suppression gate
+
+- Do NOT suppress lint or type errors. Fix the code. See
+  [CONTRIBUTING.md](CONTRIBUTING.md); a deterministic gate enforces this
+  (`pnpm suppressions:check` against `suppressions.json`). Maintainers
+  reject suppressions that just make an error go away.
+- In the rare case a suppression is correct (`@ts-ignore` and
+  `@ts-nocheck` are banned outright), it requires both: an explicit
+  `-- reason` in the comment, and `pnpm suppressions:update` to record it
+  in `suppressions.json`.
+- Every new suppression requires human maintainer approval of the
+  `suppressions.json` diff; expect the PR to be blocked until then, and
+  say in the PR description why no fix is possible.
+- If the `suppressions` CI check fails, never hand-edit the ledger to make
+  it pass. Run `pnpm suppressions:update` so the change shows in the
+  ledger diff.
+
 ## Code Style — React Compiler & Memoization
 
   **React Compiler is enabled** in both apps' vite builds (SWC
