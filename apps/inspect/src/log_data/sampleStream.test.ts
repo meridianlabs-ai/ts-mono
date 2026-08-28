@@ -260,6 +260,42 @@ describe("createSampleStreamSession", () => {
     );
   });
 
+  it("reports each missing attachment id once per session", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockApi.get_log_sample_data
+      .mockResolvedValueOnce(
+        okResponse({
+          events: [
+            eventData(1, "e1", infoEvent("attachment://missing")),
+            eventData(2, "e2", {
+              event: "info",
+              data: {
+                a: "attachment://missing",
+                b: "attachment://missing",
+                c: "attachment://also-missing",
+              },
+            }),
+          ],
+        })
+      )
+      .mockResolvedValueOnce(
+        okResponse({
+          events: [eventData(3, "e3", infoEvent("attachment://missing"))],
+        })
+      );
+
+    const session = makeSession();
+    await session.tick(false);
+    await session.tick(false);
+
+    const reportedIds = mockApi.log_message.mock.calls.map(
+      ([, message]) => /Unable to resolve attachment (\S+)/.exec(message)?.[1]
+    );
+    expect(reportedIds).toEqual(["missing", "also-missing"]);
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
   it("does not let duplicate streamed pool rows shift refs", async () => {
     const inputSystem = chatMessage("input-system", "system", "Input system");
     const inputUser = chatMessage("input-user", "user", "Input user");

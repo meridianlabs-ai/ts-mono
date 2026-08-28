@@ -78,6 +78,11 @@ interface StreamState {
   // event_id -> index in `events`, so a re-streamed event replaces in place.
   eventMapping: Record<string, number>;
   events: SampleEvent[];
+
+  // Missing attachment ids already reported: an event can reference the same
+  // id many times (and events legitimately arrive a tick ahead of their
+  // attachments), so report each id once per session rather than per miss.
+  reportedAttachmentMisses: Set<string>;
 }
 
 const initialStreamState = (): StreamState => ({
@@ -94,6 +99,8 @@ const initialStreamState = (): StreamState => ({
 
   eventMapping: {},
   events: [],
+
+  reportedAttachmentMisses: new Set(),
 });
 
 export const createSampleStreamSession = (
@@ -296,10 +303,15 @@ function processEvents(
       event,
       state.attachments,
       (attachmentId: string) => {
+        if (state.reportedAttachmentMisses.has(attachmentId)) {
+          return;
+        }
+        state.reportedAttachmentMisses.add(attachmentId);
+
         const snapshot = {
           eventId: eventData.event_id,
           attachmentId,
-          available_attachments: Object.keys(state.attachments),
+          available_attachment_count: Object.keys(state.attachments).length,
         };
 
         if (api.log_message) {
