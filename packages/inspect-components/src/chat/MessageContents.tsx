@@ -26,10 +26,7 @@ export const MessageContents: FC<MessageContentsProps> = ({
   return (
     <>
       {message.content && (
-        <MessageContent
-          contents={message.content}
-          references={references}
-        />
+        <MessageContent contents={message.content} references={references} />
       )}
     </>
   );

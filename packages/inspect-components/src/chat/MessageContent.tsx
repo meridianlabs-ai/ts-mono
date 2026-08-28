@@ -277,9 +277,7 @@ const renderContent = (
     }
     default: {
       const unknownContent: { type: string } = content satisfies never;
-      console.error(
-        `Unknown message content type '${unknownContent.type}'`
-      );
+      console.error(`Unknown message content type '${unknownContent.type}'`);
       return undefined;
     }
   }

@@ -9,7 +9,6 @@ import {
   type ComponentStateHooks,
 } from "@tsmono/react/state";
 
-
 import {
   AnnotatedScreenshot,
   AnnotatedScreenshotOutput,
@@ -102,10 +101,7 @@ describe("AnnotatedScreenshotOutput", () => {
 
   it("renders text content alongside the screenshot", () => {
     const { container } = renderWithState(
-      <AnnotatedScreenshotOutput
-        contents={[TEXT, IMAGE]}
-        annotation={CLICK}
-      />
+      <AnnotatedScreenshotOutput contents={[TEXT, IMAGE]} annotation={CLICK} />
     );
     expect(container.textContent).toContain("page text");
     expect(container.querySelector("img")).not.toBeNull();

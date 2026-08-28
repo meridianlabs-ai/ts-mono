@@ -19,10 +19,7 @@ describe("synthesizeComparable", () => {
   });
 
   it("merges prefix-sharing nested adds into one subtree", () => {
-    const [, after] = synthesizeComparable([
-      add("/a/b", 1),
-      add("/a/c", 2),
-    ]);
+    const [, after] = synthesizeComparable([add("/a/b", 1), add("/a/c", 2)]);
     expect(after).toEqual({ a: { b: 1, c: 2 } });
   });
 

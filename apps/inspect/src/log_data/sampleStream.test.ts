@@ -1,6 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any --
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return --
    Mock event fixtures are intentionally minimal `any` stubs, and the
-   assertions reach into their dynamically-shaped fields. */
+   assertions reach into their dynamically-shaped fields. (The unsafe-*
+   rules only fire under TSMONO_TYPED_LINT=1, the workspace lint mode.) */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectEvent } from "@tsmono/inspect-common/testing";

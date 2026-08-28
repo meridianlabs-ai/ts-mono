@@ -27,16 +27,19 @@ describe("resolveAttachments", () => {
 
   it("returns the original (un-rewritten) tc:// string on a miss", () => {
     const onFailedResolve = vi.fn();
-    expect(
-      resolveAttachments("tc://nope", attachments, onFailedResolve)
-    ).toBe("tc://nope");
+    expect(resolveAttachments("tc://nope", attachments, onFailedResolve)).toBe(
+      "tc://nope"
+    );
     expect(onFailedResolve).toHaveBeenCalledWith("nope");
   });
 
   it("fires onFailedResolve for misses nested in arrays and objects", () => {
     const onFailedResolve = vi.fn();
     resolveAttachments(
-      { list: ["attachment://gone"], nested: { ref: "attachment://also-gone" } },
+      {
+        list: ["attachment://gone"],
+        nested: { ref: "attachment://also-gone" },
+      },
       attachments,
       onFailedResolve
     );

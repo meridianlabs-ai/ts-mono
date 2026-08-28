@@ -200,7 +200,9 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     const initialized = initializeEditedConfig(asConfigInput(saved.config));
     setOriginalConfig(deepCopy(initialized));
     setEditedConfig((current) =>
-      current ? mergeInFlightEdits(initialized, current, configAtSave) : initialized
+      current
+        ? mergeInFlightEdits(initialized, current, configAtSave)
+        : initialized
     );
   };
 

@@ -53,8 +53,6 @@ describe("mergeInFlightEdits", () => {
   it("compares by value, not identity", () => {
     const snapshot: Partial<ProjectConfigInput> = { tags: ["a"] };
     const current: Partial<ProjectConfigInput> = { tags: ["a"] };
-    expect(mergeInFlightEdits(persisted, current, snapshot)).toEqual(
-      persisted
-    );
+    expect(mergeInFlightEdits(persisted, current, snapshot)).toEqual(persisted);
   });
 });

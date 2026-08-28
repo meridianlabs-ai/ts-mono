@@ -25,9 +25,7 @@ describe("typed media rendering", () => {
   it.each(remoteMediaCases)(
     "renders remote %s content as a link",
     (content, mediaTag) => {
-      const { container } = render(
-        <MessageContent contents={[content]} />
-      );
+      const { container } = render(<MessageContent contents={[content]} />);
 
       const link = container.querySelector("a");
       expect(container.querySelector(mediaTag)).toBeNull();
