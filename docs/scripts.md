@@ -8,23 +8,25 @@
 
 - Run atomic tasks (`lint`, `typecheck`, `format:check`, `test`) across all workspaces in parallel
 - Express ordering constraints via `dependsOn` (e.g. `lint` and `typecheck` depend on `generate:css`)
+- Compose atomic tasks into higher-level workflows (e.g. `check` depends on `lint`, `typecheck`, and `format:check`)
 
 ### Workspace scripts' job
 
 - Define the **leaf command** for each task (e.g. `"lint": "eslint . --max-warnings 0"`)
-- Never re-implement Turbo's orchestration — no `pnpm lint && pnpm typecheck` inside a workspace script
+- Never re-implement Turbo's orchestration — no `pnpm lint && pnpm typecheck` inside a `check` script
 
-### Why `check` composes at the root, not in turbo.json
+### Why `check` has no workspace scripts
 
-Turbo only schedules a task for workspaces whose `package.json` defines the script, so a composite `check` task in `turbo.json` would need a no-op `"check": "true"` anchor in every workspace — and would silently skip any workspace that forgets one. Instead the root `check` script names the atomic tasks directly (`turbo run lint typecheck format:check`), which schedules them in every workspace that implements them, and prepends the repo-level (non-turbo) gates: `manypkg check` and the suppressions ledger.
+`check` exists only in `turbo.json`; no workspace defines the script. Turbo runs a scriptless task's `dependsOn` chain anyway, so `turbo run check` schedules `lint`, `typecheck`, and `format:check` in every workspace that defines them.
 
 ## Current task graph
 
 ```
-pnpm check
-├── manypkg check                          (workspace dependency consistency)
-├── node scripts/check-suppressions.mjs    (suppressions ledger, dep-free)
-└── turbo run lint typecheck format:check  (all workspaces, in parallel)
+turbo run check
+├── lint          (all workspaces, in parallel)
+├── typecheck     (all workspaces, in parallel)
+├── format:check  (workspaces that have it, in parallel)
+└── check         (scriptless; composition only)
 ```
 
 `build` `dependsOn: ["^build", "generate:css"]`; `lint` and `typecheck` both `dependsOn: ["generate:css", "^generate:css"]`, so CSS-module typings (own and upstream) exist first.
@@ -47,5 +49,5 @@ where a reviewer sees it. There is no repo-wide backlog to add to.
 
 ## Adding a new workspace
 
-1. Define leaf scripts: `lint`, `typecheck`, `test` (and `format:check` if the package has its own Prettier config; `generate:css` if it has CSS modules) — `pnpm check` picks them up automatically
+1. Define leaf scripts: `lint`, `typecheck`, `test` (and `format:check` if the package has its own Prettier config; `generate:css` if it has CSS modules) — `turbo run check` picks them up automatically
 2. Do **not** add orchestration logic to the workspace's scripts — that's Turbo's job

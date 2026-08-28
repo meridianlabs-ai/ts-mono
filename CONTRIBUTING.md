@@ -26,8 +26,11 @@ pre-commit install   # optional but recommended hooks
 pnpm only, never npm or yarn. Before pushing, run the checks CI runs:
 
 ```
-pnpm check   # manypkg + suppressions ledger + lint + typecheck + format
+pnpm lint
+pnpm typecheck
 pnpm test
+pnpm format:check
+pnpm suppressions:check
 ```
 
 CI also runs `pnpm build` and the Playwright e2e suites.
