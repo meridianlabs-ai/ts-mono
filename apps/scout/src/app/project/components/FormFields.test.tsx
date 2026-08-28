@@ -69,15 +69,27 @@ describe("KeyValueField", () => {
     cleanup();
   });
 
+  const getTextarea = (): HTMLTextAreaElement => {
+    const el = screen.getByTestId("kv-textarea");
+    if (!(el instanceof HTMLTextAreaElement)) {
+      throw new Error("kv-textarea stub did not render a textarea");
+    }
+    return el;
+  };
+
   const renderField = (value: Record<string, unknown> | null) => {
     const onChange = vi.fn();
-    render(
+    const { rerender } = render(
       <KeyValueField label="Metadata" value={value} onChange={onChange} />
     );
-    const textarea = screen.getByTestId("kv-textarea");
+    const textarea = getTextarea();
     const type = (text: string) =>
       fireEvent.input(textarea, { target: { value: text } });
-    return { onChange, type };
+    const setValue = (next: Record<string, unknown> | null) =>
+      rerender(
+        <KeyValueField label="Metadata" value={next} onChange={onChange} />
+      );
+    return { onChange, type, textarea, setValue };
   };
 
   it("propagates parsed pairs as the user types", () => {
@@ -96,5 +108,23 @@ describe("KeyValueField", () => {
     const { onChange, type } = renderField({ a: 1 });
     type("");
     expect(onChange).toHaveBeenLastCalledWith(null);
+  });
+
+  it("syncs the textarea when the value changes externally", () => {
+    const { textarea, setValue } = renderField({ a: 1 });
+    expect(textarea.value).toBe("a=1");
+    setValue({ a: 2 });
+    expect(textarea.value).toBe("a=2");
+  });
+
+  it("keeps in-progress unparseable text when a save lands mid-edit", () => {
+    const { onChange, type, textarea, setValue } = renderField({ a: 1 });
+    // Select-all + type: text no longer parses, so the edit isn't propagated
+    type("b");
+    expect(onChange).not.toHaveBeenCalled();
+    // A completing save replaces the value with a fresh-identity object; the
+    // resync must not clobber the text under the user's cursor
+    setValue({ a: 1 });
+    expect(textarea.value).toBe("b");
   });
 });

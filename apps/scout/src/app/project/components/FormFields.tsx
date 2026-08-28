@@ -244,9 +244,15 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
 
   // Sync local state when value changes externally (e.g., after save)
   useEffect(() => {
+    const currentParsed = parseKeyValueLines(text, allowPath);
+    // Non-empty text that parses to nothing is a mid-edit state handleInput
+    // deliberately didn't propagate; a save completing (which replaces value
+    // with a fresh-identity object) must not clobber it under the cursor.
+    if (currentParsed === null && text.trim()) {
+      return;
+    }
     const configText = objectToKeyValueLines(value);
     // Only sync if parsed values differ (avoids cursor jump while typing)
-    const currentParsed = parseKeyValueLines(text, allowPath);
     const valueParsed = parseKeyValueLines(configText, allowPath);
     if (JSON.stringify(currentParsed) !== JSON.stringify(valueParsed)) {
       // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
@@ -263,13 +269,13 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
     // parses to nothing (mid-edit, or a pasted path in a pairs-only field):
     // propagating null there would wipe the saved value on save. Clearing
     // the field is the explicit way to persist null.
-    if (newText.trim() && parseKeyValueLines(newText, allowPath) === null) {
-      return;
-    }
+    const suppress = (parsed: unknown) => parsed === null && newText.trim();
     if (props.allowPath) {
-      props.onChange(parseKeyValueLines(newText, true));
+      const parsed = parseKeyValueLines(newText, true);
+      if (!suppress(parsed)) props.onChange(parsed);
     } else {
-      props.onChange(parseKeyValueLines(newText, false));
+      const parsed = parseKeyValueLines(newText, false);
+      if (!suppress(parsed)) props.onChange(parsed);
     }
   };
 
