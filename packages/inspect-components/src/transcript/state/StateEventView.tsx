@@ -270,8 +270,36 @@ export const synthesizeComparable = (
         break;
     }
   }
+  reconcileContainerKinds(before, after);
   return [before, after];
 };
+
+/**
+ * Aligns container kinds between the two synthesized sides. Ops that write
+ * only one side (remove, move, copy) skip initializeArrays, so a mixed-key
+ * re-key can fire on one side only — and jsondiffpatch renders array-vs-object
+ * at the same path as a whole-value swap instead of key-level edits.
+ */
+function reconcileContainerKinds(a: PathContainer, b: PathContainer): void {
+  const keys = Array.isArray(a)
+    ? a.map((_, index) => String(index))
+    : Object.keys(a);
+  for (const key of keys) {
+    const leftRaw = getChild(a, key);
+    const rightRaw = getChild(b, key);
+    if (!isPathContainer(leftRaw) || !isPathContainer(rightRaw)) continue;
+    let left: PathContainer = leftRaw;
+    let right: PathContainer = rightRaw;
+    if (Array.isArray(left) && !Array.isArray(right)) {
+      left = arrayToObject(left);
+      setChild(a, key, left);
+    } else if (Array.isArray(right) && !Array.isArray(left)) {
+      right = arrayToObject(right);
+      setChild(b, key, right);
+    }
+    reconcileContainerKinds(left, right);
+  }
+}
 
 /**
  * Sets a value at a path in an object

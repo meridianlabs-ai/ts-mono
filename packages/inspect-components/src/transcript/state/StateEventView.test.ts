@@ -63,4 +63,16 @@ describe("synthesizeComparable", () => {
     ]);
     expect(after).toEqual({ a: { name: "y", 0: "m" } });
   });
+
+  // remove/move/copy write through setPath without initializeArrays, so a
+  // mixed-key re-key can fire on one side only; the sides must still end up
+  // with the same container kind or the diff renders as a whole-value swap.
+  it("aligns container kinds across sides when an op re-keys only one side", () => {
+    const [before, after] = synthesizeComparable([
+      add("/a/0", "m"),
+      { op: "remove", path: "/a/name", value: "y", replaced: null },
+    ]);
+    expect(before).toEqual({ a: { name: "y" } });
+    expect(after).toEqual({ a: { 0: "m" } });
+  });
 });
