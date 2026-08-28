@@ -544,7 +544,14 @@ const connectTopicUpdatesViaPolling = (
     (customFetch ?? fetch)(`${apiBaseUrl}/topics`, {
       signal: controller.signal,
     })
-      .then((res) => res.text())
+      .then((res) => {
+        // An error response's body (often parseable JSON like {"detail":...})
+        // must not count as a topic update and mark the connection live.
+        if (!res.ok) {
+          throw new Error(`unexpected status ${res.status}`);
+        }
+        return res.text();
+      })
       .then((text) => {
         const versions = parseTopicVersions(text);
         if (versions) {
