@@ -33,6 +33,17 @@ describe("resolveAttachments", () => {
     expect(onFailedResolve).toHaveBeenCalledWith("nope");
   });
 
+  it("fires onFailedResolve for misses nested in arrays and objects", () => {
+    const onFailedResolve = vi.fn();
+    resolveAttachments(
+      { list: ["attachment://gone"], nested: { ref: "attachment://also-gone" } },
+      attachments,
+      onFailedResolve
+    );
+    expect(onFailedResolve).toHaveBeenCalledWith("gone");
+    expect(onFailedResolve).toHaveBeenCalledWith("also-gone");
+  });
+
   it("resolves refs nested in arrays and objects, leaving other values alone", () => {
     const input = {
       list: ["attachment://abc123", "plain", 42],

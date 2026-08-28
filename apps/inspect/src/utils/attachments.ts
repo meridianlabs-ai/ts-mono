@@ -36,7 +36,7 @@ const resolveValue = (
     let hasChanged = false;
     const resolved: unknown[] = [];
     for (const v of value) {
-      const r = resolveValue(v, attachments);
+      const r = resolveValue(v, attachments, onFailedResolve);
       if (r !== v) hasChanged = true;
       resolved.push(r);
     }
@@ -55,7 +55,7 @@ const resolveValue = (
     let hasChanged = false;
     const resolved: Record<string, unknown> = {};
     for (const [key, v] of Object.entries(value)) {
-      const r = resolveValue(v, attachments);
+      const r = resolveValue(v, attachments, onFailedResolve);
       resolved[key] = r;
       if (r !== v) hasChanged = true;
     }
