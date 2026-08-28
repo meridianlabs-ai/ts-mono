@@ -36,7 +36,6 @@ import { ContentDocumentView } from "./documents/ContentDocumentView";
 import { JsonMessageContent } from "./JsonMessageContent";
 import { MessageCitations } from "./MessageCitations";
 import styles from "./MessageContent.module.css";
-import { MessagesContext } from "./MessageContents";
 import { ServerToolCall } from "./server-tools/ServerToolCall";
 import { ToolOutput } from "./tools/ToolOutput";
 import { ContentTool } from "./types";
@@ -56,7 +55,6 @@ type Contents = string | string[] | ContentObject[];
 
 interface MessageContentProps {
   contents: Contents;
-  context: MessagesContext;
   references?: MarkdownReference[];
 }
 
@@ -77,7 +75,6 @@ export const isMessageContent = (
  */
 export const MessageContent: FC<MessageContentProps> = ({
   contents,
-  context,
   references,
 }) => {
   const displayMode = useDisplayMode();
@@ -95,7 +92,6 @@ export const MessageContent: FC<MessageContentProps> = ({
             citations: null,
           },
           index === normalized.length - 1,
-          context,
           displayMode,
           references
         );
@@ -106,7 +102,6 @@ export const MessageContent: FC<MessageContentProps> = ({
             `text-${content.type}-${index}`,
             content,
             index === normalized.length - 1,
-            context,
             displayMode,
             references
           );
@@ -126,7 +121,6 @@ export const MessageContent: FC<MessageContentProps> = ({
       "text-message-content",
       contentText,
       true,
-      context,
       displayMode,
       references
     );
@@ -142,7 +136,6 @@ const renderContent = (
   key: string,
   content: ContentObject,
   isLast: boolean,
-  _context: MessagesContext,
   displayMode: DisplayMode,
   references?: MarkdownReference[]
 ): ReactNode => {

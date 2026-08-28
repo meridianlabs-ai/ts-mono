@@ -17,7 +17,6 @@ import {
 import { DisplayModeContext } from "../content/DisplayModeContext";
 
 import { MessageContent } from "./MessageContent";
-import { defaultContext } from "./MessageContents";
 
 type Contents = ComponentProps<typeof MessageContent>["contents"];
 
@@ -58,7 +57,7 @@ const renderMessage = (
       <ComponentIconProvider icons={icons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
           <DisplayModeContext.Provider value={{ displayMode }}>
-            <MessageContent contents={contents} context={defaultContext()} />
+            <MessageContent contents={contents} />
           </DisplayModeContext.Provider>
         </ComponentNavigationProvider>
       </ComponentIconProvider>

@@ -9,7 +9,6 @@ import {
   type ComponentStateHooks,
 } from "@tsmono/react/state";
 
-import { defaultContext } from "../MessageContents";
 
 import {
   AnnotatedScreenshot,
@@ -86,7 +85,6 @@ describe("AnnotatedScreenshotOutput", () => {
       <AnnotatedScreenshotOutput
         contents={[TEXT, IMAGE, { ...IMAGE, image: `${PNG}last` }]}
         annotation={CLICK}
-        context={defaultContext()}
       />
     );
     const imgs = Array.from(container.querySelectorAll("img"));
@@ -107,7 +105,6 @@ describe("AnnotatedScreenshotOutput", () => {
       <AnnotatedScreenshotOutput
         contents={[TEXT, IMAGE]}
         annotation={CLICK}
-        context={defaultContext()}
       />
     );
     expect(container.textContent).toContain("page text");

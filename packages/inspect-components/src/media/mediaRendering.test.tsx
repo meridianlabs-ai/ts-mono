@@ -11,7 +11,6 @@ import type {
 
 import { ContentDocumentView } from "../chat/documents/ContentDocumentView";
 import { MessageContent } from "../chat/MessageContent";
-import { defaultContext } from "../chat/MessageContents";
 import { ToolOutput } from "../chat/tools/ToolOutput";
 
 const remoteUrl = "https://example.com/media";
@@ -27,7 +26,7 @@ describe("typed media rendering", () => {
     "renders remote %s content as a link",
     (content, mediaTag) => {
       const { container } = render(
-        <MessageContent contents={[content]} context={defaultContext()} />
+        <MessageContent contents={[content]} />
       );
 
       const link = container.querySelector("a");
@@ -59,7 +58,6 @@ describe("typed media rendering", () => {
             format: "mp4",
           },
         ]}
-        context={defaultContext()}
       />
     );
 
