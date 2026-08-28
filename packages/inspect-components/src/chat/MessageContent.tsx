@@ -85,7 +85,7 @@ export const MessageContent: FC<MessageContentProps> = ({
   if (Array.isArray(normalized)) {
     return normalized.map((content, index) => {
       if (typeof content === "string") {
-        return messageRenderers["text"]?.render(
+        return renderContent(
           `text-content-${index}`,
           {
             type: "text",
@@ -102,19 +102,14 @@ export const MessageContent: FC<MessageContentProps> = ({
       } else {
         // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         if (content) {
-          const renderer = messageRenderers[content.type];
-          if (renderer) {
-            return renderer.render(
-              `text-${content.type}-${index}`,
-              content,
-              index === contents.length - 1,
-              context,
-              displayMode,
-              references
-            );
-          } else {
-            console.error(`Unknown message content type '${content.type}'`);
-          }
+          return renderContent(
+            `text-${content.type}-${index}`,
+            content,
+            index === contents.length - 1,
+            context,
+            displayMode,
+            references
+          );
         }
       }
     });
@@ -127,7 +122,7 @@ export const MessageContent: FC<MessageContentProps> = ({
       internal: null,
       citations: null,
     };
-    return messageRenderers["text"]?.render(
+    return renderContent(
       "text-message-content",
       contentText,
       true,
@@ -138,26 +133,21 @@ export const MessageContent: FC<MessageContentProps> = ({
   }
 };
 
-interface MessageRenderer {
-  render: (
-    key: string,
-    content: ContentObject,
-    isLast: boolean,
-    context: MessagesContext,
-    displayMode: DisplayMode,
-    references?: MarkdownReference[]
-  ) => ReactNode;
-}
-
-// Each renderer re-checks its own discriminant: the lookup below is keyed by
-// `content.type`, but TypeScript can't tie a `Record` key to its value's type,
-// so `content` arrives here as the full union.
-const messageRenderers: Record<string, MessageRenderer> = {
-  text: {
-    render: (key, content, isLast, _context, displayMode, references) => {
-      // The context provides a way to share context between different
-      // rendering. In this case, we'll use it to keep track of citations
-      if (content.type !== "text") return undefined;
+// A switch narrows `content` per case, where a Record lookup couldn't tie a
+// key to its value's parameter type. `satisfies never` in the default makes
+// the switch exhaustive over ContentObject at compile time; log data can
+// still carry types newer than the union, which land in the default at
+// runtime.
+const renderContent = (
+  key: string,
+  content: ContentObject,
+  isLast: boolean,
+  _context: MessagesContext,
+  displayMode: DisplayMode,
+  references?: MarkdownReference[]
+): ReactNode => {
+  switch (content.type) {
+    case "text": {
       const c = content;
       const cites = c.citations ?? [];
 
@@ -186,11 +176,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
           ) : undefined}
         </Fragment>
       );
-    },
-  },
-  reasoning: {
-    render: (key, content, isLast) => {
-      if (content.type !== "reasoning") return undefined;
+    }
+    case "reasoning": {
       const r = content;
 
       // Possible titles
@@ -238,11 +225,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
           </ExpandablePanel>
         </div>
       );
-    },
-  },
-  image: {
-    render: (key, content) => {
-      if (content.type !== "image") return undefined;
+    }
+    case "image": {
       const c = content;
       if (isRenderableImageSource(c.image)) {
         return (
@@ -256,11 +240,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
       } else {
         return <MediaReference source={c.image} key={key} />;
       }
-    },
-  },
-  audio: {
-    render: (key, content) => {
-      if (content.type !== "audio") return undefined;
+    }
+    case "audio": {
       const c = content;
       if (!isRenderableAudioSource(c.audio, c.format)) {
         return <MediaReference source={c.audio} key={key} />;
@@ -273,11 +254,8 @@ const messageRenderers: Record<string, MessageRenderer> = {
           <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
         </audio>
       );
-    },
-  },
-  video: {
-    render: (key, content) => {
-      if (content.type !== "video") return undefined;
+    }
+    case "video": {
       const c = content;
       if (!isRenderableVideoSource(c.video, c.format)) {
         return <MediaReference source={c.video} key={key} />;
@@ -288,39 +266,30 @@ const messageRenderers: Record<string, MessageRenderer> = {
           <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
         </video>
       );
-    },
-  },
-  tool: {
-    render: (key, content) => {
-      if (content.type !== "tool") return undefined;
-      const c = content;
-      return <ToolOutput output={c.content} key={key} />;
-    },
-  },
-  // server-side tool use. Assistant turns render these as flush rows of the
-  // turn container (see ChatMessage); this fallback covers any other context,
-  // so the block carries its own frame.
-  tool_use: {
-    render: (key, content) => {
-      if (content.type !== "tool_use") return undefined;
-      const c = content;
-      return <ServerToolCall id={key} content={c} flush={false} />;
-    },
-  },
-  data: {
-    render: (key, content) => {
-      if (content.type !== "data") return undefined;
-      const c = content;
-      return <ContentDataView id={key} contentData={c} />;
-    },
-  },
-  document: {
-    render: (key, content) => {
-      if (content.type !== "document") return undefined;
-      const c = content;
-      return <ContentDocumentView id={key} document={c} />;
-    },
-  },
+    }
+    case "tool": {
+      return <ToolOutput output={content.content} key={key} />;
+    }
+    // server-side tool use. Assistant turns render these as flush rows of the
+    // turn container (see ChatMessage); this fallback covers any other
+    // context, so the block carries its own frame.
+    case "tool_use": {
+      return <ServerToolCall id={key} content={content} flush={false} />;
+    }
+    case "data": {
+      return <ContentDataView id={key} contentData={content} />;
+    }
+    case "document": {
+      return <ContentDocumentView id={key} document={content} />;
+    }
+    default: {
+      const unknownContent: { type: string } = content satisfies never;
+      console.error(
+        `Unknown message content type '${unknownContent.type}'`
+      );
+      return undefined;
+    }
+  }
 };
 
 /**
