@@ -227,6 +227,27 @@ interface KeyValueOrPathFieldProps extends KeyValueFieldBaseProps {
 
 type KeyValueFieldProps = KeyValuePairsFieldProps | KeyValueOrPathFieldProps;
 
+type ParsedKeyValue = Record<string, string | number> | string | null;
+
+/**
+ * Non-empty text that parses to nothing is a mid-edit state (or a pasted
+ * path in a pairs-only field). handleInput doesn't propagate it — persisting
+ * null would wipe the saved value — and the resync effect must not clobber
+ * it under the cursor. One predicate keeps the two sites agreeing.
+ */
+const isMidEditText = (text: string, parsed: ParsedKeyValue): boolean =>
+  parsed === null && text.trim() !== "";
+
+/** Key-order-insensitive equality: a save echo may reorder equal pairs. */
+const sameParsedValue = (a: ParsedKeyValue, b: ParsedKeyValue): boolean => {
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) {
+    return a === b;
+  }
+  const sortEntries = (record: Record<string, string | number>) =>
+    Object.entries(record).sort(([x], [y]) => x.localeCompare(y));
+  return JSON.stringify(sortEntries(a)) === JSON.stringify(sortEntries(b));
+};
+
 export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
   const {
     id,
@@ -245,16 +266,13 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
   // Sync local state when value changes externally (e.g., after save)
   useEffect(() => {
     const currentParsed = parseKeyValueLines(text, allowPath);
-    // Non-empty text that parses to nothing is a mid-edit state handleInput
-    // deliberately didn't propagate; a save completing (which replaces value
-    // with a fresh-identity object) must not clobber it under the cursor.
-    if (currentParsed === null && text.trim()) {
+    if (isMidEditText(text, currentParsed)) {
       return;
     }
     const configText = objectToKeyValueLines(value);
     // Only sync if parsed values differ (avoids cursor jump while typing)
     const valueParsed = parseKeyValueLines(configText, allowPath);
-    if (JSON.stringify(currentParsed) !== JSON.stringify(valueParsed)) {
+    if (!sameParsedValue(currentParsed, valueParsed)) {
       // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setText(configText);
@@ -265,17 +283,14 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
 
   const handleInput = (newText: string) => {
     setText(newText);
-    // Update config immediately so Ctrl+S works — except when non-empty text
-    // parses to nothing (mid-edit, or a pasted path in a pairs-only field):
-    // propagating null there would wipe the saved value on save. Clearing
-    // the field is the explicit way to persist null.
-    const suppress = (parsed: unknown) => parsed === null && newText.trim();
+    // Update config immediately so Ctrl+S works — except mid-edit (see
+    // isMidEditText): clearing the field is the explicit way to persist null.
     if (props.allowPath) {
       const parsed = parseKeyValueLines(newText, true);
-      if (!suppress(parsed)) props.onChange(parsed);
+      if (!isMidEditText(newText, parsed)) props.onChange(parsed);
     } else {
       const parsed = parseKeyValueLines(newText, false);
-      if (!suppress(parsed)) props.onChange(parsed);
+      if (!isMidEditText(newText, parsed)) props.onChange(parsed);
     }
   };
 

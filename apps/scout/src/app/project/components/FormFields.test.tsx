@@ -117,6 +117,16 @@ describe("KeyValueField", () => {
     expect(textarea.value).toBe("a=2");
   });
 
+  it("keeps the user's line order when a save echoes equal pairs reordered", () => {
+    const { onChange, type, textarea, setValue } = renderField({ a: 1, b: 2 });
+    type("b=2\na=1");
+    expect(onChange).toHaveBeenLastCalledWith({ b: 2, a: 1 });
+    // The server may serialize keys in a different order; equal content must
+    // not rewrite the textarea (and jump the cursor)
+    setValue({ a: 1, b: 2 });
+    expect(textarea.value).toBe("b=2\na=1");
+  });
+
   it("keeps in-progress unparseable text when a save lands mid-edit", () => {
     const { onChange, type, textarea, setValue } = renderField({ a: 1 });
     // Select-all + type: text no longer parses, so the edit isn't propagated
