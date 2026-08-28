@@ -94,7 +94,7 @@ export const MessageContent: FC<MessageContentProps> = ({
             internal: null,
             citations: null,
           },
-          index === contents.length - 1,
+          index === normalized.length - 1,
           context,
           displayMode,
           references
@@ -105,7 +105,7 @@ export const MessageContent: FC<MessageContentProps> = ({
           return renderContent(
             `text-${content.type}-${index}`,
             content,
-            index === contents.length - 1,
+            index === normalized.length - 1,
             context,
             displayMode,
             references
