@@ -61,6 +61,7 @@ jobs:
 
       - name: Comment ledger delta on PR
         if: github.event_name == 'pull_request'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
