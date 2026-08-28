@@ -23,9 +23,6 @@
     },
     "format": {},
     "format:check": {},
-    "check": {
-      "dependsOn": ["lint", "typecheck", "format:check"]
-    },
     "test": {
       "cache": false
     },

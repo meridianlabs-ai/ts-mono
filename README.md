@@ -41,7 +41,7 @@ across workspaces:
 | `pnpm build`     | Build all workspaces                                 |
 | `pnpm test`      | Run unit/integration tests (vitest)                  |
 | `pnpm e2e`       | Run Playwright e2e tests                             |
-| `pnpm check`     | Lint, typecheck, format check, manypkg check         |
+| `pnpm check`     | Lint, typecheck, format, manypkg, suppressions       |
 | `pnpm lint`      | Lint only                                            |
 | `pnpm typecheck` | Typecheck only                                       |
 | `pnpm format`    | Format with Prettier                                 |

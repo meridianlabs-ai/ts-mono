@@ -22,6 +22,13 @@ Design docs live per-app; consult them when working in the relevant area:
 - **Tooling defaults are fully strict** — new packages get strictest rules;
   legacy code (apps/scout, packages/util) relaxes via local overrides
 
+## Before you push
+
+Run `pnpm check` from the repo root before every push or PR. It runs the
+deterministic gates CI runs — manypkg, suppressions ledger, lint,
+typecheck, format — so CI doesn't false-start on failures you could have
+caught locally. If you changed code, also run `pnpm test`.
+
 ## Code Style — Type Safety
 
   Value type safety; avoid casts. `as` (and especially `as unknown as`)

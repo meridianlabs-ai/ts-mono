@@ -15,15 +15,10 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # pnpm check includes the suppressions ledger gate.
       - id: pnpm-check
         name: pnpm check
         entry: pnpm check
-        language: system
-        pass_filenames: false
-        always_run: true
-      - id: suppressions-check
-        name: suppressions ledger
-        entry: node scripts/check-suppressions.mjs
         language: system
         pass_filenames: false
         always_run: true
