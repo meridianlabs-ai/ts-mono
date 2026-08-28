@@ -55,11 +55,11 @@ Design docs live per-app; consult them when working in the relevant area:
 
 ## Suppression gate
 
-- Do NOT suppress lint or type errors — fix the code. See
+- Do NOT suppress lint or type errors. Fix the code. See
   [CONTRIBUTING.md](CONTRIBUTING.md); a deterministic gate enforces this
-  (`pnpm suppressions:check` against `suppressions.json`). A suppression
-  that just makes an error go away will be rejected.
-- In the rare case a suppression is genuinely correct (`@ts-ignore` and
+  (`pnpm suppressions:check` against `suppressions.json`). Maintainers
+  reject suppressions that just make an error go away.
+- In the rare case a suppression is correct (`@ts-ignore` and
   `@ts-nocheck` are banned outright), it requires both: an explicit
   `-- reason` in the comment, and `pnpm suppressions:update` to record it
   in `suppressions.json`.
@@ -67,7 +67,8 @@ Design docs live per-app; consult them when working in the relevant area:
   `suppressions.json` diff; expect the PR to be blocked until then, and
   say in the PR description why no fix is possible.
 - If the `suppressions` CI check fails, never hand-edit the ledger to make
-  it pass — run `pnpm suppressions:update` and let the diff speak.
+  it pass. Run `pnpm suppressions:update` so the change shows in the
+  ledger diff.
 
 ## Code Style — React Compiler & Memoization
 
