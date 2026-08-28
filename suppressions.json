@@ -920,8 +920,7 @@
   },
   "apps/scout/src/app/server/useValidations.ts": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 9,
-      "undescribed": 9
+      "count": 3
     }
   },
   "apps/scout/src/app/timeline/components/TimelineEventsView.tsx": {
