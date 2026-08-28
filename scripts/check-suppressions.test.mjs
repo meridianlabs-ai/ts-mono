@@ -37,14 +37,26 @@ test("trailing eslint-disable-line after code", () => {
 
 test("block directive, description cut at comment close", () => {
   assert.deepEqual(scanSource("/* eslint-disable a/rule -- legacy */ x();\n"), [
-    { rule: "a/rule", described: true },
+    { rule: "a/rule (file-wide)", described: true },
   ]);
 });
 
 test("bare block disable maps to *", () => {
   assert.deepEqual(scanSource("/* eslint-disable */\n"), [
-    { rule: "*", described: false },
+    { rule: "* (file-wide)", described: false },
   ]);
+});
+
+test("file-wide form keys separately from line-scoped forms", () => {
+  assert.deepEqual(
+    scanSource(
+      "/* eslint-disable a/rule */\nfoo(); // eslint-disable-line a/rule\n",
+    ),
+    [
+      { rule: "a/rule (file-wide)", described: false },
+      { rule: "a/rule", described: false },
+    ],
+  );
 });
 
 test("@ts-expect-error with and without description", () => {
@@ -148,6 +160,16 @@ test("ratchet is per rule across files: a file move does not trip it", () => {
     ),
     [],
   );
+});
+
+test("line → file-wide scope swap is a ledger diff but not a ratchet trip", () => {
+  const ledger = { "a.ts": { r: { count: 1, undescribed: 1 } } };
+  const actual = { "a.ts": { "r (file-wide)": { count: 1, undescribed: 1 } } };
+  assert.deepEqual(
+    diffLedgers(ledger, actual).map(({ key }) => key.split("\t")[1]),
+    ["r", "r (file-wide)"],
+  );
+  assert.deepEqual(ratchetViolations(ledger, actual), []);
 });
 
 test("ratchet still fires when a move also adds a reason-less suppression", () => {

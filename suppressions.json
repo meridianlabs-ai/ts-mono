@@ -23,7 +23,7 @@
     }
   },
   "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
@@ -38,7 +38,7 @@
     }
   },
   "apps/inspect/src/app/log-list/listing/databaseListing.test.tsx": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
+    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
       "count": 1
     }
   },
@@ -289,12 +289,12 @@
     }
   },
   "apps/inspect/src/app/shared/useKeyedMemo.ts": {
-    "react-hooks/refs": {
+    "react-hooks/refs (file-wide)": {
       "count": 1
     }
   },
   "apps/inspect/src/app/shared/useStableValue.ts": {
-    "react-hooks/refs": {
+    "react-hooks/refs (file-wide)": {
       "count": 1
     }
   },
@@ -305,7 +305,7 @@
     "@typescript-eslint/no-unsafe-assignment": {
       "count": 1
     },
-    "@typescript-eslint/no-unsafe-type-assertion": {
+    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
       "count": 1
     }
   },
@@ -388,7 +388,10 @@
   },
   "apps/inspect/src/client/utils/normalize.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
+      "count": 1
     }
   },
   "apps/inspect/src/components/DownloadButton.tsx": {
@@ -474,17 +477,17 @@
     }
   },
   "apps/inspect/src/log_data/sampleFetch.test.ts": {
-    "@typescript-eslint/no-explicit-any": {
+    "@typescript-eslint/no-explicit-any (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-member-access": {
+    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
   },
   "apps/inspect/src/log_data/sampleMessages.ts": {
-    "react-hooks/refs": {
+    "react-hooks/refs (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -496,15 +499,15 @@
     }
   },
   "apps/inspect/src/log_data/sampleStream.test.ts": {
-    "@typescript-eslint/no-explicit-any": {
+    "@typescript-eslint/no-explicit-any (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-member-access": {
+    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-return": {
+    "@typescript-eslint/no-unsafe-return (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
@@ -603,7 +606,7 @@
     }
   },
   "apps/inspect/src/utils/markdown.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
+    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
       "count": 1
     }
   },
@@ -743,7 +746,7 @@
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/set-state-in-effect": {
+    "react-hooks/set-state-in-effect (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -759,7 +762,7 @@
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/set-state-in-effect": {
+    "react-hooks/set-state-in-effect (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -800,7 +803,7 @@
       "count": 1,
       "undescribed": 1
     },
-    "react-hooks/set-state-in-effect": {
+    "react-hooks/set-state-in-effect (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -882,7 +885,7 @@
     }
   },
   "apps/scout/src/app/scan/scanners/ScannerSidebar.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -938,7 +941,7 @@
       "count": 2,
       "undescribed": 2
     },
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
@@ -1012,7 +1015,7 @@
     }
   },
   "apps/scout/src/app/validation/components/ValidationCaseTargetEditor.tsx": {
-    "react-hooks/set-state-in-effect": {
+    "react-hooks/set-state-in-effect (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -1203,39 +1206,39 @@
     }
   },
   "packages/inspect-components/src/content/RenderedContent.tsx": {
-    "@typescript-eslint/no-base-to-string": {
+    "@typescript-eslint/no-base-to-string (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-explicit-any": {
+    "@typescript-eslint/no-explicit-any (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-argument": {
+    "@typescript-eslint/no-unsafe-argument (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-assignment": {
+    "@typescript-eslint/no-unsafe-assignment (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-call": {
+    "@typescript-eslint/no-unsafe-call (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-member-access": {
+    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-return": {
+    "@typescript-eslint/no-unsafe-return (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unused-vars": {
+    "@typescript-eslint/no-unused-vars (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/unbound-method": {
+    "@typescript-eslint/unbound-method (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -1246,11 +1249,11 @@
     }
   },
   "packages/inspect-components/src/content/types.ts": {
-    "@typescript-eslint/no-explicit-any": {
+    "@typescript-eslint/no-explicit-any (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-redundant-type-constituents": {
+    "@typescript-eslint/no-redundant-type-constituents (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -1300,15 +1303,18 @@
     }
   },
   "packages/inspect-components/src/transcript/eventText.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
+    "@typescript-eslint/consistent-type-assertions (file-wide)": {
       "count": 1
     },
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
+      "count": 1
+    },
+    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/eventText.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -1335,7 +1341,7 @@
     }
   },
   "packages/inspect-components/src/transcript/ModelEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
@@ -1380,13 +1386,13 @@
     }
   },
   "packages/inspect-components/src/transcript/timeline/core.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
+    "@typescript-eslint/no-unnecessary-condition (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
@@ -1591,7 +1597,7 @@
     }
   },
   "packages/react/src/hooks/useDebouncedCallback.ts": {
-    "react-hooks/refs": {
+    "react-hooks/refs (file-wide)": {
       "count": 1
     }
   },
@@ -1631,19 +1637,19 @@
     }
   },
   "packages/react/src/hooks/useWhyDidYouUpdate.ts": {
-    "@typescript-eslint/no-explicit-any": {
+    "@typescript-eslint/no-explicit-any (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-argument": {
+    "@typescript-eslint/no-unsafe-argument (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-assignment": {
+    "@typescript-eslint/no-unsafe-assignment (file-wide)": {
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unsafe-member-access": {
+    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
       "count": 1,
       "undescribed": 1
     }

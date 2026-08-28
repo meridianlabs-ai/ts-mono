@@ -65,7 +65,10 @@ possible, stop. The suppression is almost certainly the wrong move, and
 maintainers won't accept a PR on "it made the error go away" grounds.
 
 `suppressions.json` counts every suppression comment by file and rule.
-CI fails if it doesn't match the code.
+A bare `/* eslint-disable <rule> */` block comment suppresses to the end
+of the file, so it's keyed separately as `<rule> (file-wide)` — widening
+a line-scoped suppression to the whole file is a ledger change, not a
+count-neutral swap. CI fails if the ledger doesn't match the code.
 
 In the rare case a suppression is correct:
 
