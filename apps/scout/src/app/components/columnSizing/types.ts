@@ -100,7 +100,19 @@ export function mergeCalculatedSizing(
 export function getColumnId<TData extends RowData>(
   column: ExtendedColumnDef<TData, BaseColumnMeta>
 ): string {
-  return column.id || (column as { accessorKey?: string }).accessorKey || "";
+  return column.id || columnAccessorKey(column) || "";
+}
+
+/**
+ * `accessorKey` is carried by only one member of TanStack's ColumnDef union,
+ * so reading it off the union takes a check rather than a claim.
+ */
+export function columnAccessorKey<TData extends RowData>(
+  column: ExtendedColumnDef<TData, BaseColumnMeta>
+): string | undefined {
+  return "accessorKey" in column && typeof column.accessorKey === "string"
+    ? column.accessorKey
+    : undefined;
 }
 
 /**

@@ -10,6 +10,7 @@
 import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
+import { pathParam } from "./fixtures/handlers";
 import {
   createEvalLog,
   createEvalSample,
@@ -104,7 +105,7 @@ function setupHandlers(
     }),
 
     http.get("*/api/logs/:file", ({ params }) => {
-      const file = decodeURIComponent(params.file as string);
+      const file = decodeURIComponent(pathParam(params.file));
       const match = LOG_FILES.find(
         (f) => f.name === file || file.endsWith(f.name)
       );
@@ -113,7 +114,7 @@ function setupHandlers(
     }),
 
     http.get("*/api/log-details/:file", ({ params }) => {
-      const file = decodeURIComponent(params.file as string);
+      const file = decodeURIComponent(pathParam(params.file));
       const match = LOG_FILES.find(
         (f) => f.name === file || file.endsWith(f.name)
       );

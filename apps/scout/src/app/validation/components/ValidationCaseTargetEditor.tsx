@@ -9,8 +9,15 @@ import type { JsonValue } from "@tsmono/inspect-common/types";
 import { useDebouncedCallback } from "@tsmono/react/hooks";
 
 import { valueAsString } from "../../utils/format";
+import { eventValue } from "../../utils/formEvents";
 
-type TargetMode = "true" | "false" | "other" | "unset";
+const kTargetModes = ["true", "false", "other", "unset"] as const;
+
+type TargetMode = (typeof kTargetModes)[number];
+
+/** Radio values are the modes themselves; anything else is "nothing chosen". */
+const toTargetMode = (value: string): TargetMode =>
+  kTargetModes.find((mode) => mode === value) ?? "unset";
 
 /**
  * Determines the mode based on the target value.
@@ -78,14 +85,14 @@ export const ValidationCaseTargetEditor: FC<
   }, [target, isTyping]);
 
   // Debounce only the text input changes
-  const debouncedOnChange = useDebouncedCallback((value: unknown) => {
+  const debouncedOnChange = useDebouncedCallback((value: string) => {
     // Call onChange first to update the cache before clearing the typing flag.
-    onChange(value as string);
+    onChange(value);
     setIsTyping(false);
   }, 600);
 
   const handleRadioChange = (value: string) => {
-    const newMode = value as TargetMode;
+    const newMode = toTargetMode(value);
     setMode(newMode);
 
     if (newMode === "other") {
@@ -106,11 +113,7 @@ export const ValidationCaseTargetEditor: FC<
 
   return (
     <div>
-      <VscodeRadioGroup
-        onChange={(e) =>
-          handleRadioChange((e.target as HTMLInputElement).value)
-        }
-      >
+      <VscodeRadioGroup onChange={(e) => handleRadioChange(eventValue(e))}>
         <VscodeRadio
           name="target-mode"
           label="True"
@@ -135,9 +138,7 @@ export const ValidationCaseTargetEditor: FC<
         <VscodeTextfield
           value={customValue}
           placeholder="Enter target value"
-          onInput={(e) =>
-            handleCustomValueChange((e.target as HTMLInputElement).value)
-          }
+          onInput={(e) => handleCustomValueChange(eventValue(e))}
           style={{ marginTop: "8px" }}
         />
       )}

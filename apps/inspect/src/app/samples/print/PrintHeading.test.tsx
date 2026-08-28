@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import type { EvalSpec } from "@tsmono/inspect-common/types";
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import { PrintHeading } from "./PrintHeading";
 
@@ -11,11 +11,11 @@ describe("PrintHeading", () => {
   it("renders task and model metadata as literal text", () => {
     const task = '<img src=x onerror="window.__printXss=true">';
     const model = '<svg onload="window.__printXss=true"></svg>';
-    const evalSpec = {
+    const evalSpec = testEvalSpec({
       task,
       model,
       created: "2026-06-25T12:00:00Z",
-    } as EvalSpec;
+    });
 
     const { container } = render(<PrintHeading evalSpec={evalSpec} />);
 
@@ -25,11 +25,11 @@ describe("PrintHeading", () => {
   });
 
   it("preserves fallback labels", () => {
-    const evalSpec = {
+    const evalSpec = testEvalSpec({
       task: "",
       model: "",
       created: "",
-    } as EvalSpec;
+    });
 
     render(<PrintHeading evalSpec={evalSpec} />);
 

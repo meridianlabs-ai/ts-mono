@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { Column } from "./column";
-import type { ConditionModel } from "./types";
 
 const col = (name: string) => new Column(name);
 
@@ -146,26 +145,31 @@ describe("Logical combinators", () => {
 describe("JSON serialization", () => {
   it("toJSON() works with JSON.stringify()", () => {
     const filter = col("model").eq("gpt-4").and(col("score").gt(0.8));
-    const parsed = JSON.parse(JSON.stringify({ filter })) as {
-      filter: ConditionModel;
-    };
-    expect(parsed.filter).toEqual({
-      is_compound: true,
-      operator: "AND",
-      left: {
-        is_compound: false,
-        left: "model",
-        operator: "=",
-        right: "gpt-4",
+    const parsed: unknown = JSON.parse(JSON.stringify({ filter }));
+    expect(parsed).toEqual({
+      filter: {
+        is_compound: true,
+        operator: "AND",
+        left: {
+          is_compound: false,
+          left: "model",
+          operator: "=",
+          right: "gpt-4",
+        },
+        right: {
+          is_compound: false,
+          left: "score",
+          operator: ">",
+          right: 0.8,
+        },
       },
-      right: { is_compound: false, left: "score", operator: ">", right: 0.8 },
     });
   });
 
   it("JSON.stringify() works directly on a condition", () => {
-    const parsed = JSON.parse(
+    const parsed: unknown = JSON.parse(
       JSON.stringify(col("model").eq("gpt-4"))
-    ) as ConditionModel;
+    );
     expect(parsed).toEqual({
       is_compound: false,
       left: "model",
@@ -179,11 +183,11 @@ describe("JSON serialization", () => {
       .eq("gpt-4")
       .and(col("score").between(0.7, 1.0))
       .or(col("error").isNull());
-    const parsed = JSON.parse(JSON.stringify(filter)) as ConditionModel;
-    expect(parsed.is_compound).toBe(true);
-    expect(parsed.operator).toBe("OR");
-    if (parsed.is_compound && parsed.left && typeof parsed.left !== "string") {
-      expect(parsed.left.operator).toBe("AND");
-    }
+    const parsed: unknown = JSON.parse(JSON.stringify(filter));
+    expect(parsed).toMatchObject({
+      is_compound: true,
+      operator: "OR",
+      left: { operator: "AND" },
+    });
   });
 });

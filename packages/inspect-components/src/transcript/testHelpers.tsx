@@ -23,11 +23,11 @@ let nextId = 0;
 
 /** Creates an EventNode with a unique id from a partial event fixture. */
 export function eventNode(
-  event: Partial<EventType> & { event: string },
+  event: EventType,
   children: EventNode[] = [],
   depth = 0
 ): EventNode {
-  const n = new EventNode(`n${nextId++}`, event as EventType, depth);
+  const n = new EventNode(`n${nextId++}`, event, depth);
   n.children = children;
   return n;
 }

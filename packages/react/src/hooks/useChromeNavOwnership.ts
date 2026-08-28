@@ -7,6 +7,8 @@ import {
   useState,
 } from "react";
 
+import { isReadonlyArray } from "@tsmono/util";
+
 import {
   useScrollDirection,
   type UseScrollDirectionOptions,
@@ -170,9 +172,7 @@ export function useChromeNavOwnership(
   });
 
   // The release-gesture container is the primary (first) scroller.
-  const primaryRef = Array.isArray(scrollRef)
-    ? (scrollRef as ReadonlyArray<RefObject<HTMLElement | null>>)[0]!
-    : (scrollRef as RefObject<HTMLElement | null>);
+  const primaryRef = isReadonlyArray(scrollRef) ? scrollRef[0]! : scrollRef;
   useChromeNavOwnershipRelease(navOwnsRef, primaryRef);
 
   const extraTargetsRef = useRef(extraTargets);

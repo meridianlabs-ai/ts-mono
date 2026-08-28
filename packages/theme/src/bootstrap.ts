@@ -41,7 +41,7 @@ const THEME_PREFERENCES: readonly ThemePreference[] = [
 ];
 
 export const isThemePreference = (value: unknown): value is ThemePreference =>
-  THEME_PREFERENCES.includes(value as ThemePreference);
+  THEME_PREFERENCES.some((preference) => preference === value);
 
 /**
  * Read a persisted preference out of the zustand-persist-compatible settings
@@ -241,9 +241,11 @@ const hostIsDarkFromBody = (): boolean | null => {
   return null;
 };
 
+// `in` rather than a global declaration: @tsmono/util declares this same
+// property with its own VSCodeApi type, and this module stays dependency-free
+// for the inline bootstrap <script>, so a second declaration would collide.
 const isVscodeWebview = (): boolean =>
-  typeof (window as { acquireVsCodeApi?: unknown }).acquireVsCodeApi ===
-  "function";
+  "acquireVsCodeApi" in window && typeof window.acquireVsCodeApi === "function";
 
 const installBodyClassObserver = (): void => {
   if (

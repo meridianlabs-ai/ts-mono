@@ -37,11 +37,12 @@ function isAppMessage(value: unknown): value is AppMessage {
  * Returns scan directory and name if embedded state exists and is valid.
  */
 export function getEmbeddedAppMessage(): AppMessage | null {
-  const embeddedState = document.getElementById(
-    "scanview-state"
-  ) as HTMLScriptElement | null;
+  const embeddedState = document.getElementById("scanview-state");
 
-  if (!embeddedState?.textContent) {
+  if (
+    !(embeddedState instanceof HTMLScriptElement) ||
+    !embeddedState.textContent
+  ) {
     return null;
   }
 

@@ -18,6 +18,10 @@ import { valueAsString } from "../utils/format";
 import styles from "./columns.module.css";
 
 // Column headers for display (used in column picker and add filter dropdown)
+/** The column picker works in plain strings; this is the way back. */
+export const isTranscriptColumnKey = (id: string): id is keyof TranscriptInfo =>
+  Object.hasOwn(COLUMN_LABELS, id);
+
 export const COLUMN_LABELS: Record<keyof TranscriptInfo, string> = {
   success: "Success",
   date: "Date",
@@ -89,6 +93,20 @@ export type TranscriptColumn = ExtendedColumnDef<TranscriptInfo> & {
   headerTitle?: string;
 };
 
+/**
+ * TanStack hands cell values to a column's callbacks as `unknown`: the value
+ * for a column keyed `accessorKey` is that field of the row, but the table
+ * types have no way to say so. This is the one place a field-typed callback
+ * is adapted to the grid's untyped one.
+ */
+function forCellValue<K extends keyof TranscriptInfo, R>(
+  fn: (value: TranscriptInfo[K]) => R
+): (value: unknown) => R {
+  return (value) =>
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- cell value boundary: see above
+    fn(value as TranscriptInfo[K]);
+}
+
 // Helper to create strongly-typed columns
 function createColumn<K extends keyof TranscriptInfo>(config: {
   accessorKey: K;
@@ -122,16 +140,15 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
     minSize: config.minSize,
     maxSize: config.maxSize,
     meta: config.meta,
-    titleValue: config.titleValue as ((value: unknown) => string) | undefined,
+    titleValue: config.titleValue && forCellValue(config.titleValue),
     textValue: config.textValue
-      ? (config.textValue as (value: unknown) => string | null)
+      ? forCellValue(config.textValue)
       : defaultTextValue,
     cell: (info) => {
-      const value = info.getValue() as TranscriptInfo[K];
+      const value = info.getValue();
       if (config.cell) {
-        return config.cell(value);
+        return forCellValue(config.cell)(value);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (value === undefined || value === null) {
         return "-";
       }

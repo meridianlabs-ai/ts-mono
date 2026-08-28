@@ -15,6 +15,7 @@ import type {
   TimelineEvent as ServerTimelineEvent,
   TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { codexToolMarkdown } from "../../chat/tools/tool";
 
@@ -65,11 +66,14 @@ export class TimelineEvent {
   }
 
   startTime(): Date {
-    return new Date((this.event as { timestamp?: string }).timestamp ?? 0);
+    return new Date(this.event.timestamp);
   }
 
   endTime(): Date {
-    const completed = (this.event as { completed?: string }).completed;
+    const completed =
+      "completed" in this.event && typeof this.event.completed === "string"
+        ? this.event.completed
+        : null;
     return completed ? new Date(completed) : this.startTime();
   }
 
@@ -95,6 +99,30 @@ export class TimelineEvent {
 /**
  * A span of execution — agent, scorer, tool, or root.
  */
+/**
+ * Narrow one node of a timeline's `content`, which mixes spans and events.
+ * Tests reach for `content[0] as TimelineSpan`; these check the discriminant
+ * and report what was actually there.
+ */
+export const asTimelineSpan = (node: unknown): TimelineSpan => {
+  if (!(node instanceof TimelineSpan)) {
+    throw new Error(`expected a TimelineSpan, got ${describeNode(node)}`);
+  }
+  return node;
+};
+
+export const asTimelineEvent = (node: unknown): TimelineEvent => {
+  if (!(node instanceof TimelineEvent)) {
+    throw new Error(`expected a TimelineEvent, got ${describeNode(node)}`);
+  }
+  return node;
+};
+
+const describeNode = (node: unknown): string =>
+  isRecord(node) && typeof node["type"] === "string"
+    ? `a "${node["type"]}" node`
+    : String(node);
+
 export class TimelineSpan {
   readonly type = "span" as const;
   id: string;
@@ -470,7 +498,7 @@ function ancestorChain(
 }
 
 export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
-  const update: Partial<Event> = {};
+  const update: { span_id?: string; id?: string; parent_id?: string } = {};
   if (e.span_id?.endsWith(suffix)) {
     update.span_id = e.span_id.slice(0, -suffix.length);
   } else if (e.span_id === trajId) {
@@ -478,20 +506,20 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
   }
   if (e.event === "span_begin" || e.event === "span_end") {
     if (e.id.endsWith(suffix)) {
-      (update as { id: string }).id = e.id.slice(0, -suffix.length);
+      update.id = e.id.slice(0, -suffix.length);
     }
   }
   if (e.event === "span_begin" && e.parent_id != null) {
     if (e.parent_id.endsWith(suffix)) {
-      (update as { parent_id: string }).parent_id = e.parent_id.slice(
-        0,
-        -suffix.length
-      );
+      update.parent_id = e.parent_id.slice(0, -suffix.length);
     } else if (e.parent_id === trajId) {
-      (update as { parent_id: string }).parent_id = "";
+      update.parent_id = "";
     }
   }
-  return Object.keys(update).length > 0 ? ({ ...e, ...update } as Event) : e;
+  if (Object.keys(update).length === 0) return e;
+  // The spread only overwrites fields the branches above proved `e` has, so
+  // the result is the same union member with three strings rewritten.
+  return { ...e, ...update };
 }
 
 // =============================================================================
@@ -796,10 +824,17 @@ function containsAgentSpan(span: SpanNode): boolean {
  * Handles ToolEvents that spawn nested agents, recursively processing
  * nested events to detect further agent spawning.
  */
+/**
+ * ToolEvent.events is `unknown[]` in the schema. Shallow check: the timeline
+ * dispatches on `event`, and anything without one can't be placed.
+ */
+const isEvent = (value: unknown): value is Event =>
+  isRecord(value) && typeof value["event"] === "string";
+
 function eventToNode(event: Event): TimelineEvent | TimelineSpan {
   if (event.event === "tool") {
     const agentName = event.agent;
-    const nestedEvents = event.events as Event[] | undefined;
+    const nestedEvents = event.events.filter(isEvent);
 
     if (agentName && nestedEvents && nestedEvents.length > 0) {
       // Recursively process nested events to handle nested tool agents
@@ -1623,8 +1658,9 @@ function extractToolEventResult(result: unknown): string | undefined {
   if (Array.isArray(result)) {
     const parts: string[] = [];
     for (const c of result) {
-      if (c && typeof c === "object" && "text" in c)
-        parts.push((c as { text: string }).text);
+      if (isRecord(c) && typeof c["text"] === "string") {
+        parts.push(c["text"]);
+      }
     }
     return parts.length > 0 ? parts.join("\n") : undefined;
   }
@@ -1686,15 +1722,11 @@ function extractAgentResults(parent: TimelineSpan): void {
           const modelEvent = nextItem.event;
           if (modelEvent.input) {
             for (const msg of modelEvent.input) {
-              if (
-                msg.role === "tool" &&
-                "tool_call_id" in msg &&
-                (msg as { tool_call_id?: string }).tool_call_id === toolCallId
-              ) {
+              if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
                 const text = extractToolEventResult(msg.content);
                 if (text) {
                   item.agentResult = codexResultText(
-                    (msg as { function?: string }).function,
+                    msg.function ?? undefined,
                     msg.content,
                     text
                   );

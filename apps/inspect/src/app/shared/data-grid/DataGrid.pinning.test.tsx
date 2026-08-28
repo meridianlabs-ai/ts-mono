@@ -21,6 +21,14 @@ interface Row {
   c: string;
 }
 
+// closest() returns Element; the assertions below read HTMLElement members.
+const asHtmlElement = (node: Element | null): HTMLElement => {
+  if (!(node instanceof HTMLElement)) {
+    throw new Error("expected an HTMLElement");
+  }
+  return node;
+};
+
 const rows: Row[] = [{ id: "1", a: "1a", b: "1b", c: "1c" }];
 
 const makeColumns = (pinnedIds: string[]): ExtendedColumnDef<Row>[] =>
@@ -63,7 +71,7 @@ const headerOrder = () =>
   screen.getAllByRole("columnheader").map((cell) => cell.textContent.trim());
 
 const headerCell = (label: string) =>
-  screen.getByText(label).closest('[role="columnheader"]') as HTMLElement;
+  asHtmlElement(screen.getByText(label).closest('[role="columnheader"]'));
 
 describe("DataGrid column pinning", () => {
   test("a left-pinned column orders first regardless of definition order", () => {

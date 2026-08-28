@@ -303,8 +303,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   // Use component state for outline collapsed preference
   const outlineCollapsedRaw = useStore((state) => {
-    const bag = state.app.propertyBags["collapse-state-scope"];
-    return bag?.[outlineKey] as boolean | undefined;
+    const stored = state.app.propertyBags["collapse-state-scope"]?.[outlineKey];
+    return typeof stored === "boolean" ? stored : undefined;
   });
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue

@@ -1,13 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  normalizeInputType,
+  normalizeJsonRecord,
   normalizeScanEvents,
   normalizeScanModelUsage,
-  normalizeTranscriptMetadata,
   normalizeValidationResult,
   normalizeValidationTarget,
   resolveTranscriptIdentityFromMetadata,
 } from "./normalizeScanRow";
+
+describe("normalizeInputType", () => {
+  it("keeps known input types", () => {
+    expect(normalizeInputType("transcript")).toBe("transcript");
+    expect(normalizeInputType("messages")).toBe("messages");
+    expect(normalizeInputType("timeline")).toBe("timeline");
+  });
+
+  it("returns undefined for unknown input types rather than claiming transcript", () => {
+    expect(normalizeInputType("some-future-kind")).toBeUndefined();
+    expect(normalizeInputType(undefined)).toBeUndefined();
+    expect(normalizeInputType(42)).toBeUndefined();
+  });
+});
 
 describe("normalizeValidationResult", () => {
   it("keeps legacy raw booleans (pre Jan 7 2026 storage)", async () => {
@@ -67,18 +82,18 @@ describe("normalizeValidationTarget", () => {
   });
 });
 
-describe("normalizeTranscriptMetadata", () => {
+describe("normalizeJsonRecord", () => {
   it("parses JSON records", async () => {
-    expect(await normalizeTranscriptMetadata('{"model":"gpt-4"}')).toEqual({
+    expect(await normalizeJsonRecord('{"model":"gpt-4"}')).toEqual({
       model: "gpt-4",
     });
   });
 
   it("returns an empty record for absent or non-record values", async () => {
-    expect(await normalizeTranscriptMetadata(null)).toEqual({});
-    expect(await normalizeTranscriptMetadata(undefined)).toEqual({});
-    expect(await normalizeTranscriptMetadata("[1,2]")).toEqual({});
-    expect(await normalizeTranscriptMetadata("not json {")).toEqual({});
+    expect(await normalizeJsonRecord(null)).toEqual({});
+    expect(await normalizeJsonRecord(undefined)).toEqual({});
+    expect(await normalizeJsonRecord("[1,2]")).toEqual({});
+    expect(await normalizeJsonRecord("not json {")).toEqual({});
   });
 });
 

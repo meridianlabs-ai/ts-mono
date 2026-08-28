@@ -15,7 +15,7 @@ import {
   pendingSamplesKey,
   shouldPollPendingSamples,
 } from "./pendingSamples";
-import { testClientAPI } from "./testFixtures";
+import { testClientAPI, testSampleSummary } from "./testFixtures";
 
 const engineFetch = vi.hoisted(() => vi.fn());
 vi.mock("./fetchEngine", () => ({
@@ -23,7 +23,7 @@ vi.mock("./fetchEngine", () => ({
 }));
 
 const sample = (id: string): SampleSummary =>
-  ({ id, epoch: 1 }) as SampleSummary;
+  testSampleSummary({ id, epoch: 1 });
 
 const pending = (
   ids: string[],

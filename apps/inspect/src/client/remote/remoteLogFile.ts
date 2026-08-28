@@ -458,7 +458,7 @@ export const openRemoteLogFile = async (
         ),
       ]);
 
-      return {
+      const log = {
         version: evalLogHeader.version ?? 2,
         status: evalLogHeader.status ?? "started",
         invalidated: evalLogHeader.invalidated ?? false,
@@ -470,10 +470,9 @@ export const openRemoteLogFile = async (
         tags: evalLogHeader.tags ?? [],
         metadata: evalLogHeader.metadata ?? {},
         samples,
-        // Boundary lift (#555): stats/plan are only written at end-of-eval,
-        // so an in-progress log genuinely lacks them despite EvalLog
-        // requiring them — EvalHeader models that with optional fields.
-      } as EvalLog;
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): stats/plan are only written at end-of-eval, so an in-progress log genuinely lacks them despite EvalLog requiring them — EvalHeader models that with optional fields
+      return log as EvalLog;
     },
   };
 };

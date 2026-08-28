@@ -1,4 +1,5 @@
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 export const kToolTodoContentType = "agent/todo-list";
 
@@ -368,10 +369,10 @@ const formatSpawnAgentResult = (text: string): string | undefined => {
   } catch {
     return undefined;
   }
-  if (!data || typeof data !== "object") {
+  if (!isRecord(data)) {
     return undefined;
   }
-  const record = data as Record<string, unknown>;
+  const record = data;
   const nickname =
     typeof record.nickname === "string" ? record.nickname : undefined;
   const agentId =
@@ -403,10 +404,10 @@ export const toolOutputText = (output: unknown): string | undefined => {
 };
 
 const collectContentText = (item: unknown, parts: string[]): void => {
-  if (!item || typeof item !== "object") {
+  if (!isRecord(item)) {
     return;
   }
-  const record = item as Record<string, unknown>;
+  const record = item;
   if (record.type === "text" && typeof record.text === "string") {
     parts.push(record.text);
   } else if (record.type === "tool" && Array.isArray(record.content)) {
@@ -449,10 +450,10 @@ const formatSubagentNotification = (payload: string): string | undefined => {
   } catch {
     return undefined;
   }
-  if (!data || typeof data !== "object") {
+  if (!isRecord(data)) {
     return undefined;
   }
-  const record = data as Record<string, unknown>;
+  const record = data;
   const agentPath =
     typeof record.agent_path === "string" ? record.agent_path : undefined;
   const status =
@@ -508,10 +509,10 @@ export const parseToolSearchCatalog = (
   const namespaces: ToolSearchNamespaceEntry[] = [];
   const looseTools: ToolSearchToolEntry[] = [];
   for (const entry of data) {
-    if (!entry || typeof entry !== "object") {
+    if (!isRecord(entry)) {
       continue;
     }
-    const record = entry as Record<string, unknown>;
+    const record = entry;
     const rawTools = Array.isArray(record.tools) ? record.tools : undefined;
 
     // A top-level function tool (no nested `tools`) — render it directly rather
@@ -537,10 +538,10 @@ export const parseToolSearchCatalog = (
 
     const tools: ToolSearchToolEntry[] = [];
     for (const tool of toolList) {
-      if (!tool || typeof tool !== "object") {
+      if (!isRecord(tool)) {
         continue;
       }
-      const parsed = parseToolEntry(tool as Record<string, unknown>);
+      const parsed = parseToolEntry(tool);
       if (parsed) {
         tools.push(parsed);
       }
@@ -575,9 +576,9 @@ const parseToolEntry = (
 
 const toolParamNames = (tool: Record<string, unknown>): string[] => {
   const parameters = tool.parameters;
-  if (parameters && typeof parameters === "object") {
-    const properties = (parameters as Record<string, unknown>).properties;
-    if (properties && typeof properties === "object") {
+  if (isRecord(parameters)) {
+    const properties = parameters.properties;
+    if (isRecord(properties)) {
       return Object.keys(properties);
     }
   }

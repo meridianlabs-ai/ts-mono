@@ -1,5 +1,7 @@
 import { useCallback } from "react";
 
+import { isRecord } from "@tsmono/util";
+
 import { useLogDir } from "../../app_config";
 import { kLogViewTimelineTabId } from "../../constants";
 import { useStore } from "../../state/store";
@@ -75,11 +77,10 @@ export const useShowTimelineForModel = (): ((
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
   );
-  const bands = useStore(
-    (state) =>
-      state.app.propertyBags[kTimelineBag]?.[bandsKey] as
-        Record<string, boolean> | undefined
-  );
+  const bands = useStore((state) => {
+    const stored = state.app.propertyBags[kTimelineBag]?.[bandsKey];
+    return isRecord(stored) ? stored : undefined;
+  });
   return useCallback(
     (model: string, event?: NavClickEvent) => {
       // Modifier clicks open a new browser tab that doesn't share this

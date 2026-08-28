@@ -199,8 +199,11 @@ const elevateChildNode = (
     return null;
   }
 
+  const target = node.children[targetIndex];
+  if (!target) return null;
+
   // Get the target node and set its depth
-  const targetNode = { ...node.children[targetIndex] };
+  const targetNode = { ...target };
   const remainingChildren = node.children.filter((_, i) => i !== targetIndex);
 
   // Process the remaining children
@@ -210,7 +213,7 @@ const elevateChildNode = (
   // No need to update the event itself (events have been deprecated
   // and more importantly we drive children / transcripts using the tree structure itself
   // and notes rather than the event.events itself)
-  return targetNode as EventNode;
+  return targetNode;
 };
 
 const isAgentOrSolverSpan = (node: EventNode): boolean =>
@@ -257,10 +260,12 @@ const skipFirstChildNode = (node: EventNode): EventNode => {
 };
 
 const skipThisNode = (node: EventNode): EventNode => {
-  const newNode = { ...node.children[0] };
+  const first = node.children[0];
+  if (!first) return node;
+  const newNode = { ...first };
   newNode.depth = node.depth;
-  newNode.children = reduceDepth(newNode.children || [], 2);
-  return newNode as EventNode;
+  newNode.children = reduceDepth(newNode.children, 2);
+  return newNode;
 };
 
 const discardNode = (node: EventNode): EventNode[] => {

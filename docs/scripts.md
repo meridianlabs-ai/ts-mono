@@ -40,6 +40,14 @@ Workspaces with CSS modules define `"generate:css": "cmk"`. It generates `*.modu
 
 The five `@typescript-eslint/no-unsafe-*` rules are off unless `TSMONO_TYPED_LINT` is set. Every workspace `lint` script sets it inline (`TSMONO_TYPED_LINT=1 eslint …`), so batch runs (`pnpm lint`, `--filter` runs, turbo, CI) enforce them; editor eslint servers never run the scripts, leaving those errors to tsc there.
 
+## Type assertions
+
+`@typescript-eslint/no-unsafe-type-assertion` and
+`@typescript-eslint/consistent-type-assertions` are errors everywhere. A cast
+at a boundary TypeScript genuinely can't express gets an
+`eslint-disable-next-line … --` directive naming the boundary, at the cast,
+where a reviewer sees it. There is no repo-wide backlog to add to.
+
 ## Adding a new workspace
 
 1. Define leaf scripts: `lint`, `typecheck`, `test` (and `format:check` if the package has its own Prettier config; `generate:css` if it has CSS modules)

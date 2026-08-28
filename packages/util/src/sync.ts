@@ -10,20 +10,25 @@ export function sleep(ms: number): Promise<void> {
  * at most once per every `wait` milliseconds. The throttled function will run as much
  * as it can, without ever going more than once per `wait` duration.
  */
-export function throttle<T extends (...args: unknown[]) => unknown>(
-  func: T,
+export function throttle<A extends unknown[], R>(
+  func: (...args: A) => R,
   wait: number,
   options: { leading?: boolean; trailing?: boolean } = {}
-): (...args: Parameters<T>) => ReturnType<T> {
-  let args: Parameters<T> | null;
-  let result: ReturnType<T>;
+): (...args: A) => R {
+  let args: A | null;
+  let result: R;
   let timeout: ReturnType<typeof setTimeout> | null = null;
   let previous = 0;
 
   const later = (): void => {
     previous = options.leading === false ? 0 : Date.now();
     timeout = null;
-    result = func(...(args === null ? [] : args)) as ReturnType<T>;
+    // `throttled` records args before it ever arms this timer, and the leading
+    // edge clears the timer before nulling them — so null here means there is
+    // no pending call to make, not a call to make with no arguments.
+    if (args !== null) {
+      result = func(...args);
+    }
     // TODO: eslint thinks that the conditional is unnecessary, but it seems that
     // the call to func could have a side effect of mutating timeout if it makes
     // a call to throttled below
@@ -34,7 +39,7 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
     }
   };
 
-  const throttled = (...callArgs: Parameters<T>): ReturnType<T> => {
+  const throttled = (...callArgs: A): R => {
     const now = Date.now();
     if (!previous && options.leading === false) {
       previous = now;
@@ -49,7 +54,7 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
         timeout = null;
       }
       previous = now;
-      result = func(...args) as ReturnType<T>;
+      result = func(...args);
       if (!timeout) {
         args = null;
       }
@@ -68,14 +73,14 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
  * until after `wait` milliseconds have passed since the last time it was invoked.
  */
 
-export function debounce<T extends (...args: any[]) => unknown>(
-  func: T,
+export function debounce<A extends unknown[], R>(
+  func: (...args: A) => R,
   wait: number,
   options: { leading?: boolean; trailing?: boolean } = {}
-): (...args: Parameters<T>) => ReturnType<T> {
+): (...args: A) => R {
   let timeout: ReturnType<typeof setTimeout> | null = null;
-  let args: Parameters<T>;
-  let result: ReturnType<T>;
+  let args: A;
+  let result: R;
   let lastCallTime: number | null = null;
 
   const later = (): void => {
@@ -86,7 +91,7 @@ export function debounce<T extends (...args: any[]) => unknown>(
     } else {
       timeout = null;
       if (!options.leading) {
-        result = func(...args) as ReturnType<T>;
+        result = func(...args);
         // TODO: eslint thinks that the conditional is unnecessary, but it seems
         // that the call to func could have a side effect of mutating timeout if
         // it makes a call to debounced below
@@ -99,7 +104,7 @@ export function debounce<T extends (...args: any[]) => unknown>(
     }
   };
 
-  const debounced = (...callArgs: Parameters<T>): ReturnType<T> => {
+  const debounced = (...callArgs: A): R => {
     args = callArgs;
     lastCallTime = Date.now();
 
@@ -110,7 +115,7 @@ export function debounce<T extends (...args: any[]) => unknown>(
     }
 
     if (callNow) {
-      result = func(...args) as ReturnType<T>;
+      result = func(...args);
 
       args = null!;
     }

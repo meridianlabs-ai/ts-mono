@@ -2,6 +2,12 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testInfoEvent,
+  testModelEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
+
 import { eventNode } from "../testHelpers";
 import type { TranscriptCollapseState } from "../types";
 
@@ -122,9 +128,9 @@ describe("useTranscriptCollapse → bulkCollapse", () => {
   });
 
   it("bulk-collapses every collapsible node", () => {
-    const tool = eventNode({ event: "tool" });
-    const model = eventNode({ event: "model" });
-    const info = eventNode({ event: "info" });
+    const tool = eventNode(testToolEvent());
+    const model = eventNode(testModelEvent());
+    const info = eventNode(testInfoEvent());
     const collapseState = makeCollapseState();
     render({
       collapseState,

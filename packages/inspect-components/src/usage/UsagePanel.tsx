@@ -58,6 +58,11 @@ interface UsagePanelProps {
 
 type Mode = "model" | "role" | "connections";
 
+const kModes: readonly Mode[] = ["model", "role", "connections"];
+
+const isMode = (value: string): value is Mode =>
+  kModes.some((mode) => mode === value);
+
 export const UsagePanel: React.FC<UsagePanelProps> = ({
   label,
   model_usage,
@@ -172,7 +177,9 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
             <SegmentedControl
               segments={segments}
               selectedId={effectiveMode}
-              onSegmentChange={(value) => setMode(value as Mode)}
+              onSegmentChange={(value) => {
+                if (isMode(value)) setMode(value);
+              }}
             />
           )}
         </div>

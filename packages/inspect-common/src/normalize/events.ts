@@ -17,8 +17,7 @@ export const normalizeModelUsage = (raw: unknown): ModelUsage | undefined => {
     if (typeof raw[field] !== "number") fixes[field] = 0;
   }
   const out = Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
-  // Boundary lift (#555): token defaults are filled above; remaining
-  // content is what the writer serialized.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): token defaults are filled above; the rest is what the writer serialized
   return out as ModelUsage;
 };
 
@@ -51,8 +50,7 @@ export const normalizeModelOutput = (raw: unknown): ModelOutput => {
     if (normalized !== usage) fixes["usage"] = normalized;
   }
   const out = Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
-  // Boundary lift: structural defaults are filled above; remaining content
-  // is what the writer serialized.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): structural defaults are filled above; the rest is what the writer serialized
   return out as ModelOutput;
 };
 
@@ -176,9 +174,7 @@ export const normalizeEvent = (raw: unknown): Event | undefined => {
   }
   const fixes = eventFixes(raw);
   const event = fixes ? { ...raw, ...fixes } : raw;
-  // Boundary lift (#555): after the fills above, the structure the guards
-  // downstream depended on is guaranteed; remaining content is untyped wire
-  // data that TypeScript can't verify.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): the fills above guarantee the structure downstream depends on; the rest is untyped wire data
   return event as unknown as Event;
 };
 
@@ -202,7 +198,6 @@ export const normalizeEvents = (raw: unknown): Event[] => {
       events.push(event);
     }
   }
-  // Boundary lift (#555): every entry round-tripped through normalizeEvent
-  // unchanged, so the original array already satisfies Event[].
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): every entry round-tripped through normalizeEvent unchanged, so raw already satisfies Event[]
   return changed ? events : (raw as Event[]);
 };

@@ -158,7 +158,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     // Don't navigate if clicking an inner link
-    if ((e.target as HTMLElement).closest("a")) {
+    if (e.target instanceof Element && e.target.closest("a")) {
       return;
     }
     if (!scanResultUrl) {

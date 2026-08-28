@@ -1,29 +1,6 @@
 import { FC, memo, ReactNode } from "react";
 
-import type {
-  AnchorEvent,
-  ApprovalEvent,
-  BranchEvent,
-  CheckpointEvent,
-  CompactionEvent,
-  ErrorEvent,
-  InfoEvent,
-  InputEvent,
-  InterruptEvent,
-  LoggerEvent,
-  ModelEvent,
-  SampleInitEvent,
-  SampleLimitEvent,
-  SandboxEvent,
-  ScoreEditEvent,
-  ScoreEvent,
-  SpanBeginEvent,
-  StateEvent,
-  StepEvent,
-  StoreEvent,
-  SubtaskEvent,
-  ToolEvent,
-} from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
@@ -51,10 +28,15 @@ import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { StepEventView } from "./StepEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
-import type { ForkNavData } from "./timeline/timelineEventNodes";
+import { isForkNavData } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
 import { ToolEventView } from "./ToolEventView";
-import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
+import {
+  EventNode,
+  EventNodeContext,
+  eventNodeOf,
+  EventPanelCallbacks,
+} from "./types";
 
 export { TranscriptVirtualList } from "./TranscriptVirtualListComponent";
 
@@ -85,7 +67,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "sample_init":
       return (
         <SampleInitEventView
-          eventNode={node as EventNode<SampleInitEvent>}
+          eventNode={eventNodeOf(node, "sample_init")}
           className={className}
         />
       );
@@ -93,7 +75,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "sample_limit":
       return (
         <SampleLimitEventView
-          eventNode={node as EventNode<SampleLimitEvent>}
+          eventNode={eventNodeOf(node, "sample_limit")}
           className={className}
         />
       );
@@ -101,7 +83,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "info":
       return (
         <InfoEventView
-          eventNode={node as EventNode<InfoEvent>}
+          eventNode={eventNodeOf(node, "info")}
           className={className}
         />
       );
@@ -109,7 +91,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "branch":
       return (
         <BranchEventView
-          eventNode={node as EventNode<BranchEvent>}
+          eventNode={eventNodeOf(node, "branch")}
           className={className}
         />
       );
@@ -117,7 +99,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "anchor":
       return (
         <AnchorEventView
-          eventNode={node as EventNode<AnchorEvent>}
+          eventNode={eventNodeOf(node, "anchor")}
           className={className}
         />
       );
@@ -125,7 +107,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "compaction":
       return (
         <CompactionEventView
-          eventNode={node as EventNode<CompactionEvent>}
+          eventNode={eventNodeOf(node, "compaction")}
           className={className}
         />
       );
@@ -133,7 +115,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "logger":
       return (
         <LoggerEventView
-          eventNode={node as EventNode<LoggerEvent>}
+          eventNode={eventNodeOf(node, "logger")}
           className={className}
         />
       );
@@ -141,7 +123,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "model":
       return (
         <ModelEventView
-          eventNode={node as EventNode<ModelEvent>}
+          eventNode={eventNodeOf(node, "model")}
           showToolCalls={next?.event.event !== "tool"}
           className={className}
           context={context}
@@ -152,7 +134,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "score":
       return (
         <ScoreEventView
-          eventNode={node as EventNode<ScoreEvent>}
+          eventNode={eventNodeOf(node, "score")}
           className={className}
         />
       );
@@ -160,7 +142,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "score_edit":
       return (
         <ScoreEditEventView
-          eventNode={node as EventNode<ScoreEditEvent>}
+          eventNode={eventNodeOf(node, "score_edit")}
           className={className}
         />
       );
@@ -168,7 +150,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "state":
       return (
         <StateEventView
-          eventNode={node as EventNode<StateEvent>}
+          eventNode={eventNodeOf(node, "state")}
           className={className}
           onAutoCollapse={onAutoCollapse}
           eventCallbacks={eventCallbacks}
@@ -177,9 +159,9 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
 
     case "span_begin": {
       if (node.event.type === "fork_nav") {
-        const data = (node.event.metadata as { fork_nav?: ForkNavData } | null)
-          ?.fork_nav;
-        if (!data) return null;
+        const metadata: unknown = node.event.metadata;
+        const data = isRecord(metadata) ? metadata["fork_nav"] : undefined;
+        if (!isForkNavData(data)) return null;
         const props = forkNavToBranchPointProps(data);
         if (!props) return null;
         return (
@@ -196,7 +178,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       if (node.event.type === "empty_branch") {
         return (
           <EmptyBranchView
-            eventNode={node as EventNode<SpanBeginEvent>}
+            eventNode={eventNodeOf(node, "span_begin")}
             className={className}
           />
         );
@@ -210,7 +192,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       }
       return (
         <SpanEventView
-          eventNode={node as EventNode<SpanBeginEvent>}
+          eventNode={eventNodeOf(node, "span_begin")}
           childNodes={node.children}
           className={className}
           eventCallbacks={eventCallbacks}
@@ -221,7 +203,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "step":
       return (
         <StepEventView
-          eventNode={node as EventNode<StepEvent>}
+          eventNode={eventNodeOf(node, "step")}
           childNodes={node.children}
           className={className}
           eventCallbacks={eventCallbacks}
@@ -231,7 +213,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "store":
       return (
         <StateEventView
-          eventNode={node as EventNode<StoreEvent>}
+          eventNode={eventNodeOf(node, "store")}
           className={className}
           onAutoCollapse={onAutoCollapse}
           eventCallbacks={eventCallbacks}
@@ -241,7 +223,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "subtask":
       return (
         <SubtaskEventView
-          eventNode={node as EventNode<SubtaskEvent>}
+          eventNode={eventNodeOf(node, "subtask")}
           className={className}
           childNodes={node.children}
           eventCallbacks={eventCallbacks}
@@ -251,7 +233,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "tool":
       return (
         <ToolEventView
-          eventNode={node as EventNode<ToolEvent>}
+          eventNode={eventNodeOf(node, "tool")}
           className={className}
           childNodes={node.children}
           context={context}
@@ -262,7 +244,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "input":
       return (
         <InputEventView
-          eventNode={node as EventNode<InputEvent>}
+          eventNode={eventNodeOf(node, "input")}
           className={className}
         />
       );
@@ -270,7 +252,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "interrupt":
       return (
         <InterruptEventView
-          eventNode={node as EventNode<InterruptEvent>}
+          eventNode={eventNodeOf(node, "interrupt")}
           className={className}
         />
       );
@@ -278,7 +260,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "error":
       return (
         <ErrorEventView
-          eventNode={node as EventNode<ErrorEvent>}
+          eventNode={eventNodeOf(node, "error")}
           className={className}
         />
       );
@@ -286,7 +268,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "approval":
       return (
         <ApprovalEventView
-          eventNode={node as EventNode<ApprovalEvent>}
+          eventNode={eventNodeOf(node, "approval")}
           className={className}
         />
       );
@@ -294,7 +276,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "sandbox":
       return (
         <SandboxEventView
-          eventNode={node as EventNode<SandboxEvent>}
+          eventNode={eventNodeOf(node, "sandbox")}
           className={className}
         />
       );
@@ -302,7 +284,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
     case "checkpoint":
       return (
         <CheckpointEventView
-          eventNode={node as EventNode<CheckpointEvent>}
+          eventNode={eventNodeOf(node, "checkpoint")}
           className={className}
           eventCallbacks={eventCallbacks}
         />

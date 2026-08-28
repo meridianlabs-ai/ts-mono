@@ -1,7 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return --
    Mock event fixtures are intentionally minimal `any` stubs, and the
-   assertions reach into their dynamically-shaped fields. */
+   assertions reach into their dynamically-shaped fields. (The unsafe-*
+   rules only fire under TSMONO_TYPED_LINT=1, the workspace lint mode.) */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { expectEvent } from "@tsmono/inspect-common/testing";
 
 import { SampleData, SampleDataResponse } from "../client/api/types";
 
@@ -33,6 +36,7 @@ const eventData = (id: number, eventId: string, event: unknown) => ({
   event_id: eventId,
   sample_id: "sample-1",
   epoch: 1,
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately partial: these cases feed the stream decoder events built inline below
   event: event as never,
 });
 
@@ -249,10 +253,80 @@ describe("createSampleStreamSession", () => {
     const session = makeSession();
     const { events } = await session.tick(false);
 
-    expect((events[0] as any).data).toBe("direct content");
+    expect(expectEvent(events[0], "info").data).toBe("direct content");
     // The pooled message's attachment:// ref is only visible after ref
     // expansion; the second resolution pass must have caught it.
-    expect((events[1] as any).input[0].content).toBe("pooled content");
+    expect(expectEvent(events[1], "model").input[0]?.content).toBe(
+      "pooled content"
+    );
+  });
+
+  it("reports each missing attachment id once per session", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockApi.get_log_sample_data
+      .mockResolvedValueOnce(
+        okResponse({
+          events: [
+            eventData(1, "e1", infoEvent("attachment://missing")),
+            eventData(2, "e2", {
+              event: "info",
+              data: {
+                a: "attachment://missing",
+                b: "attachment://missing",
+                c: "attachment://also-missing",
+              },
+            }),
+          ],
+        })
+      )
+      .mockResolvedValueOnce(
+        okResponse({
+          events: [eventData(3, "e3", infoEvent("attachment://missing"))],
+        })
+      );
+
+    const session = makeSession();
+    await session.tick(false);
+    await session.tick(false);
+
+    const reportedIds = mockApi.log_message.mock.calls.map(
+      ([, message]) =>
+        /Unable to resolve attachment (\S+)/.exec(String(message))?.[1]
+    );
+    expect(reportedIds).toEqual(["missing", "also-missing"]);
+    expect(warn).toHaveBeenCalledTimes(2);
+    warn.mockRestore();
+  });
+
+  it("reports attachment misses that only surface after pool expansion", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockApi.get_log_sample_data.mockResolvedValueOnce(
+      okResponse({
+        message_pool: [
+          messagePoolEntry(
+            1,
+            chatMessage("m1", "user", "attachment://pooled-missing")
+          ),
+        ],
+        events: [
+          eventData(1, "e1", {
+            event: "model",
+            input: [],
+            input_refs: [[0, 1]],
+          }),
+        ],
+      })
+    );
+
+    const session = makeSession();
+    await session.tick(false);
+
+    const reportedIds = mockApi.log_message.mock.calls.map(
+      ([, message]) =>
+        /Unable to resolve attachment (\S+)/.exec(String(message))?.[1]
+    );
+    expect(reportedIds).toEqual(["pooled-missing"]);
+    warn.mockRestore();
   });
 
   it("does not let duplicate streamed pool rows shift refs", async () => {
@@ -307,12 +381,12 @@ describe("createSampleStreamSession", () => {
     const session = makeSession();
     const { events } = await session.tick(false);
 
-    expect((events[0] as any).input).toEqual([
+    expect(expectEvent(events[0], "model").input).toEqual([
       inputSystem,
       inputUser,
       inputAssistant,
     ]);
-    expect((events[0] as any).call.request.messages).toEqual([
+    expect(expectEvent(events[0], "model").call?.request.messages).toEqual([
       system,
       user,
       assistant,

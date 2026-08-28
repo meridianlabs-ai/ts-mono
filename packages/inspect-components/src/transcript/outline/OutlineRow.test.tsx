@@ -2,6 +2,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  testModelEvent,
+  testSpanBeginEvent,
+} from "@tsmono/inspect-common/testing";
+
 import { eventNode } from "../testHelpers";
 
 import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
@@ -34,8 +39,8 @@ describe("OutlineRow collapse chevron", () => {
   afterEach(() => cleanup());
 
   const parentNode = () =>
-    eventNode({ event: "span_begin", name: "phase one", type: null }, [
-      eventNode({ event: "model" }),
+    eventNode(testSpanBeginEvent({ name: "phase one", type: null }), [
+      eventNode(testModelEvent()),
     ]);
 
   it("shows a down chevron on expanded rows and toggles to collapsed", () => {
@@ -74,7 +79,7 @@ describe("OutlineRow collapse chevron", () => {
     const setCollapsed = vi.fn<(id: string, collapsed: boolean) => void>();
     const { container } = render(
       <OutlineRow
-        node={eventNode({ event: "model" })}
+        node={eventNode(testModelEvent())}
         getCollapsed={() => false}
         setCollapsed={setCollapsed}
       />
@@ -95,8 +100,8 @@ describe("OutlineRow keyboard activation", () => {
   afterEach(() => cleanup());
 
   const parentNode = () =>
-    eventNode({ event: "span_begin", name: "phase one", type: null }, [
-      eventNode({ event: "model" }),
+    eventNode(testSpanBeginEvent({ name: "phase one", type: null }), [
+      eventNode(testModelEvent()),
     ]);
 
   it("activates the row when the row itself takes the key press", () => {

@@ -686,15 +686,18 @@ const applyMiddleware = <T extends AnyFn>(
 ): T => {
   if (middlewares.length === 0) return fn;
 
-  return ((...args: Parameters<T>) => {
-    let result: ReturnType<T> = fn(...args) as ReturnType<T>;
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- generic-signature boundary: TypeScript resolves `fn(...args)` against T's constraint (AnyFn, returning unknown) rather than T itself, and can't express "a wrapper with the same signature as T" for the return */
+  const wrapped = (...args: Parameters<T>): ReturnType<T> => {
+    let result = fn(...args) as ReturnType<T>;
 
     for (const middleware of middlewares) {
       result = middleware(name, fn, args, result);
     }
 
     return result;
-  }) as T;
+  };
+  return wrapped as T;
+  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 };
 
 const createMiddlewareWrapper = (middlewares: Middleware<AnyFn>[]) => {

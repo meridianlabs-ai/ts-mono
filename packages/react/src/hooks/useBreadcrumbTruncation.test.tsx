@@ -53,9 +53,9 @@ describe("useBreadcrumbTruncation", () => {
     );
     document.body.appendChild(container);
 
-    const containerRef = {
+    const containerRef: RefObject<HTMLElement> = {
       current: container,
-    } as RefObject<HTMLElement>;
+    };
     const hook = renderHook(() =>
       useBreadcrumbTruncation(segments, containerRef)
     );

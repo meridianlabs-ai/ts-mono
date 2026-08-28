@@ -16,15 +16,16 @@ import {
   usePassiveEvalSample,
   withErrorSummaryFallback,
 } from "./sampleQuery";
+import { testSampleSummary } from "./testFixtures";
 
 const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
-  ({
+  testSampleSummary({
     id: "s1",
     epoch: 1,
     input: "input",
     target: "target",
     ...overrides,
-  }) as SampleSummary;
+  });
 
 const makeSample = (): EvalSample => testEvalSample({ id: "s1", epoch: 1 });
 

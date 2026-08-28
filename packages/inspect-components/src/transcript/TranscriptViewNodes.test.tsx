@@ -317,13 +317,15 @@ describe("TranscriptViewNodes first-j-from-load (turn 1 is the topmost row)", ()
 
     // Fresh load: turn 1 (m1) IS the topmost tracked row — no pre-turn preamble,
     // so no row maps to "above turn 1". The mount report would read index 0.
-    const layoutRef = {
+    const layoutRef: {
+      current: Record<string, { top: number; bottom: number }>;
+    } = {
       current: {
         m1: { top: 10, bottom: 210 },
         m2: { top: 210, bottom: 410 },
         m3: { top: 410, bottom: 610 },
         m4: { top: 610, bottom: 810 },
-      } as Record<string, { top: number; bottom: number }>,
+      },
     };
     const nowRef = { current: 1_000_000 };
     const restore = mockLayout(layoutRef, nowRef);

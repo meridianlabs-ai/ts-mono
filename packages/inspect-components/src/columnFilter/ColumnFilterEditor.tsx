@@ -7,6 +7,7 @@ import { AutocompleteInput } from "@tsmono/react/components";
 import styles from "./ColumnFilterEditor.module.css";
 import { DurationInput } from "./DurationInput";
 import { OPERATOR_LABELS } from "./operators";
+import { isUiOperator } from "./types";
 import type { FilterType, UiOperator } from "./types";
 
 interface FilterValueInputProps {
@@ -179,7 +180,8 @@ const ConditionRow: FC<ConditionRowProps> = ({
 
   const handleOperatorChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
-      onOperatorChange(event.target.value as UiOperator);
+      const value = event.target.value;
+      if (isUiOperator(value)) onOperatorChange(value);
     },
     [onOperatorChange]
   );
@@ -280,7 +282,8 @@ export const ColumnFilterEditor: FC<ColumnFilterEditorProps> = ({
 }) => {
   const handleJoinChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
-      onJoinChange?.(event.target.value as "and" | "or");
+      const value = event.target.value;
+      if (value === "and" || value === "or") onJoinChange?.(value);
     },
     [onJoinChange]
   );

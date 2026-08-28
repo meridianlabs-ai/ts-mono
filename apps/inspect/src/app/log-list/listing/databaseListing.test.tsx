@@ -32,7 +32,7 @@ type ReadListing = <TRow>(
 }>;
 
 const holder = vi.hoisted(() => ({
-  records: [] as { name: string; model?: string }[],
+  records: [] as LogListingRow[],
   read: vi.fn(),
   readMatches: vi.fn(),
 }));
@@ -46,16 +46,27 @@ vi.mock("../../../log_data", () => ({
     ...parts.map((part) => part ?? null),
   ],
   listingKeyUniverse: (queryKey: readonly unknown[]) => queryKey[3],
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- test seam: readLogsListing is generic in its row type, which vi.fn() can't express, so the double's calls come back as any */
   readLogsListing: (
     ...args: Parameters<ReadListing>
   ): ReturnType<ReadListing> => holder.read(...args) as ReturnType<ReadListing>,
   readLogsListingMatches: (...args: unknown[]): Promise<string[]> =>
     holder.readMatches(...args) as Promise<string[]>,
+  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 }));
 
-const records = [
-  { name: "/logs/b.eval", model: "claude" },
-  { name: "/logs/a.eval", model: "gpt-4" },
+const testRow = (name: string, model: string): LogListingRow => ({
+  name,
+  model,
+  depth: "previewed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
+
+const records: LogListingRow[] = [
+  testRow("/logs/b.eval", "claude"),
+  testRow("/logs/a.eval", "gpt-4"),
 ];
 
 const getValue = (row: Row, column: string): unknown => row[column];
@@ -103,7 +114,7 @@ describe("useDatabaseLogsListingQuery", () => {
         plan: DatabaseListingPlan<Row>
       ) => {
         const rows = holder.records
-          .map((record) => rowFor(record as LogListingRow))
+          .map((record) => rowFor(record))
           .filter((row): row is Row => row !== undefined)
           .filter(plan.matches);
         if (plan.compare) rows.sort(plan.compare);
@@ -277,7 +288,7 @@ describe("useLogsListingMatches", () => {
         }
       ) => {
         const rows = holder.records
-          .map((record) => rowFor(record as LogListingRow))
+          .map((record) => rowFor(record))
           .filter((row): row is Row => row !== undefined)
           .filter(plan.matches);
         return Promise.resolve(

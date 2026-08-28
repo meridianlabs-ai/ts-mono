@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testInfoEvent,
+  testModelEvent,
+  testSpanBeginEvent,
+  testStateEvent,
+  testStepEvent,
+  testSubtaskEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
+
 import { eventNode } from "../testHelpers";
 
 import {
@@ -16,57 +26,57 @@ describe("computeDefaultCollapsedIds", () => {
   it.each([
     {
       desc: "successful non-agent tool",
-      event: { event: "tool", agent: null, failed: null },
+      event: testToolEvent({ agent: null, failed: null }),
       collapsed: true,
     },
     {
       desc: "agent tool",
-      event: { event: "tool", agent: "handoff", failed: null },
+      event: testToolEvent({ agent: "handoff", failed: null }),
       collapsed: false,
     },
     {
       desc: "failed tool",
-      event: { event: "tool", agent: null, failed: true },
+      event: testToolEvent({ agent: null, failed: true }),
       collapsed: false,
     },
     {
       desc: "init span",
-      event: { event: "span_begin", name: "init", type: null },
+      event: testSpanBeginEvent({ name: "init", type: null }),
       collapsed: true,
     },
     {
       desc: "sample_init span",
-      event: { event: "span_begin", name: "sample_init", type: null },
+      event: testSpanBeginEvent({ name: "sample_init", type: null }),
       collapsed: true,
     },
     {
       desc: "sandbox-signal span",
-      event: { event: "span_begin", name: kSandboxSignalName, type: null },
+      event: testSpanBeginEvent({ name: kSandboxSignalName, type: null }),
       collapsed: true,
     },
     {
       desc: "system_message solver step",
-      event: { event: "step", type: "solver", name: "system_message" },
+      event: testStepEvent({ type: "solver", name: "system_message" }),
       collapsed: true,
     },
     {
       desc: "subtask",
-      event: { event: "subtask" },
+      event: testSubtaskEvent(),
       collapsed: true,
     },
     {
       desc: "model event",
-      event: { event: "model" },
+      event: testModelEvent(),
       collapsed: false,
     },
     {
       desc: "info event",
-      event: { event: "info" },
+      event: testInfoEvent(),
       collapsed: false,
     },
     {
       desc: "plain agent span",
-      event: { event: "span_begin", name: "agent", type: "agent" },
+      event: testSpanBeginEvent({ name: "agent", type: "agent" }),
       collapsed: false,
     },
   ] as const)(
@@ -80,9 +90,9 @@ describe("computeDefaultCollapsedIds", () => {
   );
 
   it("traverses children", () => {
-    const subtask = eventNode({ event: "subtask" });
+    const subtask = eventNode(testSubtaskEvent());
     const span = eventNode(
-      { event: "span_begin", name: "agent", type: "agent" },
+      testSpanBeginEvent({ name: "agent", type: "agent" }),
       [subtask]
     );
     expect(computeDefaultCollapsedIds([span])).toEqual({
@@ -97,11 +107,11 @@ describe("computeDefaultCollapsedIds", () => {
 
 describe("collectAllCollapsibleIds", () => {
   it("collects tree-collapsible and content-collapsible nodes recursively", () => {
-    const model = eventNode({ event: "model" });
-    const state = eventNode({ event: "state" });
-    const info = eventNode({ event: "info" });
-    const tool = eventNode({ event: "tool" }, [model]);
-    const span = eventNode({ event: "span_begin", name: "s", type: null }, [
+    const model = eventNode(testModelEvent());
+    const state = eventNode(testStateEvent());
+    const info = eventNode(testInfoEvent());
+    const tool = eventNode(testToolEvent(), [model]);
+    const span = eventNode(testSpanBeginEvent({ name: "s", type: null }), [
       tool,
       state,
       info,

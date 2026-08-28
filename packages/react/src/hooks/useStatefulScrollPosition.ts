@@ -29,8 +29,8 @@ export function useStatefulScrollPosition<
   // Create debounced scroll handler
   const handleScrollInner = useCallback(
     (e: Event) => {
-      const target = e.target as HTMLElement;
-      const position = target.scrollTop;
+      if (!(e.target instanceof Element)) return;
+      const position = e.target.scrollTop;
       log.debug(`Storing scroll position`, elementKey, position);
       setScrollPosition(position);
     },

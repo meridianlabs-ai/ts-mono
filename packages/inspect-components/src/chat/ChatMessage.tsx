@@ -19,7 +19,7 @@ import { RecordTree } from "../content/RecordTree";
 
 import styles from "./ChatMessage.module.css";
 import { MessageContent } from "./MessageContent";
-import { defaultContext, MessageContents } from "./MessageContents";
+import { MessageContents } from "./MessageContents";
 import { hasServerToolUse, Message } from "./messages";
 import { ServerToolCall } from "./server-tools/ServerToolCall";
 import {
@@ -178,7 +178,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // flush tool block row, separated by hairlines.
   const segments = segmentTurnContent(message);
   if (segments) {
-    const context = defaultContext();
     return (
       <div
         data-message-id={message.id || undefined}
@@ -222,7 +221,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                 >
                   <MessageContent
                     contents={segment.contents}
-                    context={context}
                     references={references}
                   />
                 </ExpandablePanel>

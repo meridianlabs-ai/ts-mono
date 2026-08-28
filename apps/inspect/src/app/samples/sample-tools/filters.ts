@@ -1,7 +1,7 @@
 import { compileExpression } from "filtrex";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString } from "@tsmono/util";
+import { arrayToString, isRecord } from "@tsmono/util";
 
 import { EvalSampleScore } from "../../../@types/extraInspect";
 import { FilterError, ScoreLabel } from "../../../app/types";
@@ -151,7 +151,10 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
   let current: unknown = obj;
   for (const key of keys) {
     if (current && typeof current === "object" && key in current) {
-      current = (current as Record<string, unknown>)[key];
+      // Arrays step too (`list.length`, `list.0`), so plain record access
+      // is not enough; Reflect.get reads any object member by string key.
+      const member: unknown = Reflect.get(current, key);
+      current = member;
     } else {
       return undefined;
     }
@@ -240,7 +243,7 @@ export const sampleFilterItems = (
     }
     if (descriptor.categories) {
       categories = descriptor.categories.map((cat) => {
-        const val = (cat as Record<string, unknown>).val;
+        const val = isRecord(cat) ? cat["val"] : cat;
         return valueToString(val);
       });
       tooltip += `\ncategories: ${categories.join(" ")}`;
@@ -345,8 +348,15 @@ export const filterExpression = (
     }
   } catch (error) {
     if (error instanceof ReferenceError) {
-      const errorObj = error as unknown as Record<string, unknown>;
-      const propertyName: string = (errorObj["propertyName"] as string) || "";
+      // The expression evaluator attaches `propertyName` to the errors it
+      // raises; a ReferenceError from anywhere else simply won't have one.
+      const raised: unknown = error;
+      const propertyName = isRecord(raised)
+        ? ((): string => {
+            const name = raised["propertyName"];
+            return typeof name === "string" ? name : "";
+          })()
+        : "";
       if (propertyName) {
         // Don't show errors for metadata properties - they might not exist in all samples
         if (propertyName.startsWith(kSampleMetadataPrefix)) {

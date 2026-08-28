@@ -45,6 +45,6 @@ export function isEditableTarget(el: Element | null): boolean {
   if (!active) return false;
   const tag = active.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-  if ((active as HTMLElement).isContentEditable) return true;
+  if (active instanceof HTMLElement && active.isContentEditable) return true;
   return false;
 }

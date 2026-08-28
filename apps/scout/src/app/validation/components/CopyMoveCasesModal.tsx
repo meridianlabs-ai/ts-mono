@@ -18,6 +18,7 @@ import {
   useValidationSets,
   validationQueryKeys,
 } from "../../server/useValidations";
+import { eventValue } from "../../utils/formEvents";
 import {
   extractUniqueSplits,
   generateNewSetUri,
@@ -120,7 +121,7 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
   // Handle target set selection
   const handleTargetChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     if (value === "__new__") {
       setShowNewSetInput(true);
       setNewSetName("");
@@ -135,13 +136,13 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
   // Handle new set name input
   const handleNewSetNameInput = (e: Event) => {
-    setNewSetName((e.target as HTMLInputElement).value);
+    setNewSetName(eventValue(e));
     setError(null);
   };
 
   // Handle split selection change
   const handleSplitChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     setTargetSplit(value);
   };
 

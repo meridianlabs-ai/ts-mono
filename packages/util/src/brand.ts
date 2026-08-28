@@ -70,5 +70,6 @@ type Brander<B extends Brand<unknown, unknown>> = (value: BaseOf<B>) => B;
  * ```
  */
 export function make<B extends Brand<unknown, unknown>>(): Brander<B> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- branding is the assertion: the tag exists only in the type system, so there is nothing to check at runtime
   return (value: BaseOf<B>): B => value as B;
 }

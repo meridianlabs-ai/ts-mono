@@ -165,12 +165,14 @@ describe("eventsToStr — multimodal content placeholders", () => {
 
   it("emits placeholders for audio/video/data/document", () => {
     const out = eventsToStr([
+      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately partial: these cover the placeholder path for content parts whose payload eventsToStr must never inline */
       modelEventWith([
         { type: "audio", audio: "data:audio/mp3;base64,_AUDIO_BLOB_" } as never,
         { type: "video", video: "data:video/mp4;base64,_VIDEO_BLOB_" } as never,
         { type: "data", data: { huge: "_DATA_BLOB_" } } as never,
         { type: "document", document: "_DOC_BLOB_" } as never,
       ]),
+      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions */
     ]);
     expect(out).toContain("<audio />");
     expect(out).toContain("<video />");
@@ -335,6 +337,7 @@ describe("eventsToStr — compaction event", () => {
 });
 
 const makeNode = (event: Record<string, unknown>): EventNode => {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the search-text cases below feed deliberately partial events; eventSearchText reads defensively
   return new EventNode("test-id", event as never, 0);
 };
 

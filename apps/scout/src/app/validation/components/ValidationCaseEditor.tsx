@@ -40,6 +40,7 @@ import {
   useValidationSets,
   validationQueryKeys,
 } from "../../server/useValidations";
+import { eventValue } from "../../utils/formEvents";
 import {
   extractUniqueLabels,
   extractUniqueSplits,
@@ -506,11 +507,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
                 helper="Choose single-value validation or label-based validation."
               >
                 <VscodeRadioGroup
-                  onChange={(e) =>
-                    handleValidationTypeChange(
-                      (e.target as HTMLInputElement).value
-                    )
-                  }
+                  onChange={(e) => handleValidationTypeChange(eventValue(e))}
                 >
                   <VscodeRadio
                     name="validation-type"

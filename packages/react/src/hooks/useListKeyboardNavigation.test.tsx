@@ -3,15 +3,20 @@ import { cleanup, render } from "@testing-library/react";
 import { useRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { VirtualListHandle } from "../virtual/types";
+
 import { useListKeyboardNavigation } from "./useListKeyboardNavigation";
 
 afterEach(cleanup);
 
 function Harness({ jumpToEnd }: { jumpToEnd: () => void }) {
-  const listHandle = useRef({
+  const listHandle = useRef<VirtualListHandle | null>({
+    scrollToIndex: () => {},
+    scrollTo: () => {},
+    getState: () => {},
     jumpToStart: () => {},
     jumpToEnd,
-  } as never);
+  });
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useListKeyboardNavigation({ listHandle, scrollRef, itemCount: 3 });
   return (

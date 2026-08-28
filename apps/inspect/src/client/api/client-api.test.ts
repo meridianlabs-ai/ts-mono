@@ -197,7 +197,7 @@ describe("clientApi.edit_log cache invalidation", () => {
     edits: [],
     provenance: {
       author: "a",
-      metadata: {} as Record<string, never>,
+      metadata: {} satisfies Record<string, never>,
       timestamp: "2026-01-01T00:00:00Z",
     },
   };
@@ -340,7 +340,7 @@ describe("clientApi.edit_log etag plumbing", () => {
     edits: [],
     provenance: {
       author: "a",
-      metadata: {} as Record<string, never>,
+      metadata: {} satisfies Record<string, never>,
       timestamp: "2026-01-01T00:00:00Z",
     },
   };

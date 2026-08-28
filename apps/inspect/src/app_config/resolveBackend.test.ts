@@ -109,9 +109,18 @@ afterEach(() => {
   mockCreateProxyFetch.mockClear();
 });
 
+// The resolver only checks that a host object exists and reads its
+// capabilities from the mocked module, so these three no-ops are the whole
+// surface it touches.
+const testVscodeApi = (): NonNullable<ReturnType<typeof getVscodeApi>> => ({
+  postMessage: () => {},
+  getState: () => null,
+  setState: () => {},
+});
+
 describe("resolveBackend selection", () => {
   it("vscode host with http_request capability → vscode backend (wins over source)", async () => {
-    const vscode = {} as NonNullable<ReturnType<typeof getVscodeApi>>;
+    const vscode = testVscodeApi();
     mockGetVscodeApi.mockReturnValue(vscode);
     addHostCapabilities(["http_request"]);
 
@@ -119,6 +128,7 @@ describe("resolveBackend selection", () => {
 
     // One transport, built once, shared by the probe and every instance.
     expect(mockCreateProxyFetch).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the mock's recorded return is `any`; the assertion below only needs it to be the same value that was handed out
     const proxyFetch = mockCreateProxyFetch.mock.results[0]
       ?.value as ReturnType<typeof createVscodeProxyFetch>;
 
@@ -139,9 +149,7 @@ describe("resolveBackend selection", () => {
   });
 
   it("vscode host WITHOUT http_request capability → unsupported (update-extension error)", async () => {
-    mockGetVscodeApi.mockReturnValue(
-      {} as NonNullable<ReturnType<typeof getVscodeApi>>
-    );
+    mockGetVscodeApi.mockReturnValue(testVscodeApi());
     // No #inspect-host-capabilities marker — a legacy named-RPC-only host.
 
     const backend = resolveBackend(noneSource);
@@ -252,9 +260,7 @@ describe("embedder api factory (setApiFactory)", () => {
   const factoryApi = testClientAPI();
 
   it("wins over every ambient signal (vscode host present)", async () => {
-    mockGetVscodeApi.mockReturnValue(
-      {} as NonNullable<ReturnType<typeof getVscodeApi>>
-    );
+    mockGetVscodeApi.mockReturnValue(testVscodeApi());
     addHostCapabilities(["http_request"]);
     const dirs: string[] = [];
     setApiFactory((logDir) => {
@@ -330,9 +336,7 @@ describe("embedder api factory (setApiFactory)", () => {
 // dir comes from #logview-state, so discovery never touches the backend).
 describe("legacy vscode host error reaches config resolution", () => {
   const legacyHostBootstrap = (singleFileMode: boolean): AppConfigBootstrap => {
-    mockGetVscodeApi.mockReturnValue(
-      {} as NonNullable<ReturnType<typeof getVscodeApi>>
-    );
+    mockGetVscodeApi.mockReturnValue(testVscodeApi());
     return {
       backend: resolveBackend(noneSource),
       singleFileMode,

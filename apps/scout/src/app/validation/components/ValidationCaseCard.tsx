@@ -7,6 +7,7 @@ import { Modal } from "@tsmono/react/components";
 import { ApplicationIcons } from "../../../icons";
 import { transcriptRoute } from "../../../router/url";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
+import { eventChecked } from "../../utils/formEvents";
 import { getIdText } from "../utils";
 
 import styles from "./ValidationCaseCard.module.css";
@@ -201,18 +202,19 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
   };
 
   const handleCheckboxChange = (e: Event) => {
-    const checked = (e.target as HTMLInputElement).checked;
+    const checked = eventChecked(e);
     onSelectionChange(checked);
   };
 
   // Handle row click to toggle selection
   const handleRowClick = (e: React.MouseEvent) => {
     // Don't toggle if clicking on interactive elements
-    const target = e.target as HTMLElement;
+    const target = e.target;
     if (
-      target.closest("button") ||
-      target.closest("vscode-checkbox") ||
-      target.closest("vscode-single-select")
+      target instanceof Element &&
+      (target.closest("button") ||
+        target.closest("vscode-checkbox") ||
+        target.closest("vscode-single-select"))
     ) {
       return;
     }

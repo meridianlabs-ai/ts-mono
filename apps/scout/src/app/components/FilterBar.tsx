@@ -220,25 +220,22 @@ const CopyQueryButton: FC<{ itemValues?: Record<string, string> }> = ({
 }) => {
   const [icon, setIcon] = useState<string>(ApplicationIcons.copy);
 
-  const items = kCopyCodeDescriptors.reduce(
-    (acc, desc) => {
-      acc[desc.label] = () => {
-        const text = itemValues ? itemValues[desc.value] : "";
-        if (!text) {
-          return;
-        }
+  const items: Record<string, () => void> = {};
+  for (const desc of kCopyCodeDescriptors) {
+    items[desc.label] = () => {
+      const text = itemValues ? itemValues[desc.value] : "";
+      if (!text) {
+        return;
+      }
 
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        navigator.clipboard.writeText(text);
-        setIcon(ApplicationIcons.confirm);
-        setTimeout(() => {
-          setIcon(ApplicationIcons.copy);
-        }, 1250);
-      };
-      return acc;
-    },
-    {} as Record<string, () => void>
-  );
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigator.clipboard.writeText(text);
+      setIcon(ApplicationIcons.confirm);
+      setTimeout(() => {
+        setIcon(ApplicationIcons.copy);
+      }, 1250);
+    };
+  }
 
   return (
     <ToolDropdownButton

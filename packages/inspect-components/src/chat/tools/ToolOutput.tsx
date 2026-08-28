@@ -3,7 +3,12 @@ import { FC, ReactNode } from "react";
 
 import type { Content } from "@tsmono/inspect-common/types";
 import { ANSIDisplay } from "@tsmono/react/components";
-import { isAnsiOutput, isJson, isRenderableImageSource } from "@tsmono/util";
+import {
+  isAnsiOutput,
+  isJson,
+  isRecord,
+  isRenderableImageSource,
+} from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
 import { useDisplayMode } from "../../content/DisplayModeContext";
@@ -91,8 +96,10 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
 
   if (displayMode === "rendered" && isJson(text)) {
-    const obj = JSON.parse(text) as Record<string, unknown>;
-    return <JsonMessageContent id={`1-json`} json={obj} />;
+    const obj: unknown = JSON.parse(text);
+    if (isRecord(obj)) {
+      return <JsonMessageContent id={`1-json`} json={obj} />;
+    }
   }
 
   // It could have ANSI codes

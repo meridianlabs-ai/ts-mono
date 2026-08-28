@@ -9,7 +9,12 @@ import {
   JSONPanel,
   MarkdownReference,
 } from "@tsmono/react/components";
-import { formatNumber, isJson, isRenderableImageSource } from "@tsmono/util";
+import {
+  formatNumber,
+  isJson,
+  isRecord,
+  isRenderableImageSource,
+} from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
 import { useContentIcons } from "./IconsContext";
@@ -132,9 +137,9 @@ const contentRenderers: (
         return false;
       },
       render: (_id, entry, _options) => {
-        const obj = JSON5.parse(entry.value);
+        const obj: unknown = JSON5.parse(entry.value);
         return {
-          rendered: <JSONPanel data={obj as Record<string, unknown>} />,
+          rendered: <JSONPanel data={isRecord(obj) ? obj : {}} />,
         };
       },
     },
@@ -335,7 +340,7 @@ const contentRenderers: (
               <MetaDataGrid
                 id={id}
                 className={"font-size-small"}
-                entries={entry.value as Record<string, unknown>}
+                entries={isRecord(entry.value) ? entry.value : {}}
                 options={{ plain: true }}
               />
             ),

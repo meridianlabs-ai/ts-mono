@@ -32,6 +32,7 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { isRecord } from "@tsmono/util";
 
 import { computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
@@ -582,10 +583,14 @@ export function DataGrid<TRow extends RowData>({
     sortDescFirst: false,
     enableMultiSort: true,
     // TanStack's default multi-sort trigger is shift-only; also accept
-    // cmd/ctrl to match the AG grid this replaced.
+    // cmd/ctrl to match the AG grid this replaced. Read the modifier keys
+    // structurally: JSX handlers deliver React SyntheticEvents here, which
+    // carry the flags but are not instances of the native event classes.
     isMultiSortEvent: (e) => {
-      const { shiftKey, metaKey, ctrlKey } = e as globalThis.MouseEvent;
-      return shiftKey || metaKey || ctrlKey;
+      if (!isRecord(e)) return false;
+      return (
+        e["shiftKey"] === true || e["metaKey"] === true || e["ctrlKey"] === true
+      );
     },
     enableSortingRemoval: true,
     enableColumnResizing: true,
@@ -1097,6 +1102,7 @@ function GridRowInner<TRow extends RowData>({
  * Cell contents live in `row`, whose identity TanStack preserves while `data`
  * is unchanged. React.memo erases generics, so restore the signature.
  */
+// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- React.memo erases the generic parameter; there is no way to say "the same generic signature, memoized"
 const GridRow = memo(GridRowInner) as typeof GridRowInner;
 
 /**

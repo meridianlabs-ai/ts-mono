@@ -10,7 +10,8 @@ export const useCollapsedState = (
   const { useValue, useSetValue } = useComponentStateHooks();
 
   const resolvedScope = scope || "collapse-state-scope";
-  const collapsed = useValue(resolvedScope, id) as boolean | undefined;
+  const stored = useValue(resolvedScope, id);
+  const collapsed = typeof stored === "boolean" ? stored : undefined;
   const setPropertyValueFn = useSetValue();
 
   return useMemo(() => {

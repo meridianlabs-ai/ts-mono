@@ -170,6 +170,7 @@ export class SequenceReader<T> {
       pending = this.bytes
         .read(name)
         .then((bytes) => {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- chunk-file boundary: the chunks are this app's own writes, and T is the caller's claim about what it stored
           const items = JSON.parse(decoder.decode(bytes)) as T[];
           log.debug(`parse ${name}: ${items.length} items`);
           return items;

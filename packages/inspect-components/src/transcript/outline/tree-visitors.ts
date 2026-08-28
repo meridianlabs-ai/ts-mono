@@ -1,8 +1,6 @@
-import type { ScoreEvent, SpanBeginEvent } from "@tsmono/inspect-common/types";
-
 import { kSandboxSignalName } from "../transform/fixups";
 import { TYPE_SCORER, TYPE_SCORERS } from "../transform/utils";
-import { EventNode } from "../types";
+import { EventNode, eventNodeOf } from "../types";
 
 const kTurnType = "turn";
 const kTurnsType = "turns";
@@ -159,7 +157,7 @@ export const collapseTurns = (eventNodes: EventNode[]): EventNode[] => {
       const turnNode = new EventNode(
         firstTurn.id,
         {
-          ...(firstTurn.event as SpanBeginEvent),
+          ...eventNodeOf(firstTurn, "span_begin").event,
           name: `${numberOfTurns} ${numberOfTurns === 1 ? "turn" : "turns"}`,
           type: kTurnsType,
         },
@@ -200,7 +198,7 @@ export const collapseScoring = (eventNodes: EventNode[]): EventNode[] => {
       const turnNode = new EventNode(
         firstScore.id,
         {
-          ...(firstScore.event as ScoreEvent),
+          ...eventNodeOf(firstScore, "score").event,
           name: "scoring",
           type: kCollapsedScoring,
         },
@@ -249,9 +247,7 @@ export const computeTurnMap = (
   const map = new Map<string, TurnInfo>();
 
   const turnNodes = turns.filter(
-    (n) =>
-      n.event.event === "span_begin" &&
-      (n.event as { type?: string }).type === kTurnType
+    (n) => n.event.event === "span_begin" && n.event.type === kTurnType
   );
   const totalTurns = turnNodes.length;
 

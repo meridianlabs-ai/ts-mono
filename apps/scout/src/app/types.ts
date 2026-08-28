@@ -23,8 +23,8 @@ export interface ScanResultSummary {
   label?: string;
   timestamp?: string;
 
-  // Input
-  inputType: ScannerInputResponse["input_type"];
+  // Input — absent when the row's input_type isn't one this viewer knows
+  inputType?: ScannerInputResponse["input_type"];
 
   // Refs
   eventReferences: ScanResultReference[];
@@ -100,6 +100,9 @@ export type ErrorScope =
 
 export type ResultGroup =
   "source" | "label" | "id" | "epoch" | "model" | "none";
+
+/** The scanner input kinds a scan row can carry (the generated union). */
+export type ScannerInputType = ScannerInputResponse["input_type"];
 
 export type ScanResultValueType =
   "boolean" | "number" | "string" | "array" | "object" | "null";

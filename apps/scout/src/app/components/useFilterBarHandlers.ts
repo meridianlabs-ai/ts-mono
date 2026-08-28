@@ -9,9 +9,9 @@ import type {
  * Base table state interface that filter bar handlers can work with.
  * Both ScansTableState and TranscriptsTableState conform to this.
  */
-interface BaseTableState {
+interface BaseTableState<TColumnKey extends string = string> {
   columnFilters: Record<string, ColumnFilter>;
-  visibleColumns?: string[];
+  visibleColumns?: TColumnKey[];
   columnOrder: string[];
 }
 
@@ -40,10 +40,11 @@ interface FilterBarHandlers {
  */
 function createFilterBarHandlers<
   TColumnKey extends string,
-  TState extends BaseTableState = BaseTableState,
+  TState extends BaseTableState<TColumnKey> = BaseTableState<TColumnKey>,
 >(
   setTableState: (updater: TState | ((prev: TState) => TState)) => void,
-  defaultVisibleColumns: readonly TColumnKey[]
+  defaultVisibleColumns: readonly TColumnKey[],
+  isColumnKey: (columnId: string) => columnId is TColumnKey
 ): FilterBarHandlers {
   const handleFilterChange = (columnId: string, spec: FilterSpec | null) => {
     setTableState((prevState) => {
@@ -79,27 +80,36 @@ function createFilterBarHandlers<
 
   const handleAddFilter = (filter: ColumnFilter) => {
     setTableState((prevState) => {
-      const columnKey = filter.columnId as TColumnKey;
-
-      // Use default visible columns if not set in state
-      const currentVisibleColumns =
-        (prevState.visibleColumns as TColumnKey[] | undefined) ??
-        ([...defaultVisibleColumns] as TColumnKey[]);
-
-      // Check if we need to add this column to visible columns
-      const needsColumnVisible = !currentVisibleColumns.includes(columnKey);
-
-      // Check if we need to add this column to column order
-      const columnOrder = prevState.columnOrder as TColumnKey[];
-      const needsColumnOrder =
-        columnOrder.length > 0 && !columnOrder.includes(columnKey);
-
-      return {
+      const withFilter = {
         ...prevState,
         columnFilters: {
           ...prevState.columnFilters,
           [filter.columnId]: filter,
         },
+      };
+
+      // The filter itself applies whatever the column; only the visibility
+      // bookkeeping below needs a column this table knows about.
+      if (!isColumnKey(filter.columnId)) {
+        return withFilter;
+      }
+      const columnKey = filter.columnId;
+
+      // Use default visible columns if not set in state
+      const currentVisibleColumns = prevState.visibleColumns ?? [
+        ...defaultVisibleColumns,
+      ];
+
+      // Check if we need to add this column to visible columns
+      const needsColumnVisible = !currentVisibleColumns.includes(columnKey);
+
+      // Check if we need to add this column to column order
+      const columnOrder = prevState.columnOrder;
+      const needsColumnOrder =
+        columnOrder.length > 0 && !columnOrder.includes(columnKey);
+
+      return {
+        ...withFilter,
         // Add the column to visible columns if it's not already there
         ...(needsColumnVisible && {
           visibleColumns: [...currentVisibleColumns, columnKey],
@@ -121,7 +131,7 @@ function createFilterBarHandlers<
 
 interface UseFilterBarHandlersOptions<
   TColumnKey extends string,
-  TState extends BaseTableState = BaseTableState,
+  TState extends BaseTableState<TColumnKey> = BaseTableState<TColumnKey>,
 > {
   /**
    * Store setter function that accepts an updater
@@ -131,6 +141,11 @@ interface UseFilterBarHandlersOptions<
    * Default visible columns to use when state doesn't have them set
    */
   defaultVisibleColumns: readonly TColumnKey[];
+  /**
+   * Narrows an arbitrary filter's column id to one of this table's columns —
+   * the visibility bookkeeping only applies to columns the table declares.
+   */
+  isColumnKey: (columnId: string) => columnId is TColumnKey;
 }
 
 /**
@@ -139,15 +154,21 @@ interface UseFilterBarHandlersOptions<
  */
 export function useFilterBarHandlers<
   TColumnKey extends string,
-  TState extends BaseTableState = BaseTableState,
+  TState extends BaseTableState<TColumnKey> = BaseTableState<TColumnKey>,
 >({
   setTableState,
   defaultVisibleColumns,
+  isColumnKey,
 }: UseFilterBarHandlersOptions<TColumnKey, TState>): FilterBarHandlers {
   // Memoize the handlers to maintain referential stability
   const handlers = useMemo(
-    () => createFilterBarHandlers(setTableState, defaultVisibleColumns),
-    [setTableState, defaultVisibleColumns]
+    () =>
+      createFilterBarHandlers(
+        setTableState,
+        defaultVisibleColumns,
+        isColumnKey
+      ),
+    [setTableState, defaultVisibleColumns, isColumnKey]
   );
 
   // Wrap in useCallback for consistent return types

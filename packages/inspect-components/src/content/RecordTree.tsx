@@ -11,6 +11,7 @@ import {
 import { CopyButton, ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
+import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
 import { useContentIcons } from "./IconsContext";
@@ -116,8 +117,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
             const nextEl = treeRoot?.querySelector(
               `.${kRecordTreeKey}[data-index="${index + 1}"]`
             );
-            if (nextEl) {
-              (nextEl as HTMLElement).focus();
+            if (nextEl instanceof HTMLElement) {
+              nextEl.focus();
             }
             break;
           }
@@ -132,8 +133,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
             const prevEl = treeRoot?.querySelector(
               `.${kRecordTreeKey}[data-index="${index - 1}"]`
             );
-            if (prevEl) {
-              (prevEl as HTMLElement).focus();
+            if (prevEl instanceof HTMLElement) {
+              prevEl.focus();
             }
             break;
           }
@@ -413,24 +414,21 @@ const processNodeRecursive = (
           );
         });
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    } else if (typeof value === "object" && value !== null) {
+    } else if (isRecord(value)) {
       // Process object properties
-      Object.entries(value as Record<string, unknown>).forEach(
-        ([childKey, childValue], index) => {
-          const childIdentifier = index.toString();
-          items.push(
-            ...processNodeRecursive(
-              childKey,
-              childValue,
-              childDepth,
-              currentItemPath,
-              childIdentifier,
-              isCollapsed
-            )
-          );
-        }
-      );
+      Object.entries(value).forEach(([childKey, childValue], index) => {
+        const childIdentifier = index.toString();
+        items.push(
+          ...processNodeRecursive(
+            childKey,
+            childValue,
+            childDepth,
+            currentItemPath,
+            childIdentifier,
+            isCollapsed
+          )
+        );
+      });
     }
   }
 

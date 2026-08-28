@@ -50,6 +50,21 @@ export default tseslint.config(
       // hanging promise with `void` silently drops errors. Mark genuine cases
       // with an eslint-disable-next-line comment so the issue stays visible.
       "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+      // A type assertion is an unchecked claim, so `as` silences exactly the
+      // errors the compiler exists to catch (`as unknown as T` silences all of
+      // them). This rule allows only the direction that can't lie — widening,
+      // and `as const` — and flags every narrowing or sideways claim. Real
+      // boundaries TypeScript can't express (wire data, worker messages, DOM
+      // lookups) take an eslint-disable-next-line naming the boundary, at the
+      // cast, where a reviewer sees it.
+      "@typescript-eslint/no-unsafe-type-assertion": "error",
+      // `{ ... } as T` is the same lie in fixture form: it skips the excess
+      // property check and hides fields the literal forgot. `satisfies T` (or
+      // a plain annotation) checks the literal without asserting over it.
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "as", objectLiteralTypeAssertions: "never" },
+      ],
     },
     settings: {
       "import-x/resolver-next": [createTypeScriptImportResolver()],

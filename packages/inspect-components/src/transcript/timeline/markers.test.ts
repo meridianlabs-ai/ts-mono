@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+} from "@tsmono/inspect-common/testing";
 import type {
   CompactionEvent,
   ModelEvent,
@@ -36,7 +40,16 @@ function makeBranchObj(
   });
 }
 
-const NULL_CONFIG = {} as ModelEvent["config"];
+// One assistant choice carrying a message id — built through the real builders
+// so the shape is checked rather than asserted.
+const messageChoices = (messageId: string): ModelEvent["output"]["choices"] => [
+  testChatCompletionChoice({
+    message: testAssistantMessage({ id: messageId }),
+    stop_reason: "stop",
+  }),
+];
+
+const NULL_CONFIG: ModelEvent["config"] = {};
 
 function makeModelEventNode(
   startSec: number,
@@ -56,14 +69,7 @@ function makeModelEventNode(
     tool_choice: "auto",
     config: NULL_CONFIG,
     output: {
-      choices: options?.messageId
-        ? ([
-            {
-              message: { id: options.messageId },
-              stop_reason: "stop",
-            },
-          ] as ModelEvent["output"]["choices"])
-        : [],
+      choices: options?.messageId ? messageChoices(options.messageId) : [],
       completion: "",
       error: options?.outputError ?? null,
       metadata: null,
@@ -101,7 +107,7 @@ function makeModelEventNode(
 function makeToolEventNode(
   startSec: number,
   options?: {
-    error?: { message: string; type: string };
+    error?: NonNullable<ToolEvent["error"]>;
     uuid?: string;
   }
 ): TimelineEvent {
@@ -116,16 +122,7 @@ function makeToolEventNode(
     timestamp: ts(startSec).toISOString(),
     working_start: startSec,
     working_time: 1,
-    error: options?.error
-      ? {
-          message: options.error.message,
-          type: options.error.type as ToolEvent["error"] extends {
-            type: infer T;
-          } | null
-            ? T
-            : never,
-        }
-      : null,
+    error: options?.error ?? null,
     failed: options?.error ? true : null,
     agent: null,
     agent_span_id: null,
@@ -284,7 +281,7 @@ describe("collectMarkers", () => {
     it("direct: collects only from own events", () => {
       const childSpan = makeSpan("Child", 10, 20, 1000, [
         makeToolEventNode(12, {
-          error: { message: "child error", type: "runtime" },
+          error: { message: "child error", type: "unknown" },
         }),
       ]);
       const parent = makeSpan("Parent", 0, 30, 1000, [
@@ -305,7 +302,7 @@ describe("collectMarkers", () => {
       ]);
       const child = makeSpan("Child", 10, 20, 1000, [
         makeToolEventNode(12, {
-          error: { message: "child error", type: "runtime" },
+          error: { message: "child error", type: "unknown" },
         }),
         grandchild,
       ]);
@@ -327,7 +324,7 @@ describe("collectMarkers", () => {
       ]);
       const child = makeSpan("Child", 10, 20, 1000, [
         makeToolEventNode(12, {
-          error: { message: "child error", type: "runtime" },
+          error: { message: "child error", type: "unknown" },
         }),
         grandchild,
       ]);
@@ -425,7 +422,7 @@ describe("collectMarkers", () => {
       const parent = makeSpan("Root", 0, 30, 1000, [
         makeCompactionEventNode(20),
         makeToolEventNode(5, {
-          error: { message: "early error", type: "runtime" },
+          error: { message: "early error", type: "unknown" },
         }),
         makeModelEventNode(10, { error: "mid error" }),
       ]);
@@ -441,7 +438,7 @@ describe("collectMarkers", () => {
     it("sorts mixed error, compaction, and branch markers", () => {
       const event1 = makeModelEventNode(5, { uuid: "evt-fork" });
       const event2 = makeToolEventNode(15, {
-        error: { message: "err", type: "runtime" },
+        error: { message: "err", type: "unknown" },
       });
       const event3 = makeCompactionEventNode(25);
 

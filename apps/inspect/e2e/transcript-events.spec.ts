@@ -14,6 +14,8 @@ import type {
   ModelEvent,
   ModelOutput,
   ScoreEvent,
+  SpanBeginEvent,
+  SpanEndEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
@@ -121,7 +123,7 @@ function createModelEvent(overrides?: {
       output_tokens: Math.floor(tokens * 0.4),
       total_tokens: tokens,
     },
-    time: overrides?.endSec ? overrides.endSec - (overrides?.startSec ?? 0) : 3,
+    time: overrides?.endSec ? overrides.endSec - (overrides.startSec ?? 0) : 3,
   };
 
   return {
@@ -136,7 +138,7 @@ function createModelEvent(overrides?: {
     timestamp: "2025-01-15T10:00:00Z",
     working_start: overrides?.startSec ?? 0,
     working_time: overrides?.endSec
-      ? overrides.endSec - (overrides?.startSec ?? 0)
+      ? overrides.endSec - (overrides.startSec ?? 0)
       : 3,
     error: overrides?.error ?? null,
     traceback_ansi: overrides?.traceback_ansi ?? null,
@@ -427,7 +429,7 @@ function createSpanBegin(
   name: string,
   type: string | null,
   timestamp: string
-): Events[number] {
+): SpanBeginEvent {
   return {
     event: "span_begin",
     id,
@@ -440,10 +442,10 @@ function createSpanBegin(
     pending: null,
     uuid: `span-${id}`,
     metadata: null,
-  } as unknown as Events[number];
+  };
 }
 
-function createSpanEnd(id: string, timestamp: string): Events[number] {
+function createSpanEnd(id: string, timestamp: string): SpanEndEvent {
   return {
     event: "span_end",
     id,
@@ -453,11 +455,11 @@ function createSpanEnd(id: string, timestamp: string): Events[number] {
     pending: null,
     uuid: `span-end-${id}`,
     metadata: null,
-  } as unknown as Events[number];
+  };
 }
 
-function inSpan(event: ModelEvent, spanId: string): Events[number] {
-  return { ...event, span_id: spanId } as unknown as Events[number];
+function inSpan(event: ModelEvent, spanId: string): ModelEvent {
+  return { ...event, span_id: spanId };
 }
 
 test.describe("outline collapse", () => {

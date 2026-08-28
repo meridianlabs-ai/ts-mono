@@ -172,12 +172,14 @@ interface StoreState {
   clearScansState: () => void;
   clearTranscriptState: () => void;
 
-  setPropertyValue: <T>(id: string, propertyName: string, value: T) => void;
-  getPropertyValue: <T>(
+  setPropertyValue: (id: string, propertyName: string, value: unknown) => void;
+  // Persisted component state: what was stored is whatever a component put
+  // there, so it comes back as `unknown` for the caller to narrow.
+  getPropertyValue: (
     id: string,
     propertyName: string,
-    defaultValue?: T
-  ) => T | undefined;
+    defaultValue?: unknown
+  ) => unknown;
   removePropertyValue: (id: string, propertyName: string) => void;
   removeAllProperties: (id: string) => void;
   removeByPrefix: (id: string, prefix: string) => void;
@@ -307,7 +309,13 @@ export const createStore = (api: ScoutApiV2) =>
           loadingData: 0,
           transcriptCollapsedEvents: {},
           searchPanelStates: {},
-          scopedErrors: {} as Record<ErrorScope, string>,
+          scopedErrors: {
+            scans: undefined,
+            scanner: undefined,
+            dataframe: undefined,
+            dataframe_input: undefined,
+            transcripts: undefined,
+          },
           visibleScannerResults: [],
           visibleScannerResultsCount: 0,
           highlightLabeled: false,
@@ -423,7 +431,7 @@ export const createStore = (api: ScoutApiV2) =>
               state.searchPanelStates = {};
             });
           },
-          setPropertyValue<T>(id: string, propertyName: string, value: T) {
+          setPropertyValue(id: string, propertyName: string, value: unknown) {
             set((state) => {
               if (!state.properties[id]) {
                 state.properties[id] = {};
@@ -431,13 +439,13 @@ export const createStore = (api: ScoutApiV2) =>
               state.properties[id][propertyName] = value;
             });
           },
-          getPropertyValue<T>(
+          getPropertyValue(
             id: string,
             propertyName: string,
-            defaultValue: T
-          ): T | undefined {
+            defaultValue: unknown
+          ): unknown {
             const value = get().properties[id]?.[propertyName];
-            return value !== undefined ? (value as T) : defaultValue;
+            return value !== undefined ? value : defaultValue;
           },
           removePropertyValue(id: string, propertyName: string) {
             set((state) => {

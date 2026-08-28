@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import type { VSCodeApi } from "@tsmono/util";
+import { isRecord } from "@tsmono/util";
 
 import { apiVscode, createVscodeProxyFetch } from "./api-vscode";
 
@@ -27,17 +28,38 @@ function connectFakeExtension(handler: (req: ProxyRequest) => ProxyResponse): {
   vscode: VSCodeApi;
   received: Array<{ method: string; params: unknown }>;
 } {
+  const asJsonRpcCall = (
+    data: unknown
+  ): { id: number; method: string; params: unknown[] } => {
+    if (
+      !isRecord(data) ||
+      typeof data["id"] !== "number" ||
+      typeof data["method"] !== "string" ||
+      !Array.isArray(data["params"])
+    ) {
+      throw new Error(`not a JSON-RPC call: ${JSON.stringify(data)}`);
+    }
+    return {
+      id: data["id"],
+      method: data["method"],
+      params: data["params"],
+    };
+  };
+
+  const asProxyRequest = (value: unknown): ProxyRequest => {
+    if (!isRecord(value) || typeof value["method"] !== "string") {
+      throw new Error(`not a ProxyRequest: ${JSON.stringify(value)}`);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the client under test builds this payload; the check above is the part worth asserting on
+    return value as ProxyRequest;
+  };
+
   const received: Array<{ method: string; params: unknown }> = [];
   const vscode: VSCodeApi = {
     postMessage: (data: unknown) => {
-      const req = data as {
-        jsonrpc: string;
-        id: number;
-        method: string;
-        params: unknown[];
-      };
+      const req = asJsonRpcCall(data);
       received.push({ method: req.method, params: req.params });
-      const result = handler(req.params[0] as ProxyRequest);
+      const result = handler(asProxyRequest(req.params[0]));
       // Deliver asynchronously, mirroring the real cross-process hop.
       queueMicrotask(() => {
         window.dispatchEvent(

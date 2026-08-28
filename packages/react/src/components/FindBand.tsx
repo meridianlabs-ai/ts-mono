@@ -40,7 +40,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   const lastFoundItem = useRef<{
     text: string;
     offset: number;
-    parentElement: Element;
+    parentElement: Element | null;
   } | null>(null);
   const currentSearchTerm = useRef<string>("");
   const needsCursorRestoreRef = useRef<boolean>(false);
@@ -121,7 +121,10 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       }
       setMatchCount(total > 0 ? total : null);
 
-      const focusedElement = document.activeElement as HTMLElement;
+      const focusedElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
 
       const selection = window.getSelection();
       let savedRange: Range | null = null;
@@ -164,9 +167,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
           const range = selection.getRangeAt(0);
-          const parentElement =
-            range.startContainer.parentElement ||
-            (range.commonAncestorContainer as Element);
+          const parentElement = rangeParentElement(range);
           const isNewMatch = !isLastFoundItem(range, lastFoundItem.current);
           lastFoundItem.current = {
             text: range.toString(),
@@ -204,7 +205,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
         }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: activeElement can be null; the cast hides it
       focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
@@ -430,7 +430,7 @@ async function findExtendedInDOM(
   lastFoundItem: {
     text: string;
     offset: number;
-    parentElement: Element;
+    parentElement: Element | null;
   } | null,
   extendedFindTerm: (
     term: string,
@@ -541,21 +541,31 @@ async function findExtendedInDOM(
   return result;
 }
 
+/**
+ * The nearest element to a range's start. Null only for a detached range —
+ * commonAncestorContainer is often a text node, hence the walk up.
+ */
+function rangeParentElement(range: Range): Element | null {
+  const ancestor = range.commonAncestorContainer;
+  return (
+    range.startContainer.parentElement ??
+    (ancestor instanceof Element ? ancestor : ancestor.parentElement)
+  );
+}
+
 function isLastFoundItem(
   range: Range,
   lastFoundItem: {
     text: string;
     offset: number;
-    parentElement: Element;
+    parentElement: Element | null;
   } | null
 ) {
   if (!lastFoundItem) return false;
 
   const currentText = range.toString();
   const currentOffset = range.startOffset;
-  const currentParentElement =
-    range.startContainer.parentElement ||
-    (range.commonAncestorContainer as Element);
+  const currentParentElement = rangeParentElement(range);
 
   return (
     currentText === lastFoundItem.text &&
@@ -585,20 +595,17 @@ function inUnsearchableElement(range: Range) {
 function selectionParentElement(range: Range) {
   let element: Element | null;
 
-  if (range.startContainer.nodeType === Node.ELEMENT_NODE) {
+  if (range.startContainer instanceof Element) {
     // This is a direct element
-    element = range.startContainer as Element;
+    element = range.startContainer;
   } else {
     // This isn't an element, try its parent
     element = range.startContainer.parentElement;
   }
 
   // Still not found, try the common ancestor container
-  if (
-    !element &&
-    range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
-  ) {
-    element = range.commonAncestorContainer as Element;
+  if (!element && range.commonAncestorContainer instanceof Element) {
+    element = range.commonAncestorContainer;
   } else if (!element && range.commonAncestorContainer.parentElement) {
     element = range.commonAncestorContainer.parentElement;
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  expectEvent,
   testModelEvent,
   testModelOutput,
   testStateEvent,
@@ -67,7 +68,7 @@ describe("correctRetryTimestamps", () => {
       "2025-01-01T00:00:01.001Z",
     ]);
     // original input untouched
-    expect((events[1] as ModelEvent).timestamp).toBe(
+    expect(expectEvent(events[1], "model").timestamp).toBe(
       "2025-01-01T00:00:00.000Z"
     );
   });
@@ -188,7 +189,7 @@ describe("correctRetryTimestamps", () => {
       success,
     ];
     const out = correctRetryTimestamps(events);
-    const corrected = out[1] as ModelEvent;
+    const corrected = expectEvent(out[1], "model");
     expect(corrected.timestamp).toBe("2025-01-01T00:00:01.001Z");
     expect(corrected.working_start).toBe(0.0);
     expect(corrected.working_time).toBe(12.5);

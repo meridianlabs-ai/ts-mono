@@ -76,7 +76,8 @@ export const headlineMetric = (
 ): EvalMetric | undefined => resolveHeadlineMetric(results, declared)?.metric;
 
 /** Move `index` to the front, leaving the relative order of the rest intact. */
-export const leadWith = <T>(items: T[], index: number): T[] =>
-  index <= 0
-    ? items
-    : [items[index] as T, ...items.filter((_, i) => i !== index)];
+export const leadWith = <T>(items: T[], index: number): T[] => {
+  const lead = index <= 0 ? undefined : items[index];
+  if (lead === undefined) return items;
+  return [lead, ...items.filter((_, i) => i !== index)];
+};

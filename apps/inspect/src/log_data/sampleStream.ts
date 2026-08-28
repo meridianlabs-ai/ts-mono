@@ -78,6 +78,11 @@ interface StreamState {
   // event_id -> index in `events`, so a re-streamed event replaces in place.
   eventMapping: Record<string, number>;
   events: SampleEvent[];
+
+  // Missing attachment ids already reported: an event can reference the same
+  // id many times (and events legitimately arrive a tick ahead of their
+  // attachments), so report each id once per session rather than per miss.
+  reportedAttachmentMisses: Set<string>;
 }
 
 const initialStreamState = (): StreamState => ({
@@ -94,6 +99,8 @@ const initialStreamState = (): StreamState => ({
 
   eventMapping: {},
   events: [],
+
+  reportedAttachmentMisses: new Set(),
 });
 
 export const createSampleStreamSession = (
@@ -253,6 +260,7 @@ function processMessagePool(sampleData: SampleData, state: StreamState) {
     if (state.messagePoolEntryIds.has(entry.id)) continue;
 
     state.messagePoolEntryIds.add(entry.id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- wire boundary (#555): pool entries are JSON strings the server wrote; the transcript renders defensively
     state.messagePool.push(JSON.parse(entry.data) as ChatMessage);
   }
 }
@@ -263,6 +271,7 @@ function processCallPool(sampleData: SampleData, state: StreamState) {
     if (state.callPoolEntryIds.has(entry.id)) continue;
 
     state.callPoolEntryIds.add(entry.id);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- wire boundary (#555): see processMessagePool
     state.callPool.push(JSON.parse(entry.data) as JsonValue);
   }
 }
@@ -285,32 +294,38 @@ function processEvents(
     // the direct transport reads filestore segments without pydantic, and
     // the proxy can front an older server. Fill read-time defaults before
     // ref resolution; un-event-shaped payloads pass through unchanged.
-    // The cast is the same boundary lift as the transports' casts: Event and
-    // the hand-written SampleEvent union differ only in member breadth.
     const event =
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): the same lift the transports make — Event and the hand-written SampleEvent union differ only in member breadth
       (normalizeEvent(eventData.event) as SampleEvent | undefined) ??
       eventData.event;
+
+    const reportAttachmentMiss = (attachmentId: string) => {
+      if (state.reportedAttachmentMisses.has(attachmentId)) {
+        return;
+      }
+      state.reportedAttachmentMisses.add(attachmentId);
+
+      const snapshot = {
+        eventId: eventData.event_id,
+        attachmentId,
+        available_attachment_count: Object.keys(state.attachments).length,
+      };
+
+      if (api.log_message) {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        api.log_message(
+          logFile,
+          `Unable to resolve attachment ${attachmentId}\n` +
+            JSON.stringify(snapshot)
+        );
+      }
+      console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
+    };
 
     const withAttachments = resolveAttachments<SampleEvent>(
       event,
       state.attachments,
-      (attachmentId: string) => {
-        const snapshot = {
-          eventId: eventData.event_id,
-          attachmentId,
-          available_attachments: Object.keys(state.attachments),
-        };
-
-        if (api.log_message) {
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          api.log_message(
-            logFile,
-            `Unable to resolve attachment ${attachmentId}\n` +
-              JSON.stringify(snapshot)
-          );
-        }
-        console.warn(`Unable to resolve attachment ${attachmentId}`, snapshot);
-      }
+      reportAttachmentMiss
     );
 
     const withPoolRefs = resolvePoolRefs(withAttachments, state);
@@ -319,7 +334,8 @@ function processEvents(
     // may contain attachment:// URIs that weren't visible before expansion.
     const resolvedEvent = resolveAttachments<SampleEvent>(
       withPoolRefs,
-      state.attachments
+      state.attachments,
+      reportAttachmentMiss
     );
 
     if (existingIndex !== undefined) {

@@ -29,9 +29,7 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
     throw new Error("Invalid log header: expected an object");
   }
   const evalSpec = normalizeEvalSpec(raw["eval"]);
-  // Boundary lifts (#555): pass-through fields the normalizers don't cover
-  // are wire data TypeScript can't verify; each is optional on EvalHeader so
-  // absence stays representable.
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- boundary lifts (#555): the pass-through fields below are wire data the normalizers don't cover, and each is optional on EvalHeader so absence stays representable */
   return {
     // Spread first so fields the schema grows later survive parsing (matching
     // normalizeEvalSample/normalizeEvent); normalized fields override below.
@@ -56,6 +54,7 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
         ? undefined
         : normalizeConfigUpdates(raw["config_updates"]),
   };
+  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 };
 
 /** Normalize a raw `_journal/start.json` payload. */
@@ -116,19 +115,17 @@ export const normalizeEvalLog = (rawInput: unknown): EvalLog => {
   const samples = Array.isArray(raw["samples"])
     ? raw["samples"].map(normalizeEvalSample)
     : undefined;
-  return {
+  const log = {
     ...header,
     // normalizeEvalHeader defaults these two; EvalLog requires them.
     version: header.version ?? 2,
     status: header.status ?? "started",
     invalidated: raw["invalidated"] === true,
-    reductions: raw["reductions"] as EvalLog["reductions"],
+    reductions: raw["reductions"],
     samples,
-    // Boundary lift (#555): stats is required on EvalLog but only written at
-    // end-of-eval; in-progress logs genuinely lack it. EvalHeader models
-    // that with `stats?`, EvalLog does not — a known type/wire mismatch that
-    // stays confined to this normalizer.
-  } as EvalLog;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): `reductions` is pass-through wire data, and `stats` is required on EvalLog but only written at end-of-eval — EvalHeader models that with `stats?`, EvalLog does not. A known type/wire mismatch confined to this normalizer.
+  return log as EvalLog;
 };
 
 /** Re-export for boundary call sites that read journal entries directly. */

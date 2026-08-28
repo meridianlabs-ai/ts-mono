@@ -7,7 +7,14 @@ import type {
   JsonValue,
   ModelUsage,
 } from "@tsmono/inspect-common/types";
-import { asyncJsonParse, isRecord } from "@tsmono/util";
+import { asyncJsonParse, isJson, isRecord } from "@tsmono/util";
+
+import type {
+  ScannerInputType,
+  ScanResultReference,
+  ScanResultSummary,
+  ScanResultValueType,
+} from "../types";
 
 /**
  * Boundary normalizers (#555) for scout's Arrow-derived scan rows.
@@ -17,12 +24,153 @@ import { asyncJsonParse, isRecord } from "@tsmono/util";
  * ScanResultData can trust the declared types.
  */
 
-const parseJsonLenient = async (text: string): Promise<unknown> => {
+const parseJsonLenient = async (
+  text: string
+): Promise<JsonValue | undefined> => {
   try {
-    return await asyncJsonParse<unknown>(text);
+    return await asyncJsonParse<JsonValue>(text);
   } catch {
     return undefined;
   }
+};
+
+/**
+ * Every JSON-bearing scan column arrives as a string cell. Absent and
+ * unparseable cells both read as undefined, so each column normalizer below
+ * decides its own empty value rather than inheriting one.
+ */
+const parseJsonCell = async (raw: unknown): Promise<JsonValue | undefined> =>
+  typeof raw === "string" ? await parseJsonLenient(raw) : undefined;
+
+/**
+ * A JSON object column (metadata, scan_metadata, scanner_params,
+ * transcript_metadata). Absent or malformed cells become an empty record.
+ */
+export const normalizeJsonRecord = async (
+  raw: unknown
+): Promise<Record<string, JsonValue>> => {
+  const parsed = await parseJsonCell(raw);
+  return isRecord(parsed) ? parsed : {};
+};
+
+/** A JSON array-of-strings column (input_ids, scan_tags). */
+export const normalizeStringList = async (raw: unknown): Promise<string[]> => {
+  const parsed = await parseJsonCell(raw);
+  return Array.isArray(parsed)
+    ? parsed.filter((entry): entry is string => typeof entry === "string")
+    : [];
+};
+
+/**
+ * message_references / event_references. Entries missing the two fields the
+ * viewer navigates by are dropped — they can't resolve to anything.
+ */
+export const normalizeReferences = async (
+  raw: unknown
+): Promise<ScanResultReference[]> => {
+  const parsed = await parseJsonCell(raw);
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  const references: ScanResultReference[] = [];
+  for (const entry of parsed) {
+    if (!isRecord(entry) || typeof entry["id"] !== "string") {
+      continue;
+    }
+    const type = entry["type"];
+    if (type !== "message" && type !== "event") {
+      continue;
+    }
+    const cite = entry["cite"];
+    references.push({
+      type,
+      id: entry["id"],
+      ...(typeof cite === "string" ? { cite } : {}),
+    });
+  }
+  return references;
+};
+
+/** transcript_agent_args: an opaque JSON object, absent when unset. */
+export const normalizeAgentArgs = async (
+  raw: unknown
+): Promise<Record<string, unknown> | undefined> => {
+  const parsed = await parseJsonCell(raw);
+  return isRecord(parsed) ? parsed : undefined;
+};
+
+/**
+ * transcript_score is stored either as a JSON string or as the raw scalar
+ * (older scans wrote the number/boolean straight into the cell).
+ */
+export const normalizeTranscriptScore = async (
+  raw: unknown
+): Promise<JsonValue | undefined> => {
+  if (typeof raw === "string") {
+    return isJson(raw) ? await parseJsonLenient(raw) : raw;
+  }
+  return typeof raw === "number" || typeof raw === "boolean" ? raw : undefined;
+};
+
+// `satisfies` ties these to the generated unions: regenerating the schema
+// with a new value/input kind errors here until the map is updated, so a
+// statically-known kind can't silently normalize to the fallback.
+const kValueTypes = {
+  boolean: true,
+  number: true,
+  string: true,
+  array: true,
+  object: true,
+  null: true,
+} satisfies Record<ScanResultValueType, true>;
+
+const isValueType = (raw: string): raw is ScanResultValueType =>
+  Object.hasOwn(kValueTypes, raw);
+
+/** An unrecognized value_type renders like a null result rather than lying. */
+export const normalizeValueType = (raw: unknown): ScanResultValueType =>
+  typeof raw === "string" && isValueType(raw) ? raw : "null";
+
+const kInputTypes = {
+  transcript: true,
+  event: true,
+  events: true,
+  message: true,
+  messages: true,
+  timeline: true,
+  timelines: true,
+} satisfies Record<ScannerInputType, true>;
+
+const isInputType = (raw: string): raw is ScannerInputType =>
+  Object.hasOwn(kInputTypes, raw);
+
+/**
+ * An unrecognized input_type (a newer inspect_scout adding a scanner input
+ * kind) stays undefined so the viewer falls back to neutral source-id
+ * rendering rather than pretending the row is a transcript.
+ */
+export const normalizeInputType = (
+  raw: unknown
+): ScannerInputType | undefined =>
+  typeof raw === "string" && isInputType(raw) ? raw : undefined;
+
+/**
+ * The `value` cell: JSON-encoded for object/array results, the raw scalar
+ * otherwise.
+ */
+export const normalizeScanValue = async (
+  raw: unknown,
+  valueType: ScanResultValueType
+): Promise<ScanResultSummary["value"]> => {
+  if (valueType === "object" || valueType === "array") {
+    const parsed = await parseJsonCell(raw);
+    return typeof parsed === "object" ? parsed : null;
+  }
+  return typeof raw === "string" ||
+    typeof raw === "number" ||
+    typeof raw === "boolean"
+    ? raw
+    : null;
 };
 
 /**
@@ -74,25 +222,6 @@ export const normalizeValidationTarget = async (
   return undefined;
 };
 
-/** Absent or malformed transcript_metadata becomes an empty record. */
-export const normalizeTranscriptMetadata = async (
-  raw: unknown
-): Promise<Record<string, JsonValue>> => {
-  if (typeof raw !== "string") {
-    return {};
-  }
-  try {
-    const parsed = await asyncJsonParse<JsonValue>(raw);
-    return typeof parsed === "object" &&
-      parsed !== null &&
-      !Array.isArray(parsed)
-      ? parsed
-      : {};
-  } catch {
-    return {};
-  }
-};
-
 /**
  * Fill pydantic token defaults on parsed scan_model_usage entries via the
  * shared normalizeModelUsage. Entries that aren't records are dropped —
@@ -117,6 +246,7 @@ export const normalizeScanModelUsage = (
   }
   // Boundary lift (#555): every entry round-tripped unchanged, so the
   // original record already satisfies the type.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): normalizeModelUsage returned every entry unchanged, which is the proof this record is already Record<string, ModelUsage>
   return changed ? usage : (raw as Record<string, ModelUsage>);
 };
 

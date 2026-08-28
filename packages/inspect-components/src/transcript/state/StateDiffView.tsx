@@ -4,6 +4,7 @@ import { format } from "jsondiffpatch/formatters/html";
 import { FC } from "react";
 
 import { sanitizeRenderedHtml } from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 interface StateDiffViewProps {
   before: object;
@@ -26,49 +27,31 @@ export const StateDiffView: FC<StateDiffViewProps> = ({
   return (
     <div
       dangerouslySetInnerHTML={{
-        __html: sanitizeRenderedHtml(unescapeNewlines(html_result)),
+        // The formatter's output is a string, so unescaping is a string op —
+        // the old recursive walk here only ever saw this one call.
+        __html: sanitizeRenderedHtml(html_result.replace(/\\n/g, "\n")),
       }}
       className={clsx(className)}
     ></div>
   );
 };
 
-function unescapeNewlines<T>(obj: T): T {
-  if (typeof obj === "string") {
-    return obj.replace(/\\n/g, "\n") as T;
+/**
+ * Escapes angle brackets in object keys so jsondiffpatch's HTML formatter
+ * renders them as text. Typed unknown -> unknown: it rebuilds the value rather
+ * than preserving its type, which is what the old `<T>(obj: T): T` claimed.
+ */
+function sanitizeKeys(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item: unknown) => sanitizeKeys(item));
   }
-
-  if (obj === null || typeof obj !== "object") {
-    return obj;
+  if (!isRecord(value)) {
+    return value;
   }
-
-  if (Array.isArray(obj)) {
-    return (obj as unknown[]).map((item: unknown) =>
-      unescapeNewlines(item)
-    ) as T;
-  }
-
   return Object.fromEntries(
-    Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
-      key,
-      unescapeNewlines(value),
-    ])
-  ) as T;
-}
-
-function sanitizeKeys<T>(obj: T): T {
-  if (typeof obj !== "object" || obj === null) {
-    return obj;
-  }
-
-  if (Array.isArray(obj)) {
-    return (obj as unknown[]).map((item: unknown) => sanitizeKeys(item)) as T;
-  }
-
-  return Object.fromEntries(
-    Object.entries(obj as Record<string, unknown>).map(([key, value]) => [
+    Object.entries(value).map(([key, entry]) => [
       key.replace(/</g, "&lt;").replace(/>/g, "&gt;"),
-      sanitizeKeys(value),
+      sanitizeKeys(entry),
     ])
-  ) as T;
+  );
 }

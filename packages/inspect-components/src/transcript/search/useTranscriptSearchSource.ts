@@ -352,8 +352,8 @@ function matchAtSelection(
 
   const eventIds = new Set(matches.map((m) => m.eventId));
   let el: Element | null =
-    range.startContainer.nodeType === Node.ELEMENT_NODE
-      ? (range.startContainer as Element)
+    range.startContainer instanceof Element
+      ? range.startContainer
       : range.startContainer.parentElement;
   while (el && !eventIds.has(el.id)) el = el.parentElement;
   if (!el) return null;
@@ -364,7 +364,8 @@ function matchAtSelection(
   let occurrenceInEvent = 0;
   let node: Node | null;
   while ((node = walker.nextNode())) {
-    const textNode = node as Text;
+    if (!(node instanceof Text)) continue;
+    const textNode = node;
     if (textNode === range.startContainer) {
       const head = textNode.data.slice(0, range.startOffset).toLowerCase();
       let from = 0;
@@ -420,7 +421,8 @@ function positionSelectionAroundTerm(
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let target: { node: Text; idx: number } | null = null;
   for (let node; (node = walker.nextNode());) {
-    const textNode = node as Text;
+    if (!(node instanceof Text)) continue;
+    const textNode = node;
     const text = textNode.data.toLowerCase();
     let from = 0;
     while ((from = text.indexOf(lowered, from)) !== -1) {

@@ -71,7 +71,7 @@ export function isErrorEvent(event: Event): boolean {
 /**
  * Returns true if the event is a compaction event.
  */
-export function isCompactionEvent(event: Event): boolean {
+export function isCompactionEvent(event: Event): event is CompactionEvent {
   return event.event === "compaction";
 }
 
@@ -181,9 +181,8 @@ function addEventMarker(
       tooltip: errorTooltip(event),
     });
   } else if (isCompactionEvent(event)) {
-    const ce = event as CompactionEvent;
-    const before = ce.tokens_before?.toLocaleString() ?? "?";
-    const after = ce.tokens_after?.toLocaleString() ?? "?";
+    const before = event.tokens_before?.toLocaleString() ?? "?";
+    const after = event.tokens_after?.toLocaleString() ?? "?";
     markers.push({
       kind: "compaction",
       timestamp: eventNode.startTime(),

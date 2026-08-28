@@ -8,7 +8,6 @@ import type {
 import { ExpandablePanel } from "@tsmono/react/components";
 
 import { useDisplayMode } from "../../content/DisplayModeContext";
-import { defaultContext } from "../MessageContents";
 
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
@@ -132,7 +131,6 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
             <AnnotatedScreenshotOutput
               contents={inputScreenshot}
               annotation={selfAnnotation}
-              context={defaultContext()}
             />
           ) : null}
         </ToolBlockOutput>

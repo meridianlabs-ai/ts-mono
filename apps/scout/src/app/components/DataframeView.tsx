@@ -11,7 +11,7 @@ import { AgGridReact } from "ag-grid-react";
 import { ColumnTable } from "arquero";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
-import { centerTruncate } from "@tsmono/util";
+import { centerTruncate, isRecord } from "@tsmono/util";
 
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
@@ -135,7 +135,9 @@ export const DataframeView: FC<DataframeViewProps> = ({
                 if (params.rowIndex !== null && params.rowIndex !== undefined) {
                   setSelectedDataframeRow(params.rowIndex);
                 }
-                onRowDoubleClicked(params.data as object);
+                if (isRecord(params.data)) {
+                  onRowDoubleClicked(params.data);
+                }
               }
             },
           },
@@ -203,8 +205,8 @@ export const DataframeView: FC<DataframeViewProps> = ({
     ) {
       const selectedNode =
         gridRef.current.api.getDisplayedRowAtIndex(selectedDataframeRow);
-      if (selectedNode?.data) {
-        onRowDoubleClicked(selectedNode.data as object);
+      if (isRecord(selectedNode?.data)) {
+        onRowDoubleClicked(selectedNode.data);
       }
     }
   }, [selectedDataframeRow, onRowDoubleClicked]);

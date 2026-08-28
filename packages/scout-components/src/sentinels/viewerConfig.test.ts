@@ -249,6 +249,7 @@ describe("resolveScannerResultView", () => {
       scanner_result_view: {
         "*": {
           fields: [
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: this case exists to prove runtime validation drops an entry no valid ScannerResultField could be
             bogus as ScannerResultField,
             builtin("value"),
             "not_a_real_builtin",

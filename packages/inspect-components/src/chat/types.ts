@@ -1,4 +1,5 @@
-import type { Content } from "@tsmono/inspect-common/types";
+import type { ChatMessage, Content } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 export type ChatViewToolCallStyle = "compact" | "complete" | "omit";
 
@@ -46,3 +47,10 @@ export interface ContentTool {
   type: "tool";
   content: Exclude<Content, { type: "tool_use" }>[];
 }
+
+/**
+ * Shallow guard for messages read out of unvalidated state blobs. ChatView
+ * dispatches on `role` and tolerates the rest, so that is what it checks.
+ */
+export const isChatMessage = (value: unknown): value is ChatMessage =>
+  isRecord(value) && typeof value["role"] === "string";

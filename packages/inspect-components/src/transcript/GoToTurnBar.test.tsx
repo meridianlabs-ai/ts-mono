@@ -111,7 +111,9 @@ describe("GoToTurnBar", () => {
     document.body.appendChild(host);
     render(<GoToTurnBar totalTurns={8} onJump={() => {}} />);
 
-    (host.shadowRoot!.querySelector("textarea") as HTMLTextAreaElement).focus();
+    const textarea = host.shadowRoot?.querySelector("textarea");
+    expect(textarea).toBeInstanceOf(HTMLTextAreaElement);
+    textarea?.focus();
     fireEvent.keyDown(document, { key: "g", ctrlKey: true });
     expect(screen.queryByRole("textbox")).toBeNull(); // bar stayed closed
     host.remove();

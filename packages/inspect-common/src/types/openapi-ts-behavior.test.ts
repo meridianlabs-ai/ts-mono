@@ -149,9 +149,7 @@ async function classifyField(
   schema: Record<string, unknown>,
   defaultNonNullable: boolean
 ): Promise<"required" | "optional"> {
-  // openapi-typescript's SchemaObject input type requires a `type` key, but
-  // the anyOf-only property schemas exercised here are valid OpenAPI without
-  // one — the document can't be constructed as OpenAPI3, so cast.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- openapi-typescript's SchemaObject input requires a `type` key, but the anyOf-only property schemas under test are valid OpenAPI without one, so the document cannot be constructed as OpenAPI3
   const ast = await openapiTS(schema as unknown as OpenAPI3, {
     ...openapiTSOptions,
     defaultNonNullable,

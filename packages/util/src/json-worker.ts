@@ -20,7 +20,7 @@ interface WorkerParseResponse {
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
-  reject: (error: Error) => void;
+  reject: (error: unknown) => void;
   worker: Worker;
   sourceText?: string;
 }
@@ -76,6 +76,7 @@ class JsonWorkerPool {
       sentinels,
       error,
       stack,
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- worker message boundary: MessageEvent.data is `any` and the payload is only what our own worker posts back
     } = e.data as WorkerParseResponse;
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
@@ -99,7 +100,7 @@ class JsonWorkerPool {
           }
           pending.resolve(parsed);
         } catch (parseError) {
-          pending.reject(parseError as Error);
+          pending.reject(parseError);
         }
       } else {
         pending.resolve(result);
@@ -143,10 +144,12 @@ class JsonWorkerPool {
   async parseBytes(data: Uint8Array): Promise<unknown> {
     // Ensure we own the full buffer before transferring
     const owned =
-      data.byteOffset === 0 && data.byteLength === data.buffer.byteLength
-        ? data
+      data.byteOffset === 0 &&
+      data.byteLength === data.buffer.byteLength &&
+      data.buffer instanceof ArrayBuffer
+        ? new Uint8Array(data.buffer)
         : data.slice();
-    return this.submit({ bytes: owned }, [owned.buffer as ArrayBuffer]);
+    return this.submit({ bytes: owned }, [owned.buffer]);
   }
 
   // Least-loaded dispatch: pure round-robin would queue small requests
@@ -340,11 +343,17 @@ const applyNonFinitePaths = (
   paths: (string | number)[][],
   sentinels: { nan: string; inf: string; ninf: string }
 ): void => {
+  const isRecord = (v: unknown): v is Record<string | number, unknown> =>
+    typeof v === "object" && v !== null;
   for (const path of paths) {
-    let target = root as Record<string | number, unknown>;
+    let target: unknown = root;
     for (let i = 0; i < path.length - 1; i++) {
-      target = target[path[i]!] as Record<string | number, unknown>;
+      if (!isRecord(target)) break;
+      target = target[path[i]!];
     }
+    // paths come from a walk of this same graph, so a miss here means the
+    // document changed underneath us — skip rather than throw.
+    if (!isRecord(target)) continue;
     const leaf = path[path.length - 1]!;
     const value = target[leaf];
     target[leaf] =
@@ -370,6 +379,8 @@ const findSentinelPaths = (
   sentinels: { nan: string; inf: string; ninf: string },
   maxPaths: number
 ): (string | number)[][] | null => {
+  const isRecord = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null;
   type Frame = {
     node: unknown;
     key: string | number | null;
@@ -401,9 +412,9 @@ const findSentinelPaths = (
           stack.push({ node: v, key: i, prev: frame });
         }
       }
-    } else if (node && typeof node === "object") {
+    } else if (isRecord(node)) {
       for (const key of Object.keys(node)) {
-        const v = (node as Record<string, unknown>)[key];
+        const v = node[key];
         if (typeof v === "string" || (v && typeof v === "object")) {
           stack.push({ node: v, key, prev: frame });
         }
@@ -421,6 +432,8 @@ const replaceSentinelsInPlace = (
   root: unknown,
   sentinels: { nan: string; inf: string; ninf: string }
 ): void => {
+  const isRecord = (v: unknown): v is Record<string, unknown> =>
+    typeof v === "object" && v !== null;
   const restore = (v: unknown): unknown =>
     v === sentinels.nan
       ? NaN
@@ -438,11 +451,10 @@ const replaceSentinelsInPlace = (
         if (typeof v === "string") node[i] = restore(v);
         else if (v && typeof v === "object") stack.push(v);
       }
-    } else if (node && typeof node === "object") {
-      const record = node as Record<string, unknown>;
-      for (const key of Object.keys(record)) {
-        const v = record[key];
-        if (typeof v === "string") record[key] = restore(v);
+    } else if (isRecord(node)) {
+      for (const key of Object.keys(node)) {
+        const v = node[key];
+        if (typeof v === "string") node[key] = restore(v);
         else if (v && typeof v === "object") stack.push(v);
       }
     }
@@ -494,7 +506,7 @@ const isDenseGraph = (source: string): boolean => {
 // Fallback for text JSON.parse rejected: try the cheap non-finite repair +
 // native parse first, full JSON5 only for real JSON5 syntax. (A restoring
 // reviver would be ~8x slower than plain parse + walk — see bench/.)
-const parseFallback = <T>(text: string): T => {
+const parseFallback = (text: string): unknown => {
   const nonce = Math.random().toString(36).slice(2);
   const sentinels = {
     nan: `__json5_nan_${nonce}__`,
@@ -519,21 +531,19 @@ const parseFallback = <T>(text: string): T => {
     if (repairedOk) {
       if (typeof plain === "string") {
         // bare non-finite at the root (e.g. jsonParse("NaN"))
-        return (
-          plain === sentinels.nan
-            ? NaN
-            : plain === sentinels.inf
-              ? Infinity
-              : plain === sentinels.ninf
-                ? -Infinity
-                : plain
-        ) as T;
+        return plain === sentinels.nan
+          ? NaN
+          : plain === sentinels.inf
+            ? Infinity
+            : plain === sentinels.ninf
+              ? -Infinity
+              : plain;
       }
       replaceSentinelsInPlace(plain, sentinels);
-      return plain as T;
+      return plain;
     }
   }
-  return JSON5.parse<T>(text);
+  return JSON5.parse<unknown>(text);
 };
 
 const workerPool = new JsonWorkerPool();
@@ -543,11 +553,21 @@ const workerPool = new JsonWorkerPool();
 // string inputs and bytes for byte inputs — close enough for a heuristic.
 const kWorkerMinSize = 50000;
 
+/**
+ * The one unchecked step in this module. Every entry point here names a `T`
+ * the parser cannot verify — the same contract `JSON.parse(text) as T` has,
+ * where the shape is the caller's claim about their own data. Funnelled
+ * through here so no other line in the module has to assert.
+ */
+const asParsed = <T>(value: unknown): T =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- unsound-by-design generic parse API; see above
+  value as T;
+
 export const asyncJsonParse = async <T>(text: string): Promise<T> => {
   if (text.length < kWorkerMinSize) {
     return jsonParse<T>(text);
   } else {
-    return workerPool.parse(text) as Promise<T>;
+    return asParsed<T>(await workerPool.parse(text));
   }
 };
 
@@ -570,16 +590,16 @@ export const asyncJsonParseBytes = async <T>(data: Uint8Array): Promise<T> => {
     const text = new TextDecoder("utf-8").decode(data);
     return jsonParse<T>(text);
   } else {
-    return workerPool.parseBytes(data) as Promise<T>;
+    return asParsed<T>(await workerPool.parseBytes(data));
   }
 };
 
 export const jsonParse = <T>(text: string): T => {
   try {
     // Optimistically, try a regular JSON parse first (this is much faster)
-    return JSON.parse(text) as T;
+    return asParsed<T>(JSON.parse(text));
   } catch {
-    return parseFallback<T>(text);
+    return asParsed<T>(parseFallback(text));
   }
 };
 

@@ -8,7 +8,6 @@ import {
 } from "@tsmono/inspect-components/content";
 import { EmptyPanel } from "@tsmono/react/components";
 
-import { SampleSummary } from "../../../client/api/types";
 import { useEvalDescriptor } from "../../../state/hooks";
 
 import { SampleScores } from "./SampleScores";
@@ -89,10 +88,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
             <div className={clsx("text-size-base", styles.cell)}>{scorer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>{answer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>
-              <SampleScores
-                sample={evalSample as unknown as SampleSummary}
-                scorer={scorer}
-              />
+              <SampleScores scores={evalSample.scores} scorer={scorer} />
             </div>
             <div className={clsx("text-size-base", styles.cell)}>
               <RenderedContent

@@ -171,6 +171,73 @@ export function createModelEvent(options: {
   };
 }
 
+type ScoutEvent = MessagesEventsResponse["events"][number];
+
+type ScoutEventOf<T extends ScoutEvent["event"]> = Extract<
+  ScoutEvent,
+  { event: T }
+>;
+
+/**
+ * Create an AnchorEvent. splice() cuts a parent's stream at the anchor whose
+ * anchor_id matches a branch's branched_from, so branch tests need one in the
+ * parent's direct content.
+ */
+export function createAnchorEvent(options: {
+  anchorId: string;
+  uuid: string;
+  atSec: number;
+  spanId?: string;
+}): ScoutEventOf<"anchor"> {
+  return {
+    event: "anchor",
+    anchor_id: options.anchorId,
+    uuid: options.uuid,
+    timestamp: isoOffset(options.atSec),
+    working_start: options.atSec,
+    span_id: options.spanId ?? null,
+  };
+}
+
+/** Create a SpanBeginEvent. */
+export function createSpanBeginEvent(options: {
+  id: string;
+  name: string;
+  uuid: string;
+  atSec: number;
+  type?: string;
+  spanId?: string;
+}): ScoutEventOf<"span_begin"> {
+  return {
+    event: "span_begin",
+    id: options.id,
+    name: options.name,
+    type: options.type ?? null,
+    parent_id: null,
+    span_id: options.spanId ?? null,
+    uuid: options.uuid,
+    timestamp: isoOffset(options.atSec),
+    working_start: options.atSec,
+  };
+}
+
+/** Create a SpanEndEvent. */
+export function createSpanEndEvent(options: {
+  id: string;
+  uuid: string;
+  atSec: number;
+  spanId?: string;
+}): ScoutEventOf<"span_end"> {
+  return {
+    event: "span_end",
+    id: options.id,
+    span_id: options.spanId ?? null,
+    uuid: options.uuid,
+    timestamp: isoOffset(options.atSec),
+    working_start: options.atSec,
+  };
+}
+
 /** Create a ServerTimelineSpan for use in timeline test data. */
 export function createTimelineSpan(
   overrides: Partial<ServerTimelineSpan> & { id: string; name: string }

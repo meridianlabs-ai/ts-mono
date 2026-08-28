@@ -17,7 +17,6 @@ import {
 import { DisplayModeContext } from "../content/DisplayModeContext";
 
 import { MessageContent } from "./MessageContent";
-import { defaultContext } from "./MessageContents";
 
 type Contents = ComponentProps<typeof MessageContent>["contents"];
 
@@ -58,7 +57,7 @@ const renderMessage = (
       <ComponentIconProvider icons={icons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
           <DisplayModeContext.Provider value={{ displayMode }}>
-            <MessageContent contents={contents} context={defaultContext()} />
+            <MessageContent contents={contents} />
           </DisplayModeContext.Provider>
         </ComponentNavigationProvider>
       </ComponentIconProvider>
@@ -90,6 +89,22 @@ describe("MessageContent evidence fidelity", () => {
     const { container } = renderMessage(text, "raw");
 
     expect(container.querySelector("pre")?.textContent).toBe(text);
+  });
+
+  it("marks the last rendered block as last after text blocks merge", async () => {
+    // Rendered mode collapses consecutive text blocks, so "last" must be
+    // judged against the merged list, not the original contents length.
+    const text = (t: string): ContentText => ({
+      type: "text",
+      text: t,
+      citations: null,
+    });
+    const { container } = renderMessage([text("first"), text("second")]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("second");
+    });
+    expect(container.querySelector(".no-last-para-padding")).not.toBeNull();
   });
 
   it("does not inject citation markers into raw text", () => {

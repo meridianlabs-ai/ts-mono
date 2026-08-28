@@ -162,7 +162,7 @@ describe("FindBand", () => {
       </select>
     );
     const dropdown = screen.getByTestId("dropdown");
-    (dropdown as HTMLSelectElement).focus();
+    dropdown.focus();
 
     fireEvent.keyDown(dropdown, { key: "b" });
 

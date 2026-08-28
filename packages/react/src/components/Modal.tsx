@@ -108,7 +108,10 @@ export const Modal: FC<ModalProps> = ({
   // focused element on close.
   useEffect(() => {
     if (!show || !modalRef.current) return;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
     const modal = modalRef.current;
     // Small delay to ensure web components are ready before focusing.
     const timer = window.setTimeout(() => {

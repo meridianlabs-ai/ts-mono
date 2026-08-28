@@ -7,6 +7,7 @@ import { dirname } from "@tsmono/util";
 
 import { AppConfig } from "../../../types/api-types";
 import { projectOrAppAliasedPath } from "../../server/useAppConfig";
+import { eventValue } from "../../utils/formEvents";
 import {
   getFilenameFromUri,
   hasValidationSetExtension,
@@ -118,7 +119,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   // Close on click outside (check both container and dropdown since dropdown is in portal)
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
+      const target = e.target instanceof Node ? e.target : null;
       const isOutsideContainer =
         containerRef.current && !containerRef.current.contains(target);
       const isOutsideDropdown =
@@ -185,7 +186,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
 
   // Modal handlers
   const handleNameInput = (e: Event) => {
-    setNewSetName((e.target as HTMLInputElement).value);
+    setNewSetName(eventValue(e));
     setValidationError(null);
   };
 

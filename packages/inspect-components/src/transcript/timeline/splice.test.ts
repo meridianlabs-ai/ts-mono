@@ -90,10 +90,9 @@ describe("splice", () => {
       .map((e) => (e as { id: string }).id);
     expect(ids).toEqual(["x#0", "x#0"]);
     // parent_id pointing at the trajectory itself is normalized to ""
-    const begin = out.find((e) => e.event === "span_begin") as {
-      parent_id: string;
-    };
-    expect(begin.parent_id).toBe("");
+    const begin = out.find((e) => e.event === "span_begin");
+    expect(begin?.event).toBe("span_begin");
+    expect(begin && "parent_id" in begin ? begin.parent_id : null).toBe("");
   });
 
   it("nested chain concatenates each ancestor's prefix", () => {

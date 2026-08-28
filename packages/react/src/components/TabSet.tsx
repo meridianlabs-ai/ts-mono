@@ -199,8 +199,8 @@ const flattenChildren = (
   children: ReactNode
 ): ReactElement<TabPanelProps>[] => {
   return Children.toArray(children).flatMap((child) => {
-    if (isValidElement(child)) {
-      const element = child as ReactElement<TabPanelProps>;
+    if (isValidElement<TabPanelProps>(child)) {
+      const element = child;
 
       if (element.type === Fragment) {
         return flattenChildren(element.props.children);

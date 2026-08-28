@@ -7,6 +7,7 @@ import { FC } from "react";
 import { useDropdownPosition } from "@tsmono/react/hooks";
 
 import { ValidationCase } from "../../../types/api-types";
+import { eventValue } from "../../utils/formEvents";
 
 import styles from "./ValidationSetSelector.module.css";
 
@@ -59,8 +60,11 @@ export const ValidationCasePredicateSelector: FC<
       : "eq";
 
   const handleChange = (e: Event) => {
-    const newValue = (e.target as HTMLSelectElement).value as Predicate;
-    onChange(newValue);
+    const selected = eventValue(e);
+    const newValue = PREDICATES.find((p) => p.value === selected)?.value;
+    if (newValue) {
+      onChange(newValue);
+    }
   };
 
   return (

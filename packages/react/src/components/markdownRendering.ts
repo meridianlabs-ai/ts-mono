@@ -17,6 +17,7 @@ let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
 const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
     const loading = import("markdown-it-mathjax3").then(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- untyped dependency: markdown-it-mathjax3 ships no types, so its default export arrives as any
       (m) => m.default as MarkdownItPlugin
     );
     // Reset on rejection so a transient chunk-load failure (network blip,

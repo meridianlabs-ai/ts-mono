@@ -44,7 +44,12 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
   } else {
     return (
       <RenderTool
-        contents={contents as string | object}
+        contents={
+          typeof contents === "string" ||
+          (typeof contents === "object" && contents !== null)
+            ? contents
+            : ""
+        }
         contentType={contentType || ""}
         parentRef={sourceCodeRef}
         className={className}

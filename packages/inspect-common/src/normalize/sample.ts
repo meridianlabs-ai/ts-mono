@@ -84,7 +84,6 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     });
   }
 
-  // Boundary lift (#555): required fields are filled above; remaining
-  // content is wire data TypeScript can't verify.
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return sample as unknown as EvalSample;
 };

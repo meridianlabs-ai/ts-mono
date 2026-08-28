@@ -93,7 +93,8 @@ const getSampleIdentifier = (
 
 export const resultLog = (summary: ScanResultSummary): string | undefined => {
   if (summary.inputType === "transcript") {
-    return summary.transcriptMetadata["log"] as string;
+    const log = summary.transcriptMetadata["log"];
+    return typeof log === "string" ? log : undefined;
   }
   return undefined;
 };

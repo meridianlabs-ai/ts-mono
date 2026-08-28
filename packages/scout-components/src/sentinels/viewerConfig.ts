@@ -42,9 +42,11 @@ const kBuiltinFieldOrder = [
   "metadata",
 ] as const satisfies ReadonlyArray<ScannerResultField["name"]>;
 
-const kBuiltinNames: ReadonlySet<ScannerResultField["name"]> = new Set(
-  kBuiltinFieldOrder
-);
+// Typed over `string` so membership checks double as narrowing input.
+const kBuiltinNames: ReadonlySet<string> = new Set(kBuiltinFieldOrder);
+
+const isBuiltinName = (value: string): value is ScannerResultField["name"] =>
+  kBuiltinNames.has(value);
 
 /** Built-in default order when no scanner pattern matches. */
 export const kDefaultFields: readonly ResolvedField[] = kBuiltinFieldOrder.map(
@@ -223,10 +225,10 @@ function coerceField(
         collapsed: false,
       };
     }
-    if (kBuiltinNames.has(entry as ScannerResultField["name"])) {
+    if (isBuiltinName(entry)) {
       return {
         kind: "builtin",
-        name: entry as ScannerResultField["name"],
+        name: entry,
         collapsed: false,
       };
     }

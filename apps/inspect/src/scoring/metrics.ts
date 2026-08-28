@@ -1,3 +1,5 @@
+import { isRecord } from "@tsmono/util";
+
 import { EvalScores } from "../@types/extraInspect";
 
 import { ResolvedHeadlineMetric } from "./headline";
@@ -38,12 +40,11 @@ const groupMetricModifier: MetricModifier = (metric: MetricSummary) => {
     return undefined;
   }
   const metricRaw = metric.params?.["metric"];
-  if (metricRaw === undefined || typeof metricRaw !== "object") {
+  if (!isRecord(metricRaw)) {
     return undefined;
   }
-  const metricObj = metricRaw as Record<string, unknown>;
-  const name = metricObj["name"] as string;
-  return name;
+  const name = metricRaw["name"];
+  return typeof name === "string" ? name : undefined;
 };
 
 const metricModifiers: MetricModifier[] = [
@@ -104,12 +105,12 @@ const getBaseMetricName = (metric: MetricSummary): string | undefined => {
   if (!metric.params) {
     return undefined;
   }
-  const params = metric.params;
-  const metricObj = params["metric"] as Record<string, unknown> | undefined;
-  if (!metricObj || typeof metricObj !== "object") {
+  const metricObj = metric.params["metric"];
+  if (!isRecord(metricObj)) {
     return undefined;
   }
-  return metricObj["name"] as string;
+  const name = metricObj["name"];
+  return typeof name === "string" ? name : undefined;
 };
 
 const normalizeMetricName = (name: string): string => {

@@ -1,3 +1,5 @@
+import { isRecord } from "@tsmono/util";
+
 export function printCircularReferences(obj: Record<string, unknown>): void {
   const seenObjects = new WeakMap<object, string>();
 
@@ -16,10 +18,8 @@ export function printCircularReferences(obj: Record<string, unknown>): void {
       seenObjects.set(value, path);
 
       // Recursively check all properties
-      for (const key in value) {
-        if (Object.prototype.hasOwnProperty.call(value, key)) {
-          detect((value as Record<string, unknown>)[key], `${path}.${key}`);
-        }
+      for (const [key, entry] of Object.entries(value)) {
+        detect(entry, `${path}.${key}`);
       }
     }
   }
@@ -58,47 +58,42 @@ export function findDifferences(
   }
 
   // --- Arrays --------------------------------------------------------------
-  const isArr1 = Array.isArray(obj1);
-  const isArr2 = Array.isArray(obj2);
-  if (isArr1 || isArr2) {
-    if (isArr1 !== isArr2) {
+  const arr1 = Array.isArray(obj1) ? obj1 : null;
+  const arr2 = Array.isArray(obj2) ? obj2 : null;
+  if (arr1 || arr2) {
+    if (!arr1 || !arr2) {
       return [`${path || "<root>"}: one is an array, the other is not`];
     }
 
     const diff: string[] = [];
-    const maxLen = Math.max(
-      (obj1 as unknown[]).length,
-      (obj2 as unknown[]).length
-    );
+    const maxLen = Math.max(arr1.length, arr2.length);
 
-    if ((obj1 as unknown[]).length !== (obj2 as unknown[]).length) {
+    if (arr1.length !== arr2.length) {
       diff.push(
-        `${path || "<root>"}: array length ${
-          (obj1 as unknown[]).length
-        } vs ${(obj2 as unknown[]).length}`
+        `${path || "<root>"}: array length ${arr1.length} vs ${arr2.length}`
       );
     }
 
     for (let i = 0; i < maxLen; i++) {
-      diff.push(
-        ...findDifferences(
-          (obj1 as unknown[])[i],
-          (obj2 as unknown[])[i],
-          makePath(path, i, true)
-        )
-      );
+      diff.push(...findDifferences(arr1[i], arr2[i], makePath(path, i, true)));
     }
     return diff;
   }
 
   // --- Plain objects -------------------------------------------------------
+  // Both are non-null objects and neither is an array by this point.
+  if (!isRecord(obj1) || !isRecord(obj2)) {
+    return [
+      `${path || "<root>"}: ${JSON.stringify(obj1)} → ${JSON.stringify(obj2)}`,
+    ];
+  }
   const allKeys = new Set([...Object.keys(obj1), ...Object.keys(obj2)]);
 
   const diff: string[] = [];
 
   for (const key of allKeys) {
-    const has1 = Object.prototype.hasOwnProperty.call(obj1, key);
-    const has2 = Object.prototype.hasOwnProperty.call(obj2, key);
+    const has1 = Object.hasOwn(obj1, key);
+    const has2 = Object.hasOwn(obj2, key);
     const newPath = makePath(path, key);
 
     if (!has1) {
@@ -106,13 +101,7 @@ export function findDifferences(
     } else if (!has2) {
       diff.push(`${newPath}: property missing in second object`);
     } else {
-      diff.push(
-        ...findDifferences(
-          (obj1 as Record<string, unknown>)[key],
-          (obj2 as Record<string, unknown>)[key],
-          newPath
-        )
-      );
+      diff.push(...findDifferences(obj1[key], obj2[key], newPath));
     }
   }
 

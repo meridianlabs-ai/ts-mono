@@ -7,7 +7,9 @@ import { delay, http, HttpResponse } from "msw";
 
 import type {
   ChatMessage,
+  ErrorEvent,
   EvalSample,
+  InfoEvent,
   ModelEvent,
   ModelOutput,
 } from "@tsmono/inspect-common/types";
@@ -19,6 +21,14 @@ import {
   createLogDetails,
   createModelOutput,
 } from "./fixtures/test-data";
+
+// The class-flash probe below installs its log on the page's window and reads
+// it back out; declaring it is what lets both sides agree without a cast.
+declare global {
+  interface Window {
+    __headerClassLog?: string[];
+  }
+}
 
 const LOG_FILE = "test-turnnav.json";
 type Events = EvalSample["events"];
@@ -144,18 +154,14 @@ const twoTallTurns: Events = [
 // Several pre-turn info rows: turn 1 must genuinely sit below the detection
 // line at load — a single short row leaves turn 1 already at the top, making
 // "first j from above turn 1 lands on turn 1" chrome-height dependent.
-const infoRows: Events = Array.from(
-  { length: 6 },
-  (_, i) =>
-    ({
-      event: "info",
-      uuid: `pre-info-${i}`,
-      timestamp: "2025-01-15T09:59:00Z",
-      working_start: 0,
-      source: null,
-      data: `Seed instructions line ${i} shown before the first turn.`,
-    }) as unknown as Events[number]
-);
+const infoRows: Events = Array.from({ length: 6 }, (_, i): InfoEvent => ({
+  event: "info",
+  uuid: `pre-info-${i}`,
+  timestamp: "2025-01-15T09:59:00Z",
+  working_start: 0,
+  source: null,
+  data: `Seed instructions line ${i} shown before the first turn.`,
+}));
 const preTurnThenTurns: Events = [...infoRows, ...threeTurns];
 
 const manyTurns: Events = Array.from({ length: 20 }, (_, i) =>
@@ -409,8 +415,7 @@ test.describe("transcript turn navigation", () => {
     //    late-collapse bug.
     await page.addInitScript(() => {
       const log: string[] = [];
-      (window as unknown as { __headerClassLog: string[] }).__headerClassLog =
-        log;
+      window.__headerClassLog = log;
       const cls = (el: Element) => el.getAttribute("class") ?? "";
       const isVariant = (c: string) =>
         c.includes("_layout_") || c.includes("_collapsedMeta_");
@@ -494,7 +499,7 @@ test.describe("transcript turn navigation", () => {
             for (let y = top + 4; y < top + 500; y += 8) {
               const row = document
                 .elementFromPoint(700, y)
-                ?.closest?.('[id^="turn-"]');
+                ?.closest('[id^="turn-"]');
               if (row) return row.id;
             }
             return null;
@@ -507,10 +512,9 @@ test.describe("transcript turn navigation", () => {
     // entered the DOM, and every observed pre-change state during the landing
     // was collapsed too. A single `_layout_` sighting — as an insertion, an
     // attributeOldValue, or a removed node — is the expanded flash.
-    const log = await page.evaluate(
-      () =>
-        (window as unknown as { __headerClassLog: string[] }).__headerClassLog
-    );
+    // Missing entirely (probe never installed) fails the same assertions an
+    // empty log does, so there is nothing extra to narrow here.
+    const log = await page.evaluate(() => window.__headerClassLog ?? []);
     expect(log.shift()).toBe("__observer_installed__");
     // Non-vacuous: the collapsed variant must actually have been observed —
     // an empty log means the class markers drifted, not that nothing flashed.
@@ -933,7 +937,7 @@ test.describe("transcript turn navigation", () => {
     // A sample-level error is a property of the whole sample: the focus view
     // shows a persistent strip on every turn, and the LAST turn's slice keeps
     // the error card itself (the transcript renders it right after that turn).
-    const errorEvent = {
+    const errorEvent: ErrorEvent = {
       event: "error",
       uuid: "sample-err",
       timestamp: "2025-01-15T10:30:00Z",
@@ -943,7 +947,7 @@ test.describe("transcript turn navigation", () => {
         traceback: "Traceback: Something exploded",
         traceback_ansi: "Traceback: Something exploded",
       },
-    } as unknown as Events[number];
+    };
     await openTranscript(page, network, [...manyTurns, errorEvent], {
       eventId: "turn-05",
       sampleError: "Something exploded",

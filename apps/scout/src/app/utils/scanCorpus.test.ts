@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 import { decodeArrowBytes, isRecord } from "@tsmono/util";
 
 import { expandResultsetRows } from "./arrow";
+import { stringColumn } from "./arrowCells";
 import { parseScanResultData, parseScanResultSummaries } from "./arrowHelpers";
 
 const fixturesDir = join(process.cwd(), "src/app/utils/fixtures");
@@ -31,11 +32,18 @@ const loadFixture = async (name: string): Promise<ColumnTable> =>
     decodeArrowBytes(new Uint8Array(readFileSync(join(fixturesDir, name))))
   );
 
-const filterToRow = (table: ColumnTable, identifier: string): ColumnTable =>
-  (table.params({ targetIdentifier: identifier }) as ColumnTable).filter(
+const filterToRow = (table: ColumnTable, identifier: string): ColumnTable => {
+  // params(values) returns the table; the `Params` half of its return type is
+  // the no-argument getter form.
+  const scoped = table.params({ targetIdentifier: identifier });
+  if (!(scoped instanceof ColumnTable)) {
+    throw new Error("arquero params() did not return the table");
+  }
+  return scoped.filter(
     (d: { identifier: string }, $: { targetIdentifier: string }) =>
       d.identifier === $.targetIdentifier
   );
+};
 
 const assertNormalizedEvents = (events: unknown[], context: string) => {
   for (const event of events) {
@@ -118,7 +126,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
     ["legacy-2025-11-object.arrows"],
   ])("%s detail rows", async (name) => {
     const table = await loadFixture(name);
-    const identifiers = table.array("identifier") as string[];
+    const identifiers = stringColumn(table, "identifier");
 
     for (const identifier of identifiers) {
       const context = `${name} ${identifier}`;
@@ -154,7 +162,7 @@ describe("normalization over the real legacy scan-dataframe corpus", () => {
   // legacy-transcript integration test.
   it("parses model/tool scan_events from the object-valued scan", async () => {
     const table = await loadFixture("legacy-2025-11-object.arrows");
-    const identifiers = table.array("identifier") as string[];
+    const identifiers = stringColumn(table, "identifier");
 
     const allEventTypes = new Set<string>();
     for (const identifier of identifiers) {

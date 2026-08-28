@@ -113,7 +113,13 @@ export const createAppSlice = (
   const slice = {
     // State
     app: initialState,
-    capabilities: {} as Capabilities,
+    // Replaced by initializeStore; nothing is available until it runs.
+    capabilities: {
+      downloadFiles: false,
+      downloadLogs: false,
+      webWorkers: false,
+      streamSamples: false,
+    },
 
     // Actions
     appActions: {
@@ -290,6 +296,7 @@ export const createAppSlice = (
       ): T => {
         const state = get();
         const bag = state.app.propertyBags[bagName] || {};
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- unsound-by-design generic accessor: property bags hold unknown, and T is the caller's claim about their own property
         return (key in bag ? bag[key] : defaultValue) as T;
       },
 

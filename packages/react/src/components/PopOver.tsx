@@ -11,6 +11,8 @@ import React, {
 import { createPortal } from "react-dom";
 import { usePopper } from "react-popper";
 
+import { isRecord } from "@tsmono/util";
+
 interface PopOverProps {
   id: string;
   isOpen: boolean;
@@ -106,10 +108,8 @@ export const PopOver: React.FC<PopOverProps> = ({
 
     const handleMouseDown = (event: MouseEvent) => {
       // Only cancel popover on mouse down outside the popover content
-      if (
-        popperRef.current &&
-        !popperRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target instanceof Node ? event.target : null;
+      if (popperRef.current && !popperRef.current.contains(target)) {
         if (hoverTimerRef.current !== null) {
           window.clearTimeout(hoverTimerRef.current);
         }
@@ -129,7 +129,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       let mouseDownOnTrigger = false;
 
       const captureListener = (event: MouseEvent) => {
-        const target = event.target as Node;
+        const target = event.target instanceof Node ? event.target : null;
         mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
         // A click on the trigger element should NOT close via this handler —
         // the trigger's own onClick will toggle the popover. Closing here
@@ -263,13 +263,18 @@ export const PopOver: React.FC<PopOverProps> = ({
       phase: "beforeWrite",
       requires: ["maxSize"],
       fn({ state }) {
-        const data = state.modifiersData.maxSize as
-          { width: number; height: number } | undefined;
-        if (!data) return;
+        const data: unknown = state.modifiersData["maxSize"];
+        if (
+          !isRecord(data) ||
+          typeof data["width"] !== "number" ||
+          typeof data["height"] !== "number"
+        ) {
+          return;
+        }
         state.styles.popper = {
           ...state.styles.popper,
-          maxWidth: `${data.width}px`,
-          maxHeight: `${data.height}px`,
+          maxWidth: `${data["width"]}px`,
+          maxHeight: `${data["height"]}px`,
         };
       },
     }),
@@ -443,7 +448,10 @@ export const PopOver: React.FC<PopOverProps> = ({
     const handlePopoverMouseLeave = (e: MouseEvent) => {
       // Only dismiss if we're actually leaving the popover container
       // Check if the related target is still within the popover
-      if (e.relatedTarget && popperEl.contains(e.relatedTarget as Node)) {
+      if (
+        e.relatedTarget instanceof Node &&
+        popperEl.contains(e.relatedTarget)
+      ) {
         return;
       }
       if (!closeOnMouseLeave) {

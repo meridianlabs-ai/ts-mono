@@ -30,6 +30,7 @@ import { useLoggingNavigate } from "../../../debugging/navigationDebugging";
 import { ApplicationIcons } from "../../../icons";
 import { openRouteInNewTab } from "../../../router/url";
 import type { FilterType } from "../../../state/store";
+import { columnAccessorKey } from "../columnSizing/types";
 import {
   BaseColumnMeta,
   ExtendedColumnDef,
@@ -214,10 +215,7 @@ export function DataGrid<
       return columnOrder;
     }
     // Default to column order from column definitions
-    return columns.map(
-      (col) =>
-        (col.id ?? (col as { accessorKey?: string }).accessorKey) as string
-    );
+    return columns.map((col) => col.id ?? columnAccessorKey(col) ?? "");
   }, [columnOrder, columns]);
 
   // Drag and drop state
@@ -620,7 +618,8 @@ export function DataGrid<
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id} className={styles.headerRow}>
               {headerGroup.headers.map((header) => {
-                const columnDef = header.column.columnDef as TColumn;
+                const columnDef: ExtendedColumnDef<TData, BaseColumnMeta> =
+                  header.column.columnDef;
                 const columnMeta = columnDef.meta;
                 const align = columnMeta?.align;
                 const filterType = columnMeta?.filterType;
@@ -686,7 +685,7 @@ export function DataGrid<
                             )}
                           />
                         ),
-                      }[header.column.getIsSorted() as string] ?? null}
+                      }[header.column.getIsSorted() || "none"] ?? null}
                     </button>
                     {columnMeta?.filterable && filterType ? (
                       <ColumnFilterControl
@@ -746,7 +745,10 @@ export function DataGrid<
                   onClick={(e) => handleRowClick(e, row.id, virtualRow.index)}
                 >
                   {row.getVisibleCells().map((cell) => {
-                    const cellColumnDef = cell.column.columnDef as TColumn;
+                    const cellColumnDef: ExtendedColumnDef<
+                      TData,
+                      BaseColumnMeta
+                    > = cell.column.columnDef;
                     const cellAlign = cellColumnDef.meta?.align;
                     const titleValue = getCellTitleValue(
                       cell.getValue(),

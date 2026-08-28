@@ -18,6 +18,7 @@ const rows: Row[] = [
 ];
 
 const col = (def: Partial<ExtendedColumnDef<Row>>): ExtendedColumnDef<Row> =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately partial: findMatches reads only id/accessorFn, and a full TanStack column def would be noise here
   def as ExtendedColumnDef<Row>;
 
 const taskCol = col({ id: "task", accessorFn: (row: Row) => row.task });
