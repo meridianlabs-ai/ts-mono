@@ -219,7 +219,10 @@ const isFilter = (value: unknown): value is string | string[] =>
 const configField = (
   config: Partial<ProjectConfigInput>,
   key: string
-): unknown => (isRecord(config) ? config[key] : undefined);
+): unknown => {
+  const record: Record<string, unknown> = config;
+  return record[key];
+};
 
 /**
  * Initialize edited config from server config.
@@ -248,24 +251,27 @@ export function initializeEditedConfig(
   };
 }
 
-const kValidationPredicates = [
-  "gt",
-  "gte",
-  "lt",
-  "lte",
-  "eq",
-  "ne",
-  "contains",
-  "startswith",
-  "endswith",
-  "icontains",
-  "iequals",
-] as const;
+type ValidationPredicate = NonNullable<ValidationSetInput["predicate"]>;
 
-type ValidationPredicate = (typeof kValidationPredicates)[number];
+// `satisfies` ties this to the generated union: regenerating the schema with
+// a new or renamed predicate errors here until the map is updated, so valid
+// predicates can't silently start converting to null.
+const kValidationPredicates = {
+  gt: true,
+  gte: true,
+  lt: true,
+  lte: true,
+  eq: true,
+  ne: true,
+  contains: true,
+  startswith: true,
+  endswith: true,
+  icontains: true,
+  iequals: true,
+} satisfies Record<ValidationPredicate, true>;
 
 const isValidationPredicate = (value: unknown): value is ValidationPredicate =>
-  kValidationPredicates.some((predicate) => predicate === value);
+  typeof value === "string" && Object.hasOwn(kValidationPredicates, value);
 
 /**
  * The config the server hands out and the config we PUT back are the same
