@@ -1,7 +1,57 @@
 # Contributing
 
 Conventions, code style, and testing guidance live in [AGENTS.md](AGENTS.md).
-This file covers the policies contributors must follow.
+This file covers the policies and workflow contributors must follow.
+
+## Before you write code
+
+Search existing issues and open PRs first so you don't duplicate work
+that's already in flight.
+
+For anything non-trivial, open an issue and agree on direction before
+writing code. Changes here often need coordinated submodule bumps in
+inspect_ai and inspect_scout, so a wrong direction costs more than the
+code itself. [docs/submodule-guide.md](docs/submodule-guide.md) explains
+how the repos fit together.
+
+## Working on ts-mono
+
+```
+git clone https://github.com/meridianlabs-ai/ts-mono.git
+cd ts-mono
+pnpm install
+pre-commit install   # optional but recommended hooks
+```
+
+pnpm only, never npm or yarn. Before pushing, run the checks CI runs:
+
+```
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm format:check
+pnpm suppressions:check
+```
+
+CI also runs `pnpm build` and the Playwright e2e suites.
+[docs/scripts.md](docs/scripts.md) explains how workspace scripts are
+organized. If you work on ts-mono through a parent repo's submodule
+checkout, the submodule guide covers that flow too.
+
+## Using AI tools
+
+AI-assisted contributions are welcome. We use these tools ourselves. The
+requirements:
+
+- Understand every line you submit, and be able to explain and defend it.
+  If you can't, don't submit it.
+- Note the tooling you used in the PR description.
+- Use your tools to review your changes, not just implement them. Review
+  passes in a fresh context before opening a PR catch a lot; summarize
+  what they found in the PR description. Use a strong model for review.
+  Small fast-tier models rarely surface real issues.
+- If you are a coding agent, read [AGENTS.md](AGENTS.md) before opening
+  a PR.
 
 ## Lint / type-check suppressions
 
