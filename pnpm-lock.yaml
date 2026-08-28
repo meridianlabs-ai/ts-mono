@@ -11,15 +11,11 @@ overrides:
   glob: ^10.5.0
   js-yaml: ^4.3.1
   '@codemirror/state': ^6.5.4
-  lodash: '>=4.17.23'
   seroval: '>=1.4.1'
   seroval-plugins: '>=1.4.1'
   minimatch@3: ^5.1.9
   brace-expansion@2: ^2.1.4
   brace-expansion@5: ^5.0.9
-  '@microsoft/api-extractor': ^7.57.6
-  fast-uri: ^3.1.5
-  immutable: ^5.1.8
   ws: ^8.20.1
   esbuild: ^0.28.2
   '@babel/core': ^7.29.6
@@ -4699,7 +4695,7 @@ packages:
   unplugin-dts@1.0.3:
     resolution: {integrity: sha512-/GR887wfG4r1cWyt1UZsLRuMIjsmEbGkS9yJrz+0dsToHAYUD5CTyP3JMGVLv25j9K0mJcwAVvZno/aTuSUvNg==}
     peerDependencies:
-      '@microsoft/api-extractor': ^7.57.6
+      '@microsoft/api-extractor': '>=7'
       '@rspack/core': ^1
       '@vue/language-core': ^3.1.5
       esbuild: ^0.28.2
@@ -4763,7 +4759,7 @@ packages:
   vite-plugin-dts@5.0.3:
     resolution: {integrity: sha512-gIth6NdCEHWPiiRMCK3N6C8WjvdsrtEQrmsiG8h6Ov+lFP+b07Y+wcs9H0H7n146l0PDTYK4cQN1vgeG1pMdRQ==}
     peerDependencies:
-      '@microsoft/api-extractor': ^7.57.6
+      '@microsoft/api-extractor': '>=7'
       rollup: '>=3'
       vite: '>=3'
     peerDependenciesMeta:
