@@ -537,6 +537,10 @@ const epochOf = (metadata: Record<string, JsonValue>): number | string => {
   return typeof epoch === "number" ? epoch : "Unknown";
 };
 
-/** An array-valued cell, read as untyped entries. */
+/**
+ * An array-valued cell, read as untyped entries. No copy: this runs inside
+ * optimalColumnLayout's reduce over every summary, which recomputes on each
+ * search keystroke.
+ */
 const arrayValues = (value: unknown): unknown[] | undefined =>
-  Array.isArray(value) ? Array.from<unknown>(value) : undefined;
+  Array.isArray(value) ? value : undefined;
