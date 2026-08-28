@@ -21,3 +21,9 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: suppressions-check
+        name: suppressions ledger
+        entry: node scripts/check-suppressions.mjs
+        language: system
+        pass_filenames: false
+        always_run: true
