@@ -24,6 +24,7 @@ import {
   configsEqual,
   deepCopy,
   initializeEditedConfig,
+  mergeInFlightEdits,
 } from "./configUtils";
 import styles from "./ProjectPanel.module.css";
 import { SettingsContent } from "./SettingsContent";
@@ -188,61 +189,27 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   // state as saved: what was persisted can diverge from the editor (e.g.
   // computeConfigToSave pins the required `filter` back to the server's value
   // when the editor cleared it), and the panel must show what actually saved.
-  const applySaved = useCallback((saved: ProjectConfigWithEtag) => {
+  // Fields edited while the save was in flight are layered back on top so
+  // those keystrokes aren't discarded.
+  const applySaved = (
+    saved: ProjectConfigWithEtag,
+    configAtSave: Partial<ProjectConfigInput>
+  ) => {
     setConflictError(false);
     lastSavedEtagRef.current = saved.etag;
     const initialized = initializeEditedConfig(asConfigInput(saved.config));
-    setEditedConfig(initialized);
     setOriginalConfig(deepCopy(initialized));
-  }, []);
+    setEditedConfig((current) =>
+      current ? mergeInFlightEdits(initialized, current, configAtSave) : initialized
+    );
+  };
 
-  const handleSave = useCallback(
-    (force = false) => {
-      if (!data || !editedConfig || !originalConfig) return;
-
-      const updatedConfig = computeConfigToSave(
-        editedConfig,
-        originalConfig,
-        asConfigInput(data.config)
-      );
-
-      mutation.mutate(
-        { config: updatedConfig, etag: force ? null : data.etag },
-        {
-          onSuccess: (responseData) => {
-            applySaved(responseData);
-            // Restore focus after save completes (delay to let React finish rendering)
-            const fieldId = focusedFieldIdRef.current;
-            setTimeout(() => {
-              if (fieldId) {
-                const field = document.getElementById(fieldId);
-                if (field) {
-                  field.focus();
-                }
-              }
-            }, 100);
-          },
-          onError: (err) => {
-            if (err instanceof ApiError && err.status === 412) {
-              setConflictError(true);
-            }
-          },
-        }
-      );
-    },
-    [data, editedConfig, originalConfig, mutation, applySaved]
-  );
-
-  // Keep saveRef updated for keyboard shortcut
-  useEffect(() => {
-    saveRef.current = () => handleSave(false);
-  }, [handleSave]);
-
-  const handleSaveWithFocusRestore = (force = false) => {
+  const handleSave = (force = false) => {
     if (!data || !editedConfig || !originalConfig) return;
 
+    const configAtSave = editedConfig;
     const updatedConfig = computeConfigToSave(
-      editedConfig,
+      configAtSave,
       originalConfig,
       asConfigInput(data.config)
     );
@@ -251,8 +218,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
       { config: updatedConfig, etag: force ? null : data.etag },
       {
         onSuccess: (responseData) => {
-          applySaved(responseData);
-          // Restore focus after the click event fully completes (delay to let React finish rendering)
+          applySaved(responseData, configAtSave);
+          // Restore focus after save completes (delay to let React finish rendering)
           const fieldId = focusedFieldIdRef.current;
           setTimeout(() => {
             if (fieldId) {
@@ -272,14 +239,21 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     );
   };
 
+  // Keep saveRef updated for the keyboard shortcut (latest-ref pattern: no
+  // deps, so the ref tracks the current render's handleSave)
+  useEffect(() => {
+    saveRef.current = () => handleSave(false);
+  });
+
   const handleSaveAndNavigate = () => {
     if (!data || !editedConfig || !originalConfig) {
       blocker.proceed?.();
       return;
     }
 
+    const configAtSave = editedConfig;
     const updatedConfig = computeConfigToSave(
-      editedConfig,
+      configAtSave,
       originalConfig,
       asConfigInput(data.config)
     );
@@ -288,7 +262,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
       { config: updatedConfig, etag: data.etag },
       {
         onSuccess: (responseData) => {
-          applySaved(responseData);
+          applySaved(responseData, configAtSave);
           blocker.proceed?.();
         },
         onError: (err) => {
@@ -324,7 +298,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         <VscodeButton
           disabled={!hasChanges || mutation.isPending}
           onMouseDown={handleSaveMouseDown}
-          onClick={() => handleSaveWithFocusRestore(false)}
+          onClick={() => handleSave(false)}
         >
           {mutation.isPending ? "Saving..." : "Save Changes"}
         </VscodeButton>
@@ -338,7 +312,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
             <VscodeButton secondary onClick={handleReload}>
               Discard My Changes
             </VscodeButton>
-            <VscodeButton onClick={() => handleSaveWithFocusRestore(true)}>
+            <VscodeButton onClick={() => handleSave(true)}>
               Keep My Changes
             </VscodeButton>
           </div>

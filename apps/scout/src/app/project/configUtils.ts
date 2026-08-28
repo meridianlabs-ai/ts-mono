@@ -251,6 +251,34 @@ export function initializeEditedConfig(
   };
 }
 
+/**
+ * The editor state to show after a save round-trip: the persisted config from
+ * the server's response, with any fields the user edited while the save was
+ * in flight (changed relative to the snapshot that was saved) layered back on
+ * top so those keystrokes aren't discarded.
+ */
+export function mergeInFlightEdits(
+  persisted: Partial<ProjectConfigInput>,
+  current: Partial<ProjectConfigInput>,
+  savedSnapshot: Partial<ProjectConfigInput>
+): Partial<ProjectConfigInput> {
+  const merged: Partial<ProjectConfigInput> = { ...persisted };
+  // Widened views for by-name access; writes stay keyed by `current`'s own
+  // keys, so the shape holds.
+  const mergedRecord: Record<string, unknown> = merged;
+  const currentRecord: Record<string, unknown> = current;
+  const snapshotRecord: Record<string, unknown> = savedSnapshot;
+  for (const key of Object.keys(currentRecord)) {
+    const changedSinceSave =
+      JSON.stringify(currentRecord[key]) !==
+      JSON.stringify(snapshotRecord[key]);
+    if (changedSinceSave) {
+      mergedRecord[key] = currentRecord[key];
+    }
+  }
+  return merged;
+}
+
 type ValidationPredicate = NonNullable<ValidationSetInput["predicate"]>;
 
 // `satisfies` ties this to the generated union: regenerating the schema with
