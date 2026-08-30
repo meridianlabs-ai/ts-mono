@@ -8,52 +8,19 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ComponentIconProvider,
-  ComponentIcons,
-} from "@tsmono/react/components";
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
+import { ComponentIconProvider } from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, testIcons } from "@tsmono/react/testing";
 
 import { RecordTree } from "./RecordTree";
-
-const icons: ComponentIcons = {
-  arrowDown: "icon-arrow-down",
-  arrowUp: "icon-arrow-up",
-  chevronDown: "icon-chevron-down",
-  chevronUp: "icon-chevron-up",
-  clearText: "icon-clear-text",
-  close: "icon-close",
-  code: "icon-code",
-  confirm: "icon-confirm",
-  copy: "icon-copy",
-  error: "icon-error",
-  menu: "icon-menu",
-  next: "icon-next",
-  noSamples: "icon-no-samples",
-  play: "icon-play",
-  previous: "icon-previous",
-  toggleRight: "icon-toggle-right",
-};
-
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
 
 const renderTree = (
   record: Record<string, unknown>,
   props?: { copyButton?: boolean; defaultExpandLevel?: number }
 ) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
-      <ComponentIconProvider icons={icons}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
+      <ComponentIconProvider icons={testIcons}>
         <RecordTree id="test-tree" record={record} {...props} />
       </ComponentIconProvider>
     </ComponentStateProvider>

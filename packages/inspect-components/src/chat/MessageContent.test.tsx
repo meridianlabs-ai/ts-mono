@@ -7,12 +7,9 @@ import type { ContentText } from "@tsmono/inspect-common/types";
 import {
   ComponentIconProvider,
   ComponentNavigationProvider,
-  type ComponentIcons,
 } from "@tsmono/react/components";
-import {
-  ComponentStateProvider,
-  type ComponentStateHooks,
-} from "@tsmono/react/state";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, testIcons } from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../content/DisplayModeContext";
 
@@ -20,41 +17,13 @@ import { MessageContent } from "./MessageContent";
 
 type Contents = ComponentProps<typeof MessageContent>["contents"];
 
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
-
-const icons: ComponentIcons = {
-  arrowDown: "icon-arrow-down",
-  arrowUp: "icon-arrow-up",
-  chevronDown: "icon-chevron-down",
-  chevronUp: "icon-chevron-up",
-  clearText: "icon-clear-text",
-  close: "icon-close",
-  code: "icon-code",
-  confirm: "icon-confirm",
-  copy: "icon-copy",
-  error: "icon-error",
-  menu: "icon-menu",
-  next: "icon-next",
-  noSamples: "icon-no-samples",
-  play: "icon-play",
-  previous: "icon-previous",
-  toggleRight: "icon-toggle-right",
-};
-
 const renderMessage = (
   contents: Contents,
   displayMode: "rendered" | "raw" = "rendered"
 ) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
-      <ComponentIconProvider icons={icons}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
+      <ComponentIconProvider icons={testIcons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
           <DisplayModeContext.Provider value={{ displayMode }}>
             <MessageContent contents={contents} />
