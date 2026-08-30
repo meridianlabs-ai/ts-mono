@@ -1,33 +1,13 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import type { ExtendedColumnDef } from "./columnTypes";
 import { DataGrid } from "./DataGrid";
+import type { SimpleRow as Row } from "./testFixtures";
+import { simpleColumns as columns, simpleRows as rows } from "./testFixtures";
 
 // Vitest globals aren't enabled in this app, so RTL's automatic afterEach
 // cleanup never fires. Run it explicitly.
 afterEach(cleanup);
-
-interface Row {
-  id: string;
-  a: string;
-}
-
-const rows: Row[] = [
-  { id: "r1", a: "1a" },
-  { id: "r2", a: "2a" },
-  { id: "r3", a: "3a" },
-];
-
-const columns: ExtendedColumnDef<Row>[] = [
-  {
-    id: "a",
-    header: "A",
-    size: 100,
-    accessorFn: (r: Row) => r.a,
-    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
-  },
-];
 
 // The virtualizer's scrollToIndex bottoms out in scrollElement.scrollTo,
 // which jsdom doesn't implement — stub it and observe call counts. The
