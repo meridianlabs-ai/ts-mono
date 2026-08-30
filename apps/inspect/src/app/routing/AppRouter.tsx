@@ -23,7 +23,6 @@ import { SampleEventView } from "../samples/event/SampleEventView";
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
-import { TasksRouter } from "./TasksRouter";
 import {
   kLogRouteUrlPattern,
   kLogsRoutUrlPattern as kLogsRouteUrlPattern,
@@ -60,7 +59,7 @@ const AppLayout = () => {
   // table (which is oriented around the collection).
   //
   // Focus-mode page (must come before the general sample detail check) —
-  // mirrors the sibling dispatch points (RouteDispatcher / TasksRouter /
+  // mirrors the sibling dispatch points (RouteDispatcher /
   // SamplesRouter), which otherwise never fire here because single-file mode
   // bypasses the Outlet and its child route table.
   const isFocus = sampleId && epoch && sampleTabId === kSampleEventTabId;
@@ -113,7 +112,7 @@ export const AppRouter = createHashRouter(
         },
         {
           path: kTaskRouteUrlPattern,
-          element: <TasksRouter />,
+          element: <RouteDispatcher mode="tasks" />,
         },
         {
           path: "/samples/*",
