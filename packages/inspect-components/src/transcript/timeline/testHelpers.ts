@@ -9,7 +9,10 @@ import {
   testModelEvent,
   testModelOutput,
   testModelUsage,
+  testSpanBeginEvent,
+  testSpanEndEvent,
 } from "@tsmono/inspect-common/testing";
+import type { Event } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan, type Timeline } from "./core";
 import { timelineScenarios } from "./syntheticNodes";
@@ -25,6 +28,52 @@ const BASE = new Date("2025-01-15T10:00:00Z").getTime();
 /** Creates a Date offset from a fixed base time by the given number of seconds. */
 export function ts(offsetSeconds: number): Date {
   return new Date(BASE + offsetSeconds * 1000);
+}
+
+// =============================================================================
+// Raw event builders (for buildTimeline input)
+// =============================================================================
+
+/**
+ * Builders for raw Event sequences fed to buildTimeline: a mutable clock
+ * yielding distinct monotonically increasing timestamps, common event fields,
+ * and span begin/end events. Each call returns an independent clock so test
+ * files stay isolated.
+ */
+export function rawEventBuilders() {
+  let clock = 0;
+  const ts = (): string => {
+    clock += 1;
+    return new Date(Date.UTC(2026, 0, 1, 0, 0, clock)).toISOString();
+  };
+
+  const base = () => ({
+    uuid: null,
+    timestamp: ts(),
+    working_start: 0,
+    pending: false,
+    metadata: null,
+  });
+
+  const spanBegin = (
+    id: string,
+    name: string,
+    type: string | null,
+    parentId: string | null
+  ): Event =>
+    testSpanBeginEvent({
+      ...base(),
+      id,
+      name,
+      type,
+      parent_id: parentId,
+      span_id: null,
+    });
+
+  const spanEnd = (id: string): Event =>
+    testSpanEndEvent({ ...base(), id, span_id: null });
+
+  return { ts, base, spanBegin, spanEnd };
 }
 
 // =============================================================================

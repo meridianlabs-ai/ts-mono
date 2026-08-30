@@ -17,47 +17,14 @@ import {
   testModelOutput,
   testModelUsage,
   testSampleLimitEvent,
-  testSpanBeginEvent,
-  testSpanEndEvent,
   testUserMessage,
 } from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { buildTimeline, TimelineEvent, type TimelineSpan } from "./core";
+import { rawEventBuilders } from "./testHelpers";
 
-let clock = 0;
-function ts(): string {
-  clock += 1;
-  return new Date(Date.UTC(2026, 0, 1, 0, 0, clock)).toISOString();
-}
-
-const base = () => ({
-  uuid: null,
-  timestamp: ts(),
-  working_start: 0,
-  pending: false,
-  metadata: null,
-});
-
-function spanBegin(
-  id: string,
-  name: string,
-  type: string | null,
-  parentId: string | null
-): Event {
-  return testSpanBeginEvent({
-    ...base(),
-    id,
-    name,
-    type,
-    parent_id: parentId,
-    span_id: null,
-  });
-}
-
-function spanEnd(id: string): Event {
-  return testSpanEndEvent({ ...base(), id, span_id: null });
-}
+const { ts, base, spanBegin, spanEnd } = rawEventBuilders();
 
 function modelTurn(spanId: string): Event {
   return testModelEvent({
