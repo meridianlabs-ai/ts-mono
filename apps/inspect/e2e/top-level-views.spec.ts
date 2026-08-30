@@ -7,166 +7,17 @@
  * - Each view renders its expected content
  * - Route prefixes are preserved when navigating into a log and back
  */
-import { http, HttpResponse } from "msw";
-
 import { expect, test } from "./fixtures/app";
-import { pathParam } from "./fixtures/handlers";
 import {
-  createEvalLog,
-  createEvalSample,
-  createLogDetails,
-} from "./fixtures/test-data";
-
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
-const LOG_DIR = "/home/test/logs";
-
-const LOG_FILES = [
-  {
-    name: `${LOG_DIR}/2025-01-15T10-00-00_task-alpha_abc123.eval`,
-    task: "task-alpha",
-    task_id: "task-alpha",
-  },
-  {
-    name: `${LOG_DIR}/2025-01-15T10-05-00_task-beta_def456.eval`,
-    task: "task-beta",
-    task_id: "task-beta",
-  },
-  {
-    name: `${LOG_DIR}/subdir/2025-01-15T10-10-00_task-gamma_ghi789.eval`,
-    task: "task-gamma",
-    task_id: "task-gamma",
-  },
-];
-
-const LOG_HEADERS = LOG_FILES.map((f, i) => ({
-  eval_id: `eval-${i}`,
-  run_id: `run-${i}`,
-  task: f.task,
-  task_id: f.task_id,
-  task_version: 1,
-  model: "claude-sonnet-4-5-20250929",
-  status: "success",
-  started_at: "2025-01-15T10:00:00Z",
-  completed_at: "2025-01-15T10:05:00Z",
-}));
-
-function makeSampleLog(taskName: string) {
-  const sample = createEvalSample({
-    id: 1,
-    epoch: 1,
-    messages: [
-      { role: "user", content: `Input for ${taskName}`, source: "input" },
-      {
-        role: "assistant",
-        content: `Response for ${taskName}`,
-        source: "generate",
-      },
-    ],
-  });
-  return createEvalLog({
-    samples: [sample],
-    eval: { task: taskName, task_id: taskName },
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Shared setup: mock the API so the app boots with our test data
-// ---------------------------------------------------------------------------
-
-function setupHandlers(
-  network: Parameters<Parameters<typeof test>[2]>[0]["network"]
-) {
-  network.use(
-    // Override log-dir to use our test directory
-    http.get("*/api/log-dir", () => {
-      return HttpResponse.json({ log_dir: LOG_DIR });
-    }),
-
-    // Initial log listing (called by get_log_root on boot / navigation)
-    http.get("*/api/logs", () => {
-      return HttpResponse.json({
-        log_dir: LOG_DIR,
-        files: LOG_FILES,
-      });
-    }),
-
-    http.get("*/api/log-files*", () => {
-      return HttpResponse.json({
-        files: LOG_FILES,
-        response_type: "full",
-      });
-    }),
-
-    http.get("*/api/log-headers*", () => {
-      return HttpResponse.json(LOG_HEADERS);
-    }),
-
-    http.get("*/api/logs/:file", ({ params }) => {
-      const file = decodeURIComponent(pathParam(params.file));
-      const match = LOG_FILES.find(
-        (f) => f.name === file || file.endsWith(f.name)
-      );
-      const taskName = match?.task ?? "unknown";
-      return HttpResponse.json(makeSampleLog(taskName));
-    }),
-
-    http.get("*/api/log-details/:file", ({ params }) => {
-      const file = decodeURIComponent(pathParam(params.file));
-      const match = LOG_FILES.find(
-        (f) => f.name === file || file.endsWith(f.name)
-      );
-      const taskName = match?.task ?? "unknown";
-      const evalLog = makeSampleLog(taskName);
-      return HttpResponse.json(createLogDetails(evalLog));
-    }),
-
-    // Log info (size/etag) — requested when opening a specific log.
-    http.get("*/api/log-info/:file", () => {
-      return HttpResponse.json({ size: 0 });
-    })
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
-// Helper to click a segment button by name. Scoped to the navbar so it doesn't
-// collide with the grid's per-column filter funnels (whose aria-labels like
-// "Filter totalSamples" substring-match segment names like "Samples").
-function segmentButton(
-  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
-  name: string
-) {
-  return page.getByRole("navigation").getByRole("button", { name });
-}
-
-// Helper to find a cell in the grid's File Name column
-function gridCell(
-  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
-  text: string
-) {
-  return page.getByRole("gridcell").filter({ hasText: text }).first();
-}
-
-// Find a column header by its exact label text. Matching by accessible name is
-// unreliable because the (always-present) filter funnel button's aria-label
-// bleeds into the header's accessible name; match the header text node instead.
-function columnHeader(
-  page: Parameters<Parameters<typeof test>[2]>[0]["page"],
-  label: string
-) {
-  return page
-    .getByRole("columnheader")
-    .filter({ has: page.getByText(label, { exact: true }) });
-}
+  columnHeader,
+  gridCell,
+  segmentButton,
+  setupLogListHandlers,
+} from "./fixtures/log-list-scenario";
 
 test.describe("Top-level views", () => {
   test("default route shows the Tasks view", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
 
     // The Tasks segment should be visible
@@ -185,7 +36,7 @@ test.describe("Top-level views", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
 
     // Click the Folders segment
@@ -202,7 +53,7 @@ test.describe("Top-level views", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
 
     // Click the Samples segment
@@ -213,7 +64,7 @@ test.describe("Top-level views", () => {
   });
 
   test("can switch between all three views", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
 
     // Start on Tasks (default)
@@ -237,7 +88,7 @@ test.describe("Top-level views", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
 
     // Click on a task to navigate into it
@@ -252,7 +103,7 @@ test.describe("Top-level views", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
 
     // Wait for the grid to load — in Folders mode, file names include timestamps
@@ -270,7 +121,7 @@ test.describe("Top-level views", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
 
     // All three tasks should be visible as flat rows
@@ -285,7 +136,7 @@ test.describe("Top-level views", () => {
   });
 
   test("Folders view groups logs by folder", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
 
     // Should show the subdir folder
@@ -315,7 +166,7 @@ test.describe("Sorting", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
@@ -329,7 +180,7 @@ test.describe("Sorting", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
@@ -350,7 +201,7 @@ test.describe("Filtering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
     await expect(gridCell(page, "task-beta")).toBeVisible();
@@ -383,7 +234,7 @@ test.describe("Keyboard navigation", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
@@ -429,7 +280,7 @@ async function dragResize(
 }
 
 test("resizes a column by dragging its divider", async ({ page, network }) => {
-  setupHandlers(network);
+  setupLogListHandlers(network);
   await page.goto("/");
   const header = page.locator(
     '[role="columnheader"]:has([aria-label="Resize task"])'
@@ -445,7 +296,7 @@ test("keeps a resized width after navigating into a log and back", async ({
   page,
   network,
 }) => {
-  setupHandlers(network);
+  setupLogListHandlers(network);
   await page.goto("/");
   const header = page.locator(
     '[role="columnheader"]:has([aria-label="Resize task"])'
