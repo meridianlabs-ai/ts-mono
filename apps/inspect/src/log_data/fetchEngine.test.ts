@@ -1647,12 +1647,13 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
 // dropped: a pre-change read settling first committed its stale snapshot AND
 // discarded the fresh read's data.
 describe("FetchEngine generation-stamped details ingest (F8)", () => {
-  it("a stale overlapping read settling before the fresh one does not win", async () => {
+  // Arrange the shared race setup: a gated backfill read of x.eval in
+  // flight on slot 1. Read 1 (opened pre-change) sees the running
+  // snapshot; read 2 (however it is opened) sees the finished run.
+  const setupStaleRead = async () => {
     const target = handle("x.eval", 1);
     const fake = createFakeApi({
       gated: true,
-      // Read 1 (the backfill, opened pre-change) sees the running snapshot;
-      // read 2 (the invalidation's fresh re-read) sees the finished run.
       detailsFor: (file, nthCall) =>
         makeDetails(file, nthCall === 1 ? "started" : "success"),
     });
@@ -1669,9 +1670,13 @@ describe("FetchEngine generation-stamped details ingest (F8)", () => {
       persistListing: true,
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    return { engine, fake, sinkCalls };
+  };
+  type F8Ctx = Awaited<ReturnType<typeof setupStaleRead>>;
 
-    // The file changes on the server while that read is in flight — the
-    // invalidation enqueues a fresh re-read, claimed on the second slot.
+  // The file changes on the server while the stale read is in flight — the
+  // invalidation enqueues a fresh re-read, claimed on the second slot.
+  const invalidateWithFreshRead = async ({ engine, fake }: F8Ctx) => {
     await engine.applyListing({
       listing: [handle("x.eval", 2)],
       invalidated: ["x.eval"],
@@ -1679,109 +1684,73 @@ describe("FetchEngine generation-stamped details ingest (F8)", () => {
       persistListing: true,
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+  };
+
+  const writtenDetails = ({ sinkCalls }: F8Ctx) =>
+    sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
+      (acc, batch) => ({ ...acc, ...batch }),
+      {}
+    );
+
+  it("a stale overlapping read settling before the fresh one does not win", async () => {
+    const ctx = await setupStaleRead();
+    await invalidateWithFreshRead(ctx);
 
     // The stale read settles FIRST, then the fresh one.
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
     await tick();
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
 
     // The fresh read's data must be what ends up written — not the stale
     // snapshot, and not nothing (the fresh settle must not be dropped).
     await vi.waitFor(() => {
-      const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
-        (acc, batch) => ({ ...acc, ...batch }),
-        {}
+      expect(writtenDetails(ctx)["x.eval"]).toEqual(
+        makeDetails("x.eval", "success")
       );
-      expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
     });
   });
 
   it("a stale overlapping read settling after the fresh one does not overwrite it", async () => {
-    const target = handle("x.eval", 1);
-    const fake = createFakeApi({
-      gated: true,
-      detailsFor: (file, nthCall) =>
-        makeDetails(file, nthCall === 1 ? "started" : "success"),
-    });
-    const { engine, sinkCalls } = await createEngine(
-      { api: fake.api, database: createFakeDb([listedRow(target)]) },
-      { concurrency: 2 }
-    );
-
-    await engine.applyListing({
-      listing: [target],
-      invalidated: [],
-      deleted: [],
-      persistListing: true,
-    });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    await engine.applyListing({
-      listing: [handle("x.eval", 2)],
-      invalidated: ["x.eval"],
-      deleted: [],
-      persistListing: true,
-    });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    const ctx = await setupStaleRead();
+    await invalidateWithFreshRead(ctx);
 
     // The fresh read settles FIRST this time; the stale one trails.
-    const staleGate = fake.gates.shift();
-    fake.gates.shift()?.resolve();
+    const staleGate = ctx.fake.gates.shift();
+    ctx.fake.gates.shift()?.resolve();
     await vi.waitFor(() => {
-      expect(sinkCalls.writeDetails.some((batch) => "x.eval" in batch)).toBe(
-        true
-      );
+      expect(
+        ctx.sinkCalls.writeDetails.some((batch) => "x.eval" in batch)
+      ).toBe(true);
     });
     staleGate?.resolve();
     await tick();
     await tick();
 
-    const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
-      (acc, batch) => ({ ...acc, ...batch }),
-      {}
+    expect(writtenDetails(ctx)["x.eval"]).toEqual(
+      makeDetails("x.eval", "success")
     );
-    expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
   });
 
   it("a waitered fetch overlapped by an in-flight stale read resolves with the fresh read's data", async () => {
-    const target = handle("x.eval", 1);
-    const fake = createFakeApi({
-      gated: true,
-      detailsFor: (file, nthCall) =>
-        makeDetails(file, nthCall === 1 ? "started" : "success"),
-    });
-    const { engine, sinkCalls } = await createEngine(
-      { api: fake.api, database: createFakeDb([listedRow(target)]) },
-      { concurrency: 2 }
-    );
-
-    // Background backfill read, gated in flight.
-    await engine.applyListing({
-      listing: [target],
-      invalidated: [],
-      deleted: [],
-      persistListing: true,
-    });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    const ctx = await setupStaleRead();
 
     // A user opens the log: a second read on the second slot, waitered.
-    const waited = engine.ensure("x.eval", {
+    const waited = ctx.engine.ensure("x.eval", {
       depth: "detailed",
       priority: "user",
     });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    await vi.waitFor(() => expect(ctx.fake.detailCalls.length).toBe(2));
 
     // The stale backfill read settles first — it must neither resolve the
     // waiter with its snapshot nor strand it; the fresh read settles it.
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
     await tick();
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
     await waited;
 
-    const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
-      (acc, batch) => ({ ...acc, ...batch }),
-      {}
+    expect(writtenDetails(ctx)["x.eval"]).toEqual(
+      makeDetails("x.eval", "success")
     );
-    expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
   });
 });
 
