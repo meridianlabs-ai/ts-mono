@@ -15,6 +15,13 @@ export type {
   SizingStrategyContext,
 } from "./types";
 
+export { useColumnSizing } from "./useColumnSizing";
+export type {
+  ColumnSizingTableState,
+  UseColumnSizingOptions,
+  UseColumnSizingResult,
+} from "./useColumnSizing";
+
 export { defaultStrategy } from "./defaultStrategy";
 export { fitContentStrategy } from "./fitContentStrategy";
 export { getSizingStrategy, sizingStrategies } from "./strategies";
