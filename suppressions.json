@@ -1340,18 +1340,6 @@
       "undescribed": 2
     }
   },
-  "packages/inspect-components/src/transcript/SpanEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/StepEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-components/src/transcript/SubtaskEventView.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
