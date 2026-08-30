@@ -1,3 +1,5 @@
+import { useCallback } from "react";
+
 import { useStore } from "../../../state/store";
 import {
   ColumnSizingTableState,
@@ -28,11 +30,17 @@ export function useColumnSizing(
   );
   const setScansTableState = useStore((state) => state.setScansTableState);
 
-  const setTableState = (
-    updater: (prev: ColumnSizingTableState) => ColumnSizingTableState
-  ) => {
-    setScansTableState((prev) => ({ ...prev, ...updater(prev) }));
-  };
+  // useCallback for identity correctness, not performance: the generic
+  // hook's applyAutoSizing keys on this adapter, and the grids run
+  // applyAutoSizing from effects that depend on it — an unstable adapter
+  // would re-fire those effects (each of which writes to the store) on
+  // every render if the compiler ever bails on this hook.
+  const setTableState = useCallback(
+    (updater: (prev: ColumnSizingTableState) => ColumnSizingTableState) => {
+      setScansTableState((prev) => ({ ...prev, ...updater(prev) }));
+    },
+    [setScansTableState]
+  );
 
   return useColumnSizingGeneric({
     ...options,
