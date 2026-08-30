@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { ChatMessage } from "@tsmono/inspect-common/types";
 import { messagesToStr } from "@tsmono/inspect-components/chat";
+import {
+  kitchenSink,
+  leadingTools,
+  noSystem,
+} from "@tsmono/inspect-components/chat/test-helpers";
 
 import { type Cursor } from "../client/database/listing";
 
@@ -12,45 +17,6 @@ import {
   type SampleMessagesData,
 } from "./messageRows";
 import { windowedMessageRows } from "./messageRowsWindowed";
-
-const kitchenSink: ChatMessage[] = [
-  { role: "system", content: "be helpful" },
-  { role: "user", content: "hi" },
-  {
-    role: "assistant",
-    content: "",
-    tool_calls: [
-      { id: "c-1", function: "bash", arguments: {}, type: "function" },
-      { id: "c-2", function: "python", arguments: {}, type: "function" },
-    ],
-  },
-  { role: "tool", content: "ok", tool_call_id: "c-1" },
-  { role: "tool", content: "ok", tool_call_id: "c-2" },
-  { role: "system", content: "mid-conversation system" },
-  { role: "tool", content: "orphaned by the system fold", tool_call_id: "c-2" },
-  { role: "assistant", content: "done" },
-  { role: "user", content: "more" },
-  {
-    role: "assistant",
-    content: "using a tool",
-    tool_calls: [
-      { id: "c-3", function: "bash", arguments: {}, type: "function" },
-    ],
-  },
-  { role: "tool", content: "ok", tool_call_id: "c-3" },
-  { role: "assistant", content: "bye" },
-];
-
-const leadingTools: ChatMessage[] = [
-  { role: "tool", content: "orphan", tool_call_id: "c-0" },
-  { role: "user", content: "hi" },
-  { role: "assistant", content: "hello" },
-];
-
-const noSystem: ChatMessage[] = [
-  { role: "user", content: "hi" },
-  { role: "assistant", content: "hello" },
-];
 
 const trailingToolRun: ChatMessage[] = [
   { role: "user", content: "go" },

@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./chat": "./src/chat/index.ts",
+    "./chat/test-helpers": "./src/chat/testFixtures.ts",
     "./chat/tools": "./src/chat/tools/tool.ts",
     "./columnFilter": "./src/columnFilter/index.ts",
     "./config": "./src/config/index.ts",
