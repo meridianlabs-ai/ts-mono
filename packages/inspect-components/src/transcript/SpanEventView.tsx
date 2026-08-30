@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import type { SpanBeginEvent } from "@tsmono/inspect-common/types";
+import type { SpanBeginEvent, StepEvent } from "@tsmono/inspect-common/types";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
@@ -9,12 +9,16 @@ import { kSandboxSignalName } from "./transform/fixups";
 import { EventNode, EventPanelCallbacks, EventType } from "./types";
 
 interface SpanEventViewProps {
-  eventNode: EventNode<SpanBeginEvent>;
+  eventNode: EventNode<SpanBeginEvent | StepEvent>;
   childNodes: EventNode<EventType>[];
   className?: string;
   eventCallbacks?: EventPanelCallbacks;
 }
 
+/**
+ * Grouping panel for a span_begin event or its legacy step equivalent,
+ * summarizing the child events it contains.
+ */
 export const SpanEventView: FC<SpanEventViewProps> = ({
   eventNode,
   childNodes,
@@ -22,9 +26,8 @@ export const SpanEventView: FC<SpanEventViewProps> = ({
   eventCallbacks,
 }) => {
   const event = eventNode.event;
-  const descriptor = spanDescriptor(event);
   const title =
-    descriptor.name ||
+    displayName(event) ||
     `${event.type ? event.type + ": " : "Step: "}${event.name}`;
 
   const text = useMemo(() => summarize(childNodes), [childNodes]);
@@ -38,16 +41,40 @@ export const SpanEventView: FC<SpanEventViewProps> = ({
       eventNodeId={eventNode.id}
       muted
       childIds={childIds}
-      className={clsx("transcript-span", className)}
+      className={clsx(
+        event.event === "span_begin" ? "transcript-span" : "transcript-step",
+        className
+      )}
       title={title}
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
       }
       text={text}
-      icon={descriptor.icon}
       eventCallbacks={eventCallbacks}
     />
   );
+};
+
+/**
+ * Friendly title for well-known spans/steps; undefined falls back to the
+ * event's own type/name.
+ */
+const displayName = (event: SpanBeginEvent | StepEvent): string | undefined => {
+  if (event.type === "solver" || event.type === "scorer") {
+    return undefined;
+  }
+  // The sandbox signal lives in span_id for spans, name for legacy steps
+  const isSandbox =
+    event.event === "span_begin"
+      ? event.span_id === kSandboxSignalName
+      : event.name === kSandboxSignalName;
+  if (isSandbox) {
+    return "Sandbox Events";
+  }
+  if (event.name === "init") {
+    return "Init";
+  }
+  return undefined;
 };
 
 const summarize = (children: EventNode[]) => {
@@ -82,35 +109,5 @@ const summarize = (children: EventNode[]) => {
     return "1 event";
   } else {
     return `${children.length} events`;
-  }
-};
-
-const spanDescriptor = (
-  event: SpanBeginEvent
-): { icon?: string; name?: string; endSpace?: boolean } => {
-  const rootStepDescriptor = {
-    endSpace: true,
-  };
-
-  if (event.type === "solver") {
-    return { ...rootStepDescriptor };
-  } else if (event.type === "scorer") {
-    return { ...rootStepDescriptor };
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  } else if (event.event === "span_begin") {
-    if (event.span_id === kSandboxSignalName) {
-      return { ...rootStepDescriptor, name: "Sandbox Events" };
-    } else if (event.name === "init") {
-      return { ...rootStepDescriptor, name: "Init" };
-    } else {
-      return { ...rootStepDescriptor };
-    }
-  } else {
-    switch (event.name) {
-      case "sample_init":
-        return { ...rootStepDescriptor, name: "Sample Init" };
-      default:
-        return { endSpace: false };
-    }
   }
 };

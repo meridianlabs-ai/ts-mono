@@ -26,7 +26,6 @@ import { ScoreEditEventView } from "./ScoreEditEventView";
 import { ScoreEventView } from "./ScoreEventView";
 import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
-import { StepEventView } from "./StepEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
 import { isForkNavData } from "./timeline/timelineEventNodes";
 import { useTimelineRowSelect } from "./TimelineSelectContext";
@@ -202,7 +201,7 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
 
     case "step":
       return (
-        <StepEventView
+        <SpanEventView
           eventNode={eventNodeOf(node, "step")}
           childNodes={node.children}
           className={className}

@@ -157,7 +157,6 @@ export { ScoreEditEventView } from "./ScoreEditEventView";
 export { ScoreEventView } from "./ScoreEventView";
 export { SpanEventView } from "./SpanEventView";
 export { StateEventView } from "./state/StateEventView";
-export { StepEventView } from "./StepEventView";
 export { SubtaskEventView } from "./SubtaskEventView";
 export { ToolEventView } from "./ToolEventView";
 
