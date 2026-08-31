@@ -16,10 +16,15 @@ const logDir =
 const evalLogs = readdirSync(logDir)
   .filter((f) => f.endsWith(".eval"))
   .sort();
-// Prefer the flaky variant (guaranteed tool-error rows); newest first.
+// VERIFY_ACTIVITY_LOG pins an exact filename within VERIFY_LOG_DIR;
+// otherwise prefer the flaky variant (guaranteed tool-error rows), newest
+// first.
 const activityLog =
+  process.env.VERIFY_ACTIVITY_LOG ??
   evalLogs.filter((f) => f.includes("ascii-art-flaky")).pop() ??
   evalLogs.filter((f) => f.includes("ascii-art")).pop();
+// The error-styling proofs need the flaky task's deliberate tool failures.
+const hasToolErrors = activityLog?.includes("flaky") === true;
 
 const sampleUrl = (tab: string) =>
   `/#/logs/${encodeURIComponent(activityLog ?? "")}/samples/sample/${encodeURIComponent("ascii/car")}/1/${tab}`;
@@ -49,14 +54,24 @@ test("activity tab renders bands and history against a real dense log", async ({
     page.getByText("WORKING / WAITING", { exact: true })
   ).toBeVisible();
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
-  // The flaky check_art tool guarantees error rows; scoring guarantees a
-  // score row.
-  await expect(
-    page.getByRole("button", { name: /Errors [1-9]/ })
-  ).toBeVisible();
+  // Scoring guarantees a score row; both fixture tasks terminate on a
+  // sample limit (message or token) → a limit marker ▲ and pill.
   await expect(
     page.getByRole("button", { name: /Scores [1-9]/ })
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Limits [1-9]/ })
+  ).toBeVisible();
+  // Matches both the rail glyph ▲ and its history row — assert the pair.
+  await expect(
+    page.getByRole("button", { name: /Sample hit (message|token) limit/ })
+  ).toHaveCount(2);
+  // The flaky check_art tool additionally guarantees error rows.
+  if (hasToolErrors) {
+    await expect(
+      page.getByRole("button", { name: /Errors [1-9]/ })
+    ).toBeVisible();
+  }
   await shot(page, "sample-activity-default-light.png");
 
   // Opt-in bands via chips.
@@ -72,6 +87,7 @@ test("activity tab renders bands and history against a real dense log", async ({
 test("activity history filters and clicks through to the transcript", async ({
   page,
 }) => {
+  test.skip(!hasToolErrors, "needs the flaky task's deliberate tool errors");
   await page.goto(sampleUrl("activity"));
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
     timeout: 20_000,
