@@ -8,7 +8,13 @@ import { useEventListener } from "./useEventListener";
  *
  * Listens on `mousedown` by default so the dismissal wins over click
  * handlers inside the opening element; pass `"pointerdown"` to also catch
- * touch/pen.
+ * touch/pen. The handler is typed `MouseEvent` either way (an overload
+ * surfacing `PointerEvent` fails strictFunctionTypes variance against the
+ * shared implementation); narrow with `instanceof PointerEvent` to read
+ * pointer fields.
+ *
+ * "Outside" is DOM-tree containment: content rendered through a portal that
+ * is logically inside the popover still counts as an outside press.
  */
 export function useOnClickOutside(
   ref: RefObject<HTMLElement | null>,
