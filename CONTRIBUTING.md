@@ -84,3 +84,11 @@ total only goes down over time.
 Moving or renaming a file is handled the same way: `pnpm suppressions:update`
 moves its ledger entries. The reason-less baseline is tracked per rule
 across the whole repo, so a move never trips the ratchet.
+
+One rule carries a deliberate baseline: `tsmono/no-raw-use-effect` bans raw
+`useEffect`/`useLayoutEffect`, and every call site that predates the rule
+holds a `-- baselined at rule introduction` suppression. Those are migration
+debt, not sign-off precedent — deleting one by converting the effect to a
+named hook from `@tsmono/react/hooks` or to derived state is always welcome,
+and a new raw effect doesn't get a suppression just because the file already
+has some. See "Code Style — Effects" in [AGENTS.md](AGENTS.md).
