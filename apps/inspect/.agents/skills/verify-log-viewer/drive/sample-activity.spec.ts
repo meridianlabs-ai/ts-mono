@@ -95,6 +95,14 @@ test("activity tab renders bands and history against a real dense log", async ({
         .locator("[class*='failedSpan'], [class*='densityFailure']")
         .count()
     ).toBeGreaterThan(0);
+  } else {
+    // Error-free log: no phantom error styling anywhere — the Errors pill
+    // reads 0 (and disables), and no error glyph or failed span renders.
+    await expect(page.getByRole("button", { name: "Errors 0" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /errored/ })).toHaveCount(0);
+    await expect(
+      page.locator("[class*='failedSpan'], [class*='densityFailure']")
+    ).toHaveCount(0);
   }
   await shot(page, "sample-activity-all-bands-light.png");
 });
