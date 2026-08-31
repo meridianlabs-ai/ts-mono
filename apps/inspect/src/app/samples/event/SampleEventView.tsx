@@ -56,6 +56,7 @@ export const SampleEventView: FC = () => {
 
   // Initialize log and sample loading (same pattern as SamplePrintView /
   // LogSampleDetailView) — data then flows through the react-query pipeline.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (logPath && sampleId && epoch) {
       selectLogFile(logPath);
@@ -76,6 +77,7 @@ export const SampleEventView: FC = () => {
   // the user sees — same title as the sample view (SampleDisplay).
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
   }, [evalSpec, sample]);

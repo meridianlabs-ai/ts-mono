@@ -54,6 +54,7 @@ export const TextField: FC<TextFieldProps> = ({
   const [debouncedError, setDebouncedError] = useState<string | null>(null);
   const errorMessage = validate && !disabled ? validate(value ?? null) : null;
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (errorMessage) {
       const timer = setTimeout(() => setDebouncedError(errorMessage), 1000);
@@ -264,6 +265,7 @@ export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
   const [text, setText] = useState(() => objectToKeyValueLines(value));
 
   // Sync local state when value changes externally (e.g., after save)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const currentParsed = parseKeyValueLines(text, allowPath);
     if (isMidEditText(text, currentParsed)) {

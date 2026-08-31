@@ -90,6 +90,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // with the tab bar bottom, avoiding sub-pixel gaps from a hardcoded value.
   const tabsRef = useRef<HTMLUListElement | null>(null);
   const [tabBarHeight, setTabBarHeight] = useState(40);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = tabsRef.current;
     if (!el) return;
@@ -189,6 +190,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   );
 
   // Auto-switch tab based on deep link params
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const targetTab = eventParam
       ? kTranscriptEventsTabId

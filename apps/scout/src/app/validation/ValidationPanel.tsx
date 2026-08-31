@@ -69,6 +69,7 @@ export const ValidationPanel: FC = () => {
   } = useValidationCases(selectedUri ?? skipToken);
 
   // Auto-select first validation set when loaded
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!selectedUri && validationSets && validationSets.length > 0) {
       setSelectedUri(validationSets[0]);

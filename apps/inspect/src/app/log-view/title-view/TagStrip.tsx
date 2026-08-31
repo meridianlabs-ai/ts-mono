@@ -115,6 +115,7 @@ export const TagStrip: FC<TagStripProps> = ({
   // triggers a re-render and the effect re-runs to remeasure, so the
   // loop converges in a handful of re-renders regardless of
   // `tags.length`.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (!enableCollapse || !rowRef.current) return;
     const el = rowRef.current;
@@ -141,6 +142,7 @@ export const TagStrip: FC<TagStripProps> = ({
   // On any real width change, optimistically reset to the full set —
   // a wider row may now fit more chips than the previous trim
   // allowed. The trim effect above will re-converge after the reset.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (!enableCollapse || !rowRef.current) return;
     const el = rowRef.current;

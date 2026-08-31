@@ -86,6 +86,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   };
 
   // Update dropdown position when opening
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (isOpen && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
@@ -99,6 +100,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   }, [isOpen]);
 
   // Close dropdown when trigger resizes to prevent orphaned positioning
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!isOpen || !triggerRef.current) return;
 
@@ -117,6 +119,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   }, [isOpen]);
 
   // Close on click outside (check both container and dropdown since dropdown is in portal)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target instanceof Node ? e.target : null;

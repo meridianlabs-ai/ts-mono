@@ -116,6 +116,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
   // Initialize from URL param or fall back to first available set.
   // URL param always takes precedence when present and valid.
   // Also clears stale store values that don't exist in the current project.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!setsData) return;
 

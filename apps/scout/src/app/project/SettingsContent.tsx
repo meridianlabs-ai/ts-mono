@@ -165,6 +165,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
   );
 
   // Sync local state when config changes externally (e.g., after save)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const configValue = Array.isArray(config.tags)
       ? config.tags.join(", ")

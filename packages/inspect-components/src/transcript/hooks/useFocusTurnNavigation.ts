@@ -179,6 +179,7 @@ export function useFocusTurnNavigation(
   // param round-trips through setParams + a re-render, so back-to-back key
   // handlers in one tick would otherwise miss their own just-armed state.
   const followingRef = useRef(following);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     followingRef.current = following;
   }, [following]);
@@ -319,6 +320,7 @@ export function useFocusTurnNavigation(
   // gated on `running`: the final turn batch and the settled status arrive
   // in the same update, so a running gate would stop one turn short.
   const lastAnchor = anchorIds[anchorIds.length - 1];
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (following && lastAnchor && eventId !== lastAnchor) {
       setParams({ event: lastAnchor });

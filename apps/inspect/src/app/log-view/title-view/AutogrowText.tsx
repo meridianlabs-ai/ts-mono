@@ -27,6 +27,7 @@ export const AutogrowText: FC<AutogrowTextProps> = ({
 }) => {
   const ref = useRef<HTMLTextAreaElement | null>(null);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

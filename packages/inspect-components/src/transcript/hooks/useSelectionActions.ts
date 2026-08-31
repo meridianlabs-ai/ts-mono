@@ -94,6 +94,7 @@ export function useSelectionActions(
   // Branch selections share one effectiveListId (no remount), so the prefix
   // above the clicked navigator is laid out identically — restoring scrollTop
   // keeps it at the same viewport position.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!scrollAnchor) return;
     requestAnimationFrame(() => {

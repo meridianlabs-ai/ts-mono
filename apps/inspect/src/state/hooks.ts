@@ -393,6 +393,7 @@ export const useFilteredSamples = () => {
   // than the memo above: a store write during render makes SampleFilter update
   // while SamplesTab is rendering, and leaves the memo impure — which React
   // Compiler is free to cache, stranding a stale error on the filter input.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (filterError) {
       setFilterError(filterError);
@@ -490,6 +491,7 @@ export const useMessageVisibility = (
 
   // Reset state if the eval changes, but not during initialization
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Skip the first effect run
     if (isFirstRender.current) {
@@ -506,6 +508,7 @@ export const useMessageVisibility = (
     (state) => state.log.selectedSampleHandle
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Skip the first effect run for sample changes too
     if (isFirstRender.current) {
@@ -558,6 +561,7 @@ export const useSamplePopover = (id: string) => {
   }, [clearVisiblePopover]);
 
   // Clear the timeout when component unmounts
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       if (timerRef.current) {

@@ -23,6 +23,7 @@ export const RetryChip: FC<RetryChipProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

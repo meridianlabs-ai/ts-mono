@@ -111,6 +111,7 @@ export const SampleDetailView: FC = () => {
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
   // Cleanup on unmount - clear log state since this is a standalone view
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       clearLog();

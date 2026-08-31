@@ -191,6 +191,7 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
   const selectedScanLocation = useStore((state) => state.selectedScanLocation);
   const userScansDir = useStore((state) => state.userScansDir);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (hasInitializedRouting) {
       return;

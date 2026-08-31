@@ -152,6 +152,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const logDetails = useSelectedLogDetails();
   const evalSpec = logDetails?.eval;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     setDocumentTitle({ evalSpec, sample });
   }, [sample, evalSpec]);
@@ -164,6 +165,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // messages tab when its body settles. (Chunked samples carry an empty
   // shell `events` array but window their transcript separately.)
   const isChunked = sampleData.chunked !== undefined;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (sample !== undefined && sample.events.length < 1 && !isChunked) {
       setSelectedTab(kSampleMessagesTabId);
@@ -183,6 +185,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const removeBagsByPrefix = useStore(
     (state) => state.appActions.removeBagsByPrefix
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Drop the visit's snapshot bags when it ends (identity change or
     // unmount) — the keys are unreachable afterwards, this is only garbage
@@ -226,6 +229,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Reset tab to default when this sample view unmounts
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       clearSampleTab();
@@ -265,6 +269,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const exportMessages = useMessagesExport(sampleData);
 
   // Focus the panel when it loads
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!focusOnLoad) return;
     const id = setTimeout(() => scrollRef.current?.focus(), 10);
@@ -364,6 +369,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   }, [printLogPath, printSampleId, printEpoch, effectiveSelectedTab, prefix]);
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (isVscode() || !printLogPath || !printSampleId || !printEpoch) return;
 

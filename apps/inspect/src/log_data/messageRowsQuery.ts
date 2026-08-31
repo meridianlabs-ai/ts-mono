@@ -144,6 +144,7 @@ export const useMessageRows = (
       (rows?.some((row) => rowContainsMessage(row, targetMessageId)) ?? false),
     [rows, targetMessageId]
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // isError halts the drain: a failed page settles the query with
     // hasNextPage still true, and re-firing fetchNext would retry the same

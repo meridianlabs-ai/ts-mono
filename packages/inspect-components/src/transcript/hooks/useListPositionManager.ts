@@ -35,6 +35,7 @@ export function useListPositionManager(
   const prevSelectedRef = useRef(selected);
   const prevBaseListIdRef = useRef(baseListId);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (
       prevSelectedRef.current === selected &&

@@ -22,6 +22,7 @@ import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnersh
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
 import { useRafThrottle } from "../hooks/useRafThrottle";
+import { useUnmount } from "../hooks/useUnmount";
 
 import type {
   VirtualListHandle,
@@ -158,11 +159,13 @@ export function VirtualList<T>({
   // size/attribute changes. A stale margin self-corrects on the next commit —
   // any scroll of the container re-renders the list via the virtualizer and
   // re-measures here.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(measureScrollMargin);
 
   // A concrete element needs no resolution: getScrollElement consults it
   // directly (the host re-renders us when it changes), so only a ref target
   // gets the observer below.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (externalScrollRef === null) return;
     const sync = (records?: MutationRecord[]) => {
@@ -273,6 +276,7 @@ export function VirtualList<T>({
   // New key: clear per-mount follow ownership BEFORE the seed-write effect
   // below (layout effects run in declaration order) so a stale seed-write
   // marker or user-act flag from the previous sample can't leak across.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     followUserActedRef.current = false;
     followSeedRef.current = null;
@@ -280,6 +284,7 @@ export function VirtualList<T>({
   // Write the seed through to the store (an external system, so this is a
   // permitted effect side-effect) before paint, so the store — the single
   // source of truth the f-follow wrapper reads — is corrected promptly.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (seedActive && storedFollow !== followSeed.value) {
       setFollowOutput(followSeed.value);
@@ -310,6 +315,7 @@ export function VirtualList<T>({
   // under the not-yet-live sample and wrote it through; re-arm here, but only
   // while that stored false is still the seed's OWN provisional write and no
   // explicit user scroll or nav landing has since taken ownership.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (
       live &&
@@ -339,9 +345,11 @@ export function VirtualList<T>({
   const followOutputRef = useRef(followOutput);
   // Mirror BEFORE the finish effect below: effects run in declaration order,
   // so the finish effect always reads the value from its own commit.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     followOutputRef.current = followOutput;
   }, [followOutput]);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scrollToTopOnFinish && !live && prevLive && followOutputRef.current) {
       const el = getScrollElement();
@@ -387,6 +395,7 @@ export function VirtualList<T>({
     }
   });
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = getScrollElement();
     if (!el) return;
@@ -394,6 +403,7 @@ export function VirtualList<T>({
     return () => el.removeEventListener("scroll", handleScroll);
   }, [getScrollElement, handleScroll]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = getScrollElement();
     if (!el) return;
@@ -426,6 +436,7 @@ export function VirtualList<T>({
   }, [getScrollElement, noteUserInteraction]);
 
   const contentTotal = virtualizer.getTotalSize();
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!followOutput || !live) return;
     const el = getScrollElement();
@@ -510,13 +521,10 @@ export function VirtualList<T>({
     },
     [virtualizer, getScrollElement]
   );
-  useEffect(
-    () => () => {
-      cancelAnimationFrame(settleFrameRef.current);
-      cancelAnimationFrame(releaseFrameRef.current);
-    },
-    []
-  );
+  useUnmount(() => {
+    cancelAnimationFrame(settleFrameRef.current);
+    cancelAnimationFrame(releaseFrameRef.current);
+  });
   const lastInitialKeyRef = useRef<string | null>(null);
   // Restore a persisted pixel offset by RE-FORCING it until the virtualizer's
   // re-measure compensation goes quiet. A one-shot write races the remount
@@ -594,6 +602,7 @@ export function VirtualList<T>({
   // every measurement would keep slamming scrollTop to 0 against an
   // imperative deep-link scroll (WebKit loses that rAF race every time).
   const hasResetTopRef = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (
       lastInitialKeyRef.current !== persistenceKey ||
@@ -742,6 +751,7 @@ export function VirtualList<T>({
     }, PERSIST_DEBOUNCE_MS);
   });
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = getScrollElement();
     if (!el) return;
@@ -752,6 +762,7 @@ export function VirtualList<T>({
   // FLUSH (not cancel) a pending debounced save on key change/unmount, with
   // the scroll-time snapshot: cancelling loses a tab-flip inside the debounce
   // window; letting it run would persist the next tab's offset under this key.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(
     () => () => {
       if (persistTimerRef.current) {
@@ -766,20 +777,18 @@ export function VirtualList<T>({
     [recordSnapshot]
   );
 
-  useEffect(
-    () => () => {
-      if (interactTimerRef.current) {
-        clearTimeout(interactTimerRef.current);
-        interactTimerRef.current = null;
-      }
-    },
-    []
-  );
+  useUnmount(() => {
+    if (interactTimerRef.current) {
+      clearTimeout(interactTimerRef.current);
+      interactTimerRef.current = null;
+    }
+  });
 
   const items = virtualizer.getVirtualItems();
   const startIndex = items[0]?.index ?? 0;
   const endIndex = items[items.length - 1]?.index ?? 0;
   const visibleRangeRef = useRef({ startIndex: 0, endIndex: 0 });
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const range = { startIndex, endIndex };
     visibleRangeRef.current = range;
@@ -912,6 +921,7 @@ export function VirtualList<T>({
     [precomputedSearchTexts]
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!findContext) return;
     const u1 = findContext.registerVirtualList(persistenceKey, searchInData);

@@ -107,6 +107,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
   // Ctrl/Cmd+S keyboard shortcut to save
   // Always handle since project panel is the only active UI when visible
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
@@ -137,6 +138,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
   // Initialize config state when data loads
   // Skips re-init if this is our own save (etag matches what we just saved)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!data) return;
 
@@ -243,6 +245,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
   // Keep saveRef updated for the keyboard shortcut (latest-ref pattern: no
   // deps, so the ref tracks the current render's handleSave)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     saveRef.current = () => handleSave(false);
   });

@@ -210,6 +210,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
     [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     focusTimeoutRef.current = window.setTimeout(() => {
       searchBoxRef.current?.focus();
@@ -305,6 +306,7 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
   }, [restoreCursorIfNeeded]);
 
   // Consolidated global keyboard handler
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       // F3: Find next/previous

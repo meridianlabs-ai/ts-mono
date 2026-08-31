@@ -18,6 +18,7 @@ import {
  */
 export const FetchEngineController: FC = () => {
   const config = useAppConfig();
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     activateFetchEngine(config);
     return () => deactivateFetchEngine();

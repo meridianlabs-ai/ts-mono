@@ -49,6 +49,7 @@ export const SamplePrintView: FC = () => {
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
 
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (logPath && sampleId && epoch) {
       selectLogFile(logPath);
@@ -78,6 +79,7 @@ export const SamplePrintView: FC = () => {
   // then triggers print after a settling period.
   const contentRef = useRef<HTMLDivElement>(null);
   const hasPrinted = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!sample || hasPrinted.current || !contentRef.current) return;
 

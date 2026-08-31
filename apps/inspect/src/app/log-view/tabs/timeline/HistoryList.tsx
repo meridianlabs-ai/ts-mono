@@ -141,6 +141,7 @@ export const HistoryList: FC<HistoryListProps> = ({
   // chart don't leave the visible window computed from a stale offset.
   const listRef = useRef<HTMLDivElement | null>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     const scrollEl = scrollRef.current;
     const listEl = listRef.current;
@@ -172,6 +173,7 @@ export const HistoryList: FC<HistoryListProps> = ({
   // ref guards re-scrolls when only the row's position changes (sort flip,
   // filter edit).
   const scrolledKey = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (selectedEventKey === null) {
       scrolledKey.current = null;

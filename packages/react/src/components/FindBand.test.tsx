@@ -27,6 +27,7 @@ const Providers: FC<{ children: ReactNode }> = ({ children }) => (
 const MatchCounter: FC<{ count: number }> = ({ count }) => {
   const { registerMatchCounter } = useExtendedFind();
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(
     () => registerMatchCounter("find-band-test", () => count),
     [count, registerMatchCounter]

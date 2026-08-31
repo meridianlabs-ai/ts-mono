@@ -72,6 +72,7 @@ export const EditableText: FC<EditableTextProps> = ({
   }, [mru, mruMaxItems, currentText, isEditing]);
 
   // Update showMruPopover based on whether we have filtered items and focus state
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // TODO: derive during render instead of mirroring into state via effect
     // eslint-disable-next-line react-hooks/set-state-in-effect

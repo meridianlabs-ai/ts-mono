@@ -270,6 +270,7 @@ export function DataGrid<TRow extends RowData>({
   // without a click first (e.g. returning from a log to the restored
   // selection). Runs once — the log list remounts on scope change via
   // `key`, so a new scope re-focuses too.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (autoFocus) containerRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -507,6 +508,7 @@ export function DataGrid<TRow extends RowData>({
   // first paint uses base sizes until the observer reports in — the AG grid
   // this replaced painted initial widths before fitting too.
   const [containerWidth, setContainerWidth] = useState(0);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = containerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -644,6 +646,7 @@ export function DataGrid<TRow extends RowData>({
   // selection that points at a not-yet-loaded row still scrolls on the tick
   // where the row arrives.
   const scrolledToSelectedRef = useRef<string | undefined>(undefined);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!selectedId) {
       scrolledToSelectedRef.current = undefined;

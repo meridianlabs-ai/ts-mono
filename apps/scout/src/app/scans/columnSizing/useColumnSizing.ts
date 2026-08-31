@@ -81,6 +81,7 @@ export function useColumnSizing({
   });
 
   // Update refs when values change
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     latestRef.current = {
       sizingStrategy,

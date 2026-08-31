@@ -35,6 +35,7 @@ export const EventNavs: FC<EventNavsProps> = ({
   // Re-measure whenever the nav set changes — titles, count, or order all
   // affect the natural single-line width that drives the mode switch and the
   // picker label's natural width.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     const probe = probeRef.current;
     if (!probe) return;

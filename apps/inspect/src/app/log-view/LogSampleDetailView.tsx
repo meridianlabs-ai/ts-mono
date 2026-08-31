@@ -57,6 +57,7 @@ export const LogSampleDetailView: FC = () => {
 
   // Load the log and select the sample when route params change
   // Only run this effect when we have route params (not state fallback)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (routeLogPath && routeSampleId && routeEpoch) {
       selectLogFile(routeLogPath);

@@ -18,6 +18,7 @@ export const useTranscriptDirParams = (): string | undefined => {
     return undefined;
   }, [params.transcriptsDir]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (decodedTranscriptDir) {
       setUserTranscriptsDir(decodedTranscriptDir);

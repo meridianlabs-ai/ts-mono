@@ -70,6 +70,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   setIsOpenRef.current = setIsOpen;
 
   // Setup hover timer and mouse movement detection
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleMouseMove = () => {
       isMouseMovingRef.current = true;
@@ -191,6 +192,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   }, [isOpen, positionEl, hoverDelay]);
 
   // Effect to create portal container when needed
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Only create portal when the popover is open
     if (usePortal && isOpen && shouldShowPopover) {
@@ -383,6 +385,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   // the lint rule can't see that the read drives effect scheduling
   // (hence `exhaustive-deps`). Removing this effect requires the
   // state-backed migration prescribed by #90.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (update && isOpen && shouldShowPopover) {
       const timer = setTimeout(() => {
@@ -404,6 +407,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   // paints) lands the corrected position on the first painted frame. Gated to
   // fire once per open, on the render where popper first hands us a state.
   const didPrePosition = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (!isOpen || !shouldShowPopover) {
       didPrePosition.current = false;
@@ -417,6 +421,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself
   // and use that to block dismissal while hovering over the popover
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Wait for both the popover to be visible AND Popper to have calculated positioning
     if (

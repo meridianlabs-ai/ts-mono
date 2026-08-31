@@ -3,6 +3,7 @@ import { FC, Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
 
 import { PopOver } from "@tsmono/react/components";
+import { useMountEffect } from "@tsmono/react/hooks";
 
 import { getColumnsParam, updateColumnsParam } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
@@ -199,7 +200,7 @@ const useColumnsUrlSync = (filtered: string[], isDefault: boolean) => {
   const skipFirstSyncRef = useRef(true);
 
   // On mount: apply URL columns if present
-  useEffect(() => {
+  useMountEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
@@ -207,11 +208,11 @@ const useColumnsUrlSync = (filtered: string[], isDefault: boolean) => {
     if (urlColumns) {
       setFilteredColumns(urlColumns);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   // On column changes: update URL param (skip first run to avoid overwriting
   // the URL before the store has re-rendered with the URL-sourced columns)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (skipFirstSyncRef.current) {
       skipFirstSyncRef.current = false;
@@ -243,6 +244,7 @@ const InlinePresets: FC<{
   const [saveError, setSaveError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (isSaving && inputRef.current) {
       inputRef.current.focus();

@@ -74,6 +74,7 @@ export const Modal: FC<ModalProps> = ({
   const fallbackTitleId = useId();
 
   // Handle escape, enter, and tab (focus trap) keys.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!show) return;
@@ -106,6 +107,7 @@ export const Modal: FC<ModalProps> = ({
 
   // Move focus into the dialog on open and restore it to the previously
   // focused element on close.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!show || !modalRef.current) return;
     const previouslyFocused =

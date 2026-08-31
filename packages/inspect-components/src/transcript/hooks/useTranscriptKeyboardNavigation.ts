@@ -55,6 +55,7 @@ export function useTranscriptKeyboardNavigation({
 
   // Timestamp of the last lone `g`, for recognizing the `gg` two-stroke.
   const lastGTimeRef = useRef(0);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (disabled) return;

@@ -248,6 +248,7 @@ export const TimelineChart: FC<TimelineChartProps> = ({
     }
     popoverCloseTimer.current = window.setTimeout(() => setPopover(null), 250);
   };
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(
     () => () => {
       if (popoverCloseTimer.current !== null) {

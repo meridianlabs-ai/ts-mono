@@ -137,6 +137,7 @@ export const useWindowMessaging = (): void => {
     (state) => state.setHasInitializedEmbeddedData
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // When the view is restored after unload, the persisted store already
     // contains the correct state — skip re-processing embedded data.
@@ -161,6 +162,7 @@ export const useWindowMessaging = (): void => {
   ]);
 
   // Listen for window messages from vscode
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const onMessage = (e: MessageEvent<unknown>) => {
       if (isAppMessage(e.data)) {

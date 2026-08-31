@@ -174,6 +174,7 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
 
   // materialize the chunks under visible placeholders (idempotent)
   const items = virtualizer.getVirtualItems();
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     for (const item of items) {
       const slot = rows.slotAt(item.index);
@@ -188,6 +189,7 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
   // re-scroll to its corrected row index whenever accounting changes.
   const anchorRef = useRef<number | undefined>(undefined);
   const versionRef = useRef(rows.version);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (rows.version !== versionRef.current) {
       versionRef.current = rows.version;
@@ -198,6 +200,7 @@ export const ChunkedTranscriptPanel: FC<ChunkedTranscriptPanelProps> = ({
       }
     }
   });
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const first = items.find((item) => rows.slotAt(item.index).kind === "row");
     if (first !== undefined) {

@@ -209,6 +209,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   );
 
   // Clean up outline ID on unmount
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       clearTranscriptOutlineId();

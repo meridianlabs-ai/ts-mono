@@ -134,6 +134,7 @@ export const ScannerResultPanel: FC = () => {
     useScansDir(true);
   // Sync URL query param with store state
   const setSelectedScanner = useStore((state) => state.setSelectedScanner);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const scannerParam = getScannerParam(searchParams);
     if (scannerParam) {
@@ -150,6 +151,7 @@ export const ScannerResultPanel: FC = () => {
   const setDisplayedScanResult = useStore(
     (state) => state.setDisplayedScanResult
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scanResultUuid) {
       setSelectedScanResult(scanResultUuid);
@@ -214,6 +216,7 @@ export const ScannerResultPanel: FC = () => {
     () => [kTabIdResult, kTabIdInput, kTabIdInfo, kTabIdJson, kTabIdTranscript],
     []
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Deep-link params take priority — they imply the Result tab
     if (messageParam || eventParam) {

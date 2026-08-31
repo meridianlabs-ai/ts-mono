@@ -40,6 +40,7 @@ export const SampleLoadController: FC = () => {
     (state) => state.sampleActions.setActiveTimelineIndex
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (identity === undefined) {
       return;

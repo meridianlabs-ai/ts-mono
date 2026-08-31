@@ -78,7 +78,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     // No dep array: intentionally re-runs after every render so that changes
     // in children text (e.g. lazily loaded content) are picked up without an
     // additional mechanism.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-run after every render to track subtree text changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps, tsmono/no-raw-use-effect -- intentional: re-run after every render to track subtree text changes
     useEffect(() => {
       if (!findTarget) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React state with DOM subtree text; no external subscription possible

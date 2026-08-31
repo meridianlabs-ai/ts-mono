@@ -51,10 +51,12 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
     });
   }, []);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (open) computePosition();
   }, [open, computePosition]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!open) return;
     const handler = () => computePosition();

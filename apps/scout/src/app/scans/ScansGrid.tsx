@@ -82,6 +82,7 @@ export const ScansGrid: FC<ScansGridProps> = ({
   );
 
   // Update visible count
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     setVisibleScanJobCount(data.length);
   }, [data.length, setVisibleScanJobCount]);
@@ -111,6 +112,7 @@ export const ScansGrid: FC<ScansGridProps> = ({
   const previousVisibleColumnsRef = useRef<typeof visibleColumns | null>(null);
 
   // Auto-size columns on initial load when data is available
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!hasInitializedRef.current && data.length > 0) {
       hasInitializedRef.current = true;
@@ -120,6 +122,7 @@ export const ScansGrid: FC<ScansGridProps> = ({
 
   // Auto-size when visible columns change
   // (applyAutoSizing preserves manually resized columns)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const previousVisibleColumns = previousVisibleColumnsRef.current;
     previousVisibleColumnsRef.current = visibleColumns;

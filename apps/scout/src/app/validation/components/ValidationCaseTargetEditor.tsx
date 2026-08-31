@@ -57,6 +57,7 @@ export const ValidationCaseTargetEditor: FC<
   const [mode, setMode] = useState<TargetMode>(() => getTargetMode(target));
 
   // Notify parent when mode changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     onModeChange?.(mode === "other");
   }, [mode, onModeChange]);
@@ -69,6 +70,7 @@ export const ValidationCaseTargetEditor: FC<
   // Sync mode and customValue when target prop changes externally
   // (e.g., data loads, switching cases/sets, or after our save completes)
   // Skip sync while user is typing to avoid overwriting during debounce
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (isTyping) return;
 

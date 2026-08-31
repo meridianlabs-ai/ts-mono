@@ -42,6 +42,7 @@ export function useSidebarScrollCoupling(
   // Mirror the latest targets so wheel handlers read current sticky offsets.
   // Declared before the effects below so the mirror updates first in a flush.
   const sidebarsRef = useRef(sidebars);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     sidebarsRef.current = sidebars;
   });
@@ -51,6 +52,7 @@ export function useSidebarScrollCoupling(
   const structureKey = sidebars.map((s) => String(s.remountKey)).join("|");
 
   // Synthetic scroll on sidebar mount/unmount, after the DOM has settled.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = mainScrollRef.current;
     if (!el) return;
@@ -60,6 +62,7 @@ export function useSidebarScrollCoupling(
     return () => clearTimeout(timer);
   }, [structureKey, mainScrollRef]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const main = mainScrollRef.current;
     if (!main) return;
