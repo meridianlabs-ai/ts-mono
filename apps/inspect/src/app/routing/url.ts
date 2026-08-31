@@ -261,17 +261,10 @@ export const useLogRouteParams = () => {
 };
 
 /**
- * Hook that parses samples route parameters from the splat route.
- * Handles nested paths properly by parsing the full path after /samples/
- * Also handles sample detail routes: /samples/path/to/file.eval/sample/id/epoch
- *
- * Note: We use location.pathname instead of React Router's decoded params
- * because React Router decodes %2F to /, which breaks parsing of sample IDs
- * that contain slashes (e.g., "ascii/bike" encoded as "ascii%2Fbike").
- */
-/**
  * Parses samples route parameters from the splat path (everything after
- * /samples/). Pure so it can be tested without a router.
+ * /samples/), including sample detail routes
+ * (/samples/path/to/file.eval/sample/id/epoch). Pure so it can be tested
+ * without a router.
  */
 export const parseSamplesRouteParams = (splatPath: string) => {
   const sampleMatch = splatPath.match(
@@ -297,11 +290,17 @@ export const parseSamplesRouteParams = (splatPath: string) => {
   };
 };
 
+/**
+ * Hook that parses samples route parameters from the splat route.
+ *
+ * Note: We use location.pathname instead of React Router's decoded params
+ * because React Router decodes %2F to /, which breaks parsing of sample IDs
+ * that contain slashes (e.g., "ascii/bike" encoded as "ascii%2Fbike").
+ */
 export const useSamplesRouteParams = () => {
   const location = useLocation();
 
   return useMemo(() => {
-    // location.pathname keeps encoding intact
     const samplesMatch = location.pathname.match(/^\/samples\/(.*)$/);
     return parseSamplesRouteParams(samplesMatch?.[1] ?? "");
   }, [location.pathname]);
