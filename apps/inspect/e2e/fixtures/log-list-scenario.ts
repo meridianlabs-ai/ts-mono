@@ -7,6 +7,7 @@ import type { NetworkFixture } from "@msw/playwright";
 import type { Page } from "@playwright/test";
 import { http, HttpResponse } from "msw";
 
+import { expect } from "./app";
 import { pathParam } from "./handlers";
 import { createEvalLog, createEvalSample, createLogDetails } from "./test-data";
 
@@ -102,6 +103,11 @@ export function segmentButton(page: Page, name: string) {
 
 export function gridCell(page: Page, text: string) {
   return page.getByRole("gridcell").filter({ hasText: text }).first();
+}
+
+export async function waitForGrid(page: Page) {
+  await expect(page.getByRole("grid")).toBeVisible();
+  await expect(gridCell(page, "task-alpha")).toBeVisible();
 }
 
 // Find a column header by its exact label text. Matching by accessible name

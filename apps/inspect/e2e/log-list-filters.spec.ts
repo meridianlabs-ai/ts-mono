@@ -27,6 +27,7 @@ import {
   gridCell,
   segmentButton,
   setupLogListHandlers,
+  waitForGrid,
 } from "./fixtures/log-list-scenario";
 
 // Find the "Task" column header (see columnHeader for why not by name).
@@ -53,11 +54,6 @@ async function applyTaskFilter(page: Page, value: string) {
   await page.getByPlaceholder("Filter").fill(value);
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(resetFiltersButton(page)).toBeVisible();
-}
-
-async function waitForGrid(page: Page) {
-  await expect(page.getByRole("grid")).toBeVisible();
-  await expect(gridCell(page, "task-alpha")).toBeVisible();
 }
 
 async function sortByTaskDesc(page: Page) {

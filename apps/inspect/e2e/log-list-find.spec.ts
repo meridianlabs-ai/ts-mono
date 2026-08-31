@@ -8,56 +8,12 @@
  * while a keystroke's query is still in flight.
  */
 import type { Page } from "@playwright/test";
-import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
-
-const LOG_DIR = "/home/test/logs";
-
-const LOG_FILES = [
-  {
-    name: `${LOG_DIR}/2025-01-15T10-00-00_task-alpha_abc123.eval`,
-    task: "task-alpha",
-    task_id: "task-alpha",
-  },
-  {
-    name: `${LOG_DIR}/2025-01-15T10-05-00_task-beta_def456.eval`,
-    task: "task-beta",
-    task_id: "task-beta",
-  },
-  {
-    name: `${LOG_DIR}/2025-01-15T10-10-00_task-gamma_ghi789.eval`,
-    task: "task-gamma",
-    task_id: "task-gamma",
-  },
-];
-
-const LOG_HEADERS = LOG_FILES.map((f, i) => ({
-  eval_id: `eval-${i}`,
-  run_id: `run-${i}`,
-  task: f.task,
-  task_id: f.task_id,
-  task_version: 1,
-  model: "claude-sonnet-4-5-20250929",
-  status: "success",
-  started_at: "2025-01-15T10:00:00Z",
-  completed_at: "2025-01-15T10:05:00Z",
-}));
-
-function setupHandlers(
-  network: Parameters<Parameters<typeof test>[2]>[0]["network"]
-) {
-  network.use(
-    http.get("*/api/log-dir", () => HttpResponse.json({ log_dir: LOG_DIR })),
-    http.get("*/api/logs", () =>
-      HttpResponse.json({ log_dir: LOG_DIR, files: LOG_FILES })
-    ),
-    http.get("*/api/log-files*", () =>
-      HttpResponse.json({ files: LOG_FILES, response_type: "full" })
-    ),
-    http.get("*/api/log-headers*", () => HttpResponse.json(LOG_HEADERS))
-  );
-}
+import {
+  setupLogListHandlers,
+  waitForGrid,
+} from "./fixtures/log-list-scenario";
 
 function findInput(page: Page) {
   return page.getByPlaceholder("Find");
@@ -73,16 +29,9 @@ async function openFindBand(page: Page) {
   await expect(findInput(page)).toBeFocused();
 }
 
-async function waitForGrid(page: Page) {
-  await expect(page.getByRole("grid")).toBeVisible();
-  await expect(
-    page.getByRole("gridcell").filter({ hasText: "task-alpha" }).first()
-  ).toBeVisible();
-}
-
 test.describe("Log-list find band", () => {
   test("finds a unique term and selects its row", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -99,7 +48,7 @@ test.describe("Log-list find band", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -117,7 +66,7 @@ test.describe("Log-list find band", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -135,7 +84,7 @@ test.describe("Log-list find band", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
