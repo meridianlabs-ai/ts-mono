@@ -38,18 +38,19 @@ export function ts(offsetSeconds: number): Date {
  * Builders for raw Event sequences fed to buildTimeline: a mutable clock
  * yielding distinct monotonically increasing timestamps, common event fields,
  * and span begin/end events. Each call returns an independent clock so test
- * files stay isolated.
+ * files stay isolated. Named nextTs (not ts) to avoid shadowing this module's
+ * offset-based ts() when destructured.
  */
 export function rawEventBuilders() {
   let clock = 0;
-  const ts = (): string => {
+  const nextTs = (): string => {
     clock += 1;
     return new Date(Date.UTC(2026, 0, 1, 0, 0, clock)).toISOString();
   };
 
   const base = () => ({
     uuid: null,
-    timestamp: ts(),
+    timestamp: nextTs(),
     working_start: 0,
     pending: false,
     metadata: null,
@@ -73,7 +74,7 @@ export function rawEventBuilders() {
   const spanEnd = (id: string): Event =>
     testSpanEndEvent({ ...base(), id, span_id: null });
 
-  return { ts, base, spanBegin, spanEnd };
+  return { nextTs, base, spanBegin, spanEnd };
 }
 
 // =============================================================================

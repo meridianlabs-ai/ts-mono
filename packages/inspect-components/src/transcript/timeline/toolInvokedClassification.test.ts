@@ -28,7 +28,7 @@ import { buildTimeline, TimelineSpan } from "./core";
 import { computeFlatSwimlaneRows } from "./swimlaneRows";
 import { rawEventBuilders } from "./testHelpers";
 
-const { ts, base, spanBegin, spanEnd } = rawEventBuilders();
+const { nextTs, base, spanBegin, spanEnd } = rawEventBuilders();
 
 function modelTurn(
   spanId: string,
@@ -44,7 +44,7 @@ function modelTurn(
   return testModelEvent({
     ...base(),
     model: "mockllm/model",
-    completed: ts(),
+    completed: nextTs(),
     span_id: spanId,
     input: [
       testSystemMessage({ content: systemPrompt }),
@@ -67,7 +67,7 @@ function dispatchToolEvent(spanId: string): Event {
     ...base(),
     id: "call_1",
     function: "agent",
-    completed: ts(),
+    completed: nextTs(),
     agent: null,
     events: [],
     span_id: spanId,

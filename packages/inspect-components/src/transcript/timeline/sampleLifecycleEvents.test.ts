@@ -24,13 +24,13 @@ import type { Event } from "@tsmono/inspect-common/types";
 import { buildTimeline, TimelineEvent, type TimelineSpan } from "./core";
 import { rawEventBuilders } from "./testHelpers";
 
-const { ts, base, spanBegin, spanEnd } = rawEventBuilders();
+const { nextTs, base, spanBegin, spanEnd } = rawEventBuilders();
 
 function modelTurn(spanId: string): Event {
   return testModelEvent({
     ...base(),
     model: "mockllm/model",
-    completed: ts(),
+    completed: nextTs(),
     span_id: spanId,
     input: [testUserMessage({ content: "go" })],
     output: testModelOutput({

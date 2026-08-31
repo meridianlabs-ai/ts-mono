@@ -41,6 +41,7 @@ import {
   TimelineEvent,
   TimelineSpan,
 } from "./core";
+import { rawEventBuilders } from "./testHelpers";
 
 // =============================================================================
 // Helpers
@@ -700,16 +701,11 @@ describe("utility wrapper ids", () => {
   // deterministic without them. (The JSON fixtures can't express this case —
   // the Python side auto-assigns uuids at parse time.)
   it("assigns unique position-derived ids to uuid-less wrapped events", () => {
-    let clock = 0;
-    const ts = () =>
-      new Date(Date.UTC(2026, 0, 1, 0, 0, ++clock)).toISOString();
+    const { nextTs, base } = rawEventBuilders();
     const warmup = () =>
       testModelEvent({
-        uuid: null,
-        timestamp: ts(),
-        completed: ts(),
-        pending: false,
-        metadata: null,
+        ...base(),
+        completed: nextTs(),
         span_id: "monitor",
         model: "mockllm/model",
         config: { max_tokens: 1 },
@@ -724,23 +720,16 @@ describe("utility wrapper ids", () => {
           usage: testModelUsage({ input_tokens: 5, output_tokens: 1 }),
         }),
       });
-    const spanMeta = () => ({
-      timestamp: ts(),
-      pending: false,
-      metadata: null,
-      uuid: null,
-    });
-
     const timeline = buildTimeline([
       testSpanBeginEvent({
-        ...spanMeta(),
+        ...base(),
         id: "solvers",
         name: "solvers",
         type: "solvers",
         parent_id: null,
       }),
       testSpanBeginEvent({
-        ...spanMeta(),
+        ...base(),
         id: "monitor",
         name: "monitor",
         type: "agent",
@@ -748,8 +737,8 @@ describe("utility wrapper ids", () => {
       }),
       warmup(),
       warmup(),
-      testSpanEndEvent({ ...spanMeta(), id: "monitor" }),
-      testSpanEndEvent({ ...spanMeta(), id: "solvers" }),
+      testSpanEndEvent({ ...base(), id: "monitor" }),
+      testSpanEndEvent({ ...base(), id: "solvers" }),
     ]);
 
     const wrappers = timeline.root.content.filter(
