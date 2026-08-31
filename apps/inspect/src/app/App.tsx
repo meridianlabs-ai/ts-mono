@@ -24,6 +24,7 @@ import {
   ComponentIconProvider,
   ComponentIcons,
 } from "@tsmono/react/components";
+import { useMountEffect } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
@@ -84,10 +85,12 @@ const ThemePreferenceSyncController: FC = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
   // post-paint effect the icon updates a frame before the colors, flashing the
   // old theme. (The old bespoke hook applied synchronously on write.)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SETTINGS_STORAGE_KEY) {
@@ -166,6 +169,7 @@ export const AppContent: FC = () => {
   );
 
   // listen for updateState messages from vscode
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     window.addEventListener("message", onMessage);
     return () => {
@@ -179,6 +183,7 @@ export const AppContent: FC = () => {
   // (`resolveAppConfig`). Ref-guarded: onMessage's identity changes with its
   // reactive inputs, but the startup blob must be dispatched exactly once.
   const embeddedDispatched = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (embeddedDispatched.current) return;
     embeddedDispatched.current = true;
@@ -188,10 +193,10 @@ export const AppContent: FC = () => {
     }
   }, [onMessage]);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const clipboard = new ClipboardJS(".clipboard-button,.copy-button");
     return () => clipboard.destroy();
-  }, []);
+  });
 
   return (
     <>

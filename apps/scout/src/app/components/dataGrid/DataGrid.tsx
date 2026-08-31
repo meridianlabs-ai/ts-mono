@@ -565,11 +565,13 @@ export function DataGrid<
   );
 
   // Check on mount if we need to fetch more
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     checkScrollNearEnd(containerRef.current);
   }, [checkScrollNearEnd]);
 
   // Scroll focused row into view when it changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (focusedRowId && containerRef.current) {
       const focusedIndex = rows.findIndex((r) => r.id === focusedRowId);

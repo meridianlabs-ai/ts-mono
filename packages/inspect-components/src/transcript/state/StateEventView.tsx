@@ -67,6 +67,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (changePreview === undefined && onAutoCollapse) {
       onAutoCollapse(eventNode.id);

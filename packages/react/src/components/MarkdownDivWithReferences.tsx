@@ -116,6 +116,7 @@ export const MarkdownDivWithReferences = forwardRef<
   // dismissed it. Suppress shows for that ref-id until the mouse actually
   // leaves the link (mouseout transition off the link element).
   const suppressedIdRef = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {

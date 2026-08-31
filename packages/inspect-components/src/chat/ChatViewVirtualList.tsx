@@ -130,6 +130,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     // the scroll position, so follow must not auto-arm from a live sample.
     const [navOwned] = useState(() => !!initialMessageId);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       onNativeFindChanged?.(false);
     }, [onNativeFindChanged]);

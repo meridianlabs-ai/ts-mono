@@ -44,6 +44,7 @@ export function useTranscriptCollapse(
   } = options;
 
   const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (eventCount <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;

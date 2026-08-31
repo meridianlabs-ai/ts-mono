@@ -148,6 +148,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   });
 
   const hasOutlineNodes = outlineNodeList.length > 0;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     onHasNodesChange?.(hasOutlineNodes);
   }, [hasOutlineNodes, onHasNodesChange]);
@@ -158,6 +159,7 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   // Set --outline-width on the nearest grid ancestor so the column resizes
   // automatically without each app needing to wire up the CSS variable.
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;

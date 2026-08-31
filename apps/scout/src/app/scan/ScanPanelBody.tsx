@@ -69,6 +69,7 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
   };
 
   // Sync URL tab parameter with store on mount and URL changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam) {

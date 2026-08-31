@@ -462,6 +462,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     });
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const sample =
       sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;

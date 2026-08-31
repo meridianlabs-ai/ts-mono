@@ -94,6 +94,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const sortResults = useStore((state) => state.sortResults);
   const setSortResults = useStore((state) => state.setSortResults);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (selectedFilter === undefined && selectedScan.complete === false) {
       setSelectedFilter(kFilterAllResults);
@@ -109,6 +110,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const activeSort = sortResults ?? kDefaultSort;
 
   // Sync the default to the store so the column header shows the sort indicator.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!sortResults && scannerSummaries.length > 0) {
       setSortResults(kDefaultSort);
@@ -265,6 +267,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     currentIndex >= 0 && currentIndex < filteredSummaries.length - 1;
 
   // Global keydown handler for keyboard shortcuts
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       // Don't handle keyboard events if focus is on an input, textarea, or select element
@@ -329,6 +332,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     setSelectedScanResult,
   ]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Only set if nothing is selected and we have results
     if (
@@ -340,6 +344,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     }
   }, [filteredSummaries, selectedScanResult, setSelectedScanResult]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     setVisibleScannerResults(filteredSummaries);
     setVisibleScannerResultsCount(filteredSummaries.length);
@@ -361,6 +366,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     return undefined;
   }, [selectedScanResult, filteredSummaries]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const id = setTimeout(() => {
       listHandle.current?.scrollToIndex({

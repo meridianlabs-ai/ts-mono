@@ -293,6 +293,7 @@ export const SamplesPanel: FC = () => {
     return v;
   }, [allColumns, columnVisibility]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (samplesPath === previousSamplesPath) return;
     if (previousSamplesPath !== undefined) clearDisplayedSamples();

@@ -122,6 +122,38 @@ caught locally. If you changed code, also run `pnpm test`.
   - Vitest runs uncompiled code (the SWC plugin is vite-only); only e2e
     and the real apps exercise compiled output.
 
+## Code Style — Effects
+
+  **Raw `useEffect`/`useLayoutEffect` is lint-banned**
+  (`tsmono/no-raw-use-effect`). A raw effect makes the reader reconstruct
+  timing, deps, and cleanup to learn what it is for; a hook named for the
+  scenario states it. Instead:
+
+  - **Reach for a named hook from `@tsmono/react/hooks`.** The scenario →
+    hook mapping: DOM events → `useEventListener`; dismiss-on-outside-press
+    → `useOnClickOutside`; timers → `useInterval` / `useTimeout` /
+    `useRafThrottle`; one-time mount setup/teardown → `useMountEffect`;
+    unmount-only cleanup → `useUnmount`; "mirror the latest value into a
+    ref" → `useLatestRef`; element size → `useResizeObserver` /
+    `useElementHeight`; document title → `useDocumentTitle`; debounce →
+    `useDebouncedCallback`; scroll tracking → `useScrollDirection` /
+    `useScrollTrack` / `useStatefulScrollPosition`.
+  - **Most effects shouldn't become a hook at all.** Setting state in
+    response to a prop/state change is the anti-pattern from
+    [react.dev/learn/you-might-not-need-an-effect](https://react.dev/learn/you-might-not-need-an-effect):
+    derive the value during render, reset with a `key`, or move the logic
+    into the event handler. Data fetching belongs in React Query, not an
+    effect.
+  - **The one place raw effects are allowed** is the wrapper
+    implementations themselves, `packages/react/src/hooks/**`. A genuinely
+    new effect scenario gets a new named hook there (with tests), not a
+    suppression at the call site.
+  - Existing call sites were baselined with
+    `eslint-disable-next-line tsmono/no-raw-use-effect -- baselined ...`
+    suppressions. When you touch one, prefer migrating it to a named hook
+    or derived state and deleting the suppression; never copy the
+    suppression pattern into new code.
+
 ## Code Style — Comments                                                       
                                                                                 
   Add comments only for non-obvious decisions:                                  

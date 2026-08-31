@@ -217,6 +217,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
 
   // On open, prefill Author from the server's best-effort identity (git
   // user.name → OS login). Same pattern as EditTagsDialog.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!showing) return;
     let cancelled = false;
@@ -301,6 +302,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   // committed to the DOM; we look it up by `data-meta-key` rather than
   // taking a ref so we don't need to thread a ref handler through
   // every MetaRow.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const pendingFocusKey = pendingFocusKeyRef.current;
     if (pendingFocusKey == null) return;

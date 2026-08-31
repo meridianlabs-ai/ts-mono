@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+
+import { useMountEffect } from "@tsmono/react/hooks";
 
 /** Transient status for copy/download operations */
 export type OperationStatus = "idle" | "success" | "error" | "empty";
@@ -15,7 +17,7 @@ export const useOperationStatus = () => {
   const timeoutRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
-  useEffect(() => {
+  useMountEffect(() => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
@@ -23,7 +25,7 @@ export const useOperationStatus = () => {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, []);
+  });
 
   const setTransientStatus = useCallback((newStatus: OperationStatus) => {
     if (!isMountedRef.current) return;

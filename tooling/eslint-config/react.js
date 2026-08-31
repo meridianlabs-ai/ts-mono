@@ -7,6 +7,55 @@ import tseslint from "typescript-eslint";
 
 import baseConfig from "./base.js";
 
+// Raw effects are banned repo-wide: application code reaches for a hook from
+// @tsmono/react/hooks whose name states the scenario, so a reader gets intent
+// without reconstructing effect timing. The wrappers' own implementations
+// (packages/react/src/hooks/**) are the one sanctioned carve-out — that
+// package's eslint config turns this rule off there. Everything else goes
+// through the suppressions.json ratchet.
+const noRawUseEffect = {
+  meta: {
+    type: "suggestion",
+    docs: {
+      description:
+        "Forbid raw useEffect/useLayoutEffect outside the sanctioned wrapper hooks",
+    },
+    schema: [],
+    messages: {
+      rawEffect:
+        "Raw {{name}} is forbidden. Use a named hook from @tsmono/react/hooks " +
+        "(useMountEffect, useUnmount, useEventListener, useOnClickOutside, " +
+        "useInterval, useTimeout, useLatestRef, useDocumentTitle, " +
+        "useResizeObserver, ...) or restructure per " +
+        "react.dev/learn/you-might-not-need-an-effect.",
+    },
+  },
+  create(context) {
+    const banned = new Set(["useEffect", "useLayoutEffect"]);
+    return {
+      CallExpression(node) {
+        const { callee } = node;
+        const name =
+          callee.type === "Identifier" && banned.has(callee.name)
+            ? callee.name
+            : callee.type === "MemberExpression" &&
+                !callee.computed &&
+                callee.property.type === "Identifier" &&
+                banned.has(callee.property.name)
+              ? callee.property.name
+              : null;
+        if (name) {
+          context.report({
+            node: callee,
+            messageId: "rawEffect",
+            data: { name },
+          });
+        }
+      },
+    };
+  },
+};
+
 export default tseslint.config(
   ...baseConfig,
   {
@@ -18,6 +67,7 @@ export default tseslint.config(
       "react-hooks": reactHooksPlugin,
       "react-refresh": reactRefreshPlugin,
       "jsx-a11y": jsxA11yPlugin,
+      tsmono: { rules: { "no-raw-use-effect": noRawUseEffect } },
     },
     rules: {
       ...reactPlugin.configs.recommended.rules,
@@ -29,6 +79,7 @@ export default tseslint.config(
       // prop, so flagging non-DOM elements is guesswork. Real DOM autoFocus
       // is still an error.
       "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
+      "tsmono/no-raw-use-effect": "error",
     },
     settings: {
       react: {

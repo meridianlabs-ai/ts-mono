@@ -27,5 +27,11 @@ export default tseslint.config(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+  },
+  // The sanctioned carve-out: the named wrapper hooks' own implementations
+  // are the one place raw useEffect/useLayoutEffect is allowed.
+  {
+    files: ["src/hooks/**"],
+    rules: { "tsmono/no-raw-use-effect": "off" },
   }
 );

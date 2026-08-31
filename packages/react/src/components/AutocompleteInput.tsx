@@ -105,6 +105,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   const showDropdown = isOpen && filteredSuggestions.length > 0;
 
   // Update dropdown position when showing
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (showDropdown && containerRef.current) {
       const rect = containerRef.current.getBoundingClientRect();
@@ -118,6 +119,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   }, [showDropdown]);
 
   // Reset highlight when suggestions change (no selection by default)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -125,6 +127,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   }, [filteredSuggestions]);
 
   // Select all text when autoFocus is enabled (show start of text, not end)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (autoFocus && inputRef.current) {
       inputRef.current.select();
@@ -140,6 +143,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   }, [filteredSuggestions.length]);
 
   // Close dropdown when clicking outside
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target instanceof Node ? e.target : null;
@@ -272,6 +276,7 @@ export const AutocompleteInput: FC<AutocompleteInputProps> = ({
   );
 
   // Scroll highlighted item into view
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (listRef.current && showDropdown && highlightedIndex >= 0) {
       // item() is honestly typed `Element | null`, covering an out-of-bounds

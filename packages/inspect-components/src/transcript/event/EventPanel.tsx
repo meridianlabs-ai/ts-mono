@@ -207,6 +207,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   // must survive virtualization unmounting the row (the panel's own selection
   // persists in the property bag the same way).
   const reportFocusTab = turnNav !== undefined;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (reportFocusTab) onFocusTabChange?.(eventNodeId, selectedTabName);
   }, [onFocusTabChange, eventNodeId, selectedTabName, reportFocusTab]);

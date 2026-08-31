@@ -43,6 +43,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
     // every change; the ref comparison relies on immer structural sharing.
     const previousValue = useRef(value);
     const [flashKey, setFlashKey] = useState(0);
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (previousValue.current !== value) {
         previousValue.current = value;

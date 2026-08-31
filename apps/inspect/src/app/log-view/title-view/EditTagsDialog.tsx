@@ -58,6 +58,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   // so the user doesn't have to retype themselves for every edit. The
   // fetch is best-effort — a missing endpoint or empty result simply
   // leaves the field blank.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!showing) return;
     let cancelled = false;

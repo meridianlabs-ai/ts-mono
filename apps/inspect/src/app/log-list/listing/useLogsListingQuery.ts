@@ -233,6 +233,7 @@ export function useLogsListingMatches<TRow>({
   // Same 100ms as the shared FindBand's debounce. The debounced callback
   // always runs the latest closure, so the flush reads the current term.
   const syncMatchTerm = useDebouncedCallback(() => setMatchTerm(term), 100);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     syncMatchTerm();
   }, [term, syncMatchTerm]);

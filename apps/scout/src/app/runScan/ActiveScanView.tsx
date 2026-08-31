@@ -72,6 +72,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   const [now, setNow] = useState(Date.now());
 
   // Update time every second for elapsed/remaining
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);

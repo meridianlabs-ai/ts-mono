@@ -1,5 +1,7 @@
 import { ColumnSizingState, OnChangeFn, RowData } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
+
+import { useLatestRef } from "@tsmono/react/hooks";
 
 import { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
 
@@ -80,26 +82,14 @@ export function useColumnSizing<TData extends RowData>({
   // Track if we're in the middle of an auto-sizing operation
   const isAutoSizingRef = useRef(false);
 
-  // Store latest values in refs for stable callbacks
-  const latestRef = useRef({
+  // Store latest values in a ref for stable callbacks
+  const latestRef = useLatestRef({
     sizingStrategy,
     columns,
     data,
     columnConstraints,
     manuallyResizedSet,
     columnSizing,
-  });
-
-  // Update refs when values change
-  useEffect(() => {
-    latestRef.current = {
-      sizingStrategy,
-      columns,
-      data,
-      columnConstraints,
-      manuallyResizedSet,
-      columnSizing,
-    };
   });
 
   // Handle column sizing changes with min/max enforcement
@@ -197,7 +187,7 @@ export function useColumnSizing<TData extends RowData>({
       throw err;
     }
     isAutoSizingRef.current = false;
-  }, [tableRef, setTableState]);
+  }, [latestRef, tableRef, setTableState]);
 
   // Reset a single column to its auto-calculated size
   const resetColumnSize = useCallback(
@@ -246,7 +236,7 @@ export function useColumnSizing<TData extends RowData>({
       }
       isAutoSizingRef.current = false;
     },
-    [tableRef, setTableState]
+    [latestRef, tableRef, setTableState]
   );
 
   // Reset all column sizing and clear manual resize tracking

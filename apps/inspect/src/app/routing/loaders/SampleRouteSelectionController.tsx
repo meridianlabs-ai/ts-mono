@@ -19,6 +19,7 @@ export const SampleRouteSelectionController: FC = () => {
   } = useSamplesRouteParams();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (routeLogPath && sampleId && epoch) {
       if (selectedLogFile !== routeLogPath) {

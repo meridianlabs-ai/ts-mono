@@ -62,6 +62,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       return sanitizeMarkdown(markdown);
     });
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       // If already cached, apply post-processing and use cached content
       if (cachedHtml) {

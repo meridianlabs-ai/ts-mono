@@ -79,12 +79,14 @@ export const ToolDropdownButton = forwardRef<
       }
     }, [dropdownAlign]);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useLayoutEffect(() => {
       if (!isOpen) return;
       computePosition();
     }, [isOpen, computePosition]);
 
     // Re-compute on resize/scroll so the menu stays anchored to the button.
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!isOpen) return;
       const handler = () => computePosition();
@@ -100,6 +102,7 @@ export const ToolDropdownButton = forwardRef<
     // the menu node itself rather than a wrapper around the trigger.
     const menuRef = useRef<HTMLDivElement | null>(null);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!isOpen) return;
       const handleKeyDown = (e: KeyboardEvent) => {

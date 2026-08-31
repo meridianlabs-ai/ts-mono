@@ -111,6 +111,7 @@ export function useColumnFilter({
   // Sync state when closed OR when switching to a different column while
   // opening. Because closing re-syncs from the applied spec, edits abandoned
   // via click-outside are discarded.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const columnChanged = prevColumnIdRef.current !== columnId;
     prevColumnIdRef.current = columnId;

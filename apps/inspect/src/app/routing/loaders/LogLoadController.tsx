@@ -39,6 +39,7 @@ export const LogLoadController: FC = () => {
   );
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (
       !selectedLogFile ||

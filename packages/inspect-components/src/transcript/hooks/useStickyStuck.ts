@@ -77,6 +77,7 @@ export function useStickyStuck(
   stickyTop: number,
   scrollRef: RefObject<HTMLElement | null> | undefined
 ): void {
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = ref.current;
     const container = scrollRef?.current;

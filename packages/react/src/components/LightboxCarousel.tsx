@@ -50,6 +50,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [setIsOpen]);
 
   // Remove the overlay from the DOM after fade-out completes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!isOpen && showOverlay) {
       const timer = setTimeout(() => {
@@ -68,6 +69,7 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
   }, [setCurrentIndex, currentIndex, slides.length]);
 
   // Keyboard Navigation
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyUp = (e: KeyboardEvent) => {

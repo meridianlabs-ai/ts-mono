@@ -53,6 +53,7 @@ export const ThemeToggle = ({
     onChange(nextEventColors ? `readable-${nextBase}` : nextBase);
   };
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {

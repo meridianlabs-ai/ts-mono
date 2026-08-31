@@ -147,6 +147,7 @@ export function useSamplesView(
   // Seeding writes the resolved view (not just the diff) so eval-author
   // defaults for sort/filter/multiline land in the stored slot the first
   // time we encounter a new column.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!allColumns || !seedDefaultVisibility) return;
     const known = new Set(view.columns.map((c) => c.id));

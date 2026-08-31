@@ -77,6 +77,7 @@ const useThemePreferenceSync = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders.
   // A post-paint effect updates the icon a frame before the colors, flashing
   // the old theme.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
@@ -84,6 +85,7 @@ const useThemePreferenceSync = () => {
   // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
   // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
   // reads the freshly-written value) and pull the new preference into zustand.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SETTINGS_STORAGE_KEY) {

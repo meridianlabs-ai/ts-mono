@@ -101,6 +101,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
   }, [onExit]);
 
   // Esc/f exit focus mode (f mirrors the transcript's enter-focus binding); lane picker claims both keys first, and typing targets are ignored. `f` ignores modifiers so Cmd+F find is intact.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!handleExit) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -126,6 +127,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
   // j/k but the scroll container keeps its previous offset, so a tall turn
   // followed by a shorter one would open mid-scroll. Key on resolvedEventId so
   // a tool/sandbox target resolving to the same turn doesn't jump spuriously.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [nav.resolvedEventId, scrollRef]);

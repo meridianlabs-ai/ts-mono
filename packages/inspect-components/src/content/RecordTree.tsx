@@ -58,6 +58,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
   const [collapsedIds, setCollapsed, clearIds] = useCollapsibleIds(id);
 
   // Clear the collapsed ids when the component unmounts
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       clearIds();

@@ -154,6 +154,7 @@ export function useDeepLinkResolution(
   // clearing is applied; firing the side effect there would override the
   // user's just-expressed selection intent.
   const prevMessageIdRef = useRef<string | null | undefined>(undefined);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (prevMessageIdRef.current === initialMessageId) return;
     // A cross-timeline switch is pending: don't consume the message id yet —
@@ -190,6 +191,7 @@ export function useDeepLinkResolution(
   // so `deepLinkTimelineIndex` drops to -1 and the consumed key blocks any
   // re-switch even if the user navigates timelines manually.
   const prevDeepLinkRef = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (timelines.length <= 1) return;
     const key = initialEventId ?? initialMessageId ?? null;
@@ -228,6 +230,7 @@ export function useDeepLinkResolution(
   }, [initialEventId, showSwimlanes, nodeFeedEvents, timelineData.root]);
 
   const prevEventIdRef = useRef<string | null | undefined>(undefined);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (prevEventIdRef.current === initialEventId) return;
     // A cross-timeline switch is pending: re-evaluate after it lands.
@@ -274,6 +277,7 @@ export function useDeepLinkResolution(
   // lock that stays active while the imperative scroll's retry loop keeps
   // emitting scroll events, so the swimlane doesn't flicker open/closed
   // during the multi-pass settling.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (effectiveInitialEventId) {
       onHeadroomResetAnchor?.(true);

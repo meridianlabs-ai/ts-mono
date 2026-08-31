@@ -70,6 +70,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
 
     useImperativeHandle(ref, () => ({ open: openBar }), [openBar]);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!open) return;
       inputRef.current?.focus();
@@ -84,6 +85,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
     // the host's keybinding service (Ctrl+G = go-to-line there), and only
     // an already-prevented, already-stopped event at the earliest phase
     // page JS can reach reliably keeps the chord in the transcript.
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (disabled) return;
       const onKeyDown = (e: KeyboardEvent) => {
@@ -112,6 +114,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
         window.removeEventListener("keydown", onKeyDown, { capture: true });
     }, [openBar, disabled]);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!open) return;
       const onPointerDown = (e: PointerEvent) => {

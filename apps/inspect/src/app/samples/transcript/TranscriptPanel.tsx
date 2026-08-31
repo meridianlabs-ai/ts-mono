@@ -323,6 +323,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   );
 
   // Sync initial event ID to outline selection for deep-link navigation
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (initialEventId) {
       setSelectedOutlineId(initialEventId);

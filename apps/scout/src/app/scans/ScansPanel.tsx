@@ -67,6 +67,7 @@ export const ScansPanel: FC = () => {
   // Clear both scan-level and scans-level state on mount
   const clearScansState = useStore((state) => state.clearScansState);
   const clearScanState = useStore((state) => state.clearScanState);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     clearScansState();
     clearScanState();
