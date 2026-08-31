@@ -34,7 +34,7 @@
     "esbuild": "^0.28.2",
     "picocolors": "^1.1.1",
     "prettier": "^3.9.6",
-    "turbo": "^2.10.10",
+    "turbo": "^2.10.11",
     "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }
