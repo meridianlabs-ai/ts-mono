@@ -607,7 +607,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   interface DensityColumn {
     model: number;
     tool: number;
-    failed: boolean;
+    /** Failed calls overlapping this column (not a column-hit flag — the
+     *  bin readout takes a max like the model/tool counts). */
+    failed: number;
   }
 
   const renderDenseRow = (
@@ -621,7 +623,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const cols: DensityColumn[] = Array.from({ length: nCols }, () => ({
       model: 0,
       tool: 0,
-      failed: false,
+      failed: 0,
     }));
     for (const s of row.spans) {
       const c0 = Math.max(
@@ -636,7 +638,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         const col = cols[c]!;
         if (s.kind === "model") col.model += 1;
         else col.tool += 1;
-        if (s.failed) col.failed = true;
+        if (s.failed) col.failed += 1;
       }
     }
 
@@ -662,7 +664,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         const col = cols[c]!;
         model = Math.max(model, col.model);
         tool = Math.max(tool, col.tool);
-        if (col.failed) failed += 1;
+        failed = Math.max(failed, col.failed);
       }
       const windowStart = timeAt(binStart);
       const windowEnd = timeAt(binEnd);
@@ -691,7 +693,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           );
         })}
         {cols.map((col, i) =>
-          col.failed ? (
+          col.failed > 0 ? (
             <rect
               key={`fail-${i}`}
               className={styles.densityFailure}

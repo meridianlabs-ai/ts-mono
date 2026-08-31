@@ -26,8 +26,6 @@ import styles from "./SampleActivityPanel.module.css";
 /** Property bag for the Activity tab's durable UI state, keyed per sample. */
 export const kSampleActivityBag = "sample-activity";
 
-export const sampleActivityBandId = (band: string): string => band;
-
 // Stable empty arrays — a fresh identity would re-render every row.
 const kNoKeys: string[] = [];
 const kNoCategories: ActivityCategory[] = [];
@@ -106,7 +104,9 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     setBandOverrides({ ...bandOverrides, [id]: !bandOn(id, fallback) });
   };
 
-  const showWorking = bandOn("working", true);
+  // No working clock (mid-vintage logs) → no working band at all; an
+  // all-zero clock would render the whole run as waiting.
+  const showWorking = bandOn("working", true) && data.hasWorkingSignal;
   const showMarkers = bandOn("markers", true) && data.markers.length > 0;
   const showTokens = bandOn("tokens", true) && data.tokenSeries.length > 0;
   const showContext = bandOn("context", false) && data.contextSeries.length > 0;
@@ -196,11 +196,13 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     <div className={styles.container}>
       <div className={styles.pickerRow}>
         <span className={styles.caption}>Activity</span>
-        <BandChip
-          label="Working / waiting"
-          on={showWorking}
-          onToggle={() => toggleBand("working", true)}
-        />
+        {data.hasWorkingSignal && (
+          <BandChip
+            label="Working / waiting"
+            on={showWorking}
+            onToggle={() => toggleBand("working", true)}
+          />
+        )}
         {data.markers.length > 0 && (
           <BandChip
             label="Markers"
@@ -229,9 +231,11 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
             onToggle={() => toggleBand("modelTool", false)}
           />
         )}
-        <span className={styles.legend}>
-          <span className={styles.legendSwatch} /> working · gap = waiting
-        </span>
+        {data.hasWorkingSignal && (
+          <span className={styles.legend}>
+            <span className={styles.legendSwatch} /> working · gap = waiting
+          </span>
+        )}
       </div>
       <ActivityChart
         data={data}

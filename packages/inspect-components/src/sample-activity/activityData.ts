@@ -5,6 +5,11 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
 
+// Direct file imports keep this module React-free (the usage barrel pulls
+// in component modules).
+import { fmtCompactDuration } from "../usage/timeFormat";
+import { usageTotal } from "../usage/tokenTotals";
+
 /** Epoch seconds; same convention as the task timeline. */
 export interface TimeWindow {
   start: number;
@@ -190,23 +195,17 @@ export interface ActivityData {
   rows: ActivityHistoryRow[];
   /** Any open-ended span (running sample). */
   pending: boolean;
+  /** False for mid-vintage logs whose events carry timestamps but no real
+   *  working clock (normalizer-filled working_start 0, no working_time) —
+   *  the working/waiting band would read as all-waiting, so it hides. */
+  hasWorkingSignal: boolean;
 }
 
 // ── formatting (handoff style: "2m 15s", "183k") ─────────────────────────
 
-export const fmtDurationWords = (seconds: number): string => {
-  if (!Number.isFinite(seconds) || seconds < 0) return "—";
-  const t = Math.round(seconds);
-  if (t < 60) return `${t}s`;
-  if (t < 3600) {
-    const m = Math.floor(t / 60);
-    const s = t % 60;
-    return s > 0 ? `${m}m ${s}s` : `${m}m`;
-  }
-  const h = Math.floor(t / 3600);
-  const m = Math.floor((t % 3600) / 60);
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
-};
+/** fmtCompactDuration with a guard: negative/NaN input is corrupt data. */
+export const fmtDurationWords = (seconds: number): string =>
+  !Number.isFinite(seconds) || seconds < 0 ? "—" : fmtCompactDuration(seconds);
 
 export const fmtTime = (sec: number): string =>
   new Date(sec * 1000).toLocaleTimeString(undefined, {
@@ -276,23 +275,23 @@ const scoreText = (score: ScoreEvent["score"]): string => {
   return String(value);
 };
 
-/** Input-side tokens for one model call (context occupancy). */
+/** Input-side tokens for one model call (context occupancy): the shared
+ *  total minus the output side. Summing input + cache categories directly
+ *  would double-count on providers whose input_tokens already includes
+ *  cached reads (OpenAI) — deriving from usageTotal keeps this surface
+ *  consistent with the Usage tab. */
 const inputSideTokens = (event: ModelEvent): number | undefined => {
   const usage = event.output.usage;
   if (!usage) return undefined;
-  return (
-    usage.input_tokens +
-    (usage.input_tokens_cache_read ?? 0) +
-    (usage.input_tokens_cache_write ?? 0)
-  );
+  return Math.max(0, usageTotal(usage) - usage.output_tokens);
 };
 
-/** All tokens for one model call — the burn curve's increment. */
+/** All tokens for one model call — the burn curve's increment. Shares
+ *  usageTotal with the Usage tab so the two surfaces always agree. */
 const allTokens = (event: ModelEvent): number | undefined => {
   const usage = event.output.usage;
   if (!usage) return undefined;
-  const input = inputSideTokens(event) ?? 0;
-  return input + usage.output_tokens;
+  return usageTotal(usage);
 };
 
 export interface ActivityInputs {
@@ -320,7 +319,11 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   const { events, running = false } = inputs;
 
   const checkpoints: Checkpoint[] = [];
-  const tokenSeries: StepPoint[] = [];
+  /** Raw per-call burns — sorted by time then accumulated AFTER the pass:
+   *  overlapping calls (parallel subagents, concurrent scorers) complete
+   *  out of event order, and the step path/hover both consume the series
+   *  as time-ordered. */
+  const tokenPoints: { time: number; burned: number }[] = [];
   const contextSeries: ContextPoint[] = [];
   const compactions: CompactionDrop[] = [];
   const markers: ActivityMarker[] = [];
@@ -337,10 +340,17 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
 
   let minTime = Infinity;
   let maxTime = -Infinity;
-  let cumulativeTokens = 0;
   let contextPeak = 0;
   let lastContext = 0;
   let pending = false;
+  // Mid-vintage logs carry timestamps but predate working_start/working_time
+  // (the normalizer fills working_start with 0) — without a real working
+  // signal the working/waiting band would render the whole run as waiting.
+  const hasWorkingSignal = events.some(
+    (event) =>
+      ("working_time" in event && typeof event.working_time === "number") ||
+      event.working_start > 0
+  );
   /** Temporal tool → model-row attribution: the row of the model call that
    *  most recently started. */
   let currentRow: AgentRow | undefined;
@@ -393,6 +403,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       markers: [],
       rows: [],
       pending: false,
+      hasWorkingSignal: false,
     };
   }
 
@@ -459,8 +470,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         }
         const burned = allTokens(event);
         if (burned !== undefined && burned > 0) {
-          cumulativeTokens += burned;
-          tokenSeries.push({ time: completed ?? t, value: cumulativeTokens });
+          tokenPoints.push({ time: completed ?? t, burned });
         }
         const context = inputSideTokens(event);
         if (context !== undefined && context > 0) {
@@ -667,9 +677,13 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   });
 
   // ── working segments + stalls from the checkpoint stream ─────────────
+  // Skipped entirely without a working signal: mid-vintage logs carry
+  // timestamps but no working_start/working_time (the normalizer fills 0),
+  // and an all-zero work clock would read as "the whole run was waiting".
   checkpoints.sort((a, b) => a.wall - b.wall || a.work - b.work);
   const workingSegments: WorkingSegment[] = [];
   const stalls: StallRegion[] = [];
+  if (!hasWorkingSignal) checkpoints.length = 0;
   const pushWorking = (start: number, end: number) => {
     if (end <= start) return;
     const last = workingSegments[workingSegments.length - 1];
@@ -724,6 +738,15 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     pushWorking(prev.wall, windowEnd);
   }
 
+  // Overlapping calls complete out of event order — sort the raw burns by
+  // time, then accumulate into the cumulative step curve.
+  tokenPoints.sort((a, b) => a.time - b.time);
+  let cumulativeTokens = 0;
+  const tokenSeries: StepPoint[] = tokenPoints.map((point) => {
+    cumulativeTokens += point.burned;
+    return { time: point.time, value: cumulativeTokens };
+  });
+
   // Attributable stalls become history rows (handoff mock: the rate-limit
   // stall reads as an error row; unattributed waits stay chart-only).
   for (const stall of stalls) {
@@ -775,6 +798,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     markers,
     rows,
     pending,
+    hasWorkingSignal,
   };
 };
 

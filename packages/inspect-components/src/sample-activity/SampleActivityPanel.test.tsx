@@ -170,6 +170,34 @@ describe("SampleActivityPanel band chips", () => {
     expect(container.querySelector("svg")).toBeNull();
     expect(screen.queryByText("History")).toBeNull();
   });
+
+  it("hides the working band for logs without a working clock", () => {
+    // Mid-vintage: timestamps present, working_start normalizer-filled 0,
+    // no working_time — the band would read as all-waiting.
+    mountPanel({
+      events: [
+        testModelEvent({
+          timestamp: iso(0),
+          completed: iso(10),
+          working_start: 0,
+          working_time: null,
+          output: testModelOutput({
+            usage: testModelUsage({
+              input_tokens: 100,
+              output_tokens: 10,
+              total_tokens: 110,
+            }),
+          }),
+        }),
+      ],
+    });
+    expect(
+      screen.queryByRole("button", { name: /Working \/ waiting/ })
+    ).toBeNull();
+    expect(screen.queryByText("WORKING / WAITING")).toBeNull();
+    // The rest of the panel still renders.
+    expect(screen.getByText("TOKEN BURN")).toBeTruthy();
+  });
 });
 
 describe("SampleActivityPanel history list", () => {

@@ -19,9 +19,10 @@ const evalLogs = readdirSync(logDir)
 // VERIFY_ACTIVITY_LOG pins an exact filename within VERIFY_LOG_DIR;
 // otherwise prefer the flaky variant (guaranteed tool-error rows), newest
 // first.
+// || not ?? — an empty VERIFY_ACTIVITY_LOG means "not pinned".
 const activityLog =
-  process.env.VERIFY_ACTIVITY_LOG ??
-  evalLogs.filter((f) => f.includes("ascii-art-flaky")).pop() ??
+  process.env.VERIFY_ACTIVITY_LOG ||
+  evalLogs.filter((f) => f.includes("ascii-art-flaky")).pop() ||
   evalLogs.filter((f) => f.includes("ascii-art")).pop();
 // The error-styling proofs need the flaky task's deliberate tool failures.
 const hasToolErrors = activityLog?.includes("flaky") === true;
@@ -62,10 +63,13 @@ test("activity tab renders bands and history against a real dense log", async ({
   await expect(
     page.getByRole("button", { name: /Limits [1-9]/ })
   ).toBeVisible();
-  // Matches both the rail glyph ▲ and its history row — assert the pair.
+  // Matches the rail glyph ▲ and/or its history row (the row can sit
+  // outside the virtualized window on long logs) — assert one is visible.
   await expect(
-    page.getByRole("button", { name: /Sample hit (message|token) limit/ })
-  ).toHaveCount(2);
+    page
+      .getByRole("button", { name: /Sample hit (message|token) limit/ })
+      .first()
+  ).toBeVisible();
   // The flaky check_art tool additionally guarantees error rows.
   if (hasToolErrors) {
     await expect(

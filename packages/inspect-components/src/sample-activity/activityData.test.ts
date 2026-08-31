@@ -141,6 +141,52 @@ describe("working / waiting derivation", () => {
     });
   });
 
+  it("reports no working signal for mid-vintage logs (timestamps, no working clock)", () => {
+    // Real vintage: event timestamps exist but working_start predates the
+    // field (normalizer fills 0) and working_time is absent. An all-zero
+    // work clock must not render the whole run as waiting.
+    const events: Event[] = [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(10),
+        working_start: 0,
+        working_time: null,
+      }),
+      testModelEvent({
+        timestamp: iso(30),
+        completed: iso(40),
+        working_start: 0,
+        working_time: null,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.hasWorkingSignal).toBe(false);
+    expect(data.workingSegments).toHaveLength(0);
+    expect(data.stalls).toHaveLength(0);
+    // The rest of the derivation still works off the timestamps.
+    expect(data.window).toEqual({ start: kRunStart, end: kRunStart + 40 });
+    expect(data.agentRows).toHaveLength(1);
+  });
+
+  it("reports a working signal from working_time or nonzero working_start", () => {
+    const viaWorkingTime = deriveActivityData({
+      events: [modelCall({ start: 0, duration: 10, workingStart: 0 })],
+    });
+    expect(viaWorkingTime.hasWorkingSignal).toBe(true);
+
+    const viaWorkingStart = deriveActivityData({
+      events: [
+        testModelEvent({
+          timestamp: iso(5),
+          working_start: 5,
+          working_time: null,
+        }),
+      ],
+    });
+    expect(viaWorkingStart.hasWorkingSignal).toBe(true);
+  });
+
   it("absorbs a working-clock reset without blanking later segments", () => {
     // Real logs: init-scope events carry working_start from a different
     // base (observed ~13 days) before it resets to ~0 for the run proper.
@@ -223,6 +269,61 @@ describe("token burn", () => {
       { time: kRunStart + 15, value: 600 },
     ]);
     expect(data.totalTokens).toBe(600);
+  });
+
+  it("time-sorts the series when overlapping calls complete out of order", () => {
+    // Call A spans the whole window and completes LAST; call B (a parallel
+    // subagent / concurrent scorer) completes first. Points pushed in event
+    // order would go backwards at A's completion.
+    const events: Event[] = [
+      modelCall({
+        start: 0,
+        duration: 100,
+        workingStart: 0,
+        input: 1000,
+        uuid: "outer",
+      }),
+      modelCall({
+        start: 10,
+        duration: 10,
+        workingStart: 0,
+        input: 500,
+        uuid: "inner",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.tokenSeries).toEqual([
+      { time: kRunStart + 20, value: 500 },
+      { time: kRunStart + 100, value: 1500 },
+    ]);
+    expect(data.totalTokens).toBe(1500);
+  });
+
+  it("prefers the recorded total over the category composition", () => {
+    // OpenAI-style usage: input_tokens already includes the cached reads,
+    // so summing categories would double-count (1000+400+100 = 1500).
+    const events: Event[] = [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output: testModelOutput({
+          usage: testModelUsage({
+            input_tokens: 1000,
+            input_tokens_cache_read: 400,
+            output_tokens: 100,
+            total_tokens: 1100,
+          }),
+        }),
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.totalTokens).toBe(1100);
+    // Context (input side) derives from the same total minus output.
+    expect(data.contextSeries[0]?.value).toBe(1000);
   });
 
   it("skips model calls without usage (pending, errored)", () => {

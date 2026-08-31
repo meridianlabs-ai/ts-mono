@@ -353,13 +353,16 @@ test("activity tab is hidden for old logs without event timestamps", async ({
     timestamp: "",
     ...("completed" in event ? { completed: null } : {}),
   }));
+  // Deep-link straight to /activity: a shared Activity URL opened on a log
+  // whose tab is hidden must fall back to the Transcript, not go blank.
   await openSample(page, network, {
     events: legacyEvents,
-    tab: "transcript",
+    tab: "activity",
   });
 
   await expect(page.getByRole("tab", { name: "Transcript" })).toBeVisible();
   await expect(page.getByRole("tab", { name: "Activity" })).not.toBeVisible();
+  await expect(page.locator("#transcript-contents")).toBeVisible();
 });
 
 test("log-level tab is relabeled Activity", async ({ page, network }) => {
