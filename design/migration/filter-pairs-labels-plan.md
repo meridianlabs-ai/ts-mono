@@ -121,6 +121,6 @@ export const OPERATOR_LABELS: Record<UiOperator, string> = {
 
 ### Task 4: Verification + docs
 
-- [ ] Drive the live app (see `apps/inspect/.agents/skills/verify/SKILL.md`): tasks list — labels read as words; build a two-condition OR on a column, Apply, rows reflect the union. Samples page — `tokens > 100 and tokens < 500` typed in FILTER lights the tokens funnel and the popover shows both conditions with AND selected; funnel-Apply an OR pair and the FILTER string shows `(a or b)` and rows reflect it; cross-column `epoch == 1 or tokens > 5` still gates funnels off; between still round-trips.
+- [ ] Drive the live app (see `apps/inspect/.agents/skills/verify-log-viewer/SKILL.md`): tasks list — labels read as words; build a two-condition OR on a column, Apply, rows reflect the union. Samples page — `tokens > 100 and tokens < 500` typed in FILTER lights the tokens funnel and the popover shows both conditions with AND selected; funnel-Apply an OR pair and the FILTER string shows `(a or b)` and rows reflect it; cross-column `epoch == 1 or tokens > 5` still gates funnels off; between still round-trips.
 - [ ] `design/migration/merge-punchlist.md`: in the samples-bridge entry, replace the "accepted parity loss" sentence (generic 2-condition AND now round-trips; same-column OR pairs sync and — beyond main — actually filter) and note `in`/`not in`/`not between` remain samples-tab-excluded.
 - [ ] Commit docs.
