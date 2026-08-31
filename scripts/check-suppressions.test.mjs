@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   buildLedger,
@@ -180,6 +185,55 @@ test("ratchet still fires when a move also adds a reason-less suppression", () =
     ),
     [{ rule: "r", before: 2, after: 3 }],
   );
+});
+
+// --- CLI: bootstrap, ratchet refusal, unknown args (throwaway git repo) ---
+
+const GATE = fileURLToPath(new URL("./check-suppressions.mjs", import.meta.url));
+
+const initRepo = (files) => {
+  const repo = mkdtempSync(join(tmpdir(), "supp-gate-"));
+  execFileSync("git", ["init", "-q"], { cwd: repo });
+  for (const [name, content] of Object.entries(files))
+    writeFileSync(join(repo, name), content);
+  // ls-files sees tracked files via the index; staging suffices (no commit).
+  execFileSync("git", ["add", "-A"], { cwd: repo });
+  return repo;
+};
+
+const runGate = (repo, ...args) =>
+  spawnSync(process.execPath, [GATE, ...args], { cwd: repo, encoding: "utf8" });
+
+test("bootstrap --update captures the baseline and says so; untracked files count", () => {
+  const repo = initRepo({ "a.ts": "// @ts-expect-error why not\n" });
+  // Written after `git add`, so untracked: an update run before staging
+  // newly authored code must still see it.
+  writeFileSync(join(repo, "b.ts"), "// @ts-expect-error also why\n");
+  const result = runGate(repo, "--update");
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /ratchet not applied/);
+  assert.match(result.stdout, /2 suppressions .* in 2 files/);
+  assert.equal(runGate(repo).status, 0);
+});
+
+test("--update refuses to record reason-less growth", () => {
+  const repo = initRepo({ "a.ts": "// @ts-expect-error why not\n" });
+  assert.equal(runGate(repo, "--update").status, 0);
+  writeFileSync(
+    join(repo, "a.ts"),
+    "// @ts-expect-error why not\nfoo(); // eslint-disable-line a/rule\n",
+  );
+  const refused = runGate(repo, "--update");
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, /UNDESCRIBED: a\/rule/);
+  assert.match(refused.stderr, /refusing to record reason-less growth/);
+});
+
+test("unknown arguments are rejected, not silently ignored", () => {
+  const repo = initRepo({});
+  const result = runGate(repo, "--updat");
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /unknown argument\(s\): --updat/);
 });
 
 test("totals sums counts and undescribed", () => {

@@ -39,11 +39,14 @@ jobs:
       - name: Check linting
         run: pnpm lint
 
+  # Enforcement only: it runs fine with the read-only token fork PRs get.
+  # The PR delta comment is posted by suppressions-comment.yml
+  # (pull_request_target), which needs a write token — keep the two
+  # concerns in their separate workflows.
   suppressions:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
     steps:
       - uses: actions/checkout@v7
 
@@ -56,34 +59,8 @@ jobs:
       - name: Check suppressions ledger
         run: node scripts/check-suppressions.mjs
 
-      - name: Test the gate script
-        run: node --test scripts/check-suppressions.test.mjs
-
-      - name: Comment ledger delta on PR
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          BASE_REF: ${{ github.base_ref }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          git fetch --depth=1 origin "$BASE_REF"
-          git show "origin/$BASE_REF:suppressions.json" > /tmp/base-suppressions.json 2>/dev/null \
-            || echo '{}' > /tmp/base-suppressions.json
-          body=$(node scripts/suppressions-pr-delta.mjs /tmp/base-suppressions.json suppressions.json)
-          # Sticky comment: match on the marker, not --edit-last, so other
-          # bot comments on the PR are never clobbered.
-          cid=$(gh api "repos/$GH_REPO/issues/$PR/comments" --paginate \
-            -q '.[] | select(.body | startswith("<!-- suppressions-delta -->")) | .id' | head -1)
-          if [ -n "$body" ] && [ -n "$cid" ]; then
-            gh api -X PATCH "repos/$GH_REPO/issues/comments/$cid" -f body="$body" > /dev/null
-          elif [ -n "$body" ]; then
-            gh pr comment "$PR" --body "$body"
-          elif [ -n "$cid" ]; then
-            gh api -X PATCH "repos/$GH_REPO/issues/comments/$cid" \
-              -f body="$(printf '<!-- suppressions-delta -->\nThis PR no longer changes the suppression ledger.')" > /dev/null
-          fi
+      - name: Test the gate scripts
+        run: node --test scripts/check-suppressions.test.mjs scripts/suppressions-pr-delta.test.mjs
 
   typecheck:
     runs-on: ubuntu-latest

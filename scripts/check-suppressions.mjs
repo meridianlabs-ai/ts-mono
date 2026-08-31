@@ -113,6 +113,7 @@ export const diffLedgers = (ledger, actual) => {
   const before = new Map(entries(ledger));
   const after = new Map(entries(actual));
   return [...new Set([...before.keys(), ...after.keys()])]
+    .sort((a, b) => a.localeCompare(b))
     .map((key) => ({
       key,
       before: before.get(key) ?? NONE,
@@ -164,11 +165,28 @@ export const totals = (ledger) =>
 const listFiles = () =>
   execFileSync(
     "git",
-    ["ls-files", "-z", "--", "*.ts", "*.tsx", "*.js", "*.jsx", "*.mjs", "*.cjs"],
+    [
+      "ls-files",
+      "-z",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      "*.ts",
+      "*.tsx",
+      "*.js",
+      "*.jsx",
+      "*.mjs",
+      "*.cjs",
+    ],
     { encoding: "utf8" },
   )
     .split("\0")
-    .filter((f) => f && !EXCLUDED.some((re) => re.test(f)));
+    // Untracked, non-ignored files count too, so an update run before
+    // `git add` sees newly authored code; unstaged deletions still present
+    // in the index are skipped so ordinary edit-then-update workflows do
+    // not fail opening them.
+    .filter((f) => f && !EXCLUDED.some((re) => re.test(f)) && existsSync(f));
 
 const scanRepo = () =>
   buildLedger(
@@ -193,7 +211,16 @@ const main = () => {
     }).trim(),
   );
 
-  const update = process.argv.includes("--update");
+  const args = process.argv.slice(2);
+  const unknown = args.filter((a) => a !== "--update");
+  if (unknown.length) {
+    // A silently-ignored typo (e.g. --updat) would run check mode instead.
+    console.error(
+      `unknown argument(s): ${unknown.join(" ")} (expected --update)`,
+    );
+    process.exit(2);
+  }
+  const update = args.includes("--update");
   // No ledger yet: the first --update captures the baseline as-is.
   const bootstrap = !existsSync(LEDGER_PATH);
   const ledger = readLedger();
@@ -208,7 +235,16 @@ const main = () => {
   }
 
   if (update) {
-    if (violations.length) process.exit(1);
+    if (violations.length) {
+      console.error(
+        "refusing to record reason-less growth; fix the code or add a `-- reason` segment.",
+      );
+      process.exit(1);
+    }
+    if (bootstrap)
+      // A missing ledger silently skips the ratchet above; say so, or
+      // deleting the file becomes an invisible bypass.
+      console.log("no existing ledger: baseline captured, ratchet not applied.");
     writeFileSync(LEDGER_PATH, JSON.stringify(actual, null, 2) + "\n");
     console.log(`${LEDGER_PATH} updated: ${summarize(actual)}.`);
     return;
