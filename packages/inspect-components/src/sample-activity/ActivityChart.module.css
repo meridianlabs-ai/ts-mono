@@ -1,0 +1,367 @@
+.chart {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Uppercase 9px band labels, letter-spacing set inline (SVG attr). */
+.bandLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.bandHeadline {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+  font-family: var(--bs-font-monospace);
+}
+
+.axisLine {
+  stroke: var(--bs-border-color);
+}
+
+.axisLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.yTickLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+/* ── working / waiting ── */
+
+.workingBlock {
+  fill: #5b8ec4;
+}
+
+.stallBracket {
+  stroke: #adb5bd;
+  stroke-width: 1;
+  fill: none;
+}
+
+.stallBracketRetry {
+  stroke: #b04a3c;
+  stroke-width: 1;
+  fill: none;
+}
+
+.stallLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.stallLabelRetry {
+  font-size: 9px;
+  fill: #b04a3c;
+}
+
+/* ── curves ── */
+
+.tokenSeries {
+  fill: none;
+  stroke: #495057;
+  stroke-width: 1.2;
+}
+
+.contextSeries {
+  fill: none;
+  stroke: #3a7bd5;
+  stroke-width: 1.2;
+}
+
+.contextDot {
+  fill: #3a7bd5;
+  pointer-events: none;
+}
+
+.compactionDrop {
+  stroke: #2b6a94;
+  stroke-dasharray: 3 2;
+}
+
+.compactionLabel {
+  font-size: 9px;
+  fill: #2b6a94;
+}
+
+.crosshair {
+  stroke: var(--bs-secondary-color);
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hoverDotTokens {
+  fill: #495057;
+  pointer-events: none;
+}
+
+.hoverDotContext {
+  fill: #3a7bd5;
+  pointer-events: none;
+}
+
+.lineHit {
+  fill: transparent;
+}
+
+.lineTooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 9;
+}
+
+/* ── model & tool activity ── */
+
+.rowLabel {
+  font-size: 9px;
+  fill: var(--bs-body-color);
+}
+
+.rowLabelMuted {
+  fill: #adb5bd;
+}
+
+.modelSpan {
+  fill: #64748b;
+}
+
+.toolSpan {
+  fill: #4f8f8b;
+}
+
+/* Failed tool call: red-outlined span (handoff decision 4). */
+.failedSpan {
+  fill: #fdf1ef;
+  stroke: #b04a3c;
+}
+
+.pendingSpan {
+  opacity: 0.55;
+}
+
+.clickableSpan {
+  cursor: pointer;
+}
+
+/* Grader / secondary-role rows render muted (handoff decision 4). */
+.roleRow {
+  opacity: 0.7;
+}
+
+.burstLabel {
+  font-size: 8px;
+  fill: #2f6f6b;
+}
+
+.retryBadge {
+  font-size: 9px;
+  fill: #b04a3c;
+}
+
+.densityFailure {
+  fill: #b04a3c;
+  pointer-events: none;
+}
+
+.densityHit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+/* ── marker rail ── */
+
+.marker {
+  cursor: pointer;
+  outline: none;
+}
+
+.markerHit {
+  fill: transparent;
+}
+
+.clusterCount {
+  font-size: 8px;
+}
+
+.markerPopover {
+  position: absolute;
+  max-width: 330px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  font-size: 0.75rem;
+  pointer-events: none;
+  padding: 0.35rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.markerPopoverEntry {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.markerPopoverSwatch {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.markerPopoverTime {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-family: var(--bs-font-monospace);
+  font-size: 0.7rem;
+}
+
+/* ── span popover ── */
+
+.spanPopover {
+  position: absolute;
+  width: 300px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.spanPopoverHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-light-bg-subtle);
+  border-radius: 4px 4px 0 0;
+}
+
+.spanPopoverSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.spanPopoverTitle {
+  font-weight: 600;
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+}
+
+.spanPopoverTime {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-family: var(--bs-font-monospace);
+  font-size: 0.7rem;
+}
+
+.spanPopoverBody {
+  padding: 0.4rem 0.6rem;
+  color: var(--bs-body-color);
+}
+
+.spanPopoverFailed {
+  color: #b04a3c;
+}
+
+.spanPopoverHint {
+  color: var(--bs-secondary-color);
+}
+
+/* ── dark theme ── */
+
+:global([data-bs-theme="dark"]) .tokenSeries {
+  stroke: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .hoverDotTokens {
+  fill: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .contextSeries {
+  stroke: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .contextDot {
+  fill: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .hoverDotContext {
+  fill: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .compactionDrop {
+  stroke: #6ba3c9;
+}
+
+:global([data-bs-theme="dark"]) .compactionLabel {
+  fill: #8fbcd9;
+}
+
+:global([data-bs-theme="dark"]) .stallBracket {
+  stroke: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .stallBracketRetry {
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .stallLabelRetry {
+  fill: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .failedSpan {
+  fill: #322019;
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .retryBadge {
+  fill: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .densityFailure {
+  fill: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .burstLabel {
+  fill: #7ab8b3;
+}
+
+:global([data-bs-theme="dark"]) .rowLabelMuted {
+  fill: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .spanPopoverFailed {
+  color: #d98b7f;
+}

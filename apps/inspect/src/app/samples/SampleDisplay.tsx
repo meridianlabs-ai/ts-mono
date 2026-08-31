@@ -24,6 +24,10 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import {
+  hasEventTimestamps,
+  SampleActivityPanel,
+} from "@tsmono/inspect-components/sample-activity";
+import {
   dynamicDefaultExcludeEvents,
   eventsToStr,
   type TranscriptLayoutRightRailProps,
@@ -57,6 +61,7 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
+  navigateAndForget,
   useChromeNavOwnership,
   useElementHeight,
   useVisitId,
@@ -64,9 +69,10 @@ import {
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
 
 import { Events } from "../../@types/extraInspect";
-import { getApi } from "../../app_config";
+import { getApi, useLogDir } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
+  kSampleActivityTabId,
   kSampleErrorTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
@@ -93,7 +99,9 @@ import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
+  makeLogsPath,
   printSampleUrl,
+  sampleEventUrl,
   useFullSampleMessageUrlBuilder,
   useLogOrSampleRouteParams,
   useRoutePrefix,
@@ -410,6 +418,45 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter(defaultExcludeEvents);
+
+  // ── Activity tab ──────────────────────────────────────────────────────
+  // Hidden entirely for old logs whose events lack timestamps (design spec);
+  // chunked samples carry an empty shell events array, so they hide it too.
+  const logDir = useLogDir();
+  const hasActivityTab = hasEventTimestamps(sampleEvents);
+  // Durable Activity UI state (band toggles, filters, selection) is keyed
+  // per log + sample so it survives tab switches without leaking across
+  // samples.
+  const activityPersistScope = `${selectedSampleHandle?.logFile ?? ""}:${String(
+    selectedSampleHandle?.id ?? id
+  )}:${selectedSampleHandle?.epoch ?? 1}`;
+  // Click-through target for every Activity span, glyph, and history row:
+  // the Transcript tab scrolled to the event (?event=<uuid>). Modifier
+  // clicks open the same route in a new browser tab.
+  const openEventInTranscript = (uuid: string, event: MouseEvent) => {
+    let targetLogPath = urlLogPath;
+    if (!targetLogPath && selectedLogFile) {
+      targetLogPath = makeLogsPath(selectedLogFile, logDir);
+    }
+    const sampleId = urlSampleId ?? selectedSampleHandle?.id;
+    const sampleEpoch = urlEpoch ?? selectedSampleHandle?.epoch;
+    if (!targetLogPath || sampleId === undefined || sampleEpoch === undefined) {
+      return;
+    }
+    const url = sampleEventUrl(
+      sampleUrlBuilder,
+      uuid,
+      targetLogPath,
+      sampleId,
+      sampleEpoch
+    );
+    if (event.metaKey || event.ctrlKey || event.shiftKey) {
+      openInNewTab(`#${url}`);
+      return;
+    }
+    setSelectedTab(kSampleTranscriptTabId);
+    navigateAndForget(navigate, url);
+  };
 
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
@@ -983,6 +1030,31 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 scrollRef={scrollRef}
               />
             </TabPanel>
+            {hasActivityTab ? (
+              <TabPanel
+                key={kSampleActivityTabId}
+                id={kSampleActivityTabId}
+                className={clsx("sample-tab", styles.fullWidth)}
+                title="Activity"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleActivityTabId}
+                scrollable={false}
+              >
+                <div className={styles.tabContent}>
+                  <SampleActivityPanel
+                    events={sampleEvents}
+                    startedAt={sample?.started_at}
+                    completedAt={sample?.completed_at}
+                    workingTime={sample?.working_time}
+                    totalTime={sample?.total_time}
+                    running={running}
+                    scrollRef={scrollRef}
+                    persistScope={activityPersistScope}
+                    onOpenEvent={openEventInTranscript}
+                  />
+                </div>
+              </TabPanel>
+            ) : null}
             {sampleUsages.length > 0 ? (
               <TabPanel
                 id={kSampleUsageTabId}
