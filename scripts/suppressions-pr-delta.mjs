@@ -24,13 +24,18 @@ const load = (path) => {
 
 // Ledger text (file paths, rule names) can come from a fork PR; render it
 // inert inside the table cell: no raw HTML, no `|` cell breaks, no newlines.
+// GFM still parses inline markdown between inline HTML tags, so also no `[`
+// (links/images could render live inside the bot comment) and no backticks
+// (stray code spans).
 const cell = (value) =>
   `<code>${value
     .replace(/[\r\n]+/g, " ")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll("|", "&#124;")}</code>`;
+    .replaceAll("|", "&#124;")
+    .replaceAll("[", "&#91;")
+    .replaceAll("`", "&#96;")}</code>`;
 
 // The comment body for a base -> head ledger change, or null if none.
 // An undescribed-only change (a `-- reason` added or removed) renders too:
@@ -80,7 +85,16 @@ export const render = (base, head) => {
 };
 
 const main = () => {
-  const [basePath, headPath] = process.argv.slice(2);
+  const paths = process.argv.slice(2);
+  if (paths.length !== 2) {
+    // A tolerated bad invocation would print nothing and exit 0, which the
+    // workflow reads as "ledger unchanged" and uses to reset the sticky
+    // comment. (Missing *files* stay tolerated: load's {} fallback covers
+    // branches that predate the ledger.)
+    console.error("usage: suppressions-pr-delta.mjs <base.json> <head.json>");
+    process.exit(2);
+  }
+  const [basePath, headPath] = paths;
   const body = render(load(basePath), load(headPath));
   if (body !== null) console.log(body);
 };

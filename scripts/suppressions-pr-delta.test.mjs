@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { MARKER, render } from "./suppressions-pr-delta.mjs";
 
@@ -46,7 +48,42 @@ test("warns when reason-less count grows without total growth", () => {
 });
 
 test("escapes untrusted table cell text", () => {
-  const body = render({}, { "a`\n<b>|.ts": { "r`\n<b>|": { count: 1 } } });
-  assert.ok(body.includes("<code>a` &lt;b&gt;&#124;.ts</code>"));
-  assert.ok(body.includes("<code>r` &lt;b&gt;&#124;</code>"));
+  const body = render({}, { "a`\n<b>|[.ts": { "r`\n<b>|[": { count: 1 } } });
+  assert.ok(body.includes("<code>a&#96; &lt;b&gt;&#124;&#91;.ts</code>"));
+  assert.ok(body.includes("<code>r&#96; &lt;b&gt;&#124;&#91;</code>"));
+});
+
+test("markdown link/image syntax cannot form in a cell", () => {
+  const body = render(
+    {},
+    { "![](https://evil.example/p.png)": { "[x](https://y)": { count: 1 } } },
+  );
+  // No raw `[` may survive: without an opening bracket the `](url)` tail
+  // is inert text, so no live link or image can render.
+  assert.ok(!body.includes("["));
+  assert.ok(body.includes("<code>!&#91;](https://evil.example/p.png)</code>"));
+});
+
+// --- CLI arg handling ---
+
+const SCRIPT = fileURLToPath(
+  new URL("./suppressions-pr-delta.mjs", import.meta.url),
+);
+
+const runDelta = (...args) =>
+  spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
+
+test("CLI rejects missing or extra path args instead of printing nothing", () => {
+  for (const args of [[], ["only-base.json"], ["a.json", "b.json", "extra"]]) {
+    const result = runDelta(...args);
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /usage: suppressions-pr-delta\.mjs/);
+    assert.equal(result.stdout, "");
+  }
+});
+
+test("CLI still tolerates missing ledger files (pre-ledger branches)", () => {
+  const result = runDelta("no-such-base.json", "no-such-head.json");
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, "");
 });
