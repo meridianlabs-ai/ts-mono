@@ -13,8 +13,13 @@ const evidence = join(import.meta.dirname, "..", "evidence");
 const logDir =
   process.env.VERIFY_LOG_DIR ??
   join(process.env.HOME ?? "", "code", "viewer-validation", "logs");
-const evalLogs = readdirSync(logDir).filter((f) => f.endsWith(".eval"));
-const activityLog = evalLogs.find((f) => f.includes("ascii-art"));
+const evalLogs = readdirSync(logDir)
+  .filter((f) => f.endsWith(".eval"))
+  .sort();
+// Prefer the flaky variant (guaranteed tool-error rows); newest first.
+const activityLog =
+  evalLogs.filter((f) => f.includes("ascii-art-flaky")).pop() ??
+  evalLogs.filter((f) => f.includes("ascii-art")).pop();
 
 const sampleUrl = (tab: string) =>
   `/#/logs/${encodeURIComponent(activityLog ?? "")}/samples/sample/${encodeURIComponent("ascii/car")}/1/${tab}`;
@@ -46,8 +51,12 @@ test("activity tab renders bands and history against a real dense log", async ({
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
   // The flaky check_art tool guarantees error rows; scoring guarantees a
   // score row.
-  await expect(page.getByRole("button", { name: /Errors [1-9]/ })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Scores [1-9]/ })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Errors [1-9]/ })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Scores [1-9]/ })
+  ).toBeVisible();
   await shot(page, "sample-activity-default-light.png");
 
   // Opt-in bands via chips.
@@ -75,12 +84,20 @@ test("activity history filters and clicks through to the transcript", async ({
   ).toBeVisible();
   await shot(page, "sample-activity-errors-filter.png");
 
-  // Click-through to the transcript via event uuid.
-  await page
-    .getByRole("button", { name: "open in transcript →" })
-    .first()
-    .click();
-  await expect(page).toHaveURL(/\/transcript\?event=/);
+  // Click-through to the transcript via event uuid. Target the button in
+  // the first VISIBLE row (the flaky tool's first failure, "call 3"):
+  // clicking a DOM-order .first() button would scroll a mid-list row into
+  // view and virtualized re-measurement shifts the list under the cursor.
+  const firstErrorRow = page
+    .getByRole("button", { name: /transient failure on call 3/ })
+    .first();
+  await expect(firstErrorRow).toBeInViewport();
+  await expect(async () => {
+    await firstErrorRow
+      .getByRole("button", { name: "open in transcript →" })
+      .click();
+    await expect(page).toHaveURL(/\/transcript\?event=/, { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
   await shot(page, "sample-activity-clickthrough-transcript.png");
 });
 

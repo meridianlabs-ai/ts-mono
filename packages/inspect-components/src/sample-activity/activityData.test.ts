@@ -141,6 +141,27 @@ describe("working / waiting derivation", () => {
     });
   });
 
+  it("absorbs a working-clock reset without blanking later segments", () => {
+    // Real logs: init-scope events carry working_start from a different
+    // base (observed ~13 days) before it resets to ~0 for the run proper.
+    // A global monotone clamp latched onto the garbage and rendered the
+    // whole sample as waiting.
+    const events: Event[] = [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(2),
+        working_start: 1_147_553,
+        working_time: 2,
+      }),
+      modelCall({ start: 3, duration: 10, workingStart: 0.001 }),
+      modelCall({ start: 13, duration: 10, workingStart: 10.001 }),
+    ];
+    const data = deriveActivityData({ events });
+    // The run-proper work still renders: one merged block from 3s to 23s.
+    const last = data.workingSegments[data.workingSegments.length - 1];
+    expect(last).toEqual({ start: kRunStart + 3, end: kRunStart + 23 });
+  });
+
   it("merges working blocks separated by sub-threshold noise", () => {
     const events: Event[] = [
       modelCall({ start: 0, duration: 10, workingStart: 0 }),

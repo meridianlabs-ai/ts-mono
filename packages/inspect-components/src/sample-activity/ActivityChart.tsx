@@ -1000,7 +1000,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         t += interval
       ) {
         const px = x(t);
-        if (px < plotLeft + 110 || px > plotRight - 60) continue;
+        // 80px right margin — the end tick renders with seconds, so it is
+        // wider than the task timeline's and a 60px skip lets them collide.
+        if (px < plotLeft + 110 || px > plotRight - 80) continue;
         ticks.push({ x: px, label: fmt(t), anchor: "middle" });
       }
     }

@@ -11,7 +11,7 @@ log-level workspace tab with id `timeline` is now labeled **Activity**.
 - Deep link: `/#/logs/<enc(file)>/samples/sample/<enc(id)>/<epoch>/activity`
   (sample ids can contain `/` — encodeURIComponent them).
 - Or open any sample and click the `Activity` tab (`getByRole("tab",
-  { name: "Activity" })`), a peer of Transcript / Messages / Scoring.
+{ name: "Activity" })`), a peer of Transcript / Messages / Scoring.
 - The tab is HIDDEN for logs whose events carry no timestamps (old logs)
   and for chunked samples — its absence on such logs is correct behavior.
 
@@ -36,7 +36,7 @@ an Activity test into the standing spec.
 ## Selectors
 
 - Band chips: `getByRole("button", { name: "Working / waiting" | "Markers"
-  | "Token burn" | "Context size" | "Model & tool activity" })` — default-on
+| "Token burn" | "Context size" | "Model & tool activity" })` — default-on
   set is the first three.
 - Band labels (SVG text, uppercase — use `exact: true` or the chip matches
   too): `WORKING / WAITING`, `TOKEN BURN`, `CONTEXT SIZE`,

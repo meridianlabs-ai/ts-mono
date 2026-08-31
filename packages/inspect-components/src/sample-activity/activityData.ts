@@ -682,16 +682,17 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   };
 
   let prev: Checkpoint | undefined;
-  let workFloor = -Infinity;
   for (const point of checkpoints) {
-    // Clamp non-monotonic working offsets (clock skew, parallel writers).
-    const work = Math.max(point.work, workFloor);
-    workFloor = work;
+    const work = point.work;
     if (prev) {
       const wallDelta = point.wall - prev.wall;
       if (wallDelta > 0) {
         // Work-first convention: the worked share of the interval renders
         // from its left edge, waiting fills the remainder as a true gap.
+        // The per-pair clamp also absorbs working-clock resets: init-scope
+        // events can carry a working_start from a different base (observed
+        // in real logs), so a negative or over-wide delta degrades to 0 /
+        // wallDelta instead of poisoning a global monotone floor.
         const workDelta = Math.min(Math.max(work - prev.work, 0), wallDelta);
         if (workDelta > 0) pushWorking(prev.wall, prev.wall + workDelta);
         const gap = wallDelta - workDelta;
