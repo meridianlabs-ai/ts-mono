@@ -15,13 +15,14 @@ then use the matching feature file as the recipe.
 - The default fixture dir `~/code/viewer-validation/logs` is deterministic
   mockllm output. Ground truth used by the standing spec:
 
-| Fixture log | Facts to assert against |
-| --- | --- |
+| Fixture log                                                         | Facts to assert against                                                                                                                                                             |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `2026-07-07T21-47-35-00-00_viewer-rich_M58v4LGnsyG2Gh3hwXxpeP.eval` | task `viewer_rich`, 5 samples, accuracy 0.8; sample 1/epoch 1: input `What is 2+2?`, assistant `The answer is 4.`, target `4`, score `includes: C`, 17 events (model, score, spans) |
-| `...viewer-arithmetic_7hC9oRtKWCL5jqeA7zUWfq.eval` | task `viewer_arithmetic`, 3 samples, accuracy 0.0 |
-| `...viewer-error_RbzFqVPn2h6kkuqHN3gt3F.eval` | status `error` — exercises error display |
-| `...viewer-cancelled_*.eval` (7 files) | one task with many runs; one run cancelled |
-| `...viewer-grid_ixJgGBWxnCrNnk7qzyHU7S.eval` | 24 samples — enough rows to exercise the samples grid |
+| `...viewer-rich_9GnzUtiNvgakGMKyahfeyu.json`                        | a second `viewer_rich` log in JSON format — task-name matches (e.g. filtering "rich") intentionally return 2 rows, not 1                                                            |
+| `...viewer-arithmetic_7hC9oRtKWCL5jqeA7zUWfq.eval`                  | task `viewer_arithmetic`, 3 samples, accuracy 0.0                                                                                                                                   |
+| `...viewer-error_RbzFqVPn2h6kkuqHN3gt3F.eval`                       | status `error` — exercises error display                                                                                                                                            |
+| `...viewer-cancelled_*.eval` (7 files)                              | one task with many runs; one run cancelled                                                                                                                                          |
+| `...viewer-grid_ixJgGBWxnCrNnk7qzyHU7S.eval`                        | 24 samples — enough rows to exercise the samples grid                                                                                                                               |
 
 ## Driving conventions
 

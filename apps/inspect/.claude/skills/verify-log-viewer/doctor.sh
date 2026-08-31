@@ -29,7 +29,7 @@ port_status "$viewer_port" "viewer"
 if command -v "$inspect_bin" >/dev/null 2>&1; then
   echo "ok    inspect CLI: $("$inspect_bin" --version 2>/dev/null)"
 else
-  echo "FAIL  inspect CLI not found ($inspect_bin) — set INSPECT_BIN (see SKILL.md → Launch)"
+  echo "FAIL  inspect CLI not found ($inspect_bin) — set INSPECT_BIN (see SKILL.md → Configuration knobs)"
   ok=1
 fi
 

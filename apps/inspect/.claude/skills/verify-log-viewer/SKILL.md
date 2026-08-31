@@ -93,7 +93,10 @@ a proof that drives one convenient entry point is incomplete when the map
 lists others.
 
 `drive/log-viewer.spec.ts` is the standing proof run — one test per mapped
-feature. Keep it passing; extend it when the map grows.
+feature. Keep it passing; extend it when the map grows. When you prove a
+mapped sub-feature that has no standing test yet, add that test to the
+standing spec rather than writing a throwaway one — the map and the spec
+grow together.
 
 ## Evidence
 

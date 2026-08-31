@@ -91,6 +91,52 @@ test("sample transcript tab renders the event timeline", async ({ page }) => {
   await shot(page, "sample-transcript.png");
 });
 
+test("log list task column filter narrows rows and reset restores", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const grid = page.getByRole("grid", { name: "Evaluation logs" });
+  await expect(grid).toBeVisible({ timeout: 15_000 });
+
+  const richCell = page
+    .getByRole("gridcell")
+    .filter({ hasText: "viewer_rich" })
+    .first();
+  const arithmeticCell = page
+    .getByRole("gridcell")
+    .filter({ hasText: "viewer_arithmetic" })
+    .first();
+  await expect(richCell).toBeVisible();
+  await expect(arithmeticCell).toBeVisible();
+  // Footer count is the canonical row count — the grid is virtualized, so
+  // DOM row counts lie (see features/log-list.md).
+  const footerCount = page.getByText(/^[\d,]+( \/ [\d,]+)? items$/);
+  const totalItems = (await footerCount.innerText()).replace(/ items$/, "");
+  await shot(page, "log-list-filter-before.png");
+
+  const taskHeader = page
+    .getByRole("columnheader")
+    .filter({ has: page.getByText("Task", { exact: true }) });
+  await taskHeader
+    .getByRole("button", { name: "Filter task", exact: true })
+    .click();
+  await page.locator("#task-op").selectOption("contains");
+  await page.getByPlaceholder("Filter").fill("rich");
+  await page.getByRole("button", { name: "Apply" }).click();
+
+  await expect(richCell).toBeVisible();
+  await expect(arithmeticCell).not.toBeVisible();
+  // Two matches: the fixture dir holds viewer_rich as both .eval and .json.
+  await expect(footerCount).toHaveText(`2 / ${totalItems} items`);
+  await shot(page, "log-list-filter-applied.png");
+
+  await page.getByRole("button", { name: "Reset Filters" }).click();
+  await expect(arithmeticCell).toBeVisible();
+  await expect(richCell).toBeVisible();
+  await expect(footerCount).toHaveText(`${totalItems} items`);
+  await shot(page, "log-list-filter-reset.png");
+});
+
 test("scores render in the log list and the sample scoring tab", async ({
   page,
 }) => {

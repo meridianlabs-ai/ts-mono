@@ -43,8 +43,14 @@ Preconditions:
   `header.getByRole("button", { name: "Filter task", exact: true })`, then
   `page.locator("#task-op").selectOption("contains")`,
   `page.getByPlaceholder("Filter").fill("rich")`,
-  `page.getByRole("button", { name: "Apply" })`. Row count drops; reset via
+  `page.getByRole("button", { name: "Apply" })`. Assert the footer count
+  (below), then reset via
   `page.getByRole("button", { name: "Reset Filters" })`.
+- **Row counts.** The footer (bottom right) is the canonical count — it is
+  immune to virtualization. Unfiltered it reads `<N> items`; filtered it
+  reads `<matched> / <N> items` (e.g. `2 / 25 items` after filtering task
+  contains "rich" on the default fixtures). Assert on that text, not on DOM
+  row counts.
 - **Find.** `page.keyboard.press("ControlOrMeta+f")`, type into
   `page.getByPlaceholder("Find")`; `getByTestId("find-band-match-count")`
   shows `"1 of N"`; `find-band-next`/`find-band-prev` step matches.
@@ -61,6 +67,7 @@ Preconditions:
 - Buttons whose aria-labels contain "Samples" exist outside the navbar;
   always scope the view switcher to `getByRole("navigation")`.
 - The grid is virtualized: a row far down the list may not be in the DOM
-  until scrolled. Filter or find instead of scrolling blindly.
+  until scrolled. Filter or find instead of scrolling blindly, and count via
+  the footer text, never via DOM rows.
 - Sort indicators are aria-hidden icons (`i.bi-arrow-down`); assert on them
   by class if sorting is under proof.
