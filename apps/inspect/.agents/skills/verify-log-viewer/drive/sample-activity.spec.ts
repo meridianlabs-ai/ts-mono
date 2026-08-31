@@ -81,6 +81,21 @@ test("activity tab renders bands and history against a real dense log", async ({
   await expect(
     page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
   ).toBeVisible();
+  if (hasToolErrors) {
+    // Failed tool calls: error ✕ glyph on the rail (single or clustered —
+    // cluster aria-labels concatenate member labels)…
+    await expect(
+      page.getByRole("button", { name: /Tool check_art errored/ }).first()
+    ).toBeVisible();
+    // …and the red-outlined span treatment in the merged band (or the red
+    // failure hairlines when the band has degraded to the density strip).
+    // SVG rects carry no roles — the CSS-module fragment is the one hook.
+    expect(
+      await page
+        .locator("[class*='failedSpan'], [class*='densityFailure']")
+        .count()
+    ).toBeGreaterThan(0);
+  }
   await shot(page, "sample-activity-all-bands-light.png");
 });
 
