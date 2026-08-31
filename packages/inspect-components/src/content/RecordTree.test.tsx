@@ -10,7 +10,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentIconProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import {
+  makeStateHooks,
+  ResizeObserverStub,
+  testIcons,
+} from "@tsmono/react/testing";
 
 import { RecordTree } from "./RecordTree";
 
@@ -25,12 +29,6 @@ const renderTree = (
       </ComponentIconProvider>
     </ComponentStateProvider>
   );
-
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
 
 describe("RecordTree copy button", () => {
   const writeText = vi.fn(() => Promise.resolve());

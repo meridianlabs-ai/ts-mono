@@ -9,6 +9,7 @@ import {
   ComponentStateHooks,
   ComponentStateProvider,
 } from "@tsmono/react/state";
+import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import { ToolEventView } from "./ToolEventView";
 import { EventNode } from "./types";
@@ -48,12 +49,6 @@ const renderView = (fn: string, args: Record<string, JsonValue>) =>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
-
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
 
 describe("ToolEventView", () => {
   beforeEach(() => {
