@@ -188,13 +188,17 @@
 
 /* ── marker rail ── */
 
+/* Only the hit rect is interactive — the group's stem line would
+   otherwise capture hovers meant for the bands beneath it. */
 .marker {
-  cursor: pointer;
-  outline: none;
+  pointer-events: none;
 }
 
 .markerHit {
   fill: transparent;
+  pointer-events: all;
+  cursor: pointer;
+  outline: none;
 }
 
 .clusterCount {

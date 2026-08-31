@@ -480,30 +480,41 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               r={2}
             />
           ))}
-        {data.compactions.map((drop, i) => {
-          if (drop.before === undefined || drop.after === undefined) {
-            return null;
-          }
-          const dx = x(drop.time);
-          return (
-            <Fragment key={`comp-${i}`}>
-              <line
-                className={styles.compactionDrop}
-                x1={dx}
-                x2={dx}
-                y1={y(drop.before)}
-                y2={y(drop.after)}
-              />
-              <text
-                className={styles.compactionLabel}
-                x={dx + 7}
-                y={y(drop.before) + 1}
-              >
-                {fmtTokens(drop.before)} → {fmtTokens(drop.after)}
-              </text>
-            </Fragment>
-          );
-        })}
+        {(() => {
+          // Every drop draws its dashed cliff, but annotations declutter:
+          // a label only renders with enough horizontal room after the
+          // previously labeled drop (same philosophy as the N-longest
+          // stall labels) — dense compaction runs stay readable.
+          let lastLabelX = -Infinity;
+          return data.compactions.map((drop, i) => {
+            if (drop.before === undefined || drop.after === undefined) {
+              return null;
+            }
+            const dx = x(drop.time);
+            const labeled = dx - lastLabelX >= 60;
+            if (labeled) lastLabelX = dx;
+            return (
+              <Fragment key={`comp-${i}`}>
+                <line
+                  className={styles.compactionDrop}
+                  x1={dx}
+                  x2={dx}
+                  y1={y(drop.before)}
+                  y2={y(drop.after)}
+                />
+                {labeled && (
+                  <text
+                    className={styles.compactionLabel}
+                    x={dx + 7}
+                    y={y(drop.before) + 1}
+                  >
+                    {fmtTokens(drop.before)} → {fmtTokens(drop.after)}
+                  </text>
+                )}
+              </Fragment>
+            );
+          });
+        })()}
         {axisFrame(band)}
         {yTicks(y, max)}
         {lineHover?.bandId === "context" &&
@@ -913,24 +924,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           const toggle = () =>
             onSelectMarker(selected ? null : (keys[0] ?? null));
           return (
-            <g
-              key={`marker-${i}`}
-              className={styles.marker}
-              role="button"
-              tabIndex={0}
-              aria-label={label}
-              onClick={toggle}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  toggle();
-                }
-              }}
-              onMouseEnter={activate}
-              onMouseLeave={deactivate}
-              onFocus={activate}
-              onBlur={deactivate}
-            >
+            <g key={`marker-${i}`} className={styles.marker}>
               {/* Full-height stem in the hue at low opacity (decision 3). */}
               <line
                 x1={group.x}
@@ -960,13 +954,30 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   ×{group.members.length}
                 </text>
               )}
-              {/* Generous invisible hit area — glyphs are small. */}
+              {/* The interactive element is this generous invisible rect on
+                  the rail, NOT the group: the group's bounding box includes
+                  the full-height stem, which would put its click point
+                  mid-chart and let stems steal hovers from the bands. */}
               <rect
                 className={styles.markerHit}
                 x={group.x - 6}
                 y={2}
                 width={12 + (group.members.length > 1 ? 12 : 0)}
                 height={18}
+                role="button"
+                tabIndex={0}
+                aria-label={label}
+                onClick={toggle}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggle();
+                  }
+                }}
+                onMouseEnter={activate}
+                onMouseLeave={deactivate}
+                onFocus={activate}
+                onBlur={deactivate}
               />
             </g>
           );

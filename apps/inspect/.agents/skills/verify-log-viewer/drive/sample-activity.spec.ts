@@ -26,6 +26,9 @@ const activityLog =
   evalLogs.filter((f) => f.includes("ascii-art")).pop();
 // The error-styling proofs need the flaky task's deliberate tool failures.
 const hasToolErrors = activityLog?.includes("flaky") === true;
+// The compaction proofs need the compaction task's threshold-triggered
+// CompactionEvents.
+const hasCompactions = activityLog?.includes("compaction") === true;
 
 const sampleUrl = (tab: string) =>
   `/#/logs/${encodeURIComponent(activityLog ?? "")}/samples/sample/${encodeURIComponent("ascii/car")}/1/${tab}`;
@@ -100,13 +103,24 @@ test("activity tab renders bands and history against a real dense log", async ({
         .count()
     ).toBeGreaterThan(0);
   } else {
-    // Error-free log: no phantom error styling anywhere — the Errors pill
-    // reads 0 (and disables), and no error glyph or failed span renders.
-    await expect(page.getByRole("button", { name: "Errors 0" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: /errored/ })).toHaveCount(0);
-    await expect(
-      page.locator("[class*='failedSpan'], [class*='densityFailure']")
-    ).toHaveCount(0);
+    // Data-driven no-phantom check: whatever the log, error styling must
+    // agree with the Errors pill — zero count means zero glyphs and zero
+    // failed-span/hairline treatment.
+    const errorsPill = await page
+      .getByRole("button", { name: /^Errors \d+$/ })
+      .textContent();
+    const errorCount = Number(/\d+/.exec(errorsPill ?? "")?.[0] ?? "0");
+    if (errorCount === 0) {
+      await expect(
+        page.getByRole("button", { name: "Errors 0" })
+      ).toBeDisabled();
+      await expect(page.getByRole("button", { name: /errored/ })).toHaveCount(
+        0
+      );
+      await expect(
+        page.locator("[class*='failedSpan'], [class*='densityFailure']")
+      ).toHaveCount(0);
+    }
   }
   await shot(page, "sample-activity-all-bands-light.png");
 });
@@ -142,6 +156,48 @@ test("activity history filters and clicks through to the transcript", async ({
     await expect(page).toHaveURL(/\/transcript\?event=/, { timeout: 1000 });
   }).toPass({ timeout: 15_000 });
   await shot(page, "sample-activity-clickthrough-transcript.png");
+});
+
+test("compaction events render cliff drops, ▼ markers, and rows", async ({
+  page,
+}) => {
+  test.skip(!hasCompactions, "needs the compaction task's CompactionEvents");
+  await page.goto(sampleUrl("activity"));
+  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+
+  // Every CompactionEvent shows in the pill count and on the ▼ rail
+  // (clusters keep the glyph and carry a ×N badge + concatenated labels).
+  await expect(
+    page.getByRole("button", { name: /Compactions 18/ })
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Context compacted/ }).first()
+  ).toBeVisible();
+
+  // Context band: dashed cliff drop per compaction, annotated "Nk → M".
+  await page.getByRole("button", { name: "Context size" }).click();
+  await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
+  await expect(page.locator("[class*='compactionDrop']")).toHaveCount(18);
+  await expect(page.locator("[class*='compactionLabel']").first()).toHaveText(
+    /\d+k? → \d+k?/
+  );
+  await shot(page, "sample-activity-compactions-light.png");
+
+  // Marker click widens a filter that would hide its row.
+  await page.getByRole("button", { name: /Limits 1/ }).click();
+  await expect(page.getByText("Context compacted").first()).not.toBeVisible();
+  await page
+    .getByRole("button", { name: /Context compacted/ })
+    .first()
+    .click();
+  await expect(page.getByText("Context compacted").first()).toBeVisible();
+
+  // Densest fixture yet (1291 events / ~478 spans): the merged band must
+  // degrade to the per-pixel occupancy strip.
+  await page.getByRole("button", { name: "Model & tool activity" }).click();
+  await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
 });
 
 test.describe(() => {
