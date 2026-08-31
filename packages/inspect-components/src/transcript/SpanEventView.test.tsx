@@ -12,31 +12,26 @@ import {
   ComponentNavigationProvider,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import {
+  makeStateHooks,
+  ResizeObserverStub,
+  testIcons,
+} from "@tsmono/react/testing";
 
 import { SpanEventView } from "./SpanEventView";
+import { eventNode } from "./testHelpers";
 import { kSandboxSignalName } from "./transform/fixups";
-import { EventNode } from "./types";
 
 const renderView = (event: SpanBeginEvent | StepEvent) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentIconProvider icons={testIcons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <SpanEventView
-            eventNode={new EventNode("n-1", event, 0)}
-            childNodes={[]}
-          />
+          <SpanEventView eventNode={eventNode(event)} childNodes={[]} />
         </ComponentNavigationProvider>
       </ComponentIconProvider>
     </ComponentStateProvider>
   );
-
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
 
 describe("SpanEventView", () => {
   beforeEach(() => {
@@ -48,28 +43,22 @@ describe("SpanEventView", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders a span_begin event with the span class and type-prefixed title", () => {
-    const { container } = renderView(
+  it("renders a span_begin event with a type-prefixed title", () => {
+    renderView(
       testSpanBeginEvent({ name: "my_agent", type: "agent", span_id: "s1" })
     );
     expect(screen.getByText("agent: my_agent")).toBeTruthy();
-    expect(container.querySelector(".transcript-span")).not.toBeNull();
-    expect(container.querySelector(".transcript-step")).toBeNull();
   });
 
-  it("renders a legacy step event with the step class", () => {
-    const { container } = renderView(
-      testStepEvent({ name: "my_step", type: null })
-    );
+  it("renders a legacy step event with the Step-prefixed title", () => {
+    renderView(testStepEvent({ name: "my_step", type: null }));
     expect(screen.getByText("Step: my_step")).toBeTruthy();
-    expect(container.querySelector(".transcript-step")).not.toBeNull();
-    expect(container.querySelector(".transcript-span")).toBeNull();
   });
 
-  it("recognizes the sandbox signal in span_id for spans and name for steps", () => {
+  it("names the sandbox span and the sandbox legacy step", () => {
     renderView(
       testSpanBeginEvent({
-        name: "whatever",
+        name: kSandboxSignalName,
         type: null,
         span_id: kSandboxSignalName,
       })

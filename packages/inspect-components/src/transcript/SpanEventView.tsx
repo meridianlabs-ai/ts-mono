@@ -41,10 +41,7 @@ export const SpanEventView: FC<SpanEventViewProps> = ({
       eventNodeId={eventNode.id}
       muted
       childIds={childIds}
-      className={clsx(
-        event.event === "span_begin" ? "transcript-span" : "transcript-step",
-        className
-      )}
+      className={clsx("transcript-span", className)}
       title={title}
       subTitle={
         event.timestamp ? formatDateTime(new Date(event.timestamp)) : undefined
@@ -63,12 +60,10 @@ const displayName = (event: SpanBeginEvent | StepEvent): string | undefined => {
   if (event.type === "solver" || event.type === "scorer") {
     return undefined;
   }
-  // The sandbox signal lives in span_id for spans, name for legacy steps
-  const isSandbox =
-    event.event === "span_begin"
-      ? event.span_id === kSandboxSignalName
-      : event.name === kSandboxSignalName;
-  if (isSandbox) {
+  // The sandbox fixup names both its span and legacy-step markers with the
+  // signal (spans carry it in span_id too); name covers both shapes, as in
+  // collapse.ts and OutlineRow.
+  if (event.name === kSandboxSignalName) {
     return "Sandbox Events";
   }
   if (event.name === "init") {
