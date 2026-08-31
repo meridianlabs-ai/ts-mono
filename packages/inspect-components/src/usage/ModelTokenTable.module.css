@@ -74,6 +74,14 @@
   margin-top: 0.4rem;
 }
 
+.modelCost {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--bs-secondary);
+  margin-top: 0.15rem;
+}
+
 .configSection {
   margin-top: 12px;
   padding-top: 10px;
@@ -201,6 +209,12 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-top: 0.15rem;
+}
+
+.perSampleCost {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--bs-body-color);
 }
 
 .swatchSmall {

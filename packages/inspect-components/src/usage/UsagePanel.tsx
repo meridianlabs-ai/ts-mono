@@ -7,6 +7,7 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
+import { formatCurrency } from "@tsmono/util";
 
 import {
   adaptiveMaxFromConfig,
@@ -17,6 +18,7 @@ import {
 } from "./connectionHistory";
 import { ConnectionLogModal } from "./ConnectionLogModal";
 import { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
+import { costSummary } from "./cost";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
 import { rolesForModel } from "./roleAliases";
@@ -161,9 +163,30 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const logRoles =
     logModel != null ? rolesForModel(role_aliases, logModel) : [];
 
+  // Model usage is the authoritative rollup (roles only cover role-attributed
+  // calls), so cost reads from it regardless of the selected lens.
+  const cost = costSummary(model_usage) ?? costSummary(role_usage);
+  const costItem: MetaItem[] = cost
+    ? [
+        {
+          label: "Cost",
+          value: cost.partial ? (
+            <span title="Excludes models without recorded pricing">
+              {`≥ ${formatCurrency(cost.total)}`}
+            </span>
+          ) : (
+            formatCurrency(cost.total)
+          ),
+        },
+      ]
+    : [];
+
   const metaItems =
     hasUsageData || isConnections
-      ? (meta?.filter((m) => m.value != null && m.value !== "") ?? [])
+      ? [
+          ...costItem,
+          ...(meta?.filter((m) => m.value != null && m.value !== "") ?? []),
+        ]
       : [];
 
   return (

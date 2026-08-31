@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, Fragment } from "react";
 
 import { formatConfigValue } from "@tsmono/inspect-common/utils";
-import { formatNumber } from "@tsmono/util";
+import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
@@ -130,6 +130,11 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                         <small>tokens</small>
                       </span>
                     )}
+                    {showTokenColumns && usage?.total_cost != null && (
+                      <span className={styles.modelCost}>
+                        {formatCurrency(usage.total_cost)}
+                      </span>
+                    )}
                     {(() => {
                       const cfg = model_configs?.[modelId];
                       const args = model_args?.[modelId];
@@ -230,6 +235,16 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                     <td className={clsx(styles.num, styles.perSampleCell)}>
                       {formatNumber(Math.round(total / samples))}
                       <span className={styles.perSampleSub}>avg / sample</span>
+                      {usage.total_cost != null && (
+                        <>
+                          <span className={styles.perSampleCost}>
+                            {formatCurrency(usage.total_cost / samples)}
+                          </span>
+                          <span className={styles.perSampleSub}>
+                            avg cost / sample
+                          </span>
+                        </>
+                      )}
                     </td>
                   )}
                 </tr>
