@@ -13,7 +13,7 @@ this harness exercises the production transport (view-server API, binary
 `.eval` parsing, streaming) end to end.
 
 All commands below run from `apps/inspect`. The harness lives in this
-directory (`.claude/skills/verify-log-viewer/`); it never edits product code.
+directory (`.agents/skills/verify-log-viewer/`); it never edits product code.
 
 ## Configuration knobs
 
@@ -38,7 +38,7 @@ suites), and 7575 (the user's real `inspect view`) are deliberately NOT used.
 Before driving anything, run the read-only preflight:
 
 ```sh
-.claude/skills/verify-log-viewer/doctor.sh
+.agents/skills/verify-log-viewer/doctor.sh
 ```
 
 It reports whether the two harness ports are free (and who owns them if
@@ -54,7 +54,7 @@ by hand:
 
 ```sh
 INSPECT_BIN=~/code/inspect_ai/.venv/bin/inspect \
-  pnpm exec playwright test --config .claude/skills/verify-log-viewer/playwright.verify.config.ts
+  pnpm exec playwright test --config .agents/skills/verify-log-viewer/playwright.verify.config.ts
 ```
 
 Readiness: the view server is up when `http://127.0.0.1:7677/api/logs`
@@ -67,7 +67,7 @@ To start the stack manually for interactive poking (two terminals):
 ```sh
 ~/code/inspect_ai/.venv/bin/inspect view start \
   --log-dir ~/code/viewer-validation/logs --port 7677 --display plain
-pnpm exec vite --config .claude/skills/verify-log-viewer/vite.verify.config.ts
+pnpm exec vite --config .agents/skills/verify-log-viewer/vite.verify.config.ts
 ```
 
 Then open `http://localhost:5179/`. Kill both processes (Ctrl-C) when done —
@@ -100,7 +100,7 @@ grow together.
 
 ## Evidence
 
-Proof artifacts go to `.claude/skills/verify-log-viewer/evidence/`
+Proof artifacts go to `.agents/skills/verify-log-viewer/evidence/`
 (gitignored, named per feature, overwritten each run — the current contents
 are the latest proof). Playwright's own failure artifacts land in
 `test-results/` next to it.

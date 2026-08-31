@@ -1,6 +1,6 @@
 #!/bin/bash
 # Read-only preflight: is this checkout/machine worth driving?
-# Usage: .claude/skills/verify-log-viewer/doctor.sh   (from apps/inspect)
+# Usage: .agents/skills/verify-log-viewer/doctor.sh   (from apps/inspect)
 # Env (same knobs as playwright.verify.config.ts):
 #   VERIFY_VIEWER_PORT (5179) VERIFY_VIEW_SERVER_PORT (7677)
 #   INSPECT_BIN (inspect) VERIFY_LOG_DIR (~/code/viewer-validation/logs)

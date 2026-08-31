@@ -707,7 +707,7 @@ git commit -m "feat(inspect): samples-tab column filters sync with the filtrex F
 
 ### Task 7: End-to-end verification + docs
 
-- [ ] **Step 1: Drive the real app** (dev server on 5173 — see `apps/inspect/.claude/skills/verify/SKILL.md`). Open a single-log samples page (e.g. `#/tasks/petri3_claude-opus-4-7__target-claude-opus-4-7.eval`) and verify:
+- [ ] **Step 1: Drive the real app** (dev server on 5173 — see `apps/inspect/.agents/skills/verify/SKILL.md`). Open a single-log samples page (e.g. `#/tasks/petri3_claude-opus-4-7__target-claude-opus-4-7.eval`) and verify:
   1. Funnel on a registry column (e.g. input/tokens) → Apply "contains foo" / "> 500" → the FILTER input shows `input_contains("foo")` / `tokens > 500` and rows narrow.
   2. Add a second column's filter → string becomes the ` and `-joined conjunction; clearing one column removes only its fragment.
   3. Type `tokens > 500` in FILTER → the tokens funnel lights up; opening it shows `>` / `500`.

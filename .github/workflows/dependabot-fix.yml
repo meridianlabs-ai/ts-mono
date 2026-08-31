@@ -1,5 +1,5 @@
 # Daily scheduled Claude Code run of the dependabot-fix skill
-# (.claude/skills/dependabot-fix/SKILL.md): clear open dependabot alerts via
+# (.agents/skills/dependabot-fix/SKILL.md): clear open dependabot alerts via
 # pnpm overrides, one PR per batch.
 #
 # Standalone (not the agents-repo reusable workflow — that one is built around
@@ -94,7 +94,7 @@ jobs:
             "Bash(git push:*)","Bash(git config:*)"]}}
           claude_args: --model fable --fallback-model default
           prompt: |
-            Run the dependabot-fix skill (.claude/skills/dependabot-fix/SKILL.md)
+            Run the dependabot-fix skill (.agents/skills/dependabot-fix/SKILL.md)
             to clear the currently open GitHub dependabot security alerts.
 
             This is an unattended scheduled run — follow the skill's
