@@ -96,11 +96,25 @@ export const buildLedger = (perFile) =>
 const entryKey = (file, rule) => file + "\t" + rule;
 const keyOf = (key) => key.split("\t").join(" — ");
 
+// Ledger JSON reaching the delta renderer can come from a fork PR head
+// (see suppressions-pr-delta.mjs), so tally values are untrusted: coerce
+// them to finite numbers and tolerate malformed shapes here, or a crafted
+// string count would ride `+` concatenation through totals() into the
+// rendered comment, bypassing the cell() escaping. Trusted inputs (the
+// committed ledger, the gate's own scan) are unaffected.
+const obj = (value) =>
+  typeof value === "object" && value !== null ? value : {};
+const num = (value) =>
+  typeof value === "number" && Number.isFinite(value) ? value : 0;
+
 const entries = (ledger) =>
-  Object.entries(ledger).flatMap(([file, rules]) =>
-    Object.entries(rules).map(([rule, tally]) => [
+  Object.entries(obj(ledger)).flatMap(([file, rules]) =>
+    Object.entries(obj(rules)).map(([rule, tally]) => [
       entryKey(file, rule),
-      { count: tally.count, undescribed: tally.undescribed ?? 0 },
+      {
+        count: num(obj(tally).count),
+        undescribed: num(obj(tally).undescribed),
+      },
     ]),
   );
 

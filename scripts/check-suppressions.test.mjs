@@ -245,3 +245,10 @@ test("totals sums counts and undescribed", () => {
     { count: 6, undescribed: 4 },
   );
 });
+
+test("totals coerces non-numeric tallies to 0 (fork ledgers are untrusted)", () => {
+  assert.deepEqual(
+    totals({ "a.ts": { r: { count: "9\n[x](https://y)", undescribed: "9" } } }),
+    { count: 0, undescribed: 0 },
+  );
+});

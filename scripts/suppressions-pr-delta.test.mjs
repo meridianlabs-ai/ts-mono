@@ -64,6 +64,31 @@ test("markdown link/image syntax cannot form in a cell", () => {
   assert.ok(body.includes("<code>!&#91;](https://evil.example/p.png)</code>"));
 });
 
+test("non-numeric tally values from a fork ledger cannot inject markdown", () => {
+  const payload = "0\n\n[click](https://evil.example)";
+  const body = render(
+    { "a.ts": { r: { count: 1 } } },
+    {
+      "a.ts": { r: { count: payload, undescribed: payload } },
+      "b.ts": { r: { count: 2 } },
+    },
+  );
+  // Crafted strings coerce to 0 and never reach the heading, the per-row
+  // reason-less note, or the reason-less summary line.
+  assert.ok(!body.includes("evil.example"));
+  assert.match(body, /⚠️ Suppression ledger grew: 1 → 2 \(\+1\)/);
+});
+
+test("malformed ledger shapes render without throwing", () => {
+  const body = render(null, {
+    "a.ts": null,
+    "b.ts": 5,
+    "c.ts": { r: null, s: { count: 1 } },
+  });
+  assert.match(body, /⚠️ Suppression ledger grew: 0 → 1 \(\+1\)/);
+  assert.ok(body.includes("| <code>c.ts</code> | <code>s</code> | +1 |"));
+});
+
 // --- CLI arg handling ---
 
 const SCRIPT = fileURLToPath(
