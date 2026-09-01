@@ -125,7 +125,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   // so we can read/write it synchronously without scheduling a render.
   const inFlightRef = useRef(false);
 
-  const handleSave = async () => {
+  const handleSave = (): void => {
     if (!canSave || inFlightRef.current || !api.edit_log) return;
     inFlightRef.current = true;
     // NOTE: we intentionally do NOT call `setError(undefined)` here.
@@ -142,34 +142,34 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     // before any network IO) don't flash the indicator on and off.
     // For slower saves the indicator still appears.
     const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
-    // Hoisted out of the try: React Compiler can't lower value blocks
-    // (||, ?.) inside try/catch and would bail out the component.
     const provenance = {
       author: author.trim(),
       reason: reason.trim() || undefined,
       metadata: {},
       timestamp: new Date().toISOString(),
     };
-    try {
-      const edit: TagsEdit = {
-        type: "tags",
-        tags_add: tagsAdd,
-        tags_remove: tagsRemove,
-      };
-      await api.edit_log(logFile, {
+    const edit: TagsEdit = {
+      type: "tags",
+      tags_add: tagsAdd,
+      tags_remove: tagsRemove,
+    };
+    api
+      .edit_log(logFile, {
         edits: [edit],
         provenance,
+      })
+      .then(() => {
+        setShowing(false);
+        if (onSaved) {
+          onSaved();
+        }
+      })
+      .catch((err: unknown) => setError(formatEditError(err)))
+      .finally(() => {
+        window.clearTimeout(indicatorTimer);
+        setSubmitting(false);
+        inFlightRef.current = false;
       });
-      setShowing(false);
-      if (onSaved) {
-        onSaved();
-      }
-    } catch (err) {
-      setError(formatEditError(err));
-    }
-    window.clearTimeout(indicatorTimer);
-    setSubmitting(false);
-    inFlightRef.current = false;
   };
 
   return (
@@ -194,10 +194,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={() => {
-                // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleSave reports failures via setError and never rejects
-                handleSave();
-              }}
+              onClick={handleSave}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}

@@ -83,7 +83,7 @@ export const ScannerResultsBody: FC<{
                     identifier,
                     searchParams
                   );
-                  // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
                   navigate(route);
                 }
               }}

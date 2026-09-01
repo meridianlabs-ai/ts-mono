@@ -268,15 +268,13 @@ export class FetchEngine {
 
   constructor(options: FetchEngineOptions = {}) {
     this._throttledUpdateDbStats = throttle(() => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- updateDbStats never rejects; stats are advisory
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- updateDbStats must stay Promise-returning (start() awaits it as a fence); it catches internally and never rejects
       this.updateDbStats();
     }, options.statsDelayMs ?? 1000);
     this._throttledFlushPreviewWrites = throttle(() => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- flushPreviewWrites never rejects; sink errors are swallowed
       this.flushPreviewWrites();
     }, options.flushDelayMs ?? 250);
     this._throttledFlushDetailWrites = throttle(() => {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- flushDetailWrites never rejects; sink errors are swallowed
       this.flushDetailWrites();
     }, options.flushDelayMs ?? 250);
 
@@ -1095,54 +1093,54 @@ export class FetchEngine {
     }
   }
 
-  private async flushPreviewWrites(): Promise<void> {
+  private flushPreviewWrites(): void {
     if (this._flushingPreviews) {
       return;
     }
-    this._flushingPreviews = true;
-    try {
-      const updates = this._pendingPreviewWrites;
-      this._pendingPreviewWrites = {};
-      const deps = this._deps;
-      if (!deps || Object.keys(updates).length === 0) {
-        return;
-      }
-      await deps.sink.writePreviews(updates).catch(() => {});
-      this._throttledUpdateDbStats();
-    } finally {
-      this._flushingPreviews = false;
-      // Trailing coalesce — see flushDetailWrites.
-      if (Object.keys(this._pendingPreviewWrites).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.flushPreviewWrites();
-      }
+    const updates = this._pendingPreviewWrites;
+    this._pendingPreviewWrites = {};
+    const deps = this._deps;
+    if (!deps || Object.keys(updates).length === 0) {
+      return;
     }
+    this._flushingPreviews = true;
+    deps.sink
+      .writePreviews(updates)
+      .catch(() => {})
+      .finally(() => {
+        this._throttledUpdateDbStats();
+        this._flushingPreviews = false;
+        // Trailing coalesce — see flushDetailWrites.
+        if (Object.keys(this._pendingPreviewWrites).length > 0) {
+          this.flushPreviewWrites();
+        }
+      });
   }
 
-  private async flushDetailWrites(): Promise<void> {
+  private flushDetailWrites(): void {
     if (this._flushingDetails) {
       return;
     }
-    this._flushingDetails = true;
-    try {
-      const updates = this._pendingDetailWrites;
-      this._pendingDetailWrites = {};
-      const deps = this._deps;
-      if (!deps || Object.keys(updates).length === 0) {
-        return;
-      }
-      await deps.sink.writeDetails(updates).catch(() => {});
-      this._throttledUpdateDbStats();
-    } finally {
-      this._flushingDetails = false;
-      // Trailing coalesce: a settle that staged writes while this flush was
-      // in flight had its own flush attempt swallowed by the guard above —
-      // without a re-run those writes sit staged indefinitely.
-      if (Object.keys(this._pendingDetailWrites).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.flushDetailWrites();
-      }
+    const updates = this._pendingDetailWrites;
+    this._pendingDetailWrites = {};
+    const deps = this._deps;
+    if (!deps || Object.keys(updates).length === 0) {
+      return;
     }
+    this._flushingDetails = true;
+    deps.sink
+      .writeDetails(updates)
+      .catch(() => {})
+      .finally(() => {
+        this._throttledUpdateDbStats();
+        this._flushingDetails = false;
+        // Trailing coalesce: a settle that staged writes while this flush was
+        // in flight had its own flush attempt swallowed by the guard above —
+        // without a re-run those writes sit staged indefinitely.
+        if (Object.keys(this._pendingDetailWrites).length > 0) {
+          this.flushDetailWrites();
+        }
+      });
   }
 
   private async updateDbStats(): Promise<void> {

@@ -27,10 +27,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
           <button
             type="button"
             className={clsx(styles.navButton, styles.historyButton)}
-            onClick={() => {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises -- fire-and-forget history navigation
-              navigate(-1);
-            }}
+            onClick={() => navigate(-1)}
             aria-label="Back"
             title="Back"
           >
@@ -39,10 +36,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
           <button
             type="button"
             className={clsx(styles.navButton, styles.historyButton)}
-            onClick={() => {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises -- fire-and-forget history navigation
-              navigate(1);
-            }}
+            onClick={() => navigate(1)}
             aria-label="Forward"
             title="Forward"
           >
@@ -53,7 +47,6 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
             className={styles.navButton}
             onClick={() => {
               if (currentActivity) {
-                // eslint-disable-next-line @typescript-eslint/no-floating-promises
                 navigate(currentActivity.route);
               }
             }}

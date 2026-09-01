@@ -331,16 +331,14 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   // Re-entry guard (see EditTagsDialog for rationale).
   const inFlightRef = useRef(false);
 
-  const handleSave = async () => {
-    if (!canSave || inFlightRef.current || !api.edit_log) return;
+  const handleSave = (): void => {
+    // Hoisted to a const so the narrowing survives into the chain callbacks.
+    const editLog = api.edit_log;
+    if (!canSave || inFlightRef.current || !editLog) return;
     inFlightRef.current = true;
     // Don't clear `error` here — see EditTagsDialog for the no-flash
     // rationale. Delayed "Saving…" indicator likewise.
     const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
-    // Hoisted out of the try: React Compiler can't lower value blocks
-    // (||, ?., ternaries) inside try/catch and would bail out. Only
-    // serializeEntry stays inside — its MetadataParseError is what the
-    // catch classifies.
     const changedEntries = entries.filter((e) => e.isNew || e.dirty);
     const provenance = {
       author: author.trim(),
@@ -348,37 +346,45 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       metadata: {},
       timestamp: new Date().toISOString(),
     };
-    try {
-      const metadata_set = buildMetadataSet(changedEntries);
-      const edit: MetadataEdit = {
-        type: "metadata",
-        metadata_set,
-        metadata_remove: removed,
-      };
-      await api.edit_log(logFile, {
-        edits: [edit],
-        provenance,
+    // buildMetadataSet runs inside the chain so a MetadataParseError from
+    // serializeEntry rejects into the catch below before any network call.
+    Promise.resolve()
+      .then(() => {
+        const metadata_set = buildMetadataSet(changedEntries);
+        const edit: MetadataEdit = {
+          type: "metadata",
+          metadata_set,
+          metadata_remove: removed,
+        };
+        return editLog(logFile, {
+          edits: [edit],
+          provenance,
+        });
+      })
+      .then(() => {
+        setShowing(false);
+        if (onSaved) {
+          onSaved();
+        }
+      })
+      .catch((err: unknown) => {
+        if (err instanceof MetadataParseError) {
+          // Show a per-key message. Common cause: JS-style object shorthand
+          // (`{a: 1}`) instead of JSON (`{"a": 1}`) for keys whose chosen
+          // type isn't `string`.
+          setError(
+            `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
+              `and strings, e.g. {"a": 1} or "yes".`
+          );
+        } else {
+          setError(formatEditError(err));
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(indicatorTimer);
+        setSubmitting(false);
+        inFlightRef.current = false;
       });
-      setShowing(false);
-      if (onSaved) {
-        onSaved();
-      }
-    } catch (err) {
-      if (err instanceof MetadataParseError) {
-        // Show a per-key message and bail out before any network call.
-        // Common cause: JS-style object shorthand (`{a: 1}`) instead of
-        // JSON (`{"a": 1}`) for keys whose chosen type isn't `string`.
-        setError(
-          `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
-            `and strings, e.g. {"a": 1} or "yes".`
-        );
-      } else {
-        setError(formatEditError(err));
-      }
-    }
-    window.clearTimeout(indicatorTimer);
-    setSubmitting(false);
-    inFlightRef.current = false;
   };
 
   return (
@@ -403,10 +409,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={() => {
-                // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleSave reports failures via setError and never rejects
-                handleSave();
-              }}
+              onClick={handleSave}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}

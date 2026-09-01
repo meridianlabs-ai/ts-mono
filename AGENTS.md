@@ -77,6 +77,25 @@ caught locally. If you changed code, also run `pnpm test`.
   remove those guards until their boundary normalizes; the suppression
   comment names the surface.
 
+## Code Style — Void-Returning Handlers
+
+  A function whose contract is to return void and that handles its own
+  errors should be declared `(): void`, not `async`/`Promise<void>`. Do
+  the async work and its error handling inside the function (a promise
+  chain ending in `.catch`, or an inner async function whose rejection
+  the sync wrapper catches) so it can never reject to the caller. Do not
+  return a promise the caller is expected to drop.
+
+  - Call sites stay clean (`onClick={handleSave}`, `setInterval(poll, ...)`)
+    with no `() => void handleSave()` wrapper and no
+    `no-floating-promises` suppression.
+  - `no-floating-promises` runs with `ignoreVoid: false` here, so a
+    `void`-prefixed drop is deliberately not an accepted escape.
+  - Keep a function `async` only when some caller genuinely awaits it;
+    a fire-and-forget call site then carries a reasoned suppression
+    naming that caller (see the `_throttledUpdateDbStats` directive in
+    `fetchEngine.ts`).
+
 ## Suppression gate
 
 - Do NOT suppress lint or type errors. Fix the code. See

@@ -380,7 +380,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
 
   // Handler for creating a new validation set
   const handleCreateSet = useCallback(
-    async (name: string) => {
+    (name: string) => {
       setCreateError(null);
 
       // Validate filename
@@ -401,15 +401,17 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
         return;
       }
 
-      try {
-        await createSetMutation.mutateAsync({ path: newUri, cases: [] });
-        setCreateError(null);
-        handleValidationSetSelect(newUri); // Select the new set
-      } catch (err) {
-        setCreateError(
-          err instanceof Error ? err.message : "Failed to create set"
+      createSetMutation
+        .mutateAsync({ path: newUri, cases: [] })
+        .then(() => {
+          setCreateError(null);
+          handleValidationSetSelect(newUri); // Select the new set
+        })
+        .catch((err: unknown) =>
+          setCreateError(
+            err instanceof Error ? err.message : "Failed to create set"
+          )
         );
-      }
     },
     [
       config.project_dir,
@@ -420,22 +422,24 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
   );
 
   // Handler for deleting the current validation case
-  const handleDeleteCase = useCallback(async () => {
+  const handleDeleteCase = useCallback(() => {
     if (!transcriptId || !editorValidationSetUri) return;
-    try {
-      await deleteCaseMutation.mutateAsync(transcriptId);
-      setShowDeleteModal(false);
-      // Reset cache to null after deletion (keeps panel open)
-      queryClient.setQueryData(
-        validationQueryKeys.case({
-          url: editorValidationSetUri,
-          caseId: transcriptId,
-        }),
-        null
-      );
-    } catch {
-      // Error is handled by mutation state - modal stays open
-    }
+    deleteCaseMutation
+      .mutateAsync(transcriptId)
+      .then(() => {
+        setShowDeleteModal(false);
+        // Reset cache to null after deletion (keeps panel open)
+        queryClient.setQueryData(
+          validationQueryKeys.case({
+            url: editorValidationSetUri,
+            caseId: transcriptId,
+          }),
+          null
+        );
+      })
+      .catch(() => {
+        // Error is handled by mutation state - modal stays open
+      });
   }, [transcriptId, editorValidationSetUri, deleteCaseMutation, queryClient]);
 
   const isEditable =
@@ -483,10 +487,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               selectedUri={editorValidationSetUri}
               onSelect={handleValidationSetSelect}
               allowCreate={true}
-              onCreate={(name) => {
-                // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleCreateSet reports failures via setCreateError and never rejects
-                handleCreateSet(name);
-              }}
+              onCreate={handleCreateSet}
               createPending={createSetMutation.isPending}
               appConfig={config}
             />
@@ -587,10 +588,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               <ConfirmationDialog
                 show={showDeleteModal}
                 onHide={() => setShowDeleteModal(false)}
-                onConfirm={() => {
-                  // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleDeleteCase surfaces failures via mutation state and never rejects
-                  handleDeleteCase();
-                }}
+                onConfirm={handleDeleteCase}
                 title="Delete Case"
                 message="Are you sure you want to delete this validation case?"
                 confirmLabel="Delete"

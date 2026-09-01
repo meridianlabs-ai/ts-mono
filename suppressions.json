@@ -148,17 +148,11 @@
     }
   },
   "apps/inspect/src/app/log-view/title-view/EditMetadataDialog.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 2
     }
   },
   "apps/inspect/src/app/log-view/title-view/EditTagsDialog.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -535,11 +529,6 @@
       "undescribed": 1
     }
   },
-  "apps/inspect/src/components/DownloadLogButton.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/log_data/chunked/chunkedSample.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
@@ -573,8 +562,8 @@
   },
   "apps/inspect/src/log_data/fetchEngine.ts": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 6,
-      "undescribed": 3
+      "count": 2,
+      "undescribed": 1
     }
   },
   "apps/inspect/src/log_data/FetchEngineController.tsx": {
@@ -799,12 +788,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/components/ActivityBarLayout.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/components/AddFilterButton.tsx": {
     "jsx-a11y/no-autofocus": {
       "count": 1
@@ -834,10 +817,6 @@
     }
   },
   "apps/scout/src/app/components/dataGrid/DataGrid.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
@@ -883,12 +862,6 @@
     },
     "react-hooks/refs": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/components/ProjectBar.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 3,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/components/TranscriptsNavbar.tsx": {
@@ -949,10 +922,6 @@
     }
   },
   "apps/scout/src/app/hooks/useWindowMessaging.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
@@ -1048,10 +1017,6 @@
     }
   },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
@@ -1061,17 +1026,7 @@
     }
   },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsRow.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "apps/scout/src/app/scan/scanners/results/ScannerResultsBody.tsx": {
-    "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
     }
@@ -1242,7 +1197,7 @@
   },
   "apps/scout/src/app/validation/components/CopyMoveCasesModal.tsx": {
     "@typescript-eslint/no-floating-promises": {
-      "count": 3,
+      "count": 1,
       "undescribed": 1
     }
   },
@@ -1253,9 +1208,6 @@
     }
   },
   "apps/scout/src/app/validation/components/ValidationCaseEditor.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2
-    },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2,
       "undescribed": 2
@@ -1300,10 +1252,6 @@
     }
   },
   "apps/scout/src/AppRouter.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
