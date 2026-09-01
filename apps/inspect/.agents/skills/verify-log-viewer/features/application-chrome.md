@@ -34,7 +34,8 @@ thin loading indicator below the navbar.
 - Theme: click the theme control by its current accessible label, assert the
   root theme attribute/class changes, reload, and assert persistence. Skip the
   mode picker in VS Code because the host owns the theme.
-- Open Viewer Options with `getByRole("button", { name: /viewer options/i })`.
+- Open Viewer Options with
+  `getByRole("button", { name: /viewer information and options/i })`.
   Assert the served log directory and Inspect version, not only that a popover
   appeared.
 - Clearing local data is destructive to the viewer cache. Prove the cancel-free
@@ -44,7 +45,9 @@ thin loading indicator below the navbar.
 ## Code landmarks
 
 - Chrome composition: `apps/inspect/src/app/navbar/ApplicationNavbar.tsx`,
-  `Navbar.tsx`, and `ViewerOptionsPopover.tsx`.
+  `apps/inspect/src/app/navbar/Navbar.tsx`,
+  `apps/inspect/src/app/log-list/ViewerOptionsButton.tsx`, and
+  `apps/inspect/src/app/log-list/ViewerOptionsPopover.tsx`.
 - Theme ownership: `apps/inspect/src/app/App.tsx`,
   `apps/inspect/src/state/userSettings.ts`, and
   `packages/inspect-components/src/theme/`.

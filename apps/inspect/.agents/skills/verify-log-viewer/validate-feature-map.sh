@@ -59,6 +59,21 @@ while IFS= read -r landmark; do
   fi
 done < <(grep -Eho "\`(apps|packages)/[^\`]+\`" "$features_dir"/*.md | sort -u)
 
+while IFS= read -r landmark; do
+  path="${landmark#\`}"
+  path="${path%\`}"
+  if [[ "$path" == apps/* || "$path" == packages/* || "$path" == *"*"* ]]; then
+    continue
+  fi
+  filename="${path##*/}"
+  if ! git -C "$repo_root" ls-files -- apps packages |
+    awk -F/ -v filename="$filename" '$NF == filename { found = 1 } END { exit !found }'; then
+    fail "bare code landmark does not exist under apps/ or packages/: $path"
+  fi
+done < <(
+  grep -Eho "\`[^\`]+\.(ts|tsx|js|jsx|css|scss)\`" "$features_dir"/*.md | sort -u
+)
+
 if [[ "$failed" -ne 0 ]]; then
   exit 1
 fi
