@@ -111,9 +111,7 @@ export function useStatefulScrollPosition<
     element.addEventListener("scroll", handleScroll);
 
     return () => {
-      if (pollTimer !== undefined) {
-        clearTimeout(pollTimer);
-      }
+      clearTimeout(pollTimer);
       // A debounce tick pending here is left to fire after unmount —
       // deliberate: it writes the final scroll position to the app's state
       // store (safe post-unmount), so a scroll made just before unmounting
