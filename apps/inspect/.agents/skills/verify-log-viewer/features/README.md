@@ -64,24 +64,24 @@ fixture auto-enables MSW and silently mocks `/api`. Import from
 
 Start from what the user can see, not from a guessed component name:
 
-| Report or screenshot contains                         | Start with                                                                                     |
-| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Tasks/Folders/Samples switcher, rows, columns, footer | [Log list](./log-list.md), [Sample list](./sample-list.md), [Shared grid behavior](./shared-grid-behavior.md) |
-| Breadcrumbs, theme, loading bar, viewer options       | [Application chrome](./application-chrome.md)                                                  |
+| Report or screenshot contains                         | Start with                                                                                                            |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Tasks/Folders/Samples switcher, rows, columns, footer | [Log list](./log-list.md), [Sample list](./sample-list.md), [Shared grid behavior](./shared-grid-behavior.md)         |
+| Breadcrumbs, theme, loading bar, viewer options       | [Application chrome](./application-chrome.md)                                                                         |
 | Wrong URL, back behavior, wrong log/sample after nav  | [Routing and viewer modes](./routing-and-viewer-modes.md), then [Cross-surface journeys](./multi-surface-journeys.md) |
-| Log title, status, tags, metrics, download            | [Log header and editing](./log-header-and-editing.md), [Scores](./scores.md)                    |
-| Summary, dataset, solver, scorer, metadata            | [Evaluation info](./evaluation-info.md)                                                        |
-| Task ids, sandbox, args, config, early stopping       | [Task and configuration](./task-and-configuration.md)                                          |
-| Tokens, cost, model roles, connections                | [Models and usage](./models-and-usage.md), [Sample usage and metadata](./sample-usage-and-metadata.md) |
-| Run history, markers, lanes, config changes           | [Evaluation timeline](./evaluation-timeline.md)                                                |
-| Sample input/target/answer header or prev/next         | [Sample summary and navigation](./sample-summary-and-navigation.md)                             |
-| Conversation bubbles, tool calls, markdown, images    | [Sample messages](./sample-messages.md), [Rendered content and media](./rendered-content-and-media.md) |
-| Event outline, swimlanes, focus mode, turn controls   | [Transcript](./transcript.md), [Transcript events and focus](./transcript-events-and-focus.md)  |
-| Search or Scans right rail, cite labels                | [Transcript search and scans](./transcript-search-and-scans.md)                                |
-| Error, limit, cancelled, retry attempt                 | [Errors, limits, and retries](./errors-limits-and-retries.md)                                  |
-| Blank, stale, perpetually loading, live update         | [Loading, live evals, and refresh](./loading-live-refresh.md)                                  |
-| Raw/JSON/copy/download/print                           | [Export, JSON, and print](./export-json-print.md)                                               |
-| YAML evaluation flow                                  | [Flow files](./flow-files.md)                                                                  |
+| Log title, status, tags, metrics, download            | [Log header and editing](./log-header-and-editing.md), [Scores](./scores.md)                                          |
+| Summary, dataset, solver, scorer, metadata            | [Evaluation info](./evaluation-info.md)                                                                               |
+| Task ids, sandbox, args, config, early stopping       | [Task and configuration](./task-and-configuration.md)                                                                 |
+| Tokens, cost, model roles, connections                | [Models and usage](./models-and-usage.md), [Sample usage and metadata](./sample-usage-and-metadata.md)                |
+| Run history, markers, lanes, config changes           | [Evaluation timeline](./evaluation-timeline.md)                                                                       |
+| Sample input/target/answer header or prev/next        | [Sample summary and navigation](./sample-summary-and-navigation.md)                                                   |
+| Conversation bubbles, tool calls, markdown, images    | [Sample messages](./sample-messages.md), [Rendered content and media](./rendered-content-and-media.md)                |
+| Event outline, swimlanes, focus mode, turn controls   | [Transcript](./transcript.md), [Transcript events and focus](./transcript-events-and-focus.md)                        |
+| Search or Scans right rail, cite labels               | [Transcript search and scans](./transcript-search-and-scans.md)                                                       |
+| Error, limit, cancelled, retry attempt                | [Errors, limits, and retries](./errors-limits-and-retries.md)                                                         |
+| Blank, stale, perpetually loading, live update        | [Loading, live evals, and refresh](./loading-live-refresh.md)                                                         |
+| Raw/JSON/copy/download/print                          | [Export, JSON, and print](./export-json-print.md)                                                                     |
+| YAML evaluation flow                                  | [Flow files](./flow-files.md)                                                                                         |
 
 When the symptom crosses routes, modes, or persistence boundaries, also read
 [Cross-surface journeys](./multi-surface-journeys.md). A screenshot can locate
