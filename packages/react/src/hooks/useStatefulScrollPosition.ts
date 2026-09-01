@@ -119,6 +119,10 @@ export function useStatefulScrollPosition<
       if (pollTimer !== undefined) {
         clearTimeout(pollTimer);
       }
+      // A debounce tick pending here is left to fire after unmount —
+      // deliberate: it writes the final scroll position to the app's state
+      // store (safe post-unmount), so a scroll made just before unmounting
+      // is still restorable.
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (element.removeEventListener) {
         element.removeEventListener("scroll", handleScroll);
