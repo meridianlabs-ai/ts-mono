@@ -108,12 +108,7 @@ export function useStatefulScrollPosition<
       }
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (element.addEventListener) {
-      element.addEventListener("scroll", handleScroll);
-    } else {
-      log.warn("Element has no way to add event listener", element);
-    }
+    element.addEventListener("scroll", handleScroll);
 
     return () => {
       if (pollTimer !== undefined) {
@@ -123,12 +118,7 @@ export function useStatefulScrollPosition<
       // deliberate: it writes the final scroll position to the app's state
       // store (safe post-unmount), so a scroll made just before unmounting
       // is still restorable.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (element.removeEventListener) {
-        element.removeEventListener("scroll", handleScroll);
-      } else {
-        log.warn("Element has no way to remove event listener", element);
-      }
+      element.removeEventListener("scroll", handleScroll);
     };
   }, [elementKey, elementRef, handleScroll, scrollable]);
 

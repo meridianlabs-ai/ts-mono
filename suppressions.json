@@ -2009,12 +2009,6 @@
       "count": 1
     }
   },
-  "packages/react/src/hooks/useStatefulScrollPosition.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "packages/react/src/hooks/useWhyDidYouUpdate.ts": {
     "@typescript-eslint/no-explicit-any (file-wide)": {
       "count": 1,
