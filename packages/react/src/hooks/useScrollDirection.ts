@@ -9,6 +9,8 @@ import {
 
 import { isReadonlyArray } from "@tsmono/util";
 
+import { useUnmount } from "./useUnmount";
+
 const asArray = <T>(v: T | ReadonlyArray<T>): ReadonlyArray<T> =>
   isReadonlyArray(v) ? v : [v];
 
@@ -101,6 +103,15 @@ export function useScrollDirection(
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hidden, setHidden] = useState(options?.initialHidden ?? false);
 
+  // A lock timer may be pending at unmount (set by the scroll handlers,
+  // resetAnchor, or setHidden — the latter two can fire even with no
+  // scroller attached).
+  useUnmount(() => {
+    if (lockTimerRef.current !== null) {
+      clearTimeout(lockTimerRef.current);
+    }
+  });
+
   // Normalize input to an array of refs.
   const refArray: ReadonlyArray<RefObject<HTMLElement | null>> = useMemo(
     () => asArray(scrollRef),
@@ -168,6 +179,13 @@ export function useScrollDirection(
     directionAnchorsRef.current = new WeakMap();
     lastDirectionsRef.current = new WeakMap();
     transitionLockedRef.current = false;
+    programmaticLockRef.current = false;
+    // A timer pending from the previous scroller set would otherwise fire
+    // later and release a lock engaged after this re-attach.
+    if (lockTimerRef.current !== null) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
 
     if (scrollEls.length === 0) return;
 
