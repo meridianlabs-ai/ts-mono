@@ -39,8 +39,9 @@ The viewer is a hash-routed React app (`#/...` URLs). Prefer, in order:
 Deep-link instead of clicking through when the feature under proof isn't the
 navigation itself:
 `/#/logs/<encodeURIComponent(file)>/samples/sample/<id>/<epoch>/<tab>`.
-Sample tab ids: `messages transcript scoring usage metadata error retries json`.
-Log workspace tab ids: `samples json info models task timeline error`.
+Sample tab ids: `messages transcript scoring activity usage metadata error retries json`.
+Log workspace tab ids: `samples json info models task timeline error` (the
+`timeline` tab is labeled "Activity" in the UI; the id is unchanged).
 
 Readiness is always a web-first assertion on content (`expect(...).toBeVisible()`),
 never `networkidle` or fixed sleeps. The app boot gate blocks on
@@ -71,3 +72,6 @@ fixture auto-enables MSW and silently mocks `/api`. Import from
   navigation in a sample's Transcript tab.
 - [Scores](./scores.md) — score column in the log list, log-level scoring
   detail, and the sample Scoring tab.
+- [Sample activity](./sample-activity.md) — the sample Activity tab: stacked
+  operational bands, marker rail, filterable history list, click-through to
+  the Transcript.

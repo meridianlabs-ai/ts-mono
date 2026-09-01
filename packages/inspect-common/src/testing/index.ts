@@ -29,6 +29,7 @@ import type {
   Event,
   InfoEvent,
   InputEvent,
+  InterruptEvent,
   LoggerEvent,
   ModelConfig,
   ModelEvent,
@@ -375,6 +376,17 @@ export const testInputEvent = (
   working_start: 0,
   input: "",
   input_ansi: "",
+  ...overrides,
+});
+
+export const testInterruptEvent = (
+  overrides: Partial<InterruptEvent> = {}
+): InterruptEvent => ({
+  event: "interrupt",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  interrupted: "generate",
+  source: "user_cancel",
   ...overrides,
 });
 
