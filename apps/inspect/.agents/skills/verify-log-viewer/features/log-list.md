@@ -12,6 +12,12 @@ activating a row opens that log.
 - `list-open` opens a log from a row (click or Enter) and routes to it.
 - `list-filter` filters rows per column via the header funnel button.
 - `list-find` incremental find across the grid (Cmd/Ctrl-F band).
+- `list-sort-columns` sorts, resizes, reorders, and shows/hides columns while
+  retaining separate state per Tasks/folder scope.
+- `list-retried` deduplicates retried runs by default and exposes Show Retried
+  Logs when hidden attempts exist.
+- `list-progress` merges discovered logs with pending eval-set tasks and shows
+  completion/loading/error state without freezing the grid.
 
 ## How to get to it (user POV)
 
@@ -58,6 +64,24 @@ Preconditions:
   `evidence/`; assert a task name and a score value that exist in the
   fixture (e.g. `viewer_rich`, `0.8`).
 
+For sorting, columns, keyboard selection, and persistence/isolation, also run
+the coverage in [Shared grid behavior](./shared-grid-behavior.md).
+
+## Code landmarks
+
+- Panel/navigation/progress: `apps/inspect/src/app/log-list/LogsPanel.tsx`,
+  `useLogsOverview.ts`, and `apps/inspect/src/app/navbar/ViewSegmentedControl.tsx`.
+- Grid and row projection: `apps/inspect/src/app/log-list/grid/`, especially
+  `LogListGrid.tsx`, `useLogListData.ts`, and `columns/hooks.tsx`.
+- Query planning/evaluation: `apps/inspect/src/app/log-list/listing/`.
+- Listing acquisition/dedup: `apps/inspect/src/log_data/useLogsSync.ts`,
+  `logListing.ts`, `listingSync.ts`, and `apps/inspect/src/app/log-list/fileLogItem.ts`.
+- Shared grid/filter/find: `apps/inspect/src/app/shared/data-grid/` and
+  `packages/inspect-components/src/columnFilter/`.
+- Regression coverage: `apps/inspect/e2e/top-level-views.spec.ts`,
+  `log-list-filters.spec.ts`, `log-list-find.spec.ts`, and colocated listing/
+  grid tests.
+
 ## Gotchas
 
 - Column header accessible names include the filter funnel's aria-label —
@@ -71,3 +95,9 @@ Preconditions:
   the footer text, never via DOM rows.
 - Sort indicators are aria-hidden icons (`i.bi-arrow-down`); assert on them
   by class if sorting is under proof.
+- Tasks is a flat task-oriented view; Folders groups by path. State is scoped
+  independently so switching surfaces must not leak filters or sort.
+- Retried-run dedup is filename-ordered and folder-scoped. A missing old retry
+  can be intentional until Show Retried Logs is enabled.
+- A late header/preview can add dynamic score columns. User-sized widths must
+  not snap back while the schema fills in.

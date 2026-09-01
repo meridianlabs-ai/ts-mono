@@ -1,8 +1,9 @@
 # Log viewer verification map
 
-This directory is the maintained source for verifying the user-facing
-behavior of the inspect log viewer. Read this index before driving the app,
-then use the matching feature file as the recipe.
+This directory is the maintained, behavior-level map of the inspect log
+viewer. Agents use it to translate a report, screenshot, or changed file into
+the relevant user journeys, code, and proof. Read this index first, then open
+only the feature files that match the surface under investigation.
 
 ## Baseline preconditions
 
@@ -59,15 +60,111 @@ fixture auto-enables MSW and silently mocks `/api`. Import from
 - Report an unreachable path with the attempted selector and the unmet
   precondition; a skipped entry point is not verified by a different path.
 
-## Features
+## Using this map for bug triage
+
+Start from what the user can see, not from a guessed component name:
+
+| Report or screenshot contains                         | Start with                                                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Tasks/Folders/Samples switcher, rows, columns, footer | [Log list](./log-list.md), [Sample list](./sample-list.md), [Shared grid behavior](./shared-grid-behavior.md) |
+| Breadcrumbs, theme, loading bar, viewer options       | [Application chrome](./application-chrome.md)                                                  |
+| Wrong URL, back behavior, wrong log/sample after nav  | [Routing and viewer modes](./routing-and-viewer-modes.md), then [Cross-surface journeys](./multi-surface-journeys.md) |
+| Log title, status, tags, metrics, download            | [Log header and editing](./log-header-and-editing.md), [Scores](./scores.md)                    |
+| Summary, dataset, solver, scorer, metadata            | [Evaluation info](./evaluation-info.md)                                                        |
+| Task ids, sandbox, args, config, early stopping       | [Task and configuration](./task-and-configuration.md)                                          |
+| Tokens, cost, model roles, connections                | [Models and usage](./models-and-usage.md), [Sample usage and metadata](./sample-usage-and-metadata.md) |
+| Run history, markers, lanes, config changes           | [Evaluation timeline](./evaluation-timeline.md)                                                |
+| Sample input/target/answer header or prev/next         | [Sample summary and navigation](./sample-summary-and-navigation.md)                             |
+| Conversation bubbles, tool calls, markdown, images    | [Sample messages](./sample-messages.md), [Rendered content and media](./rendered-content-and-media.md) |
+| Event outline, swimlanes, focus mode, turn controls   | [Transcript](./transcript.md), [Transcript events and focus](./transcript-events-and-focus.md)  |
+| Search or Scans right rail, cite labels                | [Transcript search and scans](./transcript-search-and-scans.md)                                |
+| Error, limit, cancelled, retry attempt                 | [Errors, limits, and retries](./errors-limits-and-retries.md)                                  |
+| Blank, stale, perpetually loading, live update         | [Loading, live evals, and refresh](./loading-live-refresh.md)                                  |
+| Raw/JSON/copy/download/print                           | [Export, JSON, and print](./export-json-print.md)                                               |
+| YAML evaluation flow                                  | [Flow files](./flow-files.md)                                                                  |
+
+When the symptom crosses routes, modes, or persistence boundaries, also read
+[Cross-surface journeys](./multi-surface-journeys.md). A screenshot can locate
+the visible renderer, but stale or incorrect data often belongs to the owner
+named in that feature's `Code landmarks`, not the leaf component.
+
+## Full sweep
+
+Walk these groups top to bottom. Within a feature, cover every reachable entry
+point and the success, empty, loading, error, and persistence paths affected by
+the change. Finish with the cross-surface journeys.
+
+### Application and navigation
+
+- [Application chrome](./application-chrome.md) — breadcrumbs, back/home,
+  theme, loading bar, and viewer diagnostics.
+- [Routing and viewer modes](./routing-and-viewer-modes.md) — hash routes,
+  Tasks/Folders prefixes, deep links, single-file and embedded modes.
+- [Flow files](./flow-files.md) — read-only YAML evaluation-flow display.
+
+### Collection views and grids
 
 - [Log list](./log-list.md) — Tasks/Folders views, listing real logs,
   opening one, column filters, find band.
 - [Sample list](./sample-list.md) — the samples grid inside a log and the
   top-level Samples view.
+- [Shared grid behavior](./shared-grid-behavior.md) — sorting, resizing,
+  reordering, keyboard selection, column visibility, and per-scope state.
+
+### Log workspace
+
+- [Log header and editing](./log-header-and-editing.md) — task/model identity,
+  status and results, tags, metadata edits, path copy, log download.
+- [Evaluation info](./evaluation-info.md) — dataset/solver/scorer summary and
+  evaluation metadata.
+- [Task and configuration](./task-and-configuration.md) — identifiers,
+  revision, timing, sandbox, args, effective config, early stopping.
+- [Models and usage](./models-and-usage.md) — model/role configuration, token
+  usage, cost, connection history, and config changes.
 - [Sample messages](./sample-messages.md) — the conversation rendering in a
   sample's Messages tab.
 - [Transcript](./transcript.md) — the event timeline, outline, and turn
   navigation in a sample's Transcript tab.
 - [Scores](./scores.md) — score column in the log list, log-level scoring
   detail, and the sample Scoring tab.
+- [Evaluation timeline](./evaluation-timeline.md) — run-level activity,
+  samples, model connections, retries, and configuration changes over time.
+- [Export, JSON, and print](./export-json-print.md) — raw/rendered mode, JSON
+  tabs, clipboard actions, downloads, and the print route.
+
+### Sample detail
+
+- [Sample summary and navigation](./sample-summary-and-navigation.md) — sticky
+  input/target/answer/score header, invalidation, sibling navigation.
+- [Sample usage and metadata](./sample-usage-and-metadata.md) — Usage and
+  Metadata tabs, trees, model roles, timing, tokens, and cost.
+- [Errors, limits, and retries](./errors-limits-and-retries.md) — sample/log
+  failures, limits, cancelled states, and retry attempts.
+- [Transcript events and focus](./transcript-events-and-focus.md) — event-type
+  renderers, turn navigation, event deep links, and focused-turn view.
+- [Transcript search and scans](./transcript-search-and-scans.md) — right rail,
+  event/message search, scan results, cite labels, and panel persistence.
+- [Rendered content and media](./rendered-content-and-media.md) — markdown,
+  structured records, tool calls, citations, images, and safe remote media.
+
+### Runtime and cross-surface behavior
+
+- [Loading, live evals, and refresh](./loading-live-refresh.md) — listing and
+  detail loading, streaming samples, cache/database refresh, and recovery.
+- [Cross-surface journeys](./multi-surface-journeys.md) — route-prefix and
+  selection continuity, state isolation, live completion, and edit refresh.
+
+## Entry contract
+
+Every feature file uses the same five H2s:
+
+1. `Sub-features`
+2. `How to get to it (user POV)`
+3. `Driving it with Playwright`
+4. `Code landmarks`
+5. `Gotchas`
+
+Keep entries behavior-level and short enough to use without reading source.
+`Code landmarks` is the inspect-specific extension to the verification-map
+pattern: name the narrowest current owners and high-value regression tests,
+not every dependency in the render tree.
