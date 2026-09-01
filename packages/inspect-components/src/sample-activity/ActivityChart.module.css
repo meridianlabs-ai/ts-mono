@@ -201,8 +201,18 @@
   outline: none;
 }
 
-.clusterCount {
-  font-size: 8px;
+/* Bordered count box above a clustered glyph (stroke/text take the
+   category hue inline) — the task timeline's ordinal-box token. */
+.clusterBoxRect {
+  fill: var(--bs-body-bg);
+  stroke-opacity: 0.55;
+  pointer-events: none;
+}
+
+.clusterBoxText {
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  pointer-events: none;
 }
 
 .markerPopover {

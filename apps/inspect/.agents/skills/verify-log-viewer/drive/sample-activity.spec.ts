@@ -168,13 +168,16 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   });
 
   // Every CompactionEvent shows in the pill count and on the ▼ rail
-  // (clusters keep the glyph and carry a ×N badge + concatenated labels).
+  // (clusters keep the glyph and carry a bordered ×N count box above it).
   await expect(
     page.getByRole("button", { name: /Compactions 18/ })
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: /Context compacted/ }).first()
   ).toBeVisible();
+  const clusterBoxes = page.locator("[class*='clusterBoxText']");
+  expect(await clusterBoxes.count()).toBeGreaterThan(0);
+  await expect(clusterBoxes.first()).toHaveText(/×\d+/);
 
   // Context band: dashed cliff drop per compaction, annotated "Nk → M".
   await page.getByRole("button", { name: "Context size" }).click();

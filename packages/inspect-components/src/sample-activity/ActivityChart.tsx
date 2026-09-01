@@ -160,6 +160,47 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       ? timeWindow.start + ((px - plotLeft) / plotWidth) * span
       : timeWindow.start;
 
+  // ── marker clusters (computed before the bands: a cluster's count box
+  //    needs extra rail headroom, which shifts every band down) ──────────
+  interface MarkerGroup {
+    x: number;
+    members: ActivityMarker[];
+  }
+
+  /** Count-box width for a cluster ("×12" is wider than "×2"); singles
+   *  reserve just their glyph. */
+  const badgeWidth = (count: number): number =>
+    count > 1 ? `×${count}`.length * 5.5 + 8 : 9;
+
+  // Merge markers whose glyphs or count boxes would collide — pixel-based
+  // like the task timeline's ordinal boxes, so clusters dissolve on wider
+  // windows and boxes never overlap their neighbours.
+  const markerGroups: MarkerGroup[] = [];
+  for (const marker of data.markers) {
+    const mx = x(marker.time);
+    const last = markerGroups[markerGroups.length - 1];
+    const gap = last
+      ? Math.max(
+          kClusterGapPx,
+          (badgeWidth(last.members.length + 1) + 9) / 2 + 2
+        )
+      : kClusterGapPx;
+    if (last && mx - last.x < gap) {
+      last.members.push(marker);
+      last.x = (x(last.members[0]!.time) + mx) / 2;
+    } else {
+      markerGroups.push({ x: mx, members: [marker] });
+    }
+  }
+  const hasClusterBadges = markerGroups.some(
+    (group) => group.members.length > 1
+  );
+  // Clusters render a bordered count box ABOVE the glyph (task-timeline
+  // ordinal-box convention) — the rail grows to fit it; without clusters
+  // the handoff's 18px rail stands.
+  const markerHeadroom = hasClusterBadges ? 30 : kMarkerHeadroom;
+  const glyphY = hasClusterBadges ? 23 : kGlyphY;
+
   // ── band stack ────────────────────────────────────────────────────────
   interface Band {
     kind: "working" | "tokens" | "context" | "modelTool";
@@ -177,7 +218,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   );
 
   const bands: Band[] = [];
-  let cursor = showMarkers && data.markers.length > 0 ? kMarkerHeadroom : 0;
+  let cursor = showMarkers && data.markers.length > 0 ? markerHeadroom : 0;
   const pushBand = (kind: Band["kind"], plotBottom: number) => {
     const height = plotBottom + (kBandHeight - kPlotBottom);
     bands.push({ kind, top: cursor, plotBottom, height });
@@ -193,7 +234,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     pushBand("modelTool", modelToolPlotBottom);
   }
 
-  const axisY = (bands.length === 0 ? kMarkerHeadroom + 24 : cursor) + 6;
+  const axisY = (bands.length === 0 ? markerHeadroom + 24 : cursor) + 6;
   const height = axisY + kAxisHeight;
 
   if (bands.length === 0 && (!showMarkers || data.markers.length === 0)) {
@@ -817,21 +858,17 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── marker rail ───────────────────────────────────────────────────────
 
-  interface MarkerGroup {
-    x: number;
-    members: ActivityMarker[];
-  }
-
   const glyph = (
     category: ActivityMarker["category"],
-    cx: number
+    cx: number,
+    cy: number
   ): ReactNode => {
     const color = kCategoryColor[category];
     switch (category) {
       case "error":
         return (
           <path
-            d={`M ${cx - 3.5} ${kGlyphY - 3.5} L ${cx + 3.5} ${kGlyphY + 3.5} M ${cx + 3.5} ${kGlyphY - 3.5} L ${cx - 3.5} ${kGlyphY + 3.5}`}
+            d={`M ${cx - 3.5} ${cy - 3.5} L ${cx + 3.5} ${cy + 3.5} M ${cx + 3.5} ${cy - 3.5} L ${cx - 3.5} ${cy + 3.5}`}
             stroke={color}
             strokeWidth={1.8}
             strokeLinecap="round"
@@ -841,48 +878,36 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       case "limit":
         return (
           <polygon
-            points={`${cx},${kGlyphY - 4.5} ${cx - 4.5},${kGlyphY + 3.5} ${cx + 4.5},${kGlyphY + 3.5}`}
+            points={`${cx},${cy - 4.5} ${cx - 4.5},${cy + 3.5} ${cx + 4.5},${cy + 3.5}`}
             fill={color}
           />
         );
       case "approval":
-        return <circle cx={cx} cy={kGlyphY} r={4} fill={color} />;
+        return <circle cx={cx} cy={cy} r={4} fill={color} />;
       case "input":
         return (
           <rect
             x={cx - 3}
-            y={kGlyphY - 3}
+            y={cy - 3}
             width={6}
             height={6}
             fill="none"
             stroke={color}
             strokeWidth={1.5}
-            transform={`rotate(45 ${cx} ${kGlyphY})`}
+            transform={`rotate(45 ${cx} ${cy})`}
           />
         );
       case "interrupt":
         return (
           <Fragment>
-            <rect
-              x={cx - 4}
-              y={kGlyphY - 4}
-              width={2.6}
-              height={8}
-              fill={color}
-            />
-            <rect
-              x={cx + 1.4}
-              y={kGlyphY - 4}
-              width={2.6}
-              height={8}
-              fill={color}
-            />
+            <rect x={cx - 4} y={cy - 4} width={2.6} height={8} fill={color} />
+            <rect x={cx + 1.4} y={cy - 4} width={2.6} height={8} fill={color} />
           </Fragment>
         );
       case "compaction":
         return (
           <polygon
-            points={`${cx - 4.5},${kGlyphY - 4} ${cx + 4.5},${kGlyphY - 4} ${cx},${kGlyphY + 4}`}
+            points={`${cx - 4.5},${cy - 4} ${cx + 4.5},${cy - 4} ${cx},${cy + 4}`}
             fill={color}
           />
         );
@@ -891,34 +916,22 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           <Fragment>
             <circle
               cx={cx}
-              cy={kGlyphY}
+              cy={cy}
               r={4.5}
               fill="none"
               stroke={color}
               strokeWidth={1.5}
             />
-            <circle cx={cx} cy={kGlyphY} r={1.6} fill={color} />
+            <circle cx={cx} cy={cy} r={1.6} fill={color} />
           </Fragment>
         );
     }
   };
 
   const renderMarkers = () => {
-    // Dense markers cluster within 10px into one glyph + ×N (decision 3).
-    const groups: MarkerGroup[] = [];
-    for (const marker of data.markers) {
-      const mx = x(marker.time);
-      const last = groups[groups.length - 1];
-      if (last && mx - last.x < kClusterGapPx) {
-        last.members.push(marker);
-        last.x = (x(last.members[0]!.time) + mx) / 2;
-      } else {
-        groups.push({ x: mx, members: [marker] });
-      }
-    }
     return (
       <g key="markers">
-        {groups.map((group, i) => {
+        {markerGroups.map((group, i) => {
           const head = group.members[0]!;
           const keys = group.members.map((m) => m.key);
           const color = kCategoryColor[head.category];
@@ -942,13 +955,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           const selected = selectedKey !== null && keys.includes(selectedKey);
           const toggle = () =>
             onSelectMarker(selected ? null : (keys[0] ?? null));
+          const cluster = group.members.length > 1;
+          const boxW = badgeWidth(group.members.length);
           return (
             <g key={`marker-${i}`} className={styles.marker}>
               {/* Full-height stem in the hue at low opacity (decision 3). */}
               <line
                 x1={group.x}
                 x2={group.x}
-                y1={kMarkerHeadroom}
+                y1={glyphY + 6}
                 y2={axisY}
                 stroke={color}
                 opacity={active ? 0.5 : 0.2}
@@ -956,22 +971,38 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               {active && (
                 <circle
                   cx={group.x}
-                  cy={kGlyphY}
+                  cy={glyphY}
                   r={7.5}
                   fill={color}
                   opacity={0.18}
                 />
               )}
-              {glyph(head.category, group.x)}
-              {group.members.length > 1 && (
-                <text
-                  className={styles.clusterCount}
-                  x={group.x + 6}
-                  y={9}
-                  fill={color}
-                >
-                  ×{group.members.length}
-                </text>
+              {glyph(head.category, group.x, glyphY)}
+              {cluster && (
+                <Fragment>
+                  {/* Bordered count box centred above the glyph — the
+                      task timeline's ordinal-box convention, so the count
+                      reads as a badge on THIS mark rather than stray text
+                      floating between neighbours. */}
+                  <rect
+                    className={styles.clusterBoxRect}
+                    x={group.x - boxW / 2}
+                    y={2}
+                    width={boxW}
+                    height={13}
+                    rx={2}
+                    stroke={color}
+                  />
+                  <text
+                    className={styles.clusterBoxText}
+                    x={group.x}
+                    y={11.5}
+                    textAnchor="middle"
+                    fill={color}
+                  >
+                    ×{group.members.length}
+                  </text>
+                </Fragment>
               )}
               {/* The interactive element is this generous invisible rect on
                   the rail, NOT the group: the group's bounding box includes
@@ -979,10 +1010,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   mid-chart and let stems steal hovers from the bands. */}
               <rect
                 className={styles.markerHit}
-                x={group.x - 6}
-                y={2}
-                width={12 + (group.members.length > 1 ? 12 : 0)}
-                height={18}
+                x={group.x - Math.max(boxW, 12) / 2}
+                y={1}
+                width={Math.max(boxW, 12)}
+                height={glyphY + 6}
                 role="button"
                 tabIndex={0}
                 aria-label={label}
@@ -1135,7 +1166,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return (
       <div
         className={styles.markerPopover}
-        style={{ left, top: kMarkerHeadroom + 8 }}
+        style={{ left, top: markerHeadroom + 8 }}
       >
         {markerHover.members.map((member, i) => (
           <div key={i} className={styles.markerPopoverEntry}>
