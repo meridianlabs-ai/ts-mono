@@ -76,6 +76,7 @@ const GENERATE_CONFIG_KEYS: Record<keyof GenerateConfig, true> = {
   response_schema: true,
   seed: true,
   stop_seqs: true,
+  stream_idle_timeout: true,
   system_message: true,
   temperature: true,
   timeout: true,

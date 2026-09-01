@@ -2150,6 +2150,8 @@ export interface components {
             seed?: number | null;
             /** Stop Seqs */
             stop_seqs?: string[] | null;
+            /** Stream Idle Timeout */
+            stream_idle_timeout?: number | null;
             /** System Message */
             system_message?: string | null;
             /** Temperature */
