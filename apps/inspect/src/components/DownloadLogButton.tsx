@@ -71,7 +71,10 @@ export const DownloadLogButton = ({
         styles.downloadLogButton,
         className
       )}
-      onClick={() => void handleClick()}
+      onClick={() => {
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleClick reports failures via downloadState and never rejects
+        handleClick();
+      }}
       aria-label={ariaLabel}
       disabled={downloadState !== "idle"}
     >

@@ -540,7 +540,7 @@ const connectTopicUpdatesViaPolling = (
 ): (() => void) => {
   const controller = new AbortController();
 
-  const poll = () =>
+  const poll = (): void => {
     (customFetch ?? fetch)(`${apiBaseUrl}/topics`, {
       signal: controller.signal,
     })
@@ -567,10 +567,10 @@ const connectTopicUpdatesViaPolling = (
           console.error("Topic polling failed:", error);
         }
       });
+  };
 
-  // eslint-disable-next-line @typescript-eslint/no-floating-promises
   poll();
-  const intervalId = setInterval(() => void poll(), 10000);
+  const intervalId = setInterval(poll, 10000);
 
   return () => {
     controller.abort();

@@ -403,7 +403,10 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={() => void handleSave()}
+              onClick={() => {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleSave reports failures via setError and never rejects
+                handleSave();
+              }}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}

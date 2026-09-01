@@ -483,7 +483,10 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               selectedUri={editorValidationSetUri}
               onSelect={handleValidationSetSelect}
               allowCreate={true}
-              onCreate={(name) => void handleCreateSet(name)}
+              onCreate={(name) => {
+                // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleCreateSet reports failures via setCreateError and never rejects
+                handleCreateSet(name);
+              }}
               createPending={createSetMutation.isPending}
               appConfig={config}
             />
@@ -584,7 +587,10 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               <ConfirmationDialog
                 show={showDeleteModal}
                 onHide={() => setShowDeleteModal(false)}
-                onConfirm={() => void handleDeleteCase()}
+                onConfirm={() => {
+                  // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleDeleteCase surfaces failures via mutation state and never rejects
+                  handleDeleteCase();
+                }}
                 title="Delete Case"
                 message="Are you sure you want to delete this validation case?"
                 confirmLabel="Delete"

@@ -295,7 +295,14 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     <Modal
       show={show}
       onHide={handleHide}
-      onSubmit={canSubmit ? () => void handleSubmit() : undefined}
+      onSubmit={
+        canSubmit
+          ? () => {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleSubmit reports failures via setError and never rejects
+              handleSubmit();
+            }
+          : undefined
+      }
       title={title}
       footer={
         <>
@@ -303,7 +310,10 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
             Cancel
           </VscodeButton>
           <VscodeButton
-            onClick={() => void handleSubmit()}
+            onClick={() => {
+              // eslint-disable-next-line @typescript-eslint/no-floating-promises -- handleSubmit reports failures via setError and never rejects
+              handleSubmit();
+            }}
             disabled={!canSubmit}
           >
             {isProcessing ? processingLabel : actionLabel}

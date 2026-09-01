@@ -267,18 +267,18 @@ export class FetchEngine {
   private readonly _statusListeners = new Set<() => void>();
 
   constructor(options: FetchEngineOptions = {}) {
-    this._throttledUpdateDbStats = throttle(
-      () => void this.updateDbStats(),
-      options.statsDelayMs ?? 1000
-    );
-    this._throttledFlushPreviewWrites = throttle(
-      () => void this.flushPreviewWrites(),
-      options.flushDelayMs ?? 250
-    );
-    this._throttledFlushDetailWrites = throttle(
-      () => void this.flushDetailWrites(),
-      options.flushDelayMs ?? 250
-    );
+    this._throttledUpdateDbStats = throttle(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- updateDbStats never rejects; stats are advisory
+      this.updateDbStats();
+    }, options.statsDelayMs ?? 1000);
+    this._throttledFlushPreviewWrites = throttle(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- flushPreviewWrites never rejects; sink errors are swallowed
+      this.flushPreviewWrites();
+    }, options.flushDelayMs ?? 250);
+    this._throttledFlushDetailWrites = throttle(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- flushDetailWrites never rejects; sink errors are swallowed
+      this.flushDetailWrites();
+    }, options.flushDelayMs ?? 250);
 
     // Single queue: previews and details share one concurrency cap (a
     // browser has one connection pool, not one per kind), but never batch
