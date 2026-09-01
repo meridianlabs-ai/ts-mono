@@ -544,6 +544,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const spanWidth = (s: ActivitySpan): number =>
     Math.max(x(s.end) - x(s.start), 1.5);
 
+  /** The row label's full text ("model · grader" / "model + tools") — the
+   *  burst-label declutter reserves its extent. */
+  const rowLabelText = (row: AgentRow): string =>
+    `${row.model} ${row.role ? `· ${row.role}` : row.toolCount > 0 ? "+ tools" : ""}`;
+
   const renderDiscreteRow = (row: AgentRow, rowTop: number): ReactNode => {
     const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
     const laneY = (s: ActivitySpan): number => {
@@ -598,19 +603,37 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             </g>
           );
         })}
-        {row.bursts.map((burst, i) => (
-          <text
-            key={`burst-${i}`}
-            className={styles.burstLabel}
-            x={(x(burst.start) + x(burst.end)) / 2}
-            y={rowTop - 4 + (kAgentSpanOffset - kAgentRowFirstLabelY)}
-            textAnchor="middle"
-          >
-            {burst.label} ×{burst.count}
-            {burst.failed > 0 ? ` · ${burst.failed} failed` : ""}
-            {burst.folded > 0 ? ` · +${burst.folded}` : ""}
-          </text>
-        ))}
+        {(() => {
+          // Burst labels declutter greedily: the "bash ×3 · 1 failed"
+          // annotation is designed for isolated bursts — with parallel tool
+          // calls every turn, dozens of them smear over each other and the
+          // row label. A label renders only with clear horizontal room
+          // (after the row label and the previous burst label); the span
+          // hover popover keeps the full detail for unlabeled bursts.
+          let lastLabelEnd =
+            kYAxisWidth + 4 + rowLabelText(row).length * 5 + 12;
+          return row.bursts.map((burst, i) => {
+            const text =
+              `${burst.label} ×${burst.count}` +
+              (burst.failed > 0 ? ` · ${burst.failed} failed` : "") +
+              (burst.folded > 0 ? ` · +${burst.folded}` : "");
+            const mid = (x(burst.start) + x(burst.end)) / 2;
+            const half = (text.length * 4.5) / 2;
+            if (mid - half < lastLabelEnd + 8) return null;
+            lastLabelEnd = mid + half;
+            return (
+              <text
+                key={`burst-${i}`}
+                className={styles.burstLabel}
+                x={mid}
+                y={rowTop - 4 + (kAgentSpanOffset - kAgentRowFirstLabelY)}
+                textAnchor="middle"
+              >
+                {text}
+              </text>
+            );
+          });
+        })()}
       </Fragment>
     );
   };
@@ -778,11 +801,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               <text className={styles.rowLabel} x={kYAxisWidth + 4} y={rowTop}>
                 {row.model}{" "}
                 <tspan className={styles.rowLabelMuted}>
-                  {row.role
-                    ? `· ${row.role}`
-                    : row.toolCount > 0
-                      ? "+ tools"
-                      : ""}
+                  {rowLabelText(row).slice(row.model.length + 1)}
                 </tspan>
               </text>
               {dense

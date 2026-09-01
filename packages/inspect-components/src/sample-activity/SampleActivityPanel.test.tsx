@@ -252,6 +252,49 @@ describe("SampleActivityPanel history list", () => {
   });
 });
 
+describe("SampleActivityPanel burst labels", () => {
+  it("declutters burst labels when parallel-tool bursts crowd the row", () => {
+    // 40 turns of two overlapping tool calls each → 40 bursts across the
+    // stubbed 1000px chart. Labeling every burst would smear; only those
+    // with clear horizontal room render (hover keeps the rest).
+    const events: Event[] = [];
+    for (let i = 0; i < 40; i++) {
+      const t0 = i * 10;
+      events.push(
+        testModelEvent({
+          uuid: `m-${i}`,
+          timestamp: iso(t0),
+          completed: iso(t0 + 4),
+          working_start: t0,
+          working_time: 4,
+        }),
+        testToolEvent({
+          uuid: `t-${i}a`,
+          timestamp: iso(t0 + 4),
+          completed: iso(t0 + 9),
+          working_start: t0 + 4,
+          function: "python",
+        }),
+        testToolEvent({
+          uuid: `t-${i}b`,
+          timestamp: iso(t0 + 5),
+          completed: iso(t0 + 10),
+          working_start: t0 + 4,
+          function: "python",
+        })
+      );
+    }
+    const { container } = mountPanel({ events });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Model & tool activity" })
+    );
+
+    const labels = container.querySelectorAll("[class*='burstLabel']");
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.length).toBeLessThan(40);
+  });
+});
+
 describe("SampleActivityPanel marker ↔ list link", () => {
   it("marker click widens a filter that would hide its row", () => {
     mountPanel();
