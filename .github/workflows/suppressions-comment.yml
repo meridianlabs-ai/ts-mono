@@ -75,20 +75,26 @@ jobs:
           # executing anything from the PR. GitHub's synthetic merge ref can be
           # stale, while comparing the raw head misreports base-only burn-downs.
           git fetch origin "refs/pull/$PR/head"
-          if merge_tree=$(git merge-tree --write-tree HEAD FETCH_HEAD); then
+          if merge_output=$(git merge-tree --write-tree --name-only --no-messages HEAD FETCH_HEAD); then
+            merge_status=0
+          else
+            merge_status=$?
+          fi
+          if [ "$merge_status" -ne 0 ] && [ "$merge_status" -ne 1 ]; then
+            exit "$merge_status"
+          fi
+          merge_tree="${merge_output%%$'\n'*}"
+          conflicted_paths="${merge_output#"$merge_tree"}"
+          if grep -Fqx 'suppressions.json' <<< "$conflicted_paths"; then
+            body=$(printf '%s\n%s' \
+              '<!-- suppressions-delta -->' \
+              'Suppression delta unavailable because suppressions.json does not merge cleanly with the current base. Resolve the conflict and update the PR to rerun this check.')
+          else
             git show "$merge_tree:suppressions.json" > /tmp/merged-suppressions.json 2>/dev/null \
               || echo '{}' > /tmp/merged-suppressions.json
             # Base script, node builtins only — no installs (see the security
             # model above).
             body=$(node scripts/suppressions-pr-delta.mjs /tmp/base-suppressions.json /tmp/merged-suppressions.json)
-          else
-            merge_status=$?
-            if [ "$merge_status" -ne 1 ]; then
-              exit "$merge_status"
-            fi
-            body=$(printf '%s\n%s' \
-              '<!-- suppressions-delta -->' \
-              'Suppression delta unavailable because this PR does not merge cleanly with the current base. Resolve the merge conflicts and update the PR to rerun this check.')
           fi
           # Sticky comment: match on the marker, not --edit-last, so other
           # bot comments on the PR are never clobbered.
