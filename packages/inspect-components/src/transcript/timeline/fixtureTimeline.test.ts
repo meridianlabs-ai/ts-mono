@@ -8,7 +8,9 @@
  * tests/timeline/fixtures/events/.
  *
  * These tests only run when ts-mono is embedded inside a parent repo that
- * provides fixtures; when used standalone the suite is skipped.
+ * provides fixtures; when used standalone the suite is skipped. A parent repo
+ * that owns a corpus sets TSMONO_REQUIRE_FIXTURES=1 in the job that runs this
+ * suite, which turns "found nothing" from a skip into a failure.
  */
 
 /// <reference types="node" />
@@ -185,6 +187,17 @@ const FIXTURE_NAMES = [
   ),
 ];
 const FIXTURES_AVAILABLE = FIXTURE_NAMES.length > 0;
+
+// Skipping is right for a bare clone and wrong for a parent repo that has a
+// corpus: on its own this file cannot tell the two apart, so a broken path
+// climb or a moved fixtures directory would report green over zero tests. The
+// parent's job supplies the missing half by setting TSMONO_REQUIRE_FIXTURES=1.
+if (!FIXTURES_AVAILABLE && process.env.TSMONO_REQUIRE_FIXTURES === "1") {
+  throw new Error(
+    "TSMONO_REQUIRE_FIXTURES is set but no fixtures were found. Looked in:\n" +
+      FIXTURE_DIR_CANDIDATES.map((dir) => `  ${dir}`).join("\n")
+  );
+}
 
 // =============================================================================
 // Event Deserialization
