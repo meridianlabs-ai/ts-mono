@@ -1709,7 +1709,7 @@
   },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts": {
