@@ -311,12 +311,7 @@ export const TranscriptViewNodes = forwardRef<
         onDone?.();
         return;
       }
-      handle.scrollToIndex({
-        index,
-        align: "start",
-        behavior: "auto",
-        onDone,
-      });
+      handle.scrollToIndex({ index, align: "start", behavior: "auto", onDone });
     },
     [onProgrammaticScroll]
   );
@@ -470,8 +465,7 @@ export const TranscriptViewNodes = forwardRef<
     let cancelled = false;
     let lastTarget: number | null = null;
     let attempts = 0;
-    // User input during the parking loop means they've taken over — stop
-    // (symmetric with settleScrollToIndex's userInteracting abort).
+    // User input during the parking loop means they've taken over — stop.
     const abort = () => {
       cancelled = true;
       cancelAnimationFrame(raf);
@@ -539,8 +533,6 @@ export const TranscriptViewNodes = forwardRef<
         onDone?.();
         return;
       }
-      // Collapse the chrome with the jump; the settle re-issues the jump each
-      // frame, so the collapse's height change is re-corrected until stable.
       onHeadroomSetHidden?.(true);
       scrollRowToTop(flatIdx, onDone);
       const anchorId = turnAnchorIds[clamped];

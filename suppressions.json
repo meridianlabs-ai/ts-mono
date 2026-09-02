@@ -261,7 +261,7 @@
   },
   "apps/inspect/src/app/samples/InlineSampleDisplay.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/list/SampleList.tsx": {
