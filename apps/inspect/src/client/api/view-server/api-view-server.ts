@@ -3,6 +3,8 @@ import {
   AppConfig,
   EvalLog,
   EvalSet,
+  FindMessagesRequest,
+  FindMessagesResponse,
   LogFilesResponse,
   LogInfo,
   LogUpdate,
@@ -627,6 +629,21 @@ export function viewServerApi(
     }
   };
 
+  const find_messages = async (
+    log_file: string,
+    request: FindMessagesRequest,
+    signal?: AbortSignal
+  ): Promise<FindMessagesResponse> => {
+    const result = await requestApi.fetchString(
+      "POST",
+      `/find-messages/${encodeURIComponent(log_file)}`,
+      { "Content-Type": "application/json" },
+      JSON.stringify(request),
+      signal
+    );
+    return asResponse<FindMessagesResponse>(result.parsed);
+  };
+
   const download_log = (log_file: string): Promise<void> => {
     const baseUrl = apiBaseUrl || __VIEW_SERVER_API_URL__;
     const url = `${baseUrl}/log-download/${encodeURIComponent(log_file)}`;
@@ -662,5 +679,6 @@ export function viewServerApi(
     list_searches,
     post_search,
     get_search_result,
+    find_messages,
   };
 }

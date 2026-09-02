@@ -55,7 +55,7 @@ export const MessageLabel: FC<MessageLabelProps> = ({
   }
 
   return (
-    <span className={classes} title={title}>
+    <span className={classes} title={title} data-find-chrome={true}>
       {text}
     </span>
   );

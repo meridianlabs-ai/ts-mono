@@ -148,7 +148,11 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
       {(message.timestamp && formatDateTime) || label ? (
         <div className={styles.headerEnd}>
           {message.timestamp && formatDateTime && (
-            <span className={styles.timestamp} title={message.timestamp}>
+            <span
+              className={styles.timestamp}
+              title={message.timestamp}
+              data-find-chrome={true}
+            >
               {formatDateTime(new Date(message.timestamp))}
             </span>
           )}
@@ -160,17 +164,19 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
 
   const metadataBlock =
     message.metadata && Object.keys(message.metadata).length > 0 ? (
-      <LabeledValue
-        label="Metadata"
-        className={clsx(styles.metadataLabel, "text-size-smaller")}
-      >
-        <RecordTree
-          record={message.metadata}
-          id={`${id}-metadata`}
-          defaultExpandLevel={0}
-          copyButton={true}
-        />
-      </LabeledValue>
+      <div data-find-chrome={true}>
+        <LabeledValue
+          label="Metadata"
+          className={clsx(styles.metadataLabel, "text-size-smaller")}
+        >
+          <RecordTree
+            record={message.metadata}
+            id={`${id}-metadata`}
+            defaultExpandLevel={0}
+            copyButton={true}
+          />
+        </LabeledValue>
+      </div>
     ) : null;
 
   // An assistant turn with server-side tool calls renders as one seamless

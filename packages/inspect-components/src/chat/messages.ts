@@ -57,7 +57,9 @@ export class MessageFold {
   next(message: ChatMessage, index: number): void {
     // Create a stable id for the item without mutating the original
     const resolved =
-      message.id === undefined ? { ...message, id: `msg-${index}` } : message;
+      message.id === undefined || message.id === null
+        ? { ...message, id: `msg-${index}` }
+        : message;
     if (resolved.role === "tool") {
       // Add this tool message onto the previous message; a tool message
       // with no preceding non-tool message is dropped
