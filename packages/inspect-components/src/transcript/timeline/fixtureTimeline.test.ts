@@ -18,6 +18,14 @@ import { join } from "path";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testToolCall,
+} from "@tsmono/inspect-common/testing";
 import type {
   ChatCompletionChoice,
   ChatMessage,
@@ -197,40 +205,36 @@ function createEvent(data: JsonEvent): Event | null {
       const usage = data.output?.usage;
       const inputTokens = usage?.input_tokens ?? 0;
       const outputTokens = usage?.output_tokens ?? 0;
-      return {
+      return testModelEvent({
         ...baseFields,
-        event: "model",
         model,
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
         config: data.config ?? {},
-        tool_choice: "auto",
-        tools: [],
         input: data.input ?? [],
-        output: {
+        output: testModelOutput({
           model,
-          completion: "",
-          choices: (data.output?.choices ?? []).map((c) => ({
-            message: {
-              role: "assistant",
-              content: c.message.content,
-              tool_calls:
-                c.message.tool_calls?.map((tc) => ({
-                  ...tc,
-                  type: "function",
-                })) ?? null,
-            },
-            stop_reason: c.stop_reason ?? "unknown",
-          })),
+          choices: (data.output?.choices ?? []).map((c) =>
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                content: c.message.content,
+                tool_calls:
+                  c.message.tool_calls?.map((tc) => testToolCall(tc)) ?? null,
+              }),
+              ...(c.stop_reason !== undefined
+                ? { stop_reason: c.stop_reason }
+                : {}),
+            })
+          ),
           usage: usage
-            ? {
+            ? testModelUsage({
                 input_tokens: inputTokens,
                 output_tokens: outputTokens,
                 total_tokens: inputTokens + outputTokens,
-              }
+              })
             : null,
-        },
-      };
+        }),
+      });
     }
 
     case "tool": {
