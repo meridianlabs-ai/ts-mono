@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { isRecord } from "@tsmono/util";
 
-import { findScrollableParent, scrollRangeToCenter } from "./findBandDom";
+import { findScrollableParent, scrollRangeToCenter } from "./rangeScroll";
 
 // DOMRectList is array-like with item(); an array plus item() satisfies it.
 const rectList = (...rects: DOMRect[]): DOMRectList =>
