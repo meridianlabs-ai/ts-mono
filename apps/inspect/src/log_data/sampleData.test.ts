@@ -8,7 +8,7 @@ import {
   testInfoEvent,
   testUserMessage,
 } from "@tsmono/inspect-common/testing";
-import { EvalSample } from "@tsmono/inspect-common/types";
+import { ChatMessage, EvalSample } from "@tsmono/inspect-common/types";
 import { data, loading } from "@tsmono/util";
 
 import { SampleHandle } from "../app/types";
@@ -21,7 +21,11 @@ import {
   usePassiveEvalSampleData,
 } from "./sampleData";
 import { sampleQueryKey } from "./sampleQuery";
-import { testSampleSummary } from "./testFixtures";
+import {
+  sequenceReaderOver,
+  testChunkedSample,
+  testSampleSummary,
+} from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "run.eval", id: "s1", epoch: 1 };
 
@@ -147,8 +151,9 @@ describe("deriveSampleData", () => {
 
   test("chunked path: a chunked sample serves its shell and never touches the monolith path", () => {
     const evalSample = sample({ events: [] });
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately minimal: the case asserts the shell is served without the monolith path ever reading the rest
-    const chunkedSample = { shell: {} } as never;
+    const chunkedSample = testChunkedSample(
+      sequenceReaderOver<ChatMessage>([])
+    );
     const result = deriveSampleData(
       inputs({
         chunked: data({ chunked: chunkedSample, evalSample }),

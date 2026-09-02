@@ -1,15 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { ChunkByteStore, SequenceReader, type ChunkedSample } from "./chunked";
+import type { ChatMessage } from "@tsmono/inspect-common/types";
+
+import {
+  ChunkByteStore,
+  SequenceReader,
+  type ChunkedEvent,
+  type ChunkedSample,
+} from "./chunked";
 import { resolvedEventsReader } from "./chunkedAttachments";
+import { sequenceReaderOver, testChunkedSample } from "./testFixtures";
 
 // Wiring test for boundary normalization (#555): fails if the per-entry
 // normalize step is removed from the windowed events transform.
 describe("resolvedEventsReader", () => {
   const encoder = new TextEncoder();
 
+  // The chunk bytes are whatever an older writer put on disk, so the reader
+  // is typed as the contract (`ChunkedEvent`) while the items are not.
   const chunkedWithEvents = (chunkItems: unknown[]): ChunkedSample => {
-    const events = new SequenceReader(
+    const events = new SequenceReader<ChunkedEvent>(
       new ChunkByteStore({
         readFile: () =>
           Promise.resolve(encoder.encode(JSON.stringify(chunkItems))),
@@ -18,8 +28,10 @@ describe("resolvedEventsReader", () => {
       [0],
       chunkItems.length
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately partial: only `events` is read when the chunk carries no attachment:// refs
-    return { events } as unknown as ChunkedSample;
+    return {
+      ...testChunkedSample(sequenceReaderOver<ChatMessage>([])),
+      events,
+    };
   };
 
   it("normalizes legacy events while preserving chunk item count", async () => {
