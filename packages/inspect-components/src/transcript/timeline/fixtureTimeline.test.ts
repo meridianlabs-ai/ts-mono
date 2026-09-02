@@ -228,7 +228,7 @@ function createEvent(data: JsonEvent): Event | null {
                     },
                     stop_reason: c.stop_reason ?? "stop",
                   }))
-                : undefined,
+                : [],
               usage: data.output.usage
                 ? {
                     input_tokens: data.output.usage.input_tokens ?? 0,
