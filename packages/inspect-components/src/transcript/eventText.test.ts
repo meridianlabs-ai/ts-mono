@@ -324,23 +324,21 @@ describe("eventsToStr — extractEventFields sanitization", () => {
 
 const compactionEvent = (
   partial: Partial<CompactionEvent> = {}
-): CompactionEvent => ({
-  event: "compaction",
-  uuid: "VYVv8bWPCmD5fJYzrYq5MT",
-  span_id: "SPJ9XpwBYA3GuLzkGwmdwR",
-  timestamp: "2026-04-25T03:12:30.042596+00:00",
-  working_start: 4195.599,
-  source: "inspect",
-  type: "summary",
-  tokens_before: 263089,
-  tokens_after: 1923,
-  metadata: {
-    strategy: "CompactionSummary",
-    messages_before: 190,
-    messages_after: 3,
-  },
-  ...partial,
-});
+): CompactionEvent =>
+  testCompactionEvent({
+    uuid: "VYVv8bWPCmD5fJYzrYq5MT",
+    span_id: "SPJ9XpwBYA3GuLzkGwmdwR",
+    working_start: 4195.599,
+    source: "inspect",
+    tokens_before: 263089,
+    tokens_after: 1923,
+    metadata: {
+      strategy: "CompactionSummary",
+      messages_before: 190,
+      messages_after: 3,
+    },
+    ...partial,
+  });
 
 describe("eventsToStr — compaction event", () => {
   it("renders only UI-visible fields (tokens + metadata), not full event JSON", () => {
