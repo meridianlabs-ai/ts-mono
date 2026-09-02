@@ -19,6 +19,7 @@ import {
 import { prepareSearchTerm } from "../components/prepareSearchTerm";
 import { PulsingDots } from "../components/PulsingDots";
 import { SCROLL_RELEASE_KEYS as SCROLL_KEYS } from "../hooks/useChromeNavOwnership";
+import { useLatestRef } from "../hooks/useLatestRef";
 import { usePreviousValue } from "../hooks/usePreviousValue";
 import { useProperty } from "../hooks/useProperty";
 import { useRafThrottle } from "../hooks/useRafThrottle";
@@ -32,6 +33,10 @@ import type {
 import { useScaledVirtualizer } from "./use-scaled-virtualizer";
 import { useVirtualListState } from "./use-virtual-list-state";
 import styles from "./VirtualList.module.css";
+import {
+  VirtualScrollerContext,
+  type VirtualScroller,
+} from "./VirtualScrollerContext";
 
 const BOTTOM_THRESHOLD_PX = 30;
 const USER_INTERACTION_WINDOW_MS = 400;
@@ -120,27 +125,29 @@ export function VirtualList<T>({
   const [scrollParent, setScrollParent] = useState<HTMLElement | null>(null);
 
   // Offset of the list within an external scroll parent. Content can sit
-  // above an embedded list in a shared scroller, so item coordinates must be
-  // shifted by this margin (TanStack's scrollMargin) to line up with the
-  // container's scrollTop — Virtuoso derived this from customScrollParent
-  // automatically. Only measured for `embedded` lists; hosts with their own
-  // chrome compensation keep margin 0.
-  const [scrollMargin, setScrollMargin] = useState(0);
+  // above the list in a shared scroller (and move, e.g. a collapsing
+  // header), so the persisted position is kept relative to the list start.
+  // For an `embedded` list it is also the virtualizer's scrollMargin, so
+  // item coordinates line up with the container's scrollTop — Virtuoso
+  // derived this from customScrollParent automatically; hosts with their
+  // own chrome compensation keep margin 0.
+  const [listOffset, setListOffset] = useState(0);
+  const scrollMargin = embedded ? listOffset : 0;
   const measureScrollMargin = useCallback(() => {
     const wrapper = wrapperRef.current;
-    const parent = embedded ? (externalScrollEl ?? scrollParent) : null;
-    let margin = 0;
-    // parent === wrapper: an `embedded` list that owns its scroller (no
-    // external scroll target) — measuring the wrapper against itself would
-    // degenerate the margin to scrollTop and feed scroll position back into
-    // item coordinates. There is no content above the list inside its own
-    // scroller, so the margin is 0 by construction.
+    const parent = externalScrollEl ?? scrollParent;
+    let offset = 0;
+    // parent === wrapper: a list that owns its scroller (no external scroll
+    // target) — measuring the wrapper against itself would degenerate the
+    // offset to scrollTop and feed scroll position back into item
+    // coordinates. There is no content above the list inside its own
+    // scroller, so the offset is 0 by construction.
     if (wrapper && parent && parent !== wrapper) {
       const parentRect = parent.getBoundingClientRect();
       // A zero-size parent rect means "not laid out" (display:none, or a
       // rect-less test DOM) — rect math would degenerate to scrollTop.
       if (parentRect.width > 0 || parentRect.height > 0) {
-        margin = Math.max(
+        offset = Math.max(
           0,
           Math.round(
             wrapper.getBoundingClientRect().top -
@@ -150,8 +157,8 @@ export function VirtualList<T>({
         );
       }
     }
-    setScrollMargin((prev) => (prev === margin ? prev : margin));
-  }, [embedded, externalScrollEl, scrollParent]);
+    setListOffset((prev) => (prev === offset ? prev : offset));
+  }, [externalScrollEl, scrollParent]);
   // Re-measured on every commit. Out-of-band shifts (content above changing
   // without this list re-rendering) are only partially covered: the
   // MutationObserver below exists only for ref-based hosts and fires on
@@ -195,17 +202,47 @@ export function VirtualList<T>({
     [externalScrollEl, scrollParent]
   );
 
-  const { virtualizer, scale, toContentScroll, toSpacerScroll } =
-    useScaledVirtualizer({
-      count: data.length,
-      estimateSize: () => estimatedItemHeight,
-      getScrollElement,
-      overscan,
-      // A stable virtualizer option rather than a post-scroll `scrollTop +=`,
-      // so tanstack's reconcile re-applies it instead of erasing it on far jumps.
-      scrollPaddingStart: scrollPaddingStart ?? 0,
-      scrollMargin,
-    });
+  const { virtualizer, scale, toContentScroll } = useScaledVirtualizer({
+    count: data.length,
+    estimateSize: () => estimatedItemHeight,
+    getScrollElement,
+    overscan,
+    // A stable virtualizer option rather than a post-scroll `scrollTop +=`,
+    // so tanstack's reconcile re-applies it instead of erasing it on far jumps.
+    scrollPaddingStart: scrollPaddingStart ?? 0,
+    scrollMargin,
+  });
+
+  // Rows measure after the commit, not in the ref callback: measuring there
+  // runs inside React's layout phase, and TanStack answers a measurement that
+  // moves scrollTop with flushSync — illegal mid-commit. One microtask per
+  // commit lands after it and before paint, so the compensation still
+  // happens in the same frame; it measures every row the commit mounted
+  // before notifying listeners, so a listener sees the whole band measured
+  // (a row's neighbours included). A node detached before then is left to
+  // the null ref callback that follows it.
+  const measureListeners = useRef(new Set<(node: Element) => void>());
+  const pendingMeasure = useRef<(HTMLDivElement | null)[]>([]);
+  const bandRef = useRef<HTMLDivElement | null>(null);
+  const measureRow = useCallback(
+    (node: HTMLDivElement | null) => {
+      const pending = pendingMeasure.current;
+      pending.push(node);
+      if (pending.length > 1) return;
+      queueMicrotask(() => {
+        const nodes = pending.splice(0);
+        for (const node of nodes) {
+          if (node && !node.isConnected) continue;
+          virtualizer.measureElement(node);
+        }
+        for (const node of nodes) {
+          if (!node?.isConnected) continue;
+          for (const listener of measureListeners.current) listener(node);
+        }
+      });
+    },
+    [virtualizer]
+  );
 
   const { getRestoreSnapshot, recordSnapshot } =
     useVirtualListState(persistenceKey);
@@ -465,138 +502,201 @@ export function VirtualList<T>({
   // Whether the user scrolled this list since (re)mount — a foreign scrollTop
   // carried by a shared container must not count as "the user scrolled".
   const userScrolledRef = useRef(false);
+  // Whether the mount-time positioning (or a jump in its place) has run.
+  // Until then a shared container's scroll events are not this list's: it
+  // clamps when this content replaces taller content, and the clamp fires a
+  // scroll event like any other.
+  const mountPositionedRef = useRef(false);
   // The scrollTop we last set programmatically; echoing scroll events are
   // ignored so a restore isn't re-persisted, drifting the saved position.
   const lastAutoScrollTopRef = useRef<number | null>(null);
+  const lastInitialKeyRef = useRef<string | null>(null);
 
-  // Re-fires scrollToIndex each frame to absorb external chrome shifts TanStack won't reconcile on its own; bounded, and real user input cancels it.
-  const settleFrameRef = useRef(0);
+  // Item coordinates are in virtualizer space: list-relative, plus
+  // scrollMargin when embedded. A container offset converts by subtracting
+  // the content above the list and adding the margin back.
+  const buildSnapshot = useCallback(
+    (el: HTMLElement | null): VirtualListStateSnapshot => {
+      const containerOffset = el ? toContentScroll(el.scrollTop) : 0;
+      const itemOffset = containerOffset - listOffset + scrollMargin;
+      const anchor = virtualizer.getVirtualItemForOffset(itemOffset);
+      const snapshot: VirtualListStateSnapshot = {
+        version: 2,
+        index: anchor?.index ?? 0,
+        offsetInRow: anchor ? itemOffset - anchor.start : 0,
+        totalCount: data.length,
+      };
+      // The viewport top is in the content above the list, which the user is
+      // looking at: that position is the container's, not a row's.
+      if (containerOffset < listOffset)
+        snapshot.containerOffset = containerOffset;
+      return snapshot;
+    },
+    [toContentScroll, virtualizer, data.length, listOffset, scrollMargin]
+  );
+  // The snapshot captured at scroll time, awaiting the debounced write. Kept
+  // so the flush below never has to re-read the (shared) container — by
+  // flush time it can already show another view's content.
+  const pendingSnapshotRef = useRef<VirtualListStateSnapshot | null>(null);
+  const settleLandingRef = useLatestRef((el: HTMLElement, persist: boolean) => {
+    // A save pending from before the scroll describes the position this
+    // landing replaced (scroll events in flight are not captured).
+    if (pendingSnapshotRef.current)
+      pendingSnapshotRef.current = buildSnapshot(el);
+    if (persist) recordSnapshot(buildSnapshot(el));
+  });
+  // A landing in flight that is to be persisted, with the position its scroll
+  // events have reached so far (captured at scroll time, like
+  // pendingSnapshotRef): a list unmounted before the landing settles (a tab
+  // flip right after a find jump) records that position rather than keeping
+  // the one the jump replaced.
+  const landingRef = useRef<{
+    snapshot: VirtualListStateSnapshot | null;
+  } | null>(null);
+
   const releaseFrameRef = useRef(0);
-  const settleScrollToIndex = useCallback(
-    (
-      index: number,
-      align?: "start" | "center" | "end",
-      onDone?: () => void
-    ) => {
-      const jump = () =>
-        virtualizer.scrollToIndex(index, { align, behavior: "auto" });
-      // Every exit path must release the auto-scroll guard (else persistence
-      // stays disabled); cancel a previous settle's pending release so it
-      // can't flip the guard off mid-settle.
+  // A jump requested while the list has no scroll element yet (a ref-based
+  // container resolves a render after mount, and a host's deep-link effect
+  // runs in the mount commit) has nothing to scroll; it waits here and is the
+  // mount-time positioning once the container attaches.
+  const pendingScrollRef = useRef<{
+    run: () => void;
+    onDone?: () => void;
+    persist: boolean;
+  } | null>(null);
+  // Programmatic scrolls set the auto-scroll guard so the scroll listeners
+  // don't persist them as user scrolls; the guard lifts once the virtualizer
+  // reports the scroll finished (it owns the reconcile after re-measure) or
+  // the user takes over. A newer programmatic scroll supersedes a pending
+  // one, whose onDone then never runs. With `persist`, the settled landing
+  // is recorded as the list's position (a runtime jump is where the user
+  // now is; the mount-time restore is the snapshot already).
+  const programmaticScroll = useCallback(
+    (run: () => void, onDone?: () => void, persist = false) => {
+      if (!getScrollElement()) {
+        pendingScrollRef.current = { run, onDone, persist };
+        return;
+      }
+      pendingScrollRef.current = null;
+      // A jump before the mount-time positioning (a find reveal answered
+      // from cache) is the positioning: the effect must not reset to top
+      // over it.
+      hasInitialScrolledRef.current = true;
+      mountPositionedRef.current = true;
       isAutoScrollingRef.current = true;
       cancelAnimationFrame(releaseFrameRef.current);
-      const finish = () => {
-        const elNow = getScrollElement();
-        if (elNow) lastAutoScrollTopRef.current = elNow.scrollTop;
-        releaseFrameRef.current = requestAnimationFrame(() => {
-          isAutoScrollingRef.current = false;
-        });
+      landingRef.current = persist ? { snapshot: null } : null;
+      run();
+      const release = () => {
+        const userTookOver = userInteractingRef.current;
+        if (virtualizer.isScrolling && !userTookOver) {
+          releaseFrameRef.current = requestAnimationFrame(release);
+          return;
+        }
+        // The user's position is theirs to persist; only a programmatic
+        // landing is echo-suppressed.
+        const el = getScrollElement();
+        if (el) {
+          if (!userTookOver) lastAutoScrollTopRef.current = el.scrollTop;
+          settleLandingRef.current(
+            el,
+            persist &&
+              !userTookOver &&
+              lastInitialKeyRef.current === persistenceKey
+          );
+        }
+        landingRef.current = null;
+        isAutoScrollingRef.current = false;
         onDone?.();
       };
-      jump();
-      const el = getScrollElement();
-      if (!el) {
-        finish();
-        return;
-      }
-      cancelAnimationFrame(settleFrameRef.current);
-      let frames = 0;
-      let stable = 0;
-      let lastTop = el.scrollTop;
-      const settle = () => {
-        if (userInteractingRef.current) {
-          finish();
-          return;
-        }
-        jump();
-        stable = Math.abs(el.scrollTop - lastTop) <= 1 ? stable + 1 : 0;
-        lastTop = el.scrollTop;
-        if (stable < 3 && (frames += 1) < 30) {
-          settleFrameRef.current = requestAnimationFrame(settle);
-        } else {
-          finish();
-        }
-      };
-      settleFrameRef.current = requestAnimationFrame(settle);
+      releaseFrameRef.current = requestAnimationFrame(release);
     },
-    [virtualizer, getScrollElement]
+    [virtualizer, getScrollElement, persistenceKey, settleLandingRef]
   );
   useUnmount(() => {
-    cancelAnimationFrame(settleFrameRef.current);
     cancelAnimationFrame(releaseFrameRef.current);
   });
-  const lastInitialKeyRef = useRef<string | null>(null);
-  // Restore a persisted pixel offset by RE-FORCING it until the virtualizer's
-  // re-measure compensation goes quiet. A one-shot write races the remount
-  // measurement pass: every row measured after the write that sits entirely
-  // above the fold shifts scrollTop by its estimate error (see
-  // shouldAdjustScrollPositionOnItemSizeChange), and which rows land after
-  // the write depends on re-render timing — virtual-core 3.17.7 moved that
-  // timing (notify(adjustedSync) -> flushSync) and drifted the restore by a
-  // full row (#519). Re-forcing until quiet makes the landing independent of
-  // when re-renders happen; it also absorbs the browser clamping an early
-  // write against a not-yet-grown (estimate-sized) scrollHeight. The target
-  // is a callback so per-frame writes see fresh clamp bounds — and, via the
-  // ref-backed converters, a fresh scale — as totals grow.
-  const settleRestoreScroll = useCallback(
-    (getTargetSpacerTop: () => number) => {
-      // Guard bookkeeping mirrors settleScrollToIndex: every exit path —
-      // including a missing scroll element — must book the guard release, or
-      // the caller-taken auto-scroll guard leaks and persistence stays
-      // silently dead for the rest of the mount.
-      isAutoScrollingRef.current = true;
-      cancelAnimationFrame(releaseFrameRef.current);
-      cancelAnimationFrame(settleFrameRef.current);
-      const el = getScrollElement();
-      const keyAtStart = lastInitialKeyRef.current;
-      const finish = () => {
-        if (el) lastAutoScrollTopRef.current = el.scrollTop;
-        releaseFrameRef.current = requestAnimationFrame(() => {
-          isAutoScrollingRef.current = false;
-        });
-      };
-      if (!el) {
-        finish();
-        return;
+  // A runtime jump to a row: the virtualizer owns the target and re-aims it
+  // as rows measure. On a live list it disarms follow-output.
+  const jumpToIndex = useCallback(
+    (
+      index: number,
+      align: Parameters<VirtualListHandle["scrollToIndex"]>[0]["align"],
+      behavior: ScrollBehavior,
+      onDone?: () => void
+    ) => {
+      if (live && followOutputRef.current) {
+        followUserActedRef.current = true;
+        setFollowOutput(false);
       }
-      el.scrollTop = getTargetSpacerTop();
-      let frames = 0;
-      let stable = 0;
-      let lastTop = el.scrollTop;
-      const settle = () => {
-        // A key change mid-settle means this restore belongs to the previous
-        // sample — stop before writing its offset into the new one's list.
-        // User input always wins over a pending restore.
-        if (
-          userInteractingRef.current ||
-          lastInitialKeyRef.current !== keyAtStart
-        ) {
-          finish();
-          return;
-        }
-        // Read BEFORE re-forcing: the drift being waited out (re-measure
-        // compensation nudging scrollTop after our write) happens between
-        // frames, and forcing first would hide it from the stability check.
-        const preTop = el.scrollTop;
-        el.scrollTop = getTargetSpacerTop();
-        const postTop = el.scrollTop;
-        // Any movement since last frame — external compensation (preTop) or
-        // our own re-force landing somewhere new (clamp released as content
-        // grew, postTop) — means the layout is still moving.
-        const moved =
-          Math.abs(preTop - lastTop) > 1 || Math.abs(postTop - lastTop) > 1;
-        stable = moved ? 0 : stable + 1;
-        lastTop = postTop;
-        if (stable < 3 && (frames += 1) < 30) {
-          settleFrameRef.current = requestAnimationFrame(settle);
-        } else {
-          finish();
-        }
-      };
-      settleFrameRef.current = requestAnimationFrame(settle);
+      programmaticScroll(
+        () =>
+          virtualizer.scrollToIndex(index, {
+            align,
+            behavior: scale > SMOOTH_SCROLL_MAX_S ? "auto" : behavior,
+          }),
+        onDone,
+        true
+      );
     },
-    [getScrollElement]
+    [live, programmaticScroll, virtualizer, scale, setFollowOutput]
   );
+  const rowIndexOf = useCallback((node: Element): number | null => {
+    const band = bandRef.current;
+    let row: Element | null = node;
+    while (row && row.parentElement !== band) row = row.parentElement;
+    const index = row instanceof HTMLElement ? Number(row.dataset.index) : NaN;
+    return row && Number.isInteger(index) ? index : null;
+  }, []);
+  const scroller = useMemo<VirtualScroller>(
+    () => ({
+      viewportRect: () =>
+        getScrollElement()?.getBoundingClientRect() ?? new DOMRect(),
+      scrollToRow: (node, onDone) => {
+        const index = rowIndexOf(node);
+        if (index === null) return false;
+        jumpToIndex(index, "start", "auto", onDone);
+        return true;
+      },
+      centreInRow: (node, box, onDone) => {
+        const index = rowIndexOf(node);
+        if (index === null) return false;
+        // The virtualizer learns a row's size from its ResizeObserver at the
+        // next rendering step; a row that grew in this task still ends at its
+        // old height in its layout, with later rows placed over the grown
+        // content. resizeItem records the size now (measureElement returns
+        // the cached size without an observer entry).
+        const row = node.closest(`[data-index="${index}"]`);
+        const rowRect = row?.getBoundingClientRect() ?? box;
+        virtualizer.resizeItem(index, Math.round(rowRect.height));
+        virtualizer.getVirtualItems();
+        const start =
+          virtualizer.measurementsCache[index]?.start ?? scrollMargin;
+        const viewportHeight = getScrollElement()?.clientHeight ?? 0;
+        const target =
+          start + (box.top - rowRect.top) - (viewportHeight - box.height) / 2;
+        programmaticScroll(
+          () => virtualizer.scrollToOffset(target),
+          onDone,
+          true
+        );
+        return true;
+      },
+      onRowMeasured: (listener) => {
+        measureListeners.current.add(listener);
+        return () => measureListeners.current.delete(listener);
+      },
+    }),
+    [
+      getScrollElement,
+      virtualizer,
+      programmaticScroll,
+      scrollMargin,
+      rowIndexOf,
+      jumpToIndex,
+    ]
+  );
+
   const lastInitialIndexRef = useRef<number | undefined>(undefined);
   // The no-snapshot "reset to top" is a one-shot per (re)key: re-firing on
   // every measurement would keep slamming scrollTop to 0 against an
@@ -610,65 +710,116 @@ export function VirtualList<T>({
     ) {
       hasInitialScrolledRef.current = false;
       userScrolledRef.current = false;
+      mountPositionedRef.current = false;
       hasResetTopRef.current = false;
       lastInitialKeyRef.current = persistenceKey;
       lastInitialIndexRef.current = initialIndex ?? undefined;
     }
-    if (hasInitialScrolledRef.current) return;
     const el = getScrollElement();
     if (!el) return;
+    const pending = pendingScrollRef.current;
+    if (pending) {
+      programmaticScroll(pending.run, pending.onDone, pending.persist);
+      return;
+    }
+    if (hasInitialScrolledRef.current) return;
     const snapshot = getRestoreSnapshot();
     // Cancelled on cleanup — the shared container outlives this list, and a
     // frame surviving unmount (or a key change) would scroll it under
     // whatever view owns it next, with stale closures.
     let releaseFrame = 0;
     const frame = requestAnimationFrame(() => {
-      // Flag programmatic scrolls so the scroll listeners don't mistake them
-      // for user scrolls (which would block restore / persist a bogus offset).
-      isAutoScrollingRef.current = true;
-      // Release the guard a frame after the last programmatic scroll.
-      const release = () => {
-        lastAutoScrollTopRef.current = el.scrollTop;
-        releaseFrame = requestAnimationFrame(() => {
-          isAutoScrollingRef.current = false;
-        });
-      };
+      // A programmatic jump landed between the commit and this frame (a find
+      // reveal answered from cache): that was the positioning.
+      if (hasInitialScrolledRef.current) return;
+      mountPositionedRef.current = true;
       if (initialIndex != null) {
         // Explicit navigation target beats persisted scroll state;
         // scrollPaddingStart makes it land like a runtime jump.
         hasInitialScrolledRef.current = true;
-        // settleScrollToIndex releases the auto-scroll guard itself.
-        settleScrollToIndex(initialIndex, "start");
+        programmaticScroll(() =>
+          virtualizer.scrollToIndex(initialIndex, {
+            align: "start",
+            behavior: "auto",
+          })
+        );
       } else if (followOutput && live) {
         // Live follow owns the scroll position: commit the one-shot guard so
         // this effect stops resetting scrollTop to 0 on every new event.
         hasInitialScrolledRef.current = true;
-        release();
       } else if (snapshot) {
         // Restore unless the user already scrolled this list (don't fight the
         // wheel); a foreign scrollTop from a shared container doesn't block it.
         hasInitialScrolledRef.current = true;
         if (!userScrolledRef.current) {
-          // settleRestoreScroll releases the auto-scroll guard itself.
-          // Whether to clamp is decided once at restore time (one-shot
-          // semantics); only the clamp BOUNDS are re-read per frame.
-          const clampToMax = snapshot.totalCount !== data.length;
-          settleRestoreScroll(() => {
-            const target = toSpacerScroll(snapshot.scrollOffset);
-            if (!clampToMax) return target;
-            // Clamped fully in spacer space (dividing by the positive scale
-            // distributes over min/max, so this equals the content-space clamp).
-            // scrollMargin is unscaled DOM above the list, so it adds after.
-            const maxSpacerTop = Math.max(
-              0,
-              toSpacerScroll(virtualizer.getTotalSize()) +
-                scrollMargin -
-                el.clientHeight
+          // Target in the coordinates current at restore time; a row measured
+          // after the write that lies entirely above the viewport shifts
+          // scrollTop by its delta (useScaledVirtualizer's compensation
+          // hook), so the landing stays anchored to the row. Every read of
+          // the anchor goes through one recompute: measurementsCache is only
+          // rebuilt by a range calculation, and a resize marks it dirty
+          // without one, so a direct read can be a stale estimate hundreds of
+          // px off. getVirtualItems() is that calculation (getMeasurements is
+          // private) and memoizes, so asking twice is free.
+          const anchorIndex = Math.min(snapshot.index, data.length - 1);
+          const anchorMeasurement = () => {
+            virtualizer.getVirtualItems();
+            return virtualizer.measurementsCache[anchorIndex];
+          };
+          const anchorTarget = () => {
+            if (snapshot.containerOffset !== undefined)
+              return snapshot.containerOffset;
+            return (
+              (anchorMeasurement()?.start ?? scrollMargin) +
+              snapshot.offsetInRow +
+              listOffset -
+              scrollMargin
             );
-            return Math.min(target, maxSpacerTop);
-          });
-        } else {
-          release();
+          };
+          // The bound the virtualizer clamps offset writes to, in content px
+          // like the target (the spacer is scaled for very tall lists).
+          const maxScrollOffset = () =>
+            toContentScroll(el.scrollHeight - el.clientHeight);
+          // A saved offset past the anchor's own size is a position that size
+          // cannot express: the row is still estimate-sized, and adding the
+          // offset to the row start lands rows below it. Take the index path
+          // instead — the virtualizer re-aims it as rows measure, and the
+          // offset follows once the row has a real size.
+          const anchorFits = () =>
+            snapshot.offsetInRow <= (anchorMeasurement()?.size ?? 0);
+          if (anchorFits() && anchorTarget() <= maxScrollOffset()) {
+            programmaticScroll(() =>
+              virtualizer.scrollToOffset(anchorTarget())
+            );
+          } else {
+            // The estimate-sized rows below the anchor leave the scroller too
+            // short for the target, and an offset write clamps with no
+            // re-aim. An index target is re-aimed by the virtualizer as rows
+            // measure and the total grows; the offset within the row follows
+            // once the jump has settled.
+            programmaticScroll(
+              () =>
+                virtualizer.scrollToIndex(anchorIndex, {
+                  align: "start",
+                  behavior: "auto",
+                }),
+              () => {
+                // Still too short (the jump did not move the viewport, so
+                // nothing below was measured): the row start is the best
+                // in-row position available without a settle loop.
+                if (
+                  lastInitialKeyRef.current !== persistenceKey ||
+                  userInteractingRef.current ||
+                  !anchorFits() ||
+                  anchorTarget() > maxScrollOffset()
+                )
+                  return;
+                programmaticScroll(() =>
+                  virtualizer.scrollToOffset(anchorTarget())
+                );
+              }
+            );
+          }
         }
       } else if (
         !userScrolledRef.current &&
@@ -677,12 +828,17 @@ export function VirtualList<T>({
       ) {
         // No snapshot: reset to top once WITHOUT committing the one-shot
         // guard (a snapshot may rehydrate later), but flag the reset so
-        // re-fires don't keep forcing 0 against a deep-link scroll.
+        // re-fires don't keep forcing 0 against a deep-link scroll. Only
+        // this branch writes, so only it raises the programmatic-scroll
+        // guard: raised by a frame that writes nothing, it would swallow a
+        // user scroll in flight.
+        isAutoScrollingRef.current = true;
         el.scrollTop = 0;
         hasResetTopRef.current = true;
-        release();
-      } else {
-        release();
+        lastAutoScrollTopRef.current = el.scrollTop;
+        releaseFrame = requestAnimationFrame(() => {
+          isAutoScrollingRef.current = false;
+        });
       }
     });
     return () => {
@@ -698,56 +854,59 @@ export function VirtualList<T>({
   }, [
     persistenceKey,
     initialIndex,
-    settleScrollToIndex,
-    settleRestoreScroll,
+    programmaticScroll,
     contentTotal,
     data.length,
     followOutput,
     live,
     getRestoreSnapshot,
     getScrollElement,
-    toSpacerScroll,
+    toContentScroll,
     virtualizer,
     scrollMargin,
+    listOffset,
     resetScrollOnMount,
   ]);
 
-  const buildSnapshot = useCallback(
-    (el: HTMLElement): VirtualListStateSnapshot => ({
-      version: 1,
-      scrollOffset: toContentScroll(el.scrollTop),
-      totalCount: data.length,
-    }),
-    [toContentScroll, data.length]
-  );
-
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The snapshot captured at scroll time, awaiting the debounced write. Kept
-  // so the flush below never has to re-read the (shared) container — by
-  // flush time it can already show another view's content.
-  const pendingSnapshotRef = useRef<VirtualListStateSnapshot | null>(null);
   const persistOnScroll = useRafThrottle(() => {
-    if (isAutoScrollingRef.current) return;
+    // A shared container clamps its scrollTop when this list's rows leave
+    // the DOM and shorter content takes their place; the event reaches a
+    // listener React has not detached yet (its passive cleanup can run after
+    // paint) and is not this list's position.
+    if (!wrapperRef.current?.isConnected) return;
     const elNow = getScrollElement();
+    if (isAutoScrollingRef.current) {
+      const landing = landingRef.current;
+      if (landing && elNow) landing.snapshot = buildSnapshot(elNow);
+      return;
+    }
+    const userInput = userInteractingRef.current || pointerDownRef.current;
     // Ignore the scroll event echoed by a programmatic scroll (restore /
     // auto-follow) — it isn't a user scroll, and persisting it would drift the
-    // saved position across tab flips.
+    // saved position across tab flips. A gesture that happens to end at that
+    // same position is the user's, though.
     if (
       elNow &&
+      !userInput &&
       lastAutoScrollTopRef.current !== null &&
       Math.abs(elNow.scrollTop - lastAutoScrollTopRef.current) <= 2
     ) {
       return;
     }
+    // Before this list has positioned itself, only input-backed scrolls are
+    // its user's; a clamp of the shared container is not.
+    if (!mountPositionedRef.current && !userInput) return;
     userScrolledRef.current = true;
     if (elNow) pendingSnapshotRef.current = buildSnapshot(elNow);
     if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    // The timer records the scroll-time snapshot rather than re-reading the
+    // container: by then it can already hold another view's content.
     persistTimerRef.current = setTimeout(() => {
       persistTimerRef.current = null;
+      const snapshot = pendingSnapshotRef.current;
       pendingSnapshotRef.current = null;
-      const el = getScrollElement();
-      if (!el) return;
-      recordSnapshot(buildSnapshot(el));
+      if (snapshot) recordSnapshot(snapshot);
     }, PERSIST_DEBOUNCE_MS);
   });
 
@@ -762,6 +921,8 @@ export function VirtualList<T>({
   // FLUSH (not cancel) a pending debounced save on key change/unmount, with
   // the scroll-time snapshot: cancelling loses a tab-flip inside the debounce
   // window; letting it run would persist the next tab's offset under this key.
+  // A landing still in flight is flushed the same way, and last: it is where
+  // the user is.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(
     () => () => {
@@ -773,6 +934,9 @@ export function VirtualList<T>({
         }
       }
       pendingSnapshotRef.current = null;
+      const landing = landingRef.current?.snapshot;
+      if (landing) recordSnapshot(landing);
+      landingRef.current = null;
     },
     [recordSnapshot]
   );
@@ -799,21 +963,12 @@ export function VirtualList<T>({
     ref,
     (): VirtualListHandle => ({
       scrollToIndex(opts) {
-        const behavior =
-          scale > SMOOTH_SCROLL_MAX_S
-            ? "auto"
-            : (opts.behavior ?? (smoothScroll ? "smooth" : "auto"));
-        if (behavior === "auto") {
-          settleScrollToIndex(opts.index, opts.align, opts.onDone);
-          return;
-        }
-        // Smooth scrolls animate over many frames — settling would fight the
-        // animation, so they stay a single fire.
-        virtualizer.scrollToIndex(opts.index, {
-          align: opts.align,
-          behavior,
-        });
-        opts.onDone?.();
+        jumpToIndex(
+          opts.index,
+          opts.align,
+          opts.behavior ?? (smoothScroll ? "smooth" : "auto"),
+          opts.onDone
+        );
       },
       scrollTo(opts) {
         const el = getScrollElement();
@@ -825,12 +980,7 @@ export function VirtualList<T>({
         el.scrollTo({ top: opts.top, behavior });
       },
       getState(callback) {
-        const el = getScrollElement();
-        callback({
-          version: 1,
-          scrollOffset: el ? toContentScroll(el.scrollTop) : 0,
-          totalCount: data.length,
-        });
+        callback(buildSnapshot(getScrollElement()));
       },
       jumpToStart() {
         const el = getScrollElement();
@@ -844,15 +994,7 @@ export function VirtualList<T>({
         if (el) el.scrollTop = el.scrollHeight;
       },
     }),
-    [
-      virtualizer,
-      scale,
-      settleScrollToIndex,
-      smoothScroll,
-      getScrollElement,
-      toContentScroll,
-      data.length,
-    ]
+    [scale, smoothScroll, getScrollElement, buildSnapshot, jumpToIndex]
   );
 
   // Null when this list doesn't participate in find (opted out, or no
@@ -886,16 +1028,22 @@ export function VirtualList<T>({
           return false;
         });
         if (hit) {
-          // Starting a new settle cancels the previous landing while retaining
-          // ownership of the auto-scroll guard until the find landing finishes.
-          settleScrollToIndex(i, "center");
+          programmaticScroll(
+            () =>
+              virtualizer.scrollToIndex(i, {
+                align: "center",
+                behavior: "auto",
+              }),
+            undefined,
+            true
+          );
           setTimeout(onContentReady, 200);
           return Promise.resolve(true);
         }
       }
       return Promise.resolve(false);
     },
-    [data, itemSearchText, settleScrollToIndex]
+    [data, itemSearchText, programmaticScroll, virtualizer]
   );
 
   // Pre-compute lowercased search text for every item once per data /
@@ -983,45 +1131,50 @@ export function VirtualList<T>({
       }
     >
       <PaddingChunks height={topPaddingSpacer} prefix="top" />
-      <div style={{ position: "relative", height: renderedBandHeight }}>
-        {items.map((vItem) => {
-          const item = data[vItem.index];
-          if (item === undefined) return null;
-          const top = vItem.start - bandStart;
-          const child = renderRow(vItem.index, item);
-          if (ItemSlot) {
+      <VirtualScrollerContext.Provider value={scroller}>
+        <div
+          ref={bandRef}
+          style={{ position: "relative", height: renderedBandHeight }}
+        >
+          {items.map((vItem) => {
+            const item = data[vItem.index];
+            if (item === undefined) return null;
+            const top = vItem.start - bandStart;
+            const child = renderRow(vItem.index, item);
+            if (ItemSlot) {
+              return (
+                <div
+                  key={vItem.key}
+                  ref={measureRow}
+                  data-index={vItem.index}
+                  style={{ position: "absolute", top, left: 0, right: 0 }}
+                >
+                  <ItemSlot
+                    data-index={vItem.index}
+                    data-item-index={vItem.index}
+                    data-known-size={vItem.size}
+                    style={{}}
+                  >
+                    {child}
+                  </ItemSlot>
+                </div>
+              );
+            }
             return (
               <div
                 key={vItem.key}
-                ref={virtualizer.measureElement}
+                ref={measureRow}
                 data-index={vItem.index}
+                data-item-index={vItem.index}
+                data-known-size={vItem.size}
                 style={{ position: "absolute", top, left: 0, right: 0 }}
               >
-                <ItemSlot
-                  data-index={vItem.index}
-                  data-item-index={vItem.index}
-                  data-known-size={vItem.size}
-                  style={{}}
-                >
-                  {child}
-                </ItemSlot>
+                {child}
               </div>
             );
-          }
-          return (
-            <div
-              key={vItem.key}
-              ref={virtualizer.measureElement}
-              data-index={vItem.index}
-              data-item-index={vItem.index}
-              data-known-size={vItem.size}
-              style={{ position: "absolute", top, left: 0, right: 0 }}
-            >
-              {child}
-            </div>
-          );
-        })}
-      </div>
+          })}
+        </div>
+      </VirtualScrollerContext.Provider>
       <PaddingChunks height={bottomPaddingSpacer} prefix="bot" />
       {showProgress &&
         (FooterSlot ? (

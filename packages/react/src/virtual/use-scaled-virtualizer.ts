@@ -9,7 +9,6 @@ import {
   computeScale,
   SAFE_MAX_SPACER,
   toContent,
-  toSpacer,
 } from "./scale-coordinate-space";
 
 export type ScaledVirtualizerOptions = {
@@ -28,9 +27,7 @@ export type ScaledVirtualizerOptions = {
 export type ScaledVirtualizerResult = {
   virtualizer: Virtualizer<HTMLElement, Element>;
   scale: number;
-  spacerHeight: number;
   toContentScroll: (spacerScroll: number) => number;
-  toSpacerScroll: (contentScroll: number) => number;
 };
 
 export function useScaledVirtualizer(
@@ -49,19 +46,32 @@ export function useScaledVirtualizer(
         const el = instance.scrollElement;
         if (!el) return;
 
-        const onScroll = () => {
-          cb(el.scrollTop * scaleRef.current, true);
-        };
+        // Safari < 26 has no scrollend: fall back to a settle timeout like
+        // virtual-core's default observer, else isScrolling never clears.
+        const supportsScrollend = "onscrollend" in window;
+        let settleTimer: ReturnType<typeof setTimeout> | undefined;
         const onScrollEnd = () => {
           cb(el.scrollTop * scaleRef.current, false);
         };
+        const onScroll = () => {
+          if (!supportsScrollend) {
+            clearTimeout(settleTimer);
+            settleTimer = setTimeout(
+              onScrollEnd,
+              instance.options.isScrollingResetDelay
+            );
+          }
+          cb(el.scrollTop * scaleRef.current, true);
+        };
 
         // Fire immediately to set initial offset
-        cb(el.scrollTop * scaleRef.current, false);
+        onScrollEnd();
 
         el.addEventListener("scroll", onScroll, { passive: true });
-        el.addEventListener("scrollend", onScrollEnd, { passive: true });
+        if (supportsScrollend)
+          el.addEventListener("scrollend", onScrollEnd, { passive: true });
         return () => {
+          clearTimeout(settleTimer);
           el.removeEventListener("scroll", onScroll);
           el.removeEventListener("scrollend", onScrollEnd);
         };
@@ -87,6 +97,15 @@ export function useScaledVirtualizer(
         top: adjusted / scaleRef.current,
         behavior,
       });
+      // The virtualizer learns its offset from the scroll event, a task
+      // later; a row measured before then (mounted by the render this write
+      // interrupted) would be compensated against the old offset — judged
+      // in the wrong place, and shifted from the wrong base. An instant
+      // write has landed, so tell it now; its own adjustment writes already
+      // add their delta to the offset.
+      if (behavior !== "smooth" && adjustments === undefined) {
+        instance.scrollOffset = el.scrollTop * scaleRef.current;
+      }
     },
     []
   );
@@ -110,9 +129,9 @@ export function useScaledVirtualizer(
   // to the new content's tail. Only compensate for rows ENTIRELY above the
   // viewport (end <= offset instead of the default's start < offset). The
   // default's pending-adjustments term and backward-scroll re-measure guard
-  // are deliberately omitted: the deep-link path settles by re-issuing the
-  // jump until the scroll holds still (VirtualList.settleScrollToIndex),
-  // which covers the mid-jump cases those guards target. This is an
+  // are deliberately omitted: an index jump is re-aimed by the virtualizer
+  // after every measurement (scrollToIndex reconcile), which covers the
+  // mid-jump cases those guards target. This is an
   // ASSIGNABLE INSTANCE HOOK in virtual-core 3.17 (not an option — nothing
   // copies it from options), hence the post-construction assignment.
   virtualizer.shouldAdjustScrollPositionOnItemSizeChange = (
@@ -125,20 +144,12 @@ export function useScaledVirtualizer(
   const scale = computeScale(contentTotal, SAFE_MAX_SPACER);
   scaleRef.current = scale;
 
-  const spacerHeight = scale === 1 ? contentTotal : SAFE_MAX_SPACER;
-
-  // Ref-backed (not closed over `scale`) so long-lived closures — the restore
-  // settle loop re-forces scrollTop across many frames while measurements
-  // change the scale — convert with the scale current at call time, not the
-  // one captured when the closure was created.
+  // Ref-backed (not closed over `scale`) so closures created before a
+  // re-measure changed the scale convert with the current scale.
   const toContentScroll = useCallback(
     (spacerScroll: number) => toContent(spacerScroll, scaleRef.current),
     []
   );
-  const toSpacerScroll = useCallback(
-    (contentScroll: number) => toSpacer(contentScroll, scaleRef.current),
-    []
-  );
 
-  return { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll };
+  return { virtualizer, scale, toContentScroll };
 }
