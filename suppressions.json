@@ -382,11 +382,6 @@
       "count": 3
     }
   },
-  "apps/inspect/src/app/shared/data-grid/findMatches.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/shared/data-grid/findMatches.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -549,11 +544,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/log_data/chunkedAttachments.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/log_data/databaseListings.ts": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
@@ -592,22 +582,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/log_data/runningSampleQuery.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/log_data/sampleData.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/log_data/sampleData.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -637,18 +611,6 @@
     }
   },
   "apps/inspect/src/log_data/sampleStream.test.ts": {
-    "@typescript-eslint/no-explicit-any (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-member-access (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unsafe-return (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
     }
@@ -1557,13 +1519,7 @@
     }
   },
   "packages/inspect-components/src/transcript/eventText.test.ts": {
-    "@typescript-eslint/consistent-type-assertions (file-wide)": {
-      "count": 1
-    },
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
       "count": 1
     }
   },
