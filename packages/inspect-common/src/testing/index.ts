@@ -29,6 +29,7 @@ import type {
   Event,
   InfoEvent,
   InputEvent,
+  InterruptEvent,
   LoggerEvent,
   ModelConfig,
   ModelEvent,
@@ -38,6 +39,8 @@ import type {
   SampleLimitEvent,
   SandboxEvent,
   Score,
+  ScoreEdit,
+  ScoreEditEvent,
   ScoreEvent,
   SpanBeginEvent,
   SpanEndEvent,
@@ -248,6 +251,36 @@ export const testScoreEvent = (
   working_start: 0,
   intermediate: false,
   score: testScore(),
+  ...overrides,
+});
+
+export const testScoreEdit = (
+  overrides: Partial<ScoreEdit> = {}
+): ScoreEdit => ({
+  value: 1,
+  metadata: {},
+  ...overrides,
+});
+
+export const testScoreEditEvent = (
+  overrides: Partial<ScoreEditEvent> = {}
+): ScoreEditEvent => ({
+  event: "score_edit",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  score_name: "scorer",
+  edit: testScoreEdit(),
+  ...overrides,
+});
+
+export const testInterruptEvent = (
+  overrides: Partial<InterruptEvent> = {}
+): InterruptEvent => ({
+  event: "interrupt",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  source: "user_cancel",
+  interrupted: "between_turns",
   ...overrides,
 });
 
