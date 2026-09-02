@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { expectEvent, testEvalSample } from "@tsmono/inspect-common/testing";
+import {
+  expectEvent,
+  testEvalSample,
+  testInfoEvent,
+} from "@tsmono/inspect-common/testing";
 import { EvalSample } from "@tsmono/inspect-common/types";
 
 import { initAppConfig } from "../app_config";
 import { SampleHandle } from "../app/types";
 import {
+  EventData,
   SampleData,
   SampleDataResponse,
   SampleSummary,
@@ -50,13 +55,12 @@ const okResponse = (
   ...extra,
 });
 
-const eventData = (id: number, eventId: string, data: string) => ({
+const eventData = (id: number, eventId: string, data: string): EventData => ({
   id,
   event_id: eventId,
   sample_id: "sample-1",
   epoch: 1,
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately partial: the query under test only reads the event's discriminant and data
-  event: { event: "info", data } as never,
+  event: testInfoEvent({ data }),
 });
 
 const makeHandle = (logFile: string): SampleHandle => ({
