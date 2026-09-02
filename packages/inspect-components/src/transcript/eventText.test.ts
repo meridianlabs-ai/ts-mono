@@ -1,11 +1,32 @@
 import { describe, expect, it, test } from "vitest";
 
 import {
+  testApprovalEvent,
   testAssistantMessage,
   testChatCompletionChoice,
+  testCompactionEvent,
+  testErrorEvent,
+  testEvalError,
+  testInfoEvent,
+  testInputEvent,
+  testInterruptEvent,
+  testLoggerEvent,
   testModelEvent,
   testModelOutput,
+  testSampleInitEvent,
+  testSampleLimitEvent,
+  testSandboxEvent,
+  testScore,
+  testScoreEdit,
+  testScoreEditEvent,
+  testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
   testStateEvent,
+  testStepEvent,
+  testStoreEvent,
+  testSubtaskEvent,
+  testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type {
@@ -13,6 +34,7 @@ import type {
   ContentImage,
   ContentReasoning,
   ContentToolUse,
+  Event,
   JsonValue,
   ModelEvent,
   StateEvent,
@@ -165,14 +187,26 @@ describe("eventsToStr — multimodal content placeholders", () => {
 
   it("emits placeholders for audio/video/data/document", () => {
     const out = eventsToStr([
-      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately partial: these cover the placeholder path for content parts whose payload eventsToStr must never inline */
       modelEventWith([
-        { type: "audio", audio: "data:audio/mp3;base64,_AUDIO_BLOB_" } as never,
-        { type: "video", video: "data:video/mp4;base64,_VIDEO_BLOB_" } as never,
-        { type: "data", data: { huge: "_DATA_BLOB_" } } as never,
-        { type: "document", document: "_DOC_BLOB_" } as never,
+        {
+          type: "audio",
+          audio: "data:audio/mp3;base64,_AUDIO_BLOB_",
+          format: "mp3",
+        },
+        {
+          type: "video",
+          video: "data:video/mp4;base64,_VIDEO_BLOB_",
+          format: "mp4",
+        },
+        { type: "data", data: { huge: "_DATA_BLOB_" } },
+        {
+          type: "document",
+          document: "_DOC_BLOB_",
+          filename: "doc.pdf",
+          mime_type: "application/pdf",
+          citations: false,
+        },
       ]),
-      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions */
     ]);
     expect(out).toContain("<audio />");
     expect(out).toContain("<video />");
@@ -336,21 +370,38 @@ describe("eventsToStr — compaction event", () => {
   });
 });
 
-const makeNode = (event: Record<string, unknown>): EventNode => {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the search-text cases below feed deliberately partial events; eventSearchText reads defensively
-  return new EventNode("test-id", event as never, 0);
-};
+const makeNode = (event: Event): EventNode =>
+  new EventNode("test-id", event, 0);
+
+/**
+ * `extractToolResultText` takes `unknown` and must survive result shapes
+ * the schema forbids (nested `tool` blocks, `data` parts, bare objects);
+ * the cases that exercise that path opt in here, one at a time.
+ */
+const outOfContractResult = (value: unknown): ToolEvent["result"] =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: see above
+  value as ToolEvent["result"];
+
+const toolView = (title: string): ToolEvent["view"] => ({
+  title,
+  content: "",
+  format: "text",
+});
 
 describe("eventSearchText", () => {
   test("score: includes answer, explanation, and value", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "score",
-        score: { answer: "yes", explanation: "partial", value: 0.5 },
-        target: "correct answer",
-        intermediate: true,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testScoreEvent({
+          score: testScore({
+            answer: "yes",
+            explanation: "partial",
+            value: 0.5,
+          }),
+          target: "correct answer",
+          intermediate: true,
+        })
+      )
     );
     expect(texts).toContain("yes");
     expect(texts).toContain("partial");
@@ -360,13 +411,13 @@ describe("eventSearchText", () => {
 
   test("score: includes array target", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "score",
-        score: { answer: null, explanation: null, value: 1 },
-        target: ["a", "b"],
-        intermediate: false,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testScoreEvent({
+          score: testScore({ answer: null, explanation: null, value: 1 }),
+          target: ["a", "b"],
+          intermediate: false,
+        })
+      )
     );
     expect(texts).toContain("a");
     expect(texts).toContain("b");
@@ -374,16 +425,16 @@ describe("eventSearchText", () => {
 
   test("score_edit: includes score_name and edit fields", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "score_edit",
-        score_name: "accuracy",
-        edit: {
-          answer: "new answer",
-          explanation: "fixed reasoning",
-          provenance: null,
-        },
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testScoreEditEvent({
+          score_name: "accuracy",
+          edit: testScoreEdit({
+            answer: "new answer",
+            explanation: "fixed reasoning",
+            provenance: null,
+          }),
+        })
+      )
     );
     expect(texts).toContain("accuracy");
     expect(texts).toContain("new answer");
@@ -392,16 +443,16 @@ describe("eventSearchText", () => {
 
   test("score_edit: excludes UNCHANGED fields", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "score_edit",
-        score_name: "accuracy",
-        edit: {
-          answer: "UNCHANGED",
-          explanation: "UNCHANGED",
-          provenance: null,
-        },
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testScoreEditEvent({
+          score_name: "accuracy",
+          edit: testScoreEdit({
+            answer: "UNCHANGED",
+            explanation: "UNCHANGED",
+            provenance: null,
+          }),
+        })
+      )
     );
     expect(texts).toContain("accuracy");
     expect(texts).not.toContain("UNCHANGED");
@@ -409,16 +460,16 @@ describe("eventSearchText", () => {
 
   test("sample_init: includes target and metadata", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "sample_init",
-        sample: {
-          target: "expected output",
-          metadata: { category: "math" },
-          input: "question",
-        },
-        state: {},
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testSampleInitEvent({
+          sample: {
+            target: "expected output",
+            metadata: { category: "math" },
+            input: "question",
+          },
+          state: {},
+        })
+      )
     );
     expect(texts).toContain("expected output");
     expect(texts.some((t) => t.includes("math"))).toBe(true);
@@ -426,12 +477,9 @@ describe("eventSearchText", () => {
 
   test("sample_limit: includes message and type", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "sample_limit",
-        message: "Token limit exceeded",
-        type: "token",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testSampleLimitEvent({ message: "Token limit exceeded", type: "token" })
+      )
     );
     expect(texts).toContain("Token limit exceeded");
     expect(texts).toContain("token");
@@ -439,26 +487,26 @@ describe("eventSearchText", () => {
 
   test("input: includes input text", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "input",
-        input: "user typed this",
-        input_ansi: "user typed this",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testInputEvent({
+          input: "user typed this",
+          input_ansi: "user typed this",
+        })
+      )
     );
     expect(texts).toContain("user typed this");
   });
 
   test("interrupt: includes source and interrupted, plus optional ids", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "interrupt",
-        source: "user_cancel",
-        interrupted: "tool_call",
-        interrupted_tool_call_id: "tc-xyz",
-        interrupted_model_event_id: "me-abc",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testInterruptEvent({
+          source: "user_cancel",
+          interrupted: "tool_call",
+          interrupted_tool_call_id: "tc-xyz",
+          interrupted_model_event_id: "me-abc",
+        })
+      )
     );
     expect(texts).toContain("user_cancel");
     expect(texts).toContain("tool_call");
@@ -468,12 +516,9 @@ describe("eventSearchText", () => {
 
   test("interrupt: required fields only", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "interrupt",
-        source: "limit",
-        interrupted: "between_turns",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testInterruptEvent({ source: "limit", interrupted: "between_turns" })
+      )
     );
     expect(texts).toContain("limit");
     expect(texts).toContain("between_turns");
@@ -482,15 +527,15 @@ describe("eventSearchText", () => {
 
   test("approval: includes decision, explanation, and approver", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "approval",
-        decision: "approve",
-        explanation: "looks safe",
-        approver: "human-in-loop",
-        message: "Allow file write?",
-        call: {},
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testApprovalEvent({
+          decision: "approve",
+          explanation: "looks safe",
+          approver: "human-in-loop",
+          message: "Allow file write?",
+          call: testToolCall(),
+        })
+      )
     );
     expect(texts).toContain("approve");
     expect(texts).toContain("looks safe");
@@ -499,14 +544,14 @@ describe("eventSearchText", () => {
 
   test("sandbox: includes action, cmd, output, and file", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "sandbox",
-        action: "exec",
-        cmd: "ls -la",
-        output: "total 42",
-        file: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testSandboxEvent({
+          action: "exec",
+          cmd: "ls -la",
+          output: "total 42",
+          file: null,
+        })
+      )
     );
     expect(texts).toContain("exec");
     expect(texts).toContain("ls -la");
@@ -515,14 +560,14 @@ describe("eventSearchText", () => {
 
   test("sandbox: includes file for read/write actions", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "sandbox",
-        action: "read_file",
-        cmd: null,
-        output: "file contents",
-        file: "/tmp/test.txt",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testSandboxEvent({
+          action: "read_file",
+          cmd: null,
+          output: "file contents",
+          file: "/tmp/test.txt",
+        })
+      )
     );
     expect(texts).toContain("read_file");
     expect(texts).toContain("/tmp/test.txt");
@@ -530,14 +575,19 @@ describe("eventSearchText", () => {
 
   test("state: includes change paths and values", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "state",
-        changes: [
-          { op: "replace", path: "/messages/0/content", value: "hello" },
-          { op: "add", path: "/count", value: 42 },
-        ],
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testStateEvent({
+          changes: [
+            {
+              op: "replace",
+              path: "/messages/0/content",
+              value: "hello",
+              replaced: null,
+            },
+            { op: "add", path: "/count", value: 42, replaced: null },
+          ],
+        })
+      )
     );
     expect(texts).toContain("/messages/0/content");
     expect(texts).toContain("hello");
@@ -547,11 +597,11 @@ describe("eventSearchText", () => {
 
   test("store: includes change paths and values", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "store",
-        changes: [{ op: "add", path: "/key", value: "val" }],
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testStoreEvent({
+          changes: [{ op: "add", path: "/key", value: "val", replaced: null }],
+        })
+      )
     );
     expect(texts).toContain("/key");
     expect(texts).toContain("val");
@@ -559,30 +609,26 @@ describe("eventSearchText", () => {
 
   test("model: includes model name", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "model",
-        model: "gpt-4",
-        role: "assistant",
-        output: { choices: [] },
-        input: [],
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testModelEvent({ model: "gpt-4", role: "assistant" }))
     );
     expect(texts).toContain("gpt-4");
   });
 
   test("model: extracts text from output choices", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "model",
-        model: "gpt-4",
-        role: null,
-        output: {
-          choices: [{ message: { content: "hello world", role: "assistant" } }],
-        },
-        input: [],
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testModelEvent({
+          model: "gpt-4",
+          role: null,
+          output: testModelOutput({
+            choices: [
+              testChatCompletionChoice({
+                message: testAssistantMessage({ content: "hello world" }),
+              }),
+            ],
+          }),
+        })
+      )
     );
     expect(texts).toContain("gpt-4");
     expect(texts).toContain("hello world");
@@ -590,12 +636,7 @@ describe("eventSearchText", () => {
 
   test("step: includes name and type as separate values", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "step",
-        name: "generate",
-        type: "solver",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testStepEvent({ name: "generate", type: "solver" }))
     );
     expect(texts).toContain("generate");
     expect(texts).toContain("solver");
@@ -603,39 +644,24 @@ describe("eventSearchText", () => {
 
   test("step: includes name when no type", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "step",
-        name: "my_step",
-        type: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testStepEvent({ name: "my_step", type: null }))
     );
     expect(texts).toContain("my_step");
   });
 
   test("subtask: includes name and type", () => {
     const fork = eventSearchText(
-      makeNode({
-        event: "subtask",
-        name: "parallel",
-        type: "fork",
-        input: null,
-        result: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testSubtaskEvent({ name: "parallel", type: "fork", result: null })
+      )
     );
     expect(fork).toContain("parallel");
     expect(fork).toContain("fork");
 
     const sub = eventSearchText(
-      makeNode({
-        event: "subtask",
-        name: "check",
-        type: "subtask",
-        input: null,
-        result: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testSubtaskEvent({ name: "check", type: "subtask", result: null })
+      )
     );
     expect(sub).toContain("check");
     expect(sub).toContain("subtask");
@@ -643,39 +669,37 @@ describe("eventSearchText", () => {
 
   test("tool: includes view title and function name", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "tool",
-        function: "search",
-        view: { title: "Web Search" },
-        arguments: null,
-        result: null,
-        error: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testToolEvent({
+          function: "search",
+          view: toolView("Web Search"),
+          error: null,
+        })
+      )
     );
     expect(texts).toContain("Web Search");
     expect(texts).toContain("search");
   });
 
   test("tool: array result yields one ordered search segment per rendered block", () => {
-    const node = makeNode({
-      event: "tool",
-      function: "browser",
-      view: { title: "Browser" },
-      arguments: { action: "get_page_text" },
-      result: [
-        { type: "text", text: "Revenue Recognition in policy docs" },
-        {
-          type: "tool",
-          content: [
-            { type: "text", text: "Revenue Recognition in extracted page" },
-          ],
-        },
-        { type: "image", image: "data:image/png;base64,abc123" },
-      ],
-      error: null,
-      timestamp: "2024-01-01T00:00:00Z",
-    });
+    const node = makeNode(
+      testToolEvent({
+        function: "browser",
+        view: toolView("Browser"),
+        arguments: { action: "get_page_text" },
+        result: outOfContractResult([
+          { type: "text", text: "Revenue Recognition in policy docs" },
+          {
+            type: "tool",
+            content: [
+              { type: "text", text: "Revenue Recognition in extracted page" },
+            ],
+          },
+          { type: "image", image: "data:image/png;base64,abc123" },
+        ]),
+        error: null,
+      })
+    );
 
     const resultSegments = extractEventFields(node.event)
       .filter(([key]) => key === "result")
@@ -691,23 +715,31 @@ describe("eventSearchText", () => {
   });
 
   test("tool: array document renders its filename; audio/video render no text", () => {
-    const node = makeNode({
-      event: "tool",
-      function: "fetch",
-      arguments: null,
-      result: [
-        {
-          type: "document",
-          filename: "report.pdf",
-          document: "data:application/pdf;base64,_DOC_BLOB_",
-          mime_type: "application/pdf",
-        },
-        { type: "audio", audio: "data:audio/mp3;base64,_AUDIO_BLOB_" },
-        { type: "video", video: "data:video/mp4;base64,_VIDEO_BLOB_" },
-      ],
-      error: null,
-      timestamp: "2024-01-01T00:00:00Z",
-    });
+    const node = makeNode(
+      testToolEvent({
+        function: "fetch",
+        result: [
+          {
+            type: "document",
+            filename: "report.pdf",
+            document: "data:application/pdf;base64,_DOC_BLOB_",
+            mime_type: "application/pdf",
+            citations: false,
+          },
+          {
+            type: "audio",
+            audio: "data:audio/mp3;base64,_AUDIO_BLOB_",
+            format: "mp3",
+          },
+          {
+            type: "video",
+            video: "data:video/mp4;base64,_VIDEO_BLOB_",
+            format: "mp4",
+          },
+        ],
+        error: null,
+      })
+    );
     const resultSegments = extractEventFields(node.event)
       .filter(([key]) => key === "result")
       .map(([, value]) => value);
@@ -719,34 +751,37 @@ describe("eventSearchText", () => {
   });
 
   test("tool: excluded hard cases stay safe (no payload leak), not renderer-exact", () => {
-    const imageNode = makeNode({
-      event: "tool",
-      function: "view_image",
-      arguments: null,
-      result: { type: "image", image: "data:image/png;base64,_HUGE_BLOB_" },
-      error: null,
-      timestamp: "2024-01-01T00:00:00Z",
-    });
+    const imageNode = makeNode(
+      testToolEvent({
+        function: "view_image",
+        result: {
+          type: "image",
+          image: "data:image/png;base64,_HUGE_BLOB_",
+          detail: "auto",
+        },
+        error: null,
+      })
+    );
     expect(eventSearchText(imageNode).join("\n")).not.toContain("_HUGE_BLOB_");
 
-    const dataNode = makeNode({
-      event: "tool",
-      function: "fetch",
-      arguments: null,
-      result: [{ type: "data", data: { secret: "_DATA_VALUE_" } }],
-      error: null,
-      timestamp: "2024-01-01T00:00:00Z",
-    });
+    const dataNode = makeNode(
+      testToolEvent({
+        function: "fetch",
+        result: outOfContractResult([
+          { type: "data", data: { secret: "_DATA_VALUE_" } },
+        ]),
+        error: null,
+      })
+    );
     expect(eventSearchText(dataNode).join("\n")).not.toContain("_DATA_VALUE_");
 
-    const objectNode = makeNode({
-      event: "tool",
-      function: "calc",
-      arguments: null,
-      result: { answer: 42, label: "ok" },
-      error: null,
-      timestamp: "2024-01-01T00:00:00Z",
-    });
+    const objectNode = makeNode(
+      testToolEvent({
+        function: "calc",
+        result: outOfContractResult({ answer: 42, label: "ok" }),
+        error: null,
+      })
+    );
     const objectSegments = extractEventFields(objectNode.event)
       .filter(([key]) => key === "result")
       .map(([, value]) => value);
@@ -755,26 +790,27 @@ describe("eventSearchText", () => {
 
   test("error: includes error message", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "error",
-        error: { message: "something broke", traceback: null },
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testErrorEvent({ error: testEvalError({ message: "something broke" }) })
+      )
     );
     expect(texts).toContain("something broke");
   });
 
   test("logger: includes message and filename", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "logger",
-        message: {
-          level: "WARNING",
-          message: "disk space low",
-          filename: "main.py",
-        },
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testLoggerEvent({
+          message: {
+            level: "warning",
+            message: "disk space low",
+            filename: "main.py",
+            created: 0,
+            module: "main",
+            lineno: 1,
+          },
+        })
+      )
     );
     expect(texts).toContain("disk space low");
     expect(texts).toContain("main.py");
@@ -782,12 +818,7 @@ describe("eventSearchText", () => {
 
   test("info: includes source and data", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "info",
-        source: "system",
-        data: "startup complete",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testInfoEvent({ source: "system", data: "startup complete" }))
     );
     expect(texts).toContain("system");
     expect(texts).toContain("startup complete");
@@ -795,24 +826,14 @@ describe("eventSearchText", () => {
 
   test("info: includes data without source", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "info",
-        source: null,
-        data: "startup complete",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testInfoEvent({ source: null, data: "startup complete" }))
     );
     expect(texts).toContain("startup complete");
   });
 
   test("span_begin: includes name and type as separate values", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "span_begin",
-        name: "evaluate",
-        type: "solver",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testSpanBeginEvent({ name: "evaluate", type: "solver" }))
     );
     expect(texts).toContain("evaluate");
     expect(texts).toContain("solver");
@@ -820,25 +841,20 @@ describe("eventSearchText", () => {
 
   test("span_begin: includes name when no type", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "span_begin",
-        name: "init",
-        type: null,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(testSpanBeginEvent({ name: "init", type: null }))
     );
     expect(texts).toContain("init");
   });
 
   test("compaction: emits tokens and omits default 'inspect' source", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "compaction",
-        source: "inspect",
-        tokens_before: 1000,
-        tokens_after: 500,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testCompactionEvent({
+          source: "inspect",
+          tokens_before: 1000,
+          tokens_after: 500,
+        })
+      )
     );
     expect(texts).toContain("1000");
     expect(texts).toContain("500");
@@ -847,24 +863,19 @@ describe("eventSearchText", () => {
 
   test("compaction: includes non-default source", () => {
     const texts = eventSearchText(
-      makeNode({
-        event: "compaction",
-        source: "agent",
-        tokens_before: 1000,
-        tokens_after: 500,
-        timestamp: "2024-01-01T00:00:00Z",
-      })
+      makeNode(
+        testCompactionEvent({
+          source: "agent",
+          tokens_before: 1000,
+          tokens_after: 500,
+        })
+      )
     );
     expect(texts).toContain("agent");
   });
 
   test("unknown event: returns empty array", () => {
-    const texts = eventSearchText(
-      makeNode({
-        event: "span_end",
-        timestamp: "2024-01-01T00:00:00Z",
-      })
-    );
+    const texts = eventSearchText(makeNode(testSpanEndEvent()));
     expect(texts).toEqual([]);
   });
 });
