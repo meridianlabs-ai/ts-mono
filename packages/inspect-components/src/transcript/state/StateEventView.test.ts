@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { JsonChange } from "@tsmono/inspect-common/types";
 
@@ -74,5 +74,53 @@ describe("synthesizeComparable", () => {
     ]);
     expect(before).toEqual({ a: { name: "y" } });
     expect(after).toEqual({ a: { 0: "m" } });
+  });
+});
+
+// Paths come straight from the log. A `__proto__` or `constructor/prototype`
+// segment must become an ordinary key in the synthesized tree, never a step
+// into Object.prototype — a write there would outlive the event that made it
+// and be read back by every plain object in the page.
+describe("synthesizeComparable prototype safety", () => {
+  const planted = ["planted_add", "planted_replace", "planted_ctor"];
+
+  afterEach(() => {
+    for (const key of planted) {
+      Reflect.deleteProperty(Object.prototype, key);
+    }
+  });
+
+  it("stores a __proto__ segment as an own key instead of writing the prototype", () => {
+    const [before, after] = synthesizeComparable([
+      add("/__proto__/planted_add", "x"),
+    ]);
+    expect(Object.hasOwn(Object.prototype, "planted_add")).toBe(false);
+    expect("planted_add" in {}).toBe(false);
+    expect(Object.getPrototypeOf(after)).toBe(Object.prototype);
+    expect(Object.hasOwn(after, "__proto__")).toBe(true);
+    expect(JSON.stringify(after)).toBe('{"__proto__":{"planted_add":"x"}}');
+    expect(JSON.stringify(before)).toBe('{"__proto__":{}}');
+  });
+
+  it("keeps a replace through __proto__ off the prototype on both sides", () => {
+    synthesizeComparable([
+      {
+        op: "replace",
+        path: "/__proto__/planted_replace",
+        value: "new",
+        replaced: "old",
+      },
+    ]);
+    expect(Object.hasOwn(Object.prototype, "planted_replace")).toBe(false);
+  });
+
+  it("does not reach Object.prototype through constructor/prototype", () => {
+    const [, after] = synthesizeComparable([
+      add("/constructor/prototype/planted_ctor", "x"),
+    ]);
+    expect(Object.hasOwn(Object.prototype, "planted_ctor")).toBe(false);
+    expect(JSON.stringify(after)).toBe(
+      '{"constructor":{"prototype":{"planted_ctor":"x"}}}'
+    );
   });
 });

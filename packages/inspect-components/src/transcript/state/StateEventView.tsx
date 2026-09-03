@@ -200,8 +200,17 @@ type PathContainer = Record<string, unknown> | unknown[];
 const isPathContainer = (value: unknown): value is PathContainer =>
   typeof value === "object" && value !== null;
 
-const getChild = (container: PathContainer, key: string): unknown =>
-  Array.isArray(container) ? container[Number(key)] : container[key];
+// Path segments come straight from the log, so the walk must stay on the
+// synthesized tree's own properties: a `__proto__` or `constructor` segment
+// read through the prototype chain would step into Object.prototype, and the
+// write that follows would land there for the rest of the page's life.
+const getChild = (container: PathContainer, key: string): unknown => {
+  if (Array.isArray(container)) {
+    const index = Number(key);
+    return Object.hasOwn(container, index) ? container[index] : undefined;
+  }
+  return Object.hasOwn(container, key) ? container[key] : undefined;
+};
 
 const setChild = (
   container: PathContainer,
@@ -211,7 +220,15 @@ const setChild = (
   if (Array.isArray(container)) {
     container[Number(key)] = value;
   } else {
-    container[key] = value;
+    // `container["__proto__"] = value` hits the inherited setter and
+    // re-parents the container instead of storing a key; defineProperty
+    // always creates an own, enumerable key so the segment renders as data.
+    Object.defineProperty(container, key, {
+      value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
 };
 

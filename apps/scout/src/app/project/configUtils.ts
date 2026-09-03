@@ -29,13 +29,17 @@ export function isEmpty(value: unknown): boolean {
 }
 
 /**
- * Filter out null and undefined values from an object.
+ * Filter out null and undefined values from an object. Own properties only:
+ * for-in also walks inherited enumerable keys, so anything a rendered
+ * transcript managed to plant on Object.prototype would otherwise become an
+ * own key of the config and ride along to the server.
  */
 export function filterNullValues<T extends Record<string, unknown>>(
   obj: T
 ): Partial<T> {
   const result: Partial<T> = {};
   for (const key in obj) {
+    if (!Object.hasOwn(obj, key)) continue;
     const value = obj[key];
     if (value !== null && value !== undefined) {
       result[key] = value;
@@ -52,6 +56,16 @@ export function filterNullValues<T extends Record<string, unknown>>(
 export function deepCopy<T>(obj: T): T {
   return structuredClone(obj);
 }
+
+/**
+ * Own-property read of a config record. The config builders look up keys
+ * taken from one object's key set on another, so a key can be absent from the
+ * record being read. A plain bracket read would then fall through to
+ * Object.prototype and hand back whatever a polluted prototype holds; an
+ * absent key must read as undefined.
+ */
+const ownField = (record: Record<string, unknown>, key: string): unknown =>
+  Object.hasOwn(record, key) ? record[key] : undefined;
 
 /**
  * Clean nested config (cache/batch) for saving.
@@ -78,7 +92,7 @@ function cleanNestedConfig(
   const originalObj = isRecord(original) ? original : {};
 
   for (const [key, value] of Object.entries(edited)) {
-    const origValue = originalObj[key];
+    const origValue = ownField(originalObj, key);
     const valueChanged = JSON.stringify(value) !== JSON.stringify(origValue);
 
     if (valueChanged) {
@@ -122,7 +136,7 @@ function cleanGenerateConfig(
 
   for (const key of Object.keys(edited)) {
     const editedValue = edited[key];
-    const originalValue = originalObj[key];
+    const originalValue = ownField(originalObj, key);
 
     // Handle nested cache/batch configs
     if (key === "cache" || key === "batch") {
@@ -221,7 +235,7 @@ const configField = (
   key: string
 ): unknown => {
   const record: Record<string, unknown> = config;
-  return record[key];
+  return ownField(record, key);
 };
 
 /**
@@ -271,7 +285,7 @@ export function mergeInFlightEdits(
   for (const key of Object.keys(currentRecord)) {
     const changedSinceSave =
       JSON.stringify(currentRecord[key]) !==
-      JSON.stringify(snapshotRecord[key]);
+      JSON.stringify(ownField(snapshotRecord, key));
     if (changedSinceSave) {
       mergedRecord[key] = currentRecord[key];
     }
