@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { JsonChange } from "@tsmono/inspect-common/types";
 
@@ -77,16 +77,20 @@ describe("synthesizeComparable", () => {
   });
 });
 
-// Paths come straight from the log. A `__proto__` or `constructor/prototype`
-// segment must become an ordinary key in the synthesized tree, never a step
-// into Object.prototype — a write there would outlive the event that made it
-// and be read back by every plain object in the page.
+// Paths come straight from the log. A `__proto__` segment must become an
+// ordinary key in the synthesized tree, never a step into Object.prototype:
+// a write there would be read back by every plain object in the page.
 describe("synthesizeComparable prototype safety", () => {
-  const planted = ["planted_add", "planted_replace", "planted_ctor"];
-
+  // If the code under test regresses, remove whatever it planted so the
+  // leak doesn't poison later tests in this worker.
+  let prototypeKeys: Set<string>;
+  beforeEach(() => {
+    prototypeKeys = new Set(Object.getOwnPropertyNames(Object.prototype));
+  });
   afterEach(() => {
-    for (const key of planted) {
-      Reflect.deleteProperty(Object.prototype, key);
+    for (const key of Object.getOwnPropertyNames(Object.prototype)) {
+      if (!prototypeKeys.has(key))
+        Reflect.deleteProperty(Object.prototype, key);
     }
   });
 
@@ -95,9 +99,7 @@ describe("synthesizeComparable prototype safety", () => {
       add("/__proto__/planted_add", "x"),
     ]);
     expect(Object.hasOwn(Object.prototype, "planted_add")).toBe(false);
-    expect("planted_add" in {}).toBe(false);
-    expect(Object.getPrototypeOf(after)).toBe(Object.prototype);
-    expect(Object.hasOwn(after, "__proto__")).toBe(true);
+    // A re-parented `after` would serialize as {}.
     expect(JSON.stringify(after)).toBe('{"__proto__":{"planted_add":"x"}}');
     expect(JSON.stringify(before)).toBe('{"__proto__":{}}');
   });
@@ -114,6 +116,8 @@ describe("synthesizeComparable prototype safety", () => {
     expect(Object.hasOwn(Object.prototype, "planted_replace")).toBe(false);
   });
 
+  // Never a vector (a function fails the container check), kept as a guard
+  // on the own-property walk should that check ever loosen.
   it("does not reach Object.prototype through constructor/prototype", () => {
     const [, after] = synthesizeComparable([
       add("/constructor/prototype/planted_ctor", "x"),

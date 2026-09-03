@@ -43,8 +43,21 @@ describe("filterNullValues", () => {
     withPollutedPrototype("system_message", "attacker prompt", () => {
       const result = filterNullValues({ temperature: 0.5 });
       expect(Object.keys(result)).toEqual(["temperature"]);
-      expect(Object.hasOwn(result, "system_message")).toBe(false);
     });
+  });
+});
+
+describe("initializeEditedConfig", () => {
+  it("treats a field the server omitted as unset, not as the prototype's", () => {
+    withPollutedPrototype(
+      "generate_config",
+      { system_message: "planted" },
+      () => {
+        const edited = initializeEditedConfig({ filter: "kind == 'eval'" });
+        expect(edited.generate_config).toBeNull();
+        expect(edited.model).toBeNull();
+      }
+    );
   });
 });
 
@@ -93,15 +106,36 @@ describe("computeConfigToSave", () => {
     });
   });
 
+  it("falls back to the server filter, not the prototype's, when unset", () => {
+    withPollutedPrototype("filter", "planted == 1", () => {
+      // An empty-array filter is dropped from the payload as unchanged and
+      // empty, so the fallback read must not find a planted value instead.
+      const emptyFilter: ProjectConfigInput = { ...serverConfig, filter: [] };
+      const edited = initializeEditedConfig(emptyFilter);
+      const original = structuredClone(edited);
+      const result = computeConfigToSave(edited, original, emptyFilter);
+      expect(result.filter).toEqual([]);
+    });
+  });
+
   it("still sends a value the user actually set on that key", () => {
-    withPollutedPrototype("model_roles", { grader: "planted" }, () => {
+    withPollutedPrototype("model_base_url", "https://attacker.example", () => {
       const edited = {
         ...initializeEditedConfig(serverConfig),
-        model_roles: { grader: "openai/gpt-5.4" },
+        model_base_url: "https://proxy.internal/v1",
       };
       const original = structuredClone(initializeEditedConfig(serverConfig));
       const result = computeConfigToSave(edited, original, serverConfig);
-      expect(result.model_roles).toEqual({ grader: "openai/gpt-5.4" });
+      expect(result.model_base_url).toBe("https://proxy.internal/v1");
+    });
+  });
+
+  it("does not send a planted value for an editable field the server omitted", () => {
+    withPollutedPrototype("model_base_url", "https://attacker.example", () => {
+      const edited = initializeEditedConfig(serverConfig);
+      const original = structuredClone(edited);
+      const result = computeConfigToSave(edited, original, serverConfig);
+      expect(Object.hasOwn(result, "model_base_url")).toBe(false);
     });
   });
 

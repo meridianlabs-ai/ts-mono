@@ -23,7 +23,7 @@ import {
   TextField,
 } from "./components/FormFields";
 import fieldStyles from "./components/FormFields.module.css";
-import { filterNullValues } from "./configUtils";
+import { filterNullValues, ownField } from "./configUtils";
 import { useBatchConfig, useNestedConfig } from "./hooks/useNestedConfig";
 import styles from "./SettingsContent.module.css";
 
@@ -101,7 +101,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
 
   // Cache config hook
   const cache = useNestedConfig<CachePolicy>(
-    generateConfig.cache,
+    ownField(generateConfig, "cache"),
     useCallback(
       (value) => updateGenerateConfig({ cache: value }),
       [updateGenerateConfig]
@@ -110,7 +110,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
 
   // Batch config hook
   const batch = useBatchConfig<BatchConfig>(
-    generateConfig.batch,
+    ownField(generateConfig, "batch"),
     useCallback(
       (value) => updateGenerateConfig({ batch: value }),
       [updateGenerateConfig]

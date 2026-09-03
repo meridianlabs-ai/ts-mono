@@ -30,9 +30,7 @@ export function isEmpty(value: unknown): boolean {
 
 /**
  * Filter out null and undefined values from an object. Own properties only:
- * for-in also walks inherited enumerable keys, so anything a rendered
- * transcript managed to plant on Object.prototype would otherwise become an
- * own key of the config and ride along to the server.
+ * for-in also walks inherited (polluted-prototype) keys, see `ownField`.
  */
 export function filterNullValues<T extends Record<string, unknown>>(
   obj: T
@@ -58,14 +56,16 @@ export function deepCopy<T>(obj: T): T {
 }
 
 /**
- * Own-property read of a config record. The config builders look up keys
- * taken from one object's key set on another, so a key can be absent from the
- * record being read. A plain bracket read would then fall through to
- * Object.prototype and hand back whatever a polluted prototype holds; an
- * absent key must read as undefined.
+ * Own-property read. The config builders read keys that may be absent from
+ * the object at hand (server responses omit unset fields; key sets are taken
+ * from one object and read on another), and a plain read of an absent key
+ * falls through to Object.prototype. A page-lifetime pollution of that
+ * prototype must read as "unset", not as configuration the user entered.
  */
-const ownField = (record: Record<string, unknown>, key: string): unknown =>
-  Object.hasOwn(record, key) ? record[key] : undefined;
+export const ownField = <T extends object, K extends keyof T>(
+  obj: T,
+  key: K
+): T[K] | undefined => (Object.hasOwn(obj, key) ? obj[key] : undefined);
 
 /**
  * Clean nested config (cache/batch) for saving.
@@ -171,6 +171,30 @@ function cleanGenerateConfig(
 }
 
 /**
+ * The fields the settings editor owns. Only these are read from the server
+ * config and only these can appear in the saved payload: a field the editor
+ * has no control for is never the editor's to send back.
+ */
+const kEditableConfigKeys = [
+  "transcripts",
+  "filter",
+  "scans",
+  "max_transcripts",
+  "max_processes",
+  "limit",
+  "shuffle",
+  "tags",
+  "metadata",
+  "log_level",
+  "model",
+  "model_base_url",
+  "model_args",
+  "generate_config",
+] as const satisfies readonly (keyof ProjectConfigInput)[];
+
+type EditableConfigKey = (typeof kEditableConfigKeys)[number];
+
+/**
  * Compute the config to save by comparing edited values against original server state.
  * Only includes values that have changed or have content.
  */
@@ -181,14 +205,9 @@ export function computeConfigToSave(
 ): ProjectConfigInput {
   const result: Record<string, unknown> = {};
 
-  const allKeys = new Set([
-    ...Object.keys(edited),
-    ...Object.keys(serverConfig),
-  ]);
-
-  for (const key of allKeys) {
-    const editedValue = configField(edited, key);
-    const originalValue = configField(original, key);
+  for (const key of kEditableConfigKeys) {
+    const editedValue = ownField(edited, key);
+    const originalValue = ownField(original, key);
 
     // Handle generate_config specially
     if (key === "generate_config") {
@@ -215,7 +234,7 @@ export function computeConfigToSave(
   // cleared in the editor (the change survives as undefined). Either way the
   // server's own value stands — a required field can't be cleared, so an
   // emptied filter reverts on save rather than producing an invalid config.
-  const filter = result["filter"];
+  const filter = ownField(result, "filter");
   return {
     ...result,
     filter: isFilter(filter) ? filter : serverConfig.filter,
@@ -227,42 +246,30 @@ const isFilter = (value: unknown): value is string | string[] =>
   (Array.isArray(value) && value.every((entry) => typeof entry === "string"));
 
 /**
- * Reads a config field by name. The key set is the union of the edited and
- * server configs' keys, which the declared interface can't index.
- */
-const configField = (
-  config: Partial<ProjectConfigInput>,
-  key: string
-): unknown => {
-  const record: Record<string, unknown> = config;
-  return ownField(record, key);
-};
-
-/**
  * Initialize edited config from server config.
  * Extracts the relevant fields for editing.
- * All fields are normalized to null (not undefined) for consistent comparison.
+ * Optional fields are normalized to null (not undefined) for consistent
+ * comparison; the required `filter` stays undefined if the server omits it.
  */
 export function initializeEditedConfig(
   serverConfig: ProjectConfigInput
 ): Partial<ProjectConfigInput> {
   return {
-    transcripts: serverConfig.transcripts ?? null,
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    filter: serverConfig.filter ?? null,
-    scans: serverConfig.scans ?? null,
-    max_transcripts: serverConfig.max_transcripts ?? null,
-    max_processes: serverConfig.max_processes ?? null,
-    limit: serverConfig.limit ?? null,
-    shuffle: serverConfig.shuffle ?? null,
-    tags: serverConfig.tags ?? null,
-    metadata: serverConfig.metadata ?? null,
-    log_level: serverConfig.log_level ?? null,
-    model: serverConfig.model ?? null,
-    model_base_url: serverConfig.model_base_url ?? null,
-    model_args: serverConfig.model_args ?? null,
-    generate_config: serverConfig.generate_config ?? null,
-  };
+    transcripts: ownField(serverConfig, "transcripts") ?? null,
+    filter: ownField(serverConfig, "filter"),
+    scans: ownField(serverConfig, "scans") ?? null,
+    max_transcripts: ownField(serverConfig, "max_transcripts") ?? null,
+    max_processes: ownField(serverConfig, "max_processes") ?? null,
+    limit: ownField(serverConfig, "limit") ?? null,
+    shuffle: ownField(serverConfig, "shuffle") ?? null,
+    tags: ownField(serverConfig, "tags") ?? null,
+    metadata: ownField(serverConfig, "metadata") ?? null,
+    log_level: ownField(serverConfig, "log_level") ?? null,
+    model: ownField(serverConfig, "model") ?? null,
+    model_base_url: ownField(serverConfig, "model_base_url") ?? null,
+    model_args: ownField(serverConfig, "model_args") ?? null,
+    generate_config: ownField(serverConfig, "generate_config") ?? null,
+  } satisfies Record<EditableConfigKey, unknown>;
 }
 
 /**

@@ -905,12 +905,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/project/configUtils.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/project/hooks/useNestedConfig.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
