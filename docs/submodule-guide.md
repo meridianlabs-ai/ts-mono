@@ -101,9 +101,9 @@ Changes that require new or modified Python API endpoints.
    ```bash
    .venv/bin/python scripts/export_openapi_schema.py
    ```
-3. Regenerate TypeScript types (from inside the submodule):
+3. Regenerate TypeScript types (the `types:generate` script lives in `apps/scout`, not the monorepo root):
    ```bash
-   cd <submodule-path>
+   cd <submodule-path>/apps/scout
    pnpm types:generate
    ```
 4. Develop the frontend against the new types (`pnpm dev`)
@@ -198,7 +198,7 @@ git commit -m "Re-export openapi.json"
 Regenerate types from the committed `openapi.json`:
 
 ```bash
-cd <submodule-path>
+cd <submodule-path>/apps/scout
 pnpm types:generate
 ```
 

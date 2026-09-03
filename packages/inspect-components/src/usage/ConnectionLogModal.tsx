@@ -1,0 +1,197 @@
+import clsx from "clsx";
+import { FC, MouseEvent, useMemo, useState } from "react";
+
+import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
+import { Modal } from "@tsmono/react/components";
+
+import { TimelineLink } from "../config";
+
+import { ConnectionReasonBadge, LimitTransition } from "./ConnectionChange";
+import { retuneTransition, type PoolRetune } from "./connectionHistory";
+import styles from "./ConnectionLogModal.module.css";
+import { fmtDayClock } from "./timeFormat";
+
+interface ConnectionLogModalProps {
+  model: string;
+  events: ConnectionLimitChange[];
+  show: boolean;
+  onHide: () => void;
+  /** Roles sharing this model's pool — renders the subheader. */
+  shared_roles?: string[];
+  /** Mid-run config retunes of this pool, interleaved as violet ◆ rows. */
+  retunes?: PoolRetune[];
+  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
+}
+
+type RowFilter = "all" | "controller" | "config";
+
+type LogRow =
+  | { kind: "controller"; time: number; event: ConnectionLimitChange }
+  | { kind: "config"; time: number; retune: PoolRetune };
+
+export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
+  model,
+  events,
+  show,
+  onHide,
+  shared_roles,
+  retunes,
+  onViewTimeline,
+}) => {
+  const [filter, setFilter] = useState<RowFilter>("all");
+
+  const rows = useMemo<LogRow[]>(() => {
+    const all: LogRow[] = [
+      ...events.map((event): LogRow => ({
+        kind: "controller",
+        time: event.timestamp,
+        event,
+      })),
+      ...(retunes ?? []).map((retune): LogRow => ({
+        kind: "config",
+        time: retune.timestamp,
+        retune,
+      })),
+    ];
+    // Stable tiebreak: a manual controller entry is the mechanical echo of
+    // its ◆ retune — the ◆ cause sorts first, both shown, no dedupe.
+    return all.sort(
+      (a, b) =>
+        a.time - b.time ||
+        (a.kind === b.kind ? 0 : a.kind === "config" ? -1 : 1)
+    );
+  }, [events, retunes]);
+
+  const controllerCount = events.length;
+  const retuneCount = rows.length - controllerCount;
+  const visibleRows =
+    filter === "all"
+      ? rows
+      : rows.filter((row) =>
+          filter === "controller"
+            ? row.kind === "controller"
+            : row.kind !== "controller"
+        );
+
+  const showFilters = retuneCount > 0;
+
+  return (
+    <Modal
+      id="connection-log"
+      show={show}
+      onHide={onHide}
+      title={`Connection Log — ${model}`}
+      width="min(560px, 90vw)"
+      padded={false}
+      footer={
+        <>
+          {onViewTimeline && (
+            <TimelineLink
+              className={styles.footerLink}
+              onClick={onViewTimeline}
+            />
+          )}
+          <button
+            type="button"
+            className={clsx("btn", "btn-secondary", "text-size-smaller")}
+            onClick={onHide}
+          >
+            Close
+          </button>
+        </>
+      }
+    >
+      {((shared_roles && shared_roles.length > 0) || showFilters) && (
+        <div className={styles.subheader}>
+          {shared_roles && shared_roles.length > 0 && (
+            <span className={styles.sharedBy}>
+              pool {shared_roles.length > 1 ? "shared" : "used"} by{" "}
+              {shared_roles.map((role, i) => (
+                <span key={role}>
+                  {i > 0 ? ", " : ""}
+                  <b>{role}</b>
+                </span>
+              ))}
+            </span>
+          )}
+          {showFilters && (
+            <span className={styles.filters}>
+              {(
+                [
+                  ["all", `All (${rows.length})`],
+                  ["controller", `Controller (${controllerCount})`],
+                  ["config", `Config (${retuneCount})`],
+                ] as [RowFilter, string][]
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={clsx(
+                    styles.filterChip,
+                    filter === id && styles.filterChipActive
+                  )}
+                  onClick={() => setFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </span>
+          )}
+        </div>
+      )}
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th className={styles.limitHead}>Limit</th>
+            <th>What</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visibleRows.map((row, i) => {
+            if (row.kind === "config") {
+              const retune = row.retune;
+              return (
+                <tr key={`config-${i}`} className={styles.configRow}>
+                  <td className={styles.time}>{fmtDayClock(row.time)}</td>
+                  <td className={styles.limit}>
+                    <span className={styles.noLimit}>—</span>
+                  </td>
+                  <td>
+                    <span className={clsx(styles.badge, styles.badgeConfig)}>
+                      ◆ config
+                    </span>
+                    <span className={styles.configDetail}>
+                      {retuneTransition(retune)} · {retune.author}
+                      {retune.reason ? ` — “${retune.reason}”` : ""}
+                    </span>
+                  </td>
+                </tr>
+              );
+            }
+            const e = row.event;
+            return (
+              <tr
+                key={`controller-${i}`}
+                className={
+                  e.reason === "rate_limit" ? styles.rateLimitRow : undefined
+                }
+              >
+                <td className={styles.time}>{fmtDayClock(e.timestamp)}</td>
+                <td className={styles.limit}>
+                  <LimitTransition
+                    oldLimit={e.old_limit}
+                    newLimit={e.new_limit}
+                  />
+                </td>
+                <td>
+                  <ConnectionReasonBadge reason={e.reason} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Modal>
+  );
+};

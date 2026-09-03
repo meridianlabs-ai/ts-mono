@@ -4,6 +4,7 @@ import { createRef, ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
+import { testErrorEvent } from "@tsmono/inspect-common/testing";
 
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
 
@@ -53,6 +54,25 @@ describe("SampleRetriedErrors", () => {
     expect(screen.getByText("Attempt 2")).toBeDefined();
     expect(screen.getByText("Attempt 3")).toBeDefined();
     expect(screen.getByText(/after 3 retries/)).toBeDefined();
+    expect(screen.getByText("This run succeeded")).toBeDefined();
+  });
+
+  it("shows failure copy in the anchor when the sample ended in error", () => {
+    const scrollRef = createRef<HTMLDivElement>();
+    render(
+      <SampleRetriedErrors
+        id="s1"
+        retries={[makeRetry(1), makeRetry(2)]}
+        error={{
+          message: "RuntimeError('boom')",
+          traceback: "boom",
+          traceback_ansi: "boom",
+        }}
+        scrollRef={scrollRef}
+      />
+    );
+    expect(screen.getByText("This run failed")).toBeDefined();
+    expect(screen.queryByText("This run succeeded")).toBeNull();
   });
 
   it("opens the most recent attempt by default", () => {
@@ -79,7 +99,7 @@ describe("SampleRetriedErrors", () => {
     const scrollRef = createRef<HTMLDivElement>();
     const withEvents = (n: number): EvalRetryError => ({
       ...makeRetry(n),
-      events: [{ event: "error" }] as unknown as EvalRetryError["events"],
+      events: [testErrorEvent()],
     });
     render(
       <SampleRetriedErrors

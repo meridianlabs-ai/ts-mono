@@ -46,6 +46,11 @@ export const OutlineRow: FC<OutlineRowProps> = ({
 
   const labelText = parsePackageName(labelForNode(node)).module;
 
+  const activate = () => {
+    onSelect?.(node.id);
+    onNavigateToEvent?.(node.id);
+  };
+
   return (
     <>
       <div
@@ -56,21 +61,36 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         )}
         style={{ paddingLeft: `${node.depth * 0.75}em` }}
         data-unsearchable={true}
-        onClick={() => {
-          onSelect?.(node.id);
-          onNavigateToEvent?.(node.id);
+        role="button"
+        tabIndex={0}
+        onClick={activate}
+        onKeyDown={(e) => {
+          // Only the row itself: Enter/Space bubbling up from a nested
+          // control must keep its own default action.
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            activate();
+          }
         }}
       >
-        <div
-          className={styles.toggle}
-          onClick={() => {
-            if (node.children.length > 0) {
+        {node.children.length > 0 ? (
+          <button
+            type="button"
+            className={styles.toggle}
+            aria-expanded={!collapsed}
+            aria-label={`${collapsed ? "Expand" : "Collapse"} ${labelText}`}
+            onClick={() => {
               setCollapsed?.(node.id, !collapsed);
-            }
-          }}
-        >
-          {toggle ? <i className={clsx(toggle)} /> : undefined}
-        </div>
+            }}
+          >
+            {toggle ? (
+              <i className={clsx(toggle)} aria-hidden="true" />
+            ) : undefined}
+          </button>
+        ) : (
+          <div className={styles.toggle} />
+        )}
         <div
           className={clsx(styles.label)}
           data-depth={node.depth}
@@ -106,6 +126,23 @@ export const OutlineRow: FC<OutlineRowProps> = ({
     </>
   );
 };
+
+/** A row rendered below the last outline item while events are still loading. */
+export const OutlineLoadingRow: FC = () => (
+  <div
+    className={clsx(styles.eventRow, styles.loadingRow, "text-size-smaller")}
+    style={{ paddingLeft: 0 }}
+    data-unsearchable={true}
+  >
+    <div className={styles.toggle} />
+    <div className={clsx(styles.label)} role="status" aria-live="polite">
+      <span className={styles.iconSlot}>
+        <span className={styles.spinner} aria-hidden="true" />
+      </span>
+      <span>loading</span>
+    </div>
+  </div>
+);
 
 const toggleIcon = (
   node: EventNode,
@@ -210,7 +247,7 @@ const labelForNode = (node: EventNode): string => {
 };
 
 export const summarizeNode = (node: EventNode): ReactNode => {
-  let entries: Record<string, unknown> = {};
+  let entries: Record<string, unknown>;
   switch (node.event.event) {
     case "sample_init":
       entries = {

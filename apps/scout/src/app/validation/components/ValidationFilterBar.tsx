@@ -2,12 +2,13 @@ import {
   VscodeOption,
   VscodeSingleSelect,
 } from "@vscode-elements/react-elements";
-import { ChangeEvent, FC, useMemo } from "react";
+import { FC, useMemo } from "react";
 
-import { TextInput } from "@tsmono/react/components";
+import { TextInput, type TextInputChange } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../icons";
 import { ValidationCase } from "../../../types/api-types";
+import { eventValue } from "../../utils/formEvents";
 import { extractUniqueSplits } from "../utils";
 
 import styles from "./ValidationFilterBar.module.css";
@@ -34,11 +35,11 @@ export const ValidationFilterBar: FC<ValidationFilterBarProps> = ({
   const splits = useMemo(() => extractUniqueSplits(cases), [cases]);
 
   const handleSplitChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     onSplitFilterChange(value || undefined);
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: TextInputChange) => {
     onSearchTextChange(e.target.value || undefined);
   };
 

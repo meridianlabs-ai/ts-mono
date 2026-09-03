@@ -1,0 +1,446 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.72rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+}
+
+.caption {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-right: 0.25rem;
+}
+
+/* Filled colour pills: fill + border + text in one hue per category — the
+   same hue the category's mark uses on the rail, so the filter row doubles
+   as the rail's legend. */
+.filterPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  line-height: 1.2;
+  background: none;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pillCount {
+  font-weight: 400;
+}
+
+.pillEmpty {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pillAll {
+  color: var(--bs-body-color);
+}
+
+.pillAll.pillSelected {
+  background: #212529;
+  border-color: #212529;
+  color: #fff;
+}
+
+.pillConfig {
+  background: #f7f3fc;
+  border-color: #d9cfe8;
+  color: #4a2e73;
+}
+
+.pillConnections {
+  background: #eef6fb;
+  border-color: #c3dcea;
+  color: #2b6a94;
+}
+
+.pillLimits {
+  background: #fffaeb;
+  border-color: #e8d8a0;
+  color: #8a6d1a;
+}
+
+.pillErrors {
+  background: #fdf1ef;
+  border-color: #ecc8c1;
+  color: #a13b2c;
+}
+
+/* Light grey — the rail's cancelled-dot hue, one step lighter than Run. */
+.pillCancels {
+  background: #f8f9fa;
+  border-color: #dee2e6;
+  color: #6c757d;
+}
+
+.pillTags {
+  background: #f2f7fc;
+  border-color: #cfe0f1;
+  color: #1d4f7c;
+}
+
+.pillRun {
+  background: #f6f7f8;
+  border-color: #d3d9df;
+  color: #495057;
+}
+
+/* Selected = solid dark fill with white text; unselected pills stay tinted. */
+.pillConfig.pillSelected {
+  background: #6b4fa8;
+  border-color: #6b4fa8;
+  color: #fff;
+}
+
+.pillConnections.pillSelected {
+  background: #2b6a94;
+  border-color: #2b6a94;
+  color: #fff;
+}
+
+.pillLimits.pillSelected {
+  background: #8a6d1a;
+  border-color: #8a6d1a;
+  color: #fff;
+}
+
+.pillErrors.pillSelected {
+  background: #b04a3c;
+  border-color: #b04a3c;
+  color: #fff;
+}
+
+.pillCancels.pillSelected {
+  background: #6c757d;
+  border-color: #6c757d;
+  color: #fff;
+}
+
+.pillTags.pillSelected {
+  background: #1d4f7c;
+  border-color: #1d4f7c;
+  color: #fff;
+}
+
+.pillRun.pillSelected {
+  background: #495057;
+  border-color: #495057;
+  color: #fff;
+}
+
+.pillSelected .pillCount {
+  color: inherit;
+}
+
+.search {
+  margin-left: auto;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-size: 0.72rem;
+  padding: 0.125rem 0.5rem;
+  width: 220px;
+}
+
+.search::placeholder {
+  color: var(--bs-secondary-color);
+}
+
+.list {
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.25rem 0.5rem;
+}
+
+.empty {
+  padding: 0.75rem;
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+}
+
+/* Four fixed columns — Time / Kind / Event / By (canvas 37a). */
+.headerRow,
+.row {
+  display: grid;
+  grid-template-columns: 110px 64px minmax(0, 1fr) minmax(56px, max-content);
+  /* rem, not em — the header row's smaller font would shrink an em gap,
+     shifting its Kind/Event labels left of the row cells. */
+  column-gap: 1rem;
+  align-items: start;
+  padding: 0.4rem 0.25rem;
+}
+
+.headerRow {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--bs-border-color);
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.timeSort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-transform: inherit;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+}
+
+.byHeader {
+  text-align: right;
+}
+
+.row {
+  border-bottom: 1px dotted var(--bs-border-color);
+}
+
+/* Rows are virtualized (absolutely positioned), so :last-child would match
+   whatever row happens to render last — the bottom row is flagged by index. */
+.row.rowLast {
+  border-bottom: none;
+}
+
+.rowClickable {
+  cursor: pointer;
+}
+
+.rowSelected {
+  background: #f7f3fc;
+  outline: 1px solid #d9cfe8;
+  border-radius: 3px;
+}
+
+/* Hover-linked wash while the row's ◆ is hovered on the rail. */
+.rowWash {
+  background: #faf8fd;
+  box-shadow: inset 2px 0 0 #9d84d1;
+}
+
+.time {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  padding-top: 2px;
+}
+
+/* Centers the pill on the row's first text line. */
+.kindCell {
+  display: flex;
+  align-items: center;
+  height: calc(0.8rem * 1.5);
+}
+
+/* Same filled pill as the filter row at 0.65rem uppercase, so a row's Kind
+   cell and its filter pill are visibly one object. */
+.kindPill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* Body: one size, one weight, two colours — mono separates values from
+   prose; no bold and no status colour anywhere in the cell. */
+.event {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--bs-body-color);
+  line-height: 1.5;
+}
+
+.muted {
+  color: var(--bs-secondary-color);
+}
+
+.mono {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+}
+
+/* Author demoted to a right-aligned channel — user vs system at a glance. */
+.by {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: var(--bs-secondary-color);
+  text-align: right;
+  padding-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The identical 13px bordered mono box as the rail marker — one shared
+   token, not two coincidentally-similar numbers. */
+.ordinalBox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  border: 1px solid #b9a5e0;
+  border-radius: 2px;
+  color: #5d3f9e;
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  line-height: 1;
+  margin-right: 0.35rem;
+  vertical-align: 1px;
+}
+
+.openSample {
+  font-size: 0.72rem;
+  color: var(--bs-link-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.openSample:hover {
+  text-decoration: underline;
+}
+
+:global([data-bs-theme="dark"]) .pillAll.pillSelected {
+  background: #dee2e6;
+  border-color: #dee2e6;
+  color: #212529;
+}
+
+:global([data-bs-theme="dark"]) .pillConfig {
+  background: #2a2333;
+  border-color: #4a3d63;
+  color: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .pillConnections {
+  background: #16242e;
+  border-color: #2b4c66;
+  color: #8fbcd9;
+}
+
+:global([data-bs-theme="dark"]) .pillLimits {
+  background: #3a3220;
+  border-color: #5c512f;
+  color: #e8d8a0;
+}
+
+:global([data-bs-theme="dark"]) .pillErrors {
+  background: #322019;
+  border-color: #6b3a30;
+  color: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .pillCancels {
+  background: #26282b;
+  border-color: #4a5056;
+  color: #9aa3ab;
+}
+
+:global([data-bs-theme="dark"]) .pillTags {
+  background: #16222e;
+  border-color: #2c4a66;
+  color: #8db8dd;
+}
+
+:global([data-bs-theme="dark"]) .pillRun {
+  background: #24272a;
+  border-color: #464c52;
+  color: #aeb6bf;
+}
+
+:global([data-bs-theme="dark"]) .pillConfig.pillSelected,
+:global([data-bs-theme="dark"]) .pillConnections.pillSelected,
+:global([data-bs-theme="dark"]) .pillLimits.pillSelected,
+:global([data-bs-theme="dark"]) .pillErrors.pillSelected,
+:global([data-bs-theme="dark"]) .pillCancels.pillSelected,
+:global([data-bs-theme="dark"]) .pillTags.pillSelected,
+:global([data-bs-theme="dark"]) .pillRun.pillSelected {
+  color: #fff;
+}
+
+:global([data-bs-theme="dark"]) .pillConfig.pillSelected {
+  background: #6b4fa8;
+  border-color: #6b4fa8;
+}
+
+:global([data-bs-theme="dark"]) .pillConnections.pillSelected {
+  background: #2b6a94;
+  border-color: #2b6a94;
+}
+
+:global([data-bs-theme="dark"]) .pillLimits.pillSelected {
+  background: #8a6d1a;
+  border-color: #8a6d1a;
+}
+
+:global([data-bs-theme="dark"]) .pillErrors.pillSelected {
+  background: #b04a3c;
+  border-color: #b04a3c;
+}
+
+:global([data-bs-theme="dark"]) .pillCancels.pillSelected {
+  background: #6c757d;
+  border-color: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .pillTags.pillSelected {
+  background: #1d4f7c;
+  border-color: #1d4f7c;
+}
+
+:global([data-bs-theme="dark"]) .pillRun.pillSelected {
+  background: #495057;
+  border-color: #495057;
+}
+
+:global([data-bs-theme="dark"]) .rowSelected {
+  background: #241f2e;
+  outline-color: #4a3d63;
+}
+
+:global([data-bs-theme="dark"]) .rowWash {
+  background: #221d2b;
+  box-shadow: inset 2px 0 0 #6b4fa8;
+}
+
+:global([data-bs-theme="dark"]) .ordinalBox {
+  border-color: #4a3d63;
+  color: #cbb8ec;
+}

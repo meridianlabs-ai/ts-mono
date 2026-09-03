@@ -5,7 +5,7 @@ import {
   type SearchScope,
 } from "@tsmono/inspect-components/transcript-search";
 
-import { useAppConfig } from "../../../server/useAppConfig";
+import { useAppConfig } from "../../../../app_config";
 
 import {
   useInspectSearchApi,

@@ -132,6 +132,37 @@ export function resolveEventInBranches(
   return undefined;
 }
 
+/**
+ * The first model-event (turn-anchor) id within each agent lane, keyed by the
+ * innermost enclosing agent span id; the `null` key is the main (top-level)
+ * lane. Mirrors `resolveEventToSpan`'s innermost-agent walk so the lane a
+ * returned anchor resolves back to (via `resolveEventToSpan`) is the lane it
+ * came from — letting a lane switch be encoded as `?event=<that anchor>`.
+ */
+export function computeLaneFirstAnchors(
+  root: TimelineSpan
+): Map<string | null, string> {
+  const first = new Map<string | null, string>();
+  const walk = (
+    content: ReadonlyArray<TimelineEvent | TimelineSpan>,
+    agentContext: string | null
+  ): void => {
+    for (const item of content) {
+      if (item.type === "event") {
+        if (item.event.event === "model" && !first.has(agentContext)) {
+          const uuid = (item.event as { uuid?: string | null }).uuid;
+          if (uuid) first.set(agentContext, uuid);
+        }
+      } else {
+        const childContext = item.spanType === "agent" ? item.id : agentContext;
+        walk(item.content, childContext);
+      }
+    }
+  };
+  walk(root.content, null);
+  return first;
+}
+
 function walkContentForEvent(
   eventId: string,
   content: ReadonlyArray<TimelineEvent | TimelineSpan>,
@@ -265,75 +296,69 @@ function matchEvent(
     if (!uuid) return matches;
 
     // Priority 1: ModelEvent output
-    if (event.output?.choices) {
-      for (const choice of event.output.choices) {
-        if (choice.message?.id === messageId) {
-          matches.push({
-            priority: PRIORITY_MODEL_OUTPUT,
-            eventId: uuid,
-            agentSpanId: agentContext,
-          });
-        }
+    for (const choice of event.output.choices) {
+      if (choice.message.id === messageId) {
+        matches.push({
+          priority: PRIORITY_MODEL_OUTPUT,
+          eventId: uuid,
+          agentSpanId: agentContext,
+        });
       }
     }
 
     // Priority 2: Agent card result via bridge flow
     // Priority 3.5: Tool call bridge — tool-role message whose tool_call_id
     // matches a sibling ToolEvent's id. Redirects to the ToolEvent.
-    if (event.input) {
-      for (const msg of event.input) {
-        if (msg.role === "tool" && msg.id === messageId) {
-          const toolCallId = (msg as { tool_call_id?: string | null })
-            .tool_call_id;
-          if (toolCallId) {
-            // Check agent card result first (highest priority of the two)
-            const candidateSpanId = `agent-${toolCallId}`;
-            if (agentSpanIds.has(candidateSpanId)) {
-              matches.push({
-                priority: PRIORITY_AGENT_CARD_RESULT,
-                eventId: candidateSpanId,
-                agentSpanId: agentContext,
-              });
-              continue; // Don't also match as model input or tool bridge
-            }
+    for (const msg of event.input) {
+      if (msg.role === "tool" && msg.id === messageId) {
+        const toolCallId = (msg as { tool_call_id?: string | null })
+          .tool_call_id;
+        if (toolCallId) {
+          // Check agent card result first (highest priority of the two)
+          const candidateSpanId = `agent-${toolCallId}`;
+          if (agentSpanIds.has(candidateSpanId)) {
+            matches.push({
+              priority: PRIORITY_AGENT_CARD_RESULT,
+              eventId: candidateSpanId,
+              agentSpanId: agentContext,
+            });
+            continue; // Don't also match as model input or tool bridge
+          }
 
-            // Check tool call bridge — redirect to the tool event that produced this result
-            const toolUuid = toolCallIdToUuid.get(toolCallId);
-            if (toolUuid) {
-              matches.push({
-                priority: PRIORITY_TOOL_CALL_BRIDGE,
-                eventId: toolUuid,
-                agentSpanId: agentContext,
-              });
-              continue; // Don't also match as model input
-            }
+          // Check tool call bridge — redirect to the tool event that produced this result
+          const toolUuid = toolCallIdToUuid.get(toolCallId);
+          if (toolUuid) {
+            matches.push({
+              priority: PRIORITY_TOOL_CALL_BRIDGE,
+              eventId: toolUuid,
+              agentSpanId: agentContext,
+            });
+            continue; // Don't also match as model input
           }
         }
       }
     }
 
     // Priority 4: ModelEvent input
-    if (event.input) {
-      for (const msg of event.input) {
-        if (msg.id === messageId) {
-          // Skip if already matched as agent card result or tool bridge
-          if (
-            matches.some(
-              (m) =>
-                (m.priority === PRIORITY_AGENT_CARD_RESULT ||
-                  m.priority === PRIORITY_TOOL_CALL_BRIDGE) &&
-                m.eventId !== uuid
-            )
-          ) {
-            continue;
-          }
-          matches.push({
-            priority: PRIORITY_MODEL_INPUT,
-            eventId: uuid,
-            agentSpanId: agentContext,
-          });
-          break; // One input match is sufficient
+    for (const msg of event.input) {
+      if (msg.id === messageId) {
+        // Skip if already matched as agent card result or tool bridge
+        if (
+          matches.some(
+            (m) =>
+              (m.priority === PRIORITY_AGENT_CARD_RESULT ||
+                m.priority === PRIORITY_TOOL_CALL_BRIDGE) &&
+              m.eventId !== uuid
+          )
+        ) {
+          continue;
         }
+        matches.push({
+          priority: PRIORITY_MODEL_INPUT,
+          eventId: uuid,
+          agentSpanId: agentContext,
+        });
+        break; // One input match is sufficient
       }
     }
   } else if (event.event === "tool") {

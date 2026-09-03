@@ -8,6 +8,8 @@ import { FC, useMemo, useState } from "react";
 import { Modal } from "@tsmono/react/components";
 import { useDropdownPosition } from "@tsmono/react/hooks";
 
+import { eventValue } from "../../utils/formEvents";
+
 import styles from "./ValidationSplitSelector.module.css";
 
 interface ValidationSplitSelectorProps {
@@ -64,7 +66,7 @@ export const ValidationSplitSelector: FC<ValidationSplitSelectorProps> = ({
   const selectValue = value ?? "__none__";
 
   const handleSelectChange = (e: Event) => {
-    const newValue = (e.target as HTMLSelectElement).value;
+    const newValue = eventValue(e);
     if (newValue === "__custom__") {
       setShowCustomModal(true);
       setCustomSplitValue("");
@@ -76,7 +78,7 @@ export const ValidationSplitSelector: FC<ValidationSplitSelectorProps> = ({
   };
 
   const handleCustomInput = (e: Event) => {
-    setCustomSplitValue((e.target as HTMLInputElement).value);
+    setCustomSplitValue(eventValue(e));
   };
 
   const handleCustomSubmit = () => {
@@ -119,10 +121,15 @@ export const ValidationSplitSelector: FC<ValidationSplitSelectorProps> = ({
         title="New Split"
         footer={
           <>
-            <button className={styles.modalButton} onClick={handleModalClose}>
+            <button
+              type="button"
+              className={styles.modalButton}
+              onClick={handleModalClose}
+            >
               Cancel
             </button>
             <button
+              type="button"
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleCustomSubmit}
               disabled={!customSplitValue.trim()}

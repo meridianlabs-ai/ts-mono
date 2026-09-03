@@ -6,14 +6,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
 } from "react";
-import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
 import { CopyButton, ExpandablePanel } from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
-
-import { useVirtuosoState } from "../virtuoso/useVirtuosoState";
+import { VirtualList } from "@tsmono/react/virtual";
+import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
 import { useContentIcons } from "./IconsContext";
@@ -23,6 +21,10 @@ import styles from "./RecordTree.module.css";
 import { RenderedContent } from "./RenderedContent";
 
 const kRecordTreeKey = "record-tree-key";
+
+/** VirtualList persistence-key prefix for record trees. Exported so the app's
+ *  per-sample reset can clear the persisted snapshots by this prefix. */
+export const kMetadataGridKeyPrefix = "metadata-grid-";
 
 interface RecordTreeProps {
   id: string;
@@ -50,19 +52,13 @@ export const RecordTree: FC<RecordTreeProps> = ({
 }) => {
   const icons = useContentIcons();
 
-  // The virtual list handle and state
-  const listHandle = useRef<VirtuosoHandle | null>(null);
-  const { getRestoreState } = useVirtuosoState(
-    listHandle,
-    `metadata-grid-${id}`
-  );
-
   // Collapse state — persisted user choices only. Defaults are applied on
   // the fly at render time by `isItemCollapsed`, so we never bootstrap
   // defaults into persisted state.
   const [collapsedIds, setCollapsed, clearIds] = useCollapsibleIds(id);
 
   // Clear the collapsed ids when the component unmounts
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       clearIds();
@@ -122,8 +118,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
             const nextEl = treeRoot?.querySelector(
               `.${kRecordTreeKey}[data-index="${index + 1}"]`
             );
-            if (nextEl) {
-              (nextEl as HTMLElement).focus();
+            if (nextEl instanceof HTMLElement) {
+              nextEl.focus();
             }
             break;
           }
@@ -138,8 +134,8 @@ export const RecordTree: FC<RecordTreeProps> = ({
             const prevEl = treeRoot?.querySelector(
               `.${kRecordTreeKey}[data-index="${index - 1}"]`
             );
-            if (prevEl) {
-              (prevEl as HTMLElement).focus();
+            if (prevEl instanceof HTMLElement) {
+              prevEl.focus();
             }
             break;
           }
@@ -193,6 +189,7 @@ export const RecordTree: FC<RecordTreeProps> = ({
           )}
           onKeyUp={keyUpHandler(item, index)}
           tabIndex={0}
+          role="button"
           onClick={() => {
             setCollapsed(item.id, !item.isCollapsed);
           }}
@@ -245,47 +242,29 @@ export const RecordTree: FC<RecordTreeProps> = ({
   if (!scrollRef) {
     // No virtualization - render directly
     return (
+      // No tabIndex: neither branch is the scroll container (the host's
+      // scroller is), and every row is already its own tab stop.
       <div
         id={id}
         className={clsx(className, "samples-list")}
         style={{ width: "100%" }}
-        tabIndex={0}
       >
         {items.map((_, index) => renderRow(index))}
       </div>
     );
   }
   return (
-    <Virtuoso
-      ref={listHandle}
-      // Latent only — see meridianlabs-ai/ts-mono#90. Reading `.current`
-      // during render yields `null` on the first commit, so Virtuoso
-      // initially receives `customScrollParent={undefined}` and only
-      // picks up the real parent on the next re-render. Virtuoso
-      // re-renders frequently enough in practice that no user-visible
-      // symptom has been observed. The prescribed fix changes this prop
-      // API to `HTMLDivElement | null`, which cascades through PlanCard,
-      // SampleDisplay (also reads `scrollRef.current.focus()` and feeds
-      // `useScrollDirection`), SampleScoresGrid, and their parents —
-      // wide ripple for a non-firing bug. Suppress until that migration
-      // happens or a real symptom appears.
-      // eslint-disable-next-line react-hooks/refs
-      customScrollParent={scrollRef?.current ? scrollRef.current : undefined}
+    <VirtualList<MetadataItem>
+      persistenceKey={`${kMetadataGridKeyPrefix}${id}`}
       id={id}
-      style={{ width: "100%", height: "100%" }}
+      scrollRef={scrollRef}
       data={items}
-      defaultItemHeight={50}
-      itemContent={renderRow}
-      atBottomThreshold={30}
-      increaseViewportBy={{ top: 300, bottom: 300 }}
-      overscan={{
-        main: 10,
-        reverse: 10,
-      }}
+      renderRow={renderRow}
+      estimatedItemHeight={50}
+      overscan={10}
+      embedded={true}
+      findScope="none"
       className={clsx(className, "samples-list")}
-      skipAnimationFrameInResizeObserver={true}
-      restoreStateFrom={getRestoreState()}
-      tabIndex={0}
     />
   );
 };
@@ -317,6 +296,7 @@ export const toTreeItems = (
   currentDepth = 0,
   currentPath: string[] = []
 ): MetadataItem[] => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!record) {
     return [];
   }
@@ -373,14 +353,15 @@ const processNodeRecursive = (
   }
 
   // For non-primitives (objects, arrays, functions, etc.)
-  let displayValue: string | number | boolean | null = null;
-  let processChildren = false;
+  let displayValue: string | number | boolean | null;
+  let processChildren: boolean;
   let childCount: number | undefined;
 
   if (Array.isArray(value)) {
     processChildren = true;
     childCount = value.length;
     displayValue = `Array(${value.length})`;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (typeof value === "object" && value !== null) {
     processChildren = true;
     childCount = Object.keys(value).length;
@@ -434,23 +415,21 @@ const processNodeRecursive = (
           );
         });
       }
-    } else if (typeof value === "object" && value !== null) {
+    } else if (isRecord(value)) {
       // Process object properties
-      Object.entries(value as Record<string, unknown>).forEach(
-        ([childKey, childValue], index) => {
-          const childIdentifier = index.toString();
-          items.push(
-            ...processNodeRecursive(
-              childKey,
-              childValue,
-              childDepth,
-              currentItemPath,
-              childIdentifier,
-              isCollapsed
-            )
-          );
-        }
-      );
+      Object.entries(value).forEach(([childKey, childValue], index) => {
+        const childIdentifier = index.toString();
+        items.push(
+          ...processNodeRecursive(
+            childKey,
+            childValue,
+            childDepth,
+            currentItemPath,
+            childIdentifier,
+            isCollapsed
+          )
+        );
+      });
     }
   }
 

@@ -1,9 +1,11 @@
 import { ColumnTable, from } from "arquero";
 import JSON5 from "json5";
 
-import { asyncJsonParse } from "@tsmono/util";
+import { asyncJsonParse, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
+
+import { rowRecords } from "./arrowCells";
 
 interface Result {
   uuid?: string | null;
@@ -41,9 +43,10 @@ export async function expandResultsetRows(
     const numRows = columnTable.numRows();
     const identifiers = new Array<string>(numRows);
     if (colNames.includes("uuid")) {
-      const uuids = columnTable.array("uuid") as (string | null | undefined)[];
+      const uuids: ArrayLike<unknown> = columnTable.array("uuid");
       for (let i = 0; i < numRows; i++) {
-        identifiers[i] = uuids[i] ?? crypto.randomUUID();
+        const uuid = uuids[i];
+        identifiers[i] = typeof uuid === "string" ? uuid : crypto.randomUUID();
       }
     } else {
       for (let i = 0; i < numRows; i++) {
@@ -81,17 +84,21 @@ export async function expandResultsetRows(
 
   // Parse JSON value strings and expand into multiple rows
   // (Arquero doesn't support try-catch in derive expressions, so we do this in plain JS)
-  const resultObjs = resultsetRows.objects() as Record<string, unknown>[];
+  const resultObjs = rowRecords(resultsetRows);
   const explodedResultsetRows: Record<string, unknown>[] = [];
 
   for (const row of resultObjs) {
     try {
       // Get the result set value
-      const valueStr = row.value as string;
-      const results = valueStr ? JSON5.parse<Result[]>(valueStr) : [];
+      const valueStr = row.value;
+      const results =
+        typeof valueStr === "string" && valueStr
+          ? JSON5.parse<Result[]>(valueStr)
+          : [];
 
       // If the row has an empty result set, just leave it
       // intact
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!results || results.length === 0) {
         const expandedRow = { ...row };
         expandedRow.value = null;
@@ -167,7 +174,7 @@ export async function expandResultsetRows(
     return otherRows;
   } else {
     // Create an array merging all the rows and convert back to a column table
-    const otherRowsArray = otherRows.objects() as Record<string, unknown>[];
+    const otherRowsArray = rowRecords(otherRows);
 
     const allRowsArray = [
       ...otherRowsArray,
@@ -192,15 +199,9 @@ async function extractLabelValidation(
     const parsedValidation = await asyncJsonParse<unknown>(validationResultStr);
 
     // Check if this is label-based validation (dict of label -> bool)
-    if (
-      typeof parsedValidation === "object" &&
-      parsedValidation !== null &&
-      !Array.isArray(parsedValidation)
-    ) {
+    if (isRecord(parsedValidation)) {
       // Extract the validation result for this specific label
-      const validationDict = parsedValidation as Record<string, boolean>;
-      const labelValidation = validationDict[row.label];
-      return labelValidation ?? null;
+      return parsedValidation[row.label] ?? null;
     }
 
     // Not label-based, return as-is
@@ -245,15 +246,11 @@ async function createSyntheticRows(
     const parsedTarget = await asyncJsonParse<unknown>(
       firstRow.validation_target
     );
-    if (
-      typeof parsedTarget !== "object" ||
-      parsedTarget === null ||
-      Array.isArray(parsedTarget)
-    ) {
+    if (!isRecord(parsedTarget)) {
       return [];
     }
 
-    const validationTarget = parsedTarget as Record<string, unknown>;
+    const validationTarget = parsedTarget;
 
     // Parse validation_result
     const parsedResult = firstRow.validation_result
@@ -263,10 +260,9 @@ async function createSyntheticRows(
             : JSON.stringify(firstRow.validation_result)
         )
       : {};
-    const validationResults =
-      typeof parsedResult === "object" && !Array.isArray(parsedResult)
-        ? (parsedResult as Record<string, unknown>)
-        : {};
+    const validationResults: Record<string, unknown> = isRecord(parsedResult)
+      ? parsedResult
+      : {};
 
     // Get all labels present in expanded rows
     const presentLabels = new Set(
@@ -285,13 +281,13 @@ async function createSyntheticRows(
 
     // Create synthetic rows for missing labels with negative expected values
     const syntheticRows: Record<string, unknown>[] = [];
-    const negativeValues = [false, null, "NONE", "none", 0, ""];
+    const negativeValues: unknown[] = [false, null, "NONE", "none", 0, ""];
 
     for (const label of missingLabels) {
       const expectedValue = validationTarget[label];
 
       // Only create synthetic row if expected value is negative
-      if (!negativeValues.includes(expectedValue as never)) {
+      if (!negativeValues.includes(expectedValue)) {
         continue;
       }
 

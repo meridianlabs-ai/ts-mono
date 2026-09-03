@@ -42,9 +42,11 @@ const kBuiltinFieldOrder = [
   "metadata",
 ] as const satisfies ReadonlyArray<ScannerResultField["name"]>;
 
-const kBuiltinNames: ReadonlySet<ScannerResultField["name"]> = new Set(
-  kBuiltinFieldOrder
-);
+// Typed over `string` so membership checks double as narrowing input.
+const kBuiltinNames: ReadonlySet<string> = new Set(kBuiltinFieldOrder);
+
+const isBuiltinName = (value: string): value is ScannerResultField["name"] =>
+  kBuiltinNames.has(value);
 
 /** Built-in default order when no scanner pattern matches. */
 export const kDefaultFields: readonly ResolvedField[] = kBuiltinFieldOrder.map(
@@ -134,6 +136,7 @@ function scannerResultViewEntries(
 ): Array<{ pattern: string; view: ScannerResultView }> {
   if (!viewer) return [];
   const raw = viewer.scanner_result_view;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];
@@ -222,10 +225,10 @@ function coerceField(
         collapsed: false,
       };
     }
-    if (kBuiltinNames.has(entry as ScannerResultField["name"])) {
+    if (isBuiltinName(entry)) {
       return {
         kind: "builtin",
-        name: entry as ScannerResultField["name"],
+        name: entry,
         collapsed: false,
       };
     }
@@ -235,6 +238,7 @@ function coerceField(
     if (!kBuiltinNames.has(entry.name)) return null;
     return entry;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (entry.kind === "metadata") return entry;
   return null;
 }

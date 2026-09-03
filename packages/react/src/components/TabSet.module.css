@@ -6,6 +6,12 @@
   flex: 1;
   /* clip instead of hidden to ensure scroll container for position: sticky; children is higher in the hierarchy */
   overflow-y: clip;
+  /* As a flex item, min-width defaults to auto = the pane's content
+   * min-width — wide content (e.g. a data grid's fixed-width table) would
+   * force the pane past the tabset and make an ancestor scroll
+   * horizontally. Let the pane shrink so wide content scrolls inside it
+   * (the vertical twin of .scrollable's min-height: 0). */
+  min-width: 0;
 }
 
 .tabContents.scrollable {

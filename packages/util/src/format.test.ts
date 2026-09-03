@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { formatBytes, formatMs } from "./format";
+import { formatBytes, formatCurrency, formatMs } from "./format";
 
 // Pin locale so toLocaleString output is deterministic across machines/CI.
 beforeAll(() => {
@@ -66,5 +66,26 @@ describe("formatMs", () => {
     [1234567, "1,234.567 s", "thousands separator + 3-decimal precision"],
   ])("formatMs(%d) → %s (%s)", (ms, expected) => {
     expect(formatMs(ms)).toBe(expected);
+  });
+});
+
+describe("formatCurrency", () => {
+  it.each<[number, string, string]>([
+    // [dollars, expected, description]
+    [0, "$0.00", "zero"],
+    [0.0042, "$0.0042", "sub-cent — 2 significant digits"],
+    [0.00423, "$0.0042", "sub-cent rounds at 2 significant digits"],
+    [0.023, "$0.023", "fraction of a cent range keeps significance"],
+    [0.1, "$0.10", 'trailing significant zero kept — not "$0.1"'],
+    [0.104, "$0.10", "rounds down to a trailing zero"],
+    [0.15, "$0.15", "cents"],
+    [0.155, "$0.16", "cents round at 2 significant digits"],
+    [0.999, "$1.00", 'rounds up into the dollar branch, not "$1"'],
+    [1, "$1.00", "exactly one dollar — always 2 decimals"],
+    [4.5, "$4.50", "trailing zero kept"],
+    [12.346, "$12.35", "dollars round at 2 decimals"],
+    [1234.56, "$1,234.56", "thousands separator"],
+  ])("formatCurrency(%d) → %s (%s)", (dollars, expected) => {
+    expect(formatCurrency(dollars)).toBe(expected);
   });
 });

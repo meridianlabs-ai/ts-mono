@@ -4,10 +4,11 @@ import baseConfig from "@tsmono/eslint-config/base";
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/", "dist/"],
+    ignores: ["node_modules/", "dist/", "bench/"],
   },
   ...baseConfig,
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: {
@@ -19,6 +20,7 @@ export default tseslint.config(
   },
   // Legacy code overrides — copied from inspect_scout utils
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     rules: {
       "@typescript-eslint/no-unsafe-argument": "off",
       "@typescript-eslint/no-unsafe-assignment": "off",

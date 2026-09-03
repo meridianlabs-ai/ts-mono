@@ -27,9 +27,9 @@ export function useProperty<T>(
 
   const defaultValue = options?.defaultValue;
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- unsound-by-design generic accessor: the store holds unknown and T is the caller's claim about their own property
   const propertyValue = useValue(id, propertyName, defaultValue) as
-    | T
-    | undefined;
+    T | undefined;
 
   const setPropertyValueFn = useSetValue();
   const removePropertyValueFn = useRemoveValue();

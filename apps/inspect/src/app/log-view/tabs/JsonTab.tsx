@@ -4,7 +4,7 @@ import { FC, MouseEvent, useMemo } from "react";
 import { JSONPanel, ToolButton } from "@tsmono/react/components";
 import { filename } from "@tsmono/util";
 
-import { LogDetails } from "../../../client/api/types";
+import { LogHeader } from "../../../client/api/types";
 import { DownloadPanel } from "../../../components/DownloadPanel";
 import { kLogViewJsonTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
@@ -15,13 +15,18 @@ import styles from "./JsonTab.module.css";
 const kJsonMaxSize = 10000000;
 
 // Individual hook for JSON tab
-export const useJsonTabConfig = (logDetails: LogDetails | undefined) => {
+export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedTab = useStore((state) => state.app.tabs.workspace);
 
   return useMemo(() => {
-    // Show all LogDetails fields except samples/sampleSummaries
-    const { sampleSummaries: _, ...header } = logDetails ?? {};
+    // Show the log's own fields, not the client-derived sample facts.
+    const {
+      sampleCount: _count,
+      sampleErrorCount: _errors,
+      sampleLimits: _limits,
+      ...header
+    } = logDetails ?? {};
 
     return {
       id: kLogViewJsonTabId,
@@ -52,9 +57,9 @@ export const useJsonTabConfig = (logDetails: LogDetails | undefined) => {
 const copyFeedback = (e: MouseEvent<HTMLElement>) => {
   const textEl = e.currentTarget.querySelector(".task-btn-copy-content");
   const iconEl = e.currentTarget.querySelector("i.bi");
-  if (textEl) {
-    const htmlEl = textEl as HTMLElement;
-    const htmlIconEl = iconEl as HTMLElement;
+  if (textEl instanceof HTMLElement && iconEl instanceof HTMLElement) {
+    const htmlEl = textEl;
+    const htmlIconEl = iconEl;
     const oldText = htmlEl.innerText;
     const oldIconClz = htmlIconEl.className;
     htmlEl.innerText = "Copied!";

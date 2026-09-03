@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import {
   JSONPanel,
@@ -69,6 +69,7 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
   };
 
   // Sync URL tab parameter with store on mount and URL changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam) {
@@ -101,11 +102,13 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
 
   // Figure out whether grouping should be shown
   const groupOptions: Array<ResultGroup> = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!visibleScannerResults || visibleScannerResults.length === 0) {
       return [];
     }
 
     const hasLabel = visibleScannerResults.some(
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       (summary) => summary.label !== undefined && summary.label !== null
     );
 

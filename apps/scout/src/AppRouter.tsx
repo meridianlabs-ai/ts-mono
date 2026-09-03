@@ -1,15 +1,13 @@
-import { FC, useEffect, useMemo } from "react";
-import {
-  createHashRouter,
-  Outlet,
-  useLocation,
-  useParams,
-} from "react-router-dom";
+import { FC, useCallback, useEffect, useMemo } from "react";
+import { createHashRouter, Outlet, useLocation, useParams } from "react-router";
 
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  FindBand,
+  useFindBandShortcut,
+} from "@tsmono/react/components";
 
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
-import { FindBand } from "./app/components/FindBand";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
 import { RunScanPanel } from "./app/runScan/RunScanPanel";
@@ -17,6 +15,7 @@ import { ScanPanel } from "./app/scan/ScanPanel";
 import { ScannerResultPanel } from "./app/scannerResult/ScannerResultPanel";
 import { ScansPanel } from "./app/scans/ScansPanel";
 import { useAppConfig } from "./app/server/useAppConfig";
+import { TranscriptEventPanel } from "./app/transcript/TranscriptEventPanel";
 import { TranscriptPanel } from "./app/transcript/TranscriptPanel";
 import { TranscriptsPanel } from "./app/transcripts/TranscriptsPanel";
 import { ValidationPanel } from "./app/validation/ValidationPanel";
@@ -32,6 +31,7 @@ import {
   kScansRouteUrlPattern,
   kScansWithPathRouteUrlPattern,
   kTranscriptDetailRoute,
+  kTranscriptEventDetailRoute,
   kTranscriptsRouteUrlPattern,
   kValidationRouteUrlPattern,
   parseScanParams,
@@ -58,20 +58,18 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     const navigate = useLoggingNavigate("AppLayout");
     const componentNavigation = useMemo(() => ({ navigate }), [navigate]);
 
-    useFindBandShortcut();
+    const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+    const closeFind = useCallback(() => setShowFind(false), [setShowFind]);
+    // No onClose: scout has never had a global Escape handler — the band
+    // closes via its own input's Escape or the close button.
+    useFindBandShortcut(openFind);
     useWindowMessaging();
     useRoutingInitializer(config.scans.dir);
 
     const content = <Outlet />;
     return (
       <ComponentNavigationProvider navigation={componentNavigation}>
-        {showFind && (
-          <FindBand
-            onClose={() => {
-              setShowFind(false);
-            }}
-          />
-        )}
+        {showFind && <FindBand onClose={closeFind} debounceMs={300} />}
 
         {routerConfig.mode === "workbench" && !singleFileMode ? (
           <ActivityBarLayout config={config}>{content}</ActivityBarLayout>
@@ -158,6 +156,10 @@ export const createAppRouter = (config: AppRouterConfig) => {
             element: <ValidationPanel />,
           },
           {
+            path: kTranscriptEventDetailRoute,
+            element: <TranscriptEventPanel />,
+          },
+          {
             path: kTranscriptDetailRoute,
             element: <TranscriptPanel />,
           },
@@ -189,6 +191,7 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
   const selectedScanLocation = useStore((state) => state.selectedScanLocation);
   const userScansDir = useStore((state) => state.userScansDir);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (hasInitializedRouting) {
       return;
@@ -204,7 +207,7 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
     const resolvedScansDir = userScansDir || serverScansDir;
     if (isDefaultRoute && selectedScanLocation && resolvedScansDir) {
       if (displayedScanResult) {
-        void navigate(
+        navigate(
           scanResultRoute(
             resolvedScansDir,
             selectedScanLocation,
@@ -213,7 +216,7 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
           { replace: true }
         );
       } else {
-        void navigate(scanRoute(resolvedScansDir, selectedScanLocation), {
+        navigate(scanRoute(resolvedScansDir, selectedScanLocation), {
           replace: true,
         });
       }
@@ -229,24 +232,6 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
     serverScansDir,
     userScansDir,
   ]);
-};
-
-// Global keyboard shortcut to open FindBand
-const useFindBandShortcut = () => {
-  const setShowFind = useStore((state) => state.setShowFind);
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault();
-        setShowFind(true);
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [setShowFind]);
 };
 
 // Guard against redirecting when a navigation is already in-flight

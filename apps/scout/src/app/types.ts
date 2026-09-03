@@ -23,16 +23,16 @@ export interface ScanResultSummary {
   label?: string;
   timestamp?: string;
 
-  // Input
-  inputType: ScannerInputResponse["input_type"];
+  // Input — absent when the row's input_type isn't one this viewer knows
+  inputType?: ScannerInputResponse["input_type"];
 
   // Refs
   eventReferences: ScanResultReference[];
   messageReferences: ScanResultReference[];
 
-  // Validation
-  validationResult: boolean | Record<string, boolean>;
-  validationTarget: JsonValue;
+  // Validation — absent when the result was never validated
+  validationResult?: boolean | Record<string, boolean>;
+  validationTarget?: JsonValue;
 
   // Value
   value: string | boolean | number | null | unknown[] | object;
@@ -96,27 +96,16 @@ export interface SortColumn {
 }
 
 export type ErrorScope =
-  | "scans"
-  | "scanner"
-  | "dataframe"
-  | "dataframe_input"
-  | "transcripts";
+  "scans" | "scanner" | "dataframe" | "dataframe_input" | "transcripts";
 
 export type ResultGroup =
-  | "source"
-  | "label"
-  | "id"
-  | "epoch"
-  | "model"
-  | "none";
+  "source" | "label" | "id" | "epoch" | "model" | "none";
+
+/** The scanner input kinds a scan row can carry (the generated union). */
+export type ScannerInputType = ScannerInputResponse["input_type"];
 
 export type ScanResultValueType =
-  | "boolean"
-  | "number"
-  | "string"
-  | "array"
-  | "object"
-  | "null";
+  "boolean" | "number" | "string" | "array" | "object" | "null";
 
 // Type guard functions for value types
 export function isStringValue(

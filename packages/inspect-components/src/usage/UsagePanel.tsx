@@ -1,10 +1,27 @@
 import clsx from "clsx";
-import { Fragment, ReactNode, useState } from "react";
+import { Fragment, MouseEvent, ReactNode, useMemo, useState } from "react";
 
+import type {
+  ConfigUpdate,
+  ConnectionLimitChange,
+} from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
+import { useProperty } from "@tsmono/react/hooks";
+import { formatCurrency } from "@tsmono/util";
 
+import {
+  adaptiveMaxFromConfig,
+  buildConnectionLanes,
+  connectionWindow,
+  poolRetunes,
+  type ConnectionLaneData,
+} from "./connectionHistory";
+import { ConnectionLogModal } from "./ConnectionLogModal";
+import { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
+import { costSummary } from "./cost";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
+import { rolesForModel } from "./roleAliases";
 import styles from "./UsagePanel.module.css";
 
 export interface MetaItem {
@@ -24,9 +41,29 @@ interface UsagePanelProps {
   samples?: number;
   meta?: MetaItem[];
   className?: string | string[];
+  connection_limit_history?: ConnectionLimitChange[];
+  started_at?: string | null;
+  completed_at?: string | null;
+  /** Mid-run config changes — pool retunes render on lanes and in the log. */
+  config_updates?: ConfigUpdate[] | null;
+  /** The eval's main model — generate-config pool retunes apply to it. */
+  main_model?: string;
+  /** Scopes persisted UI state (the open Connection Log modal) — pass the
+   *  log identity so the modal doesn't leak across logs in a session. */
+  state_key?: string;
+  /** Deep-link to the Timeline tab with the model's band toggled on. */
+  onViewTimeline?: (
+    model: string,
+    event: MouseEvent<HTMLButtonElement>
+  ) => void;
 }
 
-type Mode = "model" | "role";
+type Mode = "model" | "role" | "connections";
+
+const kModes: readonly Mode[] = ["model", "role", "connections"];
+
+const isMode = (value: string): value is Mode =>
+  kModes.some((mode) => mode === value);
 
 export const UsagePanel: React.FC<UsagePanelProps> = ({
   label,
@@ -40,6 +77,13 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   samples,
   meta,
   className,
+  connection_limit_history,
+  started_at,
+  completed_at,
+  config_updates,
+  main_model,
+  state_key,
+  onViewTimeline,
 }) => {
   const keysOf = (
     ...maps: (Record<string, unknown> | undefined)[]
@@ -48,6 +92,24 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
     for (const m of maps) if (m) for (const k of Object.keys(m)) out.add(k);
     return Array.from(out);
   };
+
+  // Memoized so mode-toggle / modal renders don't rebuild the lanes and the
+  // stable identities keep ConnectionLogModal's useMemo effective.
+  const usageWindow = useMemo(
+    () => connectionWindow(connection_limit_history, started_at, completed_at),
+    [connection_limit_history, started_at, completed_at]
+  );
+  const lanesByModel = useMemo(
+    () =>
+      buildConnectionLanes(connection_limit_history, usageWindow, (model) =>
+        adaptiveMaxFromConfig(configs_by_model?.[model])
+      ),
+    [connection_limit_history, usageWindow, configs_by_model]
+  );
+  const retunesByModel = useMemo(
+    () => poolRetunes(config_updates, main_model),
+    [config_updates, main_model]
+  );
 
   const modelKeys = keysOf(model_usage, configs_by_model, args_by_model);
   const roleKeys = keysOf(
@@ -59,26 +121,73 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   const hasModel = modelKeys.length > 0;
   const hasRole = roleKeys.length > 0;
   const hasRoleUsage = !!(role_usage && Object.keys(role_usage).length > 0);
+  // The Connections lens appears only when connection history exists.
+  const hasConnections = !!usageWindow && Object.keys(lanesByModel).length > 0;
 
   const [mode, setMode] = useState<Mode>(hasRoleUsage ? "role" : "model");
+  const [logModel, setLogModel] = useProperty<string | null>(
+    "usage-connections",
+    state_key ? `log-model:${state_key}` : "log-model",
+    { defaultValue: null }
+  );
 
-  if (!hasModel && !hasRole) return null;
+  if (!hasModel && !hasRole && !hasConnections) return null;
 
-  const showSegmented = hasModel && hasRole;
-  const effectiveMode: Mode = showSegmented ? mode : hasRole ? "role" : "model";
+  const segments = [
+    ...(hasRole ? [{ id: "role", label: "Roles" }] : []),
+    ...(hasModel ? [{ id: "model", label: "Models" }] : []),
+    ...(hasConnections ? [{ id: "connections", label: "Connections" }] : []),
+  ];
+  const showSegmented = segments.length > 1;
+  const effectiveMode: Mode = segments.some((s) => s.id === mode)
+    ? mode
+    : hasRole
+      ? "role"
+      : hasModel
+        ? "model"
+        : "connections";
   const isModel = effectiveMode === "model";
+  const isConnections = effectiveMode === "connections";
   const resolvedLabel = label ?? "Usage";
 
   const usageData = isModel ? model_usage : role_usage;
-  const hasUsageData = !!(usageData && Object.keys(usageData).length > 0);
+  const hasUsageData =
+    !isConnections && !!(usageData && Object.keys(usageData).length > 0);
   const tableConfigs = isModel ? configs_by_model : configs_by_role;
   const tableArgs = isModel ? args_by_model : args_by_role;
   const tableAliases = !isModel ? role_aliases : undefined;
   const tableRowKeys = isModel ? modelKeys : roleKeys;
 
-  const metaItems = hasUsageData
-    ? (meta?.filter((m) => m.value != null && m.value !== "") ?? [])
+  const logLane: ConnectionLaneData | undefined =
+    logModel != null ? lanesByModel[logModel] : undefined;
+  const logRoles =
+    logModel != null ? rolesForModel(role_aliases, logModel) : [];
+
+  // Model usage is the authoritative rollup (roles only cover role-attributed
+  // calls), so cost reads from it regardless of the selected lens.
+  const cost = costSummary(model_usage) ?? costSummary(role_usage);
+  const costItem: MetaItem[] = cost
+    ? [
+        {
+          label: "Cost",
+          value: cost.partial ? (
+            <span title="Excludes models without recorded pricing">
+              {`≥ ${formatCurrency(cost.total)}`}
+            </span>
+          ) : (
+            formatCurrency(cost.total)
+          ),
+        },
+      ]
     : [];
+
+  const metaItems =
+    hasUsageData || isConnections
+      ? [
+          ...costItem,
+          ...(meta?.filter((m) => m.value != null && m.value !== "") ?? []),
+        ]
+      : [];
 
   return (
     <div className={clsx(styles.panel, className)}>
@@ -89,39 +198,76 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           </div>
           {showSegmented && (
             <SegmentedControl
-              segments={[
-                { id: "role", label: "Roles" },
-                { id: "model", label: "Models" },
-              ]}
+              segments={segments}
               selectedId={effectiveMode}
-              onSegmentChange={(value) => setMode(value as Mode)}
+              onSegmentChange={(value) => {
+                if (isMode(value)) setMode(value);
+              }}
             />
           )}
         </div>
-        {metaItems.length > 0 && (
-          <div className={styles.meta}>
-            {metaItems.map((m, i) => (
-              <Fragment key={m.label}>
-                {i > 0 && <span className={styles.metaSep} />}
-                <span className={styles.metaItem}>
-                  <span className={styles.metaLabel}>{m.label}</span>
-                  <span className={styles.metaValue}>{m.value}</span>
-                </span>
-              </Fragment>
-            ))}
-          </div>
-        )}
+        <div className={styles.meta}>
+          {isConnections && (
+            <Fragment>
+              <ConnectionsLegend />
+              {metaItems.length > 0 && <span className={styles.metaSep} />}
+            </Fragment>
+          )}
+          {metaItems.map((m, i) => (
+            <Fragment key={m.label}>
+              {i > 0 && <span className={styles.metaSep} />}
+              <span className={styles.metaItem}>
+                <span className={styles.metaLabel}>{m.label}</span>
+                <span className={styles.metaValue}>{m.value}</span>
+              </span>
+            </Fragment>
+          ))}
+        </div>
       </div>
-      <ModelTokenTable
-        model_usage={usageData}
-        model_configs={tableConfigs}
-        model_args={tableArgs}
-        model_aliases={tableAliases}
-        rowKeys={tableRowKeys}
-        showTokenColumns={hasUsageData}
-        samples={samples}
-        className={styles.tableNoTop}
-      />
+      {isConnections && usageWindow ? (
+        <ConnectionsView
+          lanes={lanesByModel}
+          timeWindow={usageWindow}
+          role_aliases={role_aliases}
+          retunes_by_model={retunesByModel}
+          onShowLog={setLogModel}
+          onViewTimeline={onViewTimeline}
+        />
+      ) : (
+        // Roles/Models are token lenses — connection lanes render once, in
+        // the Connections lens, never per row (pools are model-keyed).
+        <ModelTokenTable
+          model_usage={usageData}
+          model_configs={tableConfigs}
+          model_args={tableArgs}
+          model_aliases={tableAliases}
+          rowKeys={tableRowKeys}
+          showTokenColumns={hasUsageData}
+          samples={samples}
+          className={styles.tableNoTop}
+        />
+      )}
+      {logLane && (
+        <ConnectionLogModal
+          model={logLane.model}
+          events={logLane.events}
+          show={true}
+          onHide={() => setLogModel(null)}
+          shared_roles={logRoles}
+          retunes={retunesByModel[logLane.model]}
+          onViewTimeline={
+            onViewTimeline
+              ? (event) => {
+                  // The modal's visibility lives in a property bag that
+                  // survives unmount — clear it before navigating away or
+                  // it reopens the next time this tab is shown.
+                  setLogModel(null);
+                  onViewTimeline(logLane.model, event);
+                }
+              : undefined
+          }
+        />
+      )}
     </div>
   );
 };

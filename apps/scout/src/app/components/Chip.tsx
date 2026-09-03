@@ -22,9 +22,12 @@ export const Chip = forwardRef<HTMLDivElement, ChipProps>(
     ref
   ) => {
     return (
+      // The chip's own click is a shortcut onto content that is reachable
+      // elsewhere; the close button below is a real control.
       <div
         ref={ref}
         className={clsx(styles.chip, className)}
+        role="presentation"
         onClick={onClick}
         title={title}
       >
@@ -47,19 +50,19 @@ export const Chip = forwardRef<HTMLDivElement, ChipProps>(
             {label}
           </span>
         ) : undefined}
-        <span
-          className={clsx(styles.value, onClick ? styles.clickable : undefined)}
-        >
+        <span className={clsx(onClick ? styles.clickable : undefined)}>
           {value}
         </span>
         {onClose ? (
-          <i
+          <button
+            type="button"
             className={clsx(
               ApplicationIcons.xLarge,
               styles.closeIcon,
               styles.clickable
             )}
             title={closeTitle}
+            aria-label={closeTitle ?? `Remove ${value}`}
             onClick={(event) => {
               event.stopPropagation();
               onClose(event);

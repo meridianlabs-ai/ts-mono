@@ -8,46 +8,53 @@ import {
   useMemo,
   useRef,
 } from "react";
-import { Virtuoso, VirtuosoHandle } from "react-virtuoso";
 
-import { useScrollTrack } from "@tsmono/react/hooks";
+import { VirtualList } from "@tsmono/react/virtual";
 
-import { useVirtuosoState } from "../../virtuoso/useVirtuosoState";
-import { kSandboxSignalName } from "../transform/fixups";
-import { flatTree } from "../transform/flatten";
 import { EventNode } from "../types";
 
-import { OutlineRow } from "./OutlineRow";
+import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
 import styles from "./TranscriptOutline.module.css";
 import {
-  collapseScoring,
-  collapseTurns,
-  makeTurns,
-  noScorerChildren,
-  removeNodeVisitor,
-  removeStepSpanNameVisitor,
-} from "./tree-visitors";
+  useOutlineCollapse,
+  type OutlineCollapseState,
+} from "./useOutlineCollapse";
+import { resolveOutlineSelection, useOutlineNodes } from "./useOutlineNodes";
+import { useOutlineScrollSync } from "./useOutlineScrollSync";
 import { useOutlineWidth } from "./useOutlineWidth";
 
-const kFramesToStabilize = 10;
+export const outlineNodeRunning = ({
+  running,
+  backfilling,
+  isLast,
+}: {
+  running: boolean;
+  backfilling: boolean;
+  isLast: boolean;
+}): boolean => running && !backfilling && isLast;
 
 interface TranscriptOutlineProps {
   eventNodes: EventNode[];
   defaultCollapsedIds: Record<string, boolean>;
   running?: boolean;
+  /** Whether the sample's event backlog is still loading (live sample). */
+  backfilling?: boolean;
   className?: string;
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** The element that actually scrolls the outline (its own overflow
-   *  container). Used as Virtuoso's scroll parent so virtualization tracks
-   *  the outline's internal scroll rather than the shared main scroller. */
+   *  container). Used as the virtual list's scroll parent so virtualization
+   *  tracks the outline's internal scroll rather than the shared main
+   *  scroller. */
   outlineScrollEl?: HTMLDivElement | null;
   style?: CSSProperties;
+  /** Transcript identity scoping the outline's persisted scroll state. Without
+   *  it the state lives under a constant key, and hosts that never clear the
+   *  property bag leak one transcript's offset into the next. */
+  listId?: string;
   /** Name of the agent/subagent currently being displayed. Shown as a static header. */
   agentName?: string;
   /** Reports whether the outline has displayable nodes after filtering. */
   onHasNodesChange?: (hasNodes: boolean) => void;
-  /** Reports the ideal width (in px) for the outline column. */
-  onWidthChange?: (width: number) => void;
   /** Called when user clicks an outline item but URL-based navigation is unavailable. */
   onNavigateToEvent?: (eventId: string) => void;
   /** Offset from the top of the scroll container where visible content begins. */
@@ -56,14 +63,8 @@ interface TranscriptOutlineProps {
   // --- Callback props replacing store hooks ---
   /** URL generator for deep linking to events. */
   getEventUrl?: (eventId: string) => string | undefined;
-  /** Get collapsed state for an outline node. */
-  getCollapsed?: (id: string) => boolean;
-  /** Set collapsed state for an outline node. */
-  setCollapsed?: (id: string, collapsed: boolean) => void;
-  /** Current collapsed events for the outline scope. */
-  collapsedEvents?: Record<string, boolean>;
-  /** Set multiple collapsed events at once (for initialization). */
-  setCollapsedEvents?: (collapsed: Record<string, boolean>) => void;
+  /** Collapse state and callbacks for the outline scope. */
+  collapse?: OutlineCollapseState;
   /** Currently selected outline node ID. */
   selectedOutlineId?: string | null;
   /** Set the selected outline node ID. */
@@ -71,6 +72,11 @@ interface TranscriptOutlineProps {
   /** Optional custom link renderer for deep linking (replaces react-router Link). */
   renderLink?: (url: string, children: React.ReactNode) => React.ReactNode;
 }
+
+/** The outline list's DOM id and VirtualList persistence-key prefix (the full
+ *  key appends the transcript's listId). Exported so the app's per-sample
+ *  reset can clear the persisted snapshots by this prefix. */
+export const kTranscriptOutlineListKey = "transcript-tree";
 
 // Padding node at the end of the list for breathing room
 const EventPaddingNode: EventNode = {
@@ -90,106 +96,70 @@ const EventPaddingNode: EventNode = {
   children: [],
 };
 
+// Sentinel appended as the final list item while backfilling so the loading
+// affordance renders flush after the last outline row (a sibling would sit
+// below the list's trailing padding node).
+const OutlineLoadingNode: EventNode = { ...EventPaddingNode, id: "loading" };
+
 export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
   eventNodes,
   defaultCollapsedIds,
   running,
+  backfilling,
   className,
   scrollRef,
   outlineScrollEl,
   style,
+  listId,
   agentName,
   onHasNodesChange,
-  onWidthChange,
   onNavigateToEvent,
   scrollTrackOffset,
   getEventUrl,
-  getCollapsed,
-  setCollapsed,
-  collapsedEvents,
-  setCollapsedEvents,
+  collapse,
   selectedOutlineId,
   setSelectedOutlineId,
   renderLink,
 }) => {
-  const id = "transcript-tree";
-  const listHandle = useRef<VirtuosoHandle | null>(null);
-  const { getRestoreState } = useVirtuosoState(listHandle, id);
+  const id = kTranscriptOutlineListKey;
 
-  // Flag to indicate programmatic scrolling is in progress.
-  const isProgrammaticScrolling = useRef(false);
-  const lastScrollPosition = useRef<number | null>(null);
-  const stableFrameCount = useRef(0);
-
-  const beginProgrammaticScroll = useCallback(() => {
-    isProgrammaticScrolling.current = true;
-    lastScrollPosition.current = null;
-    stableFrameCount.current = 0;
-
-    const checkScrollStabilized = () => {
-      if (!isProgrammaticScrolling.current) return;
-
-      const currentPosition = scrollRef?.current?.scrollTop ?? null;
-
-      if (currentPosition === lastScrollPosition.current) {
-        stableFrameCount.current++;
-        if (stableFrameCount.current >= kFramesToStabilize) {
-          isProgrammaticScrolling.current = false;
-          return;
-        }
-      } else {
-        stableFrameCount.current = 0;
-        lastScrollPosition.current = currentPosition;
-      }
-
-      requestAnimationFrame(checkScrollStabilized);
-    };
-
-    requestAnimationFrame(checkScrollStabilized);
-  }, [scrollRef]);
-
-  const handleOutlineSelect = useCallback(
-    (nodeId: string) => {
-      setSelectedOutlineId?.(nodeId);
-      beginProgrammaticScroll();
-    },
-    [setSelectedOutlineId, beginProgrammaticScroll]
+  const { collapsedIds, getCollapsed, setCollapsed } = useOutlineCollapse(
+    defaultCollapsedIds,
+    collapse
   );
 
-  const outlineNodeList = useMemo(() => {
-    const nodeList = flatTree(
-      eventNodes,
-      (collapsedEvents ? collapsedEvents : undefined) || defaultCollapsedIds,
-      [
-        removeNodeVisitor("logger"),
-        removeNodeVisitor("info"),
-        removeNodeVisitor("state"),
-        removeNodeVisitor("store"),
-        removeNodeVisitor("approval"),
-        removeNodeVisitor("input"),
-        removeNodeVisitor("sandbox"),
-        removeStepSpanNameVisitor(kSandboxSignalName),
-        noScorerChildren(),
-      ]
-    );
+  const { outlineNodeList, allNodesList } = useOutlineNodes(
+    eventNodes,
+    collapsedIds
+  );
 
-    return collapseScoring(collapseTurns(makeTurns(nodeList)));
-  }, [eventNodes, collapsedEvents, defaultCollapsedIds]);
+  const resolvedSelectedId = useMemo(
+    () =>
+      resolveOutlineSelection(selectedOutlineId, allNodesList, outlineNodeList),
+    [selectedOutlineId, allNodesList, outlineNodeList]
+  );
+
+  const { onOutlineSelect } = useOutlineScrollSync({
+    allNodesList,
+    outlineNodeList,
+    scrollRef,
+    scrollTrackOffset,
+    setSelectedOutlineId,
+  });
 
   const hasOutlineNodes = outlineNodeList.length > 0;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     onHasNodesChange?.(hasOutlineNodes);
   }, [hasOutlineNodes, onHasNodesChange]);
 
   // Measure the ideal width for the outline column from label text
   const outlineWidth = useOutlineWidth(outlineNodeList, undefined, agentName);
-  useEffect(() => {
-    onWidthChange?.(outlineWidth);
-  }, [outlineWidth, onWidthChange]);
 
   // Set --outline-width on the nearest grid ancestor so the column resizes
   // automatically without each app needing to wire up the CSS variable.
   const rootRef = useRef<HTMLDivElement | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -203,77 +173,27 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     }
   }, [outlineWidth]);
 
-  // All event nodes for scroll tracking
-  const allNodesList = useMemo(() => {
-    return flatTree(eventNodes, null);
-  }, [eventNodes]);
-
-  const elementIds = allNodesList.map((node) => node.id);
-  const findNearestOutlineAbove = useCallback(
-    (targetId: string): EventNode | null => {
-      const targetIndex = allNodesList.findIndex(
-        (node) => node.id === targetId
-      );
-      if (targetIndex === -1) return null;
-
-      const outlineIds = new Set(outlineNodeList.map((node) => node.id));
-
-      for (let i = targetIndex; i >= 0; i--) {
-        const node = allNodesList[i];
-        if (node !== undefined && node.id) {
-          if (outlineIds.has(node.id)) {
-            return node;
-          }
-        }
-      }
-
-      return null;
-    },
-    [allNodesList, outlineNodeList]
-  );
-
-  useScrollTrack(
-    elementIds,
-    (scrolledId: string) => {
-      if (!isProgrammaticScrolling.current) {
-        const parentNode = findNearestOutlineAbove(scrolledId);
-        if (parentNode) {
-          setSelectedOutlineId?.(parentNode.id);
-        }
-      }
-    },
-    scrollRef,
-    { topOffset: scrollTrackOffset }
-  );
-
-  // Initialize collapsed events from defaults
-  useEffect(() => {
-    if (!collapsedEvents && Object.keys(defaultCollapsedIds).length > 0) {
-      setCollapsedEvents?.(defaultCollapsedIds);
-    }
-  }, [defaultCollapsedIds, collapsedEvents, setCollapsedEvents]);
-
   const renderRow = useCallback(
     (index: number, node: EventNode) => {
       if (node === EventPaddingNode) {
-        return (
-          <div
-            className={clsx(styles.eventPadding)}
-            key={node.id}
-            style={{ height: "2em" }}
-          ></div>
-        );
+        return <div key={node.id} style={{ height: "2em" }}></div>;
+      } else if (node === OutlineLoadingNode) {
+        return <OutlineLoadingRow key={node.id} />;
       } else {
         return (
           <OutlineRow
             node={node}
             key={node.id}
-            running={running && index === outlineNodeList.length - 1}
+            running={outlineNodeRunning({
+              running: running === true,
+              backfilling: backfilling === true,
+              isLast: index === outlineNodeList.length - 1,
+            })}
             selected={
-              selectedOutlineId ? selectedOutlineId === node.id : index === 0
+              selectedOutlineId ? resolvedSelectedId === node.id : index === 0
             }
             getEventUrl={getEventUrl}
-            onSelect={handleOutlineSelect}
+            onSelect={onOutlineSelect}
             onNavigateToEvent={onNavigateToEvent}
             getCollapsed={getCollapsed}
             setCollapsed={setCollapsed}
@@ -285,14 +205,24 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
     [
       outlineNodeList,
       running,
+      backfilling,
       selectedOutlineId,
+      resolvedSelectedId,
       getEventUrl,
-      handleOutlineSelect,
+      onOutlineSelect,
       onNavigateToEvent,
       getCollapsed,
       setCollapsed,
       renderLink,
     ]
+  );
+
+  const listData = useMemo(
+    () =>
+      backfilling
+        ? [...outlineNodeList, OutlineLoadingNode, EventPaddingNode]
+        : [...outlineNodeList, EventPaddingNode],
+    [outlineNodeList, backfilling]
   );
 
   return (
@@ -308,23 +238,20 @@ export const TranscriptOutline: FC<TranscriptOutlineProps> = ({
           {agentName}
         </div>
       )}
-      <Virtuoso
-        ref={listHandle}
-        customScrollParent={outlineScrollEl ?? undefined}
+      <VirtualList<EventNode>
+        // Scoped per transcript so a host that never clears the bag can't
+        // restore one transcript's offset into another; the "transcript-tree"
+        // prefix keeps inspect's per-sample bag clearing matching.
+        persistenceKey={listId ? `${id}:${listId}` : id}
         id={id}
-        data={[...outlineNodeList, EventPaddingNode]}
-        defaultItemHeight={50}
-        itemContent={renderRow}
-        atBottomThreshold={30}
-        increaseViewportBy={{ top: 300, bottom: 300 }}
-        overscan={{
-          main: 10,
-          reverse: 10,
-        }}
+        scrollRef={outlineScrollEl ?? null}
+        data={listData}
+        renderRow={renderRow}
+        estimatedItemHeight={50}
+        overscan={10}
+        embedded={true}
+        findScope="none"
         className={clsx(className, "transcript-outline")}
-        skipAnimationFrameInResizeObserver={true}
-        restoreStateFrom={getRestoreState()}
-        tabIndex={0}
       />
     </div>
   );

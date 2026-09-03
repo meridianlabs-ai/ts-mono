@@ -1,9 +1,11 @@
 import { FC } from "react";
 
+import { kSampleEventTabId } from "../../constants";
 import { FlowPanel } from "../flow/FlowPanel";
-import { LogsPanel } from "../log-list/LogsPanel";
+import { LogsPanel, type LogsPanelMode } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
+import { SampleEventView } from "../samples/event/SampleEventView";
 import { SamplePrintView } from "../samples/print/SamplePrintView";
 
 import { useLogRouteParams } from "./url";
@@ -13,23 +15,34 @@ import { useLogRouteParams } from "./url";
  *
  * Routes to:
  * - SamplePrintView: for print URLs (/logs/path/samples/sample/id/epoch/print)
+ * - SampleEventView: for single-event URLs (/logs/path/samples/sample/id/epoch/event?event=<id>)
  * - LogSampleDetailView: for sample detail URLs (/logs/path/samples/sample/id/epoch)
  * - FlowPanel: for flow files (.yaml/.yml)
  * - LogViewContainer: for log files (.eval/.json)
  * - LogsPanel: for directory views
+ *
+ * `mode` selects how directory views render: "tasks" (flat) for /tasks/*
+ * routes, "logs" otherwise.
  */
-export const RouteDispatcher: FC = () => {
+export const RouteDispatcher: FC<{ mode?: LogsPanelMode }> = ({
+  mode = "logs",
+}) => {
   const { logPath, sampleId, epoch, sampleTabId, sampleUuid } =
     useLogRouteParams();
 
   // If no logPath is provided, show the logs directory view
   if (!logPath) {
-    return <LogsPanel />;
+    return <LogsPanel mode={mode} />;
   }
 
   // Check for print route (must come before general sample detail check)
   if (sampleId && epoch && sampleTabId === "print") {
     return <SamplePrintView />;
+  }
+
+  // Focus-mode page (must come before general sample detail check)
+  if (sampleId && epoch && sampleTabId === kSampleEventTabId) {
+    return <SampleEventView />;
   }
 
   // Check if this is a sample detail URL
@@ -53,6 +66,6 @@ export const RouteDispatcher: FC = () => {
   if (isLogFile) {
     return <LogViewContainer />;
   } else {
-    return <LogsPanel />;
+    return <LogsPanel mode={mode} />;
   }
 };

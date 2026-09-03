@@ -1,0 +1,53 @@
+import { ChangeEvent, FC, useMemo } from "react";
+
+import { formatTime } from "@tsmono/util";
+
+import editorStyles from "./ColumnFilterEditor.module.css";
+import styles from "./DurationInput.module.css";
+
+export interface DurationInputProps {
+  id: string;
+  value: string;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
+  autoFocus?: boolean;
+  ariaLabel?: string;
+}
+
+export const DurationInput: FC<DurationInputProps> = ({
+  id,
+  value,
+  onChange,
+  disabled,
+  autoFocus,
+  ariaLabel,
+}) => {
+  const parsedSeconds = useMemo(() => {
+    if (value.trim() === "") return null;
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? num : null;
+  }, [value]);
+
+  return (
+    <div className={styles.durationInputWrapper}>
+      <input
+        id={id}
+        className={editorStyles.filterInput}
+        type="number"
+        spellCheck="false"
+        value={value}
+        onChange={onChange}
+        placeholder="Seconds"
+        aria-label={ariaLabel}
+        disabled={disabled}
+        step="any"
+        min="0"
+        // eslint-disable-next-line jsx-a11y/no-autofocus -- see the note on ConditionRow's autoFocus
+        autoFocus={autoFocus}
+      />
+      {parsedSeconds !== null && (
+        <div className={styles.durationHelper}>{formatTime(parsedSeconds)}</div>
+      )}
+    </div>
+  );
+};

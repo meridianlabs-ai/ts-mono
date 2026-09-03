@@ -34,6 +34,38 @@ interface TagStripProps {
 const MAX_ROWS = 2;
 
 /**
+ * One trim step: given the offsetTops of the row's flex children (the
+ * first `chipCount` are tag chips, the rest pills), return the next
+ * visible-chip count, or null when the row already fits in `maxRows`.
+ *
+ * Jumps straight to the number of chips measured inside the first
+ * `maxRows` rows instead of shedding one chip per step: each step is a
+ * nested setState/re-render inside a layout effect, and one-per-chip
+ * trips React's 50-nested-update cap on large tag sets
+ * (react.dev/errors/185). With the row's used width fixed, flex-wrap derives each
+ * item's placement from its predecessors alone, so the measured chip
+ * prefix is exact; the strictly decreasing per-chip fallback then
+ * makes room for the pills (overflow + Edit) on the allowed rows.
+ *
+ * Exported for unit tests — jsdom has no layout, so the DOM
+ * measurement around this can't be exercised there.
+ */
+export const nextVisibleCount = (
+  tops: number[],
+  chipCount: number,
+  maxRows: number
+): number | null => {
+  const rows = new Set(tops);
+  if (rows.size <= maxRows || chipCount === 0) return null;
+  const allowed = new Set([...rows].sort((a, b) => a - b).slice(0, maxRows));
+  let fit = 0;
+  for (const top of tops.slice(0, chipCount)) {
+    if (allowed.has(top)) fit++;
+  }
+  return Math.min(chipCount - 1, fit);
+};
+
+/**
  * Wrap-aware chip row: tag chips followed by the Edit pill as the
  * last item, so when chips wrap to additional lines the Edit pill
  * follows the last chip onto whichever line it lands on. Layout
@@ -78,32 +110,39 @@ export const TagStrip: FC<TagStripProps> = ({
     }
   }
 
-  // Convergent trim: while the row spans more than MAX_ROWS, hide one
-  // more chip. Each setState triggers a re-render and the effect
-  // re-runs to remeasure, so the loop is bounded by `tags.length`
-  // re-renders worst case.
+  // Convergent trim: while the row spans more than MAX_ROWS, drop to
+  // the measured fit count (see nextVisibleCount). Each setState
+  // triggers a re-render and the effect re-runs to remeasure, so the
+  // loop converges in a handful of re-renders regardless of
+  // `tags.length`.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (!enableCollapse || !rowRef.current) return;
     const el = rowRef.current;
-    const kids = Array.from(el.children) as HTMLElement[];
+    const kids = Array.from(el.children).filter(
+      (kid): kid is HTMLElement => kid instanceof HTMLElement
+    );
     if (kids.length < 2) return;
     // Distinct offsetTop values across the row's flex items = number
-    // of layout rows. flex-wrap: wrap puts each wrapped run on its
-    // own top.
-    const tops = new Set<number>();
-    for (const k of kids) tops.add(k.offsetTop);
-    if (tops.size > MAX_ROWS && visibleCount > 0) {
+    // of layout rows (flex-wrap: wrap puts each wrapped run on its
+    // own top); nextVisibleCount derives rows from these tops.
+    const next = nextVisibleCount(
+      kids.map((k) => k.offsetTop),
+      Math.min(visibleCount, tags.length),
+      MAX_ROWS
+    );
+    if (next !== null) {
       // DOM measurement can only happen after layout, so this
       // measure-and-converge loop genuinely needs setState in a layout
       // effect; it terminates because visibleCount strictly decreases.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setVisibleCount((c) => Math.max(0, c - 1));
+      setVisibleCount(next);
     }
   }, [enableCollapse, visibleCount, tags, showEdit]);
 
   // On any real width change, optimistically reset to the full set —
   // a wider row may now fit more chips than the previous trim
   // allowed. The trim effect above will re-converge after the reset.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (!enableCollapse || !rowRef.current) return;
     const el = rowRef.current;

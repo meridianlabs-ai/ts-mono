@@ -1,6 +1,7 @@
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+import { barrelOnly } from "@tsmono/eslint-config/barrel-only";
 import reactConfig from "@tsmono/eslint-config/react";
 
 export default tseslint.config(
@@ -18,7 +19,9 @@ export default tseslint.config(
     ],
   },
   ...reactConfig,
+  ...barrelOnly(["app_config", "log_data"]),
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       globals: {
         ...globals.browser,

@@ -1,6 +1,6 @@
 import { clsx } from "clsx";
 import { FC } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation } from "react-router";
 
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { ApplicationIcons } from "../../icons";
@@ -27,7 +27,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
           <button
             type="button"
             className={clsx(styles.navButton, styles.historyButton)}
-            onClick={() => void navigate(-1)}
+            onClick={() => navigate(-1)}
             aria-label="Back"
             title="Back"
           >
@@ -36,7 +36,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
           <button
             type="button"
             className={clsx(styles.navButton, styles.historyButton)}
-            onClick={() => void navigate(1)}
+            onClick={() => navigate(1)}
             aria-label="Forward"
             title="Forward"
           >
@@ -47,7 +47,7 @@ export const ProjectBar: FC<ProjectBarProps> = ({ config }) => {
             className={styles.navButton}
             onClick={() => {
               if (currentActivity) {
-                void navigate(currentActivity.route);
+                navigate(currentActivity.route);
               }
             }}
             aria-label="Home"

@@ -13,6 +13,7 @@ import {
   DEFAULT_COLUMN_ORDER,
   DEFAULT_VISIBLE_COLUMNS,
   FILTER_COLUMNS,
+  isTranscriptColumnKey,
 } from "./columns";
 
 // Convert column definitions to ColumnInfo array
@@ -49,6 +50,7 @@ export const TranscriptFilterBar: FC<{
     useFilterBarHandlers<keyof TranscriptInfo, TranscriptsTableState>({
       setTableState: setTranscriptsTableState,
       defaultVisibleColumns: DEFAULT_VISIBLE_COLUMNS,
+      isColumnKey: isTranscriptColumnKey,
     });
 
   // Handle visible columns change
@@ -56,7 +58,7 @@ export const TranscriptFilterBar: FC<{
     (newVisibleColumns: string[]) => {
       setTranscriptsTableState((prevState) => ({
         ...prevState,
-        visibleColumns: newVisibleColumns as Array<keyof TranscriptInfo>,
+        visibleColumns: newVisibleColumns.filter(isTranscriptColumnKey),
       }));
     },
     [setTranscriptsTableState]

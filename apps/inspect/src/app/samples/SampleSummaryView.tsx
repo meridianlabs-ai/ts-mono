@@ -15,14 +15,15 @@ import {
   EvalSampleWorkingTime,
 } from "../../@types/extraInspect";
 import { SampleSummary } from "../../client/api/types";
+import { kScoreTypeOther } from "../../constants";
 import {
   resolveScorePanelView,
   useEvalScorePanelView,
   useSampleDescriptor,
   useScorePanelView,
+  useSelectedLogDetails,
   useSelectedScores,
 } from "../../state/hooks";
-import { useStore } from "../../state/store";
 import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
 import { truncateMarkdown } from "../../utils/markdown";
@@ -32,7 +33,7 @@ import { SampleErrorView } from "./error/SampleErrorView";
 import { ScorePanel } from "./header-v2/ScorePanel";
 import { ScoreValueDisplay } from "./header-v2/ScoreValueDisplay";
 import styles from "./SampleSummaryView.module.css";
-import { isCancelled } from "./status/sampleStatus";
+import { isCancelled } from "./status/status";
 
 // Generous truncation for Input/Answer so the value can actually fill
 // the available width before the CSS line-clamp kicks in. Target stays
@@ -58,7 +59,8 @@ interface SampleFields {
   target: EvalSampleTarget;
   answer?: string;
   limit?: string;
-  retries?: number;
+  limit_reason?: string;
+  retries?: number | null;
   model_fallbacks?: ModelFallback[] | null;
   working_time?: EvalSampleWorkingTime;
   total_time?: EvalSample["total_time"];
@@ -88,10 +90,19 @@ const resolveSample = (
 
   const target = sample.target;
   const answer =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     sample && sampleDescriptor
       ? sampleDescriptor.selectedScorerDescriptor(sample)?.answer()
       : undefined;
-  const limit = isEvalSample(sample) ? sample.limit?.type : undefined;
+  // the sole caller passes a SampleSummary (useSelectedSampleSummary), so the
+  // summary branch is the one that renders — reading only the EvalSample side
+  // left the whole limit item dead
+  const limit = isEvalSample(sample)
+    ? sample.limit?.type
+    : (sample.limit ?? undefined);
+  const limit_reason = isEvalSample(sample)
+    ? (sample.limit?.reason ?? undefined)
+    : (sample.limit_reason ?? undefined);
   const working_time = isEvalSample(sample) ? sample.working_time : undefined;
   const total_time = isEvalSample(sample) ? sample.total_time : undefined;
   const cancelled = isCancelled(sample);
@@ -107,6 +118,7 @@ const resolveSample = (
     target,
     answer,
     limit,
+    limit_reason,
     retries,
     model_fallbacks: sample.model_fallbacks,
     working_time,
@@ -155,10 +167,9 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 }) => {
   const sampleDescriptor = useSampleDescriptor();
   const selectedScores = useSelectedScores();
-  const taskName = useStore((state) => state.log.selectedLogDetails?.eval.task);
-  const modelText = useStore((state) =>
-    formatModelText(state.log.selectedLogDetails?.eval)
-  );
+  const selectedLogDetails = useSelectedLogDetails();
+  const taskName = selectedLogDetails?.eval.task;
+  const modelText = formatModelText(selectedLogDetails?.eval);
   const [storedScoreView] = useScorePanelView();
   const evalScoreView = useEvalScorePanelView();
   if (!sampleDescriptor) {
@@ -168,13 +179,12 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
 
   // Filter out scores whose descriptor renders empty — they shouldn't
   // contribute to the count or layout decisions.
-  const visibleScores =
-    selectedScores?.filter((scoreLabel) => {
-      const rendered = sampleDescriptor.evalDescriptor
-        .score(sample, scoreLabel)
-        ?.render();
-      return rendered !== undefined && rendered !== "";
-    }) ?? [];
+  const visibleScores = selectedScores.filter((scoreLabel) => {
+    const rendered = sampleDescriptor.evalDescriptor
+      .score(sample, scoreLabel)
+      ?.render();
+    return rendered !== undefined && rendered !== "";
+  });
   const scoreCount = visibleScores.length;
 
   // Two-column grid widens the right side once the score panel needs
@@ -223,7 +233,11 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
     });
   }
   if (fields.limit) {
-    metaItems.push({ key: "limit", content: `Limit: ${fields.limit}` });
+    metaItems.push({
+      key: "limit",
+      content: `Limit: ${fields.limit}`,
+      title: fields.limit_reason,
+    });
   }
   if (
     fields.retries !== undefined &&
@@ -377,7 +391,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                       <div className={styles.scoreFieldValue}>
                         <ScoreValueDisplay
                           value={selected?.value}
-                          scoreType={desc.scoreType}
+                          scoreType={desc?.scoreType ?? kScoreTypeOther}
                           size={22}
                         />
                       </div>

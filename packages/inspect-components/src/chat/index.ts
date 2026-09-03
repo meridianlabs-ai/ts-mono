@@ -11,6 +11,21 @@ export type {
 export type { Message, ResolvedMessage } from "./messages";
 export { resolveMessages } from "./messages";
 
+export type {
+  MessageRow,
+  MessageRowOptions,
+  ScannedRowFact,
+} from "./rowsModel";
+export {
+  buildMessageRows,
+  buildMessageRowsWindow,
+  buildSystemMessageRow,
+  countRowBlocks,
+  MessageRowScanner,
+  messageRowOptions,
+  rowContainsMessage,
+} from "./rowsModel";
+
 export type { MessagesToStrOptions } from "./messagesToStr";
 export { messagesToStr } from "./messagesToStr";
 
@@ -33,11 +48,16 @@ export { ToolBlock, ToolBlockInput, ToolBlockOutput } from "./tools/ToolBlock";
 export { ToolCallErrorView } from "./tools/ToolCallErrorView";
 export { ToolOutput } from "./tools/ToolOutput";
 export { MessageContent, isMessageContent } from "./MessageContent";
-export type { MessagesContext } from "./MessageContents";
-export { defaultContext, MessageContents } from "./MessageContents";
+export { MessageContents } from "./MessageContents";
 export { ChatMessage } from "./ChatMessage";
 export { ChatMessageRow } from "./ChatMessageRow";
 export type { ChatViewProps } from "./ChatView";
 export { ChatView } from "./ChatView";
-export type { ChatViewVirtualListProps } from "./ChatViewVirtualList";
-export { ChatViewVirtualList } from "./ChatViewVirtualList";
+export type {
+  ChatViewRowsVirtualListProps,
+  ChatViewVirtualListProps,
+} from "./ChatViewVirtualList";
+export {
+  ChatViewRowsVirtualList,
+  ChatViewVirtualList,
+} from "./ChatViewVirtualList";

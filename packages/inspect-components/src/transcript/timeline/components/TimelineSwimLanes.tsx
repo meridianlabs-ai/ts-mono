@@ -3,8 +3,14 @@ import { FC, useCallback, useMemo, useRef, useState } from "react";
 
 import { useCollapsibleIds, useProperty } from "@tsmono/react/hooks";
 
+import type { TimelineSpan } from "../core";
 import { type TimelineState } from "../hooks/useTimeline";
 import type { UseTimelineConfigResult } from "../hooks/useTimelineConfig";
+import type {
+  MultiTimelineNav,
+  TimelineMinimapData,
+  TimelineViewStack,
+} from "../hooks/useTranscriptTimeline";
 import {
   formatTokenCount,
   type PositionedMarker,
@@ -14,12 +20,9 @@ import {
 import { buildSelectionKey, parseSelection } from "../timelineEventNodes";
 
 import { useTimelineIcons } from "./TimelineIconsContext";
-import { TimelineMinimap, type TimelineMinimapProps } from "./TimelineMinimap";
+import { TimelineMinimap } from "./TimelineMinimap";
 import { TimelineOptionsPopover } from "./TimelineOptionsPopover";
-import {
-  TimelineSelector,
-  type TimelineSelectorProps,
-} from "./TimelineSelector";
+import { TimelineSelector } from "./TimelineSelector";
 import styles from "./TimelineSwimLanes.module.css";
 
 // =============================================================================
@@ -41,15 +44,15 @@ export interface BreadcrumbSegment {
  * [main, Build, Test] where "Test" is the currently selected row.
  */
 export function buildBreadcrumbs(
-  layouts: RowLayout[],
+  rows: ReadonlyArray<{ key: string; name: string; depth: number }>,
   selectedRowKey: string | null
 ): BreadcrumbSegment[] {
   if (!selectedRowKey) return [];
 
-  // Build a lookup from key to layout
-  const byKey = new Map<string, RowLayout>();
-  for (const layout of layouts) {
-    byKey.set(layout.key, layout);
+  // Build a lookup from key to row
+  const byKey = new Map<string, { key: string; name: string; depth: number }>();
+  for (const row of rows) {
+    byKey.set(row.key, row);
   }
 
   // Walk the key segments to find ancestor rows.
@@ -59,11 +62,19 @@ export function buildBreadcrumbs(
 
   for (let i = 1; i <= parts.length; i++) {
     const ancestorKey = parts.slice(0, i).join("/");
-    const layout = byKey.get(ancestorKey);
-    if (layout) {
+    const row = byKey.get(ancestorKey);
+    if (row) {
       const label =
-        layout.depth === 0 && layout.name === "solvers" ? "main" : layout.name;
-      segments.push({ label, key: layout.key });
+        row.depth === 0 && row.name === "solvers" ? "main" : row.name;
+      // Adjacent same-named segments collapse to the deeper one (a wrapping
+      // top-level agent often shares the root's name — "main › main" reads as
+      // a bug); the deeper key keeps the more specific navigation target.
+      const prev = segments[segments.length - 1];
+      if (prev && prev.label === label) {
+        segments[segments.length - 1] = { label, key: row.key };
+      } else {
+        segments.push({ label, key: row.key });
+      }
     }
   }
 
@@ -77,26 +88,30 @@ export function buildBreadcrumbs(
 /** Navigation subset of TimelineState needed by the swimlane component. */
 export type TimelineNavigation = Pick<
   TimelineState,
-  "selected" | "select" | "clearSelection"
+  "node" | "selected" | "select" | "clearSelection"
 >;
 
-/** Header configuration: root label + optional minimap. */
+/** Header configuration. The root label and minimap span come from the
+ *  swimlane's timeline state. */
 export interface TimelineHeaderProps {
-  rootLabel: string;
   /** Called on header click to scroll the view to the top. */
   onScrollToTop?: () => void;
-  /** Minimap props for the zoom indicator. */
-  minimap?: TimelineMinimapProps;
+  /** Minimap data (root time mapping + selection) for the zoom indicator. */
+  minimap?: TimelineMinimapData;
+  /** Scrubber position within the minimap (0–1), or null when idle. */
+  scrubberProgress?: number | null;
+  /** Called when the user scrubs the minimap. */
+  onScrub?: (progress: number) => void;
   /** Timeline config for the options popover. When provided, shows the options button. */
   timelineConfig?: UseTimelineConfigResult;
-  /** Timeline selector for switching between multiple timelines. */
-  timelineSelector?: TimelineSelectorProps;
-  /** Called when the branches toggle is clicked (handles selection cleanup). */
-  onToggleBranches?: () => void;
-  /** Punched-down view labels (root → current). Renders a back button + trail when non-empty. */
-  viewStack?: ReadonlyArray<{ label: string }>;
-  /** Pop the punched-down view stack. */
-  onPopView?: () => void;
+  /** Number of utility agents elided from display. When > 0 (and utility
+   *  agents are off), a small indicator renders next to the options button
+   *  so hidden model calls never disappear without a trace. */
+  hiddenUtilityCount?: number;
+  /** Multi-timeline navigation. The selector renders when >1 timelines. */
+  multiTimeline?: MultiTimelineNav;
+  /** Punch-down view navigation. The back button renders when the stack is non-empty. */
+  views?: TimelineViewStack;
 }
 
 export interface TimelineSwimLanesProps {
@@ -408,6 +423,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
         {header && (
           <HeaderRow
             {...header}
+            node={timeline.node}
             breadcrumbs={breadcrumbs}
             onBreadcrumbSelect={onSelect}
             onToggleBranches={handleBranchToggle}
@@ -436,6 +452,7 @@ export const TimelineSwimLanes: FC<TimelineSwimLanesProps> = ({
 
       {/* Collapse toggle on bottom border */}
       <button
+        type="button"
         className={styles.collapseToggle}
         onClick={toggleCollapsed}
         title={isCollapsed ? "Expand swimlanes" : "Collapse swimlanes"}
@@ -600,7 +617,10 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
 
   return (
     <div className={styles.row} role="row">
-      {/* Label cell — depth-based indentation; clicking selects the whole row */}
+      {/* Label cell — depth-based indentation; clicking selects the whole row.
+          Keyboard selection is the grid's own Arrow/Escape handling, and the
+          cell takes tabIndex -1 so the grid keeps a single tab stop. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
       <div
         className={clsx(
           styles.label,
@@ -610,19 +630,29 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
             styles.labelHighlighted
         )}
         style={{ paddingLeft: `${0.3 + layout.depth * 0.5}rem` }}
+        role="gridcell"
+        tabIndex={-1}
         onClick={onSelectRow}
       >
         {hasChildren ? (
-          <span
+          <button
+            type="button"
             className={styles.chevron}
+            // tabIndex -1 like the cell above so the grid keeps a single
+            // tab stop. That leaves the chevron pointer-only (as it was
+            // before it became a button): ArrowLeft/ArrowRight can't serve
+            // as the keyboard path here because useArrowStepper binds them
+            // at document capture for prev/next sample stepping.
+            tabIndex={-1}
             onClick={handleChevronClick}
-            role="button"
+            aria-expanded={isExpanded}
             aria-label={isExpanded ? "Collapse" : "Expand"}
           >
             <i
               className={isExpanded ? icons.chevron.down : icons.chevron.right}
+              aria-hidden="true"
             />
-          </span>
+          </button>
         ) : (
           <span className={styles.chevronSpacer} />
         )}
@@ -749,46 +779,57 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
 // =============================================================================
 
 interface HeaderRowProps extends TimelineHeaderProps {
+  /** The root timeline span (labels the header and feeds the minimap). */
+  node: TimelineSpan;
   breadcrumbs?: BreadcrumbSegment[];
   onBreadcrumbSelect?: (key: string) => void;
+  /** Called when the branches toggle is clicked (handles selection cleanup). */
+  onToggleBranches?: () => void;
 }
 
 const HeaderRow: FC<HeaderRowProps> = ({
-  rootLabel,
+  node,
   minimap,
+  scrubberProgress,
+  onScrub,
   onScrollToTop,
   breadcrumbs,
   onBreadcrumbSelect,
   timelineConfig,
-  timelineSelector,
+  hiddenUtilityCount,
+  multiTimeline,
   onToggleBranches,
-  viewStack,
-  onPopView,
+  views,
 }) => {
   const icons = useTimelineIcons();
   const hasBreadcrumbs = breadcrumbs && breadcrumbs.length > 1;
-  const rootDisplay = rootLabel === "solvers" ? "main" : rootLabel;
+  const rootDisplay = node.name === "solvers" ? "main" : node.name;
 
   const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsButtonRef = useRef<HTMLButtonElement | null>(null);
 
   return (
     <div className={styles.breadcrumbRow}>
-      {timelineSelector && (
+      {multiTimeline && multiTimeline.timelines.length > 1 && (
         <>
-          <TimelineSelector {...timelineSelector} />
+          <TimelineSelector
+            timelines={multiTimeline.timelines}
+            activeIndex={multiTimeline.activeIndex}
+            onSelect={multiTimeline.setActive}
+          />
           <span className={styles.breadcrumbDivider}>/</span>
         </>
       )}
-      {viewStack && viewStack.length > 0 && (
+      {views && views.stack.length > 0 && (
         <>
           <button
+            type="button"
             className={styles.viewStackBack}
-            onClick={onPopView}
+            onClick={views.pop}
             title="Back to branch overview"
           >
             <i className={icons.chevron.left} />
-            {viewStack.at(-1)!.label}
+            {views.stack.at(-1)!.label}
           </button>
           <span className={styles.breadcrumbDivider}>/</span>
         </>
@@ -806,6 +847,7 @@ const HeaderRow: FC<HeaderRowProps> = ({
                   </span>
                 ) : (
                   <button
+                    type="button"
                     className={styles.breadcrumbLink}
                     onClick={() => onBreadcrumbSelect?.(segment.key)}
                   >
@@ -817,7 +859,11 @@ const HeaderRow: FC<HeaderRowProps> = ({
           })}
         </div>
       ) : (
-        <button className={styles.breadcrumbCurrent} onClick={onScrollToTop}>
+        <button
+          type="button"
+          className={styles.breadcrumbCurrent}
+          onClick={onScrollToTop}
+        >
           {rootDisplay}
         </button>
       )}
@@ -833,7 +879,28 @@ const HeaderRow: FC<HeaderRowProps> = ({
           <i className={icons.threeDots} />
         </button>
       )}
-      {minimap && <TimelineMinimap {...minimap} />}
+      {timelineConfig &&
+        !timelineConfig.includeUtility &&
+        (hiddenUtilityCount ?? 0) > 0 && (
+          <button
+            type="button"
+            className={styles.hiddenUtility}
+            onClick={() => timelineConfig.setIncludeUtility(true)}
+            title="Show utility agents"
+          >
+            {hiddenUtilityCount} utility{" "}
+            {hiddenUtilityCount === 1 ? "agent" : "agents"} hidden
+          </button>
+        )}
+      {minimap && (
+        <TimelineMinimap
+          root={node}
+          mapping={minimap.mapping}
+          selection={minimap.selection}
+          scrubberProgress={scrubberProgress}
+          onScrub={onScrub}
+        />
+      )}
       {timelineConfig && onToggleBranches && (
         <TimelineOptionsPopover
           isOpen={optionsOpen}
@@ -907,6 +974,7 @@ const BarFill: FC<BarFillProps> = ({
           : `${span.bar.width}%`,
       }}
       title={span.description ?? undefined}
+      role="presentation"
       onClick={handleClick}
       onDoubleClick={onDoubleClick ? handleDoubleClick : undefined}
     />
@@ -1033,6 +1101,7 @@ const RegionBarFill: FC<RegionBarFillProps> = ({
           width: `${span.bar.width}%`,
         }}
         title={span.description ?? undefined}
+        role="presentation"
         onClick={(e) => {
           e.stopPropagation();
           onSelectBar();
@@ -1107,6 +1176,7 @@ const RegionBarFill: FC<RegionBarFillProps> = ({
               width: `${segmentWidth}%`,
             }}
             title={span.description ?? undefined}
+            role="presentation"
             onMouseEnter={() => {
               if (!suppressHoverRef.current) setHoveredIndex(i);
             }}
@@ -1235,19 +1305,37 @@ const MarkerGlyph: FC<MarkerGlyphProps> = ({
     [marker.kind, marker.reference, onMarkerNavigate, onBranchToggle]
   );
 
-  const isBranch = marker.kind === "branch";
+  const className = clsx(styles.marker, kindClass);
+  const glyph = marker.kind !== "error" && (
+    <i className={icon} aria-hidden="true" />
+  );
 
+  if (marker.kind === "branch") {
+    return (
+      <button
+        type="button"
+        className={className}
+        style={{ left: `${marker.left}%` }}
+        title={marker.tooltip}
+        onClick={handleClick}
+        aria-label="Toggle branches"
+      >
+        {glyph}
+      </button>
+    );
+  }
+
+  // Error/compaction markers are mouse shortcuts onto events the transcript
+  // already lists; the grid's arrow-key navigation is the keyboard path.
   return (
     <span
-      className={clsx(styles.marker, kindClass)}
+      className={className}
       style={{ left: `${marker.left}%` }}
       title={marker.tooltip}
+      role="presentation"
       onClick={handleClick}
-      tabIndex={isBranch ? 0 : undefined}
-      role={isBranch ? "button" : undefined}
-      aria-label={isBranch ? "Toggle branches" : undefined}
     >
-      {marker.kind !== "error" && <i className={icon} />}
+      {glyph}
     </span>
   );
 };

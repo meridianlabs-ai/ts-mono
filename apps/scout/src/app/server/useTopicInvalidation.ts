@@ -19,6 +19,7 @@ export const useTopicInvalidation = (): boolean => {
   const versions = useTopicUpdates();
   const prevVersionsRef = useRef<TopicVersions | undefined>(undefined);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (versions === undefined) return;
 
@@ -27,7 +28,8 @@ export const useTopicInvalidation = (): boolean => {
     );
     for (const [topic] of changedTopics) {
       const invKey = `${topic}-inv`;
-      void queryClient.invalidateQueries({
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      queryClient.invalidateQueries({
         predicate: (query) => query.queryKey.includes(invKey),
       });
     }
@@ -48,6 +50,7 @@ const useTopicUpdates = (): TopicVersions | undefined => {
     undefined
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => api.connectTopicUpdates(setVersions), [api, setVersions]);
 
   return versions;

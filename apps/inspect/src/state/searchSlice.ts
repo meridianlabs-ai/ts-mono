@@ -21,7 +21,7 @@ export interface SearchSlice {
 
 export const createSearchSlice = (
   set: (fn: (state: StoreState) => void) => void
-): [SearchSlice, () => void] => {
+): SearchSlice => {
   const slice: SearchSlice = {
     search: {
       panelStates: {},
@@ -45,5 +45,5 @@ export const createSearchSlice = (
     },
   };
 
-  return [slice, () => {}];
+  return slice;
 };

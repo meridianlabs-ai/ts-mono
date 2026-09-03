@@ -14,7 +14,7 @@ import {
 } from "../../types/api-types";
 import { useActiveScan } from "../server/useActiveScan";
 
-import styles from "./RunScanPanel.module.css";
+import styles from "./ActiveScanView.module.css";
 
 const formatMemory = (bytes: number): string => {
   const gb = bytes / (1024 * 1024 * 1024);
@@ -72,6 +72,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
   const [now, setNow] = useState(Date.now());
 
   // Update time every second for elapsed/remaining
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
@@ -79,6 +80,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
 
   // Check if any scanner has validations or metrics (use scanner_names for iteration)
   const hasValidations = info.scanner_names.some(
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
     (name) => (summary.scanners[name]?.validation?.entries?.length ?? 0) > 0
   );
   const hasMetrics = info.scanner_names.some(
@@ -91,6 +93,7 @@ const ActiveScanCard: FC<{ info: ActiveScanInfo }> = ({ info }) => {
     const scanner = summary.scanners[name];
     const totalTokens = scanner
       ? Object.values(scanner.model_usage).reduce<number>(
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           (sum, usage) => sum + (usage.total_tokens ?? 0),
           0
         )
@@ -301,6 +304,7 @@ export const ActiveScanView: FC<Props> = ({ scanId }) => {
           text="Scan not found"
         />
       )}
+      {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
       {scanInfo && !error && <ActiveScanCard info={scanInfo} />}
     </div>
   );

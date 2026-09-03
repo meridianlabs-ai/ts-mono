@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
+import { makeStateHooks } from "../test/component-state-hooks";
 
 import { ExpandablePanel } from "./ExpandablePanel";
 import { FindTargetProvider } from "./FindTargetContext";
@@ -21,7 +22,19 @@ class FakeResizeObserver {
   observe(el: Element) {
     // Fire synchronously so React batches the setShowToggle(true) update
     // inside the same act() wrapping as the initial render.
-    this.cb([{ target: el, contentRect: {} } as ResizeObserverEntry], this);
+    const box: ResizeObserverSize = { blockSize: 0, inlineSize: 0 };
+    this.cb(
+      [
+        {
+          target: el,
+          contentRect: new DOMRectReadOnly(0, 0, 0, 0),
+          borderBoxSize: [box],
+          contentBoxSize: [box],
+          devicePixelContentBoxSize: [box],
+        },
+      ],
+      this
+    );
   }
   unobserve() {}
   disconnect() {}
@@ -37,12 +50,10 @@ vi.spyOn(window, "getComputedStyle").mockImplementation((el, pseudo) => {
     return new Proxy(style, {
       get(target, prop) {
         if (prop === "fontSize") return "16px";
-        const val = (target as unknown as Record<string, unknown>)[
-          prop as string
-        ];
-        return typeof val === "function"
-          ? (val as () => unknown).bind(target)
-          : val;
+        const val: unknown = Reflect.get(target, prop);
+        if (typeof val !== "function") return val;
+        const bound: unknown = val.bind(target);
+        return bound;
       },
     });
   }
@@ -57,27 +68,6 @@ Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
     return 999;
   },
 });
-
-// --- Minimal ComponentStateHooks mock ---
-// useCollapsedState reads/writes collapsed state. For tests, a simple Map-backed
-// implementation is sufficient. Each test gets fresh state via the closure.
-function makeStateHooks() {
-  const store = new Map<string, unknown>();
-  const getKey = (id: string, prop: string) => `${id}::${prop}`;
-
-  return {
-    useValue: (id: string, prop: string) => store.get(getKey(id, prop)),
-    useSetValue: () => (id: string, prop: string, value: unknown) => {
-      store.set(getKey(id, prop), value);
-    },
-    useRemoveValue: () => (id: string, prop: string) => {
-      store.delete(getKey(id, prop));
-    },
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-}
 
 const Wrapper: React.FC<{
   findTarget: { term: string; eventId: string } | null;
@@ -105,10 +95,11 @@ const longContent = (
 // panel leaves it empty. Asserting on the inline style sidesteps the CSS
 // module classname (which would change if the rule were renamed).
 function isTruncated(container: HTMLElement): boolean {
-  const wrap = container.querySelector('[data-expandable-panel="true"]')
-    ?.firstElementChild as HTMLElement | null;
-  expect(wrap).toBeTruthy();
-  return wrap!.style.maxHeight !== "";
+  const wrap = container.querySelector(
+    '[data-expandable-panel="true"]'
+  )?.firstElementChild;
+  expect(wrap).toBeInstanceOf(HTMLElement);
+  return wrap instanceof HTMLElement && wrap.style.maxHeight !== "";
 }
 
 describe("ExpandablePanel auto-expand on find target", () => {

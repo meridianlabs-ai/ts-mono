@@ -1,54 +1,55 @@
 import { useCallback, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 
-import { useFilteredSamples } from "../../state/hooks";
+import { navigateAndForget } from "@tsmono/react/hooks";
+import { directoryRelativeUrl } from "@tsmono/util";
+
+import { useLogDir } from "../../app_config";
+import { selectSample } from "../../state/actions";
+import {
+  useFilteredSamples,
+  useSelectedSampleSummaries,
+} from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { directoryRelativeUrl } from "../../utils/uri";
 import { openInNewTab } from "../shared/openInNewTab";
 import { sampleIdsEqual } from "../shared/sample";
 
 import {
   logSamplesUrl,
   logsUrlRaw,
-  makeLogsPath,
   samplesSampleUrl,
+  useLogOrSampleRouteParams,
   useLogRouteParams,
   useRoutePrefix,
+  type RoutePrefix,
 } from "./url";
 
-export const useLogNavigation = () => {
-  const navigate = useNavigate();
-  const { logPath: routeLogPath } = useLogRouteParams();
-  const logDir = useStore((state) => state.logs.logDir);
-  const loadedLog = useStore((state) => state.log.loadedLog);
-  const prefix = useRoutePrefix();
-
-  const selectTab = useCallback(
-    (tabId: string) => {
-      // Only update URL if we have a loaded log
-      if (loadedLog && routeLogPath) {
-        // We already have the logPath from params, just navigate to the tab
-        const url = logsUrlRaw(routeLogPath, tabId, prefix);
-        void navigate(url);
-      } else if (loadedLog) {
-        // Fallback to constructing the path if needed
-        const url = logsUrlRaw(makeLogsPath(loadedLog, logDir), tabId, prefix);
-        void navigate(url);
-      }
-    },
-    [loadedLog, routeLogPath, logDir, navigate, prefix]
-  );
-
-  return {
-    selectTab,
-  };
+/**
+ * Resolves a `sampleUuid` route to its canonical id/epoch sample URL once the
+ * selected log's summaries have loaded. Returns undefined while unresolvable
+ * (no uuid in play, summaries still loading, or no matching sample) so
+ * callers render normally until a declarative `<Navigate replace>` applies.
+ */
+export const useSampleUuidRedirectUrl = (opts: {
+  logPath: string | undefined;
+  sampleUuid: string | undefined;
+  sampleTabId: string | undefined;
+  prefix: RoutePrefix;
+}): string | undefined => {
+  const { logPath, sampleUuid, sampleTabId, prefix } = opts;
+  const sampleSummaries = useSelectedSampleSummaries();
+  if (!logPath || !sampleUuid) return undefined;
+  const sample = sampleSummaries.data?.find((s) => s.uuid === sampleUuid);
+  return sample
+    ? logSamplesUrl(logPath, sample.id, sample.epoch, sampleTabId, prefix)
+    : undefined;
 };
 
 export const useSampleUrl = () => {
   const { logPath, sampleTabId } = useLogRouteParams();
   const prefix = useRoutePrefix();
 
-  const logDirectory = useStore((state) => state.logs.logDir);
+  const logDirectory = useLogDir();
 
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
@@ -95,13 +96,16 @@ export const useSampleUrl = () => {
 /**
  * Hook that provides sample navigation utilities with proper URL handling
  * for use across the application
+ *
+ * Used to obtain action functions (plus their enablement flags) —
+ * no mount side effects.
  */
-export const useSampleNavigation = () => {
+export const useSampleNavigationActions = () => {
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
 
   // The log directory
-  const logDirectory = useStore((state) => state.logs.logDir);
+  const logDirectory = useLogDir();
 
   // The log
   const { logPath, tabId, sampleTabId } = useLogRouteParams();
@@ -140,8 +144,6 @@ export const useSampleNavigation = () => {
     });
   }, [selectedSampleHandle, sampleSummaries]);
 
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
   // Navigate to a specific sample with index
   const showSample = useCallback(
     (id: string | number, epoch: number, specifiedSampleTabId?: string) => {
@@ -163,10 +165,10 @@ export const useSampleNavigation = () => {
         );
 
         // Navigate to the sample URL (now goes to LogSampleDetailView)
-        void navigate(url);
+        navigateAndForget(navigate, url);
       }
     },
-    [resolveLogPath, selectSample, navigate, sampleTabId, prefix]
+    [resolveLogPath, navigate, sampleTabId, prefix]
   );
 
   const navigateSampleIndex = useCallback(
@@ -181,7 +183,7 @@ export const useSampleNavigation = () => {
         }
       }
     },
-    [sampleSummaries, selectSample, logPath, selectedLogFile]
+    [sampleSummaries, logPath, selectedLogFile]
   );
 
   // Navigate to the next sample
@@ -234,7 +236,7 @@ export const useSampleNavigation = () => {
     const resolvedPath = resolveLogPath();
     if (resolvedPath) {
       const url = logsUrlRaw(resolvedPath, tabId, prefix);
-      void navigate(url);
+      navigateAndForget(navigate, url);
     }
   }, [resolveLogPath, navigate, tabId, prefix]);
 
@@ -255,19 +257,25 @@ export const useSampleDetailNavigation = () => {
   const [searchParams, _setSearchParams] = useSearchParams();
   const message = searchParams.get("message");
   const event = searchParams.get("event");
+  // Explicit `follow=1` arms the transcript's live-tail at mount (a shareable
+  // "following the live sample" URL), overriding the deep-link stand-down.
+  const follow = searchParams.get("follow") === "1";
   return {
     message,
     event,
+    follow,
   };
 };
 
 /**
  * Hook for navigating to sample details from the samples grid.
  * Uses the /samples route pattern instead of /logs.
+ *
+ * Used to obtain an action function only — no data, no mount side effects.
  */
-export const useSamplesGridNavigation = () => {
+export const useSamplesGridNavigationAction = () => {
   const navigate = useNavigate();
-  const logDirectory = useStore((state) => state.logs.logDir);
+  const logDirectory = useLogDir();
 
   const navigateToSampleDetail = useCallback(
     (
@@ -284,7 +292,7 @@ export const useSamplesGridNavigation = () => {
         // Open in new window/tab
         openInNewTab(url);
       } else {
-        void navigate(url);
+        navigateAndForget(navigate, url);
       }
     },
     [navigate, logDirectory]
@@ -298,15 +306,31 @@ export const useSamplesGridNavigation = () => {
 /**
  * Hook for sample navigation within the log context (LogSampleDetailView).
  * Uses filteredSamples to navigate between samples respecting current filters.
+ *
+ * Used to obtain action functions (plus their enablement flags) —
+ * no mount side effects.
  */
-export const useLogSampleNavigation = () => {
+export const useLogSampleNavigationActions = () => {
   const navigate = useNavigate();
   const prefix = useRoutePrefix();
-  const { logPath: routeLogPath, sampleTabId } = useLogRouteParams();
+  const location = useLocation();
+  // Keep prev/next on the originating surface (the focus page is also mounted
+  // under /samples); logSamplesUrl would otherwise force a /logs URL.
+  const isSamplesSurface = location.pathname.startsWith("/samples/");
+  const logDirectory = useLogDir();
+  // Parse from whichever surface we're on: on /samples the route path is
+  // log-dir-relative and sampleTabId carries the current view (e.g. "event"
+  // for the focus page); useLogRouteParams only matches /logs|/tasks.
+  const { logPath: routeLogPath, sampleTabId } = useLogOrSampleRouteParams();
 
   // Fall back to selectedLogFile for VSCode single-file mode where route params aren't available
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logPath = routeLogPath || selectedLogFile;
+  // samples routes are log-dir-relative, so relativize the absolute fallback.
+  const fallbackLogPath =
+    selectedLogFile && isSamplesSurface
+      ? directoryRelativeUrl(selectedLogFile, logDirectory)
+      : selectedLogFile;
+  const logPath = routeLogPath || fallbackLogPath;
 
   // Get filtered samples for navigation
   const sampleSummaries = useFilteredSamples();
@@ -315,9 +339,6 @@ export const useLogSampleNavigation = () => {
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
-
-  // Action to update selected sample in store
-  const selectSample = useStore((state) => state.logActions.selectSample);
 
   // Calculate current index in the filtered samples list
   const currentIndex = useMemo(() => {
@@ -344,14 +365,21 @@ export const useLogSampleNavigation = () => {
       if (!prevSample) return;
       // Update store state before navigation
       selectSample(prevSample.id, prevSample.epoch, logPath);
-      const url = logSamplesUrl(
-        logPath,
-        prevSample.id,
-        prevSample.epoch,
-        sampleTabId,
-        prefix
-      );
-      void navigate(url);
+      const url = isSamplesSurface
+        ? samplesSampleUrl(
+            logPath,
+            prevSample.id,
+            prevSample.epoch,
+            sampleTabId
+          )
+        : logSamplesUrl(
+            logPath,
+            prevSample.id,
+            prevSample.epoch,
+            sampleTabId,
+            prefix
+          );
+      navigateAndForget(navigate, url);
     }
   }, [
     hasPrevious,
@@ -359,9 +387,9 @@ export const useLogSampleNavigation = () => {
     sampleSummaries,
     currentIndex,
     sampleTabId,
-    selectSample,
     navigate,
     prefix,
+    isSamplesSurface,
   ]);
 
   // Navigate to next sample
@@ -371,14 +399,21 @@ export const useLogSampleNavigation = () => {
       if (!nextSample) return;
       // Update store state before navigation
       selectSample(nextSample.id, nextSample.epoch, logPath);
-      const url = logSamplesUrl(
-        logPath,
-        nextSample.id,
-        nextSample.epoch,
-        sampleTabId,
-        prefix
-      );
-      void navigate(url);
+      const url = isSamplesSurface
+        ? samplesSampleUrl(
+            logPath,
+            nextSample.id,
+            nextSample.epoch,
+            sampleTabId
+          )
+        : logSamplesUrl(
+            logPath,
+            nextSample.id,
+            nextSample.epoch,
+            sampleTabId,
+            prefix
+          );
+      navigateAndForget(navigate, url);
     }
   }, [
     hasNext,
@@ -386,9 +421,9 @@ export const useLogSampleNavigation = () => {
     sampleSummaries,
     currentIndex,
     sampleTabId,
-    selectSample,
     navigate,
     prefix,
+    isSamplesSurface,
   ]);
 
   return {

@@ -41,7 +41,7 @@ const THEME_PREFERENCES: readonly ThemePreference[] = [
 ];
 
 export const isThemePreference = (value: unknown): value is ThemePreference =>
-  THEME_PREFERENCES.includes(value as ThemePreference);
+  THEME_PREFERENCES.some((preference) => preference === value);
 
 /**
  * Read a persisted preference out of the zustand-persist-compatible settings
@@ -228,6 +228,7 @@ let mediaListenerInstalled = false;
 let bodyClassObserverInstalled = false;
 
 const hostIsDarkFromBody = (): boolean | null => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (typeof document === "undefined" || !document.body) return null;
   const cls = document.body.classList;
   // VS Code high contrast: `vscode-high-contrast` is the HC-dark theme,
@@ -240,14 +241,17 @@ const hostIsDarkFromBody = (): boolean | null => {
   return null;
 };
 
+// `in` rather than a global declaration: @tsmono/util declares this same
+// property with its own VSCodeApi type, and this module stays dependency-free
+// for the inline bootstrap <script>, so a second declaration would collide.
 const isVscodeWebview = (): boolean =>
-  typeof (window as { acquireVsCodeApi?: unknown }).acquireVsCodeApi ===
-  "function";
+  "acquireVsCodeApi" in window && typeof window.acquireVsCodeApi === "function";
 
 const installBodyClassObserver = (): void => {
   if (
     bodyClassObserverInstalled ||
     typeof MutationObserver === "undefined" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     !document.body
   ) {
     return;
@@ -265,6 +269,14 @@ const installBodyClassObserver = (): void => {
     attributes: true,
     attributeFilter: ["class"],
   });
+};
+
+const setDocumentBaseScheme = (isDark: boolean): void => {
+  const scheme = isDark ? "dark" : "light";
+  document.documentElement.setAttribute("data-bs-theme", scheme);
+  // Set before the stylesheet loads so the UA canvas, scrollbars, and form
+  // controls do not flash white while the dark app background is still loading.
+  document.documentElement.style.colorScheme = scheme;
 };
 
 /**
@@ -296,19 +308,14 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
         document.documentElement.removeAttribute("data-theme-variant");
       }
       if (result.hostIsDark !== null) {
-        document.documentElement.setAttribute(
-          "data-bs-theme",
-          result.hostIsDark ? "dark" : "light"
-        );
+        setDocumentBaseScheme(result.hostIsDark);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (result.kind === "apply") {
       // data-* attributes belong on <html> (CSS gates `:root[data-bs-theme]`);
       // the vscode-* class belongs on <body> (CSS gates `body[class^=...]`).
       // Splitting elements here is deliberate — keep them in lockstep.
-      document.documentElement.setAttribute(
-        "data-bs-theme",
-        result.isDark ? "dark" : "light"
-      );
+      setDocumentBaseScheme(result.isDark);
 
       // The readable skin is a small token-override block keyed on this
       // attribute (see base.css); absent attribute = the design-consistent
@@ -325,6 +332,7 @@ export const createApplyTheme = (options: ApplyThemeOptions): (() => void) => {
       // Adding `vscode-light` would activate the bridge in light mode and
       // silently re-skin every `--bs-*` token.
       if (result.toggleBodyClass) {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: document.body is null while parsing <head>
         document.body?.classList.toggle("vscode-dark", result.isDark);
       }
     }

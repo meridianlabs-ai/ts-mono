@@ -37,6 +37,9 @@ async function openSample(
   const logDetails = createLogDetails(evalLog);
 
   network.use(
+    // get_log_root — the dir-mode gate blocks on this.
+    http.get("*/api/logs", () => HttpResponse.json({ log_dir: "/logs" })),
+
     // Log file listing — return our single log
     http.get("*/api/log-files*", () => {
       return HttpResponse.json({
@@ -175,6 +178,21 @@ test.describe("chat message rendering", () => {
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
   });
 
+  test("renders inline data images embedded in markdown", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        source: "generate",
+        content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+      },
+    ]);
+
+    await expect(page.locator("img[src^='data:image/gif']")).toHaveCount(1);
+  });
+
   test("does not automatically load remote message media", async ({
     page,
     network,
@@ -218,6 +236,7 @@ test.describe("chat message rendering", () => {
             document: `${MEDIA_ORIGIN}/document.png`,
             filename: "document.png",
             mime_type: "image/png",
+            citations: false,
           },
         ],
       },
@@ -526,6 +545,28 @@ test.describe("message content types", () => {
     ).toBeVisible();
   });
 
+  test("renders reasoning-like tags as literal assistant text", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      { role: "user", content: "Show the evidence", source: "input" },
+      {
+        role: "assistant",
+        content:
+          "Before <think>reasoning evidence</think> " +
+          "<internal>legacy evidence</internal> " +
+          "<content-internal>metadata evidence</content-internal> after.",
+        source: "generate",
+      },
+    ]);
+
+    const messagesArea = page.locator("#messages-contents");
+    await expect(messagesArea.getByText("reasoning evidence")).toBeVisible();
+    await expect(messagesArea.getByText("legacy evidence")).toBeVisible();
+    await expect(messagesArea.getByText("metadata evidence")).toBeVisible();
+  });
+
   test("renders ANSI codes in tool output", async ({ page, network }) => {
     await openSample(page, network, [
       { role: "user", content: "Run a colored command", source: "input" },
@@ -614,6 +655,56 @@ test.describe("tool call with long content", () => {
 
     // Tool output should also render
     await expect(page.getByText("line1").first()).toBeVisible();
+  });
+});
+
+test.describe("Codex tool result display modes", () => {
+  test("shows the projection when rendered and exact payload when raw", async ({
+    page,
+    network,
+  }) => {
+    const toolOutput = JSON.stringify({
+      previous_status: {
+        completed: "answer<content-internal>eyJ4IjoxfQ==</content-internal>",
+      },
+    });
+
+    await openSample(page, network, [
+      { role: "user", content: "Delegate this", source: "input" },
+      {
+        role: "assistant",
+        content: "Closing the subagent.",
+        source: "generate",
+        id: "msg-a1",
+        tool_calls: [
+          {
+            id: "call_close_agent",
+            type: "function",
+            function: "close_agent",
+            arguments: { id: "agent-1" },
+          },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "call_close_agent",
+        function: "close_agent",
+        content: toolOutput,
+        id: "msg-t1",
+      },
+    ]);
+
+    const messagesArea = page.locator("#messages-contents");
+    await expect(
+      messagesArea.getByText("answer", { exact: true })
+    ).toBeVisible();
+    await expect(messagesArea).not.toContainText("content-internal");
+
+    await page.getByRole("button", { name: "Raw" }).click();
+
+    await expect(
+      messagesArea.getByText(toolOutput, { exact: true })
+    ).toBeVisible();
   });
 });
 

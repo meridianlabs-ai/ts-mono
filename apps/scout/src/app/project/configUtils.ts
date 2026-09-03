@@ -1,4 +1,10 @@
-import { ProjectConfigInput } from "../../types/api-types";
+import { isRecord } from "@tsmono/util";
+
+import {
+  ProjectConfig,
+  ProjectConfigInput,
+  ValidationSetInput,
+} from "../../types/api-types";
 
 /**
  * Deep equality check for config objects using JSON serialization.
@@ -28,18 +34,23 @@ export function isEmpty(value: unknown): boolean {
 export function filterNullValues<T extends Record<string, unknown>>(
   obj: T
 ): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== null && v !== undefined)
-  ) as Partial<T>;
+  const result: Partial<T> = {};
+  for (const key in obj) {
+    const value = obj[key];
+    if (value !== null && value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**
- * Deep copy an object using JSON serialization.
- * Note: Only works for JSON-serializable types (objects, arrays, primitives).
- * Loses functions, Symbols, undefined values. Circular references will throw.
+ * Deep copy a config object. structuredClone is generic in the value it
+ * copies, so the copy keeps its type instead of round-tripping through
+ * JSON.parse's `any`.
  */
 export function deepCopy<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
+  return structuredClone(obj);
 }
 
 /**
@@ -47,8 +58,8 @@ export function deepCopy<T>(obj: T): T {
  * Handles boolean, number, object, null, and undefined values.
  */
 function cleanNestedConfig(
-  edited: Record<string, unknown> | boolean | number | null | undefined,
-  original: Record<string, unknown> | boolean | number | null | undefined
+  edited: unknown,
+  original: unknown
 ): Record<string, unknown> | boolean | number | null | undefined {
   // Preserve boolean and number values as-is
   if (typeof edited === "boolean" || typeof edited === "number") {
@@ -56,7 +67,7 @@ function cleanNestedConfig(
   }
 
   // If edited is empty, return null if original had content
-  if (edited === null || edited === undefined) {
+  if (!isRecord(edited)) {
     if (original !== null && original !== undefined) {
       return null;
     }
@@ -64,8 +75,7 @@ function cleanNestedConfig(
   }
 
   const result: Record<string, unknown> = {};
-  const originalObj =
-    typeof original === "object" && original !== null ? original : {};
+  const originalObj = isRecord(original) ? original : {};
 
   for (const [key, value] of Object.entries(edited)) {
     const origValue = originalObj[key];
@@ -94,20 +104,13 @@ function cleanNestedConfig(
  * Handles nested cache/batch configs and removes empty values.
  */
 function cleanGenerateConfig(
-  edited: Record<string, unknown> | null | undefined,
-  original: Record<string, unknown> | null | undefined
+  edited: unknown,
+  original: unknown
 ): Record<string, unknown> | null | undefined {
   // Handle empty edited config
-  if (
-    edited === null ||
-    edited === undefined ||
-    (typeof edited === "object" && Object.keys(edited).length === 0)
-  ) {
+  if (!isRecord(edited) || Object.keys(edited).length === 0) {
     const originalHasContent =
-      original !== null &&
-      original !== undefined &&
-      typeof original === "object" &&
-      Object.keys(original).length > 0;
+      isRecord(original) && Object.keys(original).length > 0;
     if (originalHasContent) {
       return null;
     }
@@ -115,7 +118,7 @@ function cleanGenerateConfig(
   }
 
   const result: Record<string, unknown> = {};
-  const originalObj = original ?? {};
+  const originalObj = isRecord(original) ? original : {};
 
   for (const key of Object.keys(edited)) {
     const editedValue = edited[key];
@@ -123,20 +126,7 @@ function cleanGenerateConfig(
 
     // Handle nested cache/batch configs
     if (key === "cache" || key === "batch") {
-      const cleanedNested = cleanNestedConfig(
-        editedValue as
-          | Record<string, unknown>
-          | boolean
-          | number
-          | null
-          | undefined,
-        originalValue as
-          | Record<string, unknown>
-          | boolean
-          | number
-          | null
-          | undefined
-      );
+      const cleanedNested = cleanNestedConfig(editedValue, originalValue);
       if (cleanedNested !== undefined) {
         result[key] = cleanedNested;
       }
@@ -183,15 +173,12 @@ export function computeConfigToSave(
   ]);
 
   for (const key of allKeys) {
-    const editedValue = edited[key as keyof ProjectConfigInput];
-    const originalValue = original[key as keyof ProjectConfigInput];
+    const editedValue = configField(edited, key);
+    const originalValue = configField(original, key);
 
     // Handle generate_config specially
     if (key === "generate_config") {
-      const cleanedGenConfig = cleanGenerateConfig(
-        editedValue as Record<string, unknown> | null | undefined,
-        originalValue as Record<string, unknown> | null | undefined
-      );
+      const cleanedGenConfig = cleanGenerateConfig(editedValue, originalValue);
       if (cleanedGenConfig !== undefined) {
         result[key] = cleanedGenConfig;
       }
@@ -208,8 +195,34 @@ export function computeConfigToSave(
     }
   }
 
-  return result as ProjectConfigInput;
+  // `filter` is the config's one required field; everything else is optional,
+  // so the assembled record is a ProjectConfigInput once filter is pinned.
+  // Two paths leave it unset: unchanged-and-empty (dropped by the loop) and
+  // cleared in the editor (the change survives as undefined). Either way the
+  // server's own value stands — a required field can't be cleared, so an
+  // emptied filter reverts on save rather than producing an invalid config.
+  const filter = result["filter"];
+  return {
+    ...result,
+    filter: isFilter(filter) ? filter : serverConfig.filter,
+  };
 }
+
+const isFilter = (value: unknown): value is string | string[] =>
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every((entry) => typeof entry === "string"));
+
+/**
+ * Reads a config field by name. The key set is the union of the edited and
+ * server configs' keys, which the declared interface can't index.
+ */
+const configField = (
+  config: Partial<ProjectConfigInput>,
+  key: string
+): unknown => {
+  const record: Record<string, unknown> = config;
+  return record[key];
+};
 
 /**
  * Initialize edited config from server config.
@@ -221,6 +234,7 @@ export function initializeEditedConfig(
 ): Partial<ProjectConfigInput> {
   return {
     transcripts: serverConfig.transcripts ?? null,
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     filter: serverConfig.filter ?? null,
     scans: serverConfig.scans ?? null,
     max_transcripts: serverConfig.max_transcripts ?? null,
@@ -235,4 +249,81 @@ export function initializeEditedConfig(
     model_args: serverConfig.model_args ?? null,
     generate_config: serverConfig.generate_config ?? null,
   };
+}
+
+/**
+ * The editor state to show after a save round-trip: the persisted config from
+ * the server's response, with any fields the user edited while the save was
+ * in flight (changed relative to the snapshot that was saved) layered back on
+ * top so those keystrokes aren't discarded.
+ */
+export function mergeInFlightEdits(
+  persisted: Partial<ProjectConfigInput>,
+  current: Partial<ProjectConfigInput>,
+  savedSnapshot: Partial<ProjectConfigInput>
+): Partial<ProjectConfigInput> {
+  const merged: Partial<ProjectConfigInput> = { ...persisted };
+  // Widened views for by-name access; writes stay keyed by `current`'s own
+  // keys, so the shape holds.
+  const mergedRecord: Record<string, unknown> = merged;
+  const currentRecord: Record<string, unknown> = current;
+  const snapshotRecord: Record<string, unknown> = savedSnapshot;
+  for (const key of Object.keys(currentRecord)) {
+    const changedSinceSave =
+      JSON.stringify(currentRecord[key]) !==
+      JSON.stringify(snapshotRecord[key]);
+    if (changedSinceSave) {
+      mergedRecord[key] = currentRecord[key];
+    }
+  }
+  return merged;
+}
+
+type ValidationPredicate = NonNullable<ValidationSetInput["predicate"]>;
+
+// `satisfies` ties this to the generated union: regenerating the schema with
+// a new or renamed predicate errors here until the map is updated, so valid
+// predicates can't silently start converting to null.
+const kValidationPredicates = {
+  gt: true,
+  gte: true,
+  lt: true,
+  lte: true,
+  eq: true,
+  ne: true,
+  contains: true,
+  startswith: true,
+  endswith: true,
+  icontains: true,
+  iequals: true,
+} satisfies Record<ValidationPredicate, true>;
+
+const isValidationPredicate = (value: unknown): value is ValidationPredicate =>
+  typeof value === "string" && Object.hasOwn(kValidationPredicates, value);
+
+/**
+ * The config the server hands out and the config we PUT back are the same
+ * shape but for one field: a validation set's `predicate` is an open string
+ * coming out and a closed union going in. Checking it is what makes this a
+ * conversion rather than an assertion; a predicate the server invented that
+ * we can't send back falls to the schema default.
+ */
+export function asConfigInput(config: ProjectConfig): ProjectConfigInput {
+  const { validation, ...rest } = config;
+  if (!validation) {
+    return { ...rest, validation };
+  }
+  const converted: Record<string, string | ValidationSetInput> = {};
+  for (const [name, set] of Object.entries(validation)) {
+    converted[name] =
+      typeof set === "string"
+        ? set
+        : {
+            ...set,
+            predicate: isValidationPredicate(set.predicate)
+              ? set.predicate
+              : null,
+          };
+  }
+  return { ...rest, validation: converted };
 }

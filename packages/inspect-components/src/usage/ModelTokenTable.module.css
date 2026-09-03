@@ -74,6 +74,14 @@
   margin-top: 0.4rem;
 }
 
+.modelCost {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--bs-secondary);
+  margin-top: 0.15rem;
+}
+
 .configSection {
   margin-top: 12px;
   padding-top: 10px;
@@ -189,13 +197,6 @@
   text-align: right;
 }
 
-.totalCell {
-  vertical-align: top;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--bs-body-color);
-}
-
 .perSampleCell {
   vertical-align: top;
   color: var(--bs-secondary);
@@ -210,12 +211,10 @@
   margin-top: 0.15rem;
 }
 
-.swatch {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  flex-shrink: 0;
+.perSampleCost {
+  display: block;
+  margin-top: 0.5rem;
+  color: var(--bs-body-color);
 }
 
 .swatchSmall {

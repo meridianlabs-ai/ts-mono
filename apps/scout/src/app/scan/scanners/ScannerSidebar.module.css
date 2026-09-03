@@ -5,6 +5,12 @@
 .entry {
   padding: 0.5em;
   display: grid;
+  width: 100%;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
   grid-template-columns: auto 1fr;
   column-gap: 0.5rem;
 }

@@ -90,7 +90,7 @@
   border-radius: 0 0 var(--bs-border-radius) var(--bs-border-radius);
   cursor: pointer;
   padding: 1px 0;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   font-size: 0.55rem;
   line-height: 1;
 }
@@ -144,8 +144,11 @@
   justify-content: center;
   width: 12px;
   flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   font-size: 8px;
 }
 
@@ -168,7 +171,7 @@
   background: none;
   font-size: 9px;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   opacity: 0;
 }
 
@@ -292,17 +295,16 @@
   border-radius: 0;
 }
 
-.parallelBadge {
-  font-size: var(--inspect-font-size-smallest);
-  color: var(--vscode-descriptionForeground, #717171);
-}
-
 /* Markers */
 
 .marker {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
   font-size: 9px;
   z-index: 1;
   pointer-events: auto;
@@ -345,7 +347,7 @@
   bottom: 0;
   left: 3px;
   width: 1px;
-  background-color: var(--vscode-errorForeground, #f44747);
+  background-color: var(--vscode-errorForeground);
 }
 
 .markerCompaction {
@@ -387,7 +389,7 @@
   height: 0;
   border-top: 3px solid transparent;
   border-bottom: 3px solid transparent;
-  border-left: 4px solid var(--vscode-descriptionForeground, #717171);
+  border-left: 4px solid var(--vscode-descriptionForeground);
   pointer-events: none;
 }
 
@@ -399,7 +401,7 @@
   right: 3px;
   width: 5px;
   height: 1px;
-  background: var(--vscode-descriptionForeground, #717171);
+  background: var(--vscode-descriptionForeground);
   transform: translateY(-50%);
 }
 
@@ -421,7 +423,7 @@
   border: 1px solid var(--vscode-widget-border, var(--bs-border-color));
   border-radius: 50%;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   font-size: 7px;
   width: 12px;
   height: 12px;
@@ -440,6 +442,25 @@
   opacity: 1;
 }
 
+.hiddenUtility {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--vscode-descriptionForeground, #717171);
+  font-size: 9px;
+  padding: 0;
+  margin-left: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.hiddenUtility:hover {
+  color: var(--vscode-foreground);
+  opacity: 1;
+  text-decoration: underline;
+}
+
 .breadcrumbTrail {
   display: flex;
   align-items: center;
@@ -455,7 +476,7 @@
 }
 
 .breadcrumbDivider {
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   font-size: var(--inspect-font-size-smallest);
   padding: 0 2px;
   -webkit-user-select: none;
@@ -466,7 +487,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   font-size: var(--inspect-font-size-smallest);
   padding: 0 2px;
 }
@@ -491,7 +512,7 @@
   padding: 0 0.75rem 0 0.5rem;
   font-size: var(--inspect-font-size-smallest);
   line-height: var(--swimlane-row-height);
-  color: var(--vscode-descriptionForeground, #717171);
+  color: var(--vscode-descriptionForeground);
   white-space: nowrap;
   text-align: right;
   -webkit-user-select: none;

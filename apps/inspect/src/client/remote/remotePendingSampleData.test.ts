@@ -2,7 +2,10 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { ApiError } from "../api/view-server/request";
 
-import { fetchPendingSampleDataDirect } from "./remotePendingSampleData";
+import {
+  fetchPendingSampleDataDirect,
+  SEGMENT_CAP_PER_CALL,
+} from "./remotePendingSampleData";
 
 vi.mock("./remoteZipFile", () => ({
   openZipFileFromBuffer: vi.fn((bytes: Uint8Array) =>
@@ -12,7 +15,9 @@ vi.mock("./remoteZipFile", () => ({
   ),
 }));
 
-vi.mock("../../utils/json-worker", () => ({
+// jsdom has no Worker, so replace the worker-backed parse with a direct one
+vi.mock("@tsmono/util", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tsmono/util")>()),
   asyncJsonParseBytes: vi.fn((bytes: Uint8Array) =>
     Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)))
   ),
@@ -50,12 +55,7 @@ describe("fetchPendingSampleDataDirect", () => {
             call_pool: [],
           })
         );
-        return {
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          arrayBuffer: () => Promise.resolve(body.buffer),
-        } as unknown as Response;
+        return new Response(body, { status: 200, statusText: "OK" });
       });
     });
 
@@ -178,5 +178,41 @@ describe("fetchPendingSampleDataDirect", () => {
     expect(result).toBeDefined();
     expect(result!.complete).toBe(false);
     expect(result!.has_more).toBe(false);
+  });
+
+  test("requests up to SEGMENT_CAP_PER_CALL segments", async () => {
+    const getUrls = vi.fn().mockResolvedValue({
+      segments: [],
+      has_more: false,
+      complete: true,
+    });
+    await fetchPendingSampleDataDirect(getUrls, "log", "s1", 1, {});
+    expect(getUrls).toHaveBeenCalledWith(
+      "log",
+      "s1",
+      1,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      SEGMENT_CAP_PER_CALL
+    );
+  });
+
+  test("reports has_more/complete from the response on the empty fast path", async () => {
+    const getUrls = vi.fn().mockResolvedValue({
+      segments: [],
+      has_more: true,
+      complete: false,
+    });
+    const result = await fetchPendingSampleDataDirect(
+      getUrls,
+      "log",
+      "s1",
+      1,
+      {}
+    );
+    expect(result?.has_more).toBe(true);
+    expect(result?.complete).toBe(false);
   });
 });

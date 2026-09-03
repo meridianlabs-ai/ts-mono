@@ -1,7 +1,7 @@
 import { cpSync, rmSync } from "fs";
 import { join, resolve } from "path";
 
-import react from "@vitejs/plugin-react";
+import react from "@vitejs/plugin-react-swc";
 import pc from "picocolors";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -11,7 +11,10 @@ import {
   findPythonRepoRoot,
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
-import { inlineThemeBootstrap } from "../../tooling/vite-plugins/index.js";
+import {
+  inlineThemeBootstrap,
+  rewriteLoopbackOrigin,
+} from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
   return {
@@ -29,14 +32,24 @@ function copyToPythonRepo(): Plugin {
   };
 }
 
+const viewServerUrl = "http://127.0.0.1:7575";
+
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
 
   const baseConfig = {
     plugins: [
       react({
-        jsxRuntime: "automatic",
-        fastRefresh: !isLibrary,
+        // Rust React Compiler via SWC. The escape hatch is required — the
+        // plugin has no first-class reactCompiler option yet. Needs
+        // plugin-react-swc >= 4.2.0 (earlier versions kept production builds
+        // on the non-SWC path even when options are mutated) and
+        // @swc/core >= 1.16.0 (where jsc.transform.reactCompiler landed).
+        useAtYourOwnRisk_mutateSwcOptions(options) {
+          options.jsc ??= {};
+          options.jsc.transform ??= {};
+          options.jsc.transform.reactCompiler = true;
+        },
       }),
     ],
     resolve: {
@@ -73,7 +86,7 @@ export default defineConfig(({ mode }) => {
       build: {
         outDir: "lib",
         lib: {
-          entry: resolve(__dirname, "src/index.ts"),
+          entry: resolve(import.meta.dirname, "src/index.ts"),
           name: "InspectAILogViewer",
           fileName: "index",
           formats: ["es"],
@@ -87,17 +100,18 @@ export default defineConfig(({ mode }) => {
           // mathjax is heavy and registers globals; keep it external so the
           // consumer installs/dedupes it once instead of each viewer
           // shipping its own copy.
+          //
+          // use-sync-external-store (via @tanstack/react-store) is CJS-only
+          // and `require`s react internally; bundling it alongside external
+          // react leaves a runtime `__require("react")` that throws in
+          // browsers. Externalize it (declared in dependencies) so the
+          // consumer's bundler does the CJS interop.
           external: (id: string) =>
-            /^(react|react-dom)(\/|$)/.test(id) ||
+            /^(react|react-dom|use-sync-external-store)(\/|$)/.test(id) ||
             id === "mathjax-full" ||
             id.startsWith("mathjax-full/") ||
             id === "markdown-it-mathjax3",
           output: {
-            globals: {
-              react: "React",
-              "react-dom": "ReactDOM",
-              "react-router-dom": "ReactRouterDOM",
-            },
             assetFileNames: (assetInfo) => {
               if (assetInfo.name && assetInfo.name.endsWith(".css")) {
                 return "styles/[name].[ext]";
@@ -117,17 +131,24 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
-        inlineThemeBootstrap(resolve(__dirname, "src/theme/bootstrap.ts")),
+        inlineThemeBootstrap(
+          resolve(import.meta.dirname, "src/theme/bootstrap.ts")
+        ),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
         copyToPythonRepo(),
       ],
       mode: "development",
       base: "",
       server: {
+        // Pinned so `pnpm dev` from the root always gives inspect 5173 and
+        // scout 5174 regardless of startup order (e2e uses 5175/5176).
+        port: 5173,
+        strictPort: true,
         proxy: {
           "/api": {
-            target: "http://127.0.0.1:7575",
+            target: viewServerUrl,
             changeOrigin: true,
+            configure: rewriteLoopbackOrigin(viewServerUrl),
           },
         },
       },

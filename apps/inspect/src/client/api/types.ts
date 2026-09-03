@@ -5,6 +5,7 @@ import type {
   BranchEvent,
   CallPoolData,
   CompactionEvent,
+  ConfigUpdate,
   ErrorEvent,
   EvalError,
   EvalLog,
@@ -47,10 +48,12 @@ import {
   EvalSampleScore,
   EvalSampleTarget,
 } from "../../@types/extraInspect";
+import { WorkResult } from "../../utils/workQueue";
+import type { LogZipAccess } from "../remote/remoteLogFile";
 
 export type SearchResultScope = { events?: "all"; messages?: "all" };
 
-export type { CallPoolData, MessagePoolData };
+export type { CallPoolData, LogInfo, MessagePoolData };
 
 // Hand-coded — references the local EventData with typed event union
 export interface SampleData {
@@ -76,6 +79,7 @@ export interface LogDetails {
   tags?: string[];
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
+  config_updates?: ConfigUpdate[] | null;
   sampleSummaries: SampleSummary[];
   // S3 ETag captured at fetch time. Used by the `edit_log` middleware
   // to prime an `If-Match` on the *first* save so concurrent-modification
@@ -112,11 +116,16 @@ export interface PendingSampleUrls {
 // Client-side types — looser than generated server types because they're
 // also constructed locally (from URL params, manifests, etc.)
 export interface RunningMetric {
+  /** `EvalScore.name` — one of its value keys for a dict-valued scorer. */
   scorer: string;
+  /** `EvalScore.scorer`. Absent in logs written before it was recorded. */
+  scorer_name?: string | null;
   name: string;
   value?: number | null;
   reducer?: string;
   params?: Record<string, unknown>;
+  /** Whether this is the eval's headline metric. */
+  headline?: boolean;
 }
 
 export interface PendingSamples {
@@ -126,21 +135,26 @@ export interface PendingSamples {
   etag?: string;
 }
 
+// Required fields mirror the generated EvalSampleSummary — summaries are
+// boundary-normalized (#555, normalizeSampleSummary), so consumers can read
+// them unguarded.
 export interface SampleSummary {
-  uuid?: string;
+  uuid?: string | null;
   id: number | string;
   epoch: number;
   input: EvalSample["input"];
   target: EvalSampleTarget;
-  scores: EvalSampleScore | null | undefined;
-  error?: string;
-  limit?: string;
-  metadata?: Record<string, unknown>;
-  completed?: boolean;
-  retries?: number;
+  scores?: EvalSampleScore | null;
+  error?: string | null;
+  limit?: string | null;
+  limit_reason?: string | null;
+  metadata: Record<string, unknown>;
+  completed: boolean;
+  retries?: number | null;
   // Per-sample timing and token usage; populated by Inspect's Python
   // EvalSampleSummary.summary() and serialized into summaries.json.
-  model_usage?: Record<string, ModelUsage>;
+  model_usage: Record<string, ModelUsage>;
+  role_usage: Record<string, ModelUsage>;
   model_fallbacks?: ModelFallback[] | null;
   started_at?: string | null;
   completed_at?: string | null;
@@ -187,20 +201,28 @@ export interface Capabilities {
   downloadLogs: boolean;
   webWorkers: boolean;
   streamSamples: boolean;
-  streamSampleData: boolean;
 }
 
+/**
+ * A backend api instance is bound to one log dir, fixed at construction.
+ * Every method answers about the construction dir and no other: results
+ * never depend on ambient state in the server or host (a view server's
+ * configured dir, a VS Code host's current selection). Two instances over
+ * the same transport with different dirs must answer independently. How a
+ * backend honors this (e.g. the view server sending `?log_dir=` on each
+ * request) is a private detail of that implementation.
+ *
+ * Relative `dir` args (`get_eval_set`, `get_flow`) are subdirs resolved
+ * against the construction dir; log-file args are full paths.
+ */
 export interface LogViewAPI {
   client_events: () => Promise<string[]>;
   get_eval_set: (dir?: string) => Promise<EvalSet | undefined>;
   get_flow: (dir?: string) => Promise<string | undefined>;
-  get_log_dir?: () => Promise<string | undefined>;
-  get_log_dir_handle?: (log_dir: string | undefined) => string;
-  get_logs?: (
+  get_logs: (
     mtime: number,
     clientFileCount: number
   ) => Promise<LogFilesResponse>;
-  get_log_root: () => Promise<LogRoot | undefined>;
   get_log_contents: (
     log_file: string,
     // This is the number of MB of the log to fetch. If the log is larger than this, only the header will be returned. If not provided, it always fetches the entire log. Really only user for old JSON logs.
@@ -295,21 +317,20 @@ export interface UserInfo {
   email?: string;
 }
 
+/**
+ * The client-facing api, bound to one log dir at construction (see
+ * `LogViewAPI` for the contract). The dir never appears in method
+ * signatures — an instance's answers are fully determined by the dir it
+ * was built with. To view a different dir, build a new instance
+ * (`app_config`'s `setLogRoot` does exactly that). Discovering the dir is
+ * app config's job, not the api's — see `BackendBootstrap`.
+ */
 export interface ClientAPI {
-  // Basic initialization
-  get_log_dir: () => Promise<string | undefined>;
-
-  get_log_dir_handle: (log_dir: string | undefined) => string;
-
   // List of files
   get_logs: (
     mtime: number,
     clientFileCount: number
   ) => Promise<LogFilesResponse>;
-
-  // Log files retrieval
-  // Legacy: Read the files and log directory in a single request
-  get_log_root: () => Promise<LogRoot>;
 
   // Read eval set
   get_eval_set: (dir?: string) => Promise<EvalSet | undefined>;
@@ -318,7 +339,15 @@ export interface ClientAPI {
   get_flow: (dir?: string) => Promise<string | undefined>;
 
   get_log_summaries: (log_files: string[]) => Promise<LogPreview[]>;
+  // Per-file settled results, aligned with `log_files` — one unreadable file
+  // never fails the others. See client-api.ts for the fallback that backs it.
+  get_log_summaries_settled: (
+    log_files: string[]
+  ) => Promise<WorkResult<LogPreview>[]>;
   get_log_details: (log_file: string, cached?: boolean) => Promise<LogDetails>;
+  // Cheap stat of the log file (size, plus etag where the backend provides
+  // one) — the change probe live-watch polling re-reads details on.
+  get_log_info: (log_file: string) => Promise<LogInfo>;
 
   // Sample retrieval
   get_log_sample: (
@@ -327,6 +356,12 @@ export interface ClientAPI {
     epoch: number,
     onProgress?: ProgressCallback
   ) => Promise<EvalSample | undefined>;
+  /**
+   * Entry-level access to an `.eval` log's already-open zip (undefined for
+   * non-eval logs). Serves format shapes the whole-sample reads don't —
+   * e.g. chunked samples.
+   */
+  get_log_zip_access?: (log_file: string) => Promise<LogZipAccess | undefined>;
   get_log_pending_samples?: (
     log_file: string,
     etag?: string
@@ -400,6 +435,8 @@ export interface FetchResponse {
 export interface EvalHeader {
   version?: EvalLogVersion;
   status?: EvalLogStatus;
+  /** Log invalidation flag; absent on journal-synthesized headers. */
+  invalidated?: boolean;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;
@@ -408,6 +445,7 @@ export interface EvalHeader {
   tags?: string[];
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
+  config_updates?: ConfigUpdate[] | null;
 }
 
 export interface LogPreview {
@@ -431,9 +469,122 @@ export interface LogPreview {
   primary_metric?: EvalMetric;
 }
 
+/**
+ * The stored/cached form of one log's content: the details payload minus its
+ * sample summaries (those are their own store — see
+ * design/migration/log-data-summaries-entity.md), plus facts about the log's
+ * samples derived once at ingestion. Deriving at write time is what keeps
+ * whole-dir summary scans off every read path — these facts are listing
+ * columns (Sample Errors / Sample Limits) and the zero-samples check.
+ */
+export interface LogHeader extends EvalHeader {
+  etag?: string;
+  sampleCount: number;
+  sampleErrorCount: number;
+  /** Distinct limit kinds across the log's samples, sorted. */
+  sampleLimits: string[];
+}
+
+/** How much of a Log's content has been acquired. Ratchets upward within a
+ *  row's lifetime; an mtime invalidation resets it (identity kept, content
+ *  dropped). A column on the row — never a different type or store. */
+export type LogDepth = "listed" | "previewed" | "detailed";
+
+/**
+ * Listing columns derived from a details payload once at ingestion (see
+ * `deriveLogFields`) and stored on the row, so listing reads never compute —
+ * the same fields the log-list grid sorts/filters on, in query-ready form.
+ * Arrives at `detailed` depth; an mtime invalidation drops it with the rest
+ * of the row's content.
+ */
+export interface LogDerived {
+  /** Total tokens summed across all models. */
+  total_tokens?: number;
+  /** Wall-clock duration in seconds (stats.completed_at − stats.started_at). */
+  duration?: number;
+  /** Task args formatted as `k=v, ...` (prefers `task_args_passed`). */
+  task_args?: string;
+  /** Percent of samples completed (0–100). */
+  percent_completed?: number;
+  /** Distinct sample limit kinds, sorted and comma-joined. */
+  sample_limits?: string;
+  /** Score metric values keyed scorer → metric. */
+  scores?: Record<string, Record<string, number>>;
+}
+
+/**
+ * Sample listing columns derived from a summary once at ingestion (see
+ * `deriveSampleFields`) and stored beside it — the sample-intrinsic fields
+ * the samples grid sorts/filters on. Log-level context (task/model/status)
+ * is deliberately NOT denormalized here: it would go stale when the log row
+ * changes tier, so it stays a read-time join.
+ */
+export interface SampleDerived {
+  /** Total tokens summed across all models. */
+  tokens?: number;
+  /** Input as displayable/filterable text. */
+  input: string;
+  /** Target as displayable/filterable text. */
+  target: string;
+  /** Total model fallbacks (undefined when none). */
+  fallbacks?: number;
+  /** Raw score values keyed by score name. */
+  scores?: Record<string, unknown>;
+}
+
+/**
+ * The Log entity row — identity plus header attributes at progressive
+ * depth, plus retrieval facts. The one shape the store, the cache, and the
+ * listing share (see design/migration/log-data-summaries-entity.md, phase
+ * 3). Flat attribute columns arrive at `previewed` depth and are refreshed
+ * at `detailed`; `header` is the deep form.
+ */
+export interface Log extends LogHandle {
+  depth: LogDepth;
+
+  status?: EvalLogStatus;
+  error?: EvalError | null;
+  version?: EvalLogVersion;
+  eval_id?: string;
+  run_id?: string;
+  task_version?: EvalSpec["task_version"];
+  model?: string;
+  model_roles?: Record<string, string> | null;
+  started_at?: string;
+  completed_at?: string;
+  primary_metric?: EvalMetric;
+
+  header?: LogHeader;
+  derived?: LogDerived;
+
+  // Retrieval (fetch) facts about the row — a domain separate from eval
+  // status/error. Attempts gate backfill retries; the settled seq is the
+  // session-local "landed" counter waitered fetches bump.
+  preview_fetch_error?: string;
+  preview_attempts: number;
+  details_fetch_error?: string;
+  details_attempts: number;
+  details_settled_seq: number;
+}
+
+/** The retrieval-facts slice of a Log row (what fetch outcomes update). */
+export type LogFetchState = Pick<
+  Log,
+  | "preview_fetch_error"
+  | "preview_attempts"
+  | "details_fetch_error"
+  | "details_attempts"
+  | "details_settled_seq"
+>;
+
 export interface LogRoot {
   logs: LogHandle[];
   log_dir?: string;
+  /** The dir in the same canonical URI namespace as file names (a local
+   *  view server aliases `log_dir` for display, e.g. `~/logs`, while names
+   *  are `file://` URIs). Prefix scoping needs this form; older servers
+   *  don't send it. */
+  log_dir_uri?: string;
   abs_log_dir?: string;
 }
 

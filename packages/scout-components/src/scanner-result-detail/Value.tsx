@@ -7,7 +7,12 @@ import {
   MarkdownDivWithReferences,
   MarkdownReference,
 } from "@tsmono/react/components";
-import { formatPrettyDecimal, printArray, printObject } from "@tsmono/util";
+import {
+  formatPrettyDecimal,
+  isRecord,
+  printArray,
+  printObject,
+} from "@tsmono/util";
 
 import {
   isArrayValue,
@@ -58,6 +63,7 @@ export const Value: FC<ValueProps> = ({
         options={options}
       />
     );
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (isNumberValue(input) && input.value !== null) {
     return formatPrettyDecimal(input.value);
   } else if (isBooleanValue(input)) {
@@ -122,10 +128,7 @@ const ValueList: FC<{
 
   return (
     <div
-      className={clsx(
-        styles.valueTable,
-        style === "inline" ? styles.inline : styles.block
-      )}
+      className={clsx(styles.valueTable, style === "inline" && styles.inline)}
     >
       {itemsToDisplay.map((item, index) => {
         const displayValue = renderValue(
@@ -180,10 +183,7 @@ const ValueTable: FC<{
 
   return (
     <div
-      className={clsx(
-        styles.valueTable,
-        style === "inline" ? styles.inline : styles.block
-      )}
+      className={clsx(styles.valueTable, style === "inline" && styles.inline)}
     >
       {keysToDisplay.map((key, index) => {
         const displayValue = renderValue(
@@ -249,13 +249,13 @@ const renderValue = (
     return <pre className={clsx(styles.value)}>null</pre>;
   } else if (Array.isArray(val)) {
     return printArray(val, 35);
-  } else if (typeof val === "object") {
+  } else if (isRecord(val)) {
     return !interactive ? (
       printObject(val, 35)
     ) : (
       <RecordTree
         id={`value-record-${identifier ?? "na"}-${index}`}
-        record={val as Record<string, unknown>}
+        record={val}
       />
     );
   } else {

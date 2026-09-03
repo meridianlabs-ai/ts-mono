@@ -5,24 +5,29 @@
   "type": "module",
   "exports": {
     "./base": "./base.js",
-    "./react": "./react.js"
+    "./react": "./react.js",
+    "./barrel-only": "./barrel-only.js"
   },
   "dependencies": {
-    "@eslint/js": "^9.39.2",
+    "@css-modules-kit/eslint-plugin": "^1.4.0",
+    "@eslint/compat": "^2.1.0",
+    "@eslint/css": "^1.4.0",
+    "@eslint/js": "^10.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-import-resolver-typescript": "^4.4.5",
-    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
-    "typescript-eslint": "^8.61.1"
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "typescript-eslint": "^8.68.0"
   },
   "peerDependencies": {
-    "eslint": "^9.0.0",
+    "eslint": "^10.0.0",
     "typescript": "^6.0.0"
   },
   "devDependencies": {
-    "eslint": "^9.39.4",
-    "typescript": "^6.0.3"
+    "eslint": "^10.7.0",
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   }
 }

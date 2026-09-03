@@ -16,6 +16,7 @@ export const useSelectedScan = (): AsyncData<Status> => {
   const setSelectedScanLocation = useStore(
     (state) => state.setSelectedScanLocation
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scanPath) {
       setSelectedScanLocation(scanPath);

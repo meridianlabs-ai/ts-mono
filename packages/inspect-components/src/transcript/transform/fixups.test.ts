@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import type { Event, ToolEvent } from "@tsmono/inspect-common/types";
+import {
+  testSpanEndEvent,
+  testStateEvent,
+  testStoreEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
+import type {
+  Event,
+  JsonChange,
+  StoreEvent,
+  ToolEvent,
+} from "@tsmono/inspect-common/types";
 
 import { fixupEventStream } from "./fixups";
 
@@ -9,20 +20,14 @@ const toolEvent = (
   uuid: string | null,
   pending: boolean
 ): ToolEvent =>
-  ({
-    event: "tool",
-    type: "function",
+  testToolEvent({
     id,
     uuid,
     pending,
     timestamp: "2026-01-01T00:00:00Z",
-    working_start: 0,
     function: "noop",
-    arguments: {},
-    events: [],
-    result: "",
     span_id: null,
-  }) as unknown as ToolEvent;
+  });
 
 const eventIds = (events: Event[]) =>
   events.filter((e): e is ToolEvent => e.event === "tool").map((e) => e.id);
@@ -70,5 +75,74 @@ describe("fixupEventStream — pending coalescing", () => {
     ];
     const out = fixupEventStream(events, true);
     expect(eventIds(out)).toEqual(["b"]);
+  });
+});
+
+describe("fixupEventStream — store event echo dedupe", () => {
+  const changes: JsonChange[] = [
+    {
+      op: "add",
+      path: "/HumanAgentState:logs",
+      value: { "s.output": "x" },
+      replaced: null,
+    },
+    {
+      op: "add",
+      path: "/HumanAgentState:answer",
+      value: "INC-1042",
+      replaced: null,
+    },
+  ];
+
+  const storeEvent = (uuid: string, c: JsonChange[] = changes): StoreEvent =>
+    testStoreEvent({ uuid, changes: c });
+
+  const storeUuids = (events: Event[]) =>
+    events
+      .filter((e): e is StoreEvent => e.event === "store")
+      .map((e) => e.uuid);
+
+  it("keeps only the last of identical store events separated by span closes", () => {
+    // inspect_ai emits a store diff at every enclosing span end, so a write
+    // inside nested spans is re-reported once per level (identical changes,
+    // separated only by span_end/state events). Keep the outermost report.
+    const events: Event[] = [
+      storeEvent("inner"),
+      testSpanEndEvent({ id: "agent" }),
+      testStateEvent(),
+      storeEvent("middle"),
+      testSpanEndEvent({ id: "solver" }),
+      storeEvent("outer"),
+      testSpanEndEvent({ id: "solvers" }),
+    ];
+    expect(storeUuids(fixupEventStream(events))).toEqual(["outer"]);
+  });
+
+  it("keeps identical store events separated by substantive activity", () => {
+    // Same diff twice with real work in between is two genuine reports
+    // (e.g. a value toggled away and back across two spans), not an echo.
+    const events: Event[] = [
+      storeEvent("first"),
+      toolEvent("t", "uuid-t", false),
+      storeEvent("second"),
+    ];
+    expect(storeUuids(fixupEventStream(events))).toEqual(["first", "second"]);
+  });
+
+  it("keeps adjacent store events with different changes", () => {
+    const other: JsonChange[] = [
+      { op: "replace", path: "/Other:key", value: 1, replaced: null },
+    ];
+    const events: Event[] = [
+      storeEvent("first"),
+      testSpanEndEvent({ id: "inner" }),
+      storeEvent("second", other),
+    ];
+    expect(storeUuids(fixupEventStream(events))).toEqual(["first", "second"]);
+  });
+
+  it("leaves a lone store event untouched", () => {
+    const events: Event[] = [storeEvent("only")];
+    expect(storeUuids(fixupEventStream(events))).toEqual(["only"]);
   });
 });

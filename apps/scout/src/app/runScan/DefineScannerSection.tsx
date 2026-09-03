@@ -14,15 +14,16 @@ import { useAppConfig } from "../server/useAppConfig";
 import { useScanners } from "../server/useScanners";
 import { useStartScan } from "../server/useStartScan";
 import { TranscriptFilterBar } from "../transcripts/TranscriptFilterBar";
+import { eventValue } from "../utils/formEvents";
 import { useScansDir } from "../utils/useScansDir";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 
+import styles from "./DefineScannerSection.module.css";
 import { LlmScannerParams, LlmScannerParamsValue } from "./LlmScannerParams";
-import styles from "./RunScanPanel.module.css";
 import { ScannerParamsPlaceholder } from "./ScannerParamsPlaceholder";
 
 function getSelectValue(e: Event): string {
-  return (e.target as HTMLSelectElement).value;
+  return eventValue(e);
 }
 
 interface Props {

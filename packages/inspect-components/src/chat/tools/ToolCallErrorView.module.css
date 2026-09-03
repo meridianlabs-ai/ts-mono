@@ -8,12 +8,6 @@
   margin: 0.5em 0;
 }
 
-.type {
-  font-weight: 600;
-  margin-bottom: 0.25em;
-  text-transform: capitalize;
-}
-
 .message {
   white-space: pre-wrap;
 }

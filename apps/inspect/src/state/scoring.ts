@@ -1,5 +1,5 @@
 import { ScoreLabel } from "../app/types";
-import { LogDetails, SampleSummary } from "../client/api/types";
+import { LogHeader, SampleSummary } from "../client/api/types";
 
 /**
  * Extracts scorer information from sample summaries
@@ -40,7 +40,7 @@ const getScorersFromSamples = (samples: SampleSummary[]): ScoreLabel[] => {
  * Gets all available scorers for a log, prioritizing results over samples
  */
 export const getAvailableScorers = (
-  _log: LogDetails,
+  _log: LogHeader,
   sampleSummaries: SampleSummary[]
 ): ScoreLabel[] | undefined => {
   const sampleScorers = getScorersFromSamples(sampleSummaries);

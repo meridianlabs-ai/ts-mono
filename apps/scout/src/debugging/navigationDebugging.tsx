@@ -7,13 +7,14 @@ import {
   To,
   useLocation,
   useNavigate,
-} from "react-router-dom";
+} from "react-router";
 
 const NAVIGATION_LOGGING_ENABLED = false;
 
 const timestamp = () => new Date().toISOString().slice(11, 23);
 
 export const navigationLog = (description: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (NAVIGATION_LOGGING_ENABLED) {
     console.log(`[${timestamp()}] ${description}`);
   }
@@ -29,7 +30,7 @@ export const LoggingNavigate = ({ reason, ...props }: LoggingNavigateProps) => {
   return <Navigate {...props} />;
 };
 
-export const useLoggingNavigate = (description: string): NavigateFunction => {
+export const useLoggingNavigate = (description: string) => {
   const navigate = useNavigate();
   const location = useLocation();
   return useMemo(
@@ -42,24 +43,26 @@ const wrapNavigate = (
   navigate: NavigateFunction,
   description: string,
   location: ReturnType<typeof useLocation>
-): NavigateFunction => {
-  function loggingNavigate(
-    to: To,
-    options?: NavigateOptions
-  ): void | Promise<void>;
-  function loggingNavigate(delta: number): void | Promise<void>;
+) => {
+  function loggingNavigate(to: To, options?: NavigateOptions): void;
+  function loggingNavigate(delta: number): void;
   function loggingNavigate(
     toOrDelta: To | number,
     options?: NavigateOptions
-  ): void | Promise<void> {
+  ): void {
     navigationLog(
       `navigate() ('${description}')\n\twindow.location.hash='${window.location.hash}'\n\trouter location: pathname='${location.pathname}' hash='${location.hash}'\nto\n\t${JSON.stringify(toOrDelta)}`
     );
-    if (typeof toOrDelta === "number") {
-      return navigate(toOrDelta);
-    } else {
-      return navigate(toOrDelta, options);
-    }
+    // Returns void so callers never hold a floating promise: navigate()
+    // resolves when the router settles, and a rejection is a router-internal
+    // failure no caller can act on — surface it here instead.
+    const result =
+      typeof toOrDelta === "number"
+        ? navigate(toOrDelta)
+        : navigate(toOrDelta, options);
+    Promise.resolve(result).catch((error: unknown) => {
+      console.error(`navigate() ('${description}') failed:`, error);
+    });
   }
   return loggingNavigate;
 };

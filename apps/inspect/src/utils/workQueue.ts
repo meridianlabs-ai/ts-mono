@@ -2,7 +2,13 @@ export enum WorkPriority {
   Low = 0,
   Medium = 1,
   High = 2,
+  // Reserved for interactive requests (a user is awaiting this item), so they
+  // front-run any queued background work.
+  User = 3,
 }
+
+export type WorkResult<TOutput> =
+  { ok: true; value: TOutput } | { ok: false; error: Error };
 
 interface WorkItem<T> {
   id: string;
@@ -15,23 +21,35 @@ interface WorkItem<T> {
 interface WorkQueueOptions<TInput, TOutput> {
   name: string;
   concurrency: number;
-  batchSize?: number;
+  /** Items are batched only with same-group items; the head item's group wins. */
+  batchGroup?: (item: TInput) => string;
+  /** Max batch size for the head item's group. */
+  batchSizeFor?: (item: TInput) => number;
   processingDelay?: number;
+  /** Per ITEM, not per batch. */
   maxRetries?: number;
   getId: (item: TInput) => string;
-  worker: (items: TInput[]) => Promise<TOutput[]>;
-  onComplete: (results: TOutput[], inputs: TInput[]) => Promise<void>;
+  /** Aligned with items. Throwing = every item in the batch failed. */
+  worker: (items: TInput[]) => Promise<WorkResult<TOutput>[]>;
+  /** Called once per batch with SETTLED items only (successes + final
+   *  failures). Retryable failures are re-enqueued silently. */
+  onComplete: (
+    results: WorkResult<TOutput>[],
+    inputs: TInput[]
+  ) => Promise<void>;
   onProcessingChanged?: (processing: boolean) => void;
 }
 
 export class WorkQueue<TInput, TOutput> {
   private itemsById = new Map<string, WorkItem<TInput>>();
   private activeWorkers = 0;
+  private generation = 0;
   private options: Required<WorkQueueOptions<TInput, TOutput>>;
 
   constructor(options: WorkQueueOptions<TInput, TOutput>) {
     this.options = {
-      batchSize: 1,
+      batchGroup: () => "",
+      batchSizeFor: () => 1,
       processingDelay: 100,
       maxRetries: 3,
       onProcessingChanged: (_processing: boolean) => {},
@@ -65,11 +83,6 @@ export class WorkQueue<TInput, TOutput> {
     void this.startProcessing();
   }
 
-  async processImmediate(items: TInput[]) {
-    const results = await this.options.worker(items);
-    void this.options.onComplete(results, items);
-  }
-
   private startProcessing() {
     // Start new workers up to concurrency limit
     while (
@@ -88,13 +101,15 @@ export class WorkQueue<TInput, TOutput> {
       }
 
       // Run the worker
-      void this.runWorker();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.runWorker();
     }
   }
 
   private async runWorker() {
     try {
       while (this.itemsById.size > 0) {
+        const generation = this.generation;
         // Get next batch (sorted by priority, then age) and remove from queue immediately
         const batch = this.claimNextBatch();
 
@@ -105,22 +120,38 @@ export class WorkQueue<TInput, TOutput> {
 
         const inputs = batch.map((item) => item.data);
 
+        let results: WorkResult<TOutput>[];
         try {
-          const results = await this.options.worker(inputs);
-
-          void this.options.onComplete(results, inputs);
+          results = await this.options.worker(inputs);
         } catch (error) {
-          console.error("Work queue processing error:", error);
+          // A thrown worker fails every item in the batch identically; each
+          // still gets its own retry decision below.
+          const err = error instanceof Error ? error : new Error(String(error));
+          results = inputs.map(() => ({ ok: false, error: err }));
+        }
 
-          // Retry or remove items
-          for (const item of batch) {
-            if (item.retries < this.options.maxRetries) {
-              // Retry this item - add it back to the queue
-              item.retries++;
-              this.itemsById.set(item.id, item);
-            }
-            // Otherwise item is just dropped (already removed from queue)
+        if (generation !== this.generation) {
+          continue;
+        }
+
+        const settledResults: WorkResult<TOutput>[] = [];
+        const settledInputs: TInput[] = [];
+        for (const [i, item] of batch.entries()) {
+          const result = results[i] ?? {
+            ok: false,
+            error: new Error("Worker returned no result for item"),
+          };
+          if (!result.ok && item.retries < this.options.maxRetries) {
+            item.retries++;
+            this.itemsById.set(item.id, item);
+          } else {
+            settledResults.push(result);
+            settledInputs.push(item.data);
           }
+        }
+        if (settledResults.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          this.options.onComplete(settledResults, settledInputs);
         }
 
         // Delay between batches
@@ -155,15 +186,37 @@ export class WorkQueue<TInput, TOutput> {
       return a.addedAt - b.addedAt;
     });
 
-    // Slice into a batch
-    const batch = items.slice(0, this.options.batchSize);
+    const head = items[0];
+    if (!head) {
+      return [];
+    }
+
+    // Extend the head with same-group items (in priority/age order), up to
+    // the head's group's batch size — heterogeneous kinds share the queue
+    // without sharing a batch.
+    const group = this.options.batchGroup(head.data);
+    const maxSize = this.options.batchSizeFor(head.data);
+    const batch: WorkItem<TInput>[] = [];
+    for (const item of items) {
+      if (batch.length >= maxSize) {
+        break;
+      }
+      if (this.options.batchGroup(item.data) === group) {
+        batch.push(item);
+      }
+    }
 
     // Remove claimed items from the queue immediately
     batch.forEach((item) => this.itemsById.delete(item.id));
     return batch;
   }
 
+  /**
+   * Drop all queued work AND invalidate in-flight batches: their results
+   * are discarded without retry or onComplete.
+   */
   clear() {
+    this.generation++;
     this.itemsById.clear();
   }
 

@@ -14,7 +14,7 @@ import {
 
 import { useStatefulScrollPosition } from "../hooks";
 
-import moduleStyles from "./TabSet.module.css";
+import styles from "./TabSet.module.css";
 
 interface TabSetProps {
   id: string;
@@ -65,10 +65,10 @@ export const TabSet: FC<TabSetProps> = ({
         className={clsx(
           "nav",
           type === "pills-small" ? "nav-pills" : `nav-${type}`,
-          type === "tabs" ? moduleStyles.tabStyle : undefined,
-          type === "pills-small" ? moduleStyles.pillSmallContainer : undefined,
+          type === "tabs" ? styles.tabStyle : undefined,
+          type === "pills-small" ? styles.pillSmallContainer : undefined,
           className,
-          moduleStyles.tabs
+          styles.tabs
         )}
         role="tablist"
         aria-orientation="horizontal"
@@ -84,7 +84,7 @@ export const TabSet: FC<TabSetProps> = ({
         ))}
         {tools && (
           <Fragment>
-            <li className={moduleStyles.tabSpacer} aria-hidden="true" />
+            <li className={styles.tabSpacer} aria-hidden="true" />
             <TabTools tools={tools} />
           </Fragment>
         )}
@@ -106,18 +106,20 @@ const Tab: FC<{
   const isActive = tab.props.selected;
 
   return (
-    <li role="presentation" className={clsx("nav-item", moduleStyles.tabItem)}>
+    <li role="presentation" className={clsx("nav-item", styles.tabItem)}>
       <button
         id={tabId}
         className={clsx(
           "nav-link",
           className,
           isActive && "active",
+          // "pills" gets bootstrap's nav-pills styling alone; a module-level
+          // .pill rule never existed (styles.pill was always undefined).
           type === "pills-small"
-            ? moduleStyles.pillSmall
+            ? styles.pillSmall
             : type === "pills"
-              ? moduleStyles.pill
-              : moduleStyles.tab,
+              ? undefined
+              : styles.tab,
           type === "pills-small" ? "text-size-smallest" : "text-size-small",
           "text-style-label"
         )}
@@ -128,7 +130,7 @@ const Tab: FC<{
         onClick={tab.props.onSelected}
       >
         {tab.props.icon && (
-          <i className={clsx(tab.props.icon, moduleStyles.tabIcon)} />
+          <i className={clsx(tab.props.icon, styles.tabIcon)} />
         )}
         {tab.props.title}
       </button>
@@ -174,8 +176,8 @@ export const TabPanel: FC<TabPanelProps> = ({
         "tab-pane",
         selected && "show active",
         className,
-        moduleStyles.tabContents,
-        scrollable && moduleStyles.scrollable
+        styles.tabContents,
+        scrollable && styles.scrollable
       )}
       style={style}
     >
@@ -186,7 +188,7 @@ export const TabPanel: FC<TabPanelProps> = ({
 
 // Tab Tools Component
 const TabTools: FC<{ tools?: ReactNode }> = ({ tools }) => (
-  <div className={clsx("tab-tools", moduleStyles.tabTools)}>{tools}</div>
+  <div className={clsx("tab-tools", styles.tabTools)}>{tools}</div>
 );
 
 // Utility functions
@@ -197,8 +199,8 @@ const flattenChildren = (
   children: ReactNode
 ): ReactElement<TabPanelProps>[] => {
   return Children.toArray(children).flatMap((child) => {
-    if (isValidElement(child)) {
-      const element = child as ReactElement<TabPanelProps>;
+    if (isValidElement<TabPanelProps>(child)) {
+      const element = child;
 
       if (element.type === Fragment) {
         return flattenChildren(element.props.children);

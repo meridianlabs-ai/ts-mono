@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { isRecord } from "@tsmono/util";
+
 import styles from "./WebSearchResults.module.css";
 
 export interface WebSearchContentData {
@@ -9,6 +11,14 @@ export interface WebSearchContentData {
   page_age: string;
 }
 
+/** Shallow: results come from a tool payload; title and url are what render. */
+export const isWebSearchContentData = (
+  value: unknown
+): value is WebSearchContentData =>
+  isRecord(value) &&
+  typeof value["title"] === "string" &&
+  typeof value["url"] === "string";
+
 export const WebSearchResults: FC<{ results: WebSearchContentData[] }> = ({
   results,
 }) => {
@@ -16,7 +26,6 @@ export const WebSearchResults: FC<{ results: WebSearchContentData[] }> = ({
     <>
       <div
         className={clsx(
-          styles.label,
           "text-style-label",
           "text-style-secondary",
           "text-size-smaller"
@@ -25,7 +34,7 @@ export const WebSearchResults: FC<{ results: WebSearchContentData[] }> = ({
         Results
       </div>
 
-      <ol className={clsx(styles.results, "text-size-smaller")}>
+      <ol className={clsx("text-size-smaller")}>
         {results.map((result, index) => (
           <li
             key={index}

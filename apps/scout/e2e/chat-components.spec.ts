@@ -229,6 +229,36 @@ test.describe("chat message rendering", () => {
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
   });
 
+  test("renders inline data images embedded in markdown", async ({
+    page,
+    network,
+  }) => {
+    await openMessages(
+      page,
+      network,
+      createMessagesEventsResponse({
+        messages: [
+          {
+            role: "assistant",
+            content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+            id: null,
+          },
+        ],
+        events: [
+          createModelEvent({
+            uuid: "evt-1",
+            startSec: 0,
+            endSec: 2,
+            tokens: 30,
+            content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+          }),
+        ],
+      })
+    );
+
+    await expect(page.locator("img[src^='data:image/gif']")).toHaveCount(1);
+  });
+
   test("does not automatically load remote message media", async ({
     page,
     network,
@@ -279,6 +309,7 @@ test.describe("chat message rendering", () => {
                 document: `${MEDIA_ORIGIN}/document.png`,
                 filename: "document.png",
                 mime_type: "image/png",
+                citations: false,
               },
             ],
           },
@@ -700,7 +731,10 @@ test.describe("message content types", () => {
     ).toBeVisible();
   });
 
-  test("strips internal tags from text content", async ({ page, network }) => {
+  test("renders internal tags as literal text content", async ({
+    page,
+    network,
+  }) => {
     await openMessages(
       page,
       network,
@@ -710,7 +744,9 @@ test.describe("message content types", () => {
           {
             role: "assistant",
             content:
-              "Visible text <internal>hidden internal content</internal> more visible text.",
+              "Visible text <internal>internal evidence</internal> " +
+              "<content-internal>provider metadata evidence</content-internal> " +
+              "more visible text.",
             id: null,
           },
         ],
@@ -721,7 +757,9 @@ test.describe("message content types", () => {
             endSec: 1,
             tokens: 20,
             content:
-              "Visible text <internal>hidden internal content</internal> more visible text.",
+              "Visible text <internal>internal evidence</internal> " +
+              "<content-internal>provider metadata evidence</content-internal> " +
+              "more visible text.",
           }),
         ],
       })
@@ -729,8 +767,8 @@ test.describe("message content types", () => {
 
     await expect(page.getByText("Visible text")).toBeVisible();
     await expect(page.getByText("more visible text")).toBeVisible();
-    // Internal content should NOT be visible
-    await expect(page.getByText("hidden internal content")).not.toBeVisible();
+    await expect(page.getByText("internal evidence")).toBeVisible();
+    await expect(page.getByText("provider metadata evidence")).toBeVisible();
   });
 
   test("renders ANSI codes in tool output", async ({ page, network }) => {
@@ -930,11 +968,11 @@ test.describe("label and numbering system", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Think tag stripping
+// Literal think tags
 // ---------------------------------------------------------------------------
 
-test.describe("think tag stripping", () => {
-  test("strips <think> tags from assistant text content", async ({
+test.describe("literal think tags", () => {
+  test("renders <think> tags as assistant text content", async ({
     page,
     network,
   }) => {
@@ -947,7 +985,7 @@ test.describe("think tag stripping", () => {
           {
             role: "assistant",
             content:
-              "Before thinking <think>internal reasoning that should be hidden</think> after thinking visible.",
+              "Before thinking <think>literal reasoning evidence</think> after thinking visible.",
             id: null,
           },
         ],
@@ -958,7 +996,7 @@ test.describe("think tag stripping", () => {
             endSec: 1,
             tokens: 20,
             content:
-              "Before thinking <think>internal reasoning that should be hidden</think> after thinking visible.",
+              "Before thinking <think>literal reasoning evidence</think> after thinking visible.",
           }),
         ],
       })
@@ -966,10 +1004,7 @@ test.describe("think tag stripping", () => {
 
     await expect(page.getByText("Before thinking")).toBeVisible();
     await expect(page.getByText("after thinking visible")).toBeVisible();
-    // Think content must NOT be visible
-    await expect(
-      page.getByText("internal reasoning that should be hidden")
-    ).not.toBeVisible();
+    await expect(page.getByText("literal reasoning evidence")).toBeVisible();
   });
 });
 

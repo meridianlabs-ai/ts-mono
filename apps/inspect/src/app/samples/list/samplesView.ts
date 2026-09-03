@@ -1,5 +1,3 @@
-import type { FilterModel } from "ag-grid-community";
-
 import type {
   TaskSamplesColumn,
   TaskSamplesSort,
@@ -19,8 +17,8 @@ export type { TaskSamplesColumn, TaskSamplesSort, TaskSamplesView };
 
 /**
  * Runtime descriptor — what the inspect app's SampleList store holds
- * and what the future `useSamplesView` hook returns. Resolves nullable
- * wire fields and adds ag-grid filterModel residue (`extraColumnFilters`)
+ * and what the `useSamplesView` hook returns. Resolves nullable wire
+ * fields and adds per-column filter residue (`extraColumnFilters`)
  * for any column-header filter that isn't expressible in the DSL.
  *
  * `extraColumnFilters` is TS-only. It is never serialized to Python
@@ -37,12 +35,12 @@ export interface SamplesViewState {
     /** Canonical filter expression. Empty string = no DSL filter. */
     dsl: string;
     /**
-     * ag-grid filter entries for columns whose filter isn't expressible
-     * as DSL (typed-set selectors, regex on raw string columns, etc.).
-     * Derived at write time from the live `filterModel`; round-trippable
-     * entries are excluded so we don't store the same predicate twice.
+     * Per-column filter entries whose filter isn't expressible as DSL
+     * (typed-set selectors, regex on raw string columns, etc.), keyed by
+     * column id. Round-trippable entries are excluded so we don't store
+     * the same predicate twice.
      */
-    extraColumnFilters: FilterModel;
+    extraColumnFilters: Record<string, unknown>;
   };
   /**
    * Row layout. `true` = list-style multi-line rows (88px);

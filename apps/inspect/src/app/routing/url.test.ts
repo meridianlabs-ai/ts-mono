@@ -1,202 +1,21 @@
 /**
- * Tests for URL route parsing logic.
+ * Tests for URL route parsing and construction.
  *
- * These tests verify the regex-based URL parsing that extracts route parameters
- * from splat paths. The parsing logic is extracted here as pure functions to
- * avoid React Router dependencies in tests.
+ * The parsers are pure functions exported from url.ts, so these tests
+ * exercise the same code the routing hooks use.
  */
 import { describe, expect, test } from "vitest";
 
-// Constants copied from src/constants.ts to avoid import chain issues
-const kSampleTabIds = [
-  "messages",
-  "transcript",
-  "scoring",
-  "metadata",
-  "error",
-  "retry-errors",
-  "json",
-];
+import { directoryRelativeUrl } from "@tsmono/util";
 
-const kWorkspaceTabs = ["samples", "json", "info", "models", "task", "error"];
-
-/**
- * Decodes a URL parameter that may be URL-encoded.
- * Safely handles already decoded strings.
- */
-const decodeUrlParam = (param: string | undefined): string | undefined => {
-  if (!param) return param;
-  try {
-    return decodeURIComponent(param);
-  } catch {
-    return param;
-  }
-};
-
-/**
- * Pure function that parses log route parameters from a splat path.
- * This is extracted from useLogRouteParams for testability.
- */
-function parseLogRouteParams(splatPath: string) {
-  // Check for sample UUID route pattern
-  const sampleUuidMatch = splatPath.match(
-    /^(.+?)\/samples\/sample_uuid\/([^/]+)(?:\/(.+?))?\/?\s*$/
-  );
-  if (sampleUuidMatch) {
-    const [, logPath, sampleUuid, sampleTabId] = sampleUuidMatch;
-    return {
-      logPath: decodeUrlParam(logPath),
-      tabId: undefined,
-      sampleTabId: decodeUrlParam(sampleTabId),
-      sampleId: undefined,
-      epoch: undefined,
-      sampleUuid: decodeUrlParam(sampleUuid),
-    };
-  }
-
-  // Check for full sample route pattern in splat path
-  // Pattern: logPath/samples/sample/sampleId/epoch/sampleTabId
-  const fullSampleUrlMatch = splatPath.match(
-    /^(.+?)\/samples\/sample\/([^/]+)(?:\/([^/]+)(?:\/(.+?))?)?\/?\s*$/
-  );
-  if (fullSampleUrlMatch) {
-    const [, logPath, sampleId, epoch, sampleTabId] = fullSampleUrlMatch;
-    return {
-      logPath: decodeUrlParam(logPath),
-      tabId: undefined,
-      sampleTabId: decodeUrlParam(sampleTabId),
-      sampleId: decodeUrlParam(sampleId),
-      epoch: epoch ? decodeUrlParam(epoch) : undefined,
-    };
-  }
-
-  // Check for sample URLs that might not match the formal route pattern
-  // Pattern: /logs/*/samples/sampleId/epoch or /logs/*/samples/sampleTabId
-  const sampleUrlMatch = splatPath.match(
-    /^(.+?)\/samples(?:\/([^/]+)(?:\/([^/]+))?)?$/
-  );
-  if (sampleUrlMatch) {
-    const [, logPath, firstSegment, secondSegment] = sampleUrlMatch;
-
-    if (firstSegment) {
-      const validSampleTabIds = new Set(kSampleTabIds);
-
-      if (validSampleTabIds.has(firstSegment) && !secondSegment) {
-        // This is /logs/*/samples/sampleTabId
-        return {
-          logPath: decodeUrlParam(logPath),
-          tabId: "samples",
-          sampleTabId: decodeUrlParam(firstSegment),
-          sampleId: undefined,
-          epoch: undefined,
-        };
-      } else {
-        // This is a sample URL with sampleId (and possibly epoch)
-        return {
-          logPath: decodeUrlParam(logPath),
-          tabId: undefined,
-          sampleTabId: undefined,
-          sampleId: decodeUrlParam(firstSegment),
-          epoch: secondSegment ? decodeUrlParam(secondSegment) : undefined,
-        };
-      }
-    } else {
-      // This is just /logs/*/samples (samples listing)
-      return {
-        logPath: decodeUrlParam(logPath),
-        tabId: "samples",
-        sampleTabId: undefined,
-        sampleId: undefined,
-        epoch: undefined,
-      };
-    }
-  }
-
-  // Regular log route pattern: /logs/path/to/file.eval/tabId?
-  const pathSegments = splatPath.split("/").filter(Boolean);
-
-  if (pathSegments.length === 0) {
-    return {
-      logPath: undefined,
-      tabId: undefined,
-      sampleTabId: undefined,
-      sampleId: undefined,
-      epoch: undefined,
-    };
-  }
-
-  const validTabIds = new Set(kWorkspaceTabs);
-
-  // Look for the first valid tab ID from right to left
-  let tabIdIndex = -1;
-  let foundTabId: string | undefined = undefined;
-
-  for (let i = pathSegments.length - 1; i >= 0; i--) {
-    const segment = pathSegments[i];
-    if (segment === undefined) continue;
-    const decodedSegment = decodeUrlParam(segment) || segment;
-
-    if (validTabIds.has(decodedSegment)) {
-      tabIdIndex = i;
-      foundTabId = decodedSegment;
-      break;
-    }
-  }
-
-  if (foundTabId && tabIdIndex > 0) {
-    const pathSlice = pathSegments.slice(0, tabIdIndex);
-    const firstSegment = pathSlice[0];
-    const logPath =
-      firstSegment?.endsWith(":") && !firstSegment.includes("://")
-        ? firstSegment +
-          (firstSegment === "file:" ? "///" : "//") +
-          pathSlice.slice(1).join("/")
-        : pathSlice.join("/");
-
-    return {
-      logPath: decodeUrlParam(logPath),
-      tabId: foundTabId,
-      sampleTabId: undefined,
-      sampleId: undefined,
-      epoch: undefined,
-    };
-  } else {
-    return {
-      logPath: decodeUrlParam(splatPath),
-      tabId: undefined,
-      sampleTabId: undefined,
-      sampleId: undefined,
-      epoch: undefined,
-    };
-  }
-}
-
-/**
- * Pure function that parses samples route parameters from a splat path.
- * This is extracted from useSamplesRouteParams for testability.
- */
-function parseSamplesRouteParams(splatPath: string) {
-  const sampleMatch = splatPath.match(
-    /^(.+?)\/sample\/([^/]+)\/([^/]+)(?:\/([^/]+))?\/?$/
-  );
-
-  if (sampleMatch) {
-    const [, logPath, sampleId, epoch, tabId] = sampleMatch;
-    return {
-      samplesPath: decodeUrlParam(logPath),
-      sampleId: decodeUrlParam(sampleId),
-      epoch: decodeUrlParam(epoch),
-      tabId: tabId ? decodeUrlParam(tabId) : undefined,
-    };
-  }
-
-  return {
-    samplesPath: splatPath ? decodeUrlParam(splatPath) : undefined,
-    sampleId: undefined,
-    epoch: undefined,
-    tabId: undefined,
-  };
-}
+import {
+  decodeUrlParam,
+  logSamplesUrl,
+  parseLogRouteParams,
+  parseSamplesRouteParams,
+  printSampleUrl,
+  samplesSampleUrl,
+} from "./url";
 
 describe("parseLogRouteParams", () => {
   describe("sample UUID routes", () => {
@@ -595,93 +414,6 @@ describe("decodeUrlParam", () => {
   });
 });
 
-/**
- * Helper function to encode path parts, copied from src/utils/uri.ts
- */
-function encodePathParts(url: string): string {
-  if (!url) return url;
-
-  try {
-    const fullUrl = new URL(url);
-    fullUrl.pathname = fullUrl.pathname
-      .split("/")
-      .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
-      )
-      .join("/");
-    return fullUrl.toString();
-  } catch {
-    return url
-      .split("/")
-      .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
-      )
-      .join("/");
-  }
-}
-
-/**
- * URL construction function copied from src/app/routing/url.ts
- * Tests should verify this properly encodes sample IDs with special characters.
- */
-function logSamplesUrl(
-  logPath: string,
-  sampleId?: string | number,
-  sampleEpoch?: string | number,
-  sampleTabId?: string
-): string {
-  const decodedLogPath = decodeUrlParam(logPath) || logPath;
-
-  if (sampleId !== undefined && sampleEpoch !== undefined) {
-    // Encode sampleId to handle slashes and special characters
-    // This must be done before encodePathParts since it splits on /
-    const encodedSampleId = encodeURIComponent(String(sampleId));
-    return encodePathParts(
-      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${sampleEpoch}/${sampleTabId || ""}`
-    );
-  } else {
-    return encodePathParts(
-      `/logs/${decodedLogPath}/samples/${sampleTabId || ""}`
-    );
-  }
-}
-
-/**
- * URL construction function copied from src/app/routing/url.ts
- */
-function samplesSampleUrl(
-  logPath: string,
-  sampleId: string | number,
-  epoch: string | number,
-  sampleTabId?: string
-): string {
-  const decodedLogPath = decodeUrlParam(logPath) || logPath;
-  // Encode sampleId to handle slashes and special characters
-  // This must be done before encodePathParts since it splits on /
-  const encodedSampleId = encodeURIComponent(String(sampleId));
-  return encodePathParts(
-    `/samples/${decodedLogPath}/sample/${encodedSampleId}/${epoch}/${sampleTabId || ""}`
-  );
-}
-
-/**
- * URL construction function copied from src/app/routing/url.ts
- */
-function printSampleUrl(
-  logPath: string,
-  sampleId: string | number,
-  epoch: string | number,
-  view: string
-): string {
-  const decodedLogPath = decodeUrlParam(logPath) || logPath;
-  const encodedSampleId = encodeURIComponent(String(sampleId));
-  return (
-    encodePathParts(
-      `/logs/${decodedLogPath}/samples/sample/${encodedSampleId}/${epoch}/print`
-    ) + `?view=${view}`
-  );
-}
-
 describe("sample IDs with slashes", () => {
   test("logSamplesUrl encodes slashes in sample IDs", () => {
     const url = logSamplesUrl(
@@ -800,5 +532,39 @@ describe("sample IDs with slashes", () => {
     const url = logSamplesUrl("path/to/file.eval", "/", 1, "transcript");
     expect(url).toContain("%2F");
     expect(url).not.toMatch(/\/samples\/sample\/\/\d/); // Should not have literal double slash
+  });
+});
+
+// Regression: prev/next from the focus view on the /samples surface must build
+// a log-dir-relative samples URL that keeps the "event" tab (so the sibling
+// sample stays in focus mode), NOT the absolute file: URI on the plain sample
+// view. Guards the two defects fixed by routing prev/next through the samples
+// route params (relative path + event tab) instead of useLogRouteParams.
+describe("prev/next from focus view (samples surface)", () => {
+  const logDir = "file:///home/peter/logs";
+  const absoluteLogFile = "file:///home/peter/logs/retry-single/demo.eval";
+
+  test("builds a relative /samples URL preserving the event tab", () => {
+    const relative = directoryRelativeUrl(absoluteLogFile, logDir);
+    expect(relative).toBe("retry-single/demo.eval");
+
+    const url = samplesSampleUrl(relative, "fail_fast", 1, "event");
+    expect(url).toBe(
+      "/samples/retry-single/demo.eval/sample/fail_fast/1/event"
+    );
+    expect(url).not.toContain("file:"); // no absolute URI leaked into the path
+    expect(url).not.toContain("?event="); // focused event id belongs to the old sample
+  });
+
+  test("round-trip keeps the event tab and relative path", () => {
+    const relative = directoryRelativeUrl(absoluteLogFile, logDir);
+    const url = samplesSampleUrl(relative, "fail_fast", 1, "event");
+    const result = parseSamplesRouteParams(url.replace(/^\/samples\//, ""));
+    expect(result).toEqual({
+      samplesPath: "retry-single/demo.eval",
+      sampleId: "fail_fast",
+      epoch: "1",
+      tabId: "event",
+    });
   });
 });

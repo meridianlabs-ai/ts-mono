@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { forwardRef, type PropsWithChildren } from "react";
-import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -72,6 +72,8 @@ const transcriptDir = "/tmp/transcripts";
 const transcriptId = "sample-transcript";
 
 const minimalIcons = {
+  arrowDown: ApplicationIcons.arrows.down,
+  arrowUp: ApplicationIcons.arrows.up,
   chevronDown: ApplicationIcons.chevron.down,
   chevronUp: ApplicationIcons.collapse.up,
   clearText: ApplicationIcons["clear-text"],

@@ -15,17 +15,19 @@ const resolveStorage = (): ClientStorage | undefined => {
         state: PersistedState;
         version: number;
       } => {
-        const state = vscodeApi.getState() as string;
+        const state = vscodeApi.getState();
+        if (typeof state !== "string") {
+          throw new Error("vscode state is not a serialized string");
+        }
         return JSON5.parse<{
           state: PersistedState;
           version: number;
         }>(state);
       },
       setItem: (_name: string, value: unknown) => {
-        // TODO: This is pretty gnarly type hijinks
-        const valObj = value as { state: PersistedState; version: number };
-        const serialized = JSON5.stringify(valObj);
-        vscodeApi.setState(serialized);
+        // zustand-persist hands back what getItem returned; it round-trips
+        // through JSON5 either way, so no shape claim is needed here.
+        vscodeApi.setState(JSON5.stringify(value));
       },
       removeItem: (_name: string) => {
         vscodeApi.setState(null);

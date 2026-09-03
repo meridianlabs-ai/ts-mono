@@ -22,10 +22,7 @@
 import { valueAsString } from "../../../utils/format";
 
 export type ScoreColorPalette =
-  | "good-high"
-  | "good-low"
-  | "neutral"
-  | "diverging";
+  "good-high" | "good-low" | "neutral" | "diverging";
 
 export type ScoreColorRole = "good" | "bad" | "warn" | "info" | "muted";
 
@@ -41,9 +38,7 @@ export interface ScoreColorScaleObject {
 
 /** Wire shape — one entry of the `score_color_scales` map. */
 export type WireScoreColorScale =
-  | ScoreColorPalette
-  | ScoreColorScaleObject
-  | Record<string, ScoreColorRole>;
+  ScoreColorPalette | ScoreColorScaleObject | Record<string, ScoreColorRole>;
 
 /** Internal resolved form. The `kind` tag tells the renderer how to
  *  pick a colour for a given cell value. */
@@ -109,6 +104,7 @@ const isPaletteName = (s: string): s is ScoreColorPalette =>
 // categorical branch and producing a nonsense `{ kind: "categorical",
 // colors: { palette: undefined } }` shape).
 const isScaleObject = (s: WireScoreColorScale): s is ScoreColorScaleObject =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   typeof s === "object" && s !== null && "palette" in s;
 
 /**

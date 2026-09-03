@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 
 import {
   JSONPanel,
@@ -90,7 +90,10 @@ export const ScannerResultPanel: FC = () => {
     const kScrollThreshold = 100;
 
     const onScroll = (e: Event) => {
-      const target = e.target as Element;
+      const target = e.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
       const scrolled = target.scrollTop > kScrollThreshold;
       if (scrolled && !headerCollapsedRef.current) {
         // Collapsing frees vertical space (~140px). If the container's
@@ -131,6 +134,7 @@ export const ScannerResultPanel: FC = () => {
     useScansDir(true);
   // Sync URL query param with store state
   const setSelectedScanner = useStore((state) => state.setSelectedScanner);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const scannerParam = getScannerParam(searchParams);
     if (scannerParam) {
@@ -147,6 +151,7 @@ export const ScannerResultPanel: FC = () => {
   const setDisplayedScanResult = useStore(
     (state) => state.setDisplayedScanResult
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scanResultUuid) {
       setSelectedScanResult(scanResultUuid);
@@ -211,6 +216,7 @@ export const ScannerResultPanel: FC = () => {
     () => [kTabIdResult, kTabIdInput, kTabIdInfo, kTabIdJson, kTabIdTranscript],
     []
   );
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Deep-link params take priority — they imply the Result tab
     if (messageParam || eventParam) {
@@ -250,9 +256,7 @@ export const ScannerResultPanel: FC = () => {
     return hasNonSpanEvents;
   }, [detailScanEvents]);
 
-  const hasError =
-    selectedResult?.scanError !== undefined &&
-    selectedResult?.scanError !== null;
+  const hasError = selectedResult?.scanError !== undefined;
 
   const highlightLabeled = useStore((state) => state.highlightLabeled);
   const setHighlightLabeled = useStore((state) => state.setHighlightLabeled);
@@ -271,7 +275,8 @@ export const ScannerResultPanel: FC = () => {
       if (e.metaKey || e.ctrlKey) {
         openRouteInNewTab(route);
       } else {
-        void navigate(route);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        navigate(route);
       }
     },
     [navigate, resolvedTranscriptsDir, selectedResult?.transcriptId]
@@ -284,7 +289,7 @@ export const ScannerResultPanel: FC = () => {
     if (
       selectedTab === kTabIdInput &&
       selectedResult?.inputType === "transcript" &&
-      selectedResult?.messageReferences.length > 0
+      selectedResult.messageReferences.length > 0
     ) {
       toolButtons.push(
         <ToolButton
@@ -373,10 +378,7 @@ export const ScannerResultPanel: FC = () => {
       {!hasError ? (
         <TabPanel
           id={kTabIdResult}
-          selected={
-            selectedTab === kTabIdResult ||
-            (!hasError && selectedTab === undefined)
-          }
+          selected={selectedTab === kTabIdResult || selectedTab === undefined}
           title="Result"
           scrollable={false}
           onSelected={() => {
@@ -384,7 +386,7 @@ export const ScannerResultPanel: FC = () => {
           }}
           className={styles.fullHeight}
         >
-          {resultData && inputData && (
+          {inputData && (
             <ResultPanel resultData={resultData} inputData={inputData} />
           )}
         </TabPanel>
@@ -436,7 +438,6 @@ export const ScannerResultPanel: FC = () => {
           id="scan-result-json-contents"
           data={resultData}
           simple={true}
-          className={styles.json}
         />
       </TabPanel>
     </TabSet>

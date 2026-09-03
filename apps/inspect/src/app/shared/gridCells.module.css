@@ -1,7 +1,3 @@
-:global(.ag-row) {
-  cursor: pointer;
-}
-
 .gridWrapper {
   height: 100%;
   width: 100%;

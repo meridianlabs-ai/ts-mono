@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 
 import { decodeBase64Url } from "@tsmono/util";
 
@@ -18,6 +18,7 @@ export const useTranscriptDirParams = (): string | undefined => {
     return undefined;
   }, [params.transcriptsDir]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (decodedTranscriptDir) {
       setUserTranscriptsDir(decodedTranscriptDir);

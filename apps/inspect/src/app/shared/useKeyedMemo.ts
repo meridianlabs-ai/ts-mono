@@ -18,7 +18,7 @@ const shallowEqual = (
  * whose per-item deps are unchanged.
  *
  * `useMemo` is all-or-nothing: any dep change rebuilds every element, handing
- * a consumer (e.g. AG-Grid) all-new identities and forcing a full refresh.
+ * a consumer (e.g. a data grid's row list) all-new identities and forcing a full refresh.
  * This keeps a per-key cache so only the items that actually changed get a new
  * object — the rest keep reference identity. Reuse is gated on `itemDeps`, so
  * the cache must be pure: same deps must always yield the same value.
@@ -26,7 +26,7 @@ const shallowEqual = (
  * The list is re-walked on every render; reuse keeps that cheap (a shallow dep
  * compare per item, builds only on change). The returned array keeps the same
  * reference when nothing changed, so consumers that key off its identity (deps
- * arrays, AG-Grid's rowData diff) don't re-run on unrelated renders.
+ * arrays, a grid's row-data diff) don't re-run on unrelated renders.
  */
 export function useKeyedMemo<S, T>(
   source: readonly S[],

@@ -8,6 +8,7 @@ export default tseslint.config(
   },
   ...reactConfig,
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: {

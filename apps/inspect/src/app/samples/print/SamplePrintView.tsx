@@ -1,12 +1,12 @@
 import React, { FC, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import {
   flatTree,
-  TranscriptVirtualListComponent,
+  TranscriptVirtualList,
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
 import { ModelTokenTable } from "@tsmono/inspect-components/usage";
@@ -25,10 +25,11 @@ import {
   kSampleScoringTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import { useSampleData } from "../../../state/hooks";
-import { useStore } from "../../../state/store";
-import { useLoadSample } from "../../../state/useLoadSample";
-import { usePollSample } from "../../../state/usePollSample";
+import { selectLogFile, selectSample } from "../../../state/actions";
+import {
+  useSelectedEvalSampleData,
+  useSelectedLogDetails,
+} from "../../../state/hooks";
 import { formatDateTime, formatTime } from "../../../utils/format";
 import { useLogRouteParams } from "../../routing/url";
 import { SampleJSONView } from "../SampleJSONView";
@@ -47,49 +48,23 @@ export const SamplePrintView: FC = () => {
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
 
-  // Load sample data (depends on selectedLogFile and selectedSampleHandle being set)
-  useLoadSample();
-  usePollSample();
-
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
-  const initLogDir = useStore((state) => state.logsActions.initLogDir);
-  const setSelectedLogFile = useStore(
-    (state) => state.logsActions.setSelectedLogFile
-  );
-  const syncLogs = useStore((state) => state.logsActions.syncLogs);
-  const selectSample = useStore((state) => state.logActions.selectSample);
-
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    const loadLogAndSample = async () => {
-      if (logPath && sampleId && epoch) {
-        await initLogDir();
-        setSelectedLogFile(logPath);
-        void syncLogs();
+    if (logPath && sampleId && epoch) {
+      selectLogFile(logPath);
 
-        const targetEpoch = parseInt(epoch, 10);
-        if (!isNaN(targetEpoch)) {
-          selectSample(sampleId, targetEpoch, logPath);
-        }
+      const targetEpoch = parseInt(epoch, 10);
+      if (!isNaN(targetEpoch)) {
+        selectSample(sampleId, targetEpoch, logPath);
       }
-    };
-    void loadLogAndSample();
-  }, [
-    logPath,
-    sampleId,
-    epoch,
-    initLogDir,
-    setSelectedLogFile,
-    syncLogs,
-    selectSample,
-  ]);
+    }
+  }, [logPath, sampleId, epoch]);
 
   // Get sample data
-  const sampleData = useSampleData();
-  const sample = useMemo(() => {
-    return sampleData.getSelectedSample();
-  }, [sampleData]);
+  const sample = useSelectedEvalSampleData().sample;
 
-  const evalSpec = useStore((state) => state.log.selectedLogDetails?.eval);
+  const evalSpec = useSelectedLogDetails()?.eval;
 
   // Transcript: process events through the same pipeline, all expanded
   const sampleEvents = sample?.events || [];
@@ -104,6 +79,7 @@ export const SamplePrintView: FC = () => {
   // then triggers print after a settling period.
   const contentRef = useRef<HTMLDivElement>(null);
   const hasPrinted = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!sample || hasPrinted.current || !contentRef.current) return;
 
@@ -146,6 +122,7 @@ export const SamplePrintView: FC = () => {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const sampleMessages = sample.messages || [];
 
   return (
@@ -160,7 +137,7 @@ export const SamplePrintView: FC = () => {
       </div>
 
       {view === kSampleTranscriptTabId && (
-        <TranscriptVirtualListComponent
+        <TranscriptVirtualList
           id="print-transcript"
           listHandle={listHandle}
           eventNodes={flattenedNodes}
@@ -220,6 +197,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
     if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       sample.invalidation.metadata &&
       Object.keys(sample.invalidation.metadata).length > 0
     ) {
@@ -235,6 +213,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
@@ -267,23 +246,23 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  if (Object.keys(sample?.metadata).length > 0) {
+  if (Object.keys(sample.metadata).length > 0) {
     sampleMetadatas.push(
       <Card key="print-metadata">
         <CardHeader label="Metadata" />
         <CardBody>
-          <MetaDataGrid entries={sample?.metadata} />
+          <MetaDataGrid entries={sample.metadata} />
         </CardBody>
       </Card>
     );
   }
 
-  if (Object.keys(sample?.store).length > 0) {
+  if (Object.keys(sample.store).length > 0) {
     sampleMetadatas.push(
       <Card key="print-store">
         <CardHeader label="Store" />
         <CardBody>
-          <MetaDataGrid entries={sample?.store} />
+          <MetaDataGrid entries={sample.store} />
         </CardBody>
       </Card>
     );

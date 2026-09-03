@@ -14,6 +14,7 @@ import type {
 import { STABLE_EMPTY_OBJECT } from "@tsmono/react/hooks";
 
 import { ProjectConfigInput } from "../../types/api-types";
+import { eventChecked, eventValue } from "../utils/formEvents";
 
 import {
   KeyValueField,
@@ -21,9 +22,10 @@ import {
   SelectField,
   TextField,
 } from "./components/FormFields";
+import fieldStyles from "./components/FormFields.module.css";
 import { filterNullValues } from "./configUtils";
 import { useBatchConfig, useNestedConfig } from "./hooks/useNestedConfig";
-import styles from "./ProjectPanel.module.css";
+import styles from "./SettingsContent.module.css";
 
 // Constants for select options
 const LOG_LEVELS = [
@@ -158,14 +160,17 @@ export const SettingsContent: FC<SettingsContentProps> = ({
   // Tags field - use local state to allow typing commas/spaces freely
   // but also update config on input so Ctrl+S saves correctly
   const [tagsText, setTagsText] = useState(() =>
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     Array.isArray(config.tags) ? config.tags.join(", ") : (config.tags ?? "")
   );
 
   // Sync local state when config changes externally (e.g., after save)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const configValue = Array.isArray(config.tags)
       ? config.tags.join(", ")
-      : (config.tags ?? "");
+      : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+        (config.tags ?? "");
     // Only sync if the parsed values differ (avoids cursor jump while typing)
     const currentParsed = tagsText
       .split(",")
@@ -232,7 +237,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="scanning" className={styles.section}>
         <div className={styles.sectionHeader}>Scanning</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeLabel>Filter</VscodeLabel>
           <VscodeFormHelper>
             SQL WHERE clause(s) for filtering transcripts. This will constrain
@@ -248,7 +253,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
             }
             onInput={(e) =>
               onChange({
-                filter: (e.target as HTMLInputElement).value || undefined,
+                filter: eventValue(e) || undefined,
               })
             }
             placeholder="Filter expression"
@@ -266,7 +271,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           placeholder="No limit"
         />
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeLabel>Shuffle</VscodeLabel>
           <VscodeFormHelper>
             Shuffle the order of transcripts (optionally specify a seed)
@@ -275,9 +280,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
             <VscodeCheckbox
               id="field-shuffle"
               checked={shuffleEnabled}
-              onChange={(e) =>
-                handleShuffleToggle((e.target as HTMLInputElement).checked)
-              }
+              onChange={(e) => handleShuffleToggle(eventChecked(e))}
             >
               Enabled
             </VscodeCheckbox>
@@ -286,9 +289,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
                 id="field-shuffle-seed"
                 type="number"
                 value={shuffleSeed?.toString() ?? ""}
-                onInput={(e) =>
-                  handleShuffleSeedChange((e.target as HTMLInputElement).value)
-                }
+                onInput={(e) => handleShuffleSeedChange(eventValue(e))}
                 placeholder="Seed (optional)"
                 style={{ width: "120px" }}
                 spellCheck={false}
@@ -326,7 +327,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="miscellaneous" className={styles.section}>
         <div className={styles.sectionHeader}>Miscellaneous</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeLabel>Tags</VscodeLabel>
           <VscodeFormHelper>
             One or more tags to apply to scans (comma-separated)
@@ -334,9 +335,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           <VscodeTextfield
             id="field-tags"
             value={tagsText}
-            onInput={(e) =>
-              handleTagsInput((e.target as HTMLInputElement).value)
-            }
+            onInput={(e) => handleTagsInput(eventValue(e))}
             placeholder="tag1, tag2, tag3"
             spellCheck={false}
             autocomplete="off"
@@ -348,9 +347,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           label="Metadata"
           helper="Key/value pairs to apply to scans (one per line)"
           value={config.metadata}
-          onChange={(v) =>
-            onChange({ metadata: v as Record<string, string> | null })
-          }
+          onChange={(v) => onChange({ metadata: v })}
           placeholder="key=value"
         />
 
@@ -397,6 +394,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
           label="Model Args"
           helper="Model creation args (key=value per line, or path to config file)"
           value={config.model_args}
+          allowPath
           onChange={(v) => onChange({ model_args: v })}
           placeholder="key=value or /path/to/config.yaml"
         />
@@ -578,12 +576,12 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="cache" className={styles.section}>
         <div className={styles.sectionHeader}>Cache</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeCheckbox
             id="field-cache-enabled"
             checked={cache.enabled}
             onChange={(e) => {
-              const checked = (e.target as HTMLInputElement).checked;
+              const checked = eventChecked(e);
               cache.setEnabled(checked);
               if (checked) handleCacheEnabled();
             }}
@@ -607,7 +605,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
               validate={validateCacheExpiry}
             />
 
-            <div className={styles.field}>
+            <div className={fieldStyles.field}>
               <VscodeLabel>Per Epoch</VscodeLabel>
               <VscodeFormHelper>
                 Maintain separate cache entries per epoch
@@ -617,7 +615,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
                 checked={cache.config.per_epoch ?? true}
                 onChange={(e) =>
                   cache.updateConfig({
-                    per_epoch: (e.target as HTMLInputElement).checked,
+                    per_epoch: eventChecked(e),
                   })
                 }
               >
@@ -632,12 +630,12 @@ export const SettingsContent: FC<SettingsContentProps> = ({
       <div id="batch" className={styles.section}>
         <div className={styles.sectionHeader}>Batch</div>
 
-        <div className={styles.field}>
+        <div className={fieldStyles.field}>
           <VscodeCheckbox
             id="field-batch-enabled"
             checked={batch.enabled}
             onChange={(e) => {
-              const checked = (e.target as HTMLInputElement).checked;
+              const checked = eventChecked(e);
               batch.setEnabled(checked);
               if (checked) handleBatchEnabled();
             }}

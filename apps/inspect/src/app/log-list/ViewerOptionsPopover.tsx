@@ -3,9 +3,9 @@ import { FC, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
 
+import { useAppConfig, useLogDir } from "../../app_config";
 import { DB_VERSION } from "../../client/database/schema";
-import { useStore } from "../../state/store";
-import { useAppConfig } from "../server/useAppConfig";
+import { imperativeLogData, useDatabaseStats } from "../../log_data";
 
 import styles from "./ViewerOptionsPopover.module.css";
 
@@ -22,33 +22,25 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
 }) => {
   const [isClearing, setIsClearing] = useState(false);
   const [clearMessage, setClearMessage] = useState<string | null>(null);
-  const replicationService = useStore((state) => state.replicationService);
-  const dbStats = useStore((state) => state.logs.dbStats);
+  const dbStats = useDatabaseStats();
   const appConfig = useAppConfig();
 
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
 
   const handleClearDatabase = () => {
-    if (!replicationService) {
-      setClearMessage("Database service not available");
-      setTimeout(() => setClearMessage(null), 3000);
-      return;
-    }
-
     setIsClearing(true);
     setClearMessage(null);
 
     try {
-      replicationService.clearData();
+      imperativeLogData.clearData();
       setClearMessage("Database cleared successfully");
       setTimeout(() => setClearMessage(null), 3000);
     } catch (error) {
       console.error("Failed to clear database:", error);
       setClearMessage("Failed to clear database");
       setTimeout(() => setClearMessage(null), 3000);
-    } finally {
-      setIsClearing(false);
     }
+    setIsClearing(false);
   };
 
   return (
@@ -102,17 +94,17 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Logs
         </div>
-        <div className={clsx()}>{dbStats?.logCount || 0}</div>
+        <div className={clsx()}>{dbStats.logCount || 0}</div>
 
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Log Previews
         </div>
-        <div className={clsx()}>{dbStats?.previewCount || 0}</div>
+        <div className={clsx()}>{dbStats.previewCount || 0}</div>
 
         <div className={clsx("text-style-label", "text-style-secondary")}>
           Log Details
         </div>
-        <div className={clsx()}>{dbStats?.detailsCount || 0}</div>
+        <div className={clsx()}>{dbStats.detailsCount || 0}</div>
 
         <div className={clsx(styles.spacer)}></div>
 
@@ -122,6 +114,7 @@ export const ViewerOptionsPopover: FC<ViewerOptionsPopoverProps> = ({
         <div className={clsx()}>
           {" "}
           <button
+            type="button"
             onClick={handleClearDatabase}
             disabled={isClearing}
             className={clsx(

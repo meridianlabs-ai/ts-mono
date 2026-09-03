@@ -24,6 +24,7 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
       defaultCollapsedIds={defaultCollapsedIds}
       collapsedTranscript={EMPTY_COLLAPSE}
       onCollapseTranscript={noopCollapse}
+      keyboardNavDisabled={true}
     />
   );
 };
@@ -67,8 +68,8 @@ export function buildScanReferencePreviews(
     }
 
     if (event.event === "model") {
-      for (const msg of event.input ?? []) addMessage(msg);
-      for (const choice of event.output?.choices ?? []) {
+      for (const msg of event.input) addMessage(msg);
+      for (const choice of event.output.choices) {
         addMessage(choice.message);
       }
     }

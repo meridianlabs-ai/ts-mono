@@ -4,7 +4,7 @@ import { FC, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { TagsEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
-import { useApi } from "../../../state/store";
+import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { ChangeSummary } from "./ChangeSummary";
@@ -29,7 +29,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useApi();
+  const api = getApi();
 
   const [tags, setTags] = useState<string[]>(currentTags);
   const [pending, setPending] = useState("");
@@ -58,10 +58,11 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   // so the user doesn't have to retype themselves for every edit. The
   // fetch is best-effort — a missing endpoint or empty result simply
   // leaves the field blank.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!showing) return;
     let cancelled = false;
-    if (api?.get_user_info) {
+    if (api.get_user_info) {
       api
         .get_user_info()
         .then((info) => {
@@ -117,15 +118,15 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
   };
 
   const canSave =
-    !submitting && hasChanges && author.trim().length > 0 && !!api?.edit_log;
+    !submitting && hasChanges && author.trim().length > 0 && !!api.edit_log;
 
   // Re-entry guard: prevents a second save from starting if the user
   // clicks twice before the first finishes. Kept in a ref (not state)
   // so we can read/write it synchronously without scheduling a render.
   const inFlightRef = useRef(false);
 
-  const handleSave = async () => {
-    if (!canSave || inFlightRef.current || !api?.edit_log) return;
+  const handleSave = (): void => {
+    if (!canSave || inFlightRef.current || !api.edit_log) return;
     inFlightRef.current = true;
     // NOTE: we intentionally do NOT call `setError(undefined)` here.
     // Clearing then re-setting the same error on a quick failure made
@@ -141,30 +142,34 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     // before any network IO) don't flash the indicator on and off.
     // For slower saves the indicator still appears.
     const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
-    try {
-      const edit: TagsEdit = {
-        type: "tags",
-        tags_add: tagsAdd,
-        tags_remove: tagsRemove,
-      };
-      await api.edit_log(logFile, {
+    const provenance = {
+      author: author.trim(),
+      reason: reason.trim() || undefined,
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    };
+    const edit: TagsEdit = {
+      type: "tags",
+      tags_add: tagsAdd,
+      tags_remove: tagsRemove,
+    };
+    api
+      .edit_log(logFile, {
         edits: [edit],
-        provenance: {
-          author: author.trim(),
-          reason: reason.trim() || undefined,
-          metadata: {},
-          timestamp: new Date().toISOString(),
-        },
+        provenance,
+      })
+      .then(() => {
+        setShowing(false);
+        if (onSaved) {
+          onSaved();
+        }
+      })
+      .catch((err: unknown) => setError(formatEditError(err)))
+      .finally(() => {
+        window.clearTimeout(indicatorTimer);
+        setSubmitting(false);
+        inFlightRef.current = false;
       });
-      setShowing(false);
-      onSaved?.();
-    } catch (err) {
-      setError(formatEditError(err));
-    } finally {
-      window.clearTimeout(indicatorTimer);
-      setSubmitting(false);
-      inFlightRef.current = false;
-    }
   };
 
   return (
@@ -189,7 +194,7 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={() => void handleSave()}
+              onClick={handleSave}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}
@@ -200,10 +205,19 @@ export const EditTagsDialog: FC<EditTagsDialogProps> = ({
     >
       <div className={sharedStyles.body}>
         <div className={sharedStyles.section}>
-          <label className={clsx("text-size-smaller", sharedStyles.label)}>
+          {/* Names the chip box, so it can't be a <label> — those may only
+              point at a single form control. */}
+          <span
+            id="edit-tags-label"
+            className={clsx("text-size-smaller", sharedStyles.label)}
+          >
             Tags
-          </label>
-          <div className={styles.chipBox}>
+          </span>
+          <div
+            className={styles.chipBox}
+            role="group"
+            aria-labelledby="edit-tags-label"
+          >
             {tags.length === 0 && (
               <span className={clsx("text-size-smaller", styles.empty)}>
                 No tags yet — add one below.

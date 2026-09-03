@@ -1,16 +1,14 @@
-import {
-  EvalSample,
-  LogFilesResponse,
-  LogUpdate,
-} from "@tsmono/inspect-common/types";
+import { EvalSample, LogUpdate } from "@tsmono/inspect-common/types";
+import { encodePathParts } from "@tsmono/util";
 
 import { sampleIdsEqual } from "../../app/shared/sample";
-import { encodePathParts } from "../../utils/uri";
+import { WorkResult } from "../../utils/workQueue";
 import {
   openRemoteLogFile,
   RemoteLogFile,
   SampleNotFoundError,
 } from "../remote/remoteLogFile";
+import { DirectFetchError } from "../remote/remotePendingSampleData";
 import { FileSizeLimitError } from "../remote/remoteZipFile";
 
 import {
@@ -19,11 +17,11 @@ import {
   LogContents,
   LogDetails,
   LogPreview,
-  LogRoot,
   LogViewAPI,
   PendingSampleResponse,
   ProgressCallback,
   SampleDataResponse,
+  SampleSummary,
 } from "./types";
 
 const isEvalFile = (file: string) => {
@@ -60,16 +58,12 @@ interface LoadedLogFile {
 }
 
 /**
- * This provides an API implementation that will serve a single
- * file using an http parameter, designed to be deployed
- * to a webserver without inspect or the ability to enumerate log
- * files
+ * Adapt a backend `LogViewAPI` into the `ClientAPI` the app consumes:
+ * format handling (.eval zip vs JSON), per-log caching, sample-data path
+ * selection, and edit etag plumbing. Dir-agnostic — the dir binding lives
+ * in the backend instance (see the contract on `LogViewAPI`).
  */
-export const clientApi = (
-  api: LogViewAPI,
-  log_file?: string,
-  debug = false
-): ClientAPI => {
+export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
   let current_log: LogContents | undefined = undefined;
   let current_path: string | undefined = undefined;
 
@@ -141,25 +135,49 @@ export const clientApi = (
     if (isEvalFile(log_file)) {
       const remoteLogFile = await remoteEvalFile(log_file, cached);
       if (remoteLogFile) {
-        return await remoteLogFile.readLogSummary();
+        const details = await remoteLogFile.readLogSummary();
+        // A running log's zip is still being appended, so its memoized
+        // snapshot (the central directory at open time) can never see later
+        // flushes — drop it so every read while running re-opens fresh.
+        // Completed logs stay memoized.
+        if (details.status === "started" && loadedEvalFile.file === log_file) {
+          loadedEvalFile.file = undefined;
+          loadedEvalFile.remoteLog = undefined;
+        }
+        return details;
       } else {
         throw new Error("Unable to read remote eval file");
       }
     } else {
       const logContents = await get_log(log_file);
-      /**
-       * @type {import("./Types.js").SampleSummary[]}
-       */
-      const sampleSummaries = logContents.parsed.samples
-        ? logContents.parsed.samples?.map((sample) => {
+      // Samples in a parsed JSON log are already normalized (#555), so this
+      // projection genuinely satisfies SampleSummary.
+      const sampleSummaries: SampleSummary[] = logContents.parsed.samples
+        ? logContents.parsed.samples.map((sample) => {
             return {
               id: sample.id,
               epoch: sample.epoch,
+              uuid: sample.uuid,
               input: sample.input,
               target: sample.target,
               scores: sample.scores,
               metadata: sample.metadata,
               error: sample.error?.message,
+              // The summary's limit is the flattened form of the sample's
+              // limit object (mirrors Python's EvalSample.summary()).
+              limit: sample.limit?.type,
+              limit_reason: sample.limit?.reason,
+              retries: sample.error_retries?.length,
+              // A sample serialized into the log body is settled by
+              // definition.
+              completed: true,
+              model_usage: sample.model_usage,
+              role_usage: sample.role_usage,
+              model_fallbacks: sample.model_fallbacks,
+              started_at: sample.started_at,
+              completed_at: sample.completed_at,
+              total_time: sample.total_time,
+              working_time: sample.working_time,
             };
           })
         : [];
@@ -176,6 +194,7 @@ export const clientApi = (
         tags: parsed.tags,
         metadata: parsed.metadata,
         log_updates: parsed.log_updates,
+        config_updates: parsed.config_updates,
         sampleSummaries,
       };
     }
@@ -232,6 +251,17 @@ export const clientApi = (
       }
     }
     return undefined;
+  };
+
+  const get_log_zip_access = async (log_file: string) => {
+    if (!isEvalFile(log_file)) {
+      return undefined;
+    }
+    const remoteLogFile = await remoteEvalFile(log_file, true);
+    if (!remoteLogFile) {
+      throw new Error(`Unable to read remote eval file ${log_file}`);
+    }
+    return remoteLogFile.zipAccess();
   };
 
   const read_eval_file_log_summary = async (log_file: string) => {
@@ -313,51 +343,45 @@ export const clientApi = (
     return orderedSummaries.map(({ summary }) => summary);
   };
 
-  const get_log_dir = async (): Promise<string | undefined> => {
-    if (api.get_log_dir) {
-      return await api.get_log_dir();
-    } else {
-      const logRoot = await api.get_log_root();
-      return logRoot?.log_dir;
+  const read_one_summary = async (log_file: string): Promise<LogPreview> => {
+    if (isEvalFile(log_file)) {
+      return read_eval_file_log_summary(log_file);
     }
+    const summaries = await api.get_log_summaries([log_file]);
+    const summary = summaries[0];
+    if (!summary) {
+      throw new Error(`No summary returned for ${log_file}`);
+    }
+    return summary;
   };
 
-  const get_logs = async (
-    mtime: number,
-    clientFileCount: number
-  ): Promise<LogFilesResponse> => {
-    if (api.get_logs) {
-      const result = await api.get_logs(mtime, clientFileCount);
-      return result;
-    } else {
-      const logRoot = await api.get_log_root();
-      return {
-        files: logRoot?.logs || [],
-        response_type: "full",
-      };
-    }
-  };
-
-  const get_log_root = async (): Promise<LogRoot> => {
-    const logFiles = await api.get_log_root();
-    if (logFiles) {
-      return logFiles;
-    } else if (log_file) {
-      // Is there an explicitly passed log file?
-      const summary = await get_log_details(log_file);
-      if (summary) {
-        return {
-          logs: [
-            {
-              name: log_file,
-              task: summary.eval.task,
-              task_id: summary.eval.task_id,
-            },
-          ],
-        };
+  // TODO(better fix): /log-headers should return per-file success|error results
+  // (server: fastapi_server.py api_log_headers + read_eval_log_headers_async).
+  // Until then one unreadable file fails the whole batched request, so isolate
+  // failures client-side by falling back to per-file reads, each caught.
+  const get_log_summaries_settled = async (
+    log_files: string[]
+  ): Promise<WorkResult<LogPreview>[]> => {
+    try {
+      const summaries = await api.get_log_summaries(log_files);
+      if (summaries.length === log_files.length) {
+        return summaries.map((value) => ({ ok: true, value }));
       }
+    } catch {
+      // fall through to per-file reads
     }
-    throw new Error("Unable to determine log paths.");
+    return Promise.all(
+      log_files.map(async (file) => {
+        try {
+          return { ok: true as const, value: await read_one_summary(file) };
+        } catch (e) {
+          return {
+            ok: false as const,
+            error: e instanceof Error ? e : new Error(String(e)),
+          };
+        }
+      })
+    );
   };
 
   const get_log_pending_samples = (
@@ -407,9 +431,8 @@ export const clientApi = (
       throw new Error("API doesn't supported streamed sample data");
     }
 
-    let path = sampleDataPathByLog.get(log_file);
-    if (path === undefined && api.eval_log_sample_data_direct) {
-      const probe = await api.eval_log_sample_data_direct(
+    const fetchViaProxy = () =>
+      api.eval_log_sample_data!(
         log_file,
         id,
         epoch,
@@ -418,9 +441,36 @@ export const clientApi = (
         last_message_pool,
         last_call_pool
       );
-      if (probe !== undefined) {
-        sampleDataPathByLog.set(log_file, "direct");
-        return probe;
+
+    // A presigned segment fetch that the browser couldn't complete (e.g. bucket
+    // CORS on the viewer origin) means direct is unusable here even though the
+    // view server can reach storage — pin proxy and stream same-origin instead.
+    const fallBackToProxy = (e: unknown) => {
+      if (!(e instanceof DirectFetchError)) {
+        throw e;
+      }
+      sampleDataPathByLog.set(log_file, "proxy");
+      return fetchViaProxy();
+    };
+
+    let path = sampleDataPathByLog.get(log_file);
+    if (path === undefined && api.eval_log_sample_data_direct) {
+      try {
+        const probe = await api.eval_log_sample_data_direct(
+          log_file,
+          id,
+          epoch,
+          last_event,
+          last_attachment,
+          last_message_pool,
+          last_call_pool
+        );
+        if (probe !== undefined) {
+          sampleDataPathByLog.set(log_file, "direct");
+          return probe;
+        }
+      } catch (e) {
+        return fallBackToProxy(e);
       }
     }
     if (path === undefined) {
@@ -429,33 +479,29 @@ export const clientApi = (
     }
 
     if (path === "direct") {
-      const result = await api.eval_log_sample_data_direct!(
-        log_file,
-        id,
-        epoch,
-        last_event,
-        last_attachment,
-        last_message_pool,
-        last_call_pool
-      );
-      if (result === undefined) {
-        // Probe succeeded but a later call says "not supported" — server state
-        // changed; fail loudly rather than silently switching paths.
-        throw new Error(
-          "Direct pending-sample-data path returned 'not supported' after probe"
+      try {
+        const result = await api.eval_log_sample_data_direct!(
+          log_file,
+          id,
+          epoch,
+          last_event,
+          last_attachment,
+          last_message_pool,
+          last_call_pool
         );
+        if (result === undefined) {
+          // Probe succeeded but a later call says "not supported" — server state
+          // changed; fail loudly rather than silently switching paths.
+          throw new Error(
+            "Direct pending-sample-data path returned 'not supported' after probe"
+          );
+        }
+        return result;
+      } catch (e) {
+        return fallBackToProxy(e);
       }
-      return result;
     }
-    return api.eval_log_sample_data(
-      log_file,
-      id,
-      epoch,
-      last_event,
-      last_attachment,
-      last_message_pool,
-      last_call_pool
-    );
+    return fetchViaProxy();
   };
 
   const middleware = debug
@@ -466,17 +512,11 @@ export const clientApi = (
     client_events: middleware("client_events", () => {
       return api.client_events();
     }),
-    get_log_dir: middleware("get_log_dir", get_log_dir),
-    get_log_dir_handle: middleware(
-      "get_log_dir_handle",
-      (log_dir: string | undefined) => {
-        return api.get_log_dir_handle
-          ? api.get_log_dir_handle(log_dir)
-          : log_dir || "default_log_dir";
-      }
+    get_logs: middleware(
+      "get_log_files",
+      (mtime: number, clientFileCount: number) =>
+        api.get_logs(mtime, clientFileCount)
     ),
-    get_logs: middleware("get_log_files", get_logs),
-    get_log_root: middleware("get_log_root", get_log_root),
     get_eval_set: middleware("get_eval_set", (dir?: string) => {
       return api.get_eval_set(dir);
     }),
@@ -484,6 +524,10 @@ export const clientApi = (
       return api.get_flow(dir);
     }),
     get_log_summaries: middleware("get_log_summaries", get_log_summaries),
+    get_log_summaries_settled: middleware(
+      "get_log_summaries_settled",
+      get_log_summaries_settled
+    ),
     get_log_details: middleware(
       "get_log_details",
       async (log_file: string, cached?: boolean): Promise<LogDetails> => {
@@ -502,7 +546,11 @@ export const clientApi = (
         return result;
       }
     ),
+    get_log_info: middleware("get_log_info", (log_file: string) =>
+      api.get_log_info(encodePathParts(log_file))
+    ),
     get_log_sample: middleware("get_log_sample", get_log_sample),
+    get_log_zip_access: middleware("get_log_zip_access", get_log_zip_access),
     open_log_file: middleware("open_log_file", (log_file, log_dir) => {
       return api.open_log_file(log_file, log_dir);
     }),
@@ -511,10 +559,7 @@ export const clientApi = (
       (
         download_file: string,
         file_contents:
-          | string
-          | Blob
-          | ArrayBuffer
-          | ArrayBufferView<ArrayBuffer>
+          string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
       ) => {
         return api.download_file(download_file, file_contents);
       }
@@ -641,15 +686,18 @@ const applyMiddleware = <T extends AnyFn>(
 ): T => {
   if (middlewares.length === 0) return fn;
 
-  return ((...args: Parameters<T>) => {
-    let result: ReturnType<T> = fn(...args) as ReturnType<T>;
+  /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- generic-signature boundary: TypeScript resolves `fn(...args)` against T's constraint (AnyFn, returning unknown) rather than T itself, and can't express "a wrapper with the same signature as T" for the return */
+  const wrapped = (...args: Parameters<T>): ReturnType<T> => {
+    let result = fn(...args) as ReturnType<T>;
 
     for (const middleware of middlewares) {
       result = middleware(name, fn, args, result);
     }
 
     return result;
-  }) as T;
+  };
+  return wrapped as T;
+  /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 };
 
 const createMiddlewareWrapper = (middlewares: Middleware<AnyFn>[]) => {

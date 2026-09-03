@@ -13,6 +13,7 @@ import { EventNode, EventPanelCallbacks } from "../types";
 
 import { StateDiffView } from "./StateDiffView";
 import {
+  matchesChangeSignature,
   RenderableChangeTypes,
   StoreSpecificRenderableTypes,
 } from "./StateEventRenderers";
@@ -60,12 +61,13 @@ export const StateEventView: FC<StateEventViewProps> = ({
   // appearing attached to state.
   const changePreview = useMemo(() => {
     const isStore = eventNode.event.event === "store";
-    const afterClone = structuredClone(after) || {};
-    return generatePreview(event.changes, afterClone, isStore);
-  }, [event.changes, eventNode.event.event, after]);
+    const afterClone = structuredClone(after);
+    return generatePreview(event.changes, afterClone, isStore, eventNode.id);
+  }, [event.changes, eventNode.event.event, after, eventNode.id]);
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (changePreview === undefined && onAutoCollapse) {
       onAutoCollapse(eventNode.id);
@@ -90,8 +92,8 @@ export const StateEventView: FC<StateEventViewProps> = ({
         </div>
       ) : undefined}
       <StateDiffView
-        before={before as object}
-        after={after as object}
+        before={before}
+        after={after}
         data-name="Diff"
         className={clsx(styles.diff)}
       />
@@ -105,7 +107,8 @@ export const StateEventView: FC<StateEventViewProps> = ({
 const generatePreview = (
   changes: JsonChange[],
   resolvedState: Record<string, unknown>,
-  isStore: boolean
+  isStore: boolean,
+  eventNodeId: string
 ) => {
   const results: ReactNode[] = [];
   for (const changeType of [
@@ -113,64 +116,15 @@ const generatePreview = (
     ...(isStore ? StoreSpecificRenderableTypes : []),
   ]) {
     if (changeType.signature) {
-      // Note that we currently only have renderers that depend upon
-      // add, remove, replace, but we should likely add
-      // move, copy, test
-      const requiredMatchCount =
-        changeType.signature.remove.length +
-        changeType.signature.replace.length +
-        changeType.signature.add.length;
-      let matchingOps = 0;
-      for (const change of changes) {
-        const op = change.op;
-        switch (op) {
-          case "add":
-            if (
-              changeType.signature.add &&
-              changeType.signature.add.length > 0
-            ) {
-              changeType.signature.add.forEach((signature) => {
-                if (change.path.match(signature)) {
-                  matchingOps++;
-                }
-              });
-            }
-            break;
-          case "remove":
-            if (
-              changeType.signature.remove &&
-              changeType.signature.remove.length > 0
-            ) {
-              changeType.signature.remove.forEach((signature) => {
-                if (change.path.match(signature)) {
-                  matchingOps++;
-                }
-              });
-            }
-            break;
-          case "replace":
-            if (
-              changeType.signature.replace &&
-              changeType.signature.replace.length > 0
-            ) {
-              changeType.signature.replace.forEach((signature) => {
-                if (change.path.match(signature)) {
-                  matchingOps++;
-                }
-              });
-            }
-            break;
-        }
-      }
-      if (matchingOps === requiredMatchCount) {
-        const el = changeType.render(changes, resolvedState);
+      if (matchesChangeSignature(changes, changeType.signature)) {
+        const el = changeType.render(changes, resolvedState, eventNodeId);
         results.push(el);
         break;
       }
     } else if (changeType.match) {
       const matches = changeType.match(changes);
       if (matches) {
-        const el = changeType.render(changes, resolvedState);
+        const el = changeType.render(changes, resolvedState, eventNodeId);
         results.push(el);
         break;
       }
@@ -215,20 +169,19 @@ const summarizeChanges = (changes: JsonChange[]): string => {
   }
 
   const changeList: string[] = [];
-  const totalOpCount = Object.keys(changeMap).reduce((prev, current) => {
-    return prev + changeMap[current as JsonChangeOp].length;
-  }, 0);
+  const totalOpCount = Object.values(changeMap).reduce(
+    (prev, opChanges) => prev + opChanges.length,
+    0
+  );
 
   if (totalOpCount > 2) {
-    Object.keys(changeMap).forEach((key) => {
-      const opChanges = changeMap[key as JsonChangeOp];
+    Object.entries(changeMap).forEach(([key, opChanges]) => {
       if (opChanges.length > 0) {
         changeList.push(`${key} ${opChanges.length}`);
       }
     });
   } else {
-    Object.keys(changeMap).forEach((key) => {
-      const opChanges = changeMap[key as JsonChangeOp];
+    Object.entries(changeMap).forEach(([key, opChanges]) => {
       if (opChanges.length > 0) {
         changeList.push(`${key} ${opChanges.join(", ")}`);
       }
@@ -238,11 +191,54 @@ const summarizeChanges = (changes: JsonChange[]): string => {
 };
 
 /**
- * Renders a view displaying a list of state changes.
+ * JSON-pointer paths step through arrays as well as objects — a numeric
+ * segment addresses an array index — so the synthesized-diff traversal
+ * carries both shapes.
  */
-const synthesizeComparable = (changes: JsonChange[]) => {
-  const before = {};
-  const after = {};
+type PathContainer = Record<string, unknown> | unknown[];
+
+const isPathContainer = (value: unknown): value is PathContainer =>
+  typeof value === "object" && value !== null;
+
+const getChild = (container: PathContainer, key: string): unknown =>
+  Array.isArray(container) ? container[Number(key)] : container[key];
+
+const setChild = (
+  container: PathContainer,
+  key: string,
+  value: unknown
+): void => {
+  if (Array.isArray(container)) {
+    container[Number(key)] = value;
+  } else {
+    container[key] = value;
+  }
+};
+
+const asArray = (value: unknown): unknown[] | undefined =>
+  Array.isArray(value) ? value : undefined;
+
+// An array can't hold a non-numeric key — string props set on an array are
+// invisible to JSON.stringify and the diff renderer's array walk — so when a
+// path needs one (a dict with mixed numeric/non-numeric keys), re-key the
+// array as a plain object.
+const arrayToObject = (arr: unknown[]): Record<string, unknown> => {
+  const obj: Record<string, unknown> = {};
+  arr.forEach((item, index) => {
+    obj[index] = item;
+  });
+  return obj;
+};
+
+/**
+ * Synthesizes before/after objects from a list of JSON-patch changes so the
+ * pair can be diffed. Exported for tests.
+ */
+export const synthesizeComparable = (
+  changes: JsonChange[]
+): [Record<string, unknown>, Record<string, unknown>] => {
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
 
   for (const change of changes) {
     switch (change.op) {
@@ -275,8 +271,36 @@ const synthesizeComparable = (changes: JsonChange[]) => {
         break;
     }
   }
+  reconcileContainerKinds(before, after);
   return [before, after];
 };
+
+/**
+ * Aligns container kinds between the two synthesized sides. Ops that write
+ * only one side (remove, move, copy) skip initializeArrays, so a mixed-key
+ * re-key can fire on one side only — and jsondiffpatch renders array-vs-object
+ * at the same path as a whole-value swap instead of key-level edits.
+ */
+function reconcileContainerKinds(a: PathContainer, b: PathContainer): void {
+  const keys = Array.isArray(a)
+    ? a.map((_, index) => String(index))
+    : Object.keys(a);
+  for (const key of keys) {
+    const leftRaw = getChild(a, key);
+    const rightRaw = getChild(b, key);
+    if (!isPathContainer(leftRaw) || !isPathContainer(rightRaw)) continue;
+    let left: PathContainer = leftRaw;
+    let right: PathContainer = rightRaw;
+    if (Array.isArray(left) && !Array.isArray(right)) {
+      left = arrayToObject(left);
+      setChild(a, key, left);
+    } else if (Array.isArray(right) && !Array.isArray(left)) {
+      right = arrayToObject(right);
+      setChild(b, key, right);
+    }
+    reconcileContainerKinds(left, right);
+  }
+}
 
 /**
  * Sets a value at a path in an object
@@ -287,23 +311,37 @@ function setPath(
   value: unknown
 ): void {
   const keys = parsePath(path);
-  let current: Record<string, unknown> = target;
+  let current: PathContainer = target;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    if (key && !(key in current)) {
-      // If the next key is a number, create an array, otherwise an object
-      const nextKey = keys[i + 1];
-      if (nextKey) {
-        current[key] = isArrayIndex(nextKey) ? [] : {};
+    if (!key) return;
+    const nextKey = keys[i + 1];
+    const existing = getChild(current, key);
+    let next: PathContainer;
+    if (isPathContainer(existing)) {
+      next =
+        Array.isArray(existing) && nextKey && !isArrayIndex(nextKey)
+          ? arrayToObject(existing)
+          : existing;
+      if (next !== existing) {
+        setChild(current, key, next);
       }
-      current = current[key] as Record<string, unknown>;
+    } else {
+      // If the next key is a number, create an array, otherwise an object.
+      // A scalar already here gets overwritten: a change list writing /a and
+      // then /a/b onto the same side loses the /a scalar. Coherent jsonpatch
+      // output doesn't produce that shape, so we accept the (silent) drop
+      // rather than complicate the synthesis.
+      next = nextKey && isArrayIndex(nextKey) ? [] : {};
+      setChild(current, key, next);
     }
+    current = next;
   }
 
   const lastKey = keys[keys.length - 1];
   if (lastKey) {
-    current[lastKey] = value;
+    setChild(current, lastKey, value);
   }
 }
 
@@ -312,7 +350,7 @@ function setPath(
  */
 function initializeArrays(target: Record<string, unknown>, path: string): void {
   const keys = parsePath(path);
-  let current: Record<string, unknown> = target;
+  let current: PathContainer = target;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
@@ -321,22 +359,27 @@ function initializeArrays(target: Record<string, unknown>, path: string): void {
       continue;
     }
 
+    const existing = getChild(current, key);
     if (isArrayIndex(nextKey)) {
-      current[key] = initializeArray(
-        current[key] as string[] | undefined,
-        nextKey
-      );
+      // A plain object holds numeric-string keys fine — only build (or pad)
+      // an array when there's no object here to reuse.
+      if (Array.isArray(existing) || !isPathContainer(existing)) {
+        setChild(current, key, initializeArray(asArray(existing), nextKey));
+      }
+    } else if (Array.isArray(existing)) {
+      setChild(current, key, arrayToObject(existing));
     } else {
-      current[key] = initializeObject(current[key] as object | undefined);
+      setChild(current, key, isPathContainer(existing) ? existing : {});
     }
 
-    current = current[key] as Record<string, unknown>;
+    const next = getChild(current, key);
+    if (!isPathContainer(next)) return;
+    current = next;
   }
 
   const lastKey = keys[keys.length - 1];
   if (lastKey && isArrayIndex(lastKey)) {
-    const lastValue = current[lastKey] as string[] | undefined;
-    initializeArray(lastValue, lastKey);
+    initializeArray(asArray(getChild(current, lastKey)), lastKey);
   }
 }
 
@@ -358,9 +401,9 @@ function isArrayIndex(key: string): boolean {
  * Initializes an array at a given key, ensuring it is large enough
  */
 function initializeArray(
-  current: Array<string> | undefined,
+  current: unknown[] | undefined,
   nextKey: string
-): Array<string> {
+): unknown[] {
   if (!Array.isArray(current)) {
     current = [];
   }
@@ -369,11 +412,4 @@ function initializeArray(
     current.push("");
   }
   return current;
-}
-
-/**
- * Initializes an object at a given key if it doesn't exist
- */
-function initializeObject(current?: object): object {
-  return current ?? {};
 }

@@ -18,6 +18,7 @@ import {
   useValidationSets,
   validationQueryKeys,
 } from "../../server/useValidations";
+import { eventValue } from "../../utils/formEvents";
 import {
   extractUniqueSplits,
   generateNewSetUri,
@@ -33,6 +34,11 @@ const KEEP_ORIGINAL_SPLIT = "__keep__";
 
 /** Sentinel value meaning "remove split (set to null)" */
 const NO_SPLIT = "__none__";
+
+// Module-level so components stay compilable: React Compiler can't lower
+// value blocks (the ternary here) inside try/catch.
+const errorMessage = (err: unknown, fallback: string): string =>
+  err instanceof Error ? err.message : fallback;
 
 interface CopyMoveCasesModalProps {
   /** Whether to show the modal */
@@ -115,7 +121,7 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
   // Handle target set selection
   const handleTargetChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     if (value === "__new__") {
       setShowNewSetInput(true);
       setNewSetName("");
@@ -130,13 +136,13 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
   // Handle new set name input
   const handleNewSetNameInput = (e: Event) => {
-    setNewSetName((e.target as HTMLInputElement).value);
+    setNewSetName(eventValue(e));
     setError(null);
   };
 
   // Handle split selection change
   const handleSplitChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     setTargetSplit(value);
   };
 
@@ -169,9 +175,7 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
       await createSetMutation.mutateAsync({ path: newUri, cases: [] });
       return newUri;
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to create validation set";
-      setError(message);
+      setError(errorMessage(err, "Failed to create validation set"));
       return undefined;
     }
   };
@@ -220,65 +224,60 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     return true;
   };
 
+  const performSubmit = async () => {
+    // Determine final target URI
+    let finalTargetUri = targetUri;
+
+    if (showNewSetInput) {
+      finalTargetUri = await handleCreateNewSet();
+      if (!finalTargetUri) {
+        return;
+      }
+    }
+
+    if (!finalTargetUri) {
+      setError("Please select a target validation set");
+      return;
+    }
+
+    // Copy cases to target
+    const copySuccess = await copyCasesToTarget(finalTargetUri);
+    if (!copySuccess) {
+      return;
+    }
+
+    // Invalidate target set cache to show new cases
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    queryClient.invalidateQueries({
+      queryKey: validationQueryKeys.cases(finalTargetUri),
+    });
+
+    // If move mode, delete from source
+    if (mode === "move") {
+      try {
+        await deleteCasesMutation.mutateAsync(selectedIds);
+      } catch (err) {
+        // Cases were copied but deletion failed - inform user
+        const message = errorMessage(err, "Unknown error");
+        setError(
+          `Cases copied successfully, but failed to delete from source: ${message}`
+        );
+        return;
+      }
+    }
+
+    // Success!
+    onSuccess();
+    handleHide();
+  };
+
   // Handle form submission
-  const handleSubmit = async () => {
+  const handleSubmit = (): void => {
     setIsProcessing(true);
     setError(null);
-
-    try {
-      // Determine final target URI
-      let finalTargetUri = targetUri;
-
-      if (showNewSetInput) {
-        finalTargetUri = await handleCreateNewSet();
-        if (!finalTargetUri) {
-          setIsProcessing(false);
-          return;
-        }
-      }
-
-      if (!finalTargetUri) {
-        setError("Please select a target validation set");
-        setIsProcessing(false);
-        return;
-      }
-
-      // Copy cases to target
-      const copySuccess = await copyCasesToTarget(finalTargetUri);
-      if (!copySuccess) {
-        setIsProcessing(false);
-        return;
-      }
-
-      // Invalidate target set cache to show new cases
-      void queryClient.invalidateQueries({
-        queryKey: validationQueryKeys.cases(finalTargetUri),
-      });
-
-      // If move mode, delete from source
-      if (mode === "move") {
-        try {
-          await deleteCasesMutation.mutateAsync(selectedIds);
-        } catch (err) {
-          // Cases were copied but deletion failed - inform user
-          const message = err instanceof Error ? err.message : "Unknown error";
-          setError(
-            `Cases copied successfully, but failed to delete from source: ${message}`
-          );
-          setIsProcessing(false);
-          return;
-        }
-      }
-
-      // Success!
-      onSuccess();
-      handleHide();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Operation failed";
-      setError(message);
-    } finally {
-      setIsProcessing(false);
-    }
+    performSubmit()
+      .catch((err: unknown) => setError(errorMessage(err, "Operation failed")))
+      .finally(() => setIsProcessing(false));
   };
 
   const title = mode === "copy" ? "Copy Cases" : "Move Cases";
@@ -292,17 +291,14 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     <Modal
       show={show}
       onHide={handleHide}
-      onSubmit={canSubmit ? () => void handleSubmit() : undefined}
+      onSubmit={canSubmit ? handleSubmit : undefined}
       title={title}
       footer={
         <>
           <VscodeButton secondary onClick={handleHide} disabled={isProcessing}>
             Cancel
           </VscodeButton>
-          <VscodeButton
-            onClick={() => void handleSubmit()}
-            disabled={!canSubmit}
-          >
+          <VscodeButton onClick={handleSubmit} disabled={!canSubmit}>
             {isProcessing ? processingLabel : actionLabel}
           </VscodeButton>
         </>
@@ -317,8 +313,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
 
         {/* Target set selector */}
         <div className={styles.fieldGroup}>
-          <label className={styles.label}>Target validation set:</label>
+          <label htmlFor="copy-move-target-set" className={styles.label}>
+            Target validation set:
+          </label>
           <VscodeSingleSelect
+            id="copy-move-target-set"
             value={showNewSetInput ? "__new__" : (targetUri ?? "")}
             onChange={handleTargetChange}
             disabled={isProcessing}
@@ -337,8 +336,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
         {/* New set name input */}
         {showNewSetInput && (
           <div className={styles.fieldGroup}>
-            <label className={styles.label}>New set name:</label>
+            <label htmlFor="copy-move-new-set-name" className={styles.label}>
+              New set name:
+            </label>
             <VscodeTextfield
+              id="copy-move-new-set-name"
               value={newSetName}
               onInput={handleNewSetNameInput}
               placeholder="Enter name (without extension)"
@@ -355,8 +357,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
         {/* Split selector for target */}
         {(targetUri || (showNewSetInput && newSetName.trim())) && (
           <div className={styles.fieldGroup}>
-            <label className={styles.label}>Split assignment:</label>
+            <label htmlFor="copy-move-split" className={styles.label}>
+              Split assignment:
+            </label>
             <VscodeSingleSelect
+              id="copy-move-split"
               value={targetSplit}
               onChange={handleSplitChange}
               disabled={isProcessing}

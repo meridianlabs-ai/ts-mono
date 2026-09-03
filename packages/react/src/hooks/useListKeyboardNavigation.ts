@@ -1,6 +1,6 @@
 import { RefObject, useEffect } from "react";
 
-import { isEditableTarget } from "@tsmono/util";
+import { deepActiveElement, isEditableTarget } from "@tsmono/util";
 
 import type { VirtualListHandle } from "../virtual/types";
 
@@ -10,16 +10,41 @@ interface ListKeyboardNavigationOptions {
   scrollRef?: RefObject<HTMLDivElement | null>;
   /** Total number of items in the list. */
   itemCount: number;
+  /**
+   * When true, all shortcuts stand down so another surface can own the
+   * keyboard (e.g. find-in-page is open).
+   */
+  disabled?: boolean;
 }
 
+/**
+ * Generic list keyboard navigation: modifier+ArrowUp/Home jumps to the start,
+ * modifier+ArrowDown/End to the end. Domain-specific keys (e.g. the
+ * transcript's vim-style j/k turn stepping) belong in consumer-owned wrappers
+ * such as `useTranscriptKeyboardNavigation`.
+ */
 export function useListKeyboardNavigation({
   listHandle,
   scrollRef,
   itemCount,
+  disabled,
 }: ListKeyboardNavigationOptions): void {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (disabled) return;
+      // Only the visible list may claim these window-capture keys, so a
+      // hidden/offscreen instance mounted elsewhere doesn't swallow them.
+      const container = scrollRef?.current;
+      if (
+        container &&
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: checkVisibility is absent in jsdom and older browsers
+        (!container.isConnected || container.checkVisibility?.() === false)
+      ) {
+        return;
+      }
+      // Meta/Ctrl only — Alt+Arrow chords belong to the browser/OS.
       const hasModifier = event.metaKey || event.ctrlKey;
+
       const isUp =
         (event.key === "ArrowUp" && hasModifier) ||
         (event.key === "Home" && hasModifier);
@@ -28,7 +53,7 @@ export function useListKeyboardNavigation({
         (event.key === "End" && hasModifier);
       if (!isUp && !isDown) return;
 
-      if (isEditableTarget(document.activeElement)) return;
+      if (isEditableTarget(deepActiveElement())) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -55,5 +80,5 @@ export function useListKeyboardNavigation({
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
     };
-  }, [listHandle, scrollRef, itemCount]);
+  }, [listHandle, scrollRef, itemCount, disabled]);
 }

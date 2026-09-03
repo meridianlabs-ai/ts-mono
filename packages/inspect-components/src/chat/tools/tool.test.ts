@@ -50,6 +50,24 @@ describe("resolveToolInput", () => {
     }
   });
 
+  it("renders codex Code Mode exec source as the body, typed javascript", () => {
+    // Code Mode `input` is JS source calling tools.* — often hundreds of chars
+    // with embedded string literals. It must become the input body (highlighted,
+    // expandable), not be inlined into the single-line header summary.
+    const source =
+      'const patch = "*** Begin Patch\\n*** End Patch";\ntext(await tools.apply_patch(patch));';
+    const result = resolveToolInput("exec", { input: source });
+    expect(result.input).toBe(source);
+    expect(result.contentType).toBe("javascript");
+    expect(result.functionCall).toBe("exec");
+  });
+
+  it("leaves non-Code-Mode exec tools on the default rendering", () => {
+    const result = resolveToolInput("exec", { cmd: "ls -la" });
+    expect(result.input).toBeUndefined();
+    expect(result.functionCall).toBe('exec(cmd: "ls -la")');
+  });
+
   it("leaves unknown tools without a markdown content type", () => {
     expect(resolveToolInput("some_other_tool", {}).contentType).not.toBe(
       "markdown"
@@ -113,13 +131,39 @@ describe("codexToolMarkdown", () => {
     );
   });
 
-  it("handles close_agent previous_status and strips content-internal", () => {
+  it("strips a valid trailing content-internal envelope", () => {
     const output = JSON.stringify({
       previous_status: {
         completed: "answer<content-internal>eyJ4IjoxfQ==</content-internal>",
       },
     });
     expect(codexToolMarkdown("close_agent", output)).toBe("answer");
+  });
+
+  it.each([
+    [
+      "non-trailing envelope",
+      "answer<content-internal>eyJ4IjoxfQ==</content-internal>after",
+    ],
+    [
+      "invalid base64",
+      "answer<content-internal>not-base64!</content-internal>",
+    ],
+    ["invalid JSON", "answer<content-internal>bm90IGpzb24=</content-internal>"],
+    [
+      "repeated envelopes",
+      "answer<content-internal>eyJ4IjoxfQ==</content-internal>" +
+        "<content-internal>eyJ5IjoyfQ==</content-internal>",
+    ],
+  ])("preserves %s in a Codex answer", (_name, completed) => {
+    const output = JSON.stringify({ previous_status: { completed } });
+    expect(codexToolMarkdown("close_agent", output)).toBe(completed);
+  });
+
+  it("preserves trailing whitespace when no valid envelope is present", () => {
+    const completed = "answer  \n";
+    const output = JSON.stringify({ previous_status: { completed } });
+    expect(codexToolMarkdown("close_agent", output)).toBe(completed);
   });
 
   it("returns undefined for non-codex tools and non-JSON", () => {

@@ -1,14 +1,20 @@
 import { decompress as decompressZstd } from "fzstd";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
-import { ApiError, asyncJsonParse, encodeBase64Url } from "@tsmono/util";
+import {
+  ApiError,
+  asyncJsonParse,
+  encodeBase64Url,
+  isRecord,
+} from "@tsmono/util";
 
 import type { Condition, OrderByModel } from "../query";
 import {
   ActiveScansResponse,
   AppConfig,
   CreateValidationSetRequest,
+  InvalidationTopic,
   MessagesEventsResponse,
   Pagination,
   ProjectConfig,
@@ -45,6 +51,42 @@ import { serverRequestApi } from "./request";
 export type HeaderProvider = () => Promise<Record<string, string>>;
 
 type TopicUpdateCallback = (topVersions: TopicVersions) => void;
+
+// `satisfies` ties this to the generated union: regenerating the API types
+// with a new invalidation topic errors here until the topic is added, so new
+// topics can't be silently stripped from invalidation frames.
+const kInvalidationTopics = {
+  "project-config": true,
+  scans: true,
+  transcripts: true,
+} satisfies Record<InvalidationTopic, true>;
+
+const isInvalidationTopic = (key: string): key is InvalidationTopic =>
+  Object.hasOwn(kInvalidationTopics, key);
+
+/**
+ * Topic versions arrive as wire text on both the polling and SSE paths.
+ * Unrecognized keys and non-string versions are dropped, but any parseable
+ * JSON frame still counts as an update (it marks the connection live);
+ * only unparseable text isn't an update at all.
+ */
+const parseTopicVersions = (text: string): TopicVersions | undefined => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+  const versions: TopicVersions = {};
+  if (isRecord(parsed)) {
+    for (const [key, version] of Object.entries(parsed)) {
+      if (isInvalidationTopic(key) && typeof version === "string") {
+        versions[key] = version;
+      }
+    }
+  }
+  return versions;
+};
 
 const ENCODING_ZSTD: RawEncoding = "zstd";
 
@@ -166,7 +208,12 @@ export const apiScoutServer = (
       ]);
 
       const { messages, timelines, attachments } = parsed;
-      const events = expandEvents(parsed.events, parsed.events_data ?? null);
+      // Boundary normalization (#555): transcripts can come from old logs
+      // whose events omit fields the types declare required.
+      const events = expandEvents(
+        normalizeEvents(parsed.events),
+        parsed.events_data ?? null
+      );
 
       return {
         ...info,
@@ -188,6 +235,7 @@ export const apiScoutServer = (
         "POST",
         `/transcripts/${encodeBase64Url(transcriptsDir)}/distinct`,
         {},
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         JSON.stringify({ column, filter: filter ?? null })
       );
       return asyncJsonParse<ScalarValue[]>(result.raw);
@@ -268,7 +316,7 @@ export const apiScoutServer = (
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}/${encodeURIComponent(scanner)}/${encodeURIComponent(uuid)}?column=input&column=input_type&column=input_data&column=scan_events`
       );
       const parsed = await asyncJsonParse<
-        ScannerInputResponse & { scan_events: Event[] }
+        ScannerInputResponse & { scan_events?: unknown }
       >(raw);
 
       return {
@@ -280,7 +328,9 @@ export const apiScoutServer = (
             parsed.input_data
           ),
         },
-        scanEvents: parsed.scan_events ?? [],
+        // Boundary normalization (#555): scan events are written by many
+        // inspect_scout versions and can omit required-with-default fields.
+        scanEvents: normalizeEvents(parsed.scan_events),
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
@@ -490,12 +540,24 @@ const connectTopicUpdatesViaPolling = (
 ): (() => void) => {
   const controller = new AbortController();
 
-  const poll = () =>
+  const poll = (): void => {
     (customFetch ?? fetch)(`${apiBaseUrl}/topics`, {
       signal: controller.signal,
     })
-      .then<TopicVersions>((res) => res.json())
-      .then(onUpdate)
+      .then((res) => {
+        // An error response's body (often parseable JSON like {"detail":...})
+        // must not count as a topic update and mark the connection live.
+        if (!res.ok) {
+          throw new Error(`unexpected status ${res.status}`);
+        }
+        return res.text();
+      })
+      .then((text) => {
+        const versions = parseTopicVersions(text);
+        if (versions) {
+          onUpdate(versions);
+        }
+      })
       .catch((error: unknown) => {
         const name =
           error && typeof error === "object" && "name" in error
@@ -505,9 +567,10 @@ const connectTopicUpdatesViaPolling = (
           console.error("Topic polling failed:", error);
         }
       });
+  };
 
-  void poll();
-  const intervalId = setInterval(() => void poll(), 10000);
+  poll();
+  const intervalId = setInterval(poll, 10000);
 
   return () => {
     controller.abort();
@@ -524,8 +587,14 @@ const connectTopicUpdatesViaSSE = (
 
   const connect = () => {
     eventSource = new EventSource(`${apiBaseUrl}/topics/stream`);
-    eventSource.onmessage = (e) =>
-      onUpdate(JSON.parse(e.data as string) as TopicVersions);
+    eventSource.onmessage = (e) => {
+      const data: unknown = e.data;
+      const versions =
+        typeof data === "string" ? parseTopicVersions(data) : undefined;
+      if (versions) {
+        onUpdate(versions);
+      }
+    };
     eventSource.onerror = () => {
       eventSource?.close();
       timeoutId = setTimeout(connect, 5000);

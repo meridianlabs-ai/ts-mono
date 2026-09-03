@@ -13,7 +13,7 @@ import {
 import { MetadataEdit } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
 
-import { useApi } from "../../../state/store";
+import { getApi } from "../../../app_config";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import { AutogrowText } from "./AutogrowText";
@@ -24,6 +24,18 @@ import styles from "./EditMetadataDialog.module.css";
 import { ProvenanceFields } from "./ProvenanceFields";
 
 type NewType = "string" | "number" | "boolean" | "object" | "array" | "null";
+
+const kNewTypes: readonly NewType[] = [
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "array",
+  "null",
+];
+
+const asNewType = (value: string): NewType =>
+  kNewTypes.find((type) => type === value) ?? "string";
 
 export interface MetaEntry {
   key: string;
@@ -119,6 +131,17 @@ export const serializeEntry = (entry: MetaEntry): unknown => {
   }
 };
 
+// Module-level so the dialog stays compilable: React Compiler can't lower
+// loops inside try/catch, and serializeEntry must run under the catch that
+// classifies MetadataParseError.
+const buildMetadataSet = (entries: MetaEntry[]): Record<string, unknown> => {
+  const metadata_set: Record<string, unknown> = {};
+  for (const entry of entries) {
+    metadata_set[entry.key] = serializeEntry(entry);
+  }
+  return metadata_set;
+};
+
 const seedFor = (type: NewType): unknown => {
   switch (type) {
     case "string":
@@ -143,7 +166,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   logFile,
   onSaved,
 }) => {
-  const api = useApi();
+  const api = getApi();
 
   const initialEntries = useMemo<MetaEntry[]>(
     () =>
@@ -194,10 +217,11 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
 
   // On open, prefill Author from the server's best-effort identity (git
   // user.name → OS login). Same pattern as EditTagsDialog.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!showing) return;
     let cancelled = false;
-    if (api?.get_user_info) {
+    if (api.get_user_info) {
       api
         .get_user_info()
         .then((info) => {
@@ -278,6 +302,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   // committed to the DOM; we look it up by `data-meta-key` rather than
   // taking a ref so we don't need to thread a ref handler through
   // every MetaRow.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const pendingFocusKey = pendingFocusKeyRef.current;
     if (pendingFocusKey == null) return;
@@ -301,57 +326,65 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
   };
 
   const canSave =
-    !submitting && hasChanges && author.trim().length > 0 && !!api?.edit_log;
+    !submitting && hasChanges && author.trim().length > 0 && !!api.edit_log;
 
   // Re-entry guard (see EditTagsDialog for rationale).
   const inFlightRef = useRef(false);
 
-  const handleSave = async () => {
-    if (!canSave || inFlightRef.current || !api?.edit_log) return;
+  const handleSave = (): void => {
+    // Hoisted to a const so the narrowing survives into the chain callbacks.
+    const editLog = api.edit_log;
+    if (!canSave || inFlightRef.current || !editLog) return;
     inFlightRef.current = true;
     // Don't clear `error` here — see EditTagsDialog for the no-flash
     // rationale. Delayed "Saving…" indicator likewise.
     const indicatorTimer = window.setTimeout(() => setSubmitting(true), 200);
-    try {
-      const metadata_set: Record<string, unknown> = {};
-      for (const entry of entries) {
-        if (entry.isNew || entry.dirty) {
-          metadata_set[entry.key] = serializeEntry(entry);
+    const changedEntries = entries.filter((e) => e.isNew || e.dirty);
+    const provenance = {
+      author: author.trim(),
+      reason: reason.trim() || undefined,
+      metadata: {},
+      timestamp: new Date().toISOString(),
+    };
+    // buildMetadataSet runs inside the chain so a MetadataParseError from
+    // serializeEntry rejects into the catch below before any network call.
+    Promise.resolve()
+      .then(() => {
+        const metadata_set = buildMetadataSet(changedEntries);
+        const edit: MetadataEdit = {
+          type: "metadata",
+          metadata_set,
+          metadata_remove: removed,
+        };
+        return editLog(logFile, {
+          edits: [edit],
+          provenance,
+        });
+      })
+      .then(() => {
+        setShowing(false);
+        if (onSaved) {
+          onSaved();
         }
-      }
-      const edit: MetadataEdit = {
-        type: "metadata",
-        metadata_set,
-        metadata_remove: removed,
-      };
-      await api.edit_log(logFile, {
-        edits: [edit],
-        provenance: {
-          author: author.trim(),
-          reason: reason.trim() || undefined,
-          metadata: {},
-          timestamp: new Date().toISOString(),
-        },
+      })
+      .catch((err: unknown) => {
+        if (err instanceof MetadataParseError) {
+          // Show a per-key message. Common cause: JS-style object shorthand
+          // (`{a: 1}`) instead of JSON (`{"a": 1}`) for keys whose chosen
+          // type isn't `string`.
+          setError(
+            `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
+              `and strings, e.g. {"a": 1} or "yes".`
+          );
+        } else {
+          setError(formatEditError(err));
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(indicatorTimer);
+        setSubmitting(false);
+        inFlightRef.current = false;
       });
-      setShowing(false);
-      onSaved?.();
-    } catch (err) {
-      if (err instanceof MetadataParseError) {
-        // Show a per-key message and bail out before any network call.
-        // Common cause: JS-style object shorthand (`{a: 1}`) instead of
-        // JSON (`{"a": 1}`) for keys whose chosen type isn't `string`.
-        setError(
-          `Invalid JSON for "${err.key}". Use JSON syntax — quote keys ` +
-            `and strings, e.g. {"a": 1} or "yes".`
-        );
-      } else {
-        setError(formatEditError(err));
-      }
-    } finally {
-      window.clearTimeout(indicatorTimer);
-      setSubmitting(false);
-      inFlightRef.current = false;
-    }
   };
 
   return (
@@ -376,7 +409,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
             <button
               type="button"
               className={clsx("btn", "btn-primary", "text-size-smaller")}
-              onClick={() => void handleSave()}
+              onClick={handleSave}
               disabled={!canSave}
             >
               {submitting ? "Saving…" : "Save"}
@@ -388,16 +421,25 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
       <div className={sharedStyles.body}>
         <div className={sharedStyles.section}>
           <div className={sharedStyles.labelRow}>
-            <label className={clsx("text-size-smaller", sharedStyles.label)}>
+            {/* Names the whole entry table, so it can't be a <label> — those
+                may only point at a single form control. */}
+            <span
+              id="edit-metadata-label"
+              className={clsx("text-size-smaller", sharedStyles.label)}
+            >
               Metadata
-            </label>
+            </span>
             <span className={clsx("text-size-smaller", sharedStyles.hint)}>
               Values are edited as plain text. Use JSON syntax for nested
               values.
             </span>
           </div>
 
-          <div className={styles.tableScroll}>
+          <div
+            className={styles.tableScroll}
+            role="group"
+            aria-labelledby="edit-metadata-label"
+          >
             <div className={styles.table}>
               {entries.length === 0 && (
                 <div className={clsx("text-size-smaller", styles.empty)}>
@@ -439,7 +481,7 @@ export const EditMetadataDialog: FC<EditMetadataDialogProps> = ({
               )}
               value={newType}
               onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-                setNewType(e.target.value as NewType)
+                setNewType(asNewType(e.target.value))
               }
               aria-label="Type for new key"
               disabled={submitting}

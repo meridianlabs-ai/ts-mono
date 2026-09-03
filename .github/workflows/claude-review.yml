@@ -1,0 +1,46 @@
+# Copy to .github/workflows/claude-review.yml in any Meridian repo to add the
+# read-only reviewer. Reviews on demand via an @review comment. Independent of
+# the dev agent (claude.yml) — different trigger, different (lower)
+# permissions.
+#
+# ts-mono: automatic review-on-open is deliberately disabled here. The
+# upstream template also carries a `pull_request: [opened, reopened,
+# ready_for_review]` trigger (with a matching same-repo/non-draft clause in the
+# job `if:`); it was removed so PRs are only reviewed when someone asks.
+# Re-add that trigger and clause to restore auto-review.
+#
+# The @review comment path runs as issue_comment in the base-repo context with
+# full token access, so it works on fork PRs and drafts too.
+
+name: Review
+
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  review:
+    # Run on a PR comment containing @review (works on drafts and fork PRs),
+    # or on an External-labeled issue comment containing @review. `@review`
+    # does not collide with the dev agent's `@claude` trigger.
+    if: >
+      (github.event.issue.pull_request != null &&
+       contains(github.event.comment.body, '@review')) ||
+      (github.event.issue.pull_request == null &&
+       contains(github.event.issue.labels.*.name, 'External') &&
+       contains(github.event.comment.body, '@review'))
+    uses: meridianlabs-ai/agents/.github/workflows/claude-review.yml@main
+    # Machine-account PAT for the deterministic ack/stage steps only (eyes
+    # reaction + board stage); never handed to the review agent, which stays
+    # read-only. Absent -> those steps no-op.
+    secrets:
+      MARVIN_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+    with:
+      # companion branches reference the fork's tracker (mention derivation)
+      anchor_repo: meridianlabs-ai/inspect_ai
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+      id-token: write
+      actions: read

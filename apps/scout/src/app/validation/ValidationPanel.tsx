@@ -5,16 +5,14 @@ import {
   VscodeSingleSelect,
   VscodeTextfield,
 } from "@vscode-elements/react-elements";
-import {
-  ChangeEvent,
-  FC,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { FC, useCallback, useEffect, useMemo, useState } from "react";
 
-import { Modal, NonIdealState, TextInput } from "@tsmono/react/components";
+import {
+  Modal,
+  NonIdealState,
+  TextInput,
+  type TextInputChange,
+} from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { ApplicationIcons } from "../../icons";
@@ -28,6 +26,7 @@ import {
   useValidationCases,
   useValidationSets,
 } from "../server/useValidations";
+import { eventValue } from "../utils/formEvents";
 
 import { ValidationCasesList } from "./components/ValidationCasesList";
 import { ValidationSetSelector } from "./components/ValidationSetSelector";
@@ -70,6 +69,7 @@ export const ValidationPanel: FC = () => {
   } = useValidationCases(selectedUri ?? skipToken);
 
   // Auto-select first validation set when loaded
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!selectedUri && validationSets && validationSets.length > 0) {
       setSelectedUri(validationSets[0]);
@@ -119,7 +119,8 @@ export const ValidationPanel: FC = () => {
           );
         }
       };
-      void updateCases();
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      updateCases();
     },
     [selectedUri, cases, updateMutation]
   );
@@ -199,7 +200,7 @@ export const ValidationPanel: FC = () => {
   };
 
   const handleNameInput = (e: Event) => {
-    const value = (e.target as HTMLInputElement).value;
+    const value = eventValue(e);
     setNewName(value);
   };
 
@@ -214,7 +215,7 @@ export const ValidationPanel: FC = () => {
   }
 
   // Check for empty state (no validation sets available)
-  const hasNoValidationSets = !setsError && validationSets?.length === 0;
+  const hasNoValidationSets = !setsError && validationSets.length === 0;
 
   if (hasNoValidationSets) {
     return (
@@ -239,11 +240,11 @@ export const ValidationPanel: FC = () => {
 
   // Filter handlers
   const handleSplitFilterChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     setSplitFilter(value || undefined);
   };
 
-  const handleSearchChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (e: TextInputChange) => {
     setSearchText(e.target.value || undefined);
   };
 
@@ -259,6 +260,7 @@ export const ValidationPanel: FC = () => {
           </div>
         ) : (
           <ValidationSetSelector
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             validationSets={validationSets ?? []}
             selectedUri={selectedUri}
             onSelect={handleSelectSet}
@@ -271,6 +273,7 @@ export const ValidationPanel: FC = () => {
         {selectedUri && (
           <div className={styles.headerActions}>
             <button
+              type="button"
               className={styles.iconButton}
               onClick={handleOpenRename}
               title="Rename validation set"
@@ -279,6 +282,7 @@ export const ValidationPanel: FC = () => {
               <i className={ApplicationIcons.rename} />
             </button>
             <button
+              type="button"
               className={styles.iconButton}
               onClick={() => setShowDeleteModal(true)}
               title="Delete validation set"
@@ -338,7 +342,8 @@ export const ValidationPanel: FC = () => {
               <div className={styles.error}>
                 Error loading cases: {casesError.message}
               </div>
-            ) : cases ? (
+            ) : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+            cases ? (
               <ValidationCasesList
                 cases={cases}
                 transcriptsDir={transcriptsDir}
@@ -354,6 +359,7 @@ export const ValidationPanel: FC = () => {
           </>
         )}
 
+        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
         {!selectedUri && !setsLoading && (
           <div className={styles.emptyState}>
             Select a validation set to view its cases.

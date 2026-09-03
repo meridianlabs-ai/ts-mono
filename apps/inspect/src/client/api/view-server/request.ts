@@ -1,4 +1,4 @@
-import { asyncJsonParse } from "../../../utils/json-worker";
+import { asyncJsonParse, isRecord } from "@tsmono/util";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -30,13 +30,8 @@ export function unwrapFastapiDetail(body: string): string {
   if (!body) return body;
   try {
     const parsed: unknown = JSON.parse(body);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "detail" in parsed &&
-      typeof parsed.detail === "string"
-    ) {
-      return (parsed as { detail: string }).detail;
+    if (isRecord(parsed) && typeof parsed["detail"] === "string") {
+      return parsed["detail"];
     }
   } catch {
     // Not JSON — fall through.
@@ -73,8 +68,10 @@ export interface ServerRequestApi {
 
 export function serverRequestApi(
   baseUrl?: string,
-  getHeaders?: HeaderProvider
+  getHeaders?: HeaderProvider,
+  customFetch?: typeof fetch
 ): ServerRequestApi {
+  const fetchFn = customFetch ?? fetch;
   const apiUrl = baseUrl || "";
 
   function addViewRequestHeader(
@@ -130,7 +127,7 @@ export function serverRequestApi(
     }
     addViewRequestHeader(method, responseHeaders);
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method,
       headers: responseHeaders,
       body: request.body,
@@ -187,7 +184,7 @@ export function serverRequestApi(
     }
     addViewRequestHeader(method, requestHeaders);
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method,
       headers: requestHeaders,
       body,
@@ -225,7 +222,7 @@ export function serverRequestApi(
     }
     addViewRequestHeader(method, headers);
 
-    const response = await fetch(url, {
+    const response = await fetchFn(url, {
       method,
       headers,
       credentials: isApiCrossOrigin() ? "include" : "same-origin",

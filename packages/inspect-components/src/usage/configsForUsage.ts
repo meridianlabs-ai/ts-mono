@@ -1,15 +1,8 @@
 import type { EvalSpec } from "@tsmono/inspect-common/types";
+import { modelRoleConfigs } from "@tsmono/inspect-common/utils";
 
 type Dict = Record<string, unknown>;
 type DictMap = Record<string, Dict>;
-
-const stripNullish = (obj: Dict): Dict => {
-  const out: Dict = {};
-  for (const [k, v] of Object.entries(obj)) {
-    if (v !== null && v !== undefined) out[k] = v;
-  }
-  return out;
-};
 
 const mergeDefined = (target: Dict, source: Dict): Dict => {
   for (const [k, v] of Object.entries(source)) {
@@ -37,7 +30,9 @@ export const buildConfigsByModel = (
   };
   add(evalSpec.model, evalSpec.model_generate_config);
   if (evalSpec.model_roles) {
-    for (const rc of Object.values(evalSpec.model_roles)) {
+    for (const rc of Object.values(evalSpec.model_roles).flatMap(
+      modelRoleConfigs
+    )) {
       add(rc.model, rc.config);
     }
   }
@@ -49,8 +44,13 @@ export const buildConfigsByRole = (
 ): DictMap | undefined => {
   if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
-  for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-    if (rc.config) acc[role] = stripNullish(rc.config);
+  for (const [role, value] of Object.entries(evalSpec.model_roles)) {
+    // a role bound to a list of models merges its configs (later models
+    // override earlier ones), mirroring how buildConfigsByModel accumulates
+    for (const rc of modelRoleConfigs(value)) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (rc.config) acc[role] = mergeDefined(acc[role] ?? {}, rc.config);
+    }
   }
   return finalize(acc);
 };
@@ -64,7 +64,9 @@ export const buildArgsByModel = (evalSpec?: EvalSpec): DictMap | undefined => {
   };
   add(evalSpec.model, evalSpec.model_args);
   if (evalSpec.model_roles) {
-    for (const rc of Object.values(evalSpec.model_roles)) {
+    for (const rc of Object.values(evalSpec.model_roles).flatMap(
+      modelRoleConfigs
+    )) {
       add(rc.model, rc.args);
     }
   }
@@ -74,8 +76,11 @@ export const buildArgsByModel = (evalSpec?: EvalSpec): DictMap | undefined => {
 export const buildArgsByRole = (evalSpec?: EvalSpec): DictMap | undefined => {
   if (!evalSpec?.model_roles) return undefined;
   const acc: DictMap = {};
-  for (const [role, rc] of Object.entries(evalSpec.model_roles)) {
-    if (rc.args) acc[role] = stripNullish(rc.args);
+  for (const [role, value] of Object.entries(evalSpec.model_roles)) {
+    for (const rc of modelRoleConfigs(value)) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (rc.args) acc[role] = mergeDefined(acc[role] ?? {}, rc.args);
+    }
   }
   return finalize(acc);
 };

@@ -1,7 +1,6 @@
-import type { ScoreEvent, SpanBeginEvent } from "@tsmono/inspect-common/types";
-
+import { kSandboxSignalName } from "../transform/fixups";
 import { TYPE_SCORER, TYPE_SCORERS } from "../transform/utils";
-import { EventNode } from "../types";
+import { EventNode, eventNodeOf } from "../types";
 
 const kTurnType = "turn";
 const kTurnsType = "turns";
@@ -32,6 +31,23 @@ export const removeStepSpanNameVisitor = (name: string) => {
     },
   };
 };
+
+/**
+ * The filter the outline tree applies, reused by turn numbering so both count
+ * turns the same way - drops non-turn-content events. The outline also collapses
+ * scorer children via noScorerChildren(), which turn numbering deliberately keeps
+ * (so model-graded scorer calls count as turns).
+ */
+export const outlineFilterVisitors = () => [
+  removeNodeVisitor("logger"),
+  removeNodeVisitor("info"),
+  removeNodeVisitor("state"),
+  removeNodeVisitor("store"),
+  removeNodeVisitor("approval"),
+  removeNodeVisitor("input"),
+  removeNodeVisitor("sandbox"),
+  removeStepSpanNameVisitor(kSandboxSignalName),
+];
 
 export const noScorerChildren = () => {
   let inScorers = false;
@@ -141,7 +157,7 @@ export const collapseTurns = (eventNodes: EventNode[]): EventNode[] => {
       const turnNode = new EventNode(
         firstTurn.id,
         {
-          ...(firstTurn.event as SpanBeginEvent),
+          ...eventNodeOf(firstTurn, "span_begin").event,
           name: `${numberOfTurns} ${numberOfTurns === 1 ? "turn" : "turns"}`,
           type: kTurnsType,
         },
@@ -182,7 +198,7 @@ export const collapseScoring = (eventNodes: EventNode[]): EventNode[] => {
       const turnNode = new EventNode(
         firstScore.id,
         {
-          ...(firstScore.event as ScoreEvent),
+          ...eventNodeOf(firstScore, "score").event,
           name: "scoring",
           type: kCollapsedScoring,
         },
@@ -214,31 +230,37 @@ export type TurnInfo = { turnNumber: number; totalTurns: number };
  * Turn numbers come from the outline-filtered nodes (after makeTurns), so numbering
  * matches the sidebar. Non-turn events inherit the previous turn number.
  *
+ * Also returns the inversion, `anchorIdByTurn`: turn number → the turn's model
+ * event id, for every numbered turn — including turns whose anchor is hidden
+ * by the live collapse state (the keys of `turnMap` cover only visible nodes).
+ * Turns without a model child (possible only for backend-emitted turn spans;
+ * makeTurns always inserts the model node) have no entry.
+ *
  * @param outlineFilteredNodes - The filtered node list used for the outline sidebar
  * @param flattenedNodes - The full flattened node list (all visible transcript events)
  */
 export const computeTurnMap = (
   outlineFilteredNodes: EventNode[],
   flattenedNodes: EventNode[]
-): Map<string, TurnInfo> => {
+): { turnMap: Map<string, TurnInfo>; anchorIdByTurn: Map<number, string> } => {
   const turns = makeTurns(outlineFilteredNodes);
   const map = new Map<string, TurnInfo>();
 
   const turnNodes = turns.filter(
-    (n) =>
-      n.event.event === "span_begin" &&
-      (n.event as { type?: string }).type === kTurnType
+    (n) => n.event.event === "span_begin" && n.event.type === kTurnType
   );
   const totalTurns = turnNodes.length;
 
   // Map model event IDs to their turn numbers
   let turnNumber = 0;
   const modelEventTurnNumbers = new Map<string, number>();
+  const anchorIdByTurn = new Map<number, string>();
   for (const node of turnNodes) {
     turnNumber++;
     const modelChild = node.children.find((c) => c.event.event === "model");
     if (modelChild) {
       modelEventTurnNumbers.set(modelChild.id, turnNumber);
+      anchorIdByTurn.set(turnNumber, modelChild.id);
     }
   }
 
@@ -255,5 +277,5 @@ export const computeTurnMap = (
     }
   }
 
-  return map;
+  return { turnMap: map, anchorIdByTurn };
 };

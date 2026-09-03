@@ -1,12 +1,13 @@
 import { VscodeCheckbox } from "@vscode-elements/react-elements";
 import React, { CSSProperties, FC, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../../icons";
 import { transcriptRoute } from "../../../router/url";
 import { TranscriptInfo, ValidationCase } from "../../../types/api-types";
+import { eventChecked } from "../../utils/formEvents";
 import { getIdText } from "../utils";
 
 import styles from "./ValidationCaseCard.module.css";
@@ -193,25 +194,27 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
   const handleNavigateToTranscript = () => {
     const singleId = Array.isArray(id) ? id[0] : id;
     if (transcriptsDir && singleId) {
-      void navigate(
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      navigate(
         transcriptRoute(transcriptsDir, singleId, undefined, validationSetUri)
       );
     }
   };
 
   const handleCheckboxChange = (e: Event) => {
-    const checked = (e.target as HTMLInputElement).checked;
+    const checked = eventChecked(e);
     onSelectionChange(checked);
   };
 
   // Handle row click to toggle selection
   const handleRowClick = (e: React.MouseEvent) => {
     // Don't toggle if clicking on interactive elements
-    const target = e.target as HTMLElement;
+    const target = e.target;
     if (
-      target.closest("button") ||
-      target.closest("vscode-checkbox") ||
-      target.closest("vscode-single-select")
+      target instanceof Element &&
+      (target.closest("button") ||
+        target.closest("vscode-checkbox") ||
+        target.closest("vscode-single-select"))
     ) {
       return;
     }
@@ -227,9 +230,12 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
   const labelsText = formatLabels(labels);
 
   return (
+    // Clicking the card is a shortcut for the checkbox below, which is the
+    // control keyboard and screen-reader users operate.
     <div
       className={`${styles.card} ${isSelected ? styles.selected : ""}`}
       style={gridStyle}
+      role="presentation"
       onClick={handleRowClick}
     >
       {/* Checkbox column */}
@@ -240,6 +246,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
       {/* Transcript column (ID + details) */}
       <div className={styles.transcriptCell}>
         <button
+          type="button"
           className={styles.idLink}
           onClick={handleNavigateToTranscript}
           disabled={!transcriptsDir}
@@ -284,6 +291,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
       {/* Actions column */}
       <div className={styles.actions}>
         <button
+          type="button"
           className={styles.actionButton}
           onClick={handleNavigateToTranscript}
           disabled={!transcriptsDir}
@@ -293,6 +301,7 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
         </button>
         {onDelete && (
           <button
+            type="button"
             className={styles.actionButton}
             onClick={() => setShowDeleteModal(true)}
             disabled={isDeleting}
@@ -312,12 +321,14 @@ export const ValidationCaseCard: FC<ValidationCaseCardProps> = ({
         footer={
           <>
             <button
+              type="button"
               className={styles.modalButton}
               onClick={() => setShowDeleteModal(false)}
             >
               Cancel
             </button>
             <button
+              type="button"
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleDelete}
               disabled={isDeleting}

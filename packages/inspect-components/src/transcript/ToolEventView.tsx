@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import type { ModelEvent, ToolEvent } from "@tsmono/inspect-common/types";
+import type { ToolEvent } from "@tsmono/inspect-common/types";
 import {
   ChatView,
   ClientToolCall,
@@ -22,6 +22,7 @@ import styles from "./ToolEventView.module.css";
 import {
   EventNode,
   EventNodeContext,
+  eventNodeOf,
   EventPanelCallbacks,
   EventType,
 } from "./types";
@@ -65,18 +66,23 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const approvalNode = context?.toolApprovals?.get(event.id);
 
   const lastModelNode = useMemo(() => {
-    const lastModel = childNodes.findLast((e) => {
-      return e.event.event === "model";
-    });
-    return lastModel as EventNode<ModelEvent> | undefined;
+    const lastModel = childNodes.findLast((e) => e.event.event === "model");
+    return lastModel ? eventNodeOf(lastModel, "model") : undefined;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.events]);
 
   const displayName = resolvedView?.title || title || name;
   const panelTitle = displayName ? `Tool: ${displayName}` : "Tool";
 
-  const turnLabel = context?.turnInfo
-    ? `turn ${context.turnInfo.turnNumber}/${context.turnInfo.totalTurns}`
+  // Full turn-nav cluster, not just a passive label: tool headers are what is
+  // stuck for most scroll positions of tool-heavy transcripts, so turn
+  // navigation must stay reachable there too (self-relative to this turn).
+  const turnNav = context?.turnInfo
+    ? {
+        turnNumber: context.turnInfo.turnNumber,
+        totalTurns: context.turnInfo.totalTurns,
+        isAnchor: context.turnIsAnchor ?? true,
+      }
     : undefined;
 
   const toolLabels = useMemo<ChatViewLabelOptions>(() => {
@@ -86,7 +92,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     const directLabel = event.message_id
       ? messageLabels[event.message_id]
       : undefined;
-    const label = directLabel ?? context?.toolLabels?.[event.id];
+    const label = directLabel ?? context.toolLabels?.[event.id];
     return { messageLabels: label ? { [event.id]: label } : {} };
   }, [context?.messageLabels, context?.toolLabels, event.id, event.message_id]);
 
@@ -108,8 +114,11 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       input={input}
       description={description}
       contentType={contentType}
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       output={event.result ?? ""}
-      error={showError ? event.error! : undefined}
+      selfAnnotation={context?.selfAnnotation}
+      inputScreenshot={context?.inputScreenshot}
+      error={showError && event.error ? event.error : undefined}
       view={resolvedView}
     />
   );
@@ -129,7 +138,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       icon={TranscriptIcons.solvers.use_tools}
       childIds={childNodes.map((child) => child.id)}
       collapseControl="bottom"
-      turnLabel={turnLabel}
+      turnNav={turnNav}
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>

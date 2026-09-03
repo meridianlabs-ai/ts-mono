@@ -10,7 +10,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "@vscode/codicons/dist/codicon.css";
 
 import { createContext, FC, useEffect, useLayoutEffect, useMemo } from "react";
-import { RouterProvider } from "react-router-dom";
+import { RouterProvider } from "react-router/dom";
 
 import "prismjs";
 import "prismjs/components/prism-bash";
@@ -40,6 +40,8 @@ import { scoutStateHooks } from "./state/componentStateAdapter";
 import { SETTINGS_STORAGE_KEY, useUserSettings } from "./state/userSettings";
 
 const componentIcons: ComponentIcons = {
+  arrowDown: ApplicationIcons.arrows.down,
+  arrowUp: ApplicationIcons.arrows.up,
   chevronDown: ApplicationIcons.chevron.down,
   chevronUp: ApplicationIcons.collapse.up,
   clearText: ApplicationIcons["clear-text"],
@@ -75,6 +77,7 @@ const useThemePreferenceSync = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders.
   // A post-paint effect updates the icon a frame before the colors, flashing
   // the old theme.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
@@ -82,11 +85,13 @@ const useThemePreferenceSync = () => {
   // Cross-tab: zustand persist doesn't subscribe to `storage` events, so
   // another tab's write would leave this tab stale. Re-apply CSS (the bootstrap
   // reads the freshly-written value) and pull the new preference into zustand.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SETTINGS_STORAGE_KEY) {
         window.__APPLY_BROWSER_THEME__?.();
-        void useUserSettings.persist.rehydrate();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        useUserSettings.persist.rehydrate();
       }
     };
     window.addEventListener("storage", onStorage);

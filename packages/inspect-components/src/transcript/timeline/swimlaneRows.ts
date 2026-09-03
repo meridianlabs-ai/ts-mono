@@ -251,9 +251,8 @@ function buildRowFromGroup(
   }
 
   // Partition into overlapping clusters, then build RowSpans
-  const rowSpans = partitionIntoClusters(sorted).map(
-    (cluster): RowSpan =>
-      cluster.length === 1 ? { agent: cluster[0]! } : { agents: cluster }
+  const rowSpans = partitionIntoClusters(sorted).map((cluster): RowSpan =>
+    cluster.length === 1 ? { agent: cluster[0]! } : { agents: cluster }
   );
 
   // Compute aggregated time range and tokens

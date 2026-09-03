@@ -58,7 +58,7 @@ export const MarkdownDivWithReferences = forwardRef<
 
   const handleLinkClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const anchor = (e.target as HTMLElement).closest("a");
+      const anchor = e.target instanceof Element ? e.target.closest("a") : null;
       if (anchor) {
         const href = anchor.getAttribute("href");
         // If this is a hash link, forward on to react-router
@@ -67,7 +67,8 @@ export const MarkdownDivWithReferences = forwardRef<
         // so use replace to avoid filling history with each click.
         if (href?.startsWith("#/")) {
           e.preventDefault();
-          void navigate(href.slice(1), { replace: true });
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          navigate(href.slice(1), { replace: true });
         }
       }
     },
@@ -77,7 +78,7 @@ export const MarkdownDivWithReferences = forwardRef<
   // Post-process the rendered HTML to inject reference links
   const postProcess = useCallback(
     (html: string): string =>
-      injectReferenceLinks(html, references, styles.cite ?? "cite"),
+      injectReferenceLinks(html, references, styles.cite),
     [references]
   );
 
@@ -115,6 +116,7 @@ export const MarkdownDivWithReferences = forwardRef<
   // dismissed it. Suppress shows for that ref-id until the mouse actually
   // leaves the link (mouseout transition off the link element).
   const suppressedIdRef = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {

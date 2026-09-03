@@ -1,3 +1,4 @@
+import { normalizeSampleSummaries } from "@tsmono/inspect-common/normalize";
 import {
   AppConfig,
   EvalLog,
@@ -10,11 +11,12 @@ import {
   SearchRequest,
   SearchResponse,
 } from "@tsmono/inspect-common/types";
-import { encodeBase64Url } from "@tsmono/util";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
+import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
-import { EvalScores } from "../../../@types/extraInspect";
-import { asyncJsonParse } from "../../../utils/json-worker";
+import { headlineMetric } from "../../../scoring/headline";
 import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleData";
+import { normalizeEvalLog } from "../../utils/normalize";
 import { download_file } from "../shared/api-shared";
 import {
   Capabilities,
@@ -46,24 +48,85 @@ import {
 // The time that the view was initially loaded
 const LOADED_TIME = Date.now();
 
-// The time we fetched logs (used for finding client events since last fetch)
+// The time we fetched logs (used for finding client events since last fetch).
+// Known exemption from the LogViewAPI no-ambient-state contract: shared
+// across instances (and written by the bootstrap probe), but only read by
+// `client_events`, which is disabled on the one multi-instance transport
+// (VS Code). Move into the instance/transport if that changes.
 let lastEvalTime = 0;
 
+/** Transport-only options — everything about *how* to reach the server. */
+export interface ViewServerTransport {
+  apiBaseUrl?: string;
+  headerProvider?: HeaderProvider;
+  customFetch?: typeof fetch;
+}
+
+const transportRequestApi = (transport: ViewServerTransport) =>
+  serverRequestApi(
+    transport.apiBaseUrl || __VIEW_SERVER_API_URL__,
+    transport.headerProvider,
+    transport.customFetch
+  );
+
 /**
- * Create a view server API with optional server-side log listing
+ * Bootstrap probe: the server's log root (`GET /logs`), optionally for an
+ * explicit dir. Dir discovery runs before any `LogViewAPI` exists — the api
+ * itself never answers "which dir?" (see #392) — so this is a standalone
+ * function over the transport rather than a method on the api.
+ */
+/**
+ * A view-server JSON response, typed by the caller. This is the #555 API
+ * boundary: the server is a separate process on its own release cycle, so the
+ * shape here is a claim about the contract rather than something checked. Kept
+ * in one place so no other line in this module has to assert.
+ */
+const asResponse = <T>(parsed: unknown): T =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- API boundary (#555): see above
+  parsed as T;
+
+export async function fetchViewServerLogRoot(
+  transport: ViewServerTransport = {},
+  logDir?: string
+): Promise<LogRoot | undefined> {
+  const requestApi = transportRequestApi(transport);
+  const path = logDir ? `/logs?log_dir=${encodeURIComponent(logDir)}` : "/logs";
+  const logs = await requestApi.fetchString("GET", path);
+
+  // Note the last request time so we can get events
+  // since the last request
+  lastEvalTime = Date.now();
+  return asResponse<LogRoot | undefined>(logs.parsed);
+}
+
+/**
+ * Bootstrap probe: the server's configured log dir (`GET /log-dir`). Used
+ * only to resolve a bare single-file ref (`?log_file=foo.eval`) to a dir.
+ */
+export async function fetchViewServerLogDir(
+  transport: ViewServerTransport = {}
+): Promise<string | undefined> {
+  const requestApi = transportRequestApi(transport);
+  const obj = asResponse<{ log_dir?: string }>(
+    (await requestApi.fetchString("GET", "/log-dir")).parsed
+  );
+  return obj.log_dir;
+}
+
+/**
+ * Create a view server API bound to `logDir`. Every dir-scoped request
+ * carries `?log_dir=` so the instance's answers never depend on the
+ * server's configured dir (the `LogViewAPI` contract).
  */
 export function viewServerApi(
-  options: {
-    logDir?: string;
-    apiBaseUrl?: string;
-    headerProvider?: HeaderProvider;
-  } = {}
+  options: ViewServerTransport & { logDir: string }
 ): LogViewAPI {
-  const { apiBaseUrl, logDir, headerProvider } = options;
+  const { apiBaseUrl, logDir, headerProvider, customFetch } = options;
 
   const requestApi = serverRequestApi(
     apiBaseUrl || __VIEW_SERVER_API_URL__,
-    headerProvider
+    headerProvider,
+    customFetch
   );
 
   const client_events = async () => {
@@ -74,35 +137,11 @@ export function viewServerApi(
       "GET",
       `/events?${params.toString()}`
     );
-    return result.parsed as string[];
-  };
-
-  const get_log_dir = async () => {
-    if (logDir) {
-      return logDir;
-    }
-    const obj = (await requestApi.fetchString("GET", "/log-dir")).parsed as {
-      log_dir?: string;
-    };
-    return obj.log_dir;
-  };
-
-  const get_log_root = async () => {
-    const path = logDir
-      ? `/logs?log_dir=${encodeURIComponent(logDir)}`
-      : "/logs";
-    const logs = await requestApi.fetchString("GET", path);
-
-    // Note the last request time so we can get events
-    // since the last request
-    lastEvalTime = Date.now();
-    return logs.parsed as LogRoot | undefined;
+    return asResponse<string[]>(result.parsed);
   };
 
   const get_logs = async (mtime: number, clientFileCount: number) => {
-    const path = logDir
-      ? `/log-files?log_dir=${encodeURIComponent(logDir)}`
-      : "/log-files";
+    const path = `/log-files?log_dir=${encodeURIComponent(logDir)}`;
 
     const headers: Record<string, string> = {};
     const token = log_file_token(mtime, clientFileCount);
@@ -115,7 +154,7 @@ export function viewServerApi(
     lastEvalTime = Date.now();
 
     const envelope = await requestApi.fetchString("GET", path, headers);
-    return envelope.parsed as LogFilesResponse;
+    return asResponse<LogFilesResponse>(envelope.parsed);
   };
 
   const log_file_token = (mtime: number, fileCount: number) => {
@@ -127,18 +166,15 @@ export function viewServerApi(
   const get_eval_set = async (dir?: string) => {
     const basePath = "/eval-set";
     const params = new URLSearchParams();
-    if (logDir) {
-      params.append("log_dir", logDir);
-    }
+    params.append("log_dir", logDir);
     if (dir) {
       params.append("dir", dir);
     }
-    const query = params.toString();
-    const path = query ? `${basePath}?${query}` : basePath;
+    const path = `${basePath}?${params.toString()}`;
 
     try {
       const result = await requestApi.fetchString("GET", path);
-      return result.parsed as EvalSet;
+      return asResponse<EvalSet>(result.parsed);
     } catch (error) {
       // if the eval set is not found, no biggee as not all
       // log directories will have an eval set.
@@ -155,14 +191,11 @@ export function viewServerApi(
   const get_flow = async (dir?: string) => {
     const basePath = "/flow";
     const params = new URLSearchParams();
-    if (logDir) {
-      params.append("log_dir", logDir);
-    }
+    params.append("log_dir", logDir);
     if (dir) {
       params.append("dir", dir);
     }
-    const query = params.toString();
-    const path = query ? `${basePath}?${query}` : basePath;
+    const path = `${basePath}?${params.toString()}`;
 
     try {
       const bytes = await requestApi.fetchBytes("GET", path);
@@ -189,7 +222,10 @@ export function viewServerApi(
       "GET",
       `/logs/${encodeURIComponent(file)}?header-only=${headerOnly}`
     );
-    return result as LogContents;
+    // Boundary normalization (#555): an older inspect_ai server (version
+    // skew is routine in the VS Code extension) serves shapes the current
+    // generated types don't admit.
+    return { raw: result.raw, parsed: normalizeEvalLog(result.parsed) };
   };
 
   const get_log_info = async (file: string): Promise<LogInfo> => {
@@ -197,23 +233,16 @@ export function viewServerApi(
       "GET",
       `/log-info/${encodeURIComponent(file)}`
     );
-    return result.parsed as LogInfo;
+    return asResponse<LogInfo>(result.parsed);
   };
 
   const toLogPreview = (header: EvalHeader): LogPreview => {
-    const scores: EvalScores = Object.values(header.results?.scores || {});
-    const metric = scores[0]?.metrics;
-    const evalMetrics = Object.values(metric || {});
-    const primary_metric = evalMetrics.length > 0 ? evalMetrics[0] : undefined;
+    const primary_metric = headlineMetric(
+      header.results,
+      header.eval.headline_metric
+    );
 
-    const model_roles = header.eval.model_roles
-      ? Object.fromEntries(
-          Object.entries(header.eval.model_roles).map(([role, cfg]) => [
-            role,
-            cfg.model,
-          ])
-        )
-      : undefined;
+    const model_roles = modelRoleNames(header.eval.model_roles);
 
     return {
       eval_id: header.eval.eval_id,
@@ -256,7 +285,11 @@ export function viewServerApi(
       "GET",
       `/log-headers?${params.toString()}`
     );
-    const logHeaders = result.parsed as EvalHeader[];
+    // Boundary normalization (#555): see get_log_contents. normalizeEvalLog
+    // (not normalizeEvalHeader) so v1-shaped results reshape here too.
+    const logHeaders = Array.isArray(result.parsed)
+      ? result.parsed.map(normalizeEvalLog)
+      : [];
     return logHeaders.map(toLogPreview);
   };
 
@@ -301,9 +334,13 @@ export function viewServerApi(
     const request: Request<PendingSampleResponse> = {
       headers,
       parse: async (text: string) => {
-        const pendingSamples = await asyncJsonParse<PendingSamples | undefined>(
-          text
-        );
+        const parsed = await asyncJsonParse<PendingSamples | undefined>(text);
+        // Boundary normalization (#555): the pending buffer is served by
+        // whatever inspect_ai version is running the eval — fill the
+        // read-time defaults old servers omit.
+        const pendingSamples = parsed
+          ? { ...parsed, samples: normalizeSampleSummaries(parsed.samples) }
+          : parsed;
         return {
           status: "OK",
           pendingSamples,
@@ -502,7 +539,7 @@ export function viewServerApi(
       })()
     );
 
-    const response = await fetch(url, {
+    const response = await (customFetch ?? fetch)(url, {
       method: "POST",
       headers,
       body: JSON.stringify(update),
@@ -529,12 +566,13 @@ export function viewServerApi(
 
   const get_user_info = async (): Promise<UserInfo> => {
     const result = await requestApi.fetchString("GET", "/user-info");
-    return (result.parsed as UserInfo) ?? {};
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    return asResponse<UserInfo>(result.parsed) ?? {};
   };
 
   const get_app_config = async (): Promise<AppConfig> => {
     const result = await requestApi.fetchString("GET", "/app-config");
-    return result.parsed as AppConfig;
+    return asResponse<AppConfig>(result.parsed);
   };
 
   const list_searches = async (
@@ -548,7 +586,7 @@ export function viewServerApi(
       "GET",
       `/scout/searches?${params.toString()}`
     );
-    return result.parsed as SearchInputListResponse;
+    return asResponse<SearchInputListResponse>(result.parsed);
   };
 
   const post_search = async (
@@ -562,7 +600,7 @@ export function viewServerApi(
       { "Content-Type": "application/json" },
       JSON.stringify(request)
     );
-    return result.parsed as SearchResponse;
+    return asResponse<SearchResponse>(result.parsed);
   };
 
   const get_search_result = async (
@@ -580,7 +618,7 @@ export function viewServerApi(
       `/searches/${encodeURIComponent(search_id)}${query ? `?${query}` : ""}`;
     try {
       const result = await requestApi.fetchString("GET", path);
-      return result.parsed as Result;
+      return asResponse<Result>(result.parsed);
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         return null;
@@ -604,9 +642,7 @@ export function viewServerApi(
 
   return {
     client_events,
-    get_log_root,
     get_logs,
-    get_log_dir,
     get_eval_set,
     get_flow,
     get_log_contents,

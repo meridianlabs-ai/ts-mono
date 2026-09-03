@@ -3,6 +3,13 @@ import { act, render } from "@testing-library/react";
 import { useRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testInfoEvent,
+  testModelEvent,
+  testModelOutput,
+} from "@tsmono/inspect-common/testing";
 import type { ModelEvent } from "@tsmono/inspect-common/types";
 import {
   ExtendedFindProvider,
@@ -14,7 +21,7 @@ import {
 import { TimelineEvent, TimelineSpan } from "../timeline/core";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
 import type { TranscriptViewNodesHandle } from "../TranscriptViewNodes";
-import type { EventNode } from "../types";
+import { EventNode } from "../types";
 
 import { useTranscriptSearchSource } from "./useTranscriptSearchSource";
 
@@ -23,38 +30,32 @@ import { useTranscriptSearchSource } from "./useTranscriptSearchSource";
 // =============================================================================
 
 const ev = (uuid: string, output: string): ModelEvent =>
-  ({
-    event: "model",
+  testModelEvent({
     uuid,
     span_id: null,
     timestamp: "2026-04-29T00:00:00Z",
-    working_start: 0,
     pending: false,
     model: "test/model",
     role: null,
-    input: [],
-    tools: [],
-    tool_choice: "auto",
-    config: {},
-    output: {
+    output: testModelOutput({
       model: "test/model",
-      completion: "",
       choices: [
-        {
-          message: { role: "assistant", content: output, source: "generate" },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({
+            content: output,
+            source: "generate",
+          }),
+        }),
       ],
       usage: null,
-    },
+    }),
     error: null,
     cache: null,
     call: null,
     completed: null,
     working_time: null,
-    style: null,
     metadata: null,
-  }) as unknown as ModelEvent;
+  });
 
 function makeRow(key: string, agent: TimelineSpan, depth = 0): SwimlaneRow {
   return {
@@ -132,7 +133,7 @@ interface Harness {
  */
 function renderHarness(opts: HarnessOptions): Harness {
   const flattened: EventNode[] = (opts.flattenedNodeIds ?? []).map(
-    (id) => ({ id }) as EventNode
+    (id) => new EventNode(id, testInfoEvent({ uuid: id }), 0)
   );
   const harness: Partial<Harness> = {};
   const Probe = () => {
@@ -141,7 +142,6 @@ function renderHarness(opts: HarnessOptions): Harness {
     harness.search = extendedFindTerm;
     const viewNodesRef = useRef<TranscriptViewNodesHandle | null>({
       scrollToEvent: opts.scrollToEvent ?? vi.fn(),
-      scrollToIndex: vi.fn(),
       getFlattenedNodes: () => flattened,
       getVisibleRange: () => ({ startIndex: 0, endIndex: 0 }),
     });
@@ -166,9 +166,9 @@ function renderHarness(opts: HarnessOptions): Harness {
       </FindTargetProvider>
     </ExtendedFindProvider>
   );
-  if (!harness.countAll || !harness.search)
-    throw new Error("harness not ready");
-  return harness as Harness;
+  const { countAll, search } = harness;
+  if (!countAll || !search) throw new Error("harness not ready");
+  return { ...harness, countAll, search };
 }
 
 // =============================================================================
@@ -263,7 +263,7 @@ describe("useTranscriptSearchSource", () => {
     // Both e2 (skipped) and e3 (landed) are scrolled to; the production
     // code calls scrollToEvent for each attempt. The contract that matters
     // is the LAST scroll target.
-    const lastScroll = scrollToEvent.mock.calls.at(-1) as [string] | undefined;
+    const lastScroll = scrollToEvent.mock.calls.at(-1);
     expect(lastScroll?.[0]).toBe("e3");
   });
 });

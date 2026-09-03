@@ -11,7 +11,7 @@ interface AsciinemaPlayerProps {
   timingUrl: string;
   rows?: number;
   cols?: number;
-  fit?: string;
+  fit?: "width" | "height" | "both" | "none" | false;
   style?: CSSProperties;
   speed?: number;
   autoPlay?: boolean;
@@ -38,6 +38,7 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
 }) => {
   const playerContainerRef = useRef<HTMLDivElement>(null);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!playerContainerRef.current) return;
 
@@ -59,7 +60,8 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
       }
     );
 
-    void player.play();
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    player.play();
 
     return () => {
       player.dispose();

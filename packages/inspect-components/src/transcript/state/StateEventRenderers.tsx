@@ -1,10 +1,12 @@
 import clsx from "clsx";
 import { FC, Fragment, JSX, ReactNode } from "react";
 
-import type { ChatMessage, JsonChange } from "@tsmono/inspect-common/types";
+import type { JsonChange } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { HumanBaselineView, SessionLog } from "@tsmono/react/components";
 import { isRecord } from "@tsmono/util";
+
+import { isChatMessage } from "../../chat/types";
 
 import styles from "./StateEventRenderers.module.css";
 
@@ -16,11 +18,15 @@ interface Signature {
 
 interface ChangeType {
   type: string;
+  /** Render events matching this signature under the Default event filter
+   *  (rich previews like the human-baseline terminal session). */
+  defaultVisible?: boolean;
   signature?: Signature;
   match?: (changes: JsonChange[]) => boolean;
   render: (
     changes: JsonChange[],
-    state: Record<string, unknown>
+    state: Record<string, unknown>,
+    eventNodeId: string
   ) => JSX.Element;
 }
 
@@ -32,20 +38,33 @@ const system_msg_added_sig: ChangeType = {
     add: ["/messages/1"],
   },
   render: (_changes, resolvedState) => {
-    const messages = resolvedState["messages"] as Array<unknown>;
-    const message = messages[0];
-    if (typeof message !== "object" || !message) {
+    const messages: unknown = resolvedState["messages"];
+    const message: unknown = Array.isArray(messages) ? messages[0] : undefined;
+    if (!isChatMessage(message)) {
       return <></>;
     }
     return (
       <ChatView
         key="system_msg_event_preview"
         id="system_msg_event_preview"
-        messages={[message] as ChatMessage[]}
+        messages={[message]}
       />
     );
   },
 };
+
+// Every value below is read out of a JSON-patch change or a resolved state
+// blob — untyped wire data. These keep what matches and drop what doesn't, so
+// a malformed log renders less rather than rendering wrong.
+const readNumber = (value: unknown): number | undefined =>
+  typeof value === "number" ? value : undefined;
+
+const readString = (value: unknown): string | undefined =>
+  typeof value === "string" ? value : undefined;
+
+/** Shallow: Tools renders a name and description, and skips what lacks them. */
+const isToolDefinition = (value: unknown): value is ToolDefinition =>
+  isRecord(value) && typeof value["name"] === "string";
 
 const kToolPattern = "/tools/(\\d+)";
 
@@ -92,12 +111,12 @@ const messages: ChangeType = {
     return allMessages;
   },
   render: (changes) => {
-    const msgs = changes.map((c) => c.value);
+    const msgs = changes.map((c): unknown => c.value).filter(isChatMessage);
     return (
       <ChatView
         key="system_msg_event_preview"
         id="system_msg_event_preview"
-        messages={msgs as unknown as ChatMessage[]}
+        messages={msgs}
       />
     );
   },
@@ -108,28 +127,30 @@ const humanAgentKey = (key: string) => {
 };
 const human_baseline_session: ChangeType = {
   type: "human_baseline_session",
+  defaultVisible: true,
   signature: {
     add: ["HumanAgentState:logs"],
     replace: [],
     remove: [],
   },
-  render: (_changes, state: Record<string, unknown>) => {
+  render: (_changes, state: Record<string, unknown>, eventNodeId) => {
     // Read the session values
-    const started = state[humanAgentKey("started_running")] as number;
-    const runtime = state[humanAgentKey("accumulated_time")] as number;
-    const answer = state[humanAgentKey("answer")] as string;
+    const started = readNumber(state[humanAgentKey("started_running")]);
+    const runtime = readNumber(state[humanAgentKey("accumulated_time")]);
+    const answer = readString(state[humanAgentKey("answer")]);
     const completed = !!answer;
-    const running = state[humanAgentKey("running_state")] as boolean;
-    const rawSessions = state[humanAgentKey("logs")] as Record<string, unknown>;
+    const running = state[humanAgentKey("running_state")] === true;
+    const rawSessions = state[humanAgentKey("logs")];
 
     // Tweak the date value
     const startedDate = started ? new Date(started * 1000) : undefined;
 
     // Collect raw parts keyed by timestamp, then keep only entries with required fields
     const partial = new Map<string, Partial<SessionLog>>();
-    if (rawSessions) {
-      for (const key of Object.keys(rawSessions)) {
-        const value = rawSessions[key] as string;
+    if (isRecord(rawSessions)) {
+      for (const [key, raw] of Object.entries(rawSessions)) {
+        const value = readString(raw);
+        if (value === undefined) continue;
         // <user>_<timestamp>.<type>
         const match = key.match(/(.*)_(\d+_\d+)\.(.*)/);
         if (!match) continue;
@@ -161,6 +182,7 @@ const human_baseline_session: ChangeType = {
     return (
       <HumanBaselineView
         key="human_baseline_view"
+        id={eventNodeId}
         started={startedDate}
         running={running}
         completed={completed}
@@ -186,12 +208,8 @@ const renderTools = (
   }
 
   const toolName = (toolChoice: unknown): string => {
-    if (
-      typeof toolChoice === "object" &&
-      toolChoice &&
-      !Array.isArray(toolChoice)
-    ) {
-      return (toolChoice as Record<string, string>)["name"] || "";
+    if (isRecord(toolChoice)) {
+      return readString(toolChoice["name"]) ?? "";
     } else {
       return String(toolChoice);
     }
@@ -212,16 +230,18 @@ const renderTools = (
   }
 
   // Show either all tools or just the specific tools
-  const tools = resolvedState.tools as [];
+  const tools: unknown[] = Array.isArray(resolvedState.tools)
+    ? resolvedState.tools
+    : [];
   if (tools.length > 0) {
     if (toolIndexes.length === 0) {
       toolsInfo["Tools"] = (
-        <Tools toolDefinitions={resolvedState.tools as ToolDefinition[]} />
+        <Tools toolDefinitions={tools.filter(isToolDefinition)} />
       );
     } else {
-      const filtered = tools.filter((_, index) => {
-        return toolIndexes.includes(index.toString());
-      });
+      const filtered = tools
+        .filter((_, index) => toolIndexes.includes(index.toString()))
+        .filter(isToolDefinition);
       toolsInfo["Tools"] = <Tools toolDefinitions={filtered} />;
     }
   }
@@ -267,11 +287,12 @@ const createMessageRenderer = (name: string, role: string): ChangeType => {
     },
     render: (changes) => {
       const message = changes[0]?.value;
+      if (!isChatMessage(message)) return <></>;
       return (
         <ChatView
           key="system_msg_event_preview"
           id="system_msg_event_preview"
-          messages={[message] as ChatMessage[]}
+          messages={[message]}
         />
       );
     },
@@ -290,6 +311,44 @@ export const RenderableChangeTypes: ChangeType[] = [
 export const StoreSpecificRenderableTypes: ChangeType[] = [
   human_baseline_session,
 ];
+
+/** Whether `changes` satisfy a signature (every add/remove/replace pattern matched). */
+export const matchesChangeSignature = (
+  changes: JsonChange[],
+  signature: Signature
+): boolean => {
+  const required =
+    signature.add.length + signature.remove.length + signature.replace.length;
+  let matching = 0;
+  for (const change of changes) {
+    const patterns =
+      change.op === "add"
+        ? signature.add
+        : change.op === "remove"
+          ? signature.remove
+          : change.op === "replace"
+            ? signature.replace
+            : [];
+    for (const pattern of patterns) {
+      if (change.path.match(pattern)) {
+        matching++;
+      }
+    }
+  }
+  return required > 0 && matching === required;
+};
+
+/** Whether a store event's changes match a renderer marked default-visible
+ *  (e.g. the human-baseline terminal session view). */
+export const storeEventHasDefaultVisiblePreview = (
+  changes: JsonChange[]
+): boolean =>
+  StoreSpecificRenderableTypes.some(
+    (changeType) =>
+      changeType.defaultVisible &&
+      changeType.signature &&
+      matchesChangeSignature(changes, changeType.signature)
+  );
 
 interface ToolParameters {
   type: string;

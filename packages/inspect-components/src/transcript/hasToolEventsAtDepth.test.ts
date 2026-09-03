@@ -1,26 +1,34 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testInfoEvent,
+  testModelEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
 import { EventNode } from "./types";
 
 // Only `event.event` (the discriminant) and `depth` affect the lookup, so the
-// rest of the Event payload is stubbed. Mirrors transform/flatten.test.ts.
-const node = (
-  eventType: string,
-  depth: number,
-  id = `${eventType}-${depth}-${Math.random()}`
-): EventNode => {
-  const event = { event: eventType } as unknown as Event;
-  return new EventNode(id, event, depth);
+// rest of the Event payload is defaulted. Mirrors transform/flatten.test.ts.
+const events: Record<"tool" | "model" | "info", () => Event> = {
+  tool: testToolEvent,
+  model: testModelEvent,
+  info: testInfoEvent,
 };
 
-// Faithful O(n^2) reference: a LITERAL transcription of the backward scan the
-// component uses today (TranscriptVirtualListComponent.tsx:91-111). The tool
-// check precedes the depth check, exactly as in the live code. The fast path
-// must equal this for every index, on every input. Do NOT "fix" or simplify
-// this oracle — it encodes the real (current) behavior, bugs and all.
+const node = (
+  eventType: "tool" | "model" | "info",
+  depth: number,
+  id = `${eventType}-${depth}-${Math.random()}`
+): EventNode => new EventNode(id, events[eventType](), depth);
+
+// Faithful O(n^2) reference for computeHasToolEventsAtDepth: a LITERAL
+// transcription of the original per-index backward scan. The tool check
+// precedes the depth check, exactly as in the live code. The fast path must
+// equal this for every index, on every input. Do NOT "fix" or simplify this
+// oracle - it encodes the real (current) behavior, bugs and all.
 const referenceHasToolEvents = (nodes: EventNode[]): boolean[] =>
   nodes.map((_unused, startIndex) => {
     const startNode = nodes[startIndex];

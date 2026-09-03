@@ -4,12 +4,14 @@
 }
 
 .carouselThumb {
+  display: block;
   background: black;
   color: white;
   padding: 4em 0;
   border: 0;
   margin: 5px;
   cursor: pointer;
+  font: inherit;
   text-align: center;
 }
 
@@ -74,11 +76,11 @@
 }
 
 .lightboxPreviewButton.next {
-  left: 10px;
+  right: 10px;
 }
 
 .lightboxPreviewButton.prev {
-  right: 10px;
+  left: 10px;
 }
 
 .lightboxContent {

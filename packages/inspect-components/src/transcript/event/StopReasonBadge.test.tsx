@@ -39,12 +39,15 @@ describe("StopReasonBadge", () => {
     expect(screen.getByText("Stop Reason")).toBeDefined();
     const badge = container.querySelector(`.${styles.badge}`);
     expect(badge).not.toBeNull();
-    expect(badge!.classList.contains(styles.rose!)).toBe(true);
+    expect(badge!.classList.contains(styles.rose)).toBe(true);
     expect(badge!.textContent).toBe("content_filter");
   });
 
   it("falls back to the gray tone for unmapped reasons", () => {
-    const { container } = render(<StopReasonBadge reason={"weird" as never} />);
+    const { container } = render(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: the case covers an unrecognised stop reason
+      <StopReasonBadge reason={"weird" as never} />
+    );
     expect(container.querySelector(`.${styles.gray}`)).not.toBeNull();
   });
 
@@ -52,12 +55,12 @@ describe("StopReasonBadge", () => {
     const cases: Array<
       [Parameters<typeof StopReasonBadge>[0]["reason"], string]
     > = [
-      ["stop", styles.neutral!],
-      ["max_tokens", styles.amber!],
-      ["model_length", styles.amber!],
-      ["tool_calls", styles.blue!],
-      ["content_filter", styles.rose!],
-      ["unknown", styles.gray!],
+      ["stop", styles.neutral],
+      ["max_tokens", styles.amber],
+      ["model_length", styles.amber],
+      ["tool_calls", styles.blue],
+      ["content_filter", styles.rose],
+      ["unknown", styles.gray],
     ];
     for (const [reason, toneClass] of cases) {
       const { container, unmount } = render(

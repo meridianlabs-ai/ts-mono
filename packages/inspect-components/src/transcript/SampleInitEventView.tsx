@@ -1,13 +1,12 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
-import type {
-  ChatMessage,
-  SampleInitEvent,
-} from "@tsmono/inspect-common/types";
+import type { SampleInitEvent } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
-import { formatDateTime, toArray } from "@tsmono/util";
+import { formatDateTime, isRecord, toArray } from "@tsmono/util";
+
+import { isChatMessage } from "../chat/types";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -25,7 +24,11 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const stateObj = event.state as Record<string, unknown>;
+  const stateObj = isRecord(event.state) ? event.state : {};
+  const rawMessages: unknown = stateObj["messages"];
+  const messages = Array.isArray(rawMessages)
+    ? rawMessages.filter(isChatMessage)
+    : [];
 
   const sections: ReactNode[] = [];
 
@@ -64,10 +67,7 @@ export const SampleInitEventView: FC<SampleInitEventViewProps> = ({
       }
     >
       <div data-name="Sample" className={styles.sample}>
-        <ChatView
-          id="sample-init-messages"
-          messages={stateObj["messages"] as ChatMessage[]}
-        />
+        <ChatView id="sample-init-messages" messages={messages} />
         <div>
           {event.sample.choices
             ? event.sample.choices.map((choice, index) => {

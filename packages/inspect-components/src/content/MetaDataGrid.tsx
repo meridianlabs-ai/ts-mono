@@ -2,9 +2,10 @@ import clsx from "clsx";
 import { CSSProperties, FC, useState } from "react";
 
 import { CopyButton, MarkdownReference } from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
-import styles from "./MetadataGrid.module.css";
+import styles from "./MetaDataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";
 
 interface MetadataGridProps {
@@ -131,6 +132,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
       {isCollapsible && (
         <div className={styles.toggleContainer}>
           <button
+            type="button"
             className={clsx(styles.toggleButton, "text-size-smallest")}
             onClick={() => setExpanded((prev) => !prev)}
           >
@@ -155,7 +157,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
             </header>
             <MetaDataGrid
               id={groupId}
-              entries={entry.value as Record<string, unknown>}
+              entries={isRecord(entry.value) ? entry.value : {}}
               options={options}
               references={references}
               depth={depth + 1}
@@ -170,11 +172,13 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
 const entryRecords = (
   entries: { name: string; value: unknown }[] | Record<string, unknown>
 ): { name: string; value: unknown }[] => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!entries) {
     return [];
   }
 
   if (!Array.isArray(entries)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return Object.entries(entries || {}).map(([key, value]) => {
       return { name: key, value };
     });

@@ -1,12 +1,21 @@
 import clsx from "clsx";
-import { ChangeEvent, FocusEvent, forwardRef } from "react";
+import { FocusEvent, forwardRef } from "react";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./TextInput.module.css";
 
+/**
+ * What TextInput hands `onChange`: the input's new value, either from a real
+ * change event (which satisfies this) or from the clear button, which has no
+ * event of its own.
+ */
+export interface TextInputChange {
+  target: { value: string };
+}
+
 export interface TextInputProps {
   value?: string;
-  onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
+  onChange?: (event: TextInputChange) => void;
   onFocus?: (event: FocusEvent<HTMLInputElement>) => void;
   icon?: string;
   placeholder?: string;
@@ -25,7 +34,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           icon ? styles.withIcon : ""
         )}
       >
-        {icon && <i className={clsx(icon, styles.icon)} />}
+        {icon && <i className={clsx(icon, styles.icon)} aria-hidden="true" />}
         <input
           type="text"
           value={value}
@@ -35,7 +44,8 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           className={clsx(styles.input)}
           onFocus={onFocus}
         />
-        <i
+        <button
+          type="button"
           className={clsx(
             styles.clearText,
             value === "" ? styles.hidden : "",
@@ -43,12 +53,11 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(
           )}
           onClick={() => {
             if (onChange && value !== "") {
-              onChange({
-                target: { value: "" },
-              } as ChangeEvent<HTMLInputElement>);
+              onChange({ target: { value: "" } });
             }
           }}
-          role="button"
+          disabled={value === ""}
+          aria-label="Clear"
         />
       </div>
     );

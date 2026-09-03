@@ -172,9 +172,11 @@ describe("resolveTheme", () => {
 
   it("VS Code clears readable DOM variant when Event Colors is turned off", () => {
     const attrs = new Map<string, string>();
+    const style: Partial<CSSStyleDeclaration> = {};
     let preference: ThemePreference = "readable-system";
     vi.stubGlobal("document", {
       documentElement: {
+        style,
         setAttribute: (name: string, value: string) => attrs.set(name, value),
         removeAttribute: (name: string) => attrs.delete(name),
       },
@@ -202,11 +204,13 @@ describe("resolveTheme", () => {
     applyTheme();
     expect(attrs.get("data-theme-variant")).toBe("readable");
     expect(attrs.get("data-bs-theme")).toBe("dark");
+    expect(style.colorScheme).toBe("dark");
 
     preference = "system";
     applyTheme();
     expect(attrs.has("data-theme-variant")).toBe(false);
     expect(attrs.get("data-bs-theme")).toBe("dark");
+    expect(style.colorScheme).toBe("dark");
   });
 
   it("standalone + readable-system follows OS scheme but keeps readable variant", () => {

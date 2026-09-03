@@ -1,12 +1,38 @@
 import { LogHandle } from "@tsmono/inspect-common";
 import { createLogger } from "@tsmono/util";
 
-import { LogDetails, LogPreview, SampleSummary } from "../api/types";
+import { Log, LogFetchState, LogPreview } from "../api/types";
+import { maxDepth, PreparedLogDetails, previewTier } from "../utils/type-utils";
 
 import { DatabaseManager } from "./manager";
-import { AppDatabase, LogHandleRecord } from "./schema";
+import {
+  AppDatabase,
+  fromLogRecord,
+  LogRecord,
+  SampleSummaryRecord,
+  scopePrefix,
+  SyncScopeRecord,
+  toLogRecord,
+} from "./schema";
 
 const log = createLogger("DatabaseService");
+
+/** Scope of a sample-summaries read: one log file, or every file under a
+ *  path prefix. */
+export type SampleSummariesScope = { file: string } | { prefix: string };
+
+/** Scope of a log-rows read/clear: every file under a dir. The database is
+ *  unified across log dirs, so whole-table reads are never correct — every
+ *  listing-level operation names its scope. */
+export type LogScope = { prefix: string };
+
+const newRow = (handle: LogHandle): Log => ({
+  ...handle,
+  depth: "listed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
 
 /**
  * Database service for caching and retrieving log data.
@@ -36,10 +62,10 @@ export class DatabaseService {
   }
 
   /**
-   * Open a database for the specified log directory.
+   * Open the (unified) database.
    */
-  async openDatabase(databaseHandle: string): Promise<void> {
-    await this.manager.openDatabase(databaseHandle);
+  async openDatabase(): Promise<void> {
+    await this.manager.openDatabase();
   }
 
   /**
@@ -49,53 +75,43 @@ export class DatabaseService {
     await this.manager.close();
   }
 
+  // === LOG ROWS ===
+
   /**
-   * Get the current log directory.
+   * Upsert the listing identity tier: new files get fresh listed-depth rows;
+   * known files update identity fields only (depth, content, and retrieval
+   * facts are preserved).
    */
-  getDatabaseHandle(): string | null {
-    return this.manager.getDatabaseHandle();
-  }
-
-  async countRows(
-    entity: "logs" | "logPreviews" | "logDetails"
-  ): Promise<number> {
-    const db = this.getDb();
-    switch (entity) {
-      case "logs":
-        return db.logs.count();
-      case "logPreviews":
-        return db.log_previews.count();
-      case "logDetails":
-        return db.log_details.count();
-    }
-  }
-
-  // === LOG FILES ===
-  async writeLogs(logs: LogHandle[]): Promise<void> {
+  async writeLogs(handles: LogHandle[]): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    // Get existing records to preserve their IDs
-    const existingRecords = await db.logs.toArray();
+    const existingRecords = await db.logs
+      .where("file_path")
+      .anyOf(handles.map((handle) => handle.name))
+      .toArray();
     const existingByPath = new Map(
-      existingRecords.map((r) => [r.file_path, r.id])
+      existingRecords.map((record) => [record.file_path, record])
     );
 
-    const records = logs.map<LogHandleRecord>((file) => ({
-      id: existingByPath.get(file.name),
-      file_path: file.name,
-      file_name: file.name.split("/").pop() || file.name,
-      task: file.task,
-      task_id: file.task_id,
-      mtime: file.mtime,
-      cached_at: now,
-    }));
+    const records = handles.map<LogRecord>((handle) => {
+      const existing = existingByPath.get(handle.name);
+      return existing
+        ? {
+            ...existing,
+            task: handle.task,
+            task_id: handle.task_id,
+            mtime: handle.mtime,
+            cached_at: now,
+          }
+        : toLogRecord(newRow(handle), undefined, now);
+    });
 
-    log.debug(`Caching ${records.length} log files`);
+    log.debug(`Upserting ${records.length} log rows (identity tier)`);
     await db.logs.bulkPut(records);
   }
 
-  async readLogs(): Promise<LogHandle[] | null> {
+  async readLogs(scope: LogScope): Promise<Log[] | null> {
     try {
       if (!this.opened()) {
         log.debug("Database not open");
@@ -103,348 +119,323 @@ export class DatabaseService {
       }
 
       const db = this.getDb();
-      // Sort by mtime if available, otherwise by id (insertion order)
-      const files = await db.logs.toArray();
+      const records = await db.logs
+        .where("file_path")
+        .startsWith(scopePrefix(scope.prefix))
+        .toArray();
 
-      // Sort by mtime (descending) if present, otherwise maintain insertion order.
-      // Note: != null (not !==) catches both null and undefined.
-      files.sort((a, b) => {
+      // Sort by mtime (descending) if present, otherwise maintain insertion
+      // order. Note: != null (not !==) catches both null and undefined.
+      records.sort((a, b) => {
         if (a.mtime != null && b.mtime != null) return b.mtime - a.mtime;
         if (a.id != null && b.id != null) return a.id - b.id;
         return 0;
       });
 
-      if (files.length === 0) {
-        log.debug("No cached log files found");
-        return [];
-      }
-
-      log.debug(`Retrieved ${files.length} cached log files`);
-      return files.map((file) => ({
-        name: file.file_path,
-        task: file.task,
-        task_id: file.task_id,
-        mtime: file.mtime,
-      }));
+      log.debug(`Retrieved ${records.length} log rows`);
+      return records.map(fromLogRecord);
     } catch (error) {
-      log.error("Error retrieving cached log files:", error);
+      log.error("Error retrieving log rows:", error);
       return null;
     }
   }
 
-  // === LOG PREVIEWS ===
-  async writeLogPreviews(
-    previews: LogPreview[],
-    filePaths: string[]
+  async readLogRow(filePath: string): Promise<Log | null> {
+    try {
+      const db = this.getDb();
+      const record = await db.logs.where("file_path").equals(filePath).first();
+      return record ? fromLogRecord(record) : null;
+    } catch (error) {
+      log.error(`Error retrieving log row for ${filePath}:`, error);
+      return null;
+    }
+  }
+
+  async readLogRows(filePaths: string[]): Promise<Record<string, Log>> {
+    try {
+      const db = this.getDb();
+      const records = await db.logs
+        .where("file_path")
+        .anyOf(filePaths)
+        .toArray();
+      const result: Record<string, Log> = {};
+      for (const record of records) {
+        result[record.file_path] = fromLogRecord(record);
+      }
+      return result;
+    } catch (error) {
+      log.error("Error retrieving log rows:", error);
+      return {};
+    }
+  }
+
+  /** Merge a set of per-file row patches, creating listed-depth rows for
+   *  unknown files (e.g. single-file mode). Depth ratchets, never lowers. */
+  private async mergeRows(
+    patches: Record<string, Partial<Log>>
+  ): Promise<void> {
+    const db = this.getDb();
+    const now = new Date().toISOString();
+    const files = Object.keys(patches);
+    const existing = await db.logs.where("file_path").anyOf(files).toArray();
+    const byPath = new Map(
+      existing.map((record) => [record.file_path, record])
+    );
+    const records = files.map<LogRecord>((file) => {
+      const patch = patches[file] ?? {};
+      const current = byPath.get(file);
+      const base =
+        current ?? toLogRecord(newRow({ name: file }), undefined, now);
+      return {
+        ...base,
+        ...patch,
+        depth: maxDepth(base.depth, patch.depth ?? base.depth),
+        file_path: file,
+        id: current?.id,
+        cached_at: now,
+      };
+    });
+    await db.logs.bulkPut(records);
+  }
+
+  // === PREVIEWED TIER ===
+
+  async writeLogPreviews(previews: Record<string, LogPreview>): Promise<void> {
+    log.debug(
+      `Upserting ${Object.keys(previews).length} log rows (previewed tier)`
+    );
+    await this.mergeRows(
+      Object.fromEntries(
+        Object.entries(previews).map(([file, preview]) => [
+          file,
+          previewTier(preview),
+        ])
+      )
+    );
+  }
+
+  // === DETAILED TIER ===
+
+  /**
+   * Ingest prepared details payloads (`prepareLogDetails` — the seam
+   * normalizes once for both stores): merge the detailed tier into each log
+   * row and replace the file's sample summary rows, in one transaction per
+   * call so a reader never sees a header whose summary rows are from an
+   * older ingestion.
+   */
+  async writeLogDetails(
+    details: Record<string, PreparedLogDetails>
   ): Promise<void> {
     const db = this.getDb();
     const now = new Date().toISOString();
 
-    const records = previews.map((summary, index) => ({
-      file_path: filePaths[index],
-      cached_at: now,
-      preview: summary,
-    }));
-
-    log.debug(`Caching ${records.length} log previews`);
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-    await db.log_previews.bulkPut(records);
-  }
-
-  async readLogPreviews(
-    logs: LogHandle[]
-  ): Promise<Record<string, LogPreview>> {
-    try {
-      const filePaths = logs.map((log) => log.name);
-      const db = this.getDb();
-      const records = await db.log_previews
-        .where("file_path")
-        .anyOf(filePaths)
-        .toArray();
-
-      log.debug(
-        `Retrieved ${records.length} cached log previews out of ${filePaths.length} requested`
+    const entries = Object.entries(details);
+    log.debug(`Ingesting ${entries.length} log details (split)`);
+    await db.transaction("rw", db.logs, db.sample_summaries, async () => {
+      await this.mergeRows(
+        Object.fromEntries(entries.map(([file, { patch }]) => [file, patch]))
       );
-
-      const result: Record<string, LogPreview> = {};
-      for (const record of records) {
-        result[record.file_path] = record.preview;
-      }
-
-      return result;
-    } catch (error) {
-      log.error("Error retrieving cached log summaries:", error);
-      return {};
-    }
-  }
-
-  async findMissingPreviews(logs: LogHandle[]): Promise<LogHandle[]> {
-    try {
-      const filePaths = logs.map((log) => log.name);
-      const db = this.getDb();
-      const records = await db.log_previews
-        .where("file_path")
-        .anyOf(filePaths)
-        .toArray();
-
-      const cachedPaths = new Set(records.map((r) => r.file_path));
-      const missing = logs.filter((log) => !cachedPaths.has(log.name));
-
-      log.debug(
-        `Found ${missing.length} missing previews out of ${logs.length} requested`
+      const files = entries.map(([filePath]) => filePath);
+      await db.sample_summaries.where("file_path").anyOf(files).delete();
+      await db.sample_summaries.bulkPut(
+        entries.flatMap(([filePath, { summaries }]) =>
+          summaries.map<SampleSummaryRecord>(({ summary, derived }) => ({
+            file_path: filePath,
+            id: summary.id,
+            epoch: summary.epoch,
+            summary,
+            derived,
+            cached_at: now,
+          }))
+        )
       );
-      return missing;
-    } catch (error) {
-      log.error("Error finding missing previews:", error);
-      return logs;
-    }
+    });
   }
 
-  // === LOG DETAILS ===
-  async writeLogDetail(filePath: string, info: LogDetails): Promise<void> {
+  async readSampleSummaries(
+    scope: SampleSummariesScope
+  ): Promise<SampleSummaryRecord[]> {
     const db = this.getDb();
-    const now = new Date().toISOString();
-
-    const record = {
-      file_path: filePath,
-      cached_at: now,
-      details: info,
-    };
-
-    log.debug(`Caching log info for: ${filePath}`);
-    await db.log_details.put(record);
+    const collection =
+      "file" in scope
+        ? db.sample_summaries.where("file_path").equals(scope.file)
+        : db.sample_summaries
+            .where("file_path")
+            .startsWith(scopePrefix(scope.prefix));
+    return collection.toArray();
   }
 
-  async writeLogDetails(details: Record<string, LogDetails>): Promise<void> {
-    const db = this.getDb();
-    const now = new Date().toISOString();
+  // === RETRIEVAL FACTS ===
 
-    const records = Object.entries(details).map(([filePath, info]) => ({
-      file_path: filePath,
-      cached_at: now,
-      details: info,
-    }));
-
-    log.debug(`Caching ${records.length} log details`);
-    await db.log_details.bulkPut(records);
-  }
-
-  async readLogDetailsForFile(filePath: string): Promise<LogDetails | null> {
-    try {
-      const db = this.getDb();
-      const record = await db.log_details.get(filePath);
-
-      if (!record) {
-        log.debug(`No cached log info found for: ${filePath}`);
-        return null;
-      }
-
-      log.debug(`Retrieved cached log info for: ${filePath}`);
-      return record.details;
-    } catch (error) {
-      log.error(`Error retrieving cached log info for ${filePath}:`, error);
-      return null;
-    }
-  }
-
-  async readLogDetails(logs: LogHandle[]): Promise<Record<string, LogDetails>> {
-    try {
-      const filePaths = logs.map((log) => log.name);
-      const db = this.getDb();
-      const records = await db.log_details
-        .where("file_path")
-        .anyOf(filePaths)
-        .toArray();
-
-      log.debug(
-        `Retrieved ${records.length} cached log details out of ${filePaths.length} requested`
-      );
-
-      const result: Record<string, LogDetails> = {};
-      for (const record of records) {
-        result[record.file_path] = record.details;
-      }
-
-      return result;
-    } catch (error) {
-      log.error("Error retrieving cached log details:", error);
-      return {};
-    }
-  }
-
-  async findMissingDetails(logs: LogHandle[]): Promise<LogHandle[]> {
-    try {
-      const filePaths = logs.map((log) => log.name);
-      const db = this.getDb();
-      const records = await db.log_details
-        .where("file_path")
-        .anyOf(filePaths)
-        .toArray();
-
-      const cachedPaths = new Set(records.map((r) => r.file_path));
-      const missing = logs.filter((log) => !cachedPaths.has(log.name));
-
-      log.debug(
-        `Found ${missing.length} missing details out of ${logs.length} requested`
-      );
-      return missing;
-    } catch (error) {
-      log.error("Error finding missing details:", error);
-      return logs;
-    }
-  }
-
-  // === SAMPLE SUMMARIES (extracted from LogDetails) ===
-  async readAllSampleSummaries(): Promise<SampleSummary[]> {
-    const db = this.getDb();
-    const records = await db.log_details.toArray();
-
-    const allSummaries: SampleSummary[] = [];
-    for (const record of records) {
-      if (record.details.sampleSummaries) {
-        allSummaries.push(...record.details.sampleSummaries);
-      }
-    }
-
+  async writeFetchStates(states: Record<string, LogFetchState>): Promise<void> {
     log.debug(
-      `Retrieved ${allSummaries.length} sample summaries across all files`
+      `Merging retrieval facts into ${Object.keys(states).length} log rows`
     );
-    return allSummaries;
+    await this.mergeRows(states);
   }
 
-  async readSampleSummariesForFile(filePath: string): Promise<SampleSummary[]> {
-    const logInfo = await this.readLogDetailsForFile(filePath);
-    if (!logInfo || !logInfo.sampleSummaries) {
-      return [];
-    }
-    return logInfo.sampleSummaries;
-  }
-
-  async querySampleSummaries(filter?: {
-    completed?: boolean;
-    hasError?: boolean;
-    scoreRange?: { min: number; max: number; scoreName?: string };
-  }): Promise<SampleSummary[]> {
-    const allSummaries = await this.readAllSampleSummaries();
-
-    let filtered = allSummaries;
-
-    // Apply filters
-    if (filter?.completed !== undefined) {
-      filtered = filtered.filter(
-        (summary) => summary.completed === filter.completed
-      );
-    }
-
-    if (filter?.hasError !== undefined) {
-      filtered = filtered.filter((summary) => {
-        const hasError = !!summary.error;
-        return hasError === filter.hasError;
-      });
-    }
-
-    // Apply score range filter (if specified)
-    if (filter?.scoreRange) {
-      const { min, max, scoreName } = filter.scoreRange;
-      filtered = filtered.filter((summary) => {
-        if (!summary.scores) return false;
-
-        // Check specific score or any score
-        if (scoreName) {
-          const score = summary.scores[scoreName];
-          return (
-            score &&
-            typeof score.value === "number" &&
-            score.value >= min &&
-            score.value <= max
-          );
-        } else {
-          // Check if any score is in range
-          return Object.values(summary.scores).some(
-            (score) =>
-              score &&
-              typeof score.value === "number" &&
-              score.value >= min &&
-              score.value <= max
-          );
-        }
-      });
-    }
-
-    log.debug(
-      `Query returned ${filtered.length} sample summaries (filtered from ${allSummaries.length})`
-    );
-    return filtered;
-  }
-
-  // === MANAGEMENT ===
+  // === LIFECYCLE ===
 
   /**
-   * Clear all cached data from all tables.
+   * mtime invalidation: the row keeps its identity but drops content and
+   * retrieval facts back to listed depth; the file's sample summary rows go
+   * with it.
    */
-  async clearAllCaches(): Promise<void> {
+  async resetDepth(filePaths: string[]): Promise<void> {
     const db = this.getDb();
-
-    log.debug("Clearing all caches");
-    await Promise.all([
-      db.logs.clear(),
-      db.log_previews.clear(),
-      db.log_details.clear(),
-    ]);
+    const now = new Date().toISOString();
+    await db.transaction("rw", db.logs, db.sample_summaries, async () => {
+      const records = await db.logs
+        .where("file_path")
+        .anyOf(filePaths)
+        .toArray();
+      await db.logs.bulkPut(
+        records.map((record) =>
+          toLogRecord(
+            newRow({
+              name: record.file_path,
+              task: record.task,
+              task_id: record.task_id,
+              mtime: record.mtime,
+            }),
+            record.id,
+            now
+          )
+        )
+      );
+      await db.sample_summaries.where("file_path").anyOf(filePaths).delete();
+    });
   }
 
-  /**
-   * Clear cache for a specific log file
-   */
+  /** Remove a deleted file's row and its sample summaries. */
   async clearCacheForFile(filePath: string): Promise<void> {
     const db = this.getDb();
     log.debug(`Clearing cache for file: ${filePath}`);
 
     await Promise.all([
       db.logs.where("file_path").equals(filePath).delete(),
-      db.log_previews.where("file_path").equals(filePath).delete(),
-      db.log_details.where("file_path").equals(filePath).delete(),
+      db.sample_summaries.where("file_path").equals(filePath).delete(),
     ]);
   }
 
-  async clearPreviewForFile(filePath: string): Promise<void> {
+  /**
+   * Wipe every table — the "Clear Local Database" escape hatch. Unlike
+   * `clearScope`, this reaches rows persisted under names outside any synced
+   * scope's namespace (see `namesInScope` in logsContent).
+   */
+  async clearAllData(): Promise<void> {
     const db = this.getDb();
-    await db.log_previews.where("file_path").equals(filePath).delete();
+    log.debug("Clearing all cached data");
+    await db.transaction(
+      "rw",
+      [db.logs, db.sample_summaries, db.sync_scopes],
+      () =>
+        Promise.all([
+          db.logs.clear(),
+          db.sample_summaries.clear(),
+          db.sync_scopes.clear(),
+        ])
+    );
   }
 
   /**
-   * Get cache statistics.
+   * Clear all cached data under a scope: its log rows, their sample
+   * summaries, and the scope's sync record. Other scopes' rows are untouched.
    */
-  async getCacheStats(): Promise<{
+  async clearScope(scope: LogScope): Promise<void> {
+    const db = this.getDb();
+    const prefix = scopePrefix(scope.prefix);
+
+    log.debug(`Clearing caches under: ${prefix}`);
+    // One transaction: a partial failure must not leave rows deleted while a
+    // sync record still claims the scope is replicated. The sync_scopes sweep
+    // is prefix-based so nested scopes' records go with their rows.
+    await db.transaction(
+      "rw",
+      [db.logs, db.sample_summaries, db.sync_scopes],
+      () =>
+        Promise.all([
+          db.logs.where("file_path").startsWith(prefix).delete(),
+          db.sample_summaries.where("file_path").startsWith(prefix).delete(),
+          db.sync_scopes.where("prefix").startsWith(prefix).delete(),
+        ])
+    );
+  }
+
+  // === SYNC SCOPES ===
+  // Keys are stored in boundary-safe `scopePrefix` form. The get-then-put
+  // upserts run in single transactions: the per-origin database is shared
+  // across tabs, and an unfenced read-modify-write can overwrite another
+  // tab's just-written timestamp.
+
+  /** Record that a scope is active (creating its row on first contact). */
+  async touchSyncScope(prefix: string): Promise<void> {
+    const db = this.getDb();
+    const key = scopePrefix(prefix);
+    const now = new Date().toISOString();
+    await db.transaction("rw", db.sync_scopes, async () => {
+      const existing = await db.sync_scopes.get(key);
+      await db.sync_scopes.put({
+        ...existing,
+        prefix: key,
+        last_accessed: now,
+      });
+    });
+  }
+
+  /** Read a scope's sync record (undefined when never activated). */
+  async getSyncScope(prefix: string): Promise<SyncScopeRecord | undefined> {
+    const db = this.getDb();
+    return db.sync_scopes.get(scopePrefix(prefix));
+  }
+
+  /** Record that a listing sync persisted under a scope. */
+  async markScopeSynced(prefix: string): Promise<void> {
+    const db = this.getDb();
+    const key = scopePrefix(prefix);
+    const now = new Date().toISOString();
+    await db.transaction("rw", db.sync_scopes, async () => {
+      const existing = await db.sync_scopes.get(key);
+      await db.sync_scopes.put({
+        prefix: key,
+        last_accessed: existing?.last_accessed ?? now,
+        last_synced: now,
+      });
+    });
+  }
+
+  /**
+   * Get cache statistics for a scope.
+   */
+  async getCacheStats(scope: LogScope): Promise<{
     logFiles: number;
     logSummaries: number;
     logHeaders: number;
     sampleSummaries: number;
-    logHandle: string | null;
   }> {
     const db = this.getDb();
+    const prefix = scopePrefix(scope.prefix);
 
-    const [logFiles, logSummaries, logInfo] = await Promise.all([
-      db.logs.count(),
-      db.log_previews.count(),
-      db.log_details.count(),
+    // Index-only counts: this runs throttled but repeatedly during active
+    // replication, and a cursor over the range would structured-clone every
+    // record (full header included) just to count it.
+    const depthCount = (depth: LogRecord["depth"]) =>
+      db.logs
+        .where("[depth+file_path]")
+        .between([depth, prefix], [depth, prefix + "\uffff"])
+        .count();
+    const [logFiles, previewed, detailed, sampleSummaries] = await Promise.all([
+      db.logs.where("file_path").startsWith(prefix).count(),
+      depthCount("previewed"),
+      depthCount("detailed"),
+      db.sample_summaries.where("file_path").startsWith(prefix).count(),
     ]);
-
-    // Count sample summaries from log info
-    let sampleSummaries = 0;
-    const logInfoRecords = await db.log_details.toArray();
-    for (const record of logInfoRecords) {
-      if (record.details.sampleSummaries) {
-        sampleSummaries += record.details.sampleSummaries.length;
-      }
-    }
 
     return {
       logFiles,
-      logSummaries,
-      logHeaders: logInfo, // For backward compatibility
+      logSummaries: previewed + detailed,
+      logHeaders: detailed,
       sampleSummaries,
-      logHandle: this.manager.getDatabaseHandle(),
     };
   }
 }

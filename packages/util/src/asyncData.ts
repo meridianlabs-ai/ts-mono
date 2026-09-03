@@ -58,6 +58,7 @@ type AsyncDataMap<Mapping> = { [K in keyof Mapping]: AsyncData<Mapping[K]> };
 export function compose<Mapping>(
   hooks: AsyncDataMap<Mapping>
 ): AsyncData<Mapping> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- a mapped type has no empty value to start from; the loop below fills every key of Mapping
   const result = {} as Mapping;
   const errors: Error[] = [];
   let loadingResult = false;

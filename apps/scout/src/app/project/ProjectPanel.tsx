@@ -4,7 +4,7 @@ import {
   VscodeFormHelper,
 } from "@vscode-elements/react-elements";
 import { FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useBlocker } from "react-router-dom";
+import { useBlocker } from "react-router";
 
 import { Modal } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
@@ -13,15 +13,18 @@ import { ApiError } from "@tsmono/util";
 import { AppConfig, ProjectConfigInput } from "../../types/api-types";
 import { appAliasedPath } from "../server/useAppConfig";
 import {
+  ProjectConfigWithEtag,
   useProjectConfig,
   useUpdateProjectConfig,
 } from "../server/useProjectConfig";
 
 import {
+  asConfigInput,
   computeConfigToSave,
   configsEqual,
   deepCopy,
   initializeEditedConfig,
+  mergeInFlightEdits,
 } from "./configUtils";
 import styles from "./ProjectPanel.module.css";
 import { SettingsContent } from "./SettingsContent";
@@ -77,8 +80,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
   // Capture focused element ID on mousedown (before click moves focus to button)
   // We store the ID since React may recreate the DOM element
   const handleSaveMouseDown = useCallback(() => {
-    const el = document.activeElement as HTMLElement;
-    if (el && el !== document.body && el.id) {
+    const el = document.activeElement;
+    if (el instanceof HTMLElement && el !== document.body && el.id) {
       focusedFieldIdRef.current = el.id;
     } else {
       focusedFieldIdRef.current = null;
@@ -104,6 +107,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
   // Ctrl/Cmd+S keyboard shortcut to save
   // Always handle since project panel is the only active UI when visible
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
@@ -111,8 +115,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         // Guard against double-save during pending mutation
         if (!mutation.isPending) {
           // Capture focused element ID for restoration after save
-          const el = document.activeElement as HTMLElement;
-          if (el && el !== document.body && el.id) {
+          const el = document.activeElement;
+          if (el instanceof HTMLElement && el !== document.body && el.id) {
             focusedFieldIdRef.current = el.id;
           } else {
             focusedFieldIdRef.current = null;
@@ -134,12 +138,13 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
 
   // Initialize config state when data loads
   // Skips re-init if this is our own save (etag matches what we just saved)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!data) return;
 
     // If editedConfig is null (initial load or after reload), initialize
     if (!editedConfig) {
-      const initialized = initializeEditedConfig(data.config);
+      const initialized = initializeEditedConfig(asConfigInput(data.config));
       // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
       /* eslint-disable react-hooks/set-state-in-effect */
       setEditedConfig(initialized);
@@ -157,7 +162,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     // Etag changed unexpectedly - reinitialize
     // (With current flow this shouldn't happen since external changes
     // are detected via 412 on save, but handle it just in case)
-    const initialized = initializeEditedConfig(data.config);
+    const initialized = initializeEditedConfig(asConfigInput(data.config));
     setEditedConfig(initialized);
     setOriginalConfig(deepCopy(initialized));
     lastSavedEtagRef.current = data.etag;
@@ -182,67 +187,43 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     []
   );
 
-  const handleSave = useCallback(
-    (force = false) => {
-      if (!data || !editedConfig || !originalConfig) return;
+  // Re-initialize from the server's response rather than recording the editor
+  // state as saved: what was persisted can diverge from the editor (e.g.
+  // computeConfigToSave pins the required `filter` back to the server's value
+  // when the editor cleared it), and the panel must show what actually saved.
+  // Fields edited while the save was in flight are layered back on top so
+  // those keystrokes aren't discarded.
+  const applySaved = (
+    saved: ProjectConfigWithEtag,
+    configAtSave: Partial<ProjectConfigInput>
+  ) => {
+    setConflictError(false);
+    lastSavedEtagRef.current = saved.etag;
+    const initialized = initializeEditedConfig(asConfigInput(saved.config));
+    setOriginalConfig(deepCopy(initialized));
+    setEditedConfig((current) =>
+      current
+        ? mergeInFlightEdits(initialized, current, configAtSave)
+        : initialized
+    );
+  };
 
-      const updatedConfig = computeConfigToSave(
-        editedConfig,
-        originalConfig,
-        data.config
-      );
-
-      mutation.mutate(
-        { config: updatedConfig, etag: force ? null : data.etag },
-        {
-          onSuccess: (responseData) => {
-            setConflictError(false);
-            lastSavedEtagRef.current = responseData.etag;
-            setOriginalConfig(deepCopy(editedConfig));
-            // Restore focus after save completes (delay to let React finish rendering)
-            const fieldId = focusedFieldIdRef.current;
-            setTimeout(() => {
-              if (fieldId) {
-                const field = document.getElementById(fieldId);
-                if (field) {
-                  field.focus();
-                }
-              }
-            }, 100);
-          },
-          onError: (err) => {
-            if (err instanceof ApiError && err.status === 412) {
-              setConflictError(true);
-            }
-          },
-        }
-      );
-    },
-    [data, editedConfig, originalConfig, mutation]
-  );
-
-  // Keep saveRef updated for keyboard shortcut
-  useEffect(() => {
-    saveRef.current = () => handleSave(false);
-  }, [handleSave]);
-
-  const handleSaveWithFocusRestore = (force = false) => {
+  const handleSave = (force = false) => {
     if (!data || !editedConfig || !originalConfig) return;
 
+    const configAtSave = editedConfig;
     const updatedConfig = computeConfigToSave(
-      editedConfig,
+      configAtSave,
       originalConfig,
-      data.config
+      asConfigInput(data.config)
     );
 
     mutation.mutate(
       { config: updatedConfig, etag: force ? null : data.etag },
       {
         onSuccess: (responseData) => {
-          setConflictError(false);
-          lastSavedEtagRef.current = responseData.etag;
-          setOriginalConfig(deepCopy(editedConfig));
-          // Restore focus after the click event fully completes (delay to let React finish rendering)
+          applySaved(responseData, configAtSave);
+          // Restore focus after save completes (delay to let React finish rendering)
           const fieldId = focusedFieldIdRef.current;
           setTimeout(() => {
             if (fieldId) {
@@ -262,25 +243,31 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     );
   };
 
+  // Keep saveRef updated for the keyboard shortcut (latest-ref pattern: no
+  // deps, so the ref tracks the current render's handleSave)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+  useEffect(() => {
+    saveRef.current = () => handleSave(false);
+  });
+
   const handleSaveAndNavigate = () => {
     if (!data || !editedConfig || !originalConfig) {
       blocker.proceed?.();
       return;
     }
 
+    const configAtSave = editedConfig;
     const updatedConfig = computeConfigToSave(
-      editedConfig,
+      configAtSave,
       originalConfig,
-      data.config
+      asConfigInput(data.config)
     );
 
     mutation.mutate(
       { config: updatedConfig, etag: data.etag },
       {
         onSuccess: (responseData) => {
-          setConflictError(false);
-          lastSavedEtagRef.current = responseData.etag;
-          setOriginalConfig(deepCopy(editedConfig));
+          applySaved(responseData, configAtSave);
           blocker.proceed?.();
         },
         onError: (err) => {
@@ -299,7 +286,8 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
     setOriginalConfig(null);
     // Reset expected etag so the init effect will re-initialize from server
     lastSavedEtagRef.current = null;
-    void queryClient.invalidateQueries({ queryKey: ["project-config-inv"] });
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    queryClient.invalidateQueries({ queryKey: ["project-config-inv"] });
   };
 
   return (
@@ -315,7 +303,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
         <VscodeButton
           disabled={!hasChanges || mutation.isPending}
           onMouseDown={handleSaveMouseDown}
-          onClick={() => handleSaveWithFocusRestore(false)}
+          onClick={() => handleSave(false)}
         >
           {mutation.isPending ? "Saving..." : "Save Changes"}
         </VscodeButton>
@@ -329,7 +317,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
             <VscodeButton secondary onClick={handleReload}>
               Discard My Changes
             </VscodeButton>
-            <VscodeButton onClick={() => handleSaveWithFocusRestore(true)}>
+            <VscodeButton onClick={() => handleSave(true)}>
               Keep My Changes
             </VscodeButton>
           </div>
@@ -359,6 +347,7 @@ export const ProjectPanel: FC<ProjectPanelProps> = ({ config }) => {
                     {section.items.map((item) => (
                       <li key={item.id} className={styles.navListItem}>
                         <button
+                          type="button"
                           className={styles.navItem}
                           onClick={() => scrollToSection(item.id)}
                         >

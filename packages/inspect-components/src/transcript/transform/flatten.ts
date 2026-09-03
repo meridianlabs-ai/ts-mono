@@ -87,7 +87,9 @@ export const flatTree = (
         pendingNode.children = children;
         result.push(pendingNode);
         if (collapsed === null || collapsed[pendingNode.id] !== true) {
-          result.push(...children);
+          // push one-by-one: spreading tens of thousands of children as
+          // call arguments overflows the stack on very large transcripts
+          for (const child of children) result.push(child);
         }
       }
 
@@ -101,7 +103,7 @@ export const flatTree = (
       result.push(node);
       const children = flatTree(node.children, collapsed, visitors, node);
       if (collapsed === null || collapsed[node.id] !== true) {
-        result.push(...children);
+        for (const child of children) result.push(child);
       }
     }
   }

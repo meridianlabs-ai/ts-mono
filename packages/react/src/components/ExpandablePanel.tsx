@@ -42,7 +42,8 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
 
     const checkOverflow = useCallback(
       (entry: ResizeObserverEntry) => {
-        const element = entry.target as HTMLDivElement;
+        const element = entry.target;
+        if (!(element instanceof HTMLElement)) return;
 
         // `maxHeight` is set in `rem` below, which resolves against the root
         // font-size — not the element's. Measuring against the element's own
@@ -68,7 +69,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     // mount, assume our subtree contains it and render expanded immediately.
     // The post-render effect below will collapse us back if the term isn't
     // actually present. This swaps a "collapsed→expanded" flash on remount
-    // (which the user sees on every search step as Virtuoso re-renders) for
+    // (which the user sees on every search step as the virtual list re-renders) for
     // a much rarer "expanded→collapsed" flash on panels that don't match.
     const [containsFindTarget, setContainsFindTarget] = useState(
       () => findTarget !== null
@@ -77,7 +78,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
     // No dep array: intentionally re-runs after every render so that changes
     // in children text (e.g. lazily loaded content) are picked up without an
     // additional mechanism.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-run after every render to track subtree text changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps, tsmono/no-raw-use-effect -- intentional: re-run after every render to track subtree text changes
     useEffect(() => {
       if (!findTarget) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React state with DOM subtree text; no external subscription possible
@@ -89,6 +90,7 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
         setContainsFindTarget(false);
         return;
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       const text = (root.textContent ?? "").toLowerCase();
       setContainsFindTarget(text.includes(findTarget.term.toLowerCase()));
     });
@@ -157,7 +159,6 @@ export const ExpandablePanel: FC<ExpandablePanelProps> = memo(
             ref={contentRef}
             style={contentStyles}
             className={clsx(
-              styles.expandableContentWrap,
               effectiveCollapsed && showToggle
                 ? styles.expandableTruncated
                 : undefined
@@ -217,6 +218,7 @@ const MoreToggle: FC<MoreToggleProps> = ({
       style={style}
     >
       <button
+        type="button"
         className={clsx("btn", styles.moreToggleButton, "text-size-smallest")}
         onClick={onToggle}
       >

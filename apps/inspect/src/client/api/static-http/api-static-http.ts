@@ -1,5 +1,9 @@
-import { AppConfig, EvalSet } from "@tsmono/inspect-common/types";
-import { fetchRange } from "@tsmono/util";
+import {
+  AppConfig,
+  EvalSet,
+  LogFilesResponse,
+} from "@tsmono/inspect-common/types";
+import { fetchRange, isUri } from "@tsmono/util";
 
 import { fetchSize } from "../../remote/remoteZipFile";
 import { download_file } from "../shared/api-shared";
@@ -13,11 +17,38 @@ import {
   joinURI,
 } from "./fetch";
 
+/** The canonical, origin-unique URL of a deployment's log dir. A relative
+ *  configured log_dir is page-relative for fetching, but page-relative
+ *  strings are not identities: two bundles at different paths on one origin
+ *  would collide in the shared per-origin IndexedDB. So everything the app
+ *  sees (log_dir, file names) is absolute. */
+const canonicalDirUrl = (log_dir: string): string => {
+  if (isUri(log_dir)) {
+    return log_dir;
+  }
+  const pageDir = `${window.location.origin}${window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))}`;
+  return joinURI(pageDir, log_dir);
+};
+
 // Versions aren't reachable without a server; older bundles don't embed them.
 const kFallbackAppConfig: AppConfig = {
   inspect_version: "unknown",
   scout_version: null,
 };
+
+/**
+ * Bootstrap: the log root a static deployment serves, resolved synchronously
+ * from its configured dir — no api instance involved (dir discovery precedes
+ * construction, see #392).
+ */
+export const staticLogRoot = (
+  log_dir: string,
+  abs_log_dir?: string
+): LogRoot => ({
+  logs: [],
+  log_dir: canonicalDirUrl(log_dir.replace(/ /g, "+")),
+  abs_log_dir,
+});
 
 /**
  * This provides an API implementation that will serve a single
@@ -26,17 +57,11 @@ const kFallbackAppConfig: AppConfig = {
  * files
  */
 export default function staticHttpApi(
-  log_dir?: string,
-  log_file?: string,
-  abs_log_dir?: string,
+  log_dir: string,
   app_config?: AppConfig
 ): LogViewAPI {
-  const resolved_log_dir = log_dir?.replace(" ", "+");
-  const resolved_log_path = log_file ? log_file.replace(" ", "+") : undefined;
   return staticHttpApiForLog({
-    log_file: resolved_log_path,
-    log_dir: resolved_log_dir,
-    abs_log_dir,
+    log_dir: log_dir.replace(/ /g, "+"),
     app_config,
   });
 }
@@ -45,20 +70,18 @@ export default function staticHttpApi(
  * Fetches a file from the specified URL and parses its content.
  */
 function staticHttpApiForLog(logInfo: {
-  log_dir?: string;
-  log_file?: string;
-  abs_log_dir?: string;
+  log_dir: string;
   app_config?: AppConfig;
 }): LogViewAPI {
   const log_dir = logInfo.log_dir;
-  const abs_log_dir = logInfo.abs_log_dir;
+  const canonical_log_dir = canonicalDirUrl(log_dir);
   const app_config = logInfo.app_config ?? kFallbackAppConfig;
   let manifest: Record<string, LogPreview> | undefined = undefined;
   let manifestPromise: Promise<Record<string, LogPreview>> | undefined =
     undefined;
 
   const getManifest = async (): Promise<Record<string, LogPreview>> => {
-    if (!manifest && log_dir) {
+    if (!manifest) {
       if (!manifestPromise) {
         manifestPromise = fetchManifest(log_dir).then((manifestRaw) => {
           manifest = manifestRaw?.parsed || {};
@@ -79,31 +102,16 @@ function staticHttpApiForLog(logInfo: {
       // http
       return Promise.resolve([]);
     },
-    get_log_root: async (): Promise<LogRoot | undefined> => {
-      // First check based upon the log dir
-      if (log_dir) {
-        const manifest = await getManifest();
-        if (manifest) {
-          const logs = Object.entries(manifest).map(([key, preview]) => {
-            return {
-              name: joinURI(log_dir, key),
-              task: preview.task,
-              task_id: preview.task_id,
-            };
-          });
-          return Promise.resolve({
-            logs: logs,
-            log_dir,
-            abs_log_dir,
-          });
-        }
-      }
-
-      return undefined;
-    },
-    get_log_dir_handle: (log_dir: string | undefined): string => {
-      const currentDirUrl = `${window.location.origin}${window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"))}`;
-      return joinURI(currentDirUrl, log_dir || "default_log_dir");
+    get_logs: async (): Promise<LogFilesResponse> => {
+      // No change detection against a static manifest — every listing is a
+      // full response and the caller's mtime/count token is ignored.
+      const manifest = await getManifest();
+      const files = Object.entries(manifest).map(([key, preview]) => ({
+        name: joinURI(canonical_log_dir, key),
+        task: preview.task,
+        task_id: preview.task_id,
+      }));
+      return { files, response_type: "full" };
     },
     get_eval_set: async (dir?: string) => {
       const dirSegments = [];
@@ -173,10 +181,11 @@ function staticHttpApiForLog(logInfo: {
     },
     get_log_summary: async (log_file: string) => {
       const manifest = await getManifest();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (manifest) {
         const manifestAbs: Record<string, LogPreview> = {};
         Object.entries(manifest).forEach(([key, preview]) => {
-          manifestAbs[joinURI(log_dir || "", key)] = preview;
+          manifestAbs[joinURI(canonical_log_dir, key)] = preview;
         });
         const header = manifestAbs[log_file];
         if (header) {
@@ -190,22 +199,21 @@ function staticHttpApiForLog(logInfo: {
         return [];
       }
 
-      if (log_dir) {
-        const manifest = await getManifest();
-        if (manifest) {
-          const keys = Object.keys(manifest);
-          const result: LogPreview[] = [];
-          files.forEach((file) => {
-            const fileKey = keys.find((key) => {
-              return file.endsWith(key);
-            });
-            if (fileKey) {
-              // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-              result.push(manifest[fileKey]);
-            }
+      const manifest = await getManifest();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      if (manifest) {
+        const keys = Object.keys(manifest);
+        const result: LogPreview[] = [];
+        files.forEach((file) => {
+          const fileKey = keys.find((key) => {
+            return file.endsWith(key);
           });
-          return result;
-        }
+          if (fileKey) {
+            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+            result.push(manifest[fileKey]);
+          }
+        });
+        return result;
       }
 
       // No log.json could be found, and there isn't a log file,

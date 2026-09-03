@@ -7,19 +7,24 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC } from "react";
 
-import styles from "./RunScanPanel.module.css";
+import { eventChecked, eventValue } from "../utils/formEvents";
 
-function getInputValue(e: Event): string {
-  return (e.target as HTMLInputElement).value;
-}
+import styles from "./LlmScannerParams.module.css";
 
-function getSelectValue(e: Event): string {
-  return (e.target as HTMLSelectElement).value;
-}
+const getInputValue = eventValue;
+const getSelectValue = eventValue;
+
+const kAnswerTypes = ["boolean", "numeric", "string"] as const;
+
+type AnswerType = (typeof kAnswerTypes)[number];
+
+/** The select's own options are the answer types; boolean is the default. */
+const toAnswerType = (value: string): AnswerType =>
+  kAnswerTypes.find((answerType) => answerType === value) ?? "boolean";
 
 export interface LlmScannerParamsValue {
   question: string;
-  answerType: "boolean" | "numeric" | "string";
+  answerType: AnswerType;
   excludeSystem: boolean;
   excludeReasoning: boolean;
   excludeToolUsage: boolean;
@@ -60,12 +65,7 @@ export const LlmScannerParams: FC<Props> = ({ value, onChange }) => {
           <VscodeSingleSelect
             value={value.answerType}
             onChange={(e) =>
-              update({
-                answerType: getSelectValue(e) as
-                  | "boolean"
-                  | "numeric"
-                  | "string",
-              })
+              update({ answerType: toAnswerType(getSelectValue(e)) })
             }
           >
             <VscodeOption value="boolean">Boolean</VscodeOption>
@@ -80,7 +80,7 @@ export const LlmScannerParams: FC<Props> = ({ value, onChange }) => {
               checked={value.excludeSystem}
               onChange={(e) =>
                 update({
-                  excludeSystem: (e.target as HTMLInputElement).checked,
+                  excludeSystem: eventChecked(e),
                 })
               }
             >
@@ -90,7 +90,7 @@ export const LlmScannerParams: FC<Props> = ({ value, onChange }) => {
               checked={value.excludeReasoning}
               onChange={(e) =>
                 update({
-                  excludeReasoning: (e.target as HTMLInputElement).checked,
+                  excludeReasoning: eventChecked(e),
                 })
               }
             >
@@ -100,7 +100,7 @@ export const LlmScannerParams: FC<Props> = ({ value, onChange }) => {
               checked={value.excludeToolUsage}
               onChange={(e) =>
                 update({
-                  excludeToolUsage: (e.target as HTMLInputElement).checked,
+                  excludeToolUsage: eventChecked(e),
                 })
               }
             >

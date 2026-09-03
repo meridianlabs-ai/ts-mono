@@ -11,7 +11,14 @@ import type {
 
 import { expect, test } from "./fixtures/app";
 import {
+  createAnchorEvent,
+  createMessagesEventsResponse,
+  createModelEvent,
+  createSpanBeginEvent,
+  createSpanEndEvent,
+  createTimeline,
   createTimelineScenario,
+  createTimelineSpan,
   createTranscriptInfo,
   createTranscriptsResponse,
 } from "./fixtures/test-data";
@@ -219,4 +226,170 @@ test("transcript without timeline data renders without swimlane rows", async ({
   const rowCount = await swimlane.getByRole("row").count();
   // At most the root row (or 0 if completely hidden)
   expect(rowCount).toBeLessThanOrEqual(1);
+});
+
+// ---------------------------------------------------------------------------
+// Characterization: punch-down view stack
+// ---------------------------------------------------------------------------
+
+// NOTE: punch-down only supports branches reachable through the root span's
+// branch tree whose fork anchor is a direct content event of the parent
+// (`spliceToTimeline`/`ancestorChain` walk `branches`, not `content`) — a
+// branch attached to a nested agent span crashes on punch-down. This
+// scenario therefore attaches the branch (and its anchor) to the root span.
+function createRootBranchScenario(): MessagesEventsResponse {
+  const rootEvt = createModelEvent({
+    uuid: "evt-root-1",
+    startSec: 0,
+    endSec: 2,
+    tokens: 100,
+    content: "Planning the work",
+    spanId: "transcript",
+  });
+  const evt1 = createModelEvent({
+    uuid: "evt-explore-1",
+    startSec: 2,
+    endSec: 5,
+    tokens: 200,
+    content: "Exploring the codebase",
+    spanId: "explore",
+  });
+  const evt2 = createModelEvent({
+    uuid: "evt-build-1",
+    startSec: 8,
+    endSec: 14,
+    tokens: 400,
+    content: "Building the feature",
+    spanId: "build",
+  });
+  const anchorEvt = createAnchorEvent({
+    anchorId: "fork-1",
+    uuid: "evt-anchor-1",
+    atSec: 6,
+    spanId: "transcript",
+  });
+  const branchEvt = createModelEvent({
+    uuid: "evt-branch-1",
+    startSec: 10,
+    endSec: 12,
+    tokens: 150,
+    content: "Branch attempt",
+    spanId: "branch-1",
+  });
+  // The branch carries an agent span in its event stream so the spliced
+  // standalone timeline has swimlane structure (otherwise the header — and
+  // with it the back button — would not render).
+  const branchSpanBegin = createSpanBeginEvent({
+    id: "retry",
+    name: "Retry",
+    type: "agent",
+    uuid: "evt-sb-retry",
+    atSec: 11,
+    spanId: "branch-1",
+  });
+  const branchInnerEvt = createModelEvent({
+    uuid: "evt-retry-1",
+    startSec: 11,
+    endSec: 12,
+    tokens: 100,
+    content: "Retrying the approach",
+    spanId: "retry",
+  });
+  const branchSpanEnd = createSpanEndEvent({
+    id: "retry",
+    uuid: "evt-se-retry",
+    atSec: 12,
+    spanId: "branch-1",
+  });
+
+  const rootSpan = createTimelineSpan({
+    id: "transcript",
+    name: "Transcript",
+    span_type: "agent",
+    content: [
+      { type: "event", event: "evt-root-1" },
+      { type: "event", event: "evt-anchor-1" },
+      createTimelineSpan({
+        id: "explore",
+        name: "Explore",
+        span_type: "agent",
+        content: [{ type: "event", event: "evt-explore-1" }],
+      }),
+      createTimelineSpan({
+        id: "build",
+        name: "Build",
+        span_type: "agent",
+        content: [{ type: "event", event: "evt-build-1" }],
+      }),
+    ],
+    branches: [
+      createTimelineSpan({
+        id: "branch-1",
+        name: "branch",
+        span_type: "branch",
+        branched_from: "fork-1",
+        content: [
+          { type: "event", event: "evt-branch-1" },
+          { type: "event", event: "evt-sb-retry" },
+          { type: "event", event: "evt-retry-1" },
+          { type: "event", event: "evt-se-retry" },
+        ],
+      }),
+    ],
+  });
+
+  return createMessagesEventsResponse({
+    messages: [{ role: "user", content: "Help me refactor this code" }],
+    events: [
+      rootEvt,
+      anchorEvt,
+      evt1,
+      evt2,
+      branchEvt,
+      branchSpanBegin,
+      branchInnerEvt,
+      branchSpanEnd,
+    ],
+    timelines: [createTimeline(rootSpan)],
+  });
+}
+
+test("punch-down opens a branch as a standalone timeline and back returns", async ({
+  page,
+  network,
+}) => {
+  setupTranscriptWithTimeline(network, createRootBranchScenario());
+  await page.goto(transcriptUrl());
+
+  const swimlane = page.getByRole("grid", { name: "Timeline swimlane" });
+  await expect(swimlane).toBeVisible();
+
+  // Reveal the branch row via the root row's branch marker.
+  const branchMarker = swimlane
+    .getByRole("button", { name: "Toggle branches" })
+    .first();
+  await branchMarker.click();
+  const branchRow = swimlane.getByRole("row").filter({ hasText: "Branch 1" });
+  await expect(branchRow).toBeVisible();
+
+  // Punch down into the branch (button appears on row hover).
+  await branchRow.hover();
+  await branchRow
+    .locator('button[title="Open as standalone timeline"]')
+    .click();
+
+  // Standalone view: the back button shows and the sibling agent rows are
+  // replaced by the branch's own view.
+  const backButton = page.locator('button[title="Back to branch overview"]');
+  await expect(backButton).toBeVisible();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeHidden();
+
+  // Pop back to the full timeline.
+  await backButton.click();
+  await expect(backButton).toBeHidden();
+  await expect(
+    swimlane.getByRole("row").filter({ hasText: "Explore" })
+  ).toBeVisible();
 });

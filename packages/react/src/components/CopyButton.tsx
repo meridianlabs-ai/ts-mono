@@ -4,6 +4,9 @@ import { FC, useState } from "react";
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./CopyButton.module.css";
 
+const toCopyError = (error: unknown): Error =>
+  error instanceof Error ? error : new Error("Failed to copy");
+
 interface CopyButtonProps {
   icon?: string;
   title?: string;
@@ -27,19 +30,23 @@ export const CopyButton: FC<CopyButtonProps> = ({
   const [isCopied, setIsCopied] = useState(false);
 
   const handleClick = async (): Promise<void> => {
+    // No value blocks (?., ??, ternary) inside the try/catch — React
+    // Compiler can't lower those yet and would bail out the component.
     try {
       await navigator.clipboard.writeText(value);
       setIsCopied(true);
-      onCopySuccess?.();
+      if (onCopySuccess) {
+        onCopySuccess();
+      }
 
       // Reset copy state after delay
       setTimeout(() => {
         setIsCopied(false);
       }, 1250);
     } catch (error) {
-      onCopyError?.(
-        error instanceof Error ? error : new Error("Failed to copy")
-      );
+      if (onCopyError) {
+        onCopyError(toCopyError(error));
+      }
     }
   };
 
@@ -48,7 +55,8 @@ export const CopyButton: FC<CopyButtonProps> = ({
       type="button"
       className={clsx("copy-button", styles.copyButton, className)}
       onClick={() => {
-        void handleClick();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleClick();
       }}
       aria-label={ariaLabel}
       disabled={isCopied}

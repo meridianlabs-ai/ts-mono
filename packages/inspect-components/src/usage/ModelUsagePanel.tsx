@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { formatNumber } from "@tsmono/util";
+import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelUsagePanel.module.css";
 
@@ -12,6 +12,7 @@ export interface ModelUsageData {
   reasoning_tokens?: number | null;
   input_tokens_cache_read?: number | null;
   input_tokens_cache_write?: number | null;
+  total_cost?: number | null;
 }
 
 export interface ModelUsageTiming {
@@ -27,11 +28,7 @@ interface ModelUsageProps {
 }
 
 type CategoryKey =
-  | "input"
-  | "cacheRead"
-  | "cacheWrite"
-  | "output"
-  | "reasoning";
+  "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
 
 interface Category {
   key: CategoryKey;
@@ -57,11 +54,11 @@ const CAT_LABEL: Record<CategoryKey, string> = {
 };
 
 const CAT_SWATCH: Record<CategoryKey, string> = {
-  input: styles.catInput!,
-  cacheRead: styles.catCacheRead!,
-  cacheWrite: styles.catCacheWrite!,
-  output: styles.catOutput!,
-  reasoning: styles.catReasoning!,
+  input: styles.catInput,
+  cacheRead: styles.catCacheRead,
+  cacheWrite: styles.catCacheWrite,
+  output: styles.catOutput,
+  reasoning: styles.catReasoning,
 };
 
 const buildCategories = (usage: ModelUsageData): Category[] => {
@@ -133,6 +130,7 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
   timing,
   className,
 }) => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!usage) return null;
 
   const categories = buildCategories(usage);
@@ -165,6 +163,8 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
         {composeTotal > 0 && (
           <span className={styles.sub}>
             {inputPct}% input · {outputPct}% output
+            {usage.total_cost != null &&
+              ` · ${formatCurrency(usage.total_cost)}`}
           </span>
         )}
       </div>

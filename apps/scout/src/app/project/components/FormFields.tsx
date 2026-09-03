@@ -8,16 +8,12 @@ import {
 } from "@vscode-elements/react-elements";
 import { FC, ReactNode, useEffect, useState } from "react";
 
-import styles from "../ProjectPanel.module.css";
+import { eventValue } from "../../utils/formEvents";
 
-// Helper to extract input value with proper typing
-function getInputValue(e: Event): string {
-  return (e.target as HTMLInputElement).value;
-}
+import styles from "./FormFields.module.css";
 
-function getSelectValue(e: Event): string {
-  return (e.target as HTMLSelectElement).value;
-}
+const getInputValue = eventValue;
+const getSelectValue = eventValue;
 
 // Helper to disable spellcheck on web component shadow DOM elements
 function createSpellcheckRef(selector: "input" | "textarea") {
@@ -58,6 +54,7 @@ export const TextField: FC<TextFieldProps> = ({
   const [debouncedError, setDebouncedError] = useState<string | null>(null);
   const errorMessage = validate && !disabled ? validate(value ?? null) : null;
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (errorMessage) {
       const timer = setTimeout(() => setDebouncedError(errorMessage), 1000);
@@ -153,21 +150,33 @@ export function objectToKeyValueLines(
 }
 
 /**
- * Parse key=value lines into an object, or return as string if it looks like a path.
- * Numeric values are preserved as numbers.
+ * Parse key=value lines into an object. With allowPath, input that looks
+ * like a file path is returned as a string instead (for fields that accept
+ * a config-file path in place of pairs). Numeric values are preserved as
+ * numbers.
  */
 export function parseKeyValueLines(
-  text: string | null
+  text: string | null,
+  allowPath: false
+): Record<string, string | number> | null;
+export function parseKeyValueLines(
+  text: string | null,
+  allowPath: boolean
+): Record<string, string | number> | string | null;
+export function parseKeyValueLines(
+  text: string | null,
+  allowPath: boolean
 ): Record<string, string | number> | string | null {
   if (!text?.trim()) return null;
 
   // If it looks like a file path, return as string
   const trimmed = text.trim();
   if (
-    trimmed.startsWith("/") ||
-    trimmed.startsWith("./") ||
-    trimmed.startsWith("~") ||
-    /^[a-zA-Z]:\\/.test(trimmed) // Windows path
+    allowPath &&
+    (trimmed.startsWith("/") ||
+      trimmed.startsWith("./") ||
+      trimmed.startsWith("~") ||
+      /^[a-zA-Z]:\\/.test(trimmed)) // Windows path
   ) {
     return trimmed;
   }
@@ -196,37 +205,76 @@ export function parseKeyValueLines(
   return Object.keys(result).length > 0 ? result : null;
 }
 
-interface KeyValueFieldProps {
+interface KeyValueFieldBaseProps {
   id?: string;
   label: string;
   helper?: ReactNode;
   value: Record<string, unknown> | string | null | undefined;
-  onChange: (value: Record<string, string | number> | string | null) => void;
   placeholder?: string;
   disabled?: boolean;
   rows?: number;
 }
 
-export const KeyValueField: FC<KeyValueFieldProps> = ({
-  id,
-  label,
-  helper,
-  value,
-  onChange,
-  placeholder = "key=value",
-  disabled,
-  rows = 3,
-}) => {
+interface KeyValuePairsFieldProps extends KeyValueFieldBaseProps {
+  allowPath?: false;
+  onChange: (value: Record<string, string | number> | null) => void;
+}
+
+/** For fields (e.g. model_args) that accept a config-file path in place of pairs. */
+interface KeyValueOrPathFieldProps extends KeyValueFieldBaseProps {
+  allowPath: true;
+  onChange: (value: Record<string, string | number> | string | null) => void;
+}
+
+type KeyValueFieldProps = KeyValuePairsFieldProps | KeyValueOrPathFieldProps;
+
+type ParsedKeyValue = Record<string, string | number> | string | null;
+
+/**
+ * Non-empty text that parses to nothing is a mid-edit state (or a pasted
+ * path in a pairs-only field). handleInput doesn't propagate it — persisting
+ * null would wipe the saved value — and the resync effect must not clobber
+ * it under the cursor. One predicate keeps the two sites agreeing.
+ */
+const isMidEditText = (text: string, parsed: ParsedKeyValue): boolean =>
+  parsed === null && text.trim() !== "";
+
+/** Key-order-insensitive equality: a save echo may reorder equal pairs. */
+const sameParsedValue = (a: ParsedKeyValue, b: ParsedKeyValue): boolean => {
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) {
+    return a === b;
+  }
+  const sortEntries = (record: Record<string, string | number>) =>
+    Object.entries(record).sort(([x], [y]) => x.localeCompare(y));
+  return JSON.stringify(sortEntries(a)) === JSON.stringify(sortEntries(b));
+};
+
+export const KeyValueField: FC<KeyValueFieldProps> = (props) => {
+  const {
+    id,
+    label,
+    helper,
+    value,
+    placeholder = "key=value",
+    disabled,
+    rows = 3,
+  } = props;
+  const allowPath = props.allowPath ?? false;
+
   // Use local state to allow free typing without losing input
   const [text, setText] = useState(() => objectToKeyValueLines(value));
 
   // Sync local state when value changes externally (e.g., after save)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
+    const currentParsed = parseKeyValueLines(text, allowPath);
+    if (isMidEditText(text, currentParsed)) {
+      return;
+    }
     const configText = objectToKeyValueLines(value);
     // Only sync if parsed values differ (avoids cursor jump while typing)
-    const currentParsed = parseKeyValueLines(text);
-    const valueParsed = parseKeyValueLines(configText);
-    if (JSON.stringify(currentParsed) !== JSON.stringify(valueParsed)) {
+    const valueParsed = parseKeyValueLines(configText, allowPath);
+    if (!sameParsedValue(currentParsed, valueParsed)) {
       // TODO: rewrite to the "adjust state during render" pattern so this setState doesn't live in an effect
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setText(configText);
@@ -237,8 +285,15 @@ export const KeyValueField: FC<KeyValueFieldProps> = ({
 
   const handleInput = (newText: string) => {
     setText(newText);
-    // Also update config immediately so Ctrl+S works
-    onChange(parseKeyValueLines(newText));
+    // Update config immediately so Ctrl+S works — except mid-edit (see
+    // isMidEditText): clearing the field is the explicit way to persist null.
+    if (props.allowPath) {
+      const parsed = parseKeyValueLines(newText, true);
+      if (!isMidEditText(newText, parsed)) props.onChange(parsed);
+    } else {
+      const parsed = parseKeyValueLines(newText, false);
+      if (!isMidEditText(newText, parsed)) props.onChange(parsed);
+    }
   };
 
   return (
@@ -338,8 +393,10 @@ export function SelectField<T extends string>({
         value={value ?? ""}
         disabled={disabled}
         onChange={(e) => {
+          // The select's own options are its value set; anything else is the
+          // "Default" placeholder.
           const val = getSelectValue(e);
-          onChange(val ? (val as T) : null);
+          onChange(options.find((option) => option === val) ?? null);
         }}
       >
         <VscodeOption value="">{defaultLabel}</VscodeOption>

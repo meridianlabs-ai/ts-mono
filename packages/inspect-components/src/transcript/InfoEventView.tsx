@@ -21,17 +21,15 @@ export const InfoEventView: FC<InfoEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const panels: ReactNode[] = [];
-  if (typeof event.data === "string") {
-    panels.push(
+  const panel: ReactNode =
+    typeof event.data === "string" ? (
       <RenderedText
         markdown={event.data}
         className={clsx(styles.panel, "text-size-base")}
       />
+    ) : (
+      <JSONPanel data={event.data} className={styles.panel} />
     );
-  } else {
-    panels.push(<JSONPanel data={event.data} className={styles.panel} />);
-  }
 
   return (
     <EventPanel
@@ -44,7 +42,7 @@ export const InfoEventView: FC<InfoEventViewProps> = ({
       icon={TranscriptIcons.info}
     >
       <ExpandablePanel id={`${eventNode.id}-info`} collapse={true}>
-        {panels}
+        {panel}
       </ExpandablePanel>
     </EventPanel>
   );

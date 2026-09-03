@@ -2,9 +2,9 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
+import { ScoreValue } from "@tsmono/inspect-components/transcript";
 import { isRecord } from "@tsmono/util";
 
-import { ScoreValue } from "../components/ScoreValue";
 import { valueAsString } from "../utils/format";
 
 import styles from "./ScoreColumn.module.css";

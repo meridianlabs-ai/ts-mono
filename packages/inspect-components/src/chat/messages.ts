@@ -19,10 +19,7 @@ import type {
  * (used by inspect for displaying message timestamps).
  */
 export type Message = (
-  | ChatMessageAssistant
-  | ChatMessageSystem
-  | ChatMessageUser
-  | ChatMessageTool
+  ChatMessageAssistant | ChatMessageSystem | ChatMessageUser | ChatMessageTool
 ) & {
   timestamp?: string | null;
 };
@@ -43,74 +40,94 @@ export const hasServerToolUse = (message: Message): boolean => {
   );
 };
 
-export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
-  // Filter tool messages into a sidelist that the chat stream
-  // can use to lookup the tool responses
+/**
+ * The streaming tool-fold: feed messages in conversation order and receive
+ * completed `ResolvedMessage` rows — a row is one non-tool message plus the
+ * tool messages that follow it, and it completes when the next non-tool
+ * message arrives (or `end()` closes the fold). `index` is the message's
+ * whole-conversation position: ids minted for id-less messages are
+ * `msg-${index}`, so a fold over any window of the conversation yields the
+ * same ids as a fold over all of it.
+ */
+export class MessageFold {
+  private open: ResolvedMessage | undefined;
 
-  const resolvedMessages: ResolvedMessage[] = [];
-  let index = 0;
-  for (const message of messages) {
+  constructor(private readonly onRow: (row: ResolvedMessage) => void) {}
+
+  next(message: ChatMessage, index: number): void {
     // Create a stable id for the item without mutating the original
     const resolved =
       message.id === undefined ? { ...message, id: `msg-${index}` } : message;
-
     if (resolved.role === "tool") {
-      // Add this tool message onto the previous message
-      if (resolvedMessages.length > 0) {
-        const msg = resolvedMessages[resolvedMessages.length - 1];
-        if (msg) {
-          msg.toolMessages = msg.toolMessages || [];
-          msg.toolMessages.push(resolved);
-        }
-      }
-    } else {
-      resolvedMessages.push({ message: resolved, toolMessages: [] });
+      // Add this tool message onto the previous message; a tool message
+      // with no preceding non-tool message is dropped
+      this.open?.toolMessages.push(resolved);
+      return;
     }
-
-    index++;
+    this.flush();
+    this.open = { message: resolved, toolMessages: [] };
   }
 
-  // Capture system messages (there could be multiple)
-  const systemMessages: ChatMessageSystem[] = [];
-  const collapsedMessages = resolvedMessages
-    .map((resolved) => {
-      if (resolved.message.role === "system") {
-        systemMessages.push(resolved.message);
-      }
-      return resolved;
-    })
-    .filter((resolved) => {
-      return resolved.message.role !== "system";
-    });
+  end(): void {
+    this.flush();
+    this.open = undefined;
+  }
 
-  // Collapse system messages
-  const systemContent: (
-    | ContentText
-    | ContentImage
-    | ContentAudio
-    | ContentVideo
-    | ContentDocument
-    | ContentReasoning
-    | ContentData
-    | ContentToolUse
-  )[] = [];
-  for (const systemMessage of systemMessages) {
+  private flush(): void {
+    if (this.open) {
+      this.onRow(this.open);
+    }
+  }
+}
+
+/**
+ * Collapse system messages into the single synthetic system message the
+ * chat renders as its first row (content concatenated in conversation
+ * order). Undefined when there is no system content to show.
+ */
+export const mergedSystemMessage = (
+  systemMessages: readonly ChatMessageSystem[]
+): ChatMessageSystem | undefined => {
+  const systemContent = systemMessages.flatMap((systemMessage) => {
     const contents = Array.isArray(systemMessage.content)
       ? systemMessage.content
       : [systemMessage.content];
-    systemContent.push(...contents.map(normalizeContent));
+    return contents.map(normalizeContent);
+  });
+  if (systemContent.length === 0) {
+    return undefined;
   }
-
-  const systemMessage: ChatMessageSystem = {
+  return {
     id: "sys-message-6815A84B062A",
     role: "system",
     content: systemContent,
     source: "input",
     metadata: null,
   };
+};
 
-  // Converge them
-  if (systemMessage && systemMessage.content.length > 0) {
+export const resolveMessages = (messages: ChatMessage[]): ResolvedMessage[] => {
+  // Filter tool messages into a sidelist that the chat stream
+  // can use to lookup the tool responses
+  const resolvedMessages: ResolvedMessage[] = [];
+  const fold = new MessageFold((row) => resolvedMessages.push(row));
+  messages.forEach((message, index) => {
+    fold.next(message, index);
+  });
+  fold.end();
+
+  // Capture system messages (there could be multiple) and collapse them
+  // into the synthetic first row
+  const systemMessages: ChatMessageSystem[] = [];
+  const collapsedMessages = resolvedMessages.filter((resolved) => {
+    if (resolved.message.role === "system") {
+      systemMessages.push(resolved.message);
+      return false;
+    }
+    return true;
+  });
+  const systemMessage = mergedSystemMessage(systemMessages);
+  if (systemMessage) {
     collapsedMessages.unshift({ message: systemMessage, toolMessages: [] });
   }
   return collapsedMessages;

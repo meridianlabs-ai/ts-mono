@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { forwardRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 
 import { ApplicationIcons } from "../appearance/icons";
 import { useLogOrSampleRouteParams } from "../routing/url";
@@ -21,7 +21,8 @@ export const FlowButton = forwardRef<HTMLButtonElement>((_, ref) => {
     const flowPath = logPath
       ? `${routePrefix}/${logPath}/flow.yaml`
       : `${routePrefix}/flow.yaml`;
-    void navigateRouter(flowPath);
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+    navigateRouter(flowPath);
   };
 
   return (

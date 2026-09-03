@@ -7,6 +7,7 @@ import { dirname } from "@tsmono/util";
 
 import { AppConfig } from "../../../types/api-types";
 import { projectOrAppAliasedPath } from "../../server/useAppConfig";
+import { eventValue } from "../../utils/formEvents";
 import {
   getFilenameFromUri,
   hasValidationSetExtension,
@@ -85,6 +86,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   };
 
   // Update dropdown position when opening
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (isOpen && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
@@ -98,6 +100,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   }, [isOpen]);
 
   // Close dropdown when trigger resizes to prevent orphaned positioning
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!isOpen || !triggerRef.current) return;
 
@@ -116,9 +119,10 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
   }, [isOpen]);
 
   // Close on click outside (check both container and dropdown since dropdown is in portal)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
+      const target = e.target instanceof Node ? e.target : null;
       const isOutsideContainer =
         containerRef.current && !containerRef.current.contains(target);
       const isOutsideDropdown =
@@ -185,7 +189,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
 
   // Modal handlers
   const handleNameInput = (e: Event) => {
-    setNewSetName((e.target as HTMLInputElement).value);
+    setNewSetName(eventValue(e));
     setValidationError(null);
   };
 
@@ -257,8 +261,9 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
       role="listbox"
     >
       {validationSets.map((uri) => (
-        <div
+        <button
           key={uri}
+          type="button"
           role="option"
           aria-selected={selectedUri === uri}
           className={`${styles.item} ${selectedUri === uri ? styles.selected : ""}`}
@@ -268,21 +273,22 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
           <div className={styles.secondaryText}>
             {getDisplayPath(uri, appConfig) || (hasNonRootDir ? "\u00A0" : "")}
           </div>
-        </div>
+        </button>
       ))}
 
       {/* Create new set option */}
       {allowCreate && onCreate && (
         <>
           {validationSets.length > 0 && <div className={styles.divider} />}
-          <div
+          <button
+            type="button"
             role="option"
             aria-selected={false}
             className={`${styles.item} ${styles.createOption}`}
             onClick={() => handleSelect("__create_new__")}
           >
             <div className={styles.primaryText}>Create new set...</div>
-          </div>
+          </button>
         </>
       )}
     </div>
@@ -293,6 +299,7 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
       <div ref={containerRef} className={styles.container}>
         {/* Trigger button - shows selected item */}
         <button
+          type="button"
           ref={triggerRef}
           className={styles.trigger}
           onClick={() => setIsOpen(!isOpen)}
@@ -334,10 +341,15 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
         title="Create New Validation Set"
         footer={
           <>
-            <button className={styles.modalButton} onClick={handleModalClose}>
+            <button
+              type="button"
+              className={styles.modalButton}
+              onClick={handleModalClose}
+            >
               Cancel
             </button>
             <button
+              type="button"
               className={`${styles.modalButton} ${styles.modalButtonPrimary}`}
               onClick={handleCreateSubmit}
               disabled={!newSetName.trim() || createPending}
@@ -359,8 +371,9 @@ export const ValidationSetSelector: FC<ValidationSetSelectorProps> = ({
             const trimmedName = newSetName.trim();
             const extensionError = getExtensionError(trimmedName);
             const displayError = validationError || extensionError;
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: data isn't validated at the wire (#555); old files may omit type-required fields
             const displayDir = appConfig?.project_dir?.startsWith("file://")
-              ? appConfig?.project_dir.slice(7)
+              ? appConfig.project_dir.slice(7)
               : appConfig?.project_dir;
 
             // Show hint only if no error and we have a name and projectDir

@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { LabeledValue } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";
@@ -58,12 +58,14 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
   );
 
   return (
-    <div
+    <button
+      type="button"
       className={clsx(
         styles.entry,
         selectedScanner === entry.title ? styles.selected : ""
       )}
       key={index}
+      aria-current={selectedScanner === entry.title ? "true" : undefined}
       onClick={() => {
         handleClick(entry.title);
       }}
@@ -113,7 +115,7 @@ const ScanResultsRow: FC<{ index: number; entry: ScanResultsOutlineEntry }> = ({
           />
         </LabeledValue>
       )}
-    </div>
+    </button>
   );
 };
 
@@ -134,6 +136,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
     return [];
   }
   const entries: ScanResultsOutlineEntry[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   const scanners = status.summary.scanners || {};
   for (const scanner of Object.keys(scanners)) {
     // The summary
@@ -144,6 +147,7 @@ const toEntries = (status?: Status): ScanResultsOutlineEntry[] => {
 
     const formattedParams: string[] = [];
     if (scanInfo) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
       const params = scanInfo.params || {};
       for (const [key, value] of Object.entries(params)) {
         formattedParams.push(`${key}=${JSON.stringify(value)}`);
@@ -194,15 +198,19 @@ const resolveValidations = (
   const result: Record<string, number> = {};
 
   // Add metrics in display order: accuracy, precision, recall, f1
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.accuracy !== null && m.accuracy !== undefined) {
     result["accuracy"] = m.accuracy;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.precision !== null && m.precision !== undefined) {
     result["precision"] = m.precision;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.recall !== null && m.recall !== undefined) {
     result["recall"] = m.recall;
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: scan-status API response not normalized (#555)
   if (m.f1 !== null && m.f1 !== undefined) {
     result["f1"] = m.f1;
   }
@@ -268,10 +276,8 @@ const NumericResultsTable: FC<{
     <div className={clsx(styles.numericResultTable)}>
       {Object.entries(validations).map(([key, value]) => (
         <Fragment key={key}>
-          <div className={clsx(styles.numericResultKey)}>{key}</div>
-          <div className={clsx(styles.numericResultValue)}>
-            {formatter ? formatter(value) : value}
-          </div>
+          <div>{key}</div>
+          <div>{formatter ? formatter(value) : value}</div>
         </Fragment>
       ))}
     </div>

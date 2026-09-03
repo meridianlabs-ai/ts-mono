@@ -26,20 +26,29 @@ export function useStatefulScrollPosition<
     scrollPositionRef.current = scrollPosition;
   }, [scrollPosition]);
 
-  // Create debounced scroll handler
-  const handleScrollInner = useCallback(
-    (e: Event) => {
-      const target = e.target as HTMLElement;
-      const position = target.scrollTop;
+  const storePosition = useCallback(
+    (position: number) => {
       log.debug(`Storing scroll position`, elementKey, position);
       setScrollPosition(position);
     },
     [elementKey, setScrollPosition]
   );
 
-  const handleScroll = useMemo(
-    () => debounce(handleScrollInner, delay),
-    [handleScrollInner, delay]
+  const debouncedStore = useMemo(
+    () => debounce(storePosition, delay),
+    [storePosition, delay]
+  );
+
+  // Debounce the position, not the Event: the trailing tick can land after
+  // unmount, when the detached element's scrollTop reads 0 — reading it at
+  // fire time would clobber the saved position with 0.
+  const handleScroll = useCallback(
+    (e: Event) => {
+      if (e.target instanceof Element) {
+        debouncedStore(e.target.scrollTop);
+      }
+    },
+    [debouncedStore]
   );
 
   // Function to manually restore scroll position
@@ -67,6 +76,8 @@ export function useStatefulScrollPosition<
       return;
     }
     log.debug(`Restore Scroll Hook`, elementKey);
+
+    let pollTimer: ReturnType<typeof setTimeout> | undefined;
 
     // Restore scroll position on mount
     const savedPosition = scrollPositionRef.current;
@@ -98,26 +109,23 @@ export function useStatefulScrollPosition<
             return;
           }
 
-          attempts++;
-          setTimeout(pollForRender, 100);
+          attempts += 1;
+          pollTimer = setTimeout(pollForRender, 100);
         };
 
-        setTimeout(pollForRender, 100);
+        pollTimer = setTimeout(pollForRender, 100);
       }
     }
 
-    if (element.addEventListener) {
-      element.addEventListener("scroll", handleScroll);
-    } else {
-      log.warn("Element has no way to add event listener", element);
-    }
+    element.addEventListener("scroll", handleScroll);
 
     return () => {
-      if (element.removeEventListener) {
-        element.removeEventListener("scroll", handleScroll);
-      } else {
-        log.warn("Element has no way to remove event listener", element);
-      }
+      clearTimeout(pollTimer);
+      // A debounce tick pending here is left to fire after unmount —
+      // deliberate: it writes the position captured at event time to the
+      // app's state store (safe post-unmount), so a scroll made just before
+      // unmounting is still restorable.
+      element.removeEventListener("scroll", handleScroll);
     };
   }, [elementKey, elementRef, handleScroll, scrollable]);
 

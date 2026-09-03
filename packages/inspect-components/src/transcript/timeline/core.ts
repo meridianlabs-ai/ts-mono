@@ -14,6 +14,7 @@ import type {
   TimelineEvent as ServerTimelineEvent,
   TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { codexToolMarkdown } from "../../chat/tools/tool";
 
@@ -42,6 +43,7 @@ type TreeItem = SpanNode | Event;
 function isSpanNode(item: TreeItem): item is SpanNode {
   return (
     typeof item === "object" &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
     item !== null &&
     "children" in item &&
     Array.isArray(item.children)
@@ -64,11 +66,14 @@ export class TimelineEvent {
   }
 
   startTime(): Date {
-    return new Date((this.event as { timestamp?: string }).timestamp ?? 0);
+    return new Date(this.event.timestamp);
   }
 
   endTime(): Date {
-    const completed = (this.event as { completed?: string }).completed;
+    const completed =
+      "completed" in this.event && typeof this.event.completed === "string"
+        ? this.event.completed
+        : null;
     return completed ? new Date(completed) : this.startTime();
   }
 
@@ -94,6 +99,30 @@ export class TimelineEvent {
 /**
  * A span of execution — agent, scorer, tool, or root.
  */
+/**
+ * Narrow one node of a timeline's `content`, which mixes spans and events.
+ * Tests reach for `content[0] as TimelineSpan`; these check the discriminant
+ * and report what was actually there.
+ */
+export const asTimelineSpan = (node: unknown): TimelineSpan => {
+  if (!(node instanceof TimelineSpan)) {
+    throw new Error(`expected a TimelineSpan, got ${describeNode(node)}`);
+  }
+  return node;
+};
+
+export const asTimelineEvent = (node: unknown): TimelineEvent => {
+  if (!(node instanceof TimelineEvent)) {
+    throw new Error(`expected a TimelineEvent, got ${describeNode(node)}`);
+  }
+  return node;
+};
+
+const describeNode = (node: unknown): string =>
+  isRecord(node) && typeof node["type"] === "string"
+    ? `a "${node["type"]}" node`
+    : String(node);
+
 export class TimelineSpan {
   readonly type = "span" as const;
   id: string;
@@ -232,6 +261,26 @@ export function spanHasBranches(span: TimelineSpan): boolean {
 }
 
 /**
+ * Count utility spans in `span`'s content tree.
+ *
+ * Used to surface how many utility agents are elided from display when the
+ * "Utility agents" option is off, so they never disappear without a trace.
+ * Branches are deliberately excluded: the indicator's contract is "what the
+ * utility toggle reveals", and branch content stays hidden behind the
+ * separate branches option regardless of the utility setting.
+ */
+export function countUtilitySpans(span: TimelineSpan): number {
+  let count = 0;
+  for (const item of span.content) {
+    if (item.type === "span") {
+      if (item.utility) count++;
+      count += countUtilitySpans(item);
+    }
+  }
+  return count;
+}
+
+/**
  * Creates a display-ready TimelineSpan from a branch span.
  *
  * If the branch has exactly one child span, returns that span directly.
@@ -358,9 +407,11 @@ function convertServerSpan(
   server: ServerTimelineSpan,
   lookup: Map<string, Event>
 ): TimelineSpan {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
   const content = (server.content ?? [])
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
   const branches = (server.branches ?? [])
     .map((b) => convertServerSpan(b, lookup))
     .filter((b) => b.content.length > 0 || b.branches.length > 0);
@@ -449,7 +500,7 @@ function ancestorChain(
 }
 
 export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
-  const update: Partial<Event> = {};
+  const update: { span_id?: string; id?: string; parent_id?: string } = {};
   if (e.span_id?.endsWith(suffix)) {
     update.span_id = e.span_id.slice(0, -suffix.length);
   } else if (e.span_id === trajId) {
@@ -457,20 +508,20 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
   }
   if (e.event === "span_begin" || e.event === "span_end") {
     if (e.id.endsWith(suffix)) {
-      (update as { id: string }).id = e.id.slice(0, -suffix.length);
+      update.id = e.id.slice(0, -suffix.length);
     }
   }
   if (e.event === "span_begin" && e.parent_id != null) {
     if (e.parent_id.endsWith(suffix)) {
-      (update as { parent_id: string }).parent_id = e.parent_id.slice(
-        0,
-        -suffix.length
-      );
+      update.parent_id = e.parent_id.slice(0, -suffix.length);
     } else if (e.parent_id === trajId) {
-      (update as { parent_id: string }).parent_id = "";
+      update.parent_id = "";
     }
   }
-  return Object.keys(update).length > 0 ? ({ ...e, ...update } as Event) : e;
+  if (Object.keys(update).length === 0) return e;
+  // The spread only overwrites fields the branches above proved `e` has, so
+  // the result is the same union member with three strings rewritten.
+  return { ...e, ...update };
 }
 
 // =============================================================================
@@ -482,11 +533,13 @@ export function stripSuffix(e: Event, suffix: string, trajId: string): Event {
  */
 function getEventTokens(event: Event): number {
   if (event.event === "model") {
-    const usage = event.output?.usage;
+    const usage = event.output.usage;
     if (usage) {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       const inputTokens = usage.input_tokens ?? 0;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
       const cacheWrite = usage.input_tokens_cache_write ?? 0;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       const outputTokens = usage.output_tokens ?? 0;
       return inputTokens + cacheRead + cacheWrite + outputTokens;
     }
@@ -775,12 +828,19 @@ function containsAgentSpan(span: SpanNode): boolean {
  * Handles ToolEvents that spawn nested agents, recursively processing
  * nested events to detect further agent spawning.
  */
+/**
+ * ToolEvent.events is `unknown[]` in the schema. Shallow check: the timeline
+ * dispatches on `event`, and anything without one can't be placed.
+ */
+const isEvent = (value: unknown): value is Event =>
+  isRecord(value) && typeof value["event"] === "string";
+
 function eventToNode(event: Event): TimelineEvent | TimelineSpan {
   if (event.event === "tool") {
     const agentName = event.agent;
-    const nestedEvents = event.events as Event[] | undefined;
+    const nestedEvents = event.events.filter(isEvent);
 
-    if (agentName && nestedEvents && nestedEvents.length > 0) {
+    if (agentName && nestedEvents.length > 0) {
       // Recursively process nested events to handle nested tool agents
       const nestedContent: (TimelineEvent | TimelineSpan)[] = nestedEvents.map(
         (e) => eventToNode(e)
@@ -954,6 +1014,18 @@ function unwrapSolverSpan(span: SpanNode): SpanNode {
       (child): child is SpanNode => isSpanNode(child) && child.type === "agent"
     );
     if (agentChildren.length !== 1) {
+      break;
+    }
+    // Only collapse the redundant solver→agent nesting when the solver carries
+    // no displayable events of its own. If it logged any other meaningful
+    // events, keep the solver span so those survive in the lane (when
+    // as_solver() runs an agent it emits state/store events, if these are the
+    // only other kind of events it's fine to drop them)
+    if (
+      span.children.some(
+        (c) => !isSpanNode(c) && c.event !== "state" && c.event !== "store"
+      )
+    ) {
       break;
     }
     span = agentChildren[0]!;
@@ -1251,22 +1323,29 @@ function normalizeSystemPrompt(prompt: string): string {
  */
 function getSystemPromptForEvent(event: ModelEvent): string | null {
   const input = event.input;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
   if (!input) return null;
   for (const msg of input) {
     if (msg.role === "system") {
+      let raw: string;
       if (typeof msg.content === "string") {
-        return normalizeSystemPrompt(msg.content);
-      }
-      if (Array.isArray(msg.content)) {
+        raw = msg.content;
+      } else if (Array.isArray(msg.content)) {
         const parts: string[] = [];
         for (const c of msg.content) {
           if ("text" in c && typeof c.text === "string") {
             parts.push(c.text);
           }
         }
-        const raw = parts.length > 0 ? parts.join("\n") : null;
-        return raw ? normalizeSystemPrompt(raw) : null;
+        raw = parts.join("\n");
+      } else {
+        return null;
       }
+      // Null rather than "" for prompts that are empty after normalization
+      // (e.g. only the billing header) — keeps empty prompts out of
+      // primary-trajectory comparisons and prompt inheritance.
+      const normalized = normalizeSystemPrompt(raw);
+      return normalized ? normalized : null;
     }
   }
   return null;
@@ -1276,8 +1355,8 @@ function getSystemPromptForEvent(event: ModelEvent): string | null {
  * Check whether a ModelEvent's output contains tool calls.
  */
 function hasToolCalls(event: ModelEvent): boolean {
-  const choices = event.output?.choices;
-  if (choices && choices.length > 0) {
+  const choices = event.output.choices;
+  if (choices.length > 0) {
     const msg = choices[0]!.message;
     if (msg.tool_calls && msg.tool_calls.length > 0) {
       return true;
@@ -1294,13 +1373,19 @@ function hasToolCalls(event: ModelEvent): boolean {
  * This function detects them and wraps each one in a TimelineSpan
  * with utility=true so downstream code treats them as utility agents.
  *
+ * The primary trajectory is identified by the system prompt of the first
+ * tool-calling ModelEvent. When a span contains no tool-calling model
+ * events there is no agentic loop to distinguish helpers from — plain
+ * workflows of generate() calls routinely mix system prompts — so
+ * foreign-prompt wrapping is skipped entirely (warmup calls are still
+ * wrapped; they are identified independently of prompts).
+ *
  * Operates recursively on the entire span tree.
  */
 function wrapUtilityEvents(agent: TimelineSpan): void {
-  // --- Determine the primary system prompt for this span ---
+  // The primary prompt comes only from a tool-calling ModelEvent: without
+  // an agentic loop there is no primary trajectory (see docstring).
   let primaryPrompt: string | null = null;
-
-  // Prefer the prompt of the first ModelEvent that has tool calls
   for (const item of agent.content) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
@@ -1311,70 +1396,40 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
     }
   }
 
-  // Fall back to the first ModelEvent's prompt
-  if (primaryPrompt === null) {
-    for (const item of agent.content) {
-      if (item.type === "event" && item.event.event === "model") {
-        primaryPrompt = getSystemPromptForEvent(item.event);
-        break;
-      }
-    }
-  }
-
-  // No ModelEvents at all → nothing to wrap
-  if (primaryPrompt === null) {
-    // Still recurse into child spans
-    for (const item of agent.content) {
-      if (item.type === "span") {
-        wrapUtilityEvents(item);
-      }
-    }
-    for (const branch of agent.branches) {
-      wrapUtilityEvents(branch);
-      for (const item of branch.content) {
-        if (item.type === "span") {
-          wrapUtilityEvents(item);
-        }
-      }
-    }
-    return;
-  }
+  // Fall back to a position-derived id for uuid-less (legacy) events so
+  // ids stay unique and deterministic across rebuilds.
+  const utilityWrapper = (item: TimelineEvent, index: number) => {
+    const wrapper = createTimelineSpan(
+      `utility-${item.event.uuid ?? `${agent.id}-${index}`}`,
+      "utility",
+      "agent",
+      [item]
+    );
+    wrapper.utility = true;
+    return wrapper;
+  };
 
   // --- Scan and wrap utility candidates ---
+  const originalSpans = agent.content.filter(
+    (item): item is TimelineSpan => item.type === "span"
+  );
   const newContent: (TimelineEvent | TimelineSpan)[] = [];
-  for (const item of agent.content) {
+  for (const [index, item] of agent.content.entries()) {
     if (item.type === "event" && item.event.event === "model") {
       const modelEvt = item.event;
 
       // Warmup/cache-priming call (max_tokens=1)
       if (isWarmupCall(modelEvt)) {
-        const wrapper = createTimelineSpan(
-          `utility-${item.event.uuid ?? "unknown"}`,
-          "utility",
-          "agent",
-          [item]
-        );
-        wrapper.utility = true;
-        newContent.push(wrapper);
+        newContent.push(utilityWrapper(item, index));
         continue;
       }
 
-      const evtPrompt = getSystemPromptForEvent(modelEvt);
-      if (
-        evtPrompt !== null &&
-        evtPrompt !== primaryPrompt &&
-        !hasToolCalls(modelEvt)
-      ) {
-        // Wrap in a synthetic utility span
-        const wrapper = createTimelineSpan(
-          `utility-${item.event.uuid ?? "unknown"}`,
-          "utility",
-          "agent",
-          [item]
-        );
-        wrapper.utility = true;
-        newContent.push(wrapper);
-        continue;
+      if (primaryPrompt !== null && !hasToolCalls(modelEvt)) {
+        const evtPrompt = getSystemPromptForEvent(modelEvt);
+        if (evtPrompt !== null && evtPrompt !== primaryPrompt) {
+          newContent.push(utilityWrapper(item, index));
+          continue;
+        }
       }
     }
     newContent.push(item);
@@ -1382,28 +1437,25 @@ function wrapUtilityEvents(agent: TimelineSpan): void {
 
   agent.content = newContent;
 
-  // --- Recurse into child spans and branches ---
-  for (const item of agent.content) {
-    if (item.type === "span") {
-      wrapUtilityEvents(item);
-    }
+  // Recurse into the span's original children only — not the synthetic
+  // wrappers created above: a wrapper holds a single already-processed
+  // event, and re-entering it would wrap a warmup call again, forever.
+  // wrapUtilityEvents(branch) recurses into the branch's own children.
+  for (const item of originalSpans) {
+    wrapUtilityEvents(item);
   }
   for (const branch of agent.branches) {
     wrapUtilityEvents(branch);
-    for (const item of branch.content) {
-      if (item.type === "span") {
-        wrapUtilityEvents(item);
-      }
-    }
   }
 }
 
 function isWarmupCall(event: ModelEvent): boolean {
-  if (event.config?.max_tokens == null || event.config.max_tokens > 1) {
+  if (event.config.max_tokens == null || event.config.max_tokens > 1) {
     return false;
   }
   // Check that the last user message is a single word
   const input = event.input;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
   if (!input) return false;
   for (let i = input.length - 1; i >= 0; i--) {
     const msg = input[i];
@@ -1422,34 +1474,13 @@ function isWarmupCall(event: ModelEvent): boolean {
 // =============================================================================
 
 /**
- * Extract system prompt from the first ModelEvent in span's direct content.
+ * Extract the normalized system prompt from the first ModelEvent in span's
+ * direct content (see getSystemPromptForEvent).
  */
 function getSystemPrompt(span: TimelineSpan): string | null {
   for (const item of span.content) {
     if (item.type === "event" && item.event.event === "model") {
-      const input = item.event.input;
-      if (input) {
-        for (const msg of input) {
-          if (msg.role === "system") {
-            if (typeof msg.content === "string") {
-              return normalizeSystemPrompt(msg.content);
-            }
-            if (Array.isArray(msg.content)) {
-              const parts: string[] = [];
-              for (const c of msg.content) {
-                if ("text" in c && typeof c.text === "string") {
-                  parts.push(c.text);
-                }
-              }
-              if (parts.length > 0) {
-                return normalizeSystemPrompt(parts.join("\n"));
-              }
-              return null;
-            }
-          }
-        }
-      }
-      return null; // ModelEvent found but no system message
+      return getSystemPromptForEvent(item.event);
     }
   }
   return null; // No ModelEvent found
@@ -1494,14 +1525,34 @@ function isSingleTurn(span: TimelineSpan): boolean {
 }
 
 /**
+ * Check whether span's direct content contains a tool-calling ModelEvent.
+ */
+function hasAgenticLoop(span: TimelineSpan): boolean {
+  for (const item of span.content) {
+    if (
+      item.type === "event" &&
+      item.event.event === "model" &&
+      hasToolCalls(item.event)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Classify utility agents in the tree via post-processing.
  *
  * An agent is utility if it has a single turn (or single tool-calling turn)
- * and a different system prompt than its parent.
+ * and a different system prompt than its parent. Classification only applies
+ * when the parent runs an agentic (tool-calling) loop: absent a loop there
+ * is no main trajectory for a helper to be subordinate to — plain workflows
+ * of generate() calls routinely mix system prompts.
  */
 function classifyUtilityAgents(
   node: TimelineSpan,
-  parentSystemPrompt: string | null = null
+  parentSystemPrompt: string | null = null,
+  parentHasLoop: boolean = false
 ): void {
   const agentSystemPrompt = getSystemPrompt(node);
 
@@ -1512,6 +1563,7 @@ function classifyUtilityAgents(
   // by wrapUtilityEvents.
   if (
     parentSystemPrompt !== null &&
+    parentHasLoop &&
     agentSystemPrompt !== null &&
     !node.toolInvoked
   ) {
@@ -1520,11 +1572,18 @@ function classifyUtilityAgents(
     }
   }
 
-  // Recurse into child spans
+  // Recurse into child spans. Pure grouping spans (no direct model events)
+  // inherit from the parent, mirroring the prompt inheritance.
   const effectivePrompt = agentSystemPrompt ?? parentSystemPrompt;
+  const hasModelEvents = node.content.some(
+    (item) => item.type === "event" && item.event.event === "model"
+  );
+  const effectiveHasLoop = hasModelEvents
+    ? hasAgenticLoop(node)
+    : parentHasLoop;
   for (const item of node.content) {
     if (item.type === "span") {
-      classifyUtilityAgents(item, effectivePrompt);
+      classifyUtilityAgents(item, effectivePrompt, effectiveHasLoop);
     }
   }
 }
@@ -1605,8 +1664,9 @@ function extractToolEventResult(result: unknown): string | undefined {
   if (Array.isArray(result)) {
     const parts: string[] = [];
     for (const c of result) {
-      if (c && typeof c === "object" && "text" in c)
-        parts.push((c as { text: string }).text);
+      if (isRecord(c) && typeof c["text"] === "string") {
+        parts.push(c["text"]);
+      }
     }
     return parts.length > 0 ? parts.join("\n") : undefined;
   }
@@ -1666,17 +1726,14 @@ function extractAgentResults(parent: TimelineSpan): void {
         if (nextItem.type !== "event") continue;
         if (nextItem.event.event === "model") {
           const modelEvent = nextItem.event;
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
           if (modelEvent.input) {
             for (const msg of modelEvent.input) {
-              if (
-                msg.role === "tool" &&
-                "tool_call_id" in msg &&
-                (msg as { tool_call_id?: string }).tool_call_id === toolCallId
-              ) {
+              if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
                 const text = extractToolEventResult(msg.content);
                 if (text) {
                   item.agentResult = codexResultText(
-                    (msg as { function?: string }).function,
+                    msg.function ?? undefined,
                     msg.content,
                     text
                   );

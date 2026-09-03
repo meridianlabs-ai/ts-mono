@@ -25,6 +25,11 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
+import type {
+  ScreenshotContent,
+  ToolAnnotation,
+} from "../chat/tools/browserActionUtils";
+
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 
 export interface StateManager {
@@ -44,6 +49,14 @@ export const kCollapsibleEventTypes = [
   TYPE_TOOL,
   TYPE_SUBTASK,
 ];
+
+export type CollapsibleEvent =
+  StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent;
+
+export const isCollapsibleEvent = (
+  event: EventType
+): event is CollapsibleEvent =>
+  kCollapsibleEventTypes.some((type) => type === event.event);
 
 /** Event types whose *content* can be collapsed (panel-level collapse). */
 export const kContentCollapsibleEventTypes: string[] = [
@@ -104,6 +117,17 @@ export const eventTypeValues = [
   "span_end",
 ] as const;
 
+// Event types the transcript hides by default (the "Events: Default" filter).
+export const kDefaultExcludeEvents: readonly EventTypeValue[] = [
+  "sample_init",
+  "sandbox",
+  "state",
+  "store",
+  "branch",
+  "anchor",
+  "checkpoint",
+];
+
 // Derive the type from the array (replaces the indexed access approach)
 export type EventTypeValue = (typeof eventTypeValues)[number];
 
@@ -132,6 +156,32 @@ export class EventNode<T extends EventType = EventType> {
   }
 }
 
+const isEventNodeOf = <T extends EventType["event"]>(
+  node: EventNode,
+  type: T
+): node is EventNode<Extract<EventType, { event: T }>> =>
+  node.event.event === type;
+
+/**
+ * Re-reads an event node's discriminant to get a node typed to it.
+ *
+ * A `switch (node.event.event)` narrows the event but not the `EventNode`
+ * wrapping it — TypeScript cannot re-key a generic class instance from a
+ * discriminant on one of its fields. One string compare per branch buys back
+ * the type the case already established.
+ */
+export const eventNodeOf = <T extends EventType["event"]>(
+  node: EventNode,
+  type: T
+): EventNode<Extract<EventType, { event: T }>> => {
+  if (!isEventNodeOf(node, type)) {
+    throw new Error(
+      `expected a "${type}" event node, got "${node.event.event}"`
+    );
+  }
+  return node;
+};
+
 /**
  * Props threaded from app-level stores through the virtual list
  * to EventPanel for collapse state and deep-link URL generation.
@@ -141,6 +191,42 @@ export interface EventPanelCallbacks {
   getCollapsed?: (id: string) => boolean;
   getEventUrl?: (eventId: string) => string | undefined;
   linkingEnabled?: boolean;
+  /** Selected tab NAME for a multi-tab event panel; when it returns a name
+   *  it wins over the panel's own per-event selection. */
+  getSelectedTab?: (
+    eventNodeId: string,
+    tabNames: string[]
+  ) => string | undefined;
+  /** Record a tab selection on a multi-tab event panel (focus page: writes the
+   *  `?tab=` param so the selection follows turn navigation). */
+  onSelectTab?: (eventNodeId: string, tabName: string) => void;
+  /** A user selected one of the panel's inner tabs (never initial/programmatic
+   *  selection) — the host aligns the panel to show the new tab from its start. */
+  onTabSelected?: (eventNodeId: string) => void;
+  /** Builds the focus-mode entry href for an event's header link, carrying
+   *  the panel's selected tab. Omit to hide that control. */
+  getEventFocusUrl?: (
+    eventId: string,
+    selectedTab?: string
+  ) => string | undefined;
+  /** Report the panel's selected tab NAME (undefined = default) so the `f`
+   *  shortcut builds the same tab-carrying focus URL as the header link. */
+  onFocusTabChange?: (eventNodeId: string, tabName: string | undefined) => void;
+  /** Navigate to the turn before the given 1-based turn number (header chevron). */
+  onPrevTurn?: (turnNumber: number) => void;
+  /** Navigate to the turn after the given 1-based turn number (header chevron). */
+  onNextTurn?: (turnNumber: number) => void;
+  /** A header turn label was clicked — opens the go-to-turn bar prefilled with
+   *  that turn number. When omitted the label renders as passive text. */
+  onTurnLabelClick?: (turnNumber: number) => void;
+  /** Whether this event card is the landing target of the latest go-to-turn
+   *  jump — it renders a persistent selection ring. */
+  isJumpTarget?: (eventNodeId: string) => boolean;
+  /** Enter focus mode in the current window, from the SAME `getEventFocusUrl`
+   *  href the anchor renders (`#`-prefixed hrefs accepted) — the anchor keeps
+   *  the href so modified clicks open a new tab natively; a plain left-click
+   *  calls this instead. */
+  onOpenEventFocus?: (focusRoute: string) => void;
 }
 
 /**
@@ -177,6 +263,10 @@ export type TranscriptState = Record<string, TranscriptEventState>;
 export interface EventNodeContext {
   hasToolEvents?: boolean;
   turnInfo?: { turnNumber: number; totalTurns: number };
+  /** True for the turn's first flattened event (its "capstone"). Only the
+   *  capstone's header shows the turn-nav cluster while unstuck; other headers
+   *  of the same turn reveal it only while pinned (`data-sticky-stuck`). */
+  turnIsAnchor?: boolean;
   /** When true, event views should show inline expansion UX element. (e.g. ModelEventView shows a "Show all messages" toggle for expanding filtered input.) */
   inlineExpansionUX?: boolean;
   /** Per-message labels rendered in the chat label gutter (e.g. scanner citation cites like "M1"). Keyed by `message.id`. */
@@ -189,4 +279,6 @@ export interface EventNodeContext {
   toolApprovals?: Map<string, EventNode<ApprovalEvent>>;
   /** Retry attempts paired to their successful ModelEvent via `retryAttemptKey(event)`. `ModelEventView` reads from this to render the inline retry chip and swap bodies between attempts. */
   retryAttempts?: Map<string, ModelEvent[]>;
+  selfAnnotation?: ToolAnnotation;
+  inputScreenshot?: ScreenshotContent[];
 }

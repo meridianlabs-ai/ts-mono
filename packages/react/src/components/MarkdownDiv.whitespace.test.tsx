@@ -33,7 +33,9 @@ describe("MarkdownDiv whitespace handling", () => {
   // `.markdown-content { white-space: normal }` rule must neutralize that.
   it("forces white-space: normal even inside a pre-wrap ancestor", () => {
     document.body.innerHTML = `<div style="white-space: pre-wrap"><div class="markdown-content">x</div></div>`;
-    const markdown = document.querySelector(".markdown-content") as HTMLElement;
+    const markdown = document.querySelector(".markdown-content");
+    expect(markdown).toBeInstanceOf(HTMLElement);
+    if (!(markdown instanceof HTMLElement)) return;
     expect(getComputedStyle(markdown).whiteSpace).toBe("normal");
   });
 });

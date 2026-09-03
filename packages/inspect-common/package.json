@@ -8,11 +8,14 @@
   "exports": {
     ".": "./src/types/index.ts",
     "./types": "./src/types/index.ts",
-    "./utils": "./src/utils/index.ts"
+    "./utils": "./src/utils/index.ts",
+    "./normalize": "./src/normalize/index.ts",
+    "./testing": "./src/testing/index.ts",
+    "./query": "./src/query/index.ts"
   },
   "scripts": {
     "types:generate": "node scripts/generate-types.js",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "TSMONO_TYPED_LINT=1 eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
@@ -24,10 +27,11 @@
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
-    "eslint": "^9.39.4",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.7.0",
     "openapi-typescript": "^7.10.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.61.1",
-    "vitest": "^4.1.9"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.68.0",
+    "vitest": "^4.1.11"
   }
 }

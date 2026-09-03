@@ -1,18 +1,20 @@
 import clsx from "clsx";
-import { FC, useEffect, useRef } from "react";
+import { FC, useCallback, useRef } from "react";
 
 import {
   ErrorPanel,
   ExtendedFindProvider,
+  FindBand,
   FindTargetProvider,
+  LoadingBar,
+  useFindBandShortcut,
 } from "@tsmono/react/components";
 
-import { ActivityBar } from "../../components/ActivityBar";
-import { FindBand } from "../../components/FindBand";
+import { useAppConfig } from "../../app_config";
+import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
-import { isSingleFileMode } from "../singleFileMode";
 
 import { LogView } from "./LogView";
 
@@ -20,8 +22,8 @@ import { LogView } from "./LogView";
  * AppContent component with the main UI layout
  */
 export const LogViewLayout: FC = () => {
-  // App layout and state
-  const appStatus = useStore((state) => state.app.status);
+  // Loading/error for the open log derive from the selected log's details.
+  const { loading: logLoading, error: logError } = useSelectedLogDetail();
 
   // Find
   const showFind = useStore((state) => state.app.showFind);
@@ -29,9 +31,7 @@ export const LogViewLayout: FC = () => {
   const nativeFind = useStore((state) => state.app.nativeFind);
   const hideFind = useStore((state) => state.appActions.hideFind);
 
-  // Logs Data
-  const logDir = useStore((state) => state.logs.logDir);
-  const logFiles = useStore((state) => state.logs.logs);
+  const { singleFileMode } = useAppConfig();
 
   // Route params
   const { logPath } = useLogRouteParams();
@@ -42,35 +42,12 @@ export const LogViewLayout: FC = () => {
   // The main application reference
   const mainAppRef = useRef<HTMLDivElement>(null);
 
-  // Configure an app envelope specific to the current state
-  // if there are no log files, then don't show sidebar
-  const fullScreen = logFiles.length === 1 && !logDir;
-
-  // Global keydown handler for keyboard shortcuts
-  useEffect(() => {
-    if (nativeFind) {
-      return;
-    }
-
-    const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-        e.preventDefault(); // Always prevent browser find
-        e.stopPropagation();
-        if (setShowFind) {
-          setShowFind(true);
-        }
-      } else if (e.key === "Escape") {
-        hideFind();
-      }
-    };
-
-    // Use capture phase to catch event before it reaches other handlers
-    document.addEventListener("keydown", handleGlobalKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleGlobalKeyDown, true);
-    };
-  }, [setShowFind, hideFind, nativeFind]);
+  const openFind = useCallback(() => setShowFind(true), [setShowFind]);
+  useFindBandShortcut(openFind, {
+    onClose: hideFind,
+    isOpen: showFind,
+    enabled: !nativeFind,
+  });
 
   return (
     <ExtendedFindProvider>
@@ -79,26 +56,29 @@ export const LogViewLayout: FC = () => {
           ref={mainAppRef}
           className={clsx(
             "app-main-grid",
-            fullScreen ? "full-screen" : undefined,
-            isSingleFileMode ? "single-file-mode" : undefined,
+            singleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
+          // The VS Code webview focuses the nearest container tabstop when a
+          // non-interactive spot is clicked, and App.css suppresses the focus
+          // ring this one would otherwise show. Keep it until that interaction
+          // is retested in the extension.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           tabIndex={0}
         >
-          {showFind ? <FindBand /> : ""}
-          {!isSingleFileMode ? (
+          {showFind ? <FindBand onClose={hideFind} /> : ""}
+          {!singleFileMode ? (
             <ApplicationNavbar
               fnNavigationUrl={navigationUrl}
               currentPath={logPath}
-              showActivity="log"
             />
           ) : (
-            <ActivityBar animating={!!appStatus.loading} />
+            <LoadingBar loading={logLoading} />
           )}
-          {appStatus.error ? (
+          {logError ? (
             <ErrorPanel
               title="An error occurred while loading this task."
-              error={appStatus.error}
+              error={logError}
             />
           ) : (
             <LogView />

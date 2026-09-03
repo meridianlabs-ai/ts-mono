@@ -6,10 +6,13 @@ import { CopyButton } from "@tsmono/react/components";
 import { filename } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
+import { useAbsLogDir, useLogDir } from "../../../app_config";
 import { RunningMetric } from "../../../client/api/types";
 import { DownloadLogButton } from "../../../components/DownloadLogButton";
 import { kModelNone } from "../../../constants";
+import { resolveHeadlineMetric } from "../../../scoring/headline";
 import { toDisplayScorers } from "../../../scoring/metrics";
+import { useEffectiveEvalConfig } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
 
 import { ModelRolesView } from "./ModelRolesView";
@@ -37,10 +40,13 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
   tags,
 }) => {
   const streamSamples = useStore((state) => state.capabilities.streamSamples);
+  // Effective (folded) config: a mid-run change to continue_on_fail decides
+  // how an errored run's status renders.
+  const effectiveConfig = useEffectiveEvalConfig();
   const downloadLogs = useStore((state) => state.capabilities.downloadLogs);
-  const absLogDir = useStore((state) => state.logs.absLogDir);
+  const absLogDir = useAbsLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const logFileName = selectedLogFile ? filename(selectedLogFile) : "";
   const isEvalFile = selectedLogFile?.endsWith(".eval");
   const tagList = tags ?? [];
@@ -84,9 +90,9 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
                   styles.taskModel,
                   "text-size-base"
                 )}
-                title={evalSpec?.model}
+                title={evalSpec.model}
               >
-                {evalSpec?.model}
+                {evalSpec.model}
               </div>
             ) : (
               ""
@@ -117,13 +123,20 @@ export const PrimaryBar: FC<PrimaryBarProps> = ({
       <div className={clsx(styles.taskStatus, "navbar-text")}>
         {status === "success" ||
         (status === "started" && streamSamples && hasRunningMetrics) ||
-        (status === "error" && evalSpec?.config["continue_on_fail"]) ? (
+        (status === "error" && effectiveConfig?.continue_on_fail) ? (
           <ResultsPanel
             scorers={
               runningMetrics
                 ? displayScorersFromRunningMetrics(runningMetrics)
-                : toDisplayScorers(evalResults?.scores)
+                : toDisplayScorers(
+                    evalResults?.scores,
+                    resolveHeadlineMetric(
+                      evalResults,
+                      evalSpec?.headline_metric
+                    )
+                  )
             }
+            headlineDeclared={evalSpec?.headline_metric != null}
           />
         ) : undefined}
         {status === "cancelled" ? (

@@ -8,7 +8,6 @@ import {
 } from "@tsmono/inspect-components/content";
 import { EmptyPanel } from "@tsmono/react/components";
 
-import { SampleSummary } from "../../../client/api/types";
 import { useEvalDescriptor } from "../../../state/hooks";
 
 import { SampleScores } from "./SampleScores";
@@ -76,11 +75,12 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
           return undefined;
         }
         const scoreData = evalSample.scores[scorer];
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+        if (!scoreData) {
+          return undefined;
+        }
         const explanation = scoreData.explanation || "(No Explanation)";
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const answer = scoreData.answer;
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+        const reason = scoreData.reason;
         const metadata = scoreData.metadata || {};
 
         return (
@@ -88,10 +88,7 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
             <div className={clsx("text-size-base", styles.cell)}>{scorer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>{answer}</div>
             <div className={clsx(styles.cell, "text-size-base")}>
-              <SampleScores
-                sample={evalSample as unknown as SampleSummary}
-                scorer={scorer}
-              />
+              <SampleScores scores={evalSample.scores} scorer={scorer} />
             </div>
             <div className={clsx("text-size-base", styles.cell)}>
               <RenderedContent
@@ -102,6 +99,31 @@ export const SampleScoresGrid: FC<SampleScoresGridProps> = ({
                 }}
               />
             </div>
+
+            {reason ? (
+              <Fragment key={`${scorer}-reason`}>
+                <div
+                  className={clsx(
+                    "text-size-smaller",
+                    "text-style-label",
+                    "text-style-secondary",
+                    styles.fullWidth
+                  )}
+                >
+                  Reason
+                </div>
+                <div className={clsx(styles.fullWidth, "text-size-base")}>
+                  {reason}
+                </div>
+                <div
+                  className={clsx(
+                    styles.separator,
+                    styles.separatorPadded,
+                    styles.fullWidth
+                  )}
+                ></div>
+              </Fragment>
+            ) : undefined}
 
             {Object.keys(metadata).length > 0 ? (
               <Fragment key={`${scorer}-metadata`}>

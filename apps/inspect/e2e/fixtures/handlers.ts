@@ -3,6 +3,22 @@ import { http, HttpResponse } from "msw";
 import type { AppConfig } from "@tsmono/inspect-common/types";
 
 /**
+ * Narrows one of MSW's `PathParams` values to the single segment a `:name`
+ * route always matches — msw types every param as `string | readonly string[]`
+ * because a wildcard route can repeat one, and indexing the bag can miss.
+ */
+export function pathParam(
+  value: string | readonly string[] | undefined
+): string {
+  if (typeof value !== "string") {
+    throw new Error(
+      `expected a single path segment, got ${JSON.stringify(value)}`
+    );
+  }
+  return value;
+}
+
+/**
  * Default handlers that let the inspect app boot cleanly.
  *
  * The view-server API prefixes all routes with /api (proxied via vite in dev).
@@ -49,5 +65,14 @@ export const defaultHandlers = [
   // Flow (optional, 404 is acceptable)
   http.get("*/api/flow*", () => {
     return new HttpResponse(null, { status: 404 });
+  }),
+
+  // Fail any unmatched /api request the way CI does (502): locally a live
+  // `inspect view` server would otherwise answer through the vite proxy and
+  // poison specs with real log-dir data.
+  // Anchored to the origin root — a bare "*/api/*" would also swallow vite's
+  // own module URLs (/src/client/api/...) and blank the app.
+  http.all(/^https?:\/\/[^/]+\/api\//, () => {
+    return new HttpResponse(null, { status: 502 });
   }),
 ];

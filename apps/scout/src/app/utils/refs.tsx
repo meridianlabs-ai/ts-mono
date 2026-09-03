@@ -1,5 +1,5 @@
 import { FC, ReactNode, useCallback, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
@@ -185,6 +185,7 @@ const referenceTable = (
       {}
     );
   } else if (isTranscriptInput(inputData)) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const eventRefs = (inputData.input.events || []).reduce<
       Record<string, () => ReactNode>
     >((acc, event) => {
@@ -196,6 +197,7 @@ const referenceTable = (
       return acc;
     }, {});
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const messageRefs = (inputData.input.messages || []).reduce<
       Record<string, () => ReactNode>
     >((acc, msg) => {
@@ -248,6 +250,7 @@ const TranscriptView: FC<{ id: string; events: Event[] }> = ({
       defaultCollapsedIds={defaultCollapsedIds}
       collapsedTranscript={collapsedTranscript}
       onCollapseTranscript={onCollapseTranscript}
+      keyboardNavDisabled={true}
     />
   );
 };

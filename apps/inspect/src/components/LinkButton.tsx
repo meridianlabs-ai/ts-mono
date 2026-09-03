@@ -23,6 +23,7 @@ export const LinkButton: FC<LinkButtonProps> = ({
 }) => {
   return (
     <button
+      type="button"
       id={id}
       onClick={onClick}
       className={clsx(className, styles.button, "text-size-smaller")}

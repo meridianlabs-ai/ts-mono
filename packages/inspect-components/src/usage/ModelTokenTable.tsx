@@ -1,7 +1,8 @@
 import clsx from "clsx";
 import { FC, Fragment } from "react";
 
-import { formatNumber } from "@tsmono/util";
+import { formatConfigValue } from "@tsmono/inspect-common/utils";
+import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelTokenTable.module.css";
 import { ModelUsageData } from "./ModelUsagePanel";
@@ -17,19 +18,8 @@ interface ModelTokenTableProps {
   showTokenColumns?: boolean;
 }
 
-const fmtConfigVal = (v: unknown): string => {
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "bigint") return String(v);
-  return JSON.stringify(v);
-};
-
 type CategoryKey =
-  | "input"
-  | "cacheRead"
-  | "cacheWrite"
-  | "output"
-  | "reasoning";
+  "input" | "cacheRead" | "cacheWrite" | "output" | "reasoning";
 
 const CAT_ORDER: CategoryKey[] = [
   "input",
@@ -48,11 +38,11 @@ const CAT_LABEL: Record<CategoryKey, string> = {
 };
 
 const CAT_SWATCH: Record<CategoryKey, string> = {
-  input: styles.catInput!,
-  cacheRead: styles.catCacheRead!,
-  cacheWrite: styles.catCacheWrite!,
-  output: styles.catOutput!,
-  reasoning: styles.catReasoning!,
+  input: styles.catInput,
+  cacheRead: styles.catCacheRead,
+  cacheWrite: styles.catCacheWrite,
+  output: styles.catOutput,
+  reasoning: styles.catReasoning,
 };
 
 const categoryValue = (usage: ModelUsageData, key: CategoryKey): number => {
@@ -125,117 +115,140 @@ export const ModelTokenTable: FC<ModelTokenTableProps> = ({
                 ? Math.round(((usage.output_tokens ?? 0) / total) * 100)
                 : 0;
             return (
-              <tr key={modelId} className={styles.modelRow}>
-                <td className={styles.modelCell}>
-                  <span className={styles.modelName}>{modelId}</span>
-                  {model_aliases?.[modelId] && (
-                    <span className={styles.modelAlias}>
-                      {model_aliases[modelId]}
-                    </span>
-                  )}
-                  {showTokenColumns && (
-                    <span className={styles.modelTotal}>
-                      {formatNumber(total)}
-                      <small>tokens</small>
-                    </span>
-                  )}
-                  {(() => {
-                    const cfg = model_configs?.[modelId];
-                    const args = model_args?.[modelId];
-                    const cfgEntries = cfg
-                      ? Object.entries(cfg).filter(([, v]) => v != null)
-                      : [];
-                    const argEntries = args
-                      ? Object.entries(args).filter(([, v]) => v != null)
-                      : [];
-                    if (cfgEntries.length === 0 && argEntries.length === 0)
-                      return null;
-                    const renderSection = (
-                      label: string,
-                      entries: [string, unknown][]
-                    ) => (
-                      <>
-                        <div className={styles.configSectionLabel}>{label}</div>
-                        <dl className={styles.configTable}>
-                          {entries.map(([k, v]) => (
-                            <Fragment key={k}>
-                              <dt className={styles.configKey}>{k}</dt>
-                              <dd className={styles.configVal}>
-                                {fmtConfigVal(v)}
-                              </dd>
-                            </Fragment>
-                          ))}
-                        </dl>
-                      </>
-                    );
-                    return (
-                      <div className={styles.configSection}>
-                        {cfgEntries.length > 0 &&
-                          renderSection("config", cfgEntries)}
-                        {argEntries.length > 0 &&
-                          renderSection("args", argEntries)}
-                      </div>
-                    );
-                  })()}
-                </td>
-                {showTokenColumns && usage && (
-                  <>
-                    <td className={styles.composeCell}>
-                      <div className={styles.stack}>
-                        {composeSum > 0 &&
-                          CAT_ORDER.map((k) => {
+              <Fragment key={modelId}>
+                <tr className={styles.modelRow}>
+                  <td className={styles.modelCell}>
+                    <span className={styles.modelName}>{modelId}</span>
+                    {model_aliases?.[modelId] && (
+                      <span className={styles.modelAlias}>
+                        {model_aliases[modelId]}
+                      </span>
+                    )}
+                    {showTokenColumns && (
+                      <span className={styles.modelTotal}>
+                        {formatNumber(total)}
+                        <small>tokens</small>
+                      </span>
+                    )}
+                    {showTokenColumns && usage?.total_cost != null && (
+                      <span className={styles.modelCost}>
+                        {formatCurrency(usage.total_cost)}
+                      </span>
+                    )}
+                    {(() => {
+                      const cfg = model_configs?.[modelId];
+                      const args = model_args?.[modelId];
+                      const cfgEntries = cfg
+                        ? Object.entries(cfg).filter(([, v]) => v != null)
+                        : [];
+                      const argEntries = args
+                        ? Object.entries(args).filter(([, v]) => v != null)
+                        : [];
+                      if (cfgEntries.length === 0 && argEntries.length === 0)
+                        return null;
+                      const renderSection = (
+                        label: string,
+                        entries: [string, unknown][]
+                      ) => (
+                        <>
+                          <div className={styles.configSectionLabel}>
+                            {label}
+                          </div>
+                          <dl className={styles.configTable}>
+                            {entries.map(([k, v]) => (
+                              <Fragment key={k}>
+                                <dt className={styles.configKey}>{k}</dt>
+                                <dd className={styles.configVal}>
+                                  {formatConfigValue(v, "null")}
+                                </dd>
+                              </Fragment>
+                            ))}
+                          </dl>
+                        </>
+                      );
+                      return (
+                        <div className={styles.configSection}>
+                          {cfgEntries.length > 0 &&
+                            renderSection("config", cfgEntries)}
+                          {argEntries.length > 0 &&
+                            renderSection("args", argEntries)}
+                        </div>
+                      );
+                    })()}
+                  </td>
+                  {/* rows without usage still need cells here to keep
+                      later columns aligned */}
+                  {showTokenColumns && !usage && <td colSpan={2} />}
+                  {showTokenColumns && usage && (
+                    <>
+                      <td className={styles.composeCell}>
+                        <div className={styles.stack}>
+                          {composeSum > 0 &&
+                            CAT_ORDER.map((k) => {
+                              const v = categoryValue(usage, k);
+                              if (!v) return null;
+                              return (
+                                <span
+                                  key={k}
+                                  className={CAT_SWATCH[k]}
+                                  style={{
+                                    width: `${(v / composeSum) * 100}%`,
+                                  }}
+                                />
+                              );
+                            })}
+                        </div>
+                        <div className={styles.pcts}>
+                          <span>{cacheRate}% cache read</span>
+                          <span>{outputRate}% output</span>
+                        </div>
+                      </td>
+                      <td>
+                        <dl className={styles.breakdown}>
+                          {CAT_ORDER.map((k) => {
                             const v = categoryValue(usage, k);
                             if (!v) return null;
                             return (
-                              <span
-                                key={k}
-                                className={CAT_SWATCH[k]}
-                                style={{
-                                  width: `${(v / composeSum) * 100}%`,
-                                }}
-                              />
+                              <Fragment key={k}>
+                                <dt className={styles.breakdownLabel}>
+                                  <span
+                                    className={clsx(
+                                      styles.swatchSmall,
+                                      CAT_SWATCH[k]
+                                    )}
+                                  />
+                                  {CAT_LABEL[k]}
+                                </dt>
+                                <dd className={styles.breakdownLeader} />
+                                <dd className={styles.breakdownValue}>
+                                  {formatNumber(v)}
+                                </dd>
+                              </Fragment>
                             );
                           })}
-                      </div>
-                      <div className={styles.pcts}>
-                        <span>{cacheRate}% cache read</span>
-                        <span>{outputRate}% output</span>
-                      </div>
+                        </dl>
+                      </td>
+                    </>
+                  )}
+                  {showPerSample && !usage && <td />}
+                  {showPerSample && usage && (
+                    <td className={clsx(styles.num, styles.perSampleCell)}>
+                      {formatNumber(Math.round(total / samples))}
+                      <span className={styles.perSampleSub}>avg / sample</span>
+                      {usage.total_cost != null && (
+                        <>
+                          <span className={styles.perSampleCost}>
+                            {formatCurrency(usage.total_cost / samples)}
+                          </span>
+                          <span className={styles.perSampleSub}>
+                            avg cost / sample
+                          </span>
+                        </>
+                      )}
                     </td>
-                    <td>
-                      <dl className={styles.breakdown}>
-                        {CAT_ORDER.map((k) => {
-                          const v = categoryValue(usage, k);
-                          if (!v) return null;
-                          return (
-                            <Fragment key={k}>
-                              <dt className={styles.breakdownLabel}>
-                                <span
-                                  className={clsx(
-                                    styles.swatchSmall,
-                                    CAT_SWATCH[k]
-                                  )}
-                                />
-                                {CAT_LABEL[k]}
-                              </dt>
-                              <dd className={styles.breakdownLeader} />
-                              <dd className={styles.breakdownValue}>
-                                {formatNumber(v)}
-                              </dd>
-                            </Fragment>
-                          );
-                        })}
-                      </dl>
-                    </td>
-                  </>
-                )}
-                {showPerSample && usage && (
-                  <td className={clsx(styles.num, styles.perSampleCell)}>
-                    {formatNumber(Math.round(total / samples))}
-                    <span className={styles.perSampleSub}>avg / sample</span>
-                  </td>
-                )}
-              </tr>
+                  )}
+                </tr>
+              </Fragment>
             );
           })}
         </tbody>

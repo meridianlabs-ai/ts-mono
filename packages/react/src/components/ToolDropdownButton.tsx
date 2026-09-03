@@ -79,12 +79,14 @@ export const ToolDropdownButton = forwardRef<
       }
     }, [dropdownAlign]);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useLayoutEffect(() => {
       if (!isOpen) return;
       computePosition();
     }, [isOpen, computePosition]);
 
     // Re-compute on resize/scroll so the menu stays anchored to the button.
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!isOpen) return;
       const handler = () => computePosition();
@@ -95,6 +97,31 @@ export const ToolDropdownButton = forwardRef<
         window.removeEventListener("scroll", handler, true);
       };
     }, [isOpen, computePosition]);
+
+    // The menu is portaled, so "is focus inside the menu" has to be asked of
+    // the menu node itself rather than a wrapper around the trigger.
+    const menuRef = useRef<HTMLDivElement | null>(null);
+
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+    useEffect(() => {
+      if (!isOpen) return;
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key !== "Escape") return;
+        // This Escape closes the menu and nothing else: stop it here (the
+        // capture-phase registration below runs first) so an enclosing
+        // surface's own Escape handler — e.g. Modal's, on document bubble —
+        // doesn't also fire and close both layers at once.
+        e.stopPropagation();
+        // Only pull focus back to the trigger when it was inside the menu —
+        // Escape is a document listener, so it also fires from anywhere else.
+        const refocus =
+          menuRef.current?.contains(document.activeElement) ?? false;
+        setIsOpen(false);
+        if (refocus) buttonRef.current?.focus();
+      };
+      document.addEventListener("keydown", handleKeyDown, true);
+      return () => document.removeEventListener("keydown", handleKeyDown, true);
+    }, [isOpen]);
 
     const handleItemClick = (fn: () => void) => {
       fn();
@@ -114,21 +141,29 @@ export const ToolDropdownButton = forwardRef<
             className
           )}
           onClick={() => setIsOpen(!isOpen)}
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
           {...rest}
         >
-          {icon && <i className={`${icon}`} />}
+          {icon && <i className={`${icon}`} aria-hidden="true" />}
           {label}
-          <i className={clsx(icons.chevronDown, styles.chevron)} />
+          <i
+            className={clsx(icons.chevronDown, styles.chevron)}
+            aria-hidden="true"
+          />
         </button>
         {isOpen &&
           menuPosition &&
           createPortal(
             <>
+              {/* Mouse-only dismissal; Escape closes the menu for keyboard users. */}
               <div
                 className={styles.backdrop}
+                role="presentation"
                 onClick={() => setIsOpen(false)}
               />
               <div
+                ref={menuRef}
                 className={clsx(styles.dropdownMenu, dropdownClassName)}
                 style={{
                   top: menuPosition.top,

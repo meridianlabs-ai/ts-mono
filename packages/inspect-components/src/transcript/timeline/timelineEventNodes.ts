@@ -12,6 +12,7 @@ import type {
   SpanBeginEvent,
   SpanEndEvent,
 } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import { EventNode } from "../types";
 
@@ -457,39 +458,38 @@ function collectFromContent(
       // already shown on the AgentCard, so don't duplicate them inline.
       if (item.event.event === "model" && pendingToolCallIds.size > 0) {
         const modelEvent = item.event;
-        if (modelEvent.input && Array.isArray(modelEvent.input)) {
-          const filteredInput = (
-            modelEvent.input as Array<Record<string, unknown>>
-          ).filter(
-            (msg) =>
-              !(
-                msg.role === "tool" &&
-                typeof msg.tool_call_id === "string" &&
-                pendingToolCallIds.has(msg.tool_call_id)
-              )
+        const filteredInput = (
+          modelEvent.input as Array<Record<string, unknown>>
+        ).filter(
+          (msg) =>
+            !(
+              msg.role === "tool" &&
+              typeof msg.tool_call_id === "string" &&
+              pendingToolCallIds.has(msg.tool_call_id)
+            )
+        );
+        if (filteredInput.length !== modelEvent.input.length) {
+          // Mark the event so ModelEventView knows agent tool results were
+          // filtered and it should not crawl backward through input messages.
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- marker field: `agentResultsFiltered` is a view-layer flag ModelEventView reads, not part of the generated ModelEvent
+          const patched = {
+            ...modelEvent,
+            input: filteredInput,
+            agentResultsFiltered: true,
+          } as unknown as Event;
+          out.push(patched);
+          pendingToolCallIds.clear();
+          // Emit branches forked at this event after the event itself
+          emitInlineBranches(
+            item,
+            branchByBranchedFrom,
+            branches ?? [],
+            emittedBranchedFroms,
+            out,
+            sourceSpans,
+            branchPrefix
           );
-          if (filteredInput.length !== modelEvent.input.length) {
-            // Mark the event so ModelEventView knows agent tool results were
-            // filtered and it should not crawl backward through input messages.
-            const patched = {
-              ...modelEvent,
-              input: filteredInput,
-              agentResultsFiltered: true,
-            } as unknown as Event;
-            out.push(patched);
-            pendingToolCallIds.clear();
-            // Emit branches forked at this event after the event itself
-            emitInlineBranches(
-              item,
-              branchByBranchedFrom,
-              branches ?? [],
-              emittedBranchedFroms,
-              out,
-              sourceSpans,
-              branchPrefix
-            );
-            continue;
-          }
+          continue;
         }
       }
 
@@ -506,8 +506,9 @@ function collectFromContent(
         branchPrefix
       );
     } else if (!includeUtility && item.utility) {
-      // Skip utility spans — internal model calls (e.g. file path extraction)
-      // that should not appear in the event tree or outline.
+      // Elide utility spans — internal model calls (e.g. file path
+      // extraction). The swimlane header shows a hidden-utility count so
+      // these never disappear without a trace.
       continue;
     } else {
       // Emit synthetic span_begin
@@ -644,6 +645,14 @@ export interface ForkNavGroup {
 export interface ForkNavData {
   groups: ForkNavGroup[];
 }
+
+/**
+ * Shallow shape check for fork_nav metadata read off an event. Deliberately
+ * only checks the outer shape — `forkNavToBranchPointProps` returns null for
+ * groups it can't use, so a deep walk here would duplicate that.
+ */
+export const isForkNavData = (value: unknown): value is ForkNavData =>
+  isRecord(value) && Array.isArray(value["groups"]);
 
 export interface EmptyBranchData {
   /** Branch (trajectory) name, for display. */

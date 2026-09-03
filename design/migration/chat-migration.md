@@ -45,7 +45,7 @@ and exposes the differences as props/callbacks.
 | **Tool descriptor (`tool.ts`)** | Supports multi-arg fallback for bash (`["cmd", "command"]`); includes `shell_command` tool descriptor | Single `inputArg` string; handles `Task` tool with subagent type display | Merged: supports both `shell_command` and `Task`; multi-arg `inputArg` as `string \| string[]` |
 | **Custom tool rendering** | Not present; all tools use standard `ToolCallView` | `getCustomToolView` renders "answer" tool as code panel | `getCustomView` callback prop on `ChatViewToolOptions`; default answer-tool rendering in `customToolRendering.tsx` |
 | **Reasoning content** | Full title determination (redacted/summary states); detects OpenRouter JSON reasoning; renders as formatted code panel | Simplified: always "Reasoning" label; always renders as markdown | Merged: full reasoning detection + code panel rendering for OpenRouter format |
-| **Internal tag stripping** | Removes `<internal>`, `<content-internal>` tags | Removes `<internal>`, `<content-internal>`, `<think>` tags | Merged: strips all three tag types |
+| **Literal reasoning-like tags** | Preserves `<think>` text; removes `<internal>`, `<content-internal>` | Removes `<internal>`, `<content-internal>`, `<think>` | Shared renderer preserves all literal tag-like text; typed `ContentReasoning` renders separately |
 | **Timestamps** | Displays formatted timestamps via `formatDateTime` | No timestamp display | `formatDateTime` callback prop on `ChatViewDisplayOptions` (absent = hidden) |
 | **Message indentation** | Indented message content | No indentation | `indented` boolean prop on `ChatViewDisplayOptions` |
 | **Role headers** | Hides assistant role header via `unlabeledRoles` | Shows all role headers | `unlabeledRoles` array prop on `ChatViewDisplayOptions` |
@@ -157,8 +157,9 @@ Both apps deleted their entire local `chat/` directories and now import from
 - [ ] **Audio/video content** -- Verify media players render with correct MIME types.
 - [ ] **Document content** -- Verify document content renders with download option.
 - [ ] **ANSI output** -- Verify ANSI escape codes render with correct colors and styling.
-- [ ] **Think tag stripping** -- Verify `<think>`, `<internal>`, `<content-internal>`
-      tags are removed from assistant text.
+- [ ] **Literal reasoning-like tags** -- Verify `<think>`, `<internal>`, and
+      `<content-internal>` tags and their enclosed text remain visible. Verify
+      typed `ContentReasoning` still uses the reasoning presentation.
 
 ### Citations
 

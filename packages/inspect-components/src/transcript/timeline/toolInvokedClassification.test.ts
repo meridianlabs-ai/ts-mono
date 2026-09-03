@@ -11,84 +11,68 @@
 
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testSystemMessage,
+  testToolCall,
+  testToolEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { buildTimeline, TimelineSpan } from "./core";
 import { computeFlatSwimlaneRows } from "./swimlaneRows";
+import { rawEventBuilders } from "./testHelpers";
 
-let clock = 0;
-function ts(): string {
-  // distinct, monotonically increasing ISO timestamps
-  clock += 1;
-  return new Date(Date.UTC(2026, 0, 1, 0, 0, clock)).toISOString();
-}
+const { nextTs, base, spanBegin, spanEnd } = rawEventBuilders();
 
-const base = () => ({
-  uuid: null,
-  timestamp: ts(),
-  working_start: 0,
-  pending: false,
-  metadata: null,
-});
-
-function spanBegin(
-  id: string,
-  name: string,
-  type: string | null,
-  parentId: string | null
+function modelTurn(
+  spanId: string,
+  systemPrompt: string,
+  opts?: { toolCalls?: boolean }
 ): Event {
-  return {
+  const message = testAssistantMessage({
+    content: "ok",
+    ...(opts?.toolCalls
+      ? { tool_calls: [testToolCall({ id: "call_1", function: "agent" })] }
+      : {}),
+  });
+  return testModelEvent({
     ...base(),
-    event: "span_begin",
-    id,
-    name,
-    type,
-    parent_id: parentId,
-    span_id: null,
-  } as unknown as Event;
-}
-
-function spanEnd(id: string): Event {
-  return {
-    ...base(),
-    event: "span_end",
-    id,
-    span_id: null,
-  } as unknown as Event;
-}
-
-function modelTurn(spanId: string, systemPrompt: string): Event {
-  return {
-    ...base(),
-    event: "model",
     model: "mockllm/model",
-    completed: ts(),
+    completed: nextTs(),
     span_id: spanId,
     input: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: "go" },
+      testSystemMessage({ content: systemPrompt }),
+      testUserMessage({ content: "go" }),
     ],
-    output: {
+    output: testModelOutput({
       choices: [
-        { message: { role: "assistant", content: "ok" }, stop_reason: "stop" },
+        testChatCompletionChoice({
+          message,
+          stop_reason: opts?.toolCalls ? "tool_calls" : "stop",
+        }),
       ],
-      usage: { input_tokens: 5, output_tokens: 1 },
-    },
-  } as unknown as Event;
+      usage: testModelUsage({ input_tokens: 5, output_tokens: 1 }),
+    }),
+  });
 }
 
 function dispatchToolEvent(spanId: string): Event {
-  return {
+  return testToolEvent({
     ...base(),
-    event: "tool",
     id: "call_1",
     function: "agent",
-    completed: ts(),
+    completed: nextTs(),
     agent: null,
     events: [],
     span_id: spanId,
     result: "Dispatched AGENT-1.",
-  } as unknown as Event;
+  });
 }
 
 function findSpan(span: TimelineSpan, name: string): TimelineSpan | null {
@@ -109,9 +93,12 @@ describe("tool-invoked subagent classification", () => {
   // single-turn (one model turn, no submit) with a different system prompt than
   // the parent: before the fix this matched the utility heuristic and the child
   // was hidden from the swimlane.
+  // The parent turn carries tool_calls: classification now requires the parent
+  // to run an agentic loop (parentHasLoop), and a real dispatch always does —
+  // without it the utility branch is unreachable and the test proves nothing.
   const events: Event[] = [
     spanBegin("solvers", "solvers", "solvers", null),
-    modelTurn("solvers", "PARENT"),
+    modelTurn("solvers", "PARENT", { toolCalls: true }),
     spanBegin("at1", "agent", "tool", "solvers"),
     spanBegin("child_tool", "child_tool", "agent", "at1"),
     modelTurn("child_tool", "CHILD"),

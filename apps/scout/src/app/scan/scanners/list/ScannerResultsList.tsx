@@ -1,12 +1,13 @@
 import { ColumnTable } from "arquero";
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
+import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { basename } from "@tsmono/util";
+import { basename, isRecord } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
@@ -47,6 +48,7 @@ interface ResultGroup {
 const isResultGroup = (
   entry: ResultGroup | ScanResultSummary
 ): entry is ResultGroup => {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   return "type" in entry && entry.type === "group";
 };
 
@@ -92,6 +94,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const sortResults = useStore((state) => state.sortResults);
   const setSortResults = useStore((state) => state.setSortResults);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (selectedFilter === undefined && selectedScan.complete === false) {
       setSelectedFilter(kFilterAllResults);
@@ -107,6 +110,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
   const activeSort = sortResults ?? kDefaultSort;
 
   // Sync the default to the store so the column header shows the sort indicator.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!sortResults && scannerSummaries.length > 0) {
       setSortResults(kDefaultSort);
@@ -169,7 +173,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           : groupResultsBy === "label"
             ? item.label || "Unlabeled"
             : groupResultsBy === "epoch"
-              ? (item.transcriptMetadata.epoch as number)
+              ? epochOf(item.transcriptMetadata)
               : groupResultsBy === "model"
                 ? item.transcriptModel || "Unknown"
                 : resultIdentifierStr(item) || "Unknown";
@@ -244,7 +248,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
       if (newWindow) {
         window.open(route, "_blank");
       } else {
-        void navigate(route);
+        navigate(route);
       }
     },
     [
@@ -262,6 +266,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     currentIndex >= 0 && currentIndex < filteredSummaries.length - 1;
 
   // Global keydown handler for keyboard shortcuts
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleGlobalKeyDown = (e: globalThis.KeyboardEvent) => {
       // Don't handle keyboard events if focus is on an input, textarea, or select element
@@ -326,6 +331,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     setSelectedScanResult,
   ]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Only set if nothing is selected and we have results
     if (
@@ -337,6 +343,7 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     }
   }, [filteredSummaries, selectedScanResult, setSelectedScanResult]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     setVisibleScannerResults(filteredSummaries);
     setVisibleScannerResultsCount(filteredSummaries.length);
@@ -358,14 +365,16 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
     return undefined;
   }, [selectedScanResult, filteredSummaries]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    setTimeout(() => {
+    const id = setTimeout(() => {
       listHandle.current?.scrollToIndex({
         index: selectedItemIndex ?? 0,
         align: "center",
         behavior: "auto",
       });
     }, 5);
+    return () => clearTimeout(id);
   }, [selectedItemIndex]);
 
   const renderRow = useCallback(
@@ -417,7 +426,6 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
           ref={listHandle}
           data={rows}
           renderRow={renderRow}
-          className={clsx(styles.list)}
           smoothScroll={false}
         />
       )}
@@ -453,16 +461,14 @@ const optimalColumnLayout = (
   const hasValueObjs = scannerSummaries.some((s) => s.valueType === "object");
   if (hasValueObjs) {
     const obj = scannerSummaries[0]?.value;
-    if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+    if (isRecord(obj)) {
       // measure the length of the longest key
       const maxKeyLen = Object.keys(obj).reduce((max, key) => {
         return Math.max(max, key.length);
       }, 0);
 
       // measure the length of the longest value
-      const maxValueLen = Object.values(
-        obj as Record<string, unknown>
-      ).reduce<number>((max, val) => {
+      const maxValueLen = Object.values(obj).reduce<number>((max, val) => {
         const valStr =
           val !== undefined && val !== null ? valueAsString(val) : "";
         return Math.max(max, valStr.length);
@@ -476,18 +482,16 @@ const optimalColumnLayout = (
     }
   } else {
     const maxValueLen = scannerSummaries.reduce((max: number, s) => {
-      if (s.valueType === "array") {
-        const len = (s.value as unknown[]).reduce<number>((prev, val) => {
+      const values = arrayValues(s.value);
+      if (values) {
+        const len = values.reduce<number>((prev, val) => {
           const valStr =
             val !== undefined && val !== null ? valueAsString(val) : "";
           return Math.max(prev, valStr.length);
         }, 0);
         return Math.max(max, len);
       } else {
-        const valStr =
-          s.value !== undefined && s.value !== null
-            ? valueAsString(s.value)
-            : "";
+        const valStr = s.value !== null ? valueAsString(s.value) : "";
         return Math.max(max, valStr.length);
       }
     }, 0);
@@ -497,7 +501,7 @@ const optimalColumnLayout = (
   }
 
   const hasValidations = scannerSummaries.some(
-    (s) => s.validationResult !== undefined && s.validationResult !== null
+    (s) => s.validationResult !== undefined
   );
   if (hasValidations) {
     columns.push("validations");
@@ -531,3 +535,17 @@ const optimalColumnLayout = (
     columns,
   };
 };
+
+/** Grouping by epoch keys on the number; anything else groups as unknown. */
+const epochOf = (metadata: Record<string, JsonValue>): number | string => {
+  const epoch = metadata["epoch"];
+  return typeof epoch === "number" ? epoch : "Unknown";
+};
+
+/**
+ * An array-valued cell, read as untyped entries. No copy: this runs inside
+ * optimalColumnLayout's reduce over every summary, which recomputes on each
+ * search keystroke.
+ */
+const arrayValues = (value: unknown): unknown[] | undefined =>
+  Array.isArray(value) ? value : undefined;

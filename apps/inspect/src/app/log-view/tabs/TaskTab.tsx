@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, useMemo } from "react";
 
 import {
+  ConfigUpdate,
   EarlyStoppingSummary,
   EvalSpec,
   EvalStats,
@@ -10,11 +11,12 @@ import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
+import { getApi } from "../../../app_config";
 import { kLogViewTaskTabId } from "../../../constants";
-import { useApi } from "../../../state/store";
 import { formatDateTime, formatDuration } from "../../../utils/format";
 import { TagsField } from "../title-view/TagsField";
 
+import { ConfigCard } from "./ConfigCard";
 import styles from "./TaskTab.module.css";
 
 // Individual hook for Info tab
@@ -22,7 +24,8 @@ export const useTaskTabConfig = (
   evalSpec: EvalSpec | undefined,
   evalStats?: EvalStats,
   earlyStopping?: EarlyStoppingSummary | null,
-  tags?: string[]
+  tags?: string[],
+  configUpdates?: ConfigUpdate[] | null
 ) => {
   return useMemo(() => {
     return {
@@ -35,9 +38,10 @@ export const useTaskTabConfig = (
         evalStats,
         earlyStopping,
         tags,
+        configUpdates,
       },
     };
-  }, [evalSpec, evalStats, earlyStopping, tags]);
+  }, [evalSpec, evalStats, earlyStopping, tags, configUpdates]);
 };
 
 interface TaskTabProps {
@@ -45,6 +49,7 @@ interface TaskTabProps {
   evalStats?: EvalStats;
   earlyStopping?: EarlyStoppingSummary | null;
   tags?: string[];
+  configUpdates?: ConfigUpdate[] | null;
 }
 
 export const TaskTab: FC<TaskTabProps> = ({
@@ -52,20 +57,14 @@ export const TaskTab: FC<TaskTabProps> = ({
   evalStats,
   earlyStopping,
   tags,
+  configUpdates,
 }) => {
   // Only used to decide whether to include the "tags" row in the
   // metadata grid for an empty log — TagsField owns the actual gating
   // (in-progress, dialog state, save flow, refresh).
-  const api = useApi();
+  const api = getApi();
   const canEditTags = Boolean(api.edit_log);
   const tagList = tags ?? [];
-
-  const config: Record<string, unknown> = {};
-  Object.entries(evalSpec?.config || {}).forEach((entry) => {
-    const key = entry[0];
-    const value = entry[1];
-    config[key] = value;
-  });
 
   const revision = evalSpec?.revision;
   const packages = evalSpec?.packages;
@@ -76,6 +75,7 @@ export const TaskTab: FC<TaskTabProps> = ({
   };
 
   if (revision) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
     taskInformation[revisionKey] = commitUrl
@@ -104,14 +104,14 @@ export const TaskTab: FC<TaskTabProps> = ({
   }
 
   if (evalSpec?.sandbox) {
-    if (Array.isArray(evalSpec?.sandbox)) {
+    if (Array.isArray(evalSpec.sandbox)) {
       taskInformation["sandbox"] = evalSpec.sandbox[0];
       if (evalSpec.sandbox[1]) {
         taskInformation["sandbox_config"] = evalSpec.sandbox[1];
       }
     } else {
-      taskInformation["sandbox"] = evalSpec?.sandbox.type;
-      taskInformation["sandbox_config"] = evalSpec?.sandbox.config;
+      taskInformation["sandbox"] = evalSpec.sandbox.type;
+      taskInformation["sandbox_config"] = evalSpec.sandbox.config;
     }
   }
 
@@ -159,6 +159,8 @@ export const TaskTab: FC<TaskTabProps> = ({
             </div>
           </CardBody>
         </Card>
+
+        <ConfigCard config={evalSpec?.config} configUpdates={configUpdates} />
 
         {earlyStopping && (
           <Card>

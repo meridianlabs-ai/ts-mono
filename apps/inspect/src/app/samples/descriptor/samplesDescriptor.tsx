@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString } from "@tsmono/util";
+import { arrayToString, isRecord } from "@tsmono/util";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
@@ -35,10 +35,13 @@ export const createEvalDescriptor = (
     return undefined;
   }
 
+  // null is not part of ScoreValue, but dict-valued scores admit null
+  // entries (Score.value's dict form is {[key]: string|number|boolean|null}),
+  // so the dict path below can genuinely return it.
   const scoreValue = (
     sample: BasicSampleData,
     scoreLabel?: ScoreLabel
-  ): ScoreValue | undefined => {
+  ): ScoreValue | null | undefined => {
     // no scores, no value
     if (
       !sample.scores ||
@@ -58,7 +61,9 @@ export const createEvalDescriptor = (
       if (typeof sample.scores[scoreLabel.scorer].value === "object") {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         const temp = sample.scores[scoreLabel.scorer].value;
-        return (temp as Record<string, ScoreValue>)[scoreLabel.name];
+        // The dict form of Score.value; the typeof check above is what
+        // distinguishes it from the scalar forms.
+        return isRecord(temp) ? temp[scoreLabel.name] : undefined;
       } else {
         // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         return sample.scores[scoreLabel.scorer].value;
@@ -75,21 +80,20 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: ScoreLabel
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer.scorer];
       if (sampleScore && sampleScore.answer) {
         return sampleScore.answer;
       }
-    } else {
-      return undefined;
     }
+    return undefined;
   };
 
   const scoreExplanation = (
     sample: BasicSampleData,
     scorer: string
   ): string | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.explanation) {
         return sampleScore.explanation;
@@ -103,7 +107,7 @@ export const createEvalDescriptor = (
     sample: BasicSampleData,
     scorer: string
   ): Record<string, unknown> | undefined => {
-    if (sample && sample.scores) {
+    if (sample.scores) {
       const sampleScore = sample.scores[scorer];
       if (sampleScore && sampleScore.metadata) {
         return sampleScore.metadata;
@@ -119,11 +123,6 @@ export const createEvalDescriptor = (
         samples
           .filter((sample) => !!sample.scores)
           .filter((sample) => {
-            // There is no selected scorer, so include this value
-            if (!scoreLabel) {
-              return true;
-            }
-
             // There are no scores, so exclude this
             if (!sample.scores) {
               return false;
@@ -145,10 +144,9 @@ export const createEvalDescriptor = (
             return scoreValue(sample, scoreLabel);
           })
           .filter((value) => {
-            return value !== null;
-          })
-          .filter((value) => {
-            return value !== undefined;
+            // null sub-scores are legal in dict values; typeof null is
+            // "object", so letting them through would skew type detection.
+            return value !== undefined && value !== null;
           })
           // NaN is the canonical "unscored" sentinel (see Score.unscored()).
           // Excluding it from type detection keeps a column of "C"/"I" strings
@@ -172,8 +170,9 @@ export const createEvalDescriptor = (
     }
   }
 
-  const scoreDescriptor = (scoreLabel: ScoreLabel): ScoreDescriptor => {
-    // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+  const scoreDescriptor = (
+    scoreLabel: ScoreLabel
+  ): ScoreDescriptor | undefined => {
     return scoreDescriptorMap[scoreLabelKey(scoreLabel)];
   };
 
@@ -189,7 +188,7 @@ export const createEvalDescriptor = (
       return "";
     } else if (typeof score === "number" && Number.isNaN(score)) {
       return "";
-    } else if (descriptor && descriptor.render) {
+    } else if (descriptor) {
       return descriptor.render(score);
     } else {
       return <span>{valueAsString(score)}</span>;
@@ -211,7 +210,7 @@ export const createEvalDescriptor = (
         return scoreAnswer(sample, scoreLabel) || "";
       },
       scores: () => {
-        if (!sample || !sample.scores) {
+        if (!sample.scores) {
           return [];
         }
         const myScoreDescriptor = scoreDescriptor(scoreLabel);
@@ -371,7 +370,7 @@ export const createSamplesDescriptor = (
     }
   );
 
-  const firstSelectedScore = selectedScores?.[0];
+  const firstSelectedScore = selectedScores[0];
 
   return {
     evalDescriptor,
@@ -388,5 +387,5 @@ export const createSamplesDescriptor = (
 };
 
 const scoreLabelKey = (scoreLabel: ScoreLabel) => {
-  return `${scoreLabel?.scorer}.${scoreLabel.name}`;
+  return `${scoreLabel.scorer}.${scoreLabel.name}`;
 };

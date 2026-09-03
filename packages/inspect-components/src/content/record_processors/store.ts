@@ -1,3 +1,5 @@
+import { isRecord } from "@tsmono/util";
+
 import { RecordProcessor } from "./types";
 
 const kStoreInstanceKey = /^(.+)?:([a-zA-Z0-9]{22}):instance$/;
@@ -64,8 +66,8 @@ export const resolveStoreKeys: RecordProcessor = (
 
   // Process any nested objects recursively
   for (const [key, value] of Object.entries(result)) {
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      result[key] = resolveStoreKeys(value as Record<string, unknown>);
+    if (isRecord(value)) {
+      result[key] = resolveStoreKeys(value);
     }
   }
 

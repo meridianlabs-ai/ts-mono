@@ -17,6 +17,8 @@ export * from "./html";
 export * from "./json";
 export * from "./json-value";
 export * from "./json-worker";
+export * from "./jsonrpc";
+export * from "./jsonrpc-fetch";
 export * from "./logger";
 export * from "./media";
 export * from "./numeric";

@@ -1,84 +1,80 @@
-export const resolveAttachments = <T>(
-  value: T,
+const CONTENT_PROTOCOL = "tc://";
+const ATTACHMENT_PROTOCOL = "attachment://";
+
+const resolveString = (
+  value: string,
   attachments: Record<string, string>,
   onFailedResolve?: (attachmentId: string) => void
-): T => {
-  const CONTENT_PROTOCOL = "tc://";
-  const ATTACHMENT_PROTOCOL = "attachment://";
-
-  // Handle null or undefined early
-  if (value === null || value === undefined) {
+): string => {
+  // Rewrite the legacy tc:// protocol before resolving
+  const ref = value.startsWith(CONTENT_PROTOCOL)
+    ? value.replace(CONTENT_PROTOCOL, ATTACHMENT_PROTOCOL)
+    : value;
+  if (!ref.startsWith(ATTACHMENT_PROTOCOL)) {
     return value;
   }
+  const attachmentId = ref.slice(ATTACHMENT_PROTOCOL.length);
+  const attachment = attachments[attachmentId];
+  if (attachment === undefined) {
+    onFailedResolve?.(attachmentId);
+    // A miss keeps the original (un-rewritten) string
+    return value;
+  }
+  return attachment;
+};
 
-  // Handle arrays recursively
-  if (Array.isArray(value)) {
-    let hasChanged = false;
-    const resolvedArray = (value as unknown[]).map((v) => {
-      const resolved = resolveAttachments(v, attachments);
-      if (resolved !== v) hasChanged = true;
-      return resolved;
-    });
-
-    // Only return the new array if something actually changed
-    return hasChanged ? (resolvedArray as unknown as T) : value;
+const resolveValue = (
+  value: unknown,
+  attachments: Record<string, string>,
+  onFailedResolve?: (attachmentId: string) => void
+): unknown => {
+  if (typeof value === "string") {
+    return resolveString(value, attachments, onFailedResolve);
   }
 
-  // Handle objects recursively, but skip Date instances and other special object types
+  if (Array.isArray(value)) {
+    let hasChanged = false;
+    const resolved: unknown[] = [];
+    for (const v of value) {
+      const r = resolveValue(v, attachments, onFailedResolve);
+      if (r !== v) hasChanged = true;
+      resolved.push(r);
+    }
+    // Unchanged values keep their identity so downstream React re-renders
+    // (and reference-equality caches) aren't invalidated by the walk
+    return hasChanged ? resolved : value;
+  }
+
+  // Recurse into plain objects, but not special object types like Date/RegExp
   if (
     typeof value === "object" &&
+    value !== null &&
     !(value instanceof Date) &&
     !(value instanceof RegExp)
   ) {
     let hasChanged = false;
-    const resolvedObject: Record<string, unknown> = {};
-
-    for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-      const resolved = resolveAttachments(val, attachments);
-      resolvedObject[key] = resolved;
-
-      // Track if anything changed
-      if (resolved !== val) hasChanged = true;
+    const resolved: Record<string, unknown> = {};
+    for (const [key, v] of Object.entries(value)) {
+      const r = resolveValue(v, attachments, onFailedResolve);
+      resolved[key] = r;
+      if (r !== v) hasChanged = true;
     }
-
-    // Only return the new object if something actually changed
-    return hasChanged ? (resolvedObject as unknown as T) : value;
+    return hasChanged ? resolved : value;
   }
 
-  // Handle string values with protocol references
-  if (typeof value === "string") {
-    // Check if the string starts with the content protocol
-    if (value.startsWith(CONTENT_PROTOCOL)) {
-      const updatedValue = value.replace(CONTENT_PROTOCOL, ATTACHMENT_PROTOCOL);
-
-      // Now check if it's an attachment reference
-      if (updatedValue.startsWith(ATTACHMENT_PROTOCOL)) {
-        const attachmentId = updatedValue.slice(ATTACHMENT_PROTOCOL.length);
-        const attachment = attachments[attachmentId];
-
-        // Return the attachment content if it exists, otherwise return the original string
-        if (attachment === undefined && onFailedResolve) {
-          onFailedResolve(attachmentId);
-        }
-        return (attachment !== undefined ? attachment : value) as unknown as T;
-      }
-
-      return updatedValue as unknown as T;
-    }
-
-    // Check if it's directly an attachment reference
-    if (value.startsWith(ATTACHMENT_PROTOCOL)) {
-      const attachmentId = value.slice(ATTACHMENT_PROTOCOL.length);
-      const attachment = attachments[attachmentId];
-      if (attachment === undefined && onFailedResolve) {
-        onFailedResolve(attachmentId);
-      }
-
-      // Return the attachment content if it exists, otherwise return the original string
-      return (attachment !== undefined ? attachment : value) as unknown as T;
-    }
-  }
-
-  // Return unchanged for other types
   return value;
 };
+
+/**
+ * Walks a value replacing attachment:// (and legacy tc://) references with
+ * their content, leaving the value's shape untouched. TypeScript can't
+ * express "same type, strings substituted", so the walk works in `unknown`
+ * and this is where the shape is handed back.
+ */
+export const resolveAttachments = <T>(
+  value: T,
+  attachments: Record<string, string>,
+  onFailedResolve?: (attachmentId: string) => void
+): T =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape-preserving walk: see above
+  resolveValue(value, attachments, onFailedResolve) as T;

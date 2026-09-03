@@ -37,11 +37,12 @@ function isAppMessage(value: unknown): value is AppMessage {
  * Returns scan directory and name if embedded state exists and is valid.
  */
 export function getEmbeddedAppMessage(): AppMessage | null {
-  const embeddedState = document.getElementById(
-    "scanview-state"
-  ) as HTMLScriptElement | null;
+  const embeddedState = document.getElementById("scanview-state");
 
-  if (!embeddedState?.textContent) {
+  if (
+    !(embeddedState instanceof HTMLScriptElement) ||
+    !embeddedState.textContent
+  ) {
     return null;
   }
 
@@ -77,7 +78,8 @@ function processAppMessage(
   switch (message.type) {
     case "updateRoute": {
       // This is the route used by the most recent version of Inspect Scout. It allows the extension to specify an exact route to navigate to.
-      void context.navigate(message.route, { replace: true });
+
+      context.navigate(message.route, { replace: true });
       context.setSingleFileMode(message.mode === "single-file");
       return true;
     }
@@ -100,7 +102,7 @@ function processAppMessage(
       }
 
       if (scan) {
-        void context.navigate(scanRoute(context.scansDir, scan), {
+        context.navigate(scanRoute(context.scansDir, scan), {
           replace: true,
         });
         return true;
@@ -122,6 +124,7 @@ export const useWindowMessaging = (): void => {
       navigate,
       setSingleFileMode,
       setSelectedScanner,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       scansDir: scansDir ?? "",
     };
   }, [navigate, setSingleFileMode, setSelectedScanner, scansDir]);
@@ -133,6 +136,7 @@ export const useWindowMessaging = (): void => {
     (state) => state.setHasInitializedEmbeddedData
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // When the view is restored after unload, the persisted store already
     // contains the correct state — skip re-processing embedded data.
@@ -157,6 +161,7 @@ export const useWindowMessaging = (): void => {
   ]);
 
   // Listen for window messages from vscode
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const onMessage = (e: MessageEvent<unknown>) => {
       if (isAppMessage(e.data)) {

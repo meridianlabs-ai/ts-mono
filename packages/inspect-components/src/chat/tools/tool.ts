@@ -1,4 +1,5 @@
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 export const kToolTodoContentType = "agent/todo-list";
 
@@ -15,6 +16,7 @@ const kToolIcons: Record<string, string> = {
   // code
   python: "bi-code-square",
   code_execution: "bi-code-square",
+  exec: "bi-code-square",
   // web
   web_search: "bi-search",
   WebSearch: "bi-search",
@@ -260,6 +262,14 @@ const extractInputMetadata = (
       inputArg: "cmd",
       contentType: "bash",
     };
+  } else if (toolName === "exec" && typeof toolArgs.input === "string") {
+    // Codex CLI Code Mode: `input` is JavaScript source calling `tools.*` —
+    // often hundreds of characters with embedded string literals. Keyed on the
+    // arg shape so an unrelated `exec` tool keeps the default rendering.
+    return {
+      inputArg: "input",
+      contentType: "javascript",
+    };
   } else if (toolName === "spawn_agent") {
     return {
       inputArg: "message",
@@ -359,10 +369,10 @@ const formatSpawnAgentResult = (text: string): string | undefined => {
   } catch {
     return undefined;
   }
-  if (!data || typeof data !== "object") {
+  if (!isRecord(data)) {
     return undefined;
   }
-  const record = data as Record<string, unknown>;
+  const record = data;
   const nickname =
     typeof record.nickname === "string" ? record.nickname : undefined;
   const agentId =
@@ -394,10 +404,10 @@ export const toolOutputText = (output: unknown): string | undefined => {
 };
 
 const collectContentText = (item: unknown, parts: string[]): void => {
-  if (!item || typeof item !== "object") {
+  if (!isRecord(item)) {
     return;
   }
-  const record = item as Record<string, unknown>;
+  const record = item;
   if (record.type === "text" && typeof record.text === "string") {
     parts.push(record.text);
   } else if (record.type === "tool" && Array.isArray(record.content)) {
@@ -440,10 +450,10 @@ const formatSubagentNotification = (payload: string): string | undefined => {
   } catch {
     return undefined;
   }
-  if (!data || typeof data !== "object") {
+  if (!isRecord(data)) {
     return undefined;
   }
-  const record = data as Record<string, unknown>;
+  const record = data;
   const agentPath =
     typeof record.agent_path === "string" ? record.agent_path : undefined;
   const status =
@@ -499,10 +509,10 @@ export const parseToolSearchCatalog = (
   const namespaces: ToolSearchNamespaceEntry[] = [];
   const looseTools: ToolSearchToolEntry[] = [];
   for (const entry of data) {
-    if (!entry || typeof entry !== "object") {
+    if (!isRecord(entry)) {
       continue;
     }
-    const record = entry as Record<string, unknown>;
+    const record = entry;
     const rawTools = Array.isArray(record.tools) ? record.tools : undefined;
 
     // A top-level function tool (no nested `tools`) — render it directly rather
@@ -528,10 +538,10 @@ export const parseToolSearchCatalog = (
 
     const tools: ToolSearchToolEntry[] = [];
     for (const tool of toolList) {
-      if (!tool || typeof tool !== "object") {
+      if (!isRecord(tool)) {
         continue;
       }
-      const parsed = parseToolEntry(tool as Record<string, unknown>);
+      const parsed = parseToolEntry(tool);
       if (parsed) {
         tools.push(parsed);
       }
@@ -566,9 +576,9 @@ const parseToolEntry = (
 
 const toolParamNames = (tool: Record<string, unknown>): string[] => {
   const parameters = tool.parameters;
-  if (parameters && typeof parameters === "object") {
-    const properties = (parameters as Record<string, unknown>).properties;
-    if (properties && typeof properties === "object") {
+  if (isRecord(parameters)) {
+    const properties = parameters.properties;
+    if (isRecord(properties)) {
       return Object.keys(properties);
     }
   }
@@ -620,10 +630,37 @@ const extractCodexAgentAnswers = (output: unknown): string | undefined => {
   return nonEmpty.length > 0 ? nonEmpty.join("\n\n---\n\n") : undefined;
 };
 
-// Strip Codex's internal `<content-internal>…</content-internal>` bookkeeping
-// tag (base64 message metadata) that trails the visible answer text.
-const cleanCodexAnswer = (text: string): string =>
-  text.replace(/<content-internal>[\s\S]*?<\/content-internal>/g, "").trimEnd();
+// Strip one valid trailing Codex bookkeeping envelope from the rendered
+// projection. Arbitrary or malformed tag-like answer text remains evidence.
+const cleanCodexAnswer = (text: string): string => {
+  const match =
+    /<content-internal>([A-Za-z0-9+/]+={0,2})<\/content-internal>\s*$/.exec(
+      text
+    );
+  const payload = match?.[1];
+  if (!match || payload === undefined) {
+    return text;
+  }
+
+  const visibleAnswer = text.slice(0, match.index);
+  if (
+    visibleAnswer.includes("<content-internal>") ||
+    visibleAnswer.includes("</content-internal>")
+  ) {
+    return text;
+  }
+
+  try {
+    const decoded = Uint8Array.from(atob(payload), (char) =>
+      char.charCodeAt(0)
+    );
+    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded));
+  } catch {
+    return text;
+  }
+
+  return visibleAnswer.trimEnd();
+};
 
 /**
  * Substitutes `{{param_name}}` placeholders in tool call content
@@ -664,6 +701,7 @@ const extractInput = (
   };
 
   // No args
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (!args) {
     return {
       args: [],

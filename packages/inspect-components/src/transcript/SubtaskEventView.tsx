@@ -3,6 +3,7 @@ import { FC, ReactNode } from "react";
 
 import type { SubtaskEvent } from "@tsmono/inspect-common/types";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import { isRecord } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
@@ -81,6 +82,7 @@ const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
       <div className={clsx("text-style-label", "text-size-small")}>Input</div>
       <div className={clsx("text-size-large", styles.subtaskLabel)}></div>
       <div className={clsx("text-style-label", "text-size-small")}>Output</div>
+      {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
       {input ? <Rendered values={input} /> : undefined}
       <div className={clsx("text-size-title-secondary", styles.subtaskLabel)}>
         <i className={kArrowRightIcon} />
@@ -91,23 +93,31 @@ const SubtaskSummary: FC<SubtaskSummaryProps> = ({ input, result }) => {
 };
 
 interface RenderedProps {
-  values: Array<unknown> | object | string | number;
+  values: unknown;
 }
 
 const Rendered: FC<RenderedProps> = ({ values }): ReactNode => {
   if (Array.isArray(values)) {
-    return values.map((val, index) => {
-      return <Rendered key={index} values={val as RenderedProps["values"]} />;
-    });
-  } else if (values && typeof values === "object") {
-    if (Object.keys(values).length === 0) {
-      return <None />;
-    } else {
-      return <MetaDataGrid entries={values as Record<string, unknown>} />;
-    }
-  } else {
+    return values.map((val: unknown, index) => (
+      <Rendered key={index} values={val} />
+    ));
+  }
+  if (isRecord(values)) {
+    return Object.keys(values).length === 0 ? (
+      <None />
+    ) : (
+      <MetaDataGrid entries={values} />
+    );
+  }
+  if (typeof values === "string") {
+    return values;
+  }
+  if (typeof values === "number" || typeof values === "boolean") {
     return String(values);
   }
+  // Null, or an object shape a subtask's input/result doesn't carry. String()
+  // would print "[object Object]" for the latter.
+  return <None />;
 };
 
 const None: FC = () => {

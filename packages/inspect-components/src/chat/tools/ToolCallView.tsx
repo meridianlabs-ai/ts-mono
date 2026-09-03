@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, useMemo } from "react";
+import { FC, ReactNode, useMemo } from "react";
 
 import type {
   ContentAudio,
@@ -11,12 +11,18 @@ import type {
   ContentVideo,
   ToolCallContent,
 } from "@tsmono/inspect-common/types";
-import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
+import {
+  ExpandablePanel,
+  MarkdownDiv,
+  NavPills,
+} from "@tsmono/react/components";
 
+import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
-import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
 
+import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
+import type { ScreenshotContent, ToolAnnotation } from "./browserActionUtils";
 import { getDefaultCustomToolView } from "./customToolRendering";
 import { codexToolMarkdown } from "./tool";
 import styles from "./ToolCallView.module.css";
@@ -53,11 +59,13 @@ export interface ToolCallViewProps {
         | ContentData
         | ContentDocument
       )[];
+  selfAnnotation?: ToolAnnotation;
+  inputScreenshot?: ScreenshotContent[];
   mode?: "compact";
   collapsible?: boolean;
   /** Render the whole view, just the call (title + input), or just the output. */
   section?: "all" | "call" | "output";
-  getCustomToolView?: (props: ToolCallViewProps) => React.ReactNode | undefined;
+  getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
 }
 
 /**
@@ -68,6 +76,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   tool,
   functionCall,
   input,
+  selfAnnotation,
+  inputScreenshot,
   description,
   contentType,
   view,
@@ -77,6 +87,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   section = "all",
   getCustomToolView,
 }) => {
+  const displayMode = useDisplayMode();
+
   // don't collapse if output includes an image
   function isContentImage(
     value:
@@ -110,13 +122,13 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   const collapse = Array.isArray(output)
     ? output.every((item) => !isContentImage(item))
     : !isContentImage(output);
-  // Render-time reshape of tool output (e.g. surface Codex sub-agent answers /
-  // tool_search catalog). Does not mutate stored data — the raw output remains
-  // visible in the JSON tab.
+  // Render-time reshape of tool output (e.g. surface Codex sub-agent answers).
+  // Raw mode keeps the original output.
   const normalizedContent = useMemo(() => {
-    const markdown = codexToolMarkdown(tool, output);
+    const markdown =
+      displayMode === "rendered" ? codexToolMarkdown(tool, output) : undefined;
     return normalizeContent(markdown !== undefined ? markdown : output);
-  }, [tool, output]);
+  }, [displayMode, tool, output]);
 
   const hasContent = normalizedContent.find((c) => {
     if (c.type === "tool") {
@@ -144,10 +156,14 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     description,
     contentType,
     output,
+    selfAnnotation,
+    inputScreenshot,
     mode,
   };
   const customView =
-    getCustomToolView?.(props) ?? getDefaultCustomToolView(props);
+    displayMode === "rendered"
+      ? (getCustomToolView?.(props) ?? getDefaultCustomToolView(props))
+      : undefined;
   if (customView) {
     // A custom view renders the call and its result together, so it belongs to
     // the call section; the output section then contributes nothing.
@@ -155,7 +171,6 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   }
 
   const contents = mode !== "compact" ? input : input || functionCall;
-  const context = defaultContext();
 
   const callSection = (
     <div>
@@ -184,7 +199,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   );
 
   const outputSection =
-    contentType === "markdown" && hasContent ? (
+    displayMode === "rendered" && contentType === "markdown" && hasContent ? (
       <ExpandablePanel
         id={`${id}-tool-content`}
         collapse={collapse}
@@ -192,7 +207,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         lines={15}
         className={clsx("text-size-small")}
       >
-        <MarkdownToolOutput contents={normalizedContent} context={context} />
+        <MarkdownToolOutput contents={normalizedContent} />
       </ExpandablePanel>
     ) : hasContent && collapsible ? (
       <ExpandablePanel
@@ -202,16 +217,36 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         lines={15}
         className={clsx("text-size-small")}
       >
-        <MessageContent contents={normalizedContent} context={context} />
+        <MessageContent contents={normalizedContent} />
       </ExpandablePanel>
     ) : hasContent ? (
-      <MessageContent contents={normalizedContent} context={context} />
+      <MessageContent contents={normalizedContent} />
     ) : null;
+
+  const actionElement =
+    selfAnnotation && inputScreenshot ? (
+      <AnnotatedScreenshotOutput
+        contents={inputScreenshot}
+        annotation={selfAnnotation}
+      />
+    ) : null;
+
+  let outputContent = outputSection;
+  if (actionElement) {
+    outputContent = hasContent ? (
+      <NavPills id={`${id}-browser-action`}>
+        <div title="Action">{actionElement}</div>
+        <div title="Result">{outputSection}</div>
+      </NavPills>
+    ) : (
+      actionElement
+    );
+  }
 
   return (
     <div className={clsx(styles.toolCallView)}>
       {section !== "output" ? callSection : null}
-      {section !== "call" ? outputSection : null}
+      {section !== "call" ? outputContent : null}
     </div>
   );
 };
@@ -235,8 +270,7 @@ type NormalizedContentItem =
  */
 const MarkdownToolOutput: FC<{
   contents: NormalizedContentItem[];
-  context: MessagesContext;
-}> = ({ contents, context }) => {
+}> = ({ contents }) => {
   // Flatten tool wrapper to get inner content items
   const items = contents.flatMap((c) => (c.type === "tool" ? c.content : [c]));
 
@@ -250,7 +284,6 @@ const MarkdownToolOutput: FC<{
           <MessageContent
             key={`content-${i}`}
             contents={[item] as NormalizedContentItem[]}
-            context={context}
           />
         );
       })}

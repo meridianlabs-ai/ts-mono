@@ -45,24 +45,20 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
   }
 
   if (scores) {
-    const scorers = scores.reduce(
-      (accum, score) => {
-        const existing = accum[score.scorer];
-        if (existing === undefined) {
-          accum[score.scorer] = {
-            scores: [score.name],
-            params: score.params,
-          };
-        } else {
-          existing.scores.push(score.name);
-        }
-        return accum;
-      },
-      {} as Record<
-        string,
-        { scores: string[]; params: Record<string, unknown> }
-      >
-    );
+    const scorers = scores.reduce<
+      Record<string, { scores: string[]; params: Record<string, unknown> }>
+    >((accum, score) => {
+      const existing = accum[score.scorer];
+      if (existing === undefined) {
+        accum[score.scorer] = {
+          scores: [score.name],
+          params: score.params,
+        };
+      } else {
+        existing.scores.push(score.name);
+      }
+      return accum;
+    }, {});
 
     if (Object.keys(scorers).length > 0) {
       const label = Object.keys(scorers).length === 1 ? "Scorer" : "Scorers";

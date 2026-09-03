@@ -1,12 +1,16 @@
 import clsx from "clsx";
 import { FC, Fragment, ReactNode, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 import { useBreadcrumbTruncation } from "@tsmono/react/hooks";
-import { basename, dirname, ensureTrailingSlash } from "@tsmono/util";
+import {
+  basename,
+  dirname,
+  ensureTrailingSlash,
+  prettyDirUri,
+} from "@tsmono/util";
 
-import { useStore } from "../../state/store";
-import { prettyDirUri } from "../../utils/uri";
+import { useLogDir } from "../../app_config";
 import { ApplicationIcons } from "../appearance/icons";
 
 import styles from "./Navbar.module.css";
@@ -16,6 +20,10 @@ interface NavbarProps {
   bordered?: boolean;
   fnNavigationUrl: (file: string, log_dir?: string) => string;
   currentPath: string | undefined;
+  /** Override the back button's target (default: parent of currentPath). */
+  backUrl?: string;
+  /** Override the home button's target (default: root listing). */
+  homeUrl?: string;
   breadcrumbsEnabled?: boolean;
 }
 
@@ -24,9 +32,11 @@ export const Navbar: FC<NavbarProps> = ({
   bordered,
   children,
   currentPath,
+  backUrl: backUrlOverride,
+  homeUrl: homeUrlOverride,
   breadcrumbsEnabled,
 }) => {
-  const logDir = useStore((state) => state.logs.logDir);
+  const logDir = useLogDir();
   const displayDir =
     logDir === "."
       ? basename(
@@ -40,10 +50,9 @@ export const Navbar: FC<NavbarProps> = ({
   const baseLogName = basename(displayDir);
   const pathContainerRef = useRef<HTMLDivElement>(null);
 
-  const backUrl = fnNavigationUrl(
-    ensureTrailingSlash(dirname(currentPath || "")),
-    logDir
-  );
+  const backUrl =
+    backUrlOverride ??
+    fnNavigationUrl(ensureTrailingSlash(dirname(currentPath || "")), logDir);
 
   const segments = useMemo(() => {
     const pathSegments = currentPath ? currentPath.split("/") : [];
@@ -86,7 +95,7 @@ export const Navbar: FC<NavbarProps> = ({
           <i className={clsx(ApplicationIcons.navbar.back)} />
         </Link>
         <Link
-          to={fnNavigationUrl("", logDir)}
+          to={homeUrlOverride ?? fnNavigationUrl("", logDir)}
           className={clsx(styles.toolbarButton)}
         >
           <i className={clsx(ApplicationIcons.navbar.home)} />
@@ -95,7 +104,7 @@ export const Navbar: FC<NavbarProps> = ({
           <div className={clsx(styles.pathContainer)} ref={pathContainerRef}>
             {logDir ? (
               <ol className={clsx("breadcrumb", styles.breadcrumbs)}>
-                {visibleSegments?.map((segment, index) => {
+                {visibleSegments.map((segment, index) => {
                   const isLast = index === visibleSegments.length - 1;
                   const shouldShowEllipsis =
                     showEllipsis && index === 1 && visibleSegments.length >= 2;
@@ -111,7 +120,6 @@ export const Navbar: FC<NavbarProps> = ({
                       )}
                       <li
                         className={clsx(
-                          styles.pathLink,
                           "breadcrumb-item",
                           isLast ? "active" : undefined
                         )}
@@ -119,9 +127,7 @@ export const Navbar: FC<NavbarProps> = ({
                         {segment.url && !isLast ? (
                           <Link to={segment.url}>{segment.text}</Link>
                         ) : (
-                          <span className={clsx(styles.pathSegment)}>
-                            {segment.text}
-                          </span>
+                          <span>{segment.text}</span>
                         )}
                       </li>
                     </Fragment>

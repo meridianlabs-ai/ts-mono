@@ -6,6 +6,7 @@ export default tseslint.config(
   {
     ignores: [
       "dist/",
+      "lib/",
       "node_modules/",
       "build/",
       "scripts/",
@@ -18,6 +19,7 @@ export default tseslint.config(
   },
   ...reactConfig,
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: {

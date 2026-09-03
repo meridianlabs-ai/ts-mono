@@ -15,119 +15,24 @@
  * Issue #137: Navigating into a log and pressing back must PRESERVE the
  * filter and ordering on the task list (same scope round-trip).
  *
- * Tests drive AG-Grid via column-header sort clicks and via setFilterModel
- * through a dev-only window hook on LogListGrid (`__inspectGridApi`).
+ * Tests drive the TanStack DataGrid via column-header sort clicks (sort
+ * state shows as caret icons in the header) and via each column's filter
+ * funnel popover.
  */
 import type { Page } from "@playwright/test";
-import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
 import {
-  createEvalLog,
-  createEvalSample,
-  createLogDetails,
-} from "./fixtures/test-data";
+  columnHeader,
+  gridCell,
+  segmentButton,
+  setupLogListHandlers,
+  waitForGrid,
+} from "./fixtures/log-list-scenario";
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
-const LOG_DIR = "/home/test/logs";
-
-const LOG_FILES = [
-  {
-    name: `${LOG_DIR}/2025-01-15T10-00-00_task-alpha_abc123.eval`,
-    task: "task-alpha",
-    task_id: "task-alpha",
-  },
-  {
-    name: `${LOG_DIR}/2025-01-15T10-05-00_task-beta_def456.eval`,
-    task: "task-beta",
-    task_id: "task-beta",
-  },
-  {
-    name: `${LOG_DIR}/subdir/2025-01-15T10-10-00_task-gamma_ghi789.eval`,
-    task: "task-gamma",
-    task_id: "task-gamma",
-  },
-];
-
-const LOG_HEADERS = LOG_FILES.map((f, i) => ({
-  eval_id: `eval-${i}`,
-  run_id: `run-${i}`,
-  task: f.task,
-  task_id: f.task_id,
-  task_version: 1,
-  model: "claude-sonnet-4-5-20250929",
-  status: "success",
-  started_at: "2025-01-15T10:00:00Z",
-  completed_at: "2025-01-15T10:05:00Z",
-}));
-
-function makeSampleLog(taskName: string) {
-  const sample = createEvalSample({
-    id: 1,
-    epoch: 1,
-    messages: [
-      { role: "user", content: `Input for ${taskName}`, source: "input" },
-      {
-        role: "assistant",
-        content: `Response for ${taskName}`,
-        source: "generate",
-      },
-    ],
-  });
-  return createEvalLog({
-    samples: [sample],
-    eval: { task: taskName, task_id: taskName },
-  });
-}
-
-function setupHandlers(
-  network: Parameters<Parameters<typeof test>[2]>[0]["network"]
-) {
-  network.use(
-    http.get("*/api/log-dir", () => HttpResponse.json({ log_dir: LOG_DIR })),
-    http.get("*/api/logs", () =>
-      HttpResponse.json({ log_dir: LOG_DIR, files: LOG_FILES })
-    ),
-    http.get("*/api/log-files*", () =>
-      HttpResponse.json({ files: LOG_FILES, response_type: "full" })
-    ),
-    http.get("*/api/log-headers*", () => HttpResponse.json(LOG_HEADERS)),
-    http.get("*/api/logs/:file", ({ params }) => {
-      const file = decodeURIComponent(params.file as string);
-      const match = LOG_FILES.find(
-        (f) => f.name === file || file.endsWith(f.name)
-      );
-      return HttpResponse.json(makeSampleLog(match?.task ?? "unknown"));
-    }),
-    http.get("*/api/log-details/:file", ({ params }) => {
-      const file = decodeURIComponent(params.file as string);
-      const match = LOG_FILES.find(
-        (f) => f.name === file || file.endsWith(f.name)
-      );
-      return HttpResponse.json(
-        createLogDetails(makeSampleLog(match?.task ?? "unknown"))
-      );
-    })
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function segmentButton(page: Page, name: string) {
-  return page.getByRole("button", { name });
-}
-
-function gridCell(page: Page, text: string) {
-  return page.locator(".ag-cell").filter({ hasText: text }).first();
-}
-
+// Find the "Task" column header (see columnHeader for why not by name).
 function taskColumnHeader(page: Page) {
-  return page.locator('.ag-header-cell[col-id="task"]').first();
+  return columnHeader(page, "Task");
 }
 
 function resetFiltersButton(page: Page) {
@@ -135,41 +40,25 @@ function resetFiltersButton(page: Page) {
 }
 
 /**
- * Apply a "task contains <value>" filter via the dev-only window hook.
- * LogListGrid stashes its api on window.__inspectGridApi when running in
- * vite dev / Playwright (DEV mode); production builds drop the branch.
+ * Apply a "task contains <value>" filter through the Task column's filter
+ * funnel (hover-revealed) popover. "contains" (not =) so tests are robust to
+ * the Task cell rendering the full file name rather than the bare task name.
  */
 async function applyTaskFilter(page: Page, value: string) {
-  await page.waitForFunction(() => {
-    return (
-      (window as unknown as { __inspectGridApi?: unknown }).__inspectGridApi !==
-      undefined
-    );
-  });
-  await page.evaluate((filterValue: string) => {
-    const api = (
-      window as unknown as {
-        __inspectGridApi: {
-          setFilterModel: (m: unknown) => void;
-          onFilterChanged?: () => void;
-        };
-      }
-    ).__inspectGridApi;
-    api.setFilterModel({
-      task: { filterType: "text", type: "contains", filter: filterValue },
-    });
-  }, value);
+  const header = taskColumnHeader(page);
+  await header.hover();
+  await header
+    .getByRole("button", { name: "Filter task", exact: true })
+    .click();
+  await page.locator("#task-op").selectOption("contains");
+  await page.getByPlaceholder("Filter").fill(value);
+  await page.getByRole("button", { name: "Apply" }).click();
   await expect(resetFiltersButton(page)).toBeVisible();
-}
-
-async function waitForGrid(page: Page) {
-  await expect(page.locator(".ag-root-wrapper")).toBeVisible();
-  await expect(gridCell(page, "task-alpha")).toBeVisible();
 }
 
 async function sortByTaskDesc(page: Page) {
   const header = taskColumnHeader(page);
-  // Two clicks on Balham theme: asc, then desc.
+  // Two clicks: asc, then desc.
   await header.click();
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await header.click();
@@ -197,7 +86,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -214,7 +103,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -230,7 +119,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -252,7 +141,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -273,7 +162,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -290,7 +179,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -314,7 +203,7 @@ test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -339,7 +228,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -359,7 +248,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -375,7 +264,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
   });
 
   test("Tasks → log → back preserves filter", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -390,7 +279,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
   });
 
   test("Folders → log → back preserves filter", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -416,7 +305,7 @@ test.describe("Regression — adjacent behaviors", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -429,13 +318,15 @@ test.describe("Regression — adjacent behaviors", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
     const header = taskColumnHeader(page);
     await header.click(); // asc
+    await expect(header).toHaveAttribute("aria-sort", "ascending");
     await header.click(); // desc
+    await expect(header).toHaveAttribute("aria-sort", "descending");
     await header.click(); // none
     await expectNoSort(page);
   });
@@ -444,7 +335,7 @@ test.describe("Regression — adjacent behaviors", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 

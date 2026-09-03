@@ -16,9 +16,14 @@ import clsx from "clsx";
 import { EditorView, minimalSetup } from "codemirror";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
+import { useMountEffect } from "@tsmono/react/hooks";
 import { debounce } from "@tsmono/util";
 
-import { useEvalDescriptor } from "../../../../state/hooks";
+import { SampleSummary } from "../../../../client/api/types";
+import {
+  useEvalDescriptor,
+  useSelectedSampleSummaries,
+} from "../../../../state/hooks";
 import { useStore } from "../../../../state/store";
 import { FilterError } from "../../../types";
 import { sampleFilterItems } from "../filters";
@@ -28,6 +33,8 @@ import styles from "./SampleFilter.module.css";
 import { language } from "./tokenize";
 
 // Constants
+const kNoSamples: SampleSummary[] = [];
+
 const FILTER_TOOLTIP = `
 Filter samples by:
   • Scores
@@ -156,9 +163,9 @@ export const SampleFilter: FC = () => {
 
   const filter = useStore((state) => state.log.filter);
   const filterError = useStore((state) => state.log.filterError);
-  const samples = useStore(
-    (state) => state.log.selectedLogDetails?.sampleSummaries
-  );
+  // Settled rows only — autocompletion over whatever has loaded; the samples
+  // tab owns the loading/error surface.
+  const samples = useSelectedSampleSummaries().data ?? kNoSamples;
   const setFilter = useStore((state) => state.logActions.setFilter);
 
   const handleFocus = useCallback((event: FocusEvent, view: EditorView) => {
@@ -201,7 +208,7 @@ export const SampleFilter: FC = () => {
   );
 
   // Initialize editor (only once on mount)
-  useEffect(() => {
+  useMountEffect(() => {
     editorViewRef.current?.destroy();
 
     editorViewRef.current = new EditorView({
@@ -224,10 +231,10 @@ export const SampleFilter: FC = () => {
     });
 
     return () => editorViewRef.current?.destroy();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  });
 
   // Handle filter value changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!editorViewRef.current) return;
 
@@ -244,6 +251,7 @@ export const SampleFilter: FC = () => {
   }, [filter]);
 
   // Update compartments when dependencies change
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     editorViewRef.current?.dispatch({
       effects:
@@ -251,6 +259,7 @@ export const SampleFilter: FC = () => {
     });
   }, [evalDescriptor, makeUpdateListener]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     editorViewRef.current?.dispatch({
       effects:
@@ -258,6 +267,7 @@ export const SampleFilter: FC = () => {
     });
   }, [filterItems, makeAutocompletion, samples]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     editorViewRef.current?.dispatch({
       effects: linterCompartment.current.reconfigure(makeLinter()),

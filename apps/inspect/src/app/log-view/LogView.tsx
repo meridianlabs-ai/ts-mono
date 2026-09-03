@@ -10,12 +10,23 @@ import {
   useRef,
 } from "react";
 
-import { EmptyPanel, TabPanel, TabSet } from "@tsmono/react/components";
+import {
+  EmptyPanel,
+  PulsingDots,
+  TabPanel,
+  TabSet,
+} from "@tsmono/react/components";
 import { useScrollDirection } from "@tsmono/react/hooks";
 
-import { useEvalSpec, useRefreshLog } from "../../state/hooks";
+import { refreshLog } from "../../state/actions";
+import {
+  useEvalSpec,
+  useSelectedLogDetails,
+  useSelectedRunningMetrics,
+} from "../../state/hooks";
+import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
-import { useLogNavigation } from "../routing/logNavigation";
+import { useLogNavigationAction } from "../routing/logNavigation";
 
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
@@ -24,20 +35,21 @@ import { useJsonTabConfig } from "./tabs/JsonTab";
 import { useModelsTab } from "./tabs/ModelsTab";
 import { useSamplesTabConfig } from "./tabs/SamplesTab";
 import { useTaskTabConfig } from "./tabs/TaskTab";
+import { useTimelineTab } from "./tabs/timeline/TimelineTab";
 import { TitleView } from "./title-view/TitleView";
 import { TabDescriptor } from "./types";
 
 export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
-  const refreshLog = useRefreshLog();
-  const navigation = useLogNavigation();
+  const navigation = useLogNavigationAction();
 
-  const selectedLogDetails = useStore((state) => state.log.selectedLogDetails);
+  const selectedLogDetails = useSelectedLogDetails();
+  const logLoading = useSelectedLogLoading();
   const evalSpec = useEvalSpec();
-  const runningMetrics = useStore(
-    (state) => state.log.pendingSampleSummaries?.metrics
-  );
+  // Settled metrics only: the title view is decorative here — poll
+  // loading/error surface through the samples tab's summaries instead.
+  const runningMetrics = useSelectedRunningMetrics().data;
 
   // Use individual tab config hooks
   const samplesTabConfig = useSamplesTabConfig(
@@ -60,13 +72,24 @@ export const LogView: FC = () => {
     evalSpec,
     selectedLogDetails?.stats,
     selectedLogDetails?.results?.early_stopping,
-    selectedLogDetails?.tags
+    selectedLogDetails?.tags,
+    selectedLogDetails?.config_updates
   );
 
   const modelsTabConfig = useModelsTab(
     evalSpec,
     selectedLogDetails?.stats,
-    selectedLogDetails?.status
+    selectedLogDetails?.status,
+    selectedLogDetails?.config_updates
+  );
+
+  const timelineTabConfig = useTimelineTab(
+    evalSpec,
+    selectedLogDetails?.stats,
+    selectedLogDetails?.status,
+    selectedLogDetails?.config_updates,
+    selectedLogDetails?.log_updates,
+    selectedLogDetails?.results?.early_stopping
   );
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
@@ -76,9 +99,11 @@ export const LogView: FC = () => {
   // in a contravariant position.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tabs: Record<string, TabDescriptor<any>> = {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
     task: taskTabConfig,
     model: modelsTabConfig,
+    timeline: timelineTabConfig,
     config: intoTabConfig,
     ...(selectedLogDetails?.error ? { error: errorTabConfig } : {}),
     json: jsonTabConfig,
@@ -106,7 +131,7 @@ export const LogView: FC = () => {
 
   const onSelected = useCallback(
     (e: MouseEvent<HTMLElement>) => {
-      const id = e.currentTarget?.id;
+      const id = e.currentTarget.id;
       if (id) {
         setSelectedTab(id);
         navigation.selectTab(id);
@@ -116,9 +141,14 @@ export const LogView: FC = () => {
   );
 
   if (evalSpec === undefined) {
-    return <EmptyPanel />;
+    return (
+      <EmptyPanel>
+        {logLoading ? <PulsingDots size="large" text="Loading log…" /> : null}
+      </EmptyPanel>
+    );
   } else {
     const tabTools = Object.values(tabs)
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;

@@ -14,3 +14,59 @@ minimumReleaseAge: 10080
 # has aged 7 days; the advisory fix is the reason we want them early.
 minimumReleaseAgeExclude:
   - dompurify
+
+# eslint-plugin-react and eslint-plugin-jsx-a11y work with eslint 10 but
+# haven't published releases declaring ^10 peer support yet; drop these rules
+# when they do. openapi-typescript declares typescript ^5.x and the repo-wide
+# typescript is the 6.x preview alias (@typescript/typescript6); drop that
+# rule once it declares ^6 support.
+peerDependencyRules:
+  allowedVersions:
+    "eslint-plugin-react>eslint": ^10.0.0
+    "eslint-plugin-jsx-a11y>eslint": ^10.0.0
+    "openapi-typescript>typescript": ^6.0.0
+
+# Most entries below are advisory pins: they force a transitive dependency
+# onto a patched release. Bump them rather than deleting them. But don't
+# assume a pin still earns its place either — it goes inert once every
+# consumer's own range clears it, and it can invert, holding the tree back on
+# a stale release after its consumer moves on. `pnpm why <pkg>` and the
+# consumers' declared ranges tell you which; removing a still-live pin
+# silently downgrades.
+overrides:
+  # react-popper (used by packages/react PopOver) never published react-19
+  # peer support (declares ^16.8 || ^17 || ^18); widen it. Deletable only by
+  # migrating PopOver off react-popper (e.g. to floating-ui).
+  "react-popper>react": ^19.2.0
+  "react-popper>react-dom": ^19.1.1
+
+  js-yaml: ^4.3.1 # GHSA-h67p-54hq-rp68, merge-key DoS
+  esbuild: ^0.28.2 # dev-server path traversal
+  "nanoid@3": ^3.3.18 # GHSA-2v37-7h3g-55p8
+  # Paired with the minimumReleaseAgeExclude entry above: dompurify patches
+  # have been wanted before the soak window elapsed.
+  dompurify: ^3.4.13
+  # Reached only via eslint-plugin-react-hooks and storybook's react-docgen,
+  # both of which parse with babel. Nothing here builds with babel.
+  "@babel/core": ^7.29.6
+
+  # Together these evict brace-expansion 1.x and its ReDoS advisories.
+  # eslint-plugin-react, eslint-plugin-jsx-a11y and postcss-url all still ask
+  # for minimatch ^3.x; minimatch 5 is the oldest line that keeps the callable
+  # CJS export they need while depending on brace-expansion 2.x. Scoped
+  # per-major because consumers sit on both the 2.x and 5.x lines.
+  "minimatch@3": ^5.1.9
+  "brace-expansion@2": ^2.1.4
+  "brace-expansion@5": ^5.0.9
+
+# All false = same behavior as pnpm 10, which ignored these build scripts (no
+# approvals were configured anywhere). Flip one to true only if something
+# demonstrably needs its postinstall (esbuild gets binaries via
+# optionalDependencies; unrs-resolver has a JS fallback).
+allowBuilds:
+  # Same shape as esbuild: the native binding arrives via optionalDependencies
+  # (@swc/core-<platform>); the postinstall is only a fallback downloader.
+  "@swc/core": false
+  esbuild: false
+  msw: false
+  unrs-resolver: false

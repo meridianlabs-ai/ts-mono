@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 
 import { SegmentedControl } from "@tsmono/react/components";
 
@@ -39,11 +39,14 @@ export const ViewSegmentedControl: FC<ViewSegmentControlProps> = ({
         const path = logPath || samplesPath || tasksPath || "";
 
         if (segment === "logs") {
-          void navigate(logsUrl(path));
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          navigate(logsUrl(path));
         } else if (segment === "tasks") {
-          void navigate(tasksUrl(path));
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          navigate(tasksUrl(path));
         } else {
-          void navigate(samplesUrl(path));
+          // eslint-disable-next-line @typescript-eslint/no-floating-promises
+          navigate(samplesUrl(path));
         }
       }}
     />

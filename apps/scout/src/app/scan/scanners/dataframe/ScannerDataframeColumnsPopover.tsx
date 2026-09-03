@@ -1,8 +1,9 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router";
 
 import { PopOver } from "@tsmono/react/components";
+import { useMountEffect } from "@tsmono/react/hooks";
 
 import { getColumnsParam, updateColumnsParam } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
@@ -82,10 +83,10 @@ const useDataframeColumns = () => {
     (state) => state.setDataframeFilterColumns
   );
   const isDefaultFilter =
-    filteredColumns?.length === defaultColumns.length &&
+    filteredColumns.length === defaultColumns.length &&
     filteredColumns.every((col) => defaultColumns.includes(col));
-  const isAllFilter = filteredColumns?.length === allColumns.length;
-  const isNoneFilter = filteredColumns?.length === 0;
+  const isAllFilter = filteredColumns.length === allColumns.length;
+  const isNoneFilter = filteredColumns.length === 0;
   const setDefaultFilter = () => {
     setFilteredColumns(defaultColumns);
   };
@@ -97,10 +98,10 @@ const useDataframeColumns = () => {
   };
   const filterColumn = useCallback(
     (column: string, show: boolean) => {
-      if (show && !filteredColumns?.includes(column)) {
-        setFilteredColumns([...(filteredColumns || []), column]);
+      if (show && !filteredColumns.includes(column)) {
+        setFilteredColumns([...filteredColumns, column]);
       } else if (!show) {
-        setFilteredColumns(filteredColumns?.filter((c) => c !== column) || []);
+        setFilteredColumns(filteredColumns.filter((c) => c !== column));
       }
     },
     [filteredColumns, setFilteredColumns]
@@ -180,7 +181,7 @@ const useDataframeColumns = () => {
     setAllFilter,
     setNoneFilter,
     filterColumn,
-    filtered: filteredColumns || [],
+    filtered: filteredColumns,
     arrangedColumns,
   };
 };
@@ -199,7 +200,7 @@ const useColumnsUrlSync = (filtered: string[], isDefault: boolean) => {
   const skipFirstSyncRef = useRef(true);
 
   // On mount: apply URL columns if present
-  useEffect(() => {
+  useMountEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
@@ -207,11 +208,11 @@ const useColumnsUrlSync = (filtered: string[], isDefault: boolean) => {
     if (urlColumns) {
       setFilteredColumns(urlColumns);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  });
 
   // On column changes: update URL param (skip first run to avoid overwriting
   // the URL before the store has re-rendered with the URL-sourced columns)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (skipFirstSyncRef.current) {
       skipFirstSyncRef.current = false;
@@ -243,6 +244,7 @@ const InlinePresets: FC<{
   const [saveError, setSaveError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (isSaving && inputRef.current) {
       inputRef.current.focus();
@@ -300,7 +302,8 @@ const InlinePresets: FC<{
         <Fragment key={index}>
           {" | "}
           <span className={styles.presetItem}>
-            <a
+            <button
+              type="button"
               className={clsx(
                 styles.link,
                 matchingColumnPreset?.name === preset.name
@@ -311,8 +314,9 @@ const InlinePresets: FC<{
               title={`Load "${preset.name}" (${preset.columns.length} columns)`}
             >
               <span className={styles.presetLabel}>{preset.name}</span>
-            </a>
+            </button>
             <button
+              type="button"
               className={styles.presetDelete}
               onClick={(e) => handleDelete(index, e)}
               title={`Delete "${preset.name}"`}
@@ -347,10 +351,15 @@ const InlinePresets: FC<{
                 }
               }}
             />
-            <button className={styles.saveButton} onClick={handleSave}>
+            <button
+              type="button"
+              className={styles.saveButton}
+              onClick={handleSave}
+            >
               Save
             </button>
-            <a
+            <button
+              type="button"
               className={clsx(styles.link, styles.cancelButton)}
               onClick={() => {
                 setIsSaving(false);
@@ -359,7 +368,7 @@ const InlinePresets: FC<{
               }}
             >
               Cancel
-            </a>
+            </button>
             {saveError && (
               <span style={{ color: "var(--bs-danger, #dc3545)" }}>
                 {saveError}
@@ -372,6 +381,7 @@ const InlinePresets: FC<{
         <>
           {" | "}
           <button
+            type="button"
             className={clsx(styles.saveLink, "text-size-small")}
             onClick={startSaving}
           >
@@ -419,7 +429,8 @@ export const ScannerDataframeColumnsPopover: FC<
       styles={{ maxWidth: "600px" }}
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isDefaultFilter ? styles.selected : undefined
@@ -427,9 +438,10 @@ export const ScannerDataframeColumnsPopover: FC<
           onClick={() => setDefaultFilter()}
         >
           Default
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isAllFilter ? styles.selected : undefined
@@ -437,9 +449,10 @@ export const ScannerDataframeColumnsPopover: FC<
           onClick={() => setAllFilter()}
         >
           All
-        </a>
+        </button>
         |
-        <a
+        <button
+          type="button"
           className={clsx(
             styles.link,
             isNoneFilter ? styles.selected : undefined
@@ -447,7 +460,7 @@ export const ScannerDataframeColumnsPopover: FC<
           onClick={() => setNoneFilter()}
         >
           None
-        </a>
+        </button>
         <InlinePresets
           filtered={filtered}
           presets={presets}
@@ -471,22 +484,16 @@ export const ScannerDataframeColumnsPopover: FC<
                     {groupName}
                   </div>
                   {columns.map((column) => (
-                    <div
-                      key={column}
-                      className={clsx(styles.row)}
-                      onClick={() => {
-                        filterColumn(column, !filtered.includes(column));
-                      }}
-                    >
+                    <label key={column} className={clsx(styles.row)}>
                       <input
                         type="checkbox"
                         checked={filtered.includes(column)}
                         onChange={(e) => {
                           filterColumn(column, e.target.checked);
                         }}
-                      ></input>
+                      />
                       {column}
-                    </div>
+                    </label>
                   ))}
                 </div>
               ))}

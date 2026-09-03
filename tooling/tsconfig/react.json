@@ -3,11 +3,7 @@
   "extends": "./base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "lib": ["DOM", "DOM.Iterable", "ESNext"],
-    "plugins": [
-      {
-        "name": "typescript-plugin-css-modules"
-      }
-    ]
-  }
+    "lib": ["DOM", "DOM.Iterable", "ESNext"]
+  },
+  "files": ["./css.d.ts"]
 }

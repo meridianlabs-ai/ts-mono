@@ -13,23 +13,59 @@
  * after deserialization.
  */
 
-import { describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
-import { headerFromLogStart, LogStart } from "./remoteLogFile";
+import { testEvalPlan, testEvalSpec } from "@tsmono/inspect-common/testing";
+import type { EvalSpec } from "@tsmono/inspect-common/types";
 
-const baseEval = {
-  // EvalSpec has more fields, but the helper only touches `tags` and
-  // `metadata`; we cast as needed to avoid building the full shape.
+import { notImplemented, testSampleSummary } from "../api/testClientApi";
+import { LogViewAPI, SampleSummary } from "../api/types";
+
+import {
+  dedupeSummaries,
+  headerFromLogStart,
+  LogStart,
+  openRemoteLogFile,
+  readJournalConfigUpdatesFrom,
+} from "./remoteLogFile";
+
+// In-memory zip served to openRemoteLogFile: entry name → JSON content.
+// Populated per-test; the openRemoteZipFile mock snapshots it at open time.
+const zipEntries = vi.hoisted(() => new Map<string, unknown>());
+
+vi.mock("./remoteZipFile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./remoteZipFile")>()),
+  openRemoteZipFile: vi.fn(() =>
+    Promise.resolve({
+      centralDirectory: new Map(
+        Array.from(zipEntries.keys(), (name) => [name, { entry: name }])
+      ),
+      readFile: (name: string) =>
+        Promise.resolve(
+          new TextEncoder().encode(JSON.stringify(zipEntries.get(name)))
+        ),
+    })
+  ),
+}));
+
+// jsdom has no Worker, so replace the worker-backed parse with a direct one
+vi.mock("@tsmono/util", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tsmono/util")>()),
+  asyncJsonParseBytes: (bytes: Uint8Array) =>
+    Promise.resolve(JSON.parse(new TextDecoder().decode(bytes))),
+}));
+
+const baseEval = testEvalSpec({
   task: "test_task",
   task_id: "task_id",
   created: "2026-05-20T00:00:00Z",
-};
+});
 
-function makeStart(eval_: Record<string, unknown>): LogStart {
+function makeStart(eval_: EvalSpec): LogStart {
   return {
     version: 2,
-    eval: eval_ as unknown as LogStart["eval"],
-    plan: {} as LogStart["plan"],
+    eval: eval_,
+    plan: testEvalPlan(),
   };
 }
 
@@ -63,5 +99,182 @@ describe("headerFromLogStart", () => {
     // rely on stable references.
     expect(header.eval).toBe(start.eval);
     expect(header.plan).toBe(start.plan);
+  });
+});
+
+describe("readJournalConfigUpdatesFrom", () => {
+  const prefix = "_journal/config_updates/";
+
+  // A minimally-valid ConfigUpdate payload carrying the entry name as its
+  // change name, so ordering assertions can read it back out.
+  const updateFor = (name: string) => ({
+    changes: [{ name, config: "eval", value: 1 }],
+    scope: "task",
+    provenance: { timestamp: "", author: "", metadata: {} },
+  });
+  const changeNames = (updates: { changes: { name: string }[] }[]) =>
+    updates.map((update) => update.changes[0]?.name);
+
+  test("orders entries numerically, not lexicographically", async () => {
+    const names = [`${prefix}10.json`, `${prefix}2.json`, `${prefix}1.json`];
+    const reads: string[] = [];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) => {
+      reads.push(name);
+      return Promise.resolve(updateFor(name));
+    });
+    expect(reads).toEqual([
+      `${prefix}1.json`,
+      `${prefix}2.json`,
+      `${prefix}10.json`,
+    ]);
+    expect(updates).toHaveLength(3);
+  });
+
+  test("ignores non-integer and out-of-prefix names", async () => {
+    const names = [
+      `${prefix}notes.json`,
+      `${prefix}1.json`,
+      "_journal/summaries/1.json",
+      `${prefix}2.txt`,
+    ];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) =>
+      Promise.resolve(updateFor(name))
+    );
+    expect(changeNames(updates)).toEqual([`${prefix}1.json`]);
+  });
+
+  test("stops at the first failed read, not splicing around it", async () => {
+    // The fold is last-wins: a truncated tail is safe, a gap is not.
+    const names = [`${prefix}1.json`, `${prefix}2.json`, `${prefix}3.json`];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) =>
+      name.endsWith("2.json")
+        ? Promise.reject(new Error("corrupt entry"))
+        : Promise.resolve(updateFor(name))
+    );
+    expect(changeNames(updates)).toEqual([`${prefix}1.json`]);
+  });
+
+  test("drops malformed entries instead of poisoning the fold", async () => {
+    const names = [`${prefix}1.json`, `${prefix}2.json`];
+    const updates = await readJournalConfigUpdatesFrom(names, (name) =>
+      Promise.resolve(
+        name.endsWith("1.json") ? { changes: "not-an-array" } : updateFor(name)
+      )
+    );
+    expect(changeNames(updates)).toEqual([`${prefix}2.json`]);
+  });
+
+  test("returns empty when no journal entries exist", async () => {
+    const updates = await readJournalConfigUpdatesFrom([], () =>
+      Promise.resolve({})
+    );
+    expect(updates).toEqual([]);
+  });
+});
+
+function makeSummary(
+  id: number | string,
+  epoch: number,
+  error?: string
+): SampleSummary {
+  return testSampleSummary({ id, epoch, error });
+}
+
+// Wiring tests for boundary normalization (#555): these fail if the
+// normalizeSampleSummaries call is removed from readSampleSummaries /
+// readFallbackSummaries, not just if the normalizer itself regresses.
+describe("readLogSummary summary normalization", () => {
+  const fakeApi = (): LogViewAPI => ({
+    client_events: notImplemented("client_events"),
+    get_eval_set: notImplemented("get_eval_set"),
+    get_flow: notImplemented("get_flow"),
+    get_logs: notImplemented("get_logs"),
+    get_log_contents: notImplemented("get_log_contents"),
+    get_log_info: () => Promise.resolve({ size: 1024 }),
+    get_log_bytes: notImplemented("get_log_bytes"),
+    get_log_summaries: notImplemented("get_log_summaries"),
+    log_message: notImplemented("log_message"),
+    download_file: notImplemented("download_file"),
+    open_log_file: notImplemented("open_log_file"),
+    get_app_config: notImplemented("get_app_config"),
+  });
+
+  // A finalized 2024-era header; normalizeEvalHeader fills the rest.
+  const vintageHeader = {
+    version: 2,
+    status: "success",
+    eval: {
+      task: "demo",
+      task_id: "t1",
+      run_id: "r1",
+      created: "2024-11-05T13:32:37-05:00",
+      model: "mockllm/model",
+      dataset: {},
+      config: {},
+    },
+  };
+
+  // The five fields real vintage summary rows carry.
+  const vintageRow = {
+    id: "s1",
+    epoch: 1,
+    input: "q",
+    target: "a",
+    scores: null,
+  };
+
+  const expectedFills = {
+    id: "s1",
+    completed: true,
+    metadata: {},
+    model_usage: {},
+    role_usage: {},
+  };
+
+  beforeEach(() => {
+    zipEntries.clear();
+    zipEntries.set("header.json", vintageHeader);
+  });
+
+  test("fills read-time defaults on vintage summaries.json rows", async () => {
+    zipEntries.set("summaries.json", [vintageRow]);
+    const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
+    const details = await remoteLog.readLogSummary();
+    expect(details.sampleSummaries).toHaveLength(1);
+    expect(details.sampleSummaries[0]).toMatchObject(expectedFills);
+  });
+
+  test("fills read-time defaults on journal fallback rows", async () => {
+    zipEntries.set("_journal/summaries/1.json", [vintageRow]);
+    const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
+    const details = await remoteLog.readLogSummary();
+    expect(details.sampleSummaries).toHaveLength(1);
+    expect(details.sampleSummaries[0]).toMatchObject(expectedFills);
+  });
+});
+
+describe("dedupeSummaries", () => {
+  test("keeps the last row per (id, epoch)", () => {
+    // a requeued sample journals its superseded prior attempt and, in a
+    // later journal file, its re-run — the re-run's row must win
+    const deduped = dedupeSummaries([
+      makeSummary("flaky", 1, "boom"),
+      makeSummary("steady", 1),
+      makeSummary("flaky", 1),
+    ]);
+    expect(deduped).toEqual([
+      makeSummary("flaky", 1),
+      makeSummary("steady", 1),
+    ]);
+  });
+
+  test("treats epochs of the same sample as distinct rows", () => {
+    const rows = [makeSummary("s1", 1), makeSummary("s1", 2)];
+    expect(dedupeSummaries(rows)).toEqual(rows);
+  });
+
+  test("does not conflate numeric and string ids", () => {
+    const rows = [makeSummary(1, 1), makeSummary("1", 1)];
+    expect(dedupeSummaries(rows)).toEqual(rows);
   });
 });

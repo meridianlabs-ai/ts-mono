@@ -1,25 +1,26 @@
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { getVscodeApi } from "@tsmono/util";
 
+import { getBootstrap } from "./app_config";
 import { App } from "./app/App";
-import api from "./client/api/index";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";
 
-// Resolve the api
-const applicationApi = api;
+// No api instance exists yet — construction needs the resolved log dir
+// (below the gate). The backend's transport facts are a sync bootstrap fact.
+const backendCapabilities = getBootstrap().backend.capabilities;
 const applicationStorage = storage;
 
 // Application capabilities
 const vscode = getVscodeApi();
 const capabilities: Capabilities = {
   downloadFiles: true,
-  downloadLogs: !!applicationApi.download_log,
+  downloadLogs: backendCapabilities.downloadLogs,
   webWorkers: true,
-  streamSamples: !!applicationApi.get_log_pending_samples,
-  streamSampleData: !!applicationApi.get_log_sample_data,
+  streamSamples: backendCapabilities.streamSamples,
 };
 
 // Initial state / storage
@@ -39,7 +40,7 @@ if (vscode) {
 }
 
 // Inititialize the application store
-initializeStore(applicationApi, capabilities, applicationStorage);
+initializeStore(capabilities, applicationStorage);
 
 // Determine whether we need to restore a stored hash
 restoreHash();
@@ -56,7 +57,11 @@ if (!container) {
 
 // Render into the root
 const root = createRoot(container);
-root.render(<App api={applicationApi} />);
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
 
 function restoreHash() {
   // Check if we need to restore a route

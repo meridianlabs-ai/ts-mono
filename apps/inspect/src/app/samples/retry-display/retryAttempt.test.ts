@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
+import {
+  testErrorEvent,
+  testSampleInitEvent,
+} from "@tsmono/inspect-common/testing";
 
-import { attemptDuration, deriveErrorType } from "./retryAttempt";
+import { attemptStartTime, deriveErrorType } from "./retryAttempt";
 
 function retry(partial: Partial<EvalRetryError>): EvalRetryError {
   return {
@@ -46,33 +50,28 @@ describe("deriveErrorType", () => {
   });
 });
 
-describe("attemptDuration", () => {
-  it("returns the span in seconds between first and last event timestamps", () => {
-    const events = [
-      { event: "sample_init", timestamp: "2024-01-01T00:00:00.000Z" },
-      { event: "error", timestamp: "2024-01-01T00:00:04.200Z" },
-    ] as unknown as EvalRetryError["events"];
-    expect(attemptDuration(retry({ events }))).toBeCloseTo(4.2, 3);
+describe("attemptStartTime", () => {
+  it("returns the earliest event timestamp regardless of event order", () => {
+    const events: EvalRetryError["events"] = [
+      testErrorEvent({ timestamp: "2024-01-01T00:00:04.200Z" }),
+      testSampleInitEvent({ timestamp: "2024-01-01T00:00:00.000Z" }),
+    ];
+    expect(attemptStartTime(retry({ events }))?.toISOString()).toBe(
+      "2024-01-01T00:00:00.000Z"
+    );
   });
 
-  it("returns null when there are no events", () => {
-    expect(attemptDuration(retry({ events: null }))).toBeNull();
-    expect(attemptDuration(retry({ events: [] }))).toBeNull();
+  it("returns a start time from a single timestamped event", () => {
+    const events: EvalRetryError["events"] = [
+      testSampleInitEvent({ timestamp: "2024-01-01T00:00:00.000Z" }),
+    ];
+    expect(attemptStartTime(retry({ events }))?.toISOString()).toBe(
+      "2024-01-01T00:00:00.000Z"
+    );
   });
 
-  it("returns null when fewer than two events carry a timestamp", () => {
-    const events = [
-      { event: "sample_init", timestamp: "2024-01-01T00:00:00.000Z" },
-    ] as unknown as EvalRetryError["events"];
-    expect(attemptDuration(retry({ events }))).toBeNull();
-  });
-
-  it("returns 0 when all events share the same timestamp", () => {
-    const ts = "2024-01-01T00:00:00.000Z";
-    const events = [
-      { event: "sample_init", timestamp: ts },
-      { event: "error", timestamp: ts },
-    ] as unknown as EvalRetryError["events"];
-    expect(attemptDuration(retry({ events }))).toBe(0);
+  it("returns null when no event carries a parseable timestamp", () => {
+    expect(attemptStartTime(retry({ events: null }))).toBeNull();
+    expect(attemptStartTime(retry({ events: [] }))).toBeNull();
   });
 });

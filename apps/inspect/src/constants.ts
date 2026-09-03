@@ -7,6 +7,7 @@ export const kLogViewJsonTabId = "json";
 export const kLogViewInfoTabId = "info";
 export const kLogViewModelsTabId = "models";
 export const kLogViewTaskTabId = "task";
+export const kLogViewTimelineTabId = "timeline";
 export const kLogViewErrorTabId = "error";
 
 export const kWorkspaceTabs = [
@@ -15,6 +16,7 @@ export const kWorkspaceTabs = [
   kLogViewInfoTabId,
   kLogViewModelsTabId,
   kLogViewTaskTabId,
+  kLogViewTimelineTabId,
   kLogViewErrorTabId,
 ];
 
@@ -28,6 +30,9 @@ export const kSampleErrorTabId = `error`;
 export const kSampleRetriesTabId = `retries`;
 export const kSampleErrorRetriesTabId = `retry-errors`;
 export const kSampleJsonTabId = `json`;
+// Focus-mode page (single focused turn, entered from a transcript event).
+// Like `print`, intentionally absent from kSampleTabIds — it's not a sample tab.
+export const kSampleEventTabId = `event`;
 
 export const kSampleTabIds = [
   kSampleMessagesTabId,

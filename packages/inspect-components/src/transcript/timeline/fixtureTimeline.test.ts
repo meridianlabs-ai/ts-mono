@@ -1,13 +1,16 @@
 /**
  * Fixture-driven tests for buildTimeline().
  *
- * Uses the same JSON fixtures as the Python tests (tests/transcript/nodes/fixtures/events/)
- * to ensure cross-language consistency between the Python and TypeScript timeline
- * implementations.
+ * Uses the same JSON fixtures as the Python tests to ensure cross-language
+ * consistency between the Python and TypeScript timeline implementations.
+ * Fixtures live in the embedding parent repo: inspect_scout keeps them in
+ * tests/transcript/nodes/fixtures/events/, inspect_ai in
+ * tests/timeline/fixtures/events/.
  *
- * These tests only run when ts-mono is embedded inside inspect_scout (the fixtures
- * live in the parent repo). When ts-mono is used from inspect_ai or standalone,
- * the fixtures directory won't exist and the test suite is skipped.
+ * These tests only run when ts-mono is embedded inside a parent repo that
+ * provides fixtures; when used standalone the suite is skipped. A parent repo
+ * that owns a corpus sets TSMONO_REQUIRE_FIXTURES=1 in the job that runs this
+ * suite, which turns "found nothing" from a skip into a failure.
  */
 
 /// <reference types="node" />
@@ -17,9 +20,26 @@ import { join } from "path";
 
 import { describe, expect, it } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testToolCall,
+} from "@tsmono/inspect-common/testing";
+import type {
+  ChatCompletionChoice,
+  ChatMessage,
+  CompactionEvent,
+  Event,
+  GenerateConfig,
+  ToolCall,
+} from "@tsmono/inspect-common/types";
 
 import {
+  asTimelineEvent,
+  asTimelineSpan,
   buildTimeline,
   TimelineEvent,
   TimelineSpan,
@@ -48,23 +68,22 @@ interface JsonEvent {
   source?: string;
   message_id?: string;
   from_anchor?: string;
-  input?: Array<{
-    role: string;
-    content: string;
-    tool_call_id?: string;
-    function?: string;
-  }>;
+  input?: ChatMessage[];
   output?: {
     usage?: {
       input_tokens?: number;
       output_tokens?: number;
     };
     choices?: Array<{
-      message: { role: string; content: string };
-      stop_reason?: string;
+      message: {
+        content: string;
+        tool_calls?: Pick<ToolCall, "id" | "function" | "arguments">[];
+      };
+      stop_reason?: ChatCompletionChoice["stop_reason"];
     }>;
   };
   events?: JsonEvent[];
+  config?: GenerateConfig;
 }
 
 interface ExpectedAgentSource {
@@ -76,6 +95,7 @@ interface ExpectedBranch {
   branched_from: string;
   event_uuids?: string[];
   branches?: ExpectedBranch[];
+  children?: ExpectedAgent[];
 }
 
 interface ExpectedAgent {
@@ -122,25 +142,61 @@ interface FixtureData {
 // Fixture Loading
 // =============================================================================
 
-const FIXTURES_DIR = join(
-  __dirname,
-  "../../../../../../../../../tests/transcript/nodes/fixtures/events"
-);
+// Candidate fixture locations in the embedding parent repo (relative to
+// this file, nine levels up to the parent repo root): inspect_scout keeps
+// fixtures in tests/transcript/nodes/, inspect_ai in tests/timeline/.
+const PARENT_REPO_ROOT = join(__dirname, "../../../../../../../../..");
+const FIXTURE_DIR_CANDIDATES = [
+  join(PARENT_REPO_ROOT, "tests/transcript/nodes/fixtures/events"),
+  join(PARENT_REPO_ROOT, "tests/timeline/fixtures/events"),
+];
 
-const FIXTURES_AVAILABLE = existsSync(FIXTURES_DIR);
+const FIXTURE_DIRS = FIXTURE_DIR_CANDIDATES.filter((dir) => existsSync(dir));
+
+const kCompactionTypes: readonly CompactionEvent["type"][] = [
+  "summary",
+  "edit",
+  "trim",
+];
+
+const compactionType = (value: unknown): CompactionEvent["type"] =>
+  kCompactionTypes.find((type) => type === value) ?? "summary";
 
 function loadFixture(name: string): FixtureData {
-  const filePath = join(FIXTURES_DIR, `${name}.json`);
-  const content = readFileSync(filePath, "utf-8");
-  return JSON.parse(content) as FixtureData;
+  for (const dir of FIXTURE_DIRS) {
+    const filePath = join(dir, `${name}.json`);
+    if (existsSync(filePath)) {
+      const content = readFileSync(filePath, "utf-8");
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the fixture files on disk are the contract this suite is written against
+      return JSON.parse(content) as FixtureData;
+    }
+  }
+  throw new Error(`Fixture not found: ${name}`);
 }
 
-function getFixtureNames(): string[] {
-  if (!FIXTURES_AVAILABLE) return [];
-  const files = readdirSync(FIXTURES_DIR);
-  return files
-    .filter((f) => f.endsWith(".json"))
-    .map((f) => f.replace(".json", ""));
+// Names are deduped across candidate dirs; loadFixture resolves a name from
+// the first dir that has it. Gate on names (not dir existence) so an
+// existing-but-empty fixtures dir skips the suite instead of failing it.
+const FIXTURE_NAMES = [
+  ...new Set(
+    FIXTURE_DIRS.flatMap((dir) =>
+      readdirSync(dir)
+        .filter((f) => f.endsWith(".json"))
+        .map((f) => f.replace(".json", ""))
+    )
+  ),
+];
+const FIXTURES_AVAILABLE = FIXTURE_NAMES.length > 0;
+
+// Skipping is right for a bare clone and wrong for a parent repo that has a
+// corpus: on its own this file cannot tell the two apart, so a broken path
+// climb or a moved fixtures directory would report green over zero tests. The
+// parent's job supplies the missing half by setting TSMONO_REQUIRE_FIXTURES=1.
+if (!FIXTURES_AVAILABLE && process.env.TSMONO_REQUIRE_FIXTURES === "1") {
+  throw new Error(
+    "TSMONO_REQUIRE_FIXTURES is set but no fixtures were found. Looked in:\n" +
+      FIXTURE_DIR_CANDIDATES.map((dir) => `  ${dir}`).join("\n")
+  );
 }
 
 // =============================================================================
@@ -158,70 +214,61 @@ function createEvent(data: JsonEvent): Event | null {
 
   switch (data.event) {
     case "model": {
-      const inputMsgs = (data.input ?? []).map((msg) => {
-        const mapped: Record<string, unknown> = {
-          role: msg.role,
-          content: msg.content,
-        };
-        if (msg.tool_call_id !== undefined) {
-          mapped.tool_call_id = msg.tool_call_id;
-        }
-        if (msg.function !== undefined) {
-          mapped.function = msg.function;
-        }
-        return mapped;
-      });
-      return {
+      const model = data.model ?? "unknown";
+      const usage = data.output?.usage;
+      const inputTokens = usage?.input_tokens ?? 0;
+      const outputTokens = usage?.output_tokens ?? 0;
+      return testModelEvent({
         ...baseFields,
-        event: "model",
-        model: data.model ?? "unknown",
+        model,
         completed: data.completed ?? null,
-        input: inputMsgs,
-        output: data.output
-          ? {
-              choices: data.output.choices
-                ? data.output.choices.map((c) => ({
-                    message: {
-                      role: c.message.role,
-                      content: c.message.content,
-                    },
-                    stop_reason: c.stop_reason ?? "stop",
-                  }))
-                : undefined,
-              usage: data.output.usage
-                ? {
-                    input_tokens: data.output.usage.input_tokens ?? 0,
-                    output_tokens: data.output.usage.output_tokens ?? 0,
-                  }
-                : null,
-            }
-          : null,
-      } as Event;
+        span_id: data.span_id ?? null,
+        config: data.config ?? {},
+        input: data.input ?? [],
+        output: testModelOutput({
+          model,
+          choices: (data.output?.choices ?? []).map((c) =>
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                content: c.message.content,
+                tool_calls:
+                  c.message.tool_calls?.map((tc) => testToolCall(tc)) ?? null,
+              }),
+              ...(c.stop_reason !== undefined
+                ? { stop_reason: c.stop_reason }
+                : {}),
+            })
+          ),
+          usage: usage
+            ? testModelUsage({
+                input_tokens: inputTokens,
+                output_tokens: outputTokens,
+                total_tokens: inputTokens + outputTokens,
+              })
+            : null,
+        }),
+      });
     }
 
     case "tool": {
       const nestedEvents = data.events
         ?.map((e) => createEvent(e))
         .filter((e): e is Event => e !== null);
-      const toolEvent: Record<string, unknown> = {
+      return {
         ...baseFields,
         event: "tool",
         id: data.id ?? "",
         function: data.function ?? "",
+        arguments: {},
+        type: "function",
         completed: data.completed ?? null,
+        span_id: data.span_id ?? null,
         agent: data.agent ?? null,
         events: nestedEvents ?? [],
+        result: data.result ?? "",
+        agent_span_id: data.agent_span_id ?? null,
+        message_id: data.message_id ?? null,
       };
-      if (data.result !== undefined) {
-        toolEvent.result = data.result;
-      }
-      if (data.agent_span_id !== undefined) {
-        toolEvent.agent_span_id = data.agent_span_id;
-      }
-      if (data.message_id !== undefined) {
-        toolEvent.message_id = data.message_id;
-      }
-      return toolEvent as Event;
     }
 
     case "info": {
@@ -259,7 +306,7 @@ function createEvent(data: JsonEvent): Event | null {
       return {
         ...baseFields,
         event: "compaction",
-        type: (data.type as "summary" | "edit" | "trim") ?? "summary",
+        type: compactionType(data.type),
         span_id: data.span_id ?? null,
         source: null,
         tokens_before: null,
@@ -328,6 +375,14 @@ function assertBranchMatches(
       .filter((uuid): uuid is string => uuid !== null && uuid !== undefined);
     expect(uuids).toEqual(expected.event_uuids);
   }
+  if (expected.children !== undefined) {
+    const childSpans = getChildSpans(actual);
+    expect(childSpans.length).toBe(expected.children.length);
+    for (let i = 0; i < expected.children.length; i++) {
+      assertSpanMatches(childSpans[i] ?? null, expected.children[i] ?? null);
+    }
+  }
+
   if (expected.branches !== undefined) {
     expect(actual.branches.length).toBe(expected.branches.length);
     for (let i = 0; i < expected.branches.length; i++) {
@@ -356,10 +411,8 @@ function assertScoringSpanMatches(
   expect(scorerSpans.length).toBe(1);
   const scoring = scorerSpans[0]!;
 
-  if (expected.event_uuids !== undefined) {
-    const actualUuids = getDirectEventUuids(scoring);
-    expect(actualUuids).toEqual(expected.event_uuids);
-  }
+  const actualUuids = getDirectEventUuids(scoring);
+  expect(actualUuids).toEqual(expected.event_uuids);
 }
 
 function assertSpanMatches(
@@ -374,10 +427,7 @@ function assertSpanMatches(
   expect(actual!.id).toBe(expected.id);
   expect(actual!.name).toBe(expected.name);
 
-  if (
-    expected.source &&
-    (expected.source.source === "span" || expected.source.source === "tool")
-  ) {
+  if (expected.source) {
     expect(actual!.spanType).toBe("agent");
   }
 
@@ -442,13 +492,11 @@ function assertSpanMatches(
       expect(actualItem.type).toBe(expectedType);
 
       if (expectedItem.type === "event" && expectedItem.uuid) {
-        expect((actualItem as TimelineEvent).event.uuid).toBe(
-          expectedItem.uuid
-        );
+        expect(asTimelineEvent(actualItem).event.uuid).toBe(expectedItem.uuid);
       }
 
       if (expectedItem.type === "agent") {
-        const spanItem = actualItem as TimelineSpan;
+        const spanItem = asTimelineSpan(actualItem);
         if (expectedItem.id) {
           expect(spanItem.id).toBe(expectedItem.id);
         }
@@ -456,12 +504,7 @@ function assertSpanMatches(
           expect(spanItem.name).toBe(expectedItem.name);
         }
         if (expectedItem.source) {
-          if (
-            expectedItem.source.source === "span" ||
-            expectedItem.source.source === "tool"
-          ) {
-            expect(spanItem.spanType).toBe("agent");
-          }
+          expect(spanItem.spanType).toBe("agent");
         }
         if (expectedItem.nested_uuids) {
           const allUuids = getAllEventUuids(spanItem);
@@ -570,13 +613,13 @@ function assertTimelineMatches(
         expect(actualItem.type).toBe(expectedType);
 
         if (expectedItem.type === "event" && expectedItem.uuid) {
-          expect((actualItem as TimelineEvent).event.uuid).toBe(
+          expect(asTimelineEvent(actualItem).event.uuid).toBe(
             expectedItem.uuid
           );
         }
 
         if (expectedItem.type === "agent") {
-          const spanItem = actualItem as TimelineSpan;
+          const spanItem = asTimelineSpan(actualItem);
           if (expectedItem.id) {
             expect(spanItem.id).toBe(expectedItem.id);
           }
@@ -584,12 +627,7 @@ function assertTimelineMatches(
             expect(spanItem.name).toBe(expectedItem.name);
           }
           if (expectedItem.source) {
-            if (
-              expectedItem.source.source === "span" ||
-              expectedItem.source.source === "tool"
-            ) {
-              expect(spanItem.spanType).toBe("agent");
-            }
+            expect(spanItem.spanType).toBe("agent");
           }
           if (expectedItem.nested_uuids) {
             const allUuids = getAllEventUuids(spanItem);
@@ -612,7 +650,7 @@ function assertTimelineMatches(
 // =============================================================================
 
 describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
-  const fixtures = getFixtureNames();
+  const fixtures = FIXTURE_NAMES;
 
   it.each(fixtures)("fixture: %s", (fixtureName) => {
     const fixture = loadFixture(fixtureName);
@@ -629,7 +667,8 @@ describe.runIf(FIXTURES_AVAILABLE)("buildTimeline (JSON fixtures)", () => {
   });
 
   it("computes startTime and endTime correctly", () => {
-    const fixture = loadFixture("simple_agent");
+    // Any fixture works here — which ones exist depends on the parent repo.
+    const fixture = loadFixture(fixtures[0]!);
     const events = eventsFromJson(fixture);
     const result = buildTimeline(events);
 
