@@ -1614,6 +1614,8 @@ export interface components {
             completed_samples: number;
             early_stopping?: components["schemas"]["EarlyStoppingSummary"] | null;
             headline?: components["schemas"]["HeadlineMetric"] | null;
+            /** Logged Samples */
+            logged_samples?: number | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
