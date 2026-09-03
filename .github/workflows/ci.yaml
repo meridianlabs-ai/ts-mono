@@ -60,7 +60,7 @@ jobs:
         run: node scripts/check-suppressions.mjs
 
       - name: Test the gate scripts
-        run: node --test scripts/check-suppressions.test.mjs scripts/suppressions-pr-delta.test.mjs
+        run: node --test scripts/check-suppressions.test.mjs scripts/suppressions-pr-delta.test.mjs scripts/dependabot-fix-continuation.test.mjs
 
   typecheck:
     runs-on: ubuntu-latest

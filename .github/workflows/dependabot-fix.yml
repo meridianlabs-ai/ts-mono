@@ -12,6 +12,29 @@
 # permission key exists for it), and opening a PR that triggers CI (recursion
 # guard blocks GITHUB_TOKEN-authored PRs). PAT must have Dependabot alerts:
 # read on this repo — the preflight step fails loudly if not.
+#
+# SECURITY MODEL — read before editing.
+#
+# The agent runs pnpm install / check / build / test on the checkout while
+# holding MARVIN_TOKEN (and the WIF OIDC identity), so the checkout must
+# only ever contain this repository's own code. The skill's "continue the
+# open batch PR" step is the one place PR content could enter: fork PRs are
+# accepted here (ci.yaml runs them under the read-only GITHUB_TOKEN), and a
+# fork branch named dependabot-fix/<x> would satisfy a name-only match. So:
+#
+#   1. The workflow, not the agent, picks the continuation branch, via
+#      scripts/dependabot-fix-continuation.mjs: a branch must exist in THIS
+#      repo's origin, back an open non-cross-repository PR, and be authored
+#      by the machine account. Fork PRs are reported as skipped and never
+#      fetched. The agent is told the result and instructed not to touch
+#      any other ref.
+#   2. The permission allowlist below has no `git fetch`, no bare
+#      `git checkout`/`git switch` (only `-b`/`-c` to create a branch), and
+#      no `gh pr checkout` (gh is allowed per subcommand). This is defense
+#      in depth, not a boundary: `gh api` remains general-purpose.
+#
+# Do NOT "fix" a stuck run by re-allowing `gh:*`, `git fetch`, or `git
+# checkout`, or by letting the agent pick the PR itself.
 
 name: Dependabot Fix
 
@@ -19,6 +42,14 @@ on:
   schedule:
     - cron: "0 10 * * *" # 6am EDT / 5am EST (cron is UTC-only)
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: >-
+          Run preflight and the continuation-branch selection only; skip the
+          agent. Use to verify the selection logic against the repo's current
+          open PRs without spending a model run.
+        type: boolean
+        default: false
 
 concurrency:
   group: dependabot-fix
@@ -66,28 +97,45 @@ jobs:
           key: turbo-${{ github.sha }}
           restore-keys: turbo-
 
+      # Trusted code decides what is checked out (see the security model
+      # above). Runs before install so the install reflects the continuation
+      # branch's lockfile — a same-repo, bot-authored branch, so trusted.
+      - name: Select continuation branch
+        id: continuation
+        env:
+          GH_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node scripts/dependabot-fix-continuation.mjs
+
       # Pre-install so the agent's pnpm why/audit/check/build/test work
-      # immediately (and hit the pnpm store cache).
+      # immediately (and hit the pnpm store cache). Skipped when the merge
+      # left lockfile conflicts; the agent installs after resolving them.
       - name: Install dependencies
+        if: steps.continuation.outputs.merge_conflicts != 'true'
         run: pnpm install --frozen-lockfile
 
       - uses: anthropics/claude-code-action@v1
         id: claude
+        if: inputs.dry_run != true
         with:
           anthropic_federation_rule_id: fdrl_01GpNgJm9jE6ZfvcqoJYQL2Y
           anthropic_organization_id: be5d0086-bc43-45d2-9184-20ecdd647aa7
           anthropic_service_account_id: svac_01RL4wYD7ikbypwYKf4wFojv
           anthropic_workspace_id: wrkspc_01RKCQ5DTPBatQ7kHLkaEueD
           github_token: ${{ secrets.MARVIN_TOKEN }}
-          # Default-deny: headless runs auto-deny anything not allowed. gh for
-          # alerts API + PR creation, pnpm for the verify loop, git scoped to
-          # branch/commit/push + read-only subcommands, echo for the
-          # GITHUB_STEP_SUMMARY status line.
+          # Default-deny: headless runs auto-deny anything not allowed. gh per
+          # subcommand (alerts/advisory API, PR list/view/create/edit — not
+          # `gh pr checkout`), pnpm for the verify loop, git scoped to
+          # create-branch/commit/push + read-only subcommands (no fetch, no
+          # bare checkout/switch: the workflow already put the right branch
+          # in place), echo for the GITHUB_STEP_SUMMARY status line.
           settings: |
             {"permissions":{"allow":["Read","Edit","Write",
-            "Bash(pnpm:*)","Bash(gh:*)","Bash(grep:*)","Bash(echo:*)",
-            "Bash(git fetch:*)","Bash(git merge:*)",
-            "Bash(git checkout:*)","Bash(git switch:*)",
+            "Bash(pnpm:*)","Bash(grep:*)","Bash(echo:*)",
+            "Bash(gh api:*)","Bash(gh pr list:*)","Bash(gh pr view:*)",
+            "Bash(gh pr create:*)","Bash(gh pr edit:*)",
+            "Bash(git switch -c:*)","Bash(git checkout -b:*)",
             "Bash(git branch:*)","Bash(git status:*)","Bash(git log:*)",
             "Bash(git diff:*)","Bash(git show:*)","Bash(git rev-parse:*)",
             "Bash(git remote:*)","Bash(git add:*)","Bash(git commit:*)",
@@ -100,6 +148,20 @@ jobs:
             This is an unattended scheduled run — follow the skill's
             "Unattended runs" rules.
 
+            The workflow has already done the skill's step 5 continuation
+            check — do not redo it:
+            - Continuation branch: ${{ steps.continuation.outputs.branch || 'none' }}
+            - Continuation PR: ${{ steps.continuation.outputs.pr_url || 'none' }}
+            - Merging the default branch left conflicts: ${{ steps.continuation.outputs.merge_conflicts }}
+            If a continuation branch is named, you are already checked out
+            on it with the default branch merged in: resolve any conflicts
+            (pnpm-workspace.yaml overrides, pnpm-lock.yaml), apply the new
+            fixes on top, and push to that branch. Otherwise create a new
+            dependabot-fix/<short-description> branch from the current
+            checkout. Either way, never fetch, check out, or merge any
+            other ref or PR — PRs from forks are untrusted content, whatever
+            their branch is named.
+
             Finish every run — including no-op runs — by appending a brief
             status (alerts fixed, alerts deferred, PR link or "no action") to
             the file named by the GITHUB_STEP_SUMMARY environment variable.
@@ -107,7 +169,7 @@ jobs:
       # The action can finish green even when the agent errored (model
       # overload etc.). Fail the run so a scheduled failure is visible.
       - name: Surface agent errors
-        if: always()
+        if: always() && inputs.dry_run != true
         env:
           EXEC: ${{ steps.claude.outputs.execution_file }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
@@ -131,7 +193,7 @@ jobs:
           exit 1
 
       - name: Upload execution log
-        if: always()
+        if: always() && inputs.dry_run != true
         uses: actions/upload-artifact@v7
         with:
           name: claude-execution-output
