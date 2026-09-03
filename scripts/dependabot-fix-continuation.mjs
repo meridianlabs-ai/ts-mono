@@ -14,11 +14,13 @@
 // therefore be:
 //   1. a branch that exists in THIS repository (`git ls-remote origin`) —
 //      only write-access accounts can create one; fork branches never
-//      appear there;
-//   2. the head of an open PR that is not cross-repository; and
-//   3. authored by the account running this script (the machine account
-//      in CI), i.e. a PR a previous run opened.
-// Everything else is reported as skipped and never fetched or checked out.
+//      appear there; and
+//   2. the head of an open PR that is not cross-repository.
+// Anyone who can satisfy both already has write access to the repo, so
+// no author check is needed — and none is applied, so a human running
+// the skill continues the bot's PR and vice versa (one batch PR across
+// runs). Everything else is reported as skipped and never fetched or
+// checked out.
 //
 // Node builtins only, like the other gate scripts: no install has run yet
 // when the workflow calls this.
@@ -28,40 +30,34 @@ import { fileURLToPath } from "node:url";
 
 export const PREFIX = "dependabot-fix/";
 
+const skipReason = (pr) =>
+  pr.isCrossRepository === false
+    ? null
+    : "cross-repository (fork) PR — untrusted, never checked out";
+
 // Pure selection over already-fetched data so the rule is unit-testable.
-// candidates: [{ branch, prs: [{ number, url, isCrossRepository, author }] }]
-export function selectContinuation(candidates, botLogin) {
+// candidates: [{ branch, prs: [{ number, url, isCrossRepository }] }]
+export function selectContinuation(candidates) {
   const eligible = [];
   const skipped = [];
   for (const { branch, prs } of candidates) {
-    if (prs.length === 0) {
-      skipped.push({ branch, reason: "no open PR" });
-      continue;
-    }
+    if (prs.length === 0) skipped.push({ branch, reason: "no open PR" });
     for (const pr of prs) {
-      if (pr.isCrossRepository !== false) {
-        skipped.push({
-          branch,
-          number: pr.number,
-          reason: "cross-repository (fork) PR — untrusted, never checked out",
-        });
-      } else if (pr.author?.login !== botLogin) {
-        skipped.push({
-          branch,
-          number: pr.number,
-          reason: `authored by ${pr.author?.login ?? "unknown"}, not ${botLogin}`,
-        });
-      } else {
-        eligible.push({ branch, number: pr.number, url: pr.url });
-      }
+      const reason = skipReason(pr);
+      if (reason) skipped.push({ branch, number: pr.number, reason });
+      else eligible.push({ branch, number: pr.number, url: pr.url });
     }
   }
   eligible.sort((a, b) => a.number - b.number);
-  return {
-    selected: eligible[0] ?? null,
-    alsoEligible: eligible.slice(1),
-    skipped,
-  };
+  const [selected = null, ...rest] = eligible;
+  for (const e of rest) {
+    skipped.push({
+      branch: e.branch,
+      number: e.number,
+      reason: `also eligible; older PR ${selected.number} selected instead`,
+    });
+  }
+  return { selected, skipped };
 }
 
 const run = (cmd, args, { allowExit = [0] } = {}) => {
@@ -102,44 +98,43 @@ const listOpenPrs = (branch) => {
     "--limit",
     "50",
     "--json",
-    "number,url,headRefName,isCrossRepository,author",
+    "number,url,headRefName,isCrossRepository",
   ]);
   // --head matches by name across forks too; the caller filters on
   // isCrossRepository. Re-check the name so a gh quirk can't widen it.
   return JSON.parse(stdout).filter((pr) => pr.headRefName === branch);
 };
 
-const gitIdentityArgs = (login) => {
+// The merge commit needs an identity; CI has none configured. Don't
+// override a developer's own identity on a local run.
+const gitIdentityArgs = () => {
   const email = run("git", ["config", "user.email"], { allowExit: [0, 1] });
   if (email.stdout.trim()) return [];
   return [
     "-c",
-    `user.name=${login}`,
+    "user.name=dependabot-fix",
     "-c",
-    `user.email=${login}@users.noreply.github.com`,
+    "user.email=dependabot-fix@users.noreply.github.com",
   ];
 };
 
-const checkoutAndMerge = (branch, defaultBranch, login) => {
+const checkoutAndMerge = (branch, defaultBranch) => {
   run("git", ["fetch", "--no-tags", "origin", branch, defaultBranch]);
   run("git", ["checkout", "-B", branch, `origin/${branch}`]);
   const merge = run(
     "git",
-    [
-      ...gitIdentityArgs(login),
-      "merge",
-      "--no-edit",
-      `origin/${defaultBranch}`,
-    ],
+    [...gitIdentityArgs(), "merge", "--no-edit", `origin/${defaultBranch}`],
     { allowExit: [0, 1] }
   );
   return merge.status === 1;
 };
 
-const emit = (name, value) => {
-  if (process.env.GITHUB_OUTPUT) {
-    appendFileSync(process.env.GITHUB_OUTPUT, `${name}=${value}\n`);
-  }
+const emit = (outputs) => {
+  if (!process.env.GITHUB_OUTPUT) return;
+  const text = Object.entries(outputs)
+    .map(([k, v]) => `${k}=${v}\n`)
+    .join("");
+  appendFileSync(process.env.GITHUB_OUTPUT, text);
 };
 
 const summarize = (lines) => {
@@ -151,53 +146,43 @@ const summarize = (lines) => {
 
 function main() {
   const defaultBranch = process.env.DEFAULT_BRANCH || "main";
-  const branches = listRemoteBranches();
   const lines = ["### dependabot-fix continuation"];
 
+  const branches = listRemoteBranches();
+  let selected = null;
   if (branches.length === 0) {
-    emit("branch", "");
-    emit("merge_conflicts", "false");
-    summarize([...lines, `- none: no \`${PREFIX}*\` branch in origin`]);
-    return;
+    lines.push(`- none: no \`${PREFIX}*\` branch in origin`);
+  } else {
+    const candidates = branches.map((branch) => ({
+      branch,
+      prs: listOpenPrs(branch),
+    }));
+    const result = selectContinuation(candidates);
+    selected = result.selected;
+    for (const s of result.skipped) {
+      const pr = s.number === undefined ? "" : ` (PR ${s.number})`;
+      lines.push(`- skipped \`${s.branch}\`${pr}: ${s.reason}`);
+    }
+    if (!selected) lines.push("- none: no eligible continuation PR");
   }
 
-  const botLogin = run("gh", ["api", "user", "-q", ".login"]).stdout.trim();
-  const candidates = branches.map((branch) => ({
-    branch,
-    prs: listOpenPrs(branch),
-  }));
-  const { selected, alsoEligible, skipped } = selectContinuation(
-    candidates,
-    botLogin
-  );
-
-  for (const s of skipped) {
-    const pr = s.number === undefined ? "" : ` (PR ${s.number})`;
-    lines.push(`- skipped \`${s.branch}\`${pr}: ${s.reason}`);
-  }
-  for (const e of alsoEligible) {
+  const conflicts = selected
+    ? checkoutAndMerge(selected.branch, defaultBranch)
+    : false;
+  if (selected) {
     lines.push(
-      `- also eligible, not selected: \`${e.branch}\` (PR ${e.number})`
+      `- continuing \`${selected.branch}\` (PR ${selected.number}, ${selected.url})`,
+      `- merged \`${defaultBranch}\`: ${conflicts ? "CONFLICTS left in the worktree" : "clean"}`
     );
   }
 
-  if (!selected) {
-    emit("branch", "");
-    emit("merge_conflicts", "false");
-    summarize([...lines, "- none: no eligible continuation PR"]);
-    return;
-  }
-
-  const conflicts = checkoutAndMerge(selected.branch, defaultBranch, botLogin);
-  emit("branch", selected.branch);
-  emit("pr_number", String(selected.number));
-  emit("pr_url", selected.url);
-  emit("merge_conflicts", String(conflicts));
-  summarize([
-    ...lines,
-    `- continuing \`${selected.branch}\` (PR ${selected.number}, ${selected.url})`,
-    `- merged \`${defaultBranch}\`: ${conflicts ? "CONFLICTS left in the worktree" : "clean"}`,
-  ]);
+  emit({
+    branch: selected?.branch ?? "",
+    pr_number: selected?.number ?? "",
+    pr_url: selected?.url ?? "",
+    merge_conflicts: String(conflicts),
+  });
+  summarize(lines);
 }
 
 // fileURLToPath, not URL.pathname: pathname percent-encodes spaces etc.,

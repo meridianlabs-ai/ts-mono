@@ -17,24 +17,20 @@
 #
 # The agent runs pnpm install / check / build / test on the checkout while
 # holding MARVIN_TOKEN (and the WIF OIDC identity), so the checkout must
-# only ever contain this repository's own code. The skill's "continue the
-# open batch PR" step is the one place PR content could enter: fork PRs are
-# accepted here (ci.yaml runs them under the read-only GITHUB_TOKEN), and a
-# fork branch named dependabot-fix/<x> would satisfy a name-only match. So:
+# only ever contain this repository's own code. Fork PRs are accepted here
+# (ci.yaml runs them under the read-only GITHUB_TOKEN), so the skill's
+# "continue the open batch PR" step must never select one. The workflow,
+# not the agent, picks that branch, via
+# scripts/dependabot-fix-continuation.mjs — the selection rule and its
+# rationale live in that script's header. The agent is told the result and
+# instructed not to touch any other ref.
 #
-#   1. The workflow, not the agent, picks the continuation branch, via
-#      scripts/dependabot-fix-continuation.mjs: a branch must exist in THIS
-#      repo's origin, back an open non-cross-repository PR, and be authored
-#      by the machine account. Fork PRs are reported as skipped and never
-#      fetched. The agent is told the result and instructed not to touch
-#      any other ref.
-#   2. The permission allowlist below has no `git fetch`, no bare
-#      `git checkout`/`git switch` (only `-b`/`-c` to create a branch), and
-#      no `gh pr checkout` (gh is allowed per subcommand). This is defense
-#      in depth, not a boundary: `gh api` remains general-purpose.
-#
-# Do NOT "fix" a stuck run by re-allowing `gh:*`, `git fetch`, or `git
-# checkout`, or by letting the agent pick the PR itself.
+# The permission allowlist below is defense in depth, not a boundary:
+# `Bash(pnpm:*)` is arbitrary execution and `gh api` is general-purpose.
+# It still omits the direct routes — no `git fetch`, no bare `git
+# checkout`/`git switch` (only branch creation and merge-conflict forms),
+# no `gh pr checkout` (gh is allowed per subcommand). Do NOT "fix" a stuck
+# run by re-allowing those or by letting the agent pick the PR itself.
 
 name: Dependabot Fix
 
@@ -82,15 +78,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      # A dry run only exercises the selection script (node + git + gh), so
+      # the pnpm/turbo setup is skipped along with the agent.
       - uses: pnpm/action-setup@v6
+        if: inputs.dry_run != true
 
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: pnpm
+          cache: ${{ inputs.dry_run != true && 'pnpm' || '' }}
 
       - name: Cache Turbo
+        if: inputs.dry_run != true
         uses: actions/cache@v6
         with:
           path: .turbo
@@ -98,8 +98,7 @@ jobs:
           restore-keys: turbo-
 
       # Trusted code decides what is checked out (see the security model
-      # above). Runs before install so the install reflects the continuation
-      # branch's lockfile — a same-repo, bot-authored branch, so trusted.
+      # above).
       - name: Select continuation branch
         id: continuation
         env:
@@ -109,10 +108,12 @@ jobs:
         run: node scripts/dependabot-fix-continuation.mjs
 
       # Pre-install so the agent's pnpm why/audit/check/build/test work
-      # immediately (and hit the pnpm store cache). Skipped when the merge
-      # left lockfile conflicts; the agent installs after resolving them.
+      # immediately (and hit the pnpm store cache). Only on a fresh checkout
+      # of the default branch: a just-merged continuation branch can be
+      # textually clean yet fail --frozen-lockfile, and the agent runs
+      # `pnpm install` as its first verify step anyway.
       - name: Install dependencies
-        if: steps.continuation.outputs.merge_conflicts != 'true'
+        if: inputs.dry_run != true && steps.continuation.outputs.branch == ''
         run: pnpm install --frozen-lockfile
 
       - uses: anthropics/claude-code-action@v1
@@ -127,15 +128,18 @@ jobs:
           # Default-deny: headless runs auto-deny anything not allowed. gh per
           # subcommand (alerts/advisory API, PR list/view/create/edit — not
           # `gh pr checkout`), pnpm for the verify loop, git scoped to
-          # create-branch/commit/push + read-only subcommands (no fetch, no
-          # bare checkout/switch: the workflow already put the right branch
-          # in place), echo for the GITHUB_STEP_SUMMARY status line.
+          # create-branch/commit/push, the forms needed to finish or back
+          # out the merge the workflow started, and read-only subcommands
+          # (no fetch, no bare checkout/switch: the workflow already put the
+          # right branch in place), echo for the GITHUB_STEP_SUMMARY line.
           settings: |
             {"permissions":{"allow":["Read","Edit","Write",
             "Bash(pnpm:*)","Bash(grep:*)","Bash(echo:*)",
             "Bash(gh api:*)","Bash(gh pr list:*)","Bash(gh pr view:*)",
             "Bash(gh pr create:*)","Bash(gh pr edit:*)",
             "Bash(git switch -c:*)","Bash(git checkout -b:*)",
+            "Bash(git checkout --ours:*)","Bash(git checkout --theirs:*)",
+            "Bash(git merge --continue)","Bash(git merge --abort)",
             "Bash(git branch:*)","Bash(git status:*)","Bash(git log:*)",
             "Bash(git diff:*)","Bash(git show:*)","Bash(git rev-parse:*)",
             "Bash(git remote:*)","Bash(git add:*)","Bash(git commit:*)",
@@ -148,19 +152,15 @@ jobs:
             This is an unattended scheduled run — follow the skill's
             "Unattended runs" rules.
 
-            The workflow has already done the skill's step 5 continuation
-            check — do not redo it:
+            The workflow has already run the skill's step 5 continuation
+            script — do not run it again. Its result:
             - Continuation branch: ${{ steps.continuation.outputs.branch || 'none' }}
-            - Continuation PR: ${{ steps.continuation.outputs.pr_url || 'none' }}
+            - Continuation PR: ${{ steps.continuation.outputs.pr_url || 'none' }} (number: ${{ steps.continuation.outputs.pr_number || 'n/a' }})
             - Merging the default branch left conflicts: ${{ steps.continuation.outputs.merge_conflicts }}
-            If a continuation branch is named, you are already checked out
-            on it with the default branch merged in: resolve any conflicts
-            (pnpm-workspace.yaml overrides, pnpm-lock.yaml), apply the new
-            fixes on top, and push to that branch. Otherwise create a new
-            dependabot-fix/<short-description> branch from the current
-            checkout. Either way, never fetch, check out, or merge any
-            other ref or PR — PRs from forks are untrusted content, whatever
-            their branch is named.
+            If a branch is named you are already checked out on it with the
+            default branch merged in; if conflicts is true, resolve them
+            first (pnpm-workspace.yaml overrides, pnpm-lock.yaml) and
+            commit. Follow step 5's rules on what not to check out.
 
             Finish every run — including no-op runs — by appending a brief
             status (alerts fixed, alerts deferred, PR link or "no action") to
