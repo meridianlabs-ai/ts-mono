@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  at,
   chunkEntryName,
   chunkIndexOf,
   classifySampleShape,
@@ -60,5 +61,15 @@ describe("chunk math", () => {
     expect(chunkIndexOf(starts, 999)).toBe(0);
     expect(chunkIndexOf(starts, 1000)).toBe(1);
     expect(chunkIndexOf(starts, 2209)).toBe(2);
+  });
+});
+
+describe("at", () => {
+  it("returns own elements", () => {
+    expect(at(["a", "b"], 1)).toBe("b");
+  });
+
+  it.each([-1, 0.5, 2, Number.NaN])("throws for index %s", (i) => {
+    expect(() => at(["a", "b"], i)).toThrow(/out of range/);
   });
 });
