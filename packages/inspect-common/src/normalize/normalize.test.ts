@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { expectEvent } from "../testing";
+import {
+  expectEvent,
+  testEvalMetric,
+  testEvalScore,
+  testUserMessage,
+} from "../testing";
 import type { ModelEvent } from "../types";
 import { inputString } from "../utils";
 
@@ -88,13 +93,12 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
       ],
     })!;
     expect(results.scores).toEqual([
-      { name: "legacy", scorer: "legacy", metrics: {}, params: {} },
-      {
+      testEvalScore({ name: "legacy", scorer: "legacy" }),
+      testEvalScore({
         name: "match",
         scorer: "match",
-        params: {},
-        metrics: { accuracy: { name: "accuracy", value: 1, params: {} } },
-      },
+        metrics: { accuracy: testEvalMetric({ value: 1 }) },
+      }),
     ]);
   });
 
@@ -318,7 +322,7 @@ describe("normalizeEvalSample input validation", () => {
       epoch: 1,
       input: [1, null, { role: "user" }, { role: "user", content: "q" }],
     });
-    expect(sample.input).toEqual([{ role: "user", content: "q" }]);
+    expect(sample.input).toEqual([testUserMessage({ content: "q" })]);
     expect(inputString(sample.input)).toEqual(["q"]);
   });
 

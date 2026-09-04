@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { testUserMessage } from "../testing";
 import { inputString, modelFallbackLines, totalModelFallbacks } from "../utils";
 
 import { normalizeSampleSummaries, normalizeSampleSummary } from "./index";
@@ -58,7 +59,7 @@ describe("normalizeSampleSummary", () => {
       input: [{ role: "user", content: "q" }],
       target: ["a", "b"],
     })!;
-    expect(arrays.input).toEqual([{ role: "user", content: "q" }]);
+    expect(arrays.input).toEqual([testUserMessage({ content: "q" })]);
     expect(arrays.target).toEqual(["a", "b"]);
   });
 
@@ -82,7 +83,7 @@ describe("normalizeSampleSummary", () => {
       ...vintageRow,
       input: [...malformed, { role: "user", content: "q" }],
     })!;
-    expect(summary.input).toEqual([{ role: "user", content: "q" }]);
+    expect(summary.input).toEqual([testUserMessage({ content: "q" })]);
     expect(inputString(summary.input)).toEqual(["q"]);
   });
 
@@ -97,7 +98,7 @@ describe("normalizeSampleSummary", () => {
       ],
     })!;
     expect(summary.input).toEqual([
-      { role: "user", content: [{ type: "text", text: "hi" }] },
+      testUserMessage({ content: [{ type: "text", text: "hi" }] }),
     ]);
     expect(inputString(summary.input)).toEqual(["hi"]);
   });
