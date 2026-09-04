@@ -1715,12 +1715,6 @@
       "undescribed": 1
     }
   },
-  "packages/inspect-components/src/usage/configsForUsage.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "packages/inspect-components/src/usage/connectionHistory.test.ts": {
     "@typescript-eslint/consistent-type-assertions": {
       "count": 1
