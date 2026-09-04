@@ -1,6 +1,17 @@
 import { isRecord } from "@tsmono/util";
 
-import type { ConfigUpdate, EvalPlan, EvalResults, EvalSpec } from "../types";
+import type {
+  ConfigUpdate,
+  ConnectionLimitChange,
+  EvalMetric,
+  EvalPlan,
+  EvalResults,
+  EvalScore,
+  EvalSpec,
+  EvalStats,
+} from "../types";
+
+import { normalizeModelUsageMap } from "./summary";
 
 /**
  * Normalize a raw EvalSpec: apply the same legacy migrations as pydantic's
@@ -58,6 +69,111 @@ export const normalizeEvalPlan = (raw: unknown): EvalPlan => {
   return plan as unknown as EvalPlan;
 };
 
+const isEvalMetric = (value: unknown): value is EvalMetric =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["value"] === "number" &&
+  isRecord(value["params"]);
+
+const isEvalMetricMap = (value: unknown): value is Record<string, EvalMetric> =>
+  isRecord(value) && Object.values(value).every(isEvalMetric);
+
+// Metrics are keyed by name in the map, so a missing name fills from the key;
+// `params` postdates `options` (the 2024 shape) and defaults to {} upstream.
+const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
+  if (!isRecord(raw)) {
+    return {};
+  }
+  if (isEvalMetricMap(raw)) {
+    return raw;
+  }
+  const metrics: Record<string, EvalMetric> = {};
+  for (const [name, entry] of Object.entries(raw)) {
+    if (!isRecord(entry)) continue;
+    const filled = {
+      ...entry,
+      name: typeof entry["name"] === "string" ? entry["name"] : name,
+      params: isRecord(entry["params"]) ? entry["params"] : {},
+    };
+    if (isEvalMetric(filled)) metrics[name] = filled;
+  }
+  return metrics;
+};
+
+const isEvalScore = (value: unknown): value is EvalScore =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["scorer"] === "string" &&
+  isRecord(value["metrics"]) &&
+  isRecord(value["params"]);
+
+/**
+ * Normalize raw per-scorer results. Entries without a name drop (pydantic
+ * has no default); `scorer` predates multi-scorer logs and backfills from
+ * the name, as the v1 migration does; `metrics`/`params` default to {}.
+ */
+const normalizeEvalScores = (raw: unknown): EvalScore[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  const entries = raw as unknown[];
+  const scores: EvalScore[] = [];
+  for (const entry of entries) {
+    if (!isRecord(entry) || typeof entry["name"] !== "string") continue;
+    const filled = {
+      ...entry,
+      scorer:
+        typeof entry["scorer"] === "string" ? entry["scorer"] : entry["name"],
+      metrics: normalizeEvalMetrics(entry["metrics"]),
+      params: isRecord(entry["params"]) ? entry["params"] : {},
+    };
+    if (isEvalScore(filled)) scores.push(filled);
+  }
+  return scores;
+};
+
+const kLimitChangeReasons: ReadonlySet<unknown> = new Set([
+  "slow_start",
+  "steady_state_up",
+  "rate_limit",
+  "manual",
+]);
+
+const isConnectionLimitChange = (
+  value: unknown
+): value is ConnectionLimitChange =>
+  isRecord(value) &&
+  typeof value["model"] === "string" &&
+  typeof value["new_limit"] === "number" &&
+  typeof value["old_limit"] === "number" &&
+  kLimitChangeReasons.has(value["reason"]) &&
+  typeof value["timestamp"] === "number";
+
+/**
+ * Normalize raw EvalStats, mirroring pydantic's field defaults. Usage
+ * entries are filled inside the maps (their token fields are read unguarded
+ * by the tokens column). Absent or non-object stats stay absent: journal
+ * headers legitimately carry none.
+ */
+export const normalizeEvalStats = (raw: unknown): EvalStats | undefined => {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+  const history = raw["connection_limit_history"];
+  return {
+    ...raw,
+    started_at: typeof raw["started_at"] === "string" ? raw["started_at"] : "",
+    completed_at:
+      typeof raw["completed_at"] === "string" ? raw["completed_at"] : "",
+    model_usage: normalizeModelUsageMap(raw["model_usage"]),
+    role_usage: normalizeModelUsageMap(raw["role_usage"]),
+    // Limit changes have no pydantic defaults, so malformed entries drop.
+    connection_limit_history: Array.isArray(history)
+      ? (history as unknown[]).filter(isConnectionLimitChange)
+      : [],
+  };
+};
+
 /**
  * Normalize raw EvalResults. Returns null for absent results (in-progress
  * logs legitimately have none).
@@ -71,7 +187,7 @@ export const normalizeEvalResults = (raw: unknown): EvalResults | null => {
     results["total_samples"] = 0;
   if (typeof results["completed_samples"] !== "number")
     results["completed_samples"] = 0;
-  if (!Array.isArray(results["scores"])) results["scores"] = [];
+  results["scores"] = normalizeEvalScores(results["scores"]);
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
   return results as unknown as EvalResults;
 };

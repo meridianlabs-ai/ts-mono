@@ -3,7 +3,11 @@ import { isRecord } from "@tsmono/util";
 import type { EvalSample } from "../types";
 
 import { normalizeEvents, normalizeModelOutput } from "./events";
-import { normalizeModelUsageMap } from "./summary";
+import {
+  normalizeModelFallbacks,
+  normalizeModelUsageMap,
+  normalizeSampleInput,
+} from "./summary";
 
 /**
  * Normalize a raw EvalSample of any vintage into the current shape:
@@ -36,9 +40,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     delete sample["score"];
   }
 
-  if (typeof sample["input"] !== "string" && !Array.isArray(sample["input"])) {
-    sample["input"] = "";
-  }
+  sample["input"] = normalizeSampleInput(sample["input"]);
   if (
     typeof sample["target"] !== "string" &&
     !Array.isArray(sample["target"])
@@ -59,12 +61,12 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
 
   // `count` on fallbacks and the traceback pair on retry errors default
   // upstream; fill them so their renderers can read them unguarded.
-  if (Array.isArray(sample["model_fallbacks"])) {
-    sample["model_fallbacks"] = sample["model_fallbacks"].map(
-      (fallback: unknown) =>
-        isRecord(fallback) && typeof fallback["count"] !== "number"
-          ? { ...fallback, count: 1 }
-          : fallback
+  if (
+    sample["model_fallbacks"] !== undefined &&
+    sample["model_fallbacks"] !== null
+  ) {
+    sample["model_fallbacks"] = normalizeModelFallbacks(
+      sample["model_fallbacks"]
     );
   }
   if (Array.isArray(sample["error_retries"])) {
