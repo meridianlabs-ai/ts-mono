@@ -160,3 +160,34 @@ describe("renderTranscriptFooter", () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+// Event labels are keyed by the log's event uuid. A uuid that names an
+// Object.prototype member must read as "no label", not as the builtin.
+describe("TranscriptVirtualList event labels", () => {
+  const renderLabeled = (nodes: EventNode[]) =>
+    render(
+      <ComponentStateProvider hooks={stateHooks}>
+        <TranscriptVirtualList
+          id="labels-test"
+          listHandle={createRef<VirtualListHandle | null>()}
+          eventNodes={nodes}
+          disableVirtualization={true}
+          eventNodeContext={{ eventLabels: { labeled: "[E1]" } }}
+        />
+      </ComponentStateProvider>
+    );
+
+  it("shows the label of a cited event", () => {
+    renderLabeled([node("labeled", 0)]);
+    expect(screen.getAllByText("E1")).toHaveLength(1);
+  });
+
+  it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])(
+    "renders an event with uuid %s unlabeled",
+    (uuid) => {
+      const { container } = renderLabeled([node("labeled", 0), node(uuid, 0)]);
+      expect(container.querySelector(`[id="${uuid}"]`)).not.toBeNull();
+      expect(screen.getAllByText("E1")).toHaveLength(1);
+    }
+  );
+});

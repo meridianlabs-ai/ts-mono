@@ -4,6 +4,7 @@
  */
 
 import type { Event } from "@tsmono/inspect-common/types";
+import { getOwn } from "@tsmono/util";
 
 /**
  * Derive tool-event labels from message labels.
@@ -22,13 +23,13 @@ export const buildToolLabels = (
   for (const event of events) {
     if (event.event === "tool") {
       const label = event.message_id
-        ? messageLabels[event.message_id]
+        ? getOwn(messageLabels, event.message_id)
         : undefined;
       if (label) toolLabels[event.id] = label;
     } else if (event.event === "model") {
       for (const message of event.input) {
         if (message.role !== "tool" || !message.id) continue;
-        const label = messageLabels[message.id];
+        const label = getOwn(messageLabels, message.id);
         if (label && message.tool_call_id) {
           toolLabels[message.tool_call_id] = label;
         }
