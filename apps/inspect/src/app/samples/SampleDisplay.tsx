@@ -101,6 +101,7 @@ import {
 } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
 
+import { messagesFindSource } from "./messagesFind";
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
 import { SampleRetriedErrors } from "./SampleRetriedErrors";
@@ -413,6 +414,13 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
+  const findMessages = useMemo(
+    () =>
+      selectedSampleHandle
+        ? messagesFindSource(api, selectedSampleHandle)
+        : undefined,
+    [api, selectedSampleHandle]
+  );
 
   const [icon, setIcon] = useState(ApplicationIcons.copy);
 
@@ -953,6 +961,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     rows={sampleMessages.rows.data ?? kNoMessageRows}
                     hasMoreRows={sampleMessages.hasMore}
                     onLoadMoreRows={sampleMessages.loadMore}
+                    findMessages={findMessages}
                     initialMessageId={sampleDetailNavigation.message}
                     followRequested={sampleDetailNavigation.follow}
                     display={chatDisplay}

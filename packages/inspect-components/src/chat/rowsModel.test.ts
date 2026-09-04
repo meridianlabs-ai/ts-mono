@@ -7,6 +7,7 @@ import {
   buildMessageRowsWindow,
   buildSystemMessageRow,
   countRowBlocks,
+  messageRowAnchorIds,
   MessageRowOptions,
   messageRowOptions,
   MessageRowScanner,
@@ -78,6 +79,69 @@ const reconstruct = (
 };
 
 const kPageSizes = [1, 2, 3, 5, 100];
+
+describe("messageRowAnchorIds", () => {
+  const anchors = (messages: ChatMessage[]) =>
+    messageRowAnchorIds(buildMessageRows(messages, messageRowOptions()));
+
+  it("uses the message id (minted msg-{index} when missing), and id#row for repeated ids", () => {
+    expect(
+      anchors([
+        { role: "user", content: "a", id: null },
+        { role: "user", content: "b", id: "u2" },
+        { role: "assistant", content: "c", id: "dup" },
+        { role: "assistant", content: "d", id: "dup" },
+        { role: "assistant", content: "e", id: "dup" },
+      ])
+    ).toEqual(["msg-0", "u2", "dup", "dup#3", "dup#4"]);
+  });
+
+  it("appends #row while the derived anchor is already assigned to a prior row", () => {
+    const ids = ["dup", "dup#2", "dup", "", "", "#4"];
+    expect(
+      anchors(ids.map((id) => ({ role: "user" as const, content: "x", id })))
+    ).toEqual(["dup", "dup#2", "dup#2#2", "", "#4", "#4#5"]);
+    expect(
+      anchors(
+        ["a", "a", "a#1"].map((id) => ({
+          role: "user" as const,
+          content: "x",
+          id,
+        }))
+      )
+    ).toEqual(["a", "a#1", "a#1#2"]);
+  });
+
+  it("ignores folded tool message ids: only prior row anchors collide", () => {
+    expect(
+      anchors([
+        { role: "assistant", content: "x", id: "a", tool_calls: [] },
+        {
+          role: "tool",
+          content: "y",
+          id: "a#1",
+          tool_call_id: "t",
+          function: "f",
+        },
+        { role: "assistant", content: "z", id: "a", tool_calls: [] },
+      ])
+    ).toEqual(["a", "a#1"]);
+  });
+
+  it("keeps earlier anchors when rows are appended (live sample)", () => {
+    const first: ChatMessage[] = [
+      { role: "user", content: "a", id: "shared" },
+      { role: "assistant", content: "b", id: "shared" },
+    ];
+    const before = anchors(first);
+    const after = anchors([
+      ...first,
+      { role: "assistant", content: "c", id: "shared" },
+    ]);
+    expect(after.slice(0, before.length)).toEqual(before);
+    expect(after[2]).toBe("shared#2");
+  });
+});
 
 describe("windowed fold equivalence", () => {
   const conversations: [string, ChatMessage[]][] = [

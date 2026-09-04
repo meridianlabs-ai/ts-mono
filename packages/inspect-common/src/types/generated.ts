@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/find-messages/{log}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Api Find Messages */
+        post: operations["api_find_messages_find_messages__log__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/flow": {
         parameters: {
             query?: never;
@@ -2079,6 +2096,61 @@ export interface components {
             calls: components["schemas"]["JsonValue"][];
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
+        };
+        /**
+         * FindMessagesProjection
+         * @description How the viewer currently shows the rows; a host sends only what it changed.
+         */
+        FindMessagesProjection: {
+            /**
+             * Display Mode
+             * @default rendered
+             * @enum {string}
+             */
+            display_mode: "rendered" | "raw";
+            /**
+             * Tool Call Style
+             * @default complete
+             * @enum {string}
+             */
+            tool_call_style: "complete" | "compact" | "omit";
+            /**
+             * Unlabeled Roles
+             * @default []
+             */
+            unlabeled_roles: string[];
+        };
+        /** FindMessagesRequest */
+        FindMessagesRequest: {
+            /** After */
+            after?: string | null;
+            /** Epoch */
+            epoch: number;
+            projection?: components["schemas"]["FindMessagesProjection"] | null;
+            /** Sample Id */
+            sample_id: string | number;
+            /** Text */
+            text: string;
+        };
+        /** FindMessagesResponse */
+        FindMessagesResponse: {
+            /** At End */
+            at_end: boolean;
+            /** Complete */
+            complete: boolean;
+            /** Rows */
+            rows: components["schemas"]["FindMessagesRow"][];
+        };
+        /** FindMessagesRow */
+        FindMessagesRow: {
+            /** Anchor */
+            anchor: string;
+            /** Count */
+            count: number;
+            /** Index */
+            index: number;
+            /** Texts */
+            texts: string[];
         };
         /**
          * GenerateConfig
@@ -4276,6 +4348,32 @@ export interface operations {
                 };
                 content: {
                     "application/json": string[];
+                };
+            };
+        };
+    };
+    api_find_messages_find_messages__log__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                log: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindMessagesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindMessagesResponse"];
                 };
             };
         };

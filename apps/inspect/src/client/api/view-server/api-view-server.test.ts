@@ -121,6 +121,62 @@ describe("viewServerApi mutation requests", () => {
   });
 });
 
+describe("viewServerApi.find_messages", () => {
+  const realFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  test("posts the request to /find-messages/{log} and forwards the abort signal", async () => {
+    const response = {
+      rows: [{ anchor: "m1", index: 0, count: 1, texts: ["Needle"] }],
+      at_end: true,
+      complete: true,
+    };
+    const fetchMock = vi.fn((_input: RequestInfo | URL, _init?: RequestInit) =>
+      Promise.resolve(
+        new Response(JSON.stringify(response), {
+          status: 200,
+          statusText: "OK",
+        })
+      )
+    );
+    globalThis.fetch = fetchMock;
+    const api = viewServerApi({
+      apiBaseUrl: "https://viewer.test",
+      logDir: "file:///x/logs",
+    });
+    const request = {
+      sample_id: 1,
+      epoch: 1,
+      text: "needle",
+      projection: {
+        unlabeled_roles: [],
+        tool_call_style: "complete" as const,
+        display_mode: "rendered" as const,
+      },
+    };
+    const controller = new AbortController();
+
+    const result = await api.find_messages!(
+      "dir/log.eval",
+      request,
+      controller.signal
+    );
+
+    expect(result).toEqual(response);
+    const call = fetchMock.mock.calls[0];
+    if (call === undefined) throw new Error("fetch was not called");
+    const [url, init] = call;
+    expect(url).toContain("https://viewer.test/find-messages/dir%2Flog.eval");
+    expect(init).toMatchObject({ method: "POST", signal: controller.signal });
+    const body = init?.body;
+    if (typeof body !== "string") throw new Error("body is not a string");
+    expect(JSON.parse(body)).toEqual(request);
+  });
+});
+
 describe("viewServerApi.get_eval_set", () => {
   const realFetch = globalThis.fetch;
 

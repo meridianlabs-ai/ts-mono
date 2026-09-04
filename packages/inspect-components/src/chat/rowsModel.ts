@@ -38,6 +38,24 @@ export const rowContainsMessage = (
   row.resolved.toolMessages.some((tm) => tm.id === messageId);
 
 /**
+ * Find anchor ids for the rows, index-aligned, mirrored by the server: a
+ * row's anchor is its head message id verbatim (the fold mints `msg-{index}`
+ * for a missing id; "" stays "" and is a legal anchor) unless a prior row was
+ * assigned that string, in which case `#rowIndex` is appended, again while
+ * the result is already assigned. Only prior rows' anchors collide (never
+ * folded tool message ids or later rows), so anchors are stable under append.
+ */
+export const messageRowAnchorIds = (rows: MessageRow[]): string[] => {
+  const assigned = new Set<string>();
+  return rows.map((row, index) => {
+    let anchor = row.resolved.message.id ?? "";
+    while (assigned.has(anchor)) anchor += `#${index}`;
+    assigned.add(anchor);
+    return anchor;
+  });
+};
+
+/**
  * Fold options from a view's tool options — the one place the fold
  * defaults ("complete", collapse on) are defined. Data-layer folds and
  * the chat components both derive from here, so pre-built rows and their

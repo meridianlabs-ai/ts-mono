@@ -6,6 +6,7 @@ import {
   FindTargetProvider,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { FindProvider } from "@tsmono/react/find";
 
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
@@ -99,22 +100,24 @@ export const SampleDetailComponent: FC<SampleDetailComponentProps> = ({
   });
 
   return (
-    <ExtendedFindProvider>
-      <FindTargetProvider>
-        {showFind ? <FindBand onClose={hideFind} /> : ""}
-        <div className={styles.detail}>
-          <SampleNavbar
-            sampleId={sampleId}
-            epoch={epoch}
-            navigation={navigation}
-            navbarConfig={navbarConfig}
-          />
+    <FindProvider>
+      <ExtendedFindProvider>
+        <FindTargetProvider>
+          {showFind ? <FindBand onClose={hideFind} /> : ""}
+          <div className={styles.detail}>
+            <SampleNavbar
+              sampleId={sampleId}
+              epoch={epoch}
+              navigation={navigation}
+              navbarConfig={navbarConfig}
+            />
 
-          {sampleMatchesRequest && (
-            <InlineSampleDisplay className={styles.panel} />
-          )}
-        </div>
-      </FindTargetProvider>
-    </ExtendedFindProvider>
+            {sampleMatchesRequest && (
+              <InlineSampleDisplay className={styles.panel} />
+            )}
+          </div>
+        </FindTargetProvider>
+      </ExtendedFindProvider>
+    </FindProvider>
   );
 };

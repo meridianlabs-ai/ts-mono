@@ -2,12 +2,17 @@ import clsx from "clsx";
 import { FC, RefObject, useEffect, useRef } from "react";
 
 import { ErrorPanel } from "@tsmono/react/components";
-import { useStatefulScrollPosition, useVisitId } from "@tsmono/react/hooks";
+import {
+  useLatestRef,
+  useStatefulScrollPosition,
+  useVisitId,
+} from "@tsmono/react/hooks";
 
 import { kSampleMessagesTabId, kSampleTranscriptTabId } from "../../constants";
 import { useSelectedEvalSampleData } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
+import { useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./InlineSampleDisplay.module.css";
 import { SampleDisplay } from "./SampleDisplay";
@@ -32,7 +37,13 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
 
   const localScrollRef = useRef<HTMLDivElement>(null);
   const scrollRef = externalScrollRef ?? localScrollRef;
-  const sampleTab = useStore((state) => state.app.tabs.sample);
+  // Resolved as SampleDisplay resolves the tab it renders: a tab click writes
+  // the store one commit before the route follows. The scroll writes below
+  // must land in the commit the content swaps in; a commit earlier, the
+  // outgoing tab's VirtualList is still mounted and persists them as its own.
+  const storeSampleTab = useStore((state) => state.app.tabs.sample);
+  const { sampleTabId } = useLogOrSampleRouteParams();
+  const sampleTab = sampleTabId || storeSampleTab;
   const sampleDetailNavigation = useSampleDetailNavigation();
   // The Transcript/Messages tabs each mount a VirtualList with its own
   // snapshot-based restore on this same scroller; this hook must stand down
@@ -48,26 +59,16 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
   const visitId = useVisitId(
     `${logFile}-${sampleHandle?.id}-${sampleHandle?.epoch}`
   );
-  useStatefulScrollPosition(
-    scrollRef,
-    `inline-sample-scroller-${visitId}-${sampleTab}`,
-    1000,
-    !isVirtualizedTab
-  );
 
-  // A new visit starts at the top: the scroller survives sample hops (same
-  // route element), so the previous sample's scrollTop would otherwise carry
-  // over whenever the content swap never passes through an empty commit.
-  // Deep-link mounts stand down — the transcript's landing owns the position
-  // (read via a ref so a later ?event= cleanup can't re-trigger the reset).
-  const mountsAtDeepLink = !!(
-    sampleDetailNavigation.event || sampleDetailNavigation.message
+  // A new visit, or a tab first opened in it, starts at the top: the scroller
+  // survives sample hops and tab flips (same route element), so the previous
+  // content's scrollTop would carry over. Declared before the stateful
+  // restore below, so a saved position is written last and wins. Deep-link
+  // mounts stand down — the transcript's landing owns the position (read via
+  // a ref so a later ?event= cleanup can't re-trigger the reset).
+  const deepLinkRef = useLatestRef(
+    !!(sampleDetailNavigation.event || sampleDetailNavigation.message)
   );
-  const deepLinkRef = useRef(mountsAtDeepLink);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    deepLinkRef.current = mountsAtDeepLink;
-  }, [mountsAtDeepLink]);
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Stand down for virtualized tabs: VirtualList owns scrollTop there (its
@@ -76,7 +77,13 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
     if (!deepLinkRef.current && !isVirtualizedTab) {
       scrollRef.current?.scrollTo({ top: 0 });
     }
-  }, [visitId, scrollRef, isVirtualizedTab]);
+  }, [visitId, sampleTab, isVirtualizedTab, scrollRef, deepLinkRef]);
+  useStatefulScrollPosition(
+    scrollRef,
+    `inline-sample-scroller-${visitId}-${sampleTab}`,
+    1000,
+    !isVirtualizedTab
+  );
 
   return (
     <div className={clsx(className, styles.container)}>

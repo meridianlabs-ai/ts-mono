@@ -54,13 +54,16 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       [postProcess]
     );
 
-    // Initialize with content (cached or unrendered markdown)
-    const [renderedHtml, setRenderedHtml] = useState<string>(() => {
-      if (cachedHtml) {
-        return applyPostProcess(cachedHtml);
-      }
-      return sanitizeMarkdown(markdown);
-    });
+    // Until the rendered key matches the current one the div shows the
+    // escaped markdown (key null).
+    const [rendered, setRendered] = useState<{
+      html: string;
+      key: string | null;
+    }>(() =>
+      cachedHtml
+        ? { html: applyPostProcess(cachedHtml), key: cacheKey }
+        : { html: sanitizeMarkdown(markdown), key: null }
+    );
 
     // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
@@ -68,15 +71,17 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       if (cachedHtml) {
         const finalHtml = applyPostProcess(cachedHtml);
         startTransition(() => {
-          // Functional update keeps renderedHtml out of the effect deps,
-          // avoiding cancel/re-enqueue churn on every async completion
-          setRenderedHtml((prev) => (prev === finalHtml ? prev : finalHtml));
+          setRendered((prev) =>
+            prev.html === finalHtml && prev.key === cacheKey
+              ? prev
+              : { html: finalHtml, key: cacheKey }
+          );
         });
         return;
       }
 
       // Reset to sanitized markdown text when markdown changes (keep this synchronous for immediate feedback)
-      setRenderedHtml(sanitizeMarkdown(markdown));
+      setRendered({ html: sanitizeMarkdown(markdown), key: null });
 
       const { promise, cancel } = renderQueue.enqueue(() =>
         renderMarkdown(markdown, rendererName)
@@ -95,7 +100,10 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
           // React 18 batches same-turn transition updates, so concurrent
           // completions still coalesce into a single render pass.
           startTransition(() => {
-            setRenderedHtml(applyPostProcess(sanitizedResult));
+            setRendered({
+              html: applyPostProcess(sanitizedResult),
+              key: cacheKey,
+            });
           });
         })
         .catch((error: unknown) => {
@@ -108,6 +116,8 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       };
     }, [markdown, rendererName, cachedHtml, cacheKey, applyPostProcess]);
 
+    const pending = rendered.key !== cacheKey;
+
     return (
       // The container is not itself a control: onClick delegates for the
       // anchors inside the rendered markdown, which already fire click on
@@ -115,7 +125,8 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
       // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
       <div
         ref={ref}
-        dangerouslySetInnerHTML={{ __html: renderedHtml }}
+        data-markdown-pending={pending ? true : undefined}
+        dangerouslySetInnerHTML={{ __html: rendered.html }}
         style={style}
         className={clsx(className, "markdown-content")}
         onClick={onClick}

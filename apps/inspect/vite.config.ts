@@ -32,7 +32,7 @@ function copyToPythonRepo(): Plugin {
   };
 }
 
-const viewServerUrl = "http://127.0.0.1:7575";
+const viewServerUrl = process.env.VIEW_SERVER_URL || "http://127.0.0.1:7575";
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
