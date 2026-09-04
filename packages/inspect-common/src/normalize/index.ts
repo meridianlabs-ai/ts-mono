@@ -23,6 +23,7 @@ export {
   normalizeEvalPlan,
   normalizeEvalResults,
   normalizeEvalSpec,
+  normalizeEvalStats,
 } from "./log";
 export { normalizeEvalSample } from "./sample";
 export { normalizeSampleSummaries, normalizeSampleSummary } from "./summary";

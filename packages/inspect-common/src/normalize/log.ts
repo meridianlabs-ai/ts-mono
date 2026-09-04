@@ -2,12 +2,16 @@ import { isRecord } from "@tsmono/util";
 
 import type {
   ConfigUpdate,
+  ConnectionLimitChange,
   EvalMetric,
   EvalPlan,
   EvalResults,
   EvalScore,
   EvalSpec,
+  EvalStats,
 } from "../types";
+
+import { normalizeModelUsageMap } from "./summary";
 
 /**
  * Normalize a raw EvalSpec: apply the same legacy migrations as pydantic's
@@ -126,6 +130,48 @@ const normalizeEvalScores = (raw: unknown): EvalScore[] => {
     if (isEvalScore(filled)) scores.push(filled);
   }
   return scores;
+};
+
+const kLimitChangeReasons: ReadonlySet<unknown> = new Set([
+  "slow_start",
+  "steady_state_up",
+  "rate_limit",
+  "manual",
+]);
+
+const isConnectionLimitChange = (
+  value: unknown
+): value is ConnectionLimitChange =>
+  isRecord(value) &&
+  typeof value["model"] === "string" &&
+  typeof value["new_limit"] === "number" &&
+  typeof value["old_limit"] === "number" &&
+  kLimitChangeReasons.has(value["reason"]) &&
+  typeof value["timestamp"] === "number";
+
+/**
+ * Normalize raw EvalStats, mirroring pydantic's field defaults. Usage
+ * entries are filled inside the maps (their token fields are read unguarded
+ * by the tokens column). Absent or non-object stats stay absent: journal
+ * headers legitimately carry none.
+ */
+export const normalizeEvalStats = (raw: unknown): EvalStats | undefined => {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+  const history = raw["connection_limit_history"];
+  return {
+    ...raw,
+    started_at: typeof raw["started_at"] === "string" ? raw["started_at"] : "",
+    completed_at:
+      typeof raw["completed_at"] === "string" ? raw["completed_at"] : "",
+    model_usage: normalizeModelUsageMap(raw["model_usage"]),
+    role_usage: normalizeModelUsageMap(raw["role_usage"]),
+    // Limit changes have no pydantic defaults, so malformed entries drop.
+    connection_limit_history: Array.isArray(history)
+      ? (history as unknown[]).filter(isConnectionLimitChange)
+      : [],
+  };
 };
 
 /**

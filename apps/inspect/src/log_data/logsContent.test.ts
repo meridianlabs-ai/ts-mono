@@ -5,12 +5,15 @@
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
+
 import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
 import { DB_NAME } from "../client/database/schema";
 import {
   createDatabaseService,
   DatabaseService,
 } from "../client/database/service";
+import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
 import {
@@ -84,21 +87,15 @@ describe("writeDetails", () => {
 
   test("a payload whose derivation throws is skipped without taking the rest of the batch with it", async () => {
     const logError = vi.spyOn(console, "error").mockImplementation(() => {});
-    // A score whose value cannot be read stands in for any derivation
-    // failure the normalizers don't anticipate.
-    const poisoned = testSampleSummary({
-      scores: {
-        match: {
-          get value(): string {
-            throw new Error("derive failed");
-          },
-          history: [],
-        },
-      },
+    // Wire data the normalizers pass through but derivation rejects: the
+    // spec normalizer does not validate model_roles, and modelRoleNames
+    // dereferences each role's config.
+    const poisoned = normalizeEvalHeader({
+      eval: { ...testEvalSpec(), model_roles: { grader: null } },
     });
 
     await writeDetails(db, "file:///logs", {
-      "file:///logs/bad.eval": testLogDetails({ sampleSummaries: [poisoned] }),
+      "file:///logs/bad.eval": testLogDetails(poisoned),
       "file:///logs/good.eval": testLogDetails({
         sampleSummaries: [testSampleSummary({ id: "s1" })],
       }),
