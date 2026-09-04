@@ -34,6 +34,19 @@ const newRow = (handle: LogHandle): Log => ({
   details_settled_seq: 0,
 });
 
+/** IndexedDB distinguishes numeric and string keys, while sample identity
+ *  compares their string forms. Probe both equivalent key forms. */
+const sampleIdsForLookup = (id: string | number): (string | number)[] => {
+  const text = String(id);
+  if (typeof id === "number") {
+    return Number.isNaN(id) ? [text] : [id, text];
+  }
+  const numeric = Number(id);
+  return !Number.isNaN(numeric) && String(numeric) === id
+    ? [id, numeric]
+    : [id];
+};
+
 /**
  * Database service for caching and retrieving log data.
  * Works with a DatabaseManager instance to handle database operations.
@@ -263,6 +276,22 @@ export class DatabaseService {
             .where("file_path")
             .startsWith(scopePrefix(scope.prefix));
     return collection.toArray();
+  }
+
+  async hasCompletedSampleSummary(
+    filePath: string,
+    id: string | number,
+    epoch: number
+  ): Promise<boolean> {
+    const db = this.getDb();
+    const keys = sampleIdsForLookup(id).map(
+      (sampleId) =>
+        [filePath, sampleId, epoch] as [string, string | number, number]
+    );
+    const records = await db.sample_summaries.bulkGet(keys);
+    return records.some(
+      (record) => record !== undefined && record.summary.completed !== false
+    );
   }
 
   // === RETRIEVAL FACTS ===
