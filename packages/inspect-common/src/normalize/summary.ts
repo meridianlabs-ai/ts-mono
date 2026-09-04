@@ -1,6 +1,6 @@
 import { isRecord } from "@tsmono/util";
 
-import type { EvalSampleSummary, ModelUsage } from "../types";
+import type { EvalSampleSummary, ModelFallback, ModelUsage } from "../types";
 
 import { normalizeModelUsage } from "./events";
 
@@ -28,6 +28,38 @@ export const normalizeModelUsageMap = (
   }
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): every entry round-tripped unchanged, so raw already satisfies the type
   return changed ? usage : (raw as Record<string, ModelUsage>);
+};
+
+const isModelFallback = (value: unknown): value is ModelFallback =>
+  isRecord(value) &&
+  typeof value["model"] === "string" &&
+  typeof value["fallback_model"] === "string" &&
+  typeof value["count"] === "number";
+
+/**
+ * Normalize a raw model-fallbacks rollup: `count` defaults to 1 the way
+ * pydantic fills it; entries without both model names are dropped (pydantic
+ * would refuse them); a non-array becomes null, the "no fallbacks" value.
+ * Identity-preserving on clean input.
+ */
+export const normalizeModelFallbacks = (
+  raw: unknown
+): ModelFallback[] | null => {
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  const entries = raw as unknown[];
+  if (entries.every(isModelFallback)) {
+    return entries;
+  }
+  const fallbacks: ModelFallback[] = [];
+  for (const entry of entries) {
+    if (!isRecord(entry)) continue;
+    const filled =
+      typeof entry["count"] === "number" ? entry : { ...entry, count: 1 };
+    if (isModelFallback(filled)) fallbacks.push(filled);
+  }
+  return fallbacks;
 };
 
 /**
@@ -79,18 +111,11 @@ export const normalizeSampleSummary = (
   // current writers) set the field explicitly, so only vintage settled
   // rows hit this fill.
   if (typeof raw["completed"] !== "boolean") fix("completed", true);
-  if (Array.isArray(raw["model_fallbacks"])) {
-    let changed = false;
-    const fallbacks: unknown[] = [];
-    for (const fallback of raw["model_fallbacks"] as unknown[]) {
-      if (isRecord(fallback) && typeof fallback["count"] !== "number") {
-        changed = true;
-        fallbacks.push({ ...fallback, count: 1 });
-      } else {
-        fallbacks.push(fallback);
-      }
-    }
-    if (changed) fix("model_fallbacks", fallbacks);
+  // Absent stays absent (the field is optional); anything present must be a
+  // clean rollup or null.
+  if (raw["model_fallbacks"] !== undefined && raw["model_fallbacks"] !== null) {
+    const fallbacks = normalizeModelFallbacks(raw["model_fallbacks"]);
+    if (fallbacks !== raw["model_fallbacks"]) fix("model_fallbacks", fallbacks);
   }
 
   const summary = fixes ? { ...raw, ...fixes } : raw;

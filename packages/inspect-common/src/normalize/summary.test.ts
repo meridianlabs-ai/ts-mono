@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { modelFallbackLines, totalModelFallbacks } from "../utils";
+
 import { normalizeSampleSummaries, normalizeSampleSummary } from "./index";
 
 // The shape real vintage summaries.json rows carry (2024-era writers).
@@ -72,6 +74,38 @@ describe("normalizeSampleSummary", () => {
       { model: "a", fallback_model: "b", count: 1 },
       { model: "c", fallback_model: "d", count: 3 },
     ]);
+  });
+
+  it.each([
+    ["a null element", [null]],
+    ["a number element", [1]],
+    ["a string element", ["openai/gpt-4"]],
+    ["a record missing model names", [{ count: 2 }]],
+  ])(
+    "drops %s from model_fallbacks so fallback readers stay unguarded",
+    (_label, malformed) => {
+      const summary = normalizeSampleSummary({
+        ...vintageRow,
+        model_fallbacks: [...malformed, { model: "a", fallback_model: "b" }],
+      })!;
+      expect(summary.model_fallbacks).toEqual([
+        { model: "a", fallback_model: "b", count: 1 },
+      ]);
+      expect(totalModelFallbacks(summary.model_fallbacks)).toBe(1);
+      expect(modelFallbackLines(summary.model_fallbacks)).toEqual(["a → b"]);
+    }
+  );
+
+  it("nulls a non-array model_fallbacks and resets a non-numeric count", () => {
+    expect(
+      normalizeSampleSummary({ ...vintageRow, model_fallbacks: "bad" })!
+        .model_fallbacks
+    ).toBeNull();
+    const summary = normalizeSampleSummary({
+      ...vintageRow,
+      model_fallbacks: [{ model: "a", fallback_model: "b", count: "3" }],
+    })!;
+    expect(totalModelFallbacks(summary.model_fallbacks)).toBe(1);
   });
 
   it("returns undefined for non-object entries", () => {

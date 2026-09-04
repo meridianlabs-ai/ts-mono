@@ -279,6 +279,18 @@ describe("normalizeEvalSample input validation", () => {
     ]);
   });
 
+  it("drops malformed model_fallbacks elements", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      model_fallbacks: [null, 1, { model: "a", fallback_model: "b" }],
+    });
+    expect(sample.model_fallbacks).toEqual([
+      { model: "a", fallback_model: "b", count: 1 },
+    ]);
+  });
+
   it("normalizes retry-error events recursively", () => {
     const sample = normalizeEvalSample({
       id: 1,
