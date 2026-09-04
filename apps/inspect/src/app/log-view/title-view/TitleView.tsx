@@ -7,10 +7,12 @@ import {
   EvalSpec,
   EvalStats,
 } from "@tsmono/inspect-common/types";
+import { ToolButton } from "@tsmono/react/components";
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { RunningMetric } from "../../../client/api/types";
 import { useTotalSampleCount } from "../../../state/hooks";
+import { ApplicationIcons } from "../../appearance/icons";
 
 import { CollapsedTitleBar } from "./CollapsedTitleBar";
 import { PrimaryBar } from "./PrimaryBar";
@@ -25,7 +27,8 @@ interface TitleViewProps {
   evalStats?: EvalStats;
   status?: EvalLogStatus;
   tags?: string[];
-  collapsed?: boolean;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
 }
 
 /**
@@ -40,6 +43,7 @@ export const TitleView: FC<TitleViewProps> = ({
   runningMetrics,
   tags,
   collapsed,
+  onCollapsedChange,
 }) => {
   const totalSampleCount = useTotalSampleCount();
 
@@ -52,7 +56,11 @@ export const TitleView: FC<TitleViewProps> = ({
         collapsed ? styles.collapsed : undefined
       )}
     >
-      <div className={styles.expandedSlot} aria-hidden={collapsed}>
+      <div
+        id="log-title-expanded"
+        className={styles.expandedSlot}
+        aria-hidden={collapsed}
+      >
         <div className={styles.expandedInner}>
           <PrimaryBar
             evalSpec={evalSpec}
@@ -81,6 +89,20 @@ export const TitleView: FC<TitleViewProps> = ({
           sampleCount={totalSampleCount}
         />
       </div>
+      <ToolButton
+        className={styles.collapseToggle}
+        icon={
+          collapsed
+            ? ApplicationIcons.expand.down
+            : ApplicationIcons.collapse.up
+        }
+        aria-label={collapsed ? "Expand header" : "Collapse header"}
+        title={collapsed ? "Expand header" : "Collapse header"}
+        aria-controls="log-title-expanded"
+        aria-expanded={!collapsed}
+        onClick={() => onCollapsedChange(!collapsed)}
+        subtle
+      />
     </nav>
   );
 };
