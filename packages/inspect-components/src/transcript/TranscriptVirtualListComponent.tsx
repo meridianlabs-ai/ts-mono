@@ -14,6 +14,7 @@ import {
 
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
+import { getOwn } from "@tsmono/util";
 
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
@@ -194,7 +195,7 @@ export const TranscriptVirtualListComponent: FC<
       const context = contextMap.get(item.id);
       const isLast = index === eventNodes.length - 1;
       const renderedNode = (
-        <EventLabelContext.Provider value={eventLabels?.[item.id]}>
+        <EventLabelContext.Provider value={getOwn(eventLabels, item.id)}>
           <RenderedEventNode
             node={item}
             next={next}

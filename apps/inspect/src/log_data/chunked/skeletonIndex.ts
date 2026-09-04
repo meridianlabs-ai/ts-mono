@@ -7,6 +7,27 @@
 import { at } from "./format";
 import type { SampleSkeleton, SkeletonSpan } from "./types";
 
+// `parent` is typed number but arrives via JSON.parse of a log-authored
+// sidecar. Anything other than an earlier span's index would index
+// `childrenOf` through its prototype (a "__proto__" parent reaches
+// Array.prototype.push), so the value is checked before it is used as a key.
+const parentIndex = (parent: unknown, i: number): number | undefined => {
+  if (parent === undefined) {
+    return undefined;
+  }
+  if (
+    typeof parent !== "number" ||
+    !Number.isInteger(parent) ||
+    parent < 0 ||
+    parent >= i
+  ) {
+    throw new Error(
+      `Skeleton span ${i} has an invalid parent ${JSON.stringify(parent)}`
+    );
+  }
+  return parent;
+};
+
 export class SkeletonIndex {
   readonly spans: SkeletonSpan[];
   readonly childrenOf: number[][];
@@ -20,10 +41,11 @@ export class SkeletonIndex {
     this.roots = [];
     this.spans.forEach((span, i) => {
       this.byBegin.set(span.begin, i);
-      if (span.parent === undefined) {
+      const parent = parentIndex(span.parent, i);
+      if (parent === undefined) {
         this.roots.push(i);
       } else {
-        at(this.childrenOf, span.parent).push(i);
+        at(this.childrenOf, parent).push(i);
       }
     });
     this.spanIds = new Set(this.spans.map((span) => span.id));

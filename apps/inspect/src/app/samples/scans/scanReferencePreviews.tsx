@@ -29,6 +29,8 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
   );
 };
 
+export type ScanReferencePreviews = ReadonlyMap<string, () => ReactNode>;
+
 /**
  * Walk events and build a lookup of reference id → preview renderer.
  *
@@ -36,35 +38,39 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
  * Event previews render the event inline via a transcript view; message
  * previews render the message inline via a chat view. Messages can live
  * inside ModelEvent input/output, so those are harvested here too.
+ *
+ * A Map, not a plain object: ids are log-authored, and a reference id such
+ * as "constructor" must resolve only to a message or event that really
+ * carries that id.
  */
 export function buildScanReferencePreviews(
   events: readonly Event[] | undefined
-): Record<string, () => ReactNode> {
-  if (!events || events.length === 0) return {};
-  const table: Record<string, () => ReactNode> = {};
+): ScanReferencePreviews {
+  const table = new Map<string, () => ReactNode>();
+  if (!events || events.length === 0) return table;
 
   const addMessage = (msg: ChatMessage | null | undefined) => {
-    if (!msg?.id || table[msg.id]) return;
+    if (!msg?.id || table.has(msg.id)) return;
     const captured = msg;
-    table[msg.id] = () => (
+    table.set(msg.id, () => (
       <ChatView
         id={`ref-preview-${captured.id}`}
         messages={[captured]}
         labels={{ show: false }}
         tools={{ collapseToolMessages: false }}
       />
-    );
+    ));
   };
 
   for (const event of events) {
-    if (event.uuid && !table[event.uuid]) {
+    if (event.uuid && !table.has(event.uuid)) {
       const captured = event;
-      table[event.uuid] = () => (
+      table.set(event.uuid, () => (
         <TranscriptPreview
           id={`ref-preview-${captured.uuid}`}
           events={[captured]}
         />
-      );
+      ));
     }
 
     if (event.event === "model") {

@@ -85,3 +85,46 @@ describe("resolveAttachments", () => {
     expect(resolveAttachments(undefined, attachments)).toBeUndefined();
   });
 });
+
+// Attachment ids are the suffix of a log-authored string; one that names an
+// Object.prototype member is a miss, never the inherited builtin.
+describe("resolveAttachments prototype-named ids", () => {
+  it.each([
+    "constructor",
+    "__proto__",
+    "toString",
+    "valueOf",
+    "hasOwnProperty",
+  ])("treats attachment://%s as a miss", (id) => {
+    const onFailedResolve = vi.fn();
+    const ref = `attachment://${id}`;
+    expect(resolveAttachments(ref, attachments, onFailedResolve)).toBe(ref);
+    expect(onFailedResolve).toHaveBeenCalledWith(id);
+    expect(
+      resolveAttachments({ content: [ref] }, attachments, onFailedResolve)
+    ).toEqual({ content: [ref] });
+  });
+
+  it("resolves an own attachment stored under such an id", () => {
+    expect(
+      resolveAttachments("attachment://constructor", {
+        constructor: "own content",
+      })
+    ).toBe("own content");
+  });
+
+  it("ignores attachments planted on Object.prototype", () => {
+    Object.defineProperty(Object.prototype, "planted_attachment", {
+      value: "polluted",
+      configurable: true,
+      writable: true,
+    });
+    try {
+      expect(
+        resolveAttachments("attachment://planted_attachment", attachments)
+      ).toBe("attachment://planted_attachment");
+    } finally {
+      Reflect.deleteProperty(Object.prototype, "planted_attachment");
+    }
+  });
+});

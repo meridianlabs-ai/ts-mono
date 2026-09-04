@@ -1,3 +1,5 @@
+import { getOwn } from "@tsmono/util";
+
 const CONTENT_PROTOCOL = "tc://";
 const ATTACHMENT_PROTOCOL = "attachment://";
 
@@ -14,7 +16,9 @@ const resolveString = (
     return value;
   }
   const attachmentId = ref.slice(ATTACHMENT_PROTOCOL.length);
-  const attachment = attachments[attachmentId];
+  // Own-key read: the id is log-authored, and "constructor" must be a miss
+  // rather than the inherited builtin.
+  const attachment = getOwn(attachments, attachmentId);
   if (attachment === undefined) {
     onFailedResolve?.(attachmentId);
     // A miss keeps the original (un-rewritten) string

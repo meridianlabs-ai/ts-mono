@@ -16,7 +16,7 @@ import {
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { debounce } from "@tsmono/util";
+import { debounce, getOwn } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
@@ -433,10 +433,20 @@ export const createStore = (api: ScoutApiV2) =>
           },
           setPropertyValue(id: string, propertyName: string, value: unknown) {
             set((state) => {
-              if (!state.properties[id]) {
-                state.properties[id] = {};
+              const group = getOwn(state.properties, id);
+              if (group !== undefined && propertyName !== "__proto__") {
+                group[propertyName] = value;
+                return;
               }
-              state.properties[id][propertyName] = value;
+              // Ids are component ids (transcript panels use the log's event
+              // uuid). A computed-key literal defines an own property,
+              // whereas assigning a "__proto__" id or name reaches the
+              // inherited setter, which immer's draft turns into a
+              // setPrototypeOf error.
+              state.properties = {
+                ...state.properties,
+                [id]: { ...group, [propertyName]: value },
+              };
             });
           },
           getPropertyValue(
@@ -444,15 +454,23 @@ export const createStore = (api: ScoutApiV2) =>
             propertyName: string,
             defaultValue: unknown
           ): unknown {
-            const value = get().properties[id]?.[propertyName];
+            const group = getOwn(get().properties, id);
+            const value =
+              group !== undefined && Object.hasOwn(group, propertyName)
+                ? group[propertyName]
+                : undefined;
             return value !== undefined ? value : defaultValue;
           },
           removePropertyValue(id: string, propertyName: string) {
             set((state) => {
-              const propertyGroup = state.properties[id];
+              const propertyGroup = getOwn(state.properties, id);
 
               // No property, go ahead and return
-              if (!propertyGroup || !propertyGroup[propertyName]) {
+              if (
+                !propertyGroup ||
+                !Object.hasOwn(propertyGroup, propertyName) ||
+                !propertyGroup[propertyName]
+              ) {
                 return;
               }
 
@@ -469,7 +487,10 @@ export const createStore = (api: ScoutApiV2) =>
               }
 
               // Update to the delete properties
-              state.properties[id] = remainingProperties;
+              state.properties = {
+                ...state.properties,
+                [id]: remainingProperties,
+              };
             });
           },
           removeAllProperties(id: string) {
@@ -480,7 +501,7 @@ export const createStore = (api: ScoutApiV2) =>
           },
           removeByPrefix(id: string, prefix: string) {
             set((state) => {
-              const bag = state.properties[id];
+              const bag = getOwn(state.properties, id);
               if (!bag) return;
               let changed = false;
               const next = { ...bag };
@@ -495,7 +516,7 @@ export const createStore = (api: ScoutApiV2) =>
                   const { [id]: _, ...remaining } = state.properties;
                   state.properties = remaining;
                 } else {
-                  state.properties[id] = next;
+                  state.properties = { ...state.properties, [id]: next };
                 }
               }
             });
