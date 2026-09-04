@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { expectEvent } from "../testing";
 import type { ModelEvent } from "../types";
+import { inputString } from "../utils";
 
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
 import legacySample from "./fixtures/legacy-sample-2024-11.json";
@@ -63,6 +64,38 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
     expect(results?.scores.length).toBe(legacyHeader.results.scores.length);
     const plan = normalizeEvalPlan(legacyHeader.plan);
     expect(plan.name).toBe(legacyHeader.plan.name);
+  });
+
+  it("drops malformed results.scores entries and fills score defaults", () => {
+    const results = normalizeEvalResults({
+      total_samples: 1,
+      completed_samples: 1,
+      scores: [
+        null,
+        1,
+        { scorer: "nameless" },
+        { name: "legacy" },
+        {
+          name: "match",
+          scorer: "match",
+          params: {},
+          metrics: {
+            gone: null,
+            text: { name: "text", value: "1" },
+            accuracy: { name: "accuracy", value: 1, params: {} },
+          },
+        },
+      ],
+    })!;
+    expect(results.scores).toEqual([
+      { name: "legacy", scorer: "legacy", metrics: {}, params: {} },
+      {
+        name: "match",
+        scorer: "match",
+        params: {},
+        metrics: { accuracy: { name: "accuracy", value: 1, params: {} } },
+      },
+    ]);
   });
 
   it("returns null results for in-progress logs", () => {
@@ -277,6 +310,16 @@ describe("normalizeEvalSample input validation", () => {
     expect(sample.error_retries).toEqual([
       { message: "boom", traceback: "", traceback_ansi: "" },
     ]);
+  });
+
+  it("drops malformed input messages so inputString stays unguarded", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: [1, null, { role: "user" }, { role: "user", content: "q" }],
+    });
+    expect(sample.input).toEqual([{ role: "user", content: "q" }]);
+    expect(inputString(sample.input)).toEqual(["q"]);
   });
 
   it("drops malformed model_fallbacks elements", () => {

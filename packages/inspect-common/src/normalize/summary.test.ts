@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { modelFallbackLines, totalModelFallbacks } from "../utils";
+import { inputString, modelFallbackLines, totalModelFallbacks } from "../utils";
 
 import { normalizeSampleSummaries, normalizeSampleSummary } from "./index";
 
@@ -60,6 +60,46 @@ describe("normalizeSampleSummary", () => {
     })!;
     expect(arrays.input).toEqual([{ role: "user", content: "q" }]);
     expect(arrays.target).toEqual(["a", "b"]);
+  });
+
+  it("drops non-record score values so score readers stay unguarded", () => {
+    const summary = normalizeSampleSummary({
+      ...vintageRow,
+      scores: { a: null, b: 1, c: "C", match: { value: "C" } },
+    })!;
+    expect(summary.scores).toEqual({ match: { value: "C" } });
+    expect(Object.values(summary.scores!).map((s) => s.value)).toEqual(["C"]);
+  });
+
+  it.each([
+    ["a null element", [null]],
+    ["a number element", [1]],
+    ["a bare string element", ["not a message"]],
+    ["a message without content", [{ role: "user" }]],
+    ["a message with non-text content", [{ role: "user", content: 5 }]],
+  ])("drops %s from a message-list input", (_label, malformed) => {
+    const summary = normalizeSampleSummary({
+      ...vintageRow,
+      input: [...malformed, { role: "user", content: "q" }],
+    })!;
+    expect(summary.input).toEqual([{ role: "user", content: "q" }]);
+    expect(inputString(summary.input)).toEqual(["q"]);
+  });
+
+  it("drops malformed content items inside an input message", () => {
+    const summary = normalizeSampleSummary({
+      ...vintageRow,
+      input: [
+        {
+          role: "user",
+          content: [null, { text: "untyped" }, { type: "text", text: "hi" }],
+        },
+      ],
+    })!;
+    expect(summary.input).toEqual([
+      { role: "user", content: [{ type: "text", text: "hi" }] },
+    ]);
+    expect(inputString(summary.input)).toEqual(["hi"]);
   });
 
   it("fills model_fallbacks counts while preserving complete entries", () => {

@@ -3,7 +3,11 @@ import { isRecord } from "@tsmono/util";
 import type { EvalSample } from "../types";
 
 import { normalizeEvents, normalizeModelOutput } from "./events";
-import { normalizeModelFallbacks, normalizeModelUsageMap } from "./summary";
+import {
+  normalizeModelFallbacks,
+  normalizeModelUsageMap,
+  normalizeSampleInput,
+} from "./summary";
 
 /**
  * Normalize a raw EvalSample of any vintage into the current shape:
@@ -36,9 +40,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     delete sample["score"];
   }
 
-  if (typeof sample["input"] !== "string" && !Array.isArray(sample["input"])) {
-    sample["input"] = "";
-  }
+  sample["input"] = normalizeSampleInput(sample["input"]);
   if (
     typeof sample["target"] !== "string" &&
     !Array.isArray(sample["target"])
