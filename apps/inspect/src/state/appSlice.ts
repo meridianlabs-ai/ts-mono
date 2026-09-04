@@ -1,5 +1,5 @@
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { clearDocumentSelection } from "@tsmono/util";
+import { clearDocumentSelection, getOwn } from "@tsmono/util";
 
 import { AppState } from "../app/types";
 import { Capabilities } from "../client/api/types";
@@ -294,28 +294,42 @@ export const createAppSlice = (
         key: string,
         defaultValue?: T
       ): T => {
-        const state = get();
-        const bag = state.app.propertyBags[bagName] || {};
+        const bag = getOwn(get().app.propertyBags, bagName);
         // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- unsound-by-design generic accessor: property bags hold unknown, and T is the caller's claim about their own property
-        return (key in bag ? bag[key] : defaultValue) as T;
+        return (
+          bag !== undefined && Object.hasOwn(bag, key) ? bag[key] : defaultValue
+        ) as T;
       },
 
       setPropertyValue: <T>(bagName: string, key: string, value: T) => {
         set((state) => {
-          // Create the bag if it doesn't exist
-          if (!state.app.propertyBags[bagName]) {
-            state.app.propertyBags[bagName] = {};
+          const bags = state.app.propertyBags;
+          const bag = getOwn(bags, bagName);
+          if (bag !== undefined && key !== "__proto__") {
+            bag[key] = value;
+            return;
           }
-          // Only update the specific key
-          state.app.propertyBags[bagName][key] = value;
+          // Bag names are component ids (transcript panels use the log's
+          // event uuid). A computed-key literal defines an own property,
+          // whereas assigning a "__proto__" name or key reaches the
+          // inherited setter, which immer's draft turns into a
+          // setPrototypeOf error.
+          state.app.propertyBags = {
+            ...bags,
+            [bagName]: { ...bag, [key]: value },
+          };
         });
       },
 
       removePropertyValue: (bagName: string, key: string) => {
         set((state) => {
-          if (state.app.propertyBags[bagName]) {
-            const { [key]: _, ...rest } = state.app.propertyBags[bagName];
-            state.app.propertyBags[bagName] = rest;
+          const bag = getOwn(state.app.propertyBags, bagName);
+          if (bag !== undefined) {
+            const { [key]: _, ...rest } = bag;
+            state.app.propertyBags = {
+              ...state.app.propertyBags,
+              [bagName]: rest,
+            };
           }
         });
       },
@@ -342,7 +356,7 @@ export const createAppSlice = (
 
       removeByPrefix: (bagName: string, prefix: string) => {
         set((state) => {
-          const bag = state.app.propertyBags[bagName];
+          const bag = getOwn(state.app.propertyBags, bagName);
           if (!bag) return;
           let changed = false;
           const next = { ...bag };
@@ -357,7 +371,10 @@ export const createAppSlice = (
               const { [bagName]: _, ...rest } = state.app.propertyBags;
               state.app.propertyBags = rest;
             } else {
-              state.app.propertyBags[bagName] = next;
+              state.app.propertyBags = {
+                ...state.app.propertyBags,
+                [bagName]: next,
+              };
             }
           }
         });
