@@ -4,6 +4,7 @@ import type {
   ConnectionLimitChange,
 } from "@tsmono/inspect-common/types";
 import { formatConfigValue, isoToEpoch } from "@tsmono/inspect-common/utils";
+import { nullProtoRecord } from "@tsmono/util";
 
 export interface ConnectionWindow {
   start: number;
@@ -22,17 +23,6 @@ export interface ConnectionLaneData {
 }
 
 const kAdaptiveDefaultMax = 100;
-
-// fromEntries alone only makes *present* keys own properties — an absent
-// prototype-named key ("constructor" with no retunes) would still resolve
-// through Object.prototype at read sites. A null prototype closes both.
-const nullProtoRecord = <T>(entries: Map<string, T>): Record<string, T> => {
-  // setPrototypeOf rather than Object.create + assign: fromEntries already
-  // gives a correctly typed record, and Object.create returns `any`.
-  const record = Object.fromEntries(entries);
-  Object.setPrototypeOf(record, null);
-  return record;
-};
 
 // History timestamps are epoch seconds while started_at/completed_at are ISO
 // strings; normalize here. The window expands to cover any events outside the

@@ -67,3 +67,32 @@ export const printObject = (val: object, size: number = 50): string => {
   const allItems = [...headItems, ...tailItems];
   return envelope[0] + allItems.join(separator) + envelope[1];
 };
+
+/**
+ * Own-property read of a string-keyed record. Plain indexing walks the
+ * prototype chain, so a key taken from untrusted data (a log's uuid, score
+ * name, attachment id, ...) that happens to be `constructor`, `toString` or
+ * `__proto__` resolves to a builtin instead of "absent"; this returns
+ * `undefined` for any key the record does not own.
+ */
+export const getOwn = <T>(
+  record: Readonly<Record<string, T>> | undefined,
+  key: string
+): T | undefined =>
+  record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
+
+/**
+ * Record with a null prototype built from a Map. `Object.fromEntries` alone
+ * only makes *present* keys own properties; an absent prototype-named key
+ * would still resolve through Object.prototype at read sites, and a present
+ * `__proto__` key could not be assigned onto a plain object at all.
+ */
+export const nullProtoRecord = <T>(
+  entries: ReadonlyMap<string, T>
+): Record<string, T> => {
+  // setPrototypeOf rather than Object.create + assign: fromEntries already
+  // gives a correctly typed record, and Object.create returns `any`.
+  const record = Object.fromEntries(entries);
+  Object.setPrototypeOf(record, null);
+  return record;
+};
