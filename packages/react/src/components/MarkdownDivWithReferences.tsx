@@ -13,6 +13,7 @@ import { useProperty } from "../hooks/useProperty";
 import { useComponentNavigation } from "./ComponentNavigationContext";
 import { MarkdownDiv, type MarkdownRenderer } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
+import { escapeHtmlCharacters } from "./markdownRendering";
 import { NoContentsPanel } from "./NoContentsPanel";
 import { PopOver } from "./PopOver";
 
@@ -259,8 +260,11 @@ export function injectReferenceLinks(
     return bracketMatch.replace(/\b[ME]\d+\b/g, (ordinal) => {
       const ref = refByOrdinal.get(ordinal);
       if (!ref) return ordinal;
-      const href = ref.citeUrl || "javascript:void(0)";
-      return `<a href="${href}" class="${citeClass}" data-ref-id="${ref.id}">${ordinal}</a>`;
+      // The id and URL come from log content; escaping keeps them inside the
+      // attribute rather than leaving DOMPurify to repair a quote breakout.
+      const href = escapeHtmlCharacters(ref.citeUrl || "javascript:void(0)");
+      const id = escapeHtmlCharacters(ref.id);
+      return `<a href="${href}" class="${escapeHtmlCharacters(citeClass)}" data-ref-id="${id}">${ordinal}</a>`;
     });
   });
 }
