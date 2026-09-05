@@ -44,6 +44,34 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
   });
 
   it.each([
+    "& + #outside",
+    "& ~ #outside",
+    "+ #outside",
+    "~ #outside",
+    "&.formula + #outside",
+    "&:first-child ~ #outside",
+  ])(
+    "does not retain a selector reaching a wrapper sibling: %s",
+    (selector) => {
+      const css = sanitizedCss(`#mjx-a1 { ${selector} { color: red } }`);
+      expect(css ?? "").not.toContain("#outside");
+    }
+  );
+
+  it.each([
+    "#mjx-a1",
+    "#mjx-a1 { &",
+    "#mjx-a1 { & div",
+    "#mjx-a1 { & mjx-assistive-mml",
+    '#mjx-a1 { & [jax="SVG"] mjx-tool > mjx-tip',
+  ])("does not retain an authored overlay on %s", (selector) => {
+    const css = sanitizedCss(
+      `${selector} { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; box-shadow: 0 0 0 9999px white; background-color: white }${selector.includes("{") ? "}" : ""}`
+    );
+    expect(css ?? "").not.toMatch(/100vw|100vh|9999px/);
+  });
+
+  it.each([
     [
       "an unscoped top-level rule",
       "#mjx-a1{display:contents} body{background-color:red}",
