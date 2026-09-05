@@ -6,6 +6,8 @@ import createDOMPurify, {
 
 import { canonicalImageSource } from "@tsmono/util";
 
+import { mathJaxStyles } from "./mathjaxStyles";
+
 const FORBIDDEN_TAGS = [
   "animate",
   "animatemotion",
@@ -34,14 +36,7 @@ const FORBIDDEN_TAGS = [
   "video",
 ];
 
-const MATHJAX_TAGS = [
-  "mjx-assistive-mml",
-  "mjx-container",
-  "mjx-status",
-  "mjx-tip",
-  "mjx-tool",
-  "style",
-];
+const MATHJAX_TAGS = ["mjx-assistive-mml", "mjx-container", "style"];
 
 const MATHJAX_ATTRS = [
   "display",
@@ -63,7 +58,27 @@ const URL_ATTRIBUTES = new Set([
   "xlink:href",
 ]);
 
-const SAFE_STYLE_PROPERTIES = new Set([
+// Browsers enumerate a parsed shorthand as its longhands (jsdom lists both),
+// so each allowlist below names the longhands too.
+const BOX_EDGES = ["top", "right", "bottom", "left"];
+const BOX_LONGHANDS = [
+  "overflow-x",
+  "overflow-y",
+  ...BOX_EDGES.flatMap((edge) => [
+    `margin-${edge}`,
+    `padding-${edge}`,
+    `border-${edge}-color`,
+    `border-${edge}-style`,
+    `border-${edge}-width`,
+  ]),
+];
+
+// Inline styles reach the sanitizer from log content (TeX \style{}, any
+// raw-HTML producer), so they may not take an element out of normal flow or
+// paint beyond its box: no insets, no box-shadow, and isSafeStyleValue further
+// limits `position` and `margin`.
+const INLINE_STYLE_PROPERTIES = new Set([
+  ...BOX_LONGHANDS,
   "-khtml-user-select",
   "-moz-user-select",
   "-ms-user-select",
@@ -71,8 +86,6 @@ const SAFE_STYLE_PROPERTIES = new Set([
   "-webkit-user-select",
   "background-color",
   "border",
-  "bottom",
-  "box-shadow",
   "clip",
   "color",
   "direction",
@@ -81,7 +94,6 @@ const SAFE_STYLE_PROPERTIES = new Set([
   "font-family",
   "font-size",
   "height",
-  "left",
   "line-height",
   "margin",
   "min-height",
@@ -89,20 +101,28 @@ const SAFE_STYLE_PROPERTIES = new Set([
   "overflow",
   "padding",
   "position",
-  "right",
   "stroke",
   "stroke-dasharray",
   "stroke-linecap",
   "stroke-width",
   "text-align",
-  "top",
   "user-select",
   "vertical-align",
   "width",
 ]);
 
+// Any other function (url, image-set, image, src, expression, ...) can load a
+// resource or run code; allowlisting is what makes escape spellings moot.
+const SAFE_CSS_FUNCTIONS = new Set(["hsl", "hsla", "rect", "rgb", "rgba"]);
+
 const UNSAFE_CSS_PATTERN =
   /@import|behavior\s*:|binding\s*:|expression\s*\(|javascript\s*:|vbscript\s*:|url\s*\(/i;
+
+// Backslashes are CSS escapes the tokenizer decodes but a text match does not
+// (`\75rl(` is `url(`); `@` starts an at-rule; `<` is markup. MathJax emits none.
+const RAW_CSS_REJECT_PATTERN = /[\\@<]/;
+
+const MATHJAX_WRAPPER_ID = /^mjx-[a-f0-9]+$/i;
 
 const PURIFY_CONFIG: Config = {
   ADD_ATTR: [...MATHJAX_ATTRS, "target"],
@@ -172,17 +192,26 @@ const installHooks = (purify: DOMPurifyInstance): void => {
   hooksInstalled = true;
 
   purify.addHook("uponSanitizeElement", (node, hookEvent) => {
-    if (
-      hookEvent.tagName === "style" &&
-      node instanceof Element &&
-      !isAllowedMathJaxStyleElement(node)
-    ) {
+    if (hookEvent.tagName !== "style" || !(node instanceof Element)) {
+      return;
+    }
+    const css = sanitizeMathJaxStyleElement(node);
+    if (css) {
+      node.textContent = css;
+    } else {
       node.remove();
     }
   });
 
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
+      // The accessible copy must stay clipped; inline !important could
+      // override even the viewer-owned stylesheet's clipping rule.
+      if (node.tagName.toLowerCase() === "mjx-assistive-mml") {
+        hookEvent.keepAttr = false;
+        node.removeAttribute("style");
+        return;
+      }
       sanitizeStyleAttributeHook(node, hookEvent);
       return;
     }
@@ -286,42 +315,69 @@ const isSafeUrlAttribute = (value: string): boolean => {
 };
 
 const sanitizeStyleAttribute = (style: string): string => {
-  if (!style || UNSAFE_CSS_PATTERN.test(style)) {
+  if (
+    !style ||
+    UNSAFE_CSS_PATTERN.test(style) ||
+    RAW_CSS_REJECT_PATTERN.test(style)
+  ) {
     return "";
   }
 
   const scratch = document.createElement("span");
   scratch.setAttribute("style", style);
-
-  const safeDeclarations: string[] = [];
-  for (const property of Array.from(scratch.style)) {
-    const normalizedProperty = property.toLowerCase();
-    const value = scratch.style.getPropertyValue(property);
-
-    if (
-      SAFE_STYLE_PROPERTIES.has(normalizedProperty) &&
-      value &&
-      !UNSAFE_CSS_PATTERN.test(value)
-    ) {
-      const priority = scratch.style.getPropertyPriority(property);
-      safeDeclarations.push(
-        `${normalizedProperty}: ${value}${priority ? ` !${priority}` : ""};`
-      );
-    }
-  }
-
-  return safeDeclarations.join(" ");
+  return safeDeclarations(scratch.style).join(" ");
 };
 
-const isAllowedMathJaxStyleElement = (element: Element): boolean => {
-  const parent = element.parentElement;
-  const parentId = parent?.getAttribute("id") || "";
-  const css = element.textContent || "";
+const safeDeclarations = (style: CSSStyleDeclaration): string[] => {
+  const declarations: string[] = [];
+  for (const property of Array.from(style)) {
+    const normalizedProperty = property.toLowerCase();
+    const value = style.getPropertyValue(property);
+    if (
+      !INLINE_STYLE_PROPERTIES.has(normalizedProperty) ||
+      !value ||
+      !isSafeStyleValue(normalizedProperty, value)
+    ) {
+      continue;
+    }
+    const priority = style.getPropertyPriority(property);
+    declarations.push(
+      `${normalizedProperty}: ${value}${priority ? ` !${priority}` : ""};`
+    );
+  }
+  return declarations;
+};
 
-  return (
-    parent?.tagName.toLowerCase() === "span" &&
-    /^mjx-[a-f0-9]+$/i.test(parentId) &&
-    css.includes(`#${parentId}`) &&
-    !UNSAFE_CSS_PATTERN.test(css)
-  );
+const isSafeStyleValue = (property: string, value: string): boolean => {
+  if (UNSAFE_CSS_PATTERN.test(value) || RAW_CSS_REJECT_PATTERN.test(value)) {
+    return false;
+  }
+  for (const call of value.matchAll(/([-\w]*)\s*\(/g)) {
+    if (!SAFE_CSS_FUNCTIONS.has((call[1] ?? "").toLowerCase())) {
+      return false;
+    }
+  }
+  if (property === "position") {
+    return value === "static" || value === "relative";
+  }
+  // A negative margin pulls the box over neighbouring content while staying
+  // in normal flow, which the position policy above would otherwise prevent.
+  if (property.startsWith("margin") && /(?:^|\s)-/.test(value)) {
+    return false;
+  }
+  return true;
+};
+
+// A MathJax-shaped wrapper is not proof that its CSS came from MathJax.
+// Replace the sheet with viewer-owned rules; only the validated id is reused.
+const sanitizeMathJaxStyleElement = (element: Element): string => {
+  const parent = element.parentElement;
+  const scopeId = parent?.getAttribute("id") ?? "";
+  if (
+    parent?.tagName.toLowerCase() !== "span" ||
+    !MATHJAX_WRAPPER_ID.test(scopeId)
+  ) {
+    return "";
+  }
+  return mathJaxStyles(scopeId);
 };

@@ -1,0 +1,287 @@
+// @vitest-environment jsdom
+import { beforeAll, describe, expect, it } from "vitest";
+
+import { renderMarkdown } from "./markdownRendering";
+import { sanitizeRenderedHtml } from "./renderedHtmlSanitizer";
+
+const parse = (html: string): HTMLElement => {
+  const root = document.createElement("div");
+  root.innerHTML = html;
+  return root;
+};
+
+const mathJaxStyle = (css: string): string =>
+  `<span id="mjx-a1"><style>${css}</style><mjx-container>x</mjx-container></span>`;
+
+const sanitizedCss = (css: string): string | undefined =>
+  parse(sanitizeRenderedHtml(mathJaxStyle(css))).querySelector("style")
+    ?.textContent ?? undefined;
+
+describe("sanitizeRenderedHtml MathJax stylesheet", () => {
+  let mathHtml = "";
+  beforeAll(async () => {
+    mathHtml = await renderMarkdown("$\\frac{1}{2}$", "full");
+  });
+
+  it("keeps a genuine MathJax stylesheet, scoped and positioning its assistive MathML", () => {
+    const root = parse(sanitizeRenderedHtml(mathHtml));
+    const style = root.querySelector('span[id^="mjx-"] > style');
+    const id = style?.parentElement?.id ?? "";
+    const css = style?.textContent ?? "";
+
+    expect(root.querySelector("mjx-container")).not.toBeNull();
+    expect(css.startsWith(`#${id} {`)).toBe(true);
+    expect(css).toMatch(
+      /mjx-assistive-mml \{[^}]*position: absolute !important/
+    );
+    expect(css).toMatch(
+      /mjx-assistive-mml \{[^}]*clip: rect\(1px, 1px, 1px, 1px\)/
+    );
+    expect(css).toMatch(/mjx-container\[jax="SVG"\] > svg a \{[^}]*fill: blue/);
+    // mjx-status is fixed-positioned in MathJax's default sheet; nothing in
+    // rendered output uses it and fixed positioning is not admitted.
+    expect(css).not.toContain("fixed");
+  });
+
+  it.each([
+    "& + #outside",
+    "& ~ #outside",
+    "+ #outside",
+    "~ #outside",
+    "&.formula + #outside",
+    "&:first-child ~ #outside",
+  ])(
+    "does not retain a selector reaching a wrapper sibling: %s",
+    (selector) => {
+      const css = sanitizedCss(`#mjx-a1 { ${selector} { color: red } }`);
+      expect(css ?? "").not.toContain("#outside");
+    }
+  );
+
+  it.each([
+    "#mjx-a1",
+    "#mjx-a1 { &",
+    "#mjx-a1 { & div",
+    "#mjx-a1 { & mjx-assistive-mml",
+    '#mjx-a1 { & [jax="SVG"] mjx-tool > mjx-tip',
+  ])("does not retain an authored overlay on %s", (selector) => {
+    const css = sanitizedCss(
+      `${selector} { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; box-shadow: 0 0 0 9999px white; background-color: white }${selector.includes("{") ? "}" : ""}`
+    );
+    expect(css ?? "").not.toMatch(/100vw|100vh|9999px/);
+  });
+
+  it("clips assistive MathML even when its author supplies an inline override", () => {
+    const root = parse(
+      sanitizeRenderedHtml(
+        '<span id="mjx-a1"><style></style><mjx-assistive-mml style="clip: auto !important; overflow: visible !important; width: 100vw !important; height: 100vh !important"><math><mtext>accessible math</mtext></math></mjx-assistive-mml></span>'
+      )
+    );
+    const assistive = root.querySelector("mjx-assistive-mml");
+    expect(assistive?.querySelector("math")?.textContent).toBe(
+      "accessible math"
+    );
+    expect(assistive?.hasAttribute("style")).toBe(false);
+    const css = root.querySelector("style")?.textContent ?? "";
+    expect(css).toMatch(/clip: rect\(1px, 1px, 1px, 1px\) !important/);
+    expect(css).not.toContain("clip: auto");
+  });
+
+  it("does not admit forged runtime tooltip elements into static math output", () => {
+    const root = parse(
+      sanitizeRenderedHtml(
+        '<span id="mjx-a1"><style></style><mjx-container jax="SVG"><mjx-tool><mjx-tip><div style="width:100vw;height:100vh;background-color:red">overlay</div></mjx-tip></mjx-tool></mjx-container></span>'
+      )
+    );
+    expect(root.querySelector("mjx-tool, mjx-tip")).toBeNull();
+    expect(root.querySelector("style")?.textContent).not.toMatch(
+      /mjx-tool|mjx-tip/
+    );
+  });
+
+  it("keeps the native SVG tooltip and accessible MathML of rendered math", async () => {
+    const html = await renderMarkdown(
+      "$\\mathtip{x^2}{\\text{square}}$",
+      "full"
+    );
+    const root = parse(sanitizeRenderedHtml(html));
+    expect(root.querySelector("svg title")?.textContent).toBe("square");
+    expect(root.querySelector("mjx-assistive-mml math")).not.toBeNull();
+  });
+
+  it.each([
+    [
+      "an unscoped top-level rule",
+      "#mjx-a1{display:contents} body{background-color:red}",
+      /body/,
+    ],
+    ["a top-level rule for another id", "#mjx-a2{color:red}", /mjx-a2/],
+    [
+      "a selector list that widens the top-level scope",
+      "#mjx-a1, body{color:red}",
+      /body/,
+    ],
+    [
+      "a nested selector that re-anchors with the nesting selector",
+      "#mjx-a1{ body & {color:red} }",
+      /body/,
+    ],
+    [
+      "a nested selector that escapes through :is()",
+      "#mjx-a1{ :is(body, &) {color:red} }",
+      /body/,
+    ],
+    ["a nested at-rule", "#mjx-a1{ @media screen { color:red } }", /media/],
+    [
+      "image-set() on an allowlisted property",
+      '#mjx-a1{ & div { fill: image-set("https://attacker.example/x" 1x) } }',
+      /attacker/,
+    ],
+    [
+      "a property outside the allowlist",
+      "#mjx-a1{ & div { background-image: none; content: 'x' } }",
+      /background-image:|content:/,
+    ],
+    [
+      "fixed positioning",
+      "#mjx-a1{ & div { position: fixed; top: 0; left: 0 } }",
+      /fixed/,
+    ],
+    ["sticky positioning", "#mjx-a1{ & div { position: sticky } }", /sticky/],
+    [
+      "negative margins",
+      "#mjx-a1{ & div { margin: -100vh 0 0 -50vw } }",
+      /margin[^;]*: -/,
+    ],
+  ])("drops %s", (_label, css, forbidden) => {
+    expect(sanitizedCss(css) ?? "").not.toMatch(forbidden);
+  });
+
+  it.each([
+    [
+      "a CSS-escaped url()",
+      "#mjx-a1{ & div { fill: \\75rl(https://attacker.example/x) } }",
+    ],
+    [
+      "a CSS-escaped @import",
+      '@\\69mport "https://attacker.example/x.css"; #mjx-a1{}',
+    ],
+    [
+      "a literal @import",
+      "@import url(https://attacker.example/x.css); #mjx-a1{}",
+    ],
+    [
+      "a literal url()",
+      "#mjx-a1{ & div { fill: url(https://attacker.example/x) } }",
+    ],
+  ])(
+    "replaces %s with the same trusted styles as ordinary math",
+    (_label, css) => {
+      const clean = parse(sanitizeRenderedHtml(mathHtml)).querySelector(
+        "style"
+      );
+      const id = clean?.parentElement?.id ?? "";
+      expect(sanitizedCss(css)).toBe(
+        clean?.textContent.replaceAll(id, "mjx-a1")
+      );
+      expect(sanitizedCss(css)).not.toMatch(/attacker|url\(|@import/);
+    }
+  );
+
+  it("keeps MathJax SVG overflow, display spacing, and assistive layout", () => {
+    const root = parse(sanitizeRenderedHtml(mathHtml));
+    const css = root.querySelector("style")?.textContent ?? "";
+    expect(css).toMatch(/> svg \{[^}]*overflow: visible/);
+    expect(css).toMatch(/\[display="true"\] \{[^}]*margin: 1em 0px/);
+    expect(css).toMatch(/mjx-assistive-mml \{[^}]*padding: 1px 0px 0px/);
+    expect(css).toMatch(/mjx-assistive-mml \{[^}]*border: 0px/);
+  });
+
+  it("removes a style element whose parent is not a MathJax wrapper", () => {
+    const root = parse(
+      sanitizeRenderedHtml("<div><style>#x{color:red}</style>x</div>")
+    );
+    expect(root.querySelector("style")).toBeNull();
+  });
+
+  it.each(["", "body{color:red}", "not css"])(
+    "does not use the contents of a MathJax-shaped style element: %s",
+    (css) => {
+      expect(sanitizedCss(css)).toBe(
+        sanitizedCss("#mjx-a1 { display: contents }")
+      );
+    }
+  );
+
+  it.each(["mjx-x1", "mjx-a1,body", "mjx-a1 body", "mjx-a1{color:red}"])(
+    "does not interpolate an invalid wrapper id: %s",
+    (id) => {
+      const root = parse(
+        sanitizeRenderedHtml(
+          `<span id="${id}"><style>body {color:red}</style></span>`
+        )
+      );
+      expect(root.querySelector("style")).toBeNull();
+    }
+  );
+});
+
+describe("sanitizeRenderedHtml inline style attributes", () => {
+  const styleOf = (style: string): string =>
+    parse(sanitizeRenderedHtml(`<div style="${style}">x</div>`))
+      .querySelector("div")
+      ?.getAttribute("style") ?? "";
+
+  it("keeps the declarations MathJax puts on its output", () => {
+    const kept = styleOf(
+      "position: relative; min-width: 14.823ex; vertical-align: -0.566ex; color: red"
+    );
+    expect(kept).toContain("position: relative");
+    expect(kept).toContain("min-width: 14.823ex");
+    expect(kept).toContain("vertical-align: -0.566ex");
+    expect(kept).toContain("color: red");
+  });
+
+  it("keeps in-flow box longhands and drops a negative margin longhand", () => {
+    const kept = styleOf(
+      "padding-left: 2px; margin-top: 1em; margin-left: -1em; overflow-x: auto"
+    );
+    expect(kept).toContain("padding-left: 2px");
+    expect(kept).toContain("margin-top: 1em");
+    expect(kept).toContain("overflow-x: auto");
+    expect(kept).not.toContain("margin-left");
+  });
+
+  it.each([
+    [
+      "a fixed full-viewport overlay",
+      "position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: #fff",
+      /position|top|left/,
+    ],
+    ["absolute positioning", "position: absolute", /position/],
+    ["sticky positioning", "position: sticky", /position/],
+    [
+      "inset offsets",
+      "top: 0; right: 0; bottom: 0; left: 0",
+      /top|right|bottom|left/,
+    ],
+    [
+      "a viewport-sized box-shadow",
+      "box-shadow: 0 0 0 9999px #fff",
+      /box-shadow/,
+    ],
+    ["negative margins", "margin: -100vh 0 0 -50vw", /margin[^;]*: -/],
+    [
+      "image-set() on an allowlisted property",
+      'fill: image-set("https://attacker.example/x" 1x)',
+      /attacker/,
+    ],
+    [
+      "a CSS-escaped url()",
+      "fill: \\75rl(https://attacker.example/x)",
+      /attacker/,
+    ],
+  ])("drops %s", (_label, style, forbidden) => {
+    expect(styleOf(style)).not.toMatch(forbidden);
+  });
+});
