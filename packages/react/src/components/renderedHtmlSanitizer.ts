@@ -6,6 +6,8 @@ import createDOMPurify, {
 
 import { canonicalImageSource } from "@tsmono/util";
 
+import { mathJaxStyles } from "./mathjaxStyles";
+
 const FORBIDDEN_TAGS = [
   "animate",
   "animatemotion",
@@ -115,25 +117,6 @@ const INLINE_STYLE_PROPERTIES = new Set([
   "vertical-align",
   "width",
 ]);
-
-// MathJax's per-formula stylesheet is nested under the formula's own id, so it
-// may additionally absolutely position its assistive MathML and tooltips.
-const MATHJAX_STYLESHEET_PROPERTIES = new Set([
-  ...INLINE_STYLE_PROPERTIES,
-  "bottom",
-  "box-shadow",
-  "cursor",
-  "left",
-  "right",
-  "top",
-]);
-
-type StyleScope = "inline" | "mathjax-stylesheet";
-
-const POSITION_VALUES: Record<StyleScope, Set<string>> = {
-  inline: new Set(["static", "relative"]),
-  "mathjax-stylesheet": new Set(["static", "relative", "absolute"]),
-};
 
 // Any other function (url, image-set, image, src, expression, ...) can load a
 // resource or run code; allowlisting is what makes escape spellings moot.
@@ -342,26 +325,18 @@ const sanitizeStyleAttribute = (style: string): string => {
 
   const scratch = document.createElement("span");
   scratch.setAttribute("style", style);
-  return safeDeclarations(
-    scratch.style,
-    INLINE_STYLE_PROPERTIES,
-    "inline"
-  ).join(" ");
+  return safeDeclarations(scratch.style).join(" ");
 };
 
-const safeDeclarations = (
-  style: CSSStyleDeclaration,
-  allowedProperties: Set<string>,
-  scope: StyleScope
-): string[] => {
+const safeDeclarations = (style: CSSStyleDeclaration): string[] => {
   const declarations: string[] = [];
   for (const property of Array.from(style)) {
     const normalizedProperty = property.toLowerCase();
     const value = style.getPropertyValue(property);
     if (
-      !allowedProperties.has(normalizedProperty) ||
+      !INLINE_STYLE_PROPERTIES.has(normalizedProperty) ||
       !value ||
-      !isSafeStyleValue(normalizedProperty, value, scope)
+      !isSafeStyleValue(normalizedProperty, value)
     ) {
       continue;
     }
@@ -373,11 +348,7 @@ const safeDeclarations = (
   return declarations;
 };
 
-const isSafeStyleValue = (
-  property: string,
-  value: string,
-  scope: StyleScope
-): boolean => {
+const isSafeStyleValue = (property: string, value: string): boolean => {
   if (UNSAFE_CSS_PATTERN.test(value) || RAW_CSS_REJECT_PATTERN.test(value)) {
     return false;
   }
@@ -387,7 +358,7 @@ const isSafeStyleValue = (
     }
   }
   if (property === "position") {
-    return POSITION_VALUES[scope].has(value);
+    return value === "static" || value === "relative";
   }
   // A negative margin pulls the box over neighbouring content while staying
   // in normal flow, which the position policy above would otherwise prevent.
@@ -397,15 +368,8 @@ const isSafeStyleValue = (
   return true;
 };
 
-/**
- * markdown-it-mathjax3 wraps each formula in `<span id="mjx-…">` whose first
- * child is a `<style>` carrying MathJax's stylesheet nested under that id.
- * That is the only stylesheet rendered content may contribute, so rather than
- * trusting the text the CSS is parsed and rebuilt: only style rules survive,
- * every rule stays nested under the wrapper's id, and declarations pass the
- * same allowlist as inline styles. Returns the CSS to keep, or "" to drop the
- * element.
- */
+// A MathJax-shaped wrapper is not proof that its CSS came from MathJax.
+// Replace the sheet with viewer-owned rules; only the validated id is reused.
 const sanitizeMathJaxStyleElement = (element: Element): string => {
   const parent = element.parentElement;
   const scopeId = parent?.getAttribute("id") ?? "";
@@ -415,85 +379,5 @@ const sanitizeMathJaxStyleElement = (element: Element): string => {
   ) {
     return "";
   }
-  return sanitizeScopedStyleSheet(element.textContent, scopeId);
-};
-
-const sanitizeScopedStyleSheet = (css: string, scopeId: string): string => {
-  if (
-    !css ||
-    UNSAFE_CSS_PATTERN.test(css) ||
-    RAW_CSS_REJECT_PATTERN.test(css)
-  ) {
-    return "";
-  }
-
-  // A constructed sheet is never attached to a document, so parsing it loads
-  // nothing; older engines without it (or without CSSOM nesting) fail closed.
-  try {
-    const sheet = new CSSStyleSheet();
-    sheet.replaceSync(css);
-    const rules: string[] = [];
-    for (const rule of Array.from(sheet.cssRules)) {
-      if (
-        !(rule instanceof CSSStyleRule) ||
-        rule.selectorText !== `#${scopeId}`
-      ) {
-        continue;
-      }
-      const body = [
-        ...safeDeclarations(
-          rule.style,
-          MATHJAX_STYLESHEET_PROPERTIES,
-          "mathjax-stylesheet"
-        ),
-        ...safeNestedRules(rule),
-      ];
-      if (body.length > 0) {
-        rules.push(`#${scopeId} { ${body.join(" ")} }`);
-      }
-    }
-    return rules.join(" ");
-  } catch {
-    return "";
-  }
-};
-
-const safeNestedRules = (parent: CSSStyleRule): string[] => {
-  const rules: string[] = [];
-  for (const rule of Array.from(parent.cssRules)) {
-    if (!(rule instanceof CSSStyleRule)) {
-      continue;
-    }
-    const selector = anchoredNestedSelector(rule.selectorText);
-    const declarations = safeDeclarations(
-      rule.style,
-      MATHJAX_STYLESHEET_PROPERTIES,
-      "mathjax-stylesheet"
-    );
-    if (selector && declarations.length > 0) {
-      rules.push(`${selector} { ${declarations.join(" ")} }`);
-    }
-  }
-  return rules;
-};
-
-// A nested selector only stays inside its parent's scope while `&` is the
-// leading token: `body &` and `:is(body, &)` match outside it. Each selector
-// in the list is re-anchored with a leading `&` (engines serialize the
-// implicit one differently) and rejected if another `&` or a functional
-// pseudo-class remains.
-const anchoredNestedSelector = (selectorText: string): string | undefined => {
-  const anchored: string[] = [];
-  for (const part of selectorText.split(",")) {
-    const trimmed = part.trim();
-    if (!trimmed) {
-      return undefined;
-    }
-    const selector = trimmed.startsWith("&") ? trimmed : `& ${trimmed}`;
-    if (/[&(]/.test(selector.slice(1))) {
-      return undefined;
-    }
-    anchored.push(selector);
-  }
-  return anchored.join(", ");
+  return mathJaxStyles(scopeId);
 };

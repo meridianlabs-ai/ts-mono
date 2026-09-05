@@ -102,7 +102,7 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
     [
       "a property outside the allowlist",
       "#mjx-a1{ & div { background-image: none; content: 'x' } }",
-      /background|content/,
+      /background-image:|content:/,
     ],
     [
       "fixed positioning",
@@ -136,21 +136,27 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
       "a literal url()",
       "#mjx-a1{ & div { fill: url(https://attacker.example/x) } }",
     ],
-  ])("removes the element entirely for %s", (_label, css) => {
-    expect(sanitizedCss(css)).toBeUndefined();
-  });
+  ])(
+    "replaces %s with the same trusted styles as ordinary math",
+    (_label, css) => {
+      const clean = parse(sanitizeRenderedHtml(mathHtml)).querySelector(
+        "style"
+      );
+      const id = clean?.parentElement?.id ?? "";
+      expect(sanitizedCss(css)).toBe(
+        clean?.textContent.replaceAll(id, "mjx-a1")
+      );
+      expect(sanitizedCss(css)).not.toMatch(/attacker|url\(|@import/);
+    }
+  );
 
-  // Browsers enumerate the shorthands MathJax writes as longhands.
-  it("keeps box longhands MathJax relies on", () => {
-    const css = sanitizedCss(
-      "#mjx-a1{ & svg { overflow-x: visible; overflow-y: visible; margin-top: 1em; padding-left: 1px; border-top-width: 1px; border-top-style: solid; border-top-color: #888 } }"
-    );
-    expect(css).toContain("overflow-x: visible");
-    expect(css).toContain("overflow-y: visible");
-    expect(css).toContain("margin-top: 1em");
-    expect(css).toContain("padding-left: 1px");
-    expect(css).toContain("border-top-width: 1px");
-    expect(css).toContain("border-top-style: solid");
+  it("keeps MathJax SVG overflow, display spacing, and assistive layout", () => {
+    const root = parse(sanitizeRenderedHtml(mathHtml));
+    const css = root.querySelector("style")?.textContent ?? "";
+    expect(css).toMatch(/> svg \{[^}]*overflow: visible/);
+    expect(css).toMatch(/\[display="true"\] \{[^}]*margin: 1em 0px/);
+    expect(css).toMatch(/mjx-assistive-mml \{[^}]*padding: 1px 0px 0px/);
+    expect(css).toMatch(/mjx-assistive-mml \{[^}]*border: 0px/);
   });
 
   it("removes a style element whose parent is not a MathJax wrapper", () => {
@@ -160,9 +166,26 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
     expect(root.querySelector("style")).toBeNull();
   });
 
-  it("removes a MathJax-shaped style element with nothing left to keep", () => {
-    expect(sanitizedCss("body{color:red}")).toBeUndefined();
-  });
+  it.each(["", "body{color:red}", "not css"])(
+    "does not use the contents of a MathJax-shaped style element: %s",
+    (css) => {
+      expect(sanitizedCss(css)).toBe(
+        sanitizedCss("#mjx-a1 { display: contents }")
+      );
+    }
+  );
+
+  it.each(["mjx-x1", "mjx-a1,body", "mjx-a1 body", "mjx-a1{color:red}"])(
+    "does not interpolate an invalid wrapper id: %s",
+    (id) => {
+      const root = parse(
+        sanitizeRenderedHtml(
+          `<span id="${id}"><style>body {color:red}</style></span>`
+        )
+      );
+      expect(root.querySelector("style")).toBeNull();
+    }
+  );
 });
 
 describe("sanitizeRenderedHtml inline style attributes", () => {
