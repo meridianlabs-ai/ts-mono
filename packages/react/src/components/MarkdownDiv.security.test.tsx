@@ -20,7 +20,7 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
       expect(container.querySelector("mjx-container")).not.toBeNull();
     });
 
-    expect(container.querySelector('span[id^="mjx-"] > style')).not.toBeNull();
+    expect(container.querySelector("style")).toBeNull();
     expect(container.querySelector("animate")).toBeNull();
     expect(container.querySelector("[onbegin]")).toBeNull();
     expect(container.innerHTML).not.toContain("onbegin");
@@ -220,5 +220,121 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
     expect(container.querySelector("a")?.hasAttribute("onclick")).toBe(false);
+  });
+
+  it("does not let math break out of an attribute into real markup", async () => {
+    const payload = `$\\href{x"><span id="mjx-aa"><style>#mjx-aa{}body{background-image:image-set('https://evil.example/b.png' 1x)}</style><b z="}{z}$`;
+    const { container } = render(<MarkdownDiv markdown={payload} />);
+
+    await waitFor(() => {
+      expect(container.querySelector("mjx-container")).not.toBeNull();
+    });
+
+    expect(container.querySelector("style")).toBeNull();
+    expect(container.querySelector("a[href]")).toBeNull();
+  });
+
+  it("removes the background attribute", async () => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<table><td background="https://evil.example/x.png"></td></table>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector("[background]")).toBeNull();
+    expect(container.innerHTML).not.toContain("evil.example");
+  });
+
+  // Each element needs its real parent namespace: mglyph is MathML, and inside
+  // <svg> it is dropped as unknown, which would pass for the wrong reason.
+  it.each([
+    ["mglyph", "math"],
+    ["feimage", "svg"],
+    ["animatecolor", "svg"],
+  ])("removes the %s element", async (tag, parent) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<${parent}><${tag} src="https://evil.example/x.png" href="https://evil.example/y.png"></${tag}></${parent}>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector(tag)).toBeNull();
+    expect(container.innerHTML).not.toContain("evil.example");
+  });
+
+  it.each([
+    "fill",
+    "stroke",
+    "mask",
+    "filter",
+    "clip-path",
+    "marker-start",
+    "marker-mid",
+    "marker-end",
+  ])("removes an external url() from the %s attribute", async (attr) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<svg><rect ${attr}="url(https://evil.example/x.svg#p)"></rect></svg>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.innerHTML).not.toContain("evil.example");
+  });
+
+  it("keeps a same-document fragment reference", async () => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<svg><rect fill="url(#paint)"></rect></svg>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("rect")).not.toBeNull();
+    });
+
+    expect(container.querySelector("rect")?.getAttribute("fill")).toBe(
+      "url(#paint)"
+    );
+  });
+
+  it("removes a src attribute from a non-img element", async () => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<math><mtext src="https://evil.example/x.png">m</mtext></math>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector("[src]")).toBeNull();
   });
 });

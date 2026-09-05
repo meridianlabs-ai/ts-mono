@@ -125,6 +125,12 @@ export const getMarkdownInstance = async (
     // entity-encoded by the pipeline for XSS safety, but MathJax needs
     // the raw characters (e.g. < for \lt comparisons). This is safe
     // because MathJax renders to SVG, not to injectable HTML.
+    // \href is the one TeX command whose attribute MathJax serializes without
+    // escaping quotes, letting content close it and inject real markup.
+    // \cssId escapes it; \text and undefined commands emit escaped entities.
+    const disableHref = (content: string): string =>
+      content.replace(/\\href(?![a-zA-Z])/g, "\\hrefdisabled");
+
     const origInline = md.renderer.rules.math_inline;
     const origBlock = md.renderer.rules.math_block;
 
@@ -132,7 +138,7 @@ export const getMarkdownInstance = async (
       md.renderer.rules.math_inline = (tokens, idx, options, env, self) => {
         const token = tokens[idx];
         if (token) {
-          token.content = unescapeHtmlForMath(token.content);
+          token.content = disableHref(unescapeHtmlForMath(token.content));
         }
         return origInline(tokens, idx, options, env, self);
       };
@@ -141,7 +147,7 @@ export const getMarkdownInstance = async (
       md.renderer.rules.math_block = (tokens, idx, options, env, self) => {
         const token = tokens[idx];
         if (token) {
-          token.content = unescapeHtmlForMath(token.content);
+          token.content = disableHref(unescapeHtmlForMath(token.content));
         }
         return origBlock(tokens, idx, options, env, self);
       };

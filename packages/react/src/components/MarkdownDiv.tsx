@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import "./MarkdownDiv.css";
+import "./mathjaxStyles.css";
 
 import {
   defaultMarkdownRenderer,
