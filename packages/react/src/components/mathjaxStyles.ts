@@ -3,6 +3,7 @@
 // Log-authored CSS must never supply selectors or positioning declarations.
 // Runtime tooltips/status are omitted: static SVG uses native title elements.
 // Assistive MathML stays clipped even when a log forges its contents.
+// Keep the clipped MathML selectable so copied text includes the formula.
 const MATHJAX_STYLES = `
 :scope {
   display: contents;
@@ -23,7 +24,7 @@ const MATHJAX_STYLES = `
   top: 0px;
   left: 0px;
   clip: rect(1px, 1px, 1px, 1px) !important;
-  user-select: none;
+  user-select: text !important;
   position: absolute !important;
   padding: 1px 0px 0px !important;
   border: 0px !important;
