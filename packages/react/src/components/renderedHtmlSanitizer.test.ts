@@ -71,6 +71,44 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
     expect(css ?? "").not.toMatch(/100vw|100vh|9999px/);
   });
 
+  it("clips assistive MathML even when its author supplies an inline override", () => {
+    const root = parse(
+      sanitizeRenderedHtml(
+        '<span id="mjx-a1"><style></style><mjx-assistive-mml style="clip: auto !important; overflow: visible !important; width: 100vw !important; height: 100vh !important"><math><mtext>accessible math</mtext></math></mjx-assistive-mml></span>'
+      )
+    );
+    const assistive = root.querySelector("mjx-assistive-mml");
+    expect(assistive?.querySelector("math")?.textContent).toBe(
+      "accessible math"
+    );
+    expect(assistive?.hasAttribute("style")).toBe(false);
+    const css = root.querySelector("style")?.textContent ?? "";
+    expect(css).toMatch(/clip: rect\(1px, 1px, 1px, 1px\) !important/);
+    expect(css).not.toContain("clip: auto");
+  });
+
+  it("does not admit forged runtime tooltip elements into static math output", () => {
+    const root = parse(
+      sanitizeRenderedHtml(
+        '<span id="mjx-a1"><style></style><mjx-container jax="SVG"><mjx-tool><mjx-tip><div style="width:100vw;height:100vh;background-color:red">overlay</div></mjx-tip></mjx-tool></mjx-container></span>'
+      )
+    );
+    expect(root.querySelector("mjx-tool, mjx-tip")).toBeNull();
+    expect(root.querySelector("style")?.textContent).not.toMatch(
+      /mjx-tool|mjx-tip/
+    );
+  });
+
+  it("keeps the native SVG tooltip and accessible MathML of rendered math", async () => {
+    const html = await renderMarkdown(
+      "$\\mathtip{x^2}{\\text{square}}$",
+      "full"
+    );
+    const root = parse(sanitizeRenderedHtml(html));
+    expect(root.querySelector("svg title")?.textContent).toBe("square");
+    expect(root.querySelector("mjx-assistive-mml math")).not.toBeNull();
+  });
+
   it.each([
     [
       "an unscoped top-level rule",
