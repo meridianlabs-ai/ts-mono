@@ -77,7 +77,7 @@ export const TranscriptFilterBar: FC<{
       filters={filters}
       onFilterChange={handleFilterChange}
       onRemoveFilter={removeFilter}
-      filterCodeValues={filterCodeValues ?? {}}
+      filterCodeValues={filterCodeValues}
       filterSuggestions={filterSuggestions}
       onFilterColumnChange={onFilterColumnChange}
       popoverIdPrefix="transcript"
