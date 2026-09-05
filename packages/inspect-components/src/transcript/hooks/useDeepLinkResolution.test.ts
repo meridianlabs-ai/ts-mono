@@ -288,7 +288,7 @@ describe("useDeepLinkResolution → cross-timeline switch", () => {
 
   it("switches to the timeline containing the target, once per key", () => {
     const events = [makeModelEvent("evt-1", 0), makeModelEvent("evt-9", 4)];
-    const { rerender, base, onActiveChange } = renderHarness({
+    const { rerender, base, onActiveChange, onSelect } = renderHarness({
       events,
       serverTimelines: [timelineA, timelineB],
       activeIndex: 0,
@@ -296,6 +296,10 @@ describe("useDeepLinkResolution → cross-timeline switch", () => {
     });
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(onActiveChange).toHaveBeenCalledWith(1);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(null, {
+      preserveDeepLink: true,
+    });
 
     // The switch lands.
     rerender({ ...base, activeIndex: 1 });

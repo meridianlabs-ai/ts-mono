@@ -225,6 +225,66 @@ describe("useTranscriptTimeline", () => {
     expect(result.current.multiTimeline.activeIndex).toBe(0);
   });
 
+  it("clears the shared selection when switching timelines", () => {
+    const onActiveChange = vi.fn();
+    const onSelect = vi.fn();
+    const secondTimeline: ServerTimeline = {
+      name: "second",
+      description: "Second timeline",
+      root: testTimelineSpan({
+        id: "second-root",
+        name: "Second transcript",
+        content: [testTimelineEvent({ event: "evt-2" })],
+      }),
+    };
+    const { result } = renderHook(() =>
+      useTranscriptTimeline({
+        events,
+        serverTimelines: [serverTimeline, secondTimeline],
+        activeTimelineProps: { activeIndex: 0, onActiveChange },
+        timelineProps: { selected: "root/agent-a", onSelect },
+      })
+    );
+
+    act(() => {
+      result.current.multiTimeline.setActive(1);
+    });
+
+    expect(onSelect).toHaveBeenCalledOnce();
+    expect(onSelect).toHaveBeenCalledWith(null);
+    expect(onActiveChange).toHaveBeenCalledOnce();
+    expect(onActiveChange).toHaveBeenCalledWith(1);
+  });
+
+  it("keeps the shared selection when reselecting the active timeline", () => {
+    const onActiveChange = vi.fn();
+    const onSelect = vi.fn();
+    const secondTimeline: ServerTimeline = {
+      name: "second",
+      description: "Second timeline",
+      root: testTimelineSpan({
+        id: "second-root",
+        name: "Second transcript",
+        content: [testTimelineEvent({ event: "evt-2" })],
+      }),
+    };
+    const { result } = renderHook(() =>
+      useTranscriptTimeline({
+        events,
+        serverTimelines: [serverTimeline, secondTimeline],
+        activeTimelineProps: { activeIndex: 0, onActiveChange },
+        timelineProps: { selected: "root/agent-a", onSelect },
+      })
+    );
+
+    act(() => {
+      result.current.multiTimeline.setActive(0);
+    });
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onActiveChange).not.toHaveBeenCalled();
+  });
+
   it("selectedRowName defaults to root name", () => {
     const { result } = renderHook(() =>
       useTranscriptTimeline({
