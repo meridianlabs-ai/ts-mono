@@ -36,14 +36,7 @@ const FORBIDDEN_TAGS = [
   "video",
 ];
 
-const MATHJAX_TAGS = [
-  "mjx-assistive-mml",
-  "mjx-container",
-  "mjx-status",
-  "mjx-tip",
-  "mjx-tool",
-  "style",
-];
+const MATHJAX_TAGS = ["mjx-assistive-mml", "mjx-container", "style"];
 
 const MATHJAX_ATTRS = [
   "display",
@@ -212,6 +205,13 @@ const installHooks = (purify: DOMPurifyInstance): void => {
 
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
+      // The accessible copy must stay clipped; inline !important could
+      // override even the viewer-owned stylesheet's clipping rule.
+      if (node.tagName.toLowerCase() === "mjx-assistive-mml") {
+        hookEvent.keepAttr = false;
+        node.removeAttribute("style");
+        return;
+      }
       sanitizeStyleAttributeHook(node, hookEvent);
       return;
     }

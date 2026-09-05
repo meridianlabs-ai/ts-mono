@@ -1,5 +1,5 @@
 MathJax SVG styles, adapted into a fixed, per-formula stylesheet.
-The fixed-position status rule is omitted.
+Runtime tooltip/status rules are omitted and assistive MathML is clipped.
 
 
                                  Apache License

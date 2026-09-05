@@ -1,15 +1,11 @@
 // Third-party notices: mathjaxStyles.LICENSE.
 // Fixed SVG styles from markdown-it-mathjax3 5.2.0 / mathxyjax3 0.8.3.
 // Log-authored CSS must never supply selectors or positioning declarations.
-// The unused fixed-position mjx-status rule is deliberately omitted.
+// Runtime tooltips/status are omitted: static SVG uses native title elements.
+// Assistive MathML stays clipped even when a log forges its contents.
 const MATHJAX_STYLES = `
 :scope {
   display: contents;
-}
-:scope mjx-assistive-mml {
-  color: rgba(0, 0, 0, 0);
-  user-select: text !important;
-  clip: auto !important;
 }
 :scope mjx-container[jax="SVG"] {
   direction: ltr;
@@ -26,7 +22,7 @@ const MATHJAX_STYLES = `
 :scope mjx-assistive-mml {
   top: 0px;
   left: 0px;
-  clip: rect(1px, 1px, 1px, 1px);
+  clip: rect(1px, 1px, 1px, 1px) !important;
   user-select: none;
   position: absolute !important;
   padding: 1px 0px 0px !important;
@@ -77,26 +73,6 @@ const MATHJAX_STYLES = `
 }
 :scope g[data-mml-node="mtable"] > g > svg {
   overflow: visible;
-}
-:scope [jax="SVG"] mjx-tool {
-  display: inline-block;
-  position: relative;
-  width: 0px;
-  height: 0px;
-}
-:scope [jax="SVG"] mjx-tool > mjx-tip {
-  position: absolute;
-  top: 0px;
-  left: 0px;
-}
-:scope mjx-tool > mjx-tip {
-  display: inline-block;
-  padding: 0.2em;
-  border: 1px solid rgb(136, 136, 136);
-  font-size: 70%;
-  background-color: rgb(248, 248, 248);
-  color: black;
-  box-shadow: rgb(170, 170, 170) 2px 2px 5px;
 }
 :scope g[data-mml-node="maction"][data-toggle] {
   cursor: pointer;
