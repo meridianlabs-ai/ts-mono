@@ -49,6 +49,8 @@ overrides:
   # Reached only via eslint-plugin-react-hooks and storybook's react-docgen,
   # both of which parse with babel. Nothing here builds with babel.
   "@babel/core": ^7.29.6
+  # speech-rule-engine (via mathjax-full) pins this exactly.
+  "@xmldom/xmldom": ^0.9.12 # GHSA-6gmq-8vp8-gcm6
 
   # Together these evict brace-expansion 1.x and its ReDoS advisories.
   # eslint-plugin-react, eslint-plugin-jsx-a11y and postcss-url all still ask

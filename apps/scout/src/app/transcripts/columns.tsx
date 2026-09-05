@@ -61,7 +61,7 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   agent: "Agent used to to execute task.",
   agent_args: "Arguments passed to create agent.",
   score: "Value indicating score on task.",
-  score_explanation: "Explanation for the score assigned to the task.",
+  score_explanation: "Explanation of the score on task.",
   metadata:
     "Transcript source specific metadata (e.g. model, task name, errors, epoch, dataset sample id, limits, etc.).",
   source_id:
@@ -434,9 +434,9 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
   score_explanation: createColumn({
     accessorKey: "score_explanation",
     header: "Score Explanation",
-    headerTitle: "Explanation for the score assigned to the task.",
-    size: 240,
-    minSize: 120,
+    headerTitle: "Explanation of the score on task.",
+    size: 200,
+    minSize: 80,
     maxSize: 500,
     meta: {
       filterable: true,
