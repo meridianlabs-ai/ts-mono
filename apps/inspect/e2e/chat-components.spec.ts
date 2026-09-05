@@ -83,6 +83,38 @@ async function openSample(
 // ---------------------------------------------------------------------------
 
 test.describe("chat message rendering", () => {
+  for (const { layout, content } of [
+    { layout: "inline", content: "Before $x+1$ after." },
+    { layout: "display", content: "Before\n\n$$x+1$$\n\nafter." },
+  ]) {
+    test(`keeps ${layout} math in selected message text`, async ({
+      page,
+      network,
+    }) => {
+      await openSample(page, network, [
+        { role: "assistant", content, source: "generate" },
+      ]);
+
+      const messagesArea = page.locator("#messages-contents");
+      await expect(messagesArea.locator("mjx-container > svg")).toBeVisible();
+      await expect(messagesArea.locator("mjx-assistive-mml")).toHaveCSS(
+        "clip",
+        "rect(1px, 1px, 1px, 1px)"
+      );
+
+      const selected = await messagesArea.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        return selection?.toString();
+      });
+
+      expect(selected?.replace(/\s+/g, "")).toContain("Before𝑥+1after.");
+    });
+  }
+
   test("renders user and assistant messages", async ({ page, network }) => {
     await openSample(page, network, [
       {
