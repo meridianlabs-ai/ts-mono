@@ -145,7 +145,9 @@ const WebSearchResults: FC<{ id?: string; results: WebResult[] }> = ({
     >
       {results.map((result, index) => (
         <div key={index}>
-          <ExternalLink href={result.url}>{result.title}</ExternalLink>
+          <ExternalLink href={result.url} title={result.url}>
+            {result.title}
+          </ExternalLink>
         </div>
       ))}
     </ExpandablePanel>

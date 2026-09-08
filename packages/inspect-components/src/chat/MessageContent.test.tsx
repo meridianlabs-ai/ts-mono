@@ -153,6 +153,12 @@ describe("MessageContent log-supplied link hrefs", () => {
     ["web_search_tool_result data", webSearchToolResult, "Result"],
   ] as const;
 
+  // A rejected URL is evidence from the log; the tooltip must still show it.
+  const tooltips = (container: HTMLElement): string =>
+    Array.from(container.querySelectorAll("[title]"))
+      .map((el) => el.getAttribute("title") ?? "")
+      .join("\n");
+
   describe.each(sinks)("%s", (_label, build, label) => {
     it("links an absolute http(s) URL in a new tab", async () => {
       const { container } = renderMessage([
@@ -177,6 +183,7 @@ describe("MessageContent log-supplied link hrefs", () => {
         expect(container.textContent).toContain(label);
       });
       expect(container.querySelector("a")).toBeNull();
+      expect(tooltips(container)).toContain(url);
     });
   });
 });
