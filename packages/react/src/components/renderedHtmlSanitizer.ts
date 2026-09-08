@@ -6,6 +6,7 @@ import createDOMPurify, {
 
 import { canonicalImageSource } from "@tsmono/util";
 
+import { escapeHtmlCharacters } from "./markdownRendering";
 import { mathJaxStyles } from "./mathjaxStyles";
 
 const FORBIDDEN_TAGS = [
@@ -114,6 +115,8 @@ const INLINE_STYLE_PROPERTIES = new Set([
 
 // Any other function (url, image-set, image, src, expression, ...) can load a
 // resource or run code; allowlisting is what makes escape spellings moot.
+// calc(), var() and the newer colour functions are deliberately absent: MathJax
+// emits none, and they add nothing a log author needs.
 const SAFE_CSS_FUNCTIONS = new Set(["hsl", "hsla", "rect", "rgb", "rgba"]);
 
 const UNSAFE_CSS_PATTERN =
@@ -143,24 +146,6 @@ const PURIFY_CONFIG: Config = {
 
 let purify: DOMPurifyInstance | undefined;
 let hooksInstalled = false;
-
-const escapeHtmlCharacters = (content: string): string =>
-  content.replace(/[<>&'"]/g, (c: string): string => {
-    switch (c) {
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case "&":
-        return "&amp;";
-      case "'":
-        return "&apos;";
-      case '"':
-        return "&quot;";
-      default:
-        return c;
-    }
-  });
 
 export const sanitizeRenderedHtml = (html: string): string => {
   if (!html) {

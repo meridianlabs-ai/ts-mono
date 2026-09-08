@@ -262,9 +262,11 @@ export function injectReferenceLinks(
       if (!ref) return ordinal;
       // The id and URL come from log content; escaping keeps them inside the
       // attribute rather than leaving DOMPurify to repair a quote breakout.
-      const href = escapeHtmlCharacters(ref.citeUrl || "javascript:void(0)");
+      const href = ref.citeUrl
+        ? ` href="${escapeHtmlCharacters(ref.citeUrl)}"`
+        : "";
       const id = escapeHtmlCharacters(ref.id);
-      return `<a href="${href}" class="${escapeHtmlCharacters(citeClass)}" data-ref-id="${id}">${ordinal}</a>`;
+      return `<a${href} class="${escapeHtmlCharacters(citeClass)}" data-ref-id="${id}">${ordinal}</a>`;
     });
   });
 }

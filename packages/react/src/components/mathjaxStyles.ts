@@ -16,6 +16,7 @@ const MATHJAX_STYLES = `
   position: relative;
 }
 :scope mjx-container[jax="SVG"] > svg {
+  /* WebKit ignores overflow-clip-margin and clips at the SVG box. */
   overflow: clip;
   overflow-clip-margin: 1em;
   min-height: 1px;
@@ -83,18 +84,10 @@ const MATHJAX_STYLES = `
 :scope g[data-mml-node="maction"][data-toggle] {
   cursor: pointer;
 }
-:scope foreignobject[data-mjx-xml] {
-  font-family: initial;
-  line-height: normal;
-  overflow: visible;
-}
 :scope mjx-container[jax="SVG"] path[data-c], :scope mjx-container[jax="SVG"] use[data-c] {
   stroke-width: 3;
 }
 :scope g[data-mml-node="xypic"] path {
-  stroke-width: inherit;
-}
-:scope .MathJax g[data-mml-node="xypic"] path {
   stroke-width: inherit;
 }
 `;

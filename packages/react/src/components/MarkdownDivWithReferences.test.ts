@@ -17,8 +17,8 @@ function makeRef(
 }
 
 function link(ordinal: string, id: string, href?: string): string {
-  const h = href || "javascript:void(0)";
-  return `<a href="${h}" class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`;
+  const h = href ? ` href="${href}"` : "";
+  return `<a${h} class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`;
 }
 
 describe("injectReferenceLinks", () => {
@@ -159,7 +159,8 @@ describe("injectReferenceLinks attribute escaping", () => {
     expect(anchors).toHaveLength(1);
     expect(root.querySelectorAll("*")).toHaveLength(1);
     expect(anchors[0]?.getAttribute("data-ref-id")).toBe(id);
-    expect(anchors[0]?.attributes).toHaveLength(3);
+    expect(anchors[0]?.hasAttribute("href")).toBe(false);
+    expect(anchors[0]?.attributes).toHaveLength(2);
     expect(root.textContent).toBe("See [M1]");
   });
 
