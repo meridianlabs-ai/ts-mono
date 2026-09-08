@@ -2,6 +2,9 @@
 // Fixed SVG styles from markdown-it-mathjax3 5.2.0 / mathxyjax3 0.8.3.
 // Log-authored CSS must never supply selectors or positioning declarations.
 // Runtime tooltips/status are omitted: static SVG uses native title elements.
+// MathJax leaves the SVG unclipped; a forged wrapper could then paint a 1x1
+// SVG's shapes across the viewer, so the SVG is clipped with a margin that
+// still admits glyph overhang and small \rlap/\llap overlaps.
 // Assistive MathML stays clipped even when a log forges its contents.
 // Keep the clipped MathML selectable so copied text includes the formula.
 const MATHJAX_STYLES = `
@@ -13,7 +16,8 @@ const MATHJAX_STYLES = `
   position: relative;
 }
 :scope mjx-container[jax="SVG"] > svg {
-  overflow: visible;
+  overflow: clip;
+  overflow-clip-margin: 1em;
   min-height: 1px;
   min-width: 1px;
 }

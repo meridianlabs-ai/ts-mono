@@ -134,7 +134,9 @@ const PURIFY_CONFIG: Config = {
   ADD_TAGS: MATHJAX_TAGS,
   ALLOW_DATA_ATTR: true,
   ALLOW_UNKNOWN_PROTOCOLS: false,
-  FORBID_ATTR: ["srcdoc", "srcset"],
+  // `overflow` is SVG's presentation attribute; `visible` lets a 1x1 SVG paint
+  // its shapes anywhere. MathJax sets overflow through CSS only.
+  FORBID_ATTR: ["overflow", "srcdoc", "srcset"],
   FORBID_TAGS: FORBIDDEN_TAGS,
   USE_PROFILES: { html: true, mathMl: true, svg: true },
 };
@@ -360,6 +362,9 @@ const isSafeStyleValue = (property: string, value: string): boolean => {
   }
   // A negative margin pulls the box over neighbouring content while staying
   // in normal flow.
+  if (property.startsWith("overflow") && /\bvisible\b/.test(value)) {
+    return false;
+  }
   if (property.startsWith("margin") && /(?:^|\s)-/.test(value)) {
     return false;
   }

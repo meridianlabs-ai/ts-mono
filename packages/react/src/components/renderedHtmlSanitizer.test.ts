@@ -191,10 +191,17 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
     }
   );
 
-  it("keeps MathJax SVG overflow, display spacing, and assistive layout", () => {
+  it("clips MathJax SVG overflow and keeps display spacing and assistive layout", () => {
     const root = parse(sanitizeRenderedHtml(mathHtml));
     const css = root.querySelector("style")?.textContent ?? "";
-    expect(css).toMatch(/> svg \{[^}]*overflow: visible/);
+    // MathJax's sheet says `overflow: visible`; a forged wrapper could then draw
+    // a 1x1 SVG's shapes across the viewer, so the viewer sheet clips with a
+    // margin wide enough for glyph overhang.
+    expect(css).toMatch(/> svg \{[^}]*overflow: clip/);
+    expect(css).toMatch(/> svg \{[^}]*overflow-clip-margin: 1em/);
+    expect(css).not.toMatch(
+      /mjx-container\[jax="SVG"\] > svg \{[^}]*overflow: visible/
+    );
     expect(css).toMatch(/\[display="true"\] \{[^}]*margin: 1em 0px/);
     expect(css).toMatch(/mjx-assistive-mml \{[^}]*padding: 1px 0px 0px/);
     expect(css).toMatch(/mjx-assistive-mml \{[^}]*border: 0px/);
@@ -227,6 +234,18 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
       expect(root.querySelector("style")).toBeNull();
     }
   );
+});
+
+describe("sanitizeRenderedHtml SVG overflow", () => {
+  it("drops the overflow presentation attribute", () => {
+    const svg = parse(
+      sanitizeRenderedHtml(
+        '<svg overflow="visible" width="1" height="1"><rect x="-9999" y="-9999" width="99999" height="99999"></rect></svg>'
+      )
+    ).querySelector("svg");
+    expect(svg).not.toBeNull();
+    expect(svg?.hasAttribute("overflow")).toBe(false);
+  });
 });
 
 describe("sanitizeRenderedHtml inline style attributes", () => {
@@ -281,6 +300,9 @@ describe("sanitizeRenderedHtml inline style attributes", () => {
       /box-shadow/,
     ],
     ["negative margins", "margin: -100vh 0 0 -50vw", /margin[^;]*: -/],
+    // `visible` is the default; writing it inline only undoes a clip.
+    ["overflow: visible", "overflow: visible", /overflow/],
+    ["overflow-y: visible", "overflow-y: visible; overflow-x: auto", /visible/],
     [
       "image-set() on an allowlisted property",
       'fill: image-set("https://attacker.example/x" 1x)',
