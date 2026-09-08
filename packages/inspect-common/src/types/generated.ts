@@ -1987,6 +1987,8 @@ export interface components {
                 [key: string]: string;
             };
             revision?: components["schemas"]["EvalRevision"] | null;
+            /** Run Config Source */
+            run_config_source?: string | null;
             /** Run Id */
             run_id: string;
             sandbox?: components["schemas"]["SandboxEnvironmentSpec"] | null;
