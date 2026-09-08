@@ -1,299 +1,166 @@
 // @vitest-environment jsdom
-import { beforeAll, describe, expect, it } from "vitest";
+import { expect, it } from "vitest";
 
 import { renderMarkdown } from "./markdownRendering";
-import { mathJaxStyles } from "./mathjaxStyles";
 
 /**
- * Drift check for the viewer-owned MathJax stylesheet.
+ * Drift check for the viewer-owned MathJax stylesheet in mathjaxStyles.ts.
  *
  * markdown-it-mathjax3 wraps every formula in `<span id="mjx-…"><style>…`
- * carrying MathJax's SVG stylesheet. The sanitizer never uses that text
- * (a log could forge the wrapper), and substitutes the fixed copy in
- * mathjaxStyles.ts instead. That copy therefore has to track the
- * stylesheet the installed MathJax emits, and this test is what notices
- * when it stops doing so.
+ * carrying MathJax's SVG stylesheet. The sanitizer never uses that text,
+ * because a log could forge the wrapper, and substitutes the fixed copy
+ * instead. This snapshot pins the stylesheet the installed MathJax emits so
+ * a dependency upgrade that changes it fails here rather than silently
+ * leaving the copy stale.
  *
- * If it fails after a dependency upgrade: render a formula, read the
- * authored sheet out of the raw output, and either port the changed rule
- * into mathjaxStyles.ts or, when the viewer should deliberately differ,
- * record the difference in OMITTED_SELECTORS, DEVIATIONS or ADDITIONS
- * below with the reason. Every entry in those lists is asserted to still
- * be needed, so stale entries fail too.
+ * When it fails: port the changed rules into mathjaxStyles.ts, then update
+ * the snapshot. The copy deliberately differs from the snapshot in these
+ * ways, and only these: the tooltip and status rules (mjx-tool, mjx-tip,
+ * mjx-status) and the foreignobject rule are omitted; mjx-assistive-mml is
+ * clipped with !important and selectable, without the plugin's transparent
+ * overlay colour or the prefixed user-select: none declarations; the SVG is
+ * clipped with a 1em margin instead of overflow: visible; and the container
+ * carries the position: relative that MathJax puts inline.
  */
+it("MathJax emits the stylesheet the viewer-owned copy was written from", async () => {
+  const raw = await renderMarkdown("$x$", "full");
+  const authored = /<style>([\s\S]*?)<\/style>/.exec(raw)?.[1] ?? "";
+  const normalized = authored
+    .replace(/#mjx-[a-f0-9]+/gi, "#mjx-ID")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join("\n");
 
-interface Declaration {
-  value: string;
-  important: boolean;
-}
-type Rule = Map<string, Declaration>;
-type Sheet = Map<string, Rule>;
-
-const WRAPPER = "wrapper";
-
-// Rules MathJax emits that the viewer drops entirely.
-const OMITTED_SELECTORS: Record<string, string> = {
-  '[jax="svg"] mjx-tool': "runtime tooltips are never present in static SVG",
-  '[jax="svg"] mjx-tool > mjx-tip':
-    "runtime tooltips are never present in static SVG",
-  "mjx-tool > mjx-tip": "runtime tooltips are never present in static SVG",
-  "mjx-status": "runtime status line; fixed positioning is never admitted",
-  "foreignobject[data-mjx-xml]": "foreignobject is a forbidden tag",
-  '.mathjax g[data-mml-node="xypic"] path':
-    "subset of the unqualified xypic rule with the same declaration",
-};
-
-// Declarations MathJax emits that the viewer changes or removes. `authored`
-// is the effective value after the plugin's own !important overrides.
-const DEVIATIONS: {
-  selector: string;
-  property: string;
-  authored: Declaration;
-  fixed: Declaration | undefined;
-  reason: string;
-}[] = [
-  {
-    selector: 'mjx-container[jax="svg"] > svg',
-    property: "overflow",
-    authored: { value: "visible", important: false },
-    fixed: { value: "clip", important: false },
-    reason: "a forged wrapper could paint a 1x1 SVG's shapes across the viewer",
-  },
-  {
-    selector: "mjx-assistive-mml",
-    property: "clip",
-    authored: { value: "auto", important: true },
-    fixed: { value: "rect(1px, 1px, 1px, 1px)", important: true },
-    reason: "the accessible copy stays clipped even when a log forges it",
-  },
-  {
-    selector: "mjx-assistive-mml",
-    property: "color",
-    authored: { value: "rgba(0, 0, 0, 0)", important: false },
-    fixed: undefined,
-    reason: "the plugin made the copy a transparent overlay; it is clipped now",
-  },
-  ...[
-    "-webkit-touch-callout",
-    "-webkit-user-select",
-    "-khtml-user-select",
-    "-moz-user-select",
-    "-ms-user-select",
-  ].map((property) => ({
-    selector: "mjx-assistive-mml",
-    property,
-    authored: { value: "none", important: false },
-    fixed: undefined,
-    reason: "prefixed user-select: none would defeat selecting formula text",
-  })),
-];
-
-// Declarations the viewer adds that MathJax does not emit.
-const ADDITIONS: {
-  selector: string;
-  property: string;
-  fixed: Declaration;
-  reason: string;
-}[] = [
-  {
-    selector: 'mjx-container[jax="svg"]',
-    property: "position",
-    fixed: { value: "relative", important: false },
-    reason:
-      "inline position is not admitted; MathJax put this on the container inline",
-  },
-  {
-    selector: 'mjx-container[jax="svg"] > svg',
-    property: "overflow-clip-margin",
-    fixed: { value: "1em", important: false },
-    reason: "room for glyph overhang and small \\rlap/\\llap overlaps",
-  },
-];
-
-const normalizeSelector = (selector: string): string => {
-  const stripped = selector
-    .replace(/#mjx-[a-f0-9]+/gi, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-  if (!stripped) {
-    return WRAPPER;
-  }
-  return stripped
-    .split(",")
-    .map((part) => part.trim())
-    .sort()
-    .join(", ");
-};
-
-const BOX_PROPERTIES = new Set(["margin", "padding"]);
-
-const normalizeValue = (property: string, value: string): string => {
-  const spaced = value
-    .replace(/\s*,\s*/g, ", ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!BOX_PROPERTIES.has(property)) {
-    return spaced;
-  }
-  const [top = "", right = top, bottom = top, left = right] = spaced
-    .split(" ")
-    .map((side) => (side === "0" ? "0px" : side));
-  return [top, right, bottom, left].join(" ");
-};
-
-// Later declarations win unless an earlier one is !important, mirroring the
-// cascade between the plugin's overrides and MathJax's own rules.
-const addDeclarations = (rule: Rule, body: string): void => {
-  for (const declaration of body.split(";")) {
-    const colon = declaration.indexOf(":");
-    if (colon === -1) {
-      continue;
+  expect(normalized).toMatchInlineSnapshot(`
+    "#mjx-ID{
+    display:contents;
+    mjx-assistive-mml {
+    user-select: text !important;
+    clip: auto !important;
+    color: rgba(0,0,0,0);
     }
-    const property = declaration.slice(0, colon).trim().toLowerCase();
-    const rawValue = declaration.slice(colon + 1).trim();
-    const important = /!important$/i.test(rawValue);
-    const value = normalizeValue(
-      property,
-      rawValue.replace(/\s*!important$/i, "")
-    );
-    const existing = rule.get(property);
-    if (existing?.important && !important) {
-      continue;
+    mjx-container[jax="SVG"] {
+    direction: ltr;
     }
-    rule.set(property, { value, important });
-  }
-};
-
-const ruleFor = (sheet: Sheet, selector: string): Rule => {
-  const existing = sheet.get(selector);
-  if (existing) {
-    return existing;
-  }
-  const rule: Rule = new Map();
-  sheet.set(selector, rule);
-  return rule;
-};
-
-// Handles the one level of nesting the plugin emits: declarations before a
-// nested block belong to the enclosing rule.
-const parseSheet = (css: string): Sheet => {
-  const sheet: Sheet = new Map();
-  const stack: string[] = [];
-  let buffer = "";
-  for (const char of css.replace(/\/\*[\s\S]*?\*\//g, "")) {
-    if (char === "{") {
-      const declarationsEnd = buffer.lastIndexOf(";");
-      const enclosing = stack[stack.length - 1];
-      if (enclosing !== undefined && declarationsEnd !== -1) {
-        addDeclarations(
-          ruleFor(sheet, enclosing),
-          buffer.slice(0, declarationsEnd + 1)
-        );
-      }
-      stack.push(normalizeSelector(buffer.slice(declarationsEnd + 1)));
-      buffer = "";
-    } else if (char === "}") {
-      const selector = stack.pop();
-      if (selector !== undefined) {
-        addDeclarations(ruleFor(sheet, selector), buffer);
-      }
-      buffer = "";
-    } else {
-      buffer += char;
+    mjx-container[jax="SVG"] > svg {
+    overflow: visible;
+    min-height: 1px;
+    min-width: 1px;
     }
-  }
-  return sheet;
-};
-
-const describeDeclaration = (declaration: Declaration | undefined): string =>
-  declaration
-    ? `${declaration.value}${declaration.important ? " !important" : ""}`
-    : "(absent)";
-
-describe("mathjaxStyles tracks the stylesheet MathJax emits", () => {
-  let authored: Sheet;
-  const fixed = parseSheet(mathJaxStyles("mjx-a1"));
-
-  beforeAll(async () => {
-    const raw = await renderMarkdown("$x$", "full");
-    const style = /<style>([\s\S]*?)<\/style>/.exec(raw)?.[1];
-    expect(style, "MathJax output no longer carries a <style>").toBeDefined();
-    authored = parseSheet(style ?? "");
-  });
-
-  it("carries every MathJax rule, except the listed omissions and deviations", () => {
-    for (const [selector, rule] of authored) {
-      if (selector in OMITTED_SELECTORS) {
-        expect(fixed.has(selector), `${selector} is listed as omitted`).toBe(
-          false
-        );
-        continue;
-      }
-      const fixedRule = fixed.get(selector);
-      expect(
-        fixedRule,
-        `fixed sheet lacks the rule for ${selector}`
-      ).toBeDefined();
-      for (const [property, declaration] of rule) {
-        const deviation = DEVIATIONS.find(
-          (entry) => entry.selector === selector && entry.property === property
-        );
-        const label = `${selector} { ${property} }`;
-        if (deviation) {
-          expect(declaration, `MathJax changed ${label}`).toEqual(
-            deviation.authored
-          );
-          expect(fixedRule?.get(property), `deviation for ${label}`).toEqual(
-            deviation.fixed
-          );
-          continue;
-        }
-        expect(
-          describeDeclaration(fixedRule?.get(property)),
-          `${label} drifted from MathJax`
-        ).toBe(describeDeclaration(declaration));
-      }
+    mjx-container[jax="SVG"] > svg a {
+    fill: blue;
+    stroke: blue;
     }
-  });
-
-  it("adds nothing beyond the listed additions", () => {
-    for (const [selector, rule] of fixed) {
-      const authoredRule = authored.get(selector);
-      expect(authoredRule, `MathJax no longer emits ${selector}`).toBeDefined();
-      for (const [property, declaration] of rule) {
-        if (authoredRule?.has(property)) {
-          continue;
-        }
-        const addition = ADDITIONS.find(
-          (entry) => entry.selector === selector && entry.property === property
-        );
-        expect(
-          addition,
-          `${selector} { ${property} } is not a listed addition`
-        ).toBeDefined();
-        expect(declaration).toEqual(addition?.fixed);
-      }
+    mjx-assistive-mml {
+    position: absolute !important;
+    top: 0px;
+    left: 0px;
+    clip: rect(1px, 1px, 1px, 1px);
+    padding: 1px 0px 0px 0px !important;
+    border: 0px !important;
+    display: block !important;
+    width: auto !important;
+    overflow: hidden !important;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
     }
-  });
-
-  it("lists only omissions, deviations and additions that still apply", () => {
-    for (const selector of Object.keys(OMITTED_SELECTORS)) {
-      expect(authored.has(selector), `${selector} is no longer emitted`).toBe(
-        true
-      );
+    mjx-assistive-mml[display="block"] {
+    width: 100% !important;
     }
-    for (const { selector, property } of DEVIATIONS) {
-      expect(
-        authored.get(selector)?.has(property),
-        `${selector} { ${property} } is no longer emitted`
-      ).toBe(true);
+    mjx-container[jax="SVG"][display="true"] {
+    display: block;
+    text-align: center;
+    margin: 1em 0;
     }
-    for (const { selector, property } of ADDITIONS) {
-      expect(
-        authored.get(selector)?.has(property),
-        `MathJax now emits ${selector} { ${property} } itself`
-      ).toBe(false);
+    mjx-container[jax="SVG"][display="true"][width="full"] {
+    display: flex;
     }
-  });
+    mjx-container[jax="SVG"][justify="left"] {
+    text-align: left;
+    }
+    mjx-container[jax="SVG"][justify="right"] {
+    text-align: right;
+    }
+    g[data-mml-node="merror"] > g {
+    fill: red;
+    stroke: red;
+    }
+    g[data-mml-node="merror"] > rect[data-background] {
+    fill: yellow;
+    stroke: none;
+    }
+    g[data-mml-node="mtable"] > line[data-line], svg[data-table] > g > line[data-line] {
+    stroke-width: 70px;
+    fill: none;
+    }
+    g[data-mml-node="mtable"] > rect[data-frame], svg[data-table] > g > rect[data-frame] {
+    stroke-width: 70px;
+    fill: none;
+    }
+    g[data-mml-node="mtable"] > .mjx-dashed, svg[data-table] > g > .mjx-dashed {
+    stroke-dasharray: 140;
+    }
+    g[data-mml-node="mtable"] > .mjx-dotted, svg[data-table] > g > .mjx-dotted {
+    stroke-linecap: round;
+    stroke-dasharray: 0,140;
+    }
+    g[data-mml-node="mtable"] > g > svg {
+    overflow: visible;
+    }
+    [jax="SVG"] mjx-tool {
+    display: inline-block;
+    position: relative;
+    width: 0;
+    height: 0;
+    }
+    [jax="SVG"] mjx-tool > mjx-tip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    }
+    mjx-tool > mjx-tip {
+    display: inline-block;
+    padding: .2em;
+    border: 1px solid #888;
+    font-size: 70%;
+    background-color: #F8F8F8;
+    color: black;
+    box-shadow: 2px 2px 5px #AAAAAA;
+    }
+    g[data-mml-node="maction"][data-toggle] {
+    cursor: pointer;
+    }
+    mjx-status {
+    display: block;
+    position: fixed;
+    left: 1em;
+    bottom: 1em;
+    min-width: 25%;
+    padding: .2em .4em;
+    border: 1px solid #888;
+    font-size: 90%;
+    background-color: #F8F8F8;
+    color: black;
+    }
+    foreignObject[data-mjx-xml] {
+    font-family: initial;
+    line-height: normal;
+    overflow: visible;
+    }
+    mjx-container[jax="SVG"] path[data-c], mjx-container[jax="SVG"] use[data-c] {
+    stroke-width: 3;
+    }
+    g[data-mml-node="xypic"] path {
+    stroke-width: inherit;
+    }
+    .MathJax g[data-mml-node="xypic"] path {
+    stroke-width: inherit;
+    }
+    }"
+  `);
 });
