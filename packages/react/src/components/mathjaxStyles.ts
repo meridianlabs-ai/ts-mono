@@ -10,6 +10,7 @@ const MATHJAX_STYLES = `
 }
 :scope mjx-container[jax="SVG"] {
   direction: ltr;
+  position: relative;
 }
 :scope mjx-container[jax="SVG"] > svg {
   overflow: visible;

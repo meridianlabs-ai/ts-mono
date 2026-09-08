@@ -75,8 +75,10 @@ const BOX_LONGHANDS = [
 
 // Inline styles reach the sanitizer from log content (TeX \style{}, any
 // raw-HTML producer), so they may not take an element out of normal flow or
-// paint beyond its box: no insets, no box-shadow, and isSafeStyleValue further
-// limits `position` and `margin`.
+// paint beyond its box: no `position` (even `relative` paints above the text
+// that follows a zero-height parent), no insets, no box-shadow, and
+// isSafeStyleValue further limits `margin`. MathJax's container gets its
+// `position: relative` from the viewer-owned stylesheet instead.
 const INLINE_STYLE_PROPERTIES = new Set([
   ...BOX_LONGHANDS,
   "-khtml-user-select",
@@ -100,7 +102,6 @@ const INLINE_STYLE_PROPERTIES = new Set([
   "min-width",
   "overflow",
   "padding",
-  "position",
   "stroke",
   "stroke-dasharray",
   "stroke-linecap",
@@ -357,11 +358,8 @@ const isSafeStyleValue = (property: string, value: string): boolean => {
       return false;
     }
   }
-  if (property === "position") {
-    return value === "static" || value === "relative";
-  }
   // A negative margin pulls the box over neighbouring content while staying
-  // in normal flow, which the position policy above would otherwise prevent.
+  // in normal flow.
   if (property.startsWith("margin") && /(?:^|\s)-/.test(value)) {
     return false;
   }

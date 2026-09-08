@@ -38,6 +38,9 @@ describe("sanitizeRenderedHtml MathJax stylesheet", () => {
       /mjx-assistive-mml \{[^}]*clip: rect\(1px, 1px, 1px, 1px\)/
     );
     expect(css).toMatch(/mjx-container\[jax="SVG"\] > svg a \{[^}]*fill: blue/);
+    // The container is the containing block for the absolutely positioned
+    // assistive MathML; inline `position` is not admitted, so the sheet sets it.
+    expect(css).toMatch(/mjx-container\[jax="SVG"\] \{[^}]*position: relative/);
     // mjx-status is fixed-positioned in MathJax's default sheet; nothing in
     // rendered output uses it and fixed positioning is not admitted.
     expect(css).not.toContain("fixed");
@@ -232,11 +235,11 @@ describe("sanitizeRenderedHtml inline style attributes", () => {
       .querySelector("div")
       ?.getAttribute("style") ?? "";
 
-  it("keeps the declarations MathJax puts on its output", () => {
+  it("keeps the declarations MathJax puts on its output, except position", () => {
     const kept = styleOf(
       "position: relative; min-width: 14.823ex; vertical-align: -0.566ex; color: red"
     );
-    expect(kept).toContain("position: relative");
+    expect(kept).not.toContain("position");
     expect(kept).toContain("min-width: 14.823ex");
     expect(kept).toContain("vertical-align: -0.566ex");
     expect(kept).toContain("color: red");
@@ -259,6 +262,13 @@ describe("sanitizeRenderedHtml inline style attributes", () => {
       /position|top|left/,
     ],
     ["absolute positioning", "position: absolute", /position/],
+    // A relatively positioned box paints above normal-flow text, so inside a
+    // zero-height parent it covers whatever follows it.
+    [
+      "relative positioning in a zero-height parent",
+      "position: relative; height: 100vh; width: 100vw; background-color: #fff",
+      /position/,
+    ],
     ["sticky positioning", "position: sticky", /position/],
     [
       "inset offsets",
