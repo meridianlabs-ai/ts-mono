@@ -17,6 +17,7 @@ import {
 } from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
+import { ExternalLink } from "./ExternalLink";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
@@ -264,26 +265,31 @@ const contentRenderers: (
       render: (_id, entry, _options) => {
         const results: ReactNode[] = [];
         results.push(
-          <div className={styles.query}>
+          <div key="query" className={styles.query}>
             <i className={icons.search}></i> {entry.value.query}
           </div>
         );
         entry.value.results.forEach(
-          (result: { url: string; summary: string }) => {
+          (result: { url: string; summary: string }, index: number) => {
             results.push(
-              <div>
-                <a href={result.url}>{result.url}</a>
+              <div key={`url-${index}`}>
+                <ExternalLink href={result.url}>{result.url}</ExternalLink>
               </div>
             );
             results.push(
-              <div className={clsx("text-size-smaller", styles.summary)}>
+              <div
+                key={`summary-${index}`}
+                className={clsx("text-size-smaller", styles.summary)}
+              >
                 {result.summary}
               </div>
             );
           }
         );
+        // The caller keeps only a valid element; a bare array falls through
+        // to the JSON fallback.
         return {
-          rendered: results,
+          rendered: <Fragment>{results}</Fragment>,
         };
       },
     },
