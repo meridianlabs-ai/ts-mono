@@ -4,24 +4,32 @@ import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
 import { kModelNone } from "../constants";
 
 /**
- * Resolve the model display string for an EvalSpec.
+ * Format the primary model first, then the named roles.
  *
- * - If `model_roles` is populated, formats it as `role: model[; role: model]…`
- *   (`;` between roles, since a list-valued role already uses `,` between its
- *   models).
- * - Otherwise falls back to `eval.model`, ignoring the placeholder `none/none`.
- * - Returns `undefined` if neither source has anything meaningful.
+ * Separate entries with `;` since list-valued roles already use `,`.
+ * Omits the `none/none` placeholder and returns `undefined` if both are empty.
  */
 export const formatModelText = (evalSpec?: EvalSpec): string | undefined => {
-  if (!evalSpec) return undefined;
-  const roles = evalSpec.model_roles;
-  if (roles && Object.keys(roles).length > 0) {
-    return Object.entries(roles)
-      .map(([role, data]) => `${role}: ${modelRoleModelNames(data)}`)
-      .join("; ");
-  }
-  if (evalSpec.model && evalSpec.model !== kModelNone) {
-    return evalSpec.model;
-  }
-  return undefined;
+  const { model, roles } = modelDisplayParts(evalSpec);
+  return [model, roles].filter(Boolean).join("; ") || undefined;
+};
+
+/** Format the primary model followed by parenthesized roles for a title. */
+export const formatModelTitle = (evalSpec?: EvalSpec): string | undefined => {
+  const { model, roles } = modelDisplayParts(evalSpec);
+  return (
+    [model, roles ? `(${roles})` : undefined].filter(Boolean).join(" ") ||
+    undefined
+  );
+};
+
+const modelDisplayParts = (evalSpec?: EvalSpec) => {
+  const model = evalSpec?.model;
+  const roles = Object.entries(evalSpec?.model_roles ?? {})
+    .map(([role, data]) => `${role}: ${modelRoleModelNames(data)}`)
+    .join("; ");
+  return {
+    model: model && model !== kModelNone ? model : undefined,
+    roles: roles || undefined,
+  };
 };

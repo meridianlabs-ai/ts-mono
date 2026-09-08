@@ -7,6 +7,7 @@ import {
   testEvalResults,
   testEvalScore,
   testEvalSpec,
+  testModelConfig,
 } from "@tsmono/inspect-common/testing";
 
 import { CollapsedTitleBar } from "./CollapsedTitleBar";
@@ -33,6 +34,26 @@ const renderedLabels = (container: HTMLElement) =>
 describe("CollapsedTitleBar", () => {
   // Auto-cleanup needs vitest `globals: true`, which this config doesn't set.
   afterEach(cleanup);
+
+  test("shows the primary model before parenthesized custom roles", () => {
+    const { getByText } = render(
+      <CollapsedTitleBar
+        evalSpec={testEvalSpec({
+          model: "openai/gpt-6-astra",
+          model_roles: {
+            generator: testModelConfig({ model: "mockllm/generator" }),
+            judge: testModelConfig({ model: "mockllm/judge" }),
+          },
+        })}
+      />
+    );
+    const model = getByText(
+      "openai/gpt-6-astra (generator: mockllm/generator; judge: mockllm/judge)"
+    );
+    expect(model.getAttribute("title")).toBe(
+      "openai/gpt-6-astra (generator: mockllm/generator; judge: mockllm/judge)"
+    );
+  });
 
   test("leads with the headline metric rather than the first score", () => {
     const { container } = render(

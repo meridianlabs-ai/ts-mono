@@ -16,7 +16,7 @@ import {
 } from "../../../scoring/metrics";
 import { groupScorers } from "../../../scoring/scores";
 import { useEffectiveEvalConfig } from "../../../state/hooks";
-import { formatModelText } from "../../../utils/evalModel";
+import { formatModelTitle } from "../../../utils/evalModel";
 import { ApplicationIcons } from "../../appearance/icons";
 
 import styles from "./CollapsedTitleBar.module.css";
@@ -61,7 +61,7 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
     0
   );
 
-  const modelText = formatModelText(evalSpec);
+  const modelText = formatModelTitle(evalSpec);
 
   return (
     <div
@@ -91,7 +91,7 @@ export const CollapsedTitleBar: FC<CollapsedTitleBarProps> = ({
             )}
             title={modelText}
           >
-            ({modelText})
+            {modelText}
           </span>
         ) : null}
       </div>
