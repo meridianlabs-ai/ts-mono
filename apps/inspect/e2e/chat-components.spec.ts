@@ -115,6 +115,46 @@ test.describe("chat message rendering", () => {
     });
   }
 
+  test("does not let a TeX \\style overlay cover the next message", async ({
+    page,
+    network,
+  }) => {
+    // Message markdown is HTML-escaped, so \style{} is the route by which log
+    // content reaches an inline style attribute (on the assistive MathML).
+    const overlay =
+      "position:fixed;top:0;left:0;width:100vw;height:100vh;background-color:#fff";
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        content: `Overlay $\\style{${overlay}}{x}$ here.`,
+        source: "generate",
+      },
+      {
+        role: "user",
+        content: "Second message stays readable",
+        source: "input",
+      },
+    ]);
+
+    const messagesArea = page.locator("#messages-contents");
+    await expect(
+      messagesArea.locator('mjx-assistive-mml [style*="100vh"]')
+    ).toHaveCount(1);
+    const target = messagesArea.getByText("Second message stays readable");
+    await target.scrollIntoViewIfNeeded();
+    const hit = await target.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        box.left + 5,
+        box.top + box.height / 2
+      );
+      return top === null || element.contains(top) || top.contains(element)
+        ? "text"
+        : top.tagName.toLowerCase();
+    });
+    expect(hit).toBe("text");
+  });
+
   test("renders user and assistant messages", async ({ page, network }) => {
     await openSample(page, network, [
       {
