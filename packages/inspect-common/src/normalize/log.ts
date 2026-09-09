@@ -75,17 +75,11 @@ const isEvalMetric = (value: unknown): value is EvalMetric =>
   typeof value["value"] === "number" &&
   isRecord(value["params"]);
 
-const isEvalMetricMap = (value: unknown): value is Record<string, EvalMetric> =>
-  isRecord(value) && Object.values(value).every(isEvalMetric);
-
 // Metrics are keyed by name in the map, so a missing name fills from the key;
 // `params` postdates `options` (the 2024 shape) and defaults to {} upstream.
 const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
   if (!isRecord(raw)) {
     return {};
-  }
-  if (isEvalMetricMap(raw)) {
-    return raw;
   }
   const metrics: Record<string, EvalMetric> = {};
   for (const [name, entry] of Object.entries(raw)) {
@@ -100,13 +94,6 @@ const normalizeEvalMetrics = (raw: unknown): Record<string, EvalMetric> => {
   return metrics;
 };
 
-const isEvalScore = (value: unknown): value is EvalScore =>
-  isRecord(value) &&
-  typeof value["name"] === "string" &&
-  typeof value["scorer"] === "string" &&
-  isRecord(value["metrics"]) &&
-  isRecord(value["params"]);
-
 /**
  * Normalize raw per-scorer results. Entries without a name drop (pydantic
  * has no default); `scorer` predates multi-scorer logs and backfills from
@@ -119,15 +106,17 @@ const normalizeEvalScores = (raw: unknown): EvalScore[] => {
   const entries = raw as unknown[];
   const scores: EvalScore[] = [];
   for (const entry of entries) {
-    if (!isRecord(entry) || typeof entry["name"] !== "string") continue;
-    const filled = {
+    if (!isRecord(entry)) continue;
+    const name = entry["name"];
+    if (typeof name !== "string") continue;
+    const filled: EvalScore = {
       ...entry,
-      scorer:
-        typeof entry["scorer"] === "string" ? entry["scorer"] : entry["name"],
+      name,
+      scorer: typeof entry["scorer"] === "string" ? entry["scorer"] : name,
       metrics: normalizeEvalMetrics(entry["metrics"]),
       params: isRecord(entry["params"]) ? entry["params"] : {},
     };
-    if (isEvalScore(filled)) scores.push(filled);
+    scores.push(filled);
   }
   return scores;
 };

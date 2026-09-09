@@ -62,10 +62,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
 
   // `count` on fallbacks and the traceback pair on retry errors default
   // upstream; fill them so their renderers can read them unguarded.
-  if (
-    sample["model_fallbacks"] !== undefined &&
-    sample["model_fallbacks"] !== null
-  ) {
+  if ("model_fallbacks" in sample) {
     sample["model_fallbacks"] = normalizeModelFallbacks(
       sample["model_fallbacks"]
     );

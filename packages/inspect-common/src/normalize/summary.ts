@@ -42,7 +42,7 @@ const isContent = (value: unknown): value is Content =>
 
 // `role` is not checked: every pydantic message subclass defaults it, so its
 // absence is legal wire data; only the content shape the readers walk is.
-const isChatMessage = (value: unknown): value is ChatMessage =>
+const hasChatMessageContent = (value: unknown): value is ChatMessage =>
   isRecord(value) &&
   (typeof value["content"] === "string" ||
     (Array.isArray(value["content"]) &&
@@ -57,9 +57,9 @@ const normalizeInputMessage = (raw: unknown): ChatMessage | undefined => {
     const kept = (content as unknown[]).filter(isContent);
     const message =
       kept.length === content.length ? raw : { ...raw, content: kept };
-    return isChatMessage(message) ? message : undefined;
+    return hasChatMessageContent(message) ? message : undefined;
   }
-  return isChatMessage(raw) ? raw : undefined;
+  return hasChatMessageContent(raw) ? raw : undefined;
 };
 
 /**
@@ -76,7 +76,7 @@ export const normalizeSampleInput = (raw: unknown): string | ChatMessage[] => {
     return "";
   }
   const entries = raw as unknown[];
-  if (entries.every(isChatMessage)) {
+  if (entries.every(hasChatMessageContent)) {
     return entries;
   }
   const messages: ChatMessage[] = [];
@@ -136,12 +136,16 @@ const isModelFallback = (value: unknown): value is ModelFallback =>
 /**
  * Normalize a raw model-fallbacks rollup: `count` defaults to 1 the way
  * pydantic fills it; entries without both model names are dropped (pydantic
- * would refuse them); a non-array becomes null, the "no fallbacks" value.
+ * would refuse them); a present non-array becomes null, the "no fallbacks"
+ * value. The field is optional, so absent (and null) stays as it is.
  * Identity-preserving on clean input.
  */
 export const normalizeModelFallbacks = (
   raw: unknown
-): ModelFallback[] | null => {
+): ModelFallback[] | null | undefined => {
+  if (raw === undefined || raw === null) {
+    return raw;
+  }
   if (!Array.isArray(raw)) {
     return null;
   }
@@ -208,12 +212,8 @@ export const normalizeSampleSummary = (
   // current writers) set the field explicitly, so only vintage settled
   // rows hit this fill.
   if (typeof raw["completed"] !== "boolean") fix("completed", true);
-  // Absent stays absent (the field is optional); anything present must be a
-  // clean rollup or null.
-  if (raw["model_fallbacks"] !== undefined && raw["model_fallbacks"] !== null) {
-    const fallbacks = normalizeModelFallbacks(raw["model_fallbacks"]);
-    if (fallbacks !== raw["model_fallbacks"]) fix("model_fallbacks", fallbacks);
-  }
+  const fallbacks = normalizeModelFallbacks(raw["model_fallbacks"]);
+  if (fallbacks !== raw["model_fallbacks"]) fix("model_fallbacks", fallbacks);
 
   const summary = fixes ? { ...raw, ...fixes } : raw;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify
