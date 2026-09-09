@@ -3,7 +3,12 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { describe, expect, test } from "vitest";
 
-import { EvalSample } from "@tsmono/inspect-common/types";
+import {
+  testEvalSample,
+  testInfoEvent,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
+import { ChatMessage, EvalSample } from "@tsmono/inspect-common/types";
 import { data, loading } from "@tsmono/util";
 
 import { SampleHandle } from "../app/types";
@@ -16,29 +21,22 @@ import {
   usePassiveEvalSampleData,
 } from "./sampleData";
 import { sampleQueryKey } from "./sampleQuery";
+import {
+  sequenceReaderOver,
+  testChunkedSample,
+  testSampleSummary,
+} from "./testFixtures";
 
 const handle: SampleHandle = { logFile: "run.eval", id: "s1", epoch: 1 };
 
-const summary = (overrides: Partial<SampleSummary> = {}): SampleSummary => ({
-  id: "s1",
-  epoch: 1,
-  input: "input",
-  target: "target",
-  scores: null,
-  ...overrides,
-});
+const summary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
+  testSampleSummary({ target: "target", ...overrides });
 
 const sample = (overrides: Partial<EvalSample> = {}): EvalSample =>
-  ({
-    id: "s1",
-    epoch: 1,
-    events: [],
-    messages: [],
-    ...overrides,
-  }) as EvalSample;
+  testEvalSample({ id: "s1", epoch: 1, ...overrides });
 
 const events = (n: number): RunningSampleData["events"] =>
-  Array.from({ length: n }, (_, i) => ({ id: `e${i}` }) as never);
+  Array.from({ length: n }, (_, i) => testInfoEvent({ uuid: `e${i}` }));
 
 const runningData = (
   overrides: Partial<RunningSampleData> = {}
@@ -119,7 +117,7 @@ describe("deriveSampleData", () => {
   });
 
   test("running path: finalize hands off to the primed EvalSample without a loading flash", () => {
-    const finalized = sample({ messages: [{} as never] });
+    const finalized = sample({ messages: [testUserMessage()] });
     const result = deriveSampleData(
       inputs({
         summary: summary({ completed: false }),
@@ -144,7 +142,7 @@ describe("deriveSampleData", () => {
   });
 
   test("completed path: settled EvalSample wins", () => {
-    const evalSample = sample({ events: [{} as never] });
+    const evalSample = sample({ events: [testInfoEvent()] });
     const result = deriveSampleData(inputs({ query: data(evalSample) }));
     expect(result.status).toBe("ok");
     expect(result.sample).toBe(evalSample);
@@ -153,7 +151,9 @@ describe("deriveSampleData", () => {
 
   test("chunked path: a chunked sample serves its shell and never touches the monolith path", () => {
     const evalSample = sample({ events: [] });
-    const chunkedSample = { shell: {} } as never;
+    const chunkedSample = testChunkedSample(
+      sequenceReaderOver<ChatMessage>([])
+    );
     const result = deriveSampleData(
       inputs({
         chunked: data({ chunked: chunkedSample, evalSample }),
@@ -174,7 +174,7 @@ describe("deriveSampleData", () => {
   });
 
   test("monolith classification (null) leaves the completed path authoritative", () => {
-    const evalSample = sample({ events: [{} as never] });
+    const evalSample = sample({ events: [testInfoEvent()] });
     const result = deriveSampleData(
       inputs({ chunked: data(null), query: data(evalSample) })
     );
@@ -184,7 +184,7 @@ describe("deriveSampleData", () => {
   });
 
   test("completed path: settled EvalSample wins over leftover stream state (navigating away from a running sample)", () => {
-    const evalSample = sample({ events: [{} as never] });
+    const evalSample = sample({ events: [testInfoEvent()] });
     const result = deriveSampleData(
       inputs({
         query: data(evalSample),
@@ -254,7 +254,7 @@ describe("usePassiveEvalSampleData", () => {
     expect(result.current.loading).toBe(true);
     expect(result.current.data).toBeUndefined();
 
-    const primed = sample({ events: [{} as never] });
+    const primed = sample({ events: [testInfoEvent()] });
     act(() => {
       client.setQueryData(sampleQueryKey(handle), primed);
     });

@@ -1,4 +1,3 @@
-import { ColumnDef } from "@tanstack/react-table";
 import clsx from "clsx";
 
 import {
@@ -13,11 +12,16 @@ import { ApplicationIcons } from "../../icons";
 import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
+import type { ExtendedColumnDef } from "../components/columnTypes";
 import { valueAsString } from "../utils/format";
 
 import styles from "./columns.module.css";
 
 // Column headers for display (used in column picker and add filter dropdown)
+/** The column picker works in plain strings; this is the way back. */
+export const isTranscriptColumnKey = (id: string): id is keyof TranscriptInfo =>
+  Object.hasOwn(COLUMN_LABELS, id);
+
 export const COLUMN_LABELS: Record<keyof TranscriptInfo, string> = {
   success: "Success",
   date: "Date",
@@ -30,6 +34,7 @@ export const COLUMN_LABELS: Record<keyof TranscriptInfo, string> = {
   agent: "Agent",
   agent_args: "Agent Args",
   score: "Score",
+  score_explanation: "Score Explanation",
   metadata: "Metadata",
   source_id: "Source ID",
   source_type: "Source Type",
@@ -56,6 +61,7 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   agent: "Agent used to to execute task.",
   agent_args: "Arguments passed to create agent.",
   score: "Value indicating score on task.",
+  score_explanation: "Explanation of the score on task.",
   metadata:
     "Transcript source specific metadata (e.g. model, task name, errors, epoch, dataset sample id, limits, etc.).",
   source_id:
@@ -71,7 +77,7 @@ export const COLUMN_HEADER_TITLES: Record<keyof TranscriptInfo, string> = {
   error: "Error message that terminated the task.",
 };
 
-export type TranscriptColumn = ColumnDef<TranscriptInfo> & {
+export type TranscriptColumn = ExtendedColumnDef<TranscriptInfo> & {
   meta?: {
     align?: "left" | "center" | "right";
     filterable?: boolean;
@@ -88,6 +94,20 @@ export type TranscriptColumn = ColumnDef<TranscriptInfo> & {
   /** Tooltip text for the column header */
   headerTitle?: string;
 };
+
+/**
+ * TanStack hands cell values to a column's callbacks as `unknown`: the value
+ * for a column keyed `accessorKey` is that field of the row, but the table
+ * types have no way to say so. This is the one place a field-typed callback
+ * is adapted to the grid's untyped one.
+ */
+function forCellValue<K extends keyof TranscriptInfo, R>(
+  fn: (value: TranscriptInfo[K]) => R
+): (value: unknown) => R {
+  return (value) =>
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- cell value boundary: see above
+    fn(value as TranscriptInfo[K]);
+}
 
 // Helper to create strongly-typed columns
 function createColumn<K extends keyof TranscriptInfo>(config: {
@@ -122,14 +142,14 @@ function createColumn<K extends keyof TranscriptInfo>(config: {
     minSize: config.minSize,
     maxSize: config.maxSize,
     meta: config.meta,
-    titleValue: config.titleValue as ((value: unknown) => string) | undefined,
+    titleValue: config.titleValue && forCellValue(config.titleValue),
     textValue: config.textValue
-      ? (config.textValue as (value: unknown) => string | null)
+      ? forCellValue(config.textValue)
       : defaultTextValue,
     cell: (info) => {
-      const value = info.getValue() as TranscriptInfo[K];
+      const value = info.getValue();
       if (config.cell) {
-        return config.cell(value);
+        return forCellValue(config.cell)(value);
       }
       if (value === undefined || value === null) {
         return "-";
@@ -411,6 +431,21 @@ export const ALL_COLUMNS: Record<keyof TranscriptInfo, TranscriptColumn> = {
       return String(value);
     },
   }),
+  score_explanation: createColumn({
+    accessorKey: "score_explanation",
+    header: "Score Explanation",
+    headerTitle: "Explanation of the score on task.",
+    size: 200,
+    minSize: 80,
+    maxSize: 500,
+    meta: {
+      filterable: true,
+      filterType: "string",
+    },
+    cell: (value) => {
+      return value || "-";
+    },
+  }),
   metadata: createObjectColumn({
     accessorKey: "metadata",
     header: "Metadata",
@@ -589,6 +624,7 @@ export const DEFAULT_COLUMN_ORDER: Array<keyof TranscriptInfo> = [
   "agent",
   "agent_args",
   "score",
+  "score_explanation",
   "metadata",
   "source_id",
   "source_type",

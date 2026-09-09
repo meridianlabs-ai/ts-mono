@@ -146,7 +146,9 @@ function getZstdWorker(): Promise<Worker> {
 
     // Wait for init confirmation before resolving
     const initHandler = (event: MessageEvent) => {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- worker message boundary: MessageEvent.data is `any`, and the payload is only what our own zstd worker posts back
       const message = event.data as ZstdInitMessage;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the assertion above names the message we want; other message types reach this same listener at runtime
       if (message.type === "init_complete") {
         zstdWorker!.removeEventListener("message", initHandler);
         if (message.success) {
@@ -209,6 +211,7 @@ export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
           success,
           data: resultData,
           error,
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- worker message boundary: see initHandler above
         } = event.data as ZstdDecompressMessage;
         const pending = pendingRequests.get(respId);
         if (!pending) return;

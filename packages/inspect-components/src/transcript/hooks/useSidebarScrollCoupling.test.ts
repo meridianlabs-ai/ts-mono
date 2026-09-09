@@ -21,7 +21,7 @@ interface ScrollerOptions {
 
 function makeScroller(options: ScrollerOptions = {}) {
   const el = document.createElement("div");
-  el.getBoundingClientRect = () => ({ top: options.top ?? 0 }) as DOMRect;
+  el.getBoundingClientRect = () => new DOMRect(0, options.top ?? 0, 0, 0);
   Object.defineProperty(el, "scrollHeight", {
     value: options.scrollHeight ?? 1000,
     configurable: true,
@@ -31,8 +31,8 @@ function makeScroller(options: ScrollerOptions = {}) {
     configurable: true,
   });
   el.scrollTop = options.scrollTop ?? 0;
-  const scrollBy = vi.fn<(opts: { top: number }) => void>();
-  (el as unknown as { scrollBy: typeof scrollBy }).scrollBy = scrollBy;
+  const scrollBy = vi.fn();
+  el.scrollBy = scrollBy;
   return { el, scrollBy };
 }
 

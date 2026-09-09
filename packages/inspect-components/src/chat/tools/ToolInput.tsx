@@ -44,7 +44,12 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
   } else {
     return (
       <RenderTool
-        contents={contents as string | object}
+        contents={
+          typeof contents === "string" ||
+          (typeof contents === "object" && contents !== null)
+            ? contents
+            : ""
+        }
         contentType={contentType || ""}
         parentRef={sourceCodeRef}
         className={className}
@@ -75,14 +80,7 @@ const RenderTool: FC<RenderToolProps> = ({
 
   return (
     <div ref={parentRef}>
-      <pre
-        className={clsx(
-          "tool-call-input",
-          styles.outputPre,
-          styles.bottomMargin,
-          className
-        )}
-      >
+      <pre className={clsx("tool-call-input", styles.outputPre, className)}>
         <code
           className={clsx(
             "source-code",

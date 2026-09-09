@@ -154,14 +154,84 @@ describe("MarkdownDiv XSS security", () => {
       }
     );
 
-    it("does not link data-image markdown", async () => {
-      const result = await renderMarkdown(
-        "![alt](data:image/png;base64,AAAA)",
-        "full"
+    it.each(["full", "fragment"] as const)(
+      "%s renderer renders validated inline data images",
+      async (renderer) => {
+        const result = await renderMarkdown(
+          "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+          renderer
+        );
+        expect(result).toContain("<img");
+        expect(result).toContain(
+          'src="data:image/gif;base64,R0lGODlhAQABAAAAACw="'
+        );
+        expect(result).toContain('alt="pixel"');
+      }
+    );
+
+    // markdown-it's own validateLink (GOOD_DATA_RE) permits only
+    // data:image/(gif|png|jpeg|webp), so these never reach the image rule and
+    // this block does NOT exercise isRenderableImageSource. The gate itself is
+    // pinned in MarkdownDiv.security.test.tsx, which drives the sanitizer
+    // directly; keep these as upstream-regression cover only.
+    it.each([
+      "data:image/svg+xml;base64,AAAA",
+      "data:image/png,AAAA",
+      "data:text/html;base64,AAAA",
+      "data:image/avif;base64,AAAA",
+    ])(
+      "leaves %s as literal text, blocked upstream by markdown-it",
+      async (source) => {
+        const result = await renderMarkdown(`![alt](${source})`, "full");
+        expect(result).not.toContain("<img");
+        expect(result).not.toContain("<a ");
+        expect(result).toContain(`![alt](${source})`);
+      }
+    );
+
+    // Driven through the instance rather than renderMarkdown: the pipeline
+    // HTML-escapes its input first, which would mask whether the image rule
+    // escapes what it interpolates into src and alt.
+    it("escapes alt text inside the image rule itself", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        '![a"onerror="alert(1)](data:image/gif;base64,R0lGODlhAQABAAAAACw=)'
       );
-      expect(result).not.toContain("<img");
-      expect(result).not.toContain("<a ");
-      expect(result).toContain("alt");
+
+      expect(result).toContain("<img");
+      expect(result).toContain("&quot;");
+      expect(result).not.toContain('onerror="alert(1)"');
+    });
+
+    it("emits the markdown title on rendered images", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        '![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw= "hover text")'
+      );
+
+      expect(result).toContain("<img");
+      expect(result).toContain('title="hover text"');
+    });
+
+    it("escapes title text inside the image rule itself", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        '![a](data:image/gif;base64,R0lGODlhAQABAAAAACw= "t\\"onerror=\\"alert(1)")'
+      );
+
+      expect(result).toContain("<img");
+      expect(result).toContain("&quot;");
+      expect(result).not.toContain('onerror="alert(1)"');
+    });
+
+    it("omits the title attribute when markdown has none", async () => {
+      const md = await getMarkdownInstance("full", false);
+      const result = md.render(
+        "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)"
+      );
+
+      expect(result).toContain("<img");
+      expect(result).not.toContain("title=");
     });
 
     it("does not auto-link plain URL text", async () => {

@@ -127,11 +127,11 @@ export interface FetchEngineStatus {
 
 /**
  * A replication discovery result. `listing` is the server's listing (a delta
- * or the full list — `persistListing` upserts it into the database and
- * re-reads the full list; otherwise it's activated cache-only, for static
- * listings that carry no mtimes to sync by). `invalidated` names files whose
- * cached content is stale (new/changed); `deleted` names files that no longer
- * exist.
+ * or the full list). `persistListing` upserts it into the database and re-reads
+ * the full list; otherwise it is activated cache-only. Static listings use the
+ * cache-only path when unchanged and persist when manifest membership changes.
+ * `invalidated` names files whose cached content is stale (new/changed);
+ * `deleted` names files that no longer exist.
  */
 export interface ListingUpdate {
   listing: LogHandle[];
@@ -223,7 +223,10 @@ export class FetchEngine {
   // Engine generation, bumped on every stop() — a batch claimed under an
   // earlier generation that settles after a stop()/start() (dir switch) is
   // discarded rather than recorded/waited-on/coalesced into the new
-  // session's state.
+  // session's state. Engine-owned by design: the engine must be safe against
+  // its own stop()/start() races for any caller, so start() can't outsource
+  // this to an injected cancellation token (see the supersede-fence note in
+  // replicationControl's startEngine, #492).
   private _epoch = 0;
   // Monotonic claim counter (never reset — a post-restart collision would
   // let an old read's commit slip past the seq check below).
@@ -264,18 +267,16 @@ export class FetchEngine {
   private readonly _statusListeners = new Set<() => void>();
 
   constructor(options: FetchEngineOptions = {}) {
-    this._throttledUpdateDbStats = throttle(
-      () => void this.updateDbStats(),
-      options.statsDelayMs ?? 1000
-    );
-    this._throttledFlushPreviewWrites = throttle(
-      () => void this.flushPreviewWrites(),
-      options.flushDelayMs ?? 250
-    );
-    this._throttledFlushDetailWrites = throttle(
-      () => void this.flushDetailWrites(),
-      options.flushDelayMs ?? 250
-    );
+    this._throttledUpdateDbStats = throttle(() => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- updateDbStats must stay Promise-returning (start() awaits it as a fence); it catches internally and never rejects
+      this.updateDbStats();
+    }, options.statsDelayMs ?? 1000);
+    this._throttledFlushPreviewWrites = throttle(() => {
+      this.flushPreviewWrites();
+    }, options.flushDelayMs ?? 250);
+    this._throttledFlushDetailWrites = throttle(() => {
+      this.flushDetailWrites();
+    }, options.flushDelayMs ?? 250);
 
     // Single queue: previews and details share one concurrency cap (a
     // browser has one connection pool, not one per kind), but never batch
@@ -616,11 +617,19 @@ export class FetchEngine {
    */
   public async start(deps: FetchEngineDeps): Promise<void> {
     this.stop();
+    // stop() bumped the epoch; a stop()/start() landing while this start is
+    // suspended below bumps it again. A superseded start bails before every
+    // state write — otherwise whichever continuation lands last would seed
+    // the new session with the old dir's rows.
+    const epoch = this._epoch;
     this._deps = deps;
     if (!deps.database) {
       return;
     }
     const rows = await deps.database.readLogs({ prefix: deps.logDir });
+    if (this._epoch !== epoch) {
+      return;
+    }
     if (!rows) {
       return;
     }
@@ -653,6 +662,9 @@ export class FetchEngine {
       await deps.sink.writeFetchStates(reset);
     }
 
+    // No fence needed past this point: updateDbStats reads live `this._deps`,
+    // so a superseded continuation recomputes the new session's stats (or
+    // no-ops when stopped) rather than writing stale state.
     await this.updateDbStats();
   }
 
@@ -1081,54 +1093,54 @@ export class FetchEngine {
     }
   }
 
-  private async flushPreviewWrites(): Promise<void> {
+  private flushPreviewWrites(): void {
     if (this._flushingPreviews) {
       return;
     }
-    this._flushingPreviews = true;
-    try {
-      const updates = this._pendingPreviewWrites;
-      this._pendingPreviewWrites = {};
-      const deps = this._deps;
-      if (!deps || Object.keys(updates).length === 0) {
-        return;
-      }
-      await deps.sink.writePreviews(updates).catch(() => {});
-      this._throttledUpdateDbStats();
-    } finally {
-      this._flushingPreviews = false;
-      // Trailing coalesce — see flushDetailWrites.
-      if (Object.keys(this._pendingPreviewWrites).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.flushPreviewWrites();
-      }
+    const updates = this._pendingPreviewWrites;
+    this._pendingPreviewWrites = {};
+    const deps = this._deps;
+    if (!deps || Object.keys(updates).length === 0) {
+      return;
     }
+    this._flushingPreviews = true;
+    deps.sink
+      .writePreviews(updates)
+      .catch(() => {})
+      .finally(() => {
+        this._throttledUpdateDbStats();
+        this._flushingPreviews = false;
+        // Trailing coalesce — see flushDetailWrites.
+        if (Object.keys(this._pendingPreviewWrites).length > 0) {
+          this.flushPreviewWrites();
+        }
+      });
   }
 
-  private async flushDetailWrites(): Promise<void> {
+  private flushDetailWrites(): void {
     if (this._flushingDetails) {
       return;
     }
-    this._flushingDetails = true;
-    try {
-      const updates = this._pendingDetailWrites;
-      this._pendingDetailWrites = {};
-      const deps = this._deps;
-      if (!deps || Object.keys(updates).length === 0) {
-        return;
-      }
-      await deps.sink.writeDetails(updates).catch(() => {});
-      this._throttledUpdateDbStats();
-    } finally {
-      this._flushingDetails = false;
-      // Trailing coalesce: a settle that staged writes while this flush was
-      // in flight had its own flush attempt swallowed by the guard above —
-      // without a re-run those writes sit staged indefinitely.
-      if (Object.keys(this._pendingDetailWrites).length > 0) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        this.flushDetailWrites();
-      }
+    const updates = this._pendingDetailWrites;
+    this._pendingDetailWrites = {};
+    const deps = this._deps;
+    if (!deps || Object.keys(updates).length === 0) {
+      return;
     }
+    this._flushingDetails = true;
+    deps.sink
+      .writeDetails(updates)
+      .catch(() => {})
+      .finally(() => {
+        this._throttledUpdateDbStats();
+        this._flushingDetails = false;
+        // Trailing coalesce: a settle that staged writes while this flush was
+        // in flight had its own flush attempt swallowed by the guard above —
+        // without a re-run those writes sit staged indefinitely.
+        if (Object.keys(this._pendingDetailWrites).length > 0) {
+          this.flushDetailWrites();
+        }
+      });
   }
 
   private async updateDbStats(): Promise<void> {

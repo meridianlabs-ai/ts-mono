@@ -3,6 +3,22 @@ import { http, HttpResponse } from "msw";
 import type { AppConfig } from "@tsmono/inspect-common/types";
 
 /**
+ * Narrows one of MSW's `PathParams` values to the single segment a `:name`
+ * route always matches — msw types every param as `string | readonly string[]`
+ * because a wildcard route can repeat one, and indexing the bag can miss.
+ */
+export function pathParam(
+  value: string | readonly string[] | undefined
+): string {
+  if (typeof value !== "string") {
+    throw new Error(
+      `expected a single path segment, got ${JSON.stringify(value)}`
+    );
+  }
+  return value;
+}
+
+/**
  * Default handlers that let the inspect app boot cleanly.
  *
  * The view-server API prefixes all routes with /api (proxied via vite in dev).

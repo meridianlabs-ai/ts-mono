@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import {
@@ -9,29 +16,29 @@ import {
 } from "./findTimelineForDeepLink";
 import { TimelineEvent, TimelineSpan, type Timeline } from "./timeline/core";
 
-// Minimal model-event factory; mirrors the `as unknown as Event` pattern in
-// timeline/testHelpers.ts (only the fields the lookup reads are populated).
 function modelEvent(
   uuid: string,
   opts?: { inputId?: string; outputId?: string }
 ): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
     timestamp: "2025-01-01T00:00:00Z",
     input: opts?.inputId
-      ? [{ id: opts.inputId, role: "user", content: "hi" }]
+      ? [testUserMessage({ id: opts.inputId, content: "hi" })]
       : [],
-    output: {
+    output: testModelOutput({
       choices: opts?.outputId
         ? [
-            {
-              message: { id: opts.outputId, role: "assistant", content: "ok" },
-            },
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                id: opts.outputId,
+                content: "ok",
+              }),
+            }),
           ]
         : [],
-    },
-  } as unknown as Event;
+    }),
+  });
 }
 
 function span(

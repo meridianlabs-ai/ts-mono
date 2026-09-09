@@ -1,19 +1,23 @@
 import { describe, expect, it } from "vitest";
 
-import type { ApprovalEvent, ToolEvent } from "@tsmono/inspect-common/types";
+import {
+  testApprovalEvent,
+  testSpanBeginEvent,
+  testToolCall,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
+import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 
 import { EventNode } from "../types";
 
 import { pairToolApprovals } from "./toolApprovals";
 
 const toolNode = (nodeId: string, callId: string, depth = 0): EventNode => {
-  const event = {
-    event: "tool",
+  const event = testToolEvent({
     id: callId,
     uuid: nodeId,
     timestamp: "2026-01-01T00:00:00Z",
-    working_start: 0,
-  } as ToolEvent;
+  });
   return new EventNode(nodeId, event, depth);
 };
 
@@ -22,27 +26,22 @@ const approvalNode = (
   callId: string,
   opts?: { approver?: string; decision?: ApprovalEvent["decision"] }
 ): EventNode => {
-  const event = {
-    event: "approval",
+  const event = testApprovalEvent({
     uuid: nodeId,
     approver: opts?.approver ?? "human",
     decision: opts?.decision ?? "approve",
-    call: { id: callId, function: "bash", arguments: {} },
-    message: "",
+    call: testToolCall({ id: callId, function: "bash" }),
     timestamp: "2026-01-01T00:00:01Z",
-    working_start: 0,
-  } as unknown as ApprovalEvent;
+  });
   return new EventNode(nodeId, event, 0);
 };
 
 const parent = (nodeId: string, children: EventNode[]): EventNode => {
-  const event = {
-    event: "span_begin",
+  const event = testSpanBeginEvent({
     id: nodeId,
     name: nodeId,
     timestamp: "2026-01-01T00:00:00Z",
-    working_start: 0,
-  } as unknown as EventNode["event"];
+  });
   const node = new EventNode(nodeId, event, 0);
   node.children = children;
   return node;

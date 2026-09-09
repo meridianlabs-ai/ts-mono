@@ -19,7 +19,7 @@ import { RecordTree } from "../content/RecordTree";
 
 import styles from "./ChatMessage.module.css";
 import { MessageContent } from "./MessageContent";
-import { defaultContext, MessageContents } from "./MessageContents";
+import { MessageContents } from "./MessageContents";
 import { hasServerToolUse, Message } from "./messages";
 import { ServerToolCall } from "./server-tools/ServerToolCall";
 import {
@@ -72,6 +72,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     message.role === "system" ||
     message.role === "user" ||
     message.role === "assistant" ||
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     message.role === "tool";
   const hideRole = unlabeledRoles?.includes(message.role) ?? false;
 
@@ -83,6 +84,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   if (
     displayMode === "rendered" &&
     isNonSubagentTool &&
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     message.role === "tool" &&
     message.function
   ) {
@@ -176,7 +178,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // flush tool block row, separated by hairlines.
   const segments = segmentTurnContent(message);
   if (segments) {
-    const context = defaultContext();
     return (
       <div
         data-message-id={message.id || undefined}
@@ -220,7 +221,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                 >
                   <MessageContent
                     contents={segment.contents}
-                    context={context}
                     references={references}
                   />
                 </ExpandablePanel>
@@ -245,7 +245,6 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
         "text-size-base",
         styles.message,
         message.role === "system" ? styles.systemRole : undefined,
-        message.role === "user" ? styles.userRole : undefined,
         mouseOver ? styles.hover : undefined
       )}
       onMouseEnter={() => setMouseOver(true)}

@@ -7,11 +7,11 @@ import type {
   FilterSpec,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { ErrorPanel, ProgressBar } from "@tsmono/react/components";
+import { ErrorPanel, LoadingBar, ProgressBar } from "@tsmono/react/components";
+import { join } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import { scopePrefix } from "../../client/database";
-import { ActivityBar } from "../../components/ActivityBar";
 import {
   LogListingRow,
   useLogListing,
@@ -22,7 +22,6 @@ import {
 import { selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
-import { join } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 import { FlowButton } from "../flow/FlowButton";
 import { useFlowQuery } from "../flow/hooks";
@@ -294,6 +293,7 @@ export const SamplesPanel: FC = () => {
     return v;
   }, [allColumns, columnVisibility]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (samplesPath === previousSamplesPath) return;
     if (previousSamplesPath !== undefined) clearDisplayedSamples();
@@ -339,6 +339,7 @@ export const SamplesPanel: FC = () => {
           target: derived.target,
           error: sample.error,
           limit: sample.limit,
+          limit_reason: sample.limit_reason,
           retries: sample.retries,
           fallbacks: derived.fallbacks,
           completed: sample.completed,
@@ -478,7 +479,7 @@ export const SamplesPanel: FC = () => {
         scoresHeading="Scores"
       />
 
-      <ActivityBar animating={listing.busy} />
+      <LoadingBar loading={listing.busy} />
       <div className={clsx(styles.list, "text-size-smaller")}>
         {error ? (
           <ErrorPanel

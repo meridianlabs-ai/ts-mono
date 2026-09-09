@@ -71,7 +71,7 @@ export function isErrorEvent(event: Event): boolean {
 /**
  * Returns true if the event is a compaction event.
  */
-export function isCompactionEvent(event: Event): boolean {
+export function isCompactionEvent(event: Event): event is CompactionEvent {
   return event.event === "compaction";
 }
 
@@ -146,6 +146,7 @@ function collectEventMarkers(
   for (const item of node.content) {
     if (item.type === "event") {
       addEventMarker(item, markers);
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (item.type === "span" && shouldDescend(depth, currentLevel)) {
       collectEventMarkers(item, depth, currentLevel + 1, markers);
     }
@@ -180,9 +181,8 @@ function addEventMarker(
       tooltip: errorTooltip(event),
     });
   } else if (isCompactionEvent(event)) {
-    const ce = event as CompactionEvent;
-    const before = ce.tokens_before?.toLocaleString() ?? "?";
-    const after = ce.tokens_after?.toLocaleString() ?? "?";
+    const before = event.tokens_before?.toLocaleString() ?? "?";
+    const after = event.tokens_after?.toLocaleString() ?? "?";
     markers.push({
       kind: "compaction",
       timestamp: eventNode.startTime(),

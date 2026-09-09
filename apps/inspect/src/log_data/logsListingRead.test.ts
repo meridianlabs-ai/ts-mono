@@ -9,6 +9,7 @@ import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { Column } from "@tsmono/inspect-common/query";
+import { isRecord } from "@tsmono/util";
 
 import { applyListingQuery } from "../app/log-list/listing/applyListingQuery";
 import { createListingPlan } from "../app/log-list/listing/planner";
@@ -51,8 +52,17 @@ const preview = (overrides: Partial<LogPreview>): LogPreview => ({
   ...overrides,
 });
 
+const testLogRow = (name: string): Log => ({
+  name,
+  task: "t",
+  depth: "previewed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
+
 const getValue = (row: Log, column: string): unknown =>
-  row[column as keyof Log];
+  isRecord(row) ? row[column] : undefined;
 
 describe("readLogsListing", () => {
   let databaseService: DatabaseService;
@@ -96,6 +106,7 @@ describe("readLogsListing", () => {
       }),
       "/other/e.json": preview({ model: "gpt-5", status: "success" }),
     });
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the database service is generic over its row type; these rows were written by `preview()` above
     const source = (await databaseService.readLogs({
       prefix: "/test/logs",
     })) as Log[];
@@ -153,8 +164,8 @@ describe("readLogsListing", () => {
 
   test("serves from the react-query cache when the database is not open", async () => {
     setRows("/cache/logs", [
-      { name: "/cache/logs/a.json", task: "t" } as Log,
-      { name: "/cache/logs-other/b.json", task: "t" } as Log,
+      testLogRow("/cache/logs/a.json"),
+      testLogRow("/cache/logs-other/b.json"),
     ]);
     await databaseService.closeDatabase();
 

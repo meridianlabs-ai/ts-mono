@@ -38,13 +38,13 @@ describe("TimelineMinimap", () => {
     // the hidden class).
     const time = getByText("time");
     const tokens = getByText("tokens");
-    expect(time.className).not.toContain(styles.hidden!);
-    expect(tokens.className).toContain(styles.hidden!);
+    expect(time.className).not.toContain(styles.hidden);
+    expect(tokens.className).toContain(styles.hidden);
 
     fireEvent.click(time);
 
-    expect(getByText("time").className).toContain(styles.hidden!);
-    expect(getByText("tokens").className).not.toContain(styles.hidden!);
+    expect(getByText("time").className).toContain(styles.hidden);
+    expect(getByText("tokens").className).not.toContain(styles.hidden);
   });
 
   it("emits the pointer position as a 0-1 scrub fraction", () => {
@@ -55,7 +55,7 @@ describe("TimelineMinimap", () => {
       `.${styles.selectionRegion}`
     )!;
     expect(region).not.toBeNull();
-    region.getBoundingClientRect = () => ({ left: 100, width: 200 }) as DOMRect;
+    region.getBoundingClientRect = () => new DOMRect(100, 0, 200, 0);
     region.setPointerCapture = () => {};
 
     fireEvent.pointerDown(region, { clientX: 250, pointerId: 1 });
@@ -70,7 +70,7 @@ describe("TimelineMinimap", () => {
     const region = container.querySelector<HTMLDivElement>(
       `.${styles.selectionRegion}`
     )!;
-    region.getBoundingClientRect = () => ({ left: 100, width: 200 }) as DOMRect;
+    region.getBoundingClientRect = () => new DOMRect(100, 0, 200, 0);
     region.setPointerCapture = () => {};
 
     fireEvent.pointerDown(region, { clientX: 0, pointerId: 1 });

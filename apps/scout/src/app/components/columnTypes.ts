@@ -1,7 +1,9 @@
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, RowData } from "@tanstack/react-table";
 
 import type { FilterType } from "../../state/store";
 import { valueAsString } from "../utils/format";
+
+import type { DataGridFeatures } from "./dataGrid/tableFeatures";
 
 /**
  * Common column metadata properties shared across all data grids.
@@ -20,9 +22,9 @@ export interface BaseColumnMeta {
  * Extends TanStack Table's ColumnDef with additional rendering helpers.
  */
 export type ExtendedColumnDef<
-  TData,
+  TData extends RowData,
   TMeta extends BaseColumnMeta = BaseColumnMeta,
-> = ColumnDef<TData> & {
+> = ColumnDef<DataGridFeatures, TData> & {
   meta?: TMeta;
   /** Returns string for tooltip display */
   titleValue?: (value: unknown) => string;
@@ -52,7 +54,7 @@ export interface ColumnInfo {
  * Extract title value for tooltip from a cell.
  * Uses custom titleValue function if provided, otherwise falls back to default formatting.
  */
-export function getCellTitleValue<TData>(
+export function getCellTitleValue<TData extends RowData>(
   value: unknown,
   columnDef: ExtendedColumnDef<TData>
 ): string {

@@ -20,123 +20,19 @@
  * funnel popover.
  */
 import type { Page } from "@playwright/test";
-import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
 import {
-  createEvalLog,
-  createEvalSample,
-  createLogDetails,
-} from "./fixtures/test-data";
+  columnHeader,
+  gridCell,
+  segmentButton,
+  setupLogListHandlers,
+  waitForGrid,
+} from "./fixtures/log-list-scenario";
 
-// ---------------------------------------------------------------------------
-// Test data
-// ---------------------------------------------------------------------------
-
-const LOG_DIR = "/home/test/logs";
-
-const LOG_FILES = [
-  {
-    name: `${LOG_DIR}/2025-01-15T10-00-00_task-alpha_abc123.eval`,
-    task: "task-alpha",
-    task_id: "task-alpha",
-  },
-  {
-    name: `${LOG_DIR}/2025-01-15T10-05-00_task-beta_def456.eval`,
-    task: "task-beta",
-    task_id: "task-beta",
-  },
-  {
-    name: `${LOG_DIR}/subdir/2025-01-15T10-10-00_task-gamma_ghi789.eval`,
-    task: "task-gamma",
-    task_id: "task-gamma",
-  },
-];
-
-const LOG_HEADERS = LOG_FILES.map((f, i) => ({
-  eval_id: `eval-${i}`,
-  run_id: `run-${i}`,
-  task: f.task,
-  task_id: f.task_id,
-  task_version: 1,
-  model: "claude-sonnet-4-5-20250929",
-  status: "success",
-  started_at: "2025-01-15T10:00:00Z",
-  completed_at: "2025-01-15T10:05:00Z",
-}));
-
-function makeSampleLog(taskName: string) {
-  const sample = createEvalSample({
-    id: 1,
-    epoch: 1,
-    messages: [
-      { role: "user", content: `Input for ${taskName}`, source: "input" },
-      {
-        role: "assistant",
-        content: `Response for ${taskName}`,
-        source: "generate",
-      },
-    ],
-  });
-  return createEvalLog({
-    samples: [sample],
-    eval: { task: taskName, task_id: taskName },
-  });
-}
-
-function setupHandlers(
-  network: Parameters<Parameters<typeof test>[2]>[0]["network"]
-) {
-  network.use(
-    http.get("*/api/log-dir", () => HttpResponse.json({ log_dir: LOG_DIR })),
-    http.get("*/api/logs", () =>
-      HttpResponse.json({ log_dir: LOG_DIR, files: LOG_FILES })
-    ),
-    http.get("*/api/log-files*", () =>
-      HttpResponse.json({ files: LOG_FILES, response_type: "full" })
-    ),
-    http.get("*/api/log-headers*", () => HttpResponse.json(LOG_HEADERS)),
-    http.get("*/api/logs/:file", ({ params }) => {
-      const file = decodeURIComponent(params.file as string);
-      const match = LOG_FILES.find(
-        (f) => f.name === file || file.endsWith(f.name)
-      );
-      return HttpResponse.json(makeSampleLog(match?.task ?? "unknown"));
-    }),
-    http.get("*/api/log-details/:file", ({ params }) => {
-      const file = decodeURIComponent(params.file as string);
-      const match = LOG_FILES.find(
-        (f) => f.name === file || file.endsWith(f.name)
-      );
-      return HttpResponse.json(
-        createLogDetails(makeSampleLog(match?.task ?? "unknown"))
-      );
-    })
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-// Scoped to the navbar so it doesn't collide with the grid's per-column
-// filter funnels (whose aria-labels like "Filter totalSamples" substring-match
-// segment names like "Samples").
-function segmentButton(page: Page, name: string) {
-  return page.getByRole("navigation").getByRole("button", { name });
-}
-
-function gridCell(page: Page, text: string) {
-  return page.getByRole("gridcell").filter({ hasText: text }).first();
-}
-
-// Find a column header by its exact label text. Matching by accessible name
-// is unreliable because the (always-present) filter funnel button's aria-label
-// bleeds into the header's accessible name; match the header text node instead.
+// Find the "Task" column header (see columnHeader for why not by name).
 function taskColumnHeader(page: Page) {
-  return page
-    .getByRole("columnheader")
-    .filter({ has: page.getByText("Task", { exact: true }) });
+  return columnHeader(page, "Task");
 }
 
 function resetFiltersButton(page: Page) {
@@ -158,11 +54,6 @@ async function applyTaskFilter(page: Page, value: string) {
   await page.getByPlaceholder("Filter").fill(value);
   await page.getByRole("button", { name: "Apply" }).click();
   await expect(resetFiltersButton(page)).toBeVisible();
-}
-
-async function waitForGrid(page: Page) {
-  await expect(page.getByRole("grid")).toBeVisible();
-  await expect(gridCell(page, "task-alpha")).toBeVisible();
 }
 
 async function sortByTaskDesc(page: Page) {
@@ -195,7 +86,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -212,7 +103,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -228,7 +119,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -250,7 +141,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -271,7 +162,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -288,7 +179,7 @@ test.describe("Per-scope filter and ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -312,7 +203,7 @@ test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -337,7 +228,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -357,7 +248,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -373,7 +264,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
   });
 
   test("Tasks → log → back preserves filter", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -388,7 +279,7 @@ test.describe("#137 – Back from a log preserves ordering", () => {
   });
 
   test("Folders → log → back preserves filter", async ({ page, network }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/#/logs");
     await waitForGrid(page);
 
@@ -414,7 +305,7 @@ test.describe("Regression — adjacent behaviors", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -427,7 +318,7 @@ test.describe("Regression — adjacent behaviors", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 
@@ -444,7 +335,7 @@ test.describe("Regression — adjacent behaviors", () => {
     page,
     network,
   }) => {
-    setupHandlers(network);
+    setupLogListHandlers(network);
     await page.goto("/");
     await waitForGrid(page);
 

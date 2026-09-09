@@ -20,7 +20,7 @@ export const ToolSearchView: FC<ToolSearchViewProps> = ({ namespaces }) => {
       {namespaces.map((namespace, nsIdx) => (
         <div key={`ns-${nsIdx}`} className={styles.namespace}>
           {namespace.name ? (
-            <div className={styles.namespaceHeader}>
+            <div>
               <span className={styles.namespaceName}>{namespace.name}</span>
               {namespace.description ? (
                 <span className={styles.namespaceDescription}>

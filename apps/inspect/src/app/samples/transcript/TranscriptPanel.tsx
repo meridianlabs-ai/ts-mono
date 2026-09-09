@@ -13,6 +13,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
   clearDeepLinkParams,
+  dynamicDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
@@ -77,6 +78,10 @@ interface TranscriptPanelProps {
   events: Events;
   timelines?: ServerTimeline[];
 
+  /** Dynamic default event-filter exclusions, memoized by the host over the
+   *  same events (falls back to computing locally). */
+  defaultExcludeEvents?: readonly string[];
+
   /** Extra event-node context (e.g. scan cite labels) merged by the layout. */
   eventNodeContext?: Partial<EventNodeContext>;
 
@@ -111,16 +116,22 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
     timelines: serverTimelines,
     eventNodeContext,
     rightRail,
+    defaultExcludeEvents: defaultExcludeEventsProp,
   } = props;
 
   // ---------------------------------------------------------------------------
   // Event type filtering
   // ---------------------------------------------------------------------------
 
-  const filteredEventTypes = useStore(
+  const storedEventTypes = useStore(
     (state) => state.sample.eventFilter.filteredTypes
   );
-  const { isDefaultFilter } = useTranscriptFilter();
+  const defaultExcludeEvents = useMemo(
+    () => defaultExcludeEventsProp ?? dynamicDefaultExcludeEvents(events),
+    [defaultExcludeEventsProp, events]
+  );
+  const filteredEventTypes = storedEventTypes ?? defaultExcludeEvents;
+  const { isDefaultFilter } = useTranscriptFilter(defaultExcludeEvents);
 
   // ---------------------------------------------------------------------------
   // Store-backed timeline selection adapters
@@ -292,8 +303,8 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
 
   // Use component state for outline collapsed preference
   const outlineCollapsedRaw = useStore((state) => {
-    const bag = state.app.propertyBags["collapse-state-scope"];
-    return bag?.[outlineKey] as boolean | undefined;
+    const stored = state.app.propertyBags["collapse-state-scope"]?.[outlineKey];
+    return typeof stored === "boolean" ? stored : undefined;
   });
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
@@ -312,6 +323,7 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   );
 
   // Sync initial event ID to outline selection for deep-link navigation
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (initialEventId) {
       setSelectedOutlineId(initialEventId);

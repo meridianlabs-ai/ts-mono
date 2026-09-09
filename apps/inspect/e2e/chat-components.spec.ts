@@ -83,6 +83,78 @@ async function openSample(
 // ---------------------------------------------------------------------------
 
 test.describe("chat message rendering", () => {
+  for (const { layout, content } of [
+    { layout: "inline", content: "Before $x+1$ after." },
+    { layout: "display", content: "Before\n\n$$x+1$$\n\nafter." },
+  ]) {
+    test(`keeps ${layout} math in selected message text`, async ({
+      page,
+      network,
+    }) => {
+      await openSample(page, network, [
+        { role: "assistant", content, source: "generate" },
+      ]);
+
+      const messagesArea = page.locator("#messages-contents");
+      await expect(messagesArea.locator("mjx-container > svg")).toBeVisible();
+      await expect(messagesArea.locator("mjx-assistive-mml")).toHaveCSS(
+        "clip",
+        "rect(1px, 1px, 1px, 1px)"
+      );
+
+      const selected = await messagesArea.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const selection = window.getSelection();
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        return selection?.toString();
+      });
+
+      expect(selected?.replace(/\s+/g, "")).toContain("Before𝑥+1after.");
+    });
+  }
+
+  test("does not let a TeX \\style overlay cover the next message", async ({
+    page,
+    network,
+  }) => {
+    // Message markdown is HTML-escaped, so \style{} is the route by which log
+    // content reaches an inline style attribute (on the assistive MathML).
+    const overlay =
+      "position:fixed;top:0;left:0;width:100vw;height:100vh;background-color:#fff";
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        content: `Overlay $\\style{${overlay}}{x}$ here.`,
+        source: "generate",
+      },
+      {
+        role: "user",
+        content: "Second message stays readable",
+        source: "input",
+      },
+    ]);
+
+    const messagesArea = page.locator("#messages-contents");
+    await expect(
+      messagesArea.locator('mjx-assistive-mml [style*="100vh"]')
+    ).toHaveCount(1);
+    const target = messagesArea.getByText("Second message stays readable");
+    await target.scrollIntoViewIfNeeded();
+    const hit = await target.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        box.left + 5,
+        box.top + box.height / 2
+      );
+      return top === null || element.contains(top) || top.contains(element)
+        ? "text"
+        : top.tagName.toLowerCase();
+    });
+    expect(hit).toBe("text");
+  });
+
   test("renders user and assistant messages", async ({ page, network }) => {
     await openSample(page, network, [
       {
@@ -176,6 +248,21 @@ test.describe("chat message rendering", () => {
 
     await expect(page.getByText("Describe this image:")).toBeVisible();
     await expect(page.locator("img[src^='data:image']")).toBeVisible();
+  });
+
+  test("renders inline data images embedded in markdown", async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, [
+      {
+        role: "assistant",
+        source: "generate",
+        content: "![pixel](data:image/gif;base64,R0lGODlhAQABAAAAACw=)",
+      },
+    ]);
+
+    await expect(page.locator("img[src^='data:image/gif']")).toHaveCount(1);
   });
 
   test("does not automatically load remote message media", async ({

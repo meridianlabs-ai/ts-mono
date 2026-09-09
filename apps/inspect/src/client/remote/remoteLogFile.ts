@@ -1,4 +1,9 @@
 import {
+  normalizeEvalSample,
+  normalizeSampleSummaries,
+} from "@tsmono/inspect-common/normalize";
+import {
+  ConfigUpdate,
   EvalLog,
   EvalPlan,
   EvalSample,
@@ -15,6 +20,11 @@ import {
   ProgressCallback,
   SampleSummary,
 } from "../api/types";
+import {
+  normalizeConfigUpdates,
+  normalizeEvalHeader,
+  normalizeLogStart,
+} from "../utils/normalize";
 import { toLogPreview } from "../utils/type-utils";
 
 import {
@@ -91,8 +101,8 @@ export const headerFromLogStart = (start: LogStart): EvalHeader => ({
   status: "started",
   eval: start.eval,
   plan: start.plan,
-  tags: start.eval?.tags ?? [],
-  metadata: start.eval?.metadata ?? {},
+  tags: start.eval.tags ?? [],
+  metadata: start.eval.metadata ?? {},
 });
 
 const JOURNAL_SUMMARIES_DIR = "_journal/summaries/";
@@ -116,6 +126,40 @@ export const dedupeSummaries = (
     byKey.set(JSON.stringify([summary.id, summary.epoch]), summary);
   }
   return Array.from(byKey.values());
+};
+
+/**
+ * Journaled config updates (`_journal/config_updates/{n}.json`) in write
+ * order — the recorder names entries by a monotonic integer index, so
+ * non-integer names are ignored rather than poisoning the sort with NaN.
+ *
+ * Exported for unit testing; `openRemoteLogFile` binds it to its zip.
+ */
+export const readJournalConfigUpdatesFrom = async (
+  entryNames: Iterable<string>,
+  readEntry: (name: string) => Promise<unknown>
+): Promise<ConfigUpdate[]> => {
+  const prefix = "_journal/config_updates/";
+  const entries = Array.from(entryNames)
+    .filter((name) => name.startsWith(prefix) && name.endsWith(".json"))
+    .map((name) => ({ name, index: parseInt(name.slice(prefix.length), 10) }))
+    .filter(({ index }) => Number.isFinite(index))
+    .sort((a, b) => a.index - b.index);
+
+  const updates: ConfigUpdate[] = [];
+  for (const entry of entries) {
+    try {
+      // Malformed entries are dropped rather than poisoning the fold.
+      updates.push(...normalizeConfigUpdates([await readEntry(entry.name)]));
+    } catch (error) {
+      // The fold is last-wins in order: splicing around a failed middle
+      // read would silently misreport later state, while a truncated tail
+      // cannot — stop at the first failure.
+      console.error(`Failed to read config update ${entry.name}:`, error);
+      break;
+    }
+  }
+  return updates;
 };
 
 /**
@@ -273,12 +317,9 @@ export const openRemoteLogFile = async (
     const eventsPreprocessor: JSONPreprocessor = {
       preprocess: clearLargeEventsArray,
     };
-    return (await readJSONFile(
-      sampleFile,
-      undefined,
-      eventsPreprocessor,
-      onProgress
-    )) as EvalSample;
+    return normalizeEvalSample(
+      await readJSONFile(sampleFile, undefined, eventsPreprocessor, onProgress)
+    );
   };
 
   /**
@@ -286,15 +327,28 @@ export const openRemoteLogFile = async (
    */
   const readHeader = async (): Promise<EvalHeader> => {
     if (remoteZipFile.centralDirectory.has("header.json")) {
-      return (await readJSONFile("header.json")) as EvalHeader;
+      return normalizeEvalHeader(await readJSONFile("header.json"));
     } else {
       // While the eval is still running, header.json hasn't been
       // written yet — the recorder only flushes it at end-of-eval.
       // Fall back to start.json and synthesize a header from it.
-      const start = (await readJSONFile("_journal/start.json")) as LogStart;
-      return headerFromLogStart(start);
+      const start = normalizeLogStart(
+        await readJSONFile("_journal/start.json")
+      );
+      const header = headerFromLogStart(start);
+      // Mid-run retunes are journaled immediately (one file per update,
+      // consolidated into header.json only at end-of-eval) — fold them in
+      // so running and crashed logs surface config_updates too.
+      const config_updates = await readJournalConfigUpdates();
+      return config_updates.length > 0 ? { ...header, config_updates } : header;
     }
   };
+
+  const readJournalConfigUpdates = (): Promise<ConfigUpdate[]> =>
+    readJournalConfigUpdatesFrom(
+      remoteZipFile.centralDirectory.keys(),
+      (name) => readJSONFile(name)
+    );
 
   const readEvalBasicInfo = async (): Promise<LogPreview> => {
     const header = await readHeader();
@@ -326,7 +380,7 @@ export const openRemoteLogFile = async (
             if (!Array.isArray(parsed)) {
               throw new Error(`Expected an array in ${filename}`);
             }
-            perFile[index] = parsed as SampleSummary[];
+            perFile[index] = normalizeSampleSummaries(parsed);
           } catch (error) {
             errors.push(error);
           }
@@ -354,7 +408,7 @@ export const openRemoteLogFile = async (
       // the recorder superseded re-logged samples in its flush buffer can
       // carry both a requeued sample's rows
       return dedupeSummaries(
-        (await readJSONFile("summaries.json")) as SampleSummary[]
+        normalizeSampleSummaries(await readJSONFile("summaries.json"))
       );
     } else {
       return readFallbackSummaries();
@@ -378,6 +432,7 @@ export const openRemoteLogFile = async (
         tags: header.tags,
         metadata: header.metadata,
         log_updates: header.log_updates,
+        config_updates: header.config_updates,
         sampleSummaries,
         etag: initialEtag,
       };
@@ -403,18 +458,21 @@ export const openRemoteLogFile = async (
         ),
       ]);
 
-      // TODO: This needs review. It compiled on main because we lied about things
-      // being present. EvalLogHeader has the types as optional that EvalLog says
-      // are required
-      return {
-        status: evalLogHeader.status,
+      const log = {
+        version: evalLogHeader.version ?? 2,
+        status: evalLogHeader.status ?? "started",
+        invalidated: evalLogHeader.invalidated ?? false,
         eval: evalLogHeader.eval,
         plan: evalLogHeader.plan,
         results: evalLogHeader.results,
         stats: evalLogHeader.stats,
         error: evalLogHeader.error,
+        tags: evalLogHeader.tags ?? [],
+        metadata: evalLogHeader.metadata ?? {},
         samples,
-      } as EvalLog;
+      };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): stats/plan are only written at end-of-eval, so an in-progress log genuinely lacks them despite EvalLog requiring them — EvalHeader models that with optional fields
+      return log as EvalLog;
     },
   };
 };

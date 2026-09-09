@@ -12,12 +12,6 @@
   overflow-wrap: anywhere;
 }
 
-.data {
-  border: solid var(--bs-light-border-subtle) 1px;
-  padding: 1em;
-  margin-bottom: 0.5em;
-}
-
 .breakable {
   overflow-wrap: break-word;
   min-width: 0;

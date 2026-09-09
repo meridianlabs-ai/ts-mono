@@ -49,7 +49,7 @@ interface PendingFailed {
 function toolChoiceEqual(a: ToolChoice, b: ToolChoice): boolean {
   if (a === b) return true;
   if (typeof a === "string" || typeof b === "string") return a === b;
-  return a?.name === b?.name;
+  return a.name === b.name;
 }
 
 function toolsEqual(a: ModelEvent["tools"], b: ModelEvent["tools"]): boolean {

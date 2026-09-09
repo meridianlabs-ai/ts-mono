@@ -7,10 +7,6 @@
   margin-bottom: 0.75rem;
 }
 
-.number {
-  margin-top: 0.1em;
-}
-
 .user {
   background-color: var(--bs-secondary-bg);
   border-radius: var(--bs-border-radius);
@@ -37,13 +33,6 @@
   border-bottom-right-radius: var(--bs-border-radius);
   border-bottom: solid 1px var(--bs-light-border-subtle);
   padding-bottom: 0.7rem;
-}
-
-.label {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 0.7rem;
-  margin-left: 0.4em;
 }
 
 .highlight {

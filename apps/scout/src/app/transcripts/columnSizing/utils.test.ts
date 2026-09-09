@@ -129,38 +129,39 @@ describe("getColumnConstraints", () => {
 
 describe("getColumnId", () => {
   it("returns accessorKey when available", () => {
-    const column = {
+    const column: TranscriptColumn = {
       accessorKey: "test_key",
       header: "Test",
-    } as TranscriptColumn;
+    };
 
     expect(getColumnId(column)).toBe("test_key");
   });
 
   it("returns id when accessorKey not available", () => {
-    const column = {
+    const column: TranscriptColumn = {
       id: "custom_id",
       header: "Test",
-    } as TranscriptColumn;
+    };
 
     expect(getColumnId(column)).toBe("custom_id");
   });
 
   it("prefers id over accessorKey when both present", () => {
-    const column = {
+    const column: TranscriptColumn = {
       id: "custom_id",
       accessorKey: "accessor_key",
       header: "Test",
-    } as TranscriptColumn;
+    };
 
     // id takes precedence since it's checked first
     expect(getColumnId(column)).toBe("custom_id");
   });
 
   it("returns empty string when neither id nor accessorKey present", () => {
-    const column = {
+    const column: TranscriptColumn = {
+      id: "",
       header: "Test",
-    } as TranscriptColumn;
+    };
 
     expect(getColumnId(column)).toBe("");
   });

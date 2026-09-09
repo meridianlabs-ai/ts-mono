@@ -10,17 +10,20 @@ import {
   createRef,
   useCallback,
   useState,
-  useSyncExternalStore,
   type MutableRefObject,
   type ReactNode,
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testModelEvent,
+  testSpanBeginEvent,
+} from "@tsmono/inspect-common/testing";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
 } from "@tsmono/react/state";
+import { makeReactiveStateStore } from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
@@ -50,11 +53,14 @@ vi.mock("./TranscriptVirtualList", () => ({
     eventCallbacks?: EventPanelCallbacks;
   }) => {
     listHandle.current = {
-      scrollToIndex: ({ onDone }: { onDone?: () => void }) => {
+      scrollToIndex: ({ onDone }) => {
         onDone?.();
       },
       scrollTo: () => {},
-    } as unknown as VirtualListHandle;
+      getState: () => {},
+      jumpToStart: () => {},
+      jumpToEnd: () => {},
+    };
     capturedEventCallbacks = eventCallbacks;
     return (
       <div>
@@ -65,46 +71,6 @@ vi.mock("./TranscriptVirtualList", () => ({
     );
   },
 }));
-
-// TranscriptViewNodes reads AND writes the transcript's `follow` property
-// (live-tail state). A reactive Map-backed store (like production zustand)
-// whose backing Map the tests can read/seed.
-const makeReactiveHooks = () => {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const subscribe = (cb: () => void) => {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  };
-  const emit = () => {
-    version++;
-    listeners.forEach((l) => l());
-  };
-  const key = (id: string, prop: string) => `${id}::${prop}`;
-  const hooks: ComponentStateHooks = {
-    useValue: (id, prop, defaultValue) => {
-      useSyncExternalStore(subscribe, () => version);
-      return store.has(key(id, prop)) ? store.get(key(id, prop)) : defaultValue;
-    },
-    useSetValue: () => (id, prop, value) => {
-      const k = key(id, prop);
-      if (!store.has(k) || store.get(k) !== value) {
-        store.set(k, value);
-        emit();
-      }
-    },
-    useRemoveValue: () => (id, prop) => {
-      if (store.delete(key(id, prop))) emit();
-    },
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-  return { hooks, store };
-};
 
 const noopStateHooks: ComponentStateHooks = {
   useValue: (_id, _prop, defaultValue) => defaultValue,
@@ -128,31 +94,21 @@ beforeEach(() => {
   Element.prototype.checkVisibility = function () {
     return true;
   };
-  vi.stubGlobal(
-    "requestAnimationFrame",
-    (cb: FrameRequestCallback) =>
-      setTimeout(() => cb(performance.now()), 0) as unknown as number
+  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
+    setTimeout(() => cb(performance.now()), 0)
   );
-  vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
+  vi.stubGlobal("cancelAnimationFrame", (id: ReturnType<typeof setTimeout>) =>
+    clearTimeout(id)
+  );
 });
 
 const ts = "2026-01-01T00:00:00Z";
 const model = (id: string, depth = 0): EventNode =>
-  new EventNode(
-    id,
-    { event: "model", uuid: id, timestamp: ts } as unknown as Event,
-    depth
-  );
+  new EventNode(id, testModelEvent({ uuid: id, timestamp: ts }), depth);
 const agentSpan = (id: string, children: EventNode[]): EventNode => {
   const n = new EventNode(
     id,
-    {
-      event: "span_begin",
-      type: "agent",
-      name: "sub",
-      uuid: id,
-      timestamp: ts,
-    } as unknown as Event,
+    testSpanBeginEvent({ type: "agent", name: "sub", uuid: id, timestamp: ts }),
     0
   );
   n.children = children;
@@ -361,13 +317,15 @@ describe("TranscriptViewNodes first-j-from-load (turn 1 is the topmost row)", ()
 
     // Fresh load: turn 1 (m1) IS the topmost tracked row — no pre-turn preamble,
     // so no row maps to "above turn 1". The mount report would read index 0.
-    const layoutRef = {
+    const layoutRef: {
+      current: Record<string, { top: number; bottom: number }>;
+    } = {
       current: {
         m1: { top: 10, bottom: 210 },
         m2: { top: 210, bottom: 410 },
         m3: { top: 410, bottom: 610 },
         m4: { top: 610, bottom: 810 },
-      } as Record<string, { top: number; bottom: number }>,
+      },
     };
     const nowRef = { current: 1_000_000 };
     const restore = mockLayout(layoutRef, nowRef);
@@ -428,7 +386,7 @@ describe("TranscriptViewNodes j-past-last arms follow (S4)", () => {
     running: boolean,
     seedFollow?: boolean
   ) => {
-    const { hooks, store } = makeReactiveHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("test::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     const onNavigatedToEvent = vi.fn();
@@ -495,7 +453,7 @@ describe("TranscriptViewNodes focus-entry follow arming (S3)", () => {
   const eventNodes = [model("m1"), model("m2")];
 
   const renderWrapper = (running: boolean, seedFollow?: boolean) => {
-    const { hooks, store } = makeReactiveHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("test::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     capturedEventCallbacks = undefined;
@@ -547,7 +505,7 @@ describe("TranscriptViewNodes `f` focus targeting (following vs current turn)", 
     seedFollow: boolean | undefined,
     initialEventId: string
   ) => {
-    const { hooks, store } = makeReactiveHooks();
+    const { hooks, store } = makeReactiveStateStore();
     if (seedFollow !== undefined) store.set("test::follow", seedFollow);
     const scrollRef = createRef<HTMLDivElement>();
     const opened: string[] = [];

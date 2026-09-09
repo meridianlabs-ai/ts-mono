@@ -2,15 +2,17 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { InfoEvent } from "@tsmono/inspect-common/types";
+import { testInfoEvent } from "@tsmono/inspect-common/testing";
+import type { InfoEvent, JsonValue } from "@tsmono/inspect-common/types";
 import { ComponentNavigationProvider } from "@tsmono/react/components";
 import {
   ComponentStateHooks,
   ComponentStateProvider,
 } from "@tsmono/react/state";
+import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import { InfoEventView } from "./InfoEventView";
-import type { EventNode } from "./types";
+import { EventNode } from "./types";
 
 const stateHooks: ComponentStateHooks = {
   useValue: (_id, _prop, defaultValue) => defaultValue,
@@ -21,25 +23,20 @@ const stateHooks: ComponentStateHooks = {
   useRemoveByPrefix: () => () => {},
 };
 
-function makeNode(data: unknown): EventNode<InfoEvent> {
-  return {
-    id: "info-1",
-    children: [],
-    event: {
-      event: "info",
+function makeNode(data: JsonValue): EventNode<InfoEvent> {
+  return new EventNode<InfoEvent>(
+    "info-1",
+    testInfoEvent({
       source: "test-source",
       data,
       timestamp: new Date(0).toISOString(),
-      pending: false,
-      working_start: 0,
-      span_id: null,
       uuid: "info-1",
-      metadata: null,
-    },
-  } as unknown as EventNode<InfoEvent>;
+    }),
+    0
+  );
 }
 
-const renderView = (data: unknown) =>
+const renderView = (data: JsonValue) =>
   render(
     <ComponentStateProvider hooks={stateHooks}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
@@ -47,12 +44,6 @@ const renderView = (data: unknown) =>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
-
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
 
 describe("InfoEventView", () => {
   beforeEach(() => {

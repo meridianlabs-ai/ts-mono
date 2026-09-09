@@ -1,6 +1,11 @@
 import { FC, useMemo } from "react";
 
-import { EvalSpec, EvalStats } from "@tsmono/inspect-common/types";
+import {
+  ConfigUpdate,
+  EvalSpec,
+  EvalStats,
+} from "@tsmono/inspect-common/types";
+import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import {
   buildArgsByModel,
   buildArgsByRole,
@@ -14,39 +19,47 @@ import {
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
+import { useStore } from "../../../state/store";
+import { useShowTimelineForModel } from "../useShowTimeline";
 
 // Individual hook for Info tab
 export const useModelsTab = (
   evalSpec: EvalSpec | undefined,
   evalStats: EvalStats | undefined,
-  evalStatus?: EvalLogStatus
+  evalStatus?: EvalLogStatus,
+  configUpdates?: ConfigUpdate[] | null
 ) => {
   return useMemo(() => {
     return {
       id: kLogViewModelsTabId,
-      label: "Stats",
+      label: "Models",
       scrollable: true,
       component: ModelTab,
       componentProps: {
         evalSpec,
         evalStats,
         evalStatus,
+        configUpdates,
       },
     };
-  }, [evalSpec, evalStats, evalStatus]);
+  }, [evalSpec, evalStats, evalStatus, configUpdates]);
 };
 
 interface ModelTabProps {
   evalSpec?: EvalSpec;
   evalStats?: EvalStats;
   evalStatus?: EvalLogStatus;
+  configUpdates?: ConfigUpdate[] | null;
 }
 
 export const ModelTab: FC<ModelTabProps> = ({
   evalSpec,
   evalStats,
   evalStatus,
+  configUpdates,
 }) => {
+  const showTimelineForModel = useShowTimelineForModel();
+  const loadedLog = useStore((state) => state.log.loadedLog);
   const configsByModel = useMemo(
     () => buildConfigsByModel(evalSpec),
     [evalSpec]
@@ -55,16 +68,10 @@ export const ModelTab: FC<ModelTabProps> = ({
   const argsByModel = useMemo(() => buildArgsByModel(evalSpec), [evalSpec]);
   const argsByRole = useMemo(() => buildArgsByRole(evalSpec), [evalSpec]);
 
-  const roleAliases = useMemo(() => {
-    if (!evalSpec?.model_roles) return undefined;
-    const roles: Record<string, string> = {};
-    for (const [role, config] of Object.entries(evalSpec.model_roles)) {
-      if (config.model) {
-        roles[role] = config.model;
-      }
-    }
-    return Object.keys(roles).length > 0 ? roles : undefined;
-  }, [evalSpec]);
+  const roleAliases = useMemo(
+    () => modelRoleNames(evalSpec?.model_roles),
+    [evalSpec]
+  );
 
   const meta = useMemo<MetaItem[]>(() => {
     const items: MetaItem[] = [];
@@ -118,8 +125,8 @@ export const ModelTab: FC<ModelTabProps> = ({
         }}
       >
         <UsagePanel
-          model_usage={hasModelUsage ? evalStats?.model_usage : undefined}
-          role_usage={hasRoleUsage ? evalStats?.role_usage : undefined}
+          model_usage={hasModelUsage ? evalStats.model_usage : undefined}
+          role_usage={hasRoleUsage ? evalStats.role_usage : undefined}
           configs_by_model={configsByModel}
           configs_by_role={configsByRole}
           args_by_model={argsByModel}
@@ -129,6 +136,10 @@ export const ModelTab: FC<ModelTabProps> = ({
           connection_limit_history={evalStats?.connection_limit_history}
           started_at={evalStats?.started_at}
           completed_at={evalStats?.completed_at}
+          config_updates={configUpdates}
+          main_model={evalSpec?.model}
+          state_key={loadedLog ?? undefined}
+          onViewTimeline={showTimelineForModel}
         />
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 
 import { navigateAndForget } from "@tsmono/react/hooks";
+import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import { selectSample } from "../../state/actions";
@@ -10,7 +11,6 @@ import {
   useSelectedSampleSummaries,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { directoryRelativeUrl } from "../../utils/uri";
 import { openInNewTab } from "../shared/openInNewTab";
 import { sampleIdsEqual } from "../shared/sample";
 

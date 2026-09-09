@@ -2,6 +2,11 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  testModelEvent,
+  testSpanBeginEvent,
+} from "@tsmono/inspect-common/testing";
+
 import { eventNode } from "../testHelpers";
 
 import { OutlineLoadingRow, OutlineRow } from "./OutlineRow";
@@ -34,8 +39,8 @@ describe("OutlineRow collapse chevron", () => {
   afterEach(() => cleanup());
 
   const parentNode = () =>
-    eventNode({ event: "span_begin", name: "phase one", type: null }, [
-      eventNode({ event: "model" }),
+    eventNode(testSpanBeginEvent({ name: "phase one", type: null }), [
+      eventNode(testModelEvent()),
     ]);
 
   it("shows a down chevron on expanded rows and toggles to collapsed", () => {
@@ -74,7 +79,7 @@ describe("OutlineRow collapse chevron", () => {
     const setCollapsed = vi.fn<(id: string, collapsed: boolean) => void>();
     const { container } = render(
       <OutlineRow
-        node={eventNode({ event: "model" })}
+        node={eventNode(testModelEvent())}
         getCollapsed={() => false}
         setCollapsed={setCollapsed}
       />
@@ -84,5 +89,56 @@ describe("OutlineRow collapse chevron", () => {
     expect(container.querySelector("i.bi-chevron-right")).toBeNull();
     fireEvent.click(container.querySelector(`.${styles.toggle}`)!);
     expect(setCollapsed).not.toHaveBeenCalled();
+  });
+});
+
+// =============================================================================
+// Keyboard activation
+// =============================================================================
+
+describe("OutlineRow keyboard activation", () => {
+  afterEach(() => cleanup());
+
+  const parentNode = () =>
+    eventNode(testSpanBeginEvent({ name: "phase one", type: null }), [
+      eventNode(testModelEvent()),
+    ]);
+
+  it("activates the row when the row itself takes the key press", () => {
+    const onSelect = vi.fn<(id: string) => void>();
+    const node = parentNode();
+    const { container } = render(
+      <OutlineRow node={node} onSelect={onSelect} getCollapsed={() => false} />
+    );
+
+    fireEvent.keyDown(container.querySelector(`.${styles.eventRow}`)!, {
+      key: "Enter",
+    });
+    expect(onSelect).toHaveBeenCalledWith(node.id);
+  });
+
+  // The row handler sees Enter bubbling up from the chevron. Acting on it
+  // would both navigate the row and — via preventDefault anywhere on the
+  // propagation path — cancel the button's own activation.
+  it("leaves key presses that bubble from the collapse chevron alone", () => {
+    const onSelect = vi.fn<(id: string) => void>();
+    const { container } = render(
+      <OutlineRow
+        node={parentNode()}
+        onSelect={onSelect}
+        getCollapsed={() => false}
+        setCollapsed={vi.fn()}
+      />
+    );
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      bubbles: true,
+      cancelable: true,
+    });
+    container.querySelector(`.${styles.toggle}`)!.dispatchEvent(event);
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(false);
   });
 });

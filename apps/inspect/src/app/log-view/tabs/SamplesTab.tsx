@@ -36,6 +36,7 @@ import { totalSampleTokens } from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
 import { selectSample } from "../../../state/actions.ts";
 import {
+  useEffectiveEvalConfig,
   useFilteredSamples,
   useSampleDescriptor,
   useScores,
@@ -203,8 +204,11 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const selectedLogDetails = useSelectedLogDetails();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
 
+  // Effective (folded) config — limit/epochs are launch-shaped, but routing
+  // every config read through the fold makes that assumption enforced.
+  const effectiveConfig = useEffectiveEvalConfig();
   const evalSampleCount = useMemo(() => {
-    const limit = selectedLogDetails?.eval.config.limit;
+    const limit = effectiveConfig?.limit;
     const limitCount =
       limit === null || limit === undefined
         ? undefined
@@ -213,11 +217,11 @@ export const SamplesTab: FC<SamplesTabProps> = ({
           : limit[1] - limit[0];
     return (
       (limitCount || selectedLogDetails?.eval.dataset.samples || 0) *
-      (selectedLogDetails?.eval.config.epochs || 0)
+      (effectiveConfig?.epochs || 0)
     );
   }, [
-    selectedLogDetails?.eval.config.epochs,
-    selectedLogDetails?.eval.config.limit,
+    effectiveConfig?.epochs,
+    effectiveConfig?.limit,
     selectedLogDetails?.eval.dataset.samples,
   ]);
 
@@ -229,7 +233,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const setSelectedScores = useStore(
     (state) => state.logActions.setSelectedScores
   );
-  const epochs = selectedLogDetails?.eval.config?.epochs || 1;
+  const epochs = effectiveConfig?.epochs || 1;
 
   // Build the superset of available columns once. Score columns are
   // emitted for every available score; visibility (which scorers are
@@ -442,13 +446,14 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         data: sample,
         answer:
           samplesDescriptor.selectedScorerDescriptor(sample)?.answer() ?? "",
-        completed: sample.completed ?? true,
+        completed: sample.completed,
         input: inputString(sample.input).join(" "),
         target: Array.isArray(sample.target)
           ? sample.target.join(", ")
           : sample.target,
         error: sample.error,
         limit: sample.limit,
+        limit_reason: sample.limit_reason,
         retries: sample.retries,
         fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
         tokens,
@@ -457,6 +462,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
     });
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const sample =
       sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;

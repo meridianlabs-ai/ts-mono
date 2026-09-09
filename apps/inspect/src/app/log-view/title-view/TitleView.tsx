@@ -49,7 +49,7 @@ export const TitleView: FC<TitleViewProps> = ({
         "navbar",
         "sticky-top",
         styles.navbarWrapper,
-        collapsed ? styles.collapsed : styles.expanded
+        collapsed ? styles.collapsed : undefined
       )}
     >
       <div className={styles.expandedSlot} aria-hidden={collapsed}>

@@ -66,17 +66,17 @@
 .segment:first-of-type {
   border-left: 0;
 }
-.segment:hover:not([aria-pressed="true"]):not(:disabled) {
+.segment:hover:not([aria-checked="true"]):not(:disabled) {
   background: var(--bp-active-bg);
   color: var(--bs-body-color, inherit);
 }
-.segment[aria-pressed="true"] {
+.segment[aria-checked="true"] {
   background: var(--bp-active-bg);
   color: var(--bs-body-color, inherit);
   font-weight: 600;
   cursor: default;
 }
-.segment:disabled:not([aria-pressed="true"]) {
+.segment:disabled:not([aria-checked="true"]) {
   cursor: default;
 }
 .segment:focus-visible {

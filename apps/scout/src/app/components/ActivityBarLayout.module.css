@@ -17,7 +17,3 @@
   flex: 1;
   overflow: hidden;
 }
-
-.content.scrolling {
-  overflow: auto;
-}

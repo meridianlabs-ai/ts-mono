@@ -40,8 +40,11 @@ export interface SearchResultScope {
   events?: "all";
 }
 
-/** Topic versions: maps topic name to timestamp. */
-export type TopicVersions = Record<InvalidationTopic, string>;
+/**
+ * Topic versions: maps topic name to timestamp. Partial — a frame carries only
+ * the topics whose version the server is reporting.
+ */
+export type TopicVersions = Partial<Record<InvalidationTopic, string>>;
 
 export interface ScoutApiV2 {
   getConfig(): Promise<AppConfig>;

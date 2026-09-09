@@ -3,7 +3,7 @@ import { AsyncData } from "@tsmono/util";
 
 import { ClientAPI } from "../client/api/types";
 
-import { AppConfig, getBootstrap, resolveAppConfig } from "./appConfig";
+import { AppConfig, getAppConfig, resolveAppConfig } from "./appConfig";
 
 export const APP_CONFIG_KEY = ["app-config"] as const;
 
@@ -33,8 +33,10 @@ export const useAppConfig = (): AppConfig => {
   return data;
 };
 
-/** The api client. Safe to call at any point in time. */
-export const getApi = (): ClientAPI => getBootstrap().api;
+/** The api client of the resolved config — the instance bound to the current
+ *  log dir. Safe to call only after resolution (below <AppConfigGate />, or in
+ *  code that runs post-gate); no api exists before the dir is known. */
+export const getApi = (): ClientAPI => getAppConfig().api;
 
 /** Safe to call only below <AppConfigGate /> */
 export const useLogDir = (): string => useAppConfig().logDir;

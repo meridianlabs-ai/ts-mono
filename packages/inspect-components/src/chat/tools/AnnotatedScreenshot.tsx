@@ -1,9 +1,9 @@
 import clsx from "clsx";
 import { FC, ReactNode, useState } from "react";
 
-import { isRenderableImageSource } from "../../media/mediaSource";
+import { isRenderableImageSource } from "@tsmono/util";
+
 import { MessageContent } from "../MessageContent";
-import { MessagesContext } from "../MessageContents";
 
 import styles from "./AnnotatedScreenshot.module.css";
 import {
@@ -15,7 +15,6 @@ import {
 interface AnnotatedScreenshotOutputProps {
   contents: ScreenshotContent[];
   annotation: ToolAnnotation;
-  context: MessagesContext;
 }
 
 /**
@@ -27,7 +26,6 @@ interface AnnotatedScreenshotOutputProps {
 export const AnnotatedScreenshotOutput: FC<AnnotatedScreenshotOutputProps> = ({
   contents,
   annotation,
-  context,
 }) => {
   const annotatedIndex = contents.findLastIndex(
     (c) => c.type === "image" && isRenderableImageSource(c.image)
@@ -39,7 +37,7 @@ export const AnnotatedScreenshotOutput: FC<AnnotatedScreenshotOutputProps> = ({
         i === annotatedIndex && c.type === "image" ? (
           <AnnotatedScreenshot key={i} src={c.image} annotation={annotation} />
         ) : (
-          <MessageContent key={i} contents={[c]} context={context} />
+          <MessageContent key={i} contents={[c]} />
         )
       )}
     </>

@@ -16,24 +16,13 @@ import { useTranscript } from "./useTranscript";
 // Initialize zstd compression for tests
 let compressZstd: (data: Uint8Array) => Uint8Array;
 
-// zstd-codec ships no type declarations; describe just the slice this test uses.
-interface ZstdSimple {
-  compress(data: Uint8Array): Uint8Array;
-}
-interface ZstdModule {
-  Simple: new () => ZstdSimple;
-}
-const zstdCodec = ZstdCodec as {
-  run(cb: (zstd: ZstdModule) => void): void;
-};
-
 beforeAll(async () => {
   // zstd-codec loads WASM via a data URL that MSW intercepts. Passthrough
   // prevents MSW from erroring on this unhandled request.
   server.use(http.get(/octet-stream;base64,/, () => passthrough()));
 
   await new Promise<void>((resolve) => {
-    zstdCodec.run((zstd) => {
+    ZstdCodec.run((zstd) => {
       const simple = new zstd.Simple();
       compressZstd = (data: Uint8Array) => simple.compress(data);
       resolve();

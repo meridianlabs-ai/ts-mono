@@ -65,6 +65,7 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
 
     // Stable ref for the callback to avoid re-running the effect on identity changes.
     const onStickyChangeRef = useRef(onStickyChange);
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       onStickyChangeRef.current = onStickyChange;
     }, [onStickyChange]);
@@ -73,6 +74,7 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
     // container on each scroll event. When the element is "stuck," its top
     // edge aligns with the container's top edge + offsetTop (within 1px).
     // This avoids a sentinel element that would break grid/flex layouts.
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       const content = contentRef.current;
       const scrollContainer = scrollRef.current;
@@ -110,6 +112,7 @@ export const StickyScroll = forwardRef<HTMLDivElement, StickyScrollProps>(
     // height instead of leaving a whitespace gap.
     const childMeasureRef = useRef<HTMLDivElement>(null);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!preserveHeight) return;
       const el = childMeasureRef.current;

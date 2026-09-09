@@ -26,6 +26,7 @@ export const useScanRoute = (): {
     ? join(route.scanPath, resolvedScansDir)
     : undefined;
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (route.scansDir) {
       setUserScansDir(route.scansDir);

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testToolMessage,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import type { ChatMessage, Event } from "@tsmono/inspect-common/types";
 
 import {
@@ -15,44 +23,32 @@ const makeModelEvent = (opts: {
   inputId?: string;
   outputId?: string;
 }): Event =>
-  ({
-    event: "model",
+  testModelEvent({
     error: opts.error ?? null,
     input:
       opts.input ??
       (opts.inputId
-        ? [{ id: opts.inputId, role: "user", content: "hello", source: null }]
+        ? [testUserMessage({ id: opts.inputId, content: "hello" })]
         : []),
-    output: {
+    output: testModelOutput({
       choices: [
-        {
-          message: {
+        testChatCompletionChoice({
+          message: testAssistantMessage({
             id: opts.outputId ?? null,
-            role: "assistant",
             content: "response",
             source: "generate",
-          },
-        },
+          }),
+        }),
       ],
-    },
-  }) as unknown as Event;
+    }),
+  });
 
 const userMsg = (id: string): ChatMessage =>
-  ({ id, role: "user", content: "u", source: null }) as unknown as ChatMessage;
+  testUserMessage({ id, content: "u" });
 const assistantMsg = (id: string): ChatMessage =>
-  ({
-    id,
-    role: "assistant",
-    content: "a",
-    source: "generate",
-  }) as unknown as ChatMessage;
+  testAssistantMessage({ id, content: "a", source: "generate" });
 const toolMsg = (id: string): ChatMessage =>
-  ({
-    id,
-    role: "tool",
-    content: "t",
-    source: null,
-  }) as unknown as ChatMessage;
+  testToolMessage({ id, content: "t" });
 
 describe("messagesFromEvents", () => {
   it("returns messages from successful model events", () => {

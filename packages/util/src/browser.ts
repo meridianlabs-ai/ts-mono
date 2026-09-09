@@ -4,8 +4,10 @@
 export const clearDocumentSelection = () => {
   const sel = window.getSelection();
   if (sel) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (sel.removeAllRanges) {
       sel.removeAllRanges();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (sel.empty) {
       sel.empty();
     }
@@ -43,6 +45,6 @@ export function isEditableTarget(el: Element | null): boolean {
   if (!active) return false;
   const tag = active.tagName;
   if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-  if ((active as HTMLElement).isContentEditable) return true;
+  if (active instanceof HTMLElement && active.isContentEditable) return true;
   return false;
 }

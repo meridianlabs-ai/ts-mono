@@ -11,8 +11,11 @@ import type {
 
 import { expect, test } from "./fixtures/app";
 import {
+  createAnchorEvent,
   createMessagesEventsResponse,
   createModelEvent,
+  createSpanBeginEvent,
+  createSpanEndEvent,
   createTimeline,
   createTimelineScenario,
   createTimelineSpan,
@@ -259,20 +262,12 @@ function createRootBranchScenario(): MessagesEventsResponse {
     content: "Building the feature",
     spanId: "build",
   });
-  // splice() cuts the parent's stream at the AnchorEvent matching the
-  // branch's branched_from — the fork point must be an anchor event in the
-  // parent's direct content.
-  const anchorEvt = {
-    event: "anchor",
-    anchor_id: "fork-1",
+  const anchorEvt = createAnchorEvent({
+    anchorId: "fork-1",
     uuid: "evt-anchor-1",
-    timestamp: "2025-01-15T10:00:06Z",
-    working_start: 6,
-    span_id: "transcript",
-    metadata: null,
-    pending: null,
-    source: null,
-  } as unknown as MessagesEventsResponse["events"][number];
+    atSec: 6,
+    spanId: "transcript",
+  });
   const branchEvt = createModelEvent({
     uuid: "evt-branch-1",
     startSec: 10,
@@ -284,40 +279,28 @@ function createRootBranchScenario(): MessagesEventsResponse {
   // The branch carries an agent span in its event stream so the spliced
   // standalone timeline has swimlane structure (otherwise the header — and
   // with it the back button — would not render).
-  type ScoutEvent = MessagesEventsResponse["events"][number];
-  const branchSpanBegin = {
-    event: "span_begin",
+  const branchSpanBegin = createSpanBeginEvent({
     id: "retry",
     name: "Retry",
     type: "agent",
-    parent_id: null,
-    span_id: "branch-1",
     uuid: "evt-sb-retry",
-    timestamp: "2025-01-15T10:00:11Z",
-    working_start: 11,
-    metadata: null,
-    pending: null,
-  } as unknown as ScoutEvent;
-  const branchInnerEvt = {
-    ...createModelEvent({
-      uuid: "evt-retry-1",
-      startSec: 11,
-      endSec: 12,
-      tokens: 100,
-      content: "Retrying the approach",
-      spanId: "retry",
-    }),
-  } as unknown as ScoutEvent;
-  const branchSpanEnd = {
-    event: "span_end",
+    atSec: 11,
+    spanId: "branch-1",
+  });
+  const branchInnerEvt = createModelEvent({
+    uuid: "evt-retry-1",
+    startSec: 11,
+    endSec: 12,
+    tokens: 100,
+    content: "Retrying the approach",
+    spanId: "retry",
+  });
+  const branchSpanEnd = createSpanEndEvent({
     id: "retry",
-    span_id: "branch-1",
     uuid: "evt-se-retry",
-    timestamp: "2025-01-15T10:00:12Z",
-    working_start: 12,
-    metadata: null,
-    pending: null,
-  } as unknown as ScoutEvent;
+    atSec: 12,
+    spanId: "branch-1",
+  });
 
   const rootSpan = createTimelineSpan({
     id: "transcript",

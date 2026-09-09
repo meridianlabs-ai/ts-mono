@@ -30,7 +30,14 @@ const resolveAttachmentsImpl = (
   return obj;
 };
 
+/**
+ * Rewrites every attachment:// reference in a value, leaving its shape
+ * untouched. TypeScript can't express "same type, strings substituted", so
+ * the walk works in `unknown` and this is where the shape is handed back.
+ */
 export const resolveAttachments = <T>(
   obj: T,
   attachments: Record<string, string>
-): T => resolveAttachmentsImpl(obj, (s) => resolveString(s, attachments)) as T;
+): T =>
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape-preserving walk: see above
+  resolveAttachmentsImpl(obj, (s) => resolveString(s, attachments)) as T;

@@ -5,7 +5,12 @@ import {
 } from "@tanstack/react-virtual";
 import { useCallback, useMemo, useRef } from "react";
 
-import { computeScale, SAFE_MAX_SPACER } from "./scale-coordinate-space";
+import {
+  computeScale,
+  SAFE_MAX_SPACER,
+  toContent,
+  toSpacer,
+} from "./scale-coordinate-space";
 
 export type ScaledVirtualizerOptions = {
   count: number;
@@ -13,6 +18,11 @@ export type ScaledVirtualizerOptions = {
   getScrollElement: () => HTMLElement | null;
   overscan?: number;
   scrollPaddingStart?: number;
+  /** Offset (px) of the list within its scroll element, for embedded lists
+   *  with content above them in a shared scroller. Item coordinates include
+   *  it; getTotalSize() does not. NOT scale-aware — an embedded list large
+   *  enough to engage scaling (>~16M px) is unsupported. */
+  scrollMargin?: number;
 };
 
 export type ScaledVirtualizerResult = {
@@ -88,6 +98,7 @@ export function useScaledVirtualizer(
     getScrollElement: opts.getScrollElement,
     overscan: opts.overscan ?? 5,
     scrollPaddingStart: opts.scrollPaddingStart ?? 0,
+    scrollMargin: opts.scrollMargin ?? 0,
     observeElementOffset: scaledObserveElementOffset,
     scrollToFn: scaledScrollToFn,
   });
@@ -116,13 +127,17 @@ export function useScaledVirtualizer(
 
   const spacerHeight = scale === 1 ? contentTotal : SAFE_MAX_SPACER;
 
+  // Ref-backed (not closed over `scale`) so long-lived closures — the restore
+  // settle loop re-forces scrollTop across many frames while measurements
+  // change the scale — convert with the scale current at call time, not the
+  // one captured when the closure was created.
   const toContentScroll = useCallback(
-    (spacerScroll: number) => spacerScroll * scale,
-    [scale]
+    (spacerScroll: number) => toContent(spacerScroll, scaleRef.current),
+    []
   );
   const toSpacerScroll = useCallback(
-    (contentScroll: number) => contentScroll / scale,
-    [scale]
+    (contentScroll: number) => toSpacer(contentScroll, scaleRef.current),
+    []
   );
 
   return { virtualizer, scale, spacerHeight, toContentScroll, toSpacerScroll };

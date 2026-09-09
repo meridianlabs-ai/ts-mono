@@ -1,6 +1,7 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 import { data, loading } from "@tsmono/util";
 
 import { LogDetails } from "../../../client/api/types";
@@ -37,13 +38,17 @@ vi.mock("../../../state/store", () => ({
     }),
 }));
 
-const makeDetails = (n: number): LogDetails =>
-  ({
-    version: 2,
-    status: "started",
-    eval: { eval_id: `e${n}`, run_id: `r${n}`, task: "t", model: "m" },
-    sampleSummaries: [],
-  }) as unknown as LogDetails;
+const makeDetails = (n: number): LogDetails => ({
+  version: 2,
+  status: "started",
+  eval: testEvalSpec({
+    eval_id: `e${n}`,
+    run_id: `r${n}`,
+    task: "t",
+    model: "m",
+  }),
+  sampleSummaries: [],
+});
 
 beforeEach(() => {
   setLoadedLog.mockReset();

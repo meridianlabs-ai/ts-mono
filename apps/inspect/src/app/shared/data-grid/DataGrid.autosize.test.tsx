@@ -63,9 +63,10 @@ describe("DataGrid double-click auto-size", () => {
         onRowActivate={() => {}}
       />
     );
-    const header = screen
-      .getByText("Name")
-      .closest('[role="columnheader"]') as HTMLElement;
+    const header = screen.getByText("Name").closest('[role="columnheader"]');
+    if (!(header instanceof HTMLElement)) {
+      throw new Error("column header not rendered");
+    }
     expect(header.style.width).toBe("200px");
     fireEvent.doubleClick(screen.getByLabelText("Resize name"));
     expect(header.style.width).toBe("120px");

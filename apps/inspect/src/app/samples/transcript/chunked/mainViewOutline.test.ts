@@ -13,6 +13,15 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
+import {
+  testModelEvent,
+  testScore,
+  testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+  testSubtaskEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 import {
   buildOutlineNodeList,
@@ -59,6 +68,7 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
   for (const entry of original.centralDirectory.keys()) {
     const match = /^samples\/(.+)_epoch_(\d+)\.json$/.exec(entry);
     if (!match) continue;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the .eval fixture on disk is the shape this suite is written against
     const parsed = JSON.parse(
       decoder.decode(await original.readFile(entry))
     ) as {
@@ -68,12 +78,18 @@ const loadSamples = async (name: string): Promise<FixtureSample[]> => {
       attachments?: Record<string, string>;
     };
     const skeletonEntry = `samples/${parsed.id}_epoch_${parsed.epoch}/skeleton.json`;
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- see above
     const skeleton = JSON.parse(
       decoder.decode(await chunked.readFile(skeletonEntry))
     ) as SampleSkeleton;
     samples.push({
       key: `${parsed.id}/${parsed.epoch}`,
-      events: resolveAttachments(parsed.events, parsed.attachments ?? {}),
+      // The real pipeline normalizes events at the parse boundary (#555)
+      // before attachment resolution; mirror it so old fixtures load.
+      events: resolveAttachments(
+        normalizeEvents(parsed.events),
+        parsed.attachments ?? {}
+      ),
       skeleton,
     });
   }
@@ -114,48 +130,43 @@ describe("chunked outline twin (real pipeline: real events vs synthetic)", () =>
   });
 
   // Hand-built streams for skeleton shapes absent from the eval corpus.
-  // Events double as SkeletonEvent (producer input) and Event (pipeline
-  // input) — the single cast below mirrors the corpus loader's JSON cast.
+  // Full `Event` values double as SkeletonEvent (producer input) and Event
+  // (pipeline input) — the union satisfies SkeletonEvent structurally.
   const ts = (i: number) =>
     `2026-01-01T00:00:${String(i).padStart(2, "0")}+00:00`;
-  const modelAt = (i: number): SkeletonEvent & Record<string, unknown> => ({
-    event: "model",
-    span_id: "S1",
-    model: "mockllm/model",
-    input: [],
-    output: { model: "", choices: [], usage: null },
-    timestamp: ts(i),
-    working_start: i,
-  });
+  const modelAt = (i: number): Event =>
+    testModelEvent({
+      span_id: "S1",
+      model: "mockllm/model",
+      timestamp: ts(i),
+      working_start: i,
+    });
   const spanWrapped = (
-    inner: (SkeletonEvent & Record<string, unknown>)[]
+    inner: Event[]
   ): { events: Event[]; skeletonEvents: SkeletonEvent[] } => {
-    const all: (SkeletonEvent & Record<string, unknown>)[] = [
-      {
-        event: "span_begin",
+    const all: Event[] = [
+      testSpanBeginEvent({
         id: "S1",
         name: "agent1",
         type: "agent",
         timestamp: ts(0),
         working_start: 0,
-      },
+      }),
       ...inner,
-      {
-        event: "span_end",
+      testSpanEndEvent({
         id: "S1",
         span_id: "S1",
         timestamp: ts(inner.length + 1),
         working_start: inner.length + 1,
-      },
+      }),
     ];
-    return { events: all as unknown as Event[], skeletonEvents: all };
+    return { events: all, skeletonEvents: all };
   };
 
   it("subtask strays carry a labelable payload (no outline crash)", () => {
     const { skeletonEvents } = spanWrapped([
       modelAt(1),
-      {
-        event: "subtask",
+      testSubtaskEvent({
         span_id: "S1",
         name: "calc",
         input: {},
@@ -163,7 +174,7 @@ describe("chunked outline twin (real pipeline: real events vs synthetic)", () =>
         events: [],
         timestamp: ts(2),
         working_start: 2,
-      },
+      }),
     ]);
     const synth = syntheticEventsFromSkeleton(sampleSkeleton(skeletonEvents));
     // fully expanded (no collapse): every row the outline can ever render
@@ -185,14 +196,18 @@ describe("chunked outline twin (real pipeline: real events vs synthetic)", () =>
     const { events, skeletonEvents } = spanWrapped(
       [1, 2, 3, 4].flatMap((k) => [
         modelAt(k * 2 - 1),
-        {
-          event: "score",
+        testScoreEvent({
           span_id: "S1",
-          score: { value: 1, answer: null, explanation: null, metadata: null },
+          score: testScore({
+            value: 1,
+            answer: null,
+            explanation: null,
+            metadata: null,
+          }),
           intermediate: false,
           timestamp: ts(k * 2),
           working_start: k * 2,
-        } satisfies SkeletonEvent & Record<string, unknown>,
+        }),
       ])
     );
     const skeleton = sampleSkeleton(skeletonEvents, { notable_cap: 2 });

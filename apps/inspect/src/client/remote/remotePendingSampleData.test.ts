@@ -55,12 +55,7 @@ describe("fetchPendingSampleDataDirect", () => {
             call_pool: [],
           })
         );
-        return {
-          ok: true,
-          status: 200,
-          statusText: "OK",
-          arrayBuffer: () => Promise.resolve(body.buffer),
-        } as unknown as Response;
+        return new Response(body, { status: 200, statusText: "OK" });
       });
     });
 

@@ -5,6 +5,7 @@ import type {
   BranchEvent,
   CallPoolData,
   CompactionEvent,
+  ConfigUpdate,
   ErrorEvent,
   EvalError,
   EvalLog,
@@ -78,6 +79,7 @@ export interface LogDetails {
   tags?: string[];
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
+  config_updates?: ConfigUpdate[] | null;
   sampleSummaries: SampleSummary[];
   // S3 ETag captured at fetch time. Used by the `edit_log` middleware
   // to prime an `If-Match` on the *first* save so concurrent-modification
@@ -114,11 +116,16 @@ export interface PendingSampleUrls {
 // Client-side types — looser than generated server types because they're
 // also constructed locally (from URL params, manifests, etc.)
 export interface RunningMetric {
+  /** `EvalScore.name` — one of its value keys for a dict-valued scorer. */
   scorer: string;
+  /** `EvalScore.scorer`. Absent in logs written before it was recorded. */
+  scorer_name?: string | null;
   name: string;
   value?: number | null;
   reducer?: string;
   params?: Record<string, unknown>;
+  /** Whether this is the eval's headline metric. */
+  headline?: boolean;
 }
 
 export interface PendingSamples {
@@ -128,21 +135,26 @@ export interface PendingSamples {
   etag?: string;
 }
 
+// Required fields mirror the generated EvalSampleSummary — summaries are
+// boundary-normalized (#555, normalizeSampleSummary), so consumers can read
+// them unguarded.
 export interface SampleSummary {
-  uuid?: string;
+  uuid?: string | null;
   id: number | string;
   epoch: number;
   input: EvalSample["input"];
   target: EvalSampleTarget;
-  scores: EvalSampleScore | null | undefined;
-  error?: string;
-  limit?: string;
-  metadata?: Record<string, unknown>;
-  completed?: boolean;
-  retries?: number;
+  scores?: EvalSampleScore | null;
+  error?: string | null;
+  limit?: string | null;
+  limit_reason?: string | null;
+  metadata: Record<string, unknown>;
+  completed: boolean;
+  retries?: number | null;
   // Per-sample timing and token usage; populated by Inspect's Python
   // EvalSampleSummary.summary() and serialized into summaries.json.
-  model_usage?: Record<string, ModelUsage>;
+  model_usage: Record<string, ModelUsage>;
+  role_usage: Record<string, ModelUsage>;
   model_fallbacks?: ModelFallback[] | null;
   started_at?: string | null;
   completed_at?: string | null;
@@ -191,16 +203,26 @@ export interface Capabilities {
   streamSamples: boolean;
 }
 
+/**
+ * A backend api instance is bound to one log dir, fixed at construction.
+ * Every method answers about the construction dir and no other: results
+ * never depend on ambient state in the server or host (a view server's
+ * configured dir, a VS Code host's current selection). Two instances over
+ * the same transport with different dirs must answer independently. How a
+ * backend honors this (e.g. the view server sending `?log_dir=` on each
+ * request) is a private detail of that implementation.
+ *
+ * Relative `dir` args (`get_eval_set`, `get_flow`) are subdirs resolved
+ * against the construction dir; log-file args are full paths.
+ */
 export interface LogViewAPI {
   client_events: () => Promise<string[]>;
   get_eval_set: (dir?: string) => Promise<EvalSet | undefined>;
   get_flow: (dir?: string) => Promise<string | undefined>;
-  get_log_dir?: () => Promise<string | undefined>;
-  get_logs?: (
+  get_logs: (
     mtime: number,
     clientFileCount: number
   ) => Promise<LogFilesResponse>;
-  get_log_root: () => Promise<LogRoot | undefined>;
   get_log_contents: (
     log_file: string,
     // This is the number of MB of the log to fetch. If the log is larger than this, only the header will be returned. If not provided, it always fetches the entire log. Really only user for old JSON logs.
@@ -221,6 +243,8 @@ export interface LogViewAPI {
     filecontents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
+  // Part of the host API contract (every adapter implements it), even though
+  // the viewer itself no longer calls it.
   open_log_file: (logFile: string, log_dir: string) => Promise<void>;
   eval_pending_samples?: (
     log_file: string,
@@ -295,19 +319,20 @@ export interface UserInfo {
   email?: string;
 }
 
+/**
+ * The client-facing api, bound to one log dir at construction (see
+ * `LogViewAPI` for the contract). The dir never appears in method
+ * signatures — an instance's answers are fully determined by the dir it
+ * was built with. To view a different dir, build a new instance
+ * (`app_config`'s `setLogRoot` does exactly that). Discovering the dir is
+ * app config's job, not the api's — see `BackendBootstrap`.
+ */
 export interface ClientAPI {
-  // Basic initialization
-  get_log_dir: () => Promise<string | undefined>;
-
   // List of files
   get_logs: (
     mtime: number,
     clientFileCount: number
   ) => Promise<LogFilesResponse>;
-
-  // Log files retrieval
-  // Legacy: Read the files and log directory in a single request
-  get_log_root: () => Promise<LogRoot>;
 
   // Read eval set
   get_eval_set: (dir?: string) => Promise<EvalSet | undefined>;
@@ -412,6 +437,8 @@ export interface FetchResponse {
 export interface EvalHeader {
   version?: EvalLogVersion;
   status?: EvalLogStatus;
+  /** Log invalidation flag; absent on journal-synthesized headers. */
+  invalidated?: boolean;
   eval: EvalSpec;
   plan?: EvalPlan;
   results?: EvalResults | null;
@@ -420,6 +447,7 @@ export interface EvalHeader {
   tags?: string[];
   metadata?: Record<string, unknown>;
   log_updates?: LogUpdate[] | null;
+  config_updates?: ConfigUpdate[] | null;
 }
 
 export interface LogPreview {

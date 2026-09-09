@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { ScoreValue } from "@tsmono/inspect-components/transcript";
 import { CopyButton } from "@tsmono/react/components";
 import {
   formatDateTime,
@@ -11,7 +12,6 @@ import {
 
 import { Transcript } from "../../types/api-types";
 import { HeadingGrid, HeadingValue } from "../components/HeadingGrid";
-import { ScoreValue } from "../components/ScoreValue";
 import { TaskName } from "../components/TaskName";
 
 import styles from "./TranscriptTitle.module.css";

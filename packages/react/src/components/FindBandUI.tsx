@@ -2,8 +2,7 @@ import clsx from "clsx";
 import React, { FC, KeyboardEvent, RefObject, useRef } from "react";
 
 import { useComponentIcons } from "./ComponentIconContext";
-
-import "./FindBand.css";
+import styles from "./FindBandUI.module.css";
 
 interface FindBandUIProps {
   onClose: () => void;
@@ -59,14 +58,15 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       ? `${matchIndex + 1} of ${matchCount}`
       : "No results";
 
+  // "findBand" (unhashed) is a deliberate public hook for embedders whose CSS
+  // targets the band (e.g. hawk's full-height exclusion). The viewer styles it
+  // via the hashed styles.findBand, so this global class carries no rule.
   return (
-    <div data-unsearchable="true" className={clsx("findBand")}>
+    <div data-unsearchable="true" className={clsx(styles.findBand, "findBand")}>
       <input ref={inputRef} {...inputProps} />
       <span
-        className={clsx(
-          "findBand-match-count",
-          noResults && "findBand-no-results"
-        )}
+        data-testid="find-band-match-count"
+        className={clsx(styles.matchCount, noResults && styles.noResults)}
         style={{ visibility: showStatus ? "visible" : "hidden" }}
       >
         {statusText}
@@ -74,7 +74,8 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       <button
         type="button"
         title="Previous match"
-        className="btn prev"
+        data-testid="find-band-prev"
+        className={clsx("btn", styles.prev)}
         onClick={onPrevious}
         disabled={disableNav}
       >
@@ -83,7 +84,8 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       <button
         type="button"
         title="Next match"
-        className="btn next"
+        data-testid="find-band-next"
+        className={clsx("btn", styles.next)}
         onClick={onNext}
         disabled={disableNav}
       >
@@ -92,7 +94,7 @@ export const FindBandUI: FC<FindBandUIProps> = ({
       <button
         type="button"
         title="Close"
-        className="btn close"
+        className={clsx("btn", styles.close)}
         onClick={onClose}
       >
         <i className={icons.close} />

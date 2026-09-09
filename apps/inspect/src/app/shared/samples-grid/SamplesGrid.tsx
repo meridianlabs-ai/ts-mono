@@ -8,13 +8,13 @@ import {
   useState,
 } from "react";
 
-import type {
-  ColumnFilter,
-  FilterSpec,
-  FilterType,
+import {
+  combineFilters,
+  type ColumnFilter,
+  type FilterSpec,
+  type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
-import { combineFilters } from "../../log-list/listing/combineFilters";
 import type { ValueComparator } from "../../log-list/listing/types";
 import {
   sortingStateToOrderBy,
@@ -209,6 +209,7 @@ export const SamplesGrid = ({
     getFilterType,
   });
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     onDisplayedRowsChange?.(items);
   }, [items, onDisplayedRowsChange]);

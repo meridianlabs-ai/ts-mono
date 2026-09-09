@@ -90,46 +90,37 @@ export const ColumnsPopover: FC<ColumnsPopoverProps> = ({
       hoverDelay={-1}
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
-        <a
-          className={clsx(
-            styles.link,
-            isDefaultSelection ? styles.selected : undefined
-          )}
+        <button
+          type="button"
+          className={clsx(isDefaultSelection ? styles.selected : undefined)}
           onClick={() => setDefaultSelection()}
         >
           Default
-        </a>
+        </button>
         |
-        <a
-          className={clsx(
-            styles.link,
-            isAllSelection ? styles.selected : undefined
-          )}
+        <button
+          type="button"
+          className={clsx(isAllSelection ? styles.selected : undefined)}
           onClick={() => setAllSelection()}
         >
           All
-        </a>
+        </button>
         |
-        <a
-          className={clsx(
-            styles.link,
-            isNoneSelection ? styles.selected : undefined
-          )}
+        <button
+          type="button"
+          className={clsx(isNoneSelection ? styles.selected : undefined)}
           onClick={() => setNoneSelection()}
         >
           None
-        </a>
+        </button>
       </div>
 
       <div className={clsx(styles.columnList, "text-size-smaller")}>
         {columns.map((column) => (
-          <div
+          <label
             key={column.id}
             className={clsx(styles.row)}
             title={[column.id, column.headerTitle].filter(Boolean).join("\n")}
-            onClick={() => {
-              toggleColumn(column.id, !visibleColumns.includes(column.id));
-            }}
           >
             <input
               type="checkbox"
@@ -139,7 +130,7 @@ export const ColumnsPopover: FC<ColumnsPopoverProps> = ({
               }}
             />
             {column.label}
-          </div>
+          </label>
         ))}
       </div>
     </PopOver>

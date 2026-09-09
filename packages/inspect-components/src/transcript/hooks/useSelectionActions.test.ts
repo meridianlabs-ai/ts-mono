@@ -3,6 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TimelineSpan } from "../timeline/core";
 import type { TimelineState } from "../timeline/hooks";
 import type { SwimlaneRow } from "../timeline/swimlaneRows";
 
@@ -14,26 +15,41 @@ import { useSelectionActions } from "./useSelectionActions";
 
 /** Minimal single-agent-span swimlane row (the shape buildSpanSelectKeys reads). */
 function agentRow(key: string, spanId: string): SwimlaneRow {
+  const agent = new TimelineSpan({
+    id: spanId,
+    name: spanId,
+    spanType: "agent",
+  });
   return {
     key,
     name: spanId,
     depth: 1,
     branch: false,
-    spans: [{ agent: { id: spanId } }],
-  } as unknown as SwimlaneRow;
+    spans: [{ agent }],
+    totalTokens: 0,
+    startTime: new Date(0),
+    endTime: new Date(0),
+  };
 }
 
 function makeTimelineState(rows: SwimlaneRow[]) {
   const select = vi.fn<TimelineState["select"]>();
-  const state = { rows, selected: null, select } as unknown as TimelineState;
+  const state: TimelineState = {
+    node: new TimelineSpan({ id: "root", name: "root", spanType: "root" }),
+    rows,
+    selected: null,
+    select,
+    clearSelection: () => {},
+  };
   return { state, select };
 }
 
 function makeScrollRef(scrollTop = 0) {
-  const scrollTo = vi.fn<(opts: { top: number }) => void>();
-  const ref = {
-    current: { scrollTop, scrollTo },
-  } as unknown as RefObject<HTMLDivElement>;
+  const el = document.createElement("div");
+  el.scrollTop = scrollTop;
+  const scrollTo = vi.fn();
+  el.scrollTo = scrollTo;
+  const ref: RefObject<HTMLDivElement> = { current: el };
   return { ref, scrollTo };
 }
 
@@ -92,7 +108,7 @@ describe("useSelectionActions", () => {
     expect(result.current.hasScrollTarget).toBe(false);
   });
 
-  it("anchors and restores the scroll position for navigator clicks", () => {
+  it("anchors and restores the scroll position once for navigator clicks", () => {
     const { state } = makeTimelineState([]);
     const { ref, scrollTo } = makeScrollRef(123);
     const { result } = renderHook(() =>
@@ -105,8 +121,12 @@ describe("useSelectionActions", () => {
     expect(result.current.hasScrollTarget).toBe(true);
 
     // The restore runs in rAF after the selection lands.
-    flushFrames();
+    act(flushFrames);
     expect(scrollTo).toHaveBeenCalledWith({ top: 123 });
+    expect(result.current.hasScrollTarget).toBe(false);
+
+    act(() => result.current.selectByRowKey("root/c"));
+    expect(result.current.hasScrollTarget).toBe(false);
   });
 
   it("reports a pending scroll target for deep links", () => {

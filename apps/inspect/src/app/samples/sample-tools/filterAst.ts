@@ -46,7 +46,36 @@ export interface ParseResult {
   error: ParseError | null;
 }
 
-const RELATION_OPS = new Set(["==", "!=", "<", "<=", ">", ">=", "~="]);
+const RELATION_OPS: readonly BinaryOp[] = [
+  "==",
+  "!=",
+  "<",
+  "<=",
+  ">",
+  ">=",
+  "~=",
+];
+
+const isRelationOp = (text: string): text is BinaryOp =>
+  RELATION_OPS.some((op) => op === text);
+
+const kBinaryOps: readonly BinaryOp[] = [
+  ...RELATION_OPS,
+  "and",
+  "or",
+  "+",
+  "-",
+  "*",
+  "/",
+  "^",
+  "mod",
+];
+
+const asBinaryOp = (text: string): BinaryOp => {
+  const op = kBinaryOps.find((candidate) => candidate === text);
+  if (!op) throw new Error(`not a binary operator: ${text}`);
+  return op;
+};
 
 class Parser {
   private pos = 0;
@@ -144,10 +173,10 @@ class Parser {
   private parseRelation(): FilterAst {
     const left = this.parseAdd();
     const t = this.peek();
-    if (t && t.type === "relation" && RELATION_OPS.has(t.text)) {
+    if (t && t.type === "relation" && isRelationOp(t.text)) {
       this.eat();
       const right = this.parseAdd();
-      return { kind: "binary", op: t.text as BinaryOp, left, right };
+      return { kind: "binary", op: t.text, left, right };
     }
     return left;
   }
@@ -155,7 +184,7 @@ class Parser {
   private parseAdd(): FilterAst {
     let left = this.parseMul();
     while (this.match("miscOperator", "+") || this.match("miscOperator", "-")) {
-      const op = this.eat()!.text as BinaryOp;
+      const op = asBinaryOp(this.eat()!.text);
       const right = this.parseMul();
       left = { kind: "binary", op, left, right };
     }
@@ -169,7 +198,7 @@ class Parser {
       this.match("miscOperator", "/") ||
       this.match("keyword", "mod")
     ) {
-      const op = this.eat()!.text as BinaryOp;
+      const op = asBinaryOp(this.eat()!.text);
       const right = this.parsePow();
       left = { kind: "binary", op, left, right };
     }

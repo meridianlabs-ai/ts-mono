@@ -2,16 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import { Column, ConditionBuilder } from "@tsmono/inspect-common/query";
 import type { Condition } from "@tsmono/inspect-common/query";
-import type {
-  ColumnFilter,
-  FilterType,
+import {
+  combineFilters,
+  type ColumnFilter,
+  type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
 
 import { numberCompare } from "../grid/columns/comparators";
 
 import { applyListingQuery, mergeSortedRows } from "./applyListingQuery";
-import { combineFilters } from "./combineFilters";
-import { evaluateCondition } from "./evaluator";
+import { compileCondition } from "./evaluator";
 import type { ValueComparator } from "./types";
 
 interface Row {
@@ -35,8 +35,8 @@ const getValue = (row: Row, id: string): unknown => row[id];
 const getComparator = (id: string): ValueComparator | undefined =>
   id === "score" ? numberCompare : undefined;
 
-describe("evaluateCondition", () => {
-  const ev = (c: Condition, row: Row) => evaluateCondition(row, c, getValue);
+describe("compileCondition", () => {
+  const ev = (c: Condition, row: Row) => compileCondition(c, getValue)(row);
 
   it("eq / ne", () => {
     expect(ev(new Column("model").eq("gpt-4"), r0)).toBe(true);
@@ -213,7 +213,7 @@ describe("type-aware filtering", () => {
   const getFilterType = (id: string): FilterType | undefined =>
     id === "score" ? "number" : id === "completed" ? "date" : "string";
   const ev = (c: Condition, row: Row) =>
-    evaluateCondition(row, c, getValue, getFilterType);
+    compileCondition(c, getValue, getFilterType)(row);
 
   const early: Row = {
     name: "x",
@@ -294,22 +294,6 @@ describe("type-aware filtering", () => {
     // r0 & r2 match via "= gpt-4"; r1 matches via "= claude"; r3 (gpt-4o)
     // matches neither branch.
     expect(res.items.map((r) => r.name).sort()).toEqual(["a", "b", "c"]);
-  });
-
-  it("combineFilters drops legacy persisted entries (pre-FilterSpec shape)", () => {
-    const legacy = {
-      model: {
-        columnId: "model",
-        filterType: "string",
-        condition: {
-          is_compound: false,
-          left: "model",
-          operator: "=",
-          right: "gpt-4",
-        },
-      },
-    } as unknown as Record<string, ColumnFilter>;
-    expect(combineFilters(legacy)).toBeUndefined();
   });
 });
 

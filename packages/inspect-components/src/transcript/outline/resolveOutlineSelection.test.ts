@@ -1,8 +1,12 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 
+import { testModelEvent } from "@tsmono/inspect-common/testing";
+import { isRecord } from "@tsmono/util";
+
 import { eventNode } from "../testHelpers";
 import { flatTree } from "../transform/flatten";
+import { EventNode } from "../types";
 
 import {
   buildOutlineNodeList,
@@ -13,9 +17,9 @@ import {
 // first turn's id (collapseTurns reuses it), so the 2nd/3rd turns' ids match
 // no outline row by identity.
 function threeTurnGroup() {
-  const model1 = eventNode({ event: "model" });
-  const model2 = eventNode({ event: "model" });
-  const model3 = eventNode({ event: "model" });
+  const model1 = eventNode(testModelEvent());
+  const model2 = eventNode(testModelEvent());
+  const model3 = eventNode(testModelEvent());
   const eventNodes = [model1, model2, model3];
 
   const outlineNodeList = buildOutlineNodeList(eventNodes, {});
@@ -24,14 +28,21 @@ function threeTurnGroup() {
   return { model1, model2, model3, outlineNodeList, allNodesList };
 }
 
+// The outline's collapsed rows carry a rewritten `name`; read it without
+// claiming every member of the event union has one.
+const readStringField = (node: EventNode, key: string): string | undefined => {
+  const event: unknown = node.event;
+  if (!isRecord(event)) return undefined;
+  const value = event[key];
+  return typeof value === "string" ? value : undefined;
+};
+
 describe("resolveOutlineSelection", () => {
   it("fixture collapses to a single '3 turns' row keyed on the first turn", () => {
     const { model1, outlineNodeList } = threeTurnGroup();
     expect(outlineNodeList).toHaveLength(1);
     expect(outlineNodeList[0]!.event.event).toBe("span_begin");
-    expect((outlineNodeList[0]!.event as { name: string }).name).toBe(
-      "3 turns"
-    );
+    expect(readStringField(outlineNodeList[0]!, "name")).toBe("3 turns");
     expect(outlineNodeList[0]!.id).toBe(model1.id);
   });
 

@@ -1,5 +1,5 @@
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { clearDocumentSelection } from "@tsmono/util";
+import { clearDocumentSelection, getOwn } from "@tsmono/util";
 
 import { AppState } from "../app/types";
 import { Capabilities } from "../client/api/types";
@@ -113,7 +113,13 @@ export const createAppSlice = (
   const slice = {
     // State
     app: initialState,
-    capabilities: {} as Capabilities,
+    // Replaced by initializeStore; nothing is available until it runs.
+    capabilities: {
+      downloadFiles: false,
+      downloadLogs: false,
+      webWorkers: false,
+      streamSamples: false,
+    },
 
     // Actions
     appActions: {
@@ -288,35 +294,44 @@ export const createAppSlice = (
         key: string,
         defaultValue?: T
       ): T => {
-        const state = get();
-        const bag = state.app.propertyBags[bagName] || {};
-        return (key in bag ? bag[key] : defaultValue) as T;
+        const bag = getOwn(get().app.propertyBags, bagName);
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- unsound-by-design generic accessor: property bags hold unknown, and T is the caller's claim about their own property
+        return (
+          bag !== undefined && Object.hasOwn(bag, key) ? bag[key] : defaultValue
+        ) as T;
       },
 
       setPropertyValue: <T>(bagName: string, key: string, value: T) => {
         set((state) => {
-          // Create the bag if it doesn't exist
-          if (!state.app.propertyBags[bagName]) {
-            state.app.propertyBags[bagName] = {};
+          const bags = state.app.propertyBags;
+          const bag = getOwn(bags, bagName);
+          if (bag !== undefined && key !== "__proto__") {
+            bag[key] = value;
+            return;
           }
-          // Only update the specific key
-          state.app.propertyBags[bagName][key] = value;
+          // Computed keys bypass the inherited __proto__ setter, which
+          // Immer rejects even when the draft already owns that property.
+          const next = { ...bag, [key]: value };
+          if (bagName === "__proto__") {
+            state.app.propertyBags = { ...bags, [bagName]: next };
+          } else {
+            bags[bagName] = next;
+          }
         });
       },
 
       removePropertyValue: (bagName: string, key: string) => {
         set((state) => {
-          if (state.app.propertyBags[bagName]) {
-            const { [key]: _, ...rest } = state.app.propertyBags[bagName];
-            state.app.propertyBags[bagName] = rest;
+          const bag = getOwn(state.app.propertyBags, bagName);
+          if (bag !== undefined) {
+            delete bag[key];
           }
         });
       },
 
       removeAllProperties: (bagName: string) => {
         set((state) => {
-          const { [bagName]: _, ...rest } = state.app.propertyBags;
-          state.app.propertyBags = rest;
+          delete state.app.propertyBags[bagName];
         });
       },
 
@@ -335,23 +350,17 @@ export const createAppSlice = (
 
       removeByPrefix: (bagName: string, prefix: string) => {
         set((state) => {
-          const bag = state.app.propertyBags[bagName];
+          const bag = getOwn(state.app.propertyBags, bagName);
           if (!bag) return;
           let changed = false;
-          const next = { ...bag };
-          for (const key of Object.keys(next)) {
+          for (const key of Object.keys(bag)) {
             if (key.startsWith(prefix)) {
-              delete next[key];
+              delete bag[key];
               changed = true;
             }
           }
-          if (changed) {
-            if (Object.keys(next).length === 0) {
-              const { [bagName]: _, ...rest } = state.app.propertyBags;
-              state.app.propertyBags = rest;
-            } else {
-              state.app.propertyBags[bagName] = next;
-            }
+          if (changed && Object.keys(bag).length === 0) {
+            delete state.app.propertyBags[bagName];
           }
         });
       },
@@ -383,6 +392,7 @@ export const initializeAppSlice = (
 ) => {
   set((state) => {
     state.capabilities = capabilities;
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!state.app) {
       state.app = initialState;
     }

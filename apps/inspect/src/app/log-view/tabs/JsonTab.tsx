@@ -57,9 +57,9 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
 const copyFeedback = (e: MouseEvent<HTMLElement>) => {
   const textEl = e.currentTarget.querySelector(".task-btn-copy-content");
   const iconEl = e.currentTarget.querySelector("i.bi");
-  if (textEl) {
-    const htmlEl = textEl as HTMLElement;
-    const htmlIconEl = iconEl as HTMLElement;
+  if (textEl instanceof HTMLElement && iconEl instanceof HTMLElement) {
+    const htmlEl = textEl;
+    const htmlIconEl = iconEl;
     const oldText = htmlEl.innerText;
     const oldIconClz = htmlIconEl.className;
     htmlEl.innerText = "Copied!";

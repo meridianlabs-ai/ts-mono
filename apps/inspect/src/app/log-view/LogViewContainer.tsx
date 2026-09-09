@@ -6,6 +6,8 @@ import {
   useSearchParams,
 } from "react-router";
 
+import { useUnmount } from "@tsmono/react/hooks";
+
 import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile, unloadLog } from "../../state/actions";
 import { useEvalSpec } from "../../state/hooks";
@@ -51,12 +53,11 @@ export const LogViewContainer: FC = () => {
   // Unload the log when this is mounted. This prevents the old log
   // data from being displayed when navigating back to the logs panel
   // and also ensures that we reload logs when freshly navigating to them.
-  useEffect(() => {
-    return () => {
-      unloadLog();
-    };
-  }, []);
+  useUnmount(() => {
+    unloadLog();
+  });
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (initialState && !evalSpec) {
       const url = baseUrl(
@@ -78,6 +79,7 @@ export const LogViewContainer: FC = () => {
   // the browser has already painted the stale eval. (Details and pending
   // summaries are query-keyed per log file, so the selected sample handle is
   // the only cross-log store state to clear.)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     const prevLogPath = prevLogPathRef.current;
     prevLogPathRef.current = logPath;
@@ -89,11 +91,13 @@ export const LogViewContainer: FC = () => {
   // Sync the workspace tab from the URL synchronously. Kept separate from
   // the async log-loading effect below so a tab click can't race with a
   // pending initLogDir() and snap the view back to an older tab.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!logPath) return;
     setWorkspaceTab(tabId ?? kLogViewSamplesTabId);
   }, [logPath, tabId, setWorkspaceTab]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (logPath) {
       selectLogFile(logPath);

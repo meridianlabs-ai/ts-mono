@@ -33,3 +33,9 @@ Sources (under the inspect_ai repo's `tests/`):
 - `ais-decoder.eval` — agent log with checkpoint spans exited in another
   context (unbalanced span order; from the inspect_ai repo's `logs/old/`) —
   the reproducer for the main-view outline twin (`mainViewOutline.test.ts`)
+- `2024-11-21…solo-agent….eval` — legacy agentic log (inspect_ai 0.3.46)
+  whose tool events carry nested store-event streams lacking
+  `working_start`/`span_id`/`uuid`, exercising recursive event
+  normalization (#555). Shrunken + sanitized from a real Nov-2024 log
+  (prose truncated, identifying strings rewritten); regenerate the chunked
+  twin as above if it ever changes

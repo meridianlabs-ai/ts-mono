@@ -5,14 +5,13 @@ import { renderHook } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { testModelEvent } from "@tsmono/inspect-common/testing";
 
 import { EventNode } from "../types";
 
 import { useFocusTurnNavigation } from "./useFocusTurnNavigation";
 
-const model = (id: string): EventNode =>
-  new EventNode(id, { event: "model" } as Event, 0);
+const model = (id: string): EventNode => new EventNode(id, testModelEvent(), 0);
 
 const turns = (n: number): EventNode[] =>
   Array.from({ length: n }, (_, i) => model(`m${i + 1}`));

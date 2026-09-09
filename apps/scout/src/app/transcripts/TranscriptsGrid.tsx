@@ -75,6 +75,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
     (state) => state.transcriptsTableState.rowSelection
   );
   const columnFilters =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     useStore((state) => state.transcriptsTableState.columnFilters) ?? {};
   const focusedRowId = useStore(
     (state) => state.transcriptsTableState.focusedRowId
@@ -109,6 +110,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
   const previousVisibleColumnsRef = useRef<typeof visibleColumns | null>(null);
 
   // Auto-size columns on initial load when data is available
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!hasInitializedRef.current && transcripts.length > 0) {
       hasInitializedRef.current = true;
@@ -118,6 +120,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
 
   // Auto-size when visible columns change
   // (applyAutoSizing preserves manually resized columns)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const previousVisibleColumns = previousVisibleColumnsRef.current;
     previousVisibleColumnsRef.current = visibleColumns;
@@ -129,6 +132,7 @@ export const TranscriptsGrid: FC<TranscriptGridProps> = ({
 
   // Compute effective column order: use explicit order if set, otherwise derive from DEFAULT_COLUMN_ORDER
   const effectiveColumnOrder = useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (columnOrder && columnOrder.length > 0) {
       return columnOrder;
     }

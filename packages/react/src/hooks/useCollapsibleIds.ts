@@ -27,10 +27,15 @@ export const useCollapsibleIds = (
   }, [removeAllFn, key]);
 
   return useMemo(() => {
-    return [
-      entries as Record<string, boolean> | undefined,
-      collapseId,
-      clearIds,
-    ];
+    // The store's entries are unknown-valued; keep the booleans this hook
+    // promises rather than claiming every entry is one.
+    const collapsed =
+      entries &&
+      Object.fromEntries(
+        Object.entries(entries).filter(
+          (entry): entry is [string, boolean] => typeof entry[1] === "boolean"
+        )
+      );
+    return [collapsed, collapseId, clearIds];
   }, [entries, collapseId, clearIds]);
 };

@@ -13,6 +13,7 @@ import type {
 
 import {
   EventNode,
+  isCollapsibleEvent,
   kCollapsibleEventTypes,
   kContentCollapsibleEventTypes,
 } from "../types";
@@ -47,13 +48,11 @@ export const computeDefaultCollapsedIds = (
   const defaultCollapsedIds: Record<string, true> = {};
   const findCollapsibleEvents = (nodes: EventNode[]) => {
     for (const node of nodes) {
+      // Bound to a const so the narrowing survives into the callback below.
+      const event = node.event;
       if (
-        kCollapsibleEventTypes.includes(node.event.event) &&
-        collapseFilters.some((filter) =>
-          filter(
-            node.event as StepEvent | SpanBeginEvent | ToolEvent | SubtaskEvent
-          )
-        )
+        isCollapsibleEvent(event) &&
+        collapseFilters.some((filter) => filter(event))
       ) {
         defaultCollapsedIds[node.id] = true;
       }

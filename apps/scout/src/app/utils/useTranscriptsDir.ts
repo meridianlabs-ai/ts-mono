@@ -32,7 +32,7 @@ export function useTranscriptsDir(
       ? "route"
       : userTranscriptsDir
         ? "user"
-        : config.transcripts && config.transcripts?.source === "cli"
+        : config.transcripts && config.transcripts.source === "cli"
           ? "cli"
           : "project";
 

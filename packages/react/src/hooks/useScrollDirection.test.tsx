@@ -1,11 +1,17 @@
 // @vitest-environment jsdom
 import { act, cleanup, render } from "@testing-library/react";
 import { useRef, type RefObject } from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useScrollDirection } from "./useScrollDirection";
+import {
+  useScrollDirection,
+  type UseScrollDirectionResult,
+} from "./useScrollDirection";
 
-afterEach(cleanup);
+afterEach(() => {
+  vi.useRealTimers();
+  cleanup();
+});
 
 function Harness({
   elRef,
@@ -71,5 +77,72 @@ describe("useScrollDirection hidden state across scroller remounts", () => {
     // The loading→loaded swap on a deep-link mount must NOT wipe the forced
     // collapsed state — that painted the chrome expanded mid-landing.
     expect(hidden).toBe(true);
+  });
+});
+
+function LockHarness({
+  elRef,
+  onApi,
+}: {
+  elRef: RefObject<HTMLElement | null>;
+  onApi: (api: UseScrollDirectionResult) => void;
+}) {
+  const api = useScrollDirection(elRef);
+  onApi(api);
+  return null;
+}
+
+// A scroller jsdom treats as scrollable: the handler's at-bottom guard reads
+// scrollHeight/clientHeight, which jsdom reports as 0 by default.
+const makeScrollableEl = () => {
+  const el = makeEl();
+  Object.defineProperty(el, "scrollHeight", { value: 2000 });
+  Object.defineProperty(el, "clientHeight", { value: 500 });
+  return el;
+};
+
+describe("useScrollDirection transition lock semantics", () => {
+  it("a scroll-driven lock engaged after resetAnchor(true) + setHidden expires instead of self-extending", () => {
+    vi.useFakeTimers();
+    const el = makeScrollableEl();
+    const elRef: RefObject<HTMLElement | null> = { current: el };
+    let api: UseScrollDirectionResult | undefined;
+    render(<LockHarness elRef={elRef} onApi={(a) => (api = a)} />);
+
+    const scrollTo = (top: number) => {
+      el.scrollTop = top;
+      act(() => {
+        el.dispatchEvent(new Event("scroll"));
+      });
+    };
+
+    // The transcript search-next sequence: a self-extending programmatic
+    // lock, immediately superseded by an imperative setHidden.
+    act(() => api!.resetAnchor(true));
+    act(() => api!.setHidden(true));
+    expect(api!.hidden).toBe(true);
+
+    // Let that lock expire, then anchor mid-scroller (down, no state change).
+    act(() => {
+      vi.advanceTimersByTime(300);
+    });
+    scrollTo(1000);
+
+    // Upward direction change reveals and engages an ORDINARY transition
+    // lock — the one whose semantics are under test.
+    scrollTo(500);
+    expect(api!.hidden).toBe(false);
+
+    // Scroll steadily downward, each event past the threshold and inside
+    // 250ms of the last. A lock that wrongly inherited the programmatic
+    // flag re-arms its expiry on every event and never releases, so hidden
+    // would stay false for as long as scrolling continues.
+    for (let i = 1; i <= 6; i++) {
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      scrollTo(500 + i * 60);
+    }
+    expect(api!.hidden).toBe(true);
   });
 });

@@ -14,7 +14,7 @@ export type Tone = "pass" | "fail" | "warn" | "neutral";
  * vocabulary.
  */
 export function scoreTone(
-  value: ScoreValue | undefined,
+  value: ScoreValue | null | undefined,
   scoreType: string
 ): Tone {
   if (value === undefined || value === null) return "neutral";

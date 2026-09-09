@@ -3,9 +3,13 @@
  * Extracted for testability (no CSS/React imports).
  */
 
-import MarkdownIt from "markdown-it";
+import markdownit, { type MarkdownIt } from "markdown-it";
 
-import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
+import {
+  canonicalImageSource,
+  parseAbsoluteHttpUrl,
+  parseDataUri,
+} from "@tsmono/util";
 
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
@@ -13,6 +17,7 @@ let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
 const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
     const loading = import("markdown-it-mathjax3").then(
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- untyped dependency: markdown-it-mathjax3 ships no types, so its default export arrives as any
       (m) => m.default as MarkdownItPlugin
     );
     // Reset on rejection so a transient chunk-load failure (network blip,
@@ -63,7 +68,7 @@ export const getMarkdownInstance = async (
   }
 
   if (renderer === "textOnly") {
-    const md = new MarkdownIt("zero", { breaks: true, html: false }).enable([
+    const md = new markdownit("zero", { breaks: true, html: false }).enable([
       "emphasis",
       "newline",
     ]);
@@ -71,14 +76,29 @@ export const getMarkdownInstance = async (
     return md;
   }
 
-  const md = new MarkdownIt({ breaks: true, html: true });
+  const md = new markdownit({ breaks: true, html: true });
   md.renderer.rules.image = (tokens, idx) => {
     const token = tokens[idx];
     if (!token) {
       return "";
     }
 
-    const source = token.attrGet("src") ?? "";
+    // attrGet returns string | number as of markdown-it 15
+    const source = String(token.attrGet("src") ?? "");
+    const alt = token.content.trim();
+
+    // Base64 raster data URIs issue no network request, so rendering them
+    // inline cannot leak a fetch to an attacker-controlled host. Emit the
+    // canonical form, not the raw source — see canonicalImageSource.
+    const canonicalSource = canonicalImageSource(source);
+    if (canonicalSource !== undefined) {
+      const title = token.attrGet("title");
+      const titleAttr = title
+        ? ` title="${md.utils.escapeHtml(String(title))}"`
+        : "";
+      return `<img src="${md.utils.escapeHtml(canonicalSource)}" alt="${md.utils.escapeHtml(alt)}"${titleAttr}>`;
+    }
+
     const href = parseAbsoluteHttpUrl(source);
     const dataUri = parseDataUri(source);
     const visibleSource =
@@ -86,7 +106,6 @@ export const getMarkdownInstance = async (
       (dataUri
         ? `data:${dataUri.mimeType}${dataUri.base64 ? ";base64" : ""},...`
         : source);
-    const alt = token.content.trim();
     const label = alt ? `${alt} (${visibleSource})` : visibleSource;
     const escapedLabel = md.utils.escapeHtml(label);
 

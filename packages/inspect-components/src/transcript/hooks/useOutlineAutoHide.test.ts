@@ -2,6 +2,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { testModelEvent } from "@tsmono/inspect-common/testing";
+
 import { eventNode } from "../testHelpers";
 
 import { useOutlineAutoHide } from "./useOutlineAutoHide";
@@ -10,7 +12,7 @@ import { useOutlineAutoHide } from "./useOutlineAutoHide";
 // Fixtures
 // =============================================================================
 
-const someNodes = [eventNode({ event: "model" })];
+const someNodes = [eventNode(testModelEvent())];
 
 function render(
   options: Partial<Parameters<typeof useOutlineAutoHide>[0]> = {}
@@ -66,7 +68,7 @@ describe("useOutlineAutoHide", () => {
     // New agent selection → new node tree: show the outline again and let
     // it re-report.
     rerender({
-      eventNodes: [eventNode({ event: "model" })],
+      eventNodes: [eventNode(testModelEvent())],
       hasOutline: true,
       outlineCollapsed: false,
     });

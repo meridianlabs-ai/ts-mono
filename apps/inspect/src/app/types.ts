@@ -148,7 +148,8 @@ export interface LogState {
 export type SampleStatus = "ok" | "loading" | "streaming" | "error";
 
 export interface EventFilter {
-  filteredTypes: string[];
+  /** Excluded event types; null means the (dynamic) default exclusions. */
+  filteredTypes: string[] | null;
 }
 
 export interface SampleState {

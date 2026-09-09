@@ -13,17 +13,17 @@ interface SolversDetailViewProps {
 
 export const SolversDetailView: FC<SolversDetailViewProps> = ({ steps }) => {
   const separator = (
-    <div className={clsx(styles.items, "text-size-small", styles.separator)}>
+    <div className={clsx(styles.item, "text-size-small", styles.separator)}>
       <i className={ApplicationIcons.arrows.right} />
     </div>
   );
 
-  const details = steps?.map((step, index) => {
+  const details = steps.map((step, index) => {
     return (
       <Fragment key={`solver-step-${index}`}>
         <DetailStep
           name={step.solver}
-          className={clsx(styles.items, "text-size-small")}
+          className={clsx(styles.item, "text-size-small")}
         />
         {index < steps.length - 1 ? separator : ""}
       </Fragment>

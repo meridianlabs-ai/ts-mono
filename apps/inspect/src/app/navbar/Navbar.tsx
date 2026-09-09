@@ -3,10 +3,14 @@ import { FC, Fragment, ReactNode, useMemo, useRef } from "react";
 import { Link } from "react-router";
 
 import { useBreadcrumbTruncation } from "@tsmono/react/hooks";
-import { basename, dirname, ensureTrailingSlash } from "@tsmono/util";
+import {
+  basename,
+  dirname,
+  ensureTrailingSlash,
+  prettyDirUri,
+} from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
-import { prettyDirUri } from "../../utils/uri";
 import { ApplicationIcons } from "../appearance/icons";
 
 import styles from "./Navbar.module.css";
@@ -100,7 +104,7 @@ export const Navbar: FC<NavbarProps> = ({
           <div className={clsx(styles.pathContainer)} ref={pathContainerRef}>
             {logDir ? (
               <ol className={clsx("breadcrumb", styles.breadcrumbs)}>
-                {visibleSegments?.map((segment, index) => {
+                {visibleSegments.map((segment, index) => {
                   const isLast = index === visibleSegments.length - 1;
                   const shouldShowEllipsis =
                     showEllipsis && index === 1 && visibleSegments.length >= 2;
@@ -116,7 +120,6 @@ export const Navbar: FC<NavbarProps> = ({
                       )}
                       <li
                         className={clsx(
-                          styles.pathLink,
                           "breadcrumb-item",
                           isLast ? "active" : undefined
                         )}
@@ -124,9 +127,7 @@ export const Navbar: FC<NavbarProps> = ({
                         {segment.url && !isLast ? (
                           <Link to={segment.url}>{segment.text}</Link>
                         ) : (
-                          <span className={clsx(styles.pathSegment)}>
-                            {segment.text}
-                          </span>
+                          <span>{segment.text}</span>
                         )}
                       </li>
                     </Fragment>

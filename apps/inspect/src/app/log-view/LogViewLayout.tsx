@@ -6,11 +6,11 @@ import {
   ExtendedFindProvider,
   FindBand,
   FindTargetProvider,
+  LoadingBar,
   useFindBandShortcut,
 } from "@tsmono/react/components";
 
 import { useAppConfig } from "../../app_config";
-import { ActivityBar } from "../../components/ActivityBar";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
@@ -59,6 +59,11 @@ export const LogViewLayout: FC = () => {
             singleFileMode ? "single-file-mode" : undefined,
             "log-view"
           )}
+          // The VS Code webview focuses the nearest container tabstop when a
+          // non-interactive spot is clicked, and App.css suppresses the focus
+          // ring this one would otherwise show. Keep it until that interaction
+          // is retested in the extension.
+          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
           tabIndex={0}
         >
           {showFind ? <FindBand onClose={hideFind} /> : ""}
@@ -68,7 +73,7 @@ export const LogViewLayout: FC = () => {
               currentPath={logPath}
             />
           ) : (
-            <ActivityBar animating={logLoading} />
+            <LoadingBar loading={logLoading} />
           )}
           {logError ? (
             <ErrorPanel

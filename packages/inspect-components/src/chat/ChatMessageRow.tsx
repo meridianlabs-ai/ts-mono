@@ -3,6 +3,7 @@ import { FC, memo, ReactNode } from "react";
 
 import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
+import { getOwn } from "@tsmono/util";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
@@ -69,7 +70,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     blockId: string | null | undefined,
     blockNumber: number
   ): string | undefined =>
-    labelValues && blockId ? labelValues[blockId] : String(blockNumber);
+    labelValues && blockId ? getOwn(labelValues, blockId) : String(blockNumber);
 
   const hasToolCalls =
     toolCallStyle !== "omit" &&
@@ -122,6 +123,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     resolvedMessage.message.tool_calls &&
     resolvedMessage.message.tool_calls.length
   ) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const toolMessages = resolvedMessage.toolMessages || [];
     let idx = 0;
     for (const tool_call of resolvedMessage.message.tool_calls) {
@@ -289,7 +291,9 @@ function chatMessageRowEqual(
   prev: ChatMessageRowProps,
   next: ChatMessageRowProps
 ): boolean {
-  const keys = Object.keys(prev) as (keyof ChatMessageRowProps)[];
+  const keys: (keyof ChatMessageRowProps)[] = Object.keys(prev).filter(
+    (key): key is keyof ChatMessageRowProps => key in prev
+  );
   if (keys.length !== Object.keys(next).length) return false;
   for (const key of keys) {
     if (key === "resolvedMessage") {

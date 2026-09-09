@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
-import { arrayToString, filename, formatNumber } from "@tsmono/util";
+import { arrayToString, filename, formatNumber, getOwn } from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
@@ -39,7 +39,7 @@ import {
   resolveScale,
   type WireScoreColorScale,
 } from "./colorScale";
-import styles from "./SamplesGrid.module.css";
+import styles from "./gridCells.module.css";
 import { SampleRow } from "./types";
 
 export type SampleGridViewMode = "list" | "grid";
@@ -143,7 +143,7 @@ export function buildSampleColumns(
       maxSize: 80,
       enableSorting: false,
       enableResizing: false,
-      pinned: "left",
+      pinned: "start",
       accessorFn: (row) => row.displayIndex,
       cell: ({ row }) => {
         const value = row.original.displayIndex;
@@ -239,9 +239,9 @@ export function buildSampleColumns(
   cols.push({
     id: "sampleId",
     header: "Id",
-    size: shape ? Math.max(35, (shape.idSize ?? 2) * 16) : 120,
+    size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
-    accessorFn: (row) => String(row.sampleId ?? ""),
+    accessorFn: (row) => String(row.sampleId),
     cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
@@ -339,7 +339,7 @@ export function buildSampleColumns(
     accessorFn: (row) => row.tokens,
     cell: ({ getValue }) => {
       const value = getValue<number | undefined>();
-      return value === undefined || value === null ? (
+      return value === undefined ? (
         <EmptyCell />
       ) : (
         <div>{formatNumber(value)}</div>
@@ -357,12 +357,10 @@ export function buildSampleColumns(
     meta: { sortComparator: numberCompare },
     accessorFn: (row) => row.duration,
     titleValue: (row) =>
-      row.duration === undefined || row.duration === null
-        ? undefined
-        : formatTime(row.duration),
+      row.duration === undefined ? undefined : formatTime(row.duration),
     cell: ({ getValue }) => {
       const value = getValue<number | undefined>();
-      return value === undefined || value === null ? (
+      return value === undefined ? (
         <EmptyCell />
       ) : (
         <div>{formatTime(value)}</div>
@@ -402,15 +400,25 @@ export function buildSampleColumns(
     {
       id: "limit",
       header: "Limit",
-      size: shape ? (shape.limitSize ?? 1) * 16 : 100,
+      size: shape ? shape.limitSize * 16 : 100,
       minSize: 28,
       accessorFn: (row) => row.limit ?? row.data?.limit,
-      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+      cell: ({ getValue, row }) => (
+        <div
+          title={
+            row.original.limit_reason ??
+            row.original.data?.limit_reason ??
+            undefined
+          }
+        >
+          {valueAsString(getValue() ?? "")}
+        </div>
+      ),
     },
     {
       id: "retries",
       header: "Retries",
-      size: shape ? (shape.retriesSize ?? 1) * 16 : 80,
+      size: shape ? shape.retriesSize * 16 : 80,
       minSize: 28,
       meta: { align: "center", sortComparator: numberCompare },
       accessorFn: (row) => row.retries ?? row.data?.retries,
@@ -510,8 +518,9 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
   // Resolve a metric name through the eval-author's label overrides,
   // falling back to the raw name. Used for the visible header text;
   // the column `id` is still keyed off the raw name so filter / sort /
-  // visibility stay stable across label changes.
-  const labelFor = (name: string): string => scoreLabels?.[name] ?? name;
+  // visibility stay stable across label changes. Own-key reads: score
+  // names are log-authored, and "constructor" must not read a builtin.
+  const labelFor = (name: string): string => getOwn(scoreLabels, name) ?? name;
 
   // Build a value→style resolver for the score column whose metric is
   // `name`, given its bounds. Returns undefined when no scale is
@@ -521,7 +530,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
     name: string,
     bounds: { min?: number; max?: number }
   ): ((value: unknown) => CSSProperties | undefined) | undefined => {
-    const wire = scoreColorScales?.[name];
+    const wire = getOwn(scoreColorScales, name);
     if (!wire) return undefined;
     const resolved = resolveScale(wire, bounds);
     if (!resolved) return undefined;
@@ -601,16 +610,21 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
   // type collisions so a name with mixed value types falls back to text.
   // Also tally numeric min/max per column so colour-scale gradients have
   // something to anchor against (no descriptor exists in raw mode).
-  const types: Record<string, Set<string>> = {};
-  const ranges: Record<string, { min: number; max: number }> = {};
+  // Maps, not plain objects: the names are the log's own score keys.
+  const types = new Map<string, Set<string>>();
+  const ranges = new Map<string, { min: number; max: number }>();
   for (const sample of samples ?? []) {
     if (!sample.scores) continue;
     for (const [name, score] of Object.entries(sample.scores)) {
-      if (!types[name]) types[name] = new Set();
-      types[name].add(typeof score.value);
+      let nameTypes = types.get(name);
+      if (!nameTypes) {
+        nameTypes = new Set();
+        types.set(name, nameTypes);
+      }
+      nameTypes.add(typeof score.value);
       if (typeof score.value === "number" && Number.isFinite(score.value)) {
-        const r = ranges[name];
-        if (!r) ranges[name] = { min: score.value, max: score.value };
+        const r = ranges.get(name);
+        if (!r) ranges.set(name, { min: score.value, max: score.value });
         else {
           if (score.value < r.min) r.min = score.value;
           if (score.value > r.max) r.max = score.value;
@@ -618,11 +632,11 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
       }
     }
   }
-  const scoreNames = Object.keys(types).sort((a, b) => a.localeCompare(b));
+  const scoreNames = [...types.keys()].sort((a, b) => a.localeCompare(b));
   return scoreNames.map((name): SampleColumn => {
-    const nameTypes = types[name];
+    const nameTypes = types.get(name);
     const isUniformNumber = nameTypes?.size === 1 && nameTypes.has("number");
-    const valueToStyle = cellStyleFor(name, ranges[name] ?? {});
+    const valueToStyle = cellStyleFor(name, ranges.get(name) ?? {});
     return {
       id: rawScoreFieldKey(name),
       header: labelFor(name),

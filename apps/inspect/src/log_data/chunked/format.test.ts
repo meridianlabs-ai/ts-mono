@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  at,
   chunkEntryName,
   chunkIndexOf,
   classifySampleShape,
@@ -60,5 +61,32 @@ describe("chunk math", () => {
     expect(chunkIndexOf(starts, 999)).toBe(0);
     expect(chunkIndexOf(starts, 1000)).toBe(1);
     expect(chunkIndexOf(starts, 2209)).toBe(2);
+  });
+});
+
+describe("at", () => {
+  it("returns own elements", () => {
+    expect(at(["a", "b"], 1)).toBe("b");
+  });
+
+  it.each([-1, 0.5, 2, Number.NaN, Number.POSITIVE_INFINITY])(
+    "throws for index %s",
+    (i) => {
+      expect(() => at(["a", "b"], i)).toThrow(/out of range/);
+    }
+  );
+
+  it("rejects an inherited element inside the array bounds", () => {
+    const items = new Array<string>(1);
+    Object.setPrototypeOf(items, { 0: "inherited" });
+
+    expect(() => at(items, 0)).toThrow(/out of range/);
+  });
+
+  it("returns an own element even when the prototype has the same index", () => {
+    const items = ["own"];
+    Object.setPrototypeOf(items, { 0: "inherited" });
+
+    expect(at(items, 0)).toBe("own");
   });
 });

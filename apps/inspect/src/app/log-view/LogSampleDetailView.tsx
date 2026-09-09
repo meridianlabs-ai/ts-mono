@@ -50,11 +50,14 @@ export const LogSampleDetailView: FC = () => {
 
   // Use route params if available, otherwise fall back to state
   const logPath = routeLogPath || selectedLogFile;
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
   const sampleId = routeSampleId || selectedSampleHandle?.id?.toString();
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
   const epoch = routeEpoch || selectedSampleHandle?.epoch?.toString();
 
   // Load the log and select the sample when route params change
   // Only run this effect when we have route params (not state fallback)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (routeLogPath && routeSampleId && routeEpoch) {
       selectLogFile(routeLogPath);

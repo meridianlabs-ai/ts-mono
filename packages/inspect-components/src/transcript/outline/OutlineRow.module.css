@@ -13,6 +13,13 @@
 .eventRow .toggle {
   font-size: 0.7em;
   margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .eventLink,

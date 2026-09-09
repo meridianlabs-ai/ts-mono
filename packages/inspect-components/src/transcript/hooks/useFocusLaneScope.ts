@@ -252,6 +252,7 @@ export function useFocusLaneScope(
 
   // Flipping the toggle recomputes `selected` (and downstream `laneEvents`),
   // completing resolution on the next render — no separate retrigger needed.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (
       !includeUtility &&

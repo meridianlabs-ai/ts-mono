@@ -55,6 +55,7 @@ export function useTranscriptKeyboardNavigation({
 
   // Timestamp of the last lone `g`, for recognizing the `gg` two-stroke.
   const lastGTimeRef = useRef(0);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (disabled) return;
@@ -65,6 +66,7 @@ export function useTranscriptKeyboardNavigation({
       const container = scrollRef?.current;
       if (
         container &&
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: checkVisibility is absent in jsdom and older browsers
         (!container.isConnected || container.checkVisibility?.() === false)
       ) {
         return;

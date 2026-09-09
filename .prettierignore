@@ -4,3 +4,4 @@ lib/
 .turbo/
 pnpm-lock.yaml
 *.md
+*.module.css.d.ts

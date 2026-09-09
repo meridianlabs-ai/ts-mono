@@ -2,7 +2,7 @@ import type { OrderByModel } from "@tsmono/inspect-common/query";
 
 import type { DatabaseListingPlan } from "../../../client/database/listing";
 
-import { compareByOrderBy, evaluateCondition } from "./evaluator";
+import { compareByOrderBy, compileCondition } from "./evaluator";
 import type { ListingQuery } from "./types";
 
 /**
@@ -23,7 +23,7 @@ export const createListingPlan = <TRow>(
 
   return {
     matches: filter
-      ? (row) => evaluateCondition(row, filter, getValue, getFilterType)
+      ? compileCondition(filter, getValue, getFilterType)
       : () => true,
     compare:
       orderBy.length > 0

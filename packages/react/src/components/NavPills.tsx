@@ -16,7 +16,7 @@ interface NavPillsProps {
 }
 
 export const NavPills: FC<NavPillsProps> = ({ id, children }) => {
-  const defaultNav = children ? children?.[0]?.props["title"] : "";
+  const defaultNav = children ? children[0]?.props["title"] : "";
   const [activeItem, setActiveItem] = useProperty(id, "active", {
     defaultValue: defaultNav,
   });
@@ -29,7 +29,8 @@ export const NavPills: FC<NavPillsProps> = ({ id, children }) => {
   const navPills = children.map((nav, idx) => {
     const title =
       typeof nav === "object"
-        ? nav["props"]?.title || `Tab ${idx}`
+        ? // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: conditional/non-element children can reach here at runtime despite the declared type
+          nav["props"]?.title || `Tab ${idx}`
         : `Tab ${idx}`;
     return (
       <NavPill
@@ -47,6 +48,7 @@ export const NavPills: FC<NavPillsProps> = ({ id, children }) => {
       <div
         key={`nav-pill-container-${idx}`}
         className={
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: conditional/non-element children can reach here at runtime despite the declared type
           child["props"]?.title === activeItem ? styles.visible : styles.hidden
         }
       >

@@ -11,6 +11,8 @@ import React, {
 import { createPortal } from "react-dom";
 import { usePopper } from "react-popper";
 
+import { isRecord } from "@tsmono/util";
+
 interface PopOverProps {
   id: string;
   isOpen: boolean;
@@ -68,6 +70,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   setIsOpenRef.current = setIsOpen;
 
   // Setup hover timer and mouse movement detection
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const handleMouseMove = () => {
       isMouseMovingRef.current = true;
@@ -106,10 +109,8 @@ export const PopOver: React.FC<PopOverProps> = ({
 
     const handleMouseDown = (event: MouseEvent) => {
       // Only cancel popover on mouse down outside the popover content
-      if (
-        popperRef.current &&
-        !popperRef.current.contains(event.target as Node)
-      ) {
+      const target = event.target instanceof Node ? event.target : null;
+      if (popperRef.current && !popperRef.current.contains(target)) {
         if (hoverTimerRef.current !== null) {
           window.clearTimeout(hoverTimerRef.current);
         }
@@ -129,7 +130,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       let mouseDownOnTrigger = false;
 
       const captureListener = (event: MouseEvent) => {
-        const target = event.target as Node;
+        const target = event.target instanceof Node ? event.target : null;
         mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
         // A click on the trigger element should NOT close via this handler —
         // the trigger's own onClick will toggle the popover. Closing here
@@ -155,6 +156,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     }
 
     // Add event listeners to the positionEl (the trigger element)
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (positionEl && isOpen) {
       positionEl.addEventListener("mousemove", handleMouseMove);
       positionEl.addEventListener("mouseleave", handleMouseLeave);
@@ -190,6 +192,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   }, [isOpen, positionEl, hoverDelay]);
 
   // Effect to create portal container when needed
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Only create portal when the popover is open
     if (usePortal && isOpen && shouldShowPopover) {
@@ -245,7 +248,7 @@ export const PopOver: React.FC<PopOverProps> = ({
       options: { padding: 8 },
       fn({ state, name, options }) {
         const padding =
-          typeof options?.padding === "number" ? options.padding : 8;
+          typeof options.padding === "number" ? options.padding : 8;
         state.modifiersData[name] = {
           width: Math.max(0, window.innerWidth - 2 * padding),
           height: Math.max(0, window.innerHeight - 2 * padding),
@@ -262,13 +265,18 @@ export const PopOver: React.FC<PopOverProps> = ({
       phase: "beforeWrite",
       requires: ["maxSize"],
       fn({ state }) {
-        const data = state.modifiersData.maxSize as
-          { width: number; height: number } | undefined;
-        if (!data) return;
+        const data: unknown = state.modifiersData["maxSize"];
+        if (
+          !isRecord(data) ||
+          typeof data["width"] !== "number" ||
+          typeof data["height"] !== "number"
+        ) {
+          return;
+        }
         state.styles.popper = {
           ...state.styles.popper,
-          maxWidth: `${data.width}px`,
-          maxHeight: `${data.height}px`,
+          maxWidth: `${data["width"]}px`,
+          maxHeight: `${data["height"]}px`,
         };
       },
     }),
@@ -377,6 +385,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   // the lint rule can't see that the read drives effect scheduling
   // (hence `exhaustive-deps`). Removing this effect requires the
   // state-backed migration prescribed by #90.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (update && isOpen && shouldShowPopover) {
       const timer = setTimeout(() => {
@@ -398,6 +407,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   // paints) lands the corrected position on the first painted frame. Gated to
   // fire once per open, on the render where popper first hands us a state.
   const didPrePosition = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (!isOpen || !shouldShowPopover) {
       didPrePosition.current = false;
@@ -411,6 +421,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // When the popover is shown and positioned, track mouse enter/leave on the popover itself
   // and use that to block dismissal while hovering over the popover
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Wait for both the popover to be visible AND Popper to have calculated positioning
     if (
@@ -442,7 +453,10 @@ export const PopOver: React.FC<PopOverProps> = ({
     const handlePopoverMouseLeave = (e: MouseEvent) => {
       // Only dismiss if we're actually leaving the popover container
       // Check if the related target is still within the popover
-      if (e.relatedTarget && popperEl.contains(e.relatedTarget as Node)) {
+      if (
+        e.relatedTarget instanceof Node &&
+        popperEl.contains(e.relatedTarget)
+      ) {
         return;
       }
       if (!closeOnMouseLeave) {
@@ -466,6 +480,7 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // Define arrow data-* attribute based on placement
   const getArrowDataPlacement = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!state || !state.placement) return placement;
     return state.placement;
   };

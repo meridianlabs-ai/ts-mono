@@ -38,6 +38,7 @@ export const TranscriptsPanel: FC = () => {
 
   // Clear detail state
   const clearTranscriptState = useStore((state) => state.clearTranscriptState);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     clearTranscriptState();
   }, [clearTranscriptState]);

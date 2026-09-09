@@ -3,7 +3,7 @@
  * If the message contains parentheses, it returns the substring before the first parenthesis.
  * Otherwise, it returns "Error".
  */
-export const errorType = (message?: string): string => {
+export const errorType = (message?: string | null): string => {
   if (!message) {
     return "Error";
   }

@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { isRecord } from "@tsmono/util";
+
 import styles from "./ValidationResult.module.css";
 
 interface ValidationResultProps {
@@ -21,6 +23,7 @@ export const ValidationResult: FC<ValidationResultProps> = ({
         targetValue={valueStr(resolveTargetValue(target, label))}
       />
     );
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   } else if (result !== null && typeof result === "object") {
     const entries = Object.entries(result);
 
@@ -71,8 +74,8 @@ const resolveTargetValue = (target: unknown, key?: string): unknown => {
     return target;
   }
 
-  if (target && typeof target === "object" && !Array.isArray(target)) {
-    return (target as Record<string, unknown>)[key] ?? false;
+  if (isRecord(target)) {
+    return target[key] ?? false;
   }
   return target;
 };

@@ -1,8 +1,22 @@
 // @vitest-environment jsdom
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import {
+  testAnchorEvent,
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testInfoEvent,
+  testModelEvent,
+  testModelOutput,
+  testTimelineEvent,
+  testTimelineSpan,
+} from "@tsmono/inspect-common/testing";
+import type {
+  AnchorEvent,
+  Event,
+  Timeline as ServerTimeline,
+} from "@tsmono/inspect-common/types";
 
 import { InMemoryStateWrapper } from "../testHelpers";
 
@@ -13,36 +27,27 @@ import { useTimelinePipeline } from "./useTimelinePipeline";
 // =============================================================================
 
 function makeModelEvent(uuid: string, startSec: number): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
-    model: "test-model",
-    input: [],
-    output: {
+    output: testModelOutput({
       choices: [
-        {
-          message: { role: "assistant", content: "response" },
-          stop_reason: "stop",
-        },
+        testChatCompletionChoice({
+          message: testAssistantMessage({ content: "response" }),
+        }),
       ],
       completion: "response",
-      model: "test-model",
-    },
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    }),
     timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
     working_start: startSec,
     working_time: 1,
     error: null,
     pending: false,
     span_id: null,
-  } as unknown as Event;
+  });
 }
 
 function makeInfoEvent(uuid: string, startSec: number): Event {
-  return {
-    event: "info",
+  return testInfoEvent({
     uuid,
     source: "test",
     data: "",
@@ -50,7 +55,20 @@ function makeInfoEvent(uuid: string, startSec: number): Event {
     working_start: startSec,
     pending: false,
     span_id: null,
-  } as unknown as Event;
+  });
+}
+
+function makeAnchorEvent(
+  uuid: string,
+  anchorId: string,
+  startSec: number
+): AnchorEvent {
+  return testAnchorEvent({
+    uuid,
+    anchor_id: anchorId,
+    timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
+    working_start: startSec,
+  });
 }
 
 // =============================================================================
@@ -81,6 +99,58 @@ describe("useTimelinePipeline", () => {
     expect(result.current.showSwimlanes).toBe(true);
     // With swimlanes on the feed carries the (empty) source-span map.
     expect(result.current.nodeFeed.sourceSpans).toBeInstanceOf(Map);
+  });
+
+  it("keeps swimlane navigation visible in a flat punched-down branch", () => {
+    const branchEvents = [
+      makeModelEvent("main", 0),
+      makeAnchorEvent("anchor", "fork-1", 1),
+      makeModelEvent("branch-event", 2),
+    ];
+    const serverTimelines: ServerTimeline[] = [
+      {
+        name: "default",
+        description: "Flat branch",
+        root: testTimelineSpan({
+          id: "root",
+          name: "Transcript",
+          content: [
+            testTimelineEvent({ event: "main" }),
+            testTimelineEvent({ event: "anchor" }),
+          ],
+          branches: [
+            testTimelineSpan({
+              id: "branch-1",
+              name: "Branch 1",
+              span_type: "branch",
+              branched_from: "fork-1",
+              content: [testTimelineEvent({ event: "branch-event" })],
+            }),
+          ],
+        }),
+      },
+    ];
+    const { result } = renderHook(
+      () =>
+        useTimelinePipeline({
+          events: branchEvents,
+          serverTimelines,
+          agentConfig: { showBranches: true },
+        }),
+      { wrapper: InMemoryStateWrapper }
+    );
+    const branchRow = result.current.timeline.state.rows.find(
+      (row) => row.branch
+    );
+    expect(branchRow).toBeDefined();
+
+    act(() =>
+      result.current.timeline.views.pushByRowKey(branchRow!.key, "Branch 1")
+    );
+
+    expect(result.current.timeline.views.stack).toHaveLength(1);
+    expect(result.current.timeline.hasTimeline).toBe(false);
+    expect(result.current.showSwimlanes).toBe(true);
   });
 
   it("filters hidden event types from the node feed and search set", () => {

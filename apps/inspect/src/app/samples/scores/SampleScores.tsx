@@ -1,15 +1,15 @@
 import { FC } from "react";
 
-import { SampleSummary } from "../../../client/api/types";
+import { EvalSampleScore } from "../../../@types/extraInspect";
 import { getScoreDescriptorForValues } from "../descriptor/score/ScoreDescriptor";
 
 interface SampleScoresProps {
-  sample: SampleSummary;
+  scores: EvalSampleScore;
   scorer: string;
 }
 
-export const SampleScores: FC<SampleScoresProps> = ({ sample, scorer }) => {
-  const scoreData = sample.scores?.[scorer];
+export const SampleScores: FC<SampleScoresProps> = ({ scores, scorer }) => {
+  const scoreData = scores?.[scorer];
   if (!scoreData) {
     return undefined;
   }

@@ -70,6 +70,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
 
     useImperativeHandle(ref, () => ({ open: openBar }), [openBar]);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!open) return;
       inputRef.current?.focus();
@@ -84,6 +85,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
     // the host's keybinding service (Ctrl+G = go-to-line there), and only
     // an already-prevented, already-stopped event at the earliest phase
     // page JS can reach reliably keeps the chord in the transcript.
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (disabled) return;
       const onKeyDown = (e: KeyboardEvent) => {
@@ -91,6 +93,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
         // Several transcripts can be mounted at once (e.g. one in a modal over
         // another) — only the visible bar may claim the shortcut.
         const dock = dockRef.current;
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- checkVisibility is missing in jsdom and pre-17.4 Safari despite lib.dom
         if (!dock?.isConnected || dock.checkVisibility?.() === false) return;
         // Use the shared editable check against activeElement so it pierces
         // shadow DOM (vscode-elements inputs) and covers <select> — matching
@@ -111,6 +114,7 @@ export const GoToTurnBar = forwardRef<GoToTurnBarHandle, GoToTurnBarProps>(
         window.removeEventListener("keydown", onKeyDown, { capture: true });
     }, [openBar, disabled]);
 
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (!open) return;
       const onPointerDown = (e: PointerEvent) => {

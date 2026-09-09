@@ -2,7 +2,7 @@ import { FC } from "react";
 
 import type { EvalSpec } from "@tsmono/inspect-common/types";
 
-import styles from "./SamplePrintView.module.css";
+import styles from "./PrintHeading.module.css";
 
 interface PrintHeadingProps {
   evalSpec?: EvalSpec;

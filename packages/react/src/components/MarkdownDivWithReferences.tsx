@@ -13,6 +13,7 @@ import { useProperty } from "../hooks/useProperty";
 import { useComponentNavigation } from "./ComponentNavigationContext";
 import { MarkdownDiv, type MarkdownRenderer } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
+import { escapeHtmlCharacters } from "./markdownRendering";
 import { NoContentsPanel } from "./NoContentsPanel";
 import { PopOver } from "./PopOver";
 
@@ -58,7 +59,7 @@ export const MarkdownDivWithReferences = forwardRef<
 
   const handleLinkClick = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
-      const anchor = (e.target as HTMLElement).closest("a");
+      const anchor = e.target instanceof Element ? e.target.closest("a") : null;
       if (anchor) {
         const href = anchor.getAttribute("href");
         // If this is a hash link, forward on to react-router
@@ -78,7 +79,7 @@ export const MarkdownDivWithReferences = forwardRef<
   // Post-process the rendered HTML to inject reference links
   const postProcess = useCallback(
     (html: string): string =>
-      injectReferenceLinks(html, references, styles.cite ?? "cite"),
+      injectReferenceLinks(html, references, styles.cite),
     [references]
   );
 
@@ -116,6 +117,7 @@ export const MarkdownDivWithReferences = forwardRef<
   // dismissed it. Suppress shows for that ref-id until the mouse actually
   // leaves the link (mouseout transition off the link element).
   const suppressedIdRef = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const container = containerRef.current;
     if (!container) {
@@ -258,8 +260,13 @@ export function injectReferenceLinks(
     return bracketMatch.replace(/\b[ME]\d+\b/g, (ordinal) => {
       const ref = refByOrdinal.get(ordinal);
       if (!ref) return ordinal;
-      const href = ref.citeUrl || "javascript:void(0)";
-      return `<a href="${href}" class="${citeClass}" data-ref-id="${ref.id}">${ordinal}</a>`;
+      // The id and URL come from log content; escaping keeps them inside the
+      // attribute rather than leaving DOMPurify to repair a quote breakout.
+      const href = ref.citeUrl
+        ? ` href="${escapeHtmlCharacters(ref.citeUrl)}"`
+        : "";
+      const id = escapeHtmlCharacters(ref.id);
+      return `<a${href} class="${escapeHtmlCharacters(citeClass)}" data-ref-id="${id}">${ordinal}</a>`;
     });
   });
 }

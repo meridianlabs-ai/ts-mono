@@ -67,6 +67,7 @@ export const useLogHeader = (
       ? undefined
       : (logs.data?.find((row) => row.name.endsWith(logFile))?.name ?? logFile);
   const row = useLogRow(logDir, key);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (logFile !== undefined) {
       // Failures land in the row's retrieval facts (surfaced below).

@@ -4,6 +4,7 @@ import { FC, ReactNode, useCallback } from "react";
 
 import { MarkdownReference } from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
+import { isRecord } from "@tsmono/util";
 
 import {
   kDefaultResolvedView,
@@ -98,8 +99,12 @@ const Section: FC<SectionProps> = ({
     (el: HTMLElement | null) => {
       if (!el) return;
       const handler = (e: Event) => {
-        const detail = (e as CustomEvent<{ open: boolean }>).detail;
-        onToggle(id, detail.open);
+        // The web component's toggle event; anything else on this name is not
+        // ours to act on.
+        if (!(e instanceof CustomEvent)) return;
+        const detail: unknown = e.detail;
+        if (!isRecord(detail) || typeof detail["open"] !== "boolean") return;
+        onToggle(id, detail["open"]);
       };
       el.addEventListener("vsc-collapsible-toggle", handler);
       return () => el.removeEventListener("vsc-collapsible-toggle", handler);
@@ -211,6 +216,7 @@ function renderField(
     case "validation":
       if (
         data.validationResult === undefined ||
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         data.validationResult === null
       ) {
         return null;

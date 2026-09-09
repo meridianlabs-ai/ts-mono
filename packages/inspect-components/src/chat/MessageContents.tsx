@@ -5,7 +5,6 @@ import type {
   ChatMessageSystem,
   ChatMessageTool,
   ChatMessageUser,
-  Citation,
 } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
 
@@ -20,29 +19,14 @@ interface MessageContentsProps {
   references?: MarkdownReference[];
 }
 
-export interface MessagesContext {
-  citations: Citation[];
-}
-
-export const defaultContext = (): MessagesContext => {
-  return {
-    citations: [],
-  };
-};
-
 export const MessageContents: FC<MessageContentsProps> = ({
   message,
   references,
 }) => {
-  const context: MessagesContext = defaultContext();
   return (
     <>
       {message.content && (
-        <MessageContent
-          contents={message.content}
-          context={context}
-          references={references}
-        />
+        <MessageContent contents={message.content} references={references} />
       )}
     </>
   );

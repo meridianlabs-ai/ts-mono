@@ -6,6 +6,7 @@ import { PopOver } from "@tsmono/react/components";
 import { ColumnFilterButton } from "./ColumnFilterButton";
 import styles from "./ColumnFilterControl.module.css";
 import { ColumnFilterEditor } from "./ColumnFilterEditor";
+import { editorConditionProps } from "./editorConditionProps";
 import type { FilterSpec, FilterType, UiOperator } from "./types";
 import { useColumnFilterPopover } from "./useColumnFilterPopover";
 
@@ -50,38 +51,15 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
 }) => {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-  const {
-    isOpen,
-    setIsOpen,
-    operator,
-    setOperator,
-    operatorOptions,
-    value: rawValue,
-    setValue: setRawValue,
-    value2: rawValue2,
-    setValue2: setRawValue2,
-    isValueDisabled,
-    isRangeOperator,
-    join,
-    setJoin,
-    secondOperator,
-    setSecondOperator,
-    secondValue,
-    setSecondValue,
-    secondValue2,
-    setSecondValue2,
-    showSecond,
-    secondUsesValue,
-    secondUsesRangeValue,
-    commitAndClose,
-    cancelAndClose,
-  } = useColumnFilterPopover({
+  const popover = useColumnFilterPopover({
     columnId,
     filterType,
     spec,
     onChange,
     operators,
   });
+  const { isOpen, setIsOpen, operatorOptions, commitAndClose, cancelAndClose } =
+    popover;
 
   const handlePopoverOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -124,32 +102,7 @@ export const ColumnFilterControl: FC<ColumnFilterControlProps> = ({
           columnId={columnId}
           filterType={filterType}
           operatorOptions={operatorOptions}
-          condition={{
-            operator,
-            onOperatorChange: setOperator,
-            value: rawValue,
-            onValueChange: setRawValue,
-            value2: rawValue2,
-            onValue2Change: setRawValue2,
-            isValueDisabled,
-            isRangeOperator,
-          }}
-          second={
-            showSecond
-              ? {
-                  operator: secondOperator,
-                  onOperatorChange: setSecondOperator,
-                  value: secondValue,
-                  onValueChange: setSecondValue,
-                  value2: secondValue2,
-                  onValue2Change: setSecondValue2,
-                  isValueDisabled: !secondUsesValue,
-                  isRangeOperator: secondUsesRangeValue,
-                }
-              : undefined
-          }
-          join={join}
-          onJoinChange={setJoin}
+          {...editorConditionProps(popover)}
           onCommit={commitAndClose}
           onCancel={cancelAndClose}
           suggestions={suggestions}

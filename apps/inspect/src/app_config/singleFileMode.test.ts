@@ -10,7 +10,9 @@ const docWithEmbedded = (
   hasEmbedded: boolean
 ): Pick<Document, "getElementById"> => ({
   getElementById: (id: string) =>
-    hasEmbedded && id === "logview-state" ? ({} as HTMLElement) : null,
+    hasEmbedded && id === "logview-state"
+      ? document.createElement("script")
+      : null,
 });
 
 const emptyDoc = docWithEmbedded(false);

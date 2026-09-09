@@ -1,4 +1,5 @@
 import type { Content } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import type { EventType } from "./types";
 import { EventNode } from "./types";
@@ -17,17 +18,29 @@ const SANITIZED_CONTENT_KEYS: Record<string, string> = {
 // readable text (matching MessageContent.tsx), other Content* become a
 // `<type />` placeholder (matching the UI's <img>/<audio>/etc. tags). Returns
 // undefined for anything else, so the caller preserves the original value.
+const readOptionalBoolean = (value: unknown, key: string): boolean => {
+  if (!isRecord(value)) return false;
+  return value[key] === true;
+};
+
+const readOptionalString = (
+  value: unknown,
+  key: string
+): string | undefined => {
+  if (!isRecord(value)) return undefined;
+  const raw = value[key];
+  return typeof raw === "string" ? raw : undefined;
+};
+
 const sanitizeContent = (val: unknown): string | undefined => {
   if (val === null || typeof val !== "object" || !("type" in val)) {
     return undefined;
   }
   if (val.type === "reasoning" && "reasoning" in val) {
-    const r = val as {
-      reasoning?: string | null;
-      summary?: string | null;
-      redacted?: boolean;
-    };
-    return r.redacted ? (r.summary ?? "") : r.reasoning || r.summary || "";
+    const reasoning = readOptionalString(val, "reasoning");
+    const summary = readOptionalString(val, "summary");
+    const redacted = readOptionalBoolean(val, "redacted");
+    return redacted ? (summary ?? "") : reasoning || summary || "";
   }
   if (typeof val.type === "string") {
     const payloadKey = SANITIZED_CONTENT_KEYS[val.type];
@@ -65,20 +78,16 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["model", modelEvent.model]);
       }
       // Extract text from model output
-      if (modelEvent.output?.choices) {
-        for (const choice of modelEvent.output.choices) {
-          for (const text of extractContentText(choice.message.content)) {
-            fields.push(["output", text]);
-          }
+      for (const choice of modelEvent.output.choices) {
+        for (const text of extractContentText(choice.message.content)) {
+          fields.push(["output", text]);
         }
       }
       // Extract text from user/system input messages shown in the view
-      if (modelEvent.input) {
-        for (const msg of modelEvent.input) {
-          if (msg.role === "user" || msg.role === "system") {
-            for (const text of extractContentText(msg.content)) {
-              fields.push([msg.role, text]);
-            }
+      for (const msg of modelEvent.input) {
+        if (msg.role === "user" || msg.role === "system") {
+          for (const text of extractContentText(msg.content)) {
+            fields.push([msg.role, text]);
           }
         }
       }
@@ -113,6 +122,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["function", toolEvent.function]);
       }
       // Tool arguments
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (toolEvent.arguments) {
         fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       }
@@ -135,10 +145,10 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "error": {
       const errorEvent = event;
-      if (errorEvent.error?.message) {
+      if (errorEvent.error.message) {
         fields.push(["message", errorEvent.error.message]);
       }
-      if (errorEvent.error?.traceback) {
+      if (errorEvent.error.traceback) {
         fields.push(["traceback", errorEvent.error.traceback]);
       }
       break;
@@ -146,11 +156,11 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "logger": {
       const loggerEvent = event;
-      if (loggerEvent.message?.message) {
+      if (loggerEvent.message.message) {
         fields.push(["message", loggerEvent.message.message]);
       }
       // Filename shown in the view
-      if (loggerEvent.message?.filename) {
+      if (loggerEvent.message.filename) {
         fields.push(["filename", loggerEvent.message.filename]);
       }
       break;
@@ -228,6 +238,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["type", subtaskEvent.type]);
       }
       // Input/result shown in summary
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (subtaskEvent.input) {
         fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
       }
@@ -257,6 +268,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (scoreEvent.score.explanation) {
         fields.push(["explanation", scoreEvent.score.explanation]);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (scoreEvent.score.value !== undefined) {
         const val = scoreEvent.score.value;
         fields.push([
@@ -317,6 +329,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sampleLimitEvent.message) {
         fields.push(["message", sampleLimitEvent.message]);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (sampleLimitEvent.type) {
         fields.push(["type", sampleLimitEvent.type]);
       }
@@ -352,6 +365,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "approval": {
       const approvalEvent = event;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (approvalEvent.decision) {
         fields.push(["decision", approvalEvent.decision]);
       }
@@ -366,6 +380,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "sandbox": {
       const sandboxEvent = event;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
       if (sandboxEvent.action) {
         fields.push(["action", sandboxEvent.action]);
       }
@@ -386,6 +401,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
         fields.push(["path", change.path]);
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
         if (change.value !== undefined) {
           fields.push([
             "value",

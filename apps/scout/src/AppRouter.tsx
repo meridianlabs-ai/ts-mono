@@ -191,6 +191,7 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
   const selectedScanLocation = useStore((state) => state.selectedScanLocation);
   const userScansDir = useStore((state) => state.userScansDir);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (hasInitializedRouting) {
       return;
@@ -206,7 +207,6 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
     const resolvedScansDir = userScansDir || serverScansDir;
     if (isDefaultRoute && selectedScanLocation && resolvedScansDir) {
       if (displayedScanResult) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(
           scanResultRoute(
             resolvedScansDir,
@@ -216,7 +216,6 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
           { replace: true }
         );
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(scanRoute(resolvedScansDir, selectedScanLocation), {
           replace: true,
         });

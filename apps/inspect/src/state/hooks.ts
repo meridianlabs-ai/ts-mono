@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { EvalSample } from "@tsmono/inspect-common/types";
-import { AsyncData, createLogger } from "@tsmono/util";
+import {
+  ConfigUpdate,
+  EvalConfig,
+  EvalSample,
+} from "@tsmono/inspect-common/types";
+import { effectiveEvalConfig } from "@tsmono/inspect-common/utils";
+import { AsyncData, createLogger, isRecord } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
 import {
@@ -35,6 +40,15 @@ export interface ScorePanelSortState {
   column: ScorePanelSortColumn;
   dir: "asc" | "desc";
 }
+// Property bags hold unknown — these are what the casts stood in for.
+const isScoreView = (value: unknown): value is ScoreView =>
+  value === "grid" || value === "chips";
+
+const isScorePanelSortState = (value: unknown): value is ScorePanelSortState =>
+  isRecord(value) &&
+  (value["dir"] === "asc" || value["dir"] === "desc") &&
+  (value["column"] === null || typeof value["column"] === "string");
+
 const kDefaultScorePanelSort: ScorePanelSortState = {
   column: null,
   dir: "asc",
@@ -50,11 +64,11 @@ export const useScorePanelView = (): [
   ScoreView | undefined,
   (view: ScoreView) => void,
 ] => {
-  const stored = useStore(
-    (state) =>
-      state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey] as
-        ScoreView | undefined
-  );
+  const stored = useStore((state) => {
+    const value =
+      state.app.propertyBags[kScorePanelViewBag]?.[kScorePanelViewKey];
+    return isScoreView(value) ? value : undefined;
+  });
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
   );
@@ -87,11 +101,11 @@ export const useScorePanelSort = (): [
   ScorePanelSortState | undefined,
   (sort: ScorePanelSortState) => void,
 ] => {
-  const stored = useStore(
-    (state) =>
-      state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey] as
-        ScorePanelSortState | undefined
-  );
+  const stored = useStore((state) => {
+    const value =
+      state.app.propertyBags[kScorePanelSortBag]?.[kScorePanelSortKey];
+    return isScorePanelSortState(value) ? value : undefined;
+  });
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
   );
@@ -145,6 +159,7 @@ export const useEvalScorePanelSort = (): ScorePanelSortState | undefined => {
     if (!stored) return undefined;
     return {
       column: stored.column ?? null,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       dir: stored.dir ?? "asc",
     };
   }, [stored]);
@@ -166,6 +181,26 @@ export const useSelectedLogDetails = (): LogHeader | undefined => {
 
 export const useEvalSpec = () => {
   return useSelectedLogDetails()?.eval;
+};
+
+/** The selected log's mid-run config changes (undefined when none). */
+export const useConfigUpdates = (): ConfigUpdate[] | undefined => {
+  return useSelectedLogDetails()?.config_updates ?? undefined;
+};
+
+/**
+ * The eval config the selected run actually ran under — launch config with
+ * `config_updates` folded in. Functional readers must use this rather than
+ * `evalSpec.config` so mid-run retunes are honored.
+ */
+export const useEffectiveEvalConfig = (): EvalConfig | undefined => {
+  const details = useSelectedLogDetails();
+  const config = details?.eval.config;
+  const configUpdates = details?.config_updates;
+  return useMemo(() => {
+    if (!config) return undefined;
+    return effectiveEvalConfig(config, configUpdates);
+  }, [config, configUpdates]);
 };
 
 /**
@@ -279,6 +314,7 @@ export const useEvalDescriptor = () => {
   const scores = useScores();
   const sampleSummaries = useSelectedSampleSummariesData();
   return useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     return scores ? createEvalDescriptor(scores, sampleSummaries) : null;
   }, [scores, sampleSummaries]);
 };
@@ -328,35 +364,45 @@ export const useFilteredSamples = () => {
     (state) => state.logActions.clearFilterError
   );
 
-  return useMemo(() => {
+  const { samples, filterError } = useMemo(() => {
     // Apply text filter
     const { result, error, allErrors } =
       samplesDescriptor && filter
         ? filterSamples(samplesDescriptor, sampleSummaries, filter)
         : { result: sampleSummaries, error: undefined, allErrors: false };
 
-    if (error && allErrors) {
-      setFilterError(error);
+    // A filter that errored on every sample is reported rather than applied —
+    // the unfiltered list stays visible under the error annotation.
+    const failedAllSamples = error !== undefined && allErrors;
+
+    const filtered = failedAllSamples ? sampleSummaries : result;
+
+    // Skip the clone + sort when the list is already ordered (the common case).
+    const sorted =
+      filtered.length < 2 || samplesAreSorted(filtered)
+        ? filtered
+        : [...filtered].sort(compareSamples);
+
+    return {
+      samples: sorted,
+      filterError: failedAllSamples ? error : undefined,
+    };
+  }, [samplesDescriptor, sampleSummaries, filter]);
+
+  // Publishing the error is a side effect, so it belongs in an effect rather
+  // than the memo above: a store write during render makes SampleFilter update
+  // while SamplesTab is rendering, and leaves the memo impure — which React
+  // Compiler is free to cache, stranding a stale error on the filter input.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
+  useEffect(() => {
+    if (filterError) {
+      setFilterError(filterError);
     } else {
       clearFilterError();
     }
+  }, [filterError, setFilterError, clearFilterError]);
 
-    const filtered =
-      error === undefined || !allErrors ? result : sampleSummaries;
-
-    // Skip the clone + sort when the list is already ordered (the common case).
-    if (filtered.length < 2 || samplesAreSorted(filtered)) {
-      return filtered;
-    }
-
-    return [...filtered].sort(compareSamples);
-  }, [
-    samplesDescriptor,
-    sampleSummaries,
-    filter,
-    setFilterError,
-    clearFilterError,
-  ]);
+  return samples;
 };
 
 // Provides the currently selected sample summary
@@ -445,6 +491,7 @@ export const useMessageVisibility = (
 
   // Reset state if the eval changes, but not during initialization
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Skip the first effect run
     if (isFirstRender.current) {
@@ -461,6 +508,7 @@ export const useMessageVisibility = (
     (state) => state.log.selectedSampleHandle
   );
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Skip the first effect run for sample changes too
     if (isFirstRender.current) {
@@ -513,6 +561,7 @@ export const useSamplePopover = (id: string) => {
   }, [clearVisiblePopover]);
 
   // Clear the timeout when component unmounts
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       if (timerRef.current) {

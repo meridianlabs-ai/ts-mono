@@ -19,10 +19,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
  *   mutation.mutate({ data: workingCase });
  * }, 600);
  */
-export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
-  callback: T,
+export function useDebouncedCallback<A extends unknown[], R>(
+  callback: (...args: A) => R,
   delay: number
-): DebouncedFunc<(...args: Parameters<T>) => void> {
+): DebouncedFunc<(...args: A) => void> {
   const callbackRef = useRef(callback);
 
   // Keep ref pointing to latest callback (useLayoutEffect for synchronous update)
@@ -34,7 +34,7 @@ export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
   /* eslint-disable react-hooks/refs -- The ref is read inside the debounced callback when invoked, not during render. This is a standard pattern for stable callbacks that access latest values. */
   const debouncedFn = useMemo(
     () =>
-      debounce((...args: Parameters<T>) => {
+      debounce((...args: A) => {
         callbackRef.current(...args);
       }, delay),
     [delay]

@@ -24,21 +24,19 @@ import {
   ComponentIconProvider,
   ComponentIcons,
 } from "@tsmono/react/components";
+import { useMountEffect } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { basename } from "@tsmono/util";
+import { basename, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
   AppConfigGate,
-  getApi,
   readEmbeddedStartupState,
   resolveEmbeddedLogDir,
   setLogRoot,
-  useLogDir,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
-import { imperativeLogData } from "../log_data";
-import { selectLogFile } from "../state/actions.ts";
+import { FetchEngineController, imperativeLogData } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
 import { storeImplementation, useStore } from "../state/store.ts";
@@ -46,7 +44,6 @@ import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
 } from "../state/userSettings.ts";
-import { isUri } from "../utils/uri.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
@@ -85,10 +82,12 @@ const ThemePreferenceSyncController: FC = () => {
   // in-tab pick flips the CSS in the same frame the toggle re-renders. With a
   // post-paint effect the icon updates a frame before the colors, flashing the
   // old theme. (The old bespoke hook applied synchronously on write.)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     window.__APPLY_BROWSER_THEME__?.();
   }, [themePreference]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SETTINGS_STORAGE_KEY) {
@@ -111,15 +110,8 @@ const ThemePreferenceSyncController: FC = () => {
  * read the resolved app config.
  */
 export const AppContent: FC = () => {
-  const api = getApi();
-
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
-
-  // Below the single AppConfigGate, so the dir is resolved; used only for the
-  // host-message comparison below. Selecting + loading the log is owned by
-  // <LogLoadController>, in <LoaderMounts>.
-  const logDir = useLogDir();
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
@@ -146,27 +138,16 @@ export const AppContent: FC = () => {
           break;
         }
         case "backgroundUpdate": {
-          const decodedUrl = decodeURIComponent(e.data.url);
-          const log_dir = e.data.log_dir;
-          const isFocused = document.hasFocus();
-          if (!isFocused) {
-            if (log_dir === logDir) {
-              selectLogFile(decodedUrl);
-            } else {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              api.open_log_file(e.data.url, e.data.log_dir);
-            }
-          } else {
-            imperativeLogData.invalidateLogListing();
-          }
+          imperativeLogData.invalidateLogListing();
           break;
         }
       }
     },
-    [setInitialState, logDir, api, rehydrated]
+    [setInitialState, rehydrated]
   );
 
   // listen for updateState messages from vscode
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     window.addEventListener("message", onMessage);
     return () => {
@@ -180,6 +161,7 @@ export const AppContent: FC = () => {
   // (`resolveAppConfig`). Ref-guarded: onMessage's identity changes with its
   // reactive inputs, but the startup blob must be dispatched exactly once.
   const embeddedDispatched = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (embeddedDispatched.current) return;
     embeddedDispatched.current = true;
@@ -189,14 +171,15 @@ export const AppContent: FC = () => {
     }
   }, [onMessage]);
 
-  useEffect(() => {
+  useMountEffect(() => {
     const clipboard = new ClipboardJS(".clipboard-button,.copy-button");
     return () => clipboard.destroy();
-  }, []);
+  });
 
   return (
     <>
       <ThemePreferenceSyncController />
+      <FetchEngineController />
       <ComponentIconProvider icons={componentIcons}>
         <ComponentStateProvider hooks={inspectStateHooks}>
           <RouterProvider router={AppRouter} />

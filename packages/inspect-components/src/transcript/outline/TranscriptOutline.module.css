@@ -1,9 +1,3 @@
-.node {
-  display: grid;
-  column-gap: 0.3em;
-  grid-template-columns: max-content 1fr;
-}
-
 .rootHeader {
   padding: 0 1.5em 0.25em 0;
   background-color: var(--bs-body-bg);
@@ -13,9 +7,4 @@
   position: sticky;
   top: 0;
   z-index: 2;
-}
-
-.panel {
-  margin-top: 0.65rem;
-  overflow: visible;
 }

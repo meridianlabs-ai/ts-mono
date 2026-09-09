@@ -1,4 +1,10 @@
-import { ProjectConfigInput } from "../../types/api-types";
+import { isRecord } from "@tsmono/util";
+
+import {
+  ProjectConfig,
+  ProjectConfigInput,
+  ValidationSetInput,
+} from "../../types/api-types";
 
 /**
  * Deep equality check for config objects using JSON serialization.
@@ -23,32 +29,51 @@ export function isEmpty(value: unknown): boolean {
 }
 
 /**
- * Filter out null and undefined values from an object.
+ * Filter out null and undefined values from an object. Own properties only:
+ * for-in also walks inherited (polluted-prototype) keys, see `ownField`.
  */
 export function filterNullValues<T extends Record<string, unknown>>(
   obj: T
 ): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, v]) => v !== null && v !== undefined)
-  ) as Partial<T>;
+  const result: Partial<T> = {};
+  for (const key in obj) {
+    if (!Object.hasOwn(obj, key)) continue;
+    const value = obj[key];
+    if (value !== null && value !== undefined) {
+      result[key] = value;
+    }
+  }
+  return result;
 }
 
 /**
- * Deep copy an object using JSON serialization.
- * Note: Only works for JSON-serializable types (objects, arrays, primitives).
- * Loses functions, Symbols, undefined values. Circular references will throw.
+ * Deep copy a config object. structuredClone is generic in the value it
+ * copies, so the copy keeps its type instead of round-tripping through
+ * JSON.parse's `any`.
  */
 export function deepCopy<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj)) as T;
+  return structuredClone(obj);
 }
+
+/**
+ * Own-property read. The config builders read keys that may be absent from
+ * the object at hand (server responses omit unset fields; key sets are taken
+ * from one object and read on another), and a plain read of an absent key
+ * falls through to Object.prototype. A page-lifetime pollution of that
+ * prototype must read as "unset", not as configuration the user entered.
+ */
+export const ownField = <T extends object, K extends keyof T>(
+  obj: T,
+  key: K
+): T[K] | undefined => (Object.hasOwn(obj, key) ? obj[key] : undefined);
 
 /**
  * Clean nested config (cache/batch) for saving.
  * Handles boolean, number, object, null, and undefined values.
  */
 function cleanNestedConfig(
-  edited: Record<string, unknown> | boolean | number | null | undefined,
-  original: Record<string, unknown> | boolean | number | null | undefined
+  edited: unknown,
+  original: unknown
 ): Record<string, unknown> | boolean | number | null | undefined {
   // Preserve boolean and number values as-is
   if (typeof edited === "boolean" || typeof edited === "number") {
@@ -56,7 +81,7 @@ function cleanNestedConfig(
   }
 
   // If edited is empty, return null if original had content
-  if (edited === null || edited === undefined) {
+  if (!isRecord(edited)) {
     if (original !== null && original !== undefined) {
       return null;
     }
@@ -64,11 +89,10 @@ function cleanNestedConfig(
   }
 
   const result: Record<string, unknown> = {};
-  const originalObj =
-    typeof original === "object" && original !== null ? original : {};
+  const originalObj = isRecord(original) ? original : {};
 
   for (const [key, value] of Object.entries(edited)) {
-    const origValue = originalObj[key];
+    const origValue = ownField(originalObj, key);
     const valueChanged = JSON.stringify(value) !== JSON.stringify(origValue);
 
     if (valueChanged) {
@@ -94,20 +118,13 @@ function cleanNestedConfig(
  * Handles nested cache/batch configs and removes empty values.
  */
 function cleanGenerateConfig(
-  edited: Record<string, unknown> | null | undefined,
-  original: Record<string, unknown> | null | undefined
+  edited: unknown,
+  original: unknown
 ): Record<string, unknown> | null | undefined {
   // Handle empty edited config
-  if (
-    edited === null ||
-    edited === undefined ||
-    (typeof edited === "object" && Object.keys(edited).length === 0)
-  ) {
+  if (!isRecord(edited) || Object.keys(edited).length === 0) {
     const originalHasContent =
-      original !== null &&
-      original !== undefined &&
-      typeof original === "object" &&
-      Object.keys(original).length > 0;
+      isRecord(original) && Object.keys(original).length > 0;
     if (originalHasContent) {
       return null;
     }
@@ -115,20 +132,15 @@ function cleanGenerateConfig(
   }
 
   const result: Record<string, unknown> = {};
-  const originalObj = original ?? {};
+  const originalObj = isRecord(original) ? original : {};
 
   for (const key of Object.keys(edited)) {
     const editedValue = edited[key];
-    const originalValue = originalObj[key];
+    const originalValue = ownField(originalObj, key);
 
     // Handle nested cache/batch configs
     if (key === "cache" || key === "batch") {
-      const cleanedNested = cleanNestedConfig(
-        editedValue as
-          Record<string, unknown> | boolean | number | null | undefined,
-        originalValue as
-          Record<string, unknown> | boolean | number | null | undefined
-      );
+      const cleanedNested = cleanNestedConfig(editedValue, originalValue);
       if (cleanedNested !== undefined) {
         result[key] = cleanedNested;
       }
@@ -159,6 +171,30 @@ function cleanGenerateConfig(
 }
 
 /**
+ * The fields the settings editor owns. Only these are read from the server
+ * config and only these can appear in the saved payload: a field the editor
+ * has no control for is never the editor's to send back.
+ */
+const kEditableConfigKeys = [
+  "transcripts",
+  "filter",
+  "scans",
+  "max_transcripts",
+  "max_processes",
+  "limit",
+  "shuffle",
+  "tags",
+  "metadata",
+  "log_level",
+  "model",
+  "model_base_url",
+  "model_args",
+  "generate_config",
+] as const satisfies readonly (keyof ProjectConfigInput)[];
+
+type EditableConfigKey = (typeof kEditableConfigKeys)[number];
+
+/**
  * Compute the config to save by comparing edited values against original server state.
  * Only includes values that have changed or have content.
  */
@@ -169,21 +205,13 @@ export function computeConfigToSave(
 ): ProjectConfigInput {
   const result: Record<string, unknown> = {};
 
-  const allKeys = new Set([
-    ...Object.keys(edited),
-    ...Object.keys(serverConfig),
-  ]);
-
-  for (const key of allKeys) {
-    const editedValue = edited[key as keyof ProjectConfigInput];
-    const originalValue = original[key as keyof ProjectConfigInput];
+  for (const key of kEditableConfigKeys) {
+    const editedValue = ownField(edited, key);
+    const originalValue = ownField(original, key);
 
     // Handle generate_config specially
     if (key === "generate_config") {
-      const cleanedGenConfig = cleanGenerateConfig(
-        editedValue as Record<string, unknown> | null | undefined,
-        originalValue as Record<string, unknown> | null | undefined
-      );
+      const cleanedGenConfig = cleanGenerateConfig(editedValue, originalValue);
       if (cleanedGenConfig !== undefined) {
         result[key] = cleanedGenConfig;
       }
@@ -200,31 +228,123 @@ export function computeConfigToSave(
     }
   }
 
-  return result as ProjectConfigInput;
+  // `filter` is the config's one required field; everything else is optional,
+  // so the assembled record is a ProjectConfigInput once filter is pinned.
+  // Two paths leave it unset: unchanged-and-empty (dropped by the loop) and
+  // cleared in the editor (the change survives as undefined). Either way the
+  // server's own value stands — a required field can't be cleared, so an
+  // emptied filter reverts on save rather than producing an invalid config.
+  const filter = ownField(result, "filter");
+  return {
+    ...result,
+    filter: isFilter(filter) ? filter : serverConfig.filter,
+  };
 }
+
+const isFilter = (value: unknown): value is string | string[] =>
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every((entry) => typeof entry === "string"));
 
 /**
  * Initialize edited config from server config.
  * Extracts the relevant fields for editing.
- * All fields are normalized to null (not undefined) for consistent comparison.
+ * Optional fields are normalized to null (not undefined) for consistent
+ * comparison; the required `filter` stays undefined if the server omits it.
  */
 export function initializeEditedConfig(
   serverConfig: ProjectConfigInput
 ): Partial<ProjectConfigInput> {
   return {
-    transcripts: serverConfig.transcripts ?? null,
-    filter: serverConfig.filter ?? null,
-    scans: serverConfig.scans ?? null,
-    max_transcripts: serverConfig.max_transcripts ?? null,
-    max_processes: serverConfig.max_processes ?? null,
-    limit: serverConfig.limit ?? null,
-    shuffle: serverConfig.shuffle ?? null,
-    tags: serverConfig.tags ?? null,
-    metadata: serverConfig.metadata ?? null,
-    log_level: serverConfig.log_level ?? null,
-    model: serverConfig.model ?? null,
-    model_base_url: serverConfig.model_base_url ?? null,
-    model_args: serverConfig.model_args ?? null,
-    generate_config: serverConfig.generate_config ?? null,
-  };
+    transcripts: ownField(serverConfig, "transcripts") ?? null,
+    filter: ownField(serverConfig, "filter"),
+    scans: ownField(serverConfig, "scans") ?? null,
+    max_transcripts: ownField(serverConfig, "max_transcripts") ?? null,
+    max_processes: ownField(serverConfig, "max_processes") ?? null,
+    limit: ownField(serverConfig, "limit") ?? null,
+    shuffle: ownField(serverConfig, "shuffle") ?? null,
+    tags: ownField(serverConfig, "tags") ?? null,
+    metadata: ownField(serverConfig, "metadata") ?? null,
+    log_level: ownField(serverConfig, "log_level") ?? null,
+    model: ownField(serverConfig, "model") ?? null,
+    model_base_url: ownField(serverConfig, "model_base_url") ?? null,
+    model_args: ownField(serverConfig, "model_args") ?? null,
+    generate_config: ownField(serverConfig, "generate_config") ?? null,
+  } satisfies Record<EditableConfigKey, unknown>;
+}
+
+/**
+ * The editor state to show after a save round-trip: the persisted config from
+ * the server's response, with any fields the user edited while the save was
+ * in flight (changed relative to the snapshot that was saved) layered back on
+ * top so those keystrokes aren't discarded.
+ */
+export function mergeInFlightEdits(
+  persisted: Partial<ProjectConfigInput>,
+  current: Partial<ProjectConfigInput>,
+  savedSnapshot: Partial<ProjectConfigInput>
+): Partial<ProjectConfigInput> {
+  const merged: Partial<ProjectConfigInput> = { ...persisted };
+  // Widened views for by-name access; writes stay keyed by `current`'s own
+  // keys, so the shape holds.
+  const mergedRecord: Record<string, unknown> = merged;
+  const currentRecord: Record<string, unknown> = current;
+  const snapshotRecord: Record<string, unknown> = savedSnapshot;
+  for (const key of Object.keys(currentRecord)) {
+    const changedSinceSave =
+      JSON.stringify(currentRecord[key]) !==
+      JSON.stringify(ownField(snapshotRecord, key));
+    if (changedSinceSave) {
+      mergedRecord[key] = currentRecord[key];
+    }
+  }
+  return merged;
+}
+
+type ValidationPredicate = NonNullable<ValidationSetInput["predicate"]>;
+
+// `satisfies` ties this to the generated union: regenerating the schema with
+// a new or renamed predicate errors here until the map is updated, so valid
+// predicates can't silently start converting to null.
+const kValidationPredicates = {
+  gt: true,
+  gte: true,
+  lt: true,
+  lte: true,
+  eq: true,
+  ne: true,
+  contains: true,
+  startswith: true,
+  endswith: true,
+  icontains: true,
+  iequals: true,
+} satisfies Record<ValidationPredicate, true>;
+
+const isValidationPredicate = (value: unknown): value is ValidationPredicate =>
+  typeof value === "string" && Object.hasOwn(kValidationPredicates, value);
+
+/**
+ * The config the server hands out and the config we PUT back are the same
+ * shape but for one field: a validation set's `predicate` is an open string
+ * coming out and a closed union going in. Checking it is what makes this a
+ * conversion rather than an assertion; a predicate the server invented that
+ * we can't send back falls to the schema default.
+ */
+export function asConfigInput(config: ProjectConfig): ProjectConfigInput {
+  const { validation, ...rest } = config;
+  if (!validation) {
+    return { ...rest, validation };
+  }
+  const converted: Record<string, string | ValidationSetInput> = {};
+  for (const [name, set] of Object.entries(validation)) {
+    converted[name] =
+      typeof set === "string"
+        ? set
+        : {
+            ...set,
+            predicate: isValidationPredicate(set.predicate)
+              ? set.predicate
+              : null,
+          };
+  }
+  return { ...rest, validation: converted };
 }

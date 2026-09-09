@@ -11,10 +11,7 @@ import { ChatMessage } from "@tsmono/inspect-common/types";
 
 import { type ChunkedSample } from "./chunked";
 import { log } from "./chunked/log";
-import {
-  prefetchAttachments,
-  withAttachmentsResolved,
-} from "./chunkedAttachments";
+import { withAttachmentsResolved } from "./chunkedAttachments";
 
 export interface SampleConversation {
   /** Exact length of the final conversation. Cheap for every format:
@@ -23,19 +20,30 @@ export interface SampleConversation {
   /** Messages `[start, end)` of the conversation, fully resolved.
    *  Out-of-range bounds clamp to `[0, messageCount)`. */
   getMessages(start: number, end: number): Promise<ChatMessage[]>;
+  /**
+   * Messages `[start, end)` with attachment refs left unresolved — for
+   * scans that only inspect structure (roles, tool calls, content
+   * presence) and must not pay attachment downloads. Same clamping.
+   */
+  getMessagesRaw(start: number, end: number): Promise<ChatMessage[]>;
 }
 
 /**
  * A conversation over an inline message array (monolith samples, tests) —
- * the reference implementation of the clamping contract.
+ * the reference implementation of the clamping contract. Inline messages
+ * are already fully resolved, so raw reads are the same reads.
  */
 export const inMemoryConversation = (
   messages: ChatMessage[]
-): SampleConversation => ({
-  messageCount: messages.length,
-  getMessages: (start, end) =>
-    Promise.resolve(messages.slice(Math.max(0, start), Math.max(0, end))),
-});
+): SampleConversation => {
+  const getMessages = (start: number, end: number) =>
+    Promise.resolve(messages.slice(Math.max(0, start), Math.max(0, end)));
+  return {
+    messageCount: messages.length,
+    getMessages,
+    getMessagesRaw: getMessages,
+  };
+};
 
 /**
  * Map conversation positions `[start, end)` to half-open ranges of the
@@ -68,7 +76,7 @@ export const conversationRanges = (
 /**
  * A conversation over a chunked sample's `message_refs`: sequence ranges
  * fetched per read, attachment refs substituted before anything downstream
- * sees them. Attachment chunks are prefetched per range as ranges arrive,
+ * sees them. Attachments resolve per range as each range's messages arrive,
  * so attachment downloads overlap the remaining message downloads instead
  * of serializing behind the read's assembly.
  */
@@ -77,28 +85,33 @@ export const chunkedConversation = (
 ): SampleConversation => {
   const refs = chunked.shell.message_refs;
   const messageCount = refs.reduce((n, [start, end]) => n + (end - start), 0);
+  const readRanges = async (
+    start: number,
+    end: number,
+    resolve: boolean
+  ): Promise<ChatMessage[]> => {
+    const lo = Math.max(0, start);
+    const hi = Math.min(Math.max(lo, end), messageCount);
+    const ranges = conversationRanges(refs, lo, hi);
+    const label = `conversation [${lo}, ${hi})${resolve ? "" : " (raw)"}`;
+    const parts = await Promise.all(
+      ranges.map(async ([rangeLo, rangeHi], i) => {
+        const messages = await chunked.messages.getRange(rangeLo, rangeHi);
+        return resolve
+          ? withAttachmentsResolved(messages, chunked, `${label} range ${i}`)
+          : messages;
+      })
+    );
+    const messages = parts.flat();
+    log.info(
+      `read ${label}: ${messages.length} messages via ` +
+        `${ranges.length} range${ranges.length === 1 ? "" : "s"}`
+    );
+    return messages;
+  };
   return {
     messageCount,
-    getMessages: async (start, end) => {
-      const lo = Math.max(0, start);
-      const hi = Math.min(Math.max(lo, end), messageCount);
-      const ranges = conversationRanges(refs, lo, hi);
-      const parts = await Promise.all(
-        ranges.map(([rangeLo, rangeHi]) =>
-          chunked.messages.getRange(rangeLo, rangeHi).then((messages) => {
-            // best-effort warmup; the final resolve pass is the error surface
-            prefetchAttachments(messages, chunked).catch(() => undefined);
-            return messages;
-          })
-        )
-      );
-      const messages = parts.flat();
-      const label = `conversation [${lo}, ${hi})`;
-      log.info(
-        `read ${label}: ${messages.length} messages via ` +
-          `${ranges.length} range${ranges.length === 1 ? "" : "s"}`
-      );
-      return withAttachmentsResolved(messages, chunked, label);
-    },
+    getMessages: (start, end) => readRanges(start, end, true),
+    getMessagesRaw: (start, end) => readRanges(start, end, false),
   };
 };

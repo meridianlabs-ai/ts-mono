@@ -23,30 +23,9 @@
   background-color: var(--bs-light-border-subtle);
 }
 
-.content {
-  padding: 8px;
-}
-
-.statsSection {
-  margin-bottom: 12px;
-}
-
-.statRow {
-  margin-bottom: 4px;
-}
-
 .logDir {
   font-family: monospace;
   font-size: 11px;
-}
-
-.notSet {
-  color: #666;
-}
-
-.cachedItemsList {
-  margin: 4px 0 0 20px;
-  padding: 0;
 }
 
 .clearButton {

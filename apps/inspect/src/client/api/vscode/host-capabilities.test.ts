@@ -2,13 +2,13 @@ import { describe, expect, test } from "vitest";
 
 import { readHostCapabilities } from "./host-capabilities";
 
-function docWith(textContent: string | null) {
+function docWith(textContent: string | null): Pick<Document, "getElementById"> {
+  const el = document.createElement("script");
+  el.textContent = textContent;
   return {
     getElementById: (id: string) =>
-      id === "inspect-host-capabilities" && textContent !== null
-        ? ({ textContent } as unknown as HTMLElement)
-        : null,
-  } as Pick<Document, "getElementById">;
+      id === "inspect-host-capabilities" && textContent !== null ? el : null,
+  };
 }
 
 describe("readHostCapabilities", () => {

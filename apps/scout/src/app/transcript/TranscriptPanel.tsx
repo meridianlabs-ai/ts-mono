@@ -69,6 +69,7 @@ export const TranscriptPanel: FC = () => {
   // while find is active (a ref so the scroll handler sees the live value).
   const showFind = useStore((state) => state.showFind) ?? false;
   const findActiveRef = useRef(showFind);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     findActiveRef.current = showFind;
   }, [showFind]);

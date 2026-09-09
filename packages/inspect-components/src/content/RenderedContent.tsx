@@ -9,11 +9,15 @@ import {
   JSONPanel,
   MarkdownReference,
 } from "@tsmono/react/components";
-import { formatNumber, isJson } from "@tsmono/util";
-
-import { isRenderableImageSource } from "../media/mediaSource";
+import {
+  formatNumber,
+  isJson,
+  isRecord,
+  isRenderableImageSource,
+} from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
+import { ExternalLink } from "./ExternalLink";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
@@ -134,9 +138,9 @@ const contentRenderers: (
         return false;
       },
       render: (_id, entry, _options) => {
-        const obj = JSON5.parse(entry.value);
+        const obj: unknown = JSON5.parse(entry.value);
         return {
-          rendered: <JSONPanel data={obj as Record<string, unknown>} />,
+          rendered: <JSONPanel data={isRecord(obj) ? obj : {}} />,
         };
       },
     },
@@ -261,26 +265,31 @@ const contentRenderers: (
       render: (_id, entry, _options) => {
         const results: ReactNode[] = [];
         results.push(
-          <div className={styles.query}>
+          <div key="query" className={styles.query}>
             <i className={icons.search}></i> {entry.value.query}
           </div>
         );
         entry.value.results.forEach(
-          (result: { url: string; summary: string }) => {
+          (result: { url: string; summary: string }, index: number) => {
             results.push(
-              <div>
-                <a href={result.url}>{result.url}</a>
+              <div key={`url-${index}`}>
+                <ExternalLink href={result.url}>{result.url}</ExternalLink>
               </div>
             );
             results.push(
-              <div className={clsx("text-size-smaller", styles.summary)}>
+              <div
+                key={`summary-${index}`}
+                className={clsx("text-size-smaller", styles.summary)}
+              >
                 {result.summary}
               </div>
             );
           }
         );
+        // The caller keeps only a valid element; a bare array falls through
+        // to the JSON fallback.
         return {
-          rendered: results,
+          rendered: <Fragment>{results}</Fragment>,
         };
       },
     },
@@ -337,7 +346,7 @@ const contentRenderers: (
               <MetaDataGrid
                 id={id}
                 className={"font-size-small"}
-                entries={entry.value as Record<string, unknown>}
+                entries={isRecord(entry.value) ? entry.value : {}}
                 options={{ plain: true }}
               />
             ),

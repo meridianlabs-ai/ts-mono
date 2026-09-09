@@ -9,6 +9,7 @@ import { FC, useMemo, useState } from "react";
 import { Modal } from "@tsmono/react/components";
 
 import { ValidationCase } from "../../../types/api-types";
+import { eventValue } from "../../utils/formEvents";
 import { extractUniqueSplits } from "../utils";
 
 import styles from "./ValidationBulkActions.module.css";
@@ -46,7 +47,7 @@ export const ValidationBulkActions: FC<ValidationBulkActionsProps> = ({
   const selectedCount = selectedIds.length;
 
   const handleSplitChange = (e: Event) => {
-    const value = (e.target as HTMLSelectElement).value;
+    const value = eventValue(e);
     if (value === "__custom__") {
       setUseCustomSplit(true);
       setSelectedSplit("");
@@ -58,7 +59,7 @@ export const ValidationBulkActions: FC<ValidationBulkActionsProps> = ({
   };
 
   const handleCustomSplitInput = (e: Event) => {
-    const value = (e.target as HTMLInputElement).value;
+    const value = eventValue(e);
     setCustomSplit(value);
   };
 

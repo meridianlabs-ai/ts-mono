@@ -12,6 +12,7 @@ export const useScanResultSummaries = (columnTable?: ColumnTable) => {
 
   const rowData = useMemo(() => columnTable?.objects(), [columnTable]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!rowData || rowData.length === 0) {
       // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense

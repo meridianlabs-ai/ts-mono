@@ -135,4 +135,4 @@ DOM event subscriptions (`LogViewLayout:45`, `DataGrid`, `SampleDetailComponent:
 `utils/dom.ts:85`, `SamplePrintView:81`); `document.title` (`LogsPanel:91`, `SampleDisplay:141`,
 `SampleList:88`); virtualizer scroll sync (`DataGrid:638`); lifecycle-tied store teardown
 (`SampleDisplay:163/:217`, `LogViewContainer:46/:102`, `SampleDetailView:111`); router hash persistence
-(`AppRouter:46`); timer cleanup (`state/hooks.ts:518`); dev diagnostic (`utils/react.ts:9`).
+(`AppRouter:46`); timer cleanup (`state/hooks.ts:518`).

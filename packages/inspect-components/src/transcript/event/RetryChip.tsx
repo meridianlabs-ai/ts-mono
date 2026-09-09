@@ -23,6 +23,7 @@ export const RetryChip: FC<RetryChipProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -71,7 +72,12 @@ export const RetryChip: FC<RetryChipProps> = ({
       </button>
       {open && (
         <>
-          <div className={styles.backdrop} onClick={() => setOpen(false)} />
+          {/* Mouse-only dismissal; Escape closes the menu. */}
+          <div
+            className={styles.backdrop}
+            role="presentation"
+            onClick={() => setOpen(false)}
+          />
           <div className={styles.menu}>
             {attempts.map((attempt, idx) => {
               const key = keyOf(attempt);

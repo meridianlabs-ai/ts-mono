@@ -3,6 +3,8 @@ import { renderHook } from "@testing-library/react";
 import type { RefObject } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { testModelEvent, testToolEvent } from "@tsmono/inspect-common/testing";
+
 import { eventNode } from "../testHelpers";
 import type { EventNode } from "../types";
 
@@ -31,10 +33,10 @@ function makeNodes(): {
   allNodesList: EventNode[];
   outlineNodeList: EventNode[];
 } {
-  const n1 = eventNode({ event: "model" });
-  const n2 = eventNode({ event: "tool" });
-  const n3 = eventNode({ event: "model" });
-  const n4 = eventNode({ event: "tool" });
+  const n1 = eventNode(testModelEvent());
+  const n2 = eventNode(testToolEvent());
+  const n3 = eventNode(testModelEvent());
+  const n4 = eventNode(testToolEvent());
   return { allNodesList: [n1, n2, n3, n4], outlineNodeList: [n1, n3] };
 }
 
@@ -103,9 +105,9 @@ describe("useOutlineScrollSync", () => {
   function renderSync() {
     const { allNodesList, outlineNodeList } = makeNodes();
     const setSelectedOutlineId = vi.fn<(id: string) => void>();
-    const scrollRef = {
-      current: { scrollTop: 100 },
-    } as unknown as RefObject<HTMLDivElement>;
+    const scrollEl = document.createElement("div");
+    scrollEl.scrollTop = 100;
+    const scrollRef: RefObject<HTMLDivElement> = { current: scrollEl };
     const view = renderHook(() =>
       useOutlineScrollSync({
         allNodesList,

@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { ScoreLabel } from "../../../app/types";
-import type { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
+import {
+  testEvalDescriptor,
+  testScoreDescriptor,
+} from "../descriptor/testDescriptors";
+import type { EvalDescriptor } from "../descriptor/types";
 
 import {
   buildSampleFilterSpecRegistry,
@@ -11,13 +15,13 @@ import {
 const descriptorWith = (
   scores: Array<{ name: string; scorer: string; scoreType: string }>
 ): EvalDescriptor =>
-  ({
+  testEvalDescriptor({
     scores: scores.map(({ name, scorer }) => ({ name, scorer })),
     scoreDescriptor: ({ name, scorer }: ScoreLabel) => {
       const match = scores.find((s) => s.name === name && s.scorer === scorer);
-      return { scoreType: match?.scoreType ?? "other" } as ScoreDescriptor;
+      return testScoreDescriptor({ scoreType: match?.scoreType ?? "other" });
     },
-  }) as unknown as EvalDescriptor;
+  });
 
 describe("buildSampleFilterSpecRegistry", () => {
   it("registers the static columns", () => {

@@ -2,7 +2,7 @@ import { FC } from "react";
 
 import { kSampleEventTabId } from "../../constants";
 import { FlowPanel } from "../flow/FlowPanel";
-import { LogsPanel } from "../log-list/LogsPanel";
+import { LogsPanel, type LogsPanelMode } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 import { SampleEventView } from "../samples/event/SampleEventView";
@@ -20,14 +20,19 @@ import { useLogRouteParams } from "./url";
  * - FlowPanel: for flow files (.yaml/.yml)
  * - LogViewContainer: for log files (.eval/.json)
  * - LogsPanel: for directory views
+ *
+ * `mode` selects how directory views render: "tasks" (flat) for /tasks/*
+ * routes, "logs" otherwise.
  */
-export const RouteDispatcher: FC = () => {
+export const RouteDispatcher: FC<{ mode?: LogsPanelMode }> = ({
+  mode = "logs",
+}) => {
   const { logPath, sampleId, epoch, sampleTabId, sampleUuid } =
     useLogRouteParams();
 
   // If no logPath is provided, show the logs directory view
   if (!logPath) {
-    return <LogsPanel />;
+    return <LogsPanel mode={mode} />;
   }
 
   // Check for print route (must come before general sample detail check)
@@ -61,6 +66,6 @@ export const RouteDispatcher: FC = () => {
   if (isLogFile) {
     return <LogViewContainer />;
   } else {
-    return <LogsPanel />;
+    return <LogsPanel mode={mode} />;
   }
 };

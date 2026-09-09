@@ -1,11 +1,15 @@
 import {
   ColumnDef,
+  columnVisibilityFeature,
+  createSortedRowModel,
   flexRender,
-  getCoreRowModel,
-  getSortedRowModel,
   Header,
+  rowSortingFeature,
+  sortFn_alphanumeric,
+  sortFn_text,
   SortingState,
-  useReactTable,
+  tableFeatures,
+  useTable,
 } from "@tanstack/react-table";
 import clsx from "clsx";
 import { FC, ReactElement, useMemo, useState } from "react";
@@ -33,6 +37,15 @@ interface ScoreGridRow {
   metrics: (number | undefined)[];
 }
 
+const scoreGridFeatures = tableFeatures({
+  columnVisibilityFeature,
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { alphanumeric: sortFn_alphanumeric, text: sortFn_text },
+});
+
+type ScoreGridFeatures = typeof scoreGridFeatures;
+
 const kScorerColWidth = 180;
 const kMetricColWidth = 120;
 const kScorerColWidthCompact = 110;
@@ -45,7 +58,10 @@ export const ScoreGrid: FC<ScoreGridProps> = ({
   compact,
 }) => {
   return (
+    // data-testid: stable hook for tests that assert on this container's
+    // scroll behavior, so they don't depend on the internal wrapper depth
     <div
+      data-testid="score-grid"
       className={clsx(
         className,
         compact ? styles.cardContainer : styles.gridContainer
@@ -97,7 +113,10 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
       metrics: score.metrics.map((m) => m.value),
     }));
 
-    const leafCol = (name: string, i: number): ColumnDef<ScoreGridRow> => ({
+    const leafCol = (
+      name: string,
+      i: number
+    ): ColumnDef<ScoreGridFeatures, ScoreGridRow> => ({
       id: `metric_${i}`,
       header: name,
       accessorFn: (row) => row.metrics[i],
@@ -111,10 +130,14 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
     const runs = groupMetricRuns(metrics);
     const grouped = runs.some(isGroupRun);
 
-    const metricColumns: ColumnDef<ScoreGridRow>[] = [];
+    const metricColumns: ColumnDef<ScoreGridFeatures, ScoreGridRow>[] = [];
     let idx = 0;
     for (const [runIdx, run] of runs.entries()) {
-      const children = run.metrics.map((m) => leafCol(m.name, idx++));
+      // Indexing arithmetic (not idx++ in the lambda) keeps this compilable
+      // by React Compiler, which can't lower captured UpdateExpressions.
+      const runStart = idx;
+      const children = run.metrics.map((m, i) => leafCol(m.name, runStart + i));
+      idx += run.metrics.length;
       if (isGroupRun(run)) {
         metricColumns.push({
           id: `group_${runIdx}`,
@@ -126,7 +149,7 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
       }
     }
 
-    const scorerCol: ColumnDef<ScoreGridRow> = {
+    const scorerCol: ColumnDef<ScoreGridFeatures, ScoreGridRow> = {
       id: "scorer",
       header: "Scorer",
       accessorFn: (row) => row.scorer,
@@ -142,7 +165,7 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
       ),
     };
 
-    const columns: ColumnDef<ScoreGridRow>[] = [
+    const columns: ColumnDef<ScoreGridFeatures, ScoreGridRow>[] = [
       grouped
         ? { id: "scorer_group", header: "", columns: [scorerCol] }
         : scorerCol,
@@ -156,17 +179,12 @@ const ScoreGroupTable: FC<ScoreGroupTableProps> = ({
     };
   }, [scoreGroup, showReducer, sortable, scorerColWidth, metricColWidth]);
 
-  // useReactTable returns unmemoizable functions
-  // https://github.com/TanStack/table/issues/5567
-  // https://github.com/facebook/react/issues/33057
-  // eslint-disable-next-line react-hooks/incompatible-library
-  const table = useReactTable({
+  const table = useTable({
+    features: scoreGridFeatures,
     data: rows,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     enableMultiSort: false,
   });
 
@@ -255,7 +273,7 @@ const LeafHeader = ({
   header,
   isLast,
 }: {
-  header: Header<ScoreGridRow, unknown>;
+  header: Header<ScoreGridFeatures, ScoreGridRow, unknown>;
   isLast: boolean;
 }): ReactElement => {
   const sorted = header.column.getIsSorted();

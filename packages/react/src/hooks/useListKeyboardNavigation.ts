@@ -37,6 +37,7 @@ export function useListKeyboardNavigation({
       const container = scrollRef?.current;
       if (
         container &&
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: checkVisibility is absent in jsdom and older browsers
         (!container.isConnected || container.checkVisibility?.() === false)
       ) {
         return;

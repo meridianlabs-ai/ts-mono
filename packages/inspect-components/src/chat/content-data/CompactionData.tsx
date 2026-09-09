@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { ExpandablePanel } from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 import { MetaDataGrid } from "../../content/MetaDataGrid";
 import { RenderedText } from "../../content/RenderedText";
@@ -15,10 +16,8 @@ export const CompactionData: FC<{
   data: Record<string, unknown>;
 }> = ({ id, data }) => {
   // get the compaction metadata
-  const compactionMetadata = data[kCompactionMetadata] as Record<
-    string,
-    unknown
-  >;
+  const raw = data[kCompactionMetadata];
+  const compactionMetadata = isRecord(raw) ? raw : {};
 
   const compactionContent: ReactNode =
     compactionMetadata.type === "anthropic_compact" ? (

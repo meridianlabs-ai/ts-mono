@@ -34,6 +34,7 @@ const fixtures = readdirSync(fixturesDir)
   .sort()
   .map((name) => ({
     name,
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- the fixture files on disk are the contract this suite is written against
     fixture: JSON.parse(
       readFileSync(join(fixturesDir, name), "utf-8")
     ) as SkeletonFixture,

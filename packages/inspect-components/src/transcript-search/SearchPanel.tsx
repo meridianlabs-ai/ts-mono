@@ -313,6 +313,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   const handleSearchTextareaRef = useCallback((el: HTMLElement | null) => {
     searchTextareaRef.current = el;
   }, []);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     const inner = getInnerTextarea(searchTextareaRef.current);
     if (inner !== null) {
@@ -357,6 +358,7 @@ export const SearchPanel: FC<SearchPanelProps> = ({
   // done on the first run (not only when it fills) means a later clear — or a
   // persisted model — is never fought.
   const didPrefillModelRef = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (didPrefillModelRef.current) return;
     didPrefillModelRef.current = true;
@@ -612,6 +614,7 @@ const SearchingIndicator: FC<{ searchType: SearchType }> = ({ searchType }) => {
   const [start] = useState(() => performance.now());
   const [elapsed, setElapsed] = useState(0);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const id = setInterval(() => {
       setElapsed(Math.floor((performance.now() - start) / 1000));
@@ -731,6 +734,7 @@ const SearchResult: FC<{
   const markdownRefs = useMemo((): MarkdownReference[] => {
     const seen = new Set<string>();
     const refs: MarkdownReference[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     for (const ref of result.references ?? []) {
       if (ref.cite && !seen.has(ref.cite)) {
         seen.add(ref.cite);
@@ -739,7 +743,8 @@ const SearchResult: FC<{
             ? scope === "events"
               ? getEventMessageUrl(ref.id)
               : getMessageUrl(ref.id)
-            : ref.type === "event"
+            : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+              ref.type === "event"
               ? getEventUrl(ref.id)
               : undefined;
         refs.push({

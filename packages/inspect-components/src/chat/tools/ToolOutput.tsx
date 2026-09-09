@@ -3,12 +3,16 @@ import { FC, ReactNode } from "react";
 
 import type { Content } from "@tsmono/inspect-common/types";
 import { ANSIDisplay } from "@tsmono/react/components";
-import { isAnsiOutput, isJson } from "@tsmono/util";
+import {
+  isAnsiOutput,
+  isJson,
+  isRecord,
+  isRenderableImageSource,
+} from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
-import { isRenderableImageSource } from "../../media/mediaSource";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
 
@@ -66,6 +70,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
         if (out.reasoning) {
           outputs.push(<ToolTextOutput text={out.reasoning} key={key} />);
         }
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       } else if (out.type === "data" && out.data) {
         outputs.push(
           <ToolTextOutput text={JSON.stringify(out.data)} key={key} />
@@ -91,15 +96,16 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
 
   if (displayMode === "rendered" && isJson(text)) {
-    const obj = JSON.parse(text) as Record<string, unknown>;
-    return <JsonMessageContent id={`1-json`} json={obj} />;
+    const obj: unknown = JSON.parse(text);
+    if (isRecord(obj)) {
+      return <JsonMessageContent id={`1-json`} json={obj} />;
+    }
   }
 
   // It could have ANSI codes
   if (displayMode === "rendered" && isAnsiOutput(text)) {
     return (
       <ANSIDisplay
-        className={styles.ansiOutput}
         output={text}
         style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
       />

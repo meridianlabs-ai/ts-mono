@@ -117,6 +117,7 @@ export interface TranscriptViewNodesHandle {
 // =============================================================================
 
 const escapeAttr = (id: string): string =>
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   typeof CSS !== "undefined" && CSS.escape
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
@@ -234,6 +235,7 @@ export const TranscriptViewNodes = forwardRef<
   }, [eventNodes, flattenedNodes, defaultCollapsedIds]);
 
   const flattenedNodesLatest = useRef<EventNode[]>(flattenedNodes);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     flattenedNodesLatest.current = flattenedNodes;
   }, [flattenedNodes]);
@@ -241,6 +243,7 @@ export const TranscriptViewNodes = forwardRef<
   // Latest turn lookup for scrollRowToTop's stamp: an expansion retry lands
   // after the turn map is recomputed, so closed-over values may be stale.
   const turnLookupLatest = useRef({ turnAnchorIds, computedTurnMap });
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     turnLookupLatest.current = { turnAnchorIds, computedTurnMap };
   }, [turnAnchorIds, computedTurnMap]);
@@ -380,6 +383,7 @@ export const TranscriptViewNodes = forwardRef<
   // Expand a deep-link target's collapsed ancestors, once per target so a
   // stale URL param doesn't fight the user re-collapsing.
   const expandedForTargetRef = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!scrollEventId || !onExpandNodes) return;
     if (expandedForTargetRef.current === scrollEventId) return;
@@ -405,6 +409,7 @@ export const TranscriptViewNodes = forwardRef<
   // target so re-renders from filter/collapse don't re-fire an already-handled
   // jump.
   const lastScrolledKeyRef = useRef<string | null>(null);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!scrollEventId) {
       lastScrolledKeyRef.current = null;
@@ -450,7 +455,7 @@ export const TranscriptViewNodes = forwardRef<
     container.addEventListener("keydown", abort, { passive: true });
     const settle = () => {
       if (cancelled) return;
-      attempts++;
+      attempts += 1;
       const el = container.querySelector<HTMLElement>(selector);
       if (el) {
         const delta =

@@ -85,10 +85,9 @@ function castColumns(table: ColumnTable): ColumnTable {
   }
 
   // Helper function to cast a single value based on its type
-  const castValue = (
-    value: unknown,
-    valueType: string
-  ): string | number | boolean | null => {
+  // Returns unknown, not a scalar: the string/array/object branch passes the
+  // input straight through.
+  const castValue = (value: unknown, valueType: string): unknown => {
     if (value === null || value === undefined) {
       return null;
     }
@@ -122,7 +121,7 @@ function castColumns(table: ColumnTable): ColumnTable {
       return isNaN(num) ? null : num;
     } else {
       // For string, null, array, object - keep as-is
-      return value as string | number | boolean | null;
+      return value;
     }
   };
 
@@ -142,7 +141,7 @@ function castColumns(table: ColumnTable): ColumnTable {
     derivations.scan_error_refusal = escape(
       (d: { scan_error_refusal: string }) => {
         if (typeof d.scan_error_refusal === "string") {
-          return d.scan_error_refusal?.toLowerCase() === "true";
+          return d.scan_error_refusal.toLowerCase() === "true";
         }
 
         return !!d.scan_error_refusal;

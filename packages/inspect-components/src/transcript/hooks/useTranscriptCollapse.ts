@@ -44,12 +44,14 @@ export function useTranscriptCollapse(
   } = options;
 
   const onSetTranscriptCollapsed = collapseState?.onSetTranscriptCollapsed;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (eventCount <= 0 || !bulkCollapse || !onSetTranscriptCollapsed) {
       return;
     }
     if (bulkCollapse === "expand") {
       onSetTranscriptCollapsed({});
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     } else if (bulkCollapse === "collapse") {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
@@ -63,6 +65,7 @@ export function useTranscriptCollapse(
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
       if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (!collapseState?.transcript) {
         // First toggle — seed defaults then apply the toggle
         onSetTranscriptCollapsed({
@@ -87,6 +90,7 @@ export function useTranscriptCollapse(
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);

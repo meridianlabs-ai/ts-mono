@@ -73,7 +73,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
 
   const editable = false;
   const filterText =
-    filter && !filter?.startsWith("(")
+    filter && !filter.startsWith("(")
       ? `(${filter})`
       : filter
         ? filter
@@ -100,6 +100,7 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
           }
           onPathChanged={setTranscriptsDir}
           placeholder={
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
             editable
               ? "Select Transcripts Folder"
               : "No transcripts directory configured."

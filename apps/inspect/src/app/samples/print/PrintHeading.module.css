@@ -1,0 +1,20 @@
+.heading {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 0.5em;
+  margin-bottom: 2em;
+  justify-content: space-between;
+  border-bottom: solid 1px silver;
+}
+
+.headingTask {
+  font-weight: 600;
+}
+
+.headingModel {
+  text-align: center;
+}
+
+.headingTime {
+  text-align: right;
+}

@@ -1,5 +1,14 @@
 import { describe, expect, test } from "vitest";
 
+import {
+  testEvalMetric,
+  testEvalResults,
+  testEvalScore,
+  testEvalSpec,
+  testEvalStats,
+} from "@tsmono/inspect-common/testing";
+
+import { testSampleSummary } from "../api/testClientApi";
 import { LogHeader, SampleSummary } from "../api/types";
 
 import { deriveLogFields, deriveSampleFields } from "./derive";
@@ -7,16 +16,14 @@ import { deriveLogFields, deriveSampleFields } from "./derive";
 const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader => ({
   version: 1,
   status: "success",
-  eval: {
+  eval: testEvalSpec({
     eval_id: "eval-1",
     run_id: "run-1",
     created: "2024-01-01T00:00:00Z",
     task: "test-task",
     task_id: "task-1",
-    task_args: {},
-    task_args_passed: {},
     model: "gpt-4",
-  } as unknown as LogHeader["eval"],
+  }),
   results: null,
   stats: undefined,
   error: null,
@@ -26,22 +33,19 @@ const makeHeader = (overrides: Partial<LogHeader> = {}): LogHeader => ({
   ...overrides,
 });
 
-const makeSummary = (
-  overrides: Partial<SampleSummary> = {}
-): SampleSummary => ({
-  id: 1,
-  epoch: 0,
-  input: "test input",
-  target: "test target",
-  scores: null,
-  completed: true,
-  ...overrides,
-});
+const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
+  testSampleSummary({
+    id: 1,
+    epoch: 0,
+    input: "test input",
+    target: "test target",
+    ...overrides,
+  });
 
 describe("deriveLogFields", () => {
   test("sums total tokens across models", () => {
     const header = makeHeader({
-      stats: {
+      stats: testEvalStats({
         started_at: "2024-01-01T00:00:00Z",
         completed_at: "2024-01-01T01:00:00Z",
         model_usage: {
@@ -56,7 +60,7 @@ describe("deriveLogFields", () => {
             total_tokens: 30,
           },
         },
-      } as unknown as LogHeader["stats"],
+      }),
     });
     const derived = deriveLogFields(header);
     expect(derived.total_tokens).toBe(45);
@@ -75,31 +79,30 @@ describe("deriveLogFields", () => {
 
   test("ignores a duration whose end precedes its start", () => {
     const header = makeHeader({
-      stats: {
+      stats: testEvalStats({
         started_at: "2024-01-01T02:00:00Z",
         completed_at: "2024-01-01T01:00:00Z",
-        model_usage: {},
-      } as unknown as LogHeader["stats"],
+      }),
     });
     expect(deriveLogFields(header).duration).toBeUndefined();
   });
 
   test("formats task args, preferring task_args_passed", () => {
     const header = makeHeader({
-      eval: {
+      eval: testEvalSpec({
         task_args: { a: 1, b: "two", defaulted: true },
         task_args_passed: { a: 1, b: "two" },
-      } as unknown as LogHeader["eval"],
+      }),
     });
     expect(deriveLogFields(header).task_args).toBe('a=1, b="two"');
   });
 
   test("computes percent completed and joins sample limits", () => {
     const header = makeHeader({
-      results: {
+      results: testEvalResults({
         total_samples: 8,
         completed_samples: 2,
-      } as unknown as LogHeader["results"],
+      }),
       sampleLimits: ["message", "time"],
     });
     const derived = deriveLogFields(header);
@@ -109,23 +112,25 @@ describe("deriveLogFields", () => {
 
   test("maps scores keyed scorer → metric", () => {
     const header = makeHeader({
-      results: {
+      results: testEvalResults({
         total_samples: 1,
         completed_samples: 1,
         scores: [
-          {
+          testEvalScore({
             name: "grader",
             metrics: {
-              accuracy: { name: "accuracy", value: 0.9 },
-              stderr: { name: "stderr", value: 0.01 },
+              accuracy: testEvalMetric({ name: "accuracy", value: 0.9 }),
+              stderr: testEvalMetric({ name: "stderr", value: 0.01 }),
             },
-          },
-          {
+          }),
+          testEvalScore({
             name: "other",
-            metrics: { accuracy: { name: "accuracy", value: 0.5 } },
-          },
+            metrics: {
+              accuracy: testEvalMetric({ name: "accuracy", value: 0.5 }),
+            },
+          }),
         ],
-      } as unknown as LogHeader["results"],
+      }),
     });
     expect(deriveLogFields(header).scores).toEqual({
       grader: { accuracy: 0.9, stderr: 0.01 },
@@ -145,10 +150,8 @@ describe("deriveSampleFields", () => {
           output_tokens: 5,
           total_tokens: 15,
         },
-      } as unknown as SampleSummary["model_usage"],
-      model_fallbacks: [
-        { model: "a", fallback_model: "b", count: 2 },
-      ] as unknown as SampleSummary["model_fallbacks"],
+      },
+      model_fallbacks: [{ model: "a", fallback_model: "b", count: 2 }],
       scores: {
         accuracy: {
           value: 1,

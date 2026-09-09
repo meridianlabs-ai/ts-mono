@@ -16,6 +16,7 @@ import clsx from "clsx";
 import { EditorView, minimalSetup } from "codemirror";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
+import { useMountEffect } from "@tsmono/react/hooks";
 import { debounce } from "@tsmono/util";
 
 import { SampleSummary } from "../../../../client/api/types";
@@ -207,7 +208,7 @@ export const SampleFilter: FC = () => {
   );
 
   // Initialize editor (only once on mount)
-  useEffect(() => {
+  useMountEffect(() => {
     editorViewRef.current?.destroy();
 
     editorViewRef.current = new EditorView({
@@ -230,10 +231,10 @@ export const SampleFilter: FC = () => {
     });
 
     return () => editorViewRef.current?.destroy();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run on mount
+  });
 
   // Handle filter value changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!editorViewRef.current) return;
 
@@ -250,6 +251,7 @@ export const SampleFilter: FC = () => {
   }, [filter]);
 
   // Update compartments when dependencies change
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     editorViewRef.current?.dispatch({
       effects:
@@ -257,6 +259,7 @@ export const SampleFilter: FC = () => {
     });
   }, [evalDescriptor, makeUpdateListener]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     editorViewRef.current?.dispatch({
       effects:
@@ -264,6 +267,7 @@ export const SampleFilter: FC = () => {
     });
   }, [filterItems, makeAutocompletion, samples]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     editorViewRef.current?.dispatch({
       effects: linterCompartment.current.reconfigure(makeLinter()),

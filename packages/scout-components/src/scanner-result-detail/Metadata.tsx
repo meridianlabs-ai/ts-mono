@@ -6,6 +6,7 @@ import {
   MarkdownDivWithReferences,
   MarkdownReference,
 } from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 import styles from "./Metadata.module.css";
 
@@ -91,14 +92,19 @@ export const MetadataValue: FC<MetadataValueProps> = ({
           />
         );
       }
-      return (
-        <RecordTree
-          id={`metadata-${id}`}
-          record={value as Record<string, unknown>}
-          useBorders={false}
-          copyButton={true}
-        />
-      );
+      if (isRecord(value)) {
+        return (
+          <RecordTree
+            id={`metadata-${id}`}
+            record={value}
+            useBorders={false}
+            copyButton={true}
+          />
+        );
+      }
+      // Unreachable: a non-null, non-array `typeof "object"` always satisfies
+      // isRecord. Present so the narrowing is exhaustive, not as a case.
+      return null;
     }
     // At this point value is a primitive (number, boolean, undefined, bigint, symbol).
     default:

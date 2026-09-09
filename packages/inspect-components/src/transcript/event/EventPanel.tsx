@@ -207,6 +207,7 @@ export const EventPanel: FC<EventPanelProps> = ({
   // must survive virtualization unmounting the row (the panel's own selection
   // persists in the property bag the same way).
   const reportFocusTab = turnNav !== undefined;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (reportFocusTab) onFocusTabChange?.(eventNodeId, selectedTabName);
   }, [onFocusTabChange, eventNodeId, selectedTabName, reportFocusTab]);
@@ -266,10 +267,22 @@ export const EventPanel: FC<EventPanelProps> = ({
         onMouseLeave={() => setMouseOver(false)}
       >
         {isCollapsible && !useBottomDongle ? (
-          <i
+          <button
+            type="button"
+            className={styles.collapseToggle}
             onClick={toggleCollapse}
-            className={collapsed ? kChevronRight : kChevronDown}
-          />
+            aria-expanded={!collapsed}
+            aria-label={
+              title
+                ? `${collapsed ? "Expand" : "Collapse"} ${title}`
+                : undefined
+            }
+          >
+            <i
+              className={collapsed ? kChevronRight : kChevronDown}
+              aria-hidden="true"
+            />
+          </button>
         ) : (
           ""
         )}
@@ -277,29 +290,34 @@ export const EventPanel: FC<EventPanelProps> = ({
           <i
             className={clsx(icon || kDefaultIcon, "text-style-secondary")}
             onClick={toggleCollapse}
+            aria-hidden="true"
           />
         ) : (
           ""
         )}
+        {/* The header cells below widen the toggle's hit area for mouse users;
+            the chevron button above is the control keyboard users operate. */}
         <div
           className={clsx(
             "text-style-secondary",
             "text-style-label",
             styles.title
           )}
+          role="presentation"
           onClick={toggleCollapse}
         >
           <span>{title}</span>
           {headerExtra ? (
             <span
               className={styles.titleExtra}
+              role="presentation"
               onClick={(e) => e.stopPropagation()}
             >
               {headerExtra}
             </span>
           ) : null}
           {url ? (
-            <span onClick={(e) => e.stopPropagation()}>
+            <span role="presentation" onClick={(e) => e.stopPropagation()}>
               <CopyButton
                 value={url}
                 icon={kLinkIcon}
@@ -310,6 +328,7 @@ export const EventPanel: FC<EventPanelProps> = ({
         </div>
         <div
           className={styles.navs}
+          role="presentation"
           onClick={showNavs ? undefined : toggleCollapse}
         >
           {showNavs ? (
@@ -341,6 +360,7 @@ export const EventPanel: FC<EventPanelProps> = ({
               styles.turnNav,
               turnNav.isAnchor === false && styles.turnNavFollower
             )}
+            role="presentation"
             onClick={(e) => e.stopPropagation()}
           >
             {onTurnLabelClick ? (
@@ -457,7 +477,7 @@ export const EventPanel: FC<EventPanelProps> = ({
             : undefined
         )}
       >
-        {filteredArrChildren?.map((child, index) => {
+        {filteredArrChildren.map((child, index) => {
           const id = pillId(index);
           const isSelected = id === selectedNav;
 
@@ -470,6 +490,7 @@ export const EventPanel: FC<EventPanelProps> = ({
             <div
               key={`children-${id}-${index}`}
               id={id}
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
               className={clsx("tab-pane", "show", isSelected ? "active" : "")}
             >
               {child}
@@ -479,19 +500,22 @@ export const EventPanel: FC<EventPanelProps> = ({
       </div>
 
       {isCollapsible && useBottomDongle ? (
-        <div
+        <button
+          type="button"
           className={clsx(styles.bottomDongle, "text-size-smallest")}
           onClick={toggleCollapse}
+          aria-expanded={!collapsed}
         >
           <i
             className={clsx(
               collapsed ? kChevronRight : kChevronDown,
               styles.dongleIcon
             )}
+            aria-hidden="true"
           />
           transcript ({childIds?.length}{" "}
           {childIds?.length === 1 ? "event" : "events"})
-        </div>
+        </button>
       ) : undefined}
     </div>
   );

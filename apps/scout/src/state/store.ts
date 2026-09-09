@@ -9,13 +9,14 @@ import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
+import type { ColumnFilter } from "@tsmono/inspect-components/columnFilter";
 import {
   createInitialSearchPanelState,
   normalizeSearchPanelState,
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { debounce } from "@tsmono/util";
+import { debounce, getOwn } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
@@ -26,25 +27,12 @@ import {
   ScanResultSummary,
   SortColumn,
 } from "../app/types";
-import type { SimpleCondition } from "../query";
 import { TranscriptInfo } from "../types/api-types";
 
-// Filter types for columns
-export type FilterType =
-  | "string"
-  | "number"
-  | "boolean"
-  | "date"
-  | "datetime"
-  | "duration"
-  | "unknown";
-
-// Column filter with metadata
-export interface ColumnFilter {
-  columnId: string;
-  filterType: FilterType;
-  condition: SimpleCondition | null;
-}
+export type {
+  ColumnFilter,
+  FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 
 // Transcripts table UI state
 export interface TranscriptsTableState {
@@ -184,12 +172,14 @@ interface StoreState {
   clearScansState: () => void;
   clearTranscriptState: () => void;
 
-  setPropertyValue: <T>(id: string, propertyName: string, value: T) => void;
-  getPropertyValue: <T>(
+  setPropertyValue: (id: string, propertyName: string, value: unknown) => void;
+  // Persisted component state: what was stored is whatever a component put
+  // there, so it comes back as `unknown` for the caller to narrow.
+  getPropertyValue: (
     id: string,
     propertyName: string,
-    defaultValue?: T
-  ) => T | undefined;
+    defaultValue?: unknown
+  ) => unknown;
   removePropertyValue: (id: string, propertyName: string) => void;
   removeAllProperties: (id: string) => void;
   removeByPrefix: (id: string, prefix: string) => void;
@@ -319,7 +309,13 @@ export const createStore = (api: ScoutApiV2) =>
           loadingData: 0,
           transcriptCollapsedEvents: {},
           searchPanelStates: {},
-          scopedErrors: {} as Record<ErrorScope, string>,
+          scopedErrors: {
+            scans: undefined,
+            scanner: undefined,
+            dataframe: undefined,
+            dataframe_input: undefined,
+            transcripts: undefined,
+          },
           visibleScannerResults: [],
           visibleScannerResultsCount: 0,
           highlightLabeled: false,
@@ -435,72 +431,70 @@ export const createStore = (api: ScoutApiV2) =>
               state.searchPanelStates = {};
             });
           },
-          setPropertyValue<T>(id: string, propertyName: string, value: T) {
+          setPropertyValue(id: string, propertyName: string, value: unknown) {
             set((state) => {
-              if (!state.properties[id]) {
-                state.properties[id] = {};
+              const group = getOwn(state.properties, id);
+              if (group !== undefined && propertyName !== "__proto__") {
+                group[propertyName] = value;
+                return;
               }
-              state.properties[id][propertyName] = value;
+              // Computed keys bypass the inherited __proto__ setter, which
+              // Immer rejects even when the draft already owns that property.
+              const next = { ...group, [propertyName]: value };
+              if (id === "__proto__") {
+                state.properties = { ...state.properties, [id]: next };
+              } else {
+                state.properties[id] = next;
+              }
             });
           },
-          getPropertyValue<T>(
+          getPropertyValue(
             id: string,
             propertyName: string,
-            defaultValue: T
-          ): T | undefined {
-            const value = get().properties[id]?.[propertyName];
-            return value !== undefined ? (value as T) : defaultValue;
+            defaultValue: unknown
+          ): unknown {
+            const group = getOwn(get().properties, id);
+            const value =
+              group !== undefined && Object.hasOwn(group, propertyName)
+                ? group[propertyName]
+                : undefined;
+            return value !== undefined ? value : defaultValue;
           },
           removePropertyValue(id: string, propertyName: string) {
             set((state) => {
-              const propertyGroup = state.properties[id];
+              const propertyGroup = getOwn(state.properties, id);
 
-              // No property, go ahead and return
-              if (!propertyGroup || !propertyGroup[propertyName]) {
+              if (
+                !propertyGroup ||
+                !Object.hasOwn(propertyGroup, propertyName)
+              ) {
                 return;
               }
 
-              // Destructure to remove the property
-              const { [propertyName]: _removed, ...remainingProperties } =
-                propertyGroup;
-
-              // If no remaining properties, remove the entire group
-              if (Object.keys(remainingProperties).length === 0) {
-                const { [id]: _removedGroup, ...remainingGroups } =
-                  state.properties;
-                state.properties = remainingGroups;
-                return;
+              delete propertyGroup[propertyName];
+              if (Object.keys(propertyGroup).length === 0) {
+                delete state.properties[id];
               }
-
-              // Update to the delete properties
-              state.properties[id] = remainingProperties;
             });
           },
           removeAllProperties(id: string) {
             set((state) => {
-              const { [id]: _, ...remaining } = state.properties;
-              state.properties = remaining;
+              delete state.properties[id];
             });
           },
           removeByPrefix(id: string, prefix: string) {
             set((state) => {
-              const bag = state.properties[id];
+              const bag = getOwn(state.properties, id);
               if (!bag) return;
               let changed = false;
-              const next = { ...bag };
-              for (const key of Object.keys(next)) {
+              for (const key of Object.keys(bag)) {
                 if (key.startsWith(prefix)) {
-                  delete next[key];
+                  delete bag[key];
                   changed = true;
                 }
               }
-              if (changed) {
-                if (Object.keys(next).length === 0) {
-                  const { [id]: _, ...remaining } = state.properties;
-                  state.properties = remaining;
-                } else {
-                  state.properties[id] = next;
-                }
+              if (changed && Object.keys(bag).length === 0) {
+                delete state.properties[id];
               }
             });
           },
@@ -840,17 +834,20 @@ const ApiContext = createContext<ScoutApiV2 | null>(null);
 export const StoreProvider = StoreContext.Provider;
 export const ApiProvider = ApiContext.Provider;
 
-export const useStore = <T>(selector?: (state: StoreState) => T) => {
-  const store = useContext(StoreContext);
-  if (!store) throw new Error("useStore must be used within StoreProvider");
+const selectWholeState = (state: StoreState) => state;
 
-  // If no selector is provided, return the whole state
-  if (!selector) {
-    return store((state) => state) as T;
-  }
+export function useStore(): StoreState;
+export function useStore<T>(selector: (state: StoreState) => T): T;
+export function useStore<T>(selector?: (state: StoreState) => T) {
+  // Named `use*` so React Compiler recognizes the call below as a hook. Under
+  // any other name it treats `store(selector)` as a plain call and memoizes it
+  // away, skipping zustand's useSyncExternalStore on later renders.
+  const useBoundStore = useContext(StoreContext);
+  if (!useBoundStore)
+    throw new Error("useStore must be used within StoreProvider");
 
-  return store(selector);
-};
+  return useBoundStore<T | StoreState>(selector ?? selectWholeState);
+}
 
 export const useApi = (): ScoutApiV2 => {
   const api = useContext(ApiContext);

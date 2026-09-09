@@ -101,11 +101,6 @@
   margin: 0;
 }
 
-.warning {
-  color: var(--vscode-errorForeground);
-  font-size: 13px;
-}
-
 .renameInput {
   width: 100%;
 }
@@ -117,13 +112,6 @@
   gap: 0;
   overflow: hidden;
   padding: 0;
-}
-
-.casesSection {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
 }
 
 .loading {
@@ -141,14 +129,6 @@
   color: var(--vscode-descriptionForeground);
   text-align: center;
   padding: 48px 16px;
-}
-
-.casesPlaceholder {
-  padding: 16px;
-  background: var(--vscode-editor-background);
-  border: 1px solid var(--vscode-panel-border);
-  border-radius: 4px;
-  color: var(--vscode-descriptionForeground);
 }
 
 /* Summary wrapper for responsive hiding */

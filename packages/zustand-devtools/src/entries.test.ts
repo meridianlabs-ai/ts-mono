@@ -29,27 +29,60 @@ describe("isExpandable", () => {
 describe("entriesOf", () => {
   it("returns object entries", () => {
     expect(entriesOf({ a: 1, b: "x" })).toEqual([
-      { key: "a", value: 1 },
-      { key: "b", value: "x" },
+      { id: "a", key: "a", value: 1 },
+      { id: "b", key: "b", value: "x" },
     ]);
   });
 
   it("returns array entries with index keys", () => {
     expect(entriesOf(["x", "y"])).toEqual([
-      { key: "0", value: "x" },
-      { key: "1", value: "y" },
+      { id: "0", key: "0", value: "x" },
+      { id: "1", key: "1", value: "y" },
     ]);
   });
 
   it("returns map entries with stringified keys", () => {
-    expect(entriesOf(new Map([["k", 1]]))).toEqual([{ key: "k", value: 1 }]);
-    expect(entriesOf(new Map([[7, "v"]]))).toEqual([{ key: "7", value: "v" }]);
+    expect(entriesOf(new Map([["k", 1]]))).toEqual([
+      { id: "string:k", key: "k", value: 1 },
+    ]);
+    expect(entriesOf(new Map([[7, "v"]]))).toEqual([
+      { id: "number:7", key: "7", value: "v" },
+    ]);
+  });
+
+  it("gives unique ids to map keys that stringify identically", () => {
+    const entries = entriesOf(
+      new Map<unknown, string>([
+        [1, "num"],
+        ["1", "str"],
+        [{ a: 1 }, "obj1"],
+        [{ b: 2 }, "obj2"],
+      ])
+    );
+    expect(entries.map((e) => e.key)).toEqual([
+      "1",
+      "1",
+      "[object Object]",
+      "[object Object]",
+    ]);
+    expect(new Set(entries.map((e) => e.id)).size).toBe(4);
+  });
+
+  it("keeps map entry ids stable across unrelated insertions", () => {
+    const before = entriesOf(new Map([["k", 1]]))[0];
+    const after = entriesOf(
+      new Map<unknown, number>([
+        [7, 0],
+        ["k", 1],
+      ])
+    )[1];
+    expect(after?.id).toBe(before?.id);
   });
 
   it("returns set entries with index keys", () => {
     expect(entriesOf(new Set(["a", "b"]))).toEqual([
-      { key: "0", value: "a" },
-      { key: "1", value: "b" },
+      { id: "0", key: "0", value: "a" },
+      { id: "1", key: "1", value: "b" },
     ]);
   });
 

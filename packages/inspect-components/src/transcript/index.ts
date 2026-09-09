@@ -7,6 +7,7 @@ export {
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
 } from "./types";
+export { dynamicDefaultExcludeEvents } from "./eventFilter";
 export type {
   EventNodeContext,
   EventNodeSpan,
@@ -156,7 +157,6 @@ export { ScoreEditEventView } from "./ScoreEditEventView";
 export { ScoreEventView } from "./ScoreEventView";
 export { SpanEventView } from "./SpanEventView";
 export { StateEventView } from "./state/StateEventView";
-export { StepEventView } from "./StepEventView";
 export { SubtaskEventView } from "./SubtaskEventView";
 export { ToolEventView } from "./ToolEventView";
 
@@ -176,7 +176,10 @@ export {
 } from "./TranscriptViewNodes";
 
 // Outline components
-export { TranscriptOutline } from "./outline/TranscriptOutline";
+export {
+  TranscriptOutline,
+  kTranscriptOutlineListKey,
+} from "./outline/TranscriptOutline";
 export { buildOutlineNodeList } from "./outline/useOutlineNodes";
 export { OutlineRow, iconForNode, summarizeNode } from "./outline/OutlineRow";
 export {

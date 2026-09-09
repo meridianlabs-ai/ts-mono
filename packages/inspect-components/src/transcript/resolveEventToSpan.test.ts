@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { testInfoEvent } from "@tsmono/inspect-common/testing";
 
 import {
   resolveEventInBranches,
@@ -10,12 +10,7 @@ import { TimelineEvent, TimelineSpan } from "./timeline/core";
 import { computeFlatSwimlaneRows } from "./timeline/swimlaneRows";
 
 const event = (uuid: string): TimelineEvent =>
-  new TimelineEvent({
-    event: "info",
-    uuid,
-    timestamp: "2026-01-01T00:00:00Z",
-    working_start: 0,
-  } as unknown as Event);
+  new TimelineEvent(testInfoEvent({ uuid, timestamp: "2026-01-01T00:00:00Z" }));
 
 const span = (
   id: string,

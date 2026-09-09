@@ -2,10 +2,15 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { SpanBeginEvent } from "@tsmono/inspect-common/types";
+import { isRecord } from "@tsmono/util";
 
 import styles from "./EmptyBranchView.module.css";
 import type { EmptyBranchData } from "./timeline/timelineEventNodes";
 import { EventNode } from "./types";
+
+/** Shallow: the note below renders branchName and terminator. */
+const isEmptyBranchData = (value: unknown): value is EmptyBranchData =>
+  isRecord(value) && typeof value["branchName"] === "string";
 
 interface EmptyBranchViewProps {
   eventNode: EventNode<SpanBeginEvent>;
@@ -16,9 +21,9 @@ export const EmptyBranchView: FC<EmptyBranchViewProps> = ({
   eventNode,
   className,
 }) => {
-  const data = (eventNode.event.metadata as Record<string, unknown> | null)
-    ?.empty_branch as EmptyBranchData | undefined;
-  if (!data) return null;
+  const metadata: unknown = eventNode.event.metadata;
+  const data = isRecord(metadata) ? metadata["empty_branch"] : undefined;
+  if (!isEmptyBranchData(data)) return null;
 
   return (
     <div className={clsx(styles.empty, className)} role="note">

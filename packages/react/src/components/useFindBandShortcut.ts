@@ -23,6 +23,7 @@ export function useFindBandShortcut(
 ): void {
   const { onClose, isOpen = false, enabled = true } = options ?? {};
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!enabled) return;
 

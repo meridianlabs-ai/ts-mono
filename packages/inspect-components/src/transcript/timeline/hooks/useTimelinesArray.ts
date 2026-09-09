@@ -214,17 +214,17 @@ function buildOrphanContent(
 }
 
 /**
- * Merge orphaned events into a host timeline's root, preserving time order.
+ * Keep orphaned events visible without distorting server-authored timelines.
  *
  * When server-provided timelines don't reference every event (e.g. scorer
- * events), the unreferenced events are collected, wrapped in their minimal
- * parent span tree, and inserted into the host timeline's root content in
- * chronological order. The host is the first timeline whose root is not a
- * branch tree, falling back to the first timeline.
+ * events), a single timeline receives the orphan set in chronological order.
+ * With multiple timelines, the full built timeline is appended as an Overall
+ * view so no authored timeline receives another timeline's events.
  */
 function attachOrphanedEvents(
   timelines: Timeline[],
-  events: Event[]
+  events: Event[],
+  builtTimeline: Timeline
 ): Timeline[] {
   if (timelines.length === 0 || events.length === 0) return timelines;
 
@@ -248,6 +248,17 @@ function attachOrphanedEvents(
   }
 
   if (orphanEvents.length === 0) return timelines;
+
+  if (timelines.length > 1) {
+    return [
+      ...timelines,
+      {
+        name: "Overall",
+        description: "Full sample transcript",
+        root: builtTimeline.root,
+      },
+    ];
+  }
 
   // Build span lookup for parent-chain resolution
   const spanLookup = buildSpanLookup(events);
@@ -320,9 +331,9 @@ export function useTimelinesArray(
   const withOrphans = useMemo(
     () =>
       convertedTimelines
-        ? attachOrphanedEvents(convertedTimelines, events)
+        ? attachOrphanedEvents(convertedTimelines, events, builtTimeline)
         : null,
-    [convertedTimelines, events]
+    [convertedTimelines, events, builtTimeline]
   );
   const resolved = useMemo(
     () => withOrphans ?? [builtTimeline],

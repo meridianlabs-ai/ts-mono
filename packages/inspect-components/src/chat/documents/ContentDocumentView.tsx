@@ -73,17 +73,21 @@ const ContentDocumentFrame: FC<ContentDocumentFrameProps> = ({
       )}
     >
       <div className={clsx(styles.documentFrameTitle)}>
-        <i className={clsx(icons.iconForMimeType(document.mime_type || ""))} />
+        <i
+          className={clsx(icons.iconForMimeType(document.mime_type || ""))}
+          aria-hidden="true"
+        />
         <div>
           {onDownloadFile ? (
-            <a
+            <button
+              type="button"
               className={clsx(styles.downloadLink)}
               onClick={() => {
                 onDownloadFile(document.filename, document.document);
               }}
             >
               {document.filename}
-            </a>
+            </button>
           ) : (
             document.filename
           )}

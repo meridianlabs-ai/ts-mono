@@ -1,0 +1,4 @@
+.downloadButton {
+  margin-top: 3em;
+  font-size: var(--inspect-font-size-small);
+}

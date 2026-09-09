@@ -8,7 +8,7 @@ import {
 } from "@tsmono/react/hooks";
 import { basename, dirname, prettyDirUri } from "@tsmono/util";
 
-import styles from "./Breadcrumbs.module.css";
+import styles from "./BreadCrumbs.module.css";
 
 const kPathSeparator = "/";
 

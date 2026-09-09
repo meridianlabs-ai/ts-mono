@@ -1,0 +1,191 @@
+.cell {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.effectiveValue {
+  font-weight: 600;
+}
+
+.clearedValue {
+  font-weight: 400;
+}
+
+.noneValue {
+  font-style: italic;
+}
+
+.priorValue {
+  color: var(--bs-secondary-color);
+  font-size: 0.75rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid #d9cfe8;
+  background: #f7f3fc;
+  color: #4a2e73;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.68rem;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.chipCleared {
+  border-color: #d3d9df;
+  background: #f6f7f8;
+  color: var(--bs-secondary-color);
+}
+
+.diamond {
+  width: 6px;
+  height: 6px;
+  background: #8f6fd0;
+  border: 1px solid #5d3f9e;
+  transform: rotate(45deg);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.popover {
+  width: 330px;
+  padding: 0;
+}
+
+.popoverHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-light-bg-subtle);
+  font-size: 0.75rem;
+  border-radius: 4px 4px 0 0;
+}
+
+.popoverHeader .diamond {
+  width: 7px;
+  height: 7px;
+}
+
+.popoverKnob {
+  font-family: var(--bs-font-monospace);
+}
+
+.popoverHeaderNote {
+  color: var(--bs-secondary-color);
+}
+
+.popoverBody {
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+}
+
+.popoverTransition {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.popoverTransition .from {
+  color: var(--bs-secondary-color);
+}
+
+.popoverTransition .to {
+  font-weight: 600;
+}
+
+.popoverGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1em;
+  row-gap: 0.2rem;
+}
+
+.popoverGrid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.popoverLabel {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+}
+
+.scopePill {
+  display: inline-flex;
+  border: 1px solid #d3d9df;
+  color: var(--bs-secondary-color);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.timelineLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--bs-secondary-color);
+  text-decoration: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.timelineLink:hover {
+  color: var(--bs-body-color);
+}
+
+.timelineLink i {
+  font-size: 0.8rem;
+}
+
+.changeList {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.changeList .from {
+  color: var(--bs-secondary-color);
+}
+
+.changeList .to {
+  font-weight: 600;
+}
+
+:global([data-bs-theme="dark"]) .chip {
+  border-color: #4a3d63;
+  background: #2a2333;
+  color: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .chipCleared {
+  border-color: #464c52;
+  background: #24272a;
+  color: var(--bs-secondary-color);
+}
+
+:global([data-bs-theme="dark"]) .diamond {
+  background: #8f6fd0;
+  border-color: #b49ae0;
+}
+
+:global([data-bs-theme="dark"]) .scopePill {
+  border-color: #464c52;
+}

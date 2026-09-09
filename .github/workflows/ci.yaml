@@ -39,6 +39,29 @@ jobs:
       - name: Check linting
         run: pnpm lint
 
+  # Enforcement only: it runs fine with the read-only token fork PRs get.
+  # The PR delta comment is posted by suppressions-comment.yml
+  # (pull_request_target), which needs a write token — keep the two
+  # concerns in their separate workflows.
+  suppressions:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      # Dep-free by design: no pnpm install needed.
+      - name: Check suppressions ledger
+        run: node scripts/check-suppressions.mjs
+
+      - name: Test the gate scripts
+        run: node --test scripts/check-suppressions.test.mjs scripts/suppressions-pr-delta.test.mjs scripts/dependabot-fix-continuation.test.mjs
+
   typecheck:
     runs-on: ubuntu-latest
     steps:
@@ -187,8 +210,8 @@ jobs:
   e2e:
     needs: changes
     if: needs.changes.outputs.e2e-apps != '[]'
-    continue-on-error: true  # TODO: remove once e2e tests prove stable
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -227,6 +250,9 @@ jobs:
         run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install-deps chromium
 
       - name: Run e2e tests
+        # A step timeout SIGINTs Playwright so it finalizes the report and the
+        # upload step still runs; the job-level timeout is the backstop.
+        timeout-minutes: 15
         run: pnpm --filter ./apps/${{ matrix.app }} e2e
 
       - name: Upload test results

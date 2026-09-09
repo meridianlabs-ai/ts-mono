@@ -11,7 +11,7 @@ import { AgGridReact } from "ag-grid-react";
 import { ColumnTable } from "arquero";
 import { FC, useCallback, useEffect, useMemo, useRef } from "react";
 
-import { centerTruncate } from "@tsmono/util";
+import { centerTruncate, isRecord } from "@tsmono/util";
 
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
@@ -68,7 +68,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             if (!col) {
               return undefined;
             }
-            const sampleValue = col?.at(0) as unknown;
+            const sampleValue = col.at(0) as unknown;
 
             // Create value formatter based on truncation options and data type
             const valueFormatter = options
@@ -96,7 +96,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
               maxWidth: 800,
               cellDataType:
                 typeof sampleValue === "boolean" ? false : undefined,
-              hide: !columnNames?.includes(name) || false,
+              hide: !columnNames.includes(name) || false,
               valueFormatter,
               wrapText: wrapText,
               autoHeight: wrapText,
@@ -112,7 +112,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
             headerName: "",
             valueGetter: (params) => {
               return params.node?.rowIndex !== undefined &&
-                params.node?.rowIndex !== null
+                params.node.rowIndex !== null
                 ? params.node.rowIndex + 1
                 : "";
             },
@@ -131,10 +131,13 @@ export const DataframeView: FC<DataframeViewProps> = ({
             },
             onCellClicked: (params) => {
               if (params.data && onRowDoubleClicked) {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
                 if (params.rowIndex !== null && params.rowIndex !== undefined) {
                   setSelectedDataframeRow(params.rowIndex);
                 }
-                onRowDoubleClicked(params.data as object);
+                if (isRecord(params.data)) {
+                  onRowDoubleClicked(params.data);
+                }
               }
             },
           },
@@ -159,9 +162,11 @@ export const DataframeView: FC<DataframeViewProps> = ({
   const gridRef = useRef<AgGridReact>(null);
 
   // Clear filters when filter state is removed
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (gridRef.current?.api && gridState && !gridState.filter) {
       const currentFilterModel = gridRef.current.api.getFilterModel();
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       if (currentFilterModel && Object.keys(currentFilterModel).length > 0) {
         gridRef.current.api.setFilterModel(null);
       }
@@ -169,6 +174,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
   }, [gridState]);
 
   // Select row when store changes
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (gridRef.current?.api && selectedDataframeRow >= 0) {
       gridRef.current.api.forEachNode((node) => {
@@ -201,13 +207,14 @@ export const DataframeView: FC<DataframeViewProps> = ({
     ) {
       const selectedNode =
         gridRef.current.api.getDisplayedRowAtIndex(selectedDataframeRow);
-      if (selectedNode?.data) {
-        onRowDoubleClicked(selectedNode.data as object);
+      if (isRecord(selectedNode?.data)) {
+        onRowDoubleClicked(selectedNode.data);
       }
     }
   }, [selectedDataframeRow, onRowDoubleClicked]);
 
   // Global keyboard navigation
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!enableKeyboardNavigation) {
       return;
@@ -289,6 +296,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
   );
 
   // Clean up the grid API when unmounting
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       setDataframeGridApi(null);

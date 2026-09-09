@@ -1,25 +1,26 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
+import { ChunkByteStore, SequenceReader } from "./chunked";
 import { useMessagesExport } from "./messagesExport";
 import { type EvalSampleData } from "./sampleData";
 import {
-  testHandle as handle,
   testMessages as makeMessages,
   makeWrapper,
-  sequenceReaderOver,
   settledData,
   testChunkedSample,
 } from "./testFixtures";
 
+const encoder = new TextEncoder();
+
 describe("useMessagesExport", () => {
   it("exports a settled monolith conversation", async () => {
     const sampleData = settledData(makeMessages(3));
-    const { result } = renderHook(() => useMessagesExport(handle, sampleData), {
+    const { result } = renderHook(() => useMessagesExport(sampleData), {
       wrapper: makeWrapper(),
     });
 
-    const text = await result.current!();
+    const text = (await result.current!()).join("");
     expect(text).toContain("message 0");
     expect(text).toContain("message 2");
   });
@@ -33,16 +34,27 @@ describe("useMessagesExport", () => {
       eventsCleared: false,
       backfilling: false,
     };
-    const { result } = renderHook(() => useMessagesExport(handle, sampleData), {
+    const { result } = renderHook(() => useMessagesExport(sampleData), {
       wrapper: makeWrapper(),
     });
 
     expect(result.current).toBeUndefined();
   });
 
-  it("hydrates a chunked conversation on demand, once", async () => {
-    const reader = sequenceReaderOver(makeMessages(4));
-    const getRange = vi.spyOn(reader, "getRange");
+  it("streams a chunked conversation without re-fetching chunk bytes", async () => {
+    const messages = makeMessages(4);
+    let byteReads = 0;
+    const reader = new SequenceReader<(typeof messages)[number]>(
+      new ChunkByteStore({
+        readFile: () => {
+          byteReads++;
+          return Promise.resolve(encoder.encode(JSON.stringify(messages)));
+        },
+      }),
+      (start) => `chunk/${start}.json`,
+      [0],
+      messages.length
+    );
     const chunked = testChunkedSample(reader);
     const sampleData: EvalSampleData = {
       sample: undefined,
@@ -53,17 +65,17 @@ describe("useMessagesExport", () => {
       backfilling: false,
       chunked,
     };
-    const { result } = renderHook(() => useMessagesExport(handle, sampleData), {
+    const { result } = renderHook(() => useMessagesExport(sampleData), {
       wrapper: makeWrapper(),
     });
 
     // export works without the Messages tab ever having been opened
-    const text = await result.current!();
+    const text = (await result.current!()).join("");
     expect(text).toContain("message 0");
     expect(text).toContain("message 3");
 
-    // a second export reuses the resident hydration
+    // a second export reads through the shared chunk caches
     await result.current!();
-    expect(getRange).toHaveBeenCalledTimes(1);
+    expect(byteReads).toBe(1);
   });
 });

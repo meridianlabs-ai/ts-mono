@@ -1,7 +1,7 @@
 import { compileExpression } from "filtrex";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString } from "@tsmono/util";
+import { arrayToString, isRecord } from "@tsmono/util";
 
 import { EvalSampleScore } from "../../../@types/extraInspect";
 import { FilterError, ScoreLabel } from "../../../app/types";
@@ -19,13 +19,17 @@ export interface SampleFilterItem {
   canonicalName: string;
   tooltip?: string;
   categories: string[];
-  scoreType: string;
+  // undefined when no samples carry the score (descriptor lookup misses)
+  scoreType: string | undefined;
 }
 
 /**
  * Coerces a value to the type expected by the score.
  */
-const coerceValue = (value: unknown, descriptor: ScoreDescriptor): unknown => {
+const coerceValue = (
+  value: unknown,
+  descriptor: ScoreDescriptor | undefined
+): unknown => {
   if (descriptor && descriptor.scoreType === kScoreTypeBoolean) {
     return Boolean(value);
   } else {
@@ -147,7 +151,10 @@ const getNestedPropertyValue = (obj: unknown, path: string): unknown => {
   let current: unknown = obj;
   for (const key of keys) {
     if (current && typeof current === "object" && key in current) {
-      current = (current as Record<string, unknown>)[key];
+      // Arrays step too (`list.length`, `list.0`), so plain record access
+      // is not enough; Reflect.get reads any object member by string key.
+      const member: unknown = Reflect.get(current, key);
+      current = member;
     } else {
       return undefined;
     }
@@ -163,13 +170,13 @@ export const sampleVariables = (
     epoch: sample.epoch,
     has_error: !!sample.error,
     has_limit: !!sample.limit,
-    has_retries: sample.retries !== undefined && sample.retries > 0,
+    has_retries: (sample.retries ?? 0) > 0,
     has_fallbacks: totalModelFallbacks(sample.model_fallbacks) > 0,
-    completed: sample.completed ?? true,
+    completed: sample.completed,
     id: sample.id,
     uuid: sample.uuid ?? null,
     input: inputString(sample.input).join(" "),
-    target: arrayToString(sample.target ?? ""),
+    target: arrayToString(sample.target),
     answer:
       samplesDescriptor?.selectedScorerDescriptor(sample)?.answer() ?? null,
     error: sample.error ?? null,
@@ -207,12 +214,6 @@ export const sampleFilterItems = (
     }
     const descriptor = evalDescriptor.scoreDescriptor(scoreLabel);
 
-    // This is not a filterable score
-    if (descriptor.filterable === false) {
-      return;
-    }
-
-    const scoreType = descriptor?.scoreType;
     if (!descriptor) {
       items.push({
         shortName,
@@ -220,10 +221,17 @@ export const sampleFilterItems = (
         canonicalName,
         tooltip: undefined,
         categories: [],
-        scoreType,
+        scoreType: undefined,
       });
       return;
     }
+
+    // This is not a filterable score
+    if (descriptor.filterable === false) {
+      return;
+    }
+
+    const scoreType = descriptor.scoreType;
     let tooltip = `${canonicalName}: ${descriptor.scoreType}`;
     let categories: string[] = [];
     if (descriptor.min !== undefined || descriptor.max !== undefined) {
@@ -235,7 +243,7 @@ export const sampleFilterItems = (
     }
     if (descriptor.categories) {
       categories = descriptor.categories.map((cat) => {
-        const val = (cat as Record<string, unknown>).val;
+        const val = isRecord(cat) ? cat["val"] : cat;
         return valueToString(val);
       });
       tooltip += `\ncategories: ${categories.join(" ")}`;
@@ -318,8 +326,7 @@ export const filterExpression = (
       // Handle metadata property access
       if (name.startsWith(kSampleMetadataPrefix)) {
         const propertyPath = name.substring(kSampleMetadataPrefix.length);
-        const metadata = sample.metadata || {};
-        return getNestedPropertyValue(metadata, propertyPath);
+        return getNestedPropertyValue(sample.metadata, propertyPath);
       }
       // Score variables exist only if the sample completed successfully.
       return sample.error ? undefined : get(name);
@@ -341,8 +348,15 @@ export const filterExpression = (
     }
   } catch (error) {
     if (error instanceof ReferenceError) {
-      const errorObj = error as unknown as Record<string, unknown>;
-      const propertyName: string = (errorObj["propertyName"] as string) || "";
+      // The expression evaluator attaches `propertyName` to the errors it
+      // raises; a ReferenceError from anywhere else simply won't have one.
+      const raised: unknown = error;
+      const propertyName = isRecord(raised)
+        ? ((): string => {
+            const name = raised["propertyName"];
+            return typeof name === "string" ? name : "";
+          })()
+        : "";
       if (propertyName) {
         // Don't show errors for metadata properties - they might not exist in all samples
         if (propertyName.startsWith(kSampleMetadataPrefix)) {

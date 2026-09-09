@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { LogFilesResponse, LogHandle } from "@tsmono/inspect-common";
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import {
   ClientAPI,
@@ -16,21 +17,29 @@ import { WorkResult } from "../utils/workQueue";
 
 import { FetchEngine, FetchEngineDeps, LogsContentSink } from "./fetchEngine";
 import { syncListing } from "./listingSync";
+import {
+  testClientAPI,
+  testDatabaseService,
+  testLogDetails,
+} from "./testFixtures";
 
 // --- fakes (no jsdom, no react-query) ---
 
 const makeDetails = (
   name: string,
   status: "success" | "started" | "error" = "success",
-  extra: Record<string, unknown> = {}
+  extra: Partial<LogDetails> = {}
 ): LogDetails =>
-  ({
-    version: 2,
+  testLogDetails({
     status,
-    eval: { eval_id: name, run_id: `run-${name}`, task: "task", model: "m" },
-    sampleSummaries: [],
+    eval: testEvalSpec({
+      eval_id: name,
+      run_id: `run-${name}`,
+      task: "task",
+      model: "m",
+    }),
     ...extra,
-  }) as unknown as LogDetails;
+  });
 
 // The stored/cached form of the same fixture (what a db row's header holds).
 const makeHeader = (
@@ -42,8 +51,15 @@ const makeHeader = (
 const makePreview = (
   name: string,
   status: "success" | "started" = "success"
-): LogPreview =>
-  ({ eval_id: name, run_id: `run-${name}`, status }) as unknown as LogPreview;
+): LogPreview => ({
+  eval_id: name,
+  run_id: `run-${name}`,
+  task: "task",
+  task_id: "task_1",
+  task_version: 0,
+  model: "m",
+  status,
+});
 
 const handle = (name: string, mtime?: number): LogHandle =>
   mtime === undefined ? { name } : { name, mtime };
@@ -164,18 +180,27 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
   // Releasing a gate lets the worker claim the next item, which opens a new
   // gate asynchronously after the queue's inter-batch delay — so drain on a
   // fixed schedule rather than stopping the moment gates look empty (a gate
-  // can still be a beat away from appearing).
-  const releaseAll = async () => {
-    for (let i = 0; i < 100; i++) {
+  // can still be a beat away from appearing). Synchronous fire-and-forget:
+  // tests await the conditions they care about, not the drain.
+  const releaseAll = () => {
+    const drain = () => {
       while (gates.length > 0) {
         gates.shift()?.resolve();
       }
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
+    };
+    drain();
+    let remaining = 100;
+    const timer = setInterval(() => {
+      drain();
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(timer);
+      }
+    }, 5);
   };
 
   return {
-    api: api as unknown as ClientAPI,
+    api: testClientAPI(api),
     detailCalls,
     summaryCalls,
     callOrder,
@@ -192,7 +217,7 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
     initialRows.map((row) => [row.name, { ...row }])
   );
 
-  const fake = {
+  return testDatabaseService({
     opened: () => true,
     readLogs: () =>
       Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
@@ -238,10 +263,8 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
         logSummaries: 0,
         logHeaders: 0,
         sampleSummaries: 0,
-        logHandle: null,
       }),
-  };
-  return fake as unknown as DatabaseService;
+  });
 };
 
 // `db`, when provided, is a realism relay — mirrors how the real sink
@@ -260,7 +283,10 @@ const createFakeSink = (db?: DatabaseService) => {
     writeFetchStates: [] as Record<string, LogFetchState>[],
     // Accumulated view of the latest fetch-state per file, as observed
     // through either merge or write calls — stands in for the cache mirror.
-    fetchStates: {} as Record<string, LogFetchState>,
+    fetchStates: {} satisfies Record<string, LogFetchState> as Record<
+      string,
+      LogFetchState
+    >,
     resetDepth: [] as string[][],
     clearFile: [] as string[],
     clearAll: 0,
@@ -370,7 +396,6 @@ describe("FetchEngine.ensure (detailed)", () => {
       priority: "user",
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
 
     await Promise.all([first, second]);
@@ -465,7 +490,6 @@ describe("FetchEngine.ensure (detailed)", () => {
       depth: "detailed",
       priority: "user",
     });
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await Promise.all([blocker, background, user]);
 
@@ -502,7 +526,6 @@ describe("FetchEngine.ensure (detailed)", () => {
       priority: "user",
     });
     expect(cAgain).toBe(c);
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await Promise.all([blocker, c, d]);
 
@@ -532,6 +555,39 @@ describe("FetchEngine.start", () => {
     expect(sinkCalls.writeDetails).toEqual([]);
     // All rows had zero attempts/errors/seq, so no fetch-state reset write.
     expect(sinkCalls.writeFetchStates).toEqual([]);
+  });
+
+  it("a start superseded while its readLogs settles never seeds the new session", async () => {
+    // start() suspends on the database read; a stop()/start() (dir switch)
+    // landing in that window must win regardless of which continuation lands
+    // last — the superseded start bails instead of seeding the new session
+    // with the old dir's rows.
+    const rowsA = deferred<Log[]>();
+    const dbA = testDatabaseService({ readLogs: () => rowsA.promise });
+    const rowB = previewedRow(handle("b.eval", 1));
+    const engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    const sinkA = createFakeSink();
+    const sinkB = createFakeSink();
+    const { api } = createFakeApi();
+
+    const startA = engine.start({
+      api,
+      database: dbA,
+      sink: sinkA.sink,
+      logDir: "dirA",
+    });
+    await engine.start({
+      api,
+      database: createFakeDb([rowB]),
+      sink: sinkB.sink,
+      logDir: "dirB",
+    });
+    rowsA.resolve([previewedRow(handle("a.eval", 1))]);
+    await startA;
+
+    expect(sinkA.calls.seedRows).toEqual([]);
+    expect(sinkB.calls.seedRows).toEqual([[rowB]]);
+    expect(engine.listing()).toEqual([rowB]);
   });
 });
 
@@ -649,7 +705,6 @@ describe("FetchEngine.applyListing", () => {
       persistListing: true,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
 
     // The re-enqueued invalidation fetch must be fresh — the older attempt's
@@ -703,7 +758,6 @@ describe("FetchEngine.applyListing", () => {
     });
 
     await expect(doomed).rejects.toThrow("Log file deleted: doomed.eval");
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await blocker;
     expect(fake.detailCalls.map((call) => call.file)).toEqual(["blocker.eval"]);
@@ -801,13 +855,11 @@ describe("FetchEngine.applyListing", () => {
     // Enqueued AFTER the details backfill: both are Medium, ties break by
     // insertion order, so the details fetch claims first and the coalesce
     // has this still-queued preview to remove.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("a.eval", {
+    await engine.ensure("a.eval", {
       depth: "previewed",
       priority: "background",
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await blocker;
 
@@ -970,8 +1022,7 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("backfill.eval", {
+    await engine.ensure("backfill.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -980,7 +1031,6 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       priority: "user",
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await Promise.all([blocker, user]);
     await vi.waitFor(() => expect(fake.summaryCalls.length).toBeGreaterThan(0));
@@ -1040,8 +1090,7 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("a.eval", {
+    await engine.ensure("a.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1050,7 +1099,6 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       priority: "user",
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await Promise.all([blocker, details]);
     await tick();
@@ -1078,10 +1126,8 @@ describe("FetchEngine unified queue (previews + details share one queue)", () =>
       deleted: [],
       persistListing: true,
     });
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("a.eval", { depth: "previewed", priority: "user" });
+    await engine.ensure("a.eval", { depth: "previewed", priority: "user" });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await blocker;
     await vi.waitFor(() => expect(fake.summaryCalls.length).toBeGreaterThan(0));
@@ -1105,7 +1151,6 @@ describe("FetchEngine status", () => {
       priority: "user",
     });
     await vi.waitFor(() => expect(engine.getStatus().syncing).toBe(true));
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await fetching;
     await tick();
@@ -1135,7 +1180,6 @@ describe("FetchEngine.stop", () => {
     });
 
     engine.stop();
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
 
     await expect(blocker).rejects.toThrow("Fetch engine stopped");
@@ -1153,8 +1197,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     const fake = createFakeApi({ failSummaryFor: ["bad.eval"] });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("bad.eval", {
+    await engine.ensure("bad.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1177,8 +1220,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
     const { engine, sinkCalls } = await createEngine({ api: fake.api });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("flaky.eval", {
+    await engine.ensure("flaky.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1187,8 +1229,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
 
     failing = false;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("flaky.eval", {
+    await engine.ensure("flaky.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1230,8 +1271,7 @@ describe("FetchEngine fetch-state (retrieval errors)", () => {
     });
 
     for (let i = 0; i < 5; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      engine.ensure("bad.eval", {
+      await engine.ensure("bad.eval", {
         depth: "previewed",
         priority: "background",
       });
@@ -1461,7 +1501,6 @@ describe("FetchEngine passive vs active demand (F2)", () => {
       depth: "detailed",
       priority: "user",
     });
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
 
     await Promise.all([passive, active]);
@@ -1523,8 +1562,7 @@ describe("FetchEngine clears stale preview fetch-state on details success (F4)",
     });
 
     for (let i = 0; i < 5; i++) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      engine.ensure("bad.eval", {
+      await engine.ensure("bad.eval", {
         depth: "previewed",
         priority: "background",
       });
@@ -1588,7 +1626,14 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
     await expect(inFlight).rejects.toThrow("Fetch engine stopped");
 
     // The old batch's network call finally resolves, well after the switch.
-    await fakeA.releaseAll();
+    fakeA.releaseAll();
+    await vi.waitFor(() =>
+      expect(fakeA.api.get_log_details).toHaveResolvedTimes(1)
+    );
+    // Let the engine's post-settle continuations (which must all be
+    // generation-discarded) run before asserting nothing landed.
+    await tick();
+    await tick();
 
     expect(callsB.fetchStates["a.eval"]).toBeUndefined();
     expect(callsB.writeDetails.some((batch) => "a.eval" in batch)).toBe(false);
@@ -1602,12 +1647,13 @@ describe("FetchEngine generation drops post-restart in-flight settles (F5)", () 
 // dropped: a pre-change read settling first committed its stale snapshot AND
 // discarded the fresh read's data.
 describe("FetchEngine generation-stamped details ingest (F8)", () => {
-  it("a stale overlapping read settling before the fresh one does not win", async () => {
+  // Arrange the shared race setup: a gated backfill read of x.eval in
+  // flight on slot 1. Read 1 (opened pre-change) sees the running
+  // snapshot; read 2 (however it is opened) sees the finished run.
+  const setupStaleRead = async () => {
     const target = handle("x.eval", 1);
     const fake = createFakeApi({
       gated: true,
-      // Read 1 (the backfill, opened pre-change) sees the running snapshot;
-      // read 2 (the invalidation's fresh re-read) sees the finished run.
       detailsFor: (file, nthCall) =>
         makeDetails(file, nthCall === 1 ? "started" : "success"),
     });
@@ -1624,9 +1670,13 @@ describe("FetchEngine generation-stamped details ingest (F8)", () => {
       persistListing: true,
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    return { engine, fake, sinkCalls };
+  };
+  type F8Ctx = Awaited<ReturnType<typeof setupStaleRead>>;
 
-    // The file changes on the server while that read is in flight — the
-    // invalidation enqueues a fresh re-read, claimed on the second slot.
+  // The file changes on the server while the stale read is in flight — the
+  // invalidation enqueues a fresh re-read, claimed on the second slot.
+  const invalidateWithFreshRead = async ({ engine, fake }: F8Ctx) => {
     await engine.applyListing({
       listing: [handle("x.eval", 2)],
       invalidated: ["x.eval"],
@@ -1634,109 +1684,73 @@ describe("FetchEngine generation-stamped details ingest (F8)", () => {
       persistListing: true,
     });
     await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+  };
+
+  const writtenDetails = ({ sinkCalls }: F8Ctx) =>
+    sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
+      (acc, batch) => ({ ...acc, ...batch }),
+      {}
+    );
+
+  it("a stale overlapping read settling before the fresh one does not win", async () => {
+    const ctx = await setupStaleRead();
+    await invalidateWithFreshRead(ctx);
 
     // The stale read settles FIRST, then the fresh one.
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
     await tick();
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
 
     // The fresh read's data must be what ends up written — not the stale
     // snapshot, and not nothing (the fresh settle must not be dropped).
     await vi.waitFor(() => {
-      const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
-        (acc, batch) => ({ ...acc, ...batch }),
-        {}
+      expect(writtenDetails(ctx)["x.eval"]).toEqual(
+        makeDetails("x.eval", "success")
       );
-      expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
     });
   });
 
   it("a stale overlapping read settling after the fresh one does not overwrite it", async () => {
-    const target = handle("x.eval", 1);
-    const fake = createFakeApi({
-      gated: true,
-      detailsFor: (file, nthCall) =>
-        makeDetails(file, nthCall === 1 ? "started" : "success"),
-    });
-    const { engine, sinkCalls } = await createEngine(
-      { api: fake.api, database: createFakeDb([listedRow(target)]) },
-      { concurrency: 2 }
-    );
-
-    await engine.applyListing({
-      listing: [target],
-      invalidated: [],
-      deleted: [],
-      persistListing: true,
-    });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
-    await engine.applyListing({
-      listing: [handle("x.eval", 2)],
-      invalidated: ["x.eval"],
-      deleted: [],
-      persistListing: true,
-    });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    const ctx = await setupStaleRead();
+    await invalidateWithFreshRead(ctx);
 
     // The fresh read settles FIRST this time; the stale one trails.
-    const staleGate = fake.gates.shift();
-    fake.gates.shift()?.resolve();
+    const staleGate = ctx.fake.gates.shift();
+    ctx.fake.gates.shift()?.resolve();
     await vi.waitFor(() => {
-      expect(sinkCalls.writeDetails.some((batch) => "x.eval" in batch)).toBe(
-        true
-      );
+      expect(
+        ctx.sinkCalls.writeDetails.some((batch) => "x.eval" in batch)
+      ).toBe(true);
     });
     staleGate?.resolve();
     await tick();
     await tick();
 
-    const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
-      (acc, batch) => ({ ...acc, ...batch }),
-      {}
+    expect(writtenDetails(ctx)["x.eval"]).toEqual(
+      makeDetails("x.eval", "success")
     );
-    expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
   });
 
   it("a waitered fetch overlapped by an in-flight stale read resolves with the fresh read's data", async () => {
-    const target = handle("x.eval", 1);
-    const fake = createFakeApi({
-      gated: true,
-      detailsFor: (file, nthCall) =>
-        makeDetails(file, nthCall === 1 ? "started" : "success"),
-    });
-    const { engine, sinkCalls } = await createEngine(
-      { api: fake.api, database: createFakeDb([listedRow(target)]) },
-      { concurrency: 2 }
-    );
-
-    // Background backfill read, gated in flight.
-    await engine.applyListing({
-      listing: [target],
-      invalidated: [],
-      deleted: [],
-      persistListing: true,
-    });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(1));
+    const ctx = await setupStaleRead();
 
     // A user opens the log: a second read on the second slot, waitered.
-    const waited = engine.ensure("x.eval", {
+    const waited = ctx.engine.ensure("x.eval", {
       depth: "detailed",
       priority: "user",
     });
-    await vi.waitFor(() => expect(fake.detailCalls.length).toBe(2));
+    await vi.waitFor(() => expect(ctx.fake.detailCalls.length).toBe(2));
 
     // The stale backfill read settles first — it must neither resolve the
     // waiter with its snapshot nor strand it; the fresh read settles it.
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
     await tick();
-    fake.gates.shift()?.resolve();
+    ctx.fake.gates.shift()?.resolve();
     await waited;
 
-    const written = sinkCalls.writeDetails.reduce<Record<string, LogDetails>>(
-      (acc, batch) => ({ ...acc, ...batch }),
-      {}
+    expect(writtenDetails(ctx)["x.eval"]).toEqual(
+      makeDetails("x.eval", "success")
     );
-    expect(written["x.eval"]).toEqual(makeDetails("x.eval", "success"));
   });
 });
 
@@ -1827,16 +1841,14 @@ describe("FetchEngine batched flush trailing coalesce (F7)", () => {
     });
 
     // a.eval's preview settles → its flush starts and blocks on the gate.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("a.eval", {
+    await engine.ensure("a.eval", {
       depth: "previewed",
       priority: "background",
     });
     await vi.waitFor(() => expect(firstWrite).toBe(false));
 
     // b.eval's preview settles while that flush is in flight.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    engine.ensure("b.eval", {
+    await engine.ensure("b.eval", {
       depth: "previewed",
       priority: "background",
     });
@@ -1877,7 +1889,6 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
       fresh: true,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     fake.releaseAll();
     await Promise.all([first, second]);
 

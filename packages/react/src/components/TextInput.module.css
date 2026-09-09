@@ -31,6 +31,11 @@
 }
 
 .clearText {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
   opacity: 0.6;
   margin-right: 0.3em;
 }

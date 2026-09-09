@@ -4,9 +4,17 @@
 
 import { ColumnSizingState } from "@tanstack/react-table";
 
+import { isRecord } from "@tsmono/util";
+
 import { valueAsString } from "../../utils/format";
 
-import { clampSize, DEFAULT_SIZE, getColumnId, SizingStrategy } from "./types";
+import {
+  clampSize,
+  columnAccessorKey,
+  DEFAULT_SIZE,
+  getColumnId,
+  SizingStrategy,
+} from "./types";
 
 /**
  * Measure text width using a temporary span element.
@@ -110,7 +118,7 @@ export const fitContentStrategy: SizingStrategy = {
 
       for (const column of columns) {
         const id = getColumnId(column);
-        const accessorKey = (column as { accessorKey?: string }).accessorKey;
+        const accessorKey = columnAccessorKey(column);
         if (!id || !accessorKey) continue;
 
         const headerText = String(column.header || "");
@@ -133,7 +141,7 @@ export const fitContentStrategy: SizingStrategy = {
         for (let i = 0; i < sampleSize; i++) {
           const row = data[i];
           if (!row) continue;
-          const value = (row as Record<string, unknown>)[accessorKey];
+          const value = isRecord(row) ? row[accessorKey] : undefined;
           const textContent = getTextValue(value);
 
           // If textValue returns null, skip content measurement entirely

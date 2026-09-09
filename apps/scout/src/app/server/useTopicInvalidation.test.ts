@@ -68,6 +68,21 @@ describe("useTopicInvalidation", () => {
     });
   });
 
+  it("becomes ready on a frame with only unrecognized topics (version skew)", async () => {
+    const clientReady = installSSEHandler();
+
+    const { result } = renderHook(() => useTopicInvalidation(), {
+      wrapper: createTestWrapper(),
+    });
+
+    const client = await clientReady;
+    client.send({ data: JSON.stringify({ "future-topic": "t1" }) });
+
+    await waitFor(() => {
+      expect(result.current).toBe(true);
+    });
+  });
+
   it("invalidates queries with matching topic key", async () => {
     const clientReady = installSSEHandler();
     const wrapper = createTestWrapper();

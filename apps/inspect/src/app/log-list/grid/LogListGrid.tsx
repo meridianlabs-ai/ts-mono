@@ -301,9 +301,11 @@ export const LogListGrid: FC<LogListGridProps> = ({
   // navigating away) with the band still open. Ref carries the latest match
   // so the cleanup — which runs long after this render — doesn't act on a
   // stale closure.
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     openBandMatchIdRef.current = showFind ? activeMatchId : undefined;
   }, [showFind, activeMatchId]);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(
     () => () => {
       const id = openBandMatchIdRef.current;

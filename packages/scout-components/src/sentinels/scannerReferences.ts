@@ -1,3 +1,5 @@
+import { isRecord } from "@tsmono/util";
+
 const kScannerReferencesKey = "scanner_references";
 const kScannerContentKey = "scanner_content";
 
@@ -33,8 +35,8 @@ export function readScannerReferences(metadata: Metadata): ScannerRefEntry[] {
   if (!Array.isArray(raw)) return [];
   const entries: ScannerRefEntry[] = [];
   for (const item of raw) {
-    if (!item || typeof item !== "object") continue;
-    const { type, id, cite } = item as Record<string, unknown>;
+    if (!isRecord(item)) continue;
+    const { type, id, cite } = item;
     if (
       (type === "message" || type === "event") &&
       typeof id === "string" &&

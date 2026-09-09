@@ -142,8 +142,9 @@ describe("serializeEntry", () => {
       caught = e;
     }
     expect(caught).toBeInstanceOf(MetadataParseError);
-    expect((caught as MetadataParseError).key).toBe("thingy");
-    expect((caught as MetadataParseError).text).toBe("{a: 1}");
+    if (!(caught instanceof MetadataParseError)) return;
+    expect(caught.key).toBe("thingy");
+    expect(caught.text).toBe("{a: 1}");
   });
 
   // Regression: the most common path into the dialog leaves the type

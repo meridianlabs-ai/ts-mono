@@ -1,14 +1,15 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { createRef, useSyncExternalStore } from "react";
+import { cleanup, render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Event } from "@tsmono/inspect-common/types";
+import { testInfoEvent } from "@tsmono/inspect-common/testing";
 import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   ComponentStateProvider,
   type ComponentStateHooks,
 } from "@tsmono/react/state";
+import { makeReactiveStateHooks } from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
@@ -19,16 +20,16 @@ import { EventNode } from "./types";
 
 afterEach(cleanup);
 
-const node = (id: string, event: string, depth: number): EventNode =>
+const node = (id: string, depth: number): EventNode =>
   new EventNode(
     id,
-    { event, uuid: id, timestamp: "2026-01-01T00:00:00Z" } as unknown as Event,
+    testInfoEvent({ uuid: id, timestamp: "2026-01-01T00:00:00Z" }),
     depth
   );
 
 // A focus slice starting inside an agent span: rows keep their ABSOLUTE
 // transcript depths (2 and 3 here).
-const nestedSlice = [node("m1", "info", 2), node("t1", "info", 3)];
+const nestedSlice = [node("m1", 2), node("t1", 3)];
 
 const stateHooks: ComponentStateHooks = {
   useValue: () => undefined,
@@ -73,72 +74,9 @@ describe("TranscriptVirtualList relativeIndent", () => {
   });
 });
 
-describe("TranscriptVirtualList evidence selection", () => {
-  it("renders accessible checkboxes and reports toggles", () => {
-    const onToggle = vi.fn();
-    render(
-      <ComponentStateProvider hooks={stateHooks}>
-        <TranscriptVirtualList
-          id="export-test"
-          listHandle={createRef<VirtualListHandle | null>()}
-          eventNodes={nestedSlice}
-          disableVirtualization={true}
-          exportSelection={{
-            selectedIds: new Set(["m1"]),
-            onToggle,
-          }}
-        />
-      </ComponentStateProvider>
-    );
-
-    const selected = screen.getByRole("checkbox", {
-      name: "Select info event for export",
-      checked: true,
-    });
-    expect(selected).toBeDefined();
-    fireEvent.click(selected);
-    expect(onToggle).toHaveBeenCalledWith("m1");
-  });
-});
-
-// Reactive Map-backed ComponentStateHooks, mirroring production's
-// zustand-selector adapters: a set re-renders every subscribed component,
-// with stable action references. The finish-scroll behavior under test only
-// reproduces with a store that actually re-renders on setProperty.
-function makeReactiveStateHooks(): ComponentStateHooks {
-  const store = new Map<string, unknown>();
-  const listeners = new Set<() => void>();
-  let version = 0;
-  const subscribe = (cb: () => void) => {
-    listeners.add(cb);
-    return () => {
-      listeners.delete(cb);
-    };
-  };
-  const getKey = (id: string, prop: string) => `${id}::${prop}`;
-  const setValue = (id: string, prop: string, value: unknown) => {
-    const key = getKey(id, prop);
-    if (!store.has(key) || store.get(key) !== value) {
-      store.set(key, value);
-      version++;
-      listeners.forEach((l) => l());
-    }
-  };
-  return {
-    useValue: (id: string, prop: string, defaultValue?: unknown) => {
-      useSyncExternalStore(subscribe, () => version);
-      return store.has(getKey(id, prop))
-        ? store.get(getKey(id, prop))
-        : defaultValue;
-    },
-    useSetValue: () => setValue,
-    useRemoveValue: () => () => {},
-    useEntries: () => undefined,
-    useRemoveAll: () => () => {},
-    useRemoveByPrefix: () => () => {},
-  };
-}
-
+// The finish-scroll behavior under test only reproduces with a store that
+// actually re-renders on setProperty, hence the reactive fake from
+// @tsmono/react/testing.
 describe("TranscriptVirtualList finish scroll-to-top", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -151,7 +89,7 @@ describe("TranscriptVirtualList finish scroll-to-top", () => {
   const mountLive = (scrollToTopOnFinish: boolean | undefined) => {
     const scrollRef = createRef<HTMLDivElement>();
     const hooks = makeReactiveStateHooks();
-    const nodes = [node("e1", "info", 0), node("e2", "info", 0)];
+    const nodes = [node("e1", 0), node("e2", 0)];
     const view = (running: boolean) => (
       <ComponentStateProvider hooks={hooks}>
         <ExtendedFindProvider>
@@ -221,4 +159,35 @@ describe("renderTranscriptFooter", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+});
+
+// Event labels are keyed by the log's event uuid. A uuid that names an
+// Object.prototype member must read as "no label", not as the builtin.
+describe("TranscriptVirtualList event labels", () => {
+  const renderLabeled = (nodes: EventNode[]) =>
+    render(
+      <ComponentStateProvider hooks={stateHooks}>
+        <TranscriptVirtualList
+          id="labels-test"
+          listHandle={createRef<VirtualListHandle | null>()}
+          eventNodes={nodes}
+          disableVirtualization={true}
+          eventNodeContext={{ eventLabels: { labeled: "[E1]" } }}
+        />
+      </ComponentStateProvider>
+    );
+
+  it("shows the label of a cited event", () => {
+    renderLabeled([node("labeled", 0)]);
+    expect(screen.getAllByText("E1")).toHaveLength(1);
+  });
+
+  it.each(["constructor", "__proto__", "toString", "hasOwnProperty"])(
+    "renders an event with uuid %s unlabeled",
+    (uuid) => {
+      const { container } = renderLabeled([node("labeled", 0), node(uuid, 0)]);
+      expect(container.querySelector(`[id="${uuid}"]`)).not.toBeNull();
+      expect(screen.getAllByText("E1")).toHaveLength(1);
+    }
+  );
 });

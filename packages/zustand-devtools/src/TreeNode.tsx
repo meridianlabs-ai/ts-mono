@@ -6,8 +6,19 @@ import {
   kindOf,
   previewOf,
   toClipboardJson,
+  type ValueKind,
 } from "./entries";
-import styles from "./ZustandDevtoolsPanel.module.css";
+import styles from "./TreeNode.module.css";
+
+const kindClass: Record<ValueKind, string> = {
+  string: styles.string,
+  number: styles.number,
+  boolean: styles.boolean,
+  null: styles.null,
+  function: styles.function,
+  collection: styles.collection,
+  other: styles.other,
+};
 
 const CHUNK_SIZE = 100;
 const COPIED_FEEDBACK_MS = 1000;
@@ -32,6 +43,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
     // every change; the ref comparison relies on immer structural sharing.
     const previousValue = useRef(value);
     const [flashKey, setFlashKey] = useState(0);
+    // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
     useEffect(() => {
       if (previousValue.current !== value) {
         previousValue.current = value;
@@ -59,26 +71,26 @@ export const TreeNode: FC<TreeNodeProps> = memo(
           {expandable ? (
             <button
               type="button"
-              className={styles.caret}
+              className={styles.keyToggle}
               onClick={toggle}
-              aria-label={expanded ? `Collapse ${name}` : `Expand ${name}`}
+              aria-expanded={expanded}
             >
-              {expanded ? "▼" : "▶"}
+              <span className={styles.caret} aria-hidden="true">
+                {expanded ? "▼" : "▶"}
+              </span>
+              <span className={styles.key}>{name}:</span>
             </button>
           ) : (
-            <span className={styles.caretSpacer} />
+            <>
+              <span className={styles.caretSpacer} />
+              <span className={styles.key}>{name}:</span>
+            </>
           )}
-          <span
-            className={classes(styles.key, expandable && styles.keyExpandable)}
-            onClick={toggle}
-          >
-            {name}:
-          </span>
           <span
             key={flashKey}
             className={classes(
               styles.value,
-              styles[kindOf(value)],
+              kindClass[kindOf(value)],
               flashKey > 0 && styles.flash
             )}
           >
@@ -97,7 +109,7 @@ export const TreeNode: FC<TreeNodeProps> = memo(
           <div className={styles.children}>
             {entries.length === 0 && <div className={styles.empty}>empty</div>}
             {entries.slice(0, limit).map((entry) => (
-              <TreeNode key={entry.key} name={entry.key} value={entry.value} />
+              <TreeNode key={entry.id} name={entry.key} value={entry.value} />
             ))}
             {entries.length > limit && (
               <button

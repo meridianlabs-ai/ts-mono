@@ -1,8 +1,9 @@
+import { clsx } from "clsx";
 import { FC } from "react";
 
 import { getApi } from "../app_config";
 
-import "./DownloadButton.css";
+import styles from "./DownloadButton.module.css";
 
 interface DownloadButtonProps {
   label: string;
@@ -19,7 +20,7 @@ export const DownloadButton: FC<DownloadButtonProps> = ({
   return (
     <button
       type="button"
-      className={"btn btn-outline-primary download-button"}
+      className={clsx("btn", "btn-outline-primary", styles.downloadButton)}
       onClick={() => {
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
         api.download_file(fileName, fileContents);

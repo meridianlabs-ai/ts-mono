@@ -27,6 +27,7 @@ const Providers: FC<{ children: ReactNode }> = ({ children }) => (
 const MatchCounter: FC<{ count: number }> = ({ count }) => {
   const { registerMatchCounter } = useExtendedFind();
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(
     () => registerMatchCounter("find-band-test", () => count),
     [count, registerMatchCounter]
@@ -162,7 +163,7 @@ describe("FindBand", () => {
       </select>
     );
     const dropdown = screen.getByTestId("dropdown");
-    (dropdown as HTMLSelectElement).focus();
+    dropdown.focus();
 
     fireEvent.keyDown(dropdown, { key: "b" });
 

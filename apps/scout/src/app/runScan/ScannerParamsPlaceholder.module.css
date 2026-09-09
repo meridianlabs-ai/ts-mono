@@ -1,0 +1,5 @@
+.paramsPlaceholder {
+  padding: 1rem;
+  color: var(--bs-secondary);
+  font-size: 0.875rem;
+}

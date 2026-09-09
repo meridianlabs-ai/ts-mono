@@ -8,6 +8,8 @@ import styles from "./TranscriptFilter.module.css";
 
 export interface TranscriptFilterProps {
   showing: boolean;
+  /** Resolved dynamic default exclusions for the current sample. */
+  defaultExcludeEvents?: string[];
   setShowing: (showing: boolean) => void;
   positionEl: HTMLElement | null;
 }
@@ -16,6 +18,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
   showing,
   positionEl,
   setShowing,
+  defaultExcludeEvents,
 }) => {
   const {
     isDefaultFilter,
@@ -28,7 +31,7 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
     eventTypes,
     filtered,
     arrangedEventTypes,
-  } = useTranscriptFilter();
+  } = useTranscriptFilter(defaultExcludeEvents);
 
   return (
     <PopOver
@@ -40,56 +43,44 @@ export const TranscriptFilterPopover: FC<TranscriptFilterProps> = ({
       hoverDelay={-1}
     >
       <div className={clsx(styles.links, "text-size-smaller")}>
-        <a
-          className={clsx(
-            styles.link,
-            isDefaultFilter ? styles.selected : undefined
-          )}
+        <button
+          type="button"
+          className={clsx(isDefaultFilter ? styles.selected : undefined)}
           onClick={() => setDefaultFilter()}
         >
           Default
-        </a>
+        </button>
         |
-        <a
-          className={clsx(
-            styles.link,
-            isDebugFilter ? styles.selected : undefined
-          )}
+        <button
+          type="button"
+          className={clsx(isDebugFilter ? styles.selected : undefined)}
           onClick={() => setDebugFilter()}
         >
           Debug
-        </a>
+        </button>
         |
-        <a
-          className={clsx(
-            styles.link,
-            isNoneFilter ? styles.selected : undefined
-          )}
+        <button
+          type="button"
+          className={clsx(isNoneFilter ? styles.selected : undefined)}
           onClick={() => setNoneFilter()}
         >
           None
-        </a>
+        </button>
       </div>
 
       <div className={clsx(styles.grid, "text-size-smaller")}>
         {arrangedEventTypes(2).map((eventType) => {
           return (
-            <div
-              key={eventType}
-              className={clsx(styles.row)}
-              onClick={() => {
-                filterEventType(eventType, filtered.includes(eventType));
-              }}
-            >
+            <label key={eventType} className={clsx(styles.row)}>
               <input
                 type="checkbox"
                 checked={!filtered.includes(eventType)}
                 onChange={(e) => {
                   filterEventType(eventType, e.target.checked);
                 }}
-              ></input>
+              />
               {eventTypes[eventType]}
-            </div>
+            </label>
           );
         })}
       </div>

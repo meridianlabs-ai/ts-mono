@@ -19,7 +19,6 @@ import {
 
 import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
-import { defaultContext, MessagesContext } from "../MessageContents";
 import { ContentTool } from "../types";
 
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
@@ -172,7 +171,6 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   }
 
   const contents = mode !== "compact" ? input : input || functionCall;
-  const context = defaultContext();
 
   const callSection = (
     <div>
@@ -209,7 +207,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         lines={15}
         className={clsx("text-size-small")}
       >
-        <MarkdownToolOutput contents={normalizedContent} context={context} />
+        <MarkdownToolOutput contents={normalizedContent} />
       </ExpandablePanel>
     ) : hasContent && collapsible ? (
       <ExpandablePanel
@@ -219,10 +217,10 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         lines={15}
         className={clsx("text-size-small")}
       >
-        <MessageContent contents={normalizedContent} context={context} />
+        <MessageContent contents={normalizedContent} />
       </ExpandablePanel>
     ) : hasContent ? (
-      <MessageContent contents={normalizedContent} context={context} />
+      <MessageContent contents={normalizedContent} />
     ) : null;
 
   const actionElement =
@@ -230,7 +228,6 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
       <AnnotatedScreenshotOutput
         contents={inputScreenshot}
         annotation={selfAnnotation}
-        context={context}
       />
     ) : null;
 
@@ -273,8 +270,7 @@ type NormalizedContentItem =
  */
 const MarkdownToolOutput: FC<{
   contents: NormalizedContentItem[];
-  context: MessagesContext;
-}> = ({ contents, context }) => {
+}> = ({ contents }) => {
   // Flatten tool wrapper to get inner content items
   const items = contents.flatMap((c) => (c.type === "tool" ? c.content : [c]));
 
@@ -288,7 +284,6 @@ const MarkdownToolOutput: FC<{
           <MessageContent
             key={`content-${i}`}
             contents={[item] as NormalizedContentItem[]}
-            context={context}
           />
         );
       })}

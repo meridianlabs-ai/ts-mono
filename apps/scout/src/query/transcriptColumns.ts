@@ -35,12 +35,12 @@ export class TranscriptColumns {
         if (typeof prop === "symbol") return undefined;
         if (prop.startsWith("_")) return undefined; // block private access
 
-        // Check if predefined field exists
+        // A predefined column (or `field`) comes back as-is; anything else
+        // becomes a Column for that custom transcript field.
         if (prop in target) {
-          return Reflect.get(target, prop) as Column;
+          const member: unknown = Reflect.get(target, prop);
+          return member;
         }
-
-        // Dynamic field creation for custom transcript fields
         return new Column(prop);
       },
     });
@@ -60,6 +60,17 @@ export class TranscriptColumns {
     return new Column(name);
   }
 }
+
+/**
+ * Reads a column off the singleton by name. The class type declares only the
+ * predefined fields, so dynamic access goes through the same untyped door the
+ * Proxy opens — and comes back narrowed, not asserted. Blocked names
+ * (underscore-prefixed, symbols) read as undefined.
+ */
+export const transcriptColumn = (name: string): Column | undefined => {
+  const column: unknown = Reflect.get(transcriptColumns, name);
+  return column instanceof Column ? column : undefined;
+};
 
 // Export singleton instance for transcript filtering
 export const transcriptColumns = TranscriptColumns.instance;

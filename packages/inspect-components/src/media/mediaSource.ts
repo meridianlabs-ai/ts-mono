@@ -1,20 +1,9 @@
 import type { ContentAudio, ContentVideo } from "@tsmono/inspect-common/types";
-import { parseDataUri } from "@tsmono/util";
-
-const rasterImageMimeTypes = new Set([
-  "image/avif",
-  "image/bmp",
-  "image/gif",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/x-icon",
-]);
-
-const imageMimeAliases = new Map([
-  ["image/jpg", "image/jpeg"],
-  ["image/vnd.microsoft.icon", "image/x-icon"],
-]);
+import {
+  base64DataUriMimeType,
+  isRasterImageMimeType,
+  normalizedImageMimeType,
+} from "@tsmono/util";
 
 const primaryAudioMimeTypes: Record<ContentAudio["format"], string> = {
   mp3: "audio/mpeg",
@@ -36,24 +25,6 @@ const videoMimeTypes: Record<ContentVideo["format"], Set<string>> = {
   mov: new Set(["video/quicktime"]),
   mp4: new Set(["video/mp4"]),
   mpeg: new Set(["video/mpeg"]),
-};
-
-const normalizedImageMimeType = (mimeType: string): string => {
-  const normalized = mimeType.trim().toLowerCase();
-  return imageMimeAliases.get(normalized) ?? normalized;
-};
-
-const base64DataUriMimeType = (source: string): string | undefined => {
-  const dataUri = parseDataUri(source);
-  return dataUri?.base64 ? dataUri.mimeType : undefined;
-};
-
-export const isRenderableImageSource = (source: string): boolean => {
-  const mimeType = base64DataUriMimeType(source);
-  return (
-    mimeType !== undefined &&
-    rasterImageMimeTypes.has(normalizedImageMimeType(mimeType))
-  );
 };
 
 export const isRenderableAudioSource = (
@@ -92,7 +63,7 @@ export const isRenderableImageDocument = (
   const normalizedSource = normalizedImageMimeType(sourceMimeType);
   const normalizedDeclared = normalizedImageMimeType(declaredMimeType);
   return (
-    rasterImageMimeTypes.has(normalizedSource) &&
+    isRasterImageMimeType(normalizedSource) &&
     normalizedSource === normalizedDeclared
   );
 };

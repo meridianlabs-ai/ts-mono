@@ -85,7 +85,7 @@ describe("liftEvalView", () => {
       name: "Triage",
       score_labels: { audit_situational_awareness: "Situational Awareness" },
     };
-    const lifted = liftEvalView(wire) as unknown as Record<string, unknown>;
+    const lifted = liftEvalView(wire);
     expect("scoreLabels" in lifted).toBe(false);
     expect("score_labels" in lifted).toBe(false);
   });
@@ -102,7 +102,7 @@ describe("liftEvalView", () => {
         verdict: { yes: "bad", no: "good" },
       },
     };
-    const lifted = liftEvalView(wire) as unknown as Record<string, unknown>;
+    const lifted = liftEvalView(wire);
     expect("scoreColorScales" in lifted).toBe(false);
     expect("score_color_scales" in lifted).toBe(false);
   });

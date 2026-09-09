@@ -7,6 +7,17 @@ const isMissingNumber = (v: unknown): boolean =>
 /**
  * Common value-comparison functions for client-side grid sorting.
  */
+// Grid cells hold unknown values; a date column's are strings, epoch numbers,
+// or Dates, and anything else sorts as epoch 0 the way a falsy value did.
+const toTime = (value: unknown): number => {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "string" || typeof value === "number") {
+    const time = new Date(value).getTime();
+    return Number.isNaN(time) ? 0 : time;
+  }
+  return 0;
+};
+
 export const comparators = {
   /**
    * Compare values as numbers. NaN / null / undefined / "" are pinned to the
@@ -25,9 +36,5 @@ export const comparators = {
   },
 
   /** Compare values as dates */
-  date: (a: unknown, b: unknown): number => {
-    const timeA = a ? new Date(a as string | number | Date).getTime() : 0;
-    const timeB = b ? new Date(b as string | number | Date).getTime() : 0;
-    return timeA - timeB;
-  },
+  date: (a: unknown, b: unknown): number => toTime(a) - toTime(b),
 };

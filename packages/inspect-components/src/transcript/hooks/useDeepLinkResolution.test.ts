@@ -3,11 +3,17 @@ import { renderHook } from "@testing-library/react";
 import { useMemo } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testTimelineEvent,
+  testTimelineSpan,
+} from "@tsmono/inspect-common/testing";
 import type {
   Event,
   Timeline as ServerTimeline,
-  TimelineEvent as ServerTimelineEvent,
-  TimelineSpan as ServerTimelineSpan,
 } from "@tsmono/inspect-common/types";
 
 import { useTranscriptTimeline, type SelectOptions } from "../timeline/hooks";
@@ -24,57 +30,26 @@ function makeModelEvent(
   startSec: number,
   outputMessageId?: string
 ): Event {
-  return {
-    event: "model",
+  return testModelEvent({
     uuid,
-    model: "test-model",
-    input: [],
-    output: {
+    output: testModelOutput({
       choices: [
-        {
-          message: {
+        testChatCompletionChoice({
+          message: testAssistantMessage({
             id: outputMessageId,
-            role: "assistant",
             content: "response",
-          },
-          stop_reason: "stop",
-        },
+          }),
+        }),
       ],
       completion: "response",
-      model: "test-model",
-    },
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    }),
     timestamp: new Date(1705312800000 + startSec * 1000).toISOString(),
     working_start: startSec,
     working_time: 1,
     error: null,
     pending: false,
     span_id: null,
-  } as unknown as Event;
-}
-
-function makeServerEvent(uuid: string): ServerTimelineEvent {
-  return { type: "event", event: uuid };
-}
-
-function makeServerSpan(
-  overrides: Partial<ServerTimelineSpan> & { id: string; name: string }
-): ServerTimelineSpan {
-  return {
-    type: "span",
-    span_type: null,
-    content: [],
-    branches: [],
-    branched_from: null,
-    description: null,
-    utility: false,
-    tool_invoked: false,
-    agent_result: null,
-    outline: null,
-    ...overrides,
-  };
+  });
 }
 
 /** evt-1 at root, evt-2 inside a utility-flagged agent span "util-a". */
@@ -82,17 +57,17 @@ function makeUtilityTimeline(): ServerTimeline {
   return {
     name: "default",
     description: "Test timeline",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root",
       name: "Transcript",
       content: [
-        makeServerEvent("evt-1"),
-        makeServerSpan({
+        testTimelineEvent({ event: "evt-1" }),
+        testTimelineSpan({
           id: "util-a",
           name: "Util A",
           span_type: "agent",
           utility: true,
-          content: [makeServerEvent("evt-2")],
+          content: [testTimelineEvent({ event: "evt-2" })],
         }),
       ],
     }),
@@ -104,16 +79,16 @@ function makeAgentTimeline(): ServerTimeline {
   return {
     name: "default",
     description: "Test timeline",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root",
       name: "Transcript",
       content: [
-        makeServerEvent("evt-1"),
-        makeServerSpan({
+        testTimelineEvent({ event: "evt-1" }),
+        testTimelineSpan({
           id: "agent-a",
           name: "Agent A",
           span_type: "agent",
-          content: [makeServerEvent("evt-2")],
+          content: [testTimelineEvent({ event: "evt-2" })],
         }),
       ],
     }),
@@ -295,25 +270,25 @@ describe("useDeepLinkResolution → cross-timeline switch", () => {
   const timelineA: ServerTimeline = {
     name: "A",
     description: "Timeline A",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root-a",
       name: "A",
-      content: [makeServerEvent("evt-1")],
+      content: [testTimelineEvent({ event: "evt-1" })],
     }),
   };
   const timelineB: ServerTimeline = {
     name: "B",
     description: "Timeline B",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root-b",
       name: "B",
-      content: [makeServerEvent("evt-9")],
+      content: [testTimelineEvent({ event: "evt-9" })],
     }),
   };
 
   it("switches to the timeline containing the target, once per key", () => {
     const events = [makeModelEvent("evt-1", 0), makeModelEvent("evt-9", 4)];
-    const { rerender, base, onActiveChange } = renderHarness({
+    const { rerender, base, onActiveChange, onSelect } = renderHarness({
       events,
       serverTimelines: [timelineA, timelineB],
       activeIndex: 0,
@@ -321,6 +296,10 @@ describe("useDeepLinkResolution → cross-timeline switch", () => {
     });
     expect(onActiveChange).toHaveBeenCalledTimes(1);
     expect(onActiveChange).toHaveBeenCalledWith(1);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(onSelect).toHaveBeenCalledWith(null, {
+      preserveDeepLink: true,
+    });
 
     // The switch lands.
     rerender({ ...base, activeIndex: 1 });

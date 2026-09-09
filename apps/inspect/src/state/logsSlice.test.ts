@@ -4,6 +4,7 @@ import { createLogsSlice } from "./logsSlice";
 import { StoreState } from "./store";
 
 const createHarness = () => {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion, @typescript-eslint/consistent-type-assertions -- deliberately empty: the slice under test writes into this object, and reads only what it wrote
   const state = {} as StoreState;
   const set = vi.fn((fn: (state: StoreState) => void) => {
     fn(state);

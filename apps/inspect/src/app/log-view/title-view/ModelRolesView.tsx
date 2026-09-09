@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { modelRoleModelNames } from "@tsmono/inspect-common/utils";
+
 import { EvalSpecModelRoles } from "../../../@types/extraInspect";
 
 import styles from "./ModelRolesView.module.css";
@@ -23,7 +25,7 @@ export const ModelRolesView: FC<ModelRolesViewProps> = ({ roles }) => {
   const modelEls = Object.keys(modelRoles).map((key) => {
     const role = key;
     const roleData = modelRoles[role];
-    const model = roleData?.model;
+    const model = roleData ? modelRoleModelNames(roleData) : undefined;
     return (
       <div
         className={clsx(

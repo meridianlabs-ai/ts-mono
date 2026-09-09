@@ -1,10 +1,14 @@
 {
   "extends": "@tsmono/tsconfig/react.json",
   "compilerOptions": {
-    "types": ["css-modules"],
+    "types": [],
     "noImplicitAny": false,
     "noImplicitThis": false
   },
   "include": ["src", "e2e"],
-  "exclude": ["node_modules", "dist", "lib", "*.config.js", "*.config.ts"]
+  "exclude": ["node_modules", "dist", "lib", "*.config.js", "*.config.ts"],
+  "cmkOptions": {
+    "enabled": true,
+    "dtsOutDir": "."
+  }
 }

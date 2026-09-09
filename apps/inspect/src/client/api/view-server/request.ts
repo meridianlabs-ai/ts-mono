@@ -1,4 +1,4 @@
-import { asyncJsonParse } from "@tsmono/util";
+import { asyncJsonParse, isRecord } from "@tsmono/util";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
 
@@ -30,13 +30,8 @@ export function unwrapFastapiDetail(body: string): string {
   if (!body) return body;
   try {
     const parsed: unknown = JSON.parse(body);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      "detail" in parsed &&
-      typeof parsed.detail === "string"
-    ) {
-      return (parsed as { detail: string }).detail;
+    if (isRecord(parsed) && typeof parsed["detail"] === "string") {
+      return parsed["detail"];
     }
   } catch {
     // Not JSON — fall through.

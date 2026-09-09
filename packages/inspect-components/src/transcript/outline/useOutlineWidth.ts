@@ -61,7 +61,7 @@ export function useOutlineWidth(
     if (agentName) {
       const header = document.createElement("div");
       header.className = [
-        outlineStyles.rootHeader ?? "",
+        outlineStyles.rootHeader,
         "text-size-smaller",
         "text-style-secondary",
       ].join(" ");
@@ -74,22 +74,22 @@ export function useOutlineWidth(
     // ── Rows ────────────────────────────────────────────────────────────
     for (const node of outlineNodes) {
       const row = document.createElement("div");
-      row.className = [rowStyles.eventRow ?? "", "text-size-smaller"].join(" ");
+      row.className = [rowStyles.eventRow, "text-size-smaller"].join(" ");
       row.style.paddingLeft = `${node.depth * 0.75}em`;
       row.style.fontWeight = "800";
 
       const toggle = document.createElement("div");
-      toggle.className = rowStyles.toggle ?? "";
+      toggle.className = rowStyles.toggle;
       row.appendChild(toggle);
 
       const label = document.createElement("div");
-      label.className = rowStyles.label ?? "";
+      label.className = rowStyles.label;
       label.style.overflow = "visible";
       label.style.width = "max-content";
 
       if (iconForNode(node) !== undefined) {
         const iconSpan = document.createElement("span");
-        iconSpan.className = rowStyles.iconSlot ?? "";
+        iconSpan.className = rowStyles.iconSlot;
         iconSpan.innerHTML = "&#x25C6;";
         label.appendChild(iconSpan);
       }

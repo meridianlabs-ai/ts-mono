@@ -3,7 +3,7 @@
  * These types are used by the column sizing strategies and hooks.
  */
 
-import { ColumnSizingState } from "@tanstack/react-table";
+import { ColumnSizingState, RowData } from "@tanstack/react-table";
 
 import { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
 
@@ -32,7 +32,7 @@ export const DEFAULT_SIZE = 150;
  * Context provided to sizing strategies for computing column sizes.
  * Generic over TData (row data type).
  */
-export interface SizingStrategyContext<TData> {
+export interface SizingStrategyContext<TData extends RowData> {
   /** The table element for DOM measurements (may be null) */
   tableElement: HTMLTableElement | null;
   /** Column definitions */
@@ -48,9 +48,11 @@ export interface SizingStrategyContext<TData> {
  * Each strategy computes column sizes differently.
  * Generic over TData (row data type).
  */
-export interface SizingStrategy<TData = unknown> {
+export interface SizingStrategy {
   /** Compute sizes for all columns */
-  computeSizes(context: SizingStrategyContext<TData>): ColumnSizingState;
+  computeSizes<TData extends RowData>(
+    context: SizingStrategyContext<TData>
+  ): ColumnSizingState;
 }
 
 /**
@@ -71,18 +73,52 @@ export function clampSize(
 }
 
 /**
+ * Merge freshly calculated sizes with the current sizing state: calculated
+ * sizes win except for manually resized columns, whose current size is
+ * preserved. Module-level (not inline in the hooks) so they stay compilable:
+ * React Compiler can't lower loops inside try/catch.
+ */
+export function mergeCalculatedSizing(
+  calculatedSizing: ColumnSizingState,
+  resizedSet: Set<string>,
+  currentSizing: ColumnSizingState
+): ColumnSizingState {
+  const newSizing: ColumnSizingState = {};
+  for (const [columnId, size] of Object.entries(calculatedSizing)) {
+    if (resizedSet.has(columnId) && currentSizing[columnId] !== undefined) {
+      newSizing[columnId] = currentSizing[columnId];
+    } else {
+      newSizing[columnId] = size;
+    }
+  }
+  return newSizing;
+}
+
+/**
  * Get the column ID from a column definition.
  */
-export function getColumnId<TData>(
+export function getColumnId<TData extends RowData>(
   column: ExtendedColumnDef<TData, BaseColumnMeta>
 ): string {
-  return column.id || (column as { accessorKey?: string }).accessorKey || "";
+  return column.id || columnAccessorKey(column) || "";
+}
+
+/**
+ * `accessorKey` is carried by only one member of TanStack's ColumnDef union,
+ * so reading it off the union takes a check rather than a claim.
+ */
+export function columnAccessorKey<TData extends RowData>(
+  column: ExtendedColumnDef<TData, BaseColumnMeta>
+): string | undefined {
+  return "accessorKey" in column && typeof column.accessorKey === "string"
+    ? column.accessorKey
+    : undefined;
 }
 
 /**
  * Extract size constraints from column definitions.
  */
-export function getColumnConstraints<TData>(
+export function getColumnConstraints<TData extends RowData>(
   columns: ExtendedColumnDef<TData, BaseColumnMeta>[]
 ): Map<string, ColumnSizeConstraints> {
   const constraints = new Map<string, ColumnSizeConstraints>();

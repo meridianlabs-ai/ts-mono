@@ -19,19 +19,19 @@
   z-index: 1;
 }
 
-.marker-success {
+.markerSuccess {
   background: var(--bs-success);
 }
 
-.marker-error {
+.markerError {
   background: var(--bs-danger);
 }
 
-.marker-cancelled {
+.markerCancelled {
   background: var(--bs-secondary);
 }
 
-.marker-limit {
+.markerLimit {
   background: var(--bs-warning);
   /* White on Bootstrap's yellow fails contrast, and the theme bridge remaps
      --bs-warning-text-emphasis to a light grey in dark themes while the amber
@@ -55,19 +55,19 @@
   white-space: nowrap;
 }
 
-.headline-success {
+.headlineSuccess {
   color: var(--bs-success-text-emphasis);
 }
 
-.headline-error {
+.headlineError {
   color: var(--bs-danger-text-emphasis);
 }
 
-.headline-cancelled {
+.headlineCancelled {
   color: var(--bs-secondary-color);
 }
 
-.headline-limit {
+.headlineLimit {
   color: var(--bs-warning-text-emphasis);
 }
 

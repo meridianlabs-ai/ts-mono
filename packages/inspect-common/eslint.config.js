@@ -14,6 +14,7 @@ export default tseslint.config(
   },
   ...baseConfig,
   {
+    files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       parserOptions: {
         projectService: {

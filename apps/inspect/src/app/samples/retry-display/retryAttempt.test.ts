@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { EvalRetryError } from "@tsmono/inspect-common";
+import {
+  testErrorEvent,
+  testSampleInitEvent,
+} from "@tsmono/inspect-common/testing";
 
 import { attemptStartTime, deriveErrorType } from "./retryAttempt";
 
@@ -48,19 +52,19 @@ describe("deriveErrorType", () => {
 
 describe("attemptStartTime", () => {
   it("returns the earliest event timestamp regardless of event order", () => {
-    const events = [
-      { event: "error", timestamp: "2024-01-01T00:00:04.200Z" },
-      { event: "sample_init", timestamp: "2024-01-01T00:00:00.000Z" },
-    ] as unknown as EvalRetryError["events"];
+    const events: EvalRetryError["events"] = [
+      testErrorEvent({ timestamp: "2024-01-01T00:00:04.200Z" }),
+      testSampleInitEvent({ timestamp: "2024-01-01T00:00:00.000Z" }),
+    ];
     expect(attemptStartTime(retry({ events }))?.toISOString()).toBe(
       "2024-01-01T00:00:00.000Z"
     );
   });
 
   it("returns a start time from a single timestamped event", () => {
-    const events = [
-      { event: "sample_init", timestamp: "2024-01-01T00:00:00.000Z" },
-    ] as unknown as EvalRetryError["events"];
+    const events: EvalRetryError["events"] = [
+      testSampleInitEvent({ timestamp: "2024-01-01T00:00:00.000Z" }),
+    ];
     expect(attemptStartTime(retry({ events }))?.toISOString()).toBe(
       "2024-01-01T00:00:00.000Z"
     );

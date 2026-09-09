@@ -34,6 +34,7 @@ export const ScanPanel: React.FC = () => {
   const { scanPath } = useScanRoute();
   const selectedScanLocation = useStore((state) => state.selectedScanLocation);
   const clearScanState = useStore((state) => state.clearScanState);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (scanPath !== selectedScanLocation) {
       clearScanState();
@@ -43,6 +44,7 @@ export const ScanPanel: React.FC = () => {
   // Sync URL query param with store state
   const [searchParams] = useSearchParams();
   const setSelectedScanner = useStore((state) => state.setSelectedScanner);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const scannerParam = getScannerParam(searchParams);
     if (scannerParam) {

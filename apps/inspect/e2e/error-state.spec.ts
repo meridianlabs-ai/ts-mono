@@ -69,7 +69,7 @@ test.describe("Server error state", () => {
     await expect(page.getByRole("grid")).toBeVisible({ timeout: 10_000 });
   });
 
-  test("shows ActivityBar, Loading..., then ErrorPanel after a delayed 500", async ({
+  test("shows LoadingBar, Loading..., then ErrorPanel after a delayed 500", async ({
     page,
     network,
   }) => {
@@ -94,15 +94,15 @@ test.describe("Server error state", () => {
 
     await page.goto("/");
 
-    // ActivityBar must animate while the request is in-flight.
+    // LoadingBar must animate while the request is in-flight.
     // The inner animated div is a child of [role='progressbar']; its presence
-    // signals animating=true. toBeEmpty() only checks text content so we
+    // signals loading=true. toBeEmpty() only checks text content so we
     // target the child directly.
-    const activityBarChild = page
+    const loadingBarChild = page
       .locator("[role='progressbar']")
       .first()
       .locator("> div");
-    await expect(activityBarChild).toBeVisible({ timeout: 5_000 });
+    await expect(loadingBarChild).toBeVisible({ timeout: 5_000 });
 
     // Grid loading overlay should be visible while loading=1. Exclude the
     // grid's visually-hidden aria-live status, which also announces "Loading…"
@@ -116,7 +116,7 @@ test.describe("Server error state", () => {
       timeout: 10_000,
     });
 
-    // And the ActivityBar must have stopped (child div gone)
-    await expect(activityBarChild).not.toBeVisible({ timeout: 5_000 });
+    // And the LoadingBar must have stopped (child div gone)
+    await expect(loadingBarChild).not.toBeVisible({ timeout: 5_000 });
   });
 });

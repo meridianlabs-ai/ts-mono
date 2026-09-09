@@ -15,10 +15,6 @@
   align-items: center;
 }
 
-.labelAdornmentIcon {
-  margin-left: 0.5rem;
-}
-
 .icon {
   color: var(--bs-body-color);
   opacity: 0.7;
@@ -77,7 +73,13 @@
 }
 
 .mruItem {
+  display: block;
+  width: 100%;
   padding: 0.3rem 0.5rem;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;

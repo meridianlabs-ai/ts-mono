@@ -177,6 +177,7 @@ export const initializeLogsSlice = <T extends LogsSlice>(
   set: (fn: (state: T) => void) => void
 ) => {
   set((state) => {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!state.logs) {
       state.logs = initialState;
     }

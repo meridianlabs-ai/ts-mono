@@ -33,23 +33,18 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
     (state) => state.visibleScannerResults
   );
 
-  const currentIndex = useMemo(() => {
-    if (!visibleScannerResults) {
-      return -1;
-    }
-    return visibleScannerResults.findIndex(
-      (s) => s.identifier === scanResultUuid
-    );
-  }, [visibleScannerResults, scanResultUuid]);
+  const currentIndex = useMemo(
+    () =>
+      visibleScannerResults.findIndex((s) => s.identifier === scanResultUuid),
+    [visibleScannerResults, scanResultUuid]
+  );
 
   const hasPrevious = currentIndex > 0;
   const hasNext =
-    !!visibleScannerResults &&
-    currentIndex >= 0 &&
-    currentIndex < visibleScannerResults.length - 1;
+    currentIndex >= 0 && currentIndex < visibleScannerResults.length - 1;
 
   const onPrevious = useMemo(() => {
-    if (!hasPrevious || !visibleScannerResults || !scansDir) {
+    if (!hasPrevious || !scansDir) {
       return undefined;
     }
     const previousResult = visibleScannerResults[currentIndex - 1];
@@ -75,7 +70,7 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
   ]);
 
   const onNext = useMemo(() => {
-    if (!hasNext || !visibleScannerResults || !scansDir) {
+    if (!hasNext || !scansDir) {
       return undefined;
     }
     const nextResult = visibleScannerResults[currentIndex + 1];
@@ -101,9 +96,7 @@ export const useScannerResultPrevNext = (): ScannerResultPrevNext => {
   ]);
 
   const result =
-    visibleScannerResults && currentIndex !== -1
-      ? visibleScannerResults[currentIndex]
-      : undefined;
+    currentIndex !== -1 ? visibleScannerResults[currentIndex] : undefined;
 
   return { result, hasPrevious, hasNext, onPrevious, onNext };
 };

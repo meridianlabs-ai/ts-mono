@@ -22,12 +22,12 @@ import { EventNode, type EventType } from "./types";
 let nextId = 0;
 
 /** Creates an EventNode with a unique id from a partial event fixture. */
-export function eventNode(
-  event: Partial<EventType> & { event: string },
+export function eventNode<T extends EventType>(
+  event: T,
   children: EventNode[] = [],
   depth = 0
-): EventNode {
-  const n = new EventNode(`n${nextId++}`, event as EventType, depth);
+): EventNode<T> {
+  const n = new EventNode(`n${nextId++}`, event, depth);
   n.children = children;
   return n;
 }

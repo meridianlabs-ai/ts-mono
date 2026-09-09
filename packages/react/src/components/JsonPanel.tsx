@@ -1,11 +1,11 @@
 import clsx from "clsx";
 import { CSSProperties, FC, useMemo, useRef } from "react";
 
-import "./JsonPanel.css";
-
-import { maybeBase64 } from "@tsmono/util";
+import { isRecord, maybeBase64 } from "@tsmono/util";
 
 import { usePrismHighlight } from "../hooks/usePrismHighlight";
+
+import styles from "./JsonPanel.module.css";
 
 interface JSONPanelProps {
   id?: string;
@@ -38,7 +38,11 @@ export const JSONPanel: FC<JSONPanelProps> = ({
   return (
     <div ref={sourceCodeRef}>
       <pre
-        className={clsx("json-panel", simple ? "simple" : "", className)}
+        className={clsx(
+          styles.jsonPanel,
+          simple ? styles.simple : "",
+          className
+        )}
         style={style}
       >
         <code id={id} className={clsx("source-code", "language-javascript")}>
@@ -58,11 +62,10 @@ const resolveBase64 = (value: unknown): unknown => {
   }
 
   // Handle objects recursively
-  if (value && typeof value === "object") {
+  if (isRecord(value)) {
     const resolvedObject: Record<string, unknown> = {};
     for (const key of Object.keys(value)) {
-      const record = value as Record<string, unknown>;
-      resolvedObject[key] = resolveBase64(record[key]);
+      resolvedObject[key] = resolveBase64(value[key]);
     }
     return resolvedObject;
   }

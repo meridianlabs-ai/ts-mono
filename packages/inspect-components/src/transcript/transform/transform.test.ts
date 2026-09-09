@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { SpanBeginEvent } from "@tsmono/inspect-common/types";
+import { testSpanBeginEvent } from "@tsmono/inspect-common/testing";
 
-import { EventNode } from "../types";
+import { EventNode, eventNodeOf } from "../types";
 
 import { transformTree } from "./transform";
 
@@ -13,26 +13,26 @@ const span = (
   depth: number,
   children: EventNode[] = []
 ): EventNode => {
-  const event = {
-    event: "span_begin",
+  const event = testSpanBeginEvent({
     id,
     name,
     type,
     timestamp: "2026-01-01T00:00:00Z",
     working_start: 0,
-  } as SpanBeginEvent;
+  });
   const node = new EventNode(id, event, depth);
   node.children = children;
   return node;
 };
 
+// Every node in these trees is a span; eventNodeOf re-reads that.
+const spanName = (node: EventNode): string =>
+  eventNodeOf(node, "span_begin").event.name;
+
 const names = (node: EventNode): unknown =>
   node.children.length
-    ? {
-        name: (node.event as SpanBeginEvent).name,
-        children: node.children.map(names),
-      }
-    : (node.event as SpanBeginEvent).name;
+    ? { name: spanName(node), children: node.children.map(names) }
+    : spanName(node);
 
 describe("collapse_same_name_spans", () => {
   it("collapses a same-named agent span nested in a solver span", () => {

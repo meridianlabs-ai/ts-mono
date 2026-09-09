@@ -10,13 +10,15 @@
 
 import { http, HttpResponse } from "msw";
 
+import {
+  testTimelineEvent,
+  testTimelineSpan,
+} from "@tsmono/inspect-common/testing";
 import type {
   ChatMessage,
   EvalSample,
   ModelEvent,
   ModelOutput,
-  TimelineEvent as ServerTimelineEvent,
-  TimelineSpan as ServerTimelineSpan,
   Timeline,
 } from "@tsmono/inspect-common/types";
 
@@ -52,7 +54,7 @@ function createModelEvent(overrides?: {
       output_tokens: Math.floor(tokens * 0.4),
       total_tokens: tokens,
     },
-    time: overrides?.endSec ? overrides.endSec - (overrides?.startSec ?? 0) : 3,
+    time: overrides?.endSec ? overrides.endSec - (overrides.startSec ?? 0) : 3,
   };
 
   return {
@@ -67,55 +69,33 @@ function createModelEvent(overrides?: {
     timestamp: "2025-01-15T10:00:00Z",
     working_start: overrides?.startSec ?? 0,
     working_time: overrides?.endSec
-      ? overrides.endSec - (overrides?.startSec ?? 0)
+      ? overrides.endSec - (overrides.startSec ?? 0)
       : 3,
     error: null,
     traceback_ansi: null,
   };
 }
 
-function makeServerEvent(uuid: string): ServerTimelineEvent {
-  return { type: "event", event: uuid };
-}
-
-function makeServerSpan(
-  overrides: Partial<ServerTimelineSpan> & { id: string; name: string }
-): ServerTimelineSpan {
-  return {
-    type: "span",
-    span_type: null,
-    content: [],
-    branches: [],
-    branched_from: null,
-    description: null,
-    utility: false,
-    tool_invoked: false,
-    agent_result: null,
-    outline: null,
-    ...overrides,
-  } as ServerTimelineSpan;
-}
-
 function createSampleTimeline(eventUuids: string[]): Timeline {
   return {
     name: "default",
     description: "Agent timeline",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root",
       name: "Transcript",
       content: [
-        makeServerEvent(eventUuids[0]!),
-        makeServerSpan({
+        testTimelineEvent({ event: eventUuids[0]! }),
+        testTimelineSpan({
           id: "explore",
           name: "Explore",
           span_type: "agent",
-          content: [makeServerEvent(eventUuids[1]!)],
+          content: [testTimelineEvent({ event: eventUuids[1]! })],
         }),
-        makeServerSpan({
+        testTimelineSpan({
           id: "build",
           name: "Build",
           span_type: "agent",
-          content: [makeServerEvent(eventUuids[2]!)],
+          content: [testTimelineEvent({ event: eventUuids[2]! })],
         }),
       ],
     }),
@@ -160,11 +140,15 @@ async function openTranscriptWithTimeline(
     }),
   ];
 
-  const sample = createEvalSample({ id: sampleId, epoch: 1, messages });
-  (sample as { events: Events }).events = events;
-  (sample as { timelines: Timeline[] }).timelines = options?.timelines ?? [
-    createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
-  ];
+  const sample = createEvalSample({
+    id: sampleId,
+    epoch: 1,
+    messages,
+    events,
+    timelines: options?.timelines ?? [
+      createSampleTimeline(["evt-root", "evt-explore", "evt-build"]),
+    ],
+  });
 
   const evalLog = createEvalLog({ samples: [sample] });
   const logDetails = createLogDetails(evalLog);
@@ -282,16 +266,18 @@ test("scrubbing the minimap scrolls the event list", async ({
   const timeline: Timeline = {
     name: "default",
     description: "Long timeline",
-    root: makeServerSpan({
+    root: testTimelineSpan({
       id: "root",
       name: "Transcript",
       content: [
-        ...events.slice(0, 29).map((e) => makeServerEvent(e.uuid!)),
-        makeServerSpan({
+        ...events
+          .slice(0, 29)
+          .map((e) => testTimelineEvent({ event: e.uuid! })),
+        testTimelineSpan({
           id: "deep",
           name: "Deep",
           span_type: "agent",
-          content: [makeServerEvent(events[29]!.uuid!)],
+          content: [testTimelineEvent({ event: events[29]!.uuid! })],
         }),
       ],
     }),

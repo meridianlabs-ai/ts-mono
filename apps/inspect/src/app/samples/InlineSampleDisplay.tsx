@@ -64,9 +64,11 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
     sampleDetailNavigation.event || sampleDetailNavigation.message
   );
   const deepLinkRef = useRef(mountsAtDeepLink);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     deepLinkRef.current = mountsAtDeepLink;
   }, [mountsAtDeepLink]);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Stand down for virtualized tabs: VirtualList owns scrollTop there (its
     // own no-snapshot branch lands non-following fresh mounts at top), so an
@@ -82,7 +84,7 @@ export const InlineSampleDisplay: FC<InlineSampleDisplayProps> = ({
         {/* The transcript provides its own StickyScrollProvider (with the
             chrome offset) around its event panels; no container-level
             provider is needed here. */}
-        <div className={styles.body}>
+        <div>
           {sampleData.error ? (
             <ErrorPanel
               title="Unable to load sample"

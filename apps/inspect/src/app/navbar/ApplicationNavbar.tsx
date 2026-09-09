@@ -4,9 +4,9 @@ import {
   ThemeToggle,
   useResolvedIsDark,
 } from "@tsmono/inspect-components/theme";
+import { LoadingBar } from "@tsmono/react/components";
 import { isVscode } from "@tsmono/util";
 
-import { ActivityBar } from "../../components/ActivityBar";
 import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
@@ -77,7 +77,7 @@ export const ApplicationNavbar: FC<ApplicationNavbarProps> = ({
           setShowing={setShowing}
         />
       </Navbar>
-      <ActivityBar animating={loading} />
+      <LoadingBar loading={loading} />
     </div>
   );
 };

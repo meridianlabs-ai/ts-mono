@@ -155,10 +155,6 @@
   gap: 8px;
 }
 
-.customInput {
-  margin-top: 4px;
-}
-
 .warning {
   color: var(--vscode-errorForeground);
   font-size: 0.9em;

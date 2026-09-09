@@ -51,10 +51,12 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
     });
   }, []);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useLayoutEffect(() => {
     if (open) computePosition();
   }, [open, computePosition]);
 
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!open) return;
     const handler = () => computePosition();
@@ -104,9 +106,15 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
         position &&
         createPortal(
           <>
-            <div className={styles.backdrop} onClick={() => setOpen(false)} />
+            {/* Mouse-only dismissal; Escape closes the picker. */}
+            <div
+              className={styles.backdrop}
+              role="presentation"
+              onClick={() => setOpen(false)}
+            />
             <div
               role="listbox"
+              tabIndex={-1}
               className={styles.menu}
               style={{
                 top: position.top,

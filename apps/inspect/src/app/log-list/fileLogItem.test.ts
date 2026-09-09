@@ -4,8 +4,14 @@ import type { LogListingRow } from "../../log_data";
 
 import { fileLogItem, type FileLogItemView } from "./fileLogItem";
 
-const row = (name: string, retried?: boolean): LogListingRow =>
-  ({ name, retried }) as LogListingRow;
+const row = (name: string, retried?: boolean): LogListingRow => ({
+  name,
+  depth: "previewed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+  retried,
+});
 
 const view = (overrides?: Partial<FileLogItemView>): FileLogItemView => ({
   mode: "logs",

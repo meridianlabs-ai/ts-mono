@@ -4,13 +4,17 @@ import {
   buildMessageRows,
   type MessageRow,
 } from "@tsmono/inspect-components/chat";
-import { AsyncData, loading as asyncLoading } from "@tsmono/util";
+import { loading as asyncLoading } from "@tsmono/util";
 
 import { Events } from "../@types/extraInspect";
 import { SampleHandle } from "../app/types";
 
 import { kDefaultMessageRowOptions } from "./messageRows";
-import { useMessageRows } from "./messageRowsQuery";
+import {
+  unpagedFeed,
+  useMessageRows,
+  type MessageRowsFeed,
+} from "./messageRowsQuery";
 import {
   messagesFromEvents,
   type MessagesFromEventsState,
@@ -74,25 +78,33 @@ const useStreamingRowsLatch = (
 
 /**
  * The Messages tab's one entry point: the settled conversation's rows read
- * through `useMessageRows`, with the live event stream serving rows until
+ * through `useMessageRows` — a paged feed whose loaded prefix the list
+ * extends by scrolling — with the live event stream serving rows until
  * a settled feed exists. The view consumes the result and reports two
  * gates it owns: `active` (the tab is open — the settled read and chunked
  * hydration are activation-latched on it, so neither is ever paid at
  * sample open) and `running` (live samples surface "waiting", not
  * "loading", before their first poll lands).
  *
- * `data` is the rows to render (settled, streaming, or an empty settled
- * conversation); `loading` means data that will produce messages is still
- * in flight (monolith fetch, chunked hydration, rows materialization);
- * `error` means the conversation failed to materialize. On loading and
- * error the view renders that affordance, never "No messages".
+ * `rows.data` is the rows to render (a settled prefix, streaming rows, or
+ * an empty settled conversation); `rows.loading` means data that will
+ * produce messages is still in flight (monolith fetch, chunked hydration,
+ * first-page materialization); `rows.error` means the conversation failed
+ * to materialize. On loading and error the view renders that affordance,
+ * never "No messages". Streaming rows are never paged (`hasMore` false):
+ * the event feed always renders whole.
+ *
+ * `targetMessageId` (a `?message=` deep link) keeps the settled feed on
+ * loading until the target's covering page prefix is resident — see
+ * `useMessageRows`.
  */
 export const useSampleMessages = (
   handle: SampleHandle | undefined,
   sampleData: EvalSampleData,
   active: boolean,
-  running: boolean
-): AsyncData<MessageRow[]> => {
+  running: boolean,
+  targetMessageId?: string | null
+): MessageRowsFeed => {
   // Activation latch: the first Messages-tab open turns the settled read
   // and chunked hydration on while the user stays on the sample. Ungated
   // they run at sample open (whole-conversation fold, hydration) while
@@ -116,31 +128,33 @@ export const useSampleMessages = (
   }
   const activated = active || (latch.key === sampleKey && latch.activated);
 
-  const settled = useMessageRows(handle, sampleData, activated);
+  const settled = useMessageRows(
+    handle,
+    sampleData,
+    activated,
+    targetMessageId
+  );
   const streamingRows = useStreamingRowsLatch(
     active,
-    settled?.data !== undefined || settled?.error !== undefined,
+    settled?.rows.data !== undefined || settled?.rows.error !== undefined,
     sampleData.running,
     sampleKey
   );
 
   const status = sampleData.status;
   return useMemo(() => {
-    if (settled?.error !== undefined) {
-      return { error: settled.error, loading: false };
-    }
-    if (settled?.data !== undefined) {
-      return { data: settled.data, loading: false };
+    if (settled?.rows.error !== undefined || settled?.rows.data !== undefined) {
+      return settled;
     }
     if (streamingRows !== undefined) {
-      return { data: streamingRows, loading: false };
+      return unpagedFeed({ data: streamingRows, loading: false });
     }
     // the settled read/hydration in flight, or the monolith member
     // fetch/parse (`running` keeps the streaming path's pre-first-poll
     // state on its "waiting" affordance instead)
-    if (settled?.loading || (status === "loading" && !running)) {
-      return asyncLoading;
+    if (settled?.rows.loading || (status === "loading" && !running)) {
+      return unpagedFeed(asyncLoading);
     }
-    return { data: kNoRows, loading: false };
+    return unpagedFeed({ data: kNoRows, loading: false });
   }, [settled, streamingRows, status, running]);
 };

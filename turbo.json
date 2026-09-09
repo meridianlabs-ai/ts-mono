@@ -7,12 +7,20 @@
     "tooling/prettier-config/**"
   ],
   "tasks": {
+    "generate:css": {
+      "inputs": ["**/*.module.css", "tsconfig.json"],
+      "outputs": ["**/*.module.css.d.ts"]
+    },
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "generate:css"],
       "outputs": ["dist/**", "lib/**"]
     },
-    "lint": {},
-    "typecheck": {},
+    "lint": {
+      "dependsOn": ["generate:css", "^generate:css"]
+    },
+    "typecheck": {
+      "dependsOn": ["generate:css", "^generate:css"]
+    },
     "format": {},
     "format:check": {},
     "check": {

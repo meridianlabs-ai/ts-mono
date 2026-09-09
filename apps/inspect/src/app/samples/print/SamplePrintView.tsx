@@ -49,6 +49,7 @@ export const SamplePrintView: FC = () => {
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
 
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (logPath && sampleId && epoch) {
       selectLogFile(logPath);
@@ -78,6 +79,7 @@ export const SamplePrintView: FC = () => {
   // then triggers print after a settling period.
   const contentRef = useRef<HTMLDivElement>(null);
   const hasPrinted = useRef(false);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!sample || hasPrinted.current || !contentRef.current) return;
 
@@ -120,6 +122,7 @@ export const SamplePrintView: FC = () => {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const sampleMessages = sample.messages || [];
 
   return (
@@ -194,6 +197,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
       invalidationRecord["Reason"] = sample.invalidation.reason;
     }
     if (
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       sample.invalidation.metadata &&
       Object.keys(sample.invalidation.metadata).length > 0
     ) {
@@ -209,6 +213,7 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (sample.model_usage && Object.keys(sample.model_usage).length > 0) {
     sampleMetadatas.push(
       <Card key="print-usage">
@@ -241,23 +246,23 @@ const PrintMetadata: FC<{ sample: EvalSample }> = ({ sample }) => {
     );
   }
 
-  if (Object.keys(sample?.metadata).length > 0) {
+  if (Object.keys(sample.metadata).length > 0) {
     sampleMetadatas.push(
       <Card key="print-metadata">
         <CardHeader label="Metadata" />
         <CardBody>
-          <MetaDataGrid entries={sample?.metadata} />
+          <MetaDataGrid entries={sample.metadata} />
         </CardBody>
       </Card>
     );
   }
 
-  if (Object.keys(sample?.store).length > 0) {
+  if (Object.keys(sample.store).length > 0) {
     sampleMetadatas.push(
       <Card key="print-store">
         <CardHeader label="Store" />
         <CardBody>
-          <MetaDataGrid entries={sample?.store} />
+          <MetaDataGrid entries={sample.store} />
         </CardBody>
       </Card>
     );

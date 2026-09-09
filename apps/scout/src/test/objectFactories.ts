@@ -1,3 +1,4 @@
+import type { ScanResultData } from "../app/types";
 import type { ActiveScanInfo } from "../types/api-types";
 
 export function createActiveScanInfo(
@@ -24,6 +25,37 @@ export function createActiveScanInfo(
     summary: { complete: true, scanners: {} },
     title: overrides.scan_id,
     total_scans: 0,
+    ...overrides,
+  };
+}
+
+export function createScanResultData(
+  overrides: Partial<ScanResultData> = {}
+): ScanResultData {
+  return {
+    identifier: "result-1",
+    inputType: "events",
+    eventReferences: [],
+    messageReferences: [],
+    validationResult: true,
+    validationTarget: null,
+    value: null,
+    valueType: "null",
+    transcriptSourceId: "source-1",
+    transcriptMetadata: {},
+    inputIds: [],
+    metadata: {},
+    scanId: "scan-1",
+    scanMetadata: {},
+    scanModelUsage: {},
+    scanTags: [],
+    scanTotalTokens: 0,
+    scannerFile: "scanner.py",
+    scannerKey: "scanner",
+    scannerName: "scanner",
+    scannerParams: {},
+    transcriptId: "transcript-1",
+    transcriptSourceUri: "file:///transcript",
     ...overrides,
   };
 }

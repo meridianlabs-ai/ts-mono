@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
-import type { ColumnFilter } from "../../../state/store";
+import {
+  useColumnFilter,
+  type ColumnFilter,
+  type FilterType,
+} from "@tsmono/inspect-components/columnFilter";
 
-import type { AvailableColumn } from "./ColumnFilterEditor";
-import { useColumnFilter } from "./useColumnFilter";
+export interface AvailableColumn {
+  id: string;
+  label: string;
+  filterType: FilterType;
+}
 
 export interface UseAddFilterPopoverParams {
   /** Columns available for filtering */
@@ -16,25 +23,20 @@ export interface UseAddFilterPopoverParams {
   onFilterColumnChange?: (columnId: string | null) => void;
 }
 
-/**
- * Generic hook for managing the "Add Filter" popover state.
- * Wraps useColumnFilter with column selection and open/close logic.
- */
+/** Scout's column-picker wrapper around the shared filter editor state. */
 export function useAddFilterPopover({
   columns,
   filters,
   onAddFilter,
   onFilterColumnChange,
 }: UseAddFilterPopoverParams) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setOpenState] = useState(false);
   const [selectedColumnId, setSelectedColumnId] = useState<string | null>(null);
-  const prevOpenRef = useRef(false);
 
   const selectedColumn = selectedColumnId
-    ? columns.find((c) => c.id === selectedColumnId)
+    ? columns.find((column) => column.id === selectedColumnId)
     : null;
   const filterType = selectedColumn?.filterType ?? "string";
-
   const existingFilter = selectedColumnId ? filters[selectedColumnId] : null;
 
   const {
@@ -45,62 +47,61 @@ export function useAddFilterPopover({
     value2,
     setValue2,
     operatorOptions,
-    usesValue: isValueDisabled,
+    takesNoValue: isValueDisabled,
     usesRangeValue: isRangeOperator,
-    buildCondition,
+    join,
+    setJoin,
+    secondOperator,
+    setSecondOperator,
+    secondValue,
+    setSecondValue,
+    secondValue2,
+    setSecondValue2,
+    showSecond,
+    secondUsesValue,
+    secondUsesRangeValue,
+    buildSpec,
   } = useColumnFilter({
     columnId: selectedColumnId ?? "",
     filterType,
-    condition: existingFilter?.condition ?? null,
+    spec: existingFilter?.spec ?? null,
     isOpen,
   });
 
-  // Reset column selection when popover opens
-  useEffect(() => {
-    if (isOpen && !prevOpenRef.current) {
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-
-      setSelectedColumnId(null);
-    }
-    prevOpenRef.current = isOpen;
-  }, [isOpen]);
-
-  // Notify parent when popover closes
-  useEffect(() => {
-    if (prevOpenRef.current && !isOpen) {
-      onFilterColumnChange?.(null);
-    }
-  }, [isOpen, onFilterColumnChange]);
+  const setIsOpen = useCallback(
+    (open: boolean) => {
+      setOpenState(open);
+      if (open) {
+        setSelectedColumnId(null);
+      } else {
+        onFilterColumnChange?.(null);
+      }
+    },
+    [onFilterColumnChange]
+  );
 
   const handleColumnChange = useCallback(
     (newColumnId: string) => {
       setSelectedColumnId(newColumnId || null);
-      if (newColumnId) {
-        onFilterColumnChange?.(newColumnId);
-      }
+      onFilterColumnChange?.(newColumnId || null);
     },
     [onFilterColumnChange]
   );
 
   const commitAndClose = useCallback(() => {
     if (!selectedColumnId) return;
+    const spec = buildSpec();
+    if (spec === undefined) return; // invalid input — keep the popover open
+    if (spec === null) {
+      setIsOpen(false); // empty value — nothing to add
+      return;
+    }
 
-    const condition = buildCondition(operator, value, value2);
-    if (condition === undefined) return;
-
-    onAddFilter({ columnId: selectedColumnId, filterType, condition });
+    onAddFilter({ columnId: selectedColumnId, filterType, spec });
     setIsOpen(false);
-  }, [
-    selectedColumnId,
-    buildCondition,
-    operator,
-    value,
-    value2,
-    onAddFilter,
-    filterType,
-  ]);
+  }, [selectedColumnId, buildSpec, onAddFilter, filterType, setIsOpen]);
 
-  const cancelAndClose = useCallback(() => setIsOpen(false), []);
+  const cancelAndClose = useCallback(() => setIsOpen(false), [setIsOpen]);
 
   return {
     isOpen,
@@ -109,7 +110,7 @@ export function useAddFilterPopover({
     columns,
     filterType,
     operator,
-    setOperator: setOperator,
+    setOperator,
     operatorOptions,
     value,
     setValue,
@@ -117,6 +118,17 @@ export function useAddFilterPopover({
     setValue2,
     isValueDisabled,
     isRangeOperator,
+    join,
+    setJoin,
+    secondOperator,
+    setSecondOperator,
+    secondValue,
+    setSecondValue,
+    secondValue2,
+    setSecondValue2,
+    showSecond,
+    secondUsesValue,
+    secondUsesRangeValue,
     handleColumnChange,
     commitAndClose,
     cancelAndClose,

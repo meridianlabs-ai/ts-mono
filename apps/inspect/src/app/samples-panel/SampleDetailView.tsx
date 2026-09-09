@@ -1,9 +1,10 @@
 import { FC, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 
+import { directoryRelativeUrl } from "@tsmono/util";
+
 import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
-import { directoryRelativeUrl } from "../../utils/uri";
 import {
   samplesSampleUrl,
   samplesUrl,
@@ -110,6 +111,7 @@ export const SampleDetailView: FC = () => {
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
   // Cleanup on unmount - clear log state since this is a standalone view
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     return () => {
       clearLog();

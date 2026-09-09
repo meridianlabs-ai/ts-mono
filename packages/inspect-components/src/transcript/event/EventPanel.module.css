@@ -191,8 +191,23 @@ a.turnButton {
   margin-right: -2px;
 }
 
+/* The chevron button is styled down to the bare glyph — the surrounding
+   header cells supply the visual affordance. */
+.collapseToggle {
+  display: flex;
+  align-items: center;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .bottomDongle {
   display: block;
+  font-family: inherit;
+  font-weight: inherit;
   position: absolute;
   margin: 0 auto;
   width: fit-content;

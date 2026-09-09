@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-import { formatNumber, printObject } from "@tsmono/util";
+import { formatNumber, isRecord, printObject } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
 import type { ScanRow as ApiScanRow } from "../../types/api-types";
@@ -73,6 +73,10 @@ export const COLUMN_LABELS: Record<ScanColumnKey, string> = {
   total_tokens: "Total Tokens",
 };
 
+/** The column picker works in plain strings; this is the way back. */
+export const isScanColumnKey = (id: string): id is ScanColumnKey =>
+  Object.hasOwn(COLUMN_LABELS, id);
+
 // Column header tooltips
 export const COLUMN_HEADER_TITLES: Record<ScanColumnKey, string> = {
   // Original columns
@@ -116,12 +120,11 @@ function getStatusDisplay(scan: ScanRow): {
   }
 }
 
-// Helper to format object values for display
-function formatObjectValue(
-  value: Record<string, unknown> | null | undefined,
-  maxLength: number = 1000
-): string {
-  if (!value || Object.keys(value).length === 0) {
+// Cell values arrive as `unknown` from the table; these formatters narrow
+// rather than assume, so a column pointed at a non-object renders "-" instead
+// of throwing inside printObject.
+function formatObjectValue(value: unknown, maxLength: number = 1000): string {
+  if (!isRecord(value) || Object.keys(value).length === 0) {
     return "-";
   }
   try {
@@ -132,14 +135,25 @@ function formatObjectValue(
 }
 
 // Helper to get full JSON for tooltip
-function getObjectTitleValue(
-  value: Record<string, unknown> | null | undefined
-): string {
-  if (!value || Object.keys(value).length === 0) {
+function getObjectTitleValue(value: unknown): string {
+  if (!isRecord(value) || Object.keys(value).length === 0) {
     return "";
   }
   return JSON.stringify(value, null, 2);
 }
+
+const numberText = (value: unknown): string =>
+  typeof value === "number" ? formatNumber(value) : "-";
+
+const stringText = (value: unknown): string =>
+  typeof value === "string" && value ? value : "-";
+
+const timestampText = (value: unknown): string =>
+  typeof value === "string" && value ? new Date(value).toLocaleString() : "-";
+
+// Show first 7 characters of commit hash (standard git short hash)
+const shortCommitText = (value: unknown): string =>
+  typeof value === "string" && value ? value.slice(0, 7) : "-";
 
 // All available columns, keyed by their ID (using database column names)
 export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
@@ -201,13 +215,8 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "number",
     },
-    cell: (info) => {
-      const value = info.getValue() as number;
-      return formatNumber(value);
-    },
-    textValue: (value) => {
-      return formatNumber(value as number);
-    },
+    cell: (info) => numberText(info.getValue()),
+    textValue: numberText,
   },
   scanners: {
     id: "scanners",
@@ -273,15 +282,8 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "datetime",
     },
-    cell: (info) => {
-      const timestamp = info.getValue() as string;
-      if (!timestamp) return "-";
-      return new Date(timestamp).toLocaleString();
-    },
-    textValue: (value) => {
-      if (!value) return "-";
-      return new Date(value as string).toLocaleString();
-    },
+    cell: (info) => timestampText(info.getValue()),
+    textValue: timestampText,
   },
 
   // ============================================
@@ -299,10 +301,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as string | null;
-      return value || "-";
-    },
+    cell: (info) => stringText(info.getValue()),
   },
   tags: {
     id: "tags",
@@ -316,10 +315,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as string;
-      return value || "-";
-    },
+    cell: (info) => stringText(info.getValue()),
   },
   revision_version: {
     id: "revision_version",
@@ -333,10 +329,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as string | null;
-      return value || "-";
-    },
+    cell: (info) => stringText(info.getValue()),
   },
   revision_commit: {
     id: "revision_commit",
@@ -350,17 +343,8 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as string | null;
-      if (!value) return "-";
-      // Show first 7 characters of commit hash (standard git short hash)
-      return value.slice(0, 7);
-    },
-    textValue: (value) => {
-      if (!value) return "-";
-      const strValue = value as string;
-      return strValue.slice(0, 7);
-    },
+    cell: (info) => shortCommitText(info.getValue()),
+    textValue: shortCommitText,
   },
   revision_origin: {
     id: "revision_origin",
@@ -374,10 +358,7 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as string | null;
-      return value || "-";
-    },
+    cell: (info) => stringText(info.getValue()),
   },
   packages: {
     id: "packages",
@@ -391,16 +372,9 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as Record<string, string> | undefined;
-      return formatObjectValue(value);
-    },
-    textValue: (value) => {
-      return formatObjectValue(value as Record<string, string> | undefined);
-    },
-    titleValue: (value) => {
-      return getObjectTitleValue(value as Record<string, string> | undefined);
-    },
+    cell: (info) => formatObjectValue(info.getValue()),
+    textValue: formatObjectValue,
+    titleValue: getObjectTitleValue,
   },
   metadata: {
     id: "metadata",
@@ -414,16 +388,9 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as Record<string, unknown> | undefined;
-      return formatObjectValue(value);
-    },
-    textValue: (value) => {
-      return formatObjectValue(value as Record<string, unknown> | undefined);
-    },
-    titleValue: (value) => {
-      return getObjectTitleValue(value as Record<string, unknown> | undefined);
-    },
+    cell: (info) => formatObjectValue(info.getValue()),
+    textValue: formatObjectValue,
+    titleValue: getObjectTitleValue,
   },
   scan_args: {
     id: "scan_args",
@@ -437,16 +404,9 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "string",
     },
-    cell: (info) => {
-      const value = info.getValue() as Record<string, unknown> | undefined;
-      return formatObjectValue(value);
-    },
-    textValue: (value) => {
-      return formatObjectValue(value as Record<string, unknown> | undefined);
-    },
-    titleValue: (value) => {
-      return getObjectTitleValue(value as Record<string, unknown> | undefined);
-    },
+    cell: (info) => formatObjectValue(info.getValue()),
+    textValue: formatObjectValue,
+    titleValue: getObjectTitleValue,
   },
 
   // ============================================
@@ -464,13 +424,8 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "number",
     },
-    cell: (info) => {
-      const value = info.getValue() as number;
-      return formatNumber(value);
-    },
-    textValue: (value) => {
-      return formatNumber(value as number);
-    },
+    cell: (info) => numberText(info.getValue()),
+    textValue: numberText,
   },
   total_errors: {
     id: "total_errors",
@@ -484,13 +439,8 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "number",
     },
-    cell: (info) => {
-      const value = info.getValue() as number;
-      return formatNumber(value);
-    },
-    textValue: (value) => {
-      return formatNumber(value as number);
-    },
+    cell: (info) => numberText(info.getValue()),
+    textValue: numberText,
   },
   total_tokens: {
     id: "total_tokens",
@@ -504,13 +454,8 @@ export const ALL_COLUMNS: Record<ScanColumnKey, ScanColumn> = {
       filterable: true,
       filterType: "number",
     },
-    cell: (info) => {
-      const value = info.getValue() as number;
-      return formatNumber(value);
-    },
-    textValue: (value) => {
-      return formatNumber(value as number);
-    },
+    cell: (info) => numberText(info.getValue()),
+    textValue: numberText,
   },
 };
 

@@ -5,6 +5,13 @@
  * markers, and useTimeline test files.
  */
 
+import {
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testSpanBeginEvent,
+  testSpanEndEvent,
+} from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
 
 import { TimelineEvent, TimelineSpan, type Timeline } from "./core";
@@ -21,6 +28,53 @@ const BASE = new Date("2025-01-15T10:00:00Z").getTime();
 /** Creates a Date offset from a fixed base time by the given number of seconds. */
 export function ts(offsetSeconds: number): Date {
   return new Date(BASE + offsetSeconds * 1000);
+}
+
+// =============================================================================
+// Raw event builders (for buildTimeline input)
+// =============================================================================
+
+/**
+ * Builders for raw Event sequences fed to buildTimeline: a mutable clock
+ * yielding distinct monotonically increasing timestamps, common event fields,
+ * and span begin/end events. Each call returns an independent clock so test
+ * files stay isolated. Named nextTs (not ts) to avoid shadowing this module's
+ * offset-based ts() when destructured.
+ */
+export function rawEventBuilders() {
+  let clock = 0;
+  const nextTs = (): string => {
+    clock += 1;
+    return new Date(Date.UTC(2026, 0, 1, 0, 0, clock)).toISOString();
+  };
+
+  const base = () => ({
+    uuid: null,
+    timestamp: nextTs(),
+    working_start: 0,
+    pending: false,
+    metadata: null,
+  });
+
+  const spanBegin = (
+    id: string,
+    name: string,
+    type: string | null,
+    parentId: string | null
+  ): Event =>
+    testSpanBeginEvent({
+      ...base(),
+      id,
+      name,
+      type,
+      parent_id: parentId,
+      span_id: null,
+    });
+
+  const spanEnd = (id: string): Event =>
+    testSpanEndEvent({ ...base(), id, span_id: null });
+
+  return { nextTs, base, spanBegin, spanEnd };
 }
 
 // =============================================================================
@@ -42,24 +96,19 @@ export function makeSyntheticEvent(
   endSec: number,
   tokens: number
 ): TimelineEvent {
-  const event = {
-    event: "model",
+  const event = testModelEvent({
     timestamp: ts(startSec).toISOString(),
     completed: ts(endSec).toISOString(),
     working_start: startSec,
     working_time: endSec - startSec,
-    output: {
-      usage: {
+    output: testModelOutput({
+      usage: testModelUsage({
         input_tokens: Math.floor(tokens * 0.6),
         output_tokens: tokens - Math.floor(tokens * 0.6),
         total_tokens: tokens,
-        input_tokens_cache_read: null,
-        input_tokens_cache_write: null,
-        reasoning_tokens: null,
-        total_cost: null,
-      },
-    },
-  } as unknown as Event;
+      }),
+    }),
+  });
   return new TimelineEvent(event);
 }
 

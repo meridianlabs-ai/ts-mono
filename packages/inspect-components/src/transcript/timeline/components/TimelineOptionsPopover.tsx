@@ -51,85 +51,54 @@ export const TimelineOptionsPopover: FC<TimelineOptionsPopoverProps> = ({
     >
       <div className={`${styles.title} text-size-smaller`}>View Options</div>
       <div className={`${styles.rows} text-size-smaller`}>
-        {kMarkerKindLabels.map(({ kind, label }) => {
-          const checked = config.markerKinds.includes(kind);
-          return (
-            <div
-              key={kind}
-              className={styles.row}
-              onClick={() => config.toggleMarkerKind(kind)}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  config.toggleMarkerKind(kind);
-                }}
-              />
-              {label}
-            </div>
-          );
-        })}
-        <div
-          className={styles.row}
-          onClick={() => config.setIncludeUtility(!config.includeUtility)}
-        >
+        {kMarkerKindLabels.map(({ kind, label }) => (
+          <label key={kind} className={styles.row}>
+            <input
+              type="checkbox"
+              checked={config.markerKinds.includes(kind)}
+              onChange={() => config.toggleMarkerKind(kind)}
+            />
+            {label}
+          </label>
+        ))}
+        <label className={styles.row}>
           <input
             type="checkbox"
             checked={config.includeUtility}
-            onChange={(e) => {
-              e.stopPropagation();
-              config.setIncludeUtility(!config.includeUtility);
-            }}
+            onChange={() => config.setIncludeUtility(!config.includeUtility)}
           />
           Utility agents
-        </div>
+        </label>
 
         <div className={styles.groupHeader}>Branches</div>
-        <div className={styles.row} onClick={onToggleBranches}>
+        <label className={styles.row}>
           <input
             type="checkbox"
             checked={config.showBranches}
-            onChange={(e) => {
-              e.stopPropagation();
-              onToggleBranches();
-            }}
+            onChange={onToggleBranches}
           />
           Show branches
-        </div>
+        </label>
         {config.showBranches && (
           <>
-            <div
-              className={styles.row}
-              onClick={() => config.setForkRelative(!config.forkRelative)}
-            >
+            <label className={styles.row}>
               <input
                 type="checkbox"
                 checked={config.forkRelative}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  config.setForkRelative(!config.forkRelative);
-                }}
+                onChange={() => config.setForkRelative(!config.forkRelative)}
               />
               Fork-relative branches
-            </div>
-            <div
-              className={styles.row}
-              onClick={() =>
-                config.setShowEmptyBranches(!config.showEmptyBranches)
-              }
-            >
+            </label>
+            <label className={styles.row}>
               <input
                 type="checkbox"
                 checked={config.showEmptyBranches}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  config.setShowEmptyBranches(!config.showEmptyBranches);
-                }}
+                onChange={() =>
+                  config.setShowEmptyBranches(!config.showEmptyBranches)
+                }
               />
               Show empty branches
-            </div>
+            </label>
           </>
         )}
       </div>

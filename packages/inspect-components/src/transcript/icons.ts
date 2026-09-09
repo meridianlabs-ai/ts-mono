@@ -3,6 +3,18 @@
  * Both apps (scout and inspect) use the same Bootstrap icons,
  * so these are safe to hardcode as string constants.
  */
+// Looked up by an unvalidated level string off a logger event, so the record
+// is indexed by string rather than by its own keys.
+const loggingIcons: Record<string, string> = {
+  notset: "bi bi-card-text",
+  debug: "bi bi-bug",
+  http: "bi bi-download",
+  info: "bi bi-info-square",
+  warning: "bi bi-exclamation-triangle",
+  error: "bi bi-x-circle",
+  critical: "bi bi-fire",
+};
+
 export const TranscriptIcons = {
   agent: "bi bi-grid",
   approve: "bi bi-shield",
@@ -36,15 +48,7 @@ export const TranscriptIcons = {
     execution: "bi bi-stopwatch",
     cost: "bi bi-currency-dollar",
   },
-  logging: {
-    notset: "bi bi-card-text",
-    debug: "bi bi-bug",
-    http: "bi bi-download",
-    info: "bi bi-info-square",
-    warning: "bi bi-exclamation-triangle",
-    error: "bi bi-x-circle",
-    critical: "bi bi-fire",
-  } as Record<string, string>,
+  logging: loggingIcons,
   model: "bi bi-grid-3x3-gap",
   sample: "bi bi-database",
   sandbox: "bi bi-box-seam",

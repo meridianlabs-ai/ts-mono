@@ -21,7 +21,7 @@ export const ScannerResultNav: FC = () => {
     >
       <span className="text-size-smallest">
         {result
-          ? printIdentifier(resultIdentifier(result), result?.label)
+          ? printIdentifier(resultIdentifier(result), result.label)
           : undefined}
       </span>
     </NextPreviousNav>

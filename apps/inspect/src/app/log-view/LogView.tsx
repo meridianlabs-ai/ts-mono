@@ -35,6 +35,7 @@ import { useJsonTabConfig } from "./tabs/JsonTab";
 import { useModelsTab } from "./tabs/ModelsTab";
 import { useSamplesTabConfig } from "./tabs/SamplesTab";
 import { useTaskTabConfig } from "./tabs/TaskTab";
+import { useTimelineTab } from "./tabs/timeline/TimelineTab";
 import { TitleView } from "./title-view/TitleView";
 import { TabDescriptor } from "./types";
 
@@ -71,13 +72,24 @@ export const LogView: FC = () => {
     evalSpec,
     selectedLogDetails?.stats,
     selectedLogDetails?.results?.early_stopping,
-    selectedLogDetails?.tags
+    selectedLogDetails?.tags,
+    selectedLogDetails?.config_updates
   );
 
   const modelsTabConfig = useModelsTab(
     evalSpec,
     selectedLogDetails?.stats,
-    selectedLogDetails?.status
+    selectedLogDetails?.status,
+    selectedLogDetails?.config_updates
+  );
+
+  const timelineTabConfig = useTimelineTab(
+    evalSpec,
+    selectedLogDetails?.stats,
+    selectedLogDetails?.status,
+    selectedLogDetails?.config_updates,
+    selectedLogDetails?.log_updates,
+    selectedLogDetails?.results?.early_stopping
   );
 
   const jsonTabConfig = useJsonTabConfig(selectedLogDetails);
@@ -87,9 +99,11 @@ export const LogView: FC = () => {
   // in a contravariant position.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tabs: Record<string, TabDescriptor<any>> = {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     ...(samplesTabConfig ? { samples: samplesTabConfig } : {}),
     task: taskTabConfig,
     model: modelsTabConfig,
+    timeline: timelineTabConfig,
     config: intoTabConfig,
     ...(selectedLogDetails?.error ? { error: errorTabConfig } : {}),
     json: jsonTabConfig,
@@ -117,7 +131,7 @@ export const LogView: FC = () => {
 
   const onSelected = useCallback(
     (e: MouseEvent<HTMLElement>) => {
-      const id = e.currentTarget?.id;
+      const id = e.currentTarget.id;
       if (id) {
         setSelectedTab(id);
         navigation.selectTab(id);
@@ -134,6 +148,7 @@ export const LogView: FC = () => {
     );
   } else {
     const tabTools = Object.values(tabs)
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       .filter((tab) => tab !== undefined)
       .filter((tab) => {
         return tab.id === selectedTab;

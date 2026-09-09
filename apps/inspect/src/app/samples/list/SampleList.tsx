@@ -85,6 +85,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     setDocumentTitle({ evalSpec });
   }, [evalSpec]);
@@ -150,7 +151,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         msg: `INFO: ${limitCount} of ${sampleCount} samples (${formatNoDecimal(percentLimit)}%) completed due to exceeding a limit.`,
       });
     }
-    if (earlyStopping?.early_stops && earlyStopping?.early_stops?.length > 0) {
+    if (earlyStopping?.early_stops && earlyStopping.early_stops.length > 0) {
       result.push({
         type: "info",
         msg: `Skipped ${earlyStopping.early_stops.length} samples due to early stopping (${earlyStopping.manager}). `,
@@ -165,7 +166,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         <MessageBand
           id={`sample-warning-message-${warning.type}-${warning.msg}`}
           message={warning.msg}
-          type={warning.type as "info" | "warning" | "error"}
+          type={
+            warning.type === "error" || warning.type === "warning"
+              ? warning.type
+              : "info"
+          }
           key={`sample-warning-message-${warning.type}-${warning.msg}`}
         />
       ))}

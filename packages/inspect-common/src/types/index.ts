@@ -39,6 +39,7 @@ export type EvalStats = S["EvalStats"];
 export type ConnectionLimitChange = S["ConnectionLimitChange"];
 export type AdaptiveConcurrency = S["AdaptiveConcurrency"];
 export type EvalRetryError = S["EvalRetryError"];
+export type HeadlineMetric = S["HeadlineMetric"];
 
 // Event types
 export type Event = S["Event"];

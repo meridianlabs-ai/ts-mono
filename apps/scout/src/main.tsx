@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { defaultRetry } from "@tsmono/react";
@@ -68,12 +69,14 @@ const scansMode =
 
 // Render the app
 root.render(
-  <QueryClientProvider client={queryClient}>
-    <ApiProvider value={api}>
-      <StoreProvider value={store}>
-        <App mode={scansMode ? "scans" : "workbench"} />
-      </StoreProvider>
-    </ApiProvider>
-    <ReactQueryDevtools initialIsOpen={false} />
-  </QueryClientProvider>
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <ApiProvider value={api}>
+        <StoreProvider value={store}>
+          <App mode={scansMode ? "scans" : "workbench"} />
+        </StoreProvider>
+      </ApiProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  </StrictMode>
 );

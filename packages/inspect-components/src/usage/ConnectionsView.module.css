@@ -1,0 +1,214 @@
+.grid {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1fr) max-content 1.2fr max-content;
+  column-gap: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+}
+
+.headCell {
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.cell {
+  padding-top: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px dotted var(--bs-border-color);
+}
+
+.lastRow {
+  border-bottom: none;
+}
+
+.modelCell {
+  padding-right: 1.5rem;
+}
+
+.modelName {
+  display: block;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.roles {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+  flex-wrap: wrap;
+}
+
+.roleChip {
+  display: inline-flex;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid #cfe0f1;
+  background: #f2f7fc;
+  color: #1d4f7c;
+  border-radius: 999px;
+}
+
+.avgCell {
+  padding-right: 0.5rem;
+}
+
+.avgValue {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.avgValue small {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--bs-secondary-color);
+  margin-left: 0.25rem;
+}
+
+.rateLimits {
+  display: block;
+  font-size: 0.7rem;
+  color: #b04a3c;
+  font-weight: 600;
+  margin-top: 0.15rem;
+}
+
+.actionsCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.actionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--bs-secondary-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.actionLink:hover {
+  color: var(--bs-body-color);
+}
+
+.actionLink i {
+  font-size: 0.8rem;
+}
+
+.chart {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+}
+
+.series {
+  fill: none;
+  stroke: #3a7bd5;
+  stroke-width: 1.5;
+}
+
+.baseline {
+  stroke: var(--bs-border-color);
+}
+
+.capGuide {
+  stroke: #9d84d1;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.rateLimitLine {
+  stroke: #b04a3c;
+  stroke-width: 1;
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+.retuneLine {
+  stroke: #9d84d1;
+}
+
+.retuneMarker {
+  fill: #8f6fd0;
+  stroke: #5d3f9e;
+  cursor: pointer;
+}
+
+.chartLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.7rem;
+  color: var(--bs-secondary-color);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.legendDiamond {
+  width: 7px;
+  height: 7px;
+  background: #8f6fd0;
+  border: 1px solid #5d3f9e;
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
+.legendRateLimit {
+  width: 1px;
+  height: 10px;
+  background: #b04a3c;
+  display: inline-block;
+}
+
+.legendGuide {
+  width: 12px;
+  height: 0;
+  border-top: 1px dashed #9d84d1;
+  display: inline-block;
+}
+
+:global([data-bs-theme="dark"]) .roleChip {
+  border-color: #2c4a66;
+  background: #16222e;
+  color: #8db8dd;
+}
+
+:global([data-bs-theme="dark"]) .series {
+  stroke: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .rateLimits {
+  color: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .legendRateLimit {
+  background: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .rateLimitLine {
+  stroke: #d98b7f;
+}

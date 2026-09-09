@@ -36,6 +36,7 @@ export const RenderedText = forwardRef<
     const body =
       forceRender || displayMode === "rendered" ? (
         <MarkdownDivWithReferences
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLDivElement>}
           markdown={text}
           references={references}
@@ -46,6 +47,7 @@ export const RenderedText = forwardRef<
         />
       ) : (
         <Preformatted
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLPreElement>}
           text={text}
           style={style}

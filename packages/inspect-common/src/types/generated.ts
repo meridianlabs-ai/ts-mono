@@ -655,6 +655,31 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * ArchiveSnapshots
+         * @description One complete compressed tar archive per checkpoint.
+         *
+         *     Captures with tools already present in effectively every image
+         *     (tar, dd, sha256sum, zstd or gzip) — nothing is injected into the
+         *     sandbox. Each checkpoint's archive is self-contained, so restore
+         *     reads a single file. Best choice when restic injection is
+         *     impractical, or when the captured data is dominated by large,
+         *     high-entropy, frequently-rewritten files where incremental backup
+         *     stores roughly the full dataset again at every checkpoint anyway.
+         *
+         *     Unlike restic (which encrypts its repository with a per-sample
+         *     password), archives are written unencrypted: checkpoint data —
+         *     including any credentials or keys the agent wrote into captured
+         *     paths — lands in the checkpoint storage location (possibly S3) as
+         *     plaintext tar archives.
+         */
+        ArchiveSnapshots: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "archive";
+        };
         /** AttachmentData */
         AttachmentData: {
             /** Content */
@@ -957,19 +982,22 @@ export interface components {
          *
          *     These fields can be specified on ``Sample(checkpoint=...)`` and are
          *     also accepted at the task and eval layers (where they participate in
-         *     the per-field merge — precedence: eval > sample > task).
+         *     the per-field merge — precedence: eval > sample > task). Capture
+         *     configuration — what to snapshot and with which strategy — is a
+         *     property of the sample's workload, so it lives here.
          *
-         *     The fields excluded from this base class — ``checkpoints_location``
-         *     and ``retention`` — are eval-wide concerns that the sample layer must
-         *     not influence. They live only on the derived :class:`CheckpointConfig`,
-         *     which is the type used at the task and eval layers.
+         *     Excluded from the sample layer: ``checkpoints_location`` and
+         *     ``retention``. These are eval-wide storage-policy concerns that the
+         *     sample layer must not influence; they live only on
+         *     :class:`CheckpointConfig`, the subclass used at the task and eval
+         *     layers.
          */
         CheckpointSampleConfig: {
             /** Max Consecutive Failures */
             max_consecutive_failures?: number | null;
             /** Sandbox Paths */
             sandbox_paths?: {
-                [key: string]: string[];
+                [key: string]: string[] | components["schemas"]["SandboxSnapshotConfig"];
             } | null;
             /** Trigger */
             trigger?: components["schemas"]["Manual"] | components["schemas"]["TurnInterval"] | components["schemas"]["TimeInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | null;
@@ -1424,6 +1452,8 @@ export interface components {
             sample_shuffle?: boolean | number | null;
             /** Sandbox Cleanup */
             sandbox_cleanup?: boolean | null;
+            /** Sandbox Prebuilt */
+            sandbox_prebuilt?: boolean | null;
             /** Score Display */
             score_display?: boolean | null;
             /** Score On Error */
@@ -1583,6 +1613,9 @@ export interface components {
              */
             completed_samples: number;
             early_stopping?: components["schemas"]["EarlyStoppingSummary"] | null;
+            headline?: components["schemas"]["HeadlineMetric"] | null;
+            /** Logged Samples */
+            logged_samples?: number | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -1658,6 +1691,8 @@ export interface components {
             input: string | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             invalidation?: components["schemas"]["ProvenanceData"] | null;
             limit?: components["schemas"]["EvalSampleLimit"] | null;
+            /** Message Limit */
+            message_limit?: number | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Metadata */
@@ -1690,6 +1725,8 @@ export interface components {
             };
             /** Target */
             target: string | string[];
+            /** Time Limit */
+            time_limit?: number | null;
             /** Timelines */
             timelines?: components["schemas"]["Timeline"][] | null;
             /** Token Limit */
@@ -1714,6 +1751,8 @@ export interface components {
         EvalSampleLimit: {
             /** Limit */
             limit: number;
+            /** Reason */
+            reason?: string | null;
             /**
              * Type
              * @enum {string}
@@ -1747,6 +1786,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Sample Id */
             sample_id?: string | number | null;
             /** Value */
@@ -1778,8 +1819,12 @@ export interface components {
             input: string | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
             /** Limit */
             limit?: string | null;
+            /** Limit Reason */
+            limit_reason?: string | null;
             /** Message Count */
             message_count?: number | null;
+            /** Message Limit */
+            message_limit?: number | null;
             /** Metadata */
             metadata: {
                 [key: string]: unknown;
@@ -1804,6 +1849,8 @@ export interface components {
             started_at?: string | null;
             /** Target */
             target: string | string[];
+            /** Time Limit */
+            time_limit?: number | null;
             /** Token Limit */
             token_limit?: number | null;
             /** Token Limit Type */
@@ -1911,6 +1958,7 @@ export interface components {
             eval_id: string;
             /** Eval Set Id */
             eval_set_id?: string | null;
+            headline_metric?: components["schemas"]["HeadlineMetric"] | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
@@ -1932,7 +1980,7 @@ export interface components {
             model_generate_config: components["schemas"]["GenerateConfig"];
             /** Model Roles */
             model_roles?: {
-                [key: string]: components["schemas"]["ModelConfig"];
+                [key: string]: components["schemas"]["ModelConfig"] | components["schemas"]["ModelConfig"][];
             } | null;
             /** Packages */
             packages: {
@@ -2104,6 +2152,8 @@ export interface components {
             seed?: number | null;
             /** Stop Seqs */
             stop_seqs?: string[] | null;
+            /** Stream Idle Timeout */
+            stream_idle_timeout?: number | null;
             /** System Message */
             system_message?: string | null;
             /** Temperature */
@@ -2178,6 +2228,33 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HeadlineMetric
+         * @description Reference to the headline metric of an eval.
+         *
+         *     The headline metric is the single number that best summarises an eval (e.g.
+         *     for a leaderboard or log listing). Set fields narrow ``EvalResults.scores``
+         *     in turn; unset ones resolve by convention. A ``metric`` on its own selects
+         *     the first score *carrying* that metric, so ``HeadlineMetric(metric="accuracy")``
+         *     skips scores that don't report one. With no ``metric``, the first metric of
+         *     the first remaining score is used — the default when nothing is declared.
+         *
+         *     Fields are matched literally. ``Task(headline_metric=...)`` additionally
+         *     accepts a ``"<scorer>.<score>"`` shorthand string, which is split into these
+         *     fields before it reaches the model — scorer names may themselves contain a
+         *     dot (``@scorer(name="judge.v2")``), so the shorthand is only applied where
+         *     it is unambiguously requested.
+         */
+        HeadlineMetric: {
+            /** Metric */
+            metric?: string | null;
+            /** Reducer */
+            reducer?: string | null;
+            /** Score */
+            score?: string | null;
+            /** Scorer */
+            scorer?: string | null;
         };
         /**
          * ImageOutput
@@ -2868,6 +2945,21 @@ export interface components {
             strict?: boolean | null;
         };
         /**
+         * ResticSnapshots
+         * @description Incremental restic-based sandbox snapshots (the default).
+         *
+         *     Each checkpoint stores only data changed since the previous one.
+         *     Best choice when most files are stable across checkpoints. Requires
+         *     injecting a restic binary into the sandbox.
+         */
+        ResticSnapshots: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "restic-incremental";
+        };
+        /**
          * Result
          * @description Scan result.
          */
@@ -3085,6 +3177,22 @@ export interface components {
             working_start: number;
         };
         /**
+         * SandboxSnapshotConfig
+         * @description Per-sandbox snapshot configuration: what to capture and how.
+         *
+         *     Used as a ``sandbox_paths`` value in place of a bare path list when
+         *     a sandbox needs a non-default snapshot strategy. The ``paths``
+         *     field carries the same semantics as a bare path-list value
+         *     (``None`` = the sandbox default user's home directory; an empty
+         *     list opts the sandbox out entirely).
+         */
+        SandboxSnapshotConfig: {
+            /** Paths */
+            paths?: string[] | null;
+            /** Strategy */
+            strategy?: (components["schemas"]["ResticSnapshots"] | components["schemas"]["ArchiveSnapshots"]) | null;
+        };
+        /**
          * ScannerResultField
          * @description A built-in scanner-result section (e.g. `value`, `explanation`).
          */
@@ -3133,6 +3241,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3185,6 +3295,11 @@ export interface components {
                 [key: string]: unknown;
             } | "UNCHANGED";
             provenance?: components["schemas"]["ProvenanceData"] | null;
+            /**
+             * Reason
+             * @default UNCHANGED
+             */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3555,6 +3670,11 @@ export interface components {
         };
         /** TaskDisplayMetric */
         TaskDisplayMetric: {
+            /**
+             * Headline
+             * @default false
+             */
+            headline: boolean;
             /** Name */
             name: string;
             /** Params */
@@ -3565,6 +3685,8 @@ export interface components {
             reducer?: string | null;
             /** Scorer */
             scorer: string;
+            /** Scorer Name */
+            scorer_name?: string | null;
             /** Value */
             value?: number | null;
         };
@@ -3771,7 +3893,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "unknown" | "output_limit";
+            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "sandbox_unavailable" | "unknown" | "output_limit";
         };
         /**
          * ToolCallView

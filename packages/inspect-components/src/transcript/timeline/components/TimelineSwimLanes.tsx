@@ -617,7 +617,10 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
 
   return (
     <div className={styles.row} role="row">
-      {/* Label cell — depth-based indentation; clicking selects the whole row */}
+      {/* Label cell — depth-based indentation; clicking selects the whole row.
+          Keyboard selection is the grid's own Arrow/Escape handling, and the
+          cell takes tabIndex -1 so the grid keeps a single tab stop. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events */}
       <div
         className={clsx(
           styles.label,
@@ -627,19 +630,29 @@ const SwimlaneRow: FC<SwimlaneRowProps> = ({
             styles.labelHighlighted
         )}
         style={{ paddingLeft: `${0.3 + layout.depth * 0.5}rem` }}
+        role="gridcell"
+        tabIndex={-1}
         onClick={onSelectRow}
       >
         {hasChildren ? (
-          <span
+          <button
+            type="button"
             className={styles.chevron}
+            // tabIndex -1 like the cell above so the grid keeps a single
+            // tab stop. That leaves the chevron pointer-only (as it was
+            // before it became a button): ArrowLeft/ArrowRight can't serve
+            // as the keyboard path here because useArrowStepper binds them
+            // at document capture for prev/next sample stepping.
+            tabIndex={-1}
             onClick={handleChevronClick}
-            role="button"
+            aria-expanded={isExpanded}
             aria-label={isExpanded ? "Collapse" : "Expand"}
           >
             <i
               className={isExpanded ? icons.chevron.down : icons.chevron.right}
+              aria-hidden="true"
             />
-          </span>
+          </button>
         ) : (
           <span className={styles.chevronSpacer} />
         )}
@@ -961,6 +974,7 @@ const BarFill: FC<BarFillProps> = ({
           : `${span.bar.width}%`,
       }}
       title={span.description ?? undefined}
+      role="presentation"
       onClick={handleClick}
       onDoubleClick={onDoubleClick ? handleDoubleClick : undefined}
     />
@@ -1087,6 +1101,7 @@ const RegionBarFill: FC<RegionBarFillProps> = ({
           width: `${span.bar.width}%`,
         }}
         title={span.description ?? undefined}
+        role="presentation"
         onClick={(e) => {
           e.stopPropagation();
           onSelectBar();
@@ -1161,6 +1176,7 @@ const RegionBarFill: FC<RegionBarFillProps> = ({
               width: `${segmentWidth}%`,
             }}
             title={span.description ?? undefined}
+            role="presentation"
             onMouseEnter={() => {
               if (!suppressHoverRef.current) setHoveredIndex(i);
             }}
@@ -1289,19 +1305,37 @@ const MarkerGlyph: FC<MarkerGlyphProps> = ({
     [marker.kind, marker.reference, onMarkerNavigate, onBranchToggle]
   );
 
-  const isBranch = marker.kind === "branch";
+  const className = clsx(styles.marker, kindClass);
+  const glyph = marker.kind !== "error" && (
+    <i className={icon} aria-hidden="true" />
+  );
 
+  if (marker.kind === "branch") {
+    return (
+      <button
+        type="button"
+        className={className}
+        style={{ left: `${marker.left}%` }}
+        title={marker.tooltip}
+        onClick={handleClick}
+        aria-label="Toggle branches"
+      >
+        {glyph}
+      </button>
+    );
+  }
+
+  // Error/compaction markers are mouse shortcuts onto events the transcript
+  // already lists; the grid's arrow-key navigation is the keyboard path.
   return (
     <span
-      className={clsx(styles.marker, kindClass)}
+      className={className}
       style={{ left: `${marker.left}%` }}
       title={marker.tooltip}
+      role="presentation"
       onClick={handleClick}
-      tabIndex={isBranch ? 0 : undefined}
-      role={isBranch ? "button" : undefined}
-      aria-label={isBranch ? "Toggle branches" : undefined}
     >
-      {marker.kind !== "error" && <i className={icon} />}
+      {glyph}
     </span>
   );
 };

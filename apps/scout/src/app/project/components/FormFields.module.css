@@ -1,0 +1,21 @@
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make text fields wider */
+.field :global(vscode-textfield) {
+  width: 400px !important;
+}
+
+.field :global(vscode-textfield[type="number"]) {
+  width: 250px !important;
+}
+
+.field :global(vscode-textarea) {
+  width: 400px !important;
+}
+
+.field :global(vscode-single-select) {
+  width: 250px !important;
+}

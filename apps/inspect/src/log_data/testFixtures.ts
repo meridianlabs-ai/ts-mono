@@ -6,9 +6,18 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createElement, ReactNode } from "react";
 
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testEvalSample,
+  testModelEvent,
+  testModelOutput,
+  testUserMessage,
+} from "@tsmono/inspect-common/testing";
 import { ChatMessage, EvalSample, Event } from "@tsmono/inspect-common/types";
 
 import { SampleHandle } from "../app/types";
+import { DatabaseManager, DatabaseService } from "../client/database";
 
 import {
   ChunkByteStore,
@@ -30,7 +39,7 @@ export const testHandle: SampleHandle = {
 
 /** Sample data for a settled (fetched, non-streaming) monolith sample. */
 export const settledData = (messages: ChatMessage[]): EvalSampleData => ({
-  sample: testEvalSample(messages),
+  sample: testEvalSampleWithMessages(messages),
   status: "ok",
   error: undefined,
   running: [],
@@ -51,46 +60,56 @@ export const testMessages = (count: number): ChatMessage[] =>
     content: `message ${i}`,
   }));
 
-export const testEvalSample = (messages: ChatMessage[]): EvalSample => ({
-  id: "s1",
-  epoch: 1,
-  input: "input",
-  target: "",
-  messages,
-  events: [],
-  attachments: {},
-  metadata: {},
-  store: {},
-  model_usage: {},
-  role_usage: {},
-  output: { model: "test", completion: "", choices: [] },
-});
+export const testEvalSampleWithMessages = (
+  messages: ChatMessage[]
+): EvalSample =>
+  testEvalSample({
+    id: "s1",
+    input: "input",
+    target: "",
+    messages,
+    output: testModelOutput({ model: "test" }),
+  });
 
-export const testModelEvent = (inputId: string, outputId: string): Event => ({
-  event: "model",
-  model: "test",
-  timestamp: "2026-01-01T00:00:00+00:00",
-  working_start: 0,
-  config: {},
-  tools: [],
-  tool_choice: "auto",
-  input: [{ id: inputId, role: "user", content: "hello", source: null }],
-  output: {
+export {
+  testClientAPI,
+  testLogDetails,
+  testLogHeader,
+  testSampleSummary,
+} from "../client/api/testClientApi";
+
+/**
+ * A real, never-opened DatabaseService with the given methods overridden —
+ * un-overridden calls fail loudly ("No database initialized") and `opened()`
+ * reports false unless a fake supplies its own.
+ */
+export const testDatabaseService = (
+  overrides: Partial<DatabaseService> = {}
+): DatabaseService =>
+  Object.assign(new DatabaseService(new DatabaseManager()), overrides);
+
+/** A model event whose input/output messages carry the given ids. */
+export const testModelEventWithIds = (
+  inputId: string,
+  outputId: string
+): Event =>
+  testModelEvent({
     model: "test",
-    completion: "",
-    choices: [
-      {
-        stop_reason: "stop",
-        message: {
-          id: outputId,
-          role: "assistant",
-          content: "response",
-          source: "generate",
-        },
-      },
-    ],
-  },
-});
+    timestamp: "2026-01-01T00:00:00+00:00",
+    input: [testUserMessage({ id: inputId, content: "hello", source: null })],
+    output: testModelOutput({
+      model: "test",
+      choices: [
+        testChatCompletionChoice({
+          message: testAssistantMessage({
+            id: outputId,
+            content: "response",
+            source: "generate",
+          }),
+        }),
+      ],
+    }),
+  });
 
 /** A real single-chunk reader over an in-memory item array. */
 export const sequenceReaderOver = <T>(items: T[]): SequenceReader<T> =>

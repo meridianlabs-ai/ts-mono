@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
 
+import { testScore } from "@tsmono/inspect-common/testing";
+
+import { testSampleSummary } from "../../../client/api/testClientApi";
 import type { SampleSummary } from "../../../client/api/types";
-import type { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
+import {
+  testEvalDescriptor,
+  testSamplesDescriptor,
+  testScoreDescriptor,
+} from "../../samples/descriptor/testDescriptors";
 import {
   buildSampleFilterSpecRegistry,
   samplesOperatorsForKind,
 } from "../../samples/sample-tools/filterSpecRegistry";
 
-import { buildSampleColumns, SCORE_FIELD_RAW_PREFIX } from "./columns";
+import type { WireScoreColorScale } from "./colorScale";
+import {
+  buildSampleColumns,
+  SCORE_FIELD_PER_SCORER_PREFIX,
+  SCORE_FIELD_RAW_PREFIX,
+} from "./columns";
 import type { SampleRow } from "./types";
 
 const kField = `${SCORE_FIELD_RAW_PREFIX}quality`;
@@ -16,17 +28,20 @@ const kField = `${SCORE_FIELD_RAW_PREFIX}quality`;
 // exercise raw-mode score-column discovery + colour-scale wiring without a
 // full SamplesDescriptor.
 const samplesWith = (values: number[]): SampleSummary[] =>
-  values.map(
-    (v, i) =>
-      ({
-        id: i,
-        epoch: 1,
-        scores: { quality: { value: v } },
-      }) as unknown as SampleSummary
+  values.map((v, i): SampleSummary =>
+    testSampleSummary({
+      id: i,
+      target: "target",
+      scores: { quality: testScore({ value: v }) },
+    })
   );
 
-const rowWith = (value: number): SampleRow =>
-  ({ [kField]: value }) as unknown as SampleRow;
+const rowWith = (value: number): SampleRow => ({
+  logFile: "log.eval",
+  sampleId: 1,
+  epoch: 1,
+  [kField]: value,
+});
 
 describe("buildSampleColumns score colour scales", () => {
   it("attaches a heat-map cellStyle that interpolates across the observed range", () => {
@@ -116,7 +131,7 @@ describe("buildSampleColumns TaskSamplesColumnId wire contract", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: false,
-      descriptor: {} as unknown as SamplesDescriptor,
+      descriptor: testSamplesDescriptor(),
     });
     const ids = new Set(cols.map((c) => c.id));
     const missing = kTaskSamplesColumnIds.filter((id) => !ids.has(id));
@@ -129,7 +144,7 @@ describe("buildSampleColumns registry-gated filterable pass", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: false,
-      descriptor: {} as unknown as SamplesDescriptor,
+      descriptor: testSamplesDescriptor(),
       filterSpecRegistry: buildSampleFilterSpecRegistry(undefined),
     });
     // sampleId is intentionally unregistered (mixed number/string ids don't
@@ -149,7 +164,7 @@ describe("buildSampleColumns registry-gated filterable pass", () => {
     const cols = buildSampleColumns({
       viewMode: "grid",
       multiLog: false,
-      descriptor: {} as unknown as SamplesDescriptor,
+      descriptor: testSamplesDescriptor(),
     });
     const sampleId = cols.find((c) => c.id === "sampleId");
     expect(sampleId?.meta?.filterable).toBe(true);
@@ -170,5 +185,77 @@ describe("buildSampleColumns non-resizable columns", () => {
     expect(cols.find((c) => c.id === "sampleId")?.enableResizing).not.toBe(
       false
     );
+  });
+});
+
+// Score names are the keys of each sample's `scores` record, written by the
+// log author. Names that are Object.prototype members must build ordinary
+// columns instead of dereferencing an inherited builtin.
+describe("buildSampleColumns prototype-named scores", () => {
+  const names = ["constructor", "__proto__", "toString", "hasOwnProperty"];
+  // A `constructor:` literal property is not contextually typed, so the
+  // scale value is declared separately.
+  const goodHigh: WireScoreColorScale = "good-high";
+
+  const sampleWith = (
+    scores: Record<string, ReturnType<typeof testScore>>
+  ): SampleSummary => testSampleSummary({ id: 1, target: "target", scores });
+
+  it.each(names)("discovers a raw-mode score column named %s", (name) => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: true,
+      samples: [
+        sampleWith({ [name]: testScore({ value: 1 }) }),
+        sampleWith({ [name]: testScore({ value: 3 }) }),
+      ],
+      scoreColorScales: {},
+    });
+    const col = cols.find((c) => c.id === `${SCORE_FIELD_RAW_PREFIX}${name}`);
+    expect(col?.header).toBe(name);
+    expect(col?.meta?.sortComparator).toBeDefined();
+  });
+
+  it.each(names)(
+    "labels a per-scorer column named %s with its own name",
+    (name) => {
+      const cols = buildSampleColumns({
+        viewMode: "grid",
+        multiLog: false,
+        descriptor: testSamplesDescriptor({
+          evalDescriptor: testEvalDescriptor({
+            scoreDescriptor: () => testScoreDescriptor(),
+          }),
+        }),
+        scores: [
+          { name, scorer: "scorer" },
+          { name: "other", scorer: "scorer" },
+        ],
+        scoreLabels: {},
+        scoreColorScales: {},
+      });
+      const col = cols.find(
+        (c) => c.id === `${SCORE_FIELD_PER_SCORER_PREFIX}scorer__${name}`
+      );
+      expect(col?.header).toBe(name);
+    }
+  );
+
+  it("still applies an own label and colour scale for such a name", () => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: true,
+      samples: [
+        sampleWith({ constructor: testScore({ value: 0 }) }),
+        sampleWith({ constructor: testScore({ value: 10 }) }),
+      ],
+      scoreLabels: { constructor: "Constructor" },
+      scoreColorScales: { constructor: goodHigh },
+    });
+    const col = cols.find(
+      (c) => c.id === `${SCORE_FIELD_RAW_PREFIX}constructor`
+    );
+    expect(col?.header).toBe("Constructor");
+    expect(col?.meta?.cellStyle).toBeDefined();
   });
 });

@@ -85,14 +85,47 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     expect(anchor?.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
-  it("does not render data-image markdown or post-processed image tags", async () => {
+  it("renders validated inline data images from markdown", async () => {
+    const dataImage =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    const { container } = render(
+      <MarkdownDiv markdown={`![pixel](${dataImage})`} />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(dataImage);
+    expect(container.querySelector("img")?.getAttribute("alt")).toBe("pixel");
+  });
+
+  it("keeps the markdown image title through sanitization", async () => {
+    const dataImage =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
+    // Paren-form title: the pipeline entity-escapes quotes before markdown-it
+    // runs, so a quoted title would never parse here.
+    const { container } = render(
+      <MarkdownDiv markdown={`![pixel](${dataImage} (hover text))`} />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("img")?.getAttribute("title")).toBe(
+      "hover text"
+    );
+  });
+
+  it("strips unsafe hrefs while keeping validated post-processed images", async () => {
     const dataImage =
       "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ";
     const dataLink =
       "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==";
     const { container } = render(
       <MarkdownDiv
-        markdown={`![pixel](${dataImage})`}
+        markdown="text"
         postProcess={(html) =>
           `${html}<img src="${dataImage}"><a href="${dataLink}">unsafe</a>`
         }
@@ -100,10 +133,92 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     );
 
     await waitFor(() => {
-      expect(container.querySelector("a")).not.toBeNull();
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
+  });
+
+  it.each([
+    ["remote https", "https://example.com/pixel.png"],
+    ["protocol-relative", "//example.com/pixel.png"],
+    ["svg", "data:image/svg+xml;base64,AAAA"],
+    ["not base64", "data:image/png,AAAA"],
+    // DOMPurify accepts any data: URI on an img, so the gate is the only thing
+    // rejecting a non-image payload here.
+    [
+      "text/html payload",
+      "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+    ],
+    ["javascript scheme", "javascript:alert(1)"],
+    ["blob", "blob:https://example.com/id"],
+    ["empty", ""],
+    ["whitespace only", "   "],
+    // These are not in DOMPurify's ATTR_WHITESPACE, so nothing downstream
+    // removes them. `da<U+FEFF>ta:` is not a valid scheme, so a browser reads
+    // the whole value as a relative path and fetches it — the traversal case
+    // steers that to an arbitrary same-origin path.
+    ["U+FEFF in scheme", "da﻿ta:image/png;base64,AAAA"],
+    ["U+202F in scheme", "da ta:image/png;base64,AAAA"],
+    ["U+007F in scheme", "data:image/png;base64,AAAA"],
+    ["path traversal", "da﻿ta:image/png;base64,/../../../evil.png"],
+  ])("removes img with %s src", async (_label, source) => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) => `${html}<img src="${source}">`}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("removes an img that has no src attribute at all", async () => {
+    const { container } = render(
+      <MarkdownDiv markdown="text" postProcess={(html) => `${html}<img>`} />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
+    });
+
+    expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("renders an uppercase data scheme rather than a src-less placeholder", async () => {
+    const { container } = render(
+      <MarkdownDiv markdown="![x](DATA:IMAGE/PNG;BASE64,AAAA)" />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("img")).not.toBeNull();
+    });
+
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "data:IMAGE/PNG;BASE64,AAAA"
+    );
+  });
+
+  it("keeps sanitizing siblings after removing an img", async () => {
+    const { container } = render(
+      <MarkdownDiv
+        markdown="text"
+        postProcess={(html) =>
+          `${html}<img src="https://evil.example/a.png"><a href="javascript:alert(1)" onclick="alert(2)">x</a>`
+        }
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("text");
     });
 
     expect(container.querySelector("img")).toBeNull();
     expect(container.querySelector("a")?.hasAttribute("href")).toBe(false);
+    expect(container.querySelector("a")?.hasAttribute("onclick")).toBe(false);
   });
 });

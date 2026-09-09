@@ -792,6 +792,8 @@ export interface components {
             project_dir: string;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -804,7 +806,7 @@ export interface components {
             transcripts?: components["schemas"]["AppDir"] | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Output"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -861,6 +863,31 @@ export interface components {
             view?: components["schemas"]["ToolCallView"] | null;
             /** Working Start */
             working_start: number;
+        };
+        /**
+         * ArchiveSnapshots
+         * @description One complete compressed tar archive per checkpoint.
+         *
+         *     Captures with tools already present in effectively every image
+         *     (tar, dd, sha256sum, zstd or gzip) — nothing is injected into the
+         *     sandbox. Each checkpoint's archive is self-contained, so restore
+         *     reads a single file. Best choice when restic injection is
+         *     impractical, or when the captured data is dominated by large,
+         *     high-entropy, frequently-rewritten files where incremental backup
+         *     stores roughly the full dataset again at every checkpoint anyway.
+         *
+         *     Unlike restic (which encrypts its repository with a per-sample
+         *     password), archives are written unencrypted: checkpoint data —
+         *     including any credentials or keys the agent wrote into captured
+         *     paths — lands in the checkpoint storage location (possibly S3) as
+         *     plaintext tar archives.
+         */
+        ArchiveSnapshots: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "archive";
         };
         /**
          * BatchConfig
@@ -1138,19 +1165,22 @@ export interface components {
          *
          *     These fields can be specified on ``Sample(checkpoint=...)`` and are
          *     also accepted at the task and eval layers (where they participate in
-         *     the per-field merge — precedence: eval > sample > task).
+         *     the per-field merge — precedence: eval > sample > task). Capture
+         *     configuration — what to snapshot and with which strategy — is a
+         *     property of the sample's workload, so it lives here.
          *
-         *     The fields excluded from this base class — ``checkpoints_location``
-         *     and ``retention`` — are eval-wide concerns that the sample layer must
-         *     not influence. They live only on the derived :class:`CheckpointConfig`,
-         *     which is the type used at the task and eval layers.
+         *     Excluded from the sample layer: ``checkpoints_location`` and
+         *     ``retention``. These are eval-wide storage-policy concerns that the
+         *     sample layer must not influence; they live only on
+         *     :class:`CheckpointConfig`, the subclass used at the task and eval
+         *     layers.
          */
         CheckpointSampleConfig: {
             /** Max Consecutive Failures */
             max_consecutive_failures?: number | null;
             /** Sandbox Paths */
             sandbox_paths?: {
-                [key: string]: string[];
+                [key: string]: string[] | components["schemas"]["SandboxSnapshotConfig"];
             } | null;
             /** Trigger */
             trigger?: components["schemas"]["Manual"] | components["schemas"]["TurnInterval"] | components["schemas"]["TimeInterval"] | components["schemas"]["TokenInterval"] | components["schemas"]["CostInterval"] | components["schemas"]["BudgetPercent"] | null;
@@ -1625,6 +1655,8 @@ export interface components {
             seed?: number | null;
             /** Stop Seqs */
             stop_seqs?: string[] | null;
+            /** Stream Idle Timeout */
+            stream_idle_timeout?: number | null;
             /** System Message */
             system_message?: string | null;
             /** Temperature */
@@ -1712,6 +1744,8 @@ export interface components {
             seed?: number | null;
             /** Stop Seqs */
             stop_seqs?: string[] | null;
+            /** Stream Idle Timeout */
+            stream_idle_timeout?: number | null;
             /** System Message */
             system_message?: string | null;
             /** Temperature */
@@ -2508,6 +2542,8 @@ export interface components {
             name?: string | null;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2522,7 +2558,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Input"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2566,6 +2602,8 @@ export interface components {
             name?: string | null;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2580,7 +2618,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Output"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2611,7 +2649,12 @@ export interface components {
         RawEncoding: "zstd";
         /**
          * Reference
-         * @description Reference to scanned content.
+         * @description Reference from a score to content in the scored transcript.
+         *
+         *     References are stored as a list of dicts under a score's
+         *     `metadata["scanner_references"]` key. Inspect View identifies scanner
+         *     scores by the presence of that key and renders cites in the score's
+         *     explanation (e.g. `[M22]`) as links to the referenced content.
          */
         Reference: {
             /** Cite */
@@ -2623,6 +2666,31 @@ export interface components {
              * @enum {string}
              */
             type: "message" | "event";
+        };
+        /**
+         * RegisteredPredicateSpec
+         * @description Portable reference to a custom predicate registered with `@validation_predicate`.
+         *
+         *     Only the registered name and creation arguments are stored; the predicate
+         *     is recreated from the registry when the scan is resumed.
+         */
+        RegisteredPredicateSpec: {
+            /** Args */
+            args: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** File */
+            file?: string | null;
+            /**
+             * Kind
+             * @default registered
+             * @constant
+             */
+            kind: "registered";
+            /** Name */
+            name: string;
+            /** Package Version */
+            package_version?: string | null;
         };
         /**
          * RenameValidationSetRequest
@@ -2657,6 +2725,21 @@ export interface components {
             name: string;
             /** Strict */
             strict?: boolean | null;
+        };
+        /**
+         * ResticSnapshots
+         * @description Incremental restic-based sandbox snapshots (the default).
+         *
+         *     Each checkpoint stores only data changed since the previous one.
+         *     Best choice when most files are stable across checkpoints. Requires
+         *     injecting a restic binary into the sandbox.
+         */
+        ResticSnapshots: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            name: "restic-incremental";
         };
         /**
          * Result
@@ -2828,6 +2911,22 @@ export interface components {
             working_start: number;
         };
         /**
+         * SandboxSnapshotConfig
+         * @description Per-sandbox snapshot configuration: what to capture and how.
+         *
+         *     Used as a ``sandbox_paths`` value in place of a bare path list when
+         *     a sandbox needs a non-default snapshot strategy. The ``paths``
+         *     field carries the same semantics as a bare path-list value
+         *     (``None`` = the sandbox default user's home directory; an empty
+         *     list opts the sandbox out entirely).
+         */
+        SandboxSnapshotConfig: {
+            /** Paths */
+            paths?: string[] | null;
+            /** Strategy */
+            strategy?: (components["schemas"]["ResticSnapshots"] | components["schemas"]["ArchiveSnapshots"]) | null;
+        };
+        /**
          * ScanJobConfig
          * @description Scan job configuration.
          */
@@ -2863,6 +2962,8 @@ export interface components {
             name?: string | null;
             /** Results */
             results?: string | null;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Scanners */
             scanners?: components["schemas"]["ScannerSpec"][] | {
                 [key: string]: components["schemas"]["ScannerSpec"];
@@ -2877,7 +2978,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Input"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2954,6 +3055,8 @@ export interface components {
              * @default 25
              */
             max_transcripts: number;
+            /** Results Buffer */
+            results_buffer?: number | null;
             /** Shuffle */
             shuffle?: boolean | number | null;
         };
@@ -3052,7 +3155,7 @@ export interface components {
             model?: components["schemas"]["ModelConfig-Output"] | null;
             /** Model Roles */
             model_roles?: {
-                [key: string]: components["schemas"]["ModelConfig-Output"];
+                [key: string]: components["schemas"]["ModelConfig-Output"] | components["schemas"]["ModelConfig-Output"][];
             } | null;
             options: components["schemas"]["ScanOptions"];
             /** Packages */
@@ -3081,7 +3184,7 @@ export interface components {
             transcripts?: components["schemas"]["ScanTranscripts"] | null;
             /** Validation */
             validation?: {
-                [key: string]: components["schemas"]["ValidationSet-Output"];
+                [key: string]: components["schemas"]["ValidationSetSpec"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -3263,6 +3366,8 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            /** Reason */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | null;
             /** Value */
             value: string | number | boolean | (string | number | boolean)[] | {
                 [key: string]: string | number | boolean | null;
@@ -3291,6 +3396,11 @@ export interface components {
                 [key: string]: unknown;
             } | "UNCHANGED";
             provenance?: components["schemas"]["ProvenanceData"] | null;
+            /**
+             * Reason
+             * @default UNCHANGED
+             */
+            reason?: ("invalid_response_format" | "refusal" | "no_response" | "grader_failed" | "scoring_failed") | string | "UNCHANGED" | null;
             /**
              * Value
              * @default UNCHANGED
@@ -3813,7 +3923,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "unknown" | "output_limit";
+            type: "parsing" | "timeout" | "unicode_decode" | "permission" | "file_not_found" | "is_a_directory" | "limit" | "approval" | "cancelled" | "sandbox_unavailable" | "unknown" | "output_limit";
         };
         /**
          * ToolCallView
@@ -4004,6 +4114,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             score?: components["schemas"]["JsonValue"] | null;
+            /** Score Explanation */
+            score_explanation?: string | null;
             /** Source Id */
             source_id?: string | null;
             /** Source Type */
@@ -4069,6 +4181,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             score?: components["schemas"]["JsonValue"] | null;
+            /** Score Explanation */
+            score_explanation?: string | null;
             /** Source Id */
             source_id?: string | null;
             /** Source Type */
@@ -4125,6 +4239,29 @@ export interface components {
         TurnInterval: {
             /** Every */
             every: number;
+        };
+        /**
+         * UnavailablePredicateSpec
+         * @description Inert marker for a custom predicate that cannot be recreated from the scan artifact.
+         *
+         *     Written for anonymous callables (not registered with `@validation_predicate`)
+         *     and substituted in memory for legacy serialized predicates. Resuming a scan
+         *     with an unavailable predicate requires `predicate_overrides`.
+         */
+        UnavailablePredicateSpec: {
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Kind
+             * @default unavailable
+             * @constant
+             */
+            kind: "unavailable";
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "anonymous" | "legacy";
         };
         /**
          * UrlCitation
@@ -4290,7 +4427,7 @@ export interface components {
          * ValidationSet
          * @description Validation set for a scanner.
          */
-        "ValidationSet-Input": {
+        ValidationSet: {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
             /**
@@ -4302,14 +4439,21 @@ export interface components {
             split?: string | string[] | null;
         };
         /**
-         * ValidationSet
-         * @description Validation set for a scanner.
+         * ValidationSetSpec
+         * @description Data-only validation set stored in portable scan specifications (`_scan.json`).
+         *
+         *     Unlike `ValidationSet`, the predicate is never a callable: it is a built-in
+         *     predicate name, a `RegisteredPredicateSpec`, or an `UnavailablePredicateSpec`.
+         *     Parsing a spec never imports or executes predicate code.
          */
-        "ValidationSet-Output": {
+        ValidationSetSpec: {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
-            /** Predicate */
-            predicate?: string | null;
+            /**
+             * Predicate
+             * @default eq
+             */
+            predicate?: ("gt" | "gte" | "lt" | "lte" | "eq" | "ne" | "contains" | "startswith" | "endswith" | "icontains" | "iequals") | components["schemas"]["RegisteredPredicateSpec"] | components["schemas"]["UnavailablePredicateSpec"] | null;
             /** Split */
             split?: string | string[] | null;
         };

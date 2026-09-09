@@ -43,6 +43,7 @@ interface WorkQueueOptions<TInput, TOutput> {
 export class WorkQueue<TInput, TOutput> {
   private itemsById = new Map<string, WorkItem<TInput>>();
   private activeWorkers = 0;
+  private generation = 0;
   private options: Required<WorkQueueOptions<TInput, TOutput>>;
 
   constructor(options: WorkQueueOptions<TInput, TOutput>) {
@@ -108,6 +109,7 @@ export class WorkQueue<TInput, TOutput> {
   private async runWorker() {
     try {
       while (this.itemsById.size > 0) {
+        const generation = this.generation;
         // Get next batch (sorted by priority, then age) and remove from queue immediately
         const batch = this.claimNextBatch();
 
@@ -126,6 +128,10 @@ export class WorkQueue<TInput, TOutput> {
           // still gets its own retry decision below.
           const err = error instanceof Error ? error : new Error(String(error));
           results = inputs.map(() => ({ ok: false, error: err }));
+        }
+
+        if (generation !== this.generation) {
+          continue;
         }
 
         const settledResults: WorkResult<TOutput>[] = [];
@@ -205,7 +211,12 @@ export class WorkQueue<TInput, TOutput> {
     return batch;
   }
 
+  /**
+   * Drop all queued work AND invalidate in-flight batches: their results
+   * are discarded without retry or onComplete.
+   */
   clear() {
+    this.generation++;
     this.itemsById.clear();
   }
 

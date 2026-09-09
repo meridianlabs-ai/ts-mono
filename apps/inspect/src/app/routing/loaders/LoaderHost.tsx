@@ -9,8 +9,8 @@ import { SampleLoadController } from "./SampleLoadController";
  * `logDir`), so `useLogDir()` resolves synchronously. Mounts the per-log
  * `<LogLoadController>` and per-sample `<SampleLoadController>` reaction
  * controllers for both modes; the single-file `?log_file=` selection happens
- * at app-config resolution (`resolveAppConfig`). Replication/engine activation
- * is on-demand inside acquisition — nothing to mount for it.
+ * at app-config resolution (`resolveAppConfig`). Engine activation is owned
+ * by `<FetchEngineController>` at the composition root (AppContent).
  */
 export const LoaderMounts: FC<{ children: ReactNode }> = ({ children }) => (
   <>

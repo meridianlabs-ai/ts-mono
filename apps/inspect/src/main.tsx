@@ -1,25 +1,26 @@
+import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { getVscodeApi } from "@tsmono/util";
 
-import { getApi } from "./app_config";
+import { getBootstrap } from "./app_config";
 import { App } from "./app/App";
 import { Capabilities } from "./client/api/types";
 import storage from "./client/storage";
 import { initializeStore, storeImplementation } from "./state/store";
 
-// The api backend is a sync bootstrap fact (resolved from the invocation-time
-// log source) — needed here, above the gate, before the full config resolves.
-const applicationApi = getApi();
+// No api instance exists yet — construction needs the resolved log dir
+// (below the gate). The backend's transport facts are a sync bootstrap fact.
+const backendCapabilities = getBootstrap().backend.capabilities;
 const applicationStorage = storage;
 
 // Application capabilities
 const vscode = getVscodeApi();
 const capabilities: Capabilities = {
   downloadFiles: true,
-  downloadLogs: !!applicationApi.download_log,
+  downloadLogs: backendCapabilities.downloadLogs,
   webWorkers: true,
-  streamSamples: !!applicationApi.get_log_pending_samples,
+  streamSamples: backendCapabilities.streamSamples,
 };
 
 // Initial state / storage
@@ -56,7 +57,11 @@ if (!container) {
 
 // Render into the root
 const root = createRoot(container);
-root.render(<App />);
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
 
 function restoreHash() {
   // Check if we need to restore a route

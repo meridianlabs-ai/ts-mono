@@ -22,22 +22,23 @@ export const DownloadLogButton = ({
   const [downloadState, setDownloadState] = useState<DownloadState>("idle");
   const api = getApi();
 
-  const handleClick = async (): Promise<void> => {
+  const handleClick = (): void => {
     if (!api.download_log) return;
 
     setDownloadState("downloading");
 
-    try {
-      await api.download_log(log_file);
-      setDownloadState("success");
-    } catch (error) {
-      console.error("Failed to download log:", error);
-      setDownloadState("error");
-    } finally {
-      setTimeout(() => {
-        setDownloadState("idle");
-      }, 1250);
-    }
+    api
+      .download_log(log_file)
+      .then(() => setDownloadState("success"))
+      .catch((error: unknown) => {
+        console.error("Failed to download log:", error);
+        setDownloadState("error");
+      })
+      .finally(() => {
+        setTimeout(() => {
+          setDownloadState("idle");
+        }, 1250);
+      });
   };
 
   const getIcon = (): string => {
@@ -72,7 +73,7 @@ export const DownloadLogButton = ({
         styles.downloadLogButton,
         className
       )}
-      onClick={() => void handleClick()}
+      onClick={handleClick}
       aria-label={ariaLabel}
       disabled={downloadState !== "idle"}
     >

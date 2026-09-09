@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { createElement, ReactNode } from "react";
 import { describe, expect, it } from "vitest";
 
+import { testEvalSample } from "@tsmono/inspect-common/testing";
 import { EvalSample } from "@tsmono/inspect-common/types";
 import { AsyncData, data, loading } from "@tsmono/util";
 
@@ -15,18 +16,18 @@ import {
   usePassiveEvalSample,
   withErrorSummaryFallback,
 } from "./sampleQuery";
+import { testSampleSummary } from "./testFixtures";
 
 const makeSummary = (overrides: Partial<SampleSummary> = {}): SampleSummary =>
-  ({
+  testSampleSummary({
     id: "s1",
     epoch: 1,
     input: "input",
     target: "target",
     ...overrides,
-  }) as SampleSummary;
+  });
 
-const makeSample = (): EvalSample =>
-  ({ id: "s1", epoch: 1, events: [], messages: [] }) as unknown as EvalSample;
+const makeSample = (): EvalSample => testEvalSample({ id: "s1", epoch: 1 });
 
 const notFound = (): AsyncData<EvalSample> => ({
   loading: false,

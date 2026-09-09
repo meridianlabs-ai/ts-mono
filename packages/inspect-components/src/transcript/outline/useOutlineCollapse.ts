@@ -51,6 +51,7 @@ export function useOutlineCollapse(
   const onSetCollapsed = collapse?.onSetCollapsed;
 
   // Initialize collapsed events from defaults
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!collapsedEvents && Object.keys(defaultCollapsedIds).length > 0) {
       onSetCollapsed?.(defaultCollapsedIds);

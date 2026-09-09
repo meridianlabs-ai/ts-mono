@@ -1,0 +1,454 @@
+.chart {
+  position: relative;
+  width: 100%;
+}
+
+.svg {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.bandLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.bandLabelModel {
+  fill: var(--bs-body-color);
+}
+
+.activeSeries {
+  fill: none;
+  stroke: #495057;
+  stroke-width: 1.2;
+}
+
+.connectionsSeries {
+  fill: none;
+  stroke: #3a7bd5;
+  stroke-width: 1.2;
+}
+
+.limitGuide {
+  stroke: #9d84d1;
+  stroke-dasharray: 3 3;
+  opacity: 0.8;
+}
+
+.guideLabel {
+  font-size: 9px;
+  fill: #5d3f9e;
+}
+
+.rateLimitLine {
+  stroke: #b04a3c;
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* Hover lives on the hit columns — dots stay visual-only so tiny radii
+   never fight the pointer. */
+.terminationDot {
+  pointer-events: none;
+}
+
+.termHitColumn {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.lineHit {
+  fill: transparent;
+}
+
+.crosshair {
+  stroke: var(--bs-secondary-color);
+  stroke-dasharray: 3 3;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.hoverDotActive {
+  fill: #495057;
+  pointer-events: none;
+}
+
+.hoverDotConnections {
+  fill: #3a7bd5;
+  pointer-events: none;
+}
+
+.lineTooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  z-index: 9;
+}
+
+.axisLine {
+  stroke: var(--bs-border-color);
+}
+
+.axisLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.yTickLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.axisBreak {
+  stroke: var(--bs-secondary-color);
+  stroke-width: 1;
+  fill: none;
+}
+
+.postRunLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+  opacity: 0.8;
+}
+
+.marker {
+  cursor: pointer;
+  outline: none;
+}
+
+.markerLine {
+  stroke: #9d84d1;
+}
+
+.markerLineLog {
+  stroke: #7fa8d0;
+}
+
+/* Row-hover / selection: the guide line thickens (canvas 36c). */
+.markerLineActive {
+  stroke: #6b4fa8;
+  stroke-width: 1.75;
+}
+
+.markerLineLogActive {
+  stroke: #1d4f7c;
+  stroke-width: 1.75;
+}
+
+.markerDiamond {
+  fill: #8f6fd0;
+  stroke: #5d3f9e;
+  cursor: pointer;
+}
+
+.markerDiamondLog {
+  fill: #5b8ec4;
+  stroke: #1d4f7c;
+}
+
+/* Deep lavender solid — the ordinal reverses out in white on top. */
+.markerDiamondActive {
+  fill: #6b4fa8;
+  stroke: #6b4fa8;
+}
+
+.markerDiamondLogActive {
+  fill: #1d4f7c;
+  stroke: #1d4f7c;
+}
+
+.markerDiamondText {
+  fill: #fff;
+  font-family: var(--bs-font-monospace);
+  font-size: 7px;
+  pointer-events: none;
+}
+
+/* The 13px bordered mono box — the same token the History row renders. */
+.ordinalBoxRect {
+  fill: var(--bs-body-bg);
+  stroke: #b9a5e0;
+}
+
+.ordinalBoxText {
+  fill: #5d3f9e;
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.markerPostRun {
+  opacity: 0.45;
+}
+
+.markerPostRun:hover,
+.markerPostRun:focus,
+.markerPostRun.markerActive {
+  opacity: 1;
+}
+
+.markerPopover {
+  position: absolute;
+  width: 300px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.markerPopoverHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-light-bg-subtle);
+  border-radius: 4px 4px 0 0;
+}
+
+.markerPopoverOrdinal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  border: 1px solid #b9a5e0;
+  border-radius: 2px;
+  color: #5d3f9e;
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.markerPopoverTime {
+  margin-left: auto;
+  color: var(--bs-secondary-color);
+  font-family: var(--bs-font-monospace);
+  font-size: 0.7rem;
+}
+
+.markerPopoverBody {
+  padding: 0.45rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.markerPopoverEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.markerPopoverChange {
+  font-family: var(--bs-font-monospace);
+  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.markerPopoverMuted {
+  color: var(--bs-secondary-color);
+}
+
+.markerPopoverMeta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 0.8em;
+  row-gap: 0.1rem;
+  align-items: baseline;
+}
+
+.markerPopoverMeta > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.markerPopoverLabel {
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+}
+
+.markerPopoverByline {
+  color: var(--bs-secondary-color);
+  font-size: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.samplePopover {
+  position: absolute;
+  width: 330px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 4px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  z-index: 10;
+  font-size: 0.78rem;
+}
+
+.popoverHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--bs-border-color);
+  background: var(--bs-light-bg-subtle);
+  font-size: 0.75rem;
+  border-radius: 4px 4px 0 0;
+}
+
+.popoverStatusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.popoverSampleId {
+  font-weight: 600;
+}
+
+.popoverEpoch {
+  color: var(--bs-secondary-color);
+}
+
+.popoverStatusWord {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.popoverBody {
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.popoverInput {
+  color: var(--bs-body-color);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.popoverGrid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1em;
+  row-gap: 0.2rem;
+  align-items: baseline;
+}
+
+.popoverGrid > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.popoverLabel {
+  text-transform: uppercase;
+  color: var(--bs-secondary-color);
+  font-size: 0.68rem;
+}
+
+.popoverMore {
+  color: var(--bs-secondary-color);
+  font-size: 0.72rem;
+}
+
+.popoverError {
+  color: #b04a3c;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.popoverCallout {
+  font-size: 0.72rem;
+  color: #664d03;
+  background: #fffaeb;
+  border: 1px solid #e8d8a0;
+  border-radius: 3px;
+  padding: 0.3rem 0.45rem;
+  overflow-wrap: anywhere;
+}
+
+.popoverOpen {
+  font-size: 0.72rem;
+  color: var(--bs-link-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.popoverOpen:hover {
+  text-decoration: underline;
+}
+
+:global([data-bs-theme="dark"]) .activeSeries {
+  stroke: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .connectionsSeries {
+  stroke: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .hoverDotActive {
+  fill: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .hoverDotConnections {
+  fill: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .guideLabel {
+  fill: #b49ae0;
+}
+
+:global([data-bs-theme="dark"]) .ordinalBoxRect {
+  stroke: #4a3d63;
+}
+
+:global([data-bs-theme="dark"]) .ordinalBoxText {
+  fill: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .markerPopoverOrdinal {
+  border-color: #4a3d63;
+  color: #cbb8ec;
+}
+
+:global([data-bs-theme="dark"]) .markerLineLog {
+  stroke: #4d7aa8;
+}
+
+:global([data-bs-theme="dark"]) .rateLimitLine {
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .popoverCallout {
+  color: #e8d8a0;
+  background: #3a3220;
+  border-color: #5c512f;
+}

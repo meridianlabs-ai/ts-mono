@@ -22,10 +22,12 @@ describe("truncateMarkdown", () => {
     });
 
     it("should handle null/undefined gracefully", () => {
+      /* eslint-disable @typescript-eslint/no-unsafe-type-assertion -- deliberately out of contract: the case covers truncateMarkdown's runtime nullish guard, which its signature forbids reaching */
       expect(truncateMarkdown(null as unknown as string, 50)).toBe(null);
       expect(truncateMarkdown(undefined as unknown as string, 50)).toBe(
         undefined
       );
+      /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
     });
   });
 

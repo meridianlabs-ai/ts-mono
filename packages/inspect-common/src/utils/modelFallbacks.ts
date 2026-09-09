@@ -5,6 +5,7 @@ import type { ModelFallback } from "../types";
  */
 export const totalModelFallbacks = (
   fallbacks?: ModelFallback[] | null
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
 ): number => (fallbacks ?? []).reduce((sum, f) => sum + (f.count ?? 1), 0);
 
 /**
@@ -15,5 +16,6 @@ export const modelFallbackLines = (
 ): string[] =>
   (fallbacks ?? []).map(
     (f) =>
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
       `${f.model} → ${f.fallback_model}${(f.count ?? 1) > 1 ? ` (×${f.count})` : ""}`
   );

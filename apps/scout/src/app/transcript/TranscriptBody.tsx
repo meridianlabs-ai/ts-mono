@@ -90,6 +90,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // with the tab bar bottom, avoiding sub-pixel gaps from a hardcoded value.
   const tabsRef = useRef<HTMLUListElement | null>(null);
   const [tabBarHeight, setTabBarHeight] = useState(40);
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const el = tabsRef.current;
     if (!el) return;
@@ -123,6 +124,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const visitId = useVisitId(transcript.transcript_id);
 
   // Selected tab — default to Events when the transcript has events
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
   const hasEvents = transcript.events && transcript.events.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
@@ -188,6 +190,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   );
 
   // Auto-switch tab based on deep link params
+  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     const targetTab = eventParam
       ? kTranscriptEventsTabId
@@ -218,14 +221,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
   const { excludedEventTypes, isDebugFilter, isDefaultFilter } =
     useTranscriptColumnFilter();
-
-  // Pre-filter events by excluded types before feeding into the timeline pipeline
-  const filteredEvents = useMemo(() => {
-    if (excludedEventTypes.length === 0) return transcript.events;
-    return transcript.events.filter(
-      (event) => !excludedEventTypes.includes(event.event)
-    );
-  }, [transcript.events, excludedEventTypes]);
 
   // Transcript collapse (toolbar button state)
   const eventsCollapsed = useStore((state) => state.transcriptState.collapsed);
@@ -424,6 +419,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={`transcript-${visitId}`}
+              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
               messages={transcript.messages || []}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
@@ -475,7 +471,8 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       scrollable={false}
     >
       <TimelineEventsView
-        events={filteredEvents}
+        events={transcript.events}
+        hiddenEventTypes={excludedEventTypes}
         scrollRef={scrollRef}
         offsetTop={contentOffsetTop}
         initialEventId={eventParam}
@@ -515,12 +512,12 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
   if (transcript.metadata && Object.keys(transcript.metadata).length > 0) {
     tabPanels.push(
       <TabPanel
         key="transcript-metadata"
         id={kTranscriptMetadataTabId}
-        className={clsx(styles.metadataTab)}
         title="Metadata"
         onSelected={() => {
           handleTabChange(kTranscriptMetadataTabId);
@@ -531,6 +528,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
+            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
             entries={transcript.metadata || {}}
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
@@ -545,7 +543,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     <TabPanel
       key="transcript-info"
       id={kTranscriptInfoTabId}
-      className={clsx(styles.infoTab)}
       title="Info"
       onSelected={() => {
         handleTabChange(kTranscriptInfoTabId);
@@ -569,8 +566,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       id={"transcript-body"}
       type="pills"
       tabsRef={tabsRef}
-      tabPanelsClassName={clsx(styles.tabSet)}
-      tabControlsClassName={clsx(styles.tabControl)}
       className={clsx(styles.tabs)}
       tools={tabTools}
     >
@@ -596,6 +591,7 @@ const CopyToolbarButton: FC<{
     setTimeout(() => setIcon(ApplicationIcons.copy), 1250);
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
   if (!transcript) {
     return undefined;
   }
@@ -618,6 +614,7 @@ const CopyToolbarButton: FC<{
           }
         },
         Transcript: () => {
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
           if (transcript.messages) {
             // eslint-disable-next-line @typescript-eslint/no-floating-promises
             navigator.clipboard.writeText(messagesToStr(transcript.messages));

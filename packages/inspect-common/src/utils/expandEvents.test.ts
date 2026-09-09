@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { expectEvent } from "../testing";
 import type {
   ChatMessage,
   ChatMessageAssistant,
@@ -182,7 +183,7 @@ describe("expandEvents", () => {
     const event = makeCondensedModelEvent([[0, 3]]);
     const eventsData: EventsData = { messages: pool, calls: [] };
     const result = expandEvents([event], eventsData);
-    const expanded = result[0] as ModelEvent;
+    const expanded = expectEvent(result[0], "model");
 
     expect(expanded.input).toEqual([pool[0], pool[1], pool[2]]);
     expect(expanded.input_refs).toBeNull();
@@ -195,7 +196,7 @@ describe("expandEvents", () => {
     ]);
     const eventsData: EventsData = { messages: pool, calls: [] };
     const result = expandEvents([event], eventsData);
-    const expanded = result[0] as ModelEvent;
+    const expanded = expectEvent(result[0], "model");
 
     expect(expanded.input).toEqual([pool[0], pool[1], pool[5], pool[6]]);
     expect(expanded.input_refs).toBeNull();
@@ -209,7 +210,7 @@ describe("expandEvents", () => {
     });
     const eventsData: EventsData = { messages: [], calls: callPool };
     const result = expandEvents([event], eventsData);
-    const expanded = result[0] as ModelEvent;
+    const expanded = expectEvent(result[0], "model");
 
     expect(expanded.call?.request).toEqual({
       model: "gpt-4",
@@ -227,7 +228,7 @@ describe("expandEvents", () => {
     });
     const eventsData: EventsData = { messages: [], calls: callPool };
     const result = expandEvents([event], eventsData);
-    const expanded = result[0] as ModelEvent;
+    const expanded = expectEvent(result[0], "model");
 
     expect(expanded.call?.request).toEqual({
       model: "gemini",
@@ -245,7 +246,7 @@ describe("expandEvents", () => {
     });
     const eventsData: EventsData = { messages: pool, calls: callPool };
     const result = expandEvents([event], eventsData);
-    const expanded = result[0] as ModelEvent;
+    const expanded = expectEvent(result[0], "model");
 
     expect(expanded.input).toEqual([pool[0], pool[1]]);
     expect(expanded.input_refs).toBeNull();
@@ -264,7 +265,7 @@ describe("expandEvents", () => {
     const result = expandEvents(events, eventsData);
     expect(result).toHaveLength(3);
     expect(result[0]).toBe(step);
-    expect((result[1] as ModelEvent).input).toEqual([pool[0]]);
+    expect(expectEvent(result[1], "model").input).toEqual([pool[0]]);
     expect(result[2]).toBe(step);
   });
 
@@ -275,7 +276,7 @@ describe("expandEvents", () => {
     ]);
     const eventsData: EventsData = { messages: pool, calls: [] };
     const result = expandEvents([event], eventsData);
-    const expanded = result[0] as ModelEvent;
+    const expanded = expectEvent(result[0], "model");
 
     expect(expanded.input).toEqual([pool[2], pool[5]]);
   });

@@ -1,0 +1,22 @@
+.jsonPanel {
+  width: 100%;
+  padding: 0.5em;
+}
+
+.jsonPanel:not(.simple) {
+  background: var(--bs-light);
+  border-radius: var(--bs-border-radius);
+}
+
+/* `source-code` is a repo-wide convention class (see packages/theme base.css
+   and SourceCodePanel/ToolInput), so it stays global here. */
+.jsonPanel :global(.source-code) {
+  font-size: var(--inspect-font-size-small);
+  white-space: pre-wrap !important;
+  word-wrap: anywhere !important;
+}
+
+/* Prism.js convention class on highlighted code — must stay global. */
+:global(.language-javascript) {
+  background: transparent !important;
+}
