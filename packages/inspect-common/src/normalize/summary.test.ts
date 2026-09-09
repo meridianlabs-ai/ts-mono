@@ -72,6 +72,23 @@ describe("normalizeSampleSummary", () => {
     expect(Object.values(summary.scores!).map((s) => s.value)).toEqual(["C"]);
   });
 
+  it("reads a null score value as NaN, keeping the rest of the score", () => {
+    const summary = normalizeSampleSummary({
+      ...vintageRow,
+      scores: {
+        match: { value: null, explanation: "no answer" },
+        exact: { value: 1 },
+      },
+    })!;
+    expect(summary.scores).toEqual({
+      match: { value: NaN, explanation: "no answer" },
+      exact: { value: 1 },
+    });
+    // The scores column groups dict-shaped values by key; a null must not
+    // reach that Object.keys walk typed as an object.
+    expect(typeof summary.scores!["match"]!.value).toBe("number");
+  });
+
   it.each([
     ["a null element", [null]],
     ["a number element", [1]],

@@ -89,15 +89,26 @@ export const normalizeSampleInput = (raw: unknown): string | ChatMessage[] => {
 
 // A score without a value is not a score — pydantic has no default for it.
 const isScore = (value: unknown): value is Score =>
-  isRecord(value) && value["value"] !== undefined;
+  isRecord(value) && value["value"] !== undefined && value["value"] !== null;
 
 const isScoreMap = (value: unknown): value is Record<string, Score> =>
   isRecord(value) && Object.values(value).every(isScore);
 
+// Writers before inspect_ai 0.3.253 serialized a NaN score value as null;
+// read it back as the NaN it was so the score (and its explanation) survives
+// the way it does in files written since.
+const normalizeScore = (raw: unknown): Score | undefined => {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+  const filled = raw["value"] === null ? { ...raw, value: NaN } : raw;
+  return isScore(filled) ? filled : undefined;
+};
+
 /**
  * Normalize a raw sample scores map (scorer name → Score): non-record and
- * value-less entries drop; a non-record map becomes null, the "unscored"
- * value. Identity-preserving on clean input.
+ * value-less entries drop, a null value reads as NaN; a non-record map
+ * becomes null, the "unscored" value. Identity-preserving on clean input.
  */
 export const normalizeSampleScores = (
   raw: unknown
@@ -109,8 +120,9 @@ export const normalizeSampleScores = (
     return raw;
   }
   const scores: Record<string, Score> = {};
-  for (const [name, score] of Object.entries(raw)) {
-    if (isScore(score)) scores[name] = score;
+  for (const [name, entry] of Object.entries(raw)) {
+    const score = normalizeScore(entry);
+    if (score !== undefined) scores[name] = score;
   }
   return scores;
 };

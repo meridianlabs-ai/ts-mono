@@ -136,6 +136,16 @@ describe("legacy shape migrations", () => {
     expect(sample.scores).toEqual({ scorer: { value: "C" } });
   });
 
+  it("drops a null legacy score instead of lifting it", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      score: null,
+    });
+    expect(sample.scores).toEqual({});
+  });
+
   it("migrates a sandbox tuple to a spec object", () => {
     const spec = normalizeEvalSpec({
       task: "t",
@@ -314,6 +324,21 @@ describe("normalizeEvalSample input validation", () => {
     expect(sample.error_retries).toEqual([
       { message: "boom", traceback: "", traceback_ansi: "" },
     ]);
+  });
+
+  it("normalizes score entries the same way the summary path does", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      scores: {
+        a: null,
+        b: { history: [] },
+        c: { value: null },
+        d: { value: 1 },
+      },
+    });
+    expect(sample.scores).toEqual({ c: { value: NaN }, d: { value: 1 } });
   });
 
   it("drops malformed input messages so inputString stays unguarded", () => {

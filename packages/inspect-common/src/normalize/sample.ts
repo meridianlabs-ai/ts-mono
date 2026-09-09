@@ -7,6 +7,7 @@ import {
   normalizeModelFallbacks,
   normalizeModelUsageMap,
   normalizeSampleInput,
+  normalizeSampleScores,
 } from "./summary";
 
 /**
@@ -49,7 +50,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
   }
   if (!Array.isArray(sample["messages"])) sample["messages"] = [];
   sample["output"] = normalizeModelOutput(sample["output"]);
-  if (!isRecord(sample["scores"])) sample["scores"] = null;
+  sample["scores"] = normalizeSampleScores(sample["scores"]);
   for (const field of ["metadata", "store", "attachments"]) {
     if (!isRecord(sample[field])) sample[field] = {};
   }
