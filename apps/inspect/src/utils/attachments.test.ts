@@ -128,3 +128,36 @@ describe("resolveAttachments prototype-named ids", () => {
     }
   });
 });
+
+describe.each(["attachment://", "tc://"])(
+  "resolveAttachments %s value validation",
+  (protocol) => {
+    it.each([
+      { name: "object", value: { invalid: true } },
+      { name: "array", value: ["invalid"] },
+      { name: "null", value: null },
+      { name: "number", value: 42 },
+      { name: "boolean", value: false },
+      { name: "undefined", value: undefined },
+    ])("treats an own $name value as a miss", ({ value }) => {
+      const onFailedResolve = vi.fn();
+      const input = { content: [`${protocol}constructor`] };
+
+      expect(
+        resolveAttachments(input, { constructor: value }, onFailedResolve)
+      ).toBe(input);
+      expect(onFailedResolve).toHaveBeenCalledExactlyOnceWith("constructor");
+    });
+
+    it.each(["constructor", "__proto__", "toString"])(
+      "resolves an own empty string under %s",
+      (id) => {
+        const onFailedResolve = vi.fn();
+        expect(
+          resolveAttachments(`${protocol}${id}`, { [id]: "" }, onFailedResolve)
+        ).toBe("");
+        expect(onFailedResolve).not.toHaveBeenCalled();
+      }
+    );
+  }
+);
