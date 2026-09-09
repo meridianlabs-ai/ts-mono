@@ -1,3 +1,5 @@
+import { nullProtoRecord } from "@tsmono/util";
+
 import type { EvalSpec } from "../types";
 
 type ModelRoleValue = NonNullable<EvalSpec["model_roles"]>[string];
@@ -42,10 +44,10 @@ export const modelRoleNames = (
   modelRoles: EvalSpec["model_roles"]
 ): Record<string, string> | undefined => {
   if (!modelRoles) return undefined;
-  const roles: Record<string, string> = {};
+  const roles = new Map<string, string>();
   for (const [role, value] of Object.entries(modelRoles)) {
     const names = modelRoleModelNames(value);
-    if (names) roles[role] = names;
+    if (names) roles.set(role, names);
   }
-  return Object.keys(roles).length > 0 ? roles : undefined;
+  return roles.size > 0 ? nullProtoRecord(roles) : undefined;
 };

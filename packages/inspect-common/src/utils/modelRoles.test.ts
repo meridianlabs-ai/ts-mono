@@ -66,6 +66,29 @@ describe("modelRoleNames", () => {
     expect(modelRoleNames({})).toBeUndefined();
     expect(modelRoleNames({ grader: config("") })).toBeUndefined();
   });
+
+  it.each(Object.getOwnPropertyNames(Object.prototype))(
+    "preserves the alias of a role named %s",
+    (role) => {
+      const aliases = modelRoleNames({
+        [role]: config("mockllm/model"),
+        grader: config("mockllm/grader"),
+      });
+      expect(aliases && Object.entries(aliases)).toEqual([
+        [role, "mockllm/model"],
+        ["grader", "mockllm/grader"],
+      ]);
+    }
+  );
+
+  it.each(Object.getOwnPropertyNames(Object.prototype))(
+    "does not invent an alias for an absent role named %s",
+    (role) => {
+      expect(
+        modelRoleNames({ grader: config("mockllm/grader") })?.[role]
+      ).toBeUndefined();
+    }
+  );
 });
 
 describe("splitModelRoleNames", () => {
