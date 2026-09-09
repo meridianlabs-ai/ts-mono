@@ -28,7 +28,7 @@
     "dev": "vite",
     "dev:lib": "NODE_ENV=development vite build --mode library --watch",
     "check:publishable": "node scripts/check-publishable.mjs",
-    "prepublishOnly": "pnpm run check:publishable && pnpm run build:lib",
+    "prepublishOnly": "pnpm run build:lib && pnpm run check:publishable",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

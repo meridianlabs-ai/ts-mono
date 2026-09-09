@@ -34,6 +34,54 @@ function copyToPythonRepo(): Plugin {
 
 const viewServerUrl = "http://127.0.0.1:7575";
 
+const declarationAliases = Object.entries({
+  "@tsmono/inspect-common": "packages/inspect-common/src/types/index",
+  "@tsmono/inspect-common/normalize":
+    "packages/inspect-common/src/normalize/index",
+  "@tsmono/inspect-common/query": "packages/inspect-common/src/query/index",
+  "@tsmono/inspect-common/types": "packages/inspect-common/src/types/index",
+  "@tsmono/inspect-common/utils": "packages/inspect-common/src/utils/index",
+  "@tsmono/inspect-components": "packages/inspect-components/src/index",
+  "@tsmono/inspect-components/chat":
+    "packages/inspect-components/src/chat/index",
+  "@tsmono/inspect-components/columnFilter":
+    "packages/inspect-components/src/columnFilter/index",
+  "@tsmono/inspect-components/transcript":
+    "packages/inspect-components/src/transcript/index",
+  "@tsmono/inspect-components/transcript-search":
+    "packages/inspect-components/src/transcript-search/index",
+  "@tsmono/inspect-components/usage":
+    "packages/inspect-components/src/usage/index",
+  "@tsmono/react/components": "packages/react/src/components/index",
+  "@tsmono/react/hooks": "packages/react/src/hooks/index",
+  "@tsmono/react/state": "packages/react/src/state/index",
+  "@tsmono/react/virtual": "packages/react/src/virtual/index",
+  "@tsmono/scout-components/sentinels":
+    "packages/scout-components/src/sentinels/index",
+  "@tsmono/theme/bootstrap": "packages/theme/src/bootstrap",
+  "@tsmono/util": "packages/util/src/index",
+})
+  .sort(([left], [right]) => right.length - left.length)
+  .map(([find, replacement]) => ({
+    find,
+    replacement: resolve(import.meta.dirname, "../..", replacement),
+  }));
+
+const testDeclarationPath =
+  /(^|\/)(e2e|test|testing)(\/|$)|(^|\/)([^/]*\.test|testFixtures|testHelpers|testClientApi|testDescriptors|testStore|syntheticNodes)\.d\.ts(?:\.map)?$/;
+
+const declarationBarrels: Record<string, string> = {
+  "/packages/react/src/hooks/index.d.ts":
+    "export * from './useScrollDirection';\n",
+  "/packages/util/src/index.d.ts": [
+    "export * from './asyncData';",
+    "export * from './http';",
+    "export * from './json-value';",
+    "export * from './vscode';",
+    "",
+  ].join("\n"),
+};
+
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
 
@@ -76,15 +124,41 @@ export default defineConfig(({ mode }) => {
     // Library build configuration
     return {
       ...baseConfig,
+      root: resolve(import.meta.dirname, "../.."),
       plugins: [
         ...baseConfig.plugins,
         dts({
+          entryRoot: resolve(import.meta.dirname, "../.."),
+          tsconfigPath: resolve(import.meta.dirname, "tsconfig.lib.json"),
+          aliases: declarationAliases,
+          beforeWriteFile: (filePath) => {
+            const normalizedPath = filePath.replaceAll("\\", "/");
+            if (testDeclarationPath.test(normalizedPath)) return false;
+            for (const [suffix, content] of Object.entries(
+              declarationBarrels
+            )) {
+              if (normalizedPath.endsWith(suffix)) return { content };
+            }
+            return undefined;
+          },
           insertTypesEntry: true,
-          exclude: ["**/*.test.ts", "**/*.test.tsx", "src/setupTests.ts"],
+          exclude: [
+            "**/*.test.ts",
+            "**/*.test.tsx",
+            "**/*.stories.ts",
+            "**/*.stories.tsx",
+            "**/e2e/**",
+            "**/test/**",
+            "**/testing/**",
+            "**/testFixtures.ts",
+            "**/testHelpers.ts",
+            "**/syntheticNodes.ts",
+            "**/setupTests.ts",
+          ],
         }),
       ],
       build: {
-        outDir: "lib",
+        outDir: resolve(import.meta.dirname, "lib"),
         lib: {
           entry: resolve(import.meta.dirname, "src/index.ts"),
           name: "InspectAILogViewer",

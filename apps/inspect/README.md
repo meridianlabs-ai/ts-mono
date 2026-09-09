@@ -97,6 +97,54 @@ export function MyApp() {
 To re-point the viewer at a different log directory after boot, call
 `setLogRoot(dir)` — it rebuilds the API through the same factory.
 
+### Transcript-only embedding
+
+Consumers that already own navigation and data loading can render a normalized Inspect event
+stream without mounting the full viewer application:
+
+```tsx
+import {
+    initializeStore,
+    InspectComponentProvider,
+    normalizeEvents,
+    TranscriptLayout,
+} from "@meridianlabs/log-viewer";
+import { useRef } from "react";
+
+import "@meridianlabs/log-viewer/styles/index.css";
+
+initializeStore({
+    downloadFiles: false,
+    downloadLogs: false,
+    webWorkers: false,
+    streamSamples: false,
+});
+
+export function Transcript({ rawEvents }: { rawEvents: unknown }) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    return (
+        <InspectComponentProvider
+            navigate={(path) => window.location.assign(path)}
+        >
+            <div ref={scrollRef}>
+                <TranscriptLayout
+                    embedded
+                    events={normalizeEvents(rawEvents)}
+                    listId="transcript"
+                    scrollRef={scrollRef}
+                />
+            </div>
+        </InspectComponentProvider>
+    );
+}
+```
+
+`normalizeEvents` is the compatibility boundary for persisted evals; pass untrusted event JSON
+through it before rendering. The same provider composes `ChatView` for the simpler messages view
+and accepts `displayMode="raw"` for unformatted content. `TranscriptOutline`,
+`TranscriptViewNodes`, `treeifyEvents`, and their public types are also exported for consumers that
+need to compose the layout primitives directly.
+
 ### Embedder chrome
 
 If your own UI (rendered as a sibling of `<App />`, not a descendant) calls
