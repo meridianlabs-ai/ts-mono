@@ -309,15 +309,14 @@ export const createAppSlice = (
             bag[key] = value;
             return;
           }
-          // Bag names are component ids (transcript panels use the log's
-          // event uuid). A computed-key literal defines an own property,
-          // whereas assigning a "__proto__" name or key reaches the
-          // inherited setter, which immer's draft turns into a
-          // setPrototypeOf error.
-          state.app.propertyBags = {
-            ...bags,
-            [bagName]: { ...bag, [key]: value },
-          };
+          // Computed keys bypass the inherited __proto__ setter, which
+          // Immer rejects even when the draft already owns that property.
+          const next = { ...bag, [key]: value };
+          if (bagName === "__proto__") {
+            state.app.propertyBags = { ...bags, [bagName]: next };
+          } else {
+            bags[bagName] = next;
+          }
         });
       },
 
@@ -325,19 +324,14 @@ export const createAppSlice = (
         set((state) => {
           const bag = getOwn(state.app.propertyBags, bagName);
           if (bag !== undefined) {
-            const { [key]: _, ...rest } = bag;
-            state.app.propertyBags = {
-              ...state.app.propertyBags,
-              [bagName]: rest,
-            };
+            delete bag[key];
           }
         });
       },
 
       removeAllProperties: (bagName: string) => {
         set((state) => {
-          const { [bagName]: _, ...rest } = state.app.propertyBags;
-          state.app.propertyBags = rest;
+          delete state.app.propertyBags[bagName];
         });
       },
 
@@ -359,23 +353,14 @@ export const createAppSlice = (
           const bag = getOwn(state.app.propertyBags, bagName);
           if (!bag) return;
           let changed = false;
-          const next = { ...bag };
-          for (const key of Object.keys(next)) {
+          for (const key of Object.keys(bag)) {
             if (key.startsWith(prefix)) {
-              delete next[key];
+              delete bag[key];
               changed = true;
             }
           }
-          if (changed) {
-            if (Object.keys(next).length === 0) {
-              const { [bagName]: _, ...rest } = state.app.propertyBags;
-              state.app.propertyBags = rest;
-            } else {
-              state.app.propertyBags = {
-                ...state.app.propertyBags,
-                [bagName]: next,
-              };
-            }
+          if (changed && Object.keys(bag).length === 0) {
+            delete state.app.propertyBags[bagName];
           }
         });
       },

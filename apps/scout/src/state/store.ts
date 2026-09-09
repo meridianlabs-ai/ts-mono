@@ -438,15 +438,14 @@ export const createStore = (api: ScoutApiV2) =>
                 group[propertyName] = value;
                 return;
               }
-              // Ids are component ids (transcript panels use the log's event
-              // uuid). A computed-key literal defines an own property,
-              // whereas assigning a "__proto__" id or name reaches the
-              // inherited setter, which immer's draft turns into a
-              // setPrototypeOf error.
-              state.properties = {
-                ...state.properties,
-                [id]: { ...group, [propertyName]: value },
-              };
+              // Computed keys bypass the inherited __proto__ setter, which
+              // Immer rejects even when the draft already owns that property.
+              const next = { ...group, [propertyName]: value };
+              if (id === "__proto__") {
+                state.properties = { ...state.properties, [id]: next };
+              } else {
+                state.properties[id] = next;
+              }
             });
           },
           getPropertyValue(
@@ -465,38 +464,22 @@ export const createStore = (api: ScoutApiV2) =>
             set((state) => {
               const propertyGroup = getOwn(state.properties, id);
 
-              // No property, go ahead and return
               if (
                 !propertyGroup ||
-                !Object.hasOwn(propertyGroup, propertyName) ||
-                !propertyGroup[propertyName]
+                !Object.hasOwn(propertyGroup, propertyName)
               ) {
                 return;
               }
 
-              // Destructure to remove the property
-              const { [propertyName]: _removed, ...remainingProperties } =
-                propertyGroup;
-
-              // If no remaining properties, remove the entire group
-              if (Object.keys(remainingProperties).length === 0) {
-                const { [id]: _removedGroup, ...remainingGroups } =
-                  state.properties;
-                state.properties = remainingGroups;
-                return;
+              delete propertyGroup[propertyName];
+              if (Object.keys(propertyGroup).length === 0) {
+                delete state.properties[id];
               }
-
-              // Update to the delete properties
-              state.properties = {
-                ...state.properties,
-                [id]: remainingProperties,
-              };
             });
           },
           removeAllProperties(id: string) {
             set((state) => {
-              const { [id]: _, ...remaining } = state.properties;
-              state.properties = remaining;
+              delete state.properties[id];
             });
           },
           removeByPrefix(id: string, prefix: string) {
@@ -504,20 +487,14 @@ export const createStore = (api: ScoutApiV2) =>
               const bag = getOwn(state.properties, id);
               if (!bag) return;
               let changed = false;
-              const next = { ...bag };
-              for (const key of Object.keys(next)) {
+              for (const key of Object.keys(bag)) {
                 if (key.startsWith(prefix)) {
-                  delete next[key];
+                  delete bag[key];
                   changed = true;
                 }
               }
-              if (changed) {
-                if (Object.keys(next).length === 0) {
-                  const { [id]: _, ...remaining } = state.properties;
-                  state.properties = remaining;
-                } else {
-                  state.properties = { ...state.properties, [id]: next };
-                }
+              if (changed && Object.keys(bag).length === 0) {
+                delete state.properties[id];
               }
             });
           },

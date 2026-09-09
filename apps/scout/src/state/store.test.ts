@@ -35,6 +35,54 @@ describe("store properties prototype safety", () => {
     }
   );
 
+  it.each(["bag", "__proto__", "constructor", "toString"])(
+    "updates and deletes prototype-named keys in %s without losing other state",
+    (bagName) => {
+      const store = actions();
+      store.setPropertyValue("other-bag", "keep", 42);
+      store.setPropertyValue(bagName, "keep", "original");
+      store.setPropertyValue(bagName, "__proto__", { version: 1 });
+      store.setPropertyValue(bagName, "__proto__", { version: 2 });
+      store.setPropertyValue(bagName, "constructor", "own constructor");
+      store.setPropertyValue(bagName, "toString", "own toString");
+
+      expect(store.getPropertyValue(bagName, "__proto__")).toEqual({
+        version: 2,
+      });
+      expect(store.getPropertyValue(bagName, "keep")).toBe("original");
+
+      store.removePropertyValue(bagName, "__proto__");
+      expect(store.getPropertyValue(bagName, "__proto__", "gone")).toBe("gone");
+      expect(store.getPropertyValue(bagName, "constructor")).toBe(
+        "own constructor"
+      );
+
+      store.setPropertyValue(bagName, "__proto__", "restored");
+      store.removeByPrefix(bagName, "__proto");
+      expect(store.getPropertyValue(bagName, "__proto__", "gone")).toBe("gone");
+      expect(store.getPropertyValue(bagName, "toString")).toBe("own toString");
+      expect(store.getPropertyValue(bagName, "keep")).toBe("original");
+
+      store.removeAllProperties(bagName);
+      expect(store.getPropertyValue(bagName, "keep", "gone")).toBe("gone");
+      expect(store.getPropertyValue("other-bag", "keep")).toBe(42);
+      expect(Object.hasOwn(Object.prototype, "keep")).toBe(false);
+      expect(Object.hasOwn(Object.prototype, "version")).toBe(false);
+    }
+  );
+
+  it.each([false, 0, "", null, undefined])(
+    "removes properties with falsy value %s and their empty group",
+    (value) => {
+      const store = createStore(apiScoutServer());
+      for (const id of ["bag", "__proto__"]) {
+        store.getState().setPropertyValue(id, "__proto__", value);
+        store.getState().removePropertyValue(id, "__proto__");
+        expect(Object.hasOwn(store.getState().properties, id)).toBe(false);
+      }
+    }
+  );
+
   it("stores a __proto__ property inside a group as an own entry", () => {
     const store = actions();
 

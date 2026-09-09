@@ -33,6 +33,48 @@ describe("appSlice property bags prototype safety", () => {
     }
   );
 
+  it.each(["bag", "__proto__", "constructor", "toString"])(
+    "updates and deletes prototype-named keys in %s without losing other state",
+    (bagName) => {
+      const { appActions } = testStoreState();
+      appActions.setPropertyValue("other-bag", "keep", 42);
+      appActions.setPropertyValue(bagName, "keep", "original");
+      appActions.setPropertyValue(bagName, "__proto__", { version: 1 });
+      appActions.setPropertyValue(bagName, "__proto__", { version: 2 });
+      appActions.setPropertyValue(bagName, "constructor", "own constructor");
+      appActions.setPropertyValue(bagName, "toString", "own toString");
+
+      expect(appActions.getPropertyValue(bagName, "__proto__")).toEqual({
+        version: 2,
+      });
+      expect(appActions.getPropertyValue(bagName, "keep")).toBe("original");
+
+      appActions.removePropertyValue(bagName, "__proto__");
+      expect(appActions.getPropertyValue(bagName, "__proto__", "gone")).toBe(
+        "gone"
+      );
+      expect(appActions.getPropertyValue(bagName, "constructor")).toBe(
+        "own constructor"
+      );
+
+      appActions.setPropertyValue(bagName, "__proto__", "restored");
+      appActions.removeByPrefix(bagName, "__proto");
+      expect(appActions.getPropertyValue(bagName, "__proto__", "gone")).toBe(
+        "gone"
+      );
+      expect(appActions.getPropertyValue(bagName, "toString")).toBe(
+        "own toString"
+      );
+      expect(appActions.getPropertyValue(bagName, "keep")).toBe("original");
+
+      appActions.removeAllProperties(bagName);
+      expect(appActions.getPropertyValue(bagName, "keep", "gone")).toBe("gone");
+      expect(appActions.getPropertyValue("other-bag", "keep")).toBe(42);
+      expect(Object.hasOwn(Object.prototype, "keep")).toBe(false);
+      expect(Object.hasOwn(Object.prototype, "version")).toBe(false);
+    }
+  );
+
   it("stores a __proto__ key inside a bag as an own entry", () => {
     const { appActions } = testStoreState();
 
