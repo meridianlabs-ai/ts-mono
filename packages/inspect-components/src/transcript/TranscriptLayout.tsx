@@ -13,7 +13,6 @@ import {
   useCallback,
   useMemo,
   useRef,
-  useState,
 } from "react";
 
 import type {
@@ -44,6 +43,7 @@ import {
 } from "./OutlineSidebar";
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
+import type { TranscriptSelection } from "./selection/transcriptSelection";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { countUtilitySpans, TimelineSpan } from "./timeline/core";
 import {
@@ -58,7 +58,6 @@ import {
   TimelineRowSelectContext,
   TimelineSelectContext,
 } from "./TimelineSelectContext";
-import { TranscriptEvidenceToolbar } from "./TranscriptEvidenceToolbar";
 import styles from "./TranscriptLayout.module.css";
 import {
   TranscriptViewNodes,
@@ -67,7 +66,6 @@ import {
 import {
   EventNode,
   type EventNodeContext,
-  type EventType,
   type TranscriptCollapseState,
 } from "./types";
 
@@ -197,6 +195,9 @@ export interface TranscriptLayoutProps {
   /** Disable transcript keyboard nav (j/k/h/l/gg/G) while find-in-page owns the
    *  keyboard, so its keys reach the find box instead of navigating turns. */
   keyboardNavDisabled?: boolean;
+  /** Evidence selection (host-owned state). Pass it only while selection mode
+   *  is on: its presence shows the per-event header checkboxes. */
+  selection?: TranscriptSelection;
 
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
@@ -255,6 +256,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   onOpenEventFocus,
   onNavigatedToEvent,
   keyboardNavDisabled,
+  selection,
   bulkCollapse,
   collapseState,
   outline,
@@ -326,53 +328,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     eventNodes,
     defaultCollapsedIds,
     eventNodeContext: mergedEventNodeContext,
-  } = useEventNodeData(nodeFeed, running, eventNodeContext);
-
-  const [exportActive, setExportActive] = useState(false);
-  const [selectedExportIds, setSelectedExportIds] = useState<Set<string>>(
-    () => new Set()
-  );
-  const availableEventIds = useMemo(
-    () =>
-      new Set(
-        events
-          .map((event) => event.uuid)
-          .filter((eventId): eventId is string => typeof eventId === "string")
-      ),
-    [events]
-  );
-  const validSelectedExportIds = useMemo(
-    () =>
-      new Set(
-        [...selectedExportIds].filter((eventId) =>
-          availableEventIds.has(eventId)
-        )
-      ),
-    [availableEventIds, selectedExportIds]
-  );
-  const selectedExportEvents = useMemo(
-    () =>
-      events.filter(
-        (event) =>
-          typeof event.uuid === "string" && selectedExportIds.has(event.uuid)
-      ) as EventType[],
-    [events, selectedExportIds]
-  );
-  const toggleExportEvent = useCallback((eventId: string) => {
-    setSelectedExportIds((current) => {
-      const next = new Set(current);
-      if (next.has(eventId)) next.delete(eventId);
-      else next.add(eventId);
-      return next;
-    });
-  }, []);
-  const exportSelection = useMemo(
-    () =>
-      exportActive
-        ? { selectedIds: validSelectedExportIds, onToggle: toggleExportEvent }
-        : undefined,
-    [exportActive, validSelectedExportIds, toggleExportEvent]
-  );
+  } = useEventNodeData(nodeFeed, running, eventNodeContext, events);
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
 
@@ -750,15 +706,6 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   : "100vh",
               })}
             >
-              {hasMatchingEvents ? (
-                <TranscriptEvidenceToolbar
-                  active={exportActive}
-                  events={selectedExportEvents}
-                  onActivate={() => setExportActive(true)}
-                  onCancel={() => setExportActive(false)}
-                  onClear={() => setSelectedExportIds(new Set())}
-                />
-              ) : null}
               {outline && (
                 <OutlineSidebar
                   outline={outline}
@@ -817,7 +764,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   }
                   onNavigatedToEvent={onNavigatedToEvent}
                   keyboardNavDisabled={keyboardNavDisabled}
-                  exportSelection={exportSelection}
+                  selection={selection}
                 />
               ) : emptyText !== null ? (
                 <NoContentsPanel text={emptyText} busy={emptyBusy} />

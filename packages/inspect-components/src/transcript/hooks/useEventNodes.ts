@@ -15,7 +15,11 @@ import { correctRetryTimestamps } from "../timeline/retryOrdering";
 import { attachSourceSpans } from "../timeline/timelineEventNodes";
 import { computeDefaultCollapsedIds } from "../transform/collapse";
 import { fixupEventStream } from "../transform/fixups";
-import { filterEmptySpans, treeifyEvents } from "../transform/treeify";
+import {
+  eventFallbackIds,
+  filterEmptySpans,
+  treeifyEvents,
+} from "../transform/treeify";
 import { EventNode } from "../types";
 
 export interface EventNodesResult {
@@ -31,11 +35,16 @@ export interface EventNodesResult {
  * the exact production pipeline: retry ordering/grouping, fixups,
  * treeification, empty-span filtering, source-span attachment, and
  * default-collapse computation.
+ *
+ * `allEvents` is the unfiltered event list `events` was drawn from (defaults
+ * to `events`): uuid-less events take position-based ids from it, so a node's
+ * id is the same whether or not a type filter or lane selection is applied.
  */
 export const buildEventNodes = (
   events: Event[],
   running: boolean,
-  sourceSpans?: ReadonlyMap<string, TimelineSpan>
+  sourceSpans?: ReadonlyMap<string, TimelineSpan>,
+  allEvents: readonly Event[] = events
 ): EventNodesResult => {
   // Repair retry-inverted ModelEvent timestamps before any downstream
   // sort sees them (treeifyEvents sorts span children by timestamp).
@@ -51,7 +60,11 @@ export const buildEventNodes = (
   const resolvedEvents = fixupEventStream(groupedEvents, !running);
 
   // Build the event tree
-  const rawEventTree = treeifyEvents(resolvedEvents, 0);
+  const rawEventTree = treeifyEvents(
+    resolvedEvents,
+    0,
+    eventFallbackIds(allEvents)
+  );
 
   // Attach source span references before filtering so filterEmptySpans
   // can preserve agent card nodes (which have no children by design).
@@ -68,10 +81,11 @@ export const buildEventNodes = (
 export const useEventNodes = (
   events: Event[],
   running: boolean,
-  sourceSpans?: ReadonlyMap<string, TimelineSpan>
+  sourceSpans?: ReadonlyMap<string, TimelineSpan>,
+  allEvents?: readonly Event[]
 ) => {
   return useMemo(
-    () => buildEventNodes(events, running, sourceSpans),
-    [events, running, sourceSpans]
+    () => buildEventNodes(events, running, sourceSpans, allEvents),
+    [events, running, sourceSpans, allEvents]
   );
 };

@@ -1,11 +1,18 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import {
+  EventSelectCheckbox,
+  useEventRowSelection,
+} from "../selection/EventSelectCheckbox";
+
 import styles from "./EventRow.module.css";
 
 const kDefaultIcon = "bi bi-table";
 
 interface EventRowProps {
+  /** The row's node id; enables the evidence-selection checkbox. */
+  eventNodeId?: string;
   title: ReactNode;
   icon: string;
   iconClassName?: string;
@@ -18,6 +25,7 @@ interface EventRowProps {
  * Renders the EventRow component.
  */
 export const EventRow: FC<EventRowProps> = ({
+  eventNodeId,
   title,
   icon,
   iconClassName,
@@ -25,9 +33,18 @@ export const EventRow: FC<EventRowProps> = ({
   children,
   below,
 }) => {
+  const rowSelection = useEventRowSelection(eventNodeId);
   const contentEl = title ? (
     <>
-      <div className={clsx("text-size-small", styles.title, className)}>
+      <div
+        className={clsx(
+          "text-size-small",
+          styles.title,
+          rowSelection && styles.selectable,
+          className
+        )}
+      >
+        {rowSelection ? <EventSelectCheckbox selection={rowSelection} /> : null}
         <i className={clsx(icon || kDefaultIcon, iconClassName)} />
         <div className={clsx("text-style-label")}>{title}</div>
         <div>{children}</div>
@@ -40,6 +57,15 @@ export const EventRow: FC<EventRowProps> = ({
     ""
   );
 
-  const card = <div className={clsx("card", styles.contents)}>{contentEl}</div>;
-  return card;
+  return (
+    <div
+      className={clsx(
+        "card",
+        styles.contents,
+        rowSelection?.selected && styles.selected
+      )}
+    >
+      {contentEl}
+    </div>
+  );
 };

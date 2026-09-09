@@ -96,9 +96,13 @@ export const SampleEventView: FC = () => {
     eventId,
     sample?.timelines ?? undefined
   );
+  // The full list keeps uuid-less node ids identical to the transcript's, so
+  // focus links and `?event=` resolve here too.
   const { eventNodes, defaultCollapsedIds } = useEventNodes(
     scope.laneEvents,
-    isRunning
+    isRunning,
+    undefined,
+    sample?.events ?? runningEvents
   );
   // Sample stepping for the navbar arrows (which own the ArrowLeft /
   // ArrowRight binding — see SampleNavbar).

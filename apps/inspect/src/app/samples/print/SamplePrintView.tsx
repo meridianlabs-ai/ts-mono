@@ -6,6 +6,7 @@ import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import {
   flatTree,
+  selectedEventNodes,
   TranscriptVirtualList,
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
@@ -42,11 +43,15 @@ import styles from "./SamplePrintView.module.css";
  * Print route page component.
  * Renders sample content without virtualization for printing.
  * URL pattern: /logs/<logPath>/samples/sample/<id>/<epoch>/print?view=<tab>
+ * Repeated `events=<node id>` params restrict a transcript print to those
+ * events (ids as the transcript assigns them: the uuid, or the position-based
+ * fallback for logs without uuids).
  */
 export const SamplePrintView: FC = () => {
   const { logPath, sampleId, epoch } = useLogRouteParams();
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view") ?? kSampleTranscriptTabId;
+  const printingSelection = searchParams.has("events");
 
   // Initialize log and sample loading (same pattern as LogSampleDetailView)
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -70,8 +75,17 @@ export const SamplePrintView: FC = () => {
   const sampleEvents = sample?.events || [];
   const { eventNodes } = useEventNodes(sampleEvents, false);
   const flattenedNodes = useMemo(() => {
-    return flatTree(eventNodes, null);
-  }, [eventNodes]);
+    const all = flatTree(eventNodes, null);
+    const ids = searchParams.getAll("events");
+    return ids.length > 0 ? selectedEventNodes(all, new Set(ids)) : all;
+  }, [eventNodes, searchParams]);
+  // A stale or hand-edited selection URL: say so instead of printing a page
+  // with nothing on it.
+  const selectionNotFound =
+    printingSelection &&
+    view === kSampleTranscriptTabId &&
+    sampleEvents.length > 0 &&
+    flattenedNodes.length === 0;
   const listHandle = useRef<VirtualListHandle | null>(null);
 
   // Auto-print once content has finished rendering.
@@ -81,7 +95,14 @@ export const SamplePrintView: FC = () => {
   const hasPrinted = useRef(false);
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    if (!sample || hasPrinted.current || !contentRef.current) return;
+    if (
+      !sample ||
+      hasPrinted.current ||
+      !contentRef.current ||
+      selectionNotFound
+    ) {
+      return;
+    }
 
     let timer: ReturnType<typeof setTimeout>;
     const triggerPrint = () => {
@@ -112,7 +133,7 @@ export const SamplePrintView: FC = () => {
       clearTimeout(timer);
       observer.disconnect();
     };
-  }, [sample]);
+  }, [sample, selectionNotFound]);
 
   if (!sample) {
     return (
@@ -132,11 +153,18 @@ export const SamplePrintView: FC = () => {
         {sampleId && epoch && (
           <div className={styles.sampleInfo}>
             Sample {sampleId} (Epoch {epoch})
+            {printingSelection
+              ? ` · ${flattenedNodes.length} selected ${flattenedNodes.length === 1 ? "event" : "events"}`
+              : null}
           </div>
         )}
       </div>
 
-      {view === kSampleTranscriptTabId && (
+      {selectionNotFound && (
+        <NoContentsPanel text="None of the selected events were found in this sample." />
+      )}
+
+      {view === kSampleTranscriptTabId && !selectionNotFound && (
         <TranscriptVirtualList
           id="print-transcript"
           listHandle={listHandle}

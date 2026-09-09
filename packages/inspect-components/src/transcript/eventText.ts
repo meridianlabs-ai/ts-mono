@@ -1,6 +1,7 @@
 import type { Content } from "@tsmono/inspect-common/types";
-import { isRecord } from "@tsmono/util";
+import { isRecord, toTitleCase } from "@tsmono/util";
 
+import { eventTitle } from "./event/utils";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -428,7 +429,7 @@ export const eventSearchText = (node: EventNode): string[] => {
 /**
  * Converts an array of events to a human-readable text transcript.
  */
-export const eventsToStr = (events: EventType[]): string => {
+export const eventsToStr = (events: readonly EventType[]): string => {
   return events
     .map((event) => {
       const fields = extractEventFields(event);
@@ -444,92 +445,92 @@ export const eventsToStr = (events: EventType[]): string => {
 
 /**
  * Converts an array of events to a Markdown transcript suitable for reports
- * and other review artifacts.
+ * and other review artifacts. Sections use the viewer's event titles. Prose
+ * fields (model output, messages, explanations) keep their Markdown, quoted
+ * when multi-line; everything else — tool arguments and results, tracebacks,
+ * JSON — is fenced or put in inline code so it renders verbatim.
  */
-export const eventsToMarkdown = (events: EventType[]): string => {
+export const eventsToMarkdown = (events: readonly EventType[]): string => {
   return events
     .map((event) => {
       const fields = extractEventFields(event);
-      if (fields.length === 0) return null;
-      const title = titleCase(event.event);
+      // Tool titles interpolate raw arguments, which may span lines.
+      const title = (eventTitle(event) || titleCase(event.event)).replace(
+        /\s+/g,
+        " "
+      );
+      // A selected event with nothing to extract still gets its heading so the
+      // export never silently shortens (or empties) the selection.
+      if (fields.length === 0) return `## ${title}`;
       const body = fields
         .map(([key, value]) => {
           const label = titleCase(key);
-          if (!value.includes("\n")) return `**${label}:** ${value}`;
-          const quoted = value
-            .split("\n")
-            .map((line) => `> ${line}`)
-            .join("\n");
-          return `**${label}**\n\n${quoted}`;
+          const prose = kProseFields.has(key);
+          if (value.includes("\n")) {
+            return `**${label}**\n\n${prose ? quoted(value) : fenced(value)}`;
+          }
+          if (!prose && looksLikeJson(value)) {
+            return `**${label}**\n\n${fenced(value)}`;
+          }
+          const text = kCodeLikeFields.has(key) ? inlineCode(value) : value;
+          return `**${label}:** ${text}`;
         })
         .join("\n\n");
       return `## ${title}\n\n${body}`;
     })
-    .filter((section): section is string => section !== null)
     .join("\n\n---\n\n");
 };
 
-/**
- * Converts events to a self-contained, print-friendly HTML document.
- * All event content is escaped before it is placed in the document.
- */
-export const eventsToHtmlDocument = (events: EventType[]): string => {
-  const sections = events
-    .map((event) => {
-      const fields = extractEventFields(event);
-      if (fields.length === 0) return null;
-      const body = fields
-        .map(
-          ([key, value]) =>
-            `<dt>${escapeHtml(titleCase(key))}</dt><dd><pre>${escapeHtml(
-              value
-            )}</pre></dd>`
-        )
-        .join("");
-      return `<section><h2>${escapeHtml(
-        titleCase(event.event)
-      )}</h2><dl>${body}</dl></section>`;
-    })
-    .filter((section): section is string => section !== null)
-    .join("");
+const titleCase = (value: string): string =>
+  toTitleCase(value.replace(/_/g, " "));
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Inspect transcript evidence</title>
-<style>
-  body { color: #1f2328; font: 14px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
-  h1 { border-bottom: 1px solid #d0d7de; font-size: 1.6rem; padding-bottom: .4rem; }
-  h2 { font-size: 1.15rem; margin: 0 0 .8rem; }
-  section { break-inside: avoid; border-bottom: 1px solid #d8dee4; padding: 1rem 0; }
-  dt { font-weight: 600; margin-top: .7rem; }
-  dd { margin: .2rem 0 0; }
-  pre { font: inherit; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
-  @page { margin: 18mm; }
-</style>
-</head>
-<body>
-<h1>Inspect transcript evidence</h1>
-${sections}
-</body>
-</html>`;
+const kProseFields: ReadonlySet<string> = new Set([
+  "answer",
+  "explanation",
+  "message",
+  "output",
+  "title",
+]);
+
+const quoted = (value: string): string =>
+  value
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+
+const kCodeLikeFields: ReadonlySet<string> = new Set([
+  "arguments",
+  "cmd",
+  "file",
+  "filename",
+  "function",
+  "path",
+]);
+
+const longestBacktickRun = (value: string): number => {
+  let longest = 0;
+  for (const run of value.matchAll(/`+/g)) {
+    longest = Math.max(longest, run[0].length);
+  }
+  return longest;
 };
 
-const titleCase = (value: string): string =>
-  value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
+// Delimiter longer than any backtick run inside; a space pads a value that
+// starts or ends with a backtick (CommonMark strips one space each side).
+const inlineCode = (value: string): string => {
+  const ticks = "`".repeat(longestBacktickRun(value) + 1);
+  const pad = value.startsWith("`") || value.endsWith("`") ? " " : "";
+  return `${ticks}${pad}${value}${pad}${ticks}`;
+};
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+const looksLikeJson = (value: string): boolean =>
+  /^\s*[[{]/.test(value) && /[\]}]\s*$/.test(value);
+
+// The fence must be longer than any backtick run inside the value.
+const fenced = (value: string): string => {
+  const fence = "`".repeat(Math.max(2, longestBacktickRun(value)) + 1);
+  return `${fence}\n${value}\n${fence}`;
+};
 
 /**
  * Extracts text strings from message content.

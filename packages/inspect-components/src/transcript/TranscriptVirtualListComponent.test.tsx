@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { testInfoEvent } from "@tsmono/inspect-common/testing";
+import {
+  testInfoEvent,
+  testLoggerEvent,
+  testSpanBeginEvent,
+} from "@tsmono/inspect-common/testing";
 import { ExtendedFindProvider } from "@tsmono/react/components";
 import {
   ComponentStateProvider,
@@ -190,4 +194,61 @@ describe("TranscriptVirtualList event labels", () => {
       expect(screen.getAllByText("E1")).toHaveLength(1);
     }
   );
+});
+
+describe("TranscriptVirtualList evidence selection", () => {
+  // A logger row renders through EventRow rather than EventPanel — both
+  // header styles must offer the checkbox.
+  // Spans are structure, not evidence: no checkbox on the span_begin row.
+  const selectableSlice = [
+    new EventNode(
+      "s1",
+      testSpanBeginEvent({ uuid: "s1", timestamp: "2026-01-01T00:00:00Z" }),
+      1
+    ),
+    ...nestedSlice,
+    new EventNode(
+      "l1",
+      testLoggerEvent({ uuid: "l1", timestamp: "2026-01-01T00:00:00Z" }),
+      2
+    ),
+  ];
+  const renderSelectable = (onToggle: (id: string, extend: boolean) => void) =>
+    render(
+      <ComponentStateProvider hooks={stateHooks}>
+        <TranscriptVirtualList
+          id="selection-test"
+          listHandle={createRef<VirtualListHandle | null>()}
+          eventNodes={selectableSlice}
+          disableVirtualization={true}
+          selection={{ selectedIds: new Set(["m1"]), onToggle }}
+        />
+      </ComponentStateProvider>
+    );
+
+  it("renders no checkboxes while selection mode is off", () => {
+    renderList(false);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+  });
+
+  it("renders a header checkbox per event row reflecting the selection", () => {
+    renderSelectable(() => {});
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(3);
+    expect(boxes[0]?.getAttribute("aria-checked")).toBe("true");
+    expect(boxes[1]?.getAttribute("aria-checked")).toBe("false");
+    expect(boxes[2]?.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("reports plain and shift clicks with the row id", () => {
+    const onToggle = vi.fn();
+    renderSelectable(onToggle);
+    const [, unselected, loggerRow] = screen.getAllByRole("checkbox");
+    fireEvent.click(unselected!);
+    expect(onToggle).toHaveBeenLastCalledWith("t1", false);
+    fireEvent.click(unselected!, { shiftKey: true });
+    expect(onToggle).toHaveBeenLastCalledWith("t1", true);
+    fireEvent.click(loggerRow!);
+    expect(onToggle).toHaveBeenLastCalledWith("l1", false);
+  });
 });

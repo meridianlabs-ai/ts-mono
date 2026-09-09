@@ -22,16 +22,20 @@ import { LoadingEventsIndicator } from "../indicators/LoadingEventsIndicator";
 import { EventLabelContext } from "./EventLabelContext";
 import { eventSearchText } from "./eventText";
 import { computeHasToolEventsAtDepth } from "./hasToolEventsAtDepth";
+import {
+  EventRowIdContext,
+  EventRowSelectedContext,
+  TranscriptRowToggleContext,
+} from "./selection/EventRowSelectionContext";
+import {
+  isSelectableEvent,
+  type TranscriptRowSelectionProps,
+} from "./selection/transcriptSelection";
 import { RenderedEventNode } from "./TranscriptVirtualList";
 import styles from "./TranscriptVirtualListComponent.module.css";
 import { computeVisualActionContext } from "./transcriptVisualActions";
 import { kTranscriptScrollPaddingStart } from "./turnNavigation";
-import {
-  EventNode,
-  EventNodeContext,
-  EventPanelCallbacks,
-  TranscriptExportSelection,
-} from "./types";
+import { EventNode, EventNodeContext, EventPanelCallbacks } from "./types";
 
 interface TranscriptVirtualListComponentProps {
   id: string;
@@ -63,7 +67,9 @@ interface TranscriptVirtualListComponentProps {
   eventCallbacks?: EventPanelCallbacks;
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
-  exportSelection?: TranscriptExportSelection;
+  /** Evidence selection, present while selection mode is on: each non-structural
+   *  row gets a header checkbox. */
+  selection?: TranscriptRowSelectionProps;
   /** External ref filled with the virtual list's visible range, for find machinery. */
   visibleRangeRef?: RefObject<{ startIndex: number; endIndex: number }>;
 }
@@ -93,7 +99,7 @@ export const TranscriptVirtualListComponent: FC<
   renderAgentCard,
   eventCallbacks,
   eventNodeContext,
-  exportSelection,
+  selection,
   visibleRangeRef,
 }) => {
   // Always virtualize when not explicitly disabled. The previous threshold
@@ -201,21 +207,31 @@ export const TranscriptVirtualListComponent: FC<
 
       const context = contextMap.get(item.id);
       const isLast = index === eventNodes.length - 1;
+      const selectableRowId =
+        selection && isSelectableEvent(item.event) ? item.id : undefined;
+      const rowSelected =
+        selection !== undefined &&
+        selectableRowId !== undefined &&
+        selection.selectedIds.has(item.id);
       const renderedNode = (
         <EventLabelContext.Provider value={getOwn(eventLabels, item.id)}>
-          <RenderedEventNode
-            node={item}
-            next={next}
-            className={clsx(
-              attachedParentClass,
-              attachedChildClass,
-              depthRootClass
-            )}
-            context={context}
-            onAutoCollapse={onAutoCollapse}
-            renderAgentCard={renderAgentCard}
-            eventCallbacks={eventCallbacks}
-          />
+          <EventRowIdContext.Provider value={selectableRowId}>
+            <EventRowSelectedContext.Provider value={rowSelected}>
+              <RenderedEventNode
+                node={item}
+                next={next}
+                className={clsx(
+                  attachedParentClass,
+                  attachedChildClass,
+                  depthRootClass
+                )}
+                context={context}
+                onAutoCollapse={onAutoCollapse}
+                renderAgentCard={renderAgentCard}
+                eventCallbacks={eventCallbacks}
+              />
+            </EventRowSelectedContext.Provider>
+          </EventRowIdContext.Provider>
         </EventLabelContext.Provider>
       );
 
@@ -229,29 +245,12 @@ export const TranscriptVirtualListComponent: FC<
             attachedClass
           )}
           style={{
-            paddingLeft: exportSelection
-              ? `calc(${
-                  depth <= 1 ? depth * 0.7 : (0.7 + depth - 1) * 1
-                }em + 2rem)`
-              : `${depth <= 1 ? depth * 0.7 : (0.7 + depth - 1) * 1}em`,
+            paddingLeft: `${depth <= 1 ? depth * 0.7 : (0.7 + depth - 1) * 1}em`,
             // The right inset visually belongs to the transcript's nested card
             // chrome; the focus page strips cards, so indent left-only there.
             paddingRight: relativeIndent || depth === 0 ? undefined : "0.7em",
           }}
         >
-          {exportSelection ? (
-            <label
-              className={styles.exportSelection}
-              title="Include event in evidence export"
-            >
-              <input
-                type="checkbox"
-                checked={exportSelection.selectedIds.has(item.id)}
-                onChange={() => exportSelection.onToggle(item.id)}
-                aria-label={`Select ${item.event.event} event for export`}
-              />
-            </label>
-          ) : null}
           {renderedNode}
         </div>
       );
@@ -264,7 +263,7 @@ export const TranscriptVirtualListComponent: FC<
       eventCallbacks,
       eventLabels,
       relativeIndent,
-      exportSelection,
+      selection,
     ]
   );
 
@@ -285,42 +284,44 @@ export const TranscriptVirtualListComponent: FC<
   );
   const components = useMemo(() => ({ Footer }), [Footer]);
 
-  if (useVirtualization) {
-    return (
-      <VirtualList<EventNode>
-        ref={listHandle}
-        className={className}
-        persistenceKey={id}
-        scrollRef={scrollRef}
-        data={eventNodes}
-        initialIndex={initialEventIndex}
-        navOwned={navOwned}
-        followRequested={followRequested}
-        scrollPaddingStart={kTranscriptScrollPaddingStart}
-        renderRow={renderRow}
-        live={running === true}
-        smoothScroll={running === true && !isBackfilling}
-        scrollToTopOnFinish={scrollToTopOnFinish}
-        itemSearchText={eventSearchText}
-        findScope="none"
-        showProgress={showFooter}
-        components={components}
-        onVisibleRangeChange={(range) => {
-          if (visibleRangeRef) visibleRangeRef.current = range;
-        }}
-      />
-    );
-  } else {
-    return (
-      <div ref={nonVirtualGridRef}>
-        {eventNodes.map((node, index) => {
-          const row = renderRow(index, node);
-          return row;
-        })}
-        {renderTranscriptFooter({ backfilling: isBackfilling, toolsRunning })}
-      </div>
-    );
-  }
+  const list = useVirtualization ? (
+    <VirtualList<EventNode>
+      ref={listHandle}
+      className={className}
+      persistenceKey={id}
+      scrollRef={scrollRef}
+      data={eventNodes}
+      initialIndex={initialEventIndex}
+      navOwned={navOwned}
+      followRequested={followRequested}
+      scrollPaddingStart={kTranscriptScrollPaddingStart}
+      renderRow={renderRow}
+      live={running === true}
+      smoothScroll={running === true && !isBackfilling}
+      scrollToTopOnFinish={scrollToTopOnFinish}
+      itemSearchText={eventSearchText}
+      findScope="none"
+      showProgress={showFooter}
+      components={components}
+      onVisibleRangeChange={(range) => {
+        if (visibleRangeRef) visibleRangeRef.current = range;
+      }}
+    />
+  ) : (
+    <div ref={nonVirtualGridRef}>
+      {eventNodes.map((node, index) => {
+        const row = renderRow(index, node);
+        return row;
+      })}
+      {renderTranscriptFooter({ backfilling: isBackfilling, toolsRunning })}
+    </div>
+  );
+
+  return (
+    <TranscriptRowToggleContext.Provider value={selection?.onToggle}>
+      {list}
+    </TranscriptRowToggleContext.Provider>
+  );
 };
 
 // Memoized here (not in TranscriptVirtualList.tsx, which re-exports it) to avoid a circular import via RenderedEventNode.

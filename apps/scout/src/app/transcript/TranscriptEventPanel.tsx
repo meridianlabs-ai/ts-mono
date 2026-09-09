@@ -79,9 +79,13 @@ export const TranscriptEventPanel: FC = () => {
     eventId,
     transcript?.timelines ?? undefined
   );
+  // The full list keeps uuid-less node ids identical to the transcript's, so
+  // focus links and `?event=` resolve here too.
   const { eventNodes, defaultCollapsedIds } = useEventNodes(
     scope.laneEvents,
-    false
+    false,
+    undefined,
+    transcript?.events ?? kNoEvents
   );
   const setParams = useFocusSetParams(setSearchParams);
   const nav = useFocusTurnNavigation(

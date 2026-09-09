@@ -6,7 +6,7 @@
 import { useMemo } from "react";
 
 import { buildToolLabels, scopeMessageLabels } from "../transform/labels";
-import type { EventNode, EventNodeContext } from "../types";
+import type { EventNode, EventNodeContext, EventType } from "../types";
 
 import { useEventNodes } from "./useEventNodes";
 import type { EventNodeFeed } from "./useTimelinePipeline";
@@ -24,12 +24,14 @@ export interface EventNodeData {
 export const useEventNodeData = (
   nodeFeed: EventNodeFeed,
   running: boolean,
-  extraContext?: Partial<EventNodeContext>
+  extraContext?: Partial<EventNodeContext>,
+  allEvents?: readonly EventType[]
 ): EventNodeData => {
   const { eventNodes, defaultCollapsedIds, retryAttempts } = useEventNodes(
     nodeFeed.events,
     running,
-    nodeFeed.sourceSpans
+    nodeFeed.sourceSpans,
+    allEvents
   );
 
   const eventNodeContext = useMemo<Partial<EventNodeContext>>(() => {

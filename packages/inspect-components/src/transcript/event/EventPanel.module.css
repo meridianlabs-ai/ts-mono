@@ -143,6 +143,13 @@ a.turnButton {
   outline-offset: 2px;
 }
 
+/* Selected for export; compounded to outrank .depthRoot, margin absorbs the border like .expanded. */
+.card.selected {
+  border-left: 3px solid var(--inspect-jump-target-ring-color);
+  margin-left: -2px;
+  background-color: rgba(77, 126, 191, 0.05);
+}
+
 .cardContent {
   padding: 0;
   display: inherit;

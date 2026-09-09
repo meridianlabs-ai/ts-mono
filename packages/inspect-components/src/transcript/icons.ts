@@ -16,6 +16,12 @@ const loggingIcons: Record<string, string> = {
 };
 
 export const TranscriptIcons = {
+  selection: {
+    select: "bi bi-square",
+    selecting: "bi bi-check2-square",
+    checked: "bi bi-check-lg",
+    clear: "bi bi-x-lg",
+  },
   agent: "bi bi-grid",
   approve: "bi bi-shield",
   cancel: "bi bi-x-circle",

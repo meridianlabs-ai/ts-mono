@@ -53,6 +53,22 @@ export { eventTitle, formatTiming, formatTitle } from "./event/utils";
 // Search text and event serialization
 export { eventSearchText, eventsToMarkdown, eventsToStr } from "./eventText";
 
+// Evidence selection
+export {
+  buildSelectableEventIndex,
+  isSelectableEvent,
+  kEmptyTranscriptSelection,
+  resolveSelectedEvents,
+  resolveSelectedIds,
+  selectedEventNodes,
+  selectionMenuChrome,
+  toggleTranscriptSelection,
+  type TranscriptSelection,
+  type TranscriptSelectionState,
+} from "./selection/transcriptSelection";
+export { TranscriptSelectTool } from "./selection/TranscriptSelectTool";
+export { useTranscriptSelection } from "./selection/useTranscriptSelection";
+
 // Message ID resolution
 export {
   resolveMessageToEvent,

@@ -10,6 +10,7 @@ import {
   type MarkerConfig,
   type TranscriptCollapseState,
   type TranscriptLayoutRightRailProps,
+  type TranscriptSelection,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
@@ -86,6 +87,8 @@ interface TimelineEventsViewProps {
   eventLabels?: Record<string, string>;
   /** Optional right-side activity rail + resizable panel. */
   rightRail?: TranscriptLayoutRightRailProps;
+  /** Evidence selection; present only while selection mode is on. */
+  selection?: TranscriptSelection;
   className?: string;
 }
 
@@ -119,6 +122,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   messageLabels,
   eventLabels,
   rightRail,
+  selection,
   className,
 }) => {
   // ---------------------------------------------------------------------------
@@ -294,6 +298,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
         setSelectedId: setSelectedOutlineId,
       }}
       rightRail={rightRail}
+      selection={selection}
       className={className}
     />
   );

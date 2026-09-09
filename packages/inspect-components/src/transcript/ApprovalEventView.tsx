@@ -34,6 +34,7 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
 
   return (
     <EventRow
+      eventNodeId={eventNode.id}
       title={
         alarming ? (
           <span className={styles.rejected}>{decisionLabel(decision)}</span>

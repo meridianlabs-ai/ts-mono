@@ -18,6 +18,10 @@ interface ToolDropdownButtonProps extends ButtonHTMLAttributes<HTMLButtonElement
   label: string | ReactNode;
   icon?: string;
   items: Record<string, () => void>;
+  /** Small uppercase heading rendered above the items. */
+  heading?: string;
+  /** Trailing action rendered below a divider (e.g. "Clear selection"). */
+  footer?: { label: string; icon?: string; onClick: () => void };
   dropdownAlign?: "left" | "right";
   dropdownClassName?: string | string[];
   subtle?: boolean;
@@ -33,6 +37,8 @@ export const ToolDropdownButton = forwardRef<
       icon,
       className,
       items,
+      heading,
+      footer,
       dropdownAlign = "left",
       dropdownClassName,
       subtle,
@@ -172,6 +178,9 @@ export const ToolDropdownButton = forwardRef<
                   minWidth: menuPosition.minWidth,
                 }}
               >
+                {heading ? (
+                  <div className={styles.dropdownHeading}>{heading}</div>
+                ) : null}
                 {Object.entries(items).map(([itemLabel, fn]) => (
                   <button
                     key={itemLabel}
@@ -182,6 +191,22 @@ export const ToolDropdownButton = forwardRef<
                     {itemLabel}
                   </button>
                 ))}
+                {footer ? (
+                  <>
+                    <div className={styles.dropdownDivider} role="separator" />
+                    <button
+                      type="button"
+                      className={clsx(
+                        styles.dropdownItem,
+                        styles.dropdownFooter
+                      )}
+                      onClick={() => handleItemClick(footer.onClick)}
+                    >
+                      {footer.icon ? <i className={footer.icon} /> : null}
+                      {footer.label}
+                    </button>
+                  </>
+                ) : null}
               </div>
             </>,
             document.body

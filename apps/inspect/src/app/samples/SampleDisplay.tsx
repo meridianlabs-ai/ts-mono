@@ -24,8 +24,14 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import {
+  buildSelectableEventIndex,
   dynamicDefaultExcludeEvents,
+  eventsToMarkdown,
   eventsToStr,
+  resolveSelectedEvents,
+  resolveSelectedIds,
+  selectionMenuChrome,
+  TranscriptSelectTool,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
 import type { SearchScope } from "@tsmono/inspect-components/transcript-search";
@@ -58,6 +64,7 @@ import {
 } from "@tsmono/react/components";
 import {
   useChromeNavOwnership,
+  useCopyToClipboard,
   useElementHeight,
   useVisitId,
 } from "@tsmono/react/hooks";
@@ -87,6 +94,7 @@ import {
   useSelectedLogDetails,
   useSelectedSampleSummary,
 } from "../../state/hooks";
+import { eventSelectionKey } from "../../state/sampleSlice";
 import { useStore } from "../../state/store";
 import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
@@ -100,6 +108,7 @@ import {
   useSampleUrlBuilder,
 } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
+import type { EventSelectionState } from "../types";
 
 import styles from "./SampleDisplay.module.css";
 import { SampleJSONView } from "./SampleJSONView";
@@ -129,6 +138,18 @@ type ActivityRailItemId = "search" | "scans";
 // stable empty rows while the messages read is pending, so the list's
 // props don't churn per render
 const kNoMessageRows: MessageRow[] = [];
+const kNoEventSelection: EventSelectionState = {
+  key: null,
+  active: false,
+  selectedIds: [],
+  lastToggledId: null,
+};
+
+// Selected ids that no longer resolve (e.g. a failed retry attempt the live
+// stream folded away) still reach the print page, which reports them as not
+// found instead of printing the whole sample.
+const withStoredFallback = (ids: string[], stored: ReadonlySet<string>) =>
+  ids.length > 0 ? ids : [...stored];
 
 /**
  * Component to display a sample with relevant context and visibility control.
@@ -355,6 +376,41 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
   const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
 
+  // Evidence selection: with events selected, Copy/Download/Print act on them.
+  const isTranscriptTab = effectiveSelectedTab === kSampleTranscriptTabId;
+  // The selection belongs to one visit of one sample tab: leaving the tab or
+  // the sample (even briefly) is a new visit, so the Select latch reads as off.
+  const selectionKey = useVisitId(
+    eventSelectionKey(visitHandle, effectiveSelectedTab)
+  );
+  const storedSelection = useStore((state) => state.sample.eventSelection);
+  const eventSelection =
+    isTranscriptTab && storedSelection.key === selectionKey
+      ? storedSelection
+      : kNoEventSelection;
+  const setEventSelectionActive = useStore(
+    (state) => state.sampleActions.setEventSelectionActive
+  );
+  const clearEventSelection = useStore(
+    (state) => state.sampleActions.clearEventSelection
+  );
+  const resetEventSelection = useStore(
+    (state) => state.sampleActions.resetEventSelection
+  );
+  const selectedIdSet = useMemo(
+    () => new Set(eventSelection.selectedIds),
+    [eventSelection.selectedIds]
+  );
+  // Ids → events needs a full tree build, so it happens at export/print time,
+  // never per render; the toolbar counts the stored ids.
+  const selectionCount = eventSelection.active ? selectedIdSet.size : 0;
+  const resolveIndex = () => buildSelectableEventIndex(sampleEvents, running);
+  const hasSelection = isTranscriptTab && selectionCount > 0;
+  // Chunked samples window their events, so there is no full event list to
+  // select from or export.
+  const canSelectEvents =
+    isTranscriptTab && !isChunked && sampleEvents.length > 0;
+
   const handlePrintClick = useCallback(() => {
     if (printLogPath && printSampleId && printEpoch) {
       const printUrl = printSampleUrl(
@@ -362,11 +418,30 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         printSampleId,
         printEpoch,
         effectiveSelectedTab,
-        prefix
+        prefix,
+        hasSelection
+          ? withStoredFallback(
+              resolveSelectedIds(
+                buildSelectableEventIndex(sampleEvents, running),
+                selectedIdSet
+              ),
+              selectedIdSet
+            )
+          : undefined
       );
       openInNewTab(printUrl);
     }
-  }, [printLogPath, printSampleId, printEpoch, effectiveSelectedTab, prefix]);
+  }, [
+    printLogPath,
+    printSampleId,
+    printEpoch,
+    effectiveSelectedTab,
+    prefix,
+    hasSelection,
+    selectedIdSet,
+    sampleEvents,
+    running,
+  ]);
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -414,7 +489,26 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
 
-  const [icon, setIcon] = useState(ApplicationIcons.copy);
+  const { copied, copy: copyText } = useCopyToClipboard();
+  const icon = copied ? ApplicationIcons.confirm : ApplicationIcons.copy;
+  const downloadFile = (name: string, content: string | Blob) => {
+    api.download_file(name, content).catch((error: unknown) => {
+      console.error("Failed to download:", error);
+    });
+  };
+  // An export whose ids resolve to nothing is refused rather than copying or
+  // downloading an empty document under a success icon.
+  const exportSelected = (action: (events: Events) => void) => {
+    const events = resolveSelectedEvents(resolveIndex(), selectedIdSet);
+    if (events.length === 0) {
+      console.warn("Selected events are no longer in this sample.");
+      return;
+    }
+    action(events);
+  };
+  const selectionMenu = hasSelection
+    ? selectionMenuChrome(selectionCount, clearEventSelection)
+    : undefined;
 
   // Right-docked sidebar — search and scans share a single slot (one at a
   // time), each toggled from the toolbar. Scope follows the active tab. The
@@ -550,61 +644,69 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       key="actions-separator"
       className={styles.toolSeparator}
       aria-hidden="true"
-    />,
+    />
+  );
+
+  if (canSelectEvents) {
+    tools.push(
+      <TranscriptSelectTool
+        key="sample-select-events"
+        active={eventSelection.active}
+        count={selectionCount}
+        onToggle={() =>
+          setEventSelectionActive(selectionKey, !eventSelection.active)
+        }
+        onClear={resetEventSelection}
+      />
+    );
+  }
+
+  tools.push(
     <ToolDropdownButton
       key="sample-copy"
       label="Copy"
       icon={icon}
       subtle
       dropdownClassName="text-size-smallest"
-      items={{
-        UUID: () => {
-          if (sample?.uuid) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            navigator.clipboard.writeText(sample.uuid);
-            setIcon(ApplicationIcons.confirm);
-            setTimeout(() => {
-              setIcon(ApplicationIcons.copy);
-            }, 1250);
-          }
-        },
-        // offered only when a settled conversation exists to export — live
-        // streaming samples have none, and a silent no-op menu item reads
-        // as broken (chunked samples stream the text on demand inside the
-        // export, window by window — never a whole-conversation hydration)
-        ...(exportMessages
+      heading={selectionMenu?.heading}
+      footer={selectionMenu?.footer}
+      items={
+        hasSelection
           ? {
-              Messages: () => {
-                // the confirm icon must wait for the clipboard write — it
-                // can reject (unfocused document), and flipping early
-                // reads as a false success
-                exportMessages()
-                  .then((parts) =>
-                    navigator.clipboard.writeText(parts.join(""))
-                  )
-                  .then(() => {
-                    setIcon(ApplicationIcons.confirm);
-                    setTimeout(() => {
-                      setIcon(ApplicationIcons.copy);
-                    }, 1250);
-                  })
-                  .catch((error: unknown) => {
-                    console.error("Failed to copy messages:", error);
-                  });
+              Markdown: () =>
+                exportSelected((events) => copyText(eventsToMarkdown(events))),
+              Text: () =>
+                exportSelected((events) => copyText(eventsToStr(events))),
+            }
+          : {
+              UUID: () => {
+                if (sample?.uuid) {
+                  copyText(sample.uuid);
+                }
+              },
+              // offered only when a settled conversation exists to export —
+              // live streaming samples have none, and a silent no-op menu
+              // item reads as broken (chunked samples stream the text on
+              // demand inside the export, window by window — never a
+              // whole-conversation hydration)
+              ...(exportMessages
+                ? {
+                    Messages: () => {
+                      exportMessages()
+                        .then((parts) => copyText(parts.join("")))
+                        .catch((error: unknown) => {
+                          console.error("Failed to copy messages:", error);
+                        });
+                    },
+                  }
+                : {}),
+              Transcript: () => {
+                if (sampleEvents.length > 0) {
+                  copyText(eventsToStr(sampleEvents));
+                }
               },
             }
-          : {}),
-        Transcript: () => {
-          if (sampleEvents.length > 0) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            navigator.clipboard.writeText(eventsToStr(sampleEvents));
-            setIcon(ApplicationIcons.confirm);
-            setTimeout(() => {
-              setIcon(ApplicationIcons.copy);
-            }, 1250);
-          }
-        },
-      }}
+      }
     />
   );
 
@@ -617,42 +719,68 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         icon={ApplicationIcons.downloadLog}
         subtle
         dropdownClassName="text-size-smallest"
-        items={{
-          "Sample JSON": () => {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            api.download_file(
-              `${sampleId}.json`,
-              JSON.stringify(sample, null, 2)
-            );
-          },
-          // offered only when a settled conversation exists to export (see
-          // the copy dropdown)
-          ...(exportMessages
+        heading={selectionMenu?.heading}
+        footer={selectionMenu?.footer}
+        items={
+          hasSelection
             ? {
-                Messages: () => {
-                  exportMessages()
-                    .then((parts) =>
-                      api.download_file(
-                        `${sampleId}-messages.txt`,
-                        new Blob(parts, { type: "text/plain" })
-                      )
+                Markdown: () =>
+                  exportSelected((events) =>
+                    downloadFile(
+                      `${sampleId}-events.md`,
+                      eventsToMarkdown(events)
                     )
-                    .catch((error: unknown) => {
-                      console.error("Failed to download messages:", error);
-                    });
+                  ),
+                Text: () =>
+                  exportSelected((events) =>
+                    downloadFile(`${sampleId}-events.txt`, eventsToStr(events))
+                  ),
+                JSON: () =>
+                  exportSelected((events) =>
+                    downloadFile(
+                      `${sampleId}-events.json`,
+                      JSON.stringify(events, null, 2)
+                    )
+                  ),
+              }
+            : {
+                "Sample JSON": () => {
+                  downloadFile(
+                    `${sampleId}.json`,
+                    JSON.stringify(sample, null, 2)
+                  );
+                },
+                // offered only when a settled conversation exists to export
+                // (see the copy dropdown)
+                ...(exportMessages
+                  ? {
+                      Messages: () => {
+                        exportMessages()
+                          .then((parts) =>
+                            downloadFile(
+                              `${sampleId}-messages.txt`,
+                              new Blob(parts, { type: "text/plain" })
+                            )
+                          )
+                          .catch((error: unknown) => {
+                            console.error(
+                              "Failed to download messages:",
+                              error
+                            );
+                          });
+                      },
+                    }
+                  : {}),
+                Transcript: () => {
+                  if (sampleEvents.length > 0) {
+                    downloadFile(
+                      `${sampleId}-transcript.txt`,
+                      eventsToStr(sampleEvents)
+                    );
+                  }
                 },
               }
-            : {}),
-          Transcript: () => {
-            if (sampleEvents.length > 0) {
-              // eslint-disable-next-line @typescript-eslint/no-floating-promises
-              api.download_file(
-                `${sampleId}-transcript.txt`,
-                eventsToStr(sampleEvents)
-              );
-            }
-          },
-        }}
+        }
       />
     );
   }
@@ -661,7 +789,12 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     tools.push(
       <ToolButton
         key="sample-print-tool"
-        label="Print"
+        label={hasSelection ? `Print · ${selectionCount}` : "Print"}
+        title={
+          hasSelection
+            ? `Print ${selectionCount} selected ${selectionCount === 1 ? "event" : "events"}`
+            : undefined
+        }
         icon={ApplicationIcons.copy}
         onClick={handlePrintClick}
         subtle
@@ -912,6 +1045,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     initialMessageId={sampleDetailNavigation.message}
                     followRequested={sampleDetailNavigation.follow}
                     rightRail={hasRail ? transcriptRail : undefined}
+                    selectionKey={selectionKey}
                   />
                 </div>
               )}

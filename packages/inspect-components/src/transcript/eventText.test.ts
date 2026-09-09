@@ -43,7 +43,6 @@ import type {
 
 import {
   eventSearchText,
-  eventsToHtmlDocument,
   eventsToMarkdown,
   eventsToStr,
   extractEventFields,
@@ -87,7 +86,7 @@ describe("eventsToMarkdown", () => {
     expect(out).toContain("\n\n---\n\n");
   });
 
-  it("quotes multiline values without exposing redacted reasoning", () => {
+  it("quotes multi-line prose without exposing redacted reasoning", () => {
     const out = eventsToMarkdown([
       modelEventWith([
         reasoning({
@@ -101,19 +100,58 @@ describe("eventsToMarkdown", () => {
     expect(out).toContain("> First line\n> Second line");
     expect(out).not.toContain("OPAQUE_SIGNATURE_BLOB");
   });
-});
 
-describe("eventsToHtmlDocument", () => {
-  it("escapes event content in the printable document", () => {
-    const html = eventsToHtmlDocument([
-      modelEventWith("<script>alert('nope')</script>"),
+  it("fences multi-line and JSON tool results so Markdown does not reinterpret them", () => {
+    const out = eventsToMarkdown([
+      testToolEvent({
+        function: "bash",
+        result: "# not a heading\n- not a list",
+      }),
+      testToolEvent({ function: "sh", result: '{"cmd":"ls *_test.py"}' }),
     ]);
+    expect(out).toContain("```\n# not a heading\n- not a list\n```");
+    expect(out).toContain('```\n{"cmd":"ls *_test.py"}\n```');
+  });
 
-    expect(html).toContain("<h2>Model</h2>");
-    expect(html).toContain(
-      "&lt;script&gt;alert(&#039;nope&#039;)&lt;/script&gt;"
-    );
-    expect(html).not.toContain("<script>alert");
+  it("uses the viewer's event title as the section heading", () => {
+    const out = eventsToMarkdown([
+      testToolEvent({ function: "bash", arguments: { cmd: "ls" } }),
+    ]);
+    expect(out).toContain("## Tool: bash");
+  });
+
+  it("puts code-like single-line fields in inline code", () => {
+    const out = eventsToMarkdown([
+      testToolEvent({
+        function: "bash",
+        arguments: { cmd: 'grep -r "__init__" *.py' },
+      }),
+    ]);
+    expect(out).toContain("**Function:** `bash`");
+    expect(out).toContain('```\n{"cmd":"grep -r \\"__init__\\" *.py"}\n```');
+  });
+
+  it("keeps a heading for an event with nothing to extract", () => {
+    const out = eventsToMarkdown([testStateEvent({ changes: [] })]);
+    expect(out.startsWith("## ")).toBe(true);
+  });
+
+  it("collapses a multi-line title onto the heading line", () => {
+    const out = eventsToMarkdown([
+      testToolEvent({
+        function: "bash",
+        arguments: { cmd: "a\nb" },
+        view: { title: "Bash: {{cmd}}", format: "text", content: "" },
+      }),
+    ]);
+    expect(out).toContain("## Tool: Bash: a b\n");
+  });
+
+  it("extends the fence past backtick runs inside the value", () => {
+    const out = eventsToMarkdown([
+      testToolEvent({ function: "bash", result: "line\n```\nnested\n```" }),
+    ]);
+    expect(out).toContain("````\nline\n```\nnested\n```\n````");
   });
 });
 
