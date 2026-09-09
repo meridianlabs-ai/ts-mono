@@ -59,6 +59,7 @@ describe("SkeletonIndex", () => {
     ["length", "length"],
     ["a negative index", -1],
     ["a fractional index", 0.5],
+    ["an infinite index", Number.POSITIVE_INFINITY],
     ["a self reference", 1],
     ["a forward reference", 2],
     ["an out-of-range index", 99],

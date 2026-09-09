@@ -100,7 +100,9 @@ export const sequenceChunkStarts = (
  */
 export const at = <T>(items: readonly T[], i: number): T => {
   const item =
-    Number.isInteger(i) && i >= 0 && i < items.length ? items[i] : undefined;
+    Number.isInteger(i) && i >= 0 && i < items.length && Object.hasOwn(items, i)
+      ? items[i]
+      : undefined;
   if (item === undefined) {
     throw new Error(`Index ${i} out of range (length ${items.length})`);
   }
