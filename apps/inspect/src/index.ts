@@ -83,12 +83,19 @@ export {
   InspectComponentProvider,
   type InspectComponentProviderProps,
 } from "./componentProviders";
-export { ChatView } from "@tsmono/inspect-components/chat";
+export {
+  ChatView,
+  ChatViewRowsVirtualList,
+} from "@tsmono/inspect-components/chat";
 export type {
   ChatViewDisplayOptions,
+  ChatViewLabelOptions,
   ChatViewLinkingOptions,
   ChatViewProps,
+  ChatViewRowsVirtualListProps,
   ChatViewToolOptions,
+  MessageRow,
+  MessageRowOptions,
 } from "@tsmono/inspect-components/chat";
 
 export { normalizeEvents } from "@tsmono/inspect-common/normalize";

@@ -91,8 +91,10 @@ const declarationBarrels: Record<string, string> = {
     "",
   ].join("\n"),
   "/packages/inspect-components/src/chat/index.d.ts": [
+    "export { ChatViewRowsVirtualList } from './ChatViewVirtualList';",
     "export { ChatView } from './ChatView';",
     "export type { ChatViewProps } from './ChatView';",
+    "export type { ChatViewRowsVirtualListProps } from './ChatViewVirtualList';",
     [
       "export type { ChatViewDisplayOptions, ChatViewLabelOptions,",
       "ChatViewLinkingOptions, ChatViewToolOptions } from './types';",
