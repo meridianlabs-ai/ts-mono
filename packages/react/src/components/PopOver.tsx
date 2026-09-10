@@ -68,6 +68,10 @@ export const PopOver: React.FC<PopOverProps> = ({
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
     null
   );
+  const triggerRoot = positionEl?.getRootNode();
+  const shouldUsePortal =
+    usePortal &&
+    !(typeof ShadowRoot !== "undefined" && triggerRoot instanceof ShadowRoot);
 
   // For delayed hover functionality
   const [shouldShowPopover, setShouldShowPopover] = useState(false);
@@ -202,20 +206,15 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
   }, [isOpen, positionEl, hoverDelay]);
 
-  // Effect to create portal container when needed
+  // Effect to create the document portal container when needed. Popovers
+  // triggered inside a ShadowRoot stay inline so they keep that root's styles
+  // and positioning coordinate system.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    // Keep the portal beside its trigger. A trigger inside a ShadowRoot needs
-    // the popover in that root so it inherits the same isolated styles.
-    if (usePortal && isOpen && shouldShowPopover) {
-      const triggerRoot = positionEl?.getRootNode();
-      const shadowRoot = triggerRoot instanceof ShadowRoot ? triggerRoot : null;
-      const portalParent: HTMLElement | ShadowRoot =
-        shadowRoot ?? document.body;
-      let container =
-        shadowRoot?.getElementById(id) ?? document.getElementById(id);
+    if (shouldUsePortal && isOpen && shouldShowPopover) {
+      let container = document.getElementById(id);
 
-      if (!container || container.parentNode !== portalParent) {
+      if (!container) {
         container = document.createElement("div");
         container.id = id;
         container.style.position = "absolute";
@@ -225,22 +224,22 @@ export const PopOver: React.FC<PopOverProps> = ({
         container.style.width = "0";
         container.style.height = "0";
         container.style.overflow = "visible";
-        portalParent.appendChild(container);
+        document.body.appendChild(container);
       }
 
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React with externally-created DOM node
       setPortalContainer(container);
 
       return () => {
-        if (container.parentNode === portalParent) {
-          portalParent.removeChild(container);
+        if (document.body.contains(container)) {
+          document.body.removeChild(container);
           setPortalContainer(null);
         }
       };
     }
 
     return undefined;
-  }, [usePortal, isOpen, shouldShowPopover, id, positionEl]);
+  }, [shouldUsePortal, isOpen, shouldShowPopover, id]);
 
   // Popper modifier pair that caps the popover to the full viewport
   // (minus padding), not to whatever the popover currently happens to be.
@@ -359,7 +358,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     // eslint-disable-next-line react-hooks/refs
   } = usePopper(positionEl, popperRef.current, {
     placement,
-    strategy: "fixed",
+    strategy: shouldUsePortal ? "fixed" : "absolute",
     modifiers,
   });
 
@@ -508,11 +507,11 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // Popper container styles
   const defaultPopperStyles: CSSProperties = {
-    backgroundColor: "var(--bs-body-bg)",
+    backgroundColor: "var(--bs-body-bg, #fff)",
     padding: "12px",
-    borderRadius: "var(--bs-border-radius)",
+    borderRadius: "var(--bs-border-radius, 0.375rem)",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    border: "solid 1px var(--bs-border-color)",
+    border: "solid 1px var(--bs-border-color, #dee2e6)",
     zIndex: 1200,
     position: "relative",
     // Apply opacity transition to smooth the appearance
@@ -711,7 +710,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   );
 
   // If using portal and the container exists, render through the portal
-  if (usePortal && portalContainer) {
+  if (shouldUsePortal && portalContainer) {
     return createPortal(popperContent, portalContainer);
   }
 
