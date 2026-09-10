@@ -8,6 +8,8 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import { dirname, join, relative } from "path";
 import { fileURLToPath } from "url";
 
+import ts from "typescript";
+
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(here, "..", "package.json");
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
@@ -81,5 +83,26 @@ if (privateTypeImports.length > 0 || testDeclarations.length > 0) {
     );
   }
   console.error();
+  process.exit(1);
+}
+
+const declarationProgram = ts.createProgram([typeEntry], {
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  noEmit: true,
+  skipLibCheck: false,
+  strict: true,
+  target: ts.ScriptTarget.ES2022,
+  types: [],
+});
+const declarationDiagnostics = ts.getPreEmitDiagnostics(declarationProgram);
+if (declarationDiagnostics.length > 0) {
+  const formatHost = {
+    getCanonicalFileName: (fileName) => fileName,
+    getCurrentDirectory: () => process.cwd(),
+    getNewLine: () => "\n",
+  };
+  console.error(`\n${pkg.name}: built declarations do not typecheck.\n`);
+  console.error(ts.formatDiagnostics(declarationDiagnostics, formatHost));
   process.exit(1);
 }
