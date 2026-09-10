@@ -69,9 +69,12 @@ export const PopOver: React.FC<PopOverProps> = ({
     null
   );
   const triggerRoot = positionEl?.getRootNode();
-  const shouldUsePortal =
-    usePortal &&
-    !(typeof ShadowRoot !== "undefined" && triggerRoot instanceof ShadowRoot);
+  const ownerDocument = positionEl?.ownerDocument ?? document;
+  const portalParent =
+    typeof ShadowRoot !== "undefined" && triggerRoot instanceof ShadowRoot
+      ? triggerRoot
+      : ownerDocument.body;
+  const shouldUsePortal = usePortal;
 
   // For delayed hover functionality
   const [shouldShowPopover, setShouldShowPopover] = useState(false);
@@ -206,16 +209,20 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
   }, [isOpen, positionEl, hoverDelay]);
 
-  // Effect to create the document portal container when needed. Popovers
-  // triggered inside a ShadowRoot stay inline so they keep that root's styles
-  // and positioning coordinate system.
+  // Portal to the trigger's own composed root. A ShadowRoot-local portal keeps
+  // its styles and coordinate system while escaping component scroll/overflow
+  // ancestors; document triggers keep the existing body portal.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (shouldUsePortal && isOpen && shouldShowPopover) {
-      let container = document.getElementById(id);
+      let container =
+        portalParent instanceof ShadowRoot
+          ? portalParent.getElementById(id)
+          : ownerDocument.getElementById(id);
+      let ownsContainer = false;
 
       if (!container) {
-        container = document.createElement("div");
+        container = ownerDocument.createElement("div");
         container.id = id;
         container.style.position = "absolute";
         container.style.top = "0";
@@ -224,22 +231,32 @@ export const PopOver: React.FC<PopOverProps> = ({
         container.style.width = "0";
         container.style.height = "0";
         container.style.overflow = "visible";
-        document.body.appendChild(container);
+        portalParent.appendChild(container);
+        ownsContainer = true;
       }
 
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React with externally-created DOM node
       setPortalContainer(container);
 
       return () => {
-        if (document.body.contains(container)) {
-          document.body.removeChild(container);
-          setPortalContainer(null);
+        if (ownsContainer && container.parentNode === portalParent) {
+          portalParent.removeChild(container);
         }
+        setPortalContainer((current) =>
+          current === container ? null : current
+        );
       };
     }
 
     return undefined;
-  }, [shouldUsePortal, isOpen, shouldShowPopover, id]);
+  }, [
+    shouldUsePortal,
+    isOpen,
+    shouldShowPopover,
+    id,
+    ownerDocument,
+    portalParent,
+  ]);
 
   // Popper modifier pair that caps the popover to the full viewport
   // (minus padding), not to whatever the popover currently happens to be.

@@ -1,7 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { FC, ReactNode } from "react";
 
-import { useAppConfigAsync } from "./app_config";
+import { AppConfigGate, useAppConfigAsync } from "./app_config";
+import { FetchEngineController } from "./log_data";
 import { queryClient } from "./state/queryClient";
 
 /**
@@ -20,6 +21,23 @@ export const InspectQueryClientProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => (
   <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+);
+
+/**
+ * Boots the query client, resolved app config, and fetch engine required by
+ * `useEvalSampleData` and the other log-data hooks outside `<App/>`.
+ * Install the API factory and initialize the viewer store before rendering
+ * one provider at the host application's viewer boundary.
+ */
+export const InspectDataProvider: FC<{ children: ReactNode }> = ({
+  children,
+}) => (
+  <InspectQueryClientProvider>
+    <AppConfigGate>
+      <FetchEngineController />
+      {children}
+    </AppConfigGate>
+  </InspectQueryClientProvider>
 );
 
 /**

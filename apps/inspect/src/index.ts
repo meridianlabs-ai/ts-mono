@@ -29,11 +29,14 @@ export type { EvalSampleData, MessageRowsFeed } from "./log_data";
 // different dir (rebuilding the api through the same factory).
 export { setApiFactory, setLogRoot } from "./app_config";
 
-// Embedder react-query provider — wrap chrome that calls the viewer's selection
-// hooks outside <App/> so they resolve the viewer's react-query client.
-// useViewerReady gates that chrome until app config resolves (the hooks throw
-// before then).
-export { InspectQueryClientProvider, useViewerReady } from "./embed";
+// Embedder providers: QueryClient alone for chrome beside <App/>;
+// InspectDataProvider for hook consumers that do not mount <App/> and therefore
+// need resolved config plus the fetch-engine controller.
+export {
+  InspectDataProvider,
+  InspectQueryClientProvider,
+  useViewerReady,
+} from "./embed";
 
 // Client API - Types
 export type {
