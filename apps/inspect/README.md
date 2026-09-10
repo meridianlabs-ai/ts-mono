@@ -196,6 +196,29 @@ Build `events` once where you load the sample, with `normalizeEvents(json)`
 from the same package: it fills fields older inspect_ai versions omitted.
 Never hand the layout raw JSON.
 
+For a messages surface backed by the viewer's sample data hooks, pass the
+`MessageRowsFeed` from `useSampleMessages` directly to
+`ChatViewRowsVirtualList`. This preserves chunked-sample paging, in-flight
+rows, and the live-to-finished handoff owned by the data layer:
+
+```tsx
+const sampleData = useEvalSampleData(logDir, handle);
+const running = sampleData.status === "streaming";
+const messageFeed = useSampleMessages(handle, sampleData, true, running);
+
+<ChatViewRowsVirtualList
+    id="sample-messages"
+    rows={messageFeed.rows.data ?? []}
+    hasMoreRows={messageFeed.hasMore}
+    onLoadMoreRows={messageFeed.loadMore}
+    running={running}
+    backfilling={sampleData.backfilling || messageFeed.rows.loading}
+/>;
+```
+
+Render code that calls these hooks inside `InspectQueryClientProvider` and
+after `useViewerReady()` returns true, as described below.
+
 Keep both collapse setters: the layout uses `onSetTranscriptCollapsed` to seed
 defaults on the first toggle and for bulk expand of deep-link targets, and
 `onCollapseTranscript` for every toggle after that. Switching timelines
