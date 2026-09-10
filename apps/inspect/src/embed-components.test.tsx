@@ -1,8 +1,26 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { useRef, useState } from "react";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
   testStepEvent,
   testTimeline,
   testTimelineEvent,
@@ -18,6 +36,7 @@ import {
   InspectComponentProvider,
   TranscriptLayout,
   type ChatMessage,
+  type InspectComponentProviderProps,
 } from "./index";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
@@ -26,6 +45,9 @@ beforeAll(() => {
   Element.prototype.scrollTo = function () {};
   vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(40);
   vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(800);
+});
+
+beforeEach(() => {
   initializeStore({
     downloadFiles: false,
     downloadLogs: false,
@@ -37,17 +59,6 @@ beforeAll(() => {
 afterEach(cleanup);
 
 const raw = rawEventBuilders();
-const toolSpanEvents = [
-  raw.spanBegin("tool-span", "read_file", "tool", null),
-  testToolEvent({
-    ...raw.base(),
-    uuid: "tool-event",
-    span_id: "tool-span",
-    function: "read_file",
-    result: "tool result after expansion",
-  }),
-  raw.spanEnd("tool-span"),
-];
 
 const stepEvents = [
   testStepEvent({
@@ -63,6 +74,16 @@ const stepEvents = [
   testStepEvent({ uuid: "step-end", action: "end", name: "delegated task" }),
 ];
 
+const agentAAnswer = "Agent A lane answer";
+const agentBAnswer = "Agent B lane answer";
+const auditorAnswer = "Auditor timeline answer";
+
+const timelineEvents = [
+  modelEvent("agent-a-message", "agent-a", agentAAnswer),
+  modelEvent("agent-b-message", "agent-b", agentBAnswer, "Agent B failed"),
+  modelEvent("auditor-message", "auditor-root", auditorAnswer),
+];
+
 const timelines = [
   testTimeline({
     name: "default",
@@ -71,25 +92,51 @@ const timelines = [
       name: "Transcript",
       content: [
         testTimelineSpan({
+          id: "agent-a",
           name: "Agent A",
           span_type: "agent",
-          content: [
-            testTimelineSpan({
-              id: "tool-span",
-              name: "read_file",
-              span_type: "tool",
-              content: [testTimelineEvent({ event: "tool-event" })],
-            }),
-          ],
+          content: [testTimelineEvent({ event: "agent-a-message" })],
+        }),
+        testTimelineSpan({
+          id: "agent-b",
+          name: "Agent B",
+          span_type: "agent",
+          content: [testTimelineEvent({ event: "agent-b-message" })],
         }),
       ],
     }),
   }),
   testTimeline({
     name: "auditor",
-    root: testTimelineSpan({ id: "auditor-root", name: "Auditor" }),
+    root: testTimelineSpan({
+      id: "auditor-root",
+      name: "Auditor",
+      content: [testTimelineEvent({ event: "auditor-message" })],
+    }),
   }),
 ];
+
+function modelEvent(
+  uuid: string,
+  spanId: string,
+  content: string,
+  error?: string
+) {
+  return testModelEvent({
+    ...raw.base(),
+    uuid,
+    span_id: spanId,
+    ...(error === undefined ? {} : { error }),
+    input: [],
+    output: testModelOutput({
+      choices: [
+        testChatCompletionChoice({
+          message: testAssistantMessage({ content }),
+        }),
+      ],
+    }),
+  });
+}
 
 function CollapseHarness() {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -120,31 +167,72 @@ function TimelineHarness() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [eventId, setEventId] = useState<string | null>(null);
 
   return (
     <InspectComponentProvider navigate={() => {}}>
       <output aria-label="Selected timeline row">{selected ?? "root"}</output>
-      <output aria-label="Active timeline">
-        {timelines[activeIndex]?.name}
-      </output>
       <div ref={scrollRef}>
         <TranscriptLayout
           embedded
-          events={toolSpanEvents}
+          events={timelineEvents}
           listId="embedded-timeline-events"
           scrollRef={scrollRef}
           timeline={{
             serverTimelines: timelines,
+            markerConfig: { kinds: ["error"], depth: "direct" },
             showSwimlanes: true,
-            selection: { selected, onSelect: setSelected },
-            active: {
-              activeIndex,
-              onActiveChange: (index) => {
-                setSelected(null);
-                setActiveIndex(index);
+            selection: {
+              selected,
+              onSelect: (key, options) => {
+                setSelected(key);
+                if (!options?.preserveDeepLink) setEventId(null);
               },
             },
+            active: { activeIndex, onActiveChange: setActiveIndex },
+            onMarkerNavigate: (id, key) => {
+              if (key) setSelected(key);
+              setEventId(id);
+            },
           }}
+          deepLink={{ eventId }}
+          onNavigatedToEvent={setEventId}
+        />
+      </div>
+    </InspectComponentProvider>
+  );
+}
+
+function MarkerDeepLinkHarness() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [eventId, setEventId] = useState<string | null>(null);
+
+  return (
+    <InspectComponentProvider navigate={() => {}}>
+      <div ref={scrollRef}>
+        <TranscriptLayout
+          embedded
+          events={timelineEvents}
+          listId="embedded-marker-events"
+          scrollRef={scrollRef}
+          timeline={{
+            serverTimelines: timelines,
+            markerConfig: { kinds: ["error"], depth: "direct" },
+            showSwimlanes: true,
+            selection: {
+              selected,
+              onSelect: (key, options) => {
+                setSelected(key);
+                if (!options?.preserveDeepLink) setEventId(null);
+              },
+            },
+            active: { activeIndex, onActiveChange: setActiveIndex },
+            onMarkerNavigate: setEventId,
+          }}
+          deepLink={{ eventId }}
+          onNavigatedToEvent={setEventId}
         />
       </div>
     </InspectComponentProvider>
@@ -167,6 +255,36 @@ describe("InspectComponentProvider", () => {
     expect(container.querySelector("pre")?.textContent).toBe(message.content);
   });
 
+  it("routes in-view citation links through the host navigation adapter", async () => {
+    const navigate = vi.fn<InspectComponentProviderProps["navigate"]>();
+    const message: ChatMessage = {
+      role: "assistant",
+      content: "Open [M1]",
+    };
+
+    render(
+      <InspectComponentProvider navigate={navigate}>
+        <ChatView
+          id="embedded-citations"
+          messages={[message]}
+          references={[
+            {
+              id: "message-1",
+              cite: "[M1]",
+              citeUrl: "#/sample?message=message-1",
+            },
+          ]}
+        />
+      </InspectComponentProvider>
+    );
+
+    fireEvent.click(await screen.findByRole("link", { name: "M1" }));
+
+    expect(navigate).toHaveBeenCalledWith("/sample?message=message-1", {
+      replace: true,
+    });
+  });
+
   it("keeps transcript collapse details interactive", () => {
     render(<CollapseHarness />);
 
@@ -181,20 +299,53 @@ describe("InspectComponentProvider", () => {
     expect(screen.getByText("nested detail after expansion")).toBeVisible();
   });
 
-  it("keeps lane selection and timeline switching interactive", () => {
+  it("keeps lane selection and timeline switching interactive", async () => {
     render(<TimelineHarness />);
+
+    expect(await screen.findByText(agentAAnswer)).toBeVisible();
+    expect(screen.getByText(agentBAnswer)).toBeVisible();
+    expect(screen.queryByText(auditorAnswer)).toBeNull();
+
     fireEvent.click(screen.getByRole("gridcell", { name: "Agent A" }));
+
+    expect(await screen.findByText(agentAAnswer)).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByText(agentBAnswer)).toBeNull();
+    });
     expect(
       screen.getByLabelText("Selected timeline row")
     ).not.toHaveTextContent("root");
 
     fireEvent.click(screen.getByRole("button", { name: /default/i }));
     fireEvent.click(screen.getByRole("option", { name: "auditor" }));
-    expect(screen.getByLabelText("Active timeline")).toHaveTextContent(
-      "auditor"
-    );
+
+    expect(await screen.findByText(auditorAnswer)).toBeVisible();
+    expect(screen.queryByText(agentAAnswer)).toBeNull();
+    expect(screen.queryByText(agentBAnswer)).toBeNull();
     expect(screen.getByLabelText("Selected timeline row")).toHaveTextContent(
       "root"
     );
+  });
+
+  it("feeds marker and keyboard navigation events back through deep links", async () => {
+    render(<MarkerDeepLinkHarness />);
+
+    fireEvent.click(screen.getByRole("gridcell", { name: "Agent A" }));
+    expect(await screen.findByText(agentAAnswer)).toBeVisible();
+    await waitFor(() => {
+      expect(screen.queryByText(agentBAnswer)).toBeNull();
+    });
+
+    fireEvent.click(screen.getByTitle(/Agent B failed/));
+
+    expect(await screen.findByText(agentBAnswer)).toBeVisible();
+    expect(screen.queryByText(agentAAnswer)).toBeNull();
+    expect(screen.queryByText(auditorAnswer)).toBeNull();
+
+    fireEvent.keyDown(window, { key: "l" });
+
+    expect(await screen.findByText(auditorAnswer)).toBeVisible();
+    expect(screen.queryByText(agentAAnswer)).toBeNull();
+    expect(screen.queryByText(agentBAnswer)).toBeNull();
   });
 });

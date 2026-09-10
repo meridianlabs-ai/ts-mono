@@ -16,15 +16,15 @@
     "../../packages/*/src/**/*.stories.tsx",
     "../../packages/*/src/**/test/**",
     "../../packages/*/src/**/testing/**",
-    "../../packages/*/src/**/testFixtures.ts",
-    "../../packages/*/src/**/testHelpers.ts",
-    "../../packages/*/src/**/syntheticNodes.ts",
+    "../../packages/*/src/**/testFixtures.*",
+    "../../packages/*/src/**/testHelpers.*",
+    "../../packages/*/src/**/syntheticNodes.*",
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
-    "src/**/testFixtures.ts",
-    "src/**/testClientApi.ts",
-    "src/**/testDescriptors.ts",
-    "src/**/testStore.ts",
+    "src/**/testFixtures.*",
+    "src/**/testClientApi.*",
+    "src/**/testDescriptors.*",
+    "src/**/testStore.*",
     "src/setupTests.ts"
   ]
 }

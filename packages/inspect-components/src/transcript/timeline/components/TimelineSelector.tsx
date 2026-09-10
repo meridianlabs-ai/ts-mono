@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
 
-import type { Timeline } from "../core";
 
 import styles from "./TimelineSelector.module.css";
 
@@ -11,7 +10,7 @@ import styles from "./TimelineSelector.module.css";
 
 export interface TimelineSelectorProps {
   /** Available timeline views. */
-  timelines: ReadonlyArray<Timeline>;
+  timelines: ReadonlyArray<{ readonly name: string; readonly description: string }>;
   /** Index of the active timeline. */
   activeIndex: number;
   /** Called when a timeline is selected. */

@@ -87,6 +87,7 @@ export type {
   Timeline,
 } from "@tsmono/inspect-common/types";
 export {
+  TimelineSelector,
   TranscriptLayout,
   TranscriptOutline,
   TranscriptViewNodes,
@@ -94,7 +95,10 @@ export {
 } from "@tsmono/inspect-components/transcript";
 export type {
   EventNode,
+  TimelineSelectorProps,
+  TranscriptCollapseState,
   TranscriptLayoutProps,
+  TranscriptLayoutTimelineProps,
   TranscriptViewNodesHandle,
   TranscriptViewNodesProps,
 } from "@tsmono/inspect-components/transcript";

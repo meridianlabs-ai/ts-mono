@@ -99,21 +99,28 @@ To re-point the viewer at a different log directory after boot, call
 
 ### Transcript-only embedding
 
-Consumers that already own navigation and data loading can render a normalized Inspect event
-stream without mounting the full viewer application:
+Hosts that own navigation and data loading can render one sample's event
+stream without mounting `<App />`. The components are props-pure: every
+interactive control is driven by state the host holds and passes back in.
+Omit an adapter and its control renders inert — no collapse chevrons
+without `collapseState`, no lane/timeline switching without
+`timeline.selection`/`timeline.active`, no marker clicks or `h`/`l`
+cross-timeline navigation without the `eventId` loop below.
 
 ```tsx
 import {
     initializeStore,
     InspectComponentProvider,
-    normalizeEvents,
     TranscriptLayout,
+    type Event,
     type Timeline,
 } from "@meridianlabs/log-viewer";
 import { useRef, useState } from "react";
 
 import "@meridianlabs/log-viewer/styles/index.css";
 
+// Once per page, before the first render. The components read viewer state
+// through the same store <App /> uses; every capability can be off.
 initializeStore({
     downloadFiles: false,
     downloadLogs: false,
@@ -122,25 +129,32 @@ initializeStore({
 });
 
 export function Transcript({
-    rawEvents,
-    timelines = [],
+    events,
+    timelines,
 }: {
-    rawEvents: unknown;
+    events: Event[];
     timelines?: Timeline[];
 }) {
     const scrollRef = useRef<HTMLDivElement>(null);
+    // Stays undefined until the first toggle so the viewer's default-collapsed
+    // nodes apply; the layout seeds the full map on that toggle.
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>();
     const [selected, setSelected] = useState<string | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
+    // Event the layout asked to jump to (marker click, h/l lane navigation,
+    // j/k turn navigation). Feeding it back through `deepLink` performs the
+    // scroll and any cross-timeline switch — the standalone app keeps this
+    // in `?event=`.
+    const [eventId, setEventId] = useState<string | null>(null);
 
     return (
-        <InspectComponentProvider
-            navigate={(path) => window.location.assign(path)}
-        >
+        // `navigate` receives `#/…` routes from citation links in rendered
+        // markdown (ChatView `references`); ignore or map to your router.
+        <InspectComponentProvider navigate={() => {}}>
             <div ref={scrollRef}>
                 <TranscriptLayout
                     embedded
-                    events={normalizeEvents(rawEvents)}
+                    events={events}
                     listId="transcript"
                     scrollRef={scrollRef}
                     collapseState={{
@@ -154,16 +168,24 @@ export function Transcript({
                     }}
                     timeline={{
                         serverTimelines: timelines,
-                        showSwimlanes: "auto",
-                        selection: { selected, onSelect: setSelected },
-                        active: {
-                            activeIndex,
-                            onActiveChange: (index) => {
-                                setSelected(null);
-                                setActiveIndex(index);
+                        selection: {
+                            selected,
+                            onSelect: (key, options) => {
+                                setSelected(key);
+                                // A row click invalidates a pending jump;
+                                // programmatic selections ask to keep it.
+                                if (!options?.preserveDeepLink)
+                                    setEventId(null);
                             },
                         },
+                        active: { activeIndex, onActiveChange: setActiveIndex },
+                        onMarkerNavigate: (id, key) => {
+                            if (key) setSelected(key);
+                            setEventId(id);
+                        },
                     }}
+                    deepLink={{ eventId }}
+                    onNavigatedToEvent={setEventId}
                 />
             </div>
         </InspectComponentProvider>
@@ -171,16 +193,18 @@ export function Transcript({
 }
 ```
 
-`normalizeEvents` is the compatibility boundary for persisted evals; pass untrusted event JSON
-through it before rendering. The same provider composes `ChatView` for the simpler messages view
-and accepts `displayMode="raw"` for unformatted content. `TranscriptOutline`,
-`TranscriptViewNodes`, `treeifyEvents`, and their public types are also exported for consumers that
-need to compose the layout primitives directly.
+Build `events` once where you load the sample, with `normalizeEvents(json)`
+from the same package: it fills fields older inspect_ai versions omitted.
+Never hand the layout raw JSON.
 
-Collapse and timeline selection are controlled state owned by the embedding application; they are
-separate from `InspectComponentProvider`'s viewer property-bag contexts. Keep both collapse setters
-so the first individual toggle can seed default-collapsed nodes, and clear the selected lane when
-switching timelines as shown above.
+Keep both collapse setters: the layout uses `onSetTranscriptCollapsed` to seed
+defaults on the first toggle and for bulk expand of deep-link targets, and
+`onCollapseTranscript` for every toggle after that. Switching timelines
+already clears the lane selection inside the layout; the host does not
+repeat it.
+
+For a plain messages view use `ChatView` under the same provider;
+`displayMode="raw"` on the provider renders content unformatted.
 
 ### Embedder chrome
 
