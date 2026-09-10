@@ -43,6 +43,9 @@ jobs:
       actions: read
     secrets:
       MARVIN_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+      # codex engine (design/codex-engine.md in the agents repo):
+      # consumed only on items labeled engine:codex; optional.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     with:
       # ts-mono: pnpm/turbo permissions override (see claude.yml's stubs for
       # rationale) — replaces the reusable workflow's Python-oriented default.
@@ -70,6 +73,9 @@ jobs:
       actions: read
     secrets:
       MARVIN_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+      # codex engine (design/codex-engine.md in the agents repo):
+      # consumed only on items labeled engine:codex; optional.
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     with:
       # ts-mono: pnpm/turbo permissions override (see claude.yml's stubs for
       # rationale) — replaces the reusable workflow's Python-oriented default.
