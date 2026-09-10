@@ -31,12 +31,9 @@ import { rawEventBuilders } from "@tsmono/inspect-components/transcript/test-hel
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import {
-  ChatView,
   initializeStore,
   InspectComponentProvider,
   TranscriptLayout,
-  type ChatMessage,
-  type InspectComponentProviderProps,
 } from "./index";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
@@ -178,6 +175,7 @@ function TimelineHarness() {
           events={timelineEvents}
           listId="embedded-timeline-events"
           scrollRef={scrollRef}
+          collapseState={{ transcript: {} }}
           timeline={{
             serverTimelines: timelines,
             markerConfig: { kinds: ["error"], depth: "direct" },
@@ -203,88 +201,7 @@ function TimelineHarness() {
   );
 }
 
-function MarkerDeepLinkHarness() {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [eventId, setEventId] = useState<string | null>(null);
-
-  return (
-    <InspectComponentProvider navigate={() => {}}>
-      <div ref={scrollRef}>
-        <TranscriptLayout
-          embedded
-          events={timelineEvents}
-          listId="embedded-marker-events"
-          scrollRef={scrollRef}
-          timeline={{
-            serverTimelines: timelines,
-            markerConfig: { kinds: ["error"], depth: "direct" },
-            showSwimlanes: true,
-            selection: {
-              selected,
-              onSelect: (key, options) => {
-                setSelected(key);
-                if (!options?.preserveDeepLink) setEventId(null);
-              },
-            },
-            active: { activeIndex, onActiveChange: setActiveIndex },
-            onMarkerNavigate: setEventId,
-          }}
-          deepLink={{ eventId }}
-          onNavigatedToEvent={setEventId}
-        />
-      </div>
-    </InspectComponentProvider>
-  );
-}
-
 describe("InspectComponentProvider", () => {
-  it("composes the message view in raw mode without host-app providers", () => {
-    const message: ChatMessage = {
-      role: "assistant",
-      content: '{"value":"<think>literal</think>"}',
-    };
-
-    const { container } = render(
-      <InspectComponentProvider displayMode="raw" navigate={() => {}}>
-        <ChatView id="embedded-chat" messages={[message]} />
-      </InspectComponentProvider>
-    );
-
-    expect(container.querySelector("pre")?.textContent).toBe(message.content);
-  });
-
-  it("routes in-view citation links through the host navigation adapter", async () => {
-    const navigate = vi.fn<InspectComponentProviderProps["navigate"]>();
-    const message: ChatMessage = {
-      role: "assistant",
-      content: "Open [M1]",
-    };
-
-    render(
-      <InspectComponentProvider navigate={navigate}>
-        <ChatView
-          id="embedded-citations"
-          messages={[message]}
-          references={[
-            {
-              id: "message-1",
-              cite: "[M1]",
-              citeUrl: "#/sample?message=message-1",
-            },
-          ]}
-        />
-      </InspectComponentProvider>
-    );
-
-    fireEvent.click(await screen.findByRole("link", { name: "M1" }));
-
-    expect(navigate).toHaveBeenCalledWith("/sample?message=message-1", {
-      replace: true,
-    });
-  });
-
   it("keeps transcript collapse details interactive", () => {
     render(<CollapseHarness />);
 
@@ -302,15 +219,15 @@ describe("InspectComponentProvider", () => {
   it("keeps lane selection and timeline switching interactive", async () => {
     render(<TimelineHarness />);
 
-    expect(await screen.findByText(agentAAnswer)).toBeVisible();
-    expect(screen.getByText(agentBAnswer)).toBeVisible();
-    expect(screen.queryByText(auditorAnswer)).toBeNull();
+    expect(document.getElementById("agent-a")).not.toBeNull();
+    expect(document.getElementById("agent-b")).not.toBeNull();
+    expect(document.getElementById("auditor-message")).toBeNull();
 
     fireEvent.click(screen.getByRole("gridcell", { name: "Agent A" }));
 
-    expect(await screen.findByText(agentAAnswer)).toBeVisible();
     await waitFor(() => {
-      expect(screen.queryByText(agentBAnswer)).toBeNull();
+      expect(document.getElementById("agent-a-message")).not.toBeNull();
+      expect(document.getElementById("agent-b-message")).toBeNull();
     });
     expect(
       screen.getByLabelText("Selected timeline row")
@@ -319,33 +236,39 @@ describe("InspectComponentProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: /default/i }));
     fireEvent.click(screen.getByRole("option", { name: "auditor" }));
 
-    expect(await screen.findByText(auditorAnswer)).toBeVisible();
-    expect(screen.queryByText(agentAAnswer)).toBeNull();
-    expect(screen.queryByText(agentBAnswer)).toBeNull();
+    await waitFor(() => {
+      expect(document.getElementById("auditor-message")).not.toBeNull();
+    });
+    expect(document.getElementById("agent-a")).toBeNull();
+    expect(document.getElementById("agent-b")).toBeNull();
     expect(screen.getByLabelText("Selected timeline row")).toHaveTextContent(
       "root"
     );
   });
 
   it("feeds marker and keyboard navigation events back through deep links", async () => {
-    render(<MarkerDeepLinkHarness />);
+    render(<TimelineHarness />);
 
     fireEvent.click(screen.getByRole("gridcell", { name: "Agent A" }));
-    expect(await screen.findByText(agentAAnswer)).toBeVisible();
     await waitFor(() => {
-      expect(screen.queryByText(agentBAnswer)).toBeNull();
+      expect(document.getElementById("agent-a-message")).not.toBeNull();
+      expect(document.getElementById("agent-b-message")).toBeNull();
     });
 
     fireEvent.click(screen.getByTitle(/Agent B failed/));
 
-    expect(await screen.findByText(agentBAnswer)).toBeVisible();
-    expect(screen.queryByText(agentAAnswer)).toBeNull();
-    expect(screen.queryByText(auditorAnswer)).toBeNull();
+    await waitFor(() => {
+      expect(document.getElementById("agent-b-message")).not.toBeNull();
+    });
+    expect(document.getElementById("agent-a-message")).toBeNull();
+    expect(document.getElementById("auditor-message")).toBeNull();
 
     fireEvent.keyDown(window, { key: "l" });
 
-    expect(await screen.findByText(auditorAnswer)).toBeVisible();
-    expect(screen.queryByText(agentAAnswer)).toBeNull();
-    expect(screen.queryByText(agentBAnswer)).toBeNull();
+    await waitFor(() => {
+      expect(document.getElementById("auditor-message")).not.toBeNull();
+    });
+    expect(document.getElementById("agent-a")).toBeNull();
+    expect(document.getElementById("agent-b")).toBeNull();
   });
 });

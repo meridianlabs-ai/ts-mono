@@ -203,9 +203,6 @@ defaults on the first toggle and for bulk expand of deep-link targets, and
 already clears the lane selection inside the layout; the host does not
 repeat it.
 
-For a plain messages view use `ChatView` under the same provider;
-`displayMode="raw"` on the provider renders content unformatted.
-
 ### Embedder chrome
 
 If your own UI (rendered as a sibling of `<App />`, not a descendant) calls

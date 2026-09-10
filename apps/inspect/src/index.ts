@@ -14,6 +14,8 @@ export { App } from "./app/App";
 export { clientApi } from "./client/api/client-api";
 export { default as simpleHttpApi } from "./client/api/static-http/api-static-http.ts";
 export { viewServerApi as createViewServerApi } from "./client/api/view-server/api-view-server.ts";
+export { openRemoteLogFile } from "./client/remote/remoteLogFile";
+export type { RemoteLogFile } from "./client/remote/remoteLogFile";
 
 // Embedder api injection — install a per-dir api factory before initializing
 // the store and rendering <App/>; setLogRoot re-points the viewer at a
@@ -40,6 +42,8 @@ export type {
 
 // Log types
 export type {
+  EvalLog,
+  EvalSample,
   EvalSet,
   LogHandle,
   LogFilesResponse,
@@ -71,34 +75,8 @@ export {
   InspectComponentProvider,
   type InspectComponentProviderProps,
 } from "./componentProviders";
-export { ChatView } from "@tsmono/inspect-components/chat";
-export type {
-  ChatViewDisplayOptions,
-  ChatViewLabelOptions,
-  ChatViewLinkingOptions,
-  ChatViewProps,
-  ChatViewToolOptions,
-} from "@tsmono/inspect-components/chat";
 
 export { normalizeEvents } from "@tsmono/inspect-common/normalize";
-export type {
-  ChatMessage,
-  Event,
-  Timeline,
-} from "@tsmono/inspect-common/types";
-export {
-  TimelineSelector,
-  TranscriptLayout,
-  TranscriptOutline,
-  TranscriptViewNodes,
-  treeifyEvents,
-} from "@tsmono/inspect-components/transcript";
-export type {
-  EventNode,
-  TimelineSelectorProps,
-  TranscriptCollapseState,
-  TranscriptLayoutProps,
-  TranscriptLayoutTimelineProps,
-  TranscriptViewNodesHandle,
-  TranscriptViewNodesProps,
-} from "@tsmono/inspect-components/transcript";
+export type { Event, Timeline } from "@tsmono/inspect-common/types";
+export { TranscriptLayout } from "@tsmono/inspect-components/transcript";
+export type { TranscriptLayoutProps } from "@tsmono/inspect-components/transcript";
