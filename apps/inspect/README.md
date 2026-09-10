@@ -108,10 +108,15 @@ cross-timeline navigation without the `eventId` loop below.
 
 ```tsx
 import {
+    ChatViewRowsVirtualList,
     initializeStore,
     InspectComponentProvider,
+    InspectDataProvider,
     TranscriptLayout,
+    useEvalSampleData,
+    useSampleMessages,
     type Event,
+    type SampleHandle,
     type Timeline,
 } from "@meridianlabs/log-viewer";
 import { useRef, useState } from "react";
@@ -207,7 +212,13 @@ Pass the `MessageRowsFeed` from `useSampleMessages` directly to
 rows, and the live-to-finished handoff owned by the data layer:
 
 ```tsx
-function Messages({ logDir, handle }) {
+function Messages({
+    logDir,
+    handle,
+}: {
+    logDir: string;
+    handle: SampleHandle;
+}) {
     const sampleData = useEvalSampleData(logDir, handle);
     const running = sampleData.status === "streaming";
     const messageFeed = useSampleMessages(handle, sampleData, true, running);
@@ -225,7 +236,9 @@ function Messages({ logDir, handle }) {
 }
 
 <InspectDataProvider>
-    <Messages logDir={logDir} handle={handle} />
+    <InspectComponentProvider navigate={() => {}}>
+        <Messages logDir={logDir} handle={handle} />
+    </InspectComponentProvider>
 </InspectDataProvider>;
 ```
 
