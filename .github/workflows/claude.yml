@@ -94,7 +94,8 @@ jobs:
     # reusable workflow so agent-opened PRs trigger CI and @review. Passed
     # explicitly — NOT via `secrets: inherit` — so this repo's other secrets
     # aren't exposed to an external workflow pinned to a mutable @main ref
-    # (least privilege; the reusable workflow consumes only this one secret).
+    # (least privilege; the reusable workflow consumes only the secrets named
+    # here).
     # An absent MARVIN_TOKEN resolves to empty: the agent still runs, just with
     # issue-triggered PR creation degraded (see the reusable workflow's
     # secrets.MARVIN_TOKEN and design/auto-agent.md).
