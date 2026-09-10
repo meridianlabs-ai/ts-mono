@@ -1,6 +1,6 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
-exports[`candidateOutlineRows > 'basic.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > basic.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -13,7 +13,7 @@ exports[`candidateOutlineRows > 'basic.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'basic.json' > default 1`] = `
+exports[`candidateOutlineRows > basic.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -46,7 +46,7 @@ exports[`candidateOutlineRows > 'basic.json' > default 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'basic.json' > expanded 1`] = `
+exports[`candidateOutlineRows > basic.json > expanded 1`] = `
 [
   {
     "anchor": 0,
@@ -85,13 +85,13 @@ exports[`candidateOutlineRows > 'basic.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'empty.json' > collapsed 1`] = `[]`;
+exports[`candidateOutlineRows > empty.json > collapsed 1`] = `[]`;
 
-exports[`candidateOutlineRows > 'empty.json' > default 1`] = `[]`;
+exports[`candidateOutlineRows > empty.json > default 1`] = `[]`;
 
-exports[`candidateOutlineRows > 'empty.json' > expanded 1`] = `[]`;
+exports[`candidateOutlineRows > empty.json > expanded 1`] = `[]`;
 
-exports[`candidateOutlineRows > 'escape_hatch.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > escape_hatch.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -104,28 +104,7 @@ exports[`candidateOutlineRows > 'escape_hatch.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'escape_hatch.json' > default 1`] = `
-[
-  {
-    "anchor": 0,
-    "depth": 0,
-    "kind": "span",
-    "name": "agent1",
-    "spanId": "S1",
-    "type": "agent",
-  },
-  {
-    "anchor": 1,
-    "depth": 1,
-    "kind": "span",
-    "name": "big",
-    "spanId": "TB",
-    "type": "tool",
-  },
-]
-`;
-
-exports[`candidateOutlineRows > 'escape_hatch.json' > expanded 1`] = `
+exports[`candidateOutlineRows > escape_hatch.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -146,7 +125,28 @@ exports[`candidateOutlineRows > 'escape_hatch.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'gap_models.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > escape_hatch.json > expanded 1`] = `
+[
+  {
+    "anchor": 0,
+    "depth": 0,
+    "kind": "span",
+    "name": "agent1",
+    "spanId": "S1",
+    "type": "agent",
+  },
+  {
+    "anchor": 1,
+    "depth": 1,
+    "kind": "span",
+    "name": "big",
+    "spanId": "TB",
+    "type": "tool",
+  },
+]
+`;
+
+exports[`candidateOutlineRows > gap_models.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -159,7 +159,7 @@ exports[`candidateOutlineRows > 'gap_models.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'gap_models.json' > default 1`] = `
+exports[`candidateOutlineRows > gap_models.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -224,7 +224,7 @@ exports[`candidateOutlineRows > 'gap_models.json' > default 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'gap_models.json' > expanded 1`] = `
+exports[`candidateOutlineRows > gap_models.json > expanded 1`] = `
 [
   {
     "anchor": 0,
@@ -289,7 +289,7 @@ exports[`candidateOutlineRows > 'gap_models.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'leaf_tool_exclusion.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > leaf_tool_exclusion.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -302,40 +302,7 @@ exports[`candidateOutlineRows > 'leaf_tool_exclusion.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'leaf_tool_exclusion.json' > default 1`] = `
-[
-  {
-    "anchor": 0,
-    "depth": 0,
-    "kind": "span",
-    "name": "agent1",
-    "spanId": "S1",
-    "type": "agent",
-  },
-  {
-    "anchor": 1,
-    "depth": 1,
-    "kind": "turns",
-    "total": 2,
-  },
-  {
-    "anchor": 6,
-    "depth": 1,
-    "kind": "span",
-    "name": "grader",
-    "spanId": "TS",
-    "type": "tool",
-  },
-  {
-    "anchor": 7,
-    "depth": 2,
-    "kind": "scoring",
-    "total": 1,
-  },
-]
-`;
-
-exports[`candidateOutlineRows > 'leaf_tool_exclusion.json' > expanded 1`] = `
+exports[`candidateOutlineRows > leaf_tool_exclusion.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -368,7 +335,40 @@ exports[`candidateOutlineRows > 'leaf_tool_exclusion.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'legacy_steps.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > leaf_tool_exclusion.json > expanded 1`] = `
+[
+  {
+    "anchor": 0,
+    "depth": 0,
+    "kind": "span",
+    "name": "agent1",
+    "spanId": "S1",
+    "type": "agent",
+  },
+  {
+    "anchor": 1,
+    "depth": 1,
+    "kind": "turns",
+    "total": 2,
+  },
+  {
+    "anchor": 6,
+    "depth": 1,
+    "kind": "span",
+    "name": "grader",
+    "spanId": "TS",
+    "type": "tool",
+  },
+  {
+    "anchor": 7,
+    "depth": 2,
+    "kind": "scoring",
+    "total": 1,
+  },
+]
+`;
+
+exports[`candidateOutlineRows > legacy_steps.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -396,7 +396,7 @@ exports[`candidateOutlineRows > 'legacy_steps.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'legacy_steps.json' > default 1`] = `
+exports[`candidateOutlineRows > legacy_steps.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -455,7 +455,7 @@ exports[`candidateOutlineRows > 'legacy_steps.json' > default 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'legacy_steps.json' > expanded 1`] = `
+exports[`candidateOutlineRows > legacy_steps.json > expanded 1`] = `
 [
   {
     "anchor": 0,
@@ -514,7 +514,7 @@ exports[`candidateOutlineRows > 'legacy_steps.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'notable_caps.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > notable_caps.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -533,56 +533,7 @@ exports[`candidateOutlineRows > 'notable_caps.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'notable_caps.json' > default 1`] = `
-[
-  {
-    "anchor": 0,
-    "depth": 0,
-    "kind": "span",
-    "name": "agent1",
-    "spanId": "S1",
-    "type": "agent",
-  },
-  {
-    "anchor": 1,
-    "depth": 1,
-    "kind": "turns",
-    "total": 1,
-  },
-  {
-    "anchor": 2,
-    "depth": 1,
-    "kind": "scoring",
-    "total": 1,
-  },
-  {
-    "anchor": 3,
-    "depth": 1,
-    "kind": "turns",
-    "total": 1,
-  },
-  {
-    "anchor": 4,
-    "depth": 1,
-    "kind": "scoring",
-    "total": 1,
-  },
-  {
-    "anchor": 5,
-    "depth": 1,
-    "kind": "turns",
-    "total": 3,
-  },
-  {
-    "anchor": 11,
-    "depth": 0,
-    "kind": "event",
-    "type": "checkpoint",
-  },
-]
-`;
-
-exports[`candidateOutlineRows > 'notable_caps.json' > expanded 1`] = `
+exports[`candidateOutlineRows > notable_caps.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -631,7 +582,56 @@ exports[`candidateOutlineRows > 'notable_caps.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'notable_caps_uncapped.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > notable_caps.json > expanded 1`] = `
+[
+  {
+    "anchor": 0,
+    "depth": 0,
+    "kind": "span",
+    "name": "agent1",
+    "spanId": "S1",
+    "type": "agent",
+  },
+  {
+    "anchor": 1,
+    "depth": 1,
+    "kind": "turns",
+    "total": 1,
+  },
+  {
+    "anchor": 2,
+    "depth": 1,
+    "kind": "scoring",
+    "total": 1,
+  },
+  {
+    "anchor": 3,
+    "depth": 1,
+    "kind": "turns",
+    "total": 1,
+  },
+  {
+    "anchor": 4,
+    "depth": 1,
+    "kind": "scoring",
+    "total": 1,
+  },
+  {
+    "anchor": 5,
+    "depth": 1,
+    "kind": "turns",
+    "total": 3,
+  },
+  {
+    "anchor": 11,
+    "depth": 0,
+    "kind": "event",
+    "type": "checkpoint",
+  },
+]
+`;
+
+exports[`candidateOutlineRows > notable_caps_uncapped.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -650,7 +650,7 @@ exports[`candidateOutlineRows > 'notable_caps_uncapped.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'notable_caps_uncapped.json' > default 1`] = `
+exports[`candidateOutlineRows > notable_caps_uncapped.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -723,7 +723,7 @@ exports[`candidateOutlineRows > 'notable_caps_uncapped.json' > default 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'notable_caps_uncapped.json' > expanded 1`] = `
+exports[`candidateOutlineRows > notable_caps_uncapped.json > expanded 1`] = `
 [
   {
     "anchor": 0,
@@ -796,7 +796,7 @@ exports[`candidateOutlineRows > 'notable_caps_uncapped.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'parallel_spans.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > parallel_spans.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -822,45 +822,7 @@ exports[`candidateOutlineRows > 'parallel_spans.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'parallel_spans.json' > default 1`] = `
-[
-  {
-    "anchor": 0,
-    "depth": 0,
-    "kind": "span",
-    "name": "left",
-    "spanId": "A",
-    "type": "agent",
-  },
-  {
-    "anchor": 1,
-    "depth": 1,
-    "kind": "turns",
-    "total": 1,
-  },
-  {
-    "anchor": 1,
-    "depth": 0,
-    "kind": "span",
-    "name": "right",
-    "spanId": "B",
-  },
-  {
-    "anchor": 2,
-    "depth": 1,
-    "kind": "turns",
-    "total": 1,
-  },
-  {
-    "anchor": 6,
-    "depth": 0,
-    "kind": "scoring",
-    "total": 1,
-  },
-]
-`;
-
-exports[`candidateOutlineRows > 'parallel_spans.json' > expanded 1`] = `
+exports[`candidateOutlineRows > parallel_spans.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -898,7 +860,45 @@ exports[`candidateOutlineRows > 'parallel_spans.json' > expanded 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'steps_same_name.json' > collapsed 1`] = `
+exports[`candidateOutlineRows > parallel_spans.json > expanded 1`] = `
+[
+  {
+    "anchor": 0,
+    "depth": 0,
+    "kind": "span",
+    "name": "left",
+    "spanId": "A",
+    "type": "agent",
+  },
+  {
+    "anchor": 1,
+    "depth": 1,
+    "kind": "turns",
+    "total": 1,
+  },
+  {
+    "anchor": 1,
+    "depth": 0,
+    "kind": "span",
+    "name": "right",
+    "spanId": "B",
+  },
+  {
+    "anchor": 2,
+    "depth": 1,
+    "kind": "turns",
+    "total": 1,
+  },
+  {
+    "anchor": 6,
+    "depth": 0,
+    "kind": "scoring",
+    "total": 1,
+  },
+]
+`;
+
+exports[`candidateOutlineRows > steps_same_name.json > collapsed 1`] = `
 [
   {
     "anchor": 0,
@@ -911,7 +911,7 @@ exports[`candidateOutlineRows > 'steps_same_name.json' > collapsed 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'steps_same_name.json' > default 1`] = `
+exports[`candidateOutlineRows > steps_same_name.json > default 1`] = `
 [
   {
     "anchor": 0,
@@ -944,7 +944,7 @@ exports[`candidateOutlineRows > 'steps_same_name.json' > default 1`] = `
 ]
 `;
 
-exports[`candidateOutlineRows > 'steps_same_name.json' > expanded 1`] = `
+exports[`candidateOutlineRows > steps_same_name.json > expanded 1`] = `
 [
   {
     "anchor": 0,
