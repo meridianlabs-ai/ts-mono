@@ -146,7 +146,10 @@ export function Transcript({
                     collapseState={{
                         transcript: collapsed,
                         onCollapseTranscript: (id, value) =>
-                            setCollapsed((current) => ({ ...current, [id]: value })),
+                            setCollapsed((current) => ({
+                                ...current,
+                                [id]: value,
+                            })),
                         onSetTranscriptCollapsed: setCollapsed,
                     }}
                     timeline={{

@@ -2,7 +2,6 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useRef, useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { ResizeObserverStub } from "@tsmono/react/testing";
 import {
   testStepEvent,
   testTimeline,
@@ -11,6 +10,7 @@ import {
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import { rawEventBuilders } from "@tsmono/inspect-components/transcript/test-helpers";
+import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import {
   ChatView,
@@ -124,7 +124,9 @@ function TimelineHarness() {
   return (
     <InspectComponentProvider navigate={() => {}}>
       <output aria-label="Selected timeline row">{selected ?? "root"}</output>
-      <output aria-label="Active timeline">{timelines[activeIndex]?.name}</output>
+      <output aria-label="Active timeline">
+        {timelines[activeIndex]?.name}
+      </output>
       <div ref={scrollRef}>
         <TranscriptLayout
           embedded
@@ -169,22 +171,28 @@ describe("InspectComponentProvider", () => {
     render(<CollapseHarness />);
 
     expect(screen.getByText("nested detail after expansion")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: /Collapse.*delegated task/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Collapse.*delegated task/i })
+    );
     expect(screen.queryByText("nested detail after expansion")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Expand.*delegated task/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /Expand.*delegated task/i })
+    );
     expect(screen.getByText("nested detail after expansion")).toBeVisible();
   });
 
   it("keeps lane selection and timeline switching interactive", () => {
     render(<TimelineHarness />);
     fireEvent.click(screen.getByRole("gridcell", { name: "Agent A" }));
-    expect(screen.getByLabelText("Selected timeline row")).not.toHaveTextContent(
-      "root"
-    );
+    expect(
+      screen.getByLabelText("Selected timeline row")
+    ).not.toHaveTextContent("root");
 
     fireEvent.click(screen.getByRole("button", { name: /default/i }));
     fireEvent.click(screen.getByRole("option", { name: "auditor" }));
-    expect(screen.getByLabelText("Active timeline")).toHaveTextContent("auditor");
+    expect(screen.getByLabelText("Active timeline")).toHaveTextContent(
+      "auditor"
+    );
     expect(screen.getByLabelText("Selected timeline row")).toHaveTextContent(
       "root"
     );
