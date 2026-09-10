@@ -24,12 +24,17 @@ const toolNode = (nodeId: string, callId: string, depth = 0): EventNode => {
 const approvalNode = (
   nodeId: string,
   callId: string,
-  opts?: { approver?: string; decision?: ApprovalEvent["decision"] }
+  opts?: {
+    approver?: string;
+    decision?: ApprovalEvent["decision"];
+    stage?: ApprovalEvent["stage"];
+  }
 ): EventNode => {
   const event = testApprovalEvent({
     uuid: nodeId,
     approver: opts?.approver ?? "human",
     decision: opts?.decision ?? "approve",
+    stage: opts?.stage ?? "call",
     call: testToolCall({ id: callId, function: "bash" }),
     timestamp: "2026-01-01T00:00:01Z",
   });
@@ -57,6 +62,36 @@ describe("pairToolApprovals", () => {
     expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
     expect(result.hiddenApprovalIds.has("appr-1")).toBe(true);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
+  });
+
+  it("leaves a result-stage approval as its own row alongside the paired call-stage one", () => {
+    const tool = toolNode("tool-1", "call-1");
+    const callStage = approvalNode("appr-1", "call-1");
+    const resultStage = approvalNode("appr-2", "call-1", {
+      approver: "monitor",
+      decision: "reject",
+      stage: "result",
+    });
+
+    const result = pairToolApprovals([tool, callStage, resultStage]);
+
+    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.hiddenApprovalIds.has("appr-1")).toBe(true);
+    expect(result.hiddenApprovalIds.has("appr-2")).toBe(false);
+  });
+
+  it("hides an auto-approved result-stage approval like any other auto approval", () => {
+    const tool = toolNode("tool-1", "call-1");
+    const resultStage = approvalNode("appr-2", "call-1", {
+      approver: "auto",
+      stage: "result",
+    });
+
+    const result = pairToolApprovals([tool, resultStage]);
+
+    expect(result.toolApprovals.has("call-1")).toBe(false);
+    expect(result.hiddenApprovalIds.has("appr-2")).toBe(true);
+    expect(result.approvalScrollRedirects.get("appr-2")).toBe("tool-1");
   });
 
   it("hides auto-approve approvals without pairing but still redirects to the tool", () => {

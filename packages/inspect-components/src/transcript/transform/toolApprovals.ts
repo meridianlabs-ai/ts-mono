@@ -1,7 +1,10 @@
 /**
- * Pairs ApprovalEvents to their ToolEvents by call id so the tool panel can
- * render the approval inline, and maps hidden approval node ids to their
- * host tool node so deep links targeting an approval still scroll somewhere.
+ * Pairs call-stage ApprovalEvents to their ToolEvents by call id so the tool
+ * panel can render the approval inline, and maps hidden approval node ids to
+ * their host tool node so deep links targeting an approval still scroll
+ * somewhere. Result-stage approvals (a review of the tool's output, recorded
+ * after the tool event) stay in the flat list as their own rows: a call can
+ * carry one decision per stage, and the tool panel shows only one.
  */
 
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
@@ -47,10 +50,11 @@ export function pairToolApprovals(
         // decisions (reject/terminate/…) stay visible.
         const isAutoApprove =
           n.event.approver === "auto" && n.event.decision === "approve";
+        const isResultStage = n.event.stage === "result";
         if (isAutoApprove) {
           hiddenApprovalIds.add(n.id);
           if (toolNodeId) approvalScrollRedirects.set(n.id, toolNodeId);
-        } else if (toolNodeId) {
+        } else if (toolNodeId && !isResultStage) {
           toolApprovals.set(n.event.call.id, eventNodeOf(n, "approval"));
           hiddenApprovalIds.add(n.id);
           approvalScrollRedirects.set(n.id, toolNodeId);

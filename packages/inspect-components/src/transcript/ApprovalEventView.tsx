@@ -25,6 +25,7 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
   const decision = event.decision;
   const explanation = event.explanation?.trim() ?? "";
   const approver = event.approver;
+  const subject = event.stage === "result" ? "tool result" : undefined;
   const alarming = decision === "reject" || decision === "terminate";
   // Break the explanation out into a markdown block only when it has
   // structure (newlines → paragraphs/lists/code). Otherwise leave it
@@ -51,7 +52,9 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
       }
     >
       <span className={styles.headline}>
-        <span className={clsx("text-style-secondary")}>({approver})</span>
+        <span className={clsx("text-style-secondary")}>
+          ({subject ? `${approver}, ${subject}` : approver})
+        </span>
         {explanation && !explanationIsBlock ? (
           <span className={styles.inlineExplanation}>{explanation}</span>
         ) : null}
