@@ -856,6 +856,12 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
+            /**
+             * Stage
+             * @default call
+             * @enum {string}
+             */
+            stage: "call" | "result";
             /** Timestamp */
             timestamp: string;
             /** Uuid */

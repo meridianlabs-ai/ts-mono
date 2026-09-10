@@ -613,6 +613,12 @@ export interface components {
             pending?: boolean | null;
             /** Span Id */
             span_id?: string | null;
+            /**
+             * Stage
+             * @default call
+             * @enum {string}
+             */
+            stage: "call" | "result";
             /** Timestamp */
             timestamp: string;
             /** Uuid */
@@ -641,6 +647,10 @@ export interface components {
          *       - name: auto
          *         tools: *
          *         decision: approve
+         *
+         *       - name: evaltools/output_monitor
+         *         tools: bash
+         *         stage: result
          *     ```
          */
         ApproverPolicyConfig: {
@@ -650,6 +660,12 @@ export interface components {
             params: {
                 [key: string]: unknown;
             };
+            /**
+             * Stage
+             * @default call
+             * @enum {string}
+             */
+            stage: "call" | "result";
             /** Tools */
             tools: string | string[];
         } & {

@@ -385,6 +385,7 @@ export const testApprovalEvent = (
   working_start: 0,
   approver: "test-approver",
   call: testToolCall(),
+  stage: "call",
   decision: "approve",
   message: "",
   ...overrides,
