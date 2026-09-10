@@ -108,8 +108,9 @@ import {
     InspectComponentProvider,
     normalizeEvents,
     TranscriptLayout,
+    type Timeline,
 } from "@meridianlabs/log-viewer";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 import "@meridianlabs/log-viewer/styles/index.css";
 
@@ -120,8 +121,18 @@ initializeStore({
     streamSamples: false,
 });
 
-export function Transcript({ rawEvents }: { rawEvents: unknown }) {
+export function Transcript({
+    rawEvents,
+    timelines = [],
+}: {
+    rawEvents: unknown;
+    timelines?: Timeline[];
+}) {
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>();
+    const [selected, setSelected] = useState<string | null>(null);
+    const [activeIndex, setActiveIndex] = useState(0);
+
     return (
         <InspectComponentProvider
             navigate={(path) => window.location.assign(path)}
@@ -132,6 +143,24 @@ export function Transcript({ rawEvents }: { rawEvents: unknown }) {
                     events={normalizeEvents(rawEvents)}
                     listId="transcript"
                     scrollRef={scrollRef}
+                    collapseState={{
+                        transcript: collapsed,
+                        onCollapseTranscript: (id, value) =>
+                            setCollapsed((current) => ({ ...current, [id]: value })),
+                        onSetTranscriptCollapsed: setCollapsed,
+                    }}
+                    timeline={{
+                        serverTimelines: timelines,
+                        showSwimlanes: "auto",
+                        selection: { selected, onSelect: setSelected },
+                        active: {
+                            activeIndex,
+                            onActiveChange: (index) => {
+                                setSelected(null);
+                                setActiveIndex(index);
+                            },
+                        },
+                    }}
                 />
             </div>
         </InspectComponentProvider>
@@ -144,6 +173,11 @@ through it before rendering. The same provider composes `ChatView` for the simpl
 and accepts `displayMode="raw"` for unformatted content. `TranscriptOutline`,
 `TranscriptViewNodes`, `treeifyEvents`, and their public types are also exported for consumers that
 need to compose the layout primitives directly.
+
+Collapse and timeline selection are controlled state owned by the embedding application; they are
+separate from `InspectComponentProvider`'s viewer property-bag contexts. Keep both collapse setters
+so the first individual toggle can seed default-collapsed nodes, and clear the selected lane when
+switching timelines as shown above.
 
 ### Embedder chrome
 

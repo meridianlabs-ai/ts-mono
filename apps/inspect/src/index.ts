@@ -81,7 +81,7 @@ export type {
 } from "@tsmono/inspect-components/chat";
 
 export { normalizeEvents } from "@tsmono/inspect-common/normalize";
-export type { ChatMessage, Event } from "@tsmono/inspect-common/types";
+export type { ChatMessage, Event, Timeline } from "@tsmono/inspect-common/types";
 export {
   TranscriptLayout,
   TranscriptOutline,
