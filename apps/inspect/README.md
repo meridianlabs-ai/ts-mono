@@ -26,8 +26,7 @@ filter through to `turbo run`, preserving task dependencies — see
 | `pnpm e2e`       | Run Playwright e2e tests                  |
 | `pnpm check-all` | Type check, lint, format, test, and build |
 
-Built output is not committed; the library is built at publish time
-(`prepublishOnly`).
+Built output is not committed; `prepack` builds and validates the library before packing or publishing.
 
 You may optionally set the `VIEW_SERVER_API_URL` environment variable at
 build time to use an API server running on a different host.

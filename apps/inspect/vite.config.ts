@@ -97,6 +97,7 @@ const declarationBarrels: Record<string, string> = {
       "export type { ChatViewDisplayOptions, ChatViewLabelOptions,",
       "ChatViewLinkingOptions, ChatViewToolOptions } from './types';",
     ].join(" "),
+    "export type { MessageRow, MessageRowOptions } from './rowsModel';",
     "",
   ].join("\n"),
   "/packages/inspect-components/src/transcript/index.d.ts": [
