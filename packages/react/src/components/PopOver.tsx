@@ -32,6 +32,18 @@ interface PopOverProps {
   styles?: CSSProperties;
 }
 
+const eventOccurredWithin = (
+  event: MouseEvent,
+  element: Node | null
+): boolean => {
+  if (element === null) return false;
+  const target = event.target instanceof Node ? event.target : null;
+  return (
+    event.composedPath().includes(element) ||
+    (target !== null && element.contains(target))
+  );
+};
+
 /**
  * A controlled Popper component for displaying content relative to a reference element
  */
@@ -108,9 +120,9 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
 
     const handleMouseDown = (event: MouseEvent) => {
-      // Only cancel popover on mouse down outside the popover content
-      const target = event.target instanceof Node ? event.target : null;
-      if (popperRef.current && !popperRef.current.contains(target)) {
+      // Shadow DOM retargets event.target to the host at document listeners;
+      // composedPath retains the actual popover nodes.
+      if (popperRef.current && !eventOccurredWithin(event, popperRef.current)) {
         if (hoverTimerRef.current !== null) {
           window.clearTimeout(hoverTimerRef.current);
         }
@@ -130,12 +142,11 @@ export const PopOver: React.FC<PopOverProps> = ({
       let mouseDownOnTrigger = false;
 
       const captureListener = (event: MouseEvent) => {
-        const target = event.target instanceof Node ? event.target : null;
-        mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
+        mouseDownInsidePopover = eventOccurredWithin(event, popperRef.current);
         // A click on the trigger element should NOT close via this handler —
         // the trigger's own onClick will toggle the popover. Closing here
         // then reopening in the trigger handler would net to no change.
-        mouseDownOnTrigger = positionEl?.contains(target) ?? false;
+        mouseDownOnTrigger = eventOccurredWithin(event, positionEl);
       };
 
       const bubbleListener = () => {
@@ -194,11 +205,17 @@ export const PopOver: React.FC<PopOverProps> = ({
   // Effect to create portal container when needed
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    // Only create portal when the popover is open
+    // Keep the portal beside its trigger. A trigger inside a ShadowRoot needs
+    // the popover in that root so it inherits the same isolated styles.
     if (usePortal && isOpen && shouldShowPopover) {
-      let container = document.getElementById(id);
+      const triggerRoot = positionEl?.getRootNode();
+      const shadowRoot = triggerRoot instanceof ShadowRoot ? triggerRoot : null;
+      const portalParent: HTMLElement | ShadowRoot =
+        shadowRoot ?? document.body;
+      let container =
+        shadowRoot?.getElementById(id) ?? document.getElementById(id);
 
-      if (!container) {
+      if (!container || container.parentNode !== portalParent) {
         container = document.createElement("div");
         container.id = id;
         container.style.position = "absolute";
@@ -208,24 +225,22 @@ export const PopOver: React.FC<PopOverProps> = ({
         container.style.width = "0";
         container.style.height = "0";
         container.style.overflow = "visible";
-
-        document.body.appendChild(container);
+        portalParent.appendChild(container);
       }
 
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React with externally-created DOM node
       setPortalContainer(container);
 
       return () => {
-        // Clean up only when unmounting or when the popover closes
-        if (document.body.contains(container)) {
-          document.body.removeChild(container);
+        if (container.parentNode === portalParent) {
+          portalParent.removeChild(container);
           setPortalContainer(null);
         }
       };
     }
 
     return undefined;
-  }, [usePortal, isOpen, shouldShowPopover, id]);
+  }, [usePortal, isOpen, shouldShowPopover, id, positionEl]);
 
   // Popper modifier pair that caps the popover to the full viewport
   // (minus padding), not to whatever the popover currently happens to be.

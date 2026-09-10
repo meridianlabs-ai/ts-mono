@@ -16,6 +16,7 @@ export { default as simpleHttpApi } from "./client/api/static-http/api-static-ht
 export { viewServerApi as createViewServerApi } from "./client/api/view-server/api-view-server.ts";
 export { openRemoteLogFile } from "./client/remote/remoteLogFile";
 export type { RemoteLogFile } from "./client/remote/remoteLogFile";
+export { resolveSample } from "./log_data";
 
 // Embedder api injection — install a per-dir api factory before initializing
 // the store and rendering <App/>; setLogRoot re-points the viewer at a

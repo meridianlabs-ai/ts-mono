@@ -114,6 +114,7 @@ export {
   usePassiveEvalSampleData,
   useEvalSampleData,
 } from "./sampleData";
+export { resolveSample } from "./sampleFetch";
 export {
   type SamplesListingRow,
   type SamplesScope,
