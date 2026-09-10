@@ -242,6 +242,12 @@ function Messages({
 </InspectDataProvider>;
 ```
 
+Hosts that own polling instead of mounting the data-hook provider can wrap a
+`createViewServerApi` with `clientApi` and pass it to
+`createSampleStreamSession`. Its `tick()` method retains cursors and resolves
+attachments plus message/call-pool references before returning events. Reuse
+that reducer rather than rendering `pending-sample-data` wire rows directly.
+
 Keep both collapse setters: the layout uses `onSetTranscriptCollapsed` to seed
 defaults on the first toggle and for bulk expand of deep-link targets, and
 `onCollapseTranscript` for every toggle after that. Switching timelines

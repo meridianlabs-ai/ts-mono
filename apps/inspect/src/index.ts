@@ -17,12 +17,18 @@ export { viewServerApi as createViewServerApi } from "./client/api/view-server/a
 export { openRemoteLogFile } from "./client/remote/remoteLogFile";
 export type { RemoteLogFile } from "./client/remote/remoteLogFile";
 export {
+  createSampleStreamSession,
   resolveSample,
   useEvalSampleData,
   useSampleMessages,
   useSampleSummaries,
 } from "./log_data";
-export type { EvalSampleData, MessageRowsFeed } from "./log_data";
+export type {
+  EvalSampleData,
+  MessageRowsFeed,
+  SampleStreamSession,
+  SampleStreamTick,
+} from "./log_data";
 
 // Embedder api injection — install a per-dir api factory before initializing
 // the store and rendering <App/>; setLogRoot re-points the viewer at a
