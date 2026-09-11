@@ -11,6 +11,7 @@ import {
 import { DatabaseService, scopePrefix } from "../client/database";
 import {
   maxDepth,
+  PreparedLogDetails,
   prepareLogDetails,
   previewTier,
 } from "../client/utils/type-utils";
@@ -292,6 +293,26 @@ export const writePreviews = async (
 };
 
 /**
+ * Prepare each payload of a flush batch on its own. A payload the normalizers
+ * let through but derivation still rejects is skipped and reported, not
+ * allowed to keep every unrelated log in the same flush out of the stores.
+ * The skipped log stays at its current depth.
+ */
+const prepareBatch = (
+  details: Record<string, LogDetails>
+): (readonly [string, PreparedLogDetails])[] => {
+  const prepared: (readonly [string, PreparedLogDetails])[] = [];
+  for (const [name, payload] of Object.entries(details)) {
+    try {
+      prepared.push([name, prepareLogDetails(payload)]);
+    } catch (error) {
+      log.error(`Skipping details ingestion for ${name}`, error);
+    }
+  }
+  return prepared;
+};
+
+/**
  * Details INGESTION: normalize each transport payload into the entity
  * stores — the detailed tier onto the log row, sample summaries into their
  * own store. Cache updates land synchronously; samples rows land BEFORE the
@@ -308,9 +329,7 @@ export const writeDetails = async (
   logDir: string,
   details: Record<string, LogDetails>
 ): Promise<void> => {
-  const prepared = Object.entries(details).map(
-    ([name, payload]) => [name, prepareLogDetails(payload)] as const
-  );
+  const prepared = prepareBatch(details);
   await Promise.all(
     prepared.map(([name, file]) =>
       pushFileSamples(

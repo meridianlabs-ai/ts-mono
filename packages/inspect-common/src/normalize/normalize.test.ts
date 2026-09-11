@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { expectEvent } from "../testing";
+import {
+  expectEvent,
+  testEvalMetric,
+  testEvalScore,
+  testUserMessage,
+} from "../testing";
 import type { ModelEvent } from "../types";
+import { inputString } from "../utils";
 
 import legacyHeader from "./fixtures/legacy-header-2024-11.json";
 import legacySample from "./fixtures/legacy-sample-2024-11.json";
@@ -65,6 +71,37 @@ describe("normalize header pieces on a real Nov-2024 log", () => {
     expect(plan.name).toBe(legacyHeader.plan.name);
   });
 
+  it("drops malformed results.scores entries and fills score defaults", () => {
+    const results = normalizeEvalResults({
+      total_samples: 1,
+      completed_samples: 1,
+      scores: [
+        null,
+        1,
+        { scorer: "nameless" },
+        { name: "legacy" },
+        {
+          name: "match",
+          scorer: "match",
+          params: {},
+          metrics: {
+            gone: null,
+            text: { name: "text", value: "1" },
+            accuracy: { name: "accuracy", value: 1, params: {} },
+          },
+        },
+      ],
+    })!;
+    expect(results.scores).toEqual([
+      testEvalScore({ name: "legacy", scorer: "legacy" }),
+      testEvalScore({
+        name: "match",
+        scorer: "match",
+        metrics: { accuracy: testEvalMetric({ value: 1 }) },
+      }),
+    ]);
+  });
+
   it("returns null results for in-progress logs", () => {
     expect(normalizeEvalResults(undefined)).toBeNull();
     expect(normalizeEvalResults(null)).toBeNull();
@@ -97,6 +134,16 @@ describe("legacy shape migrations", () => {
       score: { value: "C" },
     });
     expect(sample.scores).toEqual({ scorer: { value: "C" } });
+  });
+
+  it("drops a null legacy score instead of lifting it", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      score: null,
+    });
+    expect(sample.scores).toEqual({});
   });
 
   it("migrates a sandbox tuple to a spec object", () => {
@@ -276,6 +323,43 @@ describe("normalizeEvalSample input validation", () => {
     ]);
     expect(sample.error_retries).toEqual([
       { message: "boom", traceback: "", traceback_ansi: "" },
+    ]);
+  });
+
+  it("normalizes score entries the same way the summary path does", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      scores: {
+        a: null,
+        b: { history: [] },
+        c: { value: null },
+        d: { value: 1 },
+      },
+    });
+    expect(sample.scores).toEqual({ c: { value: NaN }, d: { value: 1 } });
+  });
+
+  it("drops malformed input messages so inputString stays unguarded", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: [1, null, { role: "user" }, { role: "user", content: "q" }],
+    });
+    expect(sample.input).toEqual([testUserMessage({ content: "q" })]);
+    expect(inputString(sample.input)).toEqual(["q"]);
+  });
+
+  it("drops malformed model_fallbacks elements", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      input: "q",
+      model_fallbacks: [null, 1, { model: "a", fallback_model: "b" }],
+    });
+    expect(sample.model_fallbacks).toEqual([
+      { model: "a", fallback_model: "b", count: 1 },
     ]);
   });
 

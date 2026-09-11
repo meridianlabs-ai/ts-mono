@@ -4,12 +4,12 @@ import {
   normalizeEvalResults,
   normalizeEvalSample,
   normalizeEvalSpec,
+  normalizeEvalStats,
 } from "@tsmono/inspect-common/normalize";
 import {
   ConfigUpdate,
   EvalError,
   EvalLog,
-  EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
@@ -41,7 +41,7 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
     eval: evalSpec,
     plan: normalizeEvalPlan(raw["plan"]),
     results: normalizeEvalResults(raw["results"]),
-    stats: raw["stats"] as EvalStats | undefined,
+    stats: normalizeEvalStats(raw["stats"]),
     error: raw["error"] as EvalError | null | undefined,
     tags: (raw["tags"] ?? evalSpec.tags ?? []) as string[],
     metadata: (raw["metadata"] ?? evalSpec.metadata ?? {}) as Record<
