@@ -1,6 +1,7 @@
 import type {
   AppConfig,
   ApprovalEvent,
+  ReviewEvent,
   AttachmentData,
   BranchEvent,
   CallPoolData,
@@ -180,6 +181,7 @@ export interface EventData {
     | ModelEvent
     | ToolEvent
     | ApprovalEvent
+    | ReviewEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent

@@ -11,6 +11,7 @@ import type {
 const EVAL_CONFIG_KEYS: Record<keyof EvalConfig, true> = {
   acp_server: true,
   approval: true,
+  review: true,
   continue_on_fail: true,
   cost_limit: true,
   epochs: true,

@@ -4,6 +4,7 @@ import { isRecord } from "@tsmono/util";
 
 import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
+import { ReviewEventView } from "./ReviewEventView";
 import { BranchEventView } from "./BranchEventView";
 import {
   BranchPoint,
@@ -268,6 +269,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <ApprovalEventView
           eventNode={eventNodeOf(node, "approval")}
+          className={className}
+        />
+      );
+
+    case "review":
+      return (
+        <ReviewEventView
+          eventNode={eventNodeOf(node, "review")}
           className={className}
         />
       );

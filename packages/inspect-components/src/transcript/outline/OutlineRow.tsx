@@ -214,20 +214,19 @@ const labelForNode = (node: EventNode): string => {
       case "subtask":
         return node.event.name;
       case "approval":
-        switch (node.event.decision) {
-          case "approve":
-            return "approved";
-          case "reject":
-            return "rejected";
-          case "escalate":
-            return "escalated";
-          case "modify":
-            return "modified";
-          case "terminate":
-            return "terminated";
-          default:
-            return node.event.decision;
-        }
+        return {
+          approve: "approved",
+          reject: "rejected",
+          escalate: "escalated",
+          modify: "modified",
+          terminate: "terminated",
+        }[node.event.decision];
+      case "review":
+        return {
+          continue: "reviewed",
+          escalate: "escalated",
+          terminate: "terminated",
+        }[node.event.decision];
       case "model":
         return `model${node.event.role ? ` (${node.event.role})` : ""}`;
       case "score":

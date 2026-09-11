@@ -44,6 +44,7 @@ export const outlineFilterVisitors = () => [
   removeNodeVisitor("state"),
   removeNodeVisitor("store"),
   removeNodeVisitor("approval"),
+  removeNodeVisitor("review"),
   removeNodeVisitor("input"),
   removeNodeVisitor("sandbox"),
   removeStepSpanNameVisitor(kSandboxSignalName),

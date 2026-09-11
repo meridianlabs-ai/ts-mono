@@ -2,6 +2,7 @@ import { SortingState } from "@tanstack/react-table";
 
 import {
   ApprovalEvent,
+  ReviewEvent,
   AttachmentData,
   BranchEvent,
   CompactionEvent,
@@ -190,6 +191,7 @@ export type Event =
   | ModelEvent
   | ToolEvent
   | ApprovalEvent
+  | ReviewEvent
   | InputEvent
   | ScoreEvent
   | ErrorEvent

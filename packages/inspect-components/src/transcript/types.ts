@@ -1,6 +1,7 @@
 import type {
   AnchorEvent,
   ApprovalEvent,
+  ReviewEvent,
   BranchEvent,
   CheckpointEvent,
   CompactionEvent,
@@ -83,6 +84,7 @@ export type EventType =
   | ErrorEvent
   | AnchorEvent
   | ApprovalEvent
+  | ReviewEvent
   | BranchEvent
   | CheckpointEvent
   | CompactionEvent
@@ -109,6 +111,7 @@ export const eventTypeValues = [
   "error",
   "anchor",
   "approval",
+  "review",
   "branch",
   "checkpoint",
   "compaction",

@@ -9,6 +9,7 @@
 import type {
   AnchorEvent,
   ApprovalEvent,
+  ReviewEvent,
   BranchEvent,
   ChatCompletionChoice,
   ChatMessageAssistant,
@@ -386,6 +387,19 @@ export const testApprovalEvent = (
   approver: "test-approver",
   call: testToolCall(),
   decision: "approve",
+  message: "",
+  ...overrides,
+});
+
+export const testReviewEvent = (
+  overrides: Partial<ReviewEvent> = {}
+): ReviewEvent => ({
+  event: "review",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  reviewer: "test-reviewer",
+  call: testToolCall(),
+  decision: "continue",
   message: "",
   ...overrides,
 });

@@ -379,6 +379,16 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       break;
     }
 
+    case "review": {
+      const reviewEvent = event;
+      fields.push(["decision", reviewEvent.decision]);
+      if (reviewEvent.explanation) {
+        fields.push(["explanation", reviewEvent.explanation]);
+      }
+      fields.push(["reviewer", reviewEvent.reviewer]);
+      break;
+    }
+
     case "sandbox": {
       const sandboxEvent = event;
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
