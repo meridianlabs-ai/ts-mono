@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import JSON5 from "json5";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -9,6 +10,10 @@ import { getVscodeApi } from "@tsmono/util";
 import { ScoutApiV2 } from "./api/api";
 import { apiScoutServer } from "./api/api-scout-server";
 import { apiVscode } from "./api/api-vscode";
+import {
+  apiScoutStatic,
+  StaticBundleContext,
+} from "./api/static-http/api-scout-static";
 import { App } from "./App";
 import { getEmbeddedAppMessage } from "./app/hooks/useWindowMessaging";
 import { ApiProvider, createStore, StoreProvider } from "./state/store";
@@ -19,6 +24,35 @@ declare global {
     __SCOUT_DISABLE_SSE__?: boolean;
   }
 }
+
+const readBundleContext = (): StaticBundleContext | undefined => {
+  // Prefer an inline <script id="scout_context"> JSON blob (set by the bundler).
+  const scriptEl = document.getElementById("scout_context");
+  if (scriptEl?.textContent) {
+    try {
+      const data: StaticBundleContext & { bundle?: boolean } = JSON5.parse(
+        scriptEl.textContent
+      );
+      if (data.bundle) {
+        return data;
+      }
+    } catch (err) {
+      console.warn("Failed to parse scout_context script tag", err);
+    }
+  }
+
+  // Fall back to URL params for ad-hoc testing.
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("bundle") === "true") {
+    return {
+      bundleBaseUrl: urlParams.get("bundle_base") ?? undefined,
+    };
+  }
+
+  return undefined;
+};
+
+const bundleContext = readBundleContext();
 
 // Find the root element and render into it
 const containerId = "app";
@@ -35,24 +69,27 @@ const root = createRoot(container);
 
 const selectApi = (): ScoutApiV2 => {
   const vscodeApi = getVscodeApi();
-  if (!vscodeApi) {
-    const basePath = window.__SCOUT_BASE_PATH__ ?? "";
-    return apiScoutServer({
-      apiBaseUrl: `${basePath}/api/v2`,
-      disableSSE: window.__SCOUT_DISABLE_SSE__,
-    });
+  if (vscodeApi) {
+    const protocolVersion =
+      getEmbeddedAppMessage()?.extensionProtocolVersion ?? 1;
+    if (protocolVersion < 2) {
+      throw new Error(
+        `VSCode extension protocol version ${protocolVersion} is no longer supported. ` +
+          "Please update your Inspect Scout VSCode extension to the latest version."
+      );
+    }
+    return apiVscode(vscodeApi);
   }
 
-  const protocolVersion =
-    getEmbeddedAppMessage()?.extensionProtocolVersion ?? 1;
-  if (protocolVersion < 2) {
-    throw new Error(
-      `VSCode extension protocol version ${protocolVersion} is no longer supported. ` +
-        "Please update your Inspect Scout VSCode extension to the latest version."
-    );
+  if (bundleContext) {
+    return apiScoutStatic(bundleContext);
   }
 
-  return apiVscode(vscodeApi);
+  const basePath = window.__SCOUT_BASE_PATH__ ?? "";
+  return apiScoutServer({
+    apiBaseUrl: `${basePath}/api/v2`,
+    disableSSE: window.__SCOUT_DISABLE_SSE__,
+  });
 };
 
 // Create the API, store, and query client

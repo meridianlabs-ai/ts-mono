@@ -7,6 +7,7 @@ import {
   useFindBandShortcut,
 } from "@tsmono/react/components";
 
+import { useStaticBundle } from "./api/useStaticBundle";
 import { ActivityBarLayout } from "./app/components/ActivityBarLayout";
 import { useWindowMessaging } from "./app/hooks/useWindowMessaging";
 import { ProjectPanel } from "./app/project/ProjectPanel";
@@ -109,8 +110,43 @@ const ScanOrScanResultsRoute = () => {
 };
 
 const ProjectPanelRoute = () => {
+  const staticBundle = useStaticBundle();
   const config = useAppConfig();
-  return <ProjectPanel config={config} />;
+  return staticBundle ? (
+    <LoggingNavigate
+      to="/scans"
+      replace
+      reason="Project settings unavailable in static bundle"
+    />
+  ) : (
+    <ProjectPanel config={config} />
+  );
+};
+
+const RunScanPanelRoute = () => {
+  const staticBundle = useStaticBundle();
+  return staticBundle ? (
+    <LoggingNavigate
+      to="/scans"
+      replace
+      reason="Run Scan unavailable in static bundle"
+    />
+  ) : (
+    <RunScanPanel />
+  );
+};
+
+const ValidationPanelRoute = () => {
+  const staticBundle = useStaticBundle();
+  return staticBundle ? (
+    <LoggingNavigate
+      to="/scans"
+      replace
+      reason="Validation unavailable in static bundle"
+    />
+  ) : (
+    <ValidationPanel />
+  );
 };
 
 export const createAppRouter = (config: AppRouterConfig) => {
@@ -153,7 +189,7 @@ export const createAppRouter = (config: AppRouterConfig) => {
           },
           {
             path: kValidationRouteUrlPattern,
-            element: <ValidationPanel />,
+            element: <ValidationPanelRoute />,
           },
           {
             path: kTranscriptEventDetailRoute,
@@ -165,7 +201,7 @@ export const createAppRouter = (config: AppRouterConfig) => {
           },
           {
             path: "/run",
-            element: <RunScanPanel />,
+            element: <RunScanPanelRoute />,
           },
         ],
       },
