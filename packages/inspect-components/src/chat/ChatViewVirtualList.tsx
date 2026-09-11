@@ -13,13 +13,23 @@ import {
 
 import type { ChatMessage } from "@tsmono/inspect-common/types";
 import { NoContentsPanel } from "@tsmono/react/components";
-import { useListKeyboardNavigation } from "@tsmono/react/hooks";
+import {
+  FindRowProvider,
+  useFindHighlights,
+  useFindSurface,
+} from "@tsmono/react/find";
+import type { FindRow, FindSource } from "@tsmono/react/find";
+import {
+  useListKeyboardNavigation,
+  usePendingFindReveal,
+} from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
 import type {
   VirtualListHandle,
   VirtualListItemProps,
 } from "@tsmono/react/virtual";
 
+import { useDisplayMode } from "../content/DisplayModeContext";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 import {
   isLivePlaceholderMessage,
@@ -31,8 +41,10 @@ import { ChatMessageRow } from "./ChatMessageRow";
 import styles from "./ChatViewVirtualList.module.css";
 import { computeMaxLabelLength } from "./labelLength";
 import { messageSearchText } from "./messageSearchText";
+import type { FindMessages } from "./messagesFind";
 import {
   buildMessageRows,
+  messageRowAnchorIds,
   messageRowOptions,
   rowContainsMessage,
   type MessageRow,
@@ -61,6 +73,33 @@ const ChatItem = ({ children, ...props }: VirtualListItemProps) => {
 };
 
 const chatComponents = { Item: ChatItem };
+
+const FindAnchorRow: FC<{
+  anchorId: string;
+  /** Anchors of the rows currently rendered, kept by the rows themselves. */
+  mounted: Set<string>;
+  children: ReactNode;
+}> = ({ anchorId, mounted, children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const row = useFindHighlights(ref, anchorId);
+  const track = useCallback(
+    (el: HTMLDivElement | null) => {
+      ref.current = el;
+      mounted.add(anchorId);
+      return () => {
+        mounted.delete(anchorId);
+      };
+    },
+    [mounted, anchorId]
+  );
+  return (
+    <FindRowProvider value={row}>
+      <div ref={track} data-find-anchor={anchorId}>
+        {children}
+      </div>
+    </FindRowProvider>
+  );
+};
 
 // Empirically tuned, sign-inverted vs naive TanStack math; don't "fix" without re-verifying against both chat and transcript surfaces.
 const kChatScrollPaddingStart = -15;
@@ -98,6 +137,10 @@ export interface ChatViewRowsVirtualListProps {
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
+  /** Register the list as the "messages" find surface over this source.
+   *  Hosts that leave it unset keep the ExtendedFind/window.find behaviour;
+   *  hosts that set it must ensure only one list registers at a time. */
+  findMessages?: FindMessages;
 }
 
 /**
@@ -123,6 +166,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     labels,
     linking,
     tools,
+    findMessages,
   }: ChatViewRowsVirtualListProps) {
     const listHandle = useRef<VirtualListHandle>(null);
 
@@ -175,6 +219,65 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
       [labels?.messageLabels]
     );
 
+    const anchorIds = useMemo(() => messageRowAnchorIds(rows), [rows]);
+    const unlabeledRoles = display?.unlabeledRoles;
+    const toolCallStyle = tools?.callStyle ?? "complete";
+    const displayMode = useDisplayMode();
+    // Memoized for identity: a new source identity tells the coordinator the
+    // view configuration changed (useFindSurface → updateSource).
+    const findSource = useMemo<FindSource | null>(
+      () =>
+        findMessages === undefined
+          ? null
+          : {
+              find: (query, after, signal) =>
+                findMessages.find(
+                  {
+                    text: query.text,
+                    projection: {
+                      unlabeledRoles: unlabeledRoles ?? [],
+                      toolCallStyle,
+                      displayMode,
+                    },
+                  },
+                  after,
+                  signal
+                ),
+            },
+      [findMessages, unlabeledRoles, toolCallStyle, displayMode]
+    );
+    // The list only brings an unrendered row into the rendered band; a
+    // rendered row's FindAnchorRow centres the active occurrence itself when
+    // it is out of view (a list jump would edge-align an overscan row and
+    // leave its occurrence uncentred).
+    const mountedAnchors = useRef(new Set<string>()).current;
+    const revealLoaded = useCallback(
+      (row: FindRow): boolean => {
+        const index = anchorIds.indexOf(row.anchor.id);
+        if (index === -1) return false;
+        if (!mountedAnchors.has(row.anchor.id)) {
+          listHandle.current?.scrollToIndex({ index, align: "auto" });
+        }
+        return true;
+      },
+      [anchorIds, mountedAnchors]
+    );
+    const reveal = usePendingFindReveal(
+      revealLoaded,
+      rows.length,
+      hasMoreRows,
+      onLoadMoreRows,
+      running
+    );
+    // Only a running sample's rows carry new data; a sealed sample's rows
+    // change only by paging in what the server has already searched.
+    useFindSurface(
+      findSource !== null && findMessages !== undefined
+        ? { scopeId: findMessages.scopeId, source: findSource, reveal }
+        : null,
+      running ? rows : undefined
+    );
+
     const lastIndex = rows.length - 1;
     const renderRow = useCallback(
       (index: number, item: MessageRow): ReactNode => {
@@ -200,7 +303,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             item.resolved.message,
             item.resolved.toolMessages.length
           );
-        return (
+        const row = (
           <>
             <ChatMessageRow
               index={index}
@@ -214,7 +317,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
               startNumber={item.startNumber}
             />
             {toolExecuting ? (
-              <div className={styles.generatingRow}>
+              <div className={styles.generatingRow} data-find-chrome="true">
                 {backfilling ? (
                   <LoadingEventsIndicator label="Loading messages" />
                 ) : (
@@ -224,10 +327,18 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             ) : null}
           </>
         );
+        return findMessages === undefined ? (
+          row
+        ) : (
+          <FindAnchorRow anchorId={anchorIds[index]!} mounted={mountedAnchors}>
+            {row}
+          </FindAnchorRow>
+        );
       },
       [
         id,
         running,
+        findMessages,
         backfilling,
         lastIndex,
         display,
@@ -235,6 +346,8 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         linking,
         tools,
         maxLabelLength,
+        anchorIds,
+        mountedAnchors,
       ]
     );
 
@@ -274,7 +387,8 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         scrollToTopOnFinish={scrollToTopOnFinish}
         components={chatComponents}
         smoothScroll={false}
-        itemSearchText={rowSearchText}
+        itemSearchText={findMessages === undefined ? rowSearchText : undefined}
+        findScope={findMessages === undefined ? "local" : "none"}
         showProgress={hasMoreRows}
         onVisibleRangeChange={handleVisibleRangeChange}
       />

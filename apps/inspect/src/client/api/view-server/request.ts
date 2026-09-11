@@ -53,7 +53,8 @@ export interface ServerRequestApi {
     method: HttpMethod,
     path: string,
     headers?: Record<string, string>,
-    body?: string
+    body?: string,
+    signal?: AbortSignal
   ) => Promise<{
     parsed: unknown;
     raw: string;
@@ -162,7 +163,8 @@ export function serverRequestApi(
     method: HttpMethod,
     path: string,
     headers?: Record<string, string>,
-    body?: string
+    body?: string,
+    signal?: AbortSignal
   ): Promise<{ parsed: unknown; raw: string }> => {
     const url = buildApiUrl(path);
 
@@ -188,6 +190,7 @@ export function serverRequestApi(
       method,
       headers: requestHeaders,
       body,
+      signal,
       credentials: isApiCrossOrigin() ? "include" : "same-origin",
     });
 

@@ -647,6 +647,11 @@ export const clientApi = (api: LogViewAPI, debug = false): ClientAPI => {
             )
         )
       : undefined,
+    find_messages: api.find_messages
+      ? middleware("find_messages", (log_file, request, signal) =>
+          api.find_messages!(log_file, request, signal)
+        )
+      : undefined,
   };
 };
 

@@ -32,6 +32,23 @@ describe("MarkdownDiv render coordination", () => {
   });
 });
 
+describe("MarkdownDiv pending flag", () => {
+  it("is set until the current markdown's render lands, and again for new markdown", async () => {
+    const { container, rerender } = render(
+      <MarkdownDiv markdown="**first** pending-flag-a" />
+    );
+    const pending = () => container.querySelector("[data-markdown-pending]");
+    expect(pending()).not.toBeNull();
+    await waitFor(() => expect(pending()).toBeNull());
+    expect(container.textContent).toContain("first pending-flag-a");
+
+    rerender(<MarkdownDiv markdown="**second** pending-flag-b" />);
+    expect(pending()).not.toBeNull();
+    await waitFor(() => expect(pending()).toBeNull());
+    expect(container.textContent).toContain("second pending-flag-b");
+  });
+});
+
 describe("MarkdownRenderQueue", () => {
   it("cancel only affects its own queued task", async () => {
     const queue = new MarkdownRenderQueue(1);

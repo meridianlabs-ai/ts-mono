@@ -16,6 +16,8 @@ import type {
   EvalSet,
   EvalSpec,
   EvalStats,
+  FindMessagesRequest,
+  FindMessagesResponse,
   InfoEvent,
   InputEvent,
   LogFilesResponse,
@@ -309,6 +311,14 @@ export interface LogViewAPI {
     search_id: string,
     scope: SearchResultScope
   ) => Promise<Result | null>;
+
+  // cmd+f on the Messages tab: one page of matches over a sample's whole
+  // conversation. Optional — absent, the tab registers no find surface.
+  find_messages?: (
+    log_file: string,
+    request: FindMessagesRequest,
+    signal?: AbortSignal
+  ) => Promise<FindMessagesResponse>;
 }
 
 export interface EditLogResult {
@@ -423,6 +433,13 @@ export interface ClientAPI {
     search_id: string,
     scope: SearchResultScope
   ) => Promise<Result | null>;
+
+  // Find on the Messages tab — see LogViewAPI. Optional.
+  find_messages?: (
+    log_file: string,
+    request: FindMessagesRequest,
+    signal?: AbortSignal
+  ) => Promise<FindMessagesResponse>;
 }
 
 export interface ClientStorage {
