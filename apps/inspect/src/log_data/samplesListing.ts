@@ -4,6 +4,7 @@ import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
+import { sampleIdsEqual } from "../app/shared/sample";
 import {
   Log,
   LogHeader,
@@ -178,6 +179,32 @@ export const readSettledSummaries = async (
     samplesListingKey({ logDir, scope })
   );
   return cached?.map((row) => row.summary) ?? [];
+};
+
+/** Whether one settled sample is complete, without materializing its file's
+ *  full summary list when IndexedDB is available. */
+export const hasCompletedSettledSummary = async (
+  logDir: string,
+  logFile: string,
+  id: string | number,
+  epoch: number
+): Promise<boolean> => {
+  const db = getDatabaseService();
+  if (db.opened()) {
+    return db.hasCompletedSampleSummary(logFile, id, epoch);
+  }
+  const scope: SamplesScope = { file: logFile };
+  const cached = queryClient.getQueryData<SamplesListingRow[]>(
+    samplesListingKey({ logDir, scope })
+  );
+  return (
+    cached?.some(
+      (row) =>
+        sampleIdsEqual(row.summary.id, id) &&
+        row.summary.epoch === epoch &&
+        row.summary.completed !== false
+    ) ?? false
+  );
 };
 
 // ---------------------------------------------------------------------------
