@@ -1,7 +1,6 @@
 import type {
   AppConfig,
   ApprovalEvent,
-  ReviewEvent,
   AttachmentData,
   BranchEvent,
   CallPoolData,
@@ -29,6 +28,7 @@ import type {
   ModelFallback,
   ModelUsage,
   Result,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,

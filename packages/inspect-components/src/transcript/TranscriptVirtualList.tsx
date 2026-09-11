@@ -4,7 +4,6 @@ import { isRecord } from "@tsmono/util";
 
 import { AnchorEventView } from "./AnchorEventView";
 import { ApprovalEventView } from "./ApprovalEventView";
-import { ReviewEventView } from "./ReviewEventView";
 import { BranchEventView } from "./BranchEventView";
 import {
   BranchPoint,
@@ -20,6 +19,7 @@ import { InputEventView } from "./InputEventView";
 import { InterruptEventView } from "./InterruptEventView";
 import { LoggerEventView } from "./LoggerEventView";
 import { ModelEventView } from "./ModelEventView";
+import { ReviewEventView } from "./ReviewEventView";
 import { SampleInitEventView } from "./SampleInitEventView";
 import { SampleLimitEventView } from "./SampleLimitEventView";
 import { SandboxEventView } from "./SandboxEventView";

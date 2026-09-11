@@ -1,7 +1,6 @@
 import type {
   AnchorEvent,
   ApprovalEvent,
-  ReviewEvent,
   BranchEvent,
   CheckpointEvent,
   CompactionEvent,
@@ -12,6 +11,7 @@ import type {
   JsonChange,
   LoggerEvent,
   ModelEvent,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,

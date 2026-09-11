@@ -9,7 +9,6 @@
 import type {
   AnchorEvent,
   ApprovalEvent,
-  ReviewEvent,
   BranchEvent,
   ChatCompletionChoice,
   ChatMessageAssistant,
@@ -36,6 +35,7 @@ import type {
   ModelEvent,
   ModelOutput,
   ModelUsage,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,

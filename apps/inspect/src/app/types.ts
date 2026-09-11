@@ -2,7 +2,6 @@ import { SortingState } from "@tanstack/react-table";
 
 import {
   ApprovalEvent,
-  ReviewEvent,
   AttachmentData,
   BranchEvent,
   CompactionEvent,
@@ -15,6 +14,7 @@ import {
   InputEvent,
   LoggerEvent,
   ModelEvent,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
