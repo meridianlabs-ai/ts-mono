@@ -12,6 +12,7 @@ import {
 import { asyncJsonParseBytes, AsyncQueue, fetchRange } from "@tsmono/util";
 
 import { clearLargeEventsArray } from "../../utils/clear-events-preprocessor";
+import { requireSafeBrowserLogUrl } from "../api/logLocation";
 import {
   EvalHeader,
   LogDetails,
@@ -185,7 +186,16 @@ export const openRemoteLogFile = async (
   ): Promise<Uint8Array> => {
     if (directUrl) {
       try {
-        return await fetchRange(directUrl, start, end);
+        return await fetchRange(
+          requireSafeBrowserLogUrl(directUrl),
+          start,
+          end,
+          {
+            credentials: "same-origin",
+            referrerPolicy: "no-referrer",
+            redirect: "error",
+          }
+        );
       } catch (e) {
         console.warn("Direct URL fetch failed, falling back to proxy", e);
       }

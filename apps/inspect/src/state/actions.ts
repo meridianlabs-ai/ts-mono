@@ -6,7 +6,7 @@
 import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
 import { isUri, join, prettyDirUri } from "@tsmono/util";
 
-import { getAppConfig } from "../app_config";
+import { getAppConfig, resolveLogFileLocation } from "../app_config";
 import { imperativeLogData } from "../log_data";
 
 import { storeImplementation, StoreState } from "./store";
@@ -18,11 +18,11 @@ const state = (): StoreState => {
   return storeImplementation.getState();
 };
 
-/** Select a log file, absolutizing a relative name against the resolved log
- *  dir (the slice stores only the absolute path). */
+/** Select a log file, resolving route-relative names against the configured
+ *  root while preserving publisher paths that already include that root. */
 export const selectLogFile = (logFile: string) => {
   state().logsActions.setSelectedLogFile(
-    isUri(logFile) ? logFile : join(logFile, getAppConfig().logDir)
+    resolveLogFileLocation(logFile, getAppConfig().logDir)
   );
 };
 

@@ -3,18 +3,21 @@ import {
   EvalSet,
   LogFilesResponse,
 } from "@tsmono/inspect-common/types";
-import { fetchRange, isUri } from "@tsmono/util";
+import { isUri } from "@tsmono/util";
 
 import { fetchSize } from "../../remote/remoteZipFile";
+import { assertLogLocationGranted } from "../logLocation";
 import { download_file } from "../shared/api-shared";
 import { Capabilities, LogPreview, LogRoot, LogViewAPI } from "../types";
 
 import {
   fetchJsonFile,
   fetchLogFile,
+  fetchLogRange,
   fetchManifest,
   fetchTextFile,
   joinURI,
+  staticLogRequestInit,
 } from "./fetch";
 
 /** The canonical, origin-unique URL of a deployment's log dir. A relative
@@ -173,11 +176,14 @@ function staticHttpApiForLog(logInfo: {
       }
     },
     get_log_info: async (log_file: string) => {
-      const size = await fetchSize(log_file);
+      const location = new URL(log_file, document.baseURI).href;
+      const size = await fetchSize(log_file, staticLogRequestInit, () => {
+        assertLogLocationGranted(location);
+      });
       return { size };
     },
     get_log_bytes: async (log_file: string, start: number, end: number) => {
-      return await fetchRange(log_file, start, end);
+      return await fetchLogRange(log_file, start, end);
     },
     get_log_summary: async (log_file: string) => {
       const manifest = await getManifest();

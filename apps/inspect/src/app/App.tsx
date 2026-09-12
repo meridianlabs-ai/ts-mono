@@ -26,7 +26,7 @@ import {
 } from "@tsmono/react/components";
 import { useMountEffect } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { basename, isUri } from "@tsmono/util";
+import { basename, getVscodeApi, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
@@ -35,7 +35,7 @@ import {
   resolveEmbeddedLogDir,
   setLogRoot,
 } from "../app_config";
-import { HostMessage } from "../client/api/types.ts";
+import { BackgroundUpdateMessage, HostMessage } from "../client/api/types.ts";
 import { FetchEngineController, imperativeLogData } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
@@ -109,49 +109,67 @@ const ThemePreferenceSyncController: FC = () => {
  * Renders the application content. Mounted below the config gate so it can
  * read the resolved app config.
  */
+const isBackgroundUpdateData = (
+  data: unknown
+): data is BackgroundUpdateMessage["data"] => {
+  if (typeof data !== "object" || data === null || !("type" in data)) {
+    return false;
+  }
+  return (
+    data.type === "backgroundUpdate" &&
+    "url" in data &&
+    typeof data.url === "string" &&
+    "log_dir" in data &&
+    typeof data.log_dir === "string"
+  );
+};
+
 export const AppContent: FC = () => {
+  const vscode = getVscodeApi();
   // Whether the app was rehydrated
   const rehydrated = useStore((state) => state.app.rehydrated);
 
   const setInitialState = useStore((state) => state.appActions.setInitialState);
 
   const onMessage = useCallback(
-    (e: HostMessage) => {
-      switch (e.data.type) {
-        case "updateState": {
-          if (e.data.url) {
-            const decodedUrl = decodeURIComponent(e.data.url);
+    (data: HostMessage["data"]) => {
+      if (data.type === "backgroundUpdate") {
+        imperativeLogData.invalidateLogListing();
+        return;
+      }
+      if (!vscode) return;
+      if (data.url) {
+        const decodedUrl = decodeURIComponent(data.url);
 
-            // Update the resolved log dir for host-driven (live) navigation —
-            // the one place logDir changes after the gate. The initial embedded
-            // dir is already seeded by the log-root resolution at startup.
-            setLogRoot(resolveEmbeddedLogDir(decodedUrl));
+        // Update the resolved log dir for host-driven (live) navigation —
+        // the one place logDir changes after the gate. The initial embedded
+        // dir is already seeded by the log-root resolution at startup.
+        setLogRoot(resolveEmbeddedLogDir(decodedUrl));
 
-            if (!rehydrated) {
-              setInitialState(
-                isUri(decodedUrl) ? basename(decodedUrl) : decodedUrl,
-                e.data.sample_id,
-                e.data.sample_epoch
-              );
-            }
-          }
-          break;
-        }
-        case "backgroundUpdate": {
-          imperativeLogData.invalidateLogListing();
-          break;
+        if (!rehydrated) {
+          setInitialState(
+            isUri(decodedUrl) ? basename(decodedUrl) : decodedUrl,
+            data.sample_id,
+            data.sample_epoch
+          );
         }
       }
     },
-    [setInitialState, rehydrated]
+    [setInitialState, rehydrated, vscode]
   );
 
-  // listen for updateState messages from vscode
+  // Runtime updateState messages cannot be authenticated from MessageEvent
+  // metadata and are handled as proposals by LogLocationGate. Background
+  // updates carry no location-changing authority, so they remain advisory.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    window.addEventListener("message", onMessage);
+    const handleMessage = (event: MessageEvent<unknown>) => {
+      if (!isBackgroundUpdateData(event.data)) return;
+      onMessage(event.data);
+    };
+    window.addEventListener("message", handleMessage);
     return () => {
-      window.removeEventListener("message", onMessage);
+      window.removeEventListener("message", handleMessage);
     };
   }, [onMessage]);
 
@@ -166,10 +184,10 @@ export const AppContent: FC = () => {
     if (embeddedDispatched.current) return;
     embeddedDispatched.current = true;
     const embedded = readEmbeddedStartupState();
-    if (embedded) {
-      onMessage({ data: embedded });
+    if (vscode && embedded) {
+      onMessage(embedded);
     }
-  }, [onMessage]);
+  }, [onMessage, vscode]);
 
   useMountEffect(() => {
     const clipboard = new ClipboardJS(".clipboard-button,.copy-button");

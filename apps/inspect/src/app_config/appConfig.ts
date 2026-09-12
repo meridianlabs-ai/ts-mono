@@ -1,3 +1,11 @@
+import { isUri, join } from "@tsmono/util";
+
+import {
+  configureLogLocationPolicy,
+  evaluateLogLocation,
+  LogLocationScope,
+  resetLogLocationPolicy,
+} from "../client/api/logLocation";
 import { ClientAPI, LogRoot } from "../client/api/types";
 import { selectLogFile } from "../state/actions";
 import { queryClient } from "../state/queryClient";
@@ -5,9 +13,7 @@ import { queryClient } from "../state/queryClient";
 import { APP_CONFIG_KEY } from "./hooks";
 import { BackendBootstrap, resolveBackend } from "./resolveBackend";
 import {
-  detectInitialSingleFileMode,
   readEmbeddedStartupState,
-  resolveEmbeddedLogDir,
   resolveSingleFileLogDir,
 } from "./singleFileMode";
 import { parseUrlLogSource } from "./urlLogSource";
@@ -36,6 +42,9 @@ export interface AppConfig {
   scout_version: string | null;
   logDir: string;
   absLogDir?: string;
+  browserDirect?: boolean;
+  locationScope?: LogLocationScope;
+  startupProposal?: LogLocationScope;
 }
 
 /**
@@ -51,6 +60,8 @@ export interface AppConfigBootstrap {
   singleFileMode: boolean;
   loader: "direct" | "replicator";
   logFile?: string;
+  startupProposal?: { kind: "file" | "directory"; location: string };
+  trustedFile?: string;
 }
 
 /**
@@ -59,12 +70,33 @@ export interface AppConfigBootstrap {
  */
 export const resolveBootstrap = (): AppConfigBootstrap => {
   const source = parseUrlLogSource(window.location.search);
-  const singleFileMode = detectInitialSingleFileMode(source, document);
+  const backend = resolveBackend(source);
+  const embedded =
+    backend.locationSource === "vscode" ? readEmbeddedStartupState() : null;
+  const trustedFile =
+    backend.configuredLogFile ??
+    (embedded?.url ? decodeURIComponent(embedded.url) : undefined);
+  const urlFile =
+    backend.locationSource === "url" && source.kind === "file"
+      ? source.logFile
+      : undefined;
+  const logFile = trustedFile ?? urlFile;
+  const singleFileMode = logFile !== undefined;
+  const startupProposal =
+    backend.locationSource === "url" && source.kind !== "none"
+      ? {
+          kind:
+            source.kind === "file" ? ("file" as const) : ("directory" as const),
+          location: source.kind === "file" ? source.logFile : source.logDir,
+        }
+      : undefined;
   return {
-    backend: resolveBackend(source),
+    backend,
     singleFileMode,
     loader: singleFileMode ? "direct" : "replicator",
-    logFile: source.kind === "file" ? source.logFile : undefined,
+    logFile,
+    startupProposal,
+    trustedFile,
   };
 };
 
@@ -80,16 +112,34 @@ const rootFromDir = (logDir: string, absLogDir?: string): LogRoot => ({
   abs_log_dir: absLogDir,
 });
 
-/**
- * The embedded (VS Code) log root, resolved synchronously from the
- * `#logview-state` the host injects. Undefined when there's no embedded state (a
- * `?log_file=` deep link or directory mode).
- */
-const embeddedLogRoot = (): LogRoot | undefined => {
-  const embedded = readEmbeddedStartupState();
-  return embedded
-    ? rootFromDir(resolveEmbeddedLogDir(decodeURIComponent(embedded.url)))
-    : undefined;
+/** Resolve a relative file against the log dir unless the page-relative path
+ * already falls inside that directory. Publisher config commonly carries
+ * both `log_file=hosted/run.eval` and `log_dir=hosted`; joining those values
+ * blindly would duplicate the directory, while route paths such as
+ * `nested/run.eval` still need to resolve below the configured root. */
+export const resolveLogFileLocation = (
+  logFile: string,
+  logDir: string
+): string => {
+  if (isUri(logFile)) return logFile;
+
+  try {
+    const pageRelative = new URL(logFile, document.baseURI);
+    const directory = new URL(
+      logDir.endsWith("/") ? logDir : `${logDir}/`,
+      document.baseURI
+    );
+    if (
+      pageRelative.origin === directory.origin &&
+      pageRelative.pathname.startsWith(directory.pathname)
+    ) {
+      return logFile;
+    }
+  } catch {
+    // Non-URL proxy paths are resolved by the transport's path join below.
+  }
+
+  return join(logFile, logDir);
 };
 
 /**
@@ -106,18 +156,20 @@ const resolveLogRoot = async (bs: AppConfigBootstrap): Promise<LogRoot> => {
     }
     return root;
   }
-  if (bs.logFile !== undefined) {
+  if (bs.logFile === undefined) {
+    const embedded = readEmbeddedStartupState();
+    if (!embedded?.url) {
+      throw new Error(
+        "single-file mode requires a configured or proposed log file"
+      );
+    }
     return rootFromDir(
-      await resolveSingleFileLogDir(bs.logFile, bs.backend.resolveConfiguredDir)
+      await resolveSingleFileLogDir(decodeURIComponent(embedded.url))
     );
   }
-  const embedded = embeddedLogRoot();
-  if (!embedded) {
-    throw new Error(
-      "single-file mode without ?log_file= implies embedded #logview-state"
-    );
-  }
-  return embedded;
+  return rootFromDir(
+    await resolveSingleFileLogDir(bs.logFile, bs.backend.resolveConfiguredDir)
+  );
 };
 
 /**
@@ -140,6 +192,45 @@ export const loadResolvedAppConfig = async (
   }
   const api = bs.backend.createApi(logDir);
   const versions = await api.get_app_config();
+  const resolvedLogFile =
+    bs.logFile === undefined
+      ? undefined
+      : resolveLogFileLocation(bs.logFile, logDir);
+  const scopedLocation = (location: string): string =>
+    bs.backend.browserDirect
+      ? isUri(location)
+        ? location
+        : new URL(location, document.baseURI).href
+      : location;
+  const startupProposal = bs.startupProposal
+    ? (() => {
+        const location =
+          bs.startupProposal.kind === "file"
+            ? (resolvedLogFile ?? bs.startupProposal.location)
+            : logDir;
+        return {
+          kind: bs.startupProposal.kind,
+          location: scopedLocation(location),
+        };
+      })()
+    : undefined;
+  const locationScope: LogLocationScope =
+    startupProposal ??
+    (bs.trustedFile && resolvedLogFile
+      ? { kind: "file", location: scopedLocation(resolvedLogFile) }
+      : { kind: "directory", location: scopedLocation(logDir) });
+  resetLogLocationPolicy();
+  if (bs.backend.browserDirect) {
+    const trusted = startupProposal === undefined;
+    if (
+      trusted &&
+      evaluateLogLocation(locationScope.location, locationScope).status ===
+        "blocked"
+    ) {
+      throw new Error("The configured browser log location is not supported.");
+    }
+    configureLogLocationPolicy(locationScope, trusted);
+  }
   return {
     api,
     singleFileMode: bs.singleFileMode,
@@ -149,6 +240,9 @@ export const loadResolvedAppConfig = async (
     scout_version: versions.scout_version ?? null,
     logDir,
     absLogDir: logRoot.abs_log_dir,
+    browserDirect: bs.backend.browserDirect,
+    locationScope,
+    startupProposal,
   };
 };
 
@@ -201,9 +295,20 @@ export const initAppConfig = (config: AppConfig): AppConfig =>
  * engine running and the api's caches warm (the host re-sends `updateState`
  * for the dir the gate already resolved on VS Code single-file boot).
  */
-export const setLogRoot = (logDir: string): void => {
+export const setLogRoot = (
+  logDir: string,
+  locationScope: LogLocationScope = { kind: "directory", location: logDir }
+): void => {
   const current = getAppConfig();
-  if (current.logDir === logDir) {
+  const currentScope = current.locationScope ?? {
+    kind: "directory",
+    location: current.logDir,
+  };
+  if (
+    current.logDir === logDir &&
+    currentScope.kind === locationScope.kind &&
+    currentScope.location === locationScope.location
+  ) {
     return;
   }
   appConfig = {
@@ -212,6 +317,10 @@ export const setLogRoot = (logDir: string): void => {
     logDir,
     // The boot-time abs form described the old dir; there is none for this one.
     absLogDir: undefined,
+    locationScope,
   };
+  if (current.browserDirect) {
+    configureLogLocationPolicy(locationScope, true);
+  }
   queryClient.setQueryData(APP_CONFIG_KEY, appConfig);
 };

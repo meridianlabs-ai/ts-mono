@@ -1,0 +1,38 @@
+.gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+.content {
+  width: min(680px, 100%);
+}
+
+.heading {
+  margin-bottom: 8px;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.destination {
+  display: block;
+  max-width: 100%;
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  border-left: 3px solid var(--bs-warning-border-subtle);
+  background: var(--bs-tertiary-bg);
+  font-size: 0.82rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}

@@ -6,6 +6,7 @@ export {
   getAppConfig,
   getBootstrap,
   initAppConfig, // TODO: Exported for tests?! review
+  resolveLogFileLocation,
   setLogRoot,
 } from "./appConfig";
 export { AppConfigGate } from "./AppConfigGate";

@@ -14,7 +14,9 @@ import {
   AppConfig,
   getAppConfig,
   initAppConfig,
+  loadResolvedAppConfig,
   resolveBootstrap,
+  resolveLogFileLocation,
   setLogRoot,
 } from "./appConfig";
 
@@ -75,12 +77,112 @@ describe("resolveBootstrap", () => {
     expect(config.logFile).toBeUndefined();
   });
 
-  it("embedded #logview-state → single-file / direct loader", () => {
+  it("ignores #logview-state outside a VS Code host", () => {
     setSearch("");
     addEmbedded("/abs/logs/task.eval");
     const config = resolveBootstrap();
-    expect(config.singleFileMode).toBe(true);
-    expect(config.loader).toBe("direct");
+    expect(config.singleFileMode).toBe(false);
+    expect(config.loader).toBe("replicator");
+  });
+});
+
+describe("resolveLogFileLocation", () => {
+  it("does not duplicate a nested relative file's directory", () => {
+    expect(
+      resolveLogFileLocation(
+        "hosted/fixed.json",
+        "http://localhost:3000/hosted"
+      )
+    ).toBe("hosted/fixed.json");
+  });
+
+  it("resolves a bare file against the configured directory", () => {
+    expect(
+      resolveLogFileLocation("fixed.json", "http://localhost:3000/hosted")
+    ).toBe("http://localhost:3000/hosted/fixed.json");
+  });
+
+  it("resolves a nested route path below the configured directory", () => {
+    expect(
+      resolveLogFileLocation("nested/run.eval", "http://localhost:3000/hosted")
+    ).toBe("http://localhost:3000/hosted/nested/run.eval");
+  });
+
+  it("does not confuse a sibling prefix for the configured directory", () => {
+    expect(
+      resolveLogFileLocation(
+        "hosted-private/run.eval",
+        "http://localhost:3000/hosted"
+      )
+    ).toBe("http://localhost:3000/hosted/hosted-private/run.eval");
+  });
+
+  it.each(["embedded", "url"] as const)(
+    "keeps a nested relative %s file scoped to its exact URL",
+    async (locationSource) => {
+      const api = testClientAPI({
+        get_app_config: () =>
+          Promise.resolve({ inspect_version: "1", scout_version: null }),
+      });
+      const config = await loadResolvedAppConfig({
+        backend: {
+          resolveLogRoot: () => Promise.reject(new Error("not used")),
+          createApi: () => api,
+          capabilities: { downloadLogs: false, streamSamples: false },
+          browserDirect: true,
+          locationSource,
+        },
+        singleFileMode: true,
+        loader: "direct",
+        logFile: "hosted/fixed.json",
+        ...(locationSource === "embedded"
+          ? { trustedFile: "hosted/fixed.json" }
+          : {
+              startupProposal: {
+                kind: "file" as const,
+                location: "hosted/fixed.json",
+              },
+            }),
+      });
+
+      const exact = "http://localhost:3000/hosted/fixed.json";
+      expect(config.logDir).toBe("hosted");
+      expect(config.locationScope).toEqual({ kind: "file", location: exact });
+      expect(config.startupProposal?.location).toBe(
+        locationSource === "url" ? exact : undefined
+      );
+      expect(resolveLogFileLocation(config.logFile ?? "", config.logDir)).toBe(
+        "hosted/fixed.json"
+      );
+    }
+  );
+
+  it("preserves proxy paths in the approval scope", async () => {
+    const api = testClientAPI({
+      get_app_config: () =>
+        Promise.resolve({ inspect_version: "1", scout_version: null }),
+    });
+    const config = await loadResolvedAppConfig({
+      backend: {
+        resolveLogRoot: () => Promise.reject(new Error("not used")),
+        createApi: () => api,
+        capabilities: { downloadLogs: false, streamSamples: true },
+        browserDirect: false,
+        locationSource: "url",
+      },
+      singleFileMode: true,
+      loader: "direct",
+      logFile: "/workspace/logs/run.eval",
+      startupProposal: {
+        kind: "file",
+        location: "/workspace/logs/run.eval",
+      },
+    });
+
+    expect(config.startupProposal).toEqual({
+      kind: "file",
+      location: "/workspace/logs/run.eval",
+    });
   });
 });
 

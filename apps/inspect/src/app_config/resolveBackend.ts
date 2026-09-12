@@ -54,6 +54,9 @@ export interface BackendBootstrap {
    *  instances. */
   createApi: (logDir: string) => ClientAPI;
   capabilities: BackendCapabilities;
+  browserDirect?: boolean;
+  locationSource?: "embedded" | "vscode" | "url" | "server" | "embedder";
+  configuredLogFile?: string;
 }
 
 let embedderFactory:
@@ -100,7 +103,8 @@ export const resetApiFactory = (): void => {
 
 const embedderBackend = (
   createApi: (logDir: string) => ClientAPI,
-  logDir?: string
+  logDir?: string,
+  locationSource: BackendBootstrap["locationSource"] = "embedder"
 ): BackendBootstrap => ({
   resolveLogRoot: () =>
     logDir !== undefined
@@ -119,6 +123,8 @@ const embedderBackend = (
   resolveConfiguredDir: () => Promise.resolve(logDir),
   createApi,
   capabilities: { downloadLogs: false, streamSamples: false },
+  browserDirect: false,
+  locationSource,
 });
 
 // A backend that can't work at all (e.g. legacy VS Code host). Constructed
@@ -130,19 +136,28 @@ const unsupportedHostBackend = (message: string): BackendBootstrap => ({
     throw new Error(message);
   },
   capabilities: { downloadLogs: false, streamSamples: false },
+  browserDirect: false,
+  locationSource: "server",
 });
 
-const viewServerBackend = (logDirHint?: string): BackendBootstrap => ({
+const viewServerBackend = (
+  logDirHint?: string,
+  locationSource: BackendBootstrap["locationSource"] = "server"
+): BackendBootstrap => ({
   resolveLogRoot: () => fetchViewServerLogRoot({}, logDirHint),
   resolveConfiguredDir: () => fetchViewServerLogDir(),
   createApi: (logDir) => clientApi(viewServerApi({ logDir })),
   capabilities: { downloadLogs: true, streamSamples: true },
+  browserDirect: false,
+  locationSource,
 });
 
 const staticBackend = (
   log_dir?: string,
   abs_log_dir?: string,
-  app_config?: AppConfig
+  app_config?: AppConfig,
+  locationSource: BackendBootstrap["locationSource"] = "embedded",
+  configuredLogFile?: string
 ): BackendBootstrap => ({
   resolveLogRoot: () =>
     log_dir
@@ -150,6 +165,9 @@ const staticBackend = (
       : Promise.reject(new Error("Unable to determine log paths.")),
   createApi: (logDir) => clientApi(staticHttpApi(logDir, app_config)),
   capabilities: { downloadLogs: false, streamSamples: false },
+  browserDirect: true,
+  locationSource,
+  configuredLogFile,
 });
 
 /**
@@ -162,10 +180,13 @@ const staticBackend = (
 export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
   backendResolved = true;
   if (embedderFactory) {
+    const usesUrlDir =
+      embedderFactory.initialLogDir === undefined && source.kind === "dir";
     return embedderBackend(
       embedderFactory.createApi,
       embedderFactory.initialLogDir ??
-        (source.kind === "dir" ? source.logDir : undefined)
+        (source.kind === "dir" ? source.logDir : undefined),
+      usesUrlDir ? "url" : "embedder"
     );
   }
 
@@ -189,6 +210,8 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
       resolveLogRoot: () => fetchViewServerLogRoot({ customFetch: proxyFetch }),
       createApi: (logDir) => clientApi(apiVscode(vscode, logDir, proxyFetch)),
       capabilities: { downloadLogs: false, streamSamples: true },
+      browserDirect: false,
+      locationSource: "vscode",
     };
   }
 
@@ -210,7 +233,13 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
                 scout_version: null,
               }
             : undefined;
-        return staticBackend(log_dir, data.abs_log_dir, app_config);
+        return staticBackend(
+          log_dir,
+          data.abs_log_dir,
+          app_config,
+          "embedded",
+          data.log_file
+        );
       }
     }
   }
@@ -223,11 +252,14 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
   const resolved_log_file = source.kind === "file" ? source.logFile : undefined;
 
   if (forceViewServerApi) {
-    return viewServerBackend(resolved_log_dir);
+    return viewServerBackend(
+      resolved_log_dir,
+      source.kind === "none" ? "server" : "url"
+    );
   }
 
   if (resolved_log_dir !== undefined || resolved_log_file !== undefined) {
-    return staticBackend(resolved_log_dir);
+    return staticBackend(resolved_log_dir, undefined, undefined, "url");
   }
 
   // No signal information so use the standard

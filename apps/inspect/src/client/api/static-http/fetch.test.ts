@@ -13,6 +13,11 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import {
+  configureLogLocationPolicy,
+  resetLogLocationPolicy,
+} from "../logLocation";
+
 import { fetchLogFile } from "./fetch";
 
 const fixtureText = readFileSync(
@@ -27,6 +32,10 @@ const SCORER = "metr_integration/metr_scorer";
 
 describe("fetchLogFile v1 migration", () => {
   beforeEach(() => {
+    configureLogLocationPolicy(
+      { kind: "directory", location: "http://localhost:3000/logs" },
+      true
+    );
     vi.stubGlobal(
       "fetch",
       vi.fn(() => Promise.resolve(new Response(fixtureText, { status: 200 })))
@@ -34,6 +43,7 @@ describe("fetchLogFile v1 migration", () => {
   });
 
   afterEach(() => {
+    resetLogLocationPolicy();
     vi.unstubAllGlobals();
   });
 

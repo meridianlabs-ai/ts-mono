@@ -1,7 +1,18 @@
 import { asyncJsonParse, encodePathParts } from "@tsmono/util";
 
 import { normalizeEvalLog } from "../../utils/normalize";
+import { assertLogLocationGranted } from "../logLocation";
 import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";
+
+export const staticLogRequestInit: RequestInit = Object.freeze({
+  credentials: "same-origin",
+  referrerPolicy: "no-referrer",
+  redirect: "error",
+});
+
+const assertBrowserLogLocation = (location: string): void => {
+  assertLogLocationGranted(new URL(location, document.baseURI).href);
+};
 
 /**
  * Fetches a file from the specified URL as a string
@@ -11,7 +22,11 @@ export async function fetchTextFile(
   handleError?: (response: Response) => boolean
 ): Promise<string | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  assertBrowserLogLocation(safe_url);
+  const response = await fetch(`${safe_url}`, {
+    ...staticLogRequestInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return text;
@@ -36,7 +51,11 @@ export async function fetchFile<T>(
   handleError?: (response: Response) => boolean
 ): Promise<T | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  assertBrowserLogLocation(safe_url);
+  const response = await fetch(`${safe_url}`, {
+    ...staticLogRequestInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return await parse(text);
@@ -99,6 +118,20 @@ export const fetchJsonFile = async <T>(
     },
     handleError
   );
+};
+
+export const fetchLogRange = async (
+  url: string,
+  start: number,
+  end: number
+): Promise<Uint8Array> => {
+  assertBrowserLogLocation(url);
+  const response = await fetch(url, {
+    ...staticLogRequestInit,
+    method: "GET",
+    headers: { Range: `bytes=${start}-${end}` },
+  });
+  return new Uint8Array(await response.arrayBuffer());
 };
 
 /**

@@ -359,18 +359,27 @@ export const openZipFileFromBuffer = (
   });
 };
 
-export const fetchSize = async (url: string): Promise<number> => {
+export const fetchSize = async (
+  url: string,
+  init: RequestInit = {},
+  assertRequest: () => void = () => {}
+): Promise<number> => {
   // Make a HEAD request to find whether the server supports range requests
-  const acceptResponse = await fetch(url, { method: "HEAD" });
+  assertRequest();
+  const acceptResponse = await fetch(url, { ...init, method: "HEAD" });
   const acceptsRanges = acceptResponse.headers.get("Accept-Ranges");
   if (acceptsRanges === "bytes") {
     // attempt a range request to get the content length
     // Range requests are preferred since they bypass compression.
     // HEAD requests may return compressed content-length which doesn't
     // match the actual file size needed for downstream operations.
+    const headers = new Headers(init.headers);
+    headers.set("Range", "bytes=0-0");
+    assertRequest();
     const getResponse = await fetch(`${url}`, {
+      ...init,
       method: "GET",
-      headers: { Range: "bytes=0-0" },
+      headers,
     });
 
     const contentRange = getResponse.headers.get("Content-Range");
