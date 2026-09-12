@@ -26,8 +26,7 @@ filter through to `turbo run`, preserving task dependencies — see
 | `pnpm e2e`       | Run Playwright e2e tests                  |
 | `pnpm check-all` | Type check, lint, format, test, and build |
 
-Built output is not committed; the library is built at publish time
-(`prepublishOnly`).
+Built output is not committed; `prepack` builds and validates the library before packing or publishing.
 
 You may optionally set the `VIEW_SERVER_API_URL` environment variable at
 build time to use an API server running on a different host.
@@ -96,6 +95,164 @@ export function MyApp() {
 
 To re-point the viewer at a different log directory after boot, call
 `setLogRoot(dir)` — it rebuilds the API through the same factory.
+
+### Transcript-only embedding
+
+Hosts that own navigation and data loading can render one sample's event
+stream without mounting `<App />`. The components are props-pure: every
+interactive control is driven by state the host holds and passes back in.
+Omit an adapter and its control renders inert — no collapse chevrons
+without `collapseState`, no lane/timeline switching without
+`timeline.selection`/`timeline.active`, no marker clicks or `h`/`l`
+cross-timeline navigation without the `eventId` loop below.
+
+```tsx
+import {
+    ChatViewRowsVirtualList,
+    initializeStore,
+    InspectComponentProvider,
+    InspectDataProvider,
+    TranscriptLayout,
+    useEvalSampleData,
+    useSampleMessages,
+    type Event,
+    type SampleHandle,
+    type Timeline,
+} from "@meridianlabs/log-viewer";
+import { useRef, useState } from "react";
+
+import "@meridianlabs/log-viewer/styles/index.css";
+
+// Once per page, before the first render. The components read viewer state
+// through the same store <App /> uses; every capability can be off.
+initializeStore({
+    downloadFiles: false,
+    downloadLogs: false,
+    webWorkers: false,
+    streamSamples: false,
+});
+
+export function Transcript({
+    events,
+    timelines,
+}: {
+    events: Event[];
+    timelines?: Timeline[];
+}) {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    // Stays undefined until the first toggle so the viewer's default-collapsed
+    // nodes apply; the layout seeds the full map on that toggle.
+    const [collapsed, setCollapsed] = useState<Record<string, boolean>>();
+    const [selected, setSelected] = useState<string | null>(null);
+    const [activeIndex, setActiveIndex] = useState(0);
+    // Event the layout asked to jump to (marker click, h/l lane navigation,
+    // j/k turn navigation). Feeding it back through `deepLink` performs the
+    // scroll and any cross-timeline switch — the standalone app keeps this
+    // in `?event=`.
+    const [eventId, setEventId] = useState<string | null>(null);
+
+    return (
+        // `navigate` receives `#/…` routes from citation links in rendered
+        // markdown (ChatView `references`); ignore or map to your router.
+        <InspectComponentProvider navigate={() => {}}>
+            <div ref={scrollRef}>
+                <TranscriptLayout
+                    embedded
+                    events={events}
+                    listId="transcript"
+                    scrollRef={scrollRef}
+                    collapseState={{
+                        transcript: collapsed,
+                        onCollapseTranscript: (id, value) =>
+                            setCollapsed((current) => ({
+                                ...current,
+                                [id]: value,
+                            })),
+                        onSetTranscriptCollapsed: setCollapsed,
+                    }}
+                    timeline={{
+                        serverTimelines: timelines,
+                        selection: {
+                            selected,
+                            onSelect: (key, options) => {
+                                setSelected(key);
+                                // A row click invalidates a pending jump;
+                                // programmatic selections ask to keep it.
+                                if (!options?.preserveDeepLink)
+                                    setEventId(null);
+                            },
+                        },
+                        active: { activeIndex, onActiveChange: setActiveIndex },
+                        onMarkerNavigate: (id, key) => {
+                            if (key) setSelected(key);
+                            setEventId(id);
+                        },
+                    }}
+                    deepLink={{ eventId }}
+                    onNavigatedToEvent={setEventId}
+                />
+            </div>
+        </InspectComponentProvider>
+    );
+}
+```
+
+Build `events` once where you load the sample, with `normalizeEvents(json)`
+from the same package: it fills fields older inspect_ai versions omitted.
+Never hand the layout raw JSON.
+
+For a messages surface backed by the viewer's sample data hooks, install the
+API factory and initialize the store as in the full-app example, then mount
+one `InspectDataProvider`. It waits for resolved config and owns the fetch
+engine that supplies `useEvalSampleData`; `InspectQueryClientProvider` alone
+does not start that engine.
+
+Pass the `MessageRowsFeed` from `useSampleMessages` directly to
+`ChatViewRowsVirtualList`. This preserves chunked-sample paging, in-flight
+rows, and the live-to-finished handoff owned by the data layer:
+
+```tsx
+function Messages({
+    logDir,
+    handle,
+}: {
+    logDir: string;
+    handle: SampleHandle;
+}) {
+    const sampleData = useEvalSampleData(logDir, handle);
+    const running = sampleData.status === "streaming";
+    const messageFeed = useSampleMessages(handle, sampleData, true, running);
+
+    return (
+        <ChatViewRowsVirtualList
+            id="sample-messages"
+            rows={messageFeed.rows.data ?? []}
+            hasMoreRows={messageFeed.hasMore}
+            onLoadMoreRows={messageFeed.loadMore}
+            running={running}
+            backfilling={sampleData.backfilling || messageFeed.rows.loading}
+        />
+    );
+}
+
+<InspectDataProvider>
+    <InspectComponentProvider navigate={() => {}}>
+        <Messages logDir={logDir} handle={handle} />
+    </InspectComponentProvider>
+</InspectDataProvider>;
+```
+
+Hosts that own polling instead of mounting the data-hook provider can wrap a
+`createViewServerApi` with `clientApi` and pass it to
+`createSampleStreamSession`. Its `tick()` method retains cursors and resolves
+attachments plus message/call-pool references before returning events. Reuse
+that reducer rather than rendering `pending-sample-data` wire rows directly.
+
+Keep both collapse setters: the layout uses `onSetTranscriptCollapsed` to seed
+defaults on the first toggle and for bulk expand of deep-link targets, and
+`onCollapseTranscript` for every toggle after that. Switching timelines
+already clears the lane selection inside the layout; the host does not
+repeat it.
 
 ### Embedder chrome
 

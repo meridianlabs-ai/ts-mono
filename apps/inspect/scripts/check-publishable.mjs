@@ -4,9 +4,11 @@
 // otherwise `npm install @meridianlabs/log-viewer` tries to resolve e.g.
 // "@tsmono/util": "workspace:*" from the public registry and fails.
 // (npm publish ships workspace: specs verbatim; it does not rewrite them.)
-import { readFileSync } from "fs";
-import { dirname, join } from "path";
+import { existsSync, readdirSync, readFileSync } from "fs";
+import { dirname, join, relative } from "path";
 import { fileURLToPath } from "url";
+
+import ts from "typescript";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkgPath = join(here, "..", "package.json");
@@ -33,5 +35,74 @@ if (offenders.length > 0) {
       `\n\nThese will not resolve for external installers. Workspace packages are\n` +
       `bundled into the library build, so move them to devDependencies.\n`
   );
+  process.exit(1);
+}
+
+const libDir = join(here, "..", "lib");
+const typeEntry = join(libDir, "index.d.ts");
+if (!existsSync(typeEntry)) {
+  console.error(
+    `\n${pkg.name}: missing built declaration entry ${typeEntry}.\n`
+  );
+  process.exit(1);
+}
+
+function declarationFilesUnder(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return declarationFilesUnder(path);
+    return path.endsWith(".d.ts") ? [path] : [];
+  });
+}
+
+const privateTypeImports = [];
+const testDeclarations = [];
+const testDeclarationPath =
+  /(^|\/)(e2e|test|testing)(\/|$)|(^|\/)([^/]*\.test|testFixtures|testHelpers|testClientApi|testDescriptors|testStore|syntheticNodes)\.d\.ts$/;
+for (const declaration of declarationFilesUnder(libDir)) {
+  const packagePath = relative(libDir, declaration).replaceAll("\\", "/");
+  const content = readFileSync(declaration, "utf8");
+  if (/\b(?:from\s*|import\s*\(\s*)["']@tsmono\//.test(content)) {
+    privateTypeImports.push(packagePath);
+  }
+  if (testDeclarationPath.test(packagePath)) {
+    testDeclarations.push(packagePath);
+  }
+}
+
+if (privateTypeImports.length > 0 || testDeclarations.length > 0) {
+  console.error(`\n${pkg.name}: invalid consumer-facing declarations.`);
+  if (privateTypeImports.length > 0) {
+    console.error(
+      `\nPrivate @tsmono imports remain:\n${privateTypeImports.map((path) => `  - ${path}`).join("\n")}`
+    );
+  }
+  if (testDeclarations.length > 0) {
+    console.error(
+      `\nTest-only declarations would ship:\n${testDeclarations.map((path) => `  - ${path}`).join("\n")}`
+    );
+  }
+  console.error();
+  process.exit(1);
+}
+
+const declarationProgram = ts.createProgram([typeEntry], {
+  module: ts.ModuleKind.ESNext,
+  moduleResolution: ts.ModuleResolutionKind.Bundler,
+  noEmit: true,
+  skipLibCheck: false,
+  strict: true,
+  target: ts.ScriptTarget.ES2022,
+  types: [],
+});
+const declarationDiagnostics = ts.getPreEmitDiagnostics(declarationProgram);
+if (declarationDiagnostics.length > 0) {
+  const formatHost = {
+    getCanonicalFileName: (fileName) => fileName,
+    getCurrentDirectory: () => process.cwd(),
+    getNewLine: () => "\n",
+  };
+  console.error(`\n${pkg.name}: built declarations do not typecheck.\n`);
+  console.error(ts.formatDiagnostics(declarationDiagnostics, formatHost));
   process.exit(1);
 }
