@@ -2108,6 +2108,8 @@ export interface components {
             extra_headers?: {
                 [key: string]: string;
             } | null;
+            /** Fail On Refusal */
+            fail_on_refusal?: boolean | null;
             /** Fallback Models */
             fallback_models?: string[] | null;
             /** Frequency Penalty */

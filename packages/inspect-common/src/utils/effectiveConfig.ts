@@ -55,6 +55,7 @@ const GENERATE_CONFIG_KEYS: Record<keyof GenerateConfig, true> = {
   effort: true,
   extra_body: true,
   extra_headers: true,
+  fail_on_refusal: true,
   fallback_models: true,
   frequency_penalty: true,
   internal_tools: true,
