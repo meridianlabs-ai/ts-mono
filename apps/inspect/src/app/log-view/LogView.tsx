@@ -37,6 +37,7 @@ import { useSamplesTabConfig } from "./tabs/SamplesTab";
 import { useTaskTabConfig } from "./tabs/TaskTab";
 import { useTimelineTab } from "./tabs/timeline/TimelineTab";
 import { TitleView } from "./title-view/TitleView";
+import { useManualTitleCollapse } from "./title-view/useManualTitleCollapse";
 import { TabDescriptor } from "./types";
 
 export const LogView: FC = () => {
@@ -122,9 +123,12 @@ export const LogView: FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabKeys]);
 
-  const { hidden: titleCollapsed } = useScrollDirection(scrollRefs, {
+  const { hidden: autoTitleCollapsed } = useScrollDirection(scrollRefs, {
     stayHiddenOnUpScroll: true,
   });
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const { collapsed: titleCollapsed, setCollapsed: setTitleCollapsed } =
+    useManualTitleCollapse(autoTitleCollapsed, selectedLogFile);
 
   const selectedTab = useStore((state) => state.app.tabs.workspace);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
@@ -173,6 +177,7 @@ export const LogView: FC = () => {
           status={selectedLogDetails?.status}
           tags={selectedLogDetails?.tags}
           collapsed={titleCollapsed}
+          onCollapsedChange={setTitleCollapsed}
         />
         <div ref={divRef} className={clsx("workspace", styles.workspace)}>
           <div className={clsx("log-detail", styles.tabContainer)}>
