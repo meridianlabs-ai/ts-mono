@@ -66,13 +66,13 @@ export const syncListing = async (
   // Fetch the updated list of logs from the server
   const response = await api.get_logs(mtime, localFiles.length);
   const updatedLogs = response.files;
+  const localFilesByName = new Map(localFiles.map((file) => [file.name, file]));
+  const updatedNames = new Set(updatedLogs.map((file) => file.name));
 
   const deleted =
     response.response_type === "full"
       ? localFiles
-          .filter(
-            (current) => !updatedLogs.find((f) => f.name === current.name)
-          )
+          .filter((current) => !updatedNames.has(current.name))
           .map((file) => file.name)
       : [];
 
@@ -80,7 +80,7 @@ export const syncListing = async (
   // (or whose mtimes are missing, in which case assume changed).
   const invalidated = updatedLogs
     .filter((remoteLog) => {
-      const localCopy = localFiles.find((f) => f.name === remoteLog.name);
+      const localCopy = localFilesByName.get(remoteLog.name);
       if (!localCopy) {
         return true;
       }
