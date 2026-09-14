@@ -923,6 +923,46 @@ describe("conversations (handoff 10a)", () => {
   });
 });
 
+describe("conversations (review round 1)", () => {
+  it("survives conversation ids named after Object.prototype members", () => {
+    // Span ids come straight from the log; a plain {} record would resolve
+    // "constructor" / "__proto__" / "toString" to inherited builtins.
+    const ids = ["constructor", "__proto__", "toString"];
+    const events: Event[] = ids.flatMap((id, i) => [
+      testSpanBeginEvent({ id, name: id, type: "agent", timestamp: iso(i) }),
+      modelCall({
+        start: i * 10,
+        duration: 5,
+        workingStart: i * 10,
+        input: 100,
+        spanId: id,
+        uuid: `m-${i}`,
+      }),
+      testCompactionEvent({
+        span_id: id,
+        timestamp: iso(i * 10 + 6),
+        working_start: i * 10 + 5,
+        tokens_after: 10,
+      }),
+    ]);
+    const data = deriveActivityData({ events });
+    expect(data.agentRows.map((row) => row.id)).toEqual(ids);
+    for (const id of ids) {
+      expect(data.tokensByRow[id]).toHaveLength(1);
+      expect(data.tokenTotalsByRow[id]).toBe(100);
+      expect(data.contextByRow[id]).toHaveLength(1);
+      expect(data.contextPeakByRow[id]).toBe(100);
+    }
+    expect(data.compactions.map((drop) => drop.before)).toEqual([
+      100, 100, 100,
+    ]);
+    // Absent keys read as absent, not as builtins.
+    expect(data.tokensByRow["valueOf"]).toBeUndefined();
+    expect(Object.getPrototypeOf(data.tokensByRow)).toBeNull();
+  });
+
+});
+
 describe("turns (handoff 8b)", () => {
   it("groups each model call with the tool calls it issued, interleaving rows", () => {
     const events: Event[] = [

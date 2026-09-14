@@ -6,6 +6,7 @@ import type {
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
+import { nullProtoRecord } from "@tsmono/util";
 
 // Direct file imports keep this module React-free (the usage barrel pulls
 // in component modules).
@@ -552,12 +553,12 @@ const inertData = (inputs: ActivityInputs): ActivityData => ({
   tokenPoints: [],
   tokenSeries: [],
   totalTokens: 0,
-  tokensByRow: {},
-  tokenTotalsByRow: {},
+  tokensByRow: nullProtoRecord(new Map()),
+  tokenTotalsByRow: nullProtoRecord(new Map()),
   contextSeries: [],
   contextPeak: 0,
-  contextByRow: {},
-  contextPeakByRow: {},
+  contextByRow: nullProtoRecord(new Map()),
+  contextPeakByRow: nullProtoRecord(new Map()),
   compactions: [],
   agentRows: [],
   turns: [],
@@ -1250,36 +1251,39 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   // ── token burn: total + per-row cumulative ────────────────────────────
   // Overlapping calls complete out of event order — sort the raw burns by
   // time, then accumulate.
+  // Row ids are log-authored span ids: built through Maps and exposed as
+  // null-prototype records so an id such as "constructor" or "__proto__"
+  // never resolves to an inherited builtin (#621).
   tokenPoints.sort((a, b) => a.time - b.time);
   let cumulativeTokens = 0;
   const tokenSeries: StepPoint[] = [];
-  const tokensByRow: Record<string, StepPoint[]> = {};
-  const tokenTotalsByRow: Record<string, number> = {};
+  const tokensByRow = new Map<string, StepPoint[]>();
+  const tokenTotalsByRow = new Map<string, number>();
   for (const point of tokenPoints) {
     if (point.uuid) point.turn = turnByModelUuid.get(point.uuid);
     cumulativeTokens += point.burned;
     tokenSeries.push({ time: point.time, value: cumulativeTokens });
-    const rowTotal = (tokenTotalsByRow[point.rowId] ?? 0) + point.burned;
-    tokenTotalsByRow[point.rowId] = rowTotal;
-    (tokensByRow[point.rowId] ??= []).push({
-      time: point.time,
-      value: rowTotal,
-    });
+    const rowTotal = (tokenTotalsByRow.get(point.rowId) ?? 0) + point.burned;
+    tokenTotalsByRow.set(point.rowId, rowTotal);
+    let rowPoints = tokensByRow.get(point.rowId);
+    if (!rowPoints) tokensByRow.set(point.rowId, (rowPoints = []));
+    rowPoints.push({ time: point.time, value: rowTotal });
   }
 
   // ── context: per-row lines, deltas, peaks ─────────────────────────────
   contextSeries.sort((a, b) => a.time - b.time);
-  const contextByRow: Record<string, ContextPoint[]> = {};
-  const contextPeakByRow: Record<string, number> = {};
+  const contextByRow = new Map<string, ContextPoint[]>();
+  const contextPeakByRow = new Map<string, number>();
   for (const point of contextSeries) {
     if (point.uuid) point.turn = turnByModelUuid.get(point.uuid);
-    const rowPoints = (contextByRow[point.rowId] ??= []);
+    let rowPoints = contextByRow.get(point.rowId);
+    if (!rowPoints) contextByRow.set(point.rowId, (rowPoints = []));
     const previous = rowPoints[rowPoints.length - 1];
     if (previous) point.delta = point.value - previous.value;
     rowPoints.push(point);
-    contextPeakByRow[point.rowId] = Math.max(
-      contextPeakByRow[point.rowId] ?? 0,
-      point.value
+    contextPeakByRow.set(
+      point.rowId,
+      Math.max(contextPeakByRow.get(point.rowId) ?? 0, point.value)
     );
   }
 
@@ -1300,12 +1304,12 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     tokenPoints,
     tokenSeries,
     totalTokens: cumulativeTokens,
-    tokensByRow,
-    tokenTotalsByRow,
+    tokensByRow: nullProtoRecord(tokensByRow),
+    tokenTotalsByRow: nullProtoRecord(tokenTotalsByRow),
     contextSeries,
     contextPeak,
-    contextByRow,
-    contextPeakByRow,
+    contextByRow: nullProtoRecord(contextByRow),
+    contextPeakByRow: nullProtoRecord(contextPeakByRow),
     compactions,
     agentRows,
     turns,
