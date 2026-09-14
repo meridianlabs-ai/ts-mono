@@ -27,6 +27,8 @@
 
 .subject {
   font-weight: 600;
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -41,6 +43,7 @@
 
 .time {
   margin-left: auto;
+  flex-shrink: 0;
   font-family: var(--bs-font-monospace);
   font-size: 0.68rem;
   color: var(--bs-secondary-color);

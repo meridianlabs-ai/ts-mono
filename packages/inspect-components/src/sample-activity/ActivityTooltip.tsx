@@ -74,8 +74,18 @@ const timeRange = (start: number, end: number, pending: boolean): string =>
     ? `${fmtTimeSec(start)} → ${pending ? "now" : fmtTimeSec(end)}`
     : fmtTimeSec(start);
 
-const turnPrefix = (turn: number | undefined, turnsMode: boolean): string =>
-  turnsMode && turn !== undefined ? `turn ${turn} · ` : "";
+/** Header time: the wall range, or `turn N · hh:mm:ss` in Turns mode
+ *  (handoff 8b) — the start alone keeps the header on one line. */
+const headerTime = (
+  turn: number | undefined,
+  turnsMode: boolean,
+  start: number,
+  end: number,
+  pending: boolean
+): string =>
+  turnsMode && turn !== undefined
+    ? `turn ${turn} · ${fmtTimeSec(start)}`
+    : timeRange(start, end, pending);
 
 interface CardProps {
   subject: ReactNode;
@@ -210,7 +220,13 @@ const ModelTurnBody: FC<{
       subject={
         span.turn !== undefined ? `Model turn ${span.turn}` : "Model call"
       }
-      time={`${turnPrefix(span.turn, turnsMode)}${timeRange(span.start, span.end, span.pending)}`}
+      time={headerTime(
+        span.turn,
+        turnsMode,
+        span.start,
+        span.end,
+        span.pending
+      )}
       who={{ hue: row.hue, name: row.name, model: span.label }}
       uuid={span.uuid}
       onOpenEvent={onOpenEvent}
@@ -266,7 +282,13 @@ const ToolCallBody: FC<{
         </Fragment>
       }
       status={span.failed ? { text: "failed", tone: "failed" } : undefined}
-      time={`${turnPrefix(span.turn, turnsMode)}${timeRange(span.start, span.end, span.pending)}`}
+      time={headerTime(
+        span.turn,
+        turnsMode,
+        span.start,
+        span.end,
+        span.pending
+      )}
       who={{ hue: row.hue, name: row.name, model: row.model, turn: span.turn }}
       uuid={span.uuid}
       onOpenEvent={onOpenEvent}
@@ -299,7 +321,7 @@ const BurstBody: FC<{
           ? { text: `${burst.failed} failed`, tone: "failed" }
           : undefined
       }
-      time={`${turnPrefix(hovered.turn, turnsMode)}${timeRange(burst.start, burst.end, false)}`}
+      time={headerTime(hovered.turn, turnsMode, burst.start, burst.end, false)}
       who={{
         hue: row.hue,
         name: row.name,
@@ -361,7 +383,7 @@ const ContextPointBody: FC<{
           Context <span className={styles.mono}>{num(point.value)}</span> tokens
         </Fragment>
       }
-      time={`${turnPrefix(point.turn, turnsMode)}${fmtTimeSec(point.time)}`}
+      time={headerTime(point.turn, turnsMode, point.time, point.time, false)}
       who={{ hue: row.hue, name: row.name, turn: point.turn }}
       uuid={point.uuid}
       onOpenEvent={onOpenEvent}
