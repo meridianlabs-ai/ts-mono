@@ -80,6 +80,9 @@ const kDensityHoverPx = 16;
 // Tooltip behaviour (handoff 11b): show delay, flip-left margin.
 const kTooltipDelayMs = 120;
 const kTooltipFlipPx = 280;
+// Leaving a target keeps the card this long: it sits below the whole
+// activity band, so the pointer crosses empty plot to reach its footer.
+const kTooltipGraceMs = 300;
 // A curve hover within this many px of a context point reads that point.
 const kContextPointSnapPx = 6;
 
@@ -208,8 +211,23 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const [pointerX, setPointerX] = useState<number | null>(null);
   const [foldExpanded, setFoldExpanded] = useState(false);
 
+  // Leaving a span/marker schedules the close instead of clearing at once;
+  // entering any target or the card cancels it. The timer is declarative
+  // (useTimeout), so unmount cleans it up.
+  const [closePending, setClosePending] = useState(false);
+  useTimeout(
+    () => {
+      setClosePending(false);
+      if (!tooltipHeld) setHoverTarget(null);
+    },
+    closePending ? kTooltipGraceMs : null
+  );
+  const showTarget = (target: HoverTarget) => {
+    setClosePending(false);
+    setHoverTarget(target);
+  };
   const clearTarget = () => {
-    if (!tooltipHeld) setHoverTarget(null);
+    if (!tooltipHeld) setClosePending(true);
   };
   const leaveChart = () => {
     setCursor(null);
@@ -217,6 +235,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     setHoverTarget(null);
     setShownKey(null);
     setTooltipHeld(false);
+    setClosePending(false);
   };
 
   // ── conversation rows: fold, hide, gutter ─────────────────────────────
@@ -461,9 +480,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return held;
   };
 
-  const contextValuesAt = (
-    px: number
-  ): { row: AgentRow; value?: number }[] =>
+  const contextValuesAt = (px: number): { row: AgentRow; value?: number }[] =>
     curveRows.map((row) => ({ row, value: contextValueAt(row, px) }));
 
   // ── shared band chrome ────────────────────────────────────────────────
@@ -671,11 +688,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               y={band.top + kWorkingBlockTop}
               width={w}
               height={band.plotBottom - kWorkingBlockTop}
-              onMouseMove={(event) => {
+              onMouseMove={() => {
                 setCursor({ x: x(stall.start), t: stall.start });
-                setHoverTarget({ kind: "stall", stall });
-                // Keep the pointer x meaningful for the tooltip position.
-                void event;
+                showTarget({ kind: "stall", stall });
               }}
               onMouseLeave={clearTarget}
             />
@@ -955,7 +970,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       s.subLane !== undefined
         ? row.bursts.find((b) => s.start >= b.start && s.end <= b.end)
         : undefined;
-    setHoverTarget(
+    showTarget(
       burst
         ? { kind: "burst", burst, row, hovered: s }
         : { kind: "span", span: s, row }
@@ -1192,7 +1207,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             const px = pointerPx(event);
             const bin = binAt(px);
             setCursor({ x: px, t: timeAt(px) });
-            setHoverTarget({
+            showTarget({
               kind: "bin",
               label: bin.label,
               window: bin.window,
@@ -1473,7 +1488,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             const px = pointerPx(event);
             const bin = binAt(px);
             setCursor({ x: px, t: timeAtPx(px) });
-            setHoverTarget({
+            showTarget({
               kind: "bin",
               label: bin.label,
               window: bin.window,
@@ -1722,7 +1737,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               : head.label;
           const activate = () => {
             setCursor({ x: group.x, t: head.time });
-            setHoverTarget({
+            showTarget({
               kind: "marker",
               members: group.members,
               compaction:
@@ -2022,14 +2037,14 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         }
       }
       if (nearest && nearestDist <= kContextPointSnapPx) {
-        setHoverTarget({
+        showTarget({
           kind: "context",
           point: nearest.point,
           row: nearest.row,
         });
         return;
       }
-      setHoverTarget({
+      showTarget({
         kind: "curve",
         band: "context",
         time: t,
@@ -2038,7 +2053,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       return;
     }
     if (band?.kind === "tokens") {
-      setHoverTarget({
+      showTarget({
         kind: "curve",
         band: "tokens",
         time: t,
@@ -2046,8 +2061,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       });
       return;
     }
-    // Empty chart under the pointer: cursor only, no card.
-    if (!tooltipHeld) setHoverTarget(null);
+    // Empty chart under the pointer: cursor only, the card closes after
+    // its grace (the pointer may be on its way to the card's footer).
+    clearTarget();
   };
 
   // ── tooltip placement (handoff 11b) ───────────────────────────────────
@@ -2071,10 +2087,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         turnsMode={turnsMode}
         onOpenEvent={onOpenEvent}
         style={{ left, top }}
-        onMouseEnter={() => setTooltipHeld(true)}
+        onMouseEnter={() => {
+          setTooltipHeld(true);
+          setClosePending(false);
+        }}
         onMouseLeave={() => {
           setTooltipHeld(false);
-          setHoverTarget(null);
+          setClosePending(true);
         }}
       />
     );

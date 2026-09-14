@@ -331,6 +331,41 @@ test("hovering a span shows the tooltip card with click-through", async ({
   await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
 });
 
+test("the tooltip survives pointer travel from the span to its footer", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
+
+  const span = page.locator("rect[class*='failedSpan']").first();
+  await span.hover();
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toBeVisible();
+  const footer = card.getByRole("button", { name: "open in transcript →" });
+  await expect(footer).toBeVisible();
+
+  // Physically travel from the span, across the band below it, into the
+  // card's footer — the card sits under the whole activity band, so the
+  // pointer crosses empty plot on the way.
+  const spanBox = await span.boundingBox();
+  const footerBox = await footer.boundingBox();
+  if (!spanBox || !footerBox) throw new Error("expected span and footer");
+  await page.mouse.move(
+    spanBox.x + spanBox.width / 2,
+    spanBox.y + spanBox.height + 5,
+    { steps: 5 }
+  );
+  await expect(footer).toBeVisible();
+  await page.mouse.move(
+    footerBox.x + footerBox.width / 2,
+    footerBox.y + footerBox.height / 2,
+    { steps: 10 }
+  );
+  await expect(footer).toBeVisible();
+  await footer.click();
+  await expect(page).toHaveURL(/\/transcript\?event=tool-fail/);
+});
+
 test("the span tooltip follows the pointer horizontally", async ({
   page,
   network,
