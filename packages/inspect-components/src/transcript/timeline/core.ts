@@ -41,13 +41,7 @@ interface SpanNode {
 type TreeItem = SpanNode | Event;
 
 function isSpanNode(item: TreeItem): item is SpanNode {
-  return (
-    typeof item === "object" &&
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-    item !== null &&
-    "children" in item &&
-    Array.isArray(item.children)
-  );
+  return "children" in item && Array.isArray(item.children);
 }
 
 // =============================================================================
@@ -407,12 +401,10 @@ function convertServerSpan(
   server: ServerTimelineSpan,
   lookup: Map<string, Event>
 ): TimelineSpan {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-  const content = (server.content ?? [])
+  const content = server.content
     .map((item) => convertServerContentItem(item, lookup))
     .filter((item): item is TimelineEvent | TimelineSpan => item !== null);
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-  const branches = (server.branches ?? [])
+  const branches = server.branches
     .map((b) => convertServerSpan(b, lookup))
     .filter((b) => b.content.length > 0 || b.branches.length > 0);
 
@@ -535,12 +527,10 @@ function getEventTokens(event: Event): number {
   if (event.event === "model") {
     const usage = event.output.usage;
     if (usage) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      const inputTokens = usage.input_tokens ?? 0;
+      const inputTokens = usage.input_tokens;
       const cacheRead = usage.input_tokens_cache_read ?? 0;
       const cacheWrite = usage.input_tokens_cache_write ?? 0;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      const outputTokens = usage.output_tokens ?? 0;
+      const outputTokens = usage.output_tokens;
       return inputTokens + cacheRead + cacheWrite + outputTokens;
     }
   }
@@ -1323,8 +1313,6 @@ function normalizeSystemPrompt(prompt: string): string {
  */
 function getSystemPromptForEvent(event: ModelEvent): string | null {
   const input = event.input;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-  if (!input) return null;
   for (const msg of input) {
     if (msg.role === "system") {
       let raw: string;
@@ -1455,8 +1443,6 @@ function isWarmupCall(event: ModelEvent): boolean {
   }
   // Check that the last user message is a single word
   const input = event.input;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-  if (!input) return false;
   for (let i = input.length - 1; i >= 0; i--) {
     const msg = input[i];
     if (msg?.role === "user") {
@@ -1726,18 +1712,15 @@ function extractAgentResults(parent: TimelineSpan): void {
         if (nextItem.type !== "event") continue;
         if (nextItem.event.event === "model") {
           const modelEvent = nextItem.event;
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-          if (modelEvent.input) {
-            for (const msg of modelEvent.input) {
-              if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
-                const text = extractToolEventResult(msg.content);
-                if (text) {
-                  item.agentResult = codexResultText(
-                    msg.function ?? undefined,
-                    msg.content,
-                    text
-                  );
-                }
+          for (const msg of modelEvent.input) {
+            if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
+              const text = extractToolEventResult(msg.content);
+              if (text) {
+                item.agentResult = codexResultText(
+                  msg.function ?? undefined,
+                  msg.content,
+                  text
+                );
               }
             }
           }

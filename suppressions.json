@@ -1437,11 +1437,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/eventText.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 7
-    }
-  },
   "packages/inspect-components/src/transcript/FocusTurnView.tsx": {
     "react-hooks/refs": {
       "count": 1
@@ -1515,11 +1510,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/ModelEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 6
-    }
-  },
   "packages/inspect-components/src/transcript/outline/TranscriptOutline.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
@@ -1570,11 +1560,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 3,
       "undescribed": 3
-    }
-  },
-  "packages/inspect-components/src/transcript/timeline/core.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 8
     }
   },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {

@@ -123,10 +123,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["function", toolEvent.function]);
       }
       // Tool arguments
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      if (toolEvent.arguments) {
-        fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
-      }
+      fields.push(["arguments", JSON.stringify(toolEvent.arguments)]);
       // Tool result
       if (toolEvent.result) {
         if (typeof toolEvent.result === "string") {
@@ -239,10 +236,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["type", subtaskEvent.type]);
       }
       // Input/result shown in summary
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      if (subtaskEvent.input) {
-        fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
-      }
+      fields.push(["input", sanitizeStringify(subtaskEvent.input)]);
       if (subtaskEvent.result) {
         fields.push(["result", sanitizeStringify(subtaskEvent.result)]);
       }
@@ -269,14 +263,13 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (scoreEvent.score.explanation) {
         fields.push(["explanation", scoreEvent.score.explanation]);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      if (scoreEvent.score.value !== undefined) {
-        const val = scoreEvent.score.value;
-        fields.push([
-          "value",
-          typeof val === "string" ? val : JSON.stringify(val),
-        ]);
-      }
+      const scoreValue = scoreEvent.score.value;
+      fields.push([
+        "value",
+        typeof scoreValue === "string"
+          ? scoreValue
+          : JSON.stringify(scoreValue),
+      ]);
       if (scoreEvent.target) {
         if (typeof scoreEvent.target === "string") {
           fields.push(["target", scoreEvent.target]);
@@ -330,10 +323,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sampleLimitEvent.message) {
         fields.push(["message", sampleLimitEvent.message]);
       }
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      if (sampleLimitEvent.type) {
-        fields.push(["type", sampleLimitEvent.type]);
-      }
+      fields.push(["type", sampleLimitEvent.type]);
       break;
     }
 
@@ -366,10 +356,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "approval": {
       const approvalEvent = event;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      if (approvalEvent.decision) {
-        fields.push(["decision", approvalEvent.decision]);
-      }
+      fields.push(["decision", approvalEvent.decision]);
       if (approvalEvent.explanation) {
         fields.push(["explanation", approvalEvent.explanation]);
       }
@@ -391,10 +378,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
 
     case "sandbox": {
       const sandboxEvent = event;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-      if (sandboxEvent.action) {
-        fields.push(["action", sandboxEvent.action]);
-      }
+      fields.push(["action", sandboxEvent.action]);
       if (sandboxEvent.cmd) {
         fields.push(["cmd", sandboxEvent.cmd]);
       }
@@ -412,15 +396,12 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       const stateEvent = event;
       for (const change of stateEvent.changes) {
         fields.push(["path", change.path]);
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive guard on eval-log event data; verify normalizer coverage before removing (#555)
-        if (change.value !== undefined) {
-          fields.push([
-            "value",
-            typeof change.value === "string"
-              ? change.value
-              : sanitizeStringify(change.value),
-          ]);
-        }
+        fields.push([
+          "value",
+          typeof change.value === "string"
+            ? change.value
+            : sanitizeStringify(change.value),
+        ]);
       }
       break;
     }
