@@ -15,6 +15,8 @@ import {
   testModelOutput,
   testModelUsage,
   testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
@@ -336,5 +338,118 @@ describe("SampleActivityPanel marker ↔ list link", () => {
     fireEvent.mouseLeave(glyph);
     const rowAfter = screen.getByText(/exit 127/).closest("[role='button']");
     expect(rowAfter?.className).not.toContain("washError");
+  });
+});
+
+describe("SampleActivityPanel agent gutter (multi-conversation)", () => {
+  /** Two conversations: "react" hands off to a spawned "analyst". */
+  const multiAgentEvents = (): Event[] => {
+    const usage = (input: number) =>
+      testModelOutput({
+        usage: testModelUsage({
+          input_tokens: input,
+          output_tokens: 100,
+          total_tokens: input + 100,
+        }),
+      });
+    return [
+      testSpanBeginEvent({
+        id: "react",
+        name: "react",
+        type: "agent",
+        timestamp: iso(0),
+      }),
+      testModelEvent({
+        uuid: "m-react-1",
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        model: "opus",
+        span_id: "react",
+        output: usage(1000),
+      }),
+      testToolEvent({
+        uuid: "t-transfer",
+        timestamp: iso(5),
+        completed: iso(20),
+        working_start: 5,
+        working_time: 15,
+        function: "transfer_to_analyst",
+        span_id: "react",
+      }),
+      testSpanBeginEvent({
+        id: "tool",
+        name: "transfer_to_analyst",
+        type: "tool",
+        parent_id: "react",
+        timestamp: iso(5),
+      }),
+      testSpanBeginEvent({
+        id: "analyst",
+        name: "analyst",
+        type: "agent",
+        parent_id: "tool",
+        timestamp: iso(6),
+      }),
+      testModelEvent({
+        uuid: "m-analyst-1",
+        timestamp: iso(6),
+        completed: iso(18),
+        working_start: 6,
+        working_time: 12,
+        model: "haiku",
+        span_id: "analyst",
+        output: usage(500),
+      }),
+      testSpanEndEvent({ id: "analyst", timestamp: iso(19) }),
+      testSpanEndEvent({ id: "tool", timestamp: iso(20) }),
+      testModelEvent({
+        uuid: "m-react-2",
+        timestamp: iso(20),
+        completed: iso(30),
+        working_start: 20,
+        working_time: 10,
+        model: "opus",
+        span_id: "react",
+        output: usage(2000),
+      }),
+      testSpanEndEvent({ id: "react", timestamp: iso(30) }),
+    ];
+  };
+
+  it("renders a checkbox gutter row per conversation with stacked burn layers", () => {
+    const { container } = mountPanel({ events: multiAgentEvents() });
+    expect(screen.getByRole("checkbox", { name: "Hide react" })).toBeTruthy();
+    expect(screen.getByRole("checkbox", { name: "Hide analyst" })).toBeTruthy();
+    expect(screen.getByText("haiku · sub-agent")).toBeTruthy();
+    expect(screen.getByText(/2 conversations · 3 model turns/)).toBeTruthy();
+    // One stacked layer per conversation, no single dark total line.
+    expect(container.querySelectorAll("[class*='tokenLayer']")).toHaveLength(4);
+    expect(container.querySelectorAll("[class*='tokenSeries']")).toHaveLength(
+      0
+    );
+    // The parent's hand-off renders as the dotted awaiting thread.
+    expect(container.querySelectorAll("[class*='blockedThread']")).toHaveLength(
+      1
+    );
+    expect(screen.getByText(/stacked by conversation/)).toBeTruthy();
+  });
+
+  it("hides a conversation's rows and layers when unchecked", () => {
+    const { container } = mountPanel({ events: multiAgentEvents() });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Hide analyst" }));
+    expect(screen.getByRole("checkbox", { name: "Show analyst" })).toBeTruthy();
+    expect(screen.getByText(/1 of 2 shown/)).toBeTruthy();
+    // Token band: one layer (+ its edge) remains; the total headline notes
+    // the shown share.
+    expect(container.querySelectorAll("[class*='tokenLayer']")).toHaveLength(2);
+    expect(screen.getByText(/shown · stacked by conversation/)).toBeTruthy();
+  });
+
+  it("keeps the single-conversation label and 30px gutter for one row", () => {
+    mountPanel();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.getByText("test-model")).toBeTruthy();
   });
 });

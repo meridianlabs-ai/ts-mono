@@ -114,6 +114,20 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
   const showMarkers = bandOn("markers", true) && data.markers.length > 0;
   const showWorking = bandOn("working", false) && data.hasWorkingSignal;
 
+  // Agent gutter checkboxes (handoff 10a) — hidden conversation ids.
+  const [hiddenAgentIds, setHiddenAgentIds] = useProperty<string[]>(
+    kSampleActivityBag,
+    `agents:${persistScope}`,
+    { defaultValue: kNoKeys }
+  );
+  const toggleAgent = (id: string) => {
+    setHiddenAgentIds(
+      hiddenAgentIds.includes(id)
+        ? hiddenAgentIds.filter((existing) => existing !== id)
+        : [...hiddenAgentIds, id]
+    );
+  };
+
   // ── history filters (array, not Set — store persistence) ─────────────
   const [categoryList, setCategoryList] = useProperty<ActivityCategory[]>(
     kSampleActivityBag,
@@ -247,6 +261,8 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
         showTokens={showTokens}
         showContext={showContext}
         showModelTool={showModelTool}
+        hiddenAgentIds={hiddenAgentIds}
+        onToggleAgent={toggleAgent}
         selectedKey={selectedKey}
         onSelectMarker={selectMarker}
         hoveredRowKey={

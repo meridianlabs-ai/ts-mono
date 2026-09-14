@@ -11,6 +11,8 @@ import {
   testModelUsage,
   testSampleLimitEvent,
   testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -21,9 +23,13 @@ import {
   fmtDurationWords,
   fmtTokens,
   hasEventTimestamps,
+  kAgentHues,
   kCategoryLong,
+  kScorerHue,
   rowHaystack,
   rowKind,
+  turnAfter,
+  turnAt,
 } from "./activityData";
 
 /** ISO timestamp `sec` seconds into a fixed run start. */
@@ -47,6 +53,7 @@ const modelCall = (opts: {
   role?: string;
   uuid?: string;
   pending?: boolean;
+  spanId?: string;
 }): ModelEvent =>
   testModelEvent({
     timestamp: iso(opts.start),
@@ -55,6 +62,7 @@ const modelCall = (opts: {
     working_time: opts.pending ? undefined : (opts.working ?? opts.duration),
     model: opts.model ?? "test-model",
     role: opts.role,
+    span_id: opts.spanId,
     uuid: opts.uuid,
     retries: opts.retries,
     pending: opts.pending,
@@ -367,10 +375,27 @@ describe("context size", () => {
     const data = deriveActivityData({ events });
 
     expect(data.contextSeries).toEqual([
-      { time: kRunStart, value: 1500, uuid: "m1" },
-      { time: kRunStart + 10, value: 2500, uuid: "m2" },
+      {
+        time: kRunStart,
+        value: 1500,
+        uuid: "m1",
+        rowId: "root",
+        messages: 0,
+        turn: 1,
+      },
+      {
+        time: kRunStart + 10,
+        value: 2500,
+        uuid: "m2",
+        rowId: "root",
+        messages: 0,
+        delta: 1000,
+        turn: 2,
+      },
     ]);
     expect(data.contextPeak).toBe(2500);
+    expect(data.contextByRow.root).toHaveLength(2);
+    expect(data.contextPeakByRow.root).toBe(2500);
   });
 
   it("derives compaction drops from tokens_before/tokens_after", () => {
@@ -389,8 +414,10 @@ describe("context size", () => {
     expect(data.compactions).toEqual([
       {
         time: kRunStart + 6,
+        rowId: "root",
         before: 142_000,
         after: 38_000,
+        strategy: "summary",
         key: "comp-1",
         uuid: "comp-1",
       },
@@ -544,6 +571,540 @@ describe("model & tool activity", () => {
       tail: "errored",
       detail: "exit 127",
     });
+  });
+});
+
+describe("conversations (handoff 10a)", () => {
+  /** An agent span with its begin/end events around `body`. */
+  const agentSpan = (
+    id: string,
+    name: string,
+    parentId: string | undefined,
+    startSec: number,
+    endSec: number,
+    type = "agent"
+  ): { begin: Event; end: Event } => ({
+    begin: testSpanBeginEvent({
+      id,
+      name,
+      type,
+      parent_id: parentId,
+      timestamp: iso(startSec),
+      working_start: startSec,
+    }),
+    end: testSpanEndEvent({
+      id,
+      timestamp: iso(endSec),
+      working_start: endSec,
+    }),
+  });
+
+  it("keys rows on the nearest agent/subtask/solver span, tools included", () => {
+    // solvers → solver "react" → agent "react" (the top conversation);
+    // a hand-off tool spawns handoff → tool → agent "analyst".
+    const solvers = agentSpan(
+      "solvers",
+      "solvers",
+      undefined,
+      0,
+      60,
+      "solvers"
+    );
+    const solver = agentSpan("solver", "react", "solvers", 0, 60, "solver");
+    const react = agentSpan("react", "react", "solver", 0, 60);
+    const handoff = agentSpan("handoff", "analyst", "react", 12, 30, "handoff");
+    const transfer = agentSpan(
+      "transfer",
+      "transfer_to_analyst",
+      "handoff",
+      12,
+      30,
+      "tool"
+    );
+    const analyst = agentSpan("analyst", "analyst", "transfer", 13, 29);
+    const events: Event[] = [
+      solvers.begin,
+      solver.begin,
+      react.begin,
+      modelCall({
+        start: 0,
+        duration: 10,
+        workingStart: 0,
+        model: "opus",
+        spanId: "react",
+        input: 1000,
+        uuid: "m-react-1",
+      }),
+      testToolEvent({
+        timestamp: iso(10),
+        completed: iso(30),
+        working_start: 10,
+        working_time: 20,
+        function: "transfer_to_analyst",
+        span_id: "react",
+        uuid: "t-transfer",
+      }),
+      handoff.begin,
+      transfer.begin,
+      analyst.begin,
+      modelCall({
+        start: 13,
+        duration: 5,
+        workingStart: 13,
+        model: "haiku",
+        spanId: "analyst",
+        input: 500,
+        uuid: "m-analyst-1",
+      }),
+      testToolEvent({
+        timestamp: iso(18),
+        completed: iso(22),
+        working_start: 18,
+        working_time: 4,
+        function: "string_reverse",
+        span_id: "analyst",
+        uuid: "t-analyst",
+      }),
+      modelCall({
+        start: 22,
+        duration: 6,
+        workingStart: 22,
+        model: "haiku",
+        spanId: "analyst",
+        input: 700,
+        uuid: "m-analyst-2",
+      }),
+      analyst.end,
+      transfer.end,
+      handoff.end,
+      modelCall({
+        start: 30,
+        duration: 10,
+        workingStart: 30,
+        model: "opus",
+        spanId: "react",
+        input: 2000,
+        uuid: "m-react-2",
+      }),
+      react.end,
+      solver.end,
+      solvers.end,
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.agentRows.map((row) => row.id)).toEqual(["react", "analyst"]);
+    const [parent, child] = data.agentRows;
+    expect(parent).toMatchObject({
+      name: "react",
+      model: "opus",
+      isSubAgent: false,
+      modelCount: 2,
+      toolCount: 1,
+      hue: kAgentHues[0],
+    });
+    expect(child).toMatchObject({
+      name: "analyst",
+      model: "haiku",
+      isSubAgent: true,
+      modelCount: 2,
+      toolCount: 1,
+      hue: kAgentHues[1],
+    });
+    // The spawning tool call hands off; the parent waits on the child span.
+    const transferSpan = parent?.spans.find((s) => s.uuid === "t-transfer");
+    expect(transferSpan?.handoffTo).toBe("analyst");
+    expect(parent?.blockedOn).toEqual([
+      {
+        start: kRunStart + 13,
+        end: kRunStart + 29,
+        childId: "analyst",
+        childName: "analyst",
+      },
+    ]);
+    expect(child?.blockedOn).toEqual([]);
+  });
+
+  it("falls back to one root row when events carry no span context", () => {
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 5, workingStart: 0, model: "opus" }),
+      testToolEvent({
+        timestamp: iso(5),
+        completed: iso(8),
+        working_start: 5,
+        function: "bash",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.agentRows).toHaveLength(1);
+    expect(data.agentRows[0]).toMatchObject({
+      id: "root",
+      name: "opus",
+      model: "opus",
+      isSubAgent: false,
+      toolCount: 1,
+    });
+  });
+
+  it("keeps a model swap inside one span on the same row", () => {
+    const react = agentSpan("react", "react", undefined, 0, 30);
+    const events: Event[] = [
+      react.begin,
+      modelCall({
+        start: 0,
+        duration: 5,
+        workingStart: 0,
+        model: "opus",
+        spanId: "react",
+      }),
+      modelCall({
+        start: 10,
+        duration: 5,
+        workingStart: 5,
+        model: "sonnet",
+        spanId: "react",
+      }),
+      react.end,
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.agentRows).toHaveLength(1);
+    expect(data.agentRows[0]).toMatchObject({
+      model: "sonnet",
+      models: ["opus", "sonnet"],
+    });
+  });
+
+  it("gives role and scorer-span calls their own grey rows, sorted last", () => {
+    const scorers = agentSpan(
+      "scorers",
+      "scorers",
+      undefined,
+      20,
+      30,
+      "scorers"
+    );
+    const scorer = agentSpan(
+      "scorer",
+      "model_graded_qa",
+      "scorers",
+      20,
+      30,
+      "scorer"
+    );
+    const events: Event[] = [
+      // Grader role call logged BEFORE the primary — still sorts after it.
+      modelCall({
+        start: 0,
+        duration: 2,
+        workingStart: 0,
+        model: "sonnet",
+        role: "grader",
+      }),
+      modelCall({ start: 2, duration: 5, workingStart: 2, model: "opus" }),
+      scorers.begin,
+      scorer.begin,
+      modelCall({
+        start: 21,
+        duration: 3,
+        workingStart: 7,
+        model: "sonnet",
+        spanId: "scorer",
+      }),
+      scorer.end,
+      scorers.end,
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.agentRows.map((row) => row.id)).toEqual([
+      "root",
+      "role:grader",
+      "scorer:model_graded_qa",
+    ]);
+    expect(data.agentRows[1]).toMatchObject({
+      name: "grader",
+      role: "grader",
+      hue: kScorerHue,
+    });
+    expect(data.agentRows[2]).toMatchObject({
+      name: "model_graded_qa",
+      role: "scorer",
+      hue: kScorerHue,
+    });
+    expect(data.agentRows[0]?.hue).toBe(kAgentHues[0]);
+  });
+
+  it("cycles hues past the palette", () => {
+    const events: Event[] = [];
+    for (let i = 0; i < 6; i++) {
+      const span = agentSpan(
+        `a${i}`,
+        `agent-${i}`,
+        undefined,
+        i * 10,
+        i * 10 + 5
+      );
+      events.push(
+        span.begin,
+        modelCall({
+          start: i * 10,
+          duration: 5,
+          workingStart: i * 10,
+          spanId: `a${i}`,
+        }),
+        span.end
+      );
+    }
+    const data = deriveActivityData({ events });
+    expect(data.agentRows.map((row) => row.hue)).toEqual([
+      ...kAgentHues,
+      kAgentHues[0],
+      kAgentHues[1],
+    ]);
+  });
+
+  it("splits token burn and context per row while keeping the totals", () => {
+    const a = agentSpan("a", "orchestrator", undefined, 0, 40);
+    const b = agentSpan("b", "researcher", "a", 10, 30);
+    const events: Event[] = [
+      a.begin,
+      modelCall({
+        start: 0,
+        duration: 5,
+        workingStart: 0,
+        spanId: "a",
+        input: 1000,
+        output: 100,
+      }),
+      b.begin,
+      modelCall({
+        start: 10,
+        duration: 5,
+        workingStart: 5,
+        spanId: "b",
+        input: 500,
+        output: 50,
+      }),
+      modelCall({
+        start: 20,
+        duration: 5,
+        workingStart: 10,
+        spanId: "b",
+        input: 600,
+        output: 60,
+      }),
+      b.end,
+      modelCall({
+        start: 30,
+        duration: 5,
+        workingStart: 15,
+        spanId: "a",
+        input: 2000,
+        output: 200,
+      }),
+      a.end,
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.totalTokens).toBe(1100 + 550 + 660 + 2200);
+    expect(data.tokenSeries.map((p) => p.value)).toEqual([
+      1100, 1650, 2310, 4510,
+    ]);
+    expect(data.tokensByRow.a?.map((p) => p.value)).toEqual([1100, 3300]);
+    expect(data.tokensByRow.b?.map((p) => p.value)).toEqual([550, 1210]);
+    expect(data.tokenTotalsByRow).toEqual({ a: 3300, b: 1210 });
+    // The stacked total equals the sum of the row totals.
+    expect(data.tokenTotalsByRow.a! + data.tokenTotalsByRow.b!).toBe(
+      data.totalTokens
+    );
+
+    expect(data.contextByRow.a?.map((p) => p.value)).toEqual([1000, 2000]);
+    expect(data.contextByRow.b?.map((p) => p.value)).toEqual([500, 600]);
+    expect(data.contextByRow.b?.[0]?.time).toBe(kRunStart + 10);
+    expect(data.contextPeakByRow).toEqual({ a: 2000, b: 600 });
+    expect(data.contextPeak).toBe(2000);
+  });
+});
+
+describe("turns (handoff 8b)", () => {
+  it("groups each model call with the tool calls it issued, interleaving rows", () => {
+    const events: Event[] = [
+      modelCall({
+        start: 0,
+        duration: 4,
+        workingStart: 0,
+        model: "opus",
+        uuid: "m1",
+        input: 100,
+      }),
+      testToolEvent({
+        timestamp: iso(4),
+        completed: iso(10),
+        working_start: 4,
+        working_time: 6,
+        function: "bash",
+        uuid: "t1",
+      }),
+      testToolEvent({
+        timestamp: iso(5),
+        completed: iso(9),
+        working_start: 4,
+        working_time: 4,
+        function: "bash",
+        uuid: "t2",
+      }),
+      // Grader turn between two primary turns.
+      modelCall({
+        start: 12,
+        duration: 3,
+        workingStart: 10,
+        model: "sonnet",
+        role: "grader",
+        uuid: "g1",
+        input: 100,
+      }),
+      modelCall({
+        start: 20,
+        duration: 5,
+        workingStart: 13,
+        model: "opus",
+        uuid: "m2",
+        input: 100,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.turns.map((turn) => turn.index)).toEqual([1, 2, 3]);
+    expect(data.turns.map((turn) => turn.rowId)).toEqual([
+      "root",
+      "role:grader",
+      "root",
+    ]);
+    const [first, grader, last] = data.turns;
+    expect(first).toMatchObject({
+      start: kRunStart,
+      end: kRunStart + 10,
+      modelWork: 4,
+      toolWork: 10,
+      rejected: 0,
+    });
+    expect(first?.model?.uuid).toBe("m1");
+    expect(first?.tools.map((t) => t.uuid)).toEqual(["t1", "t2"]);
+    expect(grader).toMatchObject({
+      start: kRunStart + 12,
+      end: kRunStart + 15,
+    });
+    expect(last?.tools).toHaveLength(0);
+    // Spans and curve points carry their turn index.
+    expect(data.agentRows[0]?.spans.map((s) => s.turn)).toEqual([1, 1, 1, 3]);
+    expect(data.contextSeries.map((p) => p.turn)).toEqual([1, 2, 3]);
+    expect(data.tokenPoints.map((p) => p.turn)).toEqual([1, 2, 3]);
+  });
+
+  it("locates markers inside a turn and snaps between-turn markers forward", () => {
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 4, workingStart: 0, uuid: "m1" }),
+      testToolEvent({
+        timestamp: iso(4),
+        completed: iso(8),
+        working_start: 4,
+        function: "bash",
+        error: { type: "unknown", message: "exit 127" },
+        uuid: "t1",
+      }),
+      testCompactionEvent({
+        timestamp: iso(9),
+        working_start: 8,
+        tokens_before: 100,
+        tokens_after: 10,
+      }),
+      modelCall({ start: 10, duration: 4, workingStart: 8, uuid: "m2" }),
+    ];
+    const data = deriveActivityData({ events });
+
+    // The failed tool's marker (at its completion) is inside turn 1.
+    expect(turnAt(data.turns, kRunStart + 8)?.index).toBe(1);
+    // The compaction at 9s falls between turns: no containing turn, snaps
+    // to turn 2.
+    expect(turnAt(data.turns, kRunStart + 9)).toBeUndefined();
+    expect(turnAfter(data.turns, kRunStart + 9)?.index).toBe(2);
+    expect(turnAfter(data.turns, kRunStart + 20)).toBeUndefined();
+  });
+
+  it("counts a rejected call on the conversation's current turn", () => {
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 4, workingStart: 0, uuid: "m1" }),
+      testApprovalEvent({
+        timestamp: iso(5),
+        decision: "reject",
+        approver: "human",
+      }),
+      modelCall({ start: 8, duration: 4, workingStart: 4, uuid: "m2" }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.turns[0]).toMatchObject({ rejected: 1, end: kRunStart + 5 });
+    expect(data.turns[1]).toMatchObject({ rejected: 0 });
+  });
+
+  it("stops a hand-off tool's working share where the child starts", () => {
+    const react = {
+      begin: testSpanBeginEvent({
+        id: "react",
+        name: "react",
+        type: "agent",
+        timestamp: iso(0),
+        working_start: 0,
+      }),
+      end: testSpanEndEvent({
+        id: "react",
+        timestamp: iso(40),
+        working_start: 40,
+      }),
+    };
+    const tool = testSpanBeginEvent({
+      id: "tool",
+      name: "transfer",
+      type: "tool",
+      parent_id: "react",
+      timestamp: iso(6),
+      working_start: 6,
+    });
+    const child = {
+      begin: testSpanBeginEvent({
+        id: "child",
+        name: "analyst",
+        type: "agent",
+        parent_id: "tool",
+        timestamp: iso(8),
+        working_start: 8,
+      }),
+      end: testSpanEndEvent({
+        id: "child",
+        timestamp: iso(26),
+        working_start: 26,
+      }),
+    };
+    const events: Event[] = [
+      react.begin,
+      modelCall({ start: 0, duration: 4, workingStart: 0, spanId: "react" }),
+      testToolEvent({
+        timestamp: iso(4),
+        completed: iso(26),
+        working_start: 4,
+        working_time: 22,
+        function: "transfer",
+        span_id: "react",
+      }),
+      tool,
+      child.begin,
+      modelCall({ start: 8, duration: 18, workingStart: 8, spanId: "child" }),
+      child.end,
+      testSpanEndEvent({ id: "tool", timestamp: iso(26), working_start: 26 }),
+      react.end,
+    ];
+    const data = deriveActivityData({ events });
+    const parentTurn = data.turns.find((turn) => turn.rowId === "react");
+    // 22s of tool wall time, but the child ran from 8s → only 4s is the
+    // parent's own hand-off work.
+    expect(parentTurn?.toolWork).toBe(4);
+    expect(parentTurn?.modelWork).toBe(4);
   });
 });
 

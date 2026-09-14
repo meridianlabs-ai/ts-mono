@@ -14,12 +14,14 @@ import {
   ActivityMarker,
   ActivitySpan,
   AgentRow,
+  ContextPoint,
   fmtDay,
   fmtDurationWords,
   fmtTime,
   fmtTimeSec,
   fmtTokens,
   kCategoryColor,
+  kScorerHue,
   StallRegion,
   TimeWindow,
 } from "./activityData";
@@ -30,7 +32,10 @@ const kBandLabelY = 14;
 const kPlotTop = 22;
 const kPlotBottom = 72;
 const kAxisHeight = 28;
+// 30px y-gutter for the common single-conversation case; multi-agent
+// samples widen it to carry the agent gutter (handoff 10a).
 const kYAxisWidth = 30;
+const kYAxisWidthGutter = 130;
 // Marks at the window end would otherwise sit on the svg edge and clip.
 const kPlotRightInset = 10;
 // The glyph rail above the bands (kMarkerHeadroom parity).
@@ -51,6 +56,11 @@ const kAgentRowFirstLabelY = 28;
 const kAgentSpanOffset = 32;
 const kAgentSpanHeight = 11;
 const kSubLaneHeight = 3.25;
+// Rows past this fold into one "+N more" summary row (handoff 10a).
+const kMaxAgentRows = 4;
+const kFoldRowId = "__fold__";
+// Gutter legend rows under the curve-band labels.
+const kLegendPitch = 14;
 // Density degrade: past ~1 span per 3px a row renders as occupancy columns.
 const kDensityPxPerSpan = 3;
 const kDensityColWidth = 2;
@@ -61,7 +71,7 @@ const kDensityHoverPx = 16;
 interface LineHover {
   bandId: string;
   x: number;
-  dotY: number;
+  dots: { y: number; hue: string }[];
   top: number;
   label: string;
 }
@@ -92,6 +102,9 @@ export interface ActivityChartProps {
   showTokens: boolean;
   showContext: boolean;
   showModelTool: boolean;
+  /** Conversation rows unchecked in the agent gutter (persisted ids). */
+  hiddenAgentIds?: string[];
+  onToggleAgent?: (id: string) => void;
   /** Selected history-row key — its marker holds the active treatment. */
   selectedKey: string | null;
   /** Marker click: select + scroll to its history row (auto-widening). */
@@ -106,6 +119,35 @@ export interface ActivityChartProps {
   onFilterWindow?: (window: TimeWindow) => void;
 }
 
+const kNoIds: string[] = [];
+
+const truncateLabel = (text: string, max: number): string =>
+  text.length > max ? `${text.slice(0, max - 1)}…` : text;
+
+/** Rows past the cap fold into one grey summary row until expanded. */
+const foldRows = (rows: AgentRow[], expanded: boolean): AgentRow[] => {
+  if (expanded || rows.length <= kMaxAgentRows) return rows;
+  const shown = rows.slice(0, kMaxAgentRows);
+  const folded = rows.slice(kMaxAgentRows);
+  const summary: AgentRow = {
+    id: kFoldRowId,
+    name: `+${folded.length} more`,
+    model: folded.map((row) => row.name).join(", "),
+    models: [],
+    hue: kScorerHue,
+    isSubAgent: false,
+    blockedOn: [],
+    spans: folded
+      .flatMap((row) => row.spans)
+      .sort((a, b) => a.start - b.start || a.end - b.end),
+    bursts: folded.flatMap((row) => row.bursts),
+    modelCount: folded.reduce((sum, row) => sum + row.modelCount, 0),
+    toolCount: folded.reduce((sum, row) => sum + row.toolCount, 0),
+    failedCount: folded.reduce((sum, row) => sum + row.failedCount, 0),
+  };
+  return [...shown, summary];
+};
+
 export const ActivityChart: FC<ActivityChartProps> = ({
   data,
   window: timeWindow,
@@ -114,6 +156,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   showTokens,
   showContext,
   showModelTool,
+  hiddenAgentIds = kNoIds,
+  onToggleAgent,
   selectedKey,
   onSelectMarker,
   hoveredRowKey,
@@ -143,8 +187,29 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const [spanHover, setSpanHover] = useState<SpanHover | null>(null);
   const [markerHover, setMarkerHover] = useState<MarkerHover | null>(null);
   const [binHover, setBinHover] = useState<BinHover | null>(null);
+  const [foldExpanded, setFoldExpanded] = useState(false);
 
-  const plotLeft = kYAxisWidth;
+  // ── conversation rows: fold, hide, gutter ─────────────────────────────
+  const multiAgent = data.agentRows.length > 1;
+  const displayRows = foldRows(data.agentRows, foldExpanded);
+  const hidden = new Set(hiddenAgentIds);
+  const visibleRows = displayRows.filter((row) => !hidden.has(row.id));
+  // Hidden rows drop out of every band: the id set covers the folded rows
+  // too, so a hidden fold row hides its members' curves and burn layers.
+  const visibleRowIds = new Set<string>();
+  for (const row of visibleRows) {
+    if (row.id === kFoldRowId) {
+      for (const folded of data.agentRows.slice(kMaxAgentRows)) {
+        visibleRowIds.add(folded.id);
+      }
+    } else {
+      visibleRowIds.add(row.id);
+    }
+  }
+  /** Curve rows: the real conversation rows that are currently visible. */
+  const curveRows = data.agentRows.filter((row) => visibleRowIds.has(row.id));
+
+  const plotLeft = multiAgent ? kYAxisWidthGutter : kYAxisWidth;
   const plotRight = Math.max(width - kPlotRightInset, plotLeft);
   const plotWidth = plotRight - plotLeft;
   const span = timeWindow.end - timeWindow.start;
@@ -210,12 +275,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     height: number;
   }
 
-  const agentRowCount = data.agentRows.length;
+  const agentRowCount = displayRows.length;
   // The one variable-height band: grows with agent-row count (decision 6).
   const modelToolPlotBottom = Math.max(
     kPlotBottom,
     kAgentRowFirstLabelY - 4 + agentRowCount * kAgentRowPitch + 4
   );
+  // Curve bands with a gutter legend grow to fit one legend line per row.
+  const legendPlotBottom = multiAgent
+    ? Math.max(kPlotBottom, kPlotTop + 6 + curveRows.length * kLegendPitch)
+    : kPlotBottom;
 
   const bands: Band[] = [];
   let cursor = showMarkers && data.markers.length > 0 ? markerHeadroom : 0;
@@ -229,10 +298,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     pushBand("modelTool", modelToolPlotBottom);
   }
   if (showContext && data.contextSeries.length > 0) {
-    pushBand("context", kPlotBottom);
+    pushBand("context", legendPlotBottom);
   }
   if (showTokens && data.tokenSeries.length > 0)
-    pushBand("tokens", kPlotBottom);
+    pushBand("tokens", legendPlotBottom);
   if (showWorking) pushBand("working", kPlotBottom);
 
   const axisY = (bands.length === 0 ? markerHeadroom + 24 : cursor) + 6;
@@ -285,6 +354,35 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     </text>
   );
 
+  /** Gutter legend for a curve band (handoff 10a): swatch · name · value. */
+  const gutterLegend = (
+    band: Band,
+    valueOf: (row: AgentRow) => string
+  ): ReactNode => {
+    if (!multiAgent) return null;
+    return curveRows.map((row, i) => {
+      const y = band.top + kPlotTop + 6 + i * kLegendPitch;
+      return (
+        <g key={`legend-${row.id}`}>
+          <circle cx={10} cy={y - 3} r={3} fill={row.hue} />
+          <text className={styles.legendName} x={17} y={y}>
+            {truncateLabel(row.name, 11)}
+          </text>
+          {/* Right-aligned short of the y-tick labels, which keep the
+              gutter's right edge. */}
+          <text
+            className={styles.legendValue}
+            x={plotLeft - 30}
+            y={y}
+            textAnchor="end"
+          >
+            {valueOf(row)}
+          </text>
+        </g>
+      );
+    });
+  };
+
   const cursorTime = (
     event: ReactMouseEvent<SVGRectElement>
   ): { px: number; t: number } => {
@@ -294,7 +392,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return { px, t: timeAt(px) };
   };
 
-  const crosshair = (band: Band, hover: LineHover, dotClass: string) => (
+  const crosshair = (band: Band, hover: LineHover) => (
     <Fragment>
       <line
         className={styles.crosshair}
@@ -303,7 +401,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         y1={band.top + kPlotTop - 4}
         y2={band.top + band.plotBottom}
       />
-      <circle className={dotClass} cx={hover.x} cy={hover.dotY} r={3} />
+      {hover.dots.map((dot, i) => (
+        <circle
+          key={i}
+          className={styles.hoverDot}
+          cx={hover.x}
+          cy={dot.y}
+          r={3}
+          fill={dot.hue}
+        />
+      ))}
     </Fragment>
   );
 
@@ -408,54 +515,133 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── TOKEN BURN ────────────────────────────────────────────────────────
 
-  const tokenValueAt = (t: number): number => {
-    let value = 0;
-    for (const point of data.tokenSeries) {
-      if (point.time > t) break;
-      value = point.value;
-    }
-    return value;
-  };
+  /** Cumulative burn per visible row up to `t` (row order preserved). */
+  const tokenValuesAt = (t: number): { row: AgentRow; value: number }[] =>
+    curveRows.map((row) => {
+      let value = 0;
+      for (const point of data.tokensByRow[row.id] ?? []) {
+        if (point.time > t) break;
+        value = point.value;
+      }
+      return { row, value };
+    });
 
   const renderTokens = (band: Band) => {
-    const max = Math.max(data.totalTokens, 1);
+    const visibleTotal = curveRows.reduce(
+      (sum, row) => sum + (data.tokenTotalsByRow[row.id] ?? 0),
+      0
+    );
+    const max = Math.max(visibleTotal, 1);
     const yMax = max * 1.05;
     const y = (v: number): number =>
-      band.top + kPlotBottom - (v / yMax) * (kPlotBottom - kPlotTop);
+      band.top + band.plotBottom - (v / yMax) * (band.plotBottom - kPlotTop);
 
-    // Cumulative step curve, decimated per pixel at scale.
-    let d = `M ${plotLeft} ${band.top + kPlotBottom}`;
+    // Stacked step areas, bottom-up in row order (handoff 10a): each burn
+    // point lifts its own row's layer and every layer above it. Layers are
+    // built from the time-sorted burn points so overlapping conversations
+    // stack correctly; single-conversation samples degenerate to one layer.
+    const points = data.tokenPoints.filter((p) => visibleRowIds.has(p.rowId));
+    const running = new Map<string, number>();
+    /** Per breakpoint, the cumulative stack top per row (row order). */
+    const steps: { x: number; tops: number[] }[] = [
+      { x: plotLeft, tops: curveRows.map(() => 0) },
+    ];
     let lastX = plotLeft;
-    for (const point of data.tokenSeries) {
+    points.forEach((point, i) => {
+      running.set(point.rowId, (running.get(point.rowId) ?? 0) + point.burned);
       const px = x(point.time);
-      if (
-        px - lastX >= 1 ||
-        point === data.tokenSeries[data.tokenSeries.length - 1]
-      ) {
-        d += ` H ${px.toFixed(1)} V ${y(point.value).toFixed(1)}`;
-        lastX = px;
-      }
-    }
-    d += ` H ${plotRight}`;
+      // Decimate per pixel at scale — but always keep the final point.
+      if (px - lastX < 1 && i < points.length - 1) return;
+      let stack = 0;
+      const tops = curveRows.map((row) => {
+        stack += running.get(row.id) ?? 0;
+        return stack;
+      });
+      steps.push({ x: px, tops });
+      lastX = px;
+    });
+
+    const layerPath = (rowIndex: number): string => {
+      const upper: string[] = [];
+      const lower: string[] = [];
+      steps.forEach((step, i) => {
+        const next = steps[i + 1];
+        const xEnd = next ? next.x : plotRight;
+        const top = y(step.tops[rowIndex] ?? 0);
+        const bottom = y(rowIndex > 0 ? (step.tops[rowIndex - 1] ?? 0) : 0);
+        upper.push(`${step.x.toFixed(1)},${top.toFixed(1)}`);
+        upper.push(`${xEnd.toFixed(1)},${top.toFixed(1)}`);
+        lower.push(`${xEnd.toFixed(1)},${bottom.toFixed(1)}`);
+        lower.push(`${step.x.toFixed(1)},${bottom.toFixed(1)}`);
+      });
+      return `M ${upper.join(" L ")} L ${lower.reverse().join(" L ")} Z`;
+    };
+    const edgePath = (rowIndex: number): string => {
+      let d = "";
+      steps.forEach((step, i) => {
+        const next = steps[i + 1];
+        const xEnd = next ? next.x : plotRight;
+        const top = y(step.tops[rowIndex] ?? 0).toFixed(1);
+        d += `${i === 0 ? "M" : " L"} ${step.x.toFixed(1)} ${top} L ${xEnd.toFixed(1)} ${top}`;
+      });
+      return d;
+    };
+
+    const shownNote =
+      curveRows.length < data.agentRows.length
+        ? ` · ${fmtTokens(visibleTotal)} shown`
+        : "";
+    const headline = multiAgent
+      ? `${fmtTokens(data.totalTokens)} total${shownNote} · stacked by conversation`
+      : `${fmtTokens(data.totalTokens)} total`;
 
     return (
       <g key="band-tokens">
         {bandLabel(band, "TOKEN BURN")}
-        {bandHeadline(band, `${fmtTokens(data.totalTokens)} total`)}
-        <path className={styles.tokenSeries} d={d} />
+        {bandHeadline(band, headline)}
+        {multiAgent ? (
+          curveRows.map((row, i) => (
+            <Fragment key={`burn-${row.id}`}>
+              <path
+                className={styles.tokenLayer}
+                d={layerPath(i)}
+                fill={row.hue}
+              />
+              <path
+                className={styles.tokenLayerEdge}
+                d={edgePath(i)}
+                stroke={row.hue}
+              />
+            </Fragment>
+          ))
+        ) : (
+          <path className={styles.tokenSeries} d={edgePath(0)} />
+        )}
         {axisFrame(band)}
         {yTicks(y, max)}
-        {lineHover?.bandId === "tokens" &&
-          crosshair(band, lineHover, styles.hoverDotTokens)}
+        {gutterLegend(band, (row) =>
+          fmtTokens(data.tokenTotalsByRow[row.id] ?? 0)
+        )}
+        {lineHover?.bandId === "tokens" && crosshair(band, lineHover)}
         {lineHitRect(band, (event) => {
           const { px, t } = cursorTime(event);
-          const value = tokenValueAt(t);
+          const values = tokenValuesAt(t);
+          let stack = 0;
+          const dots = values.map(({ row, value }) => {
+            stack += value;
+            return { y: y(stack), hue: multiAgent ? row.hue : "#495057" };
+          });
+          const label = multiAgent
+            ? values
+                .map(({ row, value }) => `${row.name} ${fmtTokens(value)}`)
+                .join(" · ") + ` · ${fmtTimeSec(t)}`
+            : `${stack.toLocaleString()} tokens · ${fmtTimeSec(t)}`;
           setLineHover({
             bandId: "tokens",
             x: px,
-            dotY: y(value),
+            dots,
             top: band.top + kPlotTop,
-            label: `${value.toLocaleString()} tokens · ${fmtTimeSec(t)}`,
+            label,
           });
         })}
       </g>
@@ -465,70 +651,97 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   // ── CONTEXT SIZE ──────────────────────────────────────────────────────
 
   const renderContext = (band: Band) => {
-    const dropMax = data.compactions.reduce(
+    const visibleCompactions = data.compactions.filter((drop) =>
+      visibleRowIds.has(drop.rowId)
+    );
+    const dropMax = visibleCompactions.reduce(
       (m, c) => Math.max(m, c.before ?? 0),
       0
     );
-    const max = Math.max(data.contextPeak, dropMax, 1);
+    const peak = curveRows.reduce(
+      (m, row) => Math.max(m, data.contextPeakByRow[row.id] ?? 0),
+      0
+    );
+    const max = Math.max(peak, dropMax, 1);
     const yMax = max * 1.05;
     const y = (v: number): number =>
-      band.top + kPlotBottom - (v / yMax) * (kPlotBottom - kPlotTop);
+      band.top + band.plotBottom - (v / yMax) * (band.plotBottom - kPlotTop);
 
-    // Split the polyline at compaction drops so the line doesn't slope
-    // through the cliff — each drop restarts the run at tokens_after.
-    const runs: { x: number; y: number }[][] = [];
-    let run: { x: number; y: number }[] = [];
-    let compactionIndex = 0;
-    for (const point of data.contextSeries) {
-      while (
-        compactionIndex < data.compactions.length &&
-        (data.compactions[compactionIndex]?.time ?? Infinity) <= point.time
-      ) {
-        const drop = data.compactions[compactionIndex]!;
-        if (run.length > 0) runs.push(run);
-        run =
-          drop.after !== undefined
-            ? [{ x: x(drop.time), y: y(drop.after) }]
-            : [];
-        compactionIndex += 1;
+    /** One polyline run per row, split at that row's compaction drops so
+     *  the line doesn't slope through the cliff — each drop restarts the
+     *  run at tokens_after. */
+    const rowRuns = (row: AgentRow): { x: number; y: number }[][] => {
+      const series = data.contextByRow[row.id] ?? [];
+      const drops = visibleCompactions.filter((d) => d.rowId === row.id);
+      const runs: { x: number; y: number }[][] = [];
+      let run: { x: number; y: number }[] = [];
+      let dropIndex = 0;
+      for (const point of series) {
+        while (
+          dropIndex < drops.length &&
+          (drops[dropIndex]?.time ?? Infinity) <= point.time
+        ) {
+          const drop = drops[dropIndex]!;
+          if (run.length > 0) runs.push(run);
+          run =
+            drop.after !== undefined
+              ? [{ x: x(drop.time), y: y(drop.after) }]
+              : [];
+          dropIndex += 1;
+        }
+        run.push({ x: x(point.time), y: y(point.value) });
       }
-      run.push({ x: x(point.time), y: y(point.value) });
-    }
-    if (run.length > 0) runs.push(run);
+      if (run.length > 0) runs.push(run);
+      return runs;
+    };
 
     // Dots only at sparse density — they'd smear into a rope at scale.
-    const sparse = data.contextSeries.length <= plotWidth / 8;
+    const visiblePoints = curveRows.reduce(
+      (sum, row) => sum + (data.contextByRow[row.id]?.length ?? 0),
+      0
+    );
+    const sparse = visiblePoints <= plotWidth / 8;
+
+    const headline = multiAgent
+      ? `per conversation · peak ${fmtTokens(peak)}`
+      : `peak ${fmtTokens(peak)}`;
 
     return (
       <g key="band-context">
         {bandLabel(band, "CONTEXT SIZE")}
-        {bandHeadline(band, `peak ${fmtTokens(data.contextPeak)}`)}
-        {runs.map((points, i) => (
-          <polyline
-            key={`ctx-run-${i}`}
-            className={styles.contextSeries}
-            points={points
-              .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
-              .join(" ")}
-          />
+        {bandHeadline(band, headline)}
+        {curveRows.map((row) => (
+          <g key={`ctx-${row.id}`}>
+            {rowRuns(row).map((points, i) => (
+              <polyline
+                key={`ctx-run-${i}`}
+                className={styles.contextSeries}
+                style={multiAgent ? { stroke: row.hue } : undefined}
+                points={points
+                  .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+                  .join(" ")}
+              />
+            ))}
+            {sparse &&
+              (data.contextByRow[row.id] ?? []).map((point, i) => (
+                <circle
+                  key={`ctx-dot-${i}`}
+                  className={styles.contextDot}
+                  style={multiAgent ? { fill: row.hue } : undefined}
+                  cx={x(point.time)}
+                  cy={y(point.value)}
+                  r={2}
+                />
+              ))}
+          </g>
         ))}
-        {sparse &&
-          data.contextSeries.map((point, i) => (
-            <circle
-              key={`ctx-dot-${i}`}
-              className={styles.contextDot}
-              cx={x(point.time)}
-              cy={y(point.value)}
-              r={2}
-            />
-          ))}
         {(() => {
           // Every drop draws its dashed cliff, but annotations declutter:
           // a label only renders with enough horizontal room after the
           // previously labeled drop (same philosophy as the N-longest
           // stall labels) — dense compaction runs stay readable.
           let lastLabelX = -Infinity;
-          return data.compactions.map((drop, i) => {
+          return visibleCompactions.map((drop, i) => {
             if (drop.before === undefined || drop.after === undefined) {
               return null;
             }
@@ -559,22 +772,41 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         })()}
         {axisFrame(band)}
         {yTicks(y, max)}
-        {lineHover?.bandId === "context" &&
-          crosshair(band, lineHover, styles.hoverDotContext)}
+        {gutterLegend(band, (row) =>
+          fmtTokens(data.contextPeakByRow[row.id] ?? 0)
+        )}
+        {lineHover?.bandId === "context" && crosshair(band, lineHover)}
         {lineHitRect(band, (event) => {
           const { px, t } = cursorTime(event);
-          // Nearest point at or before the cursor.
-          let value = 0;
-          for (const point of data.contextSeries) {
-            if (point.time > t) break;
-            value = point.value;
-          }
+          // Nearest point at or before the cursor, per visible row.
+          const values = curveRows.map((row) => {
+            let point: ContextPoint | undefined;
+            for (const candidate of data.contextByRow[row.id] ?? []) {
+              if (candidate.time > t) break;
+              point = candidate;
+            }
+            return { row, value: point?.value };
+          });
+          const dots = values
+            .filter((v) => v.value !== undefined)
+            .map((v) => ({
+              y: y(v.value ?? 0),
+              hue: multiAgent ? v.row.hue : "#3a7bd5",
+            }));
+          const label = multiAgent
+            ? values
+                .map(
+                  ({ row, value }) =>
+                    `${row.name} ${value === undefined ? "—" : fmtTokens(value)}`
+                )
+                .join(" · ") + ` · ${fmtTimeSec(t)}`
+            : `${(values[0]?.value ?? 0).toLocaleString()} tokens · ${fmtTimeSec(t)}`;
           setLineHover({
             bandId: "context",
             x: px,
-            dotY: y(value),
+            dots,
             top: band.top + kPlotTop,
-            label: `${value.toLocaleString()} tokens · ${fmtTimeSec(t)}`,
+            label,
           });
         })}
       </g>
@@ -583,11 +815,19 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── MODEL & TOOL ACTIVITY ─────────────────────────────────────────────
 
-  const spanWidth = (s: ActivitySpan): number =>
-    Math.max(x(s.end) - x(s.start), 1.5);
+  /** A hand-off tool call renders only until its child conversation starts;
+   *  the dotted blocked thread carries the rest (handoff 10a). */
+  const spanDrawEnd = (row: AgentRow, s: ActivitySpan): number => {
+    if (!s.handoffTo) return s.end;
+    const blocked = row.blockedOn.find((b) => b.childId === s.handoffTo);
+    return blocked ? Math.min(s.end, blocked.start) : s.end;
+  };
 
-  /** The row label's full text ("model · grader" / "model + tools") — the
-   *  burst-label declutter reserves its extent. */
+  const spanWidth = (row: AgentRow, s: ActivitySpan): number =>
+    Math.max(x(spanDrawEnd(row, s)) - x(s.start), 1.5);
+
+  /** The single-conversation row label ("model · grader" / "model + tools")
+   *  — the burst-label declutter reserves its extent. */
   const rowLabelText = (row: AgentRow): string =>
     `${row.model} ${row.role ? `· ${row.role}` : row.toolCount > 0 ? "+ tools" : ""}`;
 
@@ -602,6 +842,32 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     };
     return (
       <Fragment>
+        {row.blockedOn.map((blocked, i) => {
+          const x1 = x(blocked.start);
+          const x2 = x(blocked.end);
+          const yMid = spanY + kAgentSpanHeight / 2;
+          return (
+            <Fragment key={`blocked-${i}`}>
+              <line
+                className={styles.blockedThread}
+                x1={x1}
+                x2={x2}
+                y1={yMid}
+                y2={yMid}
+              />
+              {x2 - x1 >= 60 && (
+                <text
+                  className={styles.blockedLabel}
+                  x={(x1 + x2) / 2}
+                  y={spanY - 3}
+                  textAnchor="middle"
+                >
+                  awaiting {blocked.childName}
+                </text>
+              )}
+            </Fragment>
+          );
+        })}
         {row.spans.map((s, i) => {
           const subLaned = s.subLane !== undefined;
           const h = subLaned ? kSubLaneHeight : kAgentSpanHeight;
@@ -629,7 +895,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 )}
                 x={x(s.start)}
                 y={laneY(s)}
-                width={spanWidth(s)}
+                width={spanWidth(row, s)}
                 height={h}
                 rx={1}
                 onMouseEnter={() =>
@@ -652,8 +918,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           // row label. A label renders only with clear horizontal room
           // (after the row label and the previous burst label); the span
           // hover popover keeps the full detail for unlabeled bursts.
-          let lastLabelEnd =
-            kYAxisWidth + 4 + rowLabelText(row).length * 5 + 12;
+          let lastLabelEnd = multiAgent
+            ? plotLeft
+            : kYAxisWidth + 4 + rowLabelText(row).length * 5 + 12;
           return row.bursts.map((burst, i) => {
             const text =
               `${burst.label} ×${burst.count}` +
@@ -810,46 +1077,134 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     );
   };
 
-  const renderModelTool = (band: Band) => {
-    const totalSpans = data.agentRows.reduce(
-      (sum, row) => sum + row.spans.length,
-      0
+  /** Agent gutter row (handoff 10a): checkbox · hue swatch · name, with the
+   *  model (and "· sub-agent") on a second line. The fold row's checkbox
+   *  position carries the expand affordance instead. */
+  const renderGutterRow = (row: AgentRow, rowTop: number): ReactNode => {
+    const isFold = row.id === kFoldRowId;
+    const on = !hidden.has(row.id);
+    const nameY = rowTop + 6;
+    const label = isFold
+      ? `Show ${row.name.slice(1)} rows: ${row.model}`
+      : `${on ? "Hide" : "Show"} ${row.name}`;
+    const toggle = () =>
+      isFold ? setFoldExpanded(true) : onToggleAgent?.(row.id);
+    return (
+      <g>
+        {isFold ? (
+          <text className={styles.gutterExpand} x={4} y={nameY}>
+            ▸
+          </text>
+        ) : (
+          <Fragment>
+            <rect
+              className={clsx(
+                styles.gutterCheckbox,
+                on && styles.gutterCheckboxOn
+              )}
+              x={4}
+              y={nameY - 8}
+              width={9}
+              height={9}
+              rx={2}
+            />
+            {on && (
+              <path
+                className={styles.gutterCheck}
+                d={`M 6 ${nameY - 3.5} l 2 2 l 3.5 -4`}
+              />
+            )}
+          </Fragment>
+        )}
+        <circle cx={27} cy={nameY - 3.5} r={3} fill={row.hue} />
+        <text className={styles.gutterName} x={35} y={nameY}>
+          {truncateLabel(row.name, 16)}
+        </text>
+        <text className={styles.gutterModel} x={35} y={nameY + 9}>
+          {truncateLabel(
+            `${row.model}${row.isSubAgent ? " · sub-agent" : ""}${row.role && !isFold ? ` · ${row.role}` : ""}`,
+            22
+          )}
+        </text>
+        <rect
+          className={styles.gutterHit}
+          x={0}
+          y={rowTop - 4}
+          width={plotLeft - 4}
+          height={kAgentRowPitch}
+          role={isFold ? "button" : "checkbox"}
+          aria-checked={isFold ? undefined : on}
+          aria-label={label}
+          tabIndex={0}
+          onClick={toggle}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              toggle();
+            }
+          }}
+        />
+      </g>
     );
+  };
+
+  const renderModelTool = (band: Band) => {
     const totalTools = data.agentRows.reduce(
       (sum, row) => sum + row.toolCount,
       0
     );
-    const totalModels = totalSpans - totalTools;
-    const anyDense = data.agentRows.some(
+    const totalModels = data.agentRows.reduce(
+      (sum, row) => sum + row.modelCount,
+      0
+    );
+    const anyDense = visibleRows.some(
       (row) => row.spans.length > plotWidth / kDensityPxPerSpan
     );
+    const shownCount = curveRows.length;
     const headline = [
+      ...(multiAgent ? [`${data.agentRows.length} conversations`] : []),
       `${totalModels.toLocaleString()} model turns`,
       `${totalTools.toLocaleString()} tool calls`,
       ...(data.rejectedCount > 0 ? [`${data.rejectedCount} rejected`] : []),
       ...(anyDense ? ["per-pixel occupancy"] : []),
+      ...(multiAgent && shownCount < data.agentRows.length
+        ? [`${shownCount} of ${data.agentRows.length} shown`]
+        : []),
     ].join(" · ");
     return (
       <g key="band-model-tool">
         {bandLabel(band, "MODEL & TOOL ACTIVITY")}
         {bandHeadline(band, headline)}
-        {data.agentRows.map((row, i) => {
+        {displayRows.map((row, i) => {
           const rowTop = band.top + kAgentRowFirstLabelY + i * kAgentRowPitch;
           const dense = row.spans.length > plotWidth / kDensityPxPerSpan;
+          const on = !hidden.has(row.id);
           return (
             <g
-              key={`row-${row.model}-${row.role ?? ""}`}
-              className={row.role ? styles.roleRow : undefined}
+              key={`row-${row.id}`}
+              className={clsx(
+                row.role && styles.roleRow,
+                row.id === kFoldRowId && styles.foldRow
+              )}
             >
-              <text className={styles.rowLabel} x={kYAxisWidth + 4} y={rowTop}>
-                {row.model}{" "}
-                <tspan className={styles.rowLabelMuted}>
-                  {rowLabelText(row).slice(row.model.length + 1)}
-                </tspan>
-              </text>
-              {dense
-                ? renderDenseRow(row, rowTop, band)
-                : renderDiscreteRow(row, rowTop)}
+              {multiAgent ? (
+                renderGutterRow(row, rowTop)
+              ) : (
+                <text
+                  className={styles.rowLabel}
+                  x={kYAxisWidth + 4}
+                  y={rowTop}
+                >
+                  {row.model}{" "}
+                  <tspan className={styles.rowLabelMuted}>
+                    {rowLabelText(row).slice(row.model.length + 1)}
+                  </tspan>
+                </text>
+              )}
+              {on &&
+                (dense
+                  ? renderDenseRow(row, rowTop, band)
+                  : renderDiscreteRow(row, rowTop))}
             </g>
           );
         })}
@@ -1114,13 +1469,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     );
     // Find the band top for model/tool to anchor below the hovered row.
     const band = bands.find((b) => b.kind === "modelTool");
-    const rowIndex = data.agentRows.indexOf(row);
+    const rowIndex = displayRows.indexOf(row);
     const top =
       (band?.top ?? 0) +
       kAgentSpanOffset +
       Math.max(rowIndex, 0) * kAgentRowPitch +
       kAgentSpanHeight +
       4;
+    const handoffName = s.handoffTo
+      ? row.blockedOn.find((b) => b.childId === s.handoffTo)?.childName
+      : undefined;
     return (
       <div className={styles.spanPopover} style={{ left, top }}>
         <div className={styles.spanPopoverHeader}>
@@ -1138,11 +1496,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         </div>
         <div className={styles.spanPopoverBody}>
           {s.kind === "model" ? "model call" : "tool call"}
+          {multiAgent ? ` · ${row.name}` : ""}
           {row.role ? ` · ${row.role}` : ""}
           {` · ${fmtDurationWords(s.end - s.start)}`}
           {s.retries !== undefined && s.retries > 0
             ? ` · retried ×${s.retries}`
             : ""}
+          {handoffName ? ` · handed off to ${handoffName}` : ""}
           {s.failed ? (
             <span className={styles.spanPopoverFailed}> · failed</span>
           ) : (

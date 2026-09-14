@@ -3,6 +3,7 @@ import type {
   Event,
   ModelEvent,
   ScoreEvent,
+  ToolEvent,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
 
@@ -71,6 +72,11 @@ export const kCategoryShort: Record<ActivityCategory, string> = {
   score: "score",
 };
 
+/** Conversation hues, assigned in row order and cycled (handoff 10a);
+ *  grader/scorer rows always take kScorerHue. */
+export const kAgentHues = ["#3a7bd5", "#d9822b", "#b5537f", "#2f8a52"];
+export const kScorerHue = "#6c757d";
+
 // ── derived shapes ───────────────────────────────────────────────────────
 
 export interface WorkingSegment {
@@ -94,17 +100,37 @@ export interface StepPoint {
   value: number;
 }
 
+/** One model call's burn, attributed to its conversation row. */
+export interface TokenPoint {
+  time: number;
+  burned: number;
+  rowId: string;
+  uuid?: string;
+  /** 1-based interleaved turn index (set after the pass). */
+  turn?: number;
+}
+
 export interface ContextPoint {
   time: number;
   value: number;
+  rowId: string;
   uuid?: string;
+  /** Change versus the previous point on the same row. */
+  delta?: number;
+  /** Messages in the call's input — the tooltip's "messages" row. */
+  messages?: number;
+  turn?: number;
 }
 
 export interface CompactionDrop {
   time: number;
+  /** The conversation whose context was compacted. */
+  rowId: string;
   /** tokens_before, falling back to the context value at the drop. */
   before?: number;
   after?: number;
+  /** CompactionEvent.type — the tooltip's "strategy" row. */
+  strategy?: string;
   key: string;
   uuid?: string;
 }
@@ -115,15 +141,32 @@ export interface ActivitySpan {
   kind: "model" | "tool";
   /** Model name or tool function. */
   label: string;
+  rowId: string;
   failed: boolean;
   /** Open-ended span on a running sample — end extends to "now". */
   pending: boolean;
   retries?: number;
   uuid?: string;
+  /** 1-based interleaved turn index. */
+  turn?: number;
   /** Sub-lane index within a concurrent tool burst; undefined = full row. */
   subLane?: number;
   /** Sub-lane count of the burst this span belongs to (≤ kMaxSubLanes). */
   subLaneCount?: number;
+  /** Tool call that spawned a sub-agent conversation: the row id it handed
+   *  off to. The span renders only until that child starts; the blocked
+   *  interval takes over as the dotted "awaiting" thread. */
+  handoffTo?: string;
+  // Tooltip detail (handoff 11b) — model turns:
+  inputTokens?: number;
+  cachedTokens?: number;
+  outputTokens?: number;
+  stopReason?: string;
+  toolCalls?: string[];
+  // — tool calls:
+  resultBytes?: number;
+  firstArg?: string;
+  errorMessage?: string;
 }
 
 /** A run of concurrently-overlapping tool spans on one agent row. */
@@ -136,17 +179,58 @@ export interface ToolBurst {
   label: string;
   /** Spans beyond the sub-lane cap folded into the "+N" count. */
   folded: number;
+  /** Tool names, for the tooltip's mini list. */
+  names: string[];
 }
 
+/** A parent conversation waiting on a spawned child: from the child's
+ *  span start to its span end (handoff 10a "awaiting researcher"). */
+export interface BlockedInterval {
+  start: number;
+  end: number;
+  childId: string;
+  childName: string;
+}
+
+/** One row per conversation (agent, subtask or solver span); grader and
+ *  other role/scorer calls get their own rows (handoff 10a). */
 export interface AgentRow {
+  /** Conversation key: span id, `role:<role>`, `scorer:<name>` or `root`. */
+  id: string;
+  /** Display name: span name, role, or the model for the root fallback. */
+  name: string;
+  /** Latest model seen on the row (a swap inside one span stays here). */
   model: string;
+  /** Every model seen on the row, first-appearance order. */
+  models: string[];
   /** Secondary role (e.g. "grader") — rendered muted at 0.7 opacity. */
   role?: string;
+  hue: string;
+  isSubAgent: boolean;
+  blockedOn: BlockedInterval[];
   spans: ActivitySpan[];
   bursts: ToolBurst[];
   modelCount: number;
   toolCount: number;
   failedCount: number;
+}
+
+/** One model turn and the tool calls it issued — the Turns-axis column
+ *  (handoff 8b). Turns from every conversation interleave chronologically. */
+export interface TurnColumn {
+  /** 1-based. */
+  index: number;
+  rowId: string;
+  start: number;
+  end: number;
+  model?: ActivitySpan;
+  tools: ActivitySpan[];
+  /** Working seconds spent on the model call — the column's grey share. */
+  modelWork: number;
+  /** Working seconds spent in tool calls — the column's teal share. */
+  toolWork: number;
+  /** Non-approve approval decisions inside the turn (ghost slots). */
+  rejected: number;
 }
 
 export interface ActivityMarker {
@@ -193,14 +277,23 @@ export interface ActivityData {
   /** Seconds — sample scalar when present, else summed segments. */
   workingTime: number;
   totalTime: number;
-  /** Cumulative total-token step curve (one point per model call). */
+  /** Time-sorted raw burns, one per model call with usage. */
+  tokenPoints: TokenPoint[];
+  /** Cumulative total-token step curve across every conversation. */
   tokenSeries: StepPoint[];
   totalTokens: number;
-  /** Per-call input-side tokens at event time. */
+  /** Per-conversation cumulative burn (the chart stacks these). */
+  tokensByRow: Record<string, StepPoint[]>;
+  tokenTotalsByRow: Record<string, number>;
+  /** Per-call input-side tokens at event time, every conversation. */
   contextSeries: ContextPoint[];
   contextPeak: number;
+  /** One line per conversation; a sub-agent's starts at its first call. */
+  contextByRow: Record<string, ContextPoint[]>;
+  contextPeakByRow: Record<string, number>;
   compactions: CompactionDrop[];
   agentRows: AgentRow[];
+  turns: TurnColumn[];
   markers: ActivityMarker[];
   rows: ActivityHistoryRow[];
   /** Non-approve approval decisions (the activity headline's "N rejected"). */
@@ -245,6 +338,19 @@ export const fmtTokens = (value: number): string => {
   return String(Math.round(value));
 };
 
+/** Seconds with one decimal for short spans ("49.2s"), words above 1m. */
+export const fmtSeconds = (seconds: number): string => {
+  if (!Number.isFinite(seconds) || seconds < 0) return "—";
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  return fmtCompactDuration(seconds);
+};
+
+export const fmtBytes = (bytes: number): string => {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+};
+
 // ── search haystack ──────────────────────────────────────────────────────
 
 export const rowHaystack = (row: ActivityHistoryRow): string =>
@@ -257,6 +363,29 @@ export const rowHaystack = (row: ActivityHistoryRow): string =>
     row.detail ?? "",
     row.by,
   ].join(" ");
+
+// ── turn lookup ──────────────────────────────────────────────────────────
+
+/** The turn whose wall extent contains `t`, if any. Turns are sorted by
+ *  start; a parent's turn can contain a spawned child's turns, so the
+ *  latest-starting match wins (the innermost). */
+export const turnAt = (
+  turns: TurnColumn[],
+  t: number
+): TurnColumn | undefined => {
+  let match: TurnColumn | undefined;
+  for (const turn of turns) {
+    if (turn.start > t) break;
+    if (t <= turn.end) match = turn;
+  }
+  return match;
+};
+
+/** The first turn starting after `t` (markers between turns snap to it). */
+export const turnAfter = (
+  turns: TurnColumn[],
+  t: number
+): TurnColumn | undefined => turns.find((turn) => turn.start > t);
 
 // ── internals ────────────────────────────────────────────────────────────
 
@@ -272,6 +401,16 @@ const kMinGapSeconds = 1;
 /** Sub-lane cap for concurrent tool bursts (handoff decision 4). */
 export const kMaxSubLanes = 4;
 
+/** span_begin types that open a conversation (inspect_ai: AGENT_SPAN_TYPE
+ *  "agent", subtask(), solver spans). */
+const kConversationSpanTypes = new Set(["agent", "subtask", "solver"]);
+/** span_begin types under which model calls are scorer/grader work. */
+const kScorerSpanTypes = new Set(["scorer", "scorers"]);
+/** span_begin types that mean "spawned from a tool call". */
+const kSpawnSpanTypes = new Set(["tool", "handoff"]);
+
+const kRootRowId = "root";
+
 const truncate = (text: string, max = 120): string =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
@@ -285,17 +424,40 @@ const kDecisionWord: Record<ApprovalEvent["decision"], string> = {
   modify: "modified",
 };
 
+const valueText = (value: unknown): string =>
+  typeof value === "string" ? value : JSON.stringify(value);
+
 /** The call's arguments as a short mono string: a lone argument shows its
  *  value ("rm -rf build/"), several show `key: value` pairs. */
 const callArgsText = (args: Record<string, unknown>): string => {
   const entries = Object.entries(args);
-  const valueText = (value: unknown): string =>
-    typeof value === "string" ? value : JSON.stringify(value);
   const text =
     entries.length === 1
       ? valueText(entries[0]![1])
       : entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(", ");
   return truncate(text.replace(/\s+/g, " ").trim(), 60);
+};
+
+/** The first argument's value (url / cmd / path) for the tool tooltip. */
+const firstArgText = (args: Record<string, unknown>): string | undefined => {
+  const first = Object.values(args)[0];
+  if (first === undefined) return undefined;
+  const text = valueText(first).replace(/\s+/g, " ").trim();
+  return text ? truncate(text, 80) : undefined;
+};
+
+/** Byte-ish size of a tool result (string length; content parts summed). */
+const resultSize = (result: ToolEvent["result"]): number => {
+  if (typeof result === "string") return result.length;
+  if (typeof result === "number" || typeof result === "boolean") {
+    return String(result).length;
+  }
+  const parts = Array.isArray(result) ? result : [result];
+  let size = 0;
+  for (const part of parts) {
+    if (part.type === "text") size += part.text.length;
+  }
+  return size;
 };
 
 /** Wall completion for duration-bearing events (model/tool/subtask/sandbox). */
@@ -329,6 +491,37 @@ const allTokens = (event: ModelEvent): number | undefined => {
   return usageTotal(usage);
 };
 
+/** The model turn's stop reason and issued tool calls (tooltip "stop"). */
+const modelStop = (
+  event: ModelEvent
+): { stopReason?: string; toolCalls: string[] } => {
+  const choice = event.output.choices[0];
+  const toolCalls = (choice?.message.tool_calls ?? []).map(
+    (call) => call.function
+  );
+  return { stopReason: choice?.stop_reason, toolCalls };
+};
+
+/** span_begin bookkeeping for conversation keying. */
+interface SpanInfo {
+  id: string;
+  parentId?: string;
+  name: string;
+  type?: string;
+  start: number;
+  end?: number;
+}
+
+/** What a span_id resolves to: the conversation row it belongs to. */
+interface Conversation {
+  id: string;
+  name: string;
+  /** "role"/"scorer" rows sort last and take the scorer hue. */
+  role?: string;
+  /** The conversation's own span (agent/subtask/solver), when keyed by one. */
+  span?: SpanInfo;
+}
+
 export interface ActivityInputs {
   events: Event[];
   startedAt?: string | null;
@@ -346,6 +539,31 @@ export interface ActivityInputs {
 export const hasEventTimestamps = (events: Event[]): boolean =>
   events.some((event) => isoToEpoch(event.timestamp) !== undefined);
 
+const inertData = (inputs: ActivityInputs): ActivityData => ({
+  window: undefined,
+  workingSegments: [],
+  stalls: [],
+  workingTime: inputs.workingTime ?? 0,
+  totalTime: inputs.totalTime ?? 0,
+  tokenPoints: [],
+  tokenSeries: [],
+  totalTokens: 0,
+  tokensByRow: {},
+  tokenTotalsByRow: {},
+  contextSeries: [],
+  contextPeak: 0,
+  contextByRow: {},
+  contextPeakByRow: {},
+  compactions: [],
+  agentRows: [],
+  turns: [],
+  markers: [],
+  rows: [],
+  rejectedCount: 0,
+  pending: false,
+  hasWorkingSignal: false,
+});
+
 /**
  * The single O(n) pass over sample.events producing every band series,
  * stall region, marker, and history row (spec: Architecture).
@@ -358,11 +576,12 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
    *  overlapping calls (parallel subagents, concurrent scorers) complete
    *  out of event order, and the step path/hover both consume the series
    *  as time-ordered. */
-  const tokenPoints: { time: number; burned: number }[] = [];
+  const tokenPoints: TokenPoint[] = [];
   const contextSeries: ContextPoint[] = [];
   const compactions: CompactionDrop[] = [];
   const markers: ActivityMarker[] = [];
   const rows: ActivityHistoryRow[] = [];
+  const turns: TurnColumn[] = [];
   /** Retry-bearing model-call windows for stall attribution. */
   const retryWindows: {
     start: number;
@@ -370,8 +589,10 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     retries: number;
     uuid?: string;
   }[] = [];
-  const rowsByKey = new Map<string, AgentRow>();
+  const rowsById = new Map<string, AgentRow>();
   const agentRows: AgentRow[] = [];
+  /** The latest turn per row — tool calls attribute to it. */
+  const currentTurnByRow = new Map<string, TurnColumn>();
 
   let minTime = Infinity;
   let maxTime = -Infinity;
@@ -387,31 +608,13 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       ("working_time" in event && typeof event.working_time === "number") ||
       event.working_start > 0
   );
-  /** Temporal tool → model-row attribution: the row of the model call that
-   *  most recently started. */
-  let currentRow: AgentRow | undefined;
 
-  const rowFor = (model: string, role: string | undefined): AgentRow => {
-    const key = `${model} ${role ?? ""}`;
-    let row = rowsByKey.get(key);
-    if (!row) {
-      row = {
-        model,
-        role,
-        spans: [],
-        bursts: [],
-        modelCount: 0,
-        toolCount: 0,
-        failedCount: 0,
-      };
-      rowsByKey.set(key, row);
-      agentRows.push(row);
-    }
-    return row;
-  };
-
-  // Pre-scan for the time extent so `now` has a fallback before the main
-  // pass needs it for open-ended spans.
+  // ── pre-scan: time extent + span tree ─────────────────────────────────
+  // `now` needs a fallback before the main pass reaches open-ended spans,
+  // and conversation keying walks span parents that may begin after the
+  // events they enclose are logged (tool span_begin follows the ToolEvent
+  // in real logs).
+  const spans = new Map<string, SpanInfo>();
   for (const event of events) {
     const t = isoToEpoch(event.timestamp);
     if (t !== undefined) {
@@ -420,28 +623,26 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     }
     const completed = completedEpoch(event);
     if (completed !== undefined && completed > maxTime) maxTime = completed;
+    if (event.event === "span_begin" && t !== undefined) {
+      spans.set(event.id, {
+        id: event.id,
+        parentId: event.parent_id ?? undefined,
+        name: event.name,
+        type: event.type ?? undefined,
+        start: t,
+      });
+    }
+  }
+  for (const event of events) {
+    if (event.event !== "span_end") continue;
+    const span = spans.get(event.id);
+    const t = isoToEpoch(event.timestamp);
+    if (span && t !== undefined) span.end = t;
   }
   if (minTime > maxTime) {
     // No event timestamps at all — the caller hides the tab; still return
     // an inert shape so downstream code never branches on undefined arrays.
-    return {
-      window: undefined,
-      workingSegments: [],
-      stalls: [],
-      workingTime: inputs.workingTime ?? 0,
-      totalTime: inputs.totalTime ?? 0,
-      tokenSeries: [],
-      totalTokens: 0,
-      contextSeries: [],
-      contextPeak: 0,
-      compactions: [],
-      agentRows: [],
-      markers: [],
-      rows: [],
-      rejectedCount: 0,
-      pending: false,
-      hasWorkingSignal: false,
-    };
+    return inertData(inputs);
   }
 
   const startEpoch = isoToEpoch(inputs.startedAt);
@@ -456,6 +657,94 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         ? Math.max(endEpoch, maxTime)
         : maxTime;
   const window: TimeWindow = { start: windowStart, end: windowEnd };
+
+  // ── conversation keying (handoff 10a) ─────────────────────────────────
+  // Nearest enclosing agent/subtask/solver span keys the row; scorer spans
+  // met first make a scorer row; no span context → the root conversation.
+  const conversationCache = new Map<string, Conversation>();
+  const rootConversation: Conversation = { id: kRootRowId, name: "" };
+  const conversationForSpan = (
+    spanId: string | null | undefined
+  ): Conversation => {
+    if (!spanId) return rootConversation;
+    const cached = conversationCache.get(spanId);
+    if (cached) return cached;
+    let resolved: Conversation = rootConversation;
+    let cursor: SpanInfo | undefined = spans.get(spanId);
+    const visited = new Set<string>();
+    while (cursor && !visited.has(cursor.id)) {
+      visited.add(cursor.id);
+      if (
+        cursor.type !== undefined &&
+        kConversationSpanTypes.has(cursor.type)
+      ) {
+        resolved = { id: cursor.id, name: cursor.name, span: cursor };
+        break;
+      }
+      if (cursor.type !== undefined && kScorerSpanTypes.has(cursor.type)) {
+        resolved = {
+          id: `scorer:${cursor.name}`,
+          name: cursor.name,
+          role: "scorer",
+        };
+        break;
+      }
+      cursor = cursor.parentId ? spans.get(cursor.parentId) : undefined;
+    }
+    conversationCache.set(spanId, resolved);
+    return resolved;
+  };
+  /** Role-bearing model calls (grader etc.) get their own row regardless
+   *  of span context (handoff: scorer-role ModelEvents key on the role). */
+  const conversationFor = (
+    spanId: string | null | undefined,
+    role: string | null | undefined
+  ): Conversation =>
+    role
+      ? { id: `role:${role}`, name: role, role }
+      : conversationForSpan(spanId);
+
+  const rowFor = (conversation: Conversation): AgentRow => {
+    let row = rowsById.get(conversation.id);
+    if (!row) {
+      row = {
+        id: conversation.id,
+        name: conversation.name,
+        model: "",
+        models: [],
+        role: conversation.role,
+        hue: kScorerHue,
+        isSubAgent: false,
+        blockedOn: [],
+        spans: [],
+        bursts: [],
+        modelCount: 0,
+        toolCount: 0,
+        failedCount: 0,
+      };
+      rowsById.set(conversation.id, row);
+      agentRows.push(row);
+    }
+    return row;
+  };
+  /** Conversation span per row id, for parent/child resolution after the pass. */
+  const spanByRowId = new Map<string, SpanInfo>();
+
+  const newTurn = (rowId: string, start: number, end: number): TurnColumn => {
+    const turn: TurnColumn = {
+      index: 0,
+      rowId,
+      start,
+      end,
+      tools: [],
+      modelWork: 0,
+      toolWork: 0,
+      rejected: 0,
+    };
+    turns.push(turn);
+    currentTurnByRow.set(rowId, turn);
+    return turn;
+  };
 
   events.forEach((event, index) => {
     const t = isoToEpoch(event.timestamp);
@@ -481,22 +770,34 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const isPending = event.pending === true && completed === undefined;
         const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
         if (isPending) pending = true;
-        const role = event.role ?? undefined;
-        const row = rowFor(event.model, role);
+        const conversation = conversationFor(event.span_id, event.role);
+        const row = rowFor(conversation);
+        if (conversation.span) spanByRowId.set(row.id, conversation.span);
         row.modelCount += 1;
-        row.spans.push({
+        row.model = event.model;
+        if (!row.models.includes(event.model)) row.models.push(event.model);
+        const usage = event.output.usage ?? undefined;
+        const { stopReason, toolCalls } = modelStop(event);
+        const span: ActivitySpan = {
           start: t,
           end,
           kind: "model",
           label: event.model,
+          rowId: row.id,
           failed: false,
           pending: isPending,
           retries: event.retries ?? undefined,
           uuid,
-        });
-        // Tool calls that follow attribute to the primary row even when a
-        // grader ran in between — grader rows don't call tools.
-        if (!role) currentRow = row;
+          inputTokens: usage ? inputSideTokens(event) : undefined,
+          cachedTokens: usage?.input_tokens_cache_read ?? undefined,
+          outputTokens: usage?.output_tokens,
+          stopReason,
+          toolCalls,
+        };
+        row.spans.push(span);
+        const turn = newTurn(row.id, t, end);
+        turn.model = span;
+        turn.modelWork = Math.min(workingTime ?? end - t, end - t);
         if ((event.retries ?? 0) > 0) {
           retryWindows.push({
             start: t,
@@ -507,11 +808,22 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         }
         const burned = allTokens(event);
         if (burned !== undefined && burned > 0) {
-          tokenPoints.push({ time: completed ?? t, burned });
+          tokenPoints.push({
+            time: completed ?? t,
+            burned,
+            rowId: row.id,
+            uuid,
+          });
         }
         const context = inputSideTokens(event);
         if (context !== undefined && context > 0) {
-          contextSeries.push({ time: t, value: context, uuid });
+          contextSeries.push({
+            time: t,
+            value: context,
+            rowId: row.id,
+            uuid,
+            messages: event.input.length,
+          });
           lastContext = context;
           if (context > contextPeak) contextPeak = context;
         }
@@ -522,18 +834,33 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const isPending = event.pending === true && completed === undefined;
         const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
         if (isPending) pending = true;
-        const row = currentRow ?? rowFor("tools", undefined);
+        const conversation = conversationForSpan(event.span_id);
+        const row = rowFor(conversation);
+        if (conversation.span) spanByRowId.set(row.id, conversation.span);
         row.toolCount += 1;
         if (failed) row.failedCount += 1;
-        row.spans.push({
+        const span: ActivitySpan = {
           start: t,
           end,
           kind: "tool",
           label: event.function,
+          rowId: row.id,
           failed,
           pending: isPending,
           uuid,
-        });
+          resultBytes: resultSize(event.result),
+          firstArg: firstArgText(event.arguments),
+          errorMessage: event.error?.message
+            ? truncate(event.error.message, 160)
+            : undefined,
+        };
+        row.spans.push(span);
+        // Attribute to the row's latest model turn (a tool before any model
+        // call on its row — odd but possible — opens a tool-only turn).
+        const turn = currentTurnByRow.get(row.id) ?? newTurn(row.id, t, end);
+        turn.tools.push(span);
+        turn.end = Math.max(turn.end, end);
+        turn.toolWork += Math.min(workingTime ?? end - t, end - t);
         if (failed) {
           const at = completed ?? t;
           markers.push({
@@ -603,6 +930,14 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         rejectedCount += 1;
         const word = kDecisionWord[event.decision];
         const args = callArgsText(event.call.arguments);
+        // The rejected call belongs to the conversation's current turn —
+        // its ghost slot draws there in Turns mode.
+        const conversation = conversationForSpan(event.span_id);
+        const turn = currentTurnByRow.get(conversation.id);
+        if (turn) {
+          turn.rejected += 1;
+          turn.end = Math.max(turn.end, t);
+        }
         markers.push({
           time: t,
           category: "approval",
@@ -641,7 +976,9 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           key,
           uuid,
           lead: "Input provided",
-          detail: event.input ? `“${truncate(event.input, 80)}”` : undefined,
+          detail: event.input
+            ? `“${truncate(event.input.replace(/\s+/g, " ").trim(), 80)}”`
+            : undefined,
           by: "user",
         });
         break;
@@ -669,7 +1006,15 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const before =
           event.tokens_before ?? (lastContext > 0 ? lastContext : undefined);
         const after = event.tokens_after ?? undefined;
-        compactions.push({ time: t, before, after, key, uuid });
+        compactions.push({
+          time: t,
+          rowId: conversationForSpan(event.span_id).id,
+          before,
+          after,
+          strategy: event.type,
+          key,
+          uuid,
+        });
         markers.push({
           time: t,
           category: "compaction",
@@ -784,15 +1129,6 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     pushWorking(prev.wall, windowEnd);
   }
 
-  // Overlapping calls complete out of event order — sort the raw burns by
-  // time, then accumulate into the cumulative step curve.
-  tokenPoints.sort((a, b) => a.time - b.time);
-  let cumulativeTokens = 0;
-  const tokenSeries: StepPoint[] = tokenPoints.map((point) => {
-    cumulativeTokens += point.burned;
-    return { time: point.time, value: cumulativeTokens };
-  });
-
   // Attributable stalls become history rows (handoff mock: the rate-limit
   // stall reads as an error row; unattributed waits stay chart-only).
   for (const stall of stalls) {
@@ -808,18 +1144,139 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     });
   }
 
-  // ── per-row concurrent tool bursts → sub-lanes ────────────────────────
+  // ── rows: names, order, hues, parent/child ────────────────────────────
   for (const row of agentRows) {
+    if (!row.name) row.name = row.model || "tools";
     row.spans.sort((a, b) => a.start - b.start || a.end - b.end);
     assignSubLanes(row);
   }
-  // Primary rows first (in first-appearance order), role rows after.
+  // Primary rows first (in first-appearance order), role/scorer rows after.
+  const firstStart = (row: AgentRow) => row.spans[0]?.start ?? Infinity;
   agentRows.sort((a, b) => {
     const roleRank = (row: AgentRow) => (row.role ? 1 : 0);
     if (roleRank(a) !== roleRank(b)) return roleRank(a) - roleRank(b);
-    const first = (row: AgentRow) => row.spans[0]?.start ?? Infinity;
-    return first(a) - first(b);
+    return firstStart(a) - firstStart(b);
   });
+  let hueIndex = 0;
+  for (const row of agentRows) {
+    row.hue = row.role
+      ? kScorerHue
+      : kAgentHues[hueIndex++ % kAgentHues.length]!;
+  }
+  // A conversation nested inside another conversation that has its own row
+  // is a sub-agent; its parent waits on it for the child span's extent.
+  for (const row of agentRows) {
+    const own = spanByRowId.get(row.id);
+    if (!own) continue;
+    let spawned = false;
+    let parentRow: AgentRow | undefined;
+    let cursor: SpanInfo | undefined = own.parentId
+      ? spans.get(own.parentId)
+      : undefined;
+    const visited = new Set<string>([own.id]);
+    while (cursor && !visited.has(cursor.id)) {
+      visited.add(cursor.id);
+      if (cursor.type !== undefined && kSpawnSpanTypes.has(cursor.type)) {
+        spawned = true;
+      }
+      const candidate = rowsById.get(cursor.id);
+      if (candidate && candidate !== row) {
+        parentRow = candidate;
+        break;
+      }
+      cursor = cursor.parentId ? spans.get(cursor.parentId) : undefined;
+    }
+    if (!parentRow) continue;
+    row.isSubAgent = true;
+    const childStart = own.start;
+    const childEnd =
+      own.end ??
+      (running
+        ? windowEnd
+        : Math.max(childStart, ...row.spans.map((span) => span.end)));
+    // The parent's tool call covering the child's start is the hand-off:
+    // it renders up to the child's start, the dotted thread takes over.
+    const spawnSpan = spawned
+      ? parentRow.spans.find(
+          (span) =>
+            span.kind === "tool" &&
+            span.start <= childStart &&
+            span.end >= childStart
+        )
+      : undefined;
+    if (spawnSpan) spawnSpan.handoffTo = row.id;
+    if (childEnd > childStart) {
+      parentRow.blockedOn.push({
+        start: childStart,
+        end: childEnd,
+        childId: row.id,
+        childName: row.name,
+      });
+    }
+  }
+  for (const row of agentRows) {
+    row.blockedOn.sort((a, b) => a.start - b.start);
+  }
+
+  // ── turns: interleave every conversation chronologically ─────────────
+  turns.sort((a, b) => a.start - b.start || a.end - b.end);
+  turns.forEach((turn, i) => {
+    turn.index = i + 1;
+    if (turn.model) turn.model.turn = turn.index;
+    for (const tool of turn.tools) tool.turn = turn.index;
+    // A hand-off tool's working time is the child's run, not the parent's
+    // own work — its share stops where the child starts.
+    for (const tool of turn.tools) {
+      if (!tool.handoffTo) continue;
+      const blocked = rowsById
+        .get(turn.rowId)
+        ?.blockedOn.find((b) => b.childId === tool.handoffTo);
+      if (blocked) {
+        turn.toolWork -= Math.max(0, tool.end - blocked.start);
+        if (turn.toolWork < 0) turn.toolWork = 0;
+      }
+    }
+  });
+  const turnByModelUuid = new Map<string, number>();
+  for (const turn of turns) {
+    if (turn.model?.uuid) turnByModelUuid.set(turn.model.uuid, turn.index);
+  }
+
+  // ── token burn: total + per-row cumulative ────────────────────────────
+  // Overlapping calls complete out of event order — sort the raw burns by
+  // time, then accumulate.
+  tokenPoints.sort((a, b) => a.time - b.time);
+  let cumulativeTokens = 0;
+  const tokenSeries: StepPoint[] = [];
+  const tokensByRow: Record<string, StepPoint[]> = {};
+  const tokenTotalsByRow: Record<string, number> = {};
+  for (const point of tokenPoints) {
+    if (point.uuid) point.turn = turnByModelUuid.get(point.uuid);
+    cumulativeTokens += point.burned;
+    tokenSeries.push({ time: point.time, value: cumulativeTokens });
+    const rowTotal = (tokenTotalsByRow[point.rowId] ?? 0) + point.burned;
+    tokenTotalsByRow[point.rowId] = rowTotal;
+    (tokensByRow[point.rowId] ??= []).push({
+      time: point.time,
+      value: rowTotal,
+    });
+  }
+
+  // ── context: per-row lines, deltas, peaks ─────────────────────────────
+  contextSeries.sort((a, b) => a.time - b.time);
+  const contextByRow: Record<string, ContextPoint[]> = {};
+  const contextPeakByRow: Record<string, number> = {};
+  for (const point of contextSeries) {
+    if (point.uuid) point.turn = turnByModelUuid.get(point.uuid);
+    const rowPoints = (contextByRow[point.rowId] ??= []);
+    const previous = rowPoints[rowPoints.length - 1];
+    if (previous) point.delta = point.value - previous.value;
+    rowPoints.push(point);
+    contextPeakByRow[point.rowId] = Math.max(
+      contextPeakByRow[point.rowId] ?? 0,
+      point.value
+    );
+  }
 
   markers.sort((a, b) => a.time - b.time);
   rows.sort((a, b) => a.time - b.time);
@@ -835,12 +1292,18 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     stalls,
     workingTime,
     totalTime,
+    tokenPoints,
     tokenSeries,
     totalTokens: cumulativeTokens,
+    tokensByRow,
+    tokenTotalsByRow,
     contextSeries,
     contextPeak,
+    contextByRow,
+    contextPeakByRow,
     compactions,
     agentRows,
+    turns,
     markers,
     rows,
     rejectedCount,
@@ -880,6 +1343,7 @@ const assignSubLanes = (row: AgentRow): void => {
         failed,
         label: dominant,
         folded: Math.max(0, burst.length - kMaxSubLanes),
+        names: burst.map((span) => span.label),
       });
     }
     burst = [];
