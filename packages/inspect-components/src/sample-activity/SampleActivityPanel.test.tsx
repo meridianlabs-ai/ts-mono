@@ -26,38 +26,7 @@ import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeReactiveStateStore } from "@tsmono/react/testing";
 
 import { SampleActivityPanel } from "./SampleActivityPanel";
-
-/** ResizeObserver that reports a real size synchronously on observe: the
- *  chart renders nothing at width 0, and the virtualizer computes an empty
- *  range from a zero-height scroll rect. jsdom provides neither. */
-class ImmediateResizeObserver implements ResizeObserver {
-  private readonly callback: ResizeObserverCallback;
-  constructor(callback: ResizeObserverCallback) {
-    this.callback = callback;
-  }
-  observe(target: globalThis.Element) {
-    const size: ResizeObserverSize = { inlineSize: 1000, blockSize: 600 };
-    const rect = new DOMRectReadOnly(0, 0, 1000, 600);
-    this.callback(
-      [
-        {
-          target,
-          contentRect: rect,
-          borderBoxSize: [size],
-          contentBoxSize: [size],
-          devicePixelContentBoxSize: [size],
-        },
-      ],
-      this
-    );
-  }
-  unobserve() {}
-  disconnect() {}
-}
-
-const kRunStart = Date.parse("2025-01-15T10:00:00.000Z") / 1000;
-const iso = (sec: number): string =>
-  new Date((kRunStart + sec) * 1000).toISOString();
+import { ImmediateResizeObserver, iso } from "./testHelpers";
 
 const fixtureEvents = (): Event[] => [
   testModelEvent({

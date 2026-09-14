@@ -1167,6 +1167,18 @@ describe("turns (handoff 8b)", () => {
     expect(data.tokenPoints.map((p) => p.turn)).toEqual([1, 2, 3]);
   });
 
+  it("links curve points to their turn without event uuids", () => {
+    // Pre-uuid logs: the burn/context points still know which turn made
+    // them, so Turns mode can place them on the column's right edge.
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 10, workingStart: 0, input: 100 }),
+      modelCall({ start: 20, duration: 10, workingStart: 20, input: 200 }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.tokenPoints.map((point) => point.turn)).toEqual([1, 2]);
+    expect(data.contextSeries.map((point) => point.turn)).toEqual([1, 2]);
+  });
+
   it("locates markers inside a turn and snaps between-turn markers forward", () => {
     const events: Event[] = [
       modelCall({ start: 0, duration: 4, workingStart: 0, uuid: "m1" }),

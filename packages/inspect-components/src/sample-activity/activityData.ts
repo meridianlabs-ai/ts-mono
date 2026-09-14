@@ -598,6 +598,10 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   const agentRows: AgentRow[] = [];
   /** The latest turn per row — tool calls attribute to it. */
   const currentTurnByRow = new Map<string, TurnColumn>();
+  /** The turn that produced each burn/context point. Turns are numbered
+   *  after the pass (they interleave across conversations), so the link is
+   *  by identity — pre-uuid logs have no other handle. */
+  const turnOfPoint = new Map<TokenPoint | ContextPoint, TurnColumn>();
 
   let minTime = Infinity;
   let maxTime = -Infinity;
@@ -828,22 +832,26 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         }
         const burned = allTokens(event);
         if (burned !== undefined && burned > 0) {
-          tokenPoints.push({
+          const point: TokenPoint = {
             time: completed ?? t,
             burned,
             rowId: row.id,
             uuid,
-          });
+          };
+          tokenPoints.push(point);
+          turnOfPoint.set(point, turn);
         }
         const context = inputSideTokens(event);
         if (context !== undefined && context > 0) {
-          contextSeries.push({
+          const point: ContextPoint = {
             time: t,
             value: context,
             rowId: row.id,
             uuid,
             messages: event.input.length,
-          });
+          };
+          contextSeries.push(point);
+          turnOfPoint.set(point, turn);
           lastContextByRow.set(row.id, context);
           if (context > contextPeak) contextPeak = context;
         }
@@ -1260,10 +1268,6 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       }
     }
   });
-  const turnByModelUuid = new Map<string, number>();
-  for (const turn of turns) {
-    if (turn.model?.uuid) turnByModelUuid.set(turn.model.uuid, turn.index);
-  }
 
   // ── token burn: total + per-row cumulative ────────────────────────────
   // Overlapping calls complete out of event order — sort the raw burns by
@@ -1277,7 +1281,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   const tokensByRow = new Map<string, StepPoint[]>();
   const tokenTotalsByRow = new Map<string, number>();
   for (const point of tokenPoints) {
-    if (point.uuid) point.turn = turnByModelUuid.get(point.uuid);
+    point.turn = turnOfPoint.get(point)?.index;
     cumulativeTokens += point.burned;
     tokenSeries.push({ time: point.time, value: cumulativeTokens });
     const rowTotal = (tokenTotalsByRow.get(point.rowId) ?? 0) + point.burned;
@@ -1292,7 +1296,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   const contextByRow = new Map<string, ContextPoint[]>();
   const contextPeakByRow = new Map<string, number>();
   for (const point of contextSeries) {
-    if (point.uuid) point.turn = turnByModelUuid.get(point.uuid);
+    point.turn = turnOfPoint.get(point)?.index;
     let rowPoints = contextByRow.get(point.rowId);
     if (!rowPoints) contextByRow.set(point.rowId, (rowPoints = []));
     const previous = rowPoints[rowPoints.length - 1];
