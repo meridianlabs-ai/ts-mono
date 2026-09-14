@@ -10,10 +10,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
+  testCompactionEvent,
   testModelEvent,
   testModelOutput,
   testModelUsage,
   testSpanBeginEvent,
+  testSpanEndEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
@@ -285,6 +287,57 @@ describe("ActivityChart corrupt telemetry", () => {
 });
 
 describe("ActivityChart curve read-outs", () => {
+  /** Hover the context band at `clientX` and open the curve card. */
+  const hoverContext = (container: HTMLElement, clientX: number) => {
+    const hit = container.querySelector("rect[class*='plotHit']");
+    if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+    const contextLabel = [
+      ...container.querySelectorAll("text[class*='bandLabel']"),
+    ].find((label) => label.textContent === "CONTEXT SIZE");
+    fireEvent.mouseMove(hit, {
+      clientX,
+      clientY: attr(contextLabel ?? null, "y") + 30,
+    });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    return container.querySelector("[class*='tooltip']")?.textContent ?? "";
+  };
+
+  it.each(["wall", "turns"] as const)(
+    "reads the compacted size after a trailing compaction in %s mode",
+    (axisMode) => {
+      vi.useFakeTimers();
+      try {
+        // Context 100 at t=0, compaction 100→20 at t=5 and nothing but a
+        // stray span end after it: hovering past the cliff reads 20. The
+        // Turns axis has no column after the last turn, so the drop sits
+        // on the plot's right edge and the read-out there holds it.
+        const { container } = renderChart(
+          [
+            modelCall({ start: 0, end: 1, uuid: "m", input: 100 }),
+            testCompactionEvent({
+              timestamp: iso(5),
+              tokens_before: 100,
+              tokens_after: 20,
+            }),
+            testSpanEndEvent({ id: "unmatched", timestamp: iso(10) }),
+          ],
+          { axisMode }
+        );
+        const { left, right, width } = plotBounds(container);
+        const text = hoverContext(
+          container,
+          axisMode === "wall" ? left + width * 0.8 : right
+        );
+        expect(text).toContain("20 tokens in context");
+        expect(text).not.toContain("100 tokens in context");
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+
   it("reads the context line at the cursor, interpolating between points", () => {
     vi.useFakeTimers();
     try {

@@ -16,6 +16,7 @@ import {
   ActivityMarker,
   ActivitySpan,
   AgentRow,
+  CompactionDrop,
   ContextPoint,
   fmtDay,
   fmtDurationWords,
@@ -442,20 +443,28 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const runs: ContextVertex[][] = [];
     let run: ContextVertex[] = [];
     let dropIndex = 0;
+    const applyDrop = (drop: CompactionDrop) => {
+      if (run.length > 0) runs.push(run);
+      run =
+        drop.after !== undefined
+          ? [{ x: xAt(drop.time), value: drop.after }]
+          : [];
+    };
     for (const point of series) {
       while (
         dropIndex < drops.length &&
         (drops[dropIndex]?.time ?? Infinity) <= point.time
       ) {
-        const drop = drops[dropIndex]!;
-        if (run.length > 0) runs.push(run);
-        run =
-          drop.after !== undefined
-            ? [{ x: xAt(drop.time), value: drop.after }]
-            : [];
+        applyDrop(drops[dropIndex]!);
         dropIndex += 1;
       }
       run.push({ x: pointX(point.time, point.turn), value: point.value });
+    }
+    // A compaction with no model call after it (running sample, truncated
+    // or completed log) still ends the line at tokens_after: the read-out
+    // past the cliff must hold the compacted size, not the pre-drop value.
+    for (; dropIndex < drops.length; dropIndex += 1) {
+      applyDrop(drops[dropIndex]!);
     }
     if (run.length > 0) runs.push(run);
     return runs;
