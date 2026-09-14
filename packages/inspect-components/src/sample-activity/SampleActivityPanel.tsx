@@ -9,11 +9,13 @@ import {
 
 import type { Event } from "@tsmono/inspect-common/types";
 import { useProperty } from "@tsmono/react/hooks";
+import { isRecord, nullProtoRecord } from "@tsmono/util";
 
 import { ActivityChart } from "./ActivityChart";
 import {
   ActivityCategory,
   deriveActivityData,
+  kActivityCategories,
   rowHaystack,
   TimeWindow,
 } from "./activityData";
@@ -29,6 +31,57 @@ export const kSampleActivityBag = "sample-activity";
 // Stable empty arrays — a fresh identity would re-render every row.
 const kNoKeys: string[] = [];
 const kNoCategories: ActivityCategory[] = [];
+const kNoOverrides: Record<string, boolean> = {};
+
+// ── persisted-state guards ───────────────────────────────────────────────
+// The property bag holds whatever an earlier build, another surface or a
+// hand-edited store wrote under these keys. A value of the wrong shape
+// would throw on every mount of this sample's Activity view (and persist),
+// so each read narrows an `unknown` and falls back instead of trusting the
+// generic. Unknown ids are dropped rather than kept: a stale category id
+// would otherwise silently filter out every row.
+
+const kCategoryIds = new Set<string>(kActivityCategories);
+const isCategory = (value: unknown): value is ActivityCategory =>
+  typeof value === "string" && kCategoryIds.has(value);
+const isString = (value: unknown): value is string => typeof value === "string";
+
+const readOverrides = (raw: unknown): Record<string, boolean> | undefined => {
+  if (!isRecord(raw)) return undefined;
+  const entries = new Map<string, boolean>();
+  for (const [id, on] of Object.entries(raw)) {
+    if (typeof on === "boolean") entries.set(id, on);
+  }
+  return nullProtoRecord(entries);
+};
+const readAxis = (raw: unknown): AxisMode | undefined =>
+  raw === "wall" || raw === "turns" ? raw : undefined;
+const readSort = (raw: unknown): "asc" | "desc" | undefined =>
+  raw === "asc" || raw === "desc" ? raw : undefined;
+const readStrings = (raw: unknown): string[] | undefined =>
+  Array.isArray(raw) ? raw.filter(isString) : undefined;
+const readCategories = (raw: unknown): ActivityCategory[] | undefined =>
+  Array.isArray(raw) ? raw.filter(isCategory) : undefined;
+const readString = (raw: unknown): string | undefined =>
+  typeof raw === "string" ? raw : undefined;
+const readSelection = (raw: unknown): string | null | undefined =>
+  typeof raw === "string" || raw === null ? raw : undefined;
+
+/** A durable property read through a guard: malformed or absent values
+ *  read as `fallback`; writes stay typed. */
+const usePersisted = <T,>(
+  name: string,
+  scope: string,
+  read: (raw: unknown) => T | undefined,
+  fallback: T
+): [T, (value: T) => void] => {
+  const [raw, setRaw] = useProperty<unknown>(
+    kSampleActivityBag,
+    `${name}:${scope}`
+  );
+  const value = read(raw);
+  return [value === undefined ? fallback : value, setRaw];
+};
 
 export interface SampleActivityPanelProps {
   events: Event[];
@@ -135,9 +188,12 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
   });
 
   // ── band picker (curated default-on set, handoff decision 1) ─────────
-  const [bandOverrides, setBandOverrides] = useProperty<
-    Record<string, boolean>
-  >(kSampleActivityBag, `bands:${persistScope}`, { defaultValue: {} });
+  const [bandOverrides, setBandOverrides] = usePersisted(
+    "bands",
+    persistScope,
+    readOverrides,
+    kNoOverrides
+  );
   const bandOn = (id: string, fallback: boolean): boolean =>
     bandOverrides[id] ?? fallback;
   const toggleBand = (id: string, fallback: boolean) => {
@@ -146,10 +202,11 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
 
   // X axis (handoff 8a/8b): wall clock by default; Turns tiles one column
   // per model turn. Persisted beside the band overrides.
-  const [axisMode, setAxisMode] = useProperty<AxisMode>(
-    kSampleActivityBag,
-    `axis:${persistScope}`,
-    { defaultValue: "wall" }
+  const [axisMode, setAxisMode] = usePersisted(
+    "axis",
+    persistScope,
+    readAxis,
+    "wall"
   );
   // Turns without a single turn (zero-ModelEvent sample) has nothing to
   // tile — the chart falls back to the wall clock.
@@ -167,11 +224,16 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
   const showWorking =
     bandOn("working", false) && data.hasWorkingSignal && !turnsMode;
 
-  // Agent gutter checkboxes (handoff 10a) — hidden conversation ids.
-  const [hiddenAgentIds, setHiddenAgentIds] = useProperty<string[]>(
-    kSampleActivityBag,
-    `agents:${persistScope}`,
-    { defaultValue: kNoKeys }
+  // Agent gutter checkboxes (handoff 10a) — hidden conversation ids. Ids
+  // no conversation in this sample carries are stale and drop out.
+  const [storedHiddenIds, setHiddenAgentIds] = usePersisted(
+    "agents",
+    persistScope,
+    readStrings,
+    kNoKeys
+  );
+  const hiddenAgentIds = storedHiddenIds.filter((id) =>
+    data.agentRows.some((row) => row.id === id)
   );
   const toggleAgent = (id: string) => {
     setHiddenAgentIds(
@@ -182,10 +244,11 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
   };
 
   // ── history filters (array, not Set — store persistence) ─────────────
-  const [categoryList, setCategoryList] = useProperty<ActivityCategory[]>(
-    kSampleActivityBag,
-    `filters:${persistScope}`,
-    { defaultValue: kNoCategories }
+  const [categoryList, setCategoryList] = usePersisted(
+    "filters",
+    persistScope,
+    readCategories,
+    kNoCategories
   );
   const selectedCategories = new Set(categoryList);
   const toggleCategory = (category: ActivityCategory | "all") => {
@@ -200,25 +263,29 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     );
   };
 
-  const [search, setSearch] = useProperty<string>(
-    kSampleActivityBag,
-    `search:${persistScope}`,
-    { defaultValue: "" }
+  const [search, setSearch] = usePersisted(
+    "search",
+    persistScope,
+    readString,
+    ""
   );
   // Time sort: descending by default while the sample is running so new
   // events land at the top. The default is frozen at first view (a sample
   // completing mid-view must not flip the list under the user).
-  const [timeSort, setTimeSort] = useProperty<"asc" | "desc">(
-    kSampleActivityBag,
-    `sort:${persistScope}`
+  const [timeSort, setTimeSort] = usePersisted(
+    "sort",
+    persistScope,
+    readSort,
+    undefined
   );
   const [initialRunning] = useState(running);
   const timeDescending = timeSort ? timeSort === "desc" : initialRunning;
 
-  const [selectedKey, setSelectedKey] = useProperty<string | null>(
-    kSampleActivityBag,
-    `selected:${persistScope}`,
-    { defaultValue: null }
+  const [selectedKey, setSelectedKey] = usePersisted(
+    "selected",
+    persistScope,
+    readSelection,
+    null
   );
 
   // Bidirectional glyph ↔ row hover link (transient).

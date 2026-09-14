@@ -102,6 +102,24 @@ const mountPanel = (props: HarnessProps = {}) => {
   );
 };
 
+/** The property-bag key the panel persists `name` under for the harness
+ *  scope. */
+const persistedKey = (name: string) => `sample-activity::${name}:test-log:1:1`;
+
+const searchBox = () =>
+  screen.getByPlaceholderText<HTMLInputElement>("filter by event or detail");
+
+/** Mount against a store the test can seed and remount from. */
+const mountPanelWith = (
+  store: ReturnType<typeof makeReactiveStateStore>,
+  props: HarnessProps = {}
+) =>
+  render(
+    <ComponentStateProvider hooks={store.hooks}>
+      <Harness {...props} />
+    </ComponentStateProvider>
+  );
+
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
   // jsdom has no scrollTo; VirtualList calls it during mount.
@@ -262,6 +280,67 @@ describe("SampleActivityPanel history list", () => {
       })
     );
     expect(onOpenEvent).toHaveBeenCalledWith("tool-fail", expect.anything());
+  });
+});
+
+describe("SampleActivityPanel persisted state (review round 2)", () => {
+  it("survives malformed persisted values and reads them as defaults", () => {
+    // Every key holds the wrong shape: an older build, another surface or
+    // a hand-edited store could have written any of these, and a throw
+    // here would persist across remounts and lock the sample's Activity.
+    const store = makeReactiveStateStore();
+    store.store.set(persistedKey("bands"), null);
+    store.store.set(persistedKey("axis"), "diagonal");
+    store.store.set(persistedKey("agents"), {});
+    store.store.set(persistedKey("filters"), {});
+    store.store.set(persistedKey("search"), 7);
+    store.store.set(persistedKey("sort"), 3);
+    store.store.set(persistedKey("selected"), {});
+    mountPanelWith(store);
+
+    expect(screen.getByText(/exit 127/)).toBeTruthy();
+    expect(screen.getByText(/scorer test_scorer/)).toBeTruthy();
+    expect(
+      screen
+        .getByRole("button", { name: "Wall clock" })
+        .getAttribute("aria-pressed")
+    ).toBe("true");
+    expect(searchBox().value).toBe("");
+    expect(screen.getByText("MODEL & TOOL ACTIVITY")).toBeTruthy();
+  });
+
+  it("drops unknown ids from persisted filters and hidden rows, keeping the rest", () => {
+    const store = makeReactiveStateStore();
+    store.store.set(persistedKey("filters"), ["bogus", "error", 42]);
+    store.store.set(persistedKey("agents"), ["ghost-row", 7]);
+    store.store.set(persistedKey("bands"), { markers: false, tokens: "yes" });
+    mountPanelWith(store);
+
+    // Only the known category applies: error rows show, the score row hides.
+    expect(screen.getByText(/exit 127/)).toBeTruthy();
+    expect(screen.queryByText(/scorer test_scorer/)).toBeNull();
+    // A stale hidden id keeps nothing hidden ("N of M shown" never appears).
+    expect(screen.queryByText(/of 1 shown/)).toBeNull();
+    // The boolean override applies; the non-boolean one is ignored.
+    expect(screen.queryByText("Markers")).toBeTruthy();
+    expect(screen.getByText("TOKEN BURN")).toBeTruthy();
+  });
+
+  it("round-trips filter, search and axis through a remount", () => {
+    const store = makeReactiveStateStore();
+    const first = mountPanelWith(store);
+    fireEvent.click(screen.getByRole("button", { name: /Errors/ }));
+    fireEvent.change(searchBox(), { target: { value: "exit" } });
+    fireEvent.click(screen.getByRole("button", { name: "Turns" }));
+    expect(screen.getByText("TURN")).toBeTruthy();
+    first.unmount();
+
+    mountPanelWith(store);
+    expect(screen.getByText(/exit 127/)).toBeTruthy();
+    expect(screen.queryByText(/scorer test_scorer/)).toBeNull();
+    expect(searchBox().value).toBe("exit");
+    expect(screen.getByText("TURN")).toBeTruthy();
+    expect(store.store.get(persistedKey("filters"))).toEqual(["error"]);
   });
 });
 
