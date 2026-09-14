@@ -1516,6 +1516,86 @@ describe("zero-ModelEvent samples", () => {
   });
 });
 
+describe("out-of-order events (review round 2)", () => {
+  it("attaches a late-arriving tool to the turn that issued it, not a later one", () => {
+    // The tool ran at t=2–3 (inside turn 1) but its event lands after the
+    // t=20 model call in the array.
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 1, workingStart: 0, uuid: "m1" }),
+      modelCall({ start: 20, duration: 1, workingStart: 20, uuid: "m2" }),
+      testToolEvent({
+        uuid: "tool-for-first",
+        timestamp: iso(2),
+        completed: iso(3),
+        working_start: 2,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.turns[0]?.tools.map((t) => t.uuid)).toEqual(["tool-for-first"]);
+    expect(data.turns[1]?.tools).toHaveLength(0);
+    expect(data.turns[0]?.tools[0]?.turn).toBe(1);
+    for (const turn of data.turns) {
+      for (const tool of turn.tools) {
+        expect(tool.start).toBeGreaterThanOrEqual(turn.start);
+      }
+    }
+  });
+
+  it("keeps synthetic history keys on the original array index", () => {
+    const events: Event[] = [
+      testErrorEvent({ timestamp: iso(5), uuid: null }),
+      testErrorEvent({ timestamp: iso(1), uuid: null }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.rows.map((r) => r.key)).toEqual(["evt:1", "evt:0"]);
+  });
+
+  it("resolves role attribution and the compaction fallback in timestamp order", () => {
+    // Array order: compaction, tool, grader model, root model. Timestamp
+    // order: root model → grader model (300 in context) → tool → compaction
+    // without tokens_before. The tool belongs to the grader (the latest
+    // model at its time) and the compaction falls back to the grader's
+    // context; in array order both would run before any model call.
+    const events: Event[] = [
+      testCompactionEvent({
+        timestamp: iso(30),
+        working_start: 30,
+        tokens_after: 20,
+        uuid: "c",
+      }),
+      testToolEvent({
+        uuid: "t",
+        timestamp: iso(20),
+        completed: iso(21),
+        working_start: 20,
+      }),
+      modelCall({
+        start: 10,
+        duration: 1,
+        workingStart: 10,
+        role: "grader",
+        input: 300,
+        uuid: "g",
+      }),
+      modelCall({
+        start: 0,
+        duration: 1,
+        workingStart: 0,
+        input: 100,
+        uuid: "m",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    const grader = data.agentRows.find((row) => row.role === "grader");
+    expect(grader?.spans.map((s) => s.uuid)).toEqual(["g", "t"]);
+    expect(data.compactions[0]?.rowId).toBe("role:grader");
+    expect(data.compactions[0]?.before).toBe(300);
+    expect(data.compactions[0]?.after).toBe(20);
+  });
+});
+
 describe("formatting", () => {
   it("formats durations in handoff style", () => {
     expect(fmtDurationWords(45)).toBe("45s");

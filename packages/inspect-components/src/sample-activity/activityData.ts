@@ -773,9 +773,19 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     return turn;
   };
 
+  // The main pass runs in timestamp order, not array order: a tool call
+  // whose event lands late in the array (parallel subagents, buffered
+  // writers) must attach to the model turn that issued it, not to a later
+  // one. Ties keep array order; synthetic keys keep the original index so
+  // history-row keys stay stable regardless of the sort.
+  const ordered: { event: Event; index: number; t: number }[] = [];
   events.forEach((event, index) => {
     const t = isoToEpoch(event.timestamp);
-    if (t === undefined) return;
+    if (t !== undefined) ordered.push({ event, index, t });
+  });
+  ordered.sort((a, b) => a.t - b.t || a.index - b.index);
+
+  for (const { event, index, t } of ordered) {
     const key = event.uuid ?? `evt:${index}`;
     const uuid = event.uuid ?? undefined;
 
@@ -1102,7 +1112,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       default:
         break;
     }
-  });
+  }
 
   // ── working segments + stalls from the checkpoint stream ─────────────
   // Skipped entirely without a working signal: mid-vintage logs carry
