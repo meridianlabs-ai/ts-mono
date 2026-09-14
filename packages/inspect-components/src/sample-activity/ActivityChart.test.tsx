@@ -398,6 +398,42 @@ describe("ActivityChart folded conversations at scale", () => {
   });
 });
 
+describe("ActivityChart fold row identity", () => {
+  const conversation = (id: string, i: number): Event[] => [
+    testSpanBeginEvent({ id, name: id, type: "agent", timestamp: iso(i) }),
+    modelCall({ start: i, end: i + 1, uuid: `m-${id}`, spanId: id }),
+  ];
+
+  it("folds a log-authored __fold__ conversation as an ordinary member", () => {
+    const { container } = renderChart([
+      ...[0, 1, 2, 3].flatMap((i) => conversation(`a${i}`, i)),
+      ...conversation("__fold__", 4),
+    ]);
+    // Four real rows plus the +1 fold whose one member is the fifth
+    // conversation: its curves draw as the fold's, once.
+    expect(container.querySelectorAll("rect[role='checkbox']")).toHaveLength(4);
+    expect(
+      screen.getByRole("button", { name: /^Show 1 more rows/ })
+    ).toBeTruthy();
+    expect(
+      container.querySelectorAll("path[class*='tokenLayerEdge']")
+    ).toHaveLength(5);
+    expect(
+      container.querySelectorAll("polyline[class*='contextSeries']")
+    ).toHaveLength(5);
+  });
+
+  it("keeps the curves of a lone __fold__ conversation", () => {
+    const { container } = renderChart(conversation("__fold__", 0));
+    expect(
+      container.querySelectorAll("polyline[class*='contextSeries']")
+    ).toHaveLength(1);
+    expect(
+      container.querySelector("path[class*='tokenSeries']")
+    ).not.toBeNull();
+  });
+});
+
 describe("ActivityChart curve read-outs", () => {
   /** Hover the context band at `clientX` and open the curve card. */
   const hoverContext = (container: HTMLElement, clientX: number) => {

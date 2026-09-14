@@ -71,7 +71,22 @@ const kAgentSpanHeight = 11;
 const kSubLaneHeight = 3.25;
 // Rows past this fold into one "+N more" summary row (handoff 10a).
 const kMaxAgentRows = 4;
-const kFoldRowId = "__fold__";
+/** Marks the fold summary row. Conversation ids are log-authored span
+ *  ids, so no id string can tell the summary apart — the marker does. */
+const kFoldMarker = Symbol("fold");
+interface FoldRow extends AgentRow {
+  readonly [kFoldMarker]: true;
+}
+const isFoldRow = (row: AgentRow): row is FoldRow => kFoldMarker in row;
+/** The summary's id keys its React children, legend values and burn
+ *  layer alongside real conversation ids, so it must not collide with
+ *  one — a real `__fold__` conversation pushes it to `__fold___`. */
+const foldRowId = (rows: readonly AgentRow[]): string => {
+  const ids = new Set(rows.map((row) => row.id));
+  let id = "__fold__";
+  while (ids.has(id)) id += "_";
+  return id;
+};
 // Gutter legend rows under the curve-band labels.
 const kLegendPitch = 14;
 // Density degrade: past ~1 span per 3px a row renders as occupancy columns.
@@ -139,8 +154,9 @@ const foldRows = (
   const shown = rows.slice(0, kMaxAgentRows);
   const folded = rows.slice(kMaxAgentRows);
   const members = folded.filter((row) => !hidden.has(row.id));
-  const summary: AgentRow = {
-    id: kFoldRowId,
+  const summary: FoldRow = {
+    [kFoldMarker]: true,
+    id: foldRowId(rows),
     name: `+${folded.length} more`,
     model: folded.map((row) => row.name).join(", "),
     models: [],
@@ -272,7 +288,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   // too, so a hidden fold row hides its members' curves and burn layers.
   const visibleRowIds = new Set<string>();
   for (const row of visibleRows) {
-    if (row.id === kFoldRowId) {
+    if (isFoldRow(row)) {
       for (const member of foldMembers) visibleRowIds.add(member.id);
     } else {
       visibleRowIds.add(row.id);
@@ -284,11 +300,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  layer count the way it bounds the activity rows; a thousand folded
    *  conversations are one grey layer, not a thousand. */
   const curveRows = visibleRows.filter(
-    (row) => row.id !== kFoldRowId || foldMembers.length > 0
+    (row) => !isFoldRow(row) || foldMembers.length > 0
   );
   /** The conversations a curve row stands for (the fold: its members). */
   const memberRows = (row: AgentRow): AgentRow[] =>
-    row.id === kFoldRowId ? foldMembers : [row];
+    isFoldRow(row) ? foldMembers : [row];
   /** Conversation id → the curve row that draws it. */
   const curveRowIdOf = new Map<string, string>();
   for (const row of curveRows) {
@@ -492,7 +508,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  AT CURSOR values always sit on the line. */
   const contextRunsCache = new Map<string, ContextVertex[][]>();
   const contextRuns = (row: AgentRow): ContextVertex[][] => {
-    if (row.id === kFoldRowId) {
+    if (isFoldRow(row)) {
       return foldMembers.flatMap((member) => contextRuns(member));
     }
     const cached = contextRunsCache.get(row.id);
@@ -534,7 +550,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  run, held at the last vertex once a run has ended (the context stays
    *  that size until the next call), undefined before the first point. */
   const contextValueAt = (row: AgentRow, px: number): number | undefined => {
-    if (row.id === kFoldRowId) {
+    if (isFoldRow(row)) {
       let largest: number | undefined;
       for (const member of foldMembers) {
         const value = contextValueAt(member, px);
@@ -1309,7 +1325,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   /** The turns drawn on a display row (the fold row carries its visible
    *  members'). */
   const rowTurns = (row: AgentRow): TurnColumn[] => {
-    if (row.id !== kFoldRowId) return turns.filter((t) => t.rowId === row.id);
+    if (!isFoldRow(row)) return turns.filter((t) => t.rowId === row.id);
     const members = new Set(foldMembers.map((member) => member.id));
     return turns.filter((t) => members.has(t.rowId));
   };
@@ -1587,7 +1603,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  model (and "· sub-agent") on a second line. The fold row's checkbox
    *  position carries the expand affordance instead. */
   const renderGutterRow = (row: AgentRow, rowTop: number): ReactNode => {
-    const isFold = row.id === kFoldRowId;
+    const isFold = isFoldRow(row);
     const on = !hidden.has(row.id);
     const nameY = rowTop + 6;
     const label = isFold
@@ -1692,7 +1708,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               key={`row-${row.id}`}
               className={clsx(
                 row.role && styles.roleRow,
-                row.id === kFoldRowId && styles.foldRow
+                isFoldRow(row) && styles.foldRow
               )}
             >
               {multiAgent ? (
