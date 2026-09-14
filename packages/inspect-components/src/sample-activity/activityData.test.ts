@@ -961,6 +961,94 @@ describe("conversations (review round 1)", () => {
     expect(Object.getPrototypeOf(data.tokensByRow)).toBeNull();
   });
 
+  it("keeps a role model's tools and approvals on the role row", () => {
+    // Under a scorer span the grader model keys on its role; the tool it
+    // issued (same span_id) must land on that same row and turn.
+    const events: Event[] = [
+      testSpanBeginEvent({
+        id: "grading",
+        name: "quality",
+        type: "scorer",
+        timestamp: iso(0),
+      }),
+      modelCall({
+        start: 0,
+        duration: 10,
+        workingStart: 0,
+        input: 100,
+        role: "grader",
+        spanId: "grading",
+        uuid: "g1",
+      }),
+      testToolEvent({
+        uuid: "g1-tool",
+        span_id: "grading",
+        timestamp: iso(10),
+        completed: iso(20),
+        working_start: 10,
+        working_time: 10,
+      }),
+      testApprovalEvent({
+        uuid: "g1-reject",
+        span_id: "grading",
+        timestamp: iso(21),
+        decision: "reject",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.agentRows).toHaveLength(1);
+    expect(data.agentRows[0]).toMatchObject({
+      id: "role:grader",
+      modelCount: 1,
+      toolCount: 1,
+    });
+    expect(data.turns).toHaveLength(1);
+    expect(data.turns[0]?.tools.map((tool) => tool.uuid)).toEqual(["g1-tool"]);
+    expect(data.turns[0]?.rejected).toBe(1);
+  });
+
+  it("attributes span-less tools to the conversation that last called a model", () => {
+    // No span context anywhere (older logs): the grader's tool follows the
+    // grader model, not the root conversation.
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 5, workingStart: 0, uuid: "root-1" }),
+      modelCall({
+        start: 5,
+        duration: 5,
+        workingStart: 5,
+        role: "grader",
+        uuid: "grader-1",
+      }),
+      testToolEvent({
+        uuid: "grader-tool",
+        timestamp: iso(10),
+        completed: iso(12),
+        working_start: 10,
+        working_time: 2,
+      }),
+      modelCall({ start: 12, duration: 5, workingStart: 12, uuid: "root-2" }),
+      testToolEvent({
+        uuid: "root-tool",
+        timestamp: iso(17),
+        completed: iso(18),
+        working_start: 17,
+        working_time: 1,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    const byId = new Map(data.agentRows.map((row) => [row.id, row]));
+    expect(byId.get("root")?.spans.map((span) => span.uuid)).toEqual([
+      "root-1",
+      "root-2",
+      "root-tool",
+    ]);
+    expect(byId.get("role:grader")?.spans.map((span) => span.uuid)).toEqual([
+      "grader-1",
+      "grader-tool",
+    ]);
+    expect(data.turns).toHaveLength(3);
+  });
+
   it("tracks the compaction fallback context per conversation", () => {
     // A reports 100, B reports 900, then A compacts without tokens_before:
     // A's drop starts from its own 100, not B's 900.

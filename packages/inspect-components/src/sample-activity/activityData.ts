@@ -710,6 +710,18 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     role
       ? { id: `role:${role}`, name: role, role }
       : conversationForSpan(spanId);
+  /** The conversation the latest model call under each span key resolved
+   *  to. Tool, approval and compaction events carry no role, so they
+   *  attribute through here: a grader's tools stay on the grader row
+   *  instead of splitting off to the scorer span (or root without span
+   *  context). */
+  const currentConversationBySpan = new Map<string, Conversation>();
+  const spanKey = (spanId: string | null | undefined): string => spanId ?? "";
+  const conversationForEvent = (
+    spanId: string | null | undefined
+  ): Conversation =>
+    currentConversationBySpan.get(spanKey(spanId)) ??
+    conversationForSpan(spanId);
 
   const rowFor = (conversation: Conversation): AgentRow => {
     let row = rowsById.get(conversation.id);
@@ -778,6 +790,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
         if (isPending) pending = true;
         const conversation = conversationFor(event.span_id, event.role);
+        currentConversationBySpan.set(spanKey(event.span_id), conversation);
         const row = rowFor(conversation);
         if (conversation.span) spanByRowId.set(row.id, conversation.span);
         row.modelCount += 1;
@@ -841,7 +854,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const isPending = event.pending === true && completed === undefined;
         const end = completed ?? (isPending ? Math.max(windowEnd, t) : t);
         if (isPending) pending = true;
-        const conversation = conversationForSpan(event.span_id);
+        const conversation = conversationForEvent(event.span_id);
         const row = rowFor(conversation);
         if (conversation.span) spanByRowId.set(row.id, conversation.span);
         row.toolCount += 1;
@@ -940,7 +953,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const args = callArgsText(event.call.arguments);
         // The rejected call belongs to the conversation's current turn —
         // its ghost slot draws there in Turns mode.
-        const conversation = conversationForSpan(event.span_id);
+        const conversation = conversationForEvent(event.span_id);
         const turn = currentTurnByRow.get(conversation.id);
         if (turn) {
           turn.rejected += 1;
@@ -1011,7 +1024,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         break;
       }
       case "compaction": {
-        const rowId = conversationForSpan(event.span_id).id;
+        const rowId = conversationForEvent(event.span_id).id;
         const lastContext = lastContextByRow.get(rowId) ?? 0;
         const before =
           event.tokens_before ?? (lastContext > 0 ? lastContext : undefined);
