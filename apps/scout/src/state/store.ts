@@ -4,7 +4,7 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 import { createContext, useContext } from "react";
-import { create } from "zustand";
+import { create, type StateCreator } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
@@ -19,15 +19,12 @@ import { debounce, getOwn, isRecord } from "@tsmono/util";
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
 import type { ScanColumnKey } from "../app/scans/columns";
-import {
-  ErrorScope,
-  ResultGroup,
-  ScanResultSummary,
-  SortColumn,
-} from "../app/types";
+import { ResultGroup, ScanResultSummary, SortColumn } from "../app/types";
 import { TranscriptInfo } from "../types/api-types";
 
+import { createAppSlice, type AppSlice } from "./appSlice";
 import { emptyDataframeState, type DataframeState } from "./dataframeState";
+import { createRoutingSlice, type RoutingSlice } from "./routingSlice";
 
 export type {
   ColumnFilter,
@@ -68,17 +65,9 @@ interface TranscriptState {
   validationSidebarCollapsed?: boolean;
 }
 
-interface StoreState {
-  // App status
-  singleFileMode?: boolean;
-  hasInitializedEmbeddedData?: boolean;
-  hasInitializedRouting?: boolean;
-  scopedErrors: Record<ErrorScope, string | undefined>;
-  showFind?: boolean;
-
+export interface StoreState extends AppSlice, RoutingSlice {
   // Scans
   visibleScanJobCount?: number;
-  selectedScanLocation?: string;
 
   // Scanner
   visibleScannerResults: ScanResultSummary[];
@@ -116,10 +105,6 @@ interface StoreState {
   // Transcript Detail properties (clear when switching transcripts)
   selectedTranscriptTab?: string;
 
-  // User selected / visible transcript path
-  userTranscriptsDir?: string;
-  userScansDir?: string;
-
   // Transcript Data (loaded data + source directory)
   transcriptsDir?: string;
   transcriptsTableState: TranscriptsTableState;
@@ -139,19 +124,8 @@ interface StoreState {
   // validationEditorState
   editorSelectedValidationSetUri?: string;
 
-  // App initialization
-  setShowFind: (show: boolean) => void;
-  setSingleFileMode: (enabled: boolean) => void;
-  setHasInitializedEmbeddedData: (initialized: boolean) => void;
-  setHasInitializedRouting: (initialized: boolean) => void;
-  setError: (scope: ErrorScope, error: string | undefined) => void;
-  clearError: (scope: ErrorScope) => void;
-
   // List of scans
   setVisibleScanJobCount: (count: number) => void;
-
-  // Selected scan location (for nav restoration)
-  setSelectedScanLocation: (location: string) => void;
 
   // Track the select result and data
   setSelectedScanner: (scanner: string) => void;
@@ -221,8 +195,6 @@ interface StoreState {
   setDataframeFilterColumns: (columns: string[]) => void;
   setDataframeShowFilterColumns: (show: boolean) => void;
 
-  setUserScansDir: (path: string) => void;
-  setUserTranscriptsDir: (path: string) => void;
   setTranscriptsDir: (path: string) => void;
   setTranscriptsTableState: (
     updater:
@@ -246,6 +218,20 @@ interface StoreState {
 
   setEditorSelectedValidationSetUri: (uri: string | undefined) => void;
 }
+
+// Slices are written against the full store so cross-slice actions (the
+// "clear when switching X" resets) can reach every field with the composed
+// set/get; the mutator tuple mirrors the middleware chain in createStore.
+export type StoreSlice<T> = StateCreator<
+  StoreState,
+  [
+    ["zustand/devtools", never],
+    ["zustand/persist", unknown],
+    ["zustand/immer", never],
+  ],
+  [],
+  T
+>;
 
 const createDebouncedPersistStorage = (
   storage: ReturnType<typeof createJSONStorage>,
@@ -297,19 +283,15 @@ export const createStore = (api: ScoutApiV2) =>
   create<StoreState>()(
     devtools(
       persist(
-        immer((set, get) => ({
+        immer((set, get, store) => ({
+          ...createAppSlice(set, get, store),
+          ...createRoutingSlice(set, get, store),
+
           // Initial state
           properties: {},
           gridStates: {},
           transcriptCollapsedEvents: {},
           searchPanelStates: {},
-          scopedErrors: {
-            scans: undefined,
-            scanner: undefined,
-            dataframe: undefined,
-            dataframe_input: undefined,
-            transcripts: undefined,
-          },
           visibleScannerResults: [],
           visibleScannerResultsCount: 0,
           highlightLabeled: false,
@@ -337,43 +319,9 @@ export const createStore = (api: ScoutApiV2) =>
           validationCaseSelection: {},
 
           // Actions
-          setShowFind(show: boolean) {
-            set((state) => {
-              state.showFind = show;
-            });
-          },
-          setSingleFileMode: (enabled: boolean) => {
-            set((state) => {
-              state.singleFileMode = enabled;
-            });
-          },
-          setHasInitializedEmbeddedData: (initialized: boolean) => {
-            set((state) => {
-              state.hasInitializedEmbeddedData = initialized;
-            });
-          },
-          setHasInitializedRouting: (initialized: boolean) => {
-            set((state) => {
-              state.hasInitializedRouting = initialized;
-            });
-          },
-          setError: (scope: ErrorScope, error: string | undefined) => {
-            set((state) => {
-              state.scopedErrors[scope] = error;
-            });
-          },
-          clearError: (scope: ErrorScope) => {
-            set((state) => {
-              state.scopedErrors[scope] = undefined;
-            });
-          },
           setVisibleScanJobCount: (count: number) =>
             set((state) => {
               state.visibleScanJobCount = count;
-            }),
-          setSelectedScanLocation: (location: string) =>
-            set((state) => {
-              state.selectedScanLocation = location;
             }),
           setSelectedScanner: (scanner: string) => {
             set((state) => {
@@ -636,16 +584,6 @@ export const createStore = (api: ScoutApiV2) =>
           setDataframeShowFilterColumns: (show: boolean) => {
             set((state) => {
               state.dataframeShowFilterColumns = show;
-            });
-          },
-          setUserScansDir: (path: string) => {
-            set((state) => {
-              state.userScansDir = path;
-            });
-          },
-          setUserTranscriptsDir: (path: string) => {
-            set((state) => {
-              state.userTranscriptsDir = path;
             });
           },
           setTranscriptsDir: (path: string) => {
