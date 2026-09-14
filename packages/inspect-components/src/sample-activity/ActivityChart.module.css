@@ -203,6 +203,39 @@
   opacity: 0.6;
 }
 
+/* ── Turns axis (handoff 8b) ── */
+
+/* Column rects: no rounding, a 1.5px body-bg seam between columns. */
+.turnRect {
+  stroke: var(--bs-body-bg);
+  stroke-width: 1.5;
+}
+
+/* Faint full-height column separators behind every band. */
+.turnSeparator {
+  stroke: #f1f3f5;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* A rejected call's slot: the tool never ran. */
+.ghostSpan {
+  fill: #f7f3fc;
+  stroke: #6b4fa8;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+
+.ghostLabel {
+  font-size: 8px;
+  fill: #6b4fa8;
+}
+
+.axisLabelMuted {
+  fill: var(--bs-secondary-color);
+  opacity: 0.8;
+}
+
 .clickableSpan {
   cursor: pointer;
 }
@@ -413,4 +446,17 @@
 
 :global([data-bs-theme="dark"]) .spanHovered {
   stroke: #f8f9fa;
+}
+
+:global([data-bs-theme="dark"]) .turnSeparator {
+  stroke: #2b3035;
+}
+
+:global([data-bs-theme="dark"]) .ghostSpan {
+  fill: #2a2436;
+  stroke: #b39ddb;
+}
+
+:global([data-bs-theme="dark"]) .ghostLabel {
+  fill: #b39ddb;
 }

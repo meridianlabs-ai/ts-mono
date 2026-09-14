@@ -293,6 +293,44 @@ test("band chips toggle the opt-in working band and default bands", async ({
   ).not.toBeVisible();
 });
 
+test("axis toggle tiles turns and greys the working chip", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
+
+  await page.getByRole("button", { name: "Turns" }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+  // Three model turns → three column ticks.
+  await expect(page.getByText("3", { exact: true }).first()).toBeVisible();
+  const workingChip = page.getByRole("button", { name: /Working \/ waiting/ });
+  await expect(workingChip).toBeDisabled();
+  await expect(workingChip).toContainText("wall clock only");
+
+  await page.getByRole("button", { name: "Wall clock", exact: true }).click();
+  await expect(page.getByText("TURN", { exact: true })).not.toBeVisible();
+  await expect(workingChip).toBeEnabled();
+});
+
+test("hovering a span shows the tooltip card with click-through", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
+
+  await page.locator("rect[class*='failedSpan']").first().hover();
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("bash tool call");
+  await expect(card).toContainText("failed");
+  await expect(card).toContainText("exit 127");
+  await expect(
+    card.getByRole("button", { name: "open in transcript →" })
+  ).toBeVisible();
+  // Shared cursor: the axis pill pins the hovered span's start.
+  await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
+});
+
 test("history list filters by category pill and search", async ({
   page,
   network,

@@ -116,7 +116,10 @@ const Card: FC<CardProps> = ({
       <div className={styles.who}>
         <span className={styles.swatch} style={{ background: who.hue }} />
         <span>{who.name}</span>
-        {who.model && <span className={styles.muted}>· {who.model}</span>}
+        {/* The root row is named after its model — don't say it twice. */}
+        {who.model && who.model !== who.name && (
+          <span className={styles.muted}>· {who.model}</span>
+        )}
         {who.turn !== undefined && (
           <span className={styles.muted}>· turn {who.turn}</span>
         )}

@@ -41,6 +41,21 @@ an Activity test into the standing spec.
 - Band labels (SVG text, uppercase — use `exact: true` or the chip matches
   too): `WORKING / WAITING`, `TOKEN BURN`, `CONTEXT SIZE`,
   `MODEL & TOOL ACTIVITY`.
+- Axis toggle (right end of the chip row): `getByRole("button", { name:
+"Wall clock", exact: true })` / `"Turns"`; Turns relabels the axis `TURN`
+  (one equal-width column per model turn, ticks thin to every 10th/100th)
+  and greys the Working / waiting chip (`disabled`, suffix `wall clock
+only`) — the band hides there but its override is kept.
+- Agent gutter (only when a sample has more than one conversation — agent /
+  subtask / solver spans, plus grader rows): `getByRole("checkbox", { name:
+"Hide <agent>" | "Show <agent>" })`; rows past 4 fold into a
+  `+N more` button. Curve bands carry a swatch · name · value legend that
+  reads `AT CURSOR` while hovering.
+- Hover: any pointer position over the plot draws one hairline through
+  every band plus a dark time pill on the axis (`[class*='cursorPillText']`,
+  `turn N` in Turns mode). Hovering a span, marker, stall, burst, context
+  point or dense bin shows the single tooltip card after 120ms (header ·
+  who · detail grid · `open in transcript →` footer).
 - Marker glyphs: `getByRole("button", { name: <marker label> })`, e.g.
   `Tool bash errored`.
 - History filter pills: `getByRole("button", { name: /Errors \d/ })` etc.;
@@ -64,4 +79,12 @@ an Activity test into the standing spec.
 - `open in transcript →` (and any span/glyph click-through) lands on
   `/transcript?event=<uuid>` with the transcript scrolled to the event.
 - Dense logs (50+ turns): the merged model+tool band degrades to a
-  per-pixel occupancy strip and the headline appends `per-pixel occupancy`.
+  per-pixel occupancy strip and the headline appends `per-pixel occupancy`;
+  in Turns mode the strip bins by turn index and bin hovers read
+  `turns a–b · N model · M tool`.
+- Multi-conversation samples (`example_of_weird_subagent_logging.eval` in
+  test_evals has 3 hand-off agents): one activity row per conversation with
+  a checkbox gutter, a dotted `awaiting <child>` thread on the parent while
+  a spawned agent runs, per-conversation context lines and token burn as
+  stacked areas; unchecking a row removes it from every band and the
+  headline appends `a of b shown`.

@@ -11,6 +11,7 @@ import { FC, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  testApprovalEvent,
   testCompactionEvent,
   testModelEvent,
   testModelOutput,
@@ -588,5 +589,140 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
     // Pointer at the plot's left edge: before either conversation burned.
     fireEvent.mouseMove(plot, { clientX: 130, clientY: 40 });
     expect(screen.getAllByText("AT CURSOR").length).toBeGreaterThan(0);
+  });
+});
+
+describe("SampleActivityPanel Turns axis", () => {
+  const toTurns = () =>
+    fireEvent.click(screen.getByRole("button", { name: "Turns" }));
+
+  it("tiles one column per model turn and relabels the axis TURN", () => {
+    const { container } = mountPanel();
+    expect(screen.queryByText("TURN")).toBeNull();
+    toTurns();
+    expect(screen.getByText("TURN")).toBeTruthy();
+    // One turn (model-1 + its failed bash) → one tick.
+    expect(screen.getByText("1", { selector: "text" })).toBeTruthy();
+    // Column rects carry the seam class, no rounding.
+    const columnRects = container.querySelectorAll("rect[class*='turnRect']");
+    expect(columnRects.length).toBe(2);
+    expect(columnRects[0]?.getAttribute("rx")).toBeNull();
+    // Wall clock is one click away and the choice persists in the bag.
+    expect(
+      screen.getByRole("button", { name: "Turns" }).getAttribute("aria-pressed")
+    ).toBe("true");
+  });
+
+  it("disables the working band in Turns mode without touching its override", () => {
+    mountPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Working / waiting" }));
+    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+
+    toTurns();
+    expect(screen.queryByText("WORKING / WAITING")).toBeNull();
+    const chip = screen.getByRole("button", { name: /Working \/ waiting/ });
+    expect(chip.hasAttribute("disabled")).toBe(true);
+    expect(chip.textContent).toContain("wall clock only");
+
+    // Back on the wall clock the band returns — the override was kept on.
+    fireEvent.click(screen.getByRole("button", { name: /^Wall clock$/ }));
+    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+  });
+
+  it("draws a rejected call as a dashed ghost slot", () => {
+    const events: Event[] = [
+      testModelEvent({
+        uuid: "m1",
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output: testModelOutput({
+          usage: testModelUsage({
+            input_tokens: 100,
+            output_tokens: 10,
+            total_tokens: 110,
+          }),
+        }),
+      }),
+      testApprovalEvent({
+        uuid: "rej",
+        timestamp: iso(6),
+        decision: "reject",
+        approver: "human",
+      }),
+    ];
+    const { container } = mountPanel({ events });
+    toTurns();
+    expect(container.querySelectorAll("[class*='ghostSpan']")).toHaveLength(1);
+    expect(screen.getByText(/rejected · no tool run/)).toBeTruthy();
+    expect(
+      screen.getByText(/1 model turns · 0 tool calls · 1 rejected/)
+    ).toBeTruthy();
+  });
+
+  it("falls back to the per-pixel strip binned by turn at density", () => {
+    // Two conversations × 200 one-second turns on the stubbed 1000px chart:
+    // each row stays under 1 span per 3px on the wall clock, but the 400
+    // interleaved turn columns exceed it.
+    const events: Event[] = [
+      testSpanBeginEvent({
+        id: "a",
+        name: "alpha",
+        type: "agent",
+        timestamp: iso(0),
+      }),
+      testSpanBeginEvent({
+        id: "b",
+        name: "beta",
+        type: "agent",
+        timestamp: iso(0),
+      }),
+    ];
+    for (let i = 0; i < 400; i++) {
+      events.push(
+        testModelEvent({
+          uuid: `m-${i}`,
+          timestamp: iso(i),
+          completed: iso(i + 0.5),
+          working_start: i,
+          working_time: 0.5,
+          span_id: i % 2 === 0 ? "a" : "b",
+          output: testModelOutput({
+            usage: testModelUsage({
+              input_tokens: 10,
+              output_tokens: 1,
+              total_tokens: 11,
+            }),
+          }),
+        })
+      );
+    }
+    vi.useFakeTimers();
+    const { container } = mountPanel({ events });
+    expect(screen.queryByText(/per-pixel occupancy/)).toBeNull();
+    toTurns();
+    expect(screen.getByText(/per-pixel occupancy/)).toBeTruthy();
+    expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
+      0
+    );
+    // ~2px columns: ticks thin to every 100th turn.
+    const tickLabels = [
+      ...container.querySelectorAll("text[class*='axisLabel']"),
+    ].map((tick) => tick.textContent);
+    expect(tickLabels).toEqual(["TURN", "1", "100", "200", "300", "400"]);
+    // A bin hover reads a turn range.
+    const hit = container.querySelector("rect[class*='densityHit']");
+    if (!(hit instanceof SVGElement))
+      throw new Error("expected the density hit rect");
+    fireEvent.mouseMove(hit, { clientX: 500, clientY: 60 });
+    try {
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(screen.getByText(/turns \d+–\d+ · \d+ model/)).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

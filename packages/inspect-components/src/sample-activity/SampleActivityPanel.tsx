@@ -46,21 +46,61 @@ export interface SampleActivityPanelProps {
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
 }
 
+/** X axis: wall clock, or one equal-width column per model turn (8b). */
+export type AxisMode = "wall" | "turns";
+
 interface BandChipProps {
   label: string;
   on: boolean;
   onToggle: () => void;
+  /** Greyed out with a hint — the band has no meaning on this axis. */
+  disabledHint?: string;
 }
 
-const BandChip: FC<BandChipProps> = ({ label, on, onToggle }) => (
+const BandChip: FC<BandChipProps> = ({ label, on, onToggle, disabledHint }) => (
   <button
     type="button"
-    className={clsx(styles.bandChip, on && styles.bandChipOn)}
+    className={clsx(
+      styles.bandChip,
+      on && !disabledHint && styles.bandChipOn,
+      disabledHint && styles.bandChipDisabled
+    )}
     onClick={onToggle}
+    disabled={disabledHint !== undefined}
+    aria-disabled={disabledHint !== undefined}
   >
-    {on ? <i className="bi bi-check" aria-hidden="true" /> : null}
+    {on && !disabledHint ? (
+      <i className="bi bi-check" aria-hidden="true" />
+    ) : null}
     {label}
+    {disabledHint && (
+      <span className={styles.bandChipHint}>{disabledHint}</span>
+    )}
   </button>
+);
+
+interface AxisToggleProps {
+  mode: AxisMode;
+  onChange: (mode: AxisMode) => void;
+}
+
+const AxisToggle: FC<AxisToggleProps> = ({ mode, onChange }) => (
+  <div className={styles.segmented} role="group" aria-label="X axis">
+    {(["wall", "turns"] as const).map((value) => (
+      <button
+        key={value}
+        type="button"
+        className={clsx(
+          styles.segment,
+          mode === value && styles.segmentSelected
+        )}
+        aria-pressed={mode === value}
+        onClick={() => onChange(value)}
+      >
+        {value === "wall" ? "Wall clock" : "Turns"}
+      </button>
+    ))}
+  </div>
 );
 
 // Durable UI state (band overrides, filters, search, sort, selection) lives
@@ -104,15 +144,28 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     setBandOverrides({ ...bandOverrides, [id]: !bandOn(id, fallback) });
   };
 
+  // X axis (handoff 8a/8b): wall clock by default; Turns tiles one column
+  // per model turn. Persisted beside the band overrides.
+  const [axisMode, setAxisMode] = useProperty<AxisMode>(
+    kSampleActivityBag,
+    `axis:${persistScope}`,
+    { defaultValue: "wall" }
+  );
+  // Turns without a single turn (zero-ModelEvent sample) has nothing to
+  // tile — the chart falls back to the wall clock.
+  const turnsMode = axisMode === "turns" && data.turns.length > 0;
+
   // Default-on set (handoff 8a): activity, context, token burn, markers;
   // working/waiting is the opt-in band. No working clock (mid-vintage
   // logs) → no working band at all; an all-zero clock would render the
-  // whole run as waiting.
+  // whole run as waiting. Waiting has no extent on the Turns axis, so the
+  // band hides there regardless of its override (the override is kept).
   const showModelTool = bandOn("modelTool", true) && data.agentRows.length > 0;
   const showContext = bandOn("context", true) && data.contextSeries.length > 0;
   const showTokens = bandOn("tokens", true) && data.tokenSeries.length > 0;
   const showMarkers = bandOn("markers", true) && data.markers.length > 0;
-  const showWorking = bandOn("working", false) && data.hasWorkingSignal;
+  const showWorking =
+    bandOn("working", false) && data.hasWorkingSignal && !turnsMode;
 
   // Agent gutter checkboxes (handoff 10a) — hidden conversation ids.
   const [hiddenAgentIds, setHiddenAgentIds] = useProperty<string[]>(
@@ -243,8 +296,9 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
         {data.hasWorkingSignal && (
           <BandChip
             label="Working / waiting"
-            on={showWorking}
+            on={bandOn("working", false)}
             onToggle={() => toggleBand("working", false)}
+            disabledHint={turnsMode ? "wall clock only" : undefined}
           />
         )}
         {showWorking && (
@@ -252,6 +306,7 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
             <span className={styles.legendSwatch} /> working · gap = waiting
           </span>
         )}
+        <AxisToggle mode={axisMode} onChange={setAxisMode} />
       </div>
       <ActivityChart
         data={data}
@@ -263,6 +318,7 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
         showModelTool={showModelTool}
         hiddenAgentIds={hiddenAgentIds}
         onToggleAgent={toggleAgent}
+        axisMode={turnsMode ? "turns" : "wall"}
         selectedKey={selectedKey}
         onSelectMarker={selectMarker}
         hoveredRowKey={

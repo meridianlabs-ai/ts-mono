@@ -26,6 +26,9 @@ import {
   kScorerHue,
   StallRegion,
   TimeWindow,
+  turnAfter,
+  turnAt,
+  TurnColumn,
 } from "./activityData";
 import {
   ActivityTooltip,
@@ -98,6 +101,8 @@ export interface ActivityChartProps {
   /** Conversation rows unchecked in the agent gutter (persisted ids). */
   hiddenAgentIds?: string[];
   onToggleAgent?: (id: string) => void;
+  /** Wall clock (default) or one equal-width column per model turn (8b). */
+  axisMode?: "wall" | "turns";
   /** Selected history-row key — its marker holds the active treatment. */
   selectedKey: string | null;
   /** Marker click: select + scroll to its history row (auto-widening). */
@@ -151,6 +156,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   showModelTool,
   hiddenAgentIds = kNoIds,
   onToggleAgent,
+  axisMode = "wall",
   selectedKey,
   onSelectMarker,
   hoveredRowKey,
@@ -237,6 +243,47 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       ? timeWindow.start + ((px - plotLeft) / plotWidth) * span
       : timeWindow.start;
 
+  // ── Turns axis (handoff 8b): equal-width, gap-free columns ────────────
+  const turns = data.turns;
+  const nTurns = turns.length;
+  const turnsMode = axisMode === "turns" && nTurns > 0;
+  const colWidth = turnsMode ? plotWidth / nTurns : 0;
+  const colLeft = (index: number): number => plotLeft + (index - 1) * colWidth;
+  const colRight = (index: number): number => plotLeft + index * colWidth;
+  const turnIndexAtPx = (px: number): number =>
+    Math.min(nTurns, Math.max(1, Math.floor((px - plotLeft) / colWidth) + 1));
+  /** Time → x on the active axis. In Turns mode a time inside a turn
+   *  interpolates within its column; a time between turns snaps to the
+   *  following column's left edge (waiting has no extent). */
+  const xAt = (t: number): number => {
+    if (!turnsMode) return x(t);
+    const inside = turnAt(turns, t);
+    if (inside) {
+      const frac =
+        inside.end > inside.start
+          ? (t - inside.start) / (inside.end - inside.start)
+          : 0;
+      return colLeft(inside.index) + Math.min(Math.max(frac, 0), 1) * colWidth;
+    }
+    const next = turnAfter(turns, t);
+    return next ? colLeft(next.index) : plotRight;
+  };
+  const timeAtPx = (px: number): number => {
+    if (!turnsMode) return timeAt(px);
+    const turn = turns[turnIndexAtPx(px) - 1];
+    if (!turn) return timeWindow.start;
+    const frac = Math.min(
+      Math.max((px - colLeft(turn.index)) / colWidth, 0),
+      1
+    );
+    return turn.start + frac * (turn.end - turn.start);
+  };
+  /** Curve points sit at the right edge of their turn's column. */
+  const pointX = (t: number, turn: number | undefined): number =>
+    turnsMode && turn !== undefined ? colRight(turn) : xAt(t);
+  // Density fallback in Turns mode bins by turn index instead of time.
+  const turnsDense = turnsMode && nTurns > plotWidth / kDensityPxPerSpan;
+
   // ── marker clusters (computed before the bands: a cluster's count box
   //    needs extra rail headroom, which shifts every band down) ──────────
   interface MarkerGroup {
@@ -254,7 +301,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   // windows and boxes never overlap their neighbours.
   const markerGroups: MarkerGroup[] = [];
   for (const marker of data.markers) {
-    const mx = x(marker.time);
+    const mx = xAt(marker.time);
     const last = markerGroups[markerGroups.length - 1];
     const gap = last
       ? Math.max(
@@ -264,7 +311,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       : kClusterGapPx;
     if (last && mx - last.x < gap) {
       last.members.push(marker);
-      last.x = (x(last.members[0]!.time) + mx) / 2;
+      last.x = (xAt(last.members[0]!.time) + mx) / 2;
     } else {
       markerGroups.push({ x: mx, members: [marker] });
     }
@@ -596,7 +643,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     let lastX = plotLeft;
     points.forEach((point, i) => {
       running.set(point.rowId, (running.get(point.rowId) ?? 0) + point.burned);
-      const px = x(point.time);
+      const px = pointX(point.time, point.turn);
       // Decimate per pixel at scale — but always keep the final point.
       if (px - lastX < 1 && i < points.length - 1) return;
       let stack = 0;
@@ -726,11 +773,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           if (run.length > 0) runs.push(run);
           run =
             drop.after !== undefined
-              ? [{ x: x(drop.time), y: y(drop.after) }]
+              ? [{ x: xAt(drop.time), y: y(drop.after) }]
               : [];
           dropIndex += 1;
         }
-        run.push({ x: x(point.time), y: y(point.value) });
+        run.push({ x: pointX(point.time, point.turn), y: y(point.value) });
       }
       if (run.length > 0) runs.push(run);
       return runs;
@@ -778,7 +825,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   key={`ctx-dot-${i}`}
                   className={styles.contextDot}
                   style={multiAgent ? { fill: row.hue } : undefined}
-                  cx={x(point.time)}
+                  cx={pointX(point.time, point.turn)}
                   cy={y(point.value)}
                   r={2}
                 />
@@ -795,7 +842,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             if (drop.before === undefined || drop.after === undefined) {
               return null;
             }
-            const dx = x(drop.time);
+            const dx = xAt(drop.time);
             const labeled = dx - lastLabelX >= 60;
             if (labeled) lastLabelX = dx;
             return (
@@ -860,8 +907,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         ? hoverTarget.hovered
         : undefined;
 
-  const hoverSpan = (row: AgentRow, s: ActivitySpan) => {
-    setCursor({ x: x(s.start), t: s.start });
+  const hoverSpan = (row: AgentRow, s: ActivitySpan, anchorX: number) => {
+    setCursor({ x: anchorX, t: s.start });
     // A sub-laned span belongs to a burst: the tooltip lists the burst.
     const burst =
       s.subLane !== undefined
@@ -886,6 +933,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return (
       <Fragment>
         {row.blockedOn.map((blocked, i) => {
+          if (turnsMode) return null;
           const x1 = x(blocked.start);
           const x2 = x(blocked.end);
           const yMid = spanY + kAgentSpanHeight / 2;
@@ -950,7 +998,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 width={spanWidth(row, s)}
                 height={h}
                 rx={1}
-                onMouseEnter={() => hoverSpan(row, s)}
+                onMouseEnter={() => hoverSpan(row, s, x(s.start))}
                 onMouseLeave={clearTarget}
                 onClick={
                   s.uuid && onOpenEvent
@@ -1122,6 +1170,293 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     );
   };
 
+  /** The turns drawn on a display row (the fold row carries its members'). */
+  const rowTurns = (row: AgentRow): TurnColumn[] => {
+    if (row.id !== kFoldRowId) return turns.filter((t) => t.rowId === row.id);
+    const folded = new Set(
+      data.agentRows.slice(kMaxAgentRows).map((r) => r.id)
+    );
+    return turns.filter((t) => folded.has(t.rowId));
+  };
+
+  /** Effective seconds a tool span occupies in its turn's tool share — a
+   *  hand-off stops where the child starts, like its working share. */
+  const toolWeight = (row: AgentRow, s: ActivitySpan): number =>
+    Math.max(spanDrawEnd(row, s) - s.start, 0);
+
+  /** Turns mode (handoff 8b): one gap-free column per turn — the grey model
+   *  share then the teal tool share split by that turn's working ratio,
+   *  bursts keeping their sub-lanes inside the tool share, rejected calls
+   *  drawn as dashed ghosts where the tool would have run. */
+  const renderTurnRow = (row: AgentRow, rowTop: number): ReactNode => {
+    const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
+    const laneY = (s: ActivitySpan): number => {
+      if (s.subLane === undefined || s.subLaneCount === undefined) return spanY;
+      const count = Math.max(s.subLaneCount, 1);
+      const pitch =
+        count > 1 ? (kAgentSpanHeight + 1 - kSubLaneHeight) / (count - 1) : 0;
+      return spanY + s.subLane * pitch;
+    };
+    type Slot =
+      | { kind: "tool"; span: ActivitySpan; weight: number }
+      | { kind: "burst"; members: ActivitySpan[]; weight: number }
+      | { kind: "ghost"; weight: number };
+    const spanRect = (
+      s: ActivitySpan,
+      x0: number,
+      x1: number,
+      y: number,
+      h: number
+    ) => {
+      const isHovered = hoveredSpan === s;
+      const dim =
+        hoveredSpan !== undefined &&
+        !isHovered &&
+        hoveredSpan.turn !== undefined &&
+        hoveredSpan.turn === s.turn;
+      return (
+        <rect
+          className={clsx(
+            styles.turnRect,
+            s.kind === "model" ? styles.modelSpan : styles.toolSpan,
+            s.kind === "tool" && s.failed && styles.failedSpan,
+            s.pending && styles.pendingSpan,
+            s.uuid && onOpenEvent && styles.clickableSpan,
+            isHovered && styles.spanHovered,
+            dim && styles.spanDim
+          )}
+          x={x0}
+          y={y}
+          width={Math.max(x1 - x0, 0.5)}
+          height={h}
+          onMouseEnter={() => hoverSpan(row, s, x0)}
+          onMouseLeave={clearTarget}
+          onClick={
+            s.uuid && onOpenEvent
+              ? (event) => onOpenEvent(s.uuid!, event)
+              : undefined
+          }
+        />
+      );
+    };
+    return rowTurns(row).map((turn) => {
+      const left = colLeft(turn.index);
+      const right = colRight(turn.index);
+      // Tool slots in start order; a burst's members share one slot.
+      const slots: Slot[] = [];
+      const seenBurst = new Set<number>();
+      for (const tool of turn.tools) {
+        const burst =
+          tool.subLane !== undefined
+            ? row.bursts.find((b) => tool.start >= b.start && tool.end <= b.end)
+            : undefined;
+        if (burst) {
+          if (seenBurst.has(burst.start)) continue;
+          seenBurst.add(burst.start);
+          const members = turn.tools.filter(
+            (t) => t.start >= burst.start && t.end <= burst.end
+          );
+          slots.push({
+            kind: "burst",
+            members,
+            weight: Math.max(burst.end - burst.start, 0),
+          });
+        } else {
+          slots.push({
+            kind: "tool",
+            span: tool,
+            weight: toolWeight(row, tool),
+          });
+        }
+      }
+      // A rejected call takes the room a tool would have: weighted like the
+      // turn's model work so it stays visible even with no tools at all.
+      for (let i = 0; i < turn.rejected; i++) {
+        slots.push({ kind: "ghost", weight: Math.max(turn.modelWork, 1e-3) });
+      }
+      const slotWeight = slots.reduce((sum, slot) => sum + slot.weight, 0);
+      const toolShare = slots.length === 0 ? 0 : slotWeight;
+      const total = turn.modelWork + toolShare;
+      const modelShare = total > 0 ? turn.modelWork / total : 1;
+      const modelRight = turn.model ? left + colWidth * modelShare : left;
+      const toolLeft = modelRight;
+      const toolWidth = right - toolLeft;
+      let acc = 0;
+      return (
+        <g key={`turn-${turn.index}`}>
+          {turn.model &&
+            spanRect(turn.model, left, modelRight, spanY, kAgentSpanHeight)}
+          {slots.map((slot, i) => {
+            const x0 =
+              toolLeft +
+              (slotWeight > 0
+                ? (acc / slotWeight) * toolWidth
+                : (i / slots.length) * toolWidth);
+            acc += slot.weight;
+            const x1 =
+              toolLeft +
+              (slotWeight > 0
+                ? (acc / slotWeight) * toolWidth
+                : ((i + 1) / slots.length) * toolWidth);
+            switch (slot.kind) {
+              case "tool":
+                return (
+                  <Fragment key={`slot-${i}`}>
+                    {spanRect(slot.span, x0, x1, spanY, kAgentSpanHeight)}
+                  </Fragment>
+                );
+              case "burst":
+                return (
+                  <Fragment key={`slot-${i}`}>
+                    {slot.members.map((member, j) => (
+                      <Fragment key={j}>
+                        {spanRect(
+                          member,
+                          x0,
+                          x1,
+                          laneY(member),
+                          member.subLane === undefined
+                            ? kAgentSpanHeight
+                            : kSubLaneHeight
+                        )}
+                      </Fragment>
+                    ))}
+                  </Fragment>
+                );
+              case "ghost":
+                return (
+                  <Fragment key={`slot-${i}`}>
+                    <rect
+                      className={styles.ghostSpan}
+                      x={x0 + 0.75}
+                      y={spanY}
+                      width={Math.max(x1 - x0 - 1.5, 0.5)}
+                      height={kAgentSpanHeight}
+                    />
+                    {x1 - x0 >= 90 && (
+                      <text
+                        className={styles.ghostLabel}
+                        x={(x0 + x1) / 2}
+                        y={spanY - 3}
+                        textAnchor="middle"
+                      >
+                        rejected · no tool run
+                      </text>
+                    )}
+                  </Fragment>
+                );
+            }
+          })}
+        </g>
+      );
+    });
+  };
+
+  /** Turns-mode density fallback: the per-pixel strip binned by turn index
+   *  (one turn = one bin position on the axis regardless of its wall time). */
+  const renderTurnDenseRow = (row: AgentRow, rowTop: number): ReactNode => {
+    const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
+    const rowH = kAgentSpanHeight + 1;
+    const nCols = Math.max(1, Math.floor(plotWidth / kDensityColWidth));
+    const cols: DensityColumn[] = Array.from({ length: nCols }, () => ({
+      model: 0,
+      tool: 0,
+      failed: 0,
+    }));
+    for (const turn of rowTurns(row)) {
+      const c = Math.min(
+        nCols - 1,
+        Math.floor(((turn.index - 1) / nTurns) * nCols)
+      );
+      const col = cols[c]!;
+      if (turn.model) col.model += 1;
+      col.tool += turn.tools.length;
+      col.failed += turn.tools.filter((t) => t.failed).length;
+    }
+    const binAt = (px: number): { label: string; window: TimeWindow } => {
+      const binStart =
+        plotLeft +
+        Math.floor((px - plotLeft) / kDensityHoverPx) * kDensityHoverPx;
+      const binEnd = Math.min(binStart + kDensityHoverPx, plotRight);
+      const a = turnIndexAtPx(binStart);
+      const b = turnIndexAtPx(binEnd - 0.01);
+      let model = 0;
+      let tool = 0;
+      let failed = 0;
+      for (const turn of rowTurns(row)) {
+        if (turn.index < a || turn.index > b) continue;
+        if (turn.model) model += 1;
+        tool += turn.tools.length;
+        failed += turn.tools.filter((t) => t.failed).length;
+      }
+      const label =
+        `turns ${a}–${b} · ${model} model · ${tool} tool` +
+        (failed > 0 ? ` (${failed} failed)` : "");
+      return {
+        label,
+        window: {
+          start: turns[a - 1]?.start ?? timeWindow.start,
+          end: turns[b - 1]?.end ?? timeWindow.end,
+        },
+      };
+    };
+    return (
+      <Fragment>
+        {cols.map((col, i) => {
+          const total = col.model + col.tool;
+          if (total === 0) return null;
+          const share = col.tool / total;
+          return (
+            <rect
+              key={`col-${i}`}
+              x={plotLeft + i * kDensityColWidth}
+              y={spanY}
+              width={kDensityColWidth}
+              height={rowH}
+              fill={share > 0.5 ? "#4f8f8b" : "#64748b"}
+              opacity={0.3 + Math.min(0.6, total * 0.18)}
+            />
+          );
+        })}
+        {cols.map((col, i) =>
+          col.failed > 0 ? (
+            <rect
+              key={`fail-${i}`}
+              className={styles.densityFailure}
+              x={plotLeft + i * kDensityColWidth}
+              y={spanY}
+              width={1.5}
+              height={rowH}
+            />
+          ) : null
+        )}
+        <rect
+          className={styles.densityHit}
+          x={plotLeft}
+          y={spanY - 2}
+          width={Math.max(plotWidth, 0)}
+          height={rowH + 4}
+          onMouseMove={(event) => {
+            const px = pointerPx(event);
+            const bin = binAt(px);
+            setCursor({ x: px, t: timeAtPx(px) });
+            setHoverTarget({
+              kind: "bin",
+              label: bin.label,
+              window: bin.window,
+            });
+          }}
+          onMouseLeave={clearTarget}
+          onClick={
+            onFilterWindow
+              ? (event) => onFilterWindow(binAt(pointerPx(event)).window)
+              : undefined
+          }
+        />
+      </Fragment>
+    );
+  };
+
   /** Agent gutter row (handoff 10a): checkbox · hue swatch · name, with the
    *  model (and "· sub-agent") on a second line. The fold row's checkbox
    *  position carries the expand affordance instead. */
@@ -1202,9 +1537,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       (sum, row) => sum + row.modelCount,
       0
     );
-    const anyDense = visibleRows.some(
-      (row) => row.spans.length > plotWidth / kDensityPxPerSpan
-    );
+    const anyDense = turnsMode
+      ? turnsDense
+      : visibleRows.some(
+          (row) => row.spans.length > plotWidth / kDensityPxPerSpan
+        );
     const shownCount = curveRows.length;
     const headline = [
       ...(multiAgent ? [`${data.agentRows.length} conversations`] : []),
@@ -1247,9 +1584,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 </text>
               )}
               {on &&
-                (dense
-                  ? renderDenseRow(row, rowTop)
-                  : renderDiscreteRow(row, rowTop))}
+                (turnsMode
+                  ? turnsDense
+                    ? renderTurnDenseRow(row, rowTop)
+                    : renderTurnRow(row, rowTop)
+                  : dense
+                    ? renderDenseRow(row, rowTop)
+                    : renderDiscreteRow(row, rowTop))}
             </g>
           );
         })}
@@ -1448,7 +1789,63 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── axis (task-timeline tick logic) ───────────────────────────────────
 
+  const renderTurnAxis = () => {
+    // Tick per column, thinning to every 10th / 100th as columns narrow.
+    const step = colWidth >= 24 ? 1 : colWidth >= 2.4 ? 10 : 100;
+    const roleOf = (turn: TurnColumn): string | undefined =>
+      data.agentRows.find((row) => row.id === turn.rowId)?.role;
+    return (
+      <g key="axis">
+        <line
+          className={styles.axisLine}
+          x1={plotLeft}
+          x2={plotRight}
+          y1={axisY}
+          y2={axisY}
+        />
+        <text
+          className={styles.axisLabel}
+          x={0}
+          y={axisY + 14}
+          letterSpacing="0.4"
+        >
+          TURN
+        </text>
+        {turns.map((turn) => {
+          if (turn.index % step !== 0 && !(step === 1 || turn.index === 1)) {
+            return null;
+          }
+          const cx = (colLeft(turn.index) + colRight(turn.index)) / 2;
+          const role = colWidth >= 40 ? roleOf(turn) : undefined;
+          return (
+            <g key={`turn-tick-${turn.index}`}>
+              <line
+                className={styles.axisLine}
+                x1={cx}
+                x2={cx}
+                y1={axisY}
+                y2={axisY + 3}
+              />
+              <text
+                className={styles.axisLabel}
+                x={cx}
+                y={axisY + 14}
+                textAnchor="middle"
+              >
+                {turn.index}
+                {role && (
+                  <tspan className={styles.axisLabelMuted}> {role}</tspan>
+                )}
+              </text>
+            </g>
+          );
+        })}
+      </g>
+    );
+  };
+
   const renderAxis = () => {
+    if (turnsMode) return renderTurnAxis();
     const ticks: {
       x: number;
       label: string;
@@ -1515,7 +1912,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   const renderCursor = () => {
     if (!cursor) return null;
-    const label = fmtTimeSec(cursor.t);
+    const label = turnsMode
+      ? `turn ${turnIndexAtPx(cursor.x)}`
+      : fmtTimeSec(cursor.t);
     const pillW = label.length * 5.6 + 10;
     const pillX = Math.min(
       Math.max(cursor.x - pillW / 2, plotLeft),
@@ -1556,7 +1955,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const onPlotMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const px = pointerPx(event);
     const py = pointerPy(event);
-    const t = timeAt(px);
+    const t = timeAtPx(px);
     setCursor({ x: px, t });
     const band = bands.find((b) => py >= b.top && py < b.top + b.height);
     if (band?.kind === "context") {
@@ -1582,7 +1981,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       let nearestDist = Infinity;
       for (const row of curveRows) {
         for (const point of data.contextByRow[row.id] ?? []) {
-          const dist = Math.hypot(x(point.time) - px, yOf(point.value) - py);
+          const dist = Math.hypot(
+            pointX(point.time, point.turn) - px,
+            yOf(point.value) - py
+          );
           if (dist < nearestDist) {
             nearestDist = dist;
             nearest = { row, point };
@@ -1637,6 +2039,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return (
       <ActivityTooltip
         target={hoverTarget}
+        turnsMode={turnsMode}
         onOpenEvent={onOpenEvent}
         style={{ left, top }}
         onMouseEnter={() => setTooltipHeld(true)}
@@ -1665,6 +2068,21 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             height={Math.max(axisY - plotTopY, 0)}
             onMouseMove={onPlotMove}
           />
+          {/* Faint full-height column separators behind every band (8b). */}
+          {turnsMode &&
+            colWidth >= 4 &&
+            turns
+              .slice(1)
+              .map((turn) => (
+                <line
+                  key={`sep-${turn.index}`}
+                  className={styles.turnSeparator}
+                  x1={colLeft(turn.index)}
+                  x2={colLeft(turn.index)}
+                  y1={plotTopY}
+                  y2={axisY}
+                />
+              ))}
           {bands.map((band) => {
             switch (band.kind) {
               case "working":
