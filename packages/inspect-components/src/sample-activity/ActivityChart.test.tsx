@@ -20,13 +20,28 @@ import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
 
 import { ActivityChart, ActivityChartProps } from "./ActivityChart";
 import { deriveActivityData } from "./activityData";
-import { ImmediateResizeObserver, iso, kTestChartWidth } from "./testHelpers";
+import { ImmediateResizeObserver, iso } from "./testHelpers";
 
-// Geometry of the stubbed 1000px chart for a single-conversation sample:
-// 30px y-gutter, 10px right inset → a 960px plot.
-const kPlotLeft = 30;
-const kPlotRight = kTestChartWidth - 10;
-const kPlotWidth = kPlotRight - kPlotLeft;
+// A full-height span rect (a burst lane is thinner).
+const kAgentSpanHeight = 11;
+
+/** The plot's horizontal extent, read from the drawn axis baseline (the
+ *  widest horizontal axis line) so the tests don't hardcode the gutter. */
+const plotBounds = (
+  container: HTMLElement
+): { left: number; right: number; width: number } => {
+  let left = 0;
+  let right = 0;
+  for (const line of container.querySelectorAll("line[class*='axisLine']")) {
+    if (attr(line, "y1") !== attr(line, "y2")) continue;
+    if (attr(line, "x2") - attr(line, "x1") > right - left) {
+      left = attr(line, "x1");
+      right = attr(line, "x2");
+    }
+  }
+  if (right <= left) throw new Error("expected a drawn axis baseline");
+  return { left, right, width: right - left };
+};
 
 const modelCall = (opts: {
   start: number;
@@ -107,11 +122,12 @@ describe("ActivityChart Turns mode geometry", () => {
       ],
       { axisMode: "turns" }
     );
+    const { left, width } = plotBounds(container);
     const model = container.querySelector("rect[class*='modelSpan']");
-    expect(attr(model, "width")).toBeCloseTo(kPlotWidth / 2);
+    expect(attr(model, "width")).toBeCloseTo(width / 2);
     const tool = container.querySelector("rect[class*='toolSpan']");
-    expect(attr(tool, "x")).toBeCloseTo(kPlotLeft + kPlotWidth / 2);
-    expect(attr(tool, "width")).toBeCloseTo(kPlotWidth / 2);
+    expect(attr(tool, "x")).toBeCloseTo(left + width / 2);
+    expect(attr(tool, "width")).toBeCloseTo(width / 2);
   });
 
   it("builds the token path left to right when calls overlap", () => {
@@ -134,7 +150,8 @@ describe("ActivityChart Turns mode geometry", () => {
       if (i > 0) expect(x).toBeGreaterThanOrEqual(xs[i - 1]!);
     });
     // The first step lands on the first column's right edge.
-    expect(xs).toContain(kPlotLeft + kPlotWidth / 2);
+    const { left, width } = plotBounds(container);
+    expect(xs).toContain(left + width / 2);
   });
 
   it("lands pre-uuid curve points on their turn's right edge", () => {
@@ -144,9 +161,10 @@ describe("ActivityChart Turns mode geometry", () => {
       [modelCall({ start: 0, end: 10 }), modelCall({ start: 20, end: 30 })],
       { axisMode: "turns" }
     );
+    const { left, right, width } = plotBounds(container);
     const dots = container.querySelectorAll("circle[class*='contextDot']");
-    expect(attr(dots[0] ?? null, "cx")).toBe(kPlotLeft + kPlotWidth / 2);
-    expect(attr(dots[1] ?? null, "cx")).toBe(kPlotRight);
+    expect(attr(dots[0] ?? null, "cx")).toBe(left + width / 2);
+    expect(attr(dots[1] ?? null, "cx")).toBe(right);
   });
 });
 
@@ -198,6 +216,55 @@ describe("ActivityChart hidden conversations", () => {
   });
 });
 
+describe("ActivityChart tool bursts", () => {
+  /** One model call, then six overlapping tools: four lanes plus a +2 fold. */
+  const sixTools = (): Event[] => [
+    modelCall({ start: 0, end: 1, uuid: "m" }),
+    ...Array.from({ length: 6 }, (_, i) =>
+      testToolEvent({
+        uuid: `t${i}`,
+        timestamp: iso(2 + i * 0.1),
+        completed: iso(10),
+        working_start: 2,
+        working_time: 7,
+        function: "bash",
+      })
+    ),
+  ];
+
+  it.each(["wall", "turns"] as const)(
+    "renders only the capped lanes and the +N fold in %s mode",
+    (axisMode) => {
+      const { container } = renderChart(sixTools(), { axisMode });
+      const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
+      // Four thin lanes; the two overflow members render nothing of their
+      // own (they used to paint full-height over the lanes).
+      expect(tools).toHaveLength(4);
+      for (const tool of tools) {
+        expect(attr(tool, "height")).toBeLessThan(kAgentSpanHeight);
+      }
+      expect(
+        container.querySelectorAll("rect[class*='modelSpan']")
+      ).toHaveLength(1);
+    }
+  );
+
+  it("labels the burst with its folded count", () => {
+    renderChart(sixTools());
+    expect(screen.getByText("bash ×6 · +2")).toBeTruthy();
+  });
+
+  it("counts a burst's working weight once in the Turns split", () => {
+    // 1s of model work against 6 × 7s of tool work: the model share is
+    // 1/43 of the column whether or not two members are folded (they used
+    // to be counted in the burst and again as their own slots).
+    const { container } = renderChart(sixTools(), { axisMode: "turns" });
+    const { width } = plotBounds(container);
+    const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "width")).toBeCloseTo(width / 43);
+  });
+});
+
 describe("ActivityChart corrupt telemetry", () => {
   it("keeps token and context geometry finite when usage overflows", () => {
     // 1e308 + 1e308 = Infinity: without a bound the token path's d
@@ -222,7 +289,8 @@ describe("ActivityChart curve read-outs", () => {
     vi.useFakeTimers();
     try {
       // Context 100 at t=0 and 300 at t=10 over a 20s window: the cursor at
-      // t=5 (x=270) reads 200 on the drawn line, and the dot sits on it.
+      // t=5 (a quarter of the plot) reads 200 on the drawn line, and the
+      // dot sits on it.
       const { container } = renderChart([
         modelCall({ start: 0, end: 5, uuid: "m1", input: 100 }),
         modelCall({ start: 10, end: 20, uuid: "m2", input: 300 }),
@@ -238,8 +306,9 @@ describe("ActivityChart curve read-outs", () => {
       const contextLabel = [
         ...container.querySelectorAll("text[class*='bandLabel']"),
       ].find((label) => label.textContent === "CONTEXT SIZE");
+      const { left, width } = plotBounds(container);
       fireEvent.mouseMove(hit, {
-        clientX: 270,
+        clientX: left + width / 4,
         clientY: attr(contextLabel ?? null, "y") + 30,
       });
       const dot = container.querySelector("circle[class*='readoutDot']");

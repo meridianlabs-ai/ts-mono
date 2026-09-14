@@ -153,10 +153,17 @@ export interface ActivitySpan {
   uuid?: string;
   /** 1-based interleaved turn index. */
   turn?: number;
-  /** Sub-lane index within a concurrent tool burst; undefined = full row. */
+  /** The concurrent-tool burst this span belongs to (identity, shared by
+   *  every member) — independent of whether it got a visible lane. */
+  burst?: ToolBurst;
+  /** Sub-lane index within the burst; undefined = full row (no burst) or
+   *  folded. */
   subLane?: number;
   /** Sub-lane count of the burst this span belongs to (≤ kMaxSubLanes). */
   subLaneCount?: number;
+  /** Burst member beyond the lane cap: drawn only through the burst's +N
+   *  fold, never as its own rect (it would paint over the lanes). */
+  folded?: boolean;
   /** Tool call that spawned a sub-agent conversation: the row id it handed
    *  off to. The span renders only until that child starts; the blocked
    *  interval takes over as the dotted "awaiting" thread. */
@@ -1405,13 +1412,6 @@ const assignSubLanes = (row: AgentRow): void => {
 
   const flush = () => {
     if (burst.length > 1) {
-      const shown = burst.slice(0, kMaxSubLanes);
-      shown.forEach((span, lane) => {
-        span.subLane = lane;
-        span.subLaneCount = shown.length;
-      });
-      // Folded spans render nothing individually; the burst label counts
-      // them so nothing silently disappears.
       const names = new Map<string, number>();
       let failed = 0;
       for (const span of burst) {
@@ -1420,7 +1420,7 @@ const assignSubLanes = (row: AgentRow): void => {
       }
       const dominant =
         [...names.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "tools";
-      row.bursts.push({
+      const record: ToolBurst = {
         start: burst[0]?.start ?? 0,
         end: burstEnd,
         count: burst.length,
@@ -1428,6 +1428,20 @@ const assignSubLanes = (row: AgentRow): void => {
         label: dominant,
         folded: Math.max(0, burst.length - kMaxSubLanes),
         names: burst.map((span) => span.label),
+      };
+      row.bursts.push(record);
+      // Every member knows its burst; only the first kMaxSubLanes get a
+      // lane. Folded spans render nothing individually — the burst label's
+      // +N counts them so nothing silently disappears.
+      const shown = Math.min(burst.length, kMaxSubLanes);
+      burst.forEach((span, lane) => {
+        span.burst = record;
+        if (lane < shown) {
+          span.subLane = lane;
+          span.subLaneCount = shown;
+        } else {
+          span.folded = true;
+        }
       });
     }
     burst = [];

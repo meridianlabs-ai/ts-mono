@@ -26,6 +26,7 @@ import {
   kScorerHue,
   StallRegion,
   TimeWindow,
+  ToolBurst,
   turnAfter,
   turnAt,
   TurnColumn,
@@ -965,14 +966,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   const hoverSpan = (row: AgentRow, s: ActivitySpan, anchorX: number) => {
     setCursor({ x: anchorX, t: s.start });
-    // A sub-laned span belongs to a burst: the tooltip lists the burst.
-    const burst =
-      s.subLane !== undefined
-        ? row.bursts.find((b) => s.start >= b.start && s.end <= b.end)
-        : undefined;
+    // A burst member's tooltip lists the burst.
     showTarget(
-      burst
-        ? { kind: "burst", burst, row, hovered: s }
+      s.burst
+        ? { kind: "burst", burst: s.burst, row, hovered: s }
         : { kind: "span", span: s, row }
     );
   };
@@ -1016,6 +1013,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           );
         })}
         {row.spans.map((s, i) => {
+          // Beyond the lane cap: the burst's +N label stands in for it.
+          if (s.folded) return null;
           const subLaned = s.subLane !== undefined;
           const h = subLaned ? kSubLaneHeight : kAgentSpanHeight;
           const failedTool = s.kind === "tool" && s.failed;
@@ -1292,20 +1291,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return rowTurns(row).map((turn) => {
       const left = colLeft(turn.index);
       const right = colRight(turn.index);
-      // Tool slots in start order; a burst's members share one slot.
+      // Tool slots in start order; a burst's members (folded ones included
+      // — their work happened) share one slot, consumed once per burst.
       const slots: Slot[] = [];
-      const seenBurst = new Set<number>();
+      const seenBurst = new Set<ToolBurst>();
       for (const tool of turn.tools) {
-        const burst =
-          tool.subLane !== undefined
-            ? row.bursts.find((b) => tool.start >= b.start && tool.end <= b.end)
-            : undefined;
+        const burst = tool.burst;
         if (burst) {
-          if (seenBurst.has(burst.start)) continue;
-          seenBurst.add(burst.start);
-          const members = turn.tools.filter(
-            (t) => t.start >= burst.start && t.end <= burst.end
-          );
+          if (seenBurst.has(burst)) continue;
+          seenBurst.add(burst);
+          const members = turn.tools.filter((t) => t.burst === burst);
           slots.push({
             kind: "burst",
             members,
@@ -1356,19 +1351,21 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               case "burst":
                 return (
                   <Fragment key={`slot-${i}`}>
-                    {slot.members.map((member, j) => (
-                      <Fragment key={j}>
-                        {spanRect(
-                          member,
-                          x0,
-                          x1,
-                          laneY(member),
-                          member.subLane === undefined
-                            ? kAgentSpanHeight
-                            : kSubLaneHeight
-                        )}
-                      </Fragment>
-                    ))}
+                    {slot.members.map((member, j) =>
+                      member.folded ? null : (
+                        <Fragment key={j}>
+                          {spanRect(
+                            member,
+                            x0,
+                            x1,
+                            laneY(member),
+                            member.subLane === undefined
+                              ? kAgentSpanHeight
+                              : kSubLaneHeight
+                          )}
+                        </Fragment>
+                      )
+                    )}
                   </Fragment>
                 );
               case "ghost":

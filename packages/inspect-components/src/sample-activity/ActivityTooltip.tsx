@@ -305,10 +305,7 @@ const BurstBody: FC<{
   turnsMode: boolean;
   onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
 }> = ({ burst, row, hovered, turnsMode, onOpenEvent }) => {
-  // Members: the row's tool spans inside the burst window.
-  const members = row.spans.filter(
-    (s) => s.kind === "tool" && s.start >= burst.start && s.end <= burst.end
-  );
+  const members = row.spans.filter((s) => s.burst === burst);
   return (
     <Card
       subject={

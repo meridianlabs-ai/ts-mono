@@ -546,6 +546,13 @@ describe("model & tool activity", () => {
     const laned = row?.spans.filter((s) => s.subLane !== undefined) ?? [];
     expect(laned).toHaveLength(4);
     expect(row?.bursts[0]).toMatchObject({ count: 6, folded: 2 });
+    // Membership is independent of lane assignment: every member points
+    // at the burst, the two past the cap are folded and lane-less.
+    const members = row?.spans.filter((s) => s.kind === "tool") ?? [];
+    expect(members.every((s) => s.burst === row?.bursts[0])).toBe(true);
+    const folded = members.filter((s) => s.folded);
+    expect(folded).toHaveLength(2);
+    expect(folded.every((s) => s.subLane === undefined)).toBe(true);
   });
 
   it("marks failed tool calls and emits an error marker + row", () => {
