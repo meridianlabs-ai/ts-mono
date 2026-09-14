@@ -3,7 +3,6 @@ import {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { GridState } from "ag-grid-community";
 import { createContext, useContext } from "react";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
@@ -28,6 +27,8 @@ import {
   SortColumn,
 } from "../app/types";
 import { TranscriptInfo } from "../types/api-types";
+
+import { emptyDataframeState, type DataframeState } from "./dataframeState";
 
 export type {
   ColumnFilter,
@@ -96,7 +97,7 @@ interface StoreState {
     string,
     { startIndex: number; endIndex: number; totalCount: number }
   >;
-  gridStates: Record<string, GridState>;
+  gridStates: Record<string, DataframeState>;
 
   // Scan specific properties (clear when switching scans)
   selectedResultsTab?: string;
@@ -191,7 +192,10 @@ interface StoreState {
   clearListPosition: (name: string) => void;
   clearListPositionsWithPrefix: (prefix: string) => void;
 
-  setGridState: (name: string, state: GridState) => void;
+  setGridState: (
+    name: string,
+    state: DataframeState | ((previous: DataframeState) => DataframeState)
+  ) => void;
   clearGridState: (name: string) => void;
 
   getVisibleRange: (name: string) => {
@@ -541,9 +545,12 @@ export const createStore = (api: ScoutApiV2) =>
               return changed ? { listPositions: newListPositions } : {};
             });
           },
-          setGridState: (name: string, gridState: GridState) => {
+          setGridState: (name, gridState) => {
             set((state) => {
-              state.gridStates[name] = gridState;
+              state.gridStates[name] =
+                typeof gridState === "function"
+                  ? gridState(state.gridStates[name] ?? emptyDataframeState)
+                  : gridState;
             });
           },
           clearGridState: (name: string) => {

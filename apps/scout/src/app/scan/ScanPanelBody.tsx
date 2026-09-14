@@ -10,9 +10,9 @@ import {
 } from "@tsmono/react/components";
 
 import { ApplicationIcons } from "../../icons";
+import { GRID_STATE_NAME } from "../../state/dataframeState";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
-import { GRID_STATE_NAME } from "../components/DataframeView";
 import { ResultGroup } from "../types";
 import { resultIdentifierStr, resultLog } from "../utils/results";
 
@@ -59,7 +59,9 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
   );
 
   const gridFilter = useStore(
-    (state) => state.gridStates[GRID_STATE_NAME]?.filter
+    (state) =>
+      Object.keys(state.gridStates[GRID_STATE_NAME]?.columnFilters ?? {})
+        .length > 0
   );
 
   // Use a callback ref to capture the button element and trigger re-renders
@@ -191,7 +193,9 @@ export const ScanPanelBody: React.FC<{ selectedScan: Status }> = ({
     }
 
     if (selectedResultsView === kSegmentDataframe && gridFilter) {
-      tools.push(<ScannerDataframeClearFiltersButton />);
+      tools.push(
+        <ScannerDataframeClearFiltersButton key="scan-dataframe-clear-filters" />
+      );
     }
 
     if (selectedResultsView === kSegmentList && groupOptions.length > 0) {

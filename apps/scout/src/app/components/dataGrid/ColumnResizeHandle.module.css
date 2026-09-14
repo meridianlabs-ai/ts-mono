@@ -1,0 +1,26 @@
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  margin-top: 4px;
+  margin-bottom: 4px;
+  height: calc(100% - 8px);
+  width: 5px;
+  background: transparent;
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none;
+  border-right: solid 1px var(--bs-border-color);
+  z-index: 10;
+  pointer-events: auto;
+}
+
+.resizer:hover {
+  background: var(--bs-primary);
+  opacity: 0.5;
+}
+
+.resizerActive {
+  background: var(--bs-primary);
+  opacity: 1;
+}

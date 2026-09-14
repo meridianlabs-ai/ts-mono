@@ -81,6 +81,7 @@ export const countMatchesInTexts = (
 
 export function VirtualList<T>({
   persistenceKey,
+  persistScroll = true,
   ref,
   id,
   className,
@@ -89,6 +90,7 @@ export function VirtualList<T>({
   renderRow,
   estimatedItemHeight = DEFAULT_ITEM_HEIGHT_PX,
   overscan,
+  useFlushSync,
   embedded = false,
   resetScrollOnMount: resetScrollOnMountProp,
   live,
@@ -96,6 +98,7 @@ export function VirtualList<T>({
   followRequested,
   showProgress,
   initialIndex,
+  initialScrollOffset,
   scrollPaddingStart,
   components,
   smoothScroll = true,
@@ -201,14 +204,17 @@ export function VirtualList<T>({
       estimateSize: () => estimatedItemHeight,
       getScrollElement,
       overscan,
+      useFlushSync,
       // A stable virtualizer option rather than a post-scroll `scrollTop +=`,
       // so tanstack's reconcile re-applies it instead of erasing it on far jumps.
       scrollPaddingStart: scrollPaddingStart ?? 0,
       scrollMargin,
     });
 
-  const { getRestoreSnapshot, recordSnapshot } =
-    useVirtualListState(persistenceKey);
+  const { getRestoreSnapshot, recordSnapshot } = useVirtualListState(
+    persistenceKey,
+    persistScroll
+  );
 
   const [storedFollow, setFollowOutput] = useProperty<boolean | null>(
     persistenceKey,
@@ -298,10 +304,12 @@ export function VirtualList<T>({
   // inferring intent from scroll deltas is unreliable while streaming moves
   // the bottom.
   const userInteractingRef = useRef(false);
+  const interactionSequenceRef = useRef(0);
   const pointerDownRef = useRef(false);
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noteUserInteraction = useCallback(() => {
     userInteractingRef.current = true;
+    interactionSequenceRef.current += 1;
     if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     interactTimerRef.current = setTimeout(() => {
       userInteractingRef.current = false;
@@ -503,8 +511,11 @@ export function VirtualList<T>({
       let frames = 0;
       let stable = 0;
       let lastTop = el.scrollTop;
+      // A keyboard-initiated jump must finish measuring; only input AFTER the
+      // request cancels it, not the keypress that requested the jump itself.
+      const interactionAtStart = interactionSequenceRef.current;
       const settle = () => {
-        if (userInteractingRef.current) {
+        if (interactionSequenceRef.current !== interactionAtStart) {
           finish();
           return;
         }
@@ -617,7 +628,10 @@ export function VirtualList<T>({
     if (hasInitialScrolledRef.current) return;
     const el = getScrollElement();
     if (!el) return;
-    const snapshot = getRestoreSnapshot();
+    const snapshot =
+      initialScrollOffset === undefined
+        ? getRestoreSnapshot()
+        : { scrollOffset: initialScrollOffset, totalCount: data.length };
     // Cancelled on cleanup — the shared container outlives this list, and a
     // frame surviving unmount (or a key change) would scroll it under
     // whatever view owns it next, with stale closures.
@@ -698,6 +712,7 @@ export function VirtualList<T>({
   }, [
     persistenceKey,
     initialIndex,
+    initialScrollOffset,
     settleScrollToIndex,
     settleRestoreScroll,
     contentTotal,
