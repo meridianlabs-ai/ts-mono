@@ -31,8 +31,24 @@ const tableKey = (table: ColumnTable): number => {
 
 const kSkipped = [skipToken] as const;
 
-// Derivations never fail transiently; a parse error is a data problem.
-const kDerivation = { staleTime: Infinity, retry: false } as const;
+// Derivations never fail transiently, so a parse error is a data problem and
+// is not retried. Entries drop as soon as their last observer leaves
+// (gcTime 0): each queryFn closes over its ColumnTable, so a cached entry
+// would otherwise pin superseded tables for the default five minutes while a
+// running scan refetches the dataframe on every tick. Concurrent observers
+// still share one parse.
+const kDerivation = { staleTime: Infinity, retry: false, gcTime: 0 } as const;
+
+// Callers get the error through the query, but nothing renders it today, so
+// keep the diagnostic the effect-based hooks used to log.
+const logged = async <T>(what: string, parse: Promise<T>): Promise<T> => {
+  try {
+    return await parse;
+  } catch (error) {
+    console.error(`Error parsing ${what}:`, error);
+    throw error;
+  }
+};
 
 export const scanResultSummariesQuery = (
   columnTable: ColumnTable | undefined
@@ -43,7 +59,10 @@ export const scanResultSummariesQuery = (
       : kSkipped,
     queryFn: columnTable
       ? (): Promise<ScanResultSummary[]> =>
-          parseScanResultSummaries(columnTable.objects())
+          logged(
+            "scan result summaries",
+            parseScanResultSummaries(columnTable.objects())
+          )
       : skipToken,
     ...kDerivation,
   });
@@ -86,7 +105,9 @@ export const scanResultDataQuery = (
             input.columnTable,
             input.rowIdentifier
           );
-          return filtered ? await parseScanResultData(filtered) : null;
+          return filtered
+            ? await logged("scan result", parseScanResultData(filtered))
+            : null;
         }
       : skipToken,
     ...kDerivation,
