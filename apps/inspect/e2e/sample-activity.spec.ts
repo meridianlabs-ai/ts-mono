@@ -438,11 +438,17 @@ test("activity tab is hidden for old logs without event timestamps", async ({
   page,
   network,
 }) => {
-  const legacyEvents: Events = activityEvents().map((event) => ({
-    ...event,
-    timestamp: "",
-    ...("completed" in event ? { completed: null } : {}),
-  }));
+  // Logs that predate event timestamps also predate compaction events —
+  // and CompactionEventView formats its timestamp unconditionally, so a
+  // blank one throws into the transcript's error boundary and the
+  // transcript intermittently fails to mount.
+  const legacyEvents: Events = activityEvents()
+    .filter((event) => event.event !== "compaction")
+    .map((event) => ({
+      ...event,
+      timestamp: "",
+      ...("completed" in event ? { completed: null } : {}),
+    }));
   // Deep-link straight to /activity: a shared Activity URL opened on a log
   // whose tab is hidden must fall back to the Transcript, not go blank.
   await openSample(page, network, {
