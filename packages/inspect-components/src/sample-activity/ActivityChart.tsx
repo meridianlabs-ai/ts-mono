@@ -374,13 +374,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── curve read-outs at a time ─────────────────────────────────────────
 
-  /** Cumulative burn per visible row up to `t` (row order preserved). */
-  const tokenValuesAt = (t: number): { row: AgentRow; value: number }[] =>
+  /** Cumulative burn per visible row at cursor x (row order preserved):
+   *  the drawn step counts every burn point at or left of the cursor — on
+   *  the wall clock by completion time, in Turns mode by column edge. */
+  const tokenValuesAt = (px: number): { row: AgentRow; value: number }[] =>
     curveRows.map((row) => {
       let value = 0;
-      for (const point of data.tokensByRow[row.id] ?? []) {
-        if (point.time > t) break;
-        value = point.value;
+      for (const point of data.tokenPoints) {
+        if (point.rowId !== row.id) continue;
+        if (pointX(point.time, point.turn) <= px + 0.01) value += point.burned;
       }
       return { row, value };
     });
@@ -446,7 +448,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const gutterLegend = (
     band: Band,
     restingValue: (row: AgentRow) => string,
-    cursorValue: (row: AgentRow, t: number) => string
+    cursorValue: (row: AgentRow, at: Cursor) => string
   ): ReactNode => {
     if (!multiAgent) return null;
     return (
@@ -467,7 +469,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 y={y}
                 textAnchor="end"
               >
-                {cursor ? cursorValue(row, cursor.t) : restingValue(row)}
+                {cursor ? cursorValue(row, cursor) : restingValue(row)}
               </text>
             </g>
           );
@@ -632,18 +634,23 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
     // Stacked step areas, bottom-up in row order (handoff 10a): each burn
     // point lifts its own row's layer and every layer above it. Layers are
-    // built from the time-sorted burn points so overlapping conversations
+    // built from the burn points in axis order so overlapping conversations
     // stack correctly; single-conversation samples degenerate to one layer.
-    const points = data.tokenPoints.filter((p) => visibleRowIds.has(p.rowId));
+    // On the wall clock that is completion order (the data layer's sort);
+    // in Turns mode a point sits on its turn's column, and an early-starting
+    // turn can complete after a later one, so the points re-sort by column.
+    const points = data.tokenPoints
+      .filter((p) => visibleRowIds.has(p.rowId))
+      .map((point) => ({ point, px: pointX(point.time, point.turn) }));
+    if (turnsMode) points.sort((a, b) => a.px - b.px);
     const running = new Map<string, number>();
     /** Per breakpoint, the cumulative stack top per row (row order). */
     const steps: { x: number; tops: number[] }[] = [
       { x: plotLeft, tops: curveRows.map(() => 0) },
     ];
     let lastX = plotLeft;
-    points.forEach((point, i) => {
+    points.forEach(({ point, px }, i) => {
       running.set(point.rowId, (running.get(point.rowId) ?? 0) + point.burned);
-      const px = pointX(point.time, point.turn);
       // Decimate per pixel at scale — but always keep the final point.
       if (px - lastX < 1 && i < points.length - 1) return;
       let stack = 0;
@@ -693,7 +700,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const dots = (() => {
       if (!cursor) return [];
       let stack = 0;
-      return tokenValuesAt(cursor.t).map(({ row, value }) => {
+      return tokenValuesAt(cursor.x).map(({ row, value }) => {
         stack += value;
         return { y: y(stack), hue: multiAgent ? row.hue : "#495057" };
       });
@@ -726,8 +733,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         {gutterLegend(
           band,
           (row) => fmtTokens(data.tokenTotalsByRow[row.id] ?? 0),
-          (row, t) => {
-            const value = tokenValuesAt(t).find((v) => v.row === row)?.value;
+          (row, at) => {
+            const value = tokenValuesAt(at.x).find((v) => v.row === row)?.value;
             return fmtTokens(value ?? 0);
           }
         )}
@@ -872,8 +879,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         {gutterLegend(
           band,
           (row) => fmtTokens(data.contextPeakByRow[row.id] ?? 0),
-          (row, t) => {
-            const point = contextPointsAt(t).find((v) => v.row === row)?.point;
+          (row, at) => {
+            const point = contextPointsAt(at.t).find((v) => v.row === row)?.point;
             return point ? fmtTokens(point.value) : "—";
           }
         )}
@@ -2008,7 +2015,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         kind: "curve",
         band: "tokens",
         time: t,
-        values: tokenValuesAt(t),
+        values: tokenValuesAt(px),
       });
       return;
     }

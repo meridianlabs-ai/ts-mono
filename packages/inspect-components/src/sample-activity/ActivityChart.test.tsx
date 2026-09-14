@@ -107,6 +107,29 @@ describe("ActivityChart Turns mode geometry", () => {
     expect(attr(tool, "width")).toBeCloseTo(kPlotWidth / 2);
   });
 
+  it("builds the token path left to right when calls overlap", () => {
+    // Turn 1 runs [0,100] and completes AFTER turn 2 ([10,20]); the burn
+    // steps must still climb column by column, never doubling back.
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 100, uuid: "m1" }),
+        modelCall({ start: 10, end: 20, uuid: "m2" }),
+      ],
+      { axisMode: "turns" }
+    );
+    const d =
+      container
+        .querySelector("path[class*='tokenSeries']")
+        ?.getAttribute("d") ?? "";
+    const xs = pathXs(d);
+    expect(xs.length).toBeGreaterThan(2);
+    xs.forEach((x, i) => {
+      if (i > 0) expect(x).toBeGreaterThanOrEqual(xs[i - 1]!);
+    });
+    // The first step lands on the first column's right edge.
+    expect(xs).toContain(kPlotLeft + kPlotWidth / 2);
+  });
+
   it("lands pre-uuid curve points on their turn's right edge", () => {
     // Older logs have timestamps but no event uuids: the points still
     // belong to the turn that produced them.
