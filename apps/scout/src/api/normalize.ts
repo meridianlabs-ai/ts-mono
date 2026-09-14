@@ -1,6 +1,7 @@
 import {
+  isWireTimeline,
   normalizeEvents,
-  normalizeModelUsage,
+  normalizeModelUsageMap,
   normalizeTimelines,
   type WireTimeline,
 } from "@tsmono/inspect-common/normalize";
@@ -53,7 +54,7 @@ export interface WireScannerSummary extends Omit<
   results?: number;
   scans?: number;
   tokens?: number;
-  model_usage?: Record<string, unknown>;
+  model_usage?: unknown;
   validation?: WireValidationResults | null;
 }
 
@@ -105,7 +106,7 @@ export interface WireTranscript extends WireTranscriptInfo {
   // carry legacy shapes, and they get their own per-event fills.
   events?: unknown;
   messages?: Transcript["messages"];
-  timelines?: WireTimeline[];
+  timelines?: unknown;
 }
 
 export interface WireMessagesEvents {
@@ -113,7 +114,7 @@ export interface WireMessagesEvents {
   events?: unknown;
   events_data?: MessagesEventsResponse["events_data"];
   messages?: Transcript["messages"];
-  timelines?: WireTimeline[];
+  timelines?: unknown;
 }
 
 const normalizeValidationMetrics = (
@@ -151,30 +152,13 @@ const normalizeValidationResults = (
     : raw.metrics_by_key,
 });
 
-/**
- * Entries that aren't records are dropped — pydantic would refuse them
- * outright, so no writer ever emitted one.
- */
-const normalizeModelUsageRecord = (
-  raw: Record<string, unknown> | undefined
-): ScannerSummary["model_usage"] => {
-  const usage: ScannerSummary["model_usage"] = {};
-  for (const [model, entry] of Object.entries(raw ?? {})) {
-    const normalized = normalizeModelUsage(entry);
-    if (normalized) {
-      usage[model] = normalized;
-    }
-  }
-  return usage;
-};
-
 const normalizeScannerSummary = (raw: WireScannerSummary): ScannerSummary => ({
   ...raw,
   errors: raw.errors ?? 0,
   results: raw.results ?? 0,
   scans: raw.scans ?? 0,
   tokens: raw.tokens ?? 0,
-  model_usage: normalizeModelUsageRecord(raw.model_usage),
+  model_usage: normalizeModelUsageMap(raw.model_usage),
   validation: raw.validation
     ? normalizeValidationResults(raw.validation)
     : raw.validation,
@@ -230,9 +214,15 @@ export const normalizeTranscript = (
   ...raw,
   metadata: raw.metadata ?? {},
   messages: raw.messages ?? [],
-  timelines: normalizeTimelines(raw.timelines ?? []),
-  events: expandEvents(normalizeEvents(raw.events), eventsData ?? null),
+  timelines: normalizeTimelines(wireTimelines(raw.timelines)),
+  events: expandEvents(normalizeEvents(raw.events), eventsData),
 });
+
+// Timelines are trusted no further than events: a non-array or an entry
+// without a root is dropped here rather than thrown at render, matching
+// normalizeEvalSample.
+const wireTimelines = (raw: unknown): WireTimeline[] =>
+  Array.isArray(raw) ? raw.filter(isWireTimeline) : [];
 
 const mapRecord = <T, U>(
   record: Record<string, T>,

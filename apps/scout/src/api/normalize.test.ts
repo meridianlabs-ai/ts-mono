@@ -225,6 +225,28 @@ describe("normalizeTranscript", () => {
     ).toEqual([]);
   });
 
+  it("drops timelines that aren't records with a root span", () => {
+    expect(
+      normalizeTranscript({ transcript_id: "t4", timelines: "oops" }).timelines
+    ).toEqual([]);
+    const transcript = normalizeTranscript({
+      transcript_id: "t5",
+      timelines: [{ nope: true }, { root: { id: "r" } }],
+    });
+    expect(transcript.timelines).toMatchObject([
+      {
+        root: {
+          id: "r",
+          type: "span",
+          tool_invoked: false,
+          utility: false,
+          branches: [],
+          content: [],
+        },
+      },
+    ]);
+  });
+
   it("expands condensed events through events_data", () => {
     const transcript = normalizeTranscript(
       {
