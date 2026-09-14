@@ -13,6 +13,12 @@ explanation.
   overflow.
 - `scores-sample-tab` sample Scoring tab shows scorer name, score value,
   answer, target, explanation.
+- `scores-types` renders pass/fail, categorical, numeric, boolean, list,
+  object, and other score shapes with suitable tone/labels.
+- `scores-reason` shows the scorer explanation and the optional distinct
+  `reason` field in both sample scoring and transcript score events.
+- `scores-grid-options` sorts scorers and applies compact labels/color scales
+  consistently between grids and the sample summary.
 
 ## How to get to it (user POV)
 
@@ -45,6 +51,24 @@ Preconditions:
   numeric metric (0.8) and the sample score letter (C) — values that come
   from the fixture, not placeholders.
 
+- **Typed values/reason.** Use a fixture whose score type and `reason` are
+  known; assert the Scoring tab and Score transcript event agree without
+  flattening list/object values to `[object Object]`.
+
+## Code landmarks
+
+- Log list/headline metrics: `apps/inspect/src/scoring/`, log-list column
+  hooks, and `apps/inspect/src/app/log-view/title-view/ResultsPanel.tsx` /
+  `ScoreGrid.tsx`.
+- Sample scoring: `apps/inspect/src/app/samples/scores/` and descriptor types
+  under `apps/inspect/src/app/samples/descriptor/score/`.
+- Summary score/tone: `apps/inspect/src/app/samples/header-v2/` and
+  `apps/inspect/src/app/shared/samples-grid/colorScale.ts`.
+- Transcript score event: `packages/inspect-components/src/transcript/ScoreEventView.tsx`
+  and `ScoreValue.tsx`.
+- Regression coverage: scoring unit tests, score descriptor/grid tests,
+  title-view results tests, and `apps/inspect/e2e/metrics-overflow.spec.ts`.
+
 ## Gotchas
 
 - `getByText("C", { exact: true })` can match stray single letters — scope
@@ -53,3 +77,9 @@ Preconditions:
   don't report `scores-log-header` proven on a one-metric fixture.
 - Metric values are rounded for display — assert the displayed rounding
   (`0.8`), not full precision from the log.
+- `Score.explanation` and `Score.reason` are separate optional fields; preserve
+  both when present.
+- List/object scores need stable structured rendering and sorting semantics;
+  never compare them through implicit string coercion.
+- Headline-metric selection can differ from source order and can name a grouped
+  metric/reducer.

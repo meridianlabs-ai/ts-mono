@@ -3,6 +3,8 @@ import { FC } from "react";
 
 import { isRecord } from "@tsmono/util";
 
+import { ExternalLink } from "../../content/ExternalLink";
+
 import styles from "./WebSearchResults.module.css";
 
 export interface WebSearchContentData {
@@ -40,17 +42,15 @@ export const WebSearchResults: FC<{ results: WebSearchContentData[] }> = ({
             key={index}
             className={clsx(styles.result, "text-style-secondary")}
           >
-            <a
+            <ExternalLink
               href={result.url}
-              target="_blank"
-              rel="noopener noreferrer"
               title={
                 result.url +
                 (result.page_age ? `\n(Age: ${result.page_age})` : "")
               }
             >
               {result.title}
-            </a>
+            </ExternalLink>
           </li>
         ))}
       </ol>

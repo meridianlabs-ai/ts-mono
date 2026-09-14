@@ -16,11 +16,17 @@ import {
 } from "react";
 
 import { StickyScrollProvider } from "@tsmono/react/components";
-import { useProperty, useScrollTrack } from "@tsmono/react/hooks";
+import { useLatestRef, useProperty, useScrollTrack } from "@tsmono/react/hooks";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import { GoToTurnBar, type GoToTurnBarHandle } from "./GoToTurnBar";
 import { useTranscriptKeyboardNavigation } from "./hooks/useTranscriptKeyboardNavigation";
+import {
+  isSelectableEvent,
+  toggleTranscriptSelection,
+  type TranscriptRowSelectionProps,
+  type TranscriptSelection,
+} from "./selection/transcriptSelection";
 import { TranscriptVirtualList } from "./TranscriptVirtualList";
 import { findCollapsedAncestors, flatTree } from "./transform/flatten";
 import { pairToolApprovals } from "./transform/toolApprovals";
@@ -95,6 +101,8 @@ export interface TranscriptViewNodesProps {
   onNavigatedToEvent?: (eventId: string) => void;
   /** Disable turn/agent keyboard nav while find-in-page owns the keyboard. */
   keyboardNavDisabled?: boolean;
+  /** Host-owned evidence selection; present only while selection mode is on. */
+  selection?: TranscriptSelection;
 }
 
 export interface TranscriptViewNodesHandle {
@@ -152,6 +160,7 @@ export const TranscriptViewNodes = forwardRef<
     onNextAgent,
     onNavigatedToEvent,
     keyboardNavDisabled,
+    selection,
   },
   ref
 ) {
@@ -210,6 +219,32 @@ export const TranscriptViewNodes = forwardRef<
   const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
     () => ({ ...eventNodeContext, toolApprovals }),
     [eventNodeContext, toolApprovals]
+  );
+
+  // Bails out of React Compiler (checked with SWC): the row toggle keeps a
+  // stable identity by hand, reading live state through a ref.
+  const selectionLatest = useLatestRef({ selection, flattenedNodes });
+  const onToggleSelected = useCallback(
+    (eventId: string, extend: boolean) => {
+      const { selection: current, flattenedNodes: rows } =
+        selectionLatest.current;
+      if (!current) return;
+      // Ranges span the VISIBLE rows, as the user sees them.
+      const visibleIds = rows
+        .filter((n) => isSelectableEvent(n.event))
+        .map((n) => n.id);
+      current.onChange(
+        toggleTranscriptSelection(current, visibleIds, eventId, extend)
+      );
+    },
+    [selectionLatest]
+  );
+  const rowSelection = useMemo<TranscriptRowSelectionProps | undefined>(
+    () =>
+      selection
+        ? { selectedIds: selection.selectedIds, onToggle: onToggleSelected }
+        : undefined,
+    [selection, onToggleSelected]
   );
 
   // Turn map + anchors from the shared helper (collapse-independent
@@ -849,6 +884,7 @@ export const TranscriptViewNodes = forwardRef<
           turnMap={computedTurnMap}
           eventCallbacks={eventCallbacks}
           eventNodeContext={mergedEventNodeContext}
+          selection={rowSelection}
           visibleRangeRef={visibleRangeRef}
         />
       </div>

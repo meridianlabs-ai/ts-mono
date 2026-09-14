@@ -20,6 +20,12 @@ export const TYPE_SCORERS = "scorers";
 export const TYPE_SCORER = "scorer";
 export const TYPE_CHECKPOINT = "checkpoint";
 
+/** Span/step events group the rows below them; they are structure, not content. */
+export const isStructuralEvent = (event: EventType): boolean =>
+  event.event === SPAN_BEGIN ||
+  event.event === SPAN_END ||
+  event.event === STEP;
+
 export const hasSpans = (events: EventType[]): boolean => {
   return events.some((event: EventType) => event.event === SPAN_BEGIN);
 };

@@ -4,12 +4,9 @@ import { AsyncData } from "@tsmono/util";
 import { useApi } from "../../state/store";
 import { ScannerInfo } from "../../types/api-types";
 
+import { scannersQuery } from "./queries";
+
 export const useScanners = (): AsyncData<ScannerInfo[]> => {
   const api = useApi();
-
-  return useAsyncDataFromQuery({
-    queryKey: ["scanners"],
-    queryFn: async () => (await api.getScanners()).items,
-    staleTime: 10000,
-  });
+  return useAsyncDataFromQuery(scannersQuery(api));
 };

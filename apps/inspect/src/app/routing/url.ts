@@ -403,19 +403,27 @@ export const logSamplesUrl = (
   }
 };
 
+/**
+ * Print route for a sample tab. `eventIds` narrows a transcript print to the
+ * selected events (one `events=` param each, so ids never need a separator).
+ */
 export const printSampleUrl = (
   logPath: string,
   sampleId: string | number,
   epoch: string | number,
   view: string,
-  prefix: RoutePrefix = "/logs"
+  prefix: RoutePrefix = "/logs",
+  eventIds?: readonly string[]
 ) => {
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
   const encodedSampleId = encodeURIComponent(String(sampleId));
+  const eventParams = (eventIds ?? [])
+    .map((id) => `&events=${encodeURIComponent(id)}`)
+    .join("");
   return (
     encodePathParts(
       `${prefix}/${decodedLogPath}/samples/sample/${encodedSampleId}/${epoch}/print`
-    ) + `?view=${view}`
+    ) + `?view=${view}${eventParams}`
   );
 };
 

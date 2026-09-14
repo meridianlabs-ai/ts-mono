@@ -1,0 +1,24 @@
+.group {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+:global(.btn).splitMain {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Icon-only segment: flex-centre the glyph and stretch to the text segment's
+   height so the two segments read as one split button. */
+:global(.btn).splitClear {
+  display: inline-flex;
+  align-items: center;
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 0.1em 0.45em;
+}
+
+.splitClear i {
+  font-size: 0.85em;
+}

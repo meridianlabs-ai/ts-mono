@@ -45,37 +45,35 @@ export const PlanDetailView: FC<PlanDetailViewProps> = ({
   }
 
   if (scores) {
-    const scorers = scores.reduce<
-      Record<string, { scores: string[]; params: Record<string, unknown> }>
-    >((accum, score) => {
-      const existing = accum[score.scorer];
+    // Map, not a plain object: scorer names come from the log header, and a
+    // name such as "constructor" would otherwise read an inherited member as
+    // an existing group.
+    const scorers = new Map<
+      string,
+      { scores: string[]; params: Record<string, unknown> }
+    >();
+    for (const score of scores) {
+      const existing = scorers.get(score.scorer);
       if (existing === undefined) {
-        accum[score.scorer] = {
+        scorers.set(score.scorer, {
           scores: [score.name],
           params: score.params,
-        };
+        });
       } else {
         existing.scores.push(score.name);
       }
-      return accum;
-    }, {});
+    }
 
-    if (Object.keys(scorers).length > 0) {
-      const label = Object.keys(scorers).length === 1 ? "Scorer" : "Scorers";
-      const scorerPanels = Object.keys(scorers).map((key) => {
-        const scorer = scorers[key];
-        if (scorer === undefined) {
-          return null;
-        }
-        return (
-          <ScorerDetailView
-            key={key}
-            name={key}
-            scores={scorer.scores}
-            params={scorer.params}
-          />
-        );
-      });
+    if (scorers.size > 0) {
+      const label = scorers.size === 1 ? "Scorer" : "Scorers";
+      const scorerPanels = [...scorers].map(([key, scorer]) => (
+        <ScorerDetailView
+          key={key}
+          name={key}
+          scores={scorer.scores}
+          params={scorer.params}
+        />
+      ));
 
       taskColumns.push({
         title: label,

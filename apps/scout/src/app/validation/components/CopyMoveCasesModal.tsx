@@ -11,12 +11,12 @@ import { Modal } from "@tsmono/react/components";
 
 import { useApi } from "../../../state/store";
 import { ValidationCase } from "../../../types/api-types";
+import { validationCasesQuery } from "../../server/queries";
 import {
   useBulkDeleteValidationCases,
   useCreateValidationSet,
   useValidationCases,
   useValidationSets,
-  validationQueryKeys,
 } from "../../server/useValidations";
 import { eventValue } from "../../utils/formEvents";
 import {
@@ -224,64 +224,61 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     return true;
   };
 
+  const performSubmit = async () => {
+    // Determine final target URI
+    let finalTargetUri = targetUri;
+
+    if (showNewSetInput) {
+      finalTargetUri = await handleCreateNewSet();
+      if (!finalTargetUri) {
+        return;
+      }
+    }
+
+    if (!finalTargetUri) {
+      setError("Please select a target validation set");
+      return;
+    }
+
+    // Copy cases to target
+    const copySuccess = await copyCasesToTarget(finalTargetUri);
+    if (!copySuccess) {
+      return;
+    }
+
+    // Invalidate target set cache to show new cases
+    queryClient
+      .invalidateQueries({
+        queryKey: validationCasesQuery(api, finalTargetUri).queryKey,
+      })
+      .catch(console.error);
+
+    // If move mode, delete from source
+    if (mode === "move") {
+      try {
+        await deleteCasesMutation.mutateAsync(selectedIds);
+      } catch (err) {
+        // Cases were copied but deletion failed - inform user
+        const message = errorMessage(err, "Unknown error");
+        setError(
+          `Cases copied successfully, but failed to delete from source: ${message}`
+        );
+        return;
+      }
+    }
+
+    // Success!
+    onSuccess();
+    handleHide();
+  };
+
   // Handle form submission
-  const handleSubmit = async () => {
+  const handleSubmit = (): void => {
     setIsProcessing(true);
     setError(null);
-
-    try {
-      // Determine final target URI
-      let finalTargetUri = targetUri;
-
-      if (showNewSetInput) {
-        finalTargetUri = await handleCreateNewSet();
-        if (!finalTargetUri) {
-          setIsProcessing(false);
-          return;
-        }
-      }
-
-      if (!finalTargetUri) {
-        setError("Please select a target validation set");
-        setIsProcessing(false);
-        return;
-      }
-
-      // Copy cases to target
-      const copySuccess = await copyCasesToTarget(finalTargetUri);
-      if (!copySuccess) {
-        setIsProcessing(false);
-        return;
-      }
-
-      // Invalidate target set cache to show new cases
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      queryClient.invalidateQueries({
-        queryKey: validationQueryKeys.cases(finalTargetUri),
-      });
-
-      // If move mode, delete from source
-      if (mode === "move") {
-        try {
-          await deleteCasesMutation.mutateAsync(selectedIds);
-        } catch (err) {
-          // Cases were copied but deletion failed - inform user
-          const message = errorMessage(err, "Unknown error");
-          setError(
-            `Cases copied successfully, but failed to delete from source: ${message}`
-          );
-          setIsProcessing(false);
-          return;
-        }
-      }
-
-      // Success!
-      onSuccess();
-      handleHide();
-    } catch (err) {
-      setError(errorMessage(err, "Operation failed"));
-    }
-    setIsProcessing(false);
+    performSubmit()
+      .catch((err: unknown) => setError(errorMessage(err, "Operation failed")))
+      .finally(() => setIsProcessing(false));
   };
 
   const title = mode === "copy" ? "Copy Cases" : "Move Cases";
@@ -295,17 +292,14 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     <Modal
       show={show}
       onHide={handleHide}
-      onSubmit={canSubmit ? () => void handleSubmit() : undefined}
+      onSubmit={canSubmit ? handleSubmit : undefined}
       title={title}
       footer={
         <>
           <VscodeButton secondary onClick={handleHide} disabled={isProcessing}>
             Cancel
           </VscodeButton>
-          <VscodeButton
-            onClick={() => void handleSubmit()}
-            disabled={!canSubmit}
-          >
+          <VscodeButton onClick={handleSubmit} disabled={!canSubmit}>
             {isProcessing ? processingLabel : actionLabel}
           </VscodeButton>
         </>

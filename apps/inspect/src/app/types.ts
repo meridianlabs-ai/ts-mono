@@ -14,6 +14,7 @@ import {
   InputEvent,
   LoggerEvent,
   ModelEvent,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
@@ -152,6 +153,16 @@ export interface EventFilter {
   filteredTypes: string[] | null;
 }
 
+/** Evidence selection, owned by one sample tab (`key`): reading it under any
+ *  other sample or tab yields no mode and no selection, so switching either
+ *  resets the Select latch without an effect. */
+export interface EventSelectionState {
+  key: string | null;
+  active: boolean;
+  selectedIds: string[];
+  lastToggledId: string | null;
+}
+
 export interface SampleState {
   visiblePopover?: string;
 
@@ -161,6 +172,8 @@ export interface SampleState {
   eventFilter: EventFilter;
 
   selectedOutlineId?: string;
+
+  eventSelection: EventSelectionState;
 
   // Timeline swimlane state
   timelineSelected: string | null;
@@ -178,6 +191,7 @@ export type Event =
   | ModelEvent
   | ToolEvent
   | ApprovalEvent
+  | ReviewEvent
   | InputEvent
   | ScoreEvent
   | ErrorEvent

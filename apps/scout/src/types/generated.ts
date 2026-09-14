@@ -806,7 +806,7 @@ export interface components {
             transcripts?: components["schemas"]["AppDir"] | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Output"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -1655,6 +1655,8 @@ export interface components {
             seed?: number | null;
             /** Stop Seqs */
             stop_seqs?: string[] | null;
+            /** Stream Idle Timeout */
+            stream_idle_timeout?: number | null;
             /** System Message */
             system_message?: string | null;
             /** Temperature */
@@ -1742,6 +1744,8 @@ export interface components {
             seed?: number | null;
             /** Stop Seqs */
             stop_seqs?: string[] | null;
+            /** Stream Idle Timeout */
+            stream_idle_timeout?: number | null;
             /** System Message */
             system_message?: string | null;
             /** Temperature */
@@ -2253,7 +2257,7 @@ export interface components {
                 [key: string]: string;
             } | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Messages */
             messages: (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[];
@@ -2554,7 +2558,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Input"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2614,7 +2618,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Output"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -2645,7 +2649,12 @@ export interface components {
         RawEncoding: "zstd";
         /**
          * Reference
-         * @description Reference to scanned content.
+         * @description Reference from a score to content in the scored transcript.
+         *
+         *     References are stored as a list of dicts under a score's
+         *     `metadata["scanner_references"]` key. Inspect View identifies scanner
+         *     scores by the presence of that key and renders cites in the score's
+         *     explanation (e.g. `[M22]`) as links to the referenced content.
          */
         Reference: {
             /** Cite */
@@ -2657,6 +2666,31 @@ export interface components {
              * @enum {string}
              */
             type: "message" | "event";
+        };
+        /**
+         * RegisteredPredicateSpec
+         * @description Portable reference to a custom predicate registered with `@validation_predicate`.
+         *
+         *     Only the registered name and creation arguments are stored; the predicate
+         *     is recreated from the registry when the scan is resumed.
+         */
+        RegisteredPredicateSpec: {
+            /** Args */
+            args: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** File */
+            file?: string | null;
+            /**
+             * Kind
+             * @default registered
+             * @constant
+             */
+            kind: "registered";
+            /** Name */
+            name: string;
+            /** Package Version */
+            package_version?: string | null;
         };
         /**
          * RenameValidationSetRequest
@@ -2729,6 +2763,44 @@ export interface components {
             /** Uuid */
             uuid?: string | null;
             value: components["schemas"]["JsonValue"];
+        };
+        /**
+         * ReviewEvent
+         * @description Tool result review.
+         */
+        ReviewEvent: {
+            call: components["schemas"]["ToolCall"];
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "continue" | "terminate" | "escalate";
+            /**
+             * Event
+             * @default review
+             * @constant
+             */
+            event: "review";
+            /** Explanation */
+            explanation?: string | null;
+            /** Message */
+            message: string;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            /** Pending */
+            pending?: boolean | null;
+            /** Reviewer */
+            reviewer: string;
+            /** Span Id */
+            span_id?: string | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
         };
         /**
          * Sample
@@ -2944,7 +3016,7 @@ export interface components {
             transcripts?: string | null;
             /** Validation */
             validation?: {
-                [key: string]: string | components["schemas"]["ValidationSet-Input"];
+                [key: string]: string | components["schemas"]["ValidationSet"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -3150,7 +3222,7 @@ export interface components {
             transcripts?: components["schemas"]["ScanTranscripts"] | null;
             /** Validation */
             validation?: {
-                [key: string]: components["schemas"]["ValidationSet-Output"];
+                [key: string]: components["schemas"]["ValidationSetSpec"];
             } | null;
             /** Worklist */
             worklist?: components["schemas"]["Worklist"][] | null;
@@ -3203,7 +3275,7 @@ export interface components {
          */
         ScannerInputResponse: {
             /** Input */
-            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
+            input: components["schemas"]["Transcript"] | components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"] | (components["schemas"]["ChatMessageSystem"] | components["schemas"]["ChatMessageUser"] | components["schemas"]["ChatMessageAssistant"] | components["schemas"]["ChatMessageTool"])[] | components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"] | (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | components["schemas"]["Timeline"] | components["schemas"]["Timeline"][];
             input_data?: components["schemas"]["EventsData"] | null;
             /**
              * Input Type
@@ -4062,7 +4134,7 @@ export interface components {
             /** Error */
             error?: string | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             /** Limit */
             limit?: string | null;
             /** Message Count */
@@ -4080,6 +4152,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             score?: components["schemas"]["JsonValue"] | null;
+            /** Score Explanation */
+            score_explanation?: string | null;
             /** Source Id */
             source_id?: string | null;
             /** Source Type */
@@ -4145,6 +4219,8 @@ export interface components {
                 [key: string]: unknown;
             } | null;
             score?: components["schemas"]["JsonValue"] | null;
+            /** Score Explanation */
+            score_explanation?: string | null;
             /** Source Id */
             source_id?: string | null;
             /** Source Type */
@@ -4201,6 +4277,29 @@ export interface components {
         TurnInterval: {
             /** Every */
             every: number;
+        };
+        /**
+         * UnavailablePredicateSpec
+         * @description Inert marker for a custom predicate that cannot be recreated from the scan artifact.
+         *
+         *     Written for anonymous callables (not registered with `@validation_predicate`)
+         *     and substituted in memory for legacy serialized predicates. Resuming a scan
+         *     with an unavailable predicate requires `predicate_overrides`.
+         */
+        UnavailablePredicateSpec: {
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Kind
+             * @default unavailable
+             * @constant
+             */
+            kind: "unavailable";
+            /**
+             * Reason
+             * @enum {string}
+             */
+            reason: "anonymous" | "legacy";
         };
         /**
          * UrlCitation
@@ -4366,7 +4465,7 @@ export interface components {
          * ValidationSet
          * @description Validation set for a scanner.
          */
-        "ValidationSet-Input": {
+        ValidationSet: {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
             /**
@@ -4378,14 +4477,21 @@ export interface components {
             split?: string | string[] | null;
         };
         /**
-         * ValidationSet
-         * @description Validation set for a scanner.
+         * ValidationSetSpec
+         * @description Data-only validation set stored in portable scan specifications (`_scan.json`).
+         *
+         *     Unlike `ValidationSet`, the predicate is never a callable: it is a built-in
+         *     predicate name, a `RegisteredPredicateSpec`, or an `UnavailablePredicateSpec`.
+         *     Parsing a spec never imports or executes predicate code.
          */
-        "ValidationSet-Output": {
+        ValidationSetSpec: {
             /** Cases */
             cases: components["schemas"]["ValidationCase"][];
-            /** Predicate */
-            predicate?: string | null;
+            /**
+             * Predicate
+             * @default eq
+             */
+            predicate?: ("gt" | "gte" | "lt" | "lte" | "eq" | "ne" | "contains" | "startswith" | "endswith" | "icontains" | "iequals") | components["schemas"]["RegisteredPredicateSpec"] | components["schemas"]["UnavailablePredicateSpec"] | null;
             /** Split */
             split?: string | string[] | null;
         };

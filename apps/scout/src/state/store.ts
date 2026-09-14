@@ -3,7 +3,6 @@ import {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { GridState } from "ag-grid-community";
 import { createContext, useContext } from "react";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
@@ -16,7 +15,7 @@ import {
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { debounce } from "@tsmono/util";
+import { debounce, getOwn } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
@@ -28,6 +27,8 @@ import {
   SortColumn,
 } from "../app/types";
 import { TranscriptInfo } from "../types/api-types";
+
+import { emptyDataframeState, type DataframeState } from "./dataframeState";
 
 export type {
   ColumnFilter,
@@ -96,7 +97,7 @@ interface StoreState {
     string,
     { startIndex: number; endIndex: number; totalCount: number }
   >;
-  gridStates: Record<string, GridState>;
+  gridStates: Record<string, DataframeState>;
 
   // Scan specific properties (clear when switching scans)
   selectedResultsTab?: string;
@@ -191,7 +192,10 @@ interface StoreState {
   clearListPosition: (name: string) => void;
   clearListPositionsWithPrefix: (prefix: string) => void;
 
-  setGridState: (name: string, state: GridState) => void;
+  setGridState: (
+    name: string,
+    state: DataframeState | ((previous: DataframeState) => DataframeState)
+  ) => void;
   clearGridState: (name: string) => void;
 
   getVisibleRange: (name: string) => {
@@ -433,10 +437,19 @@ export const createStore = (api: ScoutApiV2) =>
           },
           setPropertyValue(id: string, propertyName: string, value: unknown) {
             set((state) => {
-              if (!state.properties[id]) {
-                state.properties[id] = {};
+              const group = getOwn(state.properties, id);
+              if (group !== undefined && propertyName !== "__proto__") {
+                group[propertyName] = value;
+                return;
               }
-              state.properties[id][propertyName] = value;
+              // Computed keys bypass the inherited __proto__ setter, which
+              // Immer rejects even when the draft already owns that property.
+              const next = { ...group, [propertyName]: value };
+              if (id === "__proto__") {
+                state.properties = { ...state.properties, [id]: next };
+              } else {
+                state.properties[id] = next;
+              }
             });
           },
           getPropertyValue(
@@ -444,59 +457,48 @@ export const createStore = (api: ScoutApiV2) =>
             propertyName: string,
             defaultValue: unknown
           ): unknown {
-            const value = get().properties[id]?.[propertyName];
+            const group = getOwn(get().properties, id);
+            const value =
+              group !== undefined && Object.hasOwn(group, propertyName)
+                ? group[propertyName]
+                : undefined;
             return value !== undefined ? value : defaultValue;
           },
           removePropertyValue(id: string, propertyName: string) {
             set((state) => {
-              const propertyGroup = state.properties[id];
+              const propertyGroup = getOwn(state.properties, id);
 
-              // No property, go ahead and return
-              if (!propertyGroup || !propertyGroup[propertyName]) {
+              if (
+                !propertyGroup ||
+                !Object.hasOwn(propertyGroup, propertyName)
+              ) {
                 return;
               }
 
-              // Destructure to remove the property
-              const { [propertyName]: _removed, ...remainingProperties } =
-                propertyGroup;
-
-              // If no remaining properties, remove the entire group
-              if (Object.keys(remainingProperties).length === 0) {
-                const { [id]: _removedGroup, ...remainingGroups } =
-                  state.properties;
-                state.properties = remainingGroups;
-                return;
+              delete propertyGroup[propertyName];
+              if (Object.keys(propertyGroup).length === 0) {
+                delete state.properties[id];
               }
-
-              // Update to the delete properties
-              state.properties[id] = remainingProperties;
             });
           },
           removeAllProperties(id: string) {
             set((state) => {
-              const { [id]: _, ...remaining } = state.properties;
-              state.properties = remaining;
+              delete state.properties[id];
             });
           },
           removeByPrefix(id: string, prefix: string) {
             set((state) => {
-              const bag = state.properties[id];
+              const bag = getOwn(state.properties, id);
               if (!bag) return;
               let changed = false;
-              const next = { ...bag };
-              for (const key of Object.keys(next)) {
+              for (const key of Object.keys(bag)) {
                 if (key.startsWith(prefix)) {
-                  delete next[key];
+                  delete bag[key];
                   changed = true;
                 }
               }
-              if (changed) {
-                if (Object.keys(next).length === 0) {
-                  const { [id]: _, ...remaining } = state.properties;
-                  state.properties = remaining;
-                } else {
-                  state.properties[id] = next;
-                }
+              if (changed && Object.keys(bag).length === 0) {
+                delete state.properties[id];
               }
             });
           },
@@ -543,9 +545,12 @@ export const createStore = (api: ScoutApiV2) =>
               return changed ? { listPositions: newListPositions } : {};
             });
           },
-          setGridState: (name: string, gridState: GridState) => {
+          setGridState: (name, gridState) => {
             set((state) => {
-              state.gridStates[name] = gridState;
+              state.gridStates[name] =
+                typeof gridState === "function"
+                  ? gridState(state.gridStates[name] ?? emptyDataframeState)
+                  : gridState;
             });
           },
           clearGridState: (name: string) => {

@@ -17,18 +17,19 @@ const rows: Row[] = [
   { id: "r2", task: "swe-bench" },
 ];
 
-const col = (def: Partial<ExtendedColumnDef<Row>>): ExtendedColumnDef<Row> =>
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- deliberately partial: findMatches reads only id/accessorFn, and a full TanStack column def would be noise here
-  def as ExtendedColumnDef<Row>;
-
-const taskCol = col({ id: "task", accessorFn: (row: Row) => row.task });
-const modelCol = col({ id: "model", accessorFn: (row: Row) => row.model });
-const scoreCol = col({
+const taskCol: ExtendedColumnDef<Row> = {
+  id: "task",
+  accessorFn: (row) => row.task,
+};
+const modelCol: ExtendedColumnDef<Row> = {
+  id: "model",
+  accessorFn: (row) => row.model,
+};
+const scoreCol: ExtendedColumnDef<Row> = {
   id: "score",
-  accessorFn: (row: Row) => row.score,
-  textValue: (row: Row) =>
-    row.score === undefined ? null : row.score.toFixed(2),
-});
+  accessorFn: (row) => row.score,
+  textValue: (row) => (row.score === undefined ? null : row.score.toFixed(2)),
+};
 
 const getRowId = (row: Row) => row.id;
 
@@ -69,10 +70,10 @@ describe("buildSearchIndex / findMatches", () => {
   });
 
   it("ignores non-primitive accessor values", () => {
-    const objCol = col({
+    const objCol: ExtendedColumnDef<Row> = {
       id: "log",
-      accessorFn: (row: Row) => (row.id === "r0" ? { handle: 1 } : undefined),
-    });
+      accessorFn: (row) => (row.id === "r0" ? { handle: 1 } : undefined),
+    };
     const index = buildSearchIndex(rows, [objCol], getRowId);
     expect(findMatches(index, "object")).toEqual([]);
   });

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import { ComponentStateHooks } from "@tsmono/react/state";
+import { getOwn } from "@tsmono/util";
 
 import { useStore } from "./store";
 
@@ -16,7 +17,7 @@ export const inspectStateHooks: ComponentStateHooks = {
   useRemoveValue: () =>
     useStore((state) => state.appActions.removePropertyValue),
   useEntries: (id: string) =>
-    useStore(useCallback((state) => state.app.propertyBags[id], [id])),
+    useStore(useCallback((state) => getOwn(state.app.propertyBags, id), [id])),
   useRemoveAll: () => useStore((state) => state.appActions.removeAllProperties),
   useRemoveByPrefix: () => useStore((state) => state.appActions.removeByPrefix),
 };

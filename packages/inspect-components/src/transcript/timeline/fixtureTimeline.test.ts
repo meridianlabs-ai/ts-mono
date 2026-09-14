@@ -8,7 +8,9 @@
  * tests/timeline/fixtures/events/.
  *
  * These tests only run when ts-mono is embedded inside a parent repo that
- * provides fixtures; when used standalone the suite is skipped.
+ * provides fixtures; when used standalone the suite is skipped. A parent repo
+ * that owns a corpus sets TSMONO_REQUIRE_FIXTURES=1 in the job that runs this
+ * suite, which turns "found nothing" from a skip into a failure.
  */
 
 /// <reference types="node" />
@@ -18,7 +20,22 @@ import { join } from "path";
 
 import { describe, expect, it } from "vitest";
 
-import type { CompactionEvent, Event } from "@tsmono/inspect-common/types";
+import {
+  testAssistantMessage,
+  testChatCompletionChoice,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testToolCall,
+} from "@tsmono/inspect-common/testing";
+import type {
+  ChatCompletionChoice,
+  ChatMessage,
+  CompactionEvent,
+  Event,
+  GenerateConfig,
+  ToolCall,
+} from "@tsmono/inspect-common/types";
 
 import {
   asTimelineEvent,
@@ -51,12 +68,7 @@ interface JsonEvent {
   source?: string;
   message_id?: string;
   from_anchor?: string;
-  input?: Array<{
-    role: string;
-    content: string;
-    tool_call_id?: string;
-    function?: string;
-  }>;
+  input?: ChatMessage[];
   output?: {
     usage?: {
       input_tokens?: number;
@@ -64,19 +76,14 @@ interface JsonEvent {
     };
     choices?: Array<{
       message: {
-        role: string;
         content: string;
-        tool_calls?: Array<{
-          id: string;
-          function: string;
-          arguments: Record<string, unknown>;
-        }>;
+        tool_calls?: Pick<ToolCall, "id" | "function" | "arguments">[];
       };
-      stop_reason?: string;
+      stop_reason?: ChatCompletionChoice["stop_reason"];
     }>;
   };
   events?: JsonEvent[];
-  config?: Record<string, unknown>;
+  config?: GenerateConfig;
 }
 
 interface ExpectedAgentSource {
@@ -181,6 +188,17 @@ const FIXTURE_NAMES = [
 ];
 const FIXTURES_AVAILABLE = FIXTURE_NAMES.length > 0;
 
+// Skipping is right for a bare clone and wrong for a parent repo that has a
+// corpus: on its own this file cannot tell the two apart, so a broken path
+// climb or a moved fixtures directory would report green over zero tests. The
+// parent's job supplies the missing half by setting TSMONO_REQUIRE_FIXTURES=1.
+if (!FIXTURES_AVAILABLE && process.env.TSMONO_REQUIRE_FIXTURES === "1") {
+  throw new Error(
+    "TSMONO_REQUIRE_FIXTURES is set but no fixtures were found. Looked in:\n" +
+      FIXTURE_DIR_CANDIDATES.map((dir) => `  ${dir}`).join("\n")
+  );
+}
+
 // =============================================================================
 // Event Deserialization
 // =============================================================================
@@ -196,50 +214,40 @@ function createEvent(data: JsonEvent): Event | null {
 
   switch (data.event) {
     case "model": {
-      const inputMsgs = (data.input ?? []).map((msg) => {
-        const mapped: Record<string, unknown> = {
-          role: msg.role,
-          content: msg.content,
-        };
-        if (msg.tool_call_id !== undefined) {
-          mapped.tool_call_id = msg.tool_call_id;
-        }
-        if (msg.function !== undefined) {
-          mapped.function = msg.function;
-        }
-        return mapped;
-      });
-      const modelFields = {
+      const model = data.model ?? "unknown";
+      const usage = data.output?.usage;
+      const inputTokens = usage?.input_tokens ?? 0;
+      const outputTokens = usage?.output_tokens ?? 0;
+      return testModelEvent({
         ...baseFields,
-        event: "model",
-        model: data.model ?? "unknown",
+        model,
         completed: data.completed ?? null,
         span_id: data.span_id ?? null,
         config: data.config ?? {},
-        input: inputMsgs,
-        output: data.output
-          ? {
-              choices: data.output.choices
-                ? data.output.choices.map((c) => ({
-                    message: {
-                      role: c.message.role,
-                      content: c.message.content,
-                      tool_calls: c.message.tool_calls ?? null,
-                    },
-                    stop_reason: c.stop_reason ?? "stop",
-                  }))
-                : undefined,
-              usage: data.output.usage
-                ? {
-                    input_tokens: data.output.usage.input_tokens ?? 0,
-                    output_tokens: data.output.usage.output_tokens ?? 0,
-                  }
-                : null,
-            }
-          : null,
-      };
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- same boundary as loadFixture: the fixture JSON on disk is the shape this suite is written against
-      return modelFields as Event;
+        input: data.input ?? [],
+        output: testModelOutput({
+          model,
+          choices: (data.output?.choices ?? []).map((c) =>
+            testChatCompletionChoice({
+              message: testAssistantMessage({
+                content: c.message.content,
+                tool_calls:
+                  c.message.tool_calls?.map((tc) => testToolCall(tc)) ?? null,
+              }),
+              ...(c.stop_reason !== undefined
+                ? { stop_reason: c.stop_reason }
+                : {}),
+            })
+          ),
+          usage: usage
+            ? testModelUsage({
+                input_tokens: inputTokens,
+                output_tokens: outputTokens,
+                total_tokens: inputTokens + outputTokens,
+              })
+            : null,
+        }),
+      });
     }
 
     case "tool": {

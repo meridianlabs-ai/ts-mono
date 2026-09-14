@@ -207,7 +207,6 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
     const resolvedScansDir = userScansDir || serverScansDir;
     if (isDefaultRoute && selectedScanLocation && resolvedScansDir) {
       if (displayedScanResult) {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(
           scanResultRoute(
             resolvedScansDir,
@@ -217,7 +216,6 @@ const useRoutingInitializer = (serverScansDir: string | undefined) => {
           { replace: true }
         );
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(scanRoute(resolvedScansDir, selectedScanLocation), {
           replace: true,
         });

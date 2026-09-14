@@ -448,6 +448,23 @@ describe("sample IDs with slashes", () => {
     expect(url).toContain("?view=transcript");
   });
 
+  test("printSampleUrl appends one events param per selected event", () => {
+    const url = printSampleUrl(
+      "path/to/file.eval",
+      "s1",
+      1,
+      "transcript",
+      "/logs",
+      ["ev/1", "ev-2"]
+    );
+    expect(url).toContain("?view=transcript&events=ev%2F1&events=ev-2");
+  });
+
+  test("printSampleUrl omits the events param without a selection", () => {
+    const url = printSampleUrl("path/to/file.eval", "s1", 1, "transcript");
+    expect(url.endsWith("?view=transcript")).toBe(true);
+  });
+
   test("parseLogRouteParams decodes slashes in sample IDs", () => {
     // When the URL has an encoded slash, parsing should decode it
     const result = parseLogRouteParams(

@@ -19,6 +19,7 @@ import { InputEventView } from "./InputEventView";
 import { InterruptEventView } from "./InterruptEventView";
 import { LoggerEventView } from "./LoggerEventView";
 import { ModelEventView } from "./ModelEventView";
+import { ReviewEventView } from "./ReviewEventView";
 import { SampleInitEventView } from "./SampleInitEventView";
 import { SampleLimitEventView } from "./SampleLimitEventView";
 import { SandboxEventView } from "./SandboxEventView";
@@ -268,6 +269,14 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <ApprovalEventView
           eventNode={eventNodeOf(node, "approval")}
+          className={className}
+        />
+      );
+
+    case "review":
+      return (
+        <ReviewEventView
+          eventNode={eventNodeOf(node, "review")}
           className={className}
         />
       );

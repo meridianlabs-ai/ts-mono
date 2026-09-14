@@ -248,7 +248,6 @@ export const ScannerResultsList: FC<ScannerResultsListProps> = ({
       if (newWindow) {
         window.open(route, "_blank");
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
         navigate(route);
       }
     },

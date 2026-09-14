@@ -4,13 +4,22 @@ import { testScore } from "@tsmono/inspect-common/testing";
 
 import { testSampleSummary } from "../../../client/api/testClientApi";
 import type { SampleSummary } from "../../../client/api/types";
-import { testSamplesDescriptor } from "../../samples/descriptor/testDescriptors";
+import {
+  testEvalDescriptor,
+  testSamplesDescriptor,
+  testScoreDescriptor,
+} from "../../samples/descriptor/testDescriptors";
 import {
   buildSampleFilterSpecRegistry,
   samplesOperatorsForKind,
 } from "../../samples/sample-tools/filterSpecRegistry";
 
-import { buildSampleColumns, SCORE_FIELD_RAW_PREFIX } from "./columns";
+import type { WireScoreColorScale } from "./colorScale";
+import {
+  buildSampleColumns,
+  SCORE_FIELD_PER_SCORER_PREFIX,
+  SCORE_FIELD_RAW_PREFIX,
+} from "./columns";
 import type { SampleRow } from "./types";
 
 const kField = `${SCORE_FIELD_RAW_PREFIX}quality`;
@@ -176,5 +185,77 @@ describe("buildSampleColumns non-resizable columns", () => {
     expect(cols.find((c) => c.id === "sampleId")?.enableResizing).not.toBe(
       false
     );
+  });
+});
+
+// Score names are the keys of each sample's `scores` record, written by the
+// log author. Names that are Object.prototype members must build ordinary
+// columns instead of dereferencing an inherited builtin.
+describe("buildSampleColumns prototype-named scores", () => {
+  const names = ["constructor", "__proto__", "toString", "hasOwnProperty"];
+  // A `constructor:` literal property is not contextually typed, so the
+  // scale value is declared separately.
+  const goodHigh: WireScoreColorScale = "good-high";
+
+  const sampleWith = (
+    scores: Record<string, ReturnType<typeof testScore>>
+  ): SampleSummary => testSampleSummary({ id: 1, target: "target", scores });
+
+  it.each(names)("discovers a raw-mode score column named %s", (name) => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: true,
+      samples: [
+        sampleWith({ [name]: testScore({ value: 1 }) }),
+        sampleWith({ [name]: testScore({ value: 3 }) }),
+      ],
+      scoreColorScales: {},
+    });
+    const col = cols.find((c) => c.id === `${SCORE_FIELD_RAW_PREFIX}${name}`);
+    expect(col?.header).toBe(name);
+    expect(col?.meta?.sortComparator).toBeDefined();
+  });
+
+  it.each(names)(
+    "labels a per-scorer column named %s with its own name",
+    (name) => {
+      const cols = buildSampleColumns({
+        viewMode: "grid",
+        multiLog: false,
+        descriptor: testSamplesDescriptor({
+          evalDescriptor: testEvalDescriptor({
+            scoreDescriptor: () => testScoreDescriptor(),
+          }),
+        }),
+        scores: [
+          { name, scorer: "scorer" },
+          { name: "other", scorer: "scorer" },
+        ],
+        scoreLabels: {},
+        scoreColorScales: {},
+      });
+      const col = cols.find(
+        (c) => c.id === `${SCORE_FIELD_PER_SCORER_PREFIX}scorer__${name}`
+      );
+      expect(col?.header).toBe(name);
+    }
+  );
+
+  it("still applies an own label and colour scale for such a name", () => {
+    const cols = buildSampleColumns({
+      viewMode: "grid",
+      multiLog: true,
+      samples: [
+        sampleWith({ constructor: testScore({ value: 0 }) }),
+        sampleWith({ constructor: testScore({ value: 10 }) }),
+      ],
+      scoreLabels: { constructor: "Constructor" },
+      scoreColorScales: { constructor: goodHigh },
+    });
+    const col = cols.find(
+      (c) => c.id === `${SCORE_FIELD_RAW_PREFIX}constructor`
+    );
+    expect(col?.header).toBe("Constructor");
+    expect(col?.meta?.cellStyle).toBeDefined();
   });
 });

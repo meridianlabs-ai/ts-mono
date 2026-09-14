@@ -17,7 +17,12 @@ export const AnchorEventView: FC<AnchorEventViewProps> = ({
 }) => {
   const event = eventNode.event;
   return (
-    <EventRow title="Anchor" icon={TranscriptIcons.fork} className={className}>
+    <EventRow
+      eventNodeId={eventNode.id}
+      title="Anchor"
+      icon={TranscriptIcons.fork}
+      className={className}
+    >
       <code className="text-style-secondary">{event.anchor_id}</code>
       {event.source ? (
         <span className="text-style-secondary"> · {event.source}</span>

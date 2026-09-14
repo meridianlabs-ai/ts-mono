@@ -43,6 +43,7 @@ import {
 } from "./OutlineSidebar";
 import { computeLaneFirstAnchors } from "./resolveMessageToEvent";
 import { useTranscriptSearchSource } from "./search";
+import type { TranscriptSelection } from "./selection/transcriptSelection";
 import { AgentCardView, TimelineSwimLanes } from "./timeline/components";
 import { countUtilitySpans, TimelineSpan } from "./timeline/core";
 import {
@@ -194,6 +195,9 @@ export interface TranscriptLayoutProps {
   /** Disable transcript keyboard nav (j/k/h/l/gg/G) while find-in-page owns the
    *  keyboard, so its keys reach the find box instead of navigating turns. */
   keyboardNavDisabled?: boolean;
+  /** Evidence selection (host-owned state). Pass it only while selection mode
+   *  is on: its presence shows the per-event header checkboxes. */
+  selection?: TranscriptSelection;
 
   // --- Collapse state (from app store) ---
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
@@ -252,6 +256,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
   onOpenEventFocus,
   onNavigatedToEvent,
   keyboardNavDisabled,
+  selection,
   bulkCollapse,
   collapseState,
   outline,
@@ -323,7 +328,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
     eventNodes,
     defaultCollapsedIds,
     eventNodeContext: mergedEventNodeContext,
-  } = useEventNodeData(nodeFeed, running, eventNodeContext);
+  } = useEventNodeData(nodeFeed, running, eventNodeContext, events);
 
   const nullViewNodesRef = useRef<TranscriptViewNodesHandle | null>(null);
 
@@ -759,6 +764,7 @@ export const TranscriptLayout: FC<TranscriptLayoutProps> = ({
                   }
                   onNavigatedToEvent={onNavigatedToEvent}
                   keyboardNavDisabled={keyboardNavDisabled}
+                  selection={selection}
                 />
               ) : emptyText !== null ? (
                 <NoContentsPanel text={emptyText} busy={emptyBusy} />

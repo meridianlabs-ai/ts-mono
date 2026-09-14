@@ -9,6 +9,7 @@ import {
   substituteToolCallContent,
   type ChatViewLabelOptions,
 } from "@tsmono/inspect-components/chat";
+import { getOwn } from "@tsmono/util";
 
 import { computeMaxLabelLength } from "../chat/labelLength";
 import { MessageLabel } from "../chat/MessageLabel";
@@ -87,12 +88,13 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
 
   const toolLabels = useMemo<ChatViewLabelOptions>(() => {
     const messageLabels = context?.messageLabels;
+    const toolLabelMap = context?.toolLabels;
     if (!messageLabels) return { show: false };
 
     const directLabel = event.message_id
-      ? messageLabels[event.message_id]
+      ? getOwn(messageLabels, event.message_id)
       : undefined;
-    const label = directLabel ?? context.toolLabels?.[event.id];
+    const label = directLabel ?? getOwn(toolLabelMap, event.id);
     return { messageLabels: label ? { [event.id]: label } : {} };
   }, [context?.messageLabels, context?.toolLabels, event.id, event.message_id]);
 

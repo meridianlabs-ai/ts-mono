@@ -69,3 +69,28 @@
 .dropdownItem:active {
   background-color: var(--bs-secondary-bg);
 }
+
+.dropdownHeading {
+  padding: 0.15rem 0.75rem 0.1rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+}
+
+.dropdownDivider {
+  border-top: 1px solid var(--bs-border-color);
+  margin: 0.25rem 0;
+}
+
+.dropdownFooter {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--bs-secondary-color);
+}
+
+.dropdownFooter i {
+  font-size: 0.85em;
+}

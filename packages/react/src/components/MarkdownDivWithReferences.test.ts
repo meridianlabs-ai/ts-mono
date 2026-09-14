@@ -17,8 +17,8 @@ function makeRef(
 }
 
 function link(ordinal: string, id: string, href?: string): string {
-  const h = href || "javascript:void(0)";
-  return `<a href="${h}" class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`;
+  const h = href ? ` href="${href}"` : "";
+  return `<a${h} class="${CITE_CLASS}" data-ref-id="${id}">${ordinal}</a>`;
 }
 
 describe("injectReferenceLinks", () => {
@@ -137,5 +137,41 @@ describe("injectReferenceLinks", () => {
       CITE_CLASS
     );
     expect(result).toBe(`An array [1, 2, 3] and [${link("M1", "msg-1")}]`);
+  });
+});
+
+describe("injectReferenceLinks attribute escaping", () => {
+  const parse = (html: string): Element =>
+    new DOMParser().parseFromString(`<div>${html}</div>`, "text/html").body
+      .firstElementChild!;
+
+  it.each([
+    ["closes the attribute and injects markup", '"><style>x</style><a x="'],
+    ["injects a style attribute", 'x" style="position:fixed" x="'],
+    ["injects an event handler", 'x" onmouseover="alert(1)'],
+    ["single quotes and ampersands", "a'b&c"],
+  ])("renders a ref id that %s as a single anchor", (_label, id) => {
+    const refs = [makeRef("M1", id)];
+    const html = injectReferenceLinks("See [M1]", refs, CITE_CLASS);
+    const root = parse(html);
+
+    const anchors = root.querySelectorAll("a");
+    expect(anchors).toHaveLength(1);
+    expect(root.querySelectorAll("*")).toHaveLength(1);
+    expect(anchors[0]?.getAttribute("data-ref-id")).toBe(id);
+    expect(anchors[0]?.hasAttribute("href")).toBe(false);
+    expect(anchors[0]?.attributes).toHaveLength(2);
+    expect(root.textContent).toBe("See [M1]");
+  });
+
+  it("escapes the href so the cite URL round-trips as a single attribute", () => {
+    const citeUrl = '#/messages/m1?a=1&b="2"';
+    const refs = [makeRef("M1", "msg-1", citeUrl)];
+    const root = parse(injectReferenceLinks("See [M1]", refs, CITE_CLASS));
+
+    const anchor = root.querySelector("a");
+    expect(root.querySelectorAll("*")).toHaveLength(1);
+    expect(anchor?.getAttribute("href")).toBe(citeUrl);
+    expect(anchor?.attributes).toHaveLength(3);
   });
 });

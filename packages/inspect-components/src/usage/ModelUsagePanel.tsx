@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { formatNumber } from "@tsmono/util";
+import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelUsagePanel.module.css";
 
@@ -12,6 +12,7 @@ export interface ModelUsageData {
   reasoning_tokens?: number | null;
   input_tokens_cache_read?: number | null;
   input_tokens_cache_write?: number | null;
+  total_cost?: number | null;
 }
 
 export interface ModelUsageTiming {
@@ -162,6 +163,8 @@ export const ModelUsagePanel: FC<ModelUsageProps> = ({
         {composeTotal > 0 && (
           <span className={styles.sub}>
             {inputPct}% input · {outputPct}% output
+            {usage.total_cost != null &&
+              ` · ${formatCurrency(usage.total_cost)}`}
           </span>
         )}
       </div>

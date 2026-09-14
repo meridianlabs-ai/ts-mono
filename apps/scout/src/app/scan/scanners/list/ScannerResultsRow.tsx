@@ -164,7 +164,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
     if (!scanResultUrl) {
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
     navigate(scanResultUrl);
   };
 
@@ -182,7 +182,6 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
     e.preventDefault();
     selectRow();
     if (scanResultUrl) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       navigate(scanResultUrl);
     }
   };

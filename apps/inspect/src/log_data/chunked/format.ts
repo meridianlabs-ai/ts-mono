@@ -93,9 +93,16 @@ export const sequenceChunkStarts = (
   return starts.sort((a, b) => a - b);
 };
 
-/** Bounds-checked index (an out-of-range index is a coding error). */
+/**
+ * Bounds-checked index (an out-of-range index is a coding error). Only an
+ * own integer position counts: a key that resolves through the array's
+ * prototype ("__proto__", "constructor") must not pass as an element.
+ */
 export const at = <T>(items: readonly T[], i: number): T => {
-  const item = items[i];
+  const item =
+    Number.isInteger(i) && i >= 0 && i < items.length && Object.hasOwn(items, i)
+      ? items[i]
+      : undefined;
   if (item === undefined) {
     throw new Error(`Index ${i} out of range (length ${items.length})`);
   }

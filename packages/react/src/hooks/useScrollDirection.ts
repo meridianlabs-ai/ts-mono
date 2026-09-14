@@ -101,6 +101,35 @@ export function useScrollDirection(
   const lockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hidden, setHidden] = useState(options?.initialHidden ?? false);
 
+  const releaseLock = useCallback(() => {
+    transitionLockedRef.current = false;
+    programmaticLockRef.current = false;
+    if (lockTimerRef.current !== null) {
+      clearTimeout(lockTimerRef.current);
+      lockTimerRef.current = null;
+    }
+  }, []);
+
+  // Engage the lock for one `transitionLockMs` window, replacing any pending
+  // expiry AND its programmatic flag — a transition lock that supersedes a
+  // resetAnchor lock must not inherit its self-extending debounce semantics.
+  const engageLock = useCallback(
+    (programmatic: boolean, onExpire?: () => void) => {
+      transitionLockedRef.current = true;
+      programmaticLockRef.current = programmatic;
+      if (lockTimerRef.current !== null) {
+        clearTimeout(lockTimerRef.current);
+      }
+      lockTimerRef.current = setTimeout(() => {
+        transitionLockedRef.current = false;
+        programmaticLockRef.current = false;
+        lockTimerRef.current = null;
+        onExpire?.();
+      }, transitionLockMs);
+    },
+    [transitionLockMs]
+  );
+
   // Normalize input to an array of refs.
   const refArray: ReadonlyArray<RefObject<HTMLElement | null>> = useMemo(
     () => asArray(scrollRef),
@@ -167,9 +196,10 @@ export function useScrollDirection(
   useEffect(() => {
     directionAnchorsRef.current = new WeakMap();
     lastDirectionsRef.current = new WeakMap();
-    transitionLockedRef.current = false;
-
-    if (scrollEls.length === 0) return;
+    // Lock state belongs to the previous scroller set — release it wholesale
+    // (a stale programmatic flag surviving the swap would make the next
+    // transition lock self-extend).
+    releaseLock();
 
     // Track previous suppression state to reset anchors when suppression ends.
     let wasSuppressed = suppressRef?.current ?? false;
@@ -227,13 +257,11 @@ export function useScrollDirection(
 
       if (transitionLockedRef.current) {
         if (programmaticLockRef.current && lockTimerRef.current !== null) {
-          clearTimeout(lockTimerRef.current);
-          lockTimerRef.current = setTimeout(() => {
-            transitionLockedRef.current = false;
-            programmaticLockRef.current = false;
-            lockTimerRef.current = null;
+          // Debounce: extend the programmatic lock until scrolling idles,
+          // then re-anchor at the settled position.
+          engageLock(true, () => {
             directionAnchorsRef.current.set(el, el.scrollTop);
-          }, transitionLockMs);
+          });
         }
         return;
       }
@@ -246,14 +274,7 @@ export function useScrollDirection(
       const shouldHide = direction === "down" && scrollTop > 10;
       setHidden((prev) => {
         if (prev === shouldHide) return prev;
-        transitionLockedRef.current = true;
-        if (lockTimerRef.current !== null) {
-          clearTimeout(lockTimerRef.current);
-        }
-        lockTimerRef.current = setTimeout(() => {
-          transitionLockedRef.current = false;
-          lockTimerRef.current = null;
-        }, transitionLockMs);
+        engageLock(false);
         return shouldHide;
       });
     };
@@ -267,9 +288,11 @@ export function useScrollDirection(
       for (const { el, handler } of handlers) {
         el.removeEventListener("scroll", handler);
       }
+      // Covers unmount too — no pending expiry timer outlives the hook.
+      releaseLock();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- suppressRef is a stable ref (read at event time, never during render); listing it trips react-hooks/refs
-  }, [scrollEls, threshold, transitionLockMs, stayHiddenOnUpScroll]);
+  }, [scrollEls, threshold, stayHiddenOnUpScroll, engageLock, releaseLock]);
 
   const resetAnchor = useCallback(
     (debounce?: boolean) => {
@@ -277,18 +300,9 @@ export function useScrollDirection(
       if (primary) {
         directionAnchorsRef.current.set(primary, primary.scrollTop);
       }
-      transitionLockedRef.current = true;
-      programmaticLockRef.current = !!debounce;
-      if (lockTimerRef.current !== null) {
-        clearTimeout(lockTimerRef.current);
-      }
-      lockTimerRef.current = setTimeout(() => {
-        transitionLockedRef.current = false;
-        programmaticLockRef.current = false;
-        lockTimerRef.current = null;
-      }, transitionLockMs);
+      engageLock(!!debounce);
     },
-    [primaryRef, transitionLockMs]
+    [primaryRef, engageLock]
   );
 
   const setHiddenExternal = useCallback(
@@ -297,18 +311,11 @@ export function useScrollDirection(
         if (prev === next) return prev;
         // Match the internal state-change path: engage the transition lock so
         // scroll events from the imminent imperative scroll don't fight us.
-        transitionLockedRef.current = true;
-        if (lockTimerRef.current !== null) {
-          clearTimeout(lockTimerRef.current);
-        }
-        lockTimerRef.current = setTimeout(() => {
-          transitionLockedRef.current = false;
-          lockTimerRef.current = null;
-        }, transitionLockMs);
+        engageLock(false);
         return next;
       });
     },
-    [transitionLockMs]
+    [engageLock]
   );
 
   return { hidden, resetAnchor, setHidden: setHiddenExternal };

@@ -1,6 +1,6 @@
 ---
 name: verify-log-viewer
-description: Drive the real inspect log viewer (apps/inspect web UI) against real .eval fixture logs and capture evidence that user-facing behavior works — log list, sample detail, transcript, scores. Use when a change to the viewer needs proof it behaves correctly in the running app, not just in unit tests.
+description: Triage, reproduce, and verify the real inspect log viewer (apps/inspect web UI) against real .eval fixtures. Use the feature map to turn a bug report, screenshot, or viewer change into the relevant routes, code owners, user journeys, and runtime evidence across listings, log workspaces, sample detail, transcripts, live data, and host modes.
 ---
 
 # Verify the inspect log viewer
@@ -86,17 +86,32 @@ command above; add `-g "<test name>"` to run one). The specs resolve
 `@playwright/test` through `apps/inspect/node_modules`, which is why this
 skill lives app-local rather than at the repo root.
 
-The feature map in [`features/`](features/README.md) is the maintained
-recipe book: what each feature is, how a user reaches it, exact selectors,
-and what observable end state proves it works. Read the README index first;
-a proof that drives one convenient entry point is incomplete when the map
-lists others.
+The feature map in [`features/`](features/README.md) is the app's compact,
+maintained memory: what each feature is, how a user reaches it, exact driving
+guidance, the code that owns it, and common false leads. Read the README index
+first; a proof that drives one convenient entry point is incomplete when the
+matching feature file lists others.
 
-`drive/log-viewer.spec.ts` is the standing proof run — one test per mapped
-feature. Keep it passing; extend it when the map grows. When you prove a
-mapped sub-feature that has no standing test yet, add that test to the
-standing spec rather than writing a throwaway one — the map and the spec
-grow together.
+### Triage a report or screenshot
+
+1. Match visible words/layout and the reported navigation path to the symptom
+   table in `features/README.md`. Read only those feature files initially.
+2. If the report crosses routes, tabs, loading, persistence, or live updates,
+   also read `features/multi-surface-journeys.md`.
+3. Reproduce from `How to get to it (user POV)` before deep-linking. Record the
+   route family, viewer mode, fixture identity, action, and resulting state.
+4. Use `Code landmarks` to inspect the narrowest owners and regression tests.
+   The visible component is not automatically the bug owner: stale/wrong data
+   usually routes to the acquisition or selection landmarks in the same file.
+5. After the user path reproduces, deep-link for faster iterations and capture
+   the final browser assertion/screenshot through the same production boundary.
+
+`drive/log-viewer.spec.ts` is the standing smoke run for deterministic paths
+reachable with the default fixture set. The feature map is intentionally wider:
+host-specific, live, editable, flow, search, and uncommon data-shape paths need
+matching fixtures/capabilities and must be reported as skipped when absent.
+When a mapped sub-feature becomes deterministic with the standing fixtures,
+add it to the standing spec rather than leaving a throwaway drive behind.
 
 ## Evidence
 
@@ -138,5 +153,18 @@ changed port is a cold cache, which is fine for verification.
 
 ## Maintenance
 
-When the viewer's UI or routes change, update the feature map and the
-standing spec together — see `/maintain-verification-skill`.
+Validate the map after editing it:
+
+```sh
+.agents/skills/verify-log-viewer/validate-feature-map.sh
+```
+
+The validator checks the five-heading contract, README coverage/links, and
+fully qualified code landmarks. Then run the standing proof for any path the
+default fixtures can reach.
+
+When UI, routes, ownership, or tests change, update the affected feature file's
+behavior, selectors, code landmarks, and gotchas in the same change. Add or
+update the standing spec when the changed path is deterministic in the default
+fixtures. If the product gains an unmapped user-facing area, add one focused
+feature file and index it by the symptom a user would report.

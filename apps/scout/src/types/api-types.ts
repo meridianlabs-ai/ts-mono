@@ -36,8 +36,8 @@ export type ServerTimelineEvent = S["TimelineEvent"];
 // Validation types
 export type ValidationCase = S["ValidationCase"];
 export type ValidationCaseRequest = S["ValidationCaseRequest"];
-export type ValidationSetInput = S["ValidationSet-Input"];
-export type ValidationSetOutput = S["ValidationSet-Output"];
+export type ValidationSetInput = S["ValidationSet"];
+export type ValidationSetOutput = S["ValidationSet"];
 export type CreateValidationSetRequest = S["CreateValidationSetRequest"];
 export type ValidationEntry = S["ValidationEntry"];
 export type ValidationMetrics = S["ValidationMetrics"];

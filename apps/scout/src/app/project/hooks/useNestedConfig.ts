@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import { filterNullValues } from "../configUtils";
+import { filterNullValues, ownField } from "../configUtils";
 
 /**
  * The nested-config editors send a patch: the fields the user touched merged
@@ -93,7 +93,9 @@ export function useBatchConfig<T extends Record<string, unknown>>(
           ? filterNullValues(configValue)
           : {};
       const size =
-        typeof configValue === "number" ? configValue : existingConfig.size;
+        typeof configValue === "number"
+          ? configValue
+          : ownField(existingConfig, "size");
       updateParent(
         asNestedConfig<T>({
           ...(size !== undefined ? { size } : {}),

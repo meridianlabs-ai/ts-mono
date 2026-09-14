@@ -40,7 +40,7 @@ overrides:
   "react-popper>react": ^19.2.0
   "react-popper>react-dom": ^19.1.1
 
-  js-yaml: ^4.3.1 # GHSA-h67p-54hq-rp68, merge-key DoS
+  js-yaml: ^4.3.2 # GHSA-h67p-54hq-rp68 + GHSA-2883-xcg3-v3hh, merge-key DoS
   esbuild: ^0.28.2 # dev-server path traversal
   "nanoid@3": ^3.3.18 # GHSA-2v37-7h3g-55p8
   # Paired with the minimumReleaseAgeExclude entry above: dompurify patches
@@ -49,6 +49,8 @@ overrides:
   # Reached only via eslint-plugin-react-hooks and storybook's react-docgen,
   # both of which parse with babel. Nothing here builds with babel.
   "@babel/core": ^7.29.6
+  # speech-rule-engine (via mathjax-full) pins this exactly.
+  "@xmldom/xmldom": ^0.9.12 # GHSA-6gmq-8vp8-gcm6
 
   # Together these evict brace-expansion 1.x and its ReDoS advisories.
   # eslint-plugin-react, eslint-plugin-jsx-a11y and postcss-url all still ask

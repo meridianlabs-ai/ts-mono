@@ -44,7 +44,7 @@ export interface SkeletonCounts {
 export interface SkeletonSpan {
   /** Span id (legacy steps: synthesized as `step-<begin index>`). */
   id: string;
-  /** Index of parent span in the spans array (absent at root). */
+  /** Index of parent span; writers emit parents before children (absent at root). */
   parent?: number;
   name: string;
   /** Span type (solver | agent | subtask | scorer | tool | ...). */

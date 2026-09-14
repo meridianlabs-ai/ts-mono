@@ -33,6 +33,9 @@ export const SampleLoadController: FC = () => {
   const clearCollapsedEvents = useStore(
     (state) => state.sampleActions.clearCollapsedEvents
   );
+  const resetEventSelection = useStore(
+    (state) => state.sampleActions.resetEventSelection
+  );
   const setTimelineSelected = useStore(
     (state) => state.sampleActions.setTimelineSelected
   );
@@ -49,12 +52,14 @@ export const SampleLoadController: FC = () => {
       removeBagsByPrefix(bag);
     }
     clearCollapsedEvents();
+    resetEventSelection();
     setTimelineSelected(null);
     setActiveTimelineIndex(0);
   }, [
     identity,
     removeBagsByPrefix,
     clearCollapsedEvents,
+    resetEventSelection,
     setTimelineSelected,
     setActiveTimelineIndex,
   ]);

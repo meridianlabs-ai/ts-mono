@@ -24,12 +24,13 @@ import {
   updateValidationParam,
   updateValidationSetParam,
 } from "../../../router/url";
-import { useStore } from "../../../state/store";
+import { useApi, useStore } from "../../../state/store";
 import {
   ValidationCase,
   ValidationCaseRequest,
 } from "../../../types/api-types";
 import { Field } from "../../project/components/FormFields";
+import { validationCaseQuery } from "../../server/queries";
 import { useAppConfig } from "../../server/useAppConfig";
 import {
   useCreateValidationSet,
@@ -38,7 +39,6 @@ import {
   useValidationCase,
   useValidationCases,
   useValidationSets,
-  validationQueryKeys,
 } from "../../server/useValidations";
 import { eventValue } from "../../utils/formEvents";
 import {
@@ -206,6 +206,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
 }) => {
   const config = useAppConfig();
   const queryClient = useQueryClient();
+  const api = useApi();
   const setEditorSelectedValidationSetUri = useStore(
     (state) => state.setEditorSelectedValidationSetUri
   );
@@ -295,10 +296,10 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
       if (isNewEmptyCase) {
         // Update cache for UI but don't save to server yet
         queryClient.setQueryData(
-          validationQueryKeys.case({
+          validationCaseQuery(api, {
             url: editorValidationSetUri,
             caseId: transcriptId,
-          }),
+          }).queryKey,
           updatedCase
         );
         return;
@@ -337,6 +338,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
       );
     },
     [
+      api,
       editorValidationSetUri,
       transcriptId,
       caseData,
@@ -380,7 +382,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
 
   // Handler for creating a new validation set
   const handleCreateSet = useCallback(
-    async (name: string) => {
+    (name: string) => {
       setCreateError(null);
 
       // Validate filename
@@ -401,15 +403,17 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
         return;
       }
 
-      try {
-        await createSetMutation.mutateAsync({ path: newUri, cases: [] });
-        setCreateError(null);
-        handleValidationSetSelect(newUri); // Select the new set
-      } catch (err) {
-        setCreateError(
-          err instanceof Error ? err.message : "Failed to create set"
+      createSetMutation
+        .mutateAsync({ path: newUri, cases: [] })
+        .then(() => {
+          setCreateError(null);
+          handleValidationSetSelect(newUri); // Select the new set
+        })
+        .catch((err: unknown) =>
+          setCreateError(
+            err instanceof Error ? err.message : "Failed to create set"
+          )
         );
-      }
     },
     [
       config.project_dir,
@@ -420,23 +424,31 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
   );
 
   // Handler for deleting the current validation case
-  const handleDeleteCase = useCallback(async () => {
+  const handleDeleteCase = useCallback(() => {
     if (!transcriptId || !editorValidationSetUri) return;
-    try {
-      await deleteCaseMutation.mutateAsync(transcriptId);
-      setShowDeleteModal(false);
-      // Reset cache to null after deletion (keeps panel open)
-      queryClient.setQueryData(
-        validationQueryKeys.case({
-          url: editorValidationSetUri,
-          caseId: transcriptId,
-        }),
-        null
-      );
-    } catch {
-      // Error is handled by mutation state - modal stays open
-    }
-  }, [transcriptId, editorValidationSetUri, deleteCaseMutation, queryClient]);
+    deleteCaseMutation
+      .mutateAsync(transcriptId)
+      .then(() => {
+        setShowDeleteModal(false);
+        // Reset cache to null after deletion (keeps panel open)
+        queryClient.setQueryData(
+          validationCaseQuery(api, {
+            url: editorValidationSetUri,
+            caseId: transcriptId,
+          }).queryKey,
+          null
+        );
+      })
+      .catch(() => {
+        // Error is handled by mutation state - modal stays open
+      });
+  }, [
+    api,
+    transcriptId,
+    editorValidationSetUri,
+    deleteCaseMutation,
+    queryClient,
+  ]);
 
   const isEditable =
     caseData?.target === undefined ||
@@ -483,7 +495,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               selectedUri={editorValidationSetUri}
               onSelect={handleValidationSetSelect}
               allowCreate={true}
-              onCreate={(name) => void handleCreateSet(name)}
+              onCreate={handleCreateSet}
               createPending={createSetMutation.isPending}
               appConfig={config}
             />
@@ -584,7 +596,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
               <ConfirmationDialog
                 show={showDeleteModal}
                 onHide={() => setShowDeleteModal(false)}
-                onConfirm={() => void handleDeleteCase()}
+                onConfirm={handleDeleteCase}
                 title="Delete Case"
                 message="Are you sure you want to delete this validation case?"
                 confirmLabel="Delete"

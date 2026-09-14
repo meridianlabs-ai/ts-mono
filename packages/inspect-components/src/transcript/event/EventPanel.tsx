@@ -18,6 +18,10 @@ import { useProperty } from "@tsmono/react/hooks";
 import { MessageLabel } from "../../chat/MessageLabel";
 import { EventLabelContext } from "../EventLabelContext";
 import { useStickyStuck } from "../hooks/useStickyStuck";
+import {
+  EventSelectCheckbox,
+  useEventRowSelection,
+} from "../selection/EventSelectCheckbox";
 import type { EventPanelCallbacks } from "../types";
 
 import { EventNavs } from "./EventNavs";
@@ -101,6 +105,8 @@ export const EventPanel: FC<EventPanelProps> = ({
     onTabSelected,
   } = eventCallbacks ?? {};
   const eventLabel = useContext(EventLabelContext);
+  const rowSelection = useEventRowSelection(eventNodeId);
+  const selected = rowSelection?.selected === true;
   const externalCollapsed = getCollapsed?.(eventNodeId) ?? false;
   const collapsed = externalCollapsed;
 
@@ -214,6 +220,11 @@ export const EventPanel: FC<EventPanelProps> = ({
 
   const gridColumns: string[] = [];
 
+  // evidence-selection checkbox
+  if (rowSelection) {
+    gridColumns.push("max-content");
+  }
+
   // chevron
   if (isCollapsible && !useBottomDongle) {
     gridColumns.push("minmax(0, max-content)");
@@ -244,7 +255,11 @@ export const EventPanel: FC<EventPanelProps> = ({
   const [mouseOver, setMouseOver] = useState(false);
 
   const titleEl =
-    eventLabel || title || icon || filteredArrChildren.length > 1 ? (
+    eventLabel ||
+    title ||
+    icon ||
+    rowSelection ||
+    filteredArrChildren.length > 1 ? (
       <div
         title={subTitle}
         className={clsx(
@@ -266,6 +281,7 @@ export const EventPanel: FC<EventPanelProps> = ({
         onMouseEnter={() => setMouseOver(true)}
         onMouseLeave={() => setMouseOver(false)}
       >
+        {rowSelection ? <EventSelectCheckbox selection={rowSelection} /> : null}
         {isCollapsible && !useBottomDongle ? (
           <button
             type="button"
@@ -462,6 +478,7 @@ export const EventPanel: FC<EventPanelProps> = ({
         styles.card,
         isRoot ? styles.root : undefined,
         detailExpanded ? styles.expanded : undefined,
+        selected ? styles.selected : undefined,
         eventCallbacks?.isJumpTarget?.(eventNodeId)
           ? styles.jumpTarget
           : undefined

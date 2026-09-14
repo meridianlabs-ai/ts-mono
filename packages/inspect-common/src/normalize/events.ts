@@ -54,6 +54,45 @@ export const normalizeModelOutput = (raw: unknown): ModelOutput => {
   return out as ModelOutput;
 };
 
+const normalizeScore = (raw: unknown): Record<string, unknown> => {
+  if (!isRecord(raw)) {
+    return { value: "", history: [] };
+  }
+  const fixes: Record<string, unknown> = {};
+  if (raw["value"] === undefined) fixes["value"] = "";
+  if (!Array.isArray(raw["history"])) fixes["history"] = [];
+  return Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
+};
+
+/**
+ * JsonChange rows: `value` and `replaced` default to None upstream, so an
+ * absent field reads as null. Rows that aren't records are dropped —
+ * pydantic would refuse them. Identity-preserving when nothing needs filling.
+ */
+const normalizeJsonChanges = (raw: unknown): unknown[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  let changed = false;
+  const changes: unknown[] = [];
+  for (const change of raw as unknown[]) {
+    if (!isRecord(change)) {
+      changed = true;
+      continue;
+    }
+    const fixes: Record<string, unknown> = {};
+    if (change["value"] === undefined) fixes["value"] = null;
+    if (change["replaced"] === undefined) fixes["replaced"] = null;
+    if (Object.keys(fixes).length > 0) {
+      changed = true;
+      changes.push({ ...change, ...fixes });
+    } else {
+      changes.push(change);
+    }
+  }
+  return changed ? changes : raw;
+};
+
 /**
  * Per-event-type defaults for required fields pydantic defaults at read
  * time. Returns undefined when nothing needs filling (the hot path for
@@ -104,13 +143,20 @@ const eventFixes = (
       break;
     case "score":
       // "" because Score.value doesn't admit null; pydantic would reject a
-      // score-less ScoreEvent outright, so this is degradation, not parity.
-      if (!isRecord(raw["score"])) fix("score", { value: "", history: [] });
+      // score-less (or value-less) ScoreEvent outright, so this is
+      // degradation, not parity.
+      {
+        const score = normalizeScore(raw["score"]);
+        if (score !== raw["score"]) fix("score", score);
+      }
       if (typeof raw["intermediate"] !== "boolean") fix("intermediate", false);
       break;
     case "state":
     case "store":
-      if (!Array.isArray(raw["changes"])) fix("changes", []);
+      {
+        const changes = normalizeJsonChanges(raw["changes"]);
+        if (changes !== raw["changes"]) fix("changes", changes);
+      }
       break;
     case "tool":
       if (typeof raw["id"] !== "string") fix("id", "");

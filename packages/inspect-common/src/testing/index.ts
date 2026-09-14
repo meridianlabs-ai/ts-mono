@@ -35,10 +35,13 @@ import type {
   ModelEvent,
   ModelOutput,
   ModelUsage,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
   Score,
+  ScoreEdit,
+  ScoreEditEvent,
   ScoreEvent,
   SpanBeginEvent,
   SpanEndEvent,
@@ -252,6 +255,36 @@ export const testScoreEvent = (
   ...overrides,
 });
 
+export const testScoreEdit = (
+  overrides: Partial<ScoreEdit> = {}
+): ScoreEdit => ({
+  value: 1,
+  metadata: {},
+  ...overrides,
+});
+
+export const testScoreEditEvent = (
+  overrides: Partial<ScoreEditEvent> = {}
+): ScoreEditEvent => ({
+  event: "score_edit",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  score_name: "scorer",
+  edit: testScoreEdit(),
+  ...overrides,
+});
+
+export const testInterruptEvent = (
+  overrides: Partial<InterruptEvent> = {}
+): InterruptEvent => ({
+  event: "interrupt",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  source: "user_cancel",
+  interrupted: "between_turns",
+  ...overrides,
+});
+
 export const testEvalError = (
   overrides: Partial<EvalError> = {}
 ): EvalError => ({
@@ -358,6 +391,19 @@ export const testApprovalEvent = (
   ...overrides,
 });
 
+export const testReviewEvent = (
+  overrides: Partial<ReviewEvent> = {}
+): ReviewEvent => ({
+  event: "review",
+  timestamp: TEST_TIMESTAMP,
+  working_start: 0,
+  reviewer: "test-reviewer",
+  call: testToolCall(),
+  decision: "continue",
+  message: "",
+  ...overrides,
+});
+
 export const testSandboxEvent = (
   overrides: Partial<SandboxEvent> = {}
 ): SandboxEvent => ({
@@ -376,17 +422,6 @@ export const testInputEvent = (
   working_start: 0,
   input: "",
   input_ansi: "",
-  ...overrides,
-});
-
-export const testInterruptEvent = (
-  overrides: Partial<InterruptEvent> = {}
-): InterruptEvent => ({
-  event: "interrupt",
-  timestamp: TEST_TIMESTAMP,
-  working_start: 0,
-  interrupted: "generate",
-  source: "user_cancel",
   ...overrides,
 });
 

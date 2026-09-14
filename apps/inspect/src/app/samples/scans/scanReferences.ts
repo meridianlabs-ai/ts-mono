@@ -1,4 +1,4 @@
-import { ReactNode, useCallback } from "react";
+import { useCallback } from "react";
 
 import type { MarkdownReference } from "@tsmono/react/components";
 import {
@@ -14,18 +14,20 @@ import {
   useSampleUrlBuilder,
 } from "../../routing/url";
 
+import type { ScanReferencePreviews } from "./scanReferencePreviews";
+
 type Metadata = Record<string, unknown> | null | undefined;
 
 export function buildScoreMarkdownRefs(
   metadata: Metadata,
   makeUrl: (id: string, type: ScannerRefType) => string | undefined,
-  previewTable?: Record<string, () => ReactNode>
+  previewTable?: ScanReferencePreviews
 ): MarkdownReference[] {
   return readScannerReferences(metadata).map((ref) => ({
     id: ref.id,
     cite: ref.cite,
     citeUrl: makeUrl(ref.id, ref.type),
-    citePreview: previewTable?.[ref.id],
+    citePreview: previewTable?.get(ref.id),
   }));
 }
 

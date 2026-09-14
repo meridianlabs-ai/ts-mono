@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
+import type { Event } from "@tsmono/inspect-common/types";
 import {
   ChatViewVirtualList,
   messagesToStr,
@@ -19,7 +20,14 @@ import {
   DisplayModeContext,
   MetaDataGrid,
 } from "@tsmono/inspect-components/content";
-import type { TranscriptLayoutRightRailProps } from "@tsmono/inspect-components/transcript";
+import {
+  eventsToMarkdown,
+  eventsToStr,
+  selectionMenuChrome,
+  TranscriptSelectTool,
+  useTranscriptSelection,
+  type TranscriptLayoutRightRailProps,
+} from "@tsmono/inspect-components/transcript";
 import type { SearchScope as TranscriptSearchScope } from "@tsmono/inspect-components/transcript-search";
 import {
   ActivityRail,
@@ -32,6 +40,7 @@ import {
 } from "@tsmono/react/components";
 import {
   navigateAndForget,
+  useCopyToClipboard,
   useProperty,
   useReflectEventNavigationInUrl,
   useVisitId,
@@ -124,8 +133,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const visitId = useVisitId(transcript.transcript_id);
 
   // Selected tab — default to Events when the transcript has events
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-  const hasEvents = transcript.events && transcript.events.length > 0;
+  const hasEvents = transcript.events.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
     : kTranscriptMessagesTabId;
@@ -221,6 +229,15 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
   const { excludedEventTypes, isDebugFilter, isDefaultFilter } =
     useTranscriptColumnFilter();
+
+  // Evidence selection on the Events tab: the Select tool toggles the mode and
+  // Copy exports the selection while one exists.
+  // One visit of one tab: leaving and returning starts unlatched.
+  const selectionVisit = useVisitId(
+    `${transcript.transcript_id}:${resolvedSelectedTranscriptTab}`
+  );
+  const evidence = useTranscriptSelection(selectionVisit, transcript.events);
+  const onEventsTab = resolvedSelectedTranscriptTab === kTranscriptEventsTabId;
 
   // Transcript collapse (toolbar button state)
   const eventsCollapsed = useStore((state) => state.transcriptState.collapsed);
@@ -392,11 +409,26 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
     />
   );
 
+  if (onEventsTab) {
+    tabTools.push(
+      <TranscriptSelectTool
+        key="events-select"
+        active={evidence.active}
+        count={evidence.selectedCount}
+        onToggle={evidence.toggleActive}
+        onClear={evidence.clearAndExit}
+      />
+    );
+  }
+
   tabTools.push(
     <CopyToolbarButton
       key="copy-toolbar-button"
       transcript={transcript}
       className={styles.tabTool}
+      selectedCount={onEventsTab ? evidence.selectedCount : 0}
+      resolveSelected={evidence.resolveSelected}
+      onClearSelection={evidence.clear}
     />
   );
 
@@ -419,8 +451,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={`transcript-${visitId}`}
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-              messages={transcript.messages || []}
+              messages={transcript.messages}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
               display={{
@@ -499,6 +530,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         messageLabels={eventsReferenceLabels?.messageLabels}
         eventLabels={eventsReferenceLabels?.eventLabels}
         rightRail={eventsRightRail}
+        selection={evidence.selection}
       />
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
@@ -512,8 +544,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-  if (transcript.metadata && Object.keys(transcript.metadata).length > 0) {
+  if (Object.keys(transcript.metadata).length > 0) {
     tabPanels.push(
       <TabPanel
         key="transcript-metadata"
@@ -528,8 +559,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-            entries={transcript.metadata || {}}
+            entries={transcript.metadata}
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
           />
@@ -583,18 +613,25 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
 const CopyToolbarButton: FC<{
   transcript: Transcript;
   className?: string | string[];
-}> = ({ transcript, className }) => {
-  const [icon, setIcon] = useState<string>(ApplicationIcons.copy);
+  /** With a selection the menu copies those events instead of the transcript. */
+  selectedCount: number;
+  resolveSelected: () => Event[];
+  onClearSelection: () => void;
+}> = ({
+  transcript,
+  className,
+  selectedCount,
+  resolveSelected,
+  onClearSelection,
+}) => {
+  const { copied, copy: copyText } = useCopyToClipboard();
+  const icon = copied ? ApplicationIcons.confirm : ApplicationIcons.copy;
 
-  const showCopyConfirmation = useCallback(() => {
-    setIcon(ApplicationIcons.confirm);
-    setTimeout(() => setIcon(ApplicationIcons.copy), 1250);
-  }, []);
-
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-  if (!transcript) {
-    return undefined;
-  }
+  const selectionMenu =
+    selectedCount > 0
+      ? selectionMenuChrome(selectedCount, onClearSelection)
+      : undefined;
+  const hasSelection = selectionMenu !== undefined;
 
   return (
     <ToolDropdownButton
@@ -605,23 +642,29 @@ const CopyToolbarButton: FC<{
       dropdownClassName={"text-size-smallest"}
       dropdownAlign="right"
       subtle={true}
-      items={{
-        UUID: () => {
-          if (transcript.transcript_id) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            navigator.clipboard.writeText(transcript.transcript_id);
-            showCopyConfirmation();
-          }
-        },
-        Transcript: () => {
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-          if (transcript.messages) {
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
-            navigator.clipboard.writeText(messagesToStr(transcript.messages));
-            showCopyConfirmation();
-          }
-        },
-      }}
+      heading={selectionMenu?.heading}
+      footer={selectionMenu?.footer}
+      items={
+        hasSelection
+          ? {
+              Markdown: () => {
+                copyText(eventsToMarkdown(resolveSelected()));
+              },
+              Text: () => {
+                copyText(eventsToStr(resolveSelected()));
+              },
+            }
+          : {
+              UUID: () => {
+                if (transcript.transcript_id) {
+                  copyText(transcript.transcript_id);
+                }
+              },
+              Transcript: () => {
+                copyText(messagesToStr(transcript.messages));
+              },
+            }
+      }
     />
   );
 };

@@ -5,7 +5,16 @@
 
 import { ColumnSizingState, RowData } from "@tanstack/react-table";
 
-import { BaseColumnMeta, ExtendedColumnDef } from "../columnTypes";
+/** Column metadata needed for sizing, independent of a table's feature set. */
+export interface ColumnSizingDefinition {
+  id?: string;
+  accessorKey?: unknown;
+  header?: unknown;
+  size?: number;
+  minSize?: number;
+  maxSize?: number;
+  textValue?: (value: unknown) => string | null;
+}
 
 /**
  * Size constraints for a column.
@@ -36,7 +45,7 @@ export interface SizingStrategyContext<TData extends RowData> {
   /** The table element for DOM measurements (may be null) */
   tableElement: HTMLTableElement | null;
   /** Column definitions */
-  columns: ExtendedColumnDef<TData, BaseColumnMeta>[];
+  columns: ColumnSizingDefinition[];
   /** Current data for content measurement */
   data: TData[];
   /** Pre-computed constraints for each column */
@@ -97,9 +106,7 @@ export function mergeCalculatedSizing(
 /**
  * Get the column ID from a column definition.
  */
-export function getColumnId<TData extends RowData>(
-  column: ExtendedColumnDef<TData, BaseColumnMeta>
-): string {
+export function getColumnId(column: ColumnSizingDefinition): string {
   return column.id || columnAccessorKey(column) || "";
 }
 
@@ -107,8 +114,8 @@ export function getColumnId<TData extends RowData>(
  * `accessorKey` is carried by only one member of TanStack's ColumnDef union,
  * so reading it off the union takes a check rather than a claim.
  */
-export function columnAccessorKey<TData extends RowData>(
-  column: ExtendedColumnDef<TData, BaseColumnMeta>
+export function columnAccessorKey(
+  column: ColumnSizingDefinition
 ): string | undefined {
   return "accessorKey" in column && typeof column.accessorKey === "string"
     ? column.accessorKey
@@ -118,8 +125,8 @@ export function columnAccessorKey<TData extends RowData>(
 /**
  * Extract size constraints from column definitions.
  */
-export function getColumnConstraints<TData extends RowData>(
-  columns: ExtendedColumnDef<TData, BaseColumnMeta>[]
+export function getColumnConstraints(
+  columns: ColumnSizingDefinition[]
 ): Map<string, ColumnSizeConstraints> {
   const constraints = new Map<string, ColumnSizeConstraints>();
 

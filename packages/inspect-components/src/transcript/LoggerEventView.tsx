@@ -23,6 +23,7 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
   const obj = maybeParseJson(event.message.message);
   return (
     <EventRow
+      eventNodeId={eventNode.id}
       className={className}
       title={event.message.level}
       icon={

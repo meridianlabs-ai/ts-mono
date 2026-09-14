@@ -3,6 +3,7 @@ import { FC, memo, ReactNode } from "react";
 
 import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
+import { getOwn } from "@tsmono/util";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
@@ -69,7 +70,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     blockId: string | null | undefined,
     blockNumber: number
   ): string | undefined =>
-    labelValues && blockId ? labelValues[blockId] : String(blockNumber);
+    labelValues && blockId ? getOwn(labelValues, blockId) : String(blockNumber);
 
   const hasToolCalls =
     toolCallStyle !== "omit" &&

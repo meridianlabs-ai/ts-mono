@@ -1,39 +1,51 @@
 import type { EvalSpec } from "@tsmono/inspect-common/types";
 import { modelRoleConfigs } from "@tsmono/inspect-common/utils";
+import { nullProtoRecord } from "@tsmono/util";
 
 type Dict = Record<string, unknown>;
 type DictMap = Record<string, Dict>;
 
-const mergeDefined = (target: Dict, source: Dict): Dict => {
+// Maps, not plain objects — model names, role names and model_args keys all
+// come from the log header, so "__proto__" or "constructor" must be ordinary
+// keys, never a write through the prototype chain.
+type Accumulator = Map<string, Map<string, unknown>>;
+
+const mergeDefined = (target: Map<string, unknown>, source: Dict): void => {
   for (const [k, v] of Object.entries(source)) {
-    if (v !== null && v !== undefined) target[k] = v;
+    if (v !== null && v !== undefined) target.set(k, v);
   }
-  return target;
 };
 
-const finalize = (acc: DictMap): DictMap | undefined => {
-  const out: DictMap = {};
-  for (const [k, v] of Object.entries(acc)) {
-    if (Object.keys(v).length > 0) out[k] = v;
+const addTo = (
+  acc: Accumulator,
+  key: string | null | undefined,
+  dict: Dict | null | undefined
+): void => {
+  if (!key || !dict) return;
+  const target = acc.get(key) ?? new Map<string, unknown>();
+  mergeDefined(target, dict);
+  acc.set(key, target);
+};
+
+const finalize = (acc: Accumulator): DictMap | undefined => {
+  const out = new Map<string, Dict>();
+  for (const [k, v] of acc) {
+    if (v.size > 0) out.set(k, nullProtoRecord(v));
   }
-  return Object.keys(out).length > 0 ? out : undefined;
+  return out.size > 0 ? nullProtoRecord(out) : undefined;
 };
 
 export const buildConfigsByModel = (
   evalSpec?: EvalSpec
 ): DictMap | undefined => {
   if (!evalSpec) return undefined;
-  const acc: DictMap = {};
-  const add = (modelId?: string | null, cfg?: Dict | null) => {
-    if (!modelId || !cfg) return;
-    acc[modelId] = mergeDefined(acc[modelId] ?? {}, cfg);
-  };
-  add(evalSpec.model, evalSpec.model_generate_config);
+  const acc: Accumulator = new Map();
+  addTo(acc, evalSpec.model, evalSpec.model_generate_config);
   if (evalSpec.model_roles) {
     for (const rc of Object.values(evalSpec.model_roles).flatMap(
       modelRoleConfigs
     )) {
-      add(rc.model, rc.config);
+      addTo(acc, rc.model, rc.config);
     }
   }
   return finalize(acc);
@@ -43,13 +55,12 @@ export const buildConfigsByRole = (
   evalSpec?: EvalSpec
 ): DictMap | undefined => {
   if (!evalSpec?.model_roles) return undefined;
-  const acc: DictMap = {};
+  const acc: Accumulator = new Map();
   for (const [role, value] of Object.entries(evalSpec.model_roles)) {
     // a role bound to a list of models merges its configs (later models
     // override earlier ones), mirroring how buildConfigsByModel accumulates
     for (const rc of modelRoleConfigs(value)) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (rc.config) acc[role] = mergeDefined(acc[role] ?? {}, rc.config);
+      addTo(acc, role, rc.config);
     }
   }
   return finalize(acc);
@@ -57,17 +68,13 @@ export const buildConfigsByRole = (
 
 export const buildArgsByModel = (evalSpec?: EvalSpec): DictMap | undefined => {
   if (!evalSpec) return undefined;
-  const acc: DictMap = {};
-  const add = (modelId?: string | null, args?: Dict | null) => {
-    if (!modelId || !args) return;
-    acc[modelId] = mergeDefined(acc[modelId] ?? {}, args);
-  };
-  add(evalSpec.model, evalSpec.model_args);
+  const acc: Accumulator = new Map();
+  addTo(acc, evalSpec.model, evalSpec.model_args);
   if (evalSpec.model_roles) {
     for (const rc of Object.values(evalSpec.model_roles).flatMap(
       modelRoleConfigs
     )) {
-      add(rc.model, rc.args);
+      addTo(acc, rc.model, rc.args);
     }
   }
   return finalize(acc);
@@ -75,11 +82,10 @@ export const buildArgsByModel = (evalSpec?: EvalSpec): DictMap | undefined => {
 
 export const buildArgsByRole = (evalSpec?: EvalSpec): DictMap | undefined => {
   if (!evalSpec?.model_roles) return undefined;
-  const acc: DictMap = {};
+  const acc: Accumulator = new Map();
   for (const [role, value] of Object.entries(evalSpec.model_roles)) {
     for (const rc of modelRoleConfigs(value)) {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (rc.args) acc[role] = mergeDefined(acc[role] ?? {}, rc.args);
+      addTo(acc, role, rc.args);
     }
   }
   return finalize(acc);

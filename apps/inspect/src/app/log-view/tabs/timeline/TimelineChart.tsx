@@ -201,19 +201,15 @@ export const TimelineChart: FC<TimelineChartProps> = ({
   // Callback ref, not useResizeObserver — the chart renders null until
   // samples arrive (and while every band is toggled off), so a mount-only
   // effect observes nothing and the width would stay 0 forever.
-  const resizeObserver = useRef<ResizeObserver | null>(null);
   const chartRef = useCallback((element: HTMLDivElement | null) => {
-    resizeObserver.current?.disconnect();
-    resizeObserver.current = null;
-    if (element) {
-      const observer = new ResizeObserver((entries) => {
-        if (entries[0]) {
-          setWidth(entries[0].contentRect.width);
-        }
-      });
-      observer.observe(element);
-      resizeObserver.current = observer;
-    }
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        setWidth(entries[0].contentRect.width);
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
   }, []);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [lineHover, setLineHover] = useState<LineHover | null>(null);

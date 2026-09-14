@@ -7,6 +7,8 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { decodeHtmlEntities } from "@tsmono/util";
 
+import { ExternalLink } from "../content/ExternalLink";
+
 import styles from "./MessageCitations.module.css";
 
 export interface MessageCitationsProps {
@@ -54,10 +56,8 @@ const UrlCitation: FC<PropsWithChildren<{ citation: UrlCitationType }>> = ({
   children,
   citation,
 }): ReactElement => (
-  <a
+  <ExternalLink
     href={citation.url}
-    target="_blank"
-    rel="noopener noreferrer"
     className={clsx(styles.citationLink)}
     title={
       citation.cited_text && typeof citation.cited_text === "string"
@@ -66,7 +66,7 @@ const UrlCitation: FC<PropsWithChildren<{ citation: UrlCitationType }>> = ({
     }
   >
     {children}
-  </a>
+  </ExternalLink>
 );
 
 const OtherCitation: FC<PropsWithChildren> = ({ children }): ReactElement => (

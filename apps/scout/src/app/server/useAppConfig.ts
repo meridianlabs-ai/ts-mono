@@ -4,6 +4,8 @@ import { AsyncData } from "@tsmono/util";
 import { useApi } from "../../state/store";
 import { AppConfig } from "../../types/api-types";
 
+import { appConfigQuery } from "./queries";
+
 /**
  * Loads app config asynchronously at app initialization.
  *
@@ -13,12 +15,7 @@ import { AppConfig } from "../../types/api-types";
  */
 export const useAppConfigAsync = (): AsyncData<AppConfig> => {
   const api = useApi();
-
-  return useAsyncDataFromQuery({
-    queryKey: ["config", "project-config-inv"],
-    queryFn: () => api.getConfig(),
-    staleTime: Infinity,
-  });
+  return useAsyncDataFromQuery(appConfigQuery(api));
 };
 
 /**

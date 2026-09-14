@@ -25,4 +25,17 @@ export {
   normalizeEvalSpec,
 } from "./log";
 export { normalizeEvalSample } from "./sample";
-export { normalizeSampleSummaries, normalizeSampleSummary } from "./summary";
+export {
+  normalizeModelUsageMap,
+  normalizeSampleSummaries,
+  normalizeSampleSummary,
+} from "./summary";
+export {
+  isWireTimeline,
+  normalizeTimeline,
+  normalizeTimelines,
+  normalizeTimelineSpan,
+  type WireTimeline,
+  type WireTimelineEvent,
+  type WireTimelineSpan,
+} from "./timeline";

@@ -10,6 +10,7 @@ import { transformTree } from "./transform";
 import {
   ACTION_BEGIN,
   hasSpans,
+  isStructuralEvent,
   SPAN_BEGIN,
   SPAN_END,
   STEP,
@@ -17,21 +18,70 @@ import {
   TYPE_SCORERS,
 } from "./utils";
 
-export function treeifyEvents(events: Event[], depth: number): EventNode[] {
+/**
+ * Node ids are the event uuid. Logs that predate uuids fall back to
+ * `fallbackIds` (keyed by event identity; see `eventFallbackIds`) so an id
+ * survives filtering, and only then to the tree path.
+ */
+export function treeifyEvents(
+  events: Event[],
+  depth: number,
+  fallbackIds?: EventIdLookup
+): EventNode[] {
   const useSpans = hasSpans(events);
 
   // First inject spans that may be needed
   events = injectScorersSpan(events);
 
   const nodes = useSpans
-    ? treeifyWithSpans(events, depth)
-    : treeifyWithSteps(events, depth);
+    ? treeifyWithSpans(events, depth, fallbackIds)
+    : treeifyWithSteps(events, depth, fallbackIds);
 
   return useSpans ? transformTree(nodes) : nodes;
 }
 
-const treeifyWithSpans = (events: Event[], depth: number): EventNode[] => {
-  const { rootNodes, createNode } = createNodeFactory(depth);
+/** Resolves an event to its position-based fallback id (see `eventFallbackIds`). */
+export interface EventIdLookup {
+  get(event: Event): string | undefined;
+}
+
+/**
+ * Position-based ids for events without a uuid. Keyed by event identity, with
+ * a (type, timestamp) signature as a second key for the pipeline steps that
+ * clone events (lane suffix stripping, retry grouping). The signature is only
+ * consulted when unique in `events` and never for span/step events: the
+ * pipeline synthesizes those with a neighbour's timestamp, and a match would
+ * hand two rows the same id.
+ */
+export const eventFallbackIds = (events: readonly Event[]): EventIdLookup => {
+  const byIdentity = new Map<Event, string>();
+  const bySignature = new Map<string, string | null>();
+  events.forEach((event, index) => {
+    if (event.uuid) return;
+    const id = `event_index_${index}`;
+    byIdentity.set(event, id);
+    if (isStructuralEvent(event)) return;
+    const signature = eventSignature(event);
+    bySignature.set(signature, bySignature.has(signature) ? null : id);
+  });
+  return {
+    get: (event) =>
+      byIdentity.get(event) ??
+      (isStructuralEvent(event)
+        ? undefined
+        : (bySignature.get(eventSignature(event)) ?? undefined)),
+  };
+};
+
+const eventSignature = (event: Event): string =>
+  `${event.event}|${event.timestamp}`;
+
+const treeifyWithSpans = (
+  events: Event[],
+  depth: number,
+  fallbackIds?: EventIdLookup
+): EventNode[] => {
+  const { rootNodes, createNode } = createNodeFactory(depth, fallbackIds);
   const spanNodes = new Map<string, EventNode>();
 
   const processEvent = (
@@ -64,8 +114,12 @@ const treeifyWithSpans = (events: Event[], depth: number): EventNode[] => {
   return rootNodes;
 };
 
-const treeifyWithSteps = (events: Event[], depth: number): EventNode[] => {
-  const { rootNodes, createNode } = createNodeFactory(depth);
+const treeifyWithSteps = (
+  events: Event[],
+  depth: number,
+  fallbackIds?: EventIdLookup
+): EventNode[] => {
+  const { rootNodes, createNode } = createNodeFactory(depth, fallbackIds);
   const stack: EventNode[] = [];
 
   const pushStack = (node: EventNode) => {
@@ -114,7 +168,10 @@ type NodeFactory = {
   createNode: (event: EventType, parent: EventNode | null) => EventNode;
 };
 
-const createNodeFactory = (depth: number): NodeFactory => {
+const createNodeFactory = (
+  depth: number,
+  fallbackIds?: EventIdLookup
+): NodeFactory => {
   const rootNodes: EventNode[] = [];
   const childCounts = new Map<EventNode | null, number>();
   const pathByNode = new Map<EventNode, string>();
@@ -131,7 +188,8 @@ const createNodeFactory = (depth: number): NodeFactory => {
     const path =
       parentPath !== undefined ? `${parentPath}.${nextIndex}` : `${nextIndex}`;
 
-    const eventId = event.uuid || `event_node_${path}`;
+    const eventId =
+      event.uuid || fallbackIds?.get(event) || `event_node_${path}`;
     const nodeDepth = parent ? parent.depth + 1 : depth;
 
     const node = new EventNode(eventId, event, nodeDepth);

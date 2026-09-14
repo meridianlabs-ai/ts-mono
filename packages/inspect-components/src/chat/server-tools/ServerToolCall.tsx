@@ -5,6 +5,7 @@ import type { ContentToolUse } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
 import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
+import { ExternalLink } from "../../content/ExternalLink";
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedContent } from "../../content/RenderedContent";
 import { iconForTool } from "../tools/tool";
@@ -144,9 +145,9 @@ const WebSearchResults: FC<{ id?: string; results: WebResult[] }> = ({
     >
       {results.map((result, index) => (
         <div key={index}>
-          <a href={result.url} target="_blank" rel="noopener noreferrer">
+          <ExternalLink href={result.url} title={result.url}>
             {result.title}
-          </a>
+          </ExternalLink>
         </div>
       ))}
     </ExpandablePanel>

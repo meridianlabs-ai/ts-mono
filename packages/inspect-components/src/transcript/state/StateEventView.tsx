@@ -200,8 +200,16 @@ type PathContainer = Record<string, unknown> | unknown[];
 const isPathContainer = (value: unknown): value is PathContainer =>
   typeof value === "object" && value !== null;
 
-const getChild = (container: PathContainer, key: string): unknown =>
-  Array.isArray(container) ? container[Number(key)] : container[key];
+// Path segments come from the log, so reads stay on the synthesized tree's
+// own properties: a `/__proto__/x` path read through the prototype chain
+// would step into Object.prototype and the write below would land there.
+const getChild = (container: PathContainer, key: string): unknown => {
+  if (Array.isArray(container)) {
+    const index = Number(key);
+    return Object.hasOwn(container, index) ? container[index] : undefined;
+  }
+  return Object.hasOwn(container, key) ? container[key] : undefined;
+};
 
 const setChild = (
   container: PathContainer,
@@ -210,6 +218,16 @@ const setChild = (
 ): void => {
   if (Array.isArray(container)) {
     container[Number(key)] = value;
+  } else if (key === "__proto__") {
+    // Assignment would hit the inherited setter and re-parent the container.
+    // defineProperty stores an own key instead (jsondiffpatch skips the key
+    // when diffing, so the change is dropped from the view, not rendered).
+    Object.defineProperty(container, key, {
+      value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   } else {
     container[key] = value;
   }

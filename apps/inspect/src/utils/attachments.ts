@@ -1,9 +1,11 @@
+import { getOwn } from "@tsmono/util";
+
 const CONTENT_PROTOCOL = "tc://";
 const ATTACHMENT_PROTOCOL = "attachment://";
 
 const resolveString = (
   value: string,
-  attachments: Record<string, string>,
+  attachments: Readonly<Record<string, unknown>>,
   onFailedResolve?: (attachmentId: string) => void
 ): string => {
   // Rewrite the legacy tc:// protocol before resolving
@@ -14,8 +16,10 @@ const resolveString = (
     return value;
   }
   const attachmentId = ref.slice(ATTACHMENT_PROTOCOL.length);
-  const attachment = attachments[attachmentId];
-  if (attachment === undefined) {
+  // Own-key read: the id is log-authored, and "constructor" must be a miss
+  // rather than the inherited builtin.
+  const attachment = getOwn(attachments, attachmentId);
+  if (typeof attachment !== "string") {
     onFailedResolve?.(attachmentId);
     // A miss keeps the original (un-rewritten) string
     return value;
@@ -25,7 +29,7 @@ const resolveString = (
 
 const resolveValue = (
   value: unknown,
-  attachments: Record<string, string>,
+  attachments: Readonly<Record<string, unknown>>,
   onFailedResolve?: (attachmentId: string) => void
 ): unknown => {
   if (typeof value === "string") {
@@ -70,10 +74,11 @@ const resolveValue = (
  * their content, leaving the value's shape untouched. TypeScript can't
  * express "same type, strings substituted", so the walk works in `unknown`
  * and this is where the shape is handed back.
+ * Attachment values are untrusted; only own string entries resolve.
  */
 export const resolveAttachments = <T>(
   value: T,
-  attachments: Record<string, string>,
+  attachments: Readonly<Record<string, unknown>>,
   onFailedResolve?: (attachmentId: string) => void
 ): T =>
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- shape-preserving walk: see above

@@ -28,6 +28,7 @@ import type {
   ModelFallback,
   ModelUsage,
   Result,
+  ReviewEvent,
   SampleInitEvent,
   SampleLimitEvent,
   SandboxEvent,
@@ -180,6 +181,7 @@ export interface EventData {
     | ModelEvent
     | ToolEvent
     | ApprovalEvent
+    | ReviewEvent
     | InputEvent
     | ScoreEvent
     | ErrorEvent
@@ -243,6 +245,8 @@ export interface LogViewAPI {
     filecontents: string | Blob | ArrayBuffer | ArrayBufferView<ArrayBuffer>
   ) => Promise<void>;
   download_log?: (log_file: string) => Promise<void>;
+  // Part of the host API contract (every adapter implements it), even though
+  // the viewer itself no longer calls it.
   open_log_file: (logFile: string, log_dir: string) => Promise<void>;
   eval_pending_samples?: (
     log_file: string,

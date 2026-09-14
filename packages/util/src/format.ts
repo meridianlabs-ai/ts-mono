@@ -227,6 +227,28 @@ export function formatMs(ms: number): string {
 }
 
 /**
+ * Formats a dollar amount: 2 significant digits below a dollar (per-call and
+ * per-sample costs are often sub-cent, where 2 decimals would render "$0.00"),
+ * 2 fraction digits with grouping at or above.
+ */
+export function formatCurrency(dollars: number): string {
+  // 0.995+ rounds up to a dollar — send it to the fraction-digit branch so it
+  // renders "$1.00", never bare "$1".
+  if (dollars > 0 && dollars < 0.995) {
+    return `$${dollars.toLocaleString(navigator.language, {
+      // minimum too: significant-digit formatting drops trailing zeros,
+      // and "$0.1" reads wrong for currency ("$0.10" doesn't).
+      minimumSignificantDigits: 2,
+      maximumSignificantDigits: 2,
+    })}`;
+  }
+  return `$${dollars.toLocaleString(navigator.language, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+/**
  * Formats a byte count as a human-readable string (B, KB, MB, GB, TB).
  */
 export function formatBytes(bytes: number): string {
