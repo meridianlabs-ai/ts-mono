@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeActiveScans,
   normalizeStatus,
+  normalizeTranscript,
   type WireStatus,
+  type WireTranscript,
 } from "./normalize";
 
 // The shape an old inspect_scout wrote: nothing pydantic would have filled at
@@ -195,5 +197,68 @@ describe("normalizeActiveScans", () => {
         },
       },
     });
+  });
+});
+
+describe("normalizeTranscript", () => {
+  // A stored transcript from before messages/timelines/metadata were written
+  // (and whose events predate working_start).
+  const legacyTranscript: WireTranscript = {
+    transcript_id: "t1",
+    events: [{ event: "step", action: "begin", name: "solve" }],
+  };
+
+  it("fills the lists and metadata a legacy transcript omits", () => {
+    const transcript = normalizeTranscript(legacyTranscript);
+    expect(transcript.messages).toEqual([]);
+    expect(transcript.timelines).toEqual([]);
+    expect(transcript.metadata).toEqual({});
+  });
+
+  it("normalizes events and repairs a missing or malformed events list", () => {
+    expect(normalizeTranscript(legacyTranscript).events).toMatchObject([
+      { event: "step", working_start: 0, timestamp: "" },
+    ]);
+    expect(normalizeTranscript({ transcript_id: "t2" }).events).toEqual([]);
+    expect(
+      normalizeTranscript({ transcript_id: "t3", events: "oops" }).events
+    ).toEqual([]);
+  });
+
+  it("expands condensed events through events_data", () => {
+    const transcript = normalizeTranscript(
+      {
+        transcript_id: "t4",
+        events: [
+          {
+            event: "model",
+            timestamp: "t",
+            model: "m",
+            working_start: 0,
+            input: [],
+            input_refs: [[0, 1]],
+          },
+        ],
+      },
+      { messages: [{ id: "m1", role: "user", content: "hi" }], calls: [] }
+    );
+    expect(transcript.events[0]).toMatchObject({
+      event: "model",
+      input: [{ id: "m1", role: "user", content: "hi" }],
+      input_refs: null,
+    });
+  });
+
+  it("preserves a current-format transcript's fields", () => {
+    const current: WireTranscript = {
+      transcript_id: "t5",
+      metadata: { k: "v" },
+      messages: [{ id: "m1", role: "user", content: "hi" }],
+      timelines: [],
+      events: [],
+      model: "gpt",
+      error: null,
+    };
+    expect(normalizeTranscript(current)).toEqual(current);
   });
 });

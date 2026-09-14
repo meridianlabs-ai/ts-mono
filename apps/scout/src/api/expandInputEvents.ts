@@ -5,9 +5,10 @@ import {
 import { expandEvents } from "@tsmono/inspect-common/utils";
 import { isRecord } from "@tsmono/util";
 
-import type { ScannerInputResponse, Transcript } from "../types/api-types";
+import type { ScannerInputResponse } from "../types/api-types";
 
 import { resolveAttachments } from "./attachmentsHelpers";
+import { normalizeTranscript, type WireTranscript } from "./normalize";
 
 /**
  * Expand condensed events in a scan result input.
@@ -29,26 +30,12 @@ export function expandInputEvents(
       : value;
 
   // Boundary normalization (#555) applies with or without input_data: old
-  // scans predate the input_data column entirely, and their transcript
-  // events are exactly the ones that omit required-with-default fields.
+  // scans predate the input_data column entirely, and their transcripts are
+  // exactly the ones that omit required-with-default fields (a missing or
+  // malformed `events`/`messages` list is repaired to an empty one).
   if (inputType === "transcript") {
-    if (isTranscript(input)) {
-      const transcript = input;
-      const normalized = normalizeEvents(transcript.events);
-      const expanded = inputData
-        ? expandEvents(normalized, inputData)
-        : normalized;
-      const result =
-        expanded === transcript.events
-          ? transcript
-          : { ...transcript, events: expanded };
-      return withAttachmentsResolved(result);
-    }
-    // A stored transcript whose `events` is missing or malformed — exactly
-    // the legacy-writer case this boundary exists for — is repaired to an
-    // empty events list rather than handed downstream raw.
-    if (isRecord(input)) {
-      return withAttachmentsResolved(asInput({ ...input, events: [] }));
+    if (isWireTranscript(input)) {
+      return withAttachmentsResolved(normalizeTranscript(input, inputData));
     }
     return withAttachmentsResolved(asInput(input));
   }
@@ -79,11 +66,12 @@ const asInput = (value: unknown): ScannerInputResponse["input"] =>
 
 /**
  * `input_type` and `input` are separate fields, so the discriminant on one
- * can't narrow the other; a transcript is the only input shape carrying an
- * events list.
+ * can't narrow the other. Under `input_type: "transcript"` any object is the
+ * stored transcript; WireTranscript is the pre-normalization claim about it,
+ * which is the same claim the response parse already made.
  */
-const isTranscript = (input: unknown): input is Transcript =>
-  isRecord(input) && Array.isArray(input["events"]);
+const isWireTranscript = (input: unknown): input is WireTranscript =>
+  isRecord(input);
 
 /**
  * EventsData is `additionalProperties: true`, so `attachments` isn't part of

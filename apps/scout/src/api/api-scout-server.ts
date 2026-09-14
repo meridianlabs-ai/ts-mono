@@ -1,7 +1,6 @@
 import { decompress as decompressZstd } from "fzstd";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
-import { expandEvents } from "@tsmono/inspect-common/utils";
 import {
   ApiError,
   asyncJsonParse,
@@ -15,7 +14,6 @@ import {
   AppConfig,
   CreateValidationSetRequest,
   InvalidationTopic,
-  MessagesEventsResponse,
   Pagination,
   ProjectConfig,
   ProjectConfigInput,
@@ -30,7 +28,6 @@ import {
   SearchResponse,
   Status,
   Transcript,
-  TranscriptInfo,
   TranscriptsResponse,
   ValidationCase,
   ValidationCaseRequest,
@@ -49,8 +46,11 @@ import { expandInputEvents } from "./expandInputEvents";
 import {
   normalizeActiveScans,
   normalizeStatus,
+  normalizeTranscript,
   type WireActiveScansResponse,
+  type WireMessagesEvents,
   type WireStatus,
+  type WireTranscriptInfo,
 } from "./normalize";
 import { serverRequestApi } from "./request";
 
@@ -209,28 +209,30 @@ export const apiScoutServer = (
       ]);
 
       const [info, parsed] = await Promise.all([
-        asyncJsonParse<TranscriptInfo>(infoResult.raw),
-        asyncJsonParse<MessagesEventsResponse>(messagesEventsJson),
+        asyncJsonParse<WireTranscriptInfo>(infoResult.raw),
+        asyncJsonParse<WireMessagesEvents>(messagesEventsJson),
       ]);
 
-      const { messages, timelines, attachments } = parsed;
       // Boundary normalization (#555): transcripts can come from old logs
-      // whose events omit fields the types declare required.
-      const events = expandEvents(
-        normalizeEvents(parsed.events),
-        parsed.events_data ?? null
+      // that omit fields the types declare required.
+      const transcript = normalizeTranscript(
+        {
+          ...info,
+          messages: parsed.messages,
+          events: parsed.events,
+          timelines: parsed.timelines,
+        },
+        parsed.events_data
       );
 
-      return {
-        ...info,
-        ...(attachments && Object.keys(attachments).length > 0
-          ? {
-              messages: resolveAttachments(messages, attachments),
-              events: resolveAttachments(events, attachments),
-              timelines,
-            }
-          : { messages, events, timelines }),
-      };
+      const { attachments } = parsed;
+      return attachments && Object.keys(attachments).length > 0
+        ? {
+            ...transcript,
+            messages: resolveAttachments(transcript.messages, attachments),
+            events: resolveAttachments(transcript.events, attachments),
+          }
+        : transcript;
     },
     getTranscriptsColumnValues: async (
       transcriptsDir: string,

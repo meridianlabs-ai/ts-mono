@@ -1,13 +1,20 @@
-import { normalizeModelUsage } from "@tsmono/inspect-common/normalize";
+import {
+  normalizeEvents,
+  normalizeModelUsage,
+} from "@tsmono/inspect-common/normalize";
+import { expandEvents } from "@tsmono/inspect-common/utils";
 
 import type {
   ActiveScanInfo,
   ActiveScansResponse,
+  MessagesEventsResponse,
   ScannerSpec,
   ScannerSummary,
   ScanSpec,
   Status,
   Summary,
+  Transcript,
+  TranscriptInfo,
   ValidationMetrics,
   ValidationResults,
 } from "../types/api-types";
@@ -16,13 +23,13 @@ import type {
  * Boundary normalization for scout API responses (#555).
  *
  * The scout server serializes pydantic models, and pydantic fills
- * required-with-default fields at read time — but scan status is read back
- * from files written by many inspect_scout versions, so the wire can carry
- * shapes that predate a field. The `Wire*` types below are the honest claim
- * the JSON parse makes: the generated type with exactly those
- * required-with-default fields optional. Each normalizer turns a `Wire*`
- * into the generated type by construction (no casts), filling the same
- * defaults pydantic would, so downstream code trusts the types.
+ * required-with-default fields at read time — but scan status and
+ * transcripts are read back from files written by many inspect_scout
+ * versions, so the wire can carry shapes that predate a field. The `Wire*`
+ * types below are the honest claim the JSON parse makes: the generated type
+ * with exactly those required-with-default fields optional. Each normalizer
+ * turns a `Wire*` into the generated type by construction (no casts), filling
+ * the same defaults pydantic would, so downstream code trusts the types.
  */
 
 export type WireValidationMetrics = Partial<ValidationMetrics>;
@@ -85,6 +92,26 @@ export interface WireActiveScanInfo extends Omit<ActiveScanInfo, "summary"> {
 
 export interface WireActiveScansResponse {
   items?: Record<string, WireActiveScanInfo>;
+}
+
+export interface WireTranscriptInfo extends Omit<TranscriptInfo, "metadata"> {
+  metadata?: TranscriptInfo["metadata"] | null;
+}
+
+export interface WireTranscript extends WireTranscriptInfo {
+  // normalizeEvents takes the raw list: events are the field most likely to
+  // carry legacy shapes, and they get their own per-event fills.
+  events?: unknown;
+  messages?: Transcript["messages"];
+  timelines?: Transcript["timelines"];
+}
+
+export interface WireMessagesEvents {
+  attachments?: MessagesEventsResponse["attachments"];
+  events?: unknown;
+  events_data?: MessagesEventsResponse["events_data"];
+  messages?: Transcript["messages"];
+  timelines?: Transcript["timelines"];
 }
 
 const normalizeValidationMetrics = (
@@ -187,6 +214,22 @@ export const normalizeActiveScans = (
     ...info,
     summary: normalizeSummary(info.summary),
   })),
+});
+
+/**
+ * A transcript's own fields plus its messages/events/timelines, whichever
+ * endpoint they arrived from. `eventsData` (the condensed-events side table)
+ * is applied here so every transcript leaves the boundary fully expanded.
+ */
+export const normalizeTranscript = (
+  raw: WireTranscript,
+  eventsData: MessagesEventsResponse["events_data"] = null
+): Transcript => ({
+  ...raw,
+  metadata: raw.metadata ?? {},
+  messages: raw.messages ?? [],
+  timelines: raw.timelines ?? [],
+  events: expandEvents(normalizeEvents(raw.events), eventsData ?? null),
 });
 
 const mapRecord = <T, U>(

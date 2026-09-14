@@ -976,10 +976,6 @@
     }
   },
   "apps/scout/src/app/scannerResult/result/ResultBody.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -1027,9 +1023,6 @@
     }
   },
   "apps/scout/src/app/transcript/TranscriptBody.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 6
-    },
     "react-hooks/refs": {
       "count": 1
     },
@@ -1039,7 +1032,7 @@
   },
   "apps/scout/src/app/transcript/TranscriptEventPanel.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
+      "count": 2,
       "undescribed": 2
     }
   },

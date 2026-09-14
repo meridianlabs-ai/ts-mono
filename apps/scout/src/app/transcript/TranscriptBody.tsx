@@ -133,8 +133,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   const visitId = useVisitId(transcript.transcript_id);
 
   // Selected tab — default to Events when the transcript has events
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-  const hasEvents = transcript.events && transcript.events.length > 0;
+  const hasEvents = transcript.events.length > 0;
   const defaultTab = hasEvents
     ? kTranscriptEventsTabId
     : kTranscriptMessagesTabId;
@@ -452,8 +451,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
           <div className={styles.chatList}>
             <ChatViewVirtualList
               id={`transcript-${visitId}`}
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-              messages={transcript.messages || []}
+              messages={transcript.messages}
               initialMessageId={messageParam}
               scrollRef={scrollRef}
               display={{
@@ -546,8 +544,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   // Events tab first when available, then Messages
   const tabPanels = [...(eventsPanel ? [eventsPanel] : []), messagesPanel];
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-  if (transcript.metadata && Object.keys(transcript.metadata).length > 0) {
+  if (Object.keys(transcript.metadata).length > 0) {
     tabPanels.push(
       <TabPanel
         key="transcript-metadata"
@@ -562,8 +559,7 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
         <div className={styles.scrollable}>
           <MetaDataGrid
             id="transcript-metadata-grid"
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-            entries={transcript.metadata || {}}
+            entries={transcript.metadata}
             className={clsx(styles.metadata)}
             options={{ striped: true, copyButton: true }}
           />
@@ -631,11 +627,6 @@ const CopyToolbarButton: FC<{
   const { copied, copy: copyText } = useCopyToClipboard();
   const icon = copied ? ApplicationIcons.confirm : ApplicationIcons.copy;
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-  if (!transcript) {
-    return undefined;
-  }
-
   const selectionMenu =
     selectedCount > 0
       ? selectionMenuChrome(selectedCount, onClearSelection)
@@ -670,10 +661,7 @@ const CopyToolbarButton: FC<{
                 }
               },
               Transcript: () => {
-                // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- defensive: API response surface not normalized (#555)
-                if (transcript.messages) {
-                  copyText(messagesToStr(transcript.messages));
-                }
+                copyText(messagesToStr(transcript.messages));
               },
             }
       }
