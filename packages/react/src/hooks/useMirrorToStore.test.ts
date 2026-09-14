@@ -25,10 +25,11 @@ describe("useMirrorToStore", () => {
 
   it("never writes undefined, so the store keeps the last value", () => {
     const write = vi.fn();
+    const initialProps: { value: string | undefined } = { value: undefined };
     const { rerender } = renderHook(
       ({ value }: { value: string | undefined }) =>
         useMirrorToStore(value, write),
-      { initialProps: { value: undefined } }
+      { initialProps }
     );
     expect(write).not.toHaveBeenCalled();
 
