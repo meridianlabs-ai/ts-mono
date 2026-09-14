@@ -33,9 +33,9 @@
     "eslint": "^10.7.0",
     "json5": "^2.2.3",
     "lz4js": "^0.2.0",
-    "playwright-core": "^1.62.1",
+    "playwright-core": "^1.63.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.69.0",
+    "typescript-eslint": "^8.70.0",
     "vitest": "^5.0.0"
   }
 }
