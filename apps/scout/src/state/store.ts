@@ -14,8 +14,7 @@ import {
   normalizeSearchPanelState,
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
-import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { debounce, getOwn } from "@tsmono/util";
+import { debounce, getOwn, isRecord } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
@@ -91,12 +90,6 @@ interface StoreState {
 
   // general UI state
   properties: Record<string, Record<string, unknown> | undefined>;
-  scrollPositions: Record<string, number>;
-  listPositions: Record<string, VirtualListStateSnapshot>;
-  visibleRanges: Record<
-    string,
-    { startIndex: number; endIndex: number; totalCount: number }
-  >;
   gridStates: Record<string, DataframeState>;
 
   // Scan specific properties (clear when switching scans)
@@ -128,7 +121,6 @@ interface StoreState {
   userScansDir?: string;
 
   // Transcript Data (loaded data + source directory)
-  transcripts?: TranscriptInfo[];
   transcriptsDir?: string;
   transcriptsTableState: TranscriptsTableState;
 
@@ -185,29 +177,11 @@ interface StoreState {
   removeAllProperties: (id: string) => void;
   removeByPrefix: (id: string, prefix: string) => void;
 
-  getScrollPosition: (path: string) => number | undefined;
-  setScrollPosition: (path: string, position: number) => void;
-
-  setListPosition: (name: string, position: VirtualListStateSnapshot) => void;
-  clearListPosition: (name: string) => void;
-  clearListPositionsWithPrefix: (prefix: string) => void;
-
   setGridState: (
     name: string,
     state: DataframeState | ((previous: DataframeState) => DataframeState)
   ) => void;
   clearGridState: (name: string) => void;
-
-  getVisibleRange: (name: string) => {
-    startIndex: number;
-    endIndex: number;
-    totalCount: number;
-  };
-  setVisibleRange: (
-    name: string,
-    value: { startIndex: number; endIndex: number; totalCount: number }
-  ) => void;
-  clearVisibleRange: (name: string) => void;
 
   setSelectedResultsTab: (tab: string) => void;
   setSelectedResultTab: (tab: string) => void;
@@ -249,7 +223,6 @@ interface StoreState {
 
   setUserScansDir: (path: string) => void;
   setUserTranscriptsDir: (path: string) => void;
-  setTranscripts: (transcripts: TranscriptInfo[]) => void;
   setTranscriptsDir: (path: string) => void;
   setTranscriptsTableState: (
     updater:
@@ -296,21 +269,38 @@ const createDebouncedPersistStorage = (
   };
 };
 
+// Persisted buckets that no longer exist in the store. Stored blobs from
+// older sessions still carry them; the shallow default merge would copy them
+// back into state (and partialize would re-persist them forever).
+const kRetiredPersistedKeys = [
+  "listPositions",
+  "loading",
+  "loadingData",
+  "resultDataInState",
+  "resultsStoredInRef",
+  "scrollPositions",
+  "transcripts",
+  "visibleRanges",
+];
+
+const mergePersistedState = (
+  persisted: unknown,
+  current: StoreState
+): StoreState => {
+  if (!isRecord(persisted)) return current;
+  const retained = { ...persisted };
+  for (const key of kRetiredPersistedKeys) delete retained[key];
+  return { ...current, ...retained };
+};
+
 export const createStore = (api: ScoutApiV2) =>
   create<StoreState>()(
     devtools(
       persist(
         immer((set, get) => ({
           // Initial state
-          resultsStoredInRef: false,
-          resultDataInState: false,
           properties: {},
-          scrollPositions: {},
-          listPositions: {},
-          visibleRanges: {},
           gridStates: {},
-          loading: 0,
-          loadingData: 0,
           transcriptCollapsedEvents: {},
           searchPanelStates: {},
           scopedErrors: {
@@ -502,49 +492,6 @@ export const createStore = (api: ScoutApiV2) =>
               }
             });
           },
-          getScrollPosition(path) {
-            const state = get();
-            return state.scrollPositions[path];
-          },
-          setScrollPosition(path, position) {
-            set((state) => {
-              state.scrollPositions[path] = position;
-            });
-          },
-          setListPosition: (
-            name: string,
-            position: VirtualListStateSnapshot
-          ) => {
-            set((state) => {
-              state.listPositions[name] = position;
-            });
-          },
-          clearListPosition: (name: string) => {
-            set((state) => {
-              // Remove the key
-              const newListPositions = { ...state.listPositions };
-              // TODO: Revisit
-
-              delete newListPositions[name];
-
-              return {
-                listPositions: newListPositions,
-              };
-            });
-          },
-          clearListPositionsWithPrefix: (prefix: string) => {
-            set((state) => {
-              const newListPositions = { ...state.listPositions };
-              let changed = false;
-              for (const key of Object.keys(newListPositions)) {
-                if (key.startsWith(prefix)) {
-                  delete newListPositions[key];
-                  changed = true;
-                }
-              }
-              return changed ? { listPositions: newListPositions } : {};
-            });
-          },
           setGridState: (name, gridState) => {
             set((state) => {
               state.gridStates[name] =
@@ -563,41 +510,6 @@ export const createStore = (api: ScoutApiV2) =>
               return {
                 ...state,
                 gridStates: newGridStates,
-              };
-            });
-          },
-          getVisibleRange: (name: string) => {
-            return (
-              get().visibleRanges[name] ?? {
-                startIndex: 0,
-                endIndex: 0,
-                totalCount: 0,
-              }
-            );
-          },
-          setVisibleRange: (
-            name: string,
-            value: {
-              startIndex: number;
-              endIndex: number;
-              totalCount: number;
-            }
-          ) => {
-            set((state) => {
-              state.visibleRanges[name] = value;
-            });
-          },
-          clearVisibleRange: (name: string) => {
-            set((state) => {
-              // Remove the key
-              const newVisibleRanges = { ...state.visibleRanges };
-              // TODO: Revisit
-
-              delete newVisibleRanges[name];
-
-              return {
-                ...state,
-                visibleRanges: newVisibleRanges,
               };
             });
           },
@@ -736,11 +648,6 @@ export const createStore = (api: ScoutApiV2) =>
               state.userTranscriptsDir = path;
             });
           },
-          setTranscripts: (transcripts: TranscriptInfo[]) => {
-            set((state) => {
-              state.transcripts = transcripts;
-            });
-          },
           setTranscriptsDir: (path: string) => {
             set((state) => {
               state.transcriptsDir = path;
@@ -828,6 +735,7 @@ export const createStore = (api: ScoutApiV2) =>
             } = state;
             return persistedState;
           },
+          merge: mergePersistedState,
         }
       )
     )
