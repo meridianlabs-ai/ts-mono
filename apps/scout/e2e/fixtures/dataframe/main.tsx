@@ -8,6 +8,10 @@ import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";
 import "../../../src/app/App.css";
 
+import { ComponentIconProvider } from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { testIcons } from "@tsmono/react/testing";
+
 import { apiScoutServer } from "../../../src/api/api-scout-server";
 import { DataframeView } from "../../../src/app/components/DataframeView";
 import { DataframeGridApiProvider } from "../../../src/app/scan/scanners/dataframe/DataframeGridApiContext";
@@ -16,6 +20,7 @@ import {
   ScannerDataframeCopyCSVButton,
   ScannerDataframeDownloadCSVButton,
 } from "../../../src/app/scan/scanners/dataframe/ScannerDataframeCSVButtons";
+import { scoutStateHooks } from "../../../src/state/componentStateAdapter";
 import { createStore, StoreProvider } from "../../../src/state/store";
 
 const columns = ["transcript_id", "value", "explanation", "metadata", "passed"];
@@ -53,44 +58,48 @@ function Fixture() {
   const [mounted, setMounted] = useState(true);
   return (
     <StoreProvider value={store}>
-      <DataframeGridApiProvider>
-        <div style={{ display: "flex", gap: 12, padding: 8 }}>
-          <ScannerDataframeCopyCSVButton />
-          <ScannerDataframeDownloadCSVButton />
-          <ScannerDataframeClearFiltersButton />
-          <button onClick={() => setWrap(!wrap)}>Wrap Text</button>
-          <button
-            onClick={() =>
-              setShownColumns(
-                shownColumns.length === columns.length
-                  ? columns.slice(0, 3)
-                  : columns
-              )
-            }
-          >
-            Toggle columns
-          </button>
-          <button onClick={() => setMounted(!mounted)}>Toggle grid</button>
-          <input aria-label="Unrelated input" />
-        </div>
-        <div style={{ height: 500, width: "100%" }}>
-          {mounted && (
-            <DataframeView
-              columnTable={data}
-              sortedColumns={shownColumns}
-              showRowNumbers
-              wrapText={wrap}
-              options={{ maxStrLen: 1024 }}
-              onVisibleRowCountChanged={setVisible}
-              onRowDoubleClicked={(row) => {
-                if ("identifier" in row) setOpened(String(row.identifier));
-              }}
-            />
-          )}
-        </div>
-        <output aria-label="Visible rows">{visible}</output>
-        <output aria-label="Opened result">{opened}</output>
-      </DataframeGridApiProvider>
+      <ComponentIconProvider icons={testIcons}>
+        <ComponentStateProvider hooks={scoutStateHooks}>
+          <DataframeGridApiProvider>
+            <div style={{ display: "flex", gap: 12, padding: 8 }}>
+              <ScannerDataframeCopyCSVButton />
+              <ScannerDataframeDownloadCSVButton />
+              <ScannerDataframeClearFiltersButton />
+              <button onClick={() => setWrap(!wrap)}>Wrap Text</button>
+              <button
+                onClick={() =>
+                  setShownColumns(
+                    shownColumns.length === columns.length
+                      ? columns.slice(0, 3)
+                      : columns
+                  )
+                }
+              >
+                Toggle columns
+              </button>
+              <button onClick={() => setMounted(!mounted)}>Toggle grid</button>
+              <input aria-label="Unrelated input" />
+            </div>
+            <div style={{ height: 500, width: "100%" }}>
+              {mounted && (
+                <DataframeView
+                  columnTable={data}
+                  sortedColumns={shownColumns}
+                  showRowNumbers
+                  wrapText={wrap}
+                  options={{ maxStrLen: 1024 }}
+                  onVisibleRowCountChanged={setVisible}
+                  onRowDoubleClicked={(row) => {
+                    if ("identifier" in row) setOpened(String(row.identifier));
+                  }}
+                />
+              )}
+            </div>
+            <output aria-label="Visible rows">{visible}</output>
+            <output aria-label="Opened result">{opened}</output>
+          </DataframeGridApiProvider>
+        </ComponentStateProvider>
+      </ComponentIconProvider>
     </StoreProvider>
   );
 }

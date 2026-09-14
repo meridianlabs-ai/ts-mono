@@ -89,6 +89,7 @@ export function VirtualList<T>({
   renderRow,
   estimatedItemHeight = DEFAULT_ITEM_HEIGHT_PX,
   overscan,
+  useFlushSync,
   embedded = false,
   resetScrollOnMount: resetScrollOnMountProp,
   live,
@@ -201,6 +202,7 @@ export function VirtualList<T>({
       estimateSize: () => estimatedItemHeight,
       getScrollElement,
       overscan,
+      useFlushSync,
       // A stable virtualizer option rather than a post-scroll `scrollTop +=`,
       // so tanstack's reconcile re-applies it instead of erasing it on far jumps.
       scrollPaddingStart: scrollPaddingStart ?? 0,

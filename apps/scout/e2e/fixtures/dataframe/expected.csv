@@ -1,0 +1,8 @@
+"transcript_id","value","explanation","metadata","passed"
+"transcript-0000","10","Alpha, quoted ""text""
+next line","{""index"":0,""tags"":[""a"",""b""]}","true"
+"transcript-0001","2","beta","{""index"":1,""tags"":[""a"",""b""]}","false"
+"transcript-0002","null","","{""index"":2,""tags"":[""a"",""b""]}","true"
+"transcript-0003","-4","ALPHA","{""index"":3,""tags"":[""a"",""b""]}","false"
+"transcript-0004","2","null","{""index"":4,""tags"":[""a"",""b""]}","true"
+"transcript-0005","100","Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation L … Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation Long explanation ","{""index"":5,""tags"":[""a"",""b""]}","false"

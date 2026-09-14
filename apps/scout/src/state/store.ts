@@ -3,7 +3,6 @@ import {
   RowSelectionState,
   SortingState,
 } from "@tanstack/react-table";
-import { GridState } from "ag-grid-community";
 import { createContext, useContext } from "react";
 import { create } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
@@ -16,7 +15,7 @@ import {
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { debounce, getOwn } from "@tsmono/util";
+import { debounce, getOwn, isRecord } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
@@ -28,6 +27,12 @@ import {
   SortColumn,
 } from "../app/types";
 import { TranscriptInfo } from "../types/api-types";
+
+import {
+  emptyDataframeState,
+  normalizeDataframeStates,
+  type DataframeState,
+} from "./dataframeState";
 
 export type {
   ColumnFilter,
@@ -96,7 +101,7 @@ interface StoreState {
     string,
     { startIndex: number; endIndex: number; totalCount: number }
   >;
-  gridStates: Record<string, GridState>;
+  gridStates: Record<string, DataframeState>;
 
   // Scan specific properties (clear when switching scans)
   selectedResultsTab?: string;
@@ -191,7 +196,10 @@ interface StoreState {
   clearListPosition: (name: string) => void;
   clearListPositionsWithPrefix: (prefix: string) => void;
 
-  setGridState: (name: string, state: GridState) => void;
+  setGridState: (
+    name: string,
+    state: DataframeState | ((previous: DataframeState) => DataframeState)
+  ) => void;
   clearGridState: (name: string) => void;
 
   getVisibleRange: (name: string) => {
@@ -541,9 +549,12 @@ export const createStore = (api: ScoutApiV2) =>
               return changed ? { listPositions: newListPositions } : {};
             });
           },
-          setGridState: (name: string, gridState: GridState) => {
+          setGridState: (name, gridState) => {
             set((state) => {
-              state.gridStates[name] = gridState;
+              state.gridStates[name] =
+                typeof gridState === "function"
+                  ? gridState(state.gridStates[name] ?? emptyDataframeState)
+                  : gridState;
             });
           },
           clearGridState: (name: string) => {
@@ -813,6 +824,14 @@ export const createStore = (api: ScoutApiV2) =>
             createJSONStorage(() => api.storage)
           ),
           version: 1,
+          merge: (persisted, current) => {
+            if (!isRecord(persisted)) return current;
+            return {
+              ...current,
+              ...persisted,
+              gridStates: normalizeDataframeStates(persisted.gridStates),
+            };
+          },
           partialize: (state) => {
             const {
               hasInitializedRouting,

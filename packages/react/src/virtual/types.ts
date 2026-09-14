@@ -54,6 +54,8 @@ export interface VirtualListProps<T> {
   estimatedItemHeight?: number;
   /** Rows rendered beyond the visible range (items, not px). */
   overscan?: number;
+  /** Disable synchronous React flushing when the host changes rows during a commit. */
+  useFlushSync?: boolean;
   /** The list shares an external scroll container with content ABOVE it:
    *  measure the list's offset in the container and feed it to the
    *  virtualizer (TanStack scrollMargin) so windowing lines up with the

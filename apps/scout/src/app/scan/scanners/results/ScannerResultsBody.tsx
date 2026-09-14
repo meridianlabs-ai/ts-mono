@@ -75,8 +75,8 @@ export const ScannerResultsBody: FC<{
               wrapText={dataframeWrapText}
               onRowDoubleClicked={(row) => {
                 // Navigate to the result detail view
-                const identifier = (row as { identifier?: string }).identifier;
-                if (identifier && scansDir) {
+                const identifier = row.identifier;
+                if (typeof identifier === "string" && identifier && scansDir) {
                   const route = scanResultRoute(
                     scansDir,
                     scanPath,

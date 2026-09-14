@@ -769,15 +769,6 @@
       "undescribed": 1
     }
   },
-  "apps/scout/src/app/components/DataframeView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 4
-    }
-  },
   "apps/scout/src/app/components/dataGrid/DataGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
