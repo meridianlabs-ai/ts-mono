@@ -1,12 +1,19 @@
-import { useEffect, useMemo } from "react";
 import { useParams } from "react-router";
 
+import { useMirrorToStore } from "@tsmono/react/hooks";
 import { join } from "@tsmono/util";
 
-import { parseScanParams } from "../../router/url";
-import { useStore } from "../../state/store";
-import { useAppConfig } from "../server/useAppConfig";
+import { useAppConfig } from "../app/server/useAppConfig";
+import { useStore } from "../state/store";
 
+import { parseScanParams } from "./url";
+
+/**
+ * The scan route's params, with `scansDir` resolved against the server's
+ * configured directory. The last route directory seen is mirrored into the
+ * store so it stays the user's directory after navigating to a route without
+ * the param (see `useScansDir`).
+ */
 export const useScanRoute = (): {
   scansDir?: string;
   relativePath: string;
@@ -20,18 +27,13 @@ export const useScanRoute = (): {
   const config = useAppConfig();
   const scansDir = config.scans.dir;
 
-  const route = useMemo(() => parseScanParams(params), [params]);
+  const route = parseScanParams(params);
   const resolvedScansDir = route.scansDir || scansDir;
   const location = resolvedScansDir
     ? join(route.scanPath, resolvedScansDir)
     : undefined;
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (route.scansDir) {
-      setUserScansDir(route.scansDir);
-    }
-  }, [route.scansDir, setUserScansDir]);
+  useMirrorToStore(route.scansDir, setUserScansDir);
 
   return {
     ...route,

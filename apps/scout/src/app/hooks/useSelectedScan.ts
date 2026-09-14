@@ -3,11 +3,10 @@ import { useEffect } from "react";
 
 import { AsyncData } from "@tsmono/util";
 
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
 import { useScan } from "../server/useScan";
-
-import { useScanRoute } from "./useScanRoute";
 
 export const useSelectedScan = (): AsyncData<Status> => {
   const { resolvedScansDir, scanPath } = useScanRoute();

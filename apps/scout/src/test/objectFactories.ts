@@ -1,5 +1,5 @@
 import type { ScanResultData } from "../app/types";
-import type { ActiveScanInfo } from "../types/api-types";
+import type { ActiveScanInfo, AppConfig } from "../types/api-types";
 
 export function createActiveScanInfo(
   overrides: Partial<ActiveScanInfo> & { scan_id: string }
@@ -56,6 +56,16 @@ export function createScanResultData(
     scannerParams: {},
     transcriptId: "transcript-1",
     transcriptSourceUri: "file:///transcript",
+    ...overrides,
+  };
+}
+
+export function createAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  return {
+    filter: [],
+    home_dir: "/home/tester",
+    project_dir: "/home/tester/project",
+    scans: { dir: "/home/tester/project/scans", source: "project" },
     ...overrides,
   };
 }

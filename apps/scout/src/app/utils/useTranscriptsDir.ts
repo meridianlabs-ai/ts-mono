@@ -1,7 +1,6 @@
+import { useTranscriptDirParams } from "../../router/useTranscriptDirParams";
 import { useStore } from "../../state/store";
 import { appAliasedPath, useAppConfig } from "../server/useAppConfig";
-
-import { useTranscriptDirParams } from "./router";
 
 interface UseTranscriptsDirResult {
   displayTranscriptsDir: string;
