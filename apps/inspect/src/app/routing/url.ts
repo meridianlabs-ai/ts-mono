@@ -495,9 +495,10 @@ const sampleEventFocusUrl = (
  * Builder for the focus-mode entry href: a `#`-prefixed hash-route URL for the
  * single-event focus page. Relative `#…` so a ctrl/cmd- or middle-click opens
  * it in a new browser tab of the same SPA, while a plain click is intercepted
- * for in-window navigation (see `TranscriptLayout.onOpenEventFocus`). The
- * VS Code webview has no browser-tab model, but in-window focus mode works
- * there like any hash navigation, so the control is no longer suppressed.
+ * for in-window navigation (see `TranscriptHost.navigation.onOpenEventFocus`).
+ * The VS Code webview has no browser-tab model, but in-window focus mode
+ * works there like any hash navigation, so the control is no longer
+ * suppressed.
  *
  * Returns undefined (hiding the control) when the log path / sample can't be
  * resolved.
