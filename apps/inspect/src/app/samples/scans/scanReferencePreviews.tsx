@@ -3,6 +3,8 @@ import { FC, ReactNode } from "react";
 import type { ChatMessage, Event } from "@tsmono/inspect-common/types";
 import { ChatView } from "@tsmono/inspect-components/chat";
 import {
+  kEmptyTranscriptHost,
+  TranscriptHostProvider,
   TranscriptViewNodes,
   useEventNodes,
 } from "@tsmono/inspect-components/transcript";
@@ -17,15 +19,21 @@ const TranscriptPreview: FC<{ id: string; events: Event[] }> = ({
   events,
 }) => {
   const { eventNodes, defaultCollapsedIds } = useEventNodes(events, false);
+  // The preview renders inside the sample transcript's rail, and so inside
+  // its TranscriptHostProvider. Reset to the empty host so the preview rows
+  // stay inert (no copy-link or focus controls), as they were before the
+  // host existed.
   return (
-    <TranscriptViewNodes
-      id={id}
-      eventNodes={eventNodes}
-      defaultCollapsedIds={defaultCollapsedIds}
-      collapsedTranscript={EMPTY_COLLAPSE}
-      onCollapseTranscript={noopCollapse}
-      keyboardNavDisabled={true}
-    />
+    <TranscriptHostProvider host={kEmptyTranscriptHost}>
+      <TranscriptViewNodes
+        id={id}
+        eventNodes={eventNodes}
+        defaultCollapsedIds={defaultCollapsedIds}
+        collapsedTranscript={EMPTY_COLLAPSE}
+        onCollapseTranscript={noopCollapse}
+        keyboardNavDisabled={true}
+      />
+    </TranscriptHostProvider>
   );
 };
 
