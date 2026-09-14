@@ -205,6 +205,25 @@ caught locally. If you changed code, also run `pnpm test`.
   the sign the builder belongs upstream. Production code never imports
   from a testing export.
 
+## Security Reviews
+
+- Judge security findings against the threat model in
+  [SECURITY.md](SECURITY.md): the content of a log is the boundary. Log
+  structure, the serving host, the embedding app and the build are trusted;
+  transcript and scan content, URL parameters, window messages, embedded
+  config blocks and download names are not.
+- A finding whose attacker already controls the view server, the host
+  machine, the embedding application or the Inspect install is a robustness
+  or correctness bug, not a vulnerability.
+- Severity follows what the viewer origin can reach in the deployment where
+  the sink lives (see the table in SECURITY.md). Script execution or a
+  forged view-server write is the top of the scale.
+- Invariants a change must not weaken: one sanitizer chokepoint
+  (`sanitizeRenderedHtml`), scheme-checked `href`/`src` from log content,
+  no log-authored object keys, no auth token in the viewer,
+  `X-Inspect-View-Request` on every write. The scored threat table with
+  evidence is in [THREAT_MODEL.md](THREAT_MODEL.md).
+
 ## Pull Requests
 
 - For changes that affect UI appearance (styles, layout, theming, CSS
