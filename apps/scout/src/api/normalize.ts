@@ -1,6 +1,8 @@
 import {
   normalizeEvents,
   normalizeModelUsage,
+  normalizeTimelines,
+  type WireTimeline,
 } from "@tsmono/inspect-common/normalize";
 import { expandEvents } from "@tsmono/inspect-common/utils";
 
@@ -103,7 +105,7 @@ export interface WireTranscript extends WireTranscriptInfo {
   // carry legacy shapes, and they get their own per-event fills.
   events?: unknown;
   messages?: Transcript["messages"];
-  timelines?: Transcript["timelines"];
+  timelines?: WireTimeline[];
 }
 
 export interface WireMessagesEvents {
@@ -111,7 +113,7 @@ export interface WireMessagesEvents {
   events?: unknown;
   events_data?: MessagesEventsResponse["events_data"];
   messages?: Transcript["messages"];
-  timelines?: Transcript["timelines"];
+  timelines?: WireTimeline[];
 }
 
 const normalizeValidationMetrics = (
@@ -228,7 +230,7 @@ export const normalizeTranscript = (
   ...raw,
   metadata: raw.metadata ?? {},
   messages: raw.messages ?? [],
-  timelines: raw.timelines ?? [],
+  timelines: normalizeTimelines(raw.timelines ?? []),
   events: expandEvents(normalizeEvents(raw.events), eventsData ?? null),
 });
 

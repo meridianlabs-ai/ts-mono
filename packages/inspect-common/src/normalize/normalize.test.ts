@@ -13,6 +13,8 @@ import {
   normalizeEvalSpec,
   normalizeEvent,
   normalizeEvents,
+  normalizeTimelines,
+  type WireTimeline,
 } from "./index";
 
 describe("normalizeEvalSample on a real Nov-2024 log", () => {
@@ -188,6 +190,35 @@ describe("normalizeEvents", () => {
     );
     expect(event.changes).toEqual([]);
   });
+
+  it("fills value/replaced on change rows and drops non-record rows", () => {
+    const event = expectEvent(
+      normalizeEvent({
+        event: "store",
+        timestamp: "t",
+        working_start: 0,
+        changes: [{ op: "add", path: "/k" }, "junk"],
+      }),
+      "store"
+    );
+    expect(event.changes).toEqual([
+      { op: "add", path: "/k", value: null, replaced: null },
+    ]);
+  });
+
+  it("keeps the changes array identity when every row is complete", () => {
+    const changes = [{ op: "add", path: "/k", value: 1, replaced: null }];
+    const event = expectEvent(
+      normalizeEvent({
+        event: "state",
+        timestamp: "t",
+        working_start: 0,
+        changes,
+      }),
+      "state"
+    );
+    expect(event.changes).toBe(changes);
+  });
 });
 
 describe("normalizeConfigUpdates", () => {
@@ -333,6 +364,17 @@ describe("per-event-type read-time defaults", () => {
     expect(event).toMatchObject({
       score: { value: "", history: [] },
       intermediate: false,
+    });
+  });
+
+  it("score: fills value and history on a score that omits them", () => {
+    const event = normalizeEvent({
+      ...base,
+      event: "score",
+      score: { answer: "A" },
+    });
+    expect(event).toMatchObject({
+      score: { answer: "A", value: "", history: [] },
     });
   });
 
@@ -484,5 +526,85 @@ describe("normalizeEvalPlan on garbage input", () => {
       steps: [],
       config: {},
     });
+  });
+});
+
+describe("normalizeTimelines", () => {
+  // A span as an early writer serialized it: no type tags, no flags, and the
+  // list fields dropped when empty.
+  const legacyTimeline: WireTimeline = {
+    name: "main",
+    description: "",
+    root: {
+      id: "root",
+      name: "root",
+      content: [
+        { event: "e1" },
+        { id: "child", name: "child", branches: [{ id: "b", name: "b" }] },
+      ],
+    },
+  };
+
+  it("fills type tags, flags, and empty lists recursively", () => {
+    const [timeline] = normalizeTimelines([legacyTimeline]);
+    expect(timeline?.root).toEqual({
+      id: "root",
+      name: "root",
+      type: "span",
+      tool_invoked: false,
+      utility: false,
+      branches: [],
+      content: [
+        { event: "e1", type: "event" },
+        {
+          id: "child",
+          name: "child",
+          type: "span",
+          tool_invoked: false,
+          utility: false,
+          content: [],
+          branches: [
+            {
+              id: "b",
+              name: "b",
+              type: "span",
+              tool_invoked: false,
+              utility: false,
+              branches: [],
+              content: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("preserves a current-format timeline", () => {
+    const current: WireTimeline = {
+      name: "main",
+      description: "d",
+      root: {
+        id: "root",
+        name: "root",
+        type: "span",
+        tool_invoked: true,
+        utility: false,
+        span_type: "agent",
+        branches: [],
+        content: [{ event: "e1", type: "event" }],
+      },
+    };
+    expect(normalizeTimelines([current])).toEqual([current]);
+  });
+
+  it("normalizeEvalSample normalizes timelines when present and drops junk", () => {
+    const sample = normalizeEvalSample({
+      id: 1,
+      epoch: 1,
+      timelines: [legacyTimeline, "junk", { name: "no-root" }],
+    });
+    expect(sample.timelines).toHaveLength(1);
+    expect(sample.timelines?.[0]?.root.tool_invoked).toBe(false);
+    expect(normalizeEvalSample({ id: 1, epoch: 1 }).timelines).toBeUndefined();
   });
 });

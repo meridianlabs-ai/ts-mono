@@ -4,6 +4,7 @@ import type { EvalSample } from "../types";
 
 import { normalizeEvents, normalizeModelOutput } from "./events";
 import { normalizeModelUsageMap } from "./summary";
+import { isWireTimeline, normalizeTimelines } from "./timeline";
 
 /**
  * Normalize a raw EvalSample of any vintage into the current shape:
@@ -56,6 +57,16 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
     sample[field] = normalizeModelUsageMap(sample[field]);
   }
   sample["events"] = normalizeEvents(sample["events"]);
+  // Timelines are optional on a sample — absent stays absent — but each span
+  // present carries required-with-default fields the timeline renderers read
+  // unguarded. Entries that aren't timeline-shaped are dropped, as pydantic
+  // would refuse them.
+  const timelines = sample["timelines"];
+  if (Array.isArray(timelines)) {
+    sample["timelines"] = normalizeTimelines(
+      (timelines as unknown[]).filter(isWireTimeline)
+    );
+  }
 
   // `count` on fallbacks and the traceback pair on retry errors default
   // upstream; fill them so their renderers can read them unguarded.
