@@ -153,7 +153,8 @@ caught locally. If you changed code, also run `pnpm test`.
     → `useOnClickOutside`; timers → `useInterval` / `useTimeout` /
     `useRafThrottle`; one-time mount setup/teardown → `useMountEffect`;
     unmount-only cleanup → `useUnmount`; "mirror the latest value into a
-    ref" → `useLatestRef`; element size → `useResizeObserver` /
+    ref" → `useLatestRef`; "remember a route param / derived value in an
+    external store" → `useMirrorToStore`; element size → `useResizeObserver` /
     `useElementHeight`; document title → `useDocumentTitle`; debounce →
     `useDebouncedCallback`; scroll tracking → `useScrollDirection` /
     `useScrollTrack` / `useStatefulScrollPosition`.
