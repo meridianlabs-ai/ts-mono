@@ -6,9 +6,9 @@ import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
 import { getScannerParam } from "../../router/url";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
-import { useScanRoute } from "../../router/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useAppConfig } from "../server/useAppConfig";
 import { getScanDisplayName } from "../utils/scan";

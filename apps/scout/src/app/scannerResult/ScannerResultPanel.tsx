@@ -29,10 +29,10 @@ import {
   transcriptRoute,
   updateValidationParam,
 } from "../../router/url";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
 import { useEnsureVisibleScannerResults } from "../hooks/useEnsureVisibleScannerResults";
-import { useScanRoute } from "../../router/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useSelectedScanResultData } from "../hooks/useSelectedScanResultData";
 import { useSelectedScanResultDetail } from "../hooks/useSelectedScanResultDetail";

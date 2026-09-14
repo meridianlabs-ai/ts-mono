@@ -11,10 +11,10 @@ import {
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
+import { useScanRoute } from "../../../../router/useScanRoute";
 import { useStore } from "../../../../state/store";
 import { Error } from "../../../components/Error";
 import { TaskName } from "../../../components/TaskName";
-import { useScanRoute } from "../../../../router/useScanRoute";
 import { ScanResultSummary } from "../../../types";
 import { useMarkdownRefs } from "../../../utils/refs";
 

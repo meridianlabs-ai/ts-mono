@@ -11,9 +11,9 @@ import {
 import { MarkdownReference } from "@tsmono/react/components";
 
 import { scanResultRoute } from "../../router/url";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { ScannerInput } from "../../types/api-types";
-import { useScanRoute } from "../../router/useScanRoute";
 import {
   isEventInput,
   isEventsInput,
