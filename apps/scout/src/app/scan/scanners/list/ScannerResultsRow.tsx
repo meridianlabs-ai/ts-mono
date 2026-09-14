@@ -14,7 +14,7 @@ import { scanResultRoute } from "../../../../router/url";
 import { useStore } from "../../../../state/store";
 import { Error } from "../../../components/Error";
 import { TaskName } from "../../../components/TaskName";
-import { useScanRoute } from "../../../hooks/useScanRoute";
+import { useScanRoute } from "../../../../router/useScanRoute";
 import { ScanResultSummary } from "../../../types";
 import { useMarkdownRefs } from "../../../utils/refs";
 

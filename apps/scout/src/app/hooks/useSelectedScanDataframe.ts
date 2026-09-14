@@ -5,7 +5,7 @@ import { AsyncData } from "@tsmono/util";
 
 import { useScanDataframe } from "../server/useScanDataframe";
 
-import { useScanRoute } from "./useScanRoute";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useSelectedScanner } from "./useSelectedScanner";
 
 export const useSelectedScanDataframe = (): AsyncData<ColumnTable> => {

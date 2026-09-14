@@ -8,7 +8,7 @@ import { ApplicationIcons } from "../../icons";
 import { scanRoute, scansRoute } from "../../router/url";
 import { useStore } from "../../state/store";
 import { ThemeToggleControl } from "../../theme/ThemeToggleControl";
-import { useScanRoute } from "../hooks/useScanRoute";
+import { useScanRoute } from "../../router/useScanRoute";
 
 import { EditablePath } from "./EditablePath";
 import { Navbar } from "./Navbar";

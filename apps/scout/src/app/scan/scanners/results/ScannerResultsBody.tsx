@@ -11,7 +11,7 @@ import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
 import { DataframeView } from "../../../components/DataframeView";
 import type { DataframeData } from "../../../components/useDataframeData";
-import { useScanRoute } from "../../../hooks/useScanRoute";
+import { useScanRoute } from "../../../../router/useScanRoute";
 import { kSegmentDataframe, kSegmentList } from "../../ScanPanelBody";
 import { ScannerResultsList } from "../list/ScannerResultsList";
 

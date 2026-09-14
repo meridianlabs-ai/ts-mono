@@ -6,7 +6,7 @@ import { navigateAndForget } from "@tsmono/react/hooks";
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../router/url";
 import { useStore } from "../../state/store";
-import { useScanRoute } from "../hooks/useScanRoute";
+import { useScanRoute } from "../../router/useScanRoute";
 import { ScanResultSummary } from "../types";
 
 interface ScannerResultPrevNext {

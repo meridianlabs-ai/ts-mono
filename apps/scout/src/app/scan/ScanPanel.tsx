@@ -8,7 +8,7 @@ import { useDocumentTitle } from "@tsmono/react/hooks";
 import { getScannerParam } from "../../router/url";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
-import { useScanRoute } from "../hooks/useScanRoute";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useAppConfig } from "../server/useAppConfig";
 import { getScanDisplayName } from "../utils/scan";

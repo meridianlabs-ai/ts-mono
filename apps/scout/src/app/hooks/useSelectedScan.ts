@@ -7,7 +7,7 @@ import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
 import { useScan } from "../server/useScan";
 
-import { useScanRoute } from "./useScanRoute";
+import { useScanRoute } from "../../router/useScanRoute";
 
 export const useSelectedScan = (): AsyncData<Status> => {
   const { resolvedScansDir, scanPath } = useScanRoute();

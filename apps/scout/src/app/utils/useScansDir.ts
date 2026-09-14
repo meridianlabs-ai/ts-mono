@@ -1,5 +1,5 @@
 import { useStore } from "../../state/store";
-import { useScanRoute } from "../hooks/useScanRoute";
+import { useScanRoute } from "../../router/useScanRoute";
 import { appAliasedPath, useAppConfig } from "../server/useAppConfig";
 
 interface UseScansDirResult {
