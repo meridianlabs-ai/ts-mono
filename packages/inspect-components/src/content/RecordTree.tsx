@@ -14,7 +14,7 @@ import { VirtualList } from "@tsmono/react/virtual";
 import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
-import { useContentIcons } from "./IconsContext";
+import { ContentIcons } from "./icons";
 import { resolveStoreKeys } from "./record_processors/store";
 import { RecordProcessor } from "./record_processors/types";
 import styles from "./RecordTree.module.css";
@@ -50,8 +50,6 @@ export const RecordTree: FC<RecordTreeProps> = ({
   useBorders = true,
   copyButton = false,
 }) => {
-  const icons = useContentIcons();
-
   // Collapse state — persisted user choices only. Defaults are applied on
   // the fly at render time by `isItemCollapsed`, so we never bootstrap
   // defaults into persisted state.
@@ -199,7 +197,9 @@ export const RecordTree: FC<RecordTreeProps> = ({
               <pre className={clsx(styles.pre)}>
                 <i
                   className={clsx(
-                    item.isCollapsed ? icons.tree.closed : icons.tree.open,
+                    item.isCollapsed
+                      ? ContentIcons.tree.closed
+                      : ContentIcons.tree.open,
                     styles.treeIcon
                   )}
                 />
