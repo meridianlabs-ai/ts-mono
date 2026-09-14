@@ -1,5 +1,4 @@
 import type {
-  ApprovalEvent,
   Event,
   ModelEvent,
   ScoreEvent,
@@ -423,12 +422,24 @@ const truncate = (text: string, max = 120): string =>
 
 /** Past-tense caption per non-approve decision (approve is never shown:
  *  with a policy active every tool call produces one — pure noise). */
-const kDecisionWord: Record<ApprovalEvent["decision"], string> = {
-  approve: "approved",
-  reject: "rejected",
-  escalate: "escalated",
-  terminate: "terminated",
-  modify: "modified",
+const kDecisionWord = new Map<string, string>([
+  ["approve", "approved"],
+  ["reject", "rejected"],
+  ["escalate", "escalated"],
+  ["terminate", "terminated"],
+  ["modify", "modified"],
+]);
+
+/** The decision's caption. The decision is log-authored and the enum is
+ *  not validated at parse time: a Map lookup (never a plain-object index)
+ *  so "__proto__" or "constructor" can't resolve to a builtin, and an
+ *  unknown future decision keeps its own word rather than rendering
+ *  nothing. Takes `unknown` because the wire value may not be a string. */
+const decisionWord = (decision: unknown): string => {
+  if (typeof decision !== "string") return "decided";
+  return (
+    kDecisionWord.get(decision) ?? (decision !== "" ? decision : "decided")
+  );
 };
 
 const valueText = (value: unknown): string =>
@@ -973,7 +984,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       case "approval": {
         if (event.decision === "approve") break;
         rejectedCount += 1;
-        const word = kDecisionWord[event.decision];
+        const word = decisionWord(event.decision);
         const args = callArgsText(event.call.arguments);
         // The rejected call belongs to the conversation's current turn —
         // its ghost slot draws there in Turns mode.

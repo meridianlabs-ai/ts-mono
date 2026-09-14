@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
   testApprovalEvent,
   testCompactionEvent,
@@ -1513,6 +1514,40 @@ describe("zero-ModelEvent samples", () => {
     expect(data.window).toBeUndefined();
     expect(data.workingSegments).toHaveLength(0);
     expect(data.markers).toHaveLength(0);
+  });
+});
+
+describe("approval decisions (review round 2)", () => {
+  it("captions unknown and prototype-named decisions with a plain string", () => {
+    // The decision enum is not validated at parse time. A crafted
+    // "__proto__" must not resolve to Object.prototype through a plain
+    // object lookup; a future decision word keeps its own caption.
+    const events = normalizeEvents([
+      {
+        ...testApprovalEvent({ timestamp: iso(1), uuid: "p" }),
+        decision: "__proto__",
+      },
+      {
+        ...testApprovalEvent({ timestamp: iso(2), uuid: "c" }),
+        decision: "constructor",
+      },
+      {
+        ...testApprovalEvent({ timestamp: iso(3), uuid: "f" }),
+        decision: "future-decision",
+      },
+      { ...testApprovalEvent({ timestamp: iso(4), uuid: "n" }), decision: 7 },
+    ]);
+    const data = deriveActivityData({ events });
+
+    expect(data.rows.map((r) => r.kind)).toEqual([
+      "__proto__",
+      "constructor",
+      "future-decision",
+      "decided",
+    ]);
+    for (const row of data.rows) expect(typeof rowKind(row)).toBe("string");
+    expect(data.markers[2]?.label).toBe("Tool call test_tool future-decision");
+    expect(data.rejectedCount).toBe(4);
   });
 });
 

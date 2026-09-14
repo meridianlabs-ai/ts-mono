@@ -10,6 +10,7 @@ import {
 import { FC, useRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
   testApprovalEvent,
   testCompactionEvent,
@@ -230,6 +231,22 @@ describe("SampleActivityPanel history list", () => {
     fireEvent.change(search, { target: { value: "compacted" } });
     expect(screen.getByText("142k → 38k", { selector: "span" })).toBeTruthy();
     expect(screen.queryByText(/exit 127/)).toBeNull();
+  });
+
+  it("renders an unknown or prototype-named decision as a plain caption", () => {
+    const events = normalizeEvents([
+      {
+        ...testApprovalEvent({ timestamp: iso(1), uuid: "p" }),
+        decision: "__proto__",
+      },
+      {
+        ...testApprovalEvent({ timestamp: iso(2), uuid: "f" }),
+        decision: "future-decision",
+      },
+    ]);
+    mountPanel({ events });
+    expect(screen.getByText("__proto__")).toBeTruthy();
+    expect(screen.getByText("future-decision")).toBeTruthy();
   });
 
   it("clicks through to the transcript via event uuid", () => {
