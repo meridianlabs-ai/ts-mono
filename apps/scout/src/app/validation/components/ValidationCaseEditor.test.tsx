@@ -13,12 +13,12 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentIconProvider } from "@tsmono/react/components";
+import { testIcons } from "@tsmono/react/testing";
 import { decodeBase64Url, encodeBase64Url, isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../../../api/api-scout-server";
 import { ApiProvider, createStore, StoreProvider } from "../../../state/store";
 import { server } from "../../../test/setup-msw";
-import { testComponentIcons } from "../../../test/test-utils";
 import type { AppConfig, ValidationCase } from "../../../types/api-types";
 import { useAppConfigAsync } from "../../server/useAppConfig";
 
@@ -121,7 +121,7 @@ const renderEditor = async (transcriptId: string) => {
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <ComponentIconProvider icons={testComponentIcons}>
+          <ComponentIconProvider icons={testIcons}>
             <MemoryRouter>
               <WhenConfigLoaded>{children}</WhenConfigLoaded>
             </MemoryRouter>

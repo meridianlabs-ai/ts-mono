@@ -1,31 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type PropsWithChildren } from "react";
 
-import { type ComponentIcons } from "@tsmono/react/components";
-
 import { apiScoutServer } from "../api/api-scout-server";
-import { ApplicationIcons } from "../icons";
 import { ApiProvider, createStore, StoreProvider } from "../state/store";
-
-/** Icon set for component tests that render `@tsmono/react` components. */
-export const testComponentIcons: ComponentIcons = {
-  arrowDown: ApplicationIcons.arrows.down,
-  arrowUp: ApplicationIcons.arrows.up,
-  chevronDown: ApplicationIcons.chevron.down,
-  chevronUp: ApplicationIcons.collapse.up,
-  clearText: ApplicationIcons["clear-text"],
-  close: ApplicationIcons.close,
-  code: ApplicationIcons.code,
-  confirm: ApplicationIcons.confirm,
-  copy: ApplicationIcons.copy,
-  error: ApplicationIcons.error,
-  menu: ApplicationIcons.threeDots,
-  next: ApplicationIcons.next,
-  noSamples: ApplicationIcons.noSamples,
-  play: ApplicationIcons.play,
-  previous: ApplicationIcons.previous,
-  toggleRight: ApplicationIcons["toggle-right"],
-};
 
 export function createTestWrapper(): React.ComponentType<PropsWithChildren> {
   return createTestWrapperWithStore().wrapper;

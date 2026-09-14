@@ -12,12 +12,12 @@ import { type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentIconProvider } from "@tsmono/react/components";
+import { testIcons } from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { apiScoutServer } from "../../../api/api-scout-server";
 import { ApiProvider, createStore, StoreProvider } from "../../../state/store";
 import { server } from "../../../test/setup-msw";
-import { testComponentIcons } from "../../../test/test-utils";
 import type { ValidationCase } from "../../../types/api-types";
 
 import { CopyMoveCasesModal } from "./CopyMoveCasesModal";
@@ -58,7 +58,7 @@ const renderModal = (mode: "copy" | "move", cases: ValidationCase[]) => {
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <ComponentIconProvider icons={testComponentIcons}>
+          <ComponentIconProvider icons={testIcons}>
             {children}
           </ComponentIconProvider>
         </StoreProvider>
