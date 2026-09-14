@@ -911,10 +911,6 @@
     }
   },
   "apps/scout/src/app/project/ProjectPanel.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "react-hooks/set-state-in-effect (file-wide)": {
       "count": 1,
       "undescribed": 1
@@ -1054,17 +1050,8 @@
     }
   },
   "apps/scout/src/app/server/useTopicInvalidation.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "apps/scout/src/app/server/useValidations.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 3
     }
   },
   "apps/scout/src/app/timeline/components/TimelineEventsView.tsx": {
@@ -1145,12 +1132,6 @@
   "apps/scout/src/app/utils/router.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/validation/components/CopyMoveCasesModal.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/validation/components/ValidationCaseCard.tsx": {

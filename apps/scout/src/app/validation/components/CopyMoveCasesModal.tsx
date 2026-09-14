@@ -11,12 +11,12 @@ import { Modal } from "@tsmono/react/components";
 
 import { useApi } from "../../../state/store";
 import { ValidationCase } from "../../../types/api-types";
+import { validationCasesQuery } from "../../server/queries";
 import {
   useBulkDeleteValidationCases,
   useCreateValidationSet,
   useValidationCases,
   useValidationSets,
-  validationQueryKeys,
 } from "../../server/useValidations";
 import { eventValue } from "../../utils/formEvents";
 import {
@@ -247,10 +247,11 @@ export const CopyMoveCasesModal: FC<CopyMoveCasesModalProps> = ({
     }
 
     // Invalidate target set cache to show new cases
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    queryClient.invalidateQueries({
-      queryKey: validationQueryKeys.cases(finalTargetUri),
-    });
+    queryClient
+      .invalidateQueries({
+        queryKey: validationCasesQuery(api, finalTargetUri).queryKey,
+      })
+      .catch(console.error);
 
     // If move mode, delete from source
     if (mode === "move") {

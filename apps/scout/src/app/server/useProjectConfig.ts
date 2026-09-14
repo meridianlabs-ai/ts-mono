@@ -11,31 +11,20 @@ import { AsyncData } from "@tsmono/util";
 import { useApi } from "../../state/store";
 import { ProjectConfig, ProjectConfigInput } from "../../types/api-types";
 
+import { appConfigQuery, projectConfigQuery } from "./queries";
+
 export type ProjectConfigWithEtag = {
   config: ProjectConfig;
   etag: string;
 };
 
 /**
- * Loads project configuration from scout.yaml.
- *
- * Returns both the config and an etag for optimistic concurrency control.
- *
- * Automatic refetching is disabled to support optimistic locking:
- * - External changes are detected via etag mismatch on save (412 error)
- * - User explicitly chooses to reload or force save on conflict
+ * Loads project configuration from scout.yaml, with the etag that
+ * `useUpdateProjectConfig` needs for optimistic concurrency control.
  */
 export const useProjectConfig = (): AsyncData<ProjectConfigWithEtag> => {
   const api = useApi();
-
-  return useAsyncDataFromQuery({
-    queryKey: ["project-config", "project-config-inv"],
-    queryFn: () => api.getProjectConfig(),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
-  });
+  return useAsyncDataFromQuery(projectConfigQuery(api));
 };
 
 /**
@@ -58,11 +47,10 @@ export const useUpdateProjectConfig = (): UseMutationResult<
   return useMutation({
     mutationFn: ({ config, etag }) => api.updateProjectConfig(config, etag),
     onSuccess: (data) => {
-      // Update cache with new config and etag
-      queryClient.setQueryData(["project-config", "project-config-inv"], data);
+      queryClient.setQueryData(projectConfigQuery(api).queryKey, data);
       queryClient
-        .invalidateQueries({ queryKey: ["config", "project-config-inv"] })
-        .catch(console.log);
+        .invalidateQueries({ queryKey: appConfigQuery(api).queryKey })
+        .catch(console.error);
     },
   });
 };

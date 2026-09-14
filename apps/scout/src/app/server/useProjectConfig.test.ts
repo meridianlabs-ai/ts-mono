@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { useQueryClient } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -9,6 +10,7 @@ import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { ProjectConfig } from "../../types/api-types";
 
+import { topicQueries } from "./queries";
 import { useProjectConfig, useUpdateProjectConfig } from "./useProjectConfig";
 
 const mockConfig = {
@@ -220,5 +222,37 @@ describe("useUpdateProjectConfig", () => {
     if (error instanceof ApiError) {
       expect(error.status).toBe(412);
     }
+  });
+});
+
+describe("project-config topic invalidation", () => {
+  it("refetches the project config when the topic is invalidated", async () => {
+    let requests = 0;
+    server.use(
+      http.get("/api/v2/project/config", () => {
+        requests++;
+        return HttpResponse.json<ProjectConfig>(mockConfig, {
+          headers: { ETag: `"v${requests}"` },
+        });
+      })
+    );
+
+    const { result } = renderHook(
+      () => ({ config: useProjectConfig(), queryClient: useQueryClient() }),
+      { wrapper: createTestWrapper() }
+    );
+    await waitFor(() => {
+      expect(result.current.config.data?.etag).toBe("v1");
+    });
+
+    await act(() =>
+      result.current.queryClient.invalidateQueries(
+        topicQueries("project-config")
+      )
+    );
+
+    await waitFor(() => {
+      expect(result.current.config.data?.etag).toBe("v2");
+    });
   });
 });

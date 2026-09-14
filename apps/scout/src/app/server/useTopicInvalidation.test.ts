@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 
+import { topicTag } from "./queries";
 import { useTopicInvalidation } from "./useTopicInvalidation";
 
 /** Subset of MSW's SSE client used in tests. */
@@ -95,7 +96,7 @@ describe("useTopicInvalidation", () => {
       () => {
         const ready = useTopicInvalidation();
         const q = useQuery({
-          queryKey: ["scans", "/some/dir", "scans-inv"],
+          queryKey: ["scans", "/some/dir", topicTag("scans")],
           queryFn,
         });
         return { ready, q };
@@ -138,7 +139,7 @@ describe("useTopicInvalidation", () => {
       () => {
         const ready = useTopicInvalidation();
         const q = useQuery({
-          queryKey: ["scans", "/dir", "scans-inv"],
+          queryKey: ["scans", "/dir", topicTag("scans")],
           queryFn,
         });
         return { ready, q };

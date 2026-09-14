@@ -1,59 +1,26 @@
-import { CursorType, sortingStateToOrderBy } from ".";
+import { sortingStateToOrderBy } from ".";
 import {
   InfiniteData,
-  keepPreviousData,
-  QueryKey,
   useInfiniteQuery,
   UseInfiniteQueryResult,
 } from "@tanstack/react-query";
 import { SortingState } from "@tanstack/react-table";
-import { useMemo } from "react";
 
 import { Condition } from "../../query";
 import { useApi } from "../../state/store";
 import { ScansResponse } from "../../types/api-types";
+
+import { scansInfiniteQuery } from "./queries";
 
 export const useScansInfinite = (
   scansDir: string,
   pageSize: number = 50,
   filter?: Condition,
   sorting?: SortingState
-): UseInfiniteQueryResult<
-  InfiniteData<ScansResponse, CursorType | undefined>,
-  Error
-> => {
+): UseInfiniteQueryResult<InfiniteData<ScansResponse>, Error> => {
   const api = useApi();
-
-  const orderBy = useMemo(
-    () => (sorting ? sortingStateToOrderBy(sorting) : undefined),
-    [sorting]
+  const orderBy = sorting ? sortingStateToOrderBy(sorting) : undefined;
+  return useInfiniteQuery(
+    scansInfiniteQuery(api, scansDir, pageSize, filter, orderBy)
   );
-
-  return useInfiniteQuery<
-    ScansResponse,
-    Error,
-    InfiniteData<ScansResponse, CursorType | undefined>,
-    QueryKey,
-    CursorType | undefined
-  >({
-    queryKey: [
-      "scans-infinite",
-      scansDir,
-      filter,
-      orderBy,
-      pageSize,
-      "scans-inv",
-    ],
-    queryFn: async ({ pageParam }) => {
-      const pagination = pageParam
-        ? { limit: pageSize, cursor: pageParam, direction: "forward" as const }
-        : { limit: pageSize, cursor: null, direction: "forward" as const };
-
-      return await api.getScans(scansDir, filter, orderBy, pagination);
-    },
-    initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.next_cursor ?? undefined,
-    staleTime: 10000,
-    placeholderData: keepPreviousData,
-  });
 };
