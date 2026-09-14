@@ -9,21 +9,25 @@
 
 import { http, HttpResponse } from "msw";
 
+import {
+  testCompactionEvent,
+  testModelEvent,
+  testModelOutput,
+  testModelUsage,
+  testScore,
+  testScoreEvent,
+  testToolEvent,
+} from "@tsmono/inspect-common/testing";
 import type {
   CompactionEvent,
   EvalSample,
   ModelEvent,
-  ModelOutput,
   ScoreEvent,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
 
 import { expect, test } from "./fixtures/app";
-import {
-  createEvalLog,
-  createEvalSample,
-  createModelOutput,
-} from "./fixtures/test-data";
+import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 const LOG_FILE = "test-sample-activity.json";
 
@@ -34,7 +38,8 @@ const iso = (sec: number): string =>
   new Date((kRunStart + sec) * 1000).toISOString();
 
 // ---------------------------------------------------------------------------
-// Event factories
+// Event factories — thin wrappers over the shared builders that fix the
+// run-relative wall clock and working clock the Activity assertions read.
 // ---------------------------------------------------------------------------
 
 function activityModelEvent(overrides: {
@@ -50,29 +55,22 @@ function activityModelEvent(overrides: {
 }): ModelEvent {
   const input = overrides.inputTokens ?? 1000;
   const output = overrides.outputTokens ?? 200;
-  const modelOutput: ModelOutput = {
-    ...createModelOutput("Model response"),
-    usage: {
-      input_tokens: input,
-      output_tokens: output,
-      total_tokens: input + output,
-    },
-  };
-  return {
-    event: "model",
+  return testModelEvent({
     uuid: overrides.uuid,
     model: "claude-sonnet-4-5-20250929",
-    input: [],
-    output: modelOutput,
-    config: {},
-    tools: [],
-    tool_choice: "auto",
+    output: testModelOutput({
+      usage: testModelUsage({
+        input_tokens: input,
+        output_tokens: output,
+        total_tokens: input + output,
+      }),
+    }),
     timestamp: iso(overrides.startSec),
     completed: iso(overrides.endSec),
     working_start: overrides.workingStart,
     working_time: overrides.working ?? overrides.endSec - overrides.startSec,
     retries: overrides.retries,
-  };
+  });
 }
 
 function activityToolEvent(overrides: {
@@ -83,15 +81,10 @@ function activityToolEvent(overrides: {
   fn?: string;
   errorMessage?: string;
 }): ToolEvent {
-  return {
-    event: "tool",
+  return testToolEvent({
     uuid: overrides.uuid,
     id: overrides.uuid,
-    type: "function",
     function: overrides.fn ?? "bash",
-    arguments: {},
-    result: "",
-    events: [],
     timestamp: iso(overrides.startSec),
     completed: iso(overrides.endSec),
     working_start: overrides.workingStart,
@@ -99,7 +92,7 @@ function activityToolEvent(overrides: {
     error: overrides.errorMessage
       ? { type: "unknown", message: overrides.errorMessage }
       : undefined,
-  };
+  });
 }
 
 function activityCompactionEvent(overrides: {
@@ -109,15 +102,13 @@ function activityCompactionEvent(overrides: {
   before: number;
   after: number;
 }): CompactionEvent {
-  return {
-    event: "compaction",
+  return testCompactionEvent({
     uuid: overrides.uuid,
-    type: "summary",
     timestamp: iso(overrides.atSec),
     working_start: overrides.workingStart,
     tokens_before: overrides.before,
     tokens_after: overrides.after,
-  };
+  });
 }
 
 function activityScoreEvent(overrides: {
@@ -125,15 +116,13 @@ function activityScoreEvent(overrides: {
   atSec: number;
   workingStart: number;
 }): ScoreEvent {
-  return {
-    event: "score",
+  return testScoreEvent({
     uuid: overrides.uuid,
-    intermediate: false,
-    score: { value: 1, history: [] },
+    score: testScore({ value: 1 }),
     scorer: "activity_scorer",
     timestamp: iso(overrides.atSec),
     working_start: overrides.workingStart,
-  };
+  });
 }
 
 /** A sample with working gaps, a retrying model call, a failed tool call,
@@ -346,20 +335,22 @@ test("the tooltip survives pointer travel from the span to its footer", async ({
 
   // Physically travel from the span, across the band below it, into the
   // card's footer — the card sits under the whole activity band, so the
-  // pointer crosses empty plot on the way.
+  // pointer crosses empty plot on the way. The card's real 300ms grace
+  // starts when the pointer leaves the span, so everything that can be
+  // awaited beforehand (the boxes) is, and the two legs of the journey
+  // run back to back with no assertion between them.
   const spanBox = await span.boundingBox();
   const footerBox = await footer.boundingBox();
   if (!spanBox || !footerBox) throw new Error("expected span and footer");
   await page.mouse.move(
     spanBox.x + spanBox.width / 2,
     spanBox.y + spanBox.height + 5,
-    { steps: 5 }
+    { steps: 3 }
   );
-  await expect(footer).toBeVisible();
   await page.mouse.move(
     footerBox.x + footerBox.width / 2,
     footerBox.y + footerBox.height / 2,
-    { steps: 10 }
+    { steps: 6 }
   );
   await expect(footer).toBeVisible();
   await footer.click();

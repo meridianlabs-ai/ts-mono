@@ -13,6 +13,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
   testApprovalEvent,
+  testAssistantMessage,
+  testChatCompletionChoice,
   testCompactionEvent,
   testModelEvent,
   testModelOutput,
@@ -20,6 +22,7 @@ import {
   testScoreEvent,
   testSpanBeginEvent,
   testSpanEndEvent,
+  testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { Event } from "@tsmono/inspect-common/types";
@@ -580,7 +583,33 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
   it("reads a model turn's tokens and stop reason", () => {
     vi.useFakeTimers();
     try {
-      const { container } = mountPanel();
+      // The fixture's first model call, with a tool_calls stop reason.
+      const withStop: Event[] = [
+        testModelEvent({
+          uuid: "model-1",
+          timestamp: iso(0),
+          completed: iso(10),
+          working_start: 0,
+          working_time: 10,
+          output: testModelOutput({
+            usage: testModelUsage({
+              input_tokens: 1000,
+              output_tokens: 200,
+              total_tokens: 1200,
+            }),
+            choices: [
+              testChatCompletionChoice({
+                stop_reason: "tool_calls",
+                message: testAssistantMessage({
+                  tool_calls: [testToolCall({ function: "bash" })],
+                }),
+              }),
+            ],
+          }),
+        }),
+        ...fixtureEvents().slice(1),
+      ];
+      const { container } = mountPanel({ events: withStop });
       const model = spanRects(container).find((rect) =>
         rect.getAttribute("class")?.includes("modelSpan")
       );
@@ -593,6 +622,10 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
       expect(screen.getByText("Model turn 1")).toBeTruthy();
       expect(screen.getByText("input")).toBeTruthy();
       expect(screen.getByText("1,000")).toBeTruthy();
+      expect(screen.getByText("output")).toBeTruthy();
+      expect(screen.getByText("200")).toBeTruthy();
+      expect(screen.getByText("stop")).toBeTruthy();
+      expect(screen.getByText("tool_calls · 1 (bash)")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -648,12 +681,32 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
     ];
     const { container } = mountPanel({ events });
     expect(screen.queryByText("AT CURSOR")).toBeNull();
+    const legendValues = () =>
+      [...container.querySelectorAll("text[class*='legendValue']")].map(
+        (el) => el.textContent
+      );
+    // At rest: context peaks (1,000 / 500) and burn totals (1,100 / 550),
+    // context band first.
+    expect(legendValues()).toEqual(["1k", "500", "1k", "550"]);
+
     const plot = container.querySelector("rect[class*='plotHit']");
     if (!(plot instanceof SVGElement))
       throw new Error("expected the plot hit rect");
-    // Pointer at the plot's left edge: before either conversation burned.
-    fireEvent.mouseMove(plot, { clientX: 130, clientY: 40 });
+    // Pointer at t≈15 of the 30s window (the harness completes at 30s):
+    // the orchestrator's call completed at t=10 and burned 1,100; the
+    // researcher's completes at t=20, so it has burned nothing yet, while
+    // its context (500 at t=10) is already in view.
+    const axisLine = [
+      ...container.querySelectorAll("line[class*='axisLine']"),
+    ].find((line) => line.getAttribute("y1") === line.getAttribute("y2"));
+    const plotLeft = Number(axisLine?.getAttribute("x1"));
+    const plotRight = Number(axisLine?.getAttribute("x2"));
+    fireEvent.mouseMove(plot, {
+      clientX: plotLeft + (plotRight - plotLeft) / 2,
+      clientY: 40,
+    });
     expect(screen.getAllByText("AT CURSOR").length).toBeGreaterThan(0);
+    expect(legendValues()).toEqual(["1k", "500", "1k", "0"]);
   });
 });
 
