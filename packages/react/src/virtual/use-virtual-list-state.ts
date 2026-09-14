@@ -12,7 +12,8 @@ export type UseVirtualListStateResult = {
 };
 
 export function useVirtualListState(
-  persistenceKey: string
+  persistenceKey: string,
+  enabled = true
 ): UseVirtualListStateResult {
   const [stored, setStored] = useProperty<VirtualListStateSnapshot | null>(
     persistenceKey,
@@ -22,17 +23,17 @@ export function useVirtualListState(
 
   const getRestoreSnapshot = useCallback(():
     VirtualListStateSnapshot | undefined => {
-    if (!stored) return undefined;
+    if (!enabled || !stored) return undefined;
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (stored.version !== CURRENT_VERSION) return undefined;
     return stored;
-  }, [stored]);
+  }, [stored, enabled]);
 
   const recordSnapshot = useCallback(
     (snapshot: VirtualListStateSnapshot) => {
-      setStored(snapshot);
+      if (enabled) setStored(snapshot);
     },
-    [setStored]
+    [setStored, enabled]
   );
 
   return { getRestoreSnapshot, recordSnapshot };

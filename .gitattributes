@@ -1,2 +1,0 @@
-# Keep captured CSV bytes: CRLF records and LF inside quoted fields.
-apps/scout/e2e/fixtures/dataframe/expected.csv -text whitespace=cr-at-eol

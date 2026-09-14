@@ -1,4 +1,8 @@
-import type { ColumnSizingState, SortingState } from "@tanstack/react-table";
+import type {
+  ColumnPinningState,
+  ColumnSizingState,
+  SortingState,
+} from "@tanstack/react-table";
 
 import {
   isColumnFilter,
@@ -16,7 +20,7 @@ export interface DataframeState {
   columnOrder: string[];
   columnSizing: ColumnSizingState;
   columnFilters: Record<string, ColumnFilter>;
-  columnPinning: { left: string[]; right: string[] };
+  columnPinning: ColumnPinningState;
   scroll: { top: number; left: number };
 }
 
@@ -25,7 +29,7 @@ export const emptyDataframeState: DataframeState = {
   columnOrder: [],
   columnSizing: {},
   columnFilters: {},
-  columnPinning: { left: [], right: [] },
+  columnPinning: { start: [], end: [] },
   scroll: { top: 0, left: 0 },
 };
 
@@ -154,14 +158,18 @@ export function normalizeDataframeState(value: unknown): DataframeState {
     columnFilters,
     columnPinning: isRecord(value.columnPinning)
       ? {
-          left: strings(
-            value.columnPinning.left ?? value.columnPinning.leftColIds
+          start: strings(
+            value.columnPinning.start ??
+              value.columnPinning.left ??
+              value.columnPinning.leftColIds
           ),
-          right: strings(
-            value.columnPinning.right ?? value.columnPinning.rightColIds
+          end: strings(
+            value.columnPinning.end ??
+              value.columnPinning.right ??
+              value.columnPinning.rightColIds
           ),
         }
-      : { left: [], right: [] },
+      : { start: [], end: [] },
     columnOrder: strings(
       isRecord(value.columnOrder)
         ? value.columnOrder.orderedColIds

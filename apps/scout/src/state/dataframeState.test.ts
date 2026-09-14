@@ -40,7 +40,7 @@ describe("saved dataframe state", () => {
     expect(result).toEqual({
       columnOrder: ["0", "value", "transcript_id", "missing"],
       columnSizing: { value: 245 },
-      columnPinning: { left: ["0", "value"], right: [] },
+      columnPinning: { start: ["0", "value"], end: [] },
       sorting: [
         { id: "value", desc: false },
         { id: "transcript_id", desc: true },

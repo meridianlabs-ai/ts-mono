@@ -24,24 +24,22 @@ describe("dataframe values and export", () => {
             missing: undefined,
           },
         ],
-        ["text", "bool", "object", "nil", "missing"],
-        {}
+        ["text", "bool", "object", "nil", "missing"]
       )
     ).toBe(
       '"text","bool","object","nil","missing"\r\n"one,""two""\nthree","false","{""nested"":[1,2]}","null","undefined"'
     );
-    expect(dataframeCsv([], ["text"], {})).toBe('"text"');
-    expect(dataframeCsv([{ text: "hello" }], [], {})).toBe("");
+    expect(dataframeCsv([], ["text"])).toBe('"text"');
+    expect(dataframeCsv([{ text: "hello" }], [])).toBe("");
   });
 
   it("truncates display and CSV consistently, keeping the raw value available", () => {
     const raw = "start" + "x".repeat(2000) + "end";
     const expected = centerTruncate(raw, 1024);
-    expect(formatDataframeValue(raw, { maxStrLen: 1024 })).toBe(expected);
-    expect(dataframeCsv([{ text: raw }], ["text"], { maxStrLen: 1024 })).toBe(
+    expect(formatDataframeValue(raw)).toBe(expected);
+    expect(dataframeCsv([{ text: raw }], ["text"])).toBe(
       `"text"\r\n"${expected}"`
     );
-    expect(raw).toHaveLength(2008);
   });
 
   it("sorts numbers numerically, nulls first, dates chronologically, and objects by JSON", () => {

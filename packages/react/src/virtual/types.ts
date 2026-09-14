@@ -40,6 +40,8 @@ export interface VirtualListComponents {
 
 export interface VirtualListProps<T> {
   persistenceKey: string;
+  /** Set false when the host owns scroll persistence and restoration. */
+  persistScroll?: boolean;
   ref?: Ref<VirtualListHandle>;
   /** DOM id applied to the list's root element. */
   id?: string;
@@ -81,6 +83,8 @@ export interface VirtualListProps<T> {
   followRequested?: boolean;
   showProgress?: boolean;
   initialIndex?: number;
+  /** Initial content offset supplied by a host that owns scroll persistence. */
+  initialScrollOffset?: number;
   /** Offset (px) subtracted from scroll-to-index landings, e.g. to clear sticky
    * chrome. Forwarded to the virtualizer's scrollPaddingStart so it survives
    * tanstack's scroll reconcile. */

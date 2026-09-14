@@ -58,19 +58,6 @@
 .headerLabel:focus-visible {
   outline: 2px solid var(--bs-primary);
 }
-.resizer {
-  position: absolute;
-  top: 4px;
-  right: 0;
-  bottom: 4px;
-  width: 5px;
-  border-right: 1px solid var(--bs-border-color);
-  cursor: col-resize;
-  touch-action: none;
-}
-.resizer:hover {
-  background: var(--bs-primary);
-}
 .pinned {
   position: sticky;
   z-index: 2;

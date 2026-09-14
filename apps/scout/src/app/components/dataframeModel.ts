@@ -10,44 +10,9 @@ import { valueAsString } from "../utils/format";
 
 export type DataframeRow = Record<string, unknown>;
 
-export function dataframePinOffsets(
-  columns: { id: string; size: number }[],
-  pinning: { left: string[]; right: string[] },
-  rowNumberWidth: number
-): Record<string, { left?: number; right?: number }> {
-  const offsets: Record<string, { left?: number; right?: number }> = {};
-  let left = rowNumberWidth;
-  let right = 0;
-  for (const column of columns) {
-    if (pinning.left.includes(column.id)) {
-      offsets[column.id] = { left };
-      left += column.size;
-    }
-  }
-  for (const column of [...columns].reverse()) {
-    if (pinning.right.includes(column.id)) {
-      offsets[column.id] = { right };
-      right += column.size;
-    }
-  }
-  return offsets;
-}
-
-function rawText(value: unknown): string {
-  if (value instanceof Date) return value.toString();
-  if (Array.isArray(value))
-    return value.map((item) => (item == null ? "" : rawText(item))).join(",");
-  if (value !== null && typeof value === "object") return "[object Object]";
-  return String(value);
-}
-
-export function formatDataframeValue(
-  value: unknown,
-  options?: { maxStrLen?: number }
-): string {
-  if (!options) return value == null ? "" : rawText(value);
+export function formatDataframeValue(value: unknown): string {
   return typeof value === "string"
-    ? centerTruncate(value, options.maxStrLen)
+    ? centerTruncate(value, 1024)
     : valueAsString(value);
 }
 
@@ -183,20 +148,15 @@ export function compareDataframeValues(a: unknown, b: unknown): number {
   return left > right ? 1 : left < right ? -1 : 0;
 }
 
-// Match the previous export contract: displayed values (including truncation),
-// selected column order, all filtered/sorted rows, quoted fields and CRLF.
-export function dataframeCsv(
-  rows: DataframeRow[],
-  columns: string[],
-  options?: { maxStrLen?: number }
-): string {
+// Export the chosen columns and displayed values from all filtered/sorted rows.
+export function dataframeCsv(rows: DataframeRow[], columns: string[]): string {
   if (columns.length === 0) return "";
   const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
   return [
     columns.map(quote).join(","),
     ...rows.map((row) =>
       columns
-        .map((column) => quote(formatDataframeValue(row[column], options)))
+        .map((column) => quote(formatDataframeValue(row[column])))
         .join(",")
     ),
   ].join("\r\n");

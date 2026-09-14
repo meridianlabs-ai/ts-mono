@@ -14,6 +14,7 @@ import { testIcons } from "@tsmono/react/testing";
 
 import { apiScoutServer } from "../../../src/api/api-scout-server";
 import { DataframeView } from "../../../src/app/components/DataframeView";
+import { useDataframeData } from "../../../src/app/components/useDataframeData";
 import { DataframeGridApiProvider } from "../../../src/app/scan/scanners/dataframe/DataframeGridApiContext";
 import { ScannerDataframeClearFiltersButton } from "../../../src/app/scan/scanners/dataframe/ScannerDataframeClearFiltersButton";
 import {
@@ -21,7 +22,7 @@ import {
   ScannerDataframeDownloadCSVButton,
 } from "../../../src/app/scan/scanners/dataframe/ScannerDataframeCSVButtons";
 import { scoutStateHooks } from "../../../src/state/componentStateAdapter";
-import { createStore, StoreProvider } from "../../../src/state/store";
+import { createStore, StoreProvider, useStore } from "../../../src/state/store";
 
 const columns = ["transcript_id", "value", "explanation", "metadata", "passed"];
 const params = new URLSearchParams(location.search);
@@ -51,13 +52,14 @@ store.setState({
 });
 
 function Fixture() {
-  const [wrap, setWrap] = useState(false);
-  const [visible, setVisible] = useState(0);
+  const wrap = useStore((state) => state.dataframeWrapText ?? false);
+  const setWrap = useStore((state) => state.setDataframeWrapText);
+  const dataframe = useDataframeData(data);
   const [opened, setOpened] = useState("");
-  const [shownColumns, setShownColumns] = useState(columns);
+
   const [mounted, setMounted] = useState(true);
   return (
-    <StoreProvider value={store}>
+    <>
       <ComponentIconProvider icons={testIcons}>
         <ComponentStateProvider hooks={scoutStateHooks}>
           <DataframeGridApiProvider>
@@ -68,11 +70,12 @@ function Fixture() {
               <button onClick={() => setWrap(!wrap)}>Wrap Text</button>
               <button
                 onClick={() =>
-                  setShownColumns(
-                    shownColumns.length === columns.length
-                      ? columns.slice(0, 3)
-                      : columns
-                  )
+                  store.setState({
+                    dataframeFilterColumns:
+                      dataframe.columnNames.length === columns.length
+                        ? columns.slice(0, 3)
+                        : columns,
+                  })
                 }
               >
                 Toggle columns
@@ -83,24 +86,20 @@ function Fixture() {
             <div style={{ height: 500, width: "100%" }}>
               {mounted && (
                 <DataframeView
-                  columnTable={data}
-                  sortedColumns={shownColumns}
-                  showRowNumbers
+                  dataframe={dataframe}
                   wrapText={wrap}
-                  options={{ maxStrLen: 1024 }}
-                  onVisibleRowCountChanged={setVisible}
                   onRowDoubleClicked={(row) => {
                     if ("identifier" in row) setOpened(String(row.identifier));
                   }}
                 />
               )}
             </div>
-            <output aria-label="Visible rows">{visible}</output>
+            <output aria-label="Visible rows">{dataframe.rows.length}</output>
             <output aria-label="Opened result">{opened}</output>
           </DataframeGridApiProvider>
         </ComponentStateProvider>
       </ComponentIconProvider>
-    </StoreProvider>
+    </>
   );
 }
 
@@ -108,6 +107,8 @@ const root = document.getElementById("app");
 if (!root) throw new Error("Missing fixture root");
 createRoot(root).render(
   <StrictMode>
-    <Fixture />
+    <StoreProvider value={store}>
+      <Fixture />
+    </StoreProvider>
   </StrictMode>
 );

@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 
 import { expect, test } from "@playwright/test";
+import { fromCSV } from "arquero";
 
 const fixture = "/e2e/fixtures/dataframe/";
 
@@ -10,21 +11,140 @@ test.beforeEach(({ page }) => {
   });
 });
 
-test("CSV matches the previous grid's output byte for byte", async ({
+test("the dataframe restores both scroll axes even with an obsolete list snapshot", async ({
   page,
 }) => {
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await page.addInitScript(
+    () =>
+      !localStorage.getItem("inspect-scout-storage") &&
+      localStorage.setItem(
+        "inspect-scout-storage",
+        JSON.stringify({
+          version: 1,
+          state: {
+            selectedResultRow: 0,
+            gridStates: { DataframeView: { scroll: { top: 5000, left: 200 } } },
+            properties: {
+              "scanner-dataframe": {
+                snapshot: { version: 1, scrollOffset: 0, totalCount: 5000 },
+              },
+            },
+          },
+        })
+      )
+  );
+  await page.setViewportSize({ width: 900, height: 720 });
+  await page.goto(`${fixture}?rows=5000`);
+  const grid = page.getByRole("grid", { name: "Scanner results" });
+  await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBe(5000);
+  await expect.poll(() => grid.evaluate((el) => el.scrollLeft)).toBe(200);
+  await grid.hover();
+  await page.mouse.wheel(-100, 3500);
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("inspect-scout-storage"))
+    )
+    .toContain('"top":8500');
+  await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
+  await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBe(8500);
+  await page.reload();
+  await expect.poll(() => grid.evaluate((el) => el.scrollTop)).toBe(8500);
+  await expect.poll(() => grid.evaluate((el) => el.scrollLeft)).toBe(100);
+});
+
+test("multiple pinned columns stay aligned after resizing, reordering and reload", async ({
+  page,
+}) => {
+  await page.addInitScript(
+    () =>
+      !localStorage.getItem("inspect-scout-storage") &&
+      localStorage.setItem(
+        "inspect-scout-storage",
+        JSON.stringify({
+          version: 1,
+          state: {
+            gridStates: {
+              DataframeView: {
+                columnPinning: {
+                  start: ["value", "transcript_id"],
+                  end: ["metadata"],
+                },
+                columnSizing: {
+                  value: 100,
+                  transcript_id: 200,
+                  explanation: 800,
+                  metadata: 180,
+                  passed: 100,
+                },
+              },
+            },
+          },
+        })
+      )
+  );
   await page.goto(fixture);
-  await expect(page.getByLabel("Visible rows")).toHaveText("6");
-  await page.getByRole("button", { name: /Copy CSV/ }).click();
-  await expect(page.getByRole("button", { name: /Copied/ })).toBeVisible();
-  const expected = await readFile(
-    new URL("./fixtures/dataframe/expected.csv", import.meta.url),
-    "utf8"
+  const grid = page.getByRole("grid", { name: "Scanner results" });
+  const value = page.getByRole("columnheader", { name: "value", exact: true });
+  const transcript = page.getByRole("columnheader", {
+    name: "transcript_id",
+    exact: true,
+  });
+  const metadata = page.getByRole("columnheader", {
+    name: "metadata",
+    exact: true,
+  });
+  await page.getByRole("slider", { name: "Resize value" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await grid.evaluate((el) => {
+    el.scrollLeft = 400;
+  });
+  await expect
+    .poll(() => transcript.evaluate((el) => el.getBoundingClientRect().left))
+    .toBe(170);
+  await expect
+    .poll(() => metadata.evaluate((el) => el.getBoundingClientRect().right))
+    .toBe(1280);
+  await transcript
+    .getByRole("button", { name: "transcript_id", exact: true })
+    .dragTo(value);
+  await expect(page.getByRole("columnheader").nth(1)).toHaveAttribute(
+    "aria-label",
+    "transcript_id"
   );
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(
-    expected
+  await expect
+    .poll(() => transcript.evaluate((el) => el.getBoundingClientRect().left))
+    .toBe(60);
+  await expect
+    .poll(() =>
+      page
+        .getByRole("gridcell", { name: "transcript-0000", exact: true })
+        .evaluate((el) => el.getBoundingClientRect().left)
+    )
+    .toBe(60);
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("inspect-scout-storage"))
+    )
+    .toContain('"start":["transcript_id","value"]');
+  await page.reload();
+  await expect(page.getByRole("columnheader").nth(1)).toHaveAttribute(
+    "aria-label",
+    "transcript_id"
   );
+  await expect
+    .poll(() => value.evaluate((el) => el.getBoundingClientRect().left))
+    .toBe(260);
+  await page
+    .getByRole("button", { name: "Toggle columns", exact: true })
+    .click();
+  await expect(metadata).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Toggle columns", exact: true })
+    .click();
+  await expect
+    .poll(() => metadata.evaluate((el) => el.getBoundingClientRect().right))
+    .toBe(1280);
 });
 
 test("columns can be pinned by dragging to the edge and unpinned by dragging back", async ({
@@ -128,14 +248,20 @@ test("filter controls, sorting, copy and download use the same displayed rows an
   await page.getByRole("button", { name: /Copy CSV/ }).click();
   await expect(page.getByRole("button", { name: /Copied/ })).toBeVisible();
   const csv = await page.evaluate(() => navigator.clipboard.readText());
-  expect(csv).toContain(
-    '"transcript_id","value","explanation"\r\n"transcript-0005","100",'
+  const exported = fromCSV(csv, { autoType: false });
+  expect(exported.columnNames()).toEqual([
+    "transcript_id",
+    "value",
+    "explanation",
+  ]);
+  expect(exported.array("transcript_id")).toEqual([
+    "transcript-0005",
+    "transcript-0000",
+  ]);
+  expect(exported.array("value")).toEqual(["100", "10"]);
+  expect(exported.get("explanation", 1)).toBe(
+    'Alpha, quoted "text"\nnext line'
   );
-  expect(csv).toContain(
-    '"transcript-0000","10","Alpha, quoted ""text""\nnext line"'
-  );
-  expect(csv).not.toContain("transcript-0001");
-  expect(csv).not.toContain('"metadata"');
   const downloading = page.waitForEvent("download");
   await page.getByRole("button", { name: /Download CSV/ }).click();
   const download = await downloading;
@@ -256,37 +382,43 @@ test("an empty table reports zero rows and leaves keyboard navigation inert", as
 test("restores saved compound filters and sort, then clears filters", async ({
   page,
 }) => {
-  await page.addInitScript(() =>
-    localStorage.setItem(
-      "inspect-scout-storage",
-      JSON.stringify({
-        version: 1,
-        state: {
-          gridStates: {
-            DataframeView: {
-              filter: {
-                filterModel: {
-                  explanation: {
-                    filterType: "text",
-                    operator: "OR",
-                    conditions: [
-                      { filterType: "text", type: "contains", filter: "alpha" },
-                      { filterType: "text", type: "equals", filter: "beta" },
-                    ],
-                  },
-                  value: {
-                    filterType: "number",
-                    type: "greaterThan",
-                    filter: 0,
+  await page.addInitScript(
+    () =>
+      !localStorage.getItem("inspect-scout-storage") &&
+      localStorage.setItem(
+        "inspect-scout-storage",
+        JSON.stringify({
+          version: 1,
+          state: {
+            gridStates: {
+              DataframeView: {
+                filter: {
+                  filterModel: {
+                    explanation: {
+                      filterType: "text",
+                      operator: "OR",
+                      conditions: [
+                        {
+                          filterType: "text",
+                          type: "contains",
+                          filter: "alpha",
+                        },
+                        { filterType: "text", type: "equals", filter: "beta" },
+                      ],
+                    },
+                    value: {
+                      filterType: "number",
+                      type: "greaterThan",
+                      filter: 0,
+                    },
                   },
                 },
+                sort: { sortModel: [{ colId: "value", sort: "asc" }] },
               },
-              sort: { sortModel: [{ colId: "value", sort: "asc" }] },
             },
           },
-        },
-      })
-    )
+        })
+      )
   );
   await page.goto(fixture);
   await expect(page.getByLabel("Visible rows")).toHaveText("2");
@@ -347,32 +479,40 @@ test("numeric sort cycles ascending, descending, and original order", async ({
   await expect(page.getByLabel("Opened result")).toHaveText("result-0");
 });
 
-test("virtualizes a large dataframe and reaches the final row", async ({
+test("virtualizes varied wrapped rows and restores the final row", async ({
   page,
 }) => {
   await page.goto(`${fixture}?rows=5000`);
   await expect(page.getByLabel("Visible rows")).toHaveText("5000");
-  expect(await page.getByRole("row").count()).toBeLessThan(100);
+  await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
+  await page.getByRole("grid", { name: "Scanner results" }).focus();
   await page.keyboard.press("Control+ArrowDown");
+  const last = page.getByRole("gridcell", {
+    name: "transcript-4999",
+    exact: true,
+  });
+  await expect(last).toBeInViewport();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Opened result")).toHaveText("result-4999");
-  await expect(
-    page.getByRole("gridcell", { name: "transcript-4999", exact: true })
-  ).toBeVisible();
+  expect(await page.getByRole("row").count()).toBeLessThan(100);
+  await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
+  await page.getByRole("button", { name: "Toggle grid", exact: true }).click();
+  await expect(last).toBeInViewport();
+  await expect
+    .poll(() =>
+      page.evaluate(() => localStorage.getItem("inspect-scout-storage"))
+    )
+    .toContain('"selectedResultRow":4999');
+  await page.reload();
+  await expect(last).toBeInViewport();
 });
 
 for (const theme of ["light", "dark"]) {
-  test(`captures ${theme} layout and text wrapping`, async ({
+  test(`text wrapping changes row height without hiding content in ${theme} theme`, async ({
     page,
-  }, testInfo) => {
+  }) => {
     await page.goto(`${fixture}?theme=${theme}`);
     await expect(page.getByLabel("Visible rows")).toHaveText("6");
-    await testInfo.attach(`dataframe-${theme}`, {
-      body: await page.screenshot({
-        path: testInfo.outputPath(`dataframe-${theme}.png`),
-      }),
-      contentType: "image/png",
-    });
     const cell = page.getByRole("gridcell", {
       name: "transcript-0005",
       exact: true,
@@ -382,11 +522,9 @@ for (const theme of ["light", "dark"]) {
     await expect
       .poll(async () => (await cell.boundingBox())?.height ?? 0)
       .toBeGreaterThan(before?.height ?? 0);
-    await testInfo.attach(`dataframe-${theme}-wrapped`, {
-      body: await page.screenshot({
-        path: testInfo.outputPath(`dataframe-${theme}-wrapped.png`),
-      }),
-      contentType: "image/png",
-    });
+    await page.getByRole("button", { name: "Wrap Text", exact: true }).click();
+    await expect
+      .poll(async () => (await cell.boundingBox())?.height)
+      .toBe(before?.height);
   });
 }
