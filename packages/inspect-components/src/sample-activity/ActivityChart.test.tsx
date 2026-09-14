@@ -369,8 +369,65 @@ describe("ActivityChart folded conversations at scale", () => {
     ].map((el) => el.textContent);
     expect(atCursor).toHaveLength(10);
     expect(atCursor.filter((v) => v === "100k")).toHaveLength(1);
-    expect(atCursor.filter((v) => v === "100")).toHaveLength(9);
+    expect(atCursor.filter((v) => v === "max 100")).toHaveLength(1);
+    expect(atCursor.filter((v) => v === "100")).toHaveLength(8);
   }, 20000);
+
+  it("labels the fold's context as its largest member's while its burn sums", () => {
+    vi.useFakeTimers();
+    try {
+      // Six conversations: the two folded ones hold 100 and 300 tokens of
+      // context, so a sum (400) and a maximum (300) are told apart.
+      const { container } = renderChart(
+        Array.from({ length: 6 }, (_, i) => [
+          testSpanBeginEvent({
+            id: `a${i}`,
+            name: `a${i}`,
+            type: "agent",
+            timestamp: iso(i),
+          }),
+          modelCall({
+            start: i,
+            end: i + 1,
+            uuid: `m${i}`,
+            spanId: `a${i}`,
+            input: i === 5 ? 300 : 100,
+          }),
+        ]).flat()
+      );
+      const legendValues = () =>
+        [...container.querySelectorAll("text[class*='legendValue']")].map(
+          (el) => el.textContent
+        );
+      // At rest: context legend "max 300", burn legend 400.
+      expect(legendValues()).toContain("max 300");
+      expect(legendValues()).toContain("400");
+      expect(legendValues()).not.toContain("300");
+
+      // At the cursor (right edge, over the context band): the same
+      // labelled maximum in the legend and on the card.
+      const { right } = plotBounds(container);
+      const contextLabel = [
+        ...container.querySelectorAll("text[class*='bandLabel']"),
+      ].find((label) => label.textContent === "CONTEXT SIZE");
+      const hit = container.querySelector("rect[class*='plotHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+      fireEvent.mouseMove(hit, {
+        clientX: right,
+        clientY: attr(contextLabel ?? null, "y") + 30,
+      });
+      expect(legendValues()).toContain("max 300");
+      expect(legendValues()).toContain("400");
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const card = container.querySelector("[class*='tooltip']")?.textContent;
+      expect(card).toContain("+2 more");
+      expect(card).toContain("max 300");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("lists the folded members' names on the aggregate curve card", () => {
     vi.useFakeTimers();

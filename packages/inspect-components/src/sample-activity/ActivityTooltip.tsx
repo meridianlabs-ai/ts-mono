@@ -22,6 +22,15 @@ import styles from "./ActivityTooltip.module.css";
 /** Tooltip width — the flip-left threshold in the chart derives from it. */
 export const kTooltipWidth = 262;
 
+/** One curve read-out row. `aggregate: "max"` marks a grouped row whose
+ *  value is its largest member's rather than a sum — the fold's context,
+ *  since context sizes don't add. */
+export interface CurveValue {
+  row: AgentRow;
+  value?: number;
+  aggregate?: "max";
+}
+
 /** What the pointer is over — one card, different bodies (handoff 11b). */
 export type HoverTarget =
   | { kind: "span"; span: ActivitySpan; row: AgentRow }
@@ -34,7 +43,7 @@ export type HoverTarget =
       kind: "curve";
       band: "tokens" | "context";
       time: number;
-      values: { row: AgentRow; value?: number }[];
+      values: CurveValue[];
     };
 
 /** Stable identity for a hover target — the show-delay compares it. */
@@ -512,7 +521,7 @@ const StallBody: FC<{ stall: StallRegion }> = ({ stall }) => (
 const CurveBody: FC<{
   band: "tokens" | "context";
   time: number;
-  values: { row: AgentRow; value?: number }[];
+  values: CurveValue[];
 }> = ({ band, time, values }) => {
   if (values.length === 1) {
     const only = values[0]!;
@@ -536,11 +545,14 @@ const CurveBody: FC<{
       time={fmtTimeSec(time)}
     >
       <div className={styles.list}>
-        {values.map(({ row, value }) => (
+        {values.map(({ row, value, aggregate }) => (
           <div key={row.id} className={styles.listRow}>
             <span className={styles.swatch} style={{ background: row.hue }} />
             <span className={styles.ellipsis}>{row.name}</span>
             <span className={styles.mono}>
+              {aggregate === "max" && value !== undefined && (
+                <span className={styles.muted}>max </span>
+              )}
               {value === undefined ? "—" : num(value)}
             </span>
           </div>

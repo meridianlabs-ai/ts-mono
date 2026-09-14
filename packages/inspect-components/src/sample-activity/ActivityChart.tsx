@@ -34,6 +34,7 @@ import {
 } from "./activityData";
 import {
   ActivityTooltip,
+  CurveValue,
   HoverTarget,
   hoverTargetKey,
   kTooltipWidth,
@@ -576,8 +577,27 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return held;
   };
 
-  const contextValuesAt = (px: number): { row: AgentRow; value?: number }[] =>
-    curveRows.map((row) => ({ row, value: contextValueAt(row, px) }));
+  const contextValuesAt = (px: number): CurveValue[] =>
+    curveRows.map((row) => {
+      const value = contextValueAt(row, px);
+      return isFoldRow(row) ? { row, value, aggregate: "max" } : { row, value };
+    });
+  /** A legend context value; the fold's is labelled as its largest
+   *  member's, at rest and at the cursor alike. */
+  const contextLegendValue = (
+    row: AgentRow,
+    value: number | undefined
+  ): ReactNode => {
+    if (value === undefined) return "—";
+    const text = fmtTokens(value);
+    if (!isFoldRow(row)) return text;
+    return (
+      <Fragment>
+        <tspan className={styles.legendCaption}>max </tspan>
+        {text}
+      </Fragment>
+    );
+  };
 
   // ── shared band chrome ────────────────────────────────────────────────
 
@@ -626,8 +646,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  value — the peak/total normally, the value AT CURSOR while hovering. */
   const gutterLegend = (
     band: Band,
-    restingValue: (row: AgentRow) => string,
-    cursorValue: (row: AgentRow, at: Cursor) => string
+    restingValue: (row: AgentRow) => ReactNode,
+    cursorValue: (row: AgentRow, at: Cursor) => ReactNode
   ): ReactNode => {
     if (!multiAgent) return null;
     return (
@@ -1025,11 +1045,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         {yTicks(y, max)}
         {gutterLegend(
           band,
-          (row) => fmtTokens(curveContextPeak(row)),
-          (row, at) => {
-            const value = contextValueAt(row, at.x);
-            return value === undefined ? "—" : fmtTokens(value);
-          }
+          (row) => contextLegendValue(row, curveContextPeak(row)),
+          (row, at) => contextLegendValue(row, contextValueAt(row, at.x))
         )}
         {readoutDots(dots)}
       </g>
