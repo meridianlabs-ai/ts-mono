@@ -46,6 +46,12 @@ import {
 } from "./api";
 import { resolveAttachments } from "./attachmentsHelpers";
 import { expandInputEvents } from "./expandInputEvents";
+import {
+  normalizeActiveScans,
+  normalizeStatus,
+  type WireActiveScansResponse,
+  type WireStatus,
+} from "./normalize";
 import { serverRequestApi } from "./request";
 
 export type HeaderProvider = () => Promise<Record<string, string>>;
@@ -246,7 +252,9 @@ export const apiScoutServer = (
         `/scans/${encodeBase64Url(scansDir)}/${encodeBase64Url(scanPath)}`
       );
 
-      return asyncJsonParse<Status>(result.raw);
+      // Boundary normalization (#555): status is read back from scan files
+      // written by many inspect_scout versions.
+      return normalizeStatus(await asyncJsonParse<WireStatus>(result.raw));
     },
     downloadScan: async (scansDir: string, scanPath: string): Promise<Blob> => {
       const result = await requestApi.fetchBytes(
@@ -334,8 +342,10 @@ export const apiScoutServer = (
       };
     },
     getActiveScans: async (): Promise<ActiveScansResponse> =>
-      asyncJsonParse<ActiveScansResponse>(
-        (await requestApi.fetchString("GET", `/scans/active`)).raw
+      normalizeActiveScans(
+        await asyncJsonParse<WireActiveScansResponse>(
+          (await requestApi.fetchString("GET", `/scans/active`)).raw
+        )
       ),
     postSearch: async (
       transcriptDir: string,
@@ -434,15 +444,17 @@ export const apiScoutServer = (
       return { config: response.parsed, etag: newEtag };
     },
     startScan: async (config: ScanJobConfig): Promise<Status> =>
-      asyncJsonParse<Status>(
-        (
-          await requestApi.fetchString(
-            "POST",
-            `/startscan`,
-            {},
-            JSON.stringify(config)
-          )
-        ).raw
+      normalizeStatus(
+        await asyncJsonParse<WireStatus>(
+          (
+            await requestApi.fetchString(
+              "POST",
+              `/startscan`,
+              {},
+              JSON.stringify(config)
+            )
+          ).raw
+        )
       ),
     getScanners: async (): Promise<ScannersResponse> => {
       const result = await requestApi.fetchString("GET", `/scanners`);

@@ -908,8 +908,8 @@
   },
   "apps/scout/src/app/runScan/ActiveScanView.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 2
+      "count": 1,
+      "undescribed": 1
     },
     "react-hooks/purity": {
       "count": 1,
@@ -917,12 +917,6 @@
     },
     "tsmono/no-raw-use-effect": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/scan/info/ScanInfo.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
     }
   },
   "apps/scout/src/app/scan/scanners/dataframe/ScannerDataframeColumnsPopover.tsx": {
@@ -961,11 +955,6 @@
     "react-hooks/exhaustive-deps": {
       "count": 1,
       "undescribed": 1
-    }
-  },
-  "apps/scout/src/app/scan/scanners/ScannerSidebar.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 6
     }
   },
   "apps/scout/src/app/scan/ScanPanel.tsx": {
