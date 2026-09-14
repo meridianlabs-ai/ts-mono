@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 import { createHashRouter, Outlet, useLocation, useParams } from "react-router";
 
 import {
@@ -35,10 +35,9 @@ import {
   kTranscriptsRouteUrlPattern,
   kValidationRouteUrlPattern,
   parseScanParams,
-  scanResultRoute,
-  scanRoute,
   scansRoute,
 } from "./router/url";
+import { useRestoreLastRoute } from "./router/useRestoreLastRoute";
 import { useStore } from "./state/store";
 import { AppConfig } from "./types/api-types";
 
@@ -64,7 +63,7 @@ const createAppLayout = (routerConfig: AppRouterConfig) => {
     // closes via its own input's Escape or the close button.
     useFindBandShortcut(openFind);
     useWindowMessaging();
-    useRoutingInitializer(config.scans.dir);
+    useRestoreLastRoute(config.scans.dir);
 
     const content = <Outlet />;
     return (
@@ -176,62 +175,6 @@ export const createAppRouter = (config: AppRouterConfig) => {
     ],
     { basename: "" }
   );
-};
-
-// Handles routing initialization on first load
-const useRoutingInitializer = (serverScansDir: string | undefined) => {
-  const navigate = useLoggingNavigate("useRoutingInitializer");
-  const hasInitializedRouting = useStore(
-    (state) => state.hasInitializedRouting
-  );
-  const setHasInitializedRouting = useStore(
-    (state) => state.setHasInitializedRouting
-  );
-  const displayedScanResult = useStore((state) => state.displayedScanResult);
-  const selectedScanLocation = useStore((state) => state.selectedScanLocation);
-  const userScansDir = useStore((state) => state.userScansDir);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (hasInitializedRouting) {
-      return;
-    }
-
-    const currentPath = window.location.hash.slice(1);
-    const isDefaultRoute =
-      currentPath === "/" ||
-      currentPath === "/scans" ||
-      currentPath === "" ||
-      currentPath === "/transcripts";
-
-    const resolvedScansDir = userScansDir || serverScansDir;
-    if (isDefaultRoute && selectedScanLocation && resolvedScansDir) {
-      if (displayedScanResult) {
-        navigate(
-          scanResultRoute(
-            resolvedScansDir,
-            selectedScanLocation,
-            displayedScanResult
-          ),
-          { replace: true }
-        );
-      } else {
-        navigate(scanRoute(resolvedScansDir, selectedScanLocation), {
-          replace: true,
-        });
-      }
-    }
-
-    setHasInitializedRouting(true);
-  }, [
-    hasInitializedRouting,
-    selectedScanLocation,
-    displayedScanResult,
-    navigate,
-    setHasInitializedRouting,
-    serverScansDir,
-    userScansDir,
-  ]);
 };
 
 // Guard against redirecting when a navigation is already in-flight
