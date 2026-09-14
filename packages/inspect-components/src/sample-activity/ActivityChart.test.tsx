@@ -165,6 +165,30 @@ describe("ActivityChart hidden conversations", () => {
     return events;
   };
 
+  it("keeps a persisted-hidden row out of the +N fold", () => {
+    const { container } = renderChart(fiveAgents(), {
+      hiddenAgentIds: ["agent4"],
+    });
+    // Four burn layers, four model spans: the folded fifth row stays hidden
+    // even though the fold itself is collapsed.
+    expect(
+      container.querySelectorAll("path[class*='tokenLayerEdge']")
+    ).toHaveLength(4);
+    expect(container.querySelectorAll("rect[class*='modelSpan']")).toHaveLength(
+      4
+    );
+    expect(screen.getByText(/4 of 5 shown/)).toBeTruthy();
+  });
+
+  it("keeps a persisted-hidden row out of the fold's turn columns", () => {
+    const { container } = renderChart(fiveAgents(), {
+      hiddenAgentIds: ["agent4"],
+      axisMode: "turns",
+    });
+    expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
+      4
+    );
+  });
 });
 
 describe("ActivityChart curve read-outs", () => {

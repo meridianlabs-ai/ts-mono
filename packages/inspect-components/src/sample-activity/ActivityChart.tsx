@@ -122,11 +122,18 @@ const kNoIds: string[] = [];
 const truncateLabel = (text: string, max: number): string =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
 
-/** Rows past the cap fold into one grey summary row until expanded. */
-const foldRows = (rows: AgentRow[], expanded: boolean): AgentRow[] => {
+/** Rows past the cap fold into one grey summary row until expanded. The
+ *  summary carries only its visible members' spans: a member hidden while
+ *  the fold was expanded (persisted across remounts) stays hidden. */
+const foldRows = (
+  rows: AgentRow[],
+  expanded: boolean,
+  hidden: ReadonlySet<string>
+): AgentRow[] => {
   if (expanded || rows.length <= kMaxAgentRows) return rows;
   const shown = rows.slice(0, kMaxAgentRows);
   const folded = rows.slice(kMaxAgentRows);
+  const members = folded.filter((row) => !hidden.has(row.id));
   const summary: AgentRow = {
     id: kFoldRowId,
     name: `+${folded.length} more`,
@@ -135,13 +142,13 @@ const foldRows = (rows: AgentRow[], expanded: boolean): AgentRow[] => {
     hue: kScorerHue,
     isSubAgent: false,
     blockedOn: [],
-    spans: folded
+    spans: members
       .flatMap((row) => row.spans)
       .sort((a, b) => a.start - b.start || a.end - b.end),
-    bursts: folded.flatMap((row) => row.bursts),
-    modelCount: folded.reduce((sum, row) => sum + row.modelCount, 0),
-    toolCount: folded.reduce((sum, row) => sum + row.toolCount, 0),
-    failedCount: folded.reduce((sum, row) => sum + row.failedCount, 0),
+    bursts: members.flatMap((row) => row.bursts),
+    modelCount: members.reduce((sum, row) => sum + row.modelCount, 0),
+    toolCount: members.reduce((sum, row) => sum + row.toolCount, 0),
+    failedCount: members.reduce((sum, row) => sum + row.failedCount, 0),
   };
   return [...shown, summary];
 };
@@ -209,17 +216,20 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── conversation rows: fold, hide, gutter ─────────────────────────────
   const multiAgent = data.agentRows.length > 1;
-  const displayRows = foldRows(data.agentRows, foldExpanded);
   const hidden = new Set(hiddenAgentIds);
+  const displayRows = foldRows(data.agentRows, foldExpanded, hidden);
   const visibleRows = displayRows.filter((row) => !hidden.has(row.id));
+  /** The fold row's visible members — one membership for its spans, turns,
+   *  curves and totals. */
+  const foldMembers = data.agentRows
+    .slice(kMaxAgentRows)
+    .filter((row) => !hidden.has(row.id));
   // Hidden rows drop out of every band: the id set covers the folded rows
   // too, so a hidden fold row hides its members' curves and burn layers.
   const visibleRowIds = new Set<string>();
   for (const row of visibleRows) {
     if (row.id === kFoldRowId) {
-      for (const folded of data.agentRows.slice(kMaxAgentRows)) {
-        visibleRowIds.add(folded.id);
-      }
+      for (const member of foldMembers) visibleRowIds.add(member.id);
     } else {
       visibleRowIds.add(row.id);
     }
@@ -1177,13 +1187,12 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     );
   };
 
-  /** The turns drawn on a display row (the fold row carries its members'). */
+  /** The turns drawn on a display row (the fold row carries its visible
+   *  members'). */
   const rowTurns = (row: AgentRow): TurnColumn[] => {
     if (row.id !== kFoldRowId) return turns.filter((t) => t.rowId === row.id);
-    const folded = new Set(
-      data.agentRows.slice(kMaxAgentRows).map((r) => r.id)
-    );
-    return turns.filter((t) => folded.has(t.rowId));
+    const members = new Set(foldMembers.map((member) => member.id));
+    return turns.filter((t) => members.has(t.rowId));
   };
 
   /** Turns mode (handoff 8b): one gap-free column per turn — the grey model
