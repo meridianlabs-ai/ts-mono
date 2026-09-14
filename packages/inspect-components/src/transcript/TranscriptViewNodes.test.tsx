@@ -26,6 +26,7 @@ import {
 import { makeReactiveStateStore } from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
+import { TranscriptHostProvider } from "./host";
 import {
   TranscriptViewNodes,
   type TranscriptViewNodesHandle,
@@ -35,7 +36,7 @@ import { EventNode } from "./types";
 
 // The event-panel callbacks TranscriptViewNodes hands to each row (the stubbed
 // VirtualList ignores them), captured so the wrapper tests can invoke the armed
-// focus-URL builder directly.
+// focus-URL builder — derived from the host's `urls.getEventFocusUrl` — directly.
 let capturedEventCallbacks: EventPanelCallbacks | undefined;
 
 // Stub the virtual list at its imperative boundary: the behaviors under test
@@ -130,16 +131,17 @@ describe("TranscriptViewNodes current-turn stamping", () => {
     const onNavigatedToEvent = vi.fn();
 
     const view = (initialEventId: string | null) => (
-      <div ref={scrollRef}>
-        <TranscriptViewNodes
-          id="test"
-          eventNodes={eventNodes}
-          defaultCollapsedIds={{}}
-          scrollRef={scrollRef}
-          initialEventId={initialEventId}
-          onNavigatedToEvent={onNavigatedToEvent}
-        />
-      </div>
+      <TranscriptHostProvider host={{ navigation: { onNavigatedToEvent } }}>
+        <div ref={scrollRef}>
+          <TranscriptViewNodes
+            id="test"
+            eventNodes={eventNodes}
+            defaultCollapsedIds={{}}
+            scrollRef={scrollRef}
+            initialEventId={initialEventId}
+          />
+        </div>
+      </TranscriptHostProvider>
     );
 
     const { rerender } = render(view(null), { wrapper: StateWrapper });
@@ -178,19 +180,20 @@ describe("TranscriptViewNodes current-turn stamping", () => {
         });
       }, []);
       return (
-        <div ref={scrollRef}>
-          <TranscriptViewNodes
-            id="test"
-            ref={handleRef}
-            eventNodes={eventNodes}
-            defaultCollapsedIds={{}}
-            scrollRef={scrollRef}
-            initialEventId={null}
-            collapsedTranscript={collapsed}
-            onExpandNodes={onExpandNodes}
-            onNavigatedToEvent={onNavigatedToEvent}
-          />
-        </div>
+        <TranscriptHostProvider host={{ navigation: { onNavigatedToEvent } }}>
+          <div ref={scrollRef}>
+            <TranscriptViewNodes
+              id="test"
+              ref={handleRef}
+              eventNodes={eventNodes}
+              defaultCollapsedIds={{}}
+              scrollRef={scrollRef}
+              initialEventId={null}
+              collapsedTranscript={collapsed}
+              onExpandNodes={onExpandNodes}
+            />
+          </div>
+        </TranscriptHostProvider>
       );
     };
 
@@ -236,18 +239,19 @@ describe("TranscriptViewNodes current-turn stamping", () => {
         });
       }, []);
       return (
-        <div ref={scrollRef}>
-          <TranscriptViewNodes
-            id="test"
-            eventNodes={eventNodes}
-            defaultCollapsedIds={{}}
-            scrollRef={scrollRef}
-            initialEventId={null}
-            collapsedTranscript={collapsed}
-            onExpandNodes={onExpandNodes}
-            onNavigatedToEvent={onNavigatedToEvent}
-          />
-        </div>
+        <TranscriptHostProvider host={{ navigation: { onNavigatedToEvent } }}>
+          <div ref={scrollRef}>
+            <TranscriptViewNodes
+              id="test"
+              eventNodes={eventNodes}
+              defaultCollapsedIds={{}}
+              scrollRef={scrollRef}
+              initialEventId={null}
+              collapsedTranscript={collapsed}
+              onExpandNodes={onExpandNodes}
+            />
+          </div>
+        </TranscriptHostProvider>
       );
     };
 
@@ -331,16 +335,17 @@ describe("TranscriptViewNodes first-j-from-load (turn 1 is the topmost row)", ()
     const restore = mockLayout(layoutRef, nowRef);
     try {
       render(
-        <div ref={scrollRef}>
-          <TranscriptViewNodes
-            id="test"
-            eventNodes={eventNodes}
-            defaultCollapsedIds={{}}
-            scrollRef={scrollRef}
-            initialEventId={null}
-            onNavigatedToEvent={onNavigatedToEvent}
-          />
-        </div>,
+        <TranscriptHostProvider host={{ navigation: { onNavigatedToEvent } }}>
+          <div ref={scrollRef}>
+            <TranscriptViewNodes
+              id="test"
+              eventNodes={eventNodes}
+              defaultCollapsedIds={{}}
+              scrollRef={scrollRef}
+              initialEventId={null}
+            />
+          </div>
+        </TranscriptHostProvider>,
         { wrapper: StateWrapper }
       );
 
@@ -392,18 +397,19 @@ describe("TranscriptViewNodes j-past-last arms follow (S4)", () => {
     const onNavigatedToEvent = vi.fn();
     render(
       <ComponentStateProvider hooks={hooks}>
-        <div ref={scrollRef}>
-          <TranscriptViewNodes
-            id="test"
-            eventNodes={eventNodes}
-            defaultCollapsedIds={{}}
-            scrollRef={scrollRef}
-            running={running}
-            // Seeds currentTurnIndexRef at this turn for an immediate j.
-            initialEventId={lastEventId}
-            onNavigatedToEvent={onNavigatedToEvent}
-          />
-        </div>
+        <TranscriptHostProvider host={{ navigation: { onNavigatedToEvent } }}>
+          <div ref={scrollRef}>
+            <TranscriptViewNodes
+              id="test"
+              eventNodes={eventNodes}
+              defaultCollapsedIds={{}}
+              scrollRef={scrollRef}
+              running={running}
+              // Seeds currentTurnIndexRef at this turn for an immediate j.
+              initialEventId={lastEventId}
+            />
+          </div>
+        </TranscriptHostProvider>
       </ComponentStateProvider>
     );
     return { store, onNavigatedToEvent };
@@ -459,17 +465,22 @@ describe("TranscriptViewNodes focus-entry follow arming (S3)", () => {
     capturedEventCallbacks = undefined;
     render(
       <ComponentStateProvider hooks={hooks}>
-        <div ref={scrollRef}>
-          <TranscriptViewNodes
-            id="test"
-            eventNodes={eventNodes}
-            defaultCollapsedIds={{}}
-            scrollRef={scrollRef}
-            running={running}
-            getEventFocusUrl={(eventId) => `#/x?event=${eventId}`}
-            onOpenEventFocus={() => {}}
-          />
-        </div>
+        <TranscriptHostProvider
+          host={{
+            urls: { getEventFocusUrl: (eventId) => `#/x?event=${eventId}` },
+            navigation: { onOpenEventFocus: () => {} },
+          }}
+        >
+          <div ref={scrollRef}>
+            <TranscriptViewNodes
+              id="test"
+              eventNodes={eventNodes}
+              defaultCollapsedIds={{}}
+              scrollRef={scrollRef}
+              running={running}
+            />
+          </div>
+        </TranscriptHostProvider>
       </ComponentStateProvider>
     );
     return { store };
@@ -511,19 +522,24 @@ describe("TranscriptViewNodes `f` focus targeting (following vs current turn)", 
     const opened: string[] = [];
     render(
       <ComponentStateProvider hooks={hooks}>
-        <div ref={scrollRef}>
-          <TranscriptViewNodes
-            id="test"
-            eventNodes={eventNodes}
-            defaultCollapsedIds={{}}
-            scrollRef={scrollRef}
-            running={running}
-            // Seeds currentTurnIndexRef at the viewport-top turn.
-            initialEventId={initialEventId}
-            getEventFocusUrl={(eventId) => `#/x?event=${eventId}`}
-            onOpenEventFocus={(href) => opened.push(href)}
-          />
-        </div>
+        <TranscriptHostProvider
+          host={{
+            urls: { getEventFocusUrl: (eventId) => `#/x?event=${eventId}` },
+            navigation: { onOpenEventFocus: (href) => opened.push(href) },
+          }}
+        >
+          <div ref={scrollRef}>
+            <TranscriptViewNodes
+              id="test"
+              eventNodes={eventNodes}
+              defaultCollapsedIds={{}}
+              scrollRef={scrollRef}
+              running={running}
+              // Seeds currentTurnIndexRef at the viewport-top turn.
+              initialEventId={initialEventId}
+            />
+          </div>
+        </TranscriptHostProvider>
       </ComponentStateProvider>
     );
     return { opened };

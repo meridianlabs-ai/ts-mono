@@ -186,14 +186,14 @@ export const eventNodeOf = <T extends EventType["event"]>(
 };
 
 /**
- * Props threaded from app-level stores through the virtual list
- * to EventPanel for collapse state and deep-link URL generation.
+ * Per-instance callbacks threaded from the list that owns the rows (collapse
+ * state, turn navigation, tab selection) through the virtual list to
+ * EventPanel. Host-level behavior (deep-link URLs, focus-mode navigation)
+ * comes from the `TranscriptHost` context instead.
  */
 export interface EventPanelCallbacks {
   onCollapse?: (id: string, collapsed: boolean) => void;
   getCollapsed?: (id: string) => boolean;
-  getEventUrl?: (eventId: string) => string | undefined;
-  linkingEnabled?: boolean;
   /** Selected tab NAME for a multi-tab event panel; when it returns a name
    *  it wins over the panel's own per-event selection. */
   getSelectedTab?: (
@@ -207,7 +207,9 @@ export interface EventPanelCallbacks {
    *  selection) — the host aligns the panel to show the new tab from its start. */
   onTabSelected?: (eventNodeId: string) => void;
   /** Builds the focus-mode entry href for an event's header link, carrying
-   *  the panel's selected tab. Omit to hide that control. */
+   *  the panel's selected tab. The owning list derives it from the host's
+   *  `urls.getEventFocusUrl`, adding its own live-tail state (`follow=1`).
+   *  Omit to hide that control. */
   getEventFocusUrl?: (
     eventId: string,
     selectedTab?: string
@@ -225,11 +227,6 @@ export interface EventPanelCallbacks {
   /** Whether this event card is the landing target of the latest go-to-turn
    *  jump — it renders a persistent selection ring. */
   isJumpTarget?: (eventNodeId: string) => boolean;
-  /** Enter focus mode in the current window, from the SAME `getEventFocusUrl`
-   *  href the anchor renders (`#`-prefixed hrefs accepted) — the anchor keeps
-   *  the href so modified clicks open a new tab natively; a plain left-click
-   *  calls this instead. */
-  onOpenEventFocus?: (focusRoute: string) => void;
 }
 
 /**

@@ -23,6 +23,7 @@ The shared package originally used three context providers for dependency inject
 | `DisplayModeContext` | Toggle between rendered markdown and raw text | Actively used -- Scout's TranscriptBody provides this |
 | `IconsContext` | Icon class names (tree expand/collapse, checkbox, tool, etc.) | Removed -- never provided by an app; now the `ContentIcons` constant in `content/icons.ts` |
 | `ContentRenderersContext` | Custom content renderer registration | Removed -- never provided by an app (built-in renderers suffice) |
+| `TranscriptHostContext` (`transcript/host.tsx`) | Per-app transcript behavior (deep-link URL builders, router navigation, chrome headroom, outline link renderer) | Added -- `TranscriptHostProvider` / `useTranscriptHost()`; inspect provides it in `TranscriptPanel`, scout in `TranscriptBody` and `ResultBody`. Unprovided mounts read an empty host |
 
 ### Renderer Plugin System
 
