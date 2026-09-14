@@ -12,12 +12,35 @@ const hostOf = (el: Element): Element | null => {
 const isInput = (el: Element | null | undefined): el is HTMLInputElement =>
   el instanceof HTMLInputElement;
 
+const isTextarea = (
+  el: Element | null | undefined
+): el is HTMLTextAreaElement => el instanceof HTMLTextAreaElement;
+
 const hasChecked = (el: Element): el is Element & { checked: boolean } =>
   "checked" in el && typeof el.checked === "boolean";
 
 export const byId = (id: string): HTMLElement => {
   const el = document.getElementById(id);
   if (!el) throw new Error(`No element with id "${id}"`);
+  return el;
+};
+
+/** The one `<tag>` on the page; throws if there are none or several. */
+export const onlyElement = (tag: string): Element => {
+  const all = document.querySelectorAll(tag);
+  if (all.length !== 1) {
+    throw new Error(`Expected one <${tag}>, found ${all.length}`);
+  }
+  const [el] = all;
+  if (!el) throw new Error(`Expected one <${tag}>`);
+  return el;
+};
+
+/** The `<textarea>` inside a `vscode-textarea` host. */
+export const innerTextarea = (host: Element): HTMLTextAreaElement => {
+  const el = host.shadowRoot?.querySelector("textarea");
+  if (!isTextarea(el))
+    throw new Error(`${host.tagName} has no shadow textarea`);
   return el;
 };
 

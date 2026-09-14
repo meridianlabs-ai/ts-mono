@@ -8,9 +8,9 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { forwardRef, type PropsWithChildren } from "react";
+import { type PropsWithChildren } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createInitialSearchPanelState,
@@ -19,13 +19,14 @@ import {
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 import { ComponentIconProvider } from "@tsmono/react/components";
+import { testIcons } from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { apiScoutServer } from "../../api/api-scout-server";
-import { ApplicationIcons } from "../../icons";
 import { ApiProvider, createStore, StoreProvider } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { server } from "../../test/setup-msw";
+import { innerTextarea, onlyElement } from "../../test/webComponents";
 import type {
   ProjectConfig,
   Result,
@@ -36,59 +37,8 @@ import type {
 import { getSearchPanelStateKey } from "./scoutSearchAdapters";
 import { SearchPanel } from "./SearchPanel";
 
-// VscodeTextarea is a custom element backed by ElementInternals, which jsdom
-// doesn't fully implement (`_internals.setValidity` is missing). Stub it with
-// a plain textarea so renders don't blow up. Behavior we care about (query
-// state, submit, type toggle) is exercised through the surrounding form.
-vi.mock("@vscode-elements/react-elements", async () => {
-  const actual = await vi.importActual<
-    typeof import("@vscode-elements/react-elements")
-  >("@vscode-elements/react-elements");
-  type StubProps = {
-    value?: string;
-    onInput?: (e: Event) => void;
-    placeholder?: string;
-    rows?: number;
-  };
-  const VscodeTextareaStub = forwardRef<HTMLTextAreaElement, StubProps>(
-    function VscodeTextareaStub({ value, onInput, placeholder, rows }, ref) {
-      return (
-        <textarea
-          ref={ref}
-          value={value ?? ""}
-          placeholder={placeholder}
-          rows={rows}
-          onInput={(e) => onInput?.(e.nativeEvent)}
-          onChange={() => {}}
-          data-testid="search-textarea"
-        />
-      );
-    }
-  );
-  return { ...actual, VscodeTextarea: VscodeTextareaStub };
-});
-
 const transcriptDir = "/tmp/transcripts";
 const transcriptId = "sample-transcript";
-
-const minimalIcons = {
-  arrowDown: ApplicationIcons.arrows.down,
-  arrowUp: ApplicationIcons.arrows.up,
-  chevronDown: ApplicationIcons.chevron.down,
-  chevronUp: ApplicationIcons.collapse.up,
-  clearText: ApplicationIcons["clear-text"],
-  close: ApplicationIcons.close,
-  code: ApplicationIcons.code,
-  confirm: ApplicationIcons.confirm,
-  copy: ApplicationIcons.copy,
-  error: ApplicationIcons.error,
-  menu: ApplicationIcons.threeDots,
-  next: ApplicationIcons.next,
-  noSamples: ApplicationIcons.noSamples,
-  play: ApplicationIcons.play,
-  previous: ApplicationIcons.previous,
-  toggleRight: ApplicationIcons["toggle-right"],
-};
 
 const projectConfig = (model: string | null): ProjectConfig => ({
   filter: [],
@@ -146,7 +96,7 @@ const renderSearchPanel = ({
     <QueryClientProvider client={queryClient}>
       <ApiProvider value={api}>
         <StoreProvider value={store}>
-          <ComponentIconProvider icons={minimalIcons}>
+          <ComponentIconProvider icons={testIcons}>
             <MemoryRouter initialEntries={[route]}>
               <Routes>
                 <Route
@@ -502,7 +452,7 @@ describe("SearchPanel", () => {
 
     await waitFor(() => expect(screen.queryByText("5 matches")).not.toBeNull());
 
-    const textarea = screen.getByTestId("search-textarea");
+    const textarea = innerTextarea(onlyElement("vscode-textarea"));
     fireEvent.input(textarea, { target: { value: "needles" } });
 
     expect(screen.queryByText("5 matches")).not.toBeNull();
