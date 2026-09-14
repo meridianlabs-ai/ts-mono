@@ -202,6 +202,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   );
   // Pointer over the tooltip itself (its footer is clickable) holds it.
   const [tooltipHeld, setTooltipHeld] = useState(false);
+  // The card follows the pointer horizontally (handoff 11b) while the
+  // hairline stays anchored to the hovered span/marker start — so the
+  // pointer's x is tracked apart from the cursor.
+  const [pointerX, setPointerX] = useState<number | null>(null);
   const [foldExpanded, setFoldExpanded] = useState(false);
 
   const clearTarget = () => {
@@ -209,6 +213,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   };
   const leaveChart = () => {
     setCursor(null);
+    setPointerX(null);
     setHoverTarget(null);
     setShownKey(null);
     setTooltipHeld(false);
@@ -2047,17 +2052,19 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── tooltip placement (handoff 11b) ───────────────────────────────────
   // Below the activity band (never over the hovered row); follows the
-  // pointer horizontally; flips left near the right edge.
+  // pointer horizontally; flips left near the right edge. Keyboard focus
+  // on a marker has no pointer, so the anchor stands in.
   const renderTooltip = () => {
     if (!hoverTarget || !cursor || shownKey !== targetKey) return null;
     const activityBand = bands.find((b) => b.kind === "modelTool");
     const top = activityBand
       ? activityBand.top + activityBand.height - 6
       : (bands[0]?.top ?? markerHeadroom) + kPlotTop;
+    const anchorX = pointerX ?? cursor.x;
     const left =
-      cursor.x > width - kTooltipFlipPx
-        ? Math.max(cursor.x - 12 - kTooltipWidth, 0)
-        : cursor.x + 12;
+      anchorX > width - kTooltipFlipPx
+        ? Math.max(anchorX - 12 - kTooltipWidth, 0)
+        : anchorX + 12;
     return (
       <ActivityTooltip
         target={hoverTarget}
@@ -2081,7 +2088,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       onMouseLeave={leaveChart}
     >
       {width > 0 && (
-        <svg className={styles.svg} width={width} height={height}>
+        <svg
+          className={styles.svg}
+          width={width}
+          height={height}
+          onMouseMove={(event) =>
+            setPointerX(
+              event.clientX - event.currentTarget.getBoundingClientRect().left
+            )
+          }
+        >
           <rect
             className={styles.plotHit}
             x={plotLeft}

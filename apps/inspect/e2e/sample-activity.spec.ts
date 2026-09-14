@@ -331,6 +331,30 @@ test("hovering a span shows the tooltip card with click-through", async ({
   await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
 });
 
+test("the span tooltip follows the pointer horizontally", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
+
+  const span = page.locator("rect[class*='modelSpan']").first();
+  const box = await span.boundingBox();
+  if (!box) throw new Error("expected a model span");
+  await span.hover({ position: { x: box.width * 0.25, y: box.height / 2 } });
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toBeVisible();
+  const before = await card.boundingBox();
+
+  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height / 2, {
+    steps: 4,
+  });
+  await expect
+    .poll(async () => (await card.boundingBox())?.x)
+    .toBeGreaterThan((before?.x ?? 0) + box.width * 0.4);
+  // The hairline stays anchored to the span start while the card moves.
+  await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
+});
+
 test("history list filters by category pill and search", async ({
   page,
   network,
