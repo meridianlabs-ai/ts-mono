@@ -15,7 +15,7 @@ import {
   type SearchPanelState,
 } from "@tsmono/inspect-components/transcript-search";
 import type { VirtualListStateSnapshot } from "@tsmono/react/virtual";
-import { debounce, getOwn, isRecord } from "@tsmono/util";
+import { debounce, getOwn } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
@@ -28,11 +28,7 @@ import {
 } from "../app/types";
 import { TranscriptInfo } from "../types/api-types";
 
-import {
-  emptyDataframeState,
-  normalizeDataframeStates,
-  type DataframeState,
-} from "./dataframeState";
+import { emptyDataframeState, type DataframeState } from "./dataframeState";
 
 export type {
   ColumnFilter,
@@ -824,14 +820,6 @@ export const createStore = (api: ScoutApiV2) =>
             createJSONStorage(() => api.storage)
           ),
           version: 1,
-          merge: (persisted, current) => {
-            if (!isRecord(persisted)) return current;
-            return {
-              ...current,
-              ...persisted,
-              gridStates: normalizeDataframeStates(persisted.gridStates),
-            };
-          },
           partialize: (state) => {
             const {
               hasInitializedRouting,

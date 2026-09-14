@@ -1,7 +1,13 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { apiScoutServer } from "../api/api-scout-server";
+import { createVSCodeStore } from "../api/vscode-storage";
 
+import {
+  emptyDataframeState,
+  GRID_STATE_NAME,
+  type DataframeState,
+} from "./dataframeState";
 import { createStore } from "./store";
 
 // Property groups are named by component ids, and transcript panels use the
@@ -121,5 +127,66 @@ describe("store properties prototype safety", () => {
     store.removeAllProperties("constructor");
     expect(store.getPropertyValue("constructor", "a", "gone")).toBe("gone");
     expect(Object.hasOwn(Object.prototype, "a")).toBe(false);
+  });
+});
+
+describe("dataframe state lifetime", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const dataframe: DataframeState = {
+    ...emptyDataframeState,
+    sorting: [{ id: "value", desc: true }],
+    columnOrder: ["value", "transcript_id"],
+    columnSizing: { value: 120 },
+    columnPinning: { start: ["value"], end: [] },
+    columnFilters: {
+      value: {
+        columnId: "value",
+        filterType: "number",
+        spec: { operator: ">", value: "0" },
+      },
+    },
+    scroll: { top: 8500, left: 100 },
+  };
+
+  it("restores current dataframe state when VS Code recreates the webview", () => {
+    let webviewState: unknown;
+    const vscode = {
+      getState: () => webviewState,
+      setState: (state: unknown) => {
+        webviewState = structuredClone(state);
+      },
+      postMessage: () => {},
+    };
+    const api = { ...apiScoutServer(), storage: createVSCodeStore(vscode) };
+    const original = createStore(api);
+    original.getState().setGridState(GRID_STATE_NAME, dataframe);
+    original.getState().setSelectedResultRow(5);
+    vi.runAllTimers();
+
+    const restored = createStore(api);
+    expect(restored.getState().gridStates[GRID_STATE_NAME]).toEqual(dataframe);
+    expect(restored.getState().selectedResultRow).toBe(5);
+    restored.getState().setGridState(GRID_STATE_NAME, (previous) => ({
+      ...previous,
+      sorting: [],
+    }));
+    expect(restored.getState().gridStates[GRID_STATE_NAME]?.sorting).toEqual(
+      []
+    );
+    vi.runAllTimers();
+  });
+
+  it("starts fresh when the normal browser store is recreated", () => {
+    const api = apiScoutServer();
+    const original = createStore(api);
+    original.getState().setGridState(GRID_STATE_NAME, dataframe);
+    original.getState().setSelectedResultRow(5);
+    vi.runAllTimers();
+
+    const recreated = createStore(api);
+    expect(recreated.getState().gridStates[GRID_STATE_NAME]).toBeUndefined();
+    expect(recreated.getState().selectedResultRow).toBeUndefined();
   });
 });

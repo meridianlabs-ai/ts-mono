@@ -45,6 +45,8 @@ const data = from(
     passed: index % 2 === 0,
   }))
 );
+// localStorage stands in for VS Code webview state across page recreation.
+// The browser app itself uses NoPersistence for this store.
 const store = createStore({ ...apiScoutServer(), storage: localStorage });
 store.setState({
   dataframeFilterColumns: columns,

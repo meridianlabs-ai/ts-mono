@@ -1,7 +1,30 @@
 import { readFile } from "node:fs/promises";
 
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { fromCSV } from "arquero";
+
+import {
+  emptyDataframeState,
+  GRID_STATE_NAME,
+  type DataframeState,
+} from "../src/state/dataframeState";
+
+async function seedDataframeState(page: Page, patch: Partial<DataframeState>) {
+  await page.addInitScript(
+    (gridStates) => {
+      if (!localStorage.getItem("inspect-scout-storage")) {
+        localStorage.setItem(
+          "inspect-scout-storage",
+          JSON.stringify({
+            version: 1,
+            state: { selectedResultRow: 0, gridStates },
+          })
+        );
+      }
+    },
+    { [GRID_STATE_NAME]: { ...emptyDataframeState, ...patch } }
+  );
+}
 
 const fixture = "/e2e/fixtures/dataframe/";
 
@@ -11,28 +34,10 @@ test.beforeEach(({ page }) => {
   });
 });
 
-test("the dataframe restores both scroll axes even with an obsolete list snapshot", async ({
+test("the dataframe restores both scroll axes after webview recreation", async ({
   page,
 }) => {
-  await page.addInitScript(
-    () =>
-      !localStorage.getItem("inspect-scout-storage") &&
-      localStorage.setItem(
-        "inspect-scout-storage",
-        JSON.stringify({
-          version: 1,
-          state: {
-            selectedResultRow: 0,
-            gridStates: { DataframeView: { scroll: { top: 5000, left: 200 } } },
-            properties: {
-              "scanner-dataframe": {
-                snapshot: { version: 1, scrollOffset: 0, totalCount: 5000 },
-              },
-            },
-          },
-        })
-      )
-  );
+  await seedDataframeState(page, { scroll: { top: 5000, left: 200 } });
   await page.setViewportSize({ width: 900, height: 720 });
   await page.goto(`${fixture}?rows=5000`);
   const grid = page.getByRole("grid", { name: "Scanner results" });
@@ -56,33 +61,16 @@ test("the dataframe restores both scroll axes even with an obsolete list snapsho
 test("multiple pinned columns stay aligned after resizing, reordering and reload", async ({
   page,
 }) => {
-  await page.addInitScript(
-    () =>
-      !localStorage.getItem("inspect-scout-storage") &&
-      localStorage.setItem(
-        "inspect-scout-storage",
-        JSON.stringify({
-          version: 1,
-          state: {
-            gridStates: {
-              DataframeView: {
-                columnPinning: {
-                  start: ["value", "transcript_id"],
-                  end: ["metadata"],
-                },
-                columnSizing: {
-                  value: 100,
-                  transcript_id: 200,
-                  explanation: 800,
-                  metadata: 180,
-                  passed: 100,
-                },
-              },
-            },
-          },
-        })
-      )
-  );
+  await seedDataframeState(page, {
+    columnPinning: { start: ["value", "transcript_id"], end: ["metadata"] },
+    columnSizing: {
+      value: 100,
+      transcript_id: 200,
+      explanation: 800,
+      metadata: 180,
+      passed: 100,
+    },
+  });
   await page.goto(fixture);
   const grid = page.getByRole("grid", { name: "Scanner results" });
   const value = page.getByRole("columnheader", { name: "value", exact: true });
@@ -382,44 +370,26 @@ test("an empty table reports zero rows and leaves keyboard navigation inert", as
 test("restores saved compound filters and sort, then clears filters", async ({
   page,
 }) => {
-  await page.addInitScript(
-    () =>
-      !localStorage.getItem("inspect-scout-storage") &&
-      localStorage.setItem(
-        "inspect-scout-storage",
-        JSON.stringify({
-          version: 1,
-          state: {
-            gridStates: {
-              DataframeView: {
-                filter: {
-                  filterModel: {
-                    explanation: {
-                      filterType: "text",
-                      operator: "OR",
-                      conditions: [
-                        {
-                          filterType: "text",
-                          type: "contains",
-                          filter: "alpha",
-                        },
-                        { filterType: "text", type: "equals", filter: "beta" },
-                      ],
-                    },
-                    value: {
-                      filterType: "number",
-                      type: "greaterThan",
-                      filter: 0,
-                    },
-                  },
-                },
-                sort: { sortModel: [{ colId: "value", sort: "asc" }] },
-              },
-            },
-          },
-        })
-      )
-  );
+  await seedDataframeState(page, {
+    columnFilters: {
+      explanation: {
+        columnId: "explanation",
+        filterType: "string",
+        spec: {
+          operator: "contains",
+          value: "alpha",
+          join: "or",
+          second: { operator: "=", value: "beta" },
+        },
+      },
+      value: {
+        columnId: "value",
+        filterType: "number",
+        spec: { operator: ">", value: "0" },
+      },
+    },
+    sorting: [{ id: "value", desc: false }],
+  });
   await page.goto(fixture);
   await expect(page.getByLabel("Visible rows")).toHaveText("2");
   await expect(
