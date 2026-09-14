@@ -20,6 +20,7 @@
   width: 100%;
   display: grid;
   overflow: hidden;
+  padding-right: 2.25rem;
   transition: opacity 120ms linear;
 }
 
@@ -49,4 +50,12 @@
 .collapsedSlot > * {
   min-height: 0;
   overflow: hidden;
+}
+
+.collapseToggle {
+  position: absolute;
+  z-index: 1;
+  top: 0.2rem;
+  right: 0.25rem;
+  padding: 0.15rem 0.35rem;
 }
