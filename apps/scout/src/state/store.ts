@@ -3,7 +3,7 @@ import { create, type StateCreator } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import { debounce, isRecord } from "@tsmono/util";
+import { debounce } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 
@@ -76,30 +76,6 @@ const createDebouncedPersistStorage = (
   };
 };
 
-// Persisted buckets that no longer exist in the store. Stored blobs from
-// older sessions still carry them; the shallow default merge would copy them
-// back into state (and partialize would re-persist them forever).
-const kRetiredPersistedKeys = [
-  "listPositions",
-  "loading",
-  "loadingData",
-  "resultDataInState",
-  "resultsStoredInRef",
-  "scrollPositions",
-  "transcripts",
-  "visibleRanges",
-];
-
-const mergePersistedState = (
-  persisted: unknown,
-  current: StoreState
-): StoreState => {
-  if (!isRecord(persisted)) return current;
-  const retained = { ...persisted };
-  for (const key of kRetiredPersistedKeys) delete retained[key];
-  return { ...current, ...retained };
-};
-
 export const createStore = (api: ScoutApiV2) =>
   create<StoreState>()(
     devtools(
@@ -128,7 +104,6 @@ export const createStore = (api: ScoutApiV2) =>
             } = state;
             return persistedState;
           },
-          merge: mergePersistedState,
         }
       )
     )
