@@ -146,6 +146,10 @@ export interface ActivitySpan {
   failed: boolean;
   /** Open-ended span on a running sample — end extends to "now". */
   pending: boolean;
+  /** Working seconds inside the span (wall duration when the log has no
+   *  working clock). Turns mode splits a column by these, never by wall
+   *  time: waiting has no extent there. */
+  working: number;
   retries?: number;
   uuid?: string;
   /** 1-based interleaved turn index. */
@@ -810,6 +814,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           rowId: row.id,
           failed: false,
           pending: isPending,
+          working: Math.min(workingTime ?? end - t, end - t),
           retries: event.retries ?? undefined,
           uuid,
           inputTokens: usage ? inputSideTokens(event) : undefined,
@@ -821,7 +826,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         row.spans.push(span);
         const turn = newTurn(row.id, t, end);
         turn.model = span;
-        turn.modelWork = Math.min(workingTime ?? end - t, end - t);
+        turn.modelWork = span.working;
         if ((event.retries ?? 0) > 0) {
           retryWindows.push({
             start: t,
@@ -875,6 +880,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           rowId: row.id,
           failed,
           pending: isPending,
+          working: Math.min(workingTime ?? end - t, end - t),
           uuid,
           resultBytes: resultSize(event.result),
           firstArgKey: firstArg(event.arguments)?.key,
@@ -889,7 +895,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const turn = currentTurnByRow.get(row.id) ?? newTurn(row.id, t, end);
         turn.tools.push(span);
         turn.end = Math.max(turn.end, end);
-        turn.toolWork += Math.min(workingTime ?? end - t, end - t);
+        turn.toolWork += span.working;
         if (failed) {
           const at = completed ?? t;
           markers.push({
@@ -1256,17 +1262,21 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     if (turn.model) turn.model.turn = turn.index;
     for (const tool of turn.tools) tool.turn = turn.index;
     // A hand-off tool's working time is the child's run, not the parent's
-    // own work — its share stops where the child starts.
+    // own work — its share stops where the child starts. The turn's tool
+    // work is the sum of its spans' so the chart's slot weights add up.
     for (const tool of turn.tools) {
       if (!tool.handoffTo) continue;
       const blocked = rowsById
         .get(turn.rowId)
         ?.blockedOn.find((b) => b.childId === tool.handoffTo);
       if (blocked) {
-        turn.toolWork -= Math.max(0, tool.end - blocked.start);
-        if (turn.toolWork < 0) turn.toolWork = 0;
+        tool.working = Math.min(
+          tool.working,
+          Math.max(0, blocked.start - tool.start)
+        );
       }
     }
+    turn.toolWork = turn.tools.reduce((sum, tool) => sum + tool.working, 0);
   });
 
   // ── token burn: total + per-row cumulative ────────────────────────────

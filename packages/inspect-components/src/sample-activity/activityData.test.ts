@@ -1179,6 +1179,23 @@ describe("turns (handoff 8b)", () => {
     expect(data.contextSeries.map((point) => point.turn)).toEqual([1, 2]);
   });
 
+  it("carries working seconds on every span for the column split", () => {
+    const events: Event[] = [
+      modelCall({ start: 0, duration: 10, working: 4, workingStart: 0 }),
+      testToolEvent({
+        timestamp: iso(10),
+        completed: iso(100),
+        working_start: 4,
+        working_time: 10,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    const [turn] = data.turns;
+    expect(turn?.model?.working).toBe(4);
+    expect(turn?.tools[0]?.working).toBe(10);
+    expect(turn).toMatchObject({ modelWork: 4, toolWork: 10 });
+  });
+
   it("locates markers inside a turn and snaps between-turn markers forward", () => {
     const events: Event[] = [
       modelCall({ start: 0, duration: 4, workingStart: 0, uuid: "m1" }),

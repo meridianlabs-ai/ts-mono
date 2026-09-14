@@ -84,6 +84,29 @@ afterEach(() => {
 });
 
 describe("ActivityChart Turns mode geometry", () => {
+  it("splits a column by working time, not wall time", () => {
+    // 10s of model work, then a tool that waited 80s of its 90s wall span:
+    // 10s model : 10s tool → an even split of the 960px column.
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 10, uuid: "m" }),
+        testToolEvent({
+          uuid: "t",
+          timestamp: iso(10),
+          completed: iso(100),
+          working_start: 10,
+          working_time: 10,
+        }),
+      ],
+      { axisMode: "turns" }
+    );
+    const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "width")).toBeCloseTo(kPlotWidth / 2);
+    const tool = container.querySelector("rect[class*='toolSpan']");
+    expect(attr(tool, "x")).toBeCloseTo(kPlotLeft + kPlotWidth / 2);
+    expect(attr(tool, "width")).toBeCloseTo(kPlotWidth / 2);
+  });
+
   it("lands pre-uuid curve points on their turn's right edge", () => {
     // Older logs have timestamps but no event uuids: the points still
     // belong to the turn that produced them.

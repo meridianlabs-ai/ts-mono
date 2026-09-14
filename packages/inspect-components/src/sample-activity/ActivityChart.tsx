@@ -1179,11 +1179,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return turns.filter((t) => folded.has(t.rowId));
   };
 
-  /** Effective seconds a tool span occupies in its turn's tool share — a
-   *  hand-off stops where the child starts, like its working share. */
-  const toolWeight = (row: AgentRow, s: ActivitySpan): number =>
-    Math.max(spanDrawEnd(row, s) - s.start, 0);
-
   /** Turns mode (handoff 8b): one gap-free column per turn — the grey model
    *  share then the teal tool share split by that turn's working ratio,
    *  bursts keeping their sub-lanes inside the tool share, rejected calls
@@ -1259,14 +1254,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           slots.push({
             kind: "burst",
             members,
-            weight: Math.max(burst.end - burst.start, 0),
+            weight: members.reduce((sum, member) => sum + member.working, 0),
           });
         } else {
-          slots.push({
-            kind: "tool",
-            span: tool,
-            weight: toolWeight(row, tool),
-          });
+          slots.push({ kind: "tool", span: tool, weight: tool.working });
         }
       }
       // A rejected call takes the room a tool would have: weighted like the
@@ -1274,9 +1265,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       for (let i = 0; i < turn.rejected; i++) {
         slots.push({ kind: "ghost", weight: Math.max(turn.modelWork, 1e-3) });
       }
+      // Model : tool split by working seconds (handoff 8b) — the slot
+      // weights are the spans' working time, so they sum to turn.toolWork
+      // plus any ghost slots.
       const slotWeight = slots.reduce((sum, slot) => sum + slot.weight, 0);
-      const toolShare = slots.length === 0 ? 0 : slotWeight;
-      const total = turn.modelWork + toolShare;
+      const total = turn.modelWork + slotWeight;
       const modelShare = total > 0 ? turn.modelWork / total : 1;
       const modelRight = turn.model ? left + colWidth * modelShare : left;
       const toolLeft = modelRight;
