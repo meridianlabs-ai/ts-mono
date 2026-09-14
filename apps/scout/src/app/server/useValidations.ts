@@ -265,6 +265,68 @@ export const useBulkDeleteValidationCases = (uri: string) => {
   });
 };
 
+export type CopyValidationCasesRequest = {
+  /** Validation set the cases are written into. */
+  destUri: string;
+  cases: { caseId: string; data: ValidationCaseRequest }[];
+};
+
+/**
+ * Hook to copy validation cases into another validation set (bulk upsert).
+ * Uses Promise.allSettled to handle partial failures gracefully; the result
+ * reports how many copies landed so callers can warn without aborting.
+ */
+export const useCopyValidationCases = () => {
+  const queryClient = useQueryClient();
+  const api = useApi();
+  return useMutation<
+    { succeeded: number; failed: number },
+    Error,
+    CopyValidationCasesRequest
+  >({
+    mutationFn: async ({ destUri, cases }) => {
+      const results = await Promise.allSettled(
+        cases.map(({ caseId, data }) =>
+          api.upsertValidationCase(destUri, caseId, data)
+        )
+      );
+
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+
+      // Throw if all failed
+      if (failed === results.length) {
+        const errors = results
+          .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+          .map((r) => String(r.reason));
+        throw new Error(
+          `All ${failed} copy operations failed: ${errors.join(", ")}`
+        );
+      }
+
+      return { succeeded, failed };
+    },
+    // Reached only when at least one copy succeeded (all-failed throws).
+    // Not optimistic: stay pending until the destination refetch lands so a
+    // move can't show the source rows gone before the copies appear.
+    onSuccess: async (_data, { destUri, cases }) => {
+      // Copied cases may already be cached as "missing" for the destination
+      // set (the editor caches 404s as null), so those entries go stale too.
+      for (const { caseId } of cases) {
+        queryClient
+          .invalidateQueries({
+            queryKey: validationCaseQuery(api, { url: destUri, caseId })
+              .queryKey,
+          })
+          .catch(console.error);
+      }
+      await queryClient.invalidateQueries({
+        queryKey: validationCasesQuery(api, destUri).queryKey,
+      });
+    },
+  });
+};
+
 /**
  * Hook to delete an entire validation set.
  */
