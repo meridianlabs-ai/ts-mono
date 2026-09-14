@@ -19,7 +19,6 @@ export interface ScanSlice {
   selectedScanner?: string;
   selectedResultsView?: string;
   selectedFilter?: string;
-  showingRefPopover?: string;
   groupResultsBy?: ResultGroup;
   sortResults?: SortColumn[];
   scansSearchText?: string;
@@ -40,8 +39,6 @@ export interface ScanSlice {
   setSelectedResultTab: (tab: string) => void;
   setSelectedResultsView: (view: string) => void;
   setSelectedFilter: (filter: string) => void;
-  setShowingRefPopover: (popoverKey: string) => void;
-  clearShowingRefPopover: () => void;
   setGroupResultsBy: (groupBy: ResultGroup) => void;
   setSortResults: (sortColumns?: SortColumn[]) => void;
   setScansSearchText: (text: string) => void;
@@ -111,16 +108,6 @@ export const createScanSlice: StoreSlice<ScanSlice> = (set) => ({
   setSelectedFilter: (filter: string) => {
     set((state) => {
       state.selectedFilter = filter;
-    });
-  },
-  setShowingRefPopover: (popoverKey: string) => {
-    set((state) => {
-      state.showingRefPopover = popoverKey;
-    });
-  },
-  clearShowingRefPopover: () => {
-    set((state) => {
-      state.showingRefPopover = undefined;
     });
   },
   setGroupResultsBy: (groupBy: ResultGroup) => {

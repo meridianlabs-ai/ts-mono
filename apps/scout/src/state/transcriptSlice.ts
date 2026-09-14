@@ -37,7 +37,6 @@ export interface TranscriptSlice {
     key: string,
     updater: SearchPanelState | ((prev: SearchPanelState) => SearchPanelState)
   ) => void;
-  clearSearchPanelState: (key: string) => void;
 
   setTranscriptCollapsedEvent: (
     scope: string,
@@ -48,7 +47,6 @@ export interface TranscriptSlice {
     scope: string,
     events: Record<string, boolean>
   ) => void;
-  clearTranscriptCollapsedEvents: (scope: string) => void;
 
   setTranscriptState: (
     updater: TranscriptState | ((prev: TranscriptState) => TranscriptState)
@@ -90,12 +88,6 @@ export const createTranscriptSlice: StoreSlice<TranscriptSlice> = (set) => ({
         typeof updater === "function" ? updater(prev) : updater;
     });
   },
-  clearSearchPanelState: (key: string) => {
-    set((state) => {
-      const { [key]: _removed, ...remaining } = state.searchPanelStates;
-      state.searchPanelStates = remaining;
-    });
-  },
   setTranscriptCollapsedEvent: (
     scope: string,
     event: string,
@@ -114,11 +106,6 @@ export const createTranscriptSlice: StoreSlice<TranscriptSlice> = (set) => ({
   ) => {
     set((state) => {
       state.transcriptCollapsedEvents[scope] = events;
-    });
-  },
-  clearTranscriptCollapsedEvents: (scope: string) => {
-    set((state) => {
-      state.transcriptCollapsedEvents[scope] = {};
     });
   },
   setTranscriptState(updater) {

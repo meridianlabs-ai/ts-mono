@@ -25,7 +25,6 @@ export interface ComponentStateSlice {
     name: string,
     state: DataframeState | ((previous: DataframeState) => DataframeState)
   ) => void;
-  clearGridState: (name: string) => void;
 }
 
 export const createComponentStateSlice: StoreSlice<ComponentStateSlice> = (
@@ -105,19 +104,6 @@ export const createComponentStateSlice: StoreSlice<ComponentStateSlice> = (
         typeof gridState === "function"
           ? gridState(state.gridStates[name] ?? emptyDataframeState)
           : gridState;
-    });
-  },
-  clearGridState: (name: string) => {
-    set((state) => {
-      const newGridStates = { ...state.gridStates };
-      // TODO: Revisit
-
-      delete newGridStates[name];
-
-      return {
-        ...state,
-        gridStates: newGridStates,
-      };
     });
   },
 });
