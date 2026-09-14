@@ -386,6 +386,9 @@ importers:
       '@vitejs/plugin-react-swc':
         specifier: ^4.3.3
         version: 4.3.3(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(yaml@2.9.0))
+      element-internals-polyfill:
+        specifier: ^3.0.2
+        version: 3.0.2
       eslint:
         specifier: ^10.7.0
         version: 10.8.1(supports-color@10.2.2)
@@ -416,6 +419,9 @@ importers:
       react-dom:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
+      shadow-dom-testing-library:
+        specifier: ^1.14.1
+        version: 1.14.1(@testing-library/dom@10.4.1)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -3104,6 +3110,9 @@ packages:
   electron-to-chromium@1.5.404:
     resolution: {integrity: sha512-3WJtd7/lVq2Jnuz6wed1l9+1ZD2u2Tet1/1NBc4Iedkmgbu+I7YuAqdAQ8T+VZtnwysMsAf3IqSq9D1gyZjA2g==}
 
+  element-internals-polyfill@3.0.2:
+    resolution: {integrity: sha512-uB0/Qube3lkwh8SmkTnGIyUgJ9YdqVSzIoHMRCEQjAbD4Y5UzsVbch1tIxjTgUe5k3gy1U0ZMKMJ90A81lqwig==}
+
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
 
@@ -4333,6 +4342,12 @@ packages:
   set-proto@1.0.0:
     resolution: {integrity: sha512-RJRdvCo6IAnPdsvP/7m6bsQqNnn1FCBX5ZNtFL98MmFF/4xAIJTIg1YbHW5DC2W5SKZanrC6i4HsJqlajw/dZw==}
     engines: {node: '>= 0.4'}
+
+  shadow-dom-testing-library@1.14.1:
+    resolution: {integrity: sha512-r/u9LP5EqxIL/TUEX1t2rNO0iWtivJRtvYn7lUZH2DzotUtmhs/EFpo1araB4PJMnFIAPf6JLE8X059Ng58ZhQ==}
+    engines: {node: '>= 14', npm: '>= 7'}
+    peerDependencies:
+      '@testing-library/dom': '>= 8'
 
   shebang-command@2.0.0:
     resolution: {integrity: sha512-kHxr2zZpYtdmrN1qDjrrX/Z1rR1kG8Dx+gkpK1G4eXmvXswmcE1hTWBWYUzlraYw1/yZp6YuDY77YtvbN0dmDA==}
@@ -6878,6 +6893,8 @@ snapshots:
 
   electron-to-chromium@1.5.404: {}
 
+  element-internals-polyfill@3.0.2: {}
+
   emoji-regex@8.0.0: {}
 
   emoji-regex@9.2.2: {}
@@ -8307,6 +8324,10 @@ snapshots:
       dunder-proto: 1.0.1
       es-errors: 1.3.0
       es-object-atoms: 1.1.2
+
+  shadow-dom-testing-library@1.14.1(@testing-library/dom@10.4.1):
+    dependencies:
+      '@testing-library/dom': 10.4.1
 
   shebang-command@2.0.0:
     dependencies:

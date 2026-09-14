@@ -18,17 +18,15 @@ import { encodeBase64Url } from "@tsmono/util";
 import { apiScoutServer } from "../../../api/api-scout-server";
 import { ApiProvider, createStore, StoreProvider } from "../../../state/store";
 import { server } from "../../../test/setup-msw";
+import {
+  button,
+  byId,
+  inputByPlaceholder,
+  selectOption,
+} from "../../../test/webComponents";
 import type { ValidationCase } from "../../../types/api-types";
 
 import { CopyMoveCasesModal } from "./CopyMoveCasesModal";
-
-vi.mock("@vscode-elements/react-elements", async () => {
-  const actual = await vi.importActual<
-    typeof import("@vscode-elements/react-elements")
-  >("@vscode-elements/react-elements");
-  const stubs = await import("../../../test/vscodeElementStubs");
-  return { ...actual, ...stubs };
-});
 
 const sourceUri = "file:///proj/source.csv";
 const targetUri = "file:///proj/target.csv";
@@ -82,17 +80,11 @@ const renderModal = (mode: "copy" | "move", cases: ValidationCase[]) => {
   return { onHide, onSuccess };
 };
 
-// Options for existing sets arrive with the sets fetch; a value can only be
-// selected once its option is in the DOM.
-const chooseTarget = async (value: string, optionLabel: string) => {
-  await screen.findByRole("option", { name: optionLabel });
-  fireEvent.change(screen.getByLabelText("Target validation set:"), {
-    target: { value },
-  });
-};
+const chooseTarget = (optionLabel: string) =>
+  selectOption(byId("copy-move-target-set"), optionLabel);
 
 const submit = (label: "Copy" | "Move") => {
-  fireEvent.click(screen.getByRole("button", { name: label }));
+  fireEvent.click(button(label));
 };
 
 describe("CopyMoveCasesModal", () => {
@@ -127,8 +119,8 @@ describe("CopyMoveCasesModal", () => {
 
     const { onHide, onSuccess } = renderModal("copy", [validationCase("c1")]);
 
-    await chooseTarget("__new__", "Create new set...");
-    fireEvent.input(screen.getByLabelText("New set name:"), {
+    await chooseTarget("Create new set...");
+    fireEvent.input(inputByPlaceholder("Enter name (without extension)"), {
       target: { value: "fresh" },
     });
     submit("Copy");
@@ -181,7 +173,7 @@ describe("CopyMoveCasesModal", () => {
       validationCase("c2"),
     ]);
 
-    await chooseTarget(targetUri, "target.csv");
+    await chooseTarget("target.csv");
     submit("Move");
 
     await screen.findByText(
@@ -219,7 +211,7 @@ describe("CopyMoveCasesModal", () => {
       validationCase("c2"),
     ]);
 
-    await chooseTarget(targetUri, "target.csv");
+    await chooseTarget("target.csv");
     submit("Move");
 
     await screen.findByText(/All 2 copy operations failed/);

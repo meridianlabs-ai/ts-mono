@@ -10,7 +10,7 @@ import {
 import { http, HttpResponse } from "msw";
 import { type FC, type PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { ComponentIconProvider } from "@tsmono/react/components";
 import { testIcons } from "@tsmono/react/testing";
@@ -19,18 +19,16 @@ import { decodeBase64Url, encodeBase64Url, isRecord } from "@tsmono/util";
 import { apiScoutServer } from "../../../api/api-scout-server";
 import { ApiProvider, createStore, StoreProvider } from "../../../state/store";
 import { server } from "../../../test/setup-msw";
+import {
+  button,
+  inputByPlaceholder,
+  queryInputByPlaceholder,
+  radio,
+} from "../../../test/webComponents";
 import type { AppConfig, ValidationCase } from "../../../types/api-types";
 import { useAppConfigAsync } from "../../server/useAppConfig";
 
 import { ValidationCaseEditor } from "./ValidationCaseEditor";
-
-vi.mock("@vscode-elements/react-elements", async () => {
-  const actual = await vi.importActual<
-    typeof import("@vscode-elements/react-elements")
-  >("@vscode-elements/react-elements");
-  const stubs = await import("../../../test/vscodeElementStubs");
-  return { ...actual, ...stubs };
-});
 
 const setUri = "file:///proj/cases.csv";
 const casesEndpoint = `/api/v2/validations/${encodeBase64Url(setUri)}`;
@@ -141,21 +139,7 @@ const renderEditor = async (transcriptId: string) => {
   };
 };
 
-const getRadio = (label: string): HTMLInputElement => {
-  const el = screen.getByLabelText(label);
-  if (!(el instanceof HTMLInputElement)) {
-    throw new Error(`${label} is not a radio input`);
-  }
-  return el;
-};
-
-const getTargetInput = (): HTMLInputElement => {
-  const el = screen.getByPlaceholderText("Enter target value");
-  if (!(el instanceof HTMLInputElement)) {
-    throw new Error("target input is not an input");
-  }
-  return el;
-};
+const targetInput = () => inputByPlaceholder("Enter target value");
 
 describe("ValidationCaseEditor", () => {
   afterEach(() => {
@@ -166,14 +150,14 @@ describe("ValidationCaseEditor", () => {
     const { requests, postBodies } = installCaseServer(new Map());
     await renderEditor("t1");
 
-    fireEvent.click(getRadio("Other"));
+    fireEvent.click(radio("Other"));
 
     // The draft drives the UI (predicate editor appears) without a save.
     await screen.findByText("Predicate");
     await new Promise((r) => setTimeout(r, 50));
     expect(requests.post).toBe(0);
 
-    fireEvent.input(getTargetInput(), { target: { value: "foo" } });
+    fireEvent.input(targetInput(), { target: { value: "foo" } });
 
     // Typing is debounced before the save fires.
     await waitFor(() => expect(requests.post).toBe(1), { timeout: 2000 });
@@ -187,15 +171,15 @@ describe("ValidationCaseEditor", () => {
 
     // Server truth replaces the draft without disturbing what was typed.
     await screen.findByText("Saved");
-    expect(getTargetInput().value).toBe("foo");
-    expect(getRadio("Other").checked).toBe(true);
+    expect(targetInput().value).toBe("foo");
+    expect(radio("Other").checked).toBe(true);
   });
 
   it("keeps the unsaved draft out of the cache and off other transcripts", async () => {
     const { requests } = installCaseServer(new Map());
     const { rerenderFor, queryClient } = await renderEditor("t1");
 
-    fireEvent.click(getRadio("Other"));
+    fireEvent.click(radio("Other"));
     await screen.findByText("Predicate");
 
     // Only what the server has (nothing) is cached for this case.
@@ -208,7 +192,7 @@ describe("ValidationCaseEditor", () => {
     rerenderFor("t2");
     await waitFor(() => expect(requests.get).toBe(2));
     await screen.findByText("Target");
-    expect(getRadio("Other").checked).toBe(false);
+    expect(radio("Other").checked).toBe(false);
     expect(screen.queryByText("Predicate")).toBeNull();
   });
 
@@ -220,15 +204,15 @@ describe("ValidationCaseEditor", () => {
     const { requests } = installCaseServer(new Map([["t1", existing]]));
     await renderEditor("t1");
 
-    await waitFor(() => expect(getRadio("Other").checked).toBe(true));
-    expect(getTargetInput().value).toBe("yes");
+    await waitFor(() => expect(radio("Other").checked).toBe(true));
+    expect(targetInput().value).toBe("yes");
     expect(requests.get).toBe(1);
 
     fireEvent.click(screen.getByTitle("More actions"));
     fireEvent.click(
       screen.getByRole("button", { name: "Delete validation case" })
     );
-    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(button("Delete"));
 
     await waitFor(() => expect(requests.delete).toBe(1));
 
@@ -236,8 +220,8 @@ describe("ValidationCaseEditor", () => {
     await waitFor(() => expect(screen.queryByTitle("More actions")).toBeNull());
     expect(screen.getByText("Validation Case")).toBeDefined();
     expect(screen.getByText("Target")).toBeDefined();
-    expect(getRadio("Other").checked).toBe(false);
-    expect(screen.queryByPlaceholderText("Enter target value")).toBeNull();
+    expect(radio("Other").checked).toBe(false);
+    expect(queryInputByPlaceholder("Enter target value")).toBeNull();
 
     // The server layer wrote the null directly; no 404 round-trip.
     expect(requests.get).toBe(1);
