@@ -832,11 +832,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/hooks/useScanRoute.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/hooks/useSelectedScan.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -1066,11 +1061,6 @@
       "undescribed": 1
     }
   },
-  "apps/scout/src/app/utils/router.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/validation/components/ValidationCaseCard.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
@@ -1114,11 +1104,6 @@
       "count": 3,
       "undescribed": 3
     },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/scout/src/AppRouter.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
