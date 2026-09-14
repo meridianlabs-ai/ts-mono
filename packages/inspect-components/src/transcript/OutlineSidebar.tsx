@@ -5,14 +5,7 @@
  */
 
 import clsx from "clsx";
-import {
-  FC,
-  ReactNode,
-  RefObject,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { FC, RefObject, useCallback, useMemo, useState } from "react";
 
 import { StickyScroll } from "@tsmono/react/components";
 import { Icon } from "@tsmono/react/icons";
@@ -34,7 +27,6 @@ export interface TranscriptLayoutOutlineProps {
   title?: string;
   /** Name of the agent/subagent currently displayed. Shown as a header in the outline. */
   name?: string;
-  renderLink?: (url: string, children: ReactNode) => ReactNode;
   onNavigateToEvent?: (eventId: string) => void;
   selectedId?: string | null;
   setSelectedId?: (id: string) => void;
@@ -63,7 +55,6 @@ export interface OutlineSidebarProps {
   /** Sticky offset below the swimlanes. */
   offsetTop: number;
   collapseState?: TranscriptCollapseState;
-  getEventUrl?: (eventId: string) => string | undefined;
 }
 
 export const OutlineSidebar: FC<OutlineSidebarProps> = ({
@@ -80,7 +71,6 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
   agentName,
   offsetTop,
   collapseState,
-  getEventUrl,
 }) => {
   // Capture the outline's own scroll container (the StickyScroll div, which
   // has overflow-y:auto) into state so the outline's virtual list can use it
@@ -153,8 +143,6 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
               collapse={collapse}
               selectedOutlineId={outline.selectedId}
               setSelectedOutlineId={outline.setSelectedId}
-              getEventUrl={getEventUrl}
-              renderLink={outline.renderLink}
               onNavigateToEvent={outline.onNavigateToEvent}
               onHasNodesChange={onHasNodesChange}
             />
