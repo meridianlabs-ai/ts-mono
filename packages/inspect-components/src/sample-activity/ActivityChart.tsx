@@ -224,15 +224,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     bands.push({ kind, top: cursor, plotBottom, height });
     cursor += height;
   };
-  if (showWorking) pushBand("working", kPlotBottom);
-  if (showTokens && data.tokenSeries.length > 0)
-    pushBand("tokens", kPlotBottom);
-  if (showContext && data.contextSeries.length > 0) {
-    pushBand("context", kPlotBottom);
-  }
+  // Band order (handoff 8a): activity → context → token burn → working.
   if (showModelTool && agentRowCount > 0) {
     pushBand("modelTool", modelToolPlotBottom);
   }
+  if (showContext && data.contextSeries.length > 0) {
+    pushBand("context", kPlotBottom);
+  }
+  if (showTokens && data.tokenSeries.length > 0)
+    pushBand("tokens", kPlotBottom);
+  if (showWorking) pushBand("working", kPlotBottom);
 
   const axisY = (bands.length === 0 ? markerHeadroom + 24 : cursor) + 6;
   const height = axisY + kAxisHeight;
@@ -822,15 +823,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const anyDense = data.agentRows.some(
       (row) => row.spans.length > plotWidth / kDensityPxPerSpan
     );
+    const headline = [
+      `${totalModels.toLocaleString()} model turns`,
+      `${totalTools.toLocaleString()} tool calls`,
+      ...(data.rejectedCount > 0 ? [`${data.rejectedCount} rejected`] : []),
+      ...(anyDense ? ["per-pixel occupancy"] : []),
+    ].join(" · ");
     return (
       <g key="band-model-tool">
         {bandLabel(band, "MODEL & TOOL ACTIVITY")}
-        {bandHeadline(
-          band,
-          anyDense
-            ? `${totalModels.toLocaleString()} model · ${totalTools.toLocaleString()} tool · per-pixel occupancy`
-            : `${totalModels.toLocaleString()} model · ${totalTools.toLocaleString()} tool`
-        )}
+        {bandHeadline(band, headline)}
         {data.agentRows.map((row, i) => {
           const rowTop = band.top + kAgentRowFirstLabelY + i * kAgentRowPitch;
           const dense = row.spans.length > plotWidth / kDensityPxPerSpan;

@@ -258,37 +258,39 @@ test("activity tab appears and its default bands render", async ({
   await expect(activityTab).toBeVisible();
   await activityTab.click();
 
-  // Curated default-on bands.
-  await expect(
-    page.getByText("WORKING / WAITING", { exact: true })
-  ).toBeVisible();
-  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
-  // The retry-attributable stall is bracketed and labeled.
-  await expect(page.getByText(/rate limit ×3/)).toBeVisible();
-  // Opt-in bands stay off by default.
-  await expect(
-    page.getByText("CONTEXT SIZE", { exact: true })
-  ).not.toBeVisible();
+  // Curated default-on bands (handoff 8a): activity, context, token burn.
   await expect(
     page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
+  ).toBeVisible();
+  await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
+  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
+  // Compaction annotated as a cliff drop.
+  await expect(page.getByText("142k → 38k").first()).toBeVisible();
+  // Working / waiting is the opt-in band.
+  await expect(
+    page.getByText("WORKING / WAITING", { exact: true })
   ).not.toBeVisible();
 });
 
-test("band chips toggle opt-in bands", async ({ page, network }) => {
+test("band chips toggle the opt-in working band and default bands", async ({
+  page,
+  network,
+}) => {
   await openSample(page, network);
 
-  await page.getByRole("button", { name: "Context size" }).click();
-  await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
-  // Compaction annotated as a cliff drop.
-  await expect(page.getByText("142k → 38k").first()).toBeVisible();
-
-  await page.getByRole("button", { name: "Model & tool activity" }).click();
+  await page.getByRole("button", { name: "Working / waiting" }).click();
   await expect(
-    page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
+    page.getByText("WORKING / WAITING", { exact: true })
   ).toBeVisible();
+  // The retry-attributable stall is bracketed and labeled.
+  await expect(page.getByText(/rate limit ×3/)).toBeVisible();
 
   await page.getByRole("button", { name: "Token burn" }).click();
   await expect(page.getByText("TOKEN BURN", { exact: true })).not.toBeVisible();
+  await page.getByRole("button", { name: "Context size" }).click();
+  await expect(
+    page.getByText("CONTEXT SIZE", { exact: true })
+  ).not.toBeVisible();
 });
 
 test("history list filters by category pill and search", async ({

@@ -35,9 +35,9 @@ an Activity test into the standing spec.
 
 ## Selectors
 
-- Band chips: `getByRole("button", { name: "Working / waiting" | "Markers"
-| "Token burn" | "Context size" | "Model & tool activity" })` — default-on
-  set is the first three.
+- Band chips, in order: `getByRole("button", { name: "Model & tool activity"
+| "Context size" | "Token burn" | "Markers" | "Working / waiting" })` —
+  default-on set is the first four; Working / waiting is opt-in.
 - Band labels (SVG text, uppercase — use `exact: true` or the chip matches
   too): `WORKING / WAITING`, `TOKEN BURN`, `CONTEXT SIZE`,
   `MODEL & TOOL ACTIVITY`.
@@ -51,9 +51,13 @@ an Activity test into the standing spec.
 ## Observable proof
 
 - Default bands render with a right-aligned mono headline
-  (`working <dur> · total <dur>`, `<N>k total`).
+  (`<N> model turns · <M> tool calls[ · K rejected]`, `peak <N>k`,
+  `<N>k total`); the opt-in working band reads `working <dur> · total <dur>`.
 - Retry-attributable stalls show a red bracket labeled
   `<dur> · rate limit ×N` under the working band.
+- Approvals: only non-approve decisions render (glyph ● + a row whose Kind
+  pill is the decision word — rejected / escalated / terminated / modified);
+  the filter pill reads `Rejections`; the By cell shows the approver name.
 - Chips toggle bands on/off and persist across tab switches.
 - Category pills filter the list additively; `All` resets; a glyph click
   widens filters so its row is always revealed.

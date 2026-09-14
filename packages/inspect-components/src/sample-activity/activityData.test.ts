@@ -11,6 +11,7 @@ import {
   testModelUsage,
   testSampleLimitEvent,
   testScoreEvent,
+  testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
@@ -20,7 +21,9 @@ import {
   fmtDurationWords,
   fmtTokens,
   hasEventTimestamps,
+  kCategoryLong,
   rowHaystack,
+  rowKind,
 } from "./activityData";
 
 /** ISO timestamp `sec` seconds into a fixed run start. */
@@ -552,8 +555,9 @@ describe("markers and history rows", () => {
       testSampleLimitEvent({ timestamp: iso(2), type: "token", uuid: "e2" }),
       testApprovalEvent({
         timestamp: iso(3),
-        approver: "charles",
-        decision: "approve",
+        approver: "human",
+        decision: "reject",
+        explanation: "destructive — narrow the path",
         uuid: "e3",
       }),
       testInputEvent({ timestamp: iso(4), input: "wrap it up", uuid: "e4" }),
@@ -590,11 +594,81 @@ describe("markers and history rows", () => {
       "e6",
       "e7",
     ]);
-    // By column: approvals carry the approver, inputs the user.
-    expect(data.rows.find((r) => r.category === "approval")?.by).toBe(
-      "charles"
-    );
+    // By column: rejections carry the approver, inputs the user.
+    expect(data.rows.find((r) => r.category === "approval")?.by).toBe("human");
     expect(data.rows.find((r) => r.category === "input")?.by).toBe("user");
+  });
+
+  it("renders only non-approve decisions, captioned by the decision word", () => {
+    // With an approval policy active every tool call produces an
+    // ApprovalEvent — approve decisions are pure noise and never render.
+    const events: Event[] = [
+      testApprovalEvent({
+        timestamp: iso(1),
+        decision: "approve",
+        approver: "auto",
+        uuid: "ok",
+      }),
+      testApprovalEvent({
+        timestamp: iso(2),
+        decision: "reject",
+        approver: "human",
+        explanation: "destructive — narrow the path",
+        call: testToolCall({
+          function: "bash",
+          arguments: { cmd: "rm -rf build/" },
+        }),
+        uuid: "rej",
+      }),
+      testApprovalEvent({
+        timestamp: iso(3),
+        decision: "escalate",
+        approver: "auto",
+        uuid: "esc",
+      }),
+      testApprovalEvent({
+        timestamp: iso(4),
+        decision: "terminate",
+        approver: "human",
+        uuid: "term",
+      }),
+      testApprovalEvent({
+        timestamp: iso(5),
+        decision: "modify",
+        approver: "human",
+        uuid: "mod",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+
+    expect(data.markers.map((m) => m.key)).toEqual([
+      "rej",
+      "esc",
+      "term",
+      "mod",
+    ]);
+    expect(data.rows.find((r) => r.key === "ok")).toBeUndefined();
+    expect(data.rejectedCount).toBe(4);
+    expect(data.rows.map((r) => rowKind(r))).toEqual([
+      "rejected",
+      "escalated",
+      "terminated",
+      "modified",
+    ]);
+
+    const rejected = data.rows[0]!;
+    expect(rejected).toMatchObject({
+      lead: "Tool call",
+      mono: "bash: rm -rf build/",
+      tail: "rejected",
+      detail: "“destructive — narrow the path”",
+      by: "human",
+      byRole: "approver",
+    });
+    expect(data.markers[0]?.label).toBe("Tool call bash rejected");
+    // The filter pill reads Rejections; the row's kind is searchable.
+    expect(kCategoryLong.approval).toBe("Rejections");
+    expect(rowHaystack(rejected)).toContain("rejected");
   });
 
   it("falls back to a synthetic key when an event has no uuid", () => {
@@ -619,12 +693,12 @@ describe("markers and history rows", () => {
       testApprovalEvent({
         timestamp: iso(0),
         approver: "charles",
-        decision: "approve",
+        decision: "reject",
       }),
     ];
     const data = deriveActivityData({ events });
     const haystack = rowHaystack(data.rows[0]!).toLowerCase();
-    expect(haystack).toContain("approval");
+    expect(haystack).toContain("rejections");
     expect(haystack).toContain("test_tool");
     expect(haystack).toContain("charles");
   });

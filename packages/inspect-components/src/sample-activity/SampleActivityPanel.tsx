@@ -104,13 +104,15 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     setBandOverrides({ ...bandOverrides, [id]: !bandOn(id, fallback) });
   };
 
-  // No working clock (mid-vintage logs) → no working band at all; an
-  // all-zero clock would render the whole run as waiting.
-  const showWorking = bandOn("working", true) && data.hasWorkingSignal;
-  const showMarkers = bandOn("markers", true) && data.markers.length > 0;
+  // Default-on set (handoff 8a): activity, context, token burn, markers;
+  // working/waiting is the opt-in band. No working clock (mid-vintage
+  // logs) → no working band at all; an all-zero clock would render the
+  // whole run as waiting.
+  const showModelTool = bandOn("modelTool", true) && data.agentRows.length > 0;
+  const showContext = bandOn("context", true) && data.contextSeries.length > 0;
   const showTokens = bandOn("tokens", true) && data.tokenSeries.length > 0;
-  const showContext = bandOn("context", false) && data.contextSeries.length > 0;
-  const showModelTool = bandOn("modelTool", false) && data.agentRows.length > 0;
+  const showMarkers = bandOn("markers", true) && data.markers.length > 0;
+  const showWorking = bandOn("working", false) && data.hasWorkingSignal;
 
   // ── history filters (array, not Set — store persistence) ─────────────
   const [categoryList, setCategoryList] = useProperty<ActivityCategory[]>(
@@ -196,18 +198,18 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     <div className={styles.container}>
       <div className={styles.pickerRow}>
         <span className={styles.caption}>Activity</span>
-        {data.hasWorkingSignal && (
+        {data.agentRows.length > 0 && (
           <BandChip
-            label="Working / waiting"
-            on={showWorking}
-            onToggle={() => toggleBand("working", true)}
+            label="Model & tool activity"
+            on={showModelTool}
+            onToggle={() => toggleBand("modelTool", true)}
           />
         )}
-        {data.markers.length > 0 && (
+        {data.contextSeries.length > 0 && (
           <BandChip
-            label="Markers"
-            on={showMarkers}
-            onToggle={() => toggleBand("markers", true)}
+            label="Context size"
+            on={showContext}
+            onToggle={() => toggleBand("context", true)}
           />
         )}
         {data.tokenSeries.length > 0 && (
@@ -217,21 +219,21 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
             onToggle={() => toggleBand("tokens", true)}
           />
         )}
-        {data.contextSeries.length > 0 && (
+        {data.markers.length > 0 && (
           <BandChip
-            label="Context size"
-            on={showContext}
-            onToggle={() => toggleBand("context", false)}
-          />
-        )}
-        {data.agentRows.length > 0 && (
-          <BandChip
-            label="Model & tool activity"
-            on={showModelTool}
-            onToggle={() => toggleBand("modelTool", false)}
+            label="Markers"
+            on={showMarkers}
+            onToggle={() => toggleBand("markers", true)}
           />
         )}
         {data.hasWorkingSignal && (
+          <BandChip
+            label="Working / waiting"
+            on={showWorking}
+            onToggle={() => toggleBand("working", false)}
+          />
+        )}
+        {showWorking && (
           <span className={styles.legend}>
             <span className={styles.legendSwatch} /> working · gap = waiting
           </span>

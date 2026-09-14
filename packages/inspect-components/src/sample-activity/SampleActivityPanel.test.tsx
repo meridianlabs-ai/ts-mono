@@ -142,33 +142,48 @@ afterEach(() => {
 describe("SampleActivityPanel band chips", () => {
   it("lights the curated default band set", () => {
     mountPanel();
-    // Default-on bands render in the chart.
-    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    // Default-on bands render in the chart (handoff 8a).
+    expect(screen.getByText("MODEL & TOOL ACTIVITY")).toBeTruthy();
+    expect(screen.getByText("CONTEXT SIZE")).toBeTruthy();
     expect(screen.getByText("TOKEN BURN")).toBeTruthy();
-    // Opt-in bands stay off until their chip is toggled.
-    expect(screen.queryByText("CONTEXT SIZE")).toBeNull();
-    expect(screen.queryByText("MODEL & TOOL ACTIVITY")).toBeNull();
+    // Working / waiting is the opt-in band.
+    expect(screen.queryByText("WORKING / WAITING")).toBeNull();
+    expect(screen.queryByText(/gap = waiting/)).toBeNull();
   });
 
-  it("toggles opt-in bands on and default bands off via chips", () => {
+  it("orders the chips activity → context → tokens → markers → working", () => {
     mountPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Context size" }));
-    expect(screen.getByText("CONTEXT SIZE")).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Model & tool activity" })
-    );
-    expect(screen.getByText("MODEL & TOOL ACTIVITY")).toBeTruthy();
+    const labels = screen
+      .getAllByRole("button")
+      .map((button) => button.textContent.trim())
+      .filter((text) =>
+        [
+          "Model & tool activity",
+          "Context size",
+          "Token burn",
+          "Markers",
+          "Working / waiting",
+        ].includes(text)
+      );
+    expect(labels).toEqual([
+      "Model & tool activity",
+      "Context size",
+      "Token burn",
+      "Markers",
+      "Working / waiting",
+    ]);
+  });
+
+  it("toggles the opt-in band on and default bands off via chips", () => {
+    mountPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Working / waiting" }));
+    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    expect(screen.getByText(/gap = waiting/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Token burn/ }));
     expect(screen.queryByText("TOKEN BURN")).toBeNull();
-  });
-
-  it("hides the whole panel for events without timestamps", () => {
-    const { container } = mountPanel({
-      events: [testModelEvent({ timestamp: "" })],
-    });
-    expect(container.querySelector("svg")).toBeNull();
-    expect(screen.queryByText("History")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Context size/ }));
+    expect(screen.queryByText("CONTEXT SIZE")).toBeNull();
   });
 
   it("hides the working band for logs without a working clock", () => {
@@ -198,13 +213,21 @@ describe("SampleActivityPanel band chips", () => {
     // The rest of the panel still renders.
     expect(screen.getByText("TOKEN BURN")).toBeTruthy();
   });
+
+  it("hides the whole panel for events without timestamps", () => {
+    const { container } = mountPanel({
+      events: [testModelEvent({ timestamp: "" })],
+    });
+    expect(container.querySelector("svg")).toBeNull();
+    expect(screen.queryByText("History")).toBeNull();
+  });
 });
 
 describe("SampleActivityPanel history list", () => {
   it("renders one row per incident with category pills", () => {
     mountPanel();
     expect(screen.getByText(/exit 127/)).toBeTruthy();
-    expect(screen.getByText("142k → 38k")).toBeTruthy();
+    expect(screen.getByText("142k → 38k", { selector: "span" })).toBeTruthy();
     expect(screen.getByText(/scorer test_scorer/)).toBeTruthy();
     // Filter pills carry live counts.
     expect(screen.getByRole("button", { name: /Errors 1/ })).toBeTruthy();
@@ -221,18 +244,18 @@ describe("SampleActivityPanel history list", () => {
     // Additive: selecting Scores too widens rather than replaces.
     fireEvent.click(screen.getByRole("button", { name: /Scores 1/ }));
     expect(screen.getByText(/scorer test_scorer/)).toBeTruthy();
-    expect(screen.queryByText("142k → 38k")).toBeNull();
+    expect(screen.queryByText("142k → 38k", { selector: "span" })).toBeNull();
 
     // All resets.
     fireEvent.click(screen.getByRole("button", { name: /All 3/ }));
-    expect(screen.getByText("142k → 38k")).toBeTruthy();
+    expect(screen.getByText("142k → 38k", { selector: "span" })).toBeTruthy();
   });
 
   it("filters by search text", () => {
     mountPanel();
     const search = screen.getByPlaceholderText("filter by event or detail");
     fireEvent.change(search, { target: { value: "compacted" } });
-    expect(screen.getByText("142k → 38k")).toBeTruthy();
+    expect(screen.getByText("142k → 38k", { selector: "span" })).toBeTruthy();
     expect(screen.queryByText(/exit 127/)).toBeNull();
   });
 
@@ -285,9 +308,6 @@ describe("SampleActivityPanel burst labels", () => {
       );
     }
     const { container } = mountPanel({ events });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Model & tool activity" })
-    );
 
     const labels = container.querySelectorAll("[class*='burstLabel']");
     expect(labels.length).toBeGreaterThan(0);

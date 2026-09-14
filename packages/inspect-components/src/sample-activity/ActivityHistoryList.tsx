@@ -20,8 +20,8 @@ import {
   fmtTime,
   kActivityCategories,
   kCategoryLong,
-  kCategoryShort,
   rowHaystack,
+  rowKind,
   TimeWindow,
 } from "./activityData";
 import styles from "./ActivityHistoryList.module.css";
@@ -155,7 +155,7 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
         <div className={styles.time}>{fmtDayClock(row.time)}</div>
         <div className={styles.kindCell}>
           <span className={clsx(styles.kindPill, kPillClass[row.category])}>
-            {kCategoryShort[row.category]}
+            {rowKind(row)}
           </span>
         </div>
         <div className={styles.event}>
@@ -186,7 +186,12 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
             </Fragment>
           )}
         </div>
-        <div className={styles.by}>{row.by}</div>
+        <div className={styles.by}>
+          {row.by}
+          {row.byRole !== undefined && (
+            <span className={styles.muted}> {row.byRole}</span>
+          )}
+        </div>
       </div>
     );
   };

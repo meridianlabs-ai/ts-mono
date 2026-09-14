@@ -53,11 +53,15 @@ test("activity tab renders bands and history against a real dense log", async ({
   await expect(page.getByRole("tab", { name: "Activity" })).toBeVisible({
     timeout: 20_000,
   });
-  // Curated default-on bands.
+  // Curated default-on bands (handoff 8a).
+  await expect(
+    page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
+  ).toBeVisible();
+  await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
+  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
   await expect(
     page.getByText("WORKING / WAITING", { exact: true })
-  ).toBeVisible();
-  await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
+  ).not.toBeVisible();
   // Scoring guarantees a score row; both fixture tasks terminate on a
   // sample limit (message or token) → a limit marker ▲ and pill.
   await expect(
@@ -81,12 +85,10 @@ test("activity tab renders bands and history against a real dense log", async ({
   }
   await shot(page, "sample-activity-default-light.png");
 
-  // Opt-in bands via chips.
-  await page.getByRole("button", { name: "Context size" }).click();
-  await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Model & tool activity" }).click();
+  // The opt-in working band via its chip.
+  await page.getByRole("button", { name: "Working / waiting" }).click();
   await expect(
-    page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
+    page.getByText("WORKING / WAITING", { exact: true })
   ).toBeVisible();
   if (hasToolErrors) {
     // Failed tool calls: error ✕ glyph on the rail (single or clustered —
@@ -179,8 +181,8 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   expect(await clusterBoxes.count()).toBeGreaterThan(0);
   await expect(clusterBoxes.first()).toHaveText(/×\d+/);
 
-  // Context band: dashed cliff drop per compaction, annotated "Nk → M".
-  await page.getByRole("button", { name: "Context size" }).click();
+  // Context band (default-on): dashed cliff drop per compaction, annotated
+  // "Nk → M".
   await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
   await expect(page.locator("[class*='compactionDrop']")).toHaveCount(18);
   await expect(page.locator("[class*='compactionLabel']").first()).toHaveText(
@@ -199,7 +201,6 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
 
   // Densest fixture yet (1291 events / ~478 spans): the merged band must
   // degrade to the per-pixel occupancy strip.
-  await page.getByRole("button", { name: "Model & tool activity" }).click();
   await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
 });
 
@@ -211,8 +212,7 @@ test.describe(() => {
     await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
       timeout: 20_000,
     });
-    await page.getByRole("button", { name: "Context size" }).click();
-    await page.getByRole("button", { name: "Model & tool activity" }).click();
+    await page.getByRole("button", { name: "Working / waiting" }).click();
     await expect(
       page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
     ).toBeVisible();

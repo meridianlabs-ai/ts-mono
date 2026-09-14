@@ -1,4 +1,5 @@
 import type {
+  ApprovalEvent,
   Event,
   ModelEvent,
   ScoreEvent,
@@ -53,7 +54,7 @@ export const kCategoryColor: Record<ActivityCategory, string> = {
 export const kCategoryLong: Record<ActivityCategory, string> = {
   error: "Errors",
   limit: "Limits",
-  approval: "Approvals",
+  approval: "Rejections",
   input: "Inputs",
   interrupt: "Interrupts",
   compaction: "Compactions",
@@ -63,7 +64,7 @@ export const kCategoryLong: Record<ActivityCategory, string> = {
 export const kCategoryShort: Record<ActivityCategory, string> = {
   error: "error",
   limit: "limit",
-  approval: "approval",
+  approval: "rejected",
   input: "input",
   interrupt: "interrupt",
   compaction: "compact",
@@ -164,6 +165,9 @@ export interface ActivityMarker {
 export interface ActivityHistoryRow {
   time: number;
   category: ActivityCategory;
+  /** Kind-cell caption when it differs from the category's default — the
+   *  approval decision word (rejected / escalated / terminated / modified). */
+  kind?: string;
   key: string;
   uuid?: string;
   lead: string;
@@ -172,7 +176,13 @@ export interface ActivityHistoryRow {
   detail?: string;
   /** Right-aligned By column ("system", approver, "user"). */
   by: string;
+  /** Muted suffix after `by` ("approver" for approval-policy names). */
+  byRole?: string;
 }
+
+/** Kind-cell caption for a history row. */
+export const rowKind = (row: ActivityHistoryRow): string =>
+  row.kind ?? kCategoryShort[row.category];
 
 export interface ActivityData {
   /** Wall-clock window; undefined when no event carries a timestamp. */
@@ -193,6 +203,8 @@ export interface ActivityData {
   agentRows: AgentRow[];
   markers: ActivityMarker[];
   rows: ActivityHistoryRow[];
+  /** Non-approve approval decisions (the activity headline's "N rejected"). */
+  rejectedCount: number;
   /** Any open-ended span (running sample). */
   pending: boolean;
   /** False for mid-vintage logs whose events carry timestamps but no real
@@ -238,7 +250,7 @@ export const fmtTokens = (value: number): string => {
 export const rowHaystack = (row: ActivityHistoryRow): string =>
   [
     kCategoryLong[row.category],
-    kCategoryShort[row.category],
+    rowKind(row),
     row.lead,
     row.mono ?? "",
     row.tail ?? "",
@@ -262,6 +274,29 @@ export const kMaxSubLanes = 4;
 
 const truncate = (text: string, max = 120): string =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text;
+
+/** Past-tense caption per non-approve decision (approve is never shown:
+ *  with a policy active every tool call produces one — pure noise). */
+const kDecisionWord: Record<ApprovalEvent["decision"], string> = {
+  approve: "approved",
+  reject: "rejected",
+  escalate: "escalated",
+  terminate: "terminated",
+  modify: "modified",
+};
+
+/** The call's arguments as a short mono string: a lone argument shows its
+ *  value ("rm -rf build/"), several show `key: value` pairs. */
+const callArgsText = (args: Record<string, unknown>): string => {
+  const entries = Object.entries(args);
+  const valueText = (value: unknown): string =>
+    typeof value === "string" ? value : JSON.stringify(value);
+  const text =
+    entries.length === 1
+      ? valueText(entries[0]![1])
+      : entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(", ");
+  return truncate(text.replace(/\s+/g, " ").trim(), 60);
+};
 
 /** Wall completion for duration-bearing events (model/tool/subtask/sandbox). */
 const completedEpoch = (event: Event): number | undefined =>
@@ -343,6 +378,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   let contextPeak = 0;
   let lastContext = 0;
   let pending = false;
+  let rejectedCount = 0;
   // Mid-vintage logs carry timestamps but predate working_start/working_time
   // (the normalizer fills working_start with 0) — without a real working
   // signal the working/waiting band would render the whole run as waiting.
@@ -402,6 +438,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
       agentRows: [],
       markers: [],
       rows: [],
+      rejectedCount: 0,
       pending: false,
       hasWorkingSignal: false,
     };
@@ -562,22 +599,31 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         break;
       }
       case "approval": {
+        if (event.decision === "approve") break;
+        rejectedCount += 1;
+        const word = kDecisionWord[event.decision];
+        const args = callArgsText(event.call.arguments);
         markers.push({
           time: t,
           category: "approval",
           key,
           uuid,
-          label: `Approval · ${event.call.function} · ${event.decision}`,
+          label: `Tool call ${event.call.function} ${word}`,
         });
         rows.push({
           time: t,
           category: "approval",
+          kind: word,
           key,
           uuid,
-          lead: "Approval requested for",
-          mono: event.call.function,
-          detail: event.decision,
+          lead: "Tool call",
+          mono: args ? `${event.call.function}: ${args}` : event.call.function,
+          tail: word,
+          detail: event.explanation
+            ? `“${truncate(event.explanation)}”`
+            : undefined,
           by: event.approver,
+          byRole: "approver",
         });
         break;
       }
@@ -797,6 +843,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     agentRows,
     markers,
     rows,
+    rejectedCount,
     pending,
     hasWorkingSignal,
   };
