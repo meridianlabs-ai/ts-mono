@@ -961,6 +961,47 @@ describe("conversations (review round 1)", () => {
     expect(Object.getPrototypeOf(data.tokensByRow)).toBeNull();
   });
 
+  it("tracks the compaction fallback context per conversation", () => {
+    // A reports 100, B reports 900, then A compacts without tokens_before:
+    // A's drop starts from its own 100, not B's 900.
+    const events: Event[] = [
+      testSpanBeginEvent({ id: "a", type: "agent", timestamp: iso(0) }),
+      testSpanBeginEvent({ id: "b", type: "agent", timestamp: iso(0) }),
+      modelCall({
+        start: 0,
+        duration: 5,
+        workingStart: 0,
+        input: 100,
+        spanId: "a",
+        uuid: "a1",
+      }),
+      modelCall({
+        start: 5,
+        duration: 5,
+        workingStart: 5,
+        input: 900,
+        spanId: "b",
+        uuid: "b1",
+      }),
+      testCompactionEvent({
+        span_id: "a",
+        timestamp: iso(11),
+        working_start: 10,
+        tokens_after: 20,
+      }),
+      testCompactionEvent({
+        span_id: "a",
+        timestamp: iso(12),
+        working_start: 11,
+        tokens_after: 5,
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.compactions.map((drop) => [drop.rowId, drop.before])).toEqual([
+      ["a", 100],
+      ["a", 20],
+    ]);
+  });
 });
 
 describe("turns (handoff 8b)", () => {

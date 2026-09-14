@@ -602,7 +602,9 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   let minTime = Infinity;
   let maxTime = -Infinity;
   let contextPeak = 0;
-  let lastContext = 0;
+  /** Latest context size per conversation — the compaction fallback when
+   *  tokens_before is absent (older logs). */
+  const lastContextByRow = new Map<string, number>();
   let pending = false;
   let rejectedCount = 0;
   // Mid-vintage logs carry timestamps but predate working_start/working_time
@@ -829,7 +831,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
             uuid,
             messages: event.input.length,
           });
-          lastContext = context;
+          lastContextByRow.set(row.id, context);
           if (context > contextPeak) contextPeak = context;
         }
         break;
@@ -1009,12 +1011,14 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         break;
       }
       case "compaction": {
+        const rowId = conversationForSpan(event.span_id).id;
+        const lastContext = lastContextByRow.get(rowId) ?? 0;
         const before =
           event.tokens_before ?? (lastContext > 0 ? lastContext : undefined);
         const after = event.tokens_after ?? undefined;
         compactions.push({
           time: t,
-          rowId: conversationForSpan(event.span_id).id,
+          rowId,
           before,
           after,
           strategy: event.type,
@@ -1044,7 +1048,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           detail: "tokens",
           by: "system",
         });
-        if (after !== undefined) lastContext = after;
+        if (after !== undefined) lastContextByRow.set(rowId, after);
         break;
       }
       case "score": {
