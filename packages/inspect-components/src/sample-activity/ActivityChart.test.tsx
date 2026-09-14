@@ -192,4 +192,40 @@ describe("ActivityChart hidden conversations", () => {
 });
 
 describe("ActivityChart curve read-outs", () => {
+  it("reads the context line at the cursor, interpolating between points", () => {
+    vi.useFakeTimers();
+    try {
+      // Context 100 at t=0 and 300 at t=10 over a 20s window: the cursor at
+      // t=5 (x=270) reads 200 on the drawn line, and the dot sits on it.
+      const { container } = renderChart([
+        modelCall({ start: 0, end: 5, uuid: "m1", input: 100 }),
+        modelCall({ start: 10, end: 20, uuid: "m2", input: 300 }),
+      ]);
+      const line = container.querySelector("polyline[class*='contextSeries']");
+      const ys = (line?.getAttribute("points") ?? "")
+        .split(" ")
+        .map((p) => Number(p.split(",")[1]));
+      const hit = container.querySelector("rect[class*='plotHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+      // Pointer inside the context band: its label sits 14px below the
+      // band top, so 30px under the label is well within the plot.
+      const contextLabel = [
+        ...container.querySelectorAll("text[class*='bandLabel']"),
+      ].find((label) => label.textContent === "CONTEXT SIZE");
+      fireEvent.mouseMove(hit, {
+        clientX: 270,
+        clientY: attr(contextLabel ?? null, "y") + 30,
+      });
+      const dot = container.querySelector("circle[class*='readoutDot']");
+      expect(attr(dot, "cy")).toBeCloseTo((ys[0]! + ys[1]!) / 2, 1);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(
+        container.querySelector("[class*='tooltip']")?.textContent
+      ).toContain("200 tokens in context");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

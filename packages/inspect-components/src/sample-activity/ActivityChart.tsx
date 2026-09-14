@@ -397,18 +397,69 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       return { row, value };
     });
 
-  /** Nearest context point at or before `t`, per visible row. */
-  const contextPointsAt = (
-    t: number
-  ): { row: AgentRow; point?: ContextPoint }[] =>
-    curveRows.map((row) => {
-      let point: ContextPoint | undefined;
-      for (const candidate of data.contextByRow[row.id] ?? []) {
-        if (candidate.time > t) break;
-        point = candidate;
+  const visibleCompactions = data.compactions.filter((drop) =>
+    visibleRowIds.has(drop.rowId)
+  );
+
+  interface ContextVertex {
+    x: number;
+    value: number;
+  }
+
+  /** One polyline run per row on the active axis, split at that row's
+   *  compaction drops so the line doesn't slope through the cliff — each
+   *  drop restarts the run at tokens_after. This is the geometry the
+   *  context band draws AND what its read-outs evaluate, so the dots and
+   *  AT CURSOR values always sit on the line. */
+  const contextRuns = (row: AgentRow): ContextVertex[][] => {
+    const series = data.contextByRow[row.id] ?? [];
+    const drops = visibleCompactions.filter((d) => d.rowId === row.id);
+    const runs: ContextVertex[][] = [];
+    let run: ContextVertex[] = [];
+    let dropIndex = 0;
+    for (const point of series) {
+      while (
+        dropIndex < drops.length &&
+        (drops[dropIndex]?.time ?? Infinity) <= point.time
+      ) {
+        const drop = drops[dropIndex]!;
+        if (run.length > 0) runs.push(run);
+        run =
+          drop.after !== undefined
+            ? [{ x: xAt(drop.time), value: drop.after }]
+            : [];
+        dropIndex += 1;
       }
-      return { row, point };
-    });
+      run.push({ x: pointX(point.time, point.turn), value: point.value });
+    }
+    if (run.length > 0) runs.push(run);
+    return runs;
+  };
+
+  /** The drawn context line's value at cursor x: interpolated inside a
+   *  run, held at the last vertex once a run has ended (the context stays
+   *  that size until the next call), undefined before the first point. */
+  const contextValueAt = (row: AgentRow, px: number): number | undefined => {
+    let held: number | undefined;
+    for (const run of contextRuns(row)) {
+      for (let i = 0; i < run.length; i++) {
+        const a = run[i]!;
+        if (a.x > px) return held;
+        const b = run[i + 1];
+        if (b && b.x > px) {
+          const f = b.x > a.x ? (px - a.x) / (b.x - a.x) : 0;
+          return a.value + f * (b.value - a.value);
+        }
+        held = a.value;
+      }
+    }
+    return held;
+  };
+
+  const contextValuesAt = (
+    px: number
+  ): { row: AgentRow; value?: number }[] =>
+    curveRows.map((row) => ({ row, value: contextValueAt(row, px) }));
 
   // ── shared band chrome ────────────────────────────────────────────────
 
@@ -756,9 +807,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   // ── CONTEXT SIZE ──────────────────────────────────────────────────────
 
   const renderContext = (band: Band) => {
-    const visibleCompactions = data.compactions.filter((drop) =>
-      visibleRowIds.has(drop.rowId)
-    );
     const dropMax = visibleCompactions.reduce(
       (m, c) => Math.max(m, c.before ?? 0),
       0
@@ -772,34 +820,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const y = (v: number): number =>
       band.top + band.plotBottom - (v / yMax) * (band.plotBottom - kPlotTop);
 
-    /** One polyline run per row, split at that row's compaction drops so
-     *  the line doesn't slope through the cliff — each drop restarts the
-     *  run at tokens_after. */
-    const rowRuns = (row: AgentRow): { x: number; y: number }[][] => {
-      const series = data.contextByRow[row.id] ?? [];
-      const drops = visibleCompactions.filter((d) => d.rowId === row.id);
-      const runs: { x: number; y: number }[][] = [];
-      let run: { x: number; y: number }[] = [];
-      let dropIndex = 0;
-      for (const point of series) {
-        while (
-          dropIndex < drops.length &&
-          (drops[dropIndex]?.time ?? Infinity) <= point.time
-        ) {
-          const drop = drops[dropIndex]!;
-          if (run.length > 0) runs.push(run);
-          run =
-            drop.after !== undefined
-              ? [{ x: xAt(drop.time), y: y(drop.after) }]
-              : [];
-          dropIndex += 1;
-        }
-        run.push({ x: pointX(point.time, point.turn), y: y(point.value) });
-      }
-      if (run.length > 0) runs.push(run);
-      return runs;
-    };
-
     // Dots only at sparse density — they'd smear into a rope at scale.
     const visiblePoints = curveRows.reduce(
       (sum, row) => sum + (data.contextByRow[row.id]?.length ?? 0),
@@ -812,12 +832,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       : `peak ${fmtTokens(peak)}`;
 
     const dots = cursor
-      ? contextPointsAt(cursor.t)
-          .filter((v) => v.point !== undefined)
-          .map((v) => ({
-            y: y(v.point?.value ?? 0),
-            hue: multiAgent ? v.row.hue : "#3a7bd5",
-          }))
+      ? contextValuesAt(cursor.x).flatMap(({ row, value }) =>
+          value === undefined
+            ? []
+            : [{ y: y(value), hue: multiAgent ? row.hue : "#3a7bd5" }]
+        )
       : [];
 
     return (
@@ -826,13 +845,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         {bandHeadline(band, headline)}
         {curveRows.map((row) => (
           <g key={`ctx-${row.id}`}>
-            {rowRuns(row).map((points, i) => (
+            {contextRuns(row).map((vertices, i) => (
               <polyline
                 key={`ctx-run-${i}`}
                 className={styles.contextSeries}
                 style={multiAgent ? { stroke: row.hue } : undefined}
-                points={points
-                  .map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`)
+                points={vertices
+                  .map((v) => `${v.x.toFixed(1)},${y(v.value).toFixed(1)}`)
                   .join(" ")}
               />
             ))}
@@ -890,8 +909,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           band,
           (row) => fmtTokens(data.contextPeakByRow[row.id] ?? 0),
           (row, at) => {
-            const point = contextPointsAt(at.t).find((v) => v.row === row)?.point;
-            return point ? fmtTokens(point.value) : "—";
+            const value = contextValueAt(row, at.x);
+            return value === undefined ? "—" : fmtTokens(value);
           }
         )}
         {readoutDots(dots)}
@@ -1969,9 +1988,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const band = bands.find((b) => py >= b.top && py < b.top + b.height);
     if (band?.kind === "context") {
       const yOf = (v: number) => {
-        const visibleCompactions = data.compactions.filter((drop) =>
-          visibleRowIds.has(drop.rowId)
-        );
         const dropMax = visibleCompactions.reduce(
           (m, c) => Math.max(m, c.before ?? 0),
           0
@@ -2012,10 +2028,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         kind: "curve",
         band: "context",
         time: t,
-        values: contextPointsAt(t).map(({ row, point }) => ({
-          row,
-          value: point?.value,
-        })),
+        values: contextValuesAt(px),
       });
       return;
     }

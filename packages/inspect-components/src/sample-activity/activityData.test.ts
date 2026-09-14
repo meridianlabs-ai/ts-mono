@@ -957,7 +957,7 @@ describe("conversations (review round 1)", () => {
       100, 100, 100,
     ]);
     // Absent keys read as absent, not as builtins.
-    expect(data.tokensByRow["valueOf"]).toBeUndefined();
+    expect("valueOf" in data.tokensByRow).toBe(false);
     expect(Object.getPrototypeOf(data.tokensByRow)).toBeNull();
   });
 
