@@ -30,7 +30,7 @@ export function useDataframeData(columnTable?: ColumnTable): DataframeData {
     .sort((a, b) => rank(a) - rank(b));
   const allRows = columnTable ? rowRecords(columnTable) : [];
   const activeFilters = Object.entries(filters ?? {}).filter(([id]) =>
-    columnNames.includes(id)
+    available.includes(id)
   );
   const rows = activeFilters.length
     ? allRows.filter((row) =>

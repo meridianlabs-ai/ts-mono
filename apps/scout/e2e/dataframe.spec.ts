@@ -34,6 +34,70 @@ test.beforeEach(({ page }) => {
   });
 });
 
+test("toolbar buttons allow arrow navigation and keep their Enter action", async ({
+  page,
+}) => {
+  await page.goto(fixture);
+  const toggleColumns = page.getByRole("button", { name: "Toggle columns" });
+  await toggleColumns.click();
+  await expect(toggleColumns).toBeFocused();
+  await page.keyboard.press("ArrowDown");
+  await expect(page.getByRole("row", { selected: true })).toContainText(
+    "transcript-0001"
+  );
+  await page.keyboard.press("ArrowUp");
+  await expect(page.getByRole("row", { selected: true })).toContainText(
+    "transcript-0000"
+  );
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("columnheader", { name: "metadata", exact: true })
+  ).toBeVisible();
+  await expect(page.getByLabel("Opened result")).toHaveText("");
+  await page.getByRole("grid").focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByLabel("Opened result")).toHaveText("result-0");
+});
+
+test("consecutive column resizes and clearing filters preserve each change", async ({
+  page,
+}) => {
+  await seedDataframeState(page, {
+    columnSizing: { value: 100, transcript_id: 200 },
+    columnFilters: {
+      value: {
+        columnId: "value",
+        filterType: "number",
+        spec: { operator: "=", value: "2" },
+      },
+    },
+  });
+  await page.goto(fixture);
+  await expect(page.getByLabel("Visible rows")).toHaveText("2");
+  await page.getByRole("grid").evaluate((grid) => {
+    // Deliver changes before React commits a new render, as with batched input.
+    for (const name of ["value", "transcript_id"]) {
+      const handle = grid.querySelector(`[aria-label="Resize ${name}"]`);
+      if (!handle) throw new Error(`Missing resize handle for ${name}`);
+      handle.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })
+      );
+    }
+    const clear = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent.includes("Clear Filters")
+    );
+    if (!clear) throw new Error("Missing Clear Filters button");
+    clear.click();
+  });
+  await expect(page.getByLabel("Visible rows")).toHaveText("6");
+  await expect(
+    page.getByRole("slider", { name: "Resize value" })
+  ).toHaveAttribute("aria-valuenow", "110");
+  await expect(
+    page.getByRole("slider", { name: "Resize transcript_id" })
+  ).toHaveAttribute("aria-valuenow", "210");
+});
+
 test("the dataframe restores both scroll axes after webview recreation", async ({
   page,
 }) => {

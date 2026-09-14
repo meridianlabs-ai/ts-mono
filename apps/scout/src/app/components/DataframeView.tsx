@@ -72,8 +72,13 @@ export const DataframeView: FC<DataframeViewProps> = ({
   // Restoring one axis emits scroll events before the other has settled.
   const [initialScroll] = useState(state.scroll);
   const setGridState = useStore((store) => store.setGridState);
-  const updateGridState = (patch: Partial<DataframeState>): void => {
-    setGridState(GRID_STATE_NAME, (previous) => ({ ...previous, ...patch }));
+  const updateGridState = (
+    update: (previous: DataframeState) => Partial<DataframeState>
+  ): void => {
+    setGridState(GRID_STATE_NAME, (previous) => ({
+      ...previous,
+      ...update(previous),
+    }));
   };
   const selectedRow = useStore((store) => store.selectedResultRow);
   const setSelectedRow = useStore((store) => store.setSelectedResultRow);
@@ -113,18 +118,17 @@ export const DataframeView: FC<DataframeViewProps> = ({
       columnPinning: state.columnPinning,
     },
     onSortingChange: (updater) =>
-      updateGridState({
-        sorting: functionalUpdate(updater, state.sorting),
-      }),
+      updateGridState((previous) => ({
+        sorting: functionalUpdate(updater, previous.sorting),
+      })),
     onColumnPinningChange: (updater) =>
-      setGridState(GRID_STATE_NAME, (previous) => ({
-        ...previous,
+      updateGridState((previous) => ({
         columnPinning: functionalUpdate(updater, previous.columnPinning),
       })),
     onColumnSizingChange: (updater) =>
-      updateGridState({
-        columnSizing: functionalUpdate(updater, state.columnSizing),
-      }),
+      updateGridState((previous) => ({
+        columnSizing: functionalUpdate(updater, previous.columnSizing),
+      })),
   });
   const rows = table.getRowModel().rows;
   const selectedIndex = Math.max(
@@ -139,11 +143,11 @@ export const DataframeView: FC<DataframeViewProps> = ({
       data: allRows,
       constraints: getColumnConstraints(columns),
     });
-    updateGridState({
+    updateGridState((previous) => ({
       columnSizing: columnId
-        ? { ...state.columnSizing, [columnId]: sizes[columnId] ?? 150 }
-        : { ...sizes, ...state.columnSizing },
-    });
+        ? { ...previous.columnSizing, [columnId]: sizes[columnId] ?? 150 }
+        : { ...sizes, ...previous.columnSizing },
+    }));
   };
   const exportRef = useLatestRef({ rows, columnNames });
   useMountEffect(() => {
@@ -184,12 +188,13 @@ export const DataframeView: FC<DataframeViewProps> = ({
     if (
       target instanceof HTMLElement &&
       target.closest(
-        "input, textarea, select, button, [contenteditable=true], [role=dialog], [role=slider]"
+        "input, textarea, select, [contenteditable=true], [role=dialog], [role=slider]"
       )
     )
       return;
     if (!rows.length) return;
     if (event.key === "Enter") {
+      if (target instanceof HTMLElement && target.closest("button")) return;
       event.preventDefault();
       activate(selectedIndex);
       return;
@@ -243,8 +248,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
       }}
       onScroll={(event) => {
         const { scrollTop: top, scrollLeft: left } = event.currentTarget;
-        if (top !== state.scroll.top || left !== state.scroll.left)
-          updateGridState({ scroll: { top, left } });
+        updateGridState(() => ({ scroll: { top, left } }));
       }}
     >
       <div style={{ width, minWidth: "100%" }}>
@@ -325,8 +329,7 @@ export const DataframeView: FC<DataframeViewProps> = ({
                             ),
                           }));
                         }
-                        setGridState(GRID_STATE_NAME, (previous) => ({
-                          ...previous,
+                        updateGridState(() => ({
                           columnOrder: order,
                         }));
                       }
@@ -371,16 +374,16 @@ export const DataframeView: FC<DataframeViewProps> = ({
                       operators={dataframeOperators(type)}
                       spec={state.columnFilters[id]?.spec ?? null}
                       onChange={(spec) => {
-                        const filters = { ...state.columnFilters };
-                        if (spec)
-                          filters[id] = {
-                            columnId: id,
-                            filterType: type,
-                            spec,
-                          };
-                        else delete filters[id];
-                        updateGridState({
-                          columnFilters: filters,
+                        updateGridState((previous) => {
+                          const filters = { ...previous.columnFilters };
+                          if (spec)
+                            filters[id] = {
+                              columnId: id,
+                              filterType: type,
+                              spec,
+                            };
+                          else delete filters[id];
+                          return { columnFilters: filters };
                         });
                       }}
                     />
@@ -393,9 +396,12 @@ export const DataframeView: FC<DataframeViewProps> = ({
                       onMouseDown={header.getResizeHandler()}
                       onTouchStart={header.getResizeHandler()}
                       onResize={(size) =>
-                        updateGridState({
-                          columnSizing: { ...state.columnSizing, [id]: size },
-                        })
+                        updateGridState((previous) => ({
+                          columnSizing: {
+                            ...previous.columnSizing,
+                            [id]: size,
+                          },
+                        }))
                       }
                       onReset={() => autoSize(id)}
                     />
