@@ -93,16 +93,51 @@
   fill: #2b6a94;
 }
 
-.crosshair {
-  stroke: var(--bs-secondary-color);
-  stroke-dasharray: 3 3;
-  opacity: 0.6;
+/* ── shared cursor (handoff 11a) ── */
+
+/* One hairline through every band at the anchor time. */
+.cursorLine {
+  stroke: #adb5bd;
+  stroke-width: 1;
   pointer-events: none;
 }
 
-/* Read-out dot on a hovered curve (fill = the row hue, set inline). */
-.hoverDot {
+/* Dark pill on the axis pinning the exact time (or turn). */
+.cursorPill {
+  fill: #212529;
   pointer-events: none;
+}
+
+.cursorPillText {
+  fill: #fff;
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+/* Read-out dot per visible row on the curve bands (stroke = row hue). */
+.readoutDot {
+  fill: var(--bs-body-bg);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+/* Full-plot hit surface — sits under every span/marker so they still
+   receive their own hovers. */
+.plotHit {
+  fill: transparent;
+}
+
+/* Stall regions on the working band carry their own hover target. */
+.stallHit {
+  fill: transparent;
+}
+
+/* Gutter legend caption while the cursor is live. */
+.legendCaption {
+  font-size: 7px;
+  fill: var(--bs-secondary-color);
+  letter-spacing: 0.4px;
 }
 
 /* Token burn stacked by conversation (handoff 10a): each layer fills in
@@ -127,24 +162,6 @@
   font-size: 9px;
   fill: var(--bs-secondary-color);
   font-family: var(--bs-font-monospace);
-}
-
-.lineHit {
-  fill: transparent;
-}
-
-.lineTooltip {
-  position: absolute;
-  pointer-events: none;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 3px;
-  padding: 1px 6px;
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  z-index: 9;
 }
 
 /* ── model & tool activity ── */
@@ -174,6 +191,16 @@
 
 .pendingSpan {
   opacity: 0.55;
+}
+
+/* Span hover (handoff 11a): the hovered rect outlines, its turn-mates dim. */
+.spanHovered {
+  stroke: #212529;
+  stroke-width: 1;
+}
+
+.spanDim {
+  opacity: 0.6;
 }
 
 .clickableSpan {
@@ -293,104 +320,6 @@
   pointer-events: none;
 }
 
-.markerPopover {
-  position: absolute;
-  max-width: 330px;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 4px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-  z-index: 10;
-  font-size: 0.75rem;
-  pointer-events: none;
-  padding: 0.35rem 0.6rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.markerPopoverEntry {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.markerPopoverSwatch {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  align-self: center;
-}
-
-.markerPopoverTime {
-  margin-left: auto;
-  color: var(--bs-secondary-color);
-  font-family: var(--bs-font-monospace);
-  font-size: 0.7rem;
-}
-
-/* ── span popover ── */
-
-.spanPopover {
-  position: absolute;
-  width: 300px;
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 4px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
-  z-index: 10;
-  font-size: 0.75rem;
-  pointer-events: none;
-}
-
-.spanPopoverHeader {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  padding: 0.35rem 0.6rem;
-  border-bottom: 1px solid var(--bs-border-color);
-  background: var(--bs-light-bg-subtle);
-  border-radius: 4px 4px 0 0;
-}
-
-.spanPopoverSwatch {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  align-self: center;
-  flex-shrink: 0;
-}
-
-.spanPopoverTitle {
-  font-weight: 600;
-  font-family: var(--bs-font-monospace);
-  font-size: 0.72rem;
-}
-
-.spanPopoverTime {
-  margin-left: auto;
-  color: var(--bs-secondary-color);
-  font-family: var(--bs-font-monospace);
-  font-size: 0.7rem;
-}
-
-.spanPopoverBody {
-  padding: 0.4rem 0.6rem;
-  color: var(--bs-body-color);
-}
-
-.spanPopoverFailed {
-  color: #b04a3c;
-}
-
-.spanPopoverHint {
-  color: var(--bs-secondary-color);
-}
-
 /* ── dark theme ── */
 
 :global([data-bs-theme="dark"]) .tokenSeries {
@@ -470,6 +399,18 @@
   fill: #dee2e6;
 }
 
-:global([data-bs-theme="dark"]) .spanPopoverFailed {
-  color: #d98b7f;
+:global([data-bs-theme="dark"]) .cursorLine {
+  stroke: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .cursorPill {
+  fill: #dee2e6;
+}
+
+:global([data-bs-theme="dark"]) .cursorPillText {
+  fill: #212529;
+}
+
+:global([data-bs-theme="dark"]) .spanHovered {
+  stroke: #f8f9fa;
 }

@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 
+import { useTimeout } from "@tsmono/react/hooks";
+
 import styles from "./ActivityChart.module.css";
 import {
   ActivityData,
@@ -25,6 +27,12 @@ import {
   StallRegion,
   TimeWindow,
 } from "./activityData";
+import {
+  ActivityTooltip,
+  HoverTarget,
+  hoverTargetKey,
+  kTooltipWidth,
+} from "./ActivityTooltip";
 
 // Task-timeline parity geometry (handoff decision 6).
 const kBandHeight = 84;
@@ -66,32 +74,17 @@ const kDensityPxPerSpan = 3;
 const kDensityColWidth = 2;
 // Hover/click bins on a dense row aggregate columns to a readable window.
 const kDensityHoverPx = 16;
+// Tooltip behaviour (handoff 11b): show delay, flip-left margin.
+const kTooltipDelayMs = 120;
+const kTooltipFlipPx = 280;
+// A curve hover within this many px of a context point reads that point.
+const kContextPointSnapPx = 6;
 
-/** Crosshair + value readout for a hovered curve band. */
-interface LineHover {
-  bandId: string;
+/** The shared cursor: a time on the axis, anchored to a hovered span or
+ *  marker start when one is hovered, else the raw pointer position. */
+interface Cursor {
   x: number;
-  dots: { y: number; hue: string }[];
-  top: number;
-  label: string;
-}
-
-interface SpanHover {
-  x: number;
-  span: ActivitySpan;
-  row: AgentRow;
-}
-
-interface MarkerHover {
-  x: number;
-  members: ActivityMarker[];
-}
-
-interface BinHover {
-  x: number;
-  top: number;
-  label: string;
-  window: TimeWindow;
+  t: number;
 }
 
 export interface ActivityChartProps {
@@ -183,11 +176,30 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     }
   };
 
-  const [lineHover, setLineHover] = useState<LineHover | null>(null);
-  const [spanHover, setSpanHover] = useState<SpanHover | null>(null);
-  const [markerHover, setMarkerHover] = useState<MarkerHover | null>(null);
-  const [binHover, setBinHover] = useState<BinHover | null>(null);
+  // ── hover state (handoff 11a): one cursor, one tooltip target ─────────
+  const [cursor, setCursor] = useState<Cursor | null>(null);
+  const [hoverTarget, setHoverTarget] = useState<HoverTarget | null>(null);
+  // The tooltip appears kTooltipDelayMs after a target arrives; the shown
+  // key trails the live target so a quick sweep across spans shows nothing.
+  const [shownKey, setShownKey] = useState<string | null>(null);
+  const targetKey = hoverTargetKey(hoverTarget);
+  useTimeout(
+    () => setShownKey(targetKey),
+    targetKey !== null && shownKey !== targetKey ? kTooltipDelayMs : null
+  );
+  // Pointer over the tooltip itself (its footer is clickable) holds it.
+  const [tooltipHeld, setTooltipHeld] = useState(false);
   const [foldExpanded, setFoldExpanded] = useState(false);
+
+  const clearTarget = () => {
+    if (!tooltipHeld) setHoverTarget(null);
+  };
+  const leaveChart = () => {
+    setCursor(null);
+    setHoverTarget(null);
+    setShownKey(null);
+    setTooltipHeld(false);
+  };
 
   // ── conversation rows: fold, hide, gutter ─────────────────────────────
   const multiAgent = data.agentRows.length > 1;
@@ -281,17 +293,18 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     kPlotBottom,
     kAgentRowFirstLabelY - 4 + agentRowCount * kAgentRowPitch + 4
   );
-  // Curve bands with a gutter legend grow to fit one legend line per row.
+  // Curve bands with a gutter legend grow to fit one legend line per row
+  // plus the AT CURSOR caption.
   const legendPlotBottom = multiAgent
-    ? Math.max(kPlotBottom, kPlotTop + 6 + curveRows.length * kLegendPitch)
+    ? Math.max(kPlotBottom, kPlotTop + 6 + curveRows.length * kLegendPitch + 8)
     : kPlotBottom;
 
   const bands: Band[] = [];
-  let cursor = showMarkers && data.markers.length > 0 ? markerHeadroom : 0;
+  let bandCursor = showMarkers && data.markers.length > 0 ? markerHeadroom : 0;
   const pushBand = (kind: Band["kind"], plotBottom: number) => {
     const height = plotBottom + (kBandHeight - kPlotBottom);
-    bands.push({ kind, top: cursor, plotBottom, height });
-    cursor += height;
+    bands.push({ kind, top: bandCursor, plotBottom, height });
+    bandCursor += height;
   };
   // Band order (handoff 8a): activity → context → token burn → working.
   if (showModelTool && agentRowCount > 0) {
@@ -304,12 +317,39 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     pushBand("tokens", legendPlotBottom);
   if (showWorking) pushBand("working", kPlotBottom);
 
-  const axisY = (bands.length === 0 ? markerHeadroom + 24 : cursor) + 6;
+  const axisY = (bands.length === 0 ? markerHeadroom + 24 : bandCursor) + 6;
   const height = axisY + kAxisHeight;
+  const plotTopY = bands[0] ? bands[0].top + kPlotTop - 4 : markerHeadroom;
 
   if (bands.length === 0 && (!showMarkers || data.markers.length === 0)) {
     return null;
   }
+
+  // ── curve read-outs at a time ─────────────────────────────────────────
+
+  /** Cumulative burn per visible row up to `t` (row order preserved). */
+  const tokenValuesAt = (t: number): { row: AgentRow; value: number }[] =>
+    curveRows.map((row) => {
+      let value = 0;
+      for (const point of data.tokensByRow[row.id] ?? []) {
+        if (point.time > t) break;
+        value = point.value;
+      }
+      return { row, value };
+    });
+
+  /** Nearest context point at or before `t`, per visible row. */
+  const contextPointsAt = (
+    t: number
+  ): { row: AgentRow; point?: ContextPoint }[] =>
+    curveRows.map((row) => {
+      let point: ContextPoint | undefined;
+      for (const candidate of data.contextByRow[row.id] ?? []) {
+        if (candidate.time > t) break;
+        point = candidate;
+      }
+      return { row, point };
+    });
 
   // ── shared band chrome ────────────────────────────────────────────────
 
@@ -354,80 +394,76 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     </text>
   );
 
-  /** Gutter legend for a curve band (handoff 10a): swatch · name · value. */
+  /** Gutter legend for a curve band (handoff 10a/11a): swatch · name ·
+   *  value — the peak/total normally, the value AT CURSOR while hovering. */
   const gutterLegend = (
     band: Band,
-    valueOf: (row: AgentRow) => string
+    restingValue: (row: AgentRow) => string,
+    cursorValue: (row: AgentRow, t: number) => string
   ): ReactNode => {
     if (!multiAgent) return null;
-    return curveRows.map((row, i) => {
-      const y = band.top + kPlotTop + 6 + i * kLegendPitch;
-      return (
-        <g key={`legend-${row.id}`}>
-          <circle cx={10} cy={y - 3} r={3} fill={row.hue} />
-          <text className={styles.legendName} x={17} y={y}>
-            {truncateLabel(row.name, 11)}
-          </text>
-          {/* Right-aligned short of the y-tick labels, which keep the
-              gutter's right edge. */}
+    return (
+      <Fragment>
+        {curveRows.map((row, i) => {
+          const y = band.top + kPlotTop + 6 + i * kLegendPitch;
+          return (
+            <g key={`legend-${row.id}`}>
+              <circle cx={10} cy={y - 3} r={3} fill={row.hue} />
+              <text className={styles.legendName} x={17} y={y}>
+                {truncateLabel(row.name, 11)}
+              </text>
+              {/* Right-aligned short of the y-tick labels, which keep the
+                  gutter's right edge. */}
+              <text
+                className={styles.legendValue}
+                x={plotLeft - 30}
+                y={y}
+                textAnchor="end"
+              >
+                {cursor ? cursorValue(row, cursor.t) : restingValue(row)}
+              </text>
+            </g>
+          );
+        })}
+        {cursor && (
           <text
-            className={styles.legendValue}
-            x={plotLeft - 30}
-            y={y}
-            textAnchor="end"
+            className={styles.legendCaption}
+            x={17}
+            y={band.top + kPlotTop + 6 + curveRows.length * kLegendPitch}
           >
-            {valueOf(row)}
+            AT CURSOR
           </text>
-        </g>
-      );
-    });
+        )}
+      </Fragment>
+    );
   };
 
-  const cursorTime = (
-    event: ReactMouseEvent<SVGRectElement>
-  ): { px: number; t: number } => {
+  const pointerPx = (event: ReactMouseEvent<SVGElement>): number => {
     const left =
       event.currentTarget.ownerSVGElement?.getBoundingClientRect().left ?? 0;
-    const px = Math.min(Math.max(event.clientX - left, plotLeft), plotRight);
-    return { px, t: timeAt(px) };
+    return Math.min(Math.max(event.clientX - left, plotLeft), plotRight);
   };
 
-  const crosshair = (band: Band, hover: LineHover) => (
-    <Fragment>
-      <line
-        className={styles.crosshair}
-        x1={hover.x}
-        x2={hover.x}
-        y1={band.top + kPlotTop - 4}
-        y2={band.top + band.plotBottom}
-      />
-      {hover.dots.map((dot, i) => (
-        <circle
-          key={i}
-          className={styles.hoverDot}
-          cx={hover.x}
-          cy={dot.y}
-          r={3}
-          fill={dot.hue}
-        />
-      ))}
-    </Fragment>
-  );
+  const pointerPy = (event: ReactMouseEvent<SVGElement>): number => {
+    const top =
+      event.currentTarget.ownerSVGElement?.getBoundingClientRect().top ?? 0;
+    return event.clientY - top;
+  };
 
-  const lineHitRect = (
-    band: Band,
-    onMove: (event: ReactMouseEvent<SVGRectElement>) => void
-  ) => (
-    <rect
-      className={styles.lineHit}
-      x={plotLeft}
-      y={band.top + kPlotTop - 4}
-      width={Math.max(plotWidth, 0)}
-      height={band.plotBottom - kPlotTop + 4}
-      onMouseMove={onMove}
-      onMouseLeave={() => setLineHover(null)}
-    />
-  );
+  /** Read-out dots at the cursor time on a curve band. */
+  const readoutDots = (dots: { y: number; hue: string }[]) =>
+    cursor
+      ? dots.map((dot, i) => (
+          <circle
+            key={`readout-${i}`}
+            className={styles.readoutDot}
+            cx={cursor.x}
+            cy={dot.y}
+            r={3.5}
+            stroke={dot.hue}
+          />
+        ))
+      : null;
 
   /** 0 / mid / max ticks in fmtTokens units. */
   const yTicks = (yOf: (v: number) => number, max: number) => {
@@ -508,23 +544,34 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             </Fragment>
           );
         })}
+        {/* Stall gaps carry the "Waiting …" tooltip (handoff 11b). */}
+        {data.stalls.map((stall, i) => {
+          const w = x(stall.end) - x(stall.start);
+          if (w < 3) return null;
+          return (
+            <rect
+              key={`stall-hit-${i}`}
+              className={styles.stallHit}
+              x={x(stall.start)}
+              y={band.top + kWorkingBlockTop}
+              width={w}
+              height={band.plotBottom - kWorkingBlockTop}
+              onMouseMove={(event) => {
+                setCursor({ x: x(stall.start), t: stall.start });
+                setHoverTarget({ kind: "stall", stall });
+                // Keep the pointer x meaningful for the tooltip position.
+                void event;
+              }}
+              onMouseLeave={clearTarget}
+            />
+          );
+        })}
         {axisFrame(band)}
       </g>
     );
   };
 
   // ── TOKEN BURN ────────────────────────────────────────────────────────
-
-  /** Cumulative burn per visible row up to `t` (row order preserved). */
-  const tokenValuesAt = (t: number): { row: AgentRow; value: number }[] =>
-    curveRows.map((row) => {
-      let value = 0;
-      for (const point of data.tokensByRow[row.id] ?? []) {
-        if (point.time > t) break;
-        value = point.value;
-      }
-      return { row, value };
-    });
 
   const renderTokens = (band: Band) => {
     const visibleTotal = curveRows.reduce(
@@ -595,6 +642,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       ? `${fmtTokens(data.totalTokens)} total${shownNote} · stacked by conversation`
       : `${fmtTokens(data.totalTokens)} total`;
 
+    // Read-out dots sit on each layer's top edge at the cursor time.
+    const dots = (() => {
+      if (!cursor) return [];
+      let stack = 0;
+      return tokenValuesAt(cursor.t).map(({ row, value }) => {
+        stack += value;
+        return { y: y(stack), hue: multiAgent ? row.hue : "#495057" };
+      });
+    })();
+
     return (
       <g key="band-tokens">
         {bandLabel(band, "TOKEN BURN")}
@@ -619,31 +676,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         )}
         {axisFrame(band)}
         {yTicks(y, max)}
-        {gutterLegend(band, (row) =>
-          fmtTokens(data.tokenTotalsByRow[row.id] ?? 0)
+        {gutterLegend(
+          band,
+          (row) => fmtTokens(data.tokenTotalsByRow[row.id] ?? 0),
+          (row, t) => {
+            const value = tokenValuesAt(t).find((v) => v.row === row)?.value;
+            return fmtTokens(value ?? 0);
+          }
         )}
-        {lineHover?.bandId === "tokens" && crosshair(band, lineHover)}
-        {lineHitRect(band, (event) => {
-          const { px, t } = cursorTime(event);
-          const values = tokenValuesAt(t);
-          let stack = 0;
-          const dots = values.map(({ row, value }) => {
-            stack += value;
-            return { y: y(stack), hue: multiAgent ? row.hue : "#495057" };
-          });
-          const label = multiAgent
-            ? values
-                .map(({ row, value }) => `${row.name} ${fmtTokens(value)}`)
-                .join(" · ") + ` · ${fmtTimeSec(t)}`
-            : `${stack.toLocaleString()} tokens · ${fmtTimeSec(t)}`;
-          setLineHover({
-            bandId: "tokens",
-            x: px,
-            dots,
-            top: band.top + kPlotTop,
-            label,
-          });
-        })}
+        {readoutDots(dots)}
       </g>
     );
   };
@@ -705,6 +746,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const headline = multiAgent
       ? `per conversation · peak ${fmtTokens(peak)}`
       : `peak ${fmtTokens(peak)}`;
+
+    const dots = cursor
+      ? contextPointsAt(cursor.t)
+          .filter((v) => v.point !== undefined)
+          .map((v) => ({
+            y: y(v.point?.value ?? 0),
+            hue: multiAgent ? v.row.hue : "#3a7bd5",
+          }))
+      : [];
 
     return (
       <g key="band-context">
@@ -772,43 +822,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         })()}
         {axisFrame(band)}
         {yTicks(y, max)}
-        {gutterLegend(band, (row) =>
-          fmtTokens(data.contextPeakByRow[row.id] ?? 0)
+        {gutterLegend(
+          band,
+          (row) => fmtTokens(data.contextPeakByRow[row.id] ?? 0),
+          (row, t) => {
+            const point = contextPointsAt(t).find((v) => v.row === row)?.point;
+            return point ? fmtTokens(point.value) : "—";
+          }
         )}
-        {lineHover?.bandId === "context" && crosshair(band, lineHover)}
-        {lineHitRect(band, (event) => {
-          const { px, t } = cursorTime(event);
-          // Nearest point at or before the cursor, per visible row.
-          const values = curveRows.map((row) => {
-            let point: ContextPoint | undefined;
-            for (const candidate of data.contextByRow[row.id] ?? []) {
-              if (candidate.time > t) break;
-              point = candidate;
-            }
-            return { row, value: point?.value };
-          });
-          const dots = values
-            .filter((v) => v.value !== undefined)
-            .map((v) => ({
-              y: y(v.value ?? 0),
-              hue: multiAgent ? v.row.hue : "#3a7bd5",
-            }));
-          const label = multiAgent
-            ? values
-                .map(
-                  ({ row, value }) =>
-                    `${row.name} ${value === undefined ? "—" : fmtTokens(value)}`
-                )
-                .join(" · ") + ` · ${fmtTimeSec(t)}`
-            : `${(values[0]?.value ?? 0).toLocaleString()} tokens · ${fmtTimeSec(t)}`;
-          setLineHover({
-            bandId: "context",
-            x: px,
-            dots,
-            top: band.top + kPlotTop,
-            label,
-          });
-        })}
+        {readoutDots(dots)}
       </g>
     );
   };
@@ -830,6 +852,27 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  — the burst-label declutter reserves its extent. */
   const rowLabelText = (row: AgentRow): string =>
     `${row.model} ${row.role ? `· ${row.role}` : row.toolCount > 0 ? "+ tools" : ""}`;
+
+  const hoveredSpan =
+    hoverTarget?.kind === "span"
+      ? hoverTarget.span
+      : hoverTarget?.kind === "burst"
+        ? hoverTarget.hovered
+        : undefined;
+
+  const hoverSpan = (row: AgentRow, s: ActivitySpan) => {
+    setCursor({ x: x(s.start), t: s.start });
+    // A sub-laned span belongs to a burst: the tooltip lists the burst.
+    const burst =
+      s.subLane !== undefined
+        ? row.bursts.find((b) => s.start >= b.start && s.end <= b.end)
+        : undefined;
+    setHoverTarget(
+      burst
+        ? { kind: "burst", burst, row, hovered: s }
+        : { kind: "span", span: s, row }
+    );
+  };
 
   const renderDiscreteRow = (row: AgentRow, rowTop: number): ReactNode => {
     const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
@@ -872,6 +915,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           const subLaned = s.subLane !== undefined;
           const h = subLaned ? kSubLaneHeight : kAgentSpanHeight;
           const failedTool = s.kind === "tool" && s.failed;
+          const isHovered = hoveredSpan === s;
+          // Span hover (handoff 11a): the other spans in the same turn dim.
+          const dim =
+            hoveredSpan !== undefined &&
+            !isHovered &&
+            hoveredSpan.turn !== undefined &&
+            hoveredSpan.turn === s.turn;
           return (
             <g key={`span-${i}`}>
               {s.kind === "model" &&
@@ -891,17 +941,17 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   s.kind === "model" ? styles.modelSpan : styles.toolSpan,
                   failedTool && styles.failedSpan,
                   s.pending && styles.pendingSpan,
-                  s.uuid && onOpenEvent && styles.clickableSpan
+                  s.uuid && onOpenEvent && styles.clickableSpan,
+                  isHovered && styles.spanHovered,
+                  dim && styles.spanDim
                 )}
                 x={x(s.start)}
                 y={laneY(s)}
                 width={spanWidth(row, s)}
                 height={h}
                 rx={1}
-                onMouseEnter={() =>
-                  setSpanHover({ x: x(s.start), span: s, row })
-                }
-                onMouseLeave={() => setSpanHover(null)}
+                onMouseEnter={() => hoverSpan(row, s)}
+                onMouseLeave={clearTarget}
                 onClick={
                   s.uuid && onOpenEvent
                     ? (event) => onOpenEvent(s.uuid!, event)
@@ -917,7 +967,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           // calls every turn, dozens of them smear over each other and the
           // row label. A label renders only with clear horizontal room
           // (after the row label and the previous burst label); the span
-          // hover popover keeps the full detail for unlabeled bursts.
+          // hover tooltip keeps the full detail for unlabeled bursts.
           let lastLabelEnd = multiAgent
             ? plotLeft
             : kYAxisWidth + 4 + rowLabelText(row).length * 5 + 12;
@@ -955,11 +1005,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     failed: number;
   }
 
-  const renderDenseRow = (
-    row: AgentRow,
-    rowTop: number,
-    band: Band
-  ): ReactNode => {
+  const renderDenseRow = (row: AgentRow, rowTop: number): ReactNode => {
     const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
     const rowH = kAgentSpanHeight + 1;
     const nCols = Math.max(1, Math.floor(plotWidth / kDensityColWidth));
@@ -1054,21 +1100,20 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           width={Math.max(plotWidth, 0)}
           height={rowH + 4}
           onMouseMove={(event) => {
-            const { px } = cursorTime(event);
+            const px = pointerPx(event);
             const bin = binAt(px);
-            setBinHover({
-              x: px,
-              top: band.top + kPlotTop,
+            setCursor({ x: px, t: timeAt(px) });
+            setHoverTarget({
+              kind: "bin",
               label: bin.label,
               window: bin.window,
             });
           }}
-          onMouseLeave={() => setBinHover(null)}
+          onMouseLeave={clearTarget}
           onClick={
             onFilterWindow
               ? (event) => {
-                  const { px } = cursorTime(event);
-                  onFilterWindow(binAt(px).window);
+                  onFilterWindow(binAt(pointerPx(event)).window);
                 }
               : undefined
           }
@@ -1203,7 +1248,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               )}
               {on &&
                 (dense
-                  ? renderDenseRow(row, rowTop, band)
+                  ? renderDenseRow(row, rowTop)
                   : renderDiscreteRow(row, rowTop))}
             </g>
           );
@@ -1302,11 +1347,19 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   .join("; ")}`
               : head.label;
           const activate = () => {
-            setMarkerHover({ x: group.x, members: group.members });
+            setCursor({ x: group.x, t: head.time });
+            setHoverTarget({
+              kind: "marker",
+              members: group.members,
+              compaction:
+                head.category === "compaction"
+                  ? data.compactions.find((drop) => drop.key === head.key)
+                  : undefined,
+            });
             onHoverMarker?.(keys);
           };
           const deactivate = () => {
-            setMarkerHover(null);
+            clearTarget();
             onHoverMarker?.(null);
           };
           const selected = selectedKey !== null && keys.includes(selectedKey);
@@ -1458,98 +1511,160 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     );
   };
 
-  // ── popovers / tooltips ───────────────────────────────────────────────
+  // ── shared cursor: hairline + axis pill (handoff 11a) ─────────────────
 
-  const renderSpanPopover = () => {
-    if (!spanHover) return null;
-    const { span: s, row } = spanHover;
-    const left = Math.min(
-      Math.max(spanHover.x - 24, 0),
-      Math.max(width - 300, 0)
+  const renderCursor = () => {
+    if (!cursor) return null;
+    const label = fmtTimeSec(cursor.t);
+    const pillW = label.length * 5.6 + 10;
+    const pillX = Math.min(
+      Math.max(cursor.x - pillW / 2, plotLeft),
+      plotRight - pillW
     );
-    // Find the band top for model/tool to anchor below the hovered row.
-    const band = bands.find((b) => b.kind === "modelTool");
-    const rowIndex = displayRows.indexOf(row);
-    const top =
-      (band?.top ?? 0) +
-      kAgentSpanOffset +
-      Math.max(rowIndex, 0) * kAgentRowPitch +
-      kAgentSpanHeight +
-      4;
-    const handoffName = s.handoffTo
-      ? row.blockedOn.find((b) => b.childId === s.handoffTo)?.childName
-      : undefined;
     return (
-      <div className={styles.spanPopover} style={{ left, top }}>
-        <div className={styles.spanPopoverHeader}>
-          <span
-            className={styles.spanPopoverSwatch}
-            style={{ background: s.kind === "model" ? "#64748b" : "#4f8f8b" }}
-          />
-          <span className={styles.spanPopoverTitle}>{s.label}</span>
-          <span className={styles.spanPopoverTime}>
-            {fmtTimeSec(s.start)}
-            {s.end > s.start
-              ? ` – ${s.pending ? "now" : fmtTimeSec(s.end)}`
-              : ""}
-          </span>
-        </div>
-        <div className={styles.spanPopoverBody}>
-          {s.kind === "model" ? "model call" : "tool call"}
-          {multiAgent ? ` · ${row.name}` : ""}
-          {row.role ? ` · ${row.role}` : ""}
-          {` · ${fmtDurationWords(s.end - s.start)}`}
-          {s.retries !== undefined && s.retries > 0
-            ? ` · retried ×${s.retries}`
-            : ""}
-          {handoffName ? ` · handed off to ${handoffName}` : ""}
-          {s.failed ? (
-            <span className={styles.spanPopoverFailed}> · failed</span>
-          ) : (
-            ""
-          )}
-          {s.uuid && onOpenEvent ? (
-            <span className={styles.spanPopoverHint}>
-              {" "}
-              · click to open in transcript
-            </span>
-          ) : null}
-        </div>
-      </div>
+      <g key="cursor">
+        <line
+          className={styles.cursorLine}
+          x1={cursor.x}
+          x2={cursor.x}
+          y1={plotTopY}
+          y2={axisY}
+        />
+        <rect
+          className={styles.cursorPill}
+          x={pillX}
+          y={axisY + 4}
+          width={pillW}
+          height={14}
+          rx={2}
+        />
+        <text
+          className={styles.cursorPillText}
+          x={pillX + pillW / 2}
+          y={axisY + 14}
+          textAnchor="middle"
+        >
+          {label}
+        </text>
+      </g>
     );
   };
 
-  const renderMarkerPopover = () => {
-    if (!markerHover) return null;
-    const left = Math.min(
-      Math.max(markerHover.x - 24, 0),
-      Math.max(width - 300, 0)
-    );
+  /** The full-plot hit surface under every band: moves the cursor with the
+   *  pointer and reads the curve under it (a context point within a few px
+   *  gets its own tooltip; otherwise the per-row values). */
+  const onPlotMove = (event: ReactMouseEvent<SVGRectElement>) => {
+    const px = pointerPx(event);
+    const py = pointerPy(event);
+    const t = timeAt(px);
+    setCursor({ x: px, t });
+    const band = bands.find((b) => py >= b.top && py < b.top + b.height);
+    if (band?.kind === "context") {
+      const yOf = (v: number) => {
+        const visibleCompactions = data.compactions.filter((drop) =>
+          visibleRowIds.has(drop.rowId)
+        );
+        const dropMax = visibleCompactions.reduce(
+          (m, c) => Math.max(m, c.before ?? 0),
+          0
+        );
+        const peak = curveRows.reduce(
+          (m, row) => Math.max(m, data.contextPeakByRow[row.id] ?? 0),
+          0
+        );
+        const yMax = Math.max(peak, dropMax, 1) * 1.05;
+        return (
+          band.top + band.plotBottom - (v / yMax) * (band.plotBottom - kPlotTop)
+        );
+      };
+      // Snap to a context point when the pointer is right on it.
+      let nearest: { row: AgentRow; point: ContextPoint } | undefined;
+      let nearestDist = Infinity;
+      for (const row of curveRows) {
+        for (const point of data.contextByRow[row.id] ?? []) {
+          const dist = Math.hypot(x(point.time) - px, yOf(point.value) - py);
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = { row, point };
+          }
+        }
+      }
+      if (nearest && nearestDist <= kContextPointSnapPx) {
+        setHoverTarget({
+          kind: "context",
+          point: nearest.point,
+          row: nearest.row,
+        });
+        return;
+      }
+      setHoverTarget({
+        kind: "curve",
+        band: "context",
+        time: t,
+        values: contextPointsAt(t).map(({ row, point }) => ({
+          row,
+          value: point?.value,
+        })),
+      });
+      return;
+    }
+    if (band?.kind === "tokens") {
+      setHoverTarget({
+        kind: "curve",
+        band: "tokens",
+        time: t,
+        values: tokenValuesAt(t),
+      });
+      return;
+    }
+    // Empty chart under the pointer: cursor only, no card.
+    if (!tooltipHeld) setHoverTarget(null);
+  };
+
+  // ── tooltip placement (handoff 11b) ───────────────────────────────────
+  // Below the activity band (never over the hovered row); follows the
+  // pointer horizontally; flips left near the right edge.
+  const renderTooltip = () => {
+    if (!hoverTarget || !cursor || shownKey !== targetKey) return null;
+    const activityBand = bands.find((b) => b.kind === "modelTool");
+    const top = activityBand
+      ? activityBand.top + activityBand.height - 6
+      : (bands[0]?.top ?? markerHeadroom) + kPlotTop;
+    const left =
+      cursor.x > width - kTooltipFlipPx
+        ? Math.max(cursor.x - 12 - kTooltipWidth, 0)
+        : cursor.x + 12;
     return (
-      <div
-        className={styles.markerPopover}
-        style={{ left, top: markerHeadroom + 8 }}
-      >
-        {markerHover.members.map((member, i) => (
-          <div key={i} className={styles.markerPopoverEntry}>
-            <span
-              className={styles.markerPopoverSwatch}
-              style={{ background: kCategoryColor[member.category] }}
-            />
-            <span>{member.label}</span>
-            <span className={styles.markerPopoverTime}>
-              {fmtTimeSec(member.time)}
-            </span>
-          </div>
-        ))}
-      </div>
+      <ActivityTooltip
+        target={hoverTarget}
+        onOpenEvent={onOpenEvent}
+        style={{ left, top }}
+        onMouseEnter={() => setTooltipHeld(true)}
+        onMouseLeave={() => {
+          setTooltipHeld(false);
+          setHoverTarget(null);
+        }}
+      />
     );
   };
 
   return (
-    <div ref={chartRef} className={styles.chart} style={{ height }}>
+    <div
+      ref={chartRef}
+      className={styles.chart}
+      style={{ height }}
+      onMouseLeave={leaveChart}
+    >
       {width > 0 && (
         <svg className={styles.svg} width={width} height={height}>
+          <rect
+            className={styles.plotHit}
+            x={plotLeft}
+            y={plotTopY}
+            width={Math.max(plotWidth, 0)}
+            height={Math.max(axisY - plotTopY, 0)}
+            onMouseMove={onPlotMove}
+          />
           {bands.map((band) => {
             switch (band.kind) {
               case "working":
@@ -1563,28 +1678,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             }
           })}
           {renderAxis()}
+          {renderCursor()}
           {showMarkers && renderMarkers()}
         </svg>
       )}
-      {renderSpanPopover()}
-      {renderMarkerPopover()}
-      {(lineHover ?? binHover) && (
-        <div
-          className={styles.lineTooltip}
-          style={(() => {
-            const hover = lineHover ?? binHover!;
-            return hover.x > width - 180
-              ? {
-                  left: hover.x - 10,
-                  top: hover.top,
-                  transform: "translateX(-100%)",
-                }
-              : { left: hover.x + 10, top: hover.top };
-          })()}
-        >
-          {(lineHover ?? binHover!).label}
-        </div>
-      )}
+      {renderTooltip()}
     </div>
   );
 };

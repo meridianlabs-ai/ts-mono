@@ -165,6 +165,8 @@ export interface ActivitySpan {
   toolCalls?: string[];
   // — tool calls:
   resultBytes?: number;
+  /** First argument (url / cmd / path …) as `key` and ellipsized value. */
+  firstArgKey?: string;
   firstArg?: string;
   errorMessage?: string;
 }
@@ -438,12 +440,14 @@ const callArgsText = (args: Record<string, unknown>): string => {
   return truncate(text.replace(/\s+/g, " ").trim(), 60);
 };
 
-/** The first argument's value (url / cmd / path) for the tool tooltip. */
-const firstArgText = (args: Record<string, unknown>): string | undefined => {
-  const first = Object.values(args)[0];
-  if (first === undefined) return undefined;
-  const text = valueText(first).replace(/\s+/g, " ").trim();
-  return text ? truncate(text, 80) : undefined;
+/** The first argument (url / cmd / path) for the tool tooltip. */
+const firstArg = (
+  args: Record<string, unknown>
+): { key: string; value: string } | undefined => {
+  const first = Object.entries(args)[0];
+  if (!first) return undefined;
+  const text = valueText(first[1]).replace(/\s+/g, " ").trim();
+  return text ? { key: first[0], value: truncate(text, 80) } : undefined;
 };
 
 /** Byte-ish size of a tool result (string length; content parts summed). */
@@ -849,7 +853,8 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           pending: isPending,
           uuid,
           resultBytes: resultSize(event.result),
-          firstArg: firstArgText(event.arguments),
+          firstArgKey: firstArg(event.arguments)?.key,
+          firstArg: firstArg(event.arguments)?.value,
           errorMessage: event.error?.message
             ? truncate(event.error.message, 160)
             : undefined,

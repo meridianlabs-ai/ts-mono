@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -451,5 +452,141 @@ describe("SampleActivityPanel agent gutter (multi-conversation)", () => {
     mountPanel();
     expect(screen.queryByRole("checkbox")).toBeNull();
     expect(screen.getByText("test-model")).toBeTruthy();
+  });
+});
+
+describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
+  /** The hovered span rect for a given event uuid — spans carry no text,
+   *  so the click-through class is the one DOM hook. */
+  const spanRects = (container: HTMLElement) => [
+    ...container.querySelectorAll(
+      "rect[class*='modelSpan'], rect[class*='toolSpan']"
+    ),
+  ];
+
+  it("moves the cursor with the pointer: hairline, axis pill, read-out dots", () => {
+    const { container } = mountPanel();
+    const plot = container.querySelector("rect[class*='plotHit']");
+    if (!(plot instanceof SVGElement))
+      throw new Error("expected the plot hit rect");
+    fireEvent.mouseMove(plot, { clientX: 500, clientY: 40 });
+
+    expect(container.querySelectorAll("[class*='cursorLine']")).toHaveLength(1);
+    expect(
+      container.querySelector("[class*='cursorPillText']")?.textContent
+    ).toMatch(/\d/);
+    // One read-out dot per curve band (context + tokens) for the one row.
+    expect(
+      container.querySelectorAll("[class*='readoutDot']").length
+    ).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows one tooltip card for a hovered span after the delay, with click-through", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = mountPanel({ onOpenEvent });
+      const failedTool = container.querySelector("rect[class*='failedSpan']");
+      if (!(failedTool instanceof SVGElement))
+        throw new Error("expected the failed tool span");
+      fireEvent.mouseEnter(failedTool);
+      // Not yet: 120ms show delay.
+      expect(screen.queryByText("tool call")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(screen.getByText("tool call")).toBeTruthy();
+      expect(screen.getByText("failed")).toBeTruthy();
+      // The error message appears in the history row and now in the card.
+      expect(screen.getAllByText(/exit 127/).length).toBeGreaterThanOrEqual(2);
+      // The hovered rect outlines.
+      expect(failedTool.getAttribute("class")).toContain("spanHovered");
+
+      fireEvent.click(
+        screen.getAllByRole("button", { name: "open in transcript →" })[0]!
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("tool-fail", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads a model turn's tokens and stop reason", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = mountPanel();
+      const model = spanRects(container).find((rect) =>
+        rect.getAttribute("class")?.includes("modelSpan")
+      );
+      if (!(model instanceof SVGElement))
+        throw new Error("expected a model span");
+      fireEvent.mouseEnter(model);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(screen.getByText("Model turn 1")).toBeTruthy();
+      expect(screen.getByText("input")).toBeTruthy();
+      expect(screen.getByText("1,000")).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("switches the gutter legend to AT CURSOR values on a multi-conversation sample", () => {
+    const events: Event[] = [
+      testSpanBeginEvent({
+        id: "a",
+        name: "orchestrator",
+        type: "agent",
+        timestamp: iso(0),
+      }),
+      testModelEvent({
+        uuid: "a1",
+        timestamp: iso(0),
+        completed: iso(10),
+        working_start: 0,
+        working_time: 10,
+        span_id: "a",
+        output: testModelOutput({
+          usage: testModelUsage({
+            input_tokens: 1000,
+            output_tokens: 100,
+            total_tokens: 1100,
+          }),
+        }),
+      }),
+      testSpanBeginEvent({
+        id: "b",
+        name: "researcher",
+        type: "agent",
+        parent_id: "a",
+        timestamp: iso(10),
+      }),
+      testModelEvent({
+        uuid: "b1",
+        timestamp: iso(10),
+        completed: iso(20),
+        working_start: 10,
+        working_time: 10,
+        span_id: "b",
+        output: testModelOutput({
+          usage: testModelUsage({
+            input_tokens: 500,
+            output_tokens: 50,
+            total_tokens: 550,
+          }),
+        }),
+      }),
+      testSpanEndEvent({ id: "b", timestamp: iso(20) }),
+      testSpanEndEvent({ id: "a", timestamp: iso(20) }),
+    ];
+    const { container } = mountPanel({ events });
+    expect(screen.queryByText("AT CURSOR")).toBeNull();
+    const plot = container.querySelector("rect[class*='plotHit']");
+    if (!(plot instanceof SVGElement))
+      throw new Error("expected the plot hit rect");
+    // Pointer at the plot's left edge: before either conversation burned.
+    fireEvent.mouseMove(plot, { clientX: 130, clientY: 40 });
+    expect(screen.getAllByText("AT CURSOR").length).toBeGreaterThan(0);
   });
 });
