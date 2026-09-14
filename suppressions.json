@@ -907,10 +907,6 @@
     }
   },
   "apps/scout/src/app/runScan/ActiveScanView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "react-hooks/purity": {
       "count": 1,
       "undescribed": 1
@@ -1030,12 +1026,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/transcript/TranscriptEventPanel.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "apps/scout/src/app/transcript/TranscriptPanel.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -1120,9 +1110,6 @@
     }
   },
   "apps/scout/src/app/validation/components/ValidationSetSelector.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 3
     }

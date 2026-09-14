@@ -302,8 +302,7 @@ export const ActiveScanView: FC<Props> = ({ scanId }) => {
           text="Scan not found"
         />
       )}
-      {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
-      {scanInfo && !error && <ActiveScanCard info={scanInfo} />}
+      {scanInfo && <ActiveScanCard info={scanInfo} />}
     </div>
   );
 };

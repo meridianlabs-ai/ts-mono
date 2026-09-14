@@ -146,8 +146,7 @@ export const TranscriptEventPanel: FC = () => {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (loading && !transcript) {
+  if (loading) {
     return (
       <>
         {header}
@@ -160,8 +159,7 @@ export const TranscriptEventPanel: FC = () => {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (transcript && nav.slice.length === 0) {
+  if (nav.slice.length === 0) {
     return (
       <>
         {header}
