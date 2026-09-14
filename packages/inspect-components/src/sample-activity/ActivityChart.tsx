@@ -260,8 +260,36 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       visibleRowIds.add(row.id);
     }
   }
-  /** Curve rows: the real conversation rows that are currently visible. */
-  const curveRows = data.agentRows.filter((row) => visibleRowIds.has(row.id));
+  /** Curve rows — what the curve bands layer and the gutter legend lists:
+   *  the shown conversations plus ONE aggregate entry for the collapsed
+   *  fold's visible members. The fold bounds the legend height and the
+   *  layer count the way it bounds the activity rows; a thousand folded
+   *  conversations are one grey layer, not a thousand. */
+  const curveRows = visibleRows.filter(
+    (row) => row.id !== kFoldRowId || foldMembers.length > 0
+  );
+  /** The conversations a curve row stands for (the fold: its members). */
+  const memberRows = (row: AgentRow): AgentRow[] =>
+    row.id === kFoldRowId ? foldMembers : [row];
+  /** Conversation id → the curve row that draws it. */
+  const curveRowIdOf = new Map<string, string>();
+  for (const row of curveRows) {
+    for (const member of memberRows(row)) curveRowIdOf.set(member.id, row.id);
+  }
+  const curveTokenTotal = (row: AgentRow): number =>
+    memberRows(row).reduce(
+      (sum, member) => sum + (data.tokenTotalsByRow[member.id] ?? 0),
+      0
+    );
+  /** The fold's context reads as its largest member's (peak at rest, the
+   *  largest live context at the cursor) — context sizes don't sum. */
+  const curveContextPeak = (row: AgentRow): number =>
+    memberRows(row).reduce(
+      (peak, member) => Math.max(peak, data.contextPeakByRow[member.id] ?? 0),
+      0
+    );
+  const contextPointsOf = (row: AgentRow): ContextPoint[] =>
+    memberRows(row).flatMap((member) => data.contextByRow[member.id] ?? []);
 
   const plotLeft = multiAgent ? kYAxisWidthGutter : kYAxisWidth;
   const plotRight = Math.max(width - kPlotRightInset, plotLeft);
@@ -410,18 +438,25 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── curve read-outs at a time ─────────────────────────────────────────
 
-  /** Cumulative burn per visible row at cursor x (row order preserved):
+  /** Cumulative burn per curve row at cursor x, keyed by curve-row id:
    *  the drawn step counts every burn point at or left of the cursor — on
-   *  the wall clock by completion time, in Turns mode by column edge. */
-  const tokenValuesAt = (px: number): { row: AgentRow; value: number }[] =>
-    curveRows.map((row) => {
-      let value = 0;
-      for (const point of data.tokenPoints) {
-        if (point.rowId !== row.id) continue;
-        if (pointX(point.time, point.turn) <= px + 0.01) value += point.burned;
+   *  the wall clock by completion time, in Turns mode by column edge. One
+   *  pass over the points per cursor position; callers read by id. */
+  const tokenValuesAt = (px: number): Map<string, number> => {
+    const values = new Map<string, number>();
+    for (const point of data.tokenPoints) {
+      const id = curveRowIdOf.get(point.rowId);
+      if (id === undefined) continue;
+      if (pointX(point.time, point.turn) <= px + 0.01) {
+        values.set(id, (values.get(id) ?? 0) + point.burned);
       }
-      return { row, value };
-    });
+    }
+    return values;
+  };
+  const tokenValueRows = (
+    values: Map<string, number>
+  ): { row: AgentRow; value: number }[] =>
+    curveRows.map((row) => ({ row, value: values.get(row.id) ?? 0 }));
 
   const visibleCompactions = data.compactions.filter((drop) =>
     visibleRowIds.has(drop.rowId)
@@ -437,7 +472,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  drop restarts the run at tokens_after. This is the geometry the
    *  context band draws AND what its read-outs evaluate, so the dots and
    *  AT CURSOR values always sit on the line. */
+  const contextRunsCache = new Map<string, ContextVertex[][]>();
   const contextRuns = (row: AgentRow): ContextVertex[][] => {
+    if (row.id === kFoldRowId) {
+      return foldMembers.flatMap((member) => contextRuns(member));
+    }
+    const cached = contextRunsCache.get(row.id);
+    if (cached) return cached;
     const series = data.contextByRow[row.id] ?? [];
     const drops = visibleCompactions.filter((d) => d.rowId === row.id);
     const runs: ContextVertex[][] = [];
@@ -467,6 +508,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       applyDrop(drops[dropIndex]!);
     }
     if (run.length > 0) runs.push(run);
+    contextRunsCache.set(row.id, runs);
     return runs;
   };
 
@@ -474,6 +516,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  run, held at the last vertex once a run has ended (the context stays
    *  that size until the next call), undefined before the first point. */
   const contextValueAt = (row: AgentRow, px: number): number | undefined => {
+    if (row.id === kFoldRowId) {
+      let largest: number | undefined;
+      for (const member of foldMembers) {
+        const value = contextValueAt(member, px);
+        if (value !== undefined && (largest === undefined || value > largest)) {
+          largest = value;
+        }
+      }
+      return largest;
+    }
     let held: number | undefined;
     for (const run of contextRuns(row)) {
       for (let i = 0; i < run.length; i++) {
@@ -715,7 +767,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   const renderTokens = (band: Band) => {
     const visibleTotal = curveRows.reduce(
-      (sum, row) => sum + (data.tokenTotalsByRow[row.id] ?? 0),
+      (sum, row) => sum + curveTokenTotal(row),
       0
     );
     const max = Math.max(visibleTotal, 1);
@@ -730,9 +782,12 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     // On the wall clock that is completion order (the data layer's sort);
     // in Turns mode a point sits on its turn's column, and an early-starting
     // turn can complete after a later one, so the points re-sort by column.
-    const points = data.tokenPoints
-      .filter((p) => visibleRowIds.has(p.rowId))
-      .map((point) => ({ point, px: pointX(point.time, point.turn) }));
+    const points = data.tokenPoints.flatMap((point) => {
+      const layer = curveRowIdOf.get(point.rowId);
+      return layer === undefined
+        ? []
+        : [{ point, layer, px: pointX(point.time, point.turn) }];
+    });
     if (turnsMode) points.sort((a, b) => a.px - b.px);
     const running = new Map<string, number>();
     /** Per breakpoint, the cumulative stack top per row (row order). */
@@ -740,8 +795,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       { x: plotLeft, tops: curveRows.map(() => 0) },
     ];
     let lastX = plotLeft;
-    points.forEach(({ point, px }, i) => {
-      running.set(point.rowId, (running.get(point.rowId) ?? 0) + point.burned);
+    points.forEach(({ point, layer, px }, i) => {
+      running.set(layer, (running.get(layer) ?? 0) + point.burned);
       // Decimate per pixel at scale — but always keep the final point.
       if (px - lastX < 1 && i < points.length - 1) return;
       let stack = 0;
@@ -780,18 +835,20 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     };
 
     const shownNote =
-      curveRows.length < data.agentRows.length
+      visibleRowIds.size < data.agentRows.length
         ? ` · ${fmtTokens(visibleTotal)} shown`
         : "";
     const headline = multiAgent
       ? `${fmtTokens(data.totalTokens)} total${shownNote} · stacked by conversation`
       : `${fmtTokens(data.totalTokens)} total`;
 
-    // Read-out dots sit on each layer's top edge at the cursor time.
+    // Cursor read-outs — the dots on each layer's top edge and the AT
+    // CURSOR legend values — share one scan of the points per cursor.
+    const cursorValues = cursor ? tokenValuesAt(cursor.x) : undefined;
     const dots = (() => {
-      if (!cursor) return [];
+      if (!cursorValues) return [];
       let stack = 0;
-      return tokenValuesAt(cursor.x).map(({ row, value }) => {
+      return tokenValueRows(cursorValues).map(({ row, value }) => {
         stack += value;
         return { y: y(stack), hue: multiAgent ? row.hue : "#495057" };
       });
@@ -823,11 +880,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         {yTicks(y, max)}
         {gutterLegend(
           band,
-          (row) => fmtTokens(data.tokenTotalsByRow[row.id] ?? 0),
-          (row, at) => {
-            const value = tokenValuesAt(at.x).find((v) => v.row === row)?.value;
-            return fmtTokens(value ?? 0);
-          }
+          (row) => fmtTokens(curveTokenTotal(row)),
+          (row) => fmtTokens(cursorValues?.get(row.id) ?? 0)
         )}
         {readoutDots(dots)}
       </g>
@@ -842,7 +896,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       0
     );
     const peak = curveRows.reduce(
-      (m, row) => Math.max(m, data.contextPeakByRow[row.id] ?? 0),
+      (m, row) => Math.max(m, curveContextPeak(row)),
       0
     );
     const max = Math.max(peak, dropMax, 1);
@@ -852,7 +906,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
     // Dots only at sparse density — they'd smear into a rope at scale.
     const visiblePoints = curveRows.reduce(
-      (sum, row) => sum + (data.contextByRow[row.id]?.length ?? 0),
+      (sum, row) => sum + contextPointsOf(row).length,
       0
     );
     const sparse = visiblePoints <= plotWidth / 8;
@@ -886,7 +940,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               />
             ))}
             {sparse &&
-              (data.contextByRow[row.id] ?? []).map((point, i) => (
+              contextPointsOf(row).map((point, i) => (
                 <circle
                   key={`ctx-dot-${i}`}
                   className={styles.contextDot}
@@ -937,7 +991,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         {yTicks(y, max)}
         {gutterLegend(
           band,
-          (row) => fmtTokens(data.contextPeakByRow[row.id] ?? 0),
+          (row) => fmtTokens(curveContextPeak(row)),
           (row, at) => {
             const value = contextValueAt(row, at.x);
             return value === undefined ? "—" : fmtTokens(value);
@@ -1596,7 +1650,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       : visibleRows.some(
           (row) => row.spans.length > plotWidth / kDensityPxPerSpan
         );
-    const shownCount = curveRows.length;
+    const shownCount = visibleRowIds.size;
     const headline = [
       ...(multiAgent ? [`${data.agentRows.length} conversations`] : []),
       `${totalModels.toLocaleString()} model turns`,
@@ -2019,7 +2073,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           0
         );
         const peak = curveRows.reduce(
-          (m, row) => Math.max(m, data.contextPeakByRow[row.id] ?? 0),
+          (m, row) => Math.max(m, curveContextPeak(row)),
           0
         );
         const yMax = Math.max(peak, dropMax, 1) * 1.05;
@@ -2030,15 +2084,18 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       // Snap to a context point when the pointer is right on it.
       let nearest: { row: AgentRow; point: ContextPoint } | undefined;
       let nearestDist = Infinity;
-      for (const row of curveRows) {
-        for (const point of data.contextByRow[row.id] ?? []) {
-          const dist = Math.hypot(
-            pointX(point.time, point.turn) - px,
-            yOf(point.value) - py
-          );
-          if (dist < nearestDist) {
-            nearestDist = dist;
-            nearest = { row, point };
+      // The snap names the actual conversation, a fold member included.
+      for (const curveRow of curveRows) {
+        for (const row of memberRows(curveRow)) {
+          for (const point of data.contextByRow[row.id] ?? []) {
+            const dist = Math.hypot(
+              pointX(point.time, point.turn) - px,
+              yOf(point.value) - py
+            );
+            if (dist < nearestDist) {
+              nearestDist = dist;
+              nearest = { row, point };
+            }
           }
         }
       }
@@ -2063,7 +2120,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         kind: "curve",
         band: "tokens",
         time: t,
-        values: tokenValuesAt(px),
+        values: tokenValueRows(tokenValuesAt(px)),
       });
       return;
     }

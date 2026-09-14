@@ -286,6 +286,75 @@ describe("ActivityChart corrupt telemetry", () => {
   });
 });
 
+describe("ActivityChart folded conversations at scale", () => {
+  const manyAgents = (n: number): Event[] =>
+    Array.from({ length: n }, (_, i) => [
+      testSpanBeginEvent({
+        id: `a${i}`,
+        name: `a${i}`,
+        type: "agent",
+        timestamp: iso(i),
+      }),
+      modelCall({ start: i, end: i + 1, uuid: `m${i}`, spanId: `a${i}` }),
+    ]).flat();
+
+  it("draws the collapsed fold as one layer and one legend entry", () => {
+    const { container } = renderChart(manyAgents(1000));
+    // Four real rows plus the +996 fold — in the gutter, the burn layers
+    // and the legend alike; the svg stays a few hundred px tall.
+    expect(container.querySelectorAll("rect[role='checkbox']")).toHaveLength(4);
+    expect(
+      container.querySelectorAll("path[class*='tokenLayerEdge']")
+    ).toHaveLength(5);
+    expect(attr(container.querySelector("svg"), "height")).toBeLessThan(600);
+    expect(screen.getAllByText("+996 more").length).toBeGreaterThanOrEqual(3);
+    // Resting legend: the fold's total is its members' (996 × 100).
+    const legend = [
+      ...container.querySelectorAll("text[class*='legendValue']"),
+    ].map((el) => el.textContent);
+    expect(legend).toContain("100k");
+
+    // A cursor at the right edge reads every point: the fold's AT CURSOR
+    // burn is the same aggregate (its context is the largest member's),
+    // computed once for all five rows.
+    const { right } = plotBounds(container);
+    const hit = container.querySelector("rect[class*='plotHit']");
+    if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+    fireEvent.mouseMove(hit, { clientX: right, clientY: 50 });
+    const atCursor = [
+      ...container.querySelectorAll("text[class*='legendValue']"),
+    ].map((el) => el.textContent);
+    expect(atCursor).toHaveLength(10);
+    expect(atCursor.filter((v) => v === "100k")).toHaveLength(1);
+    expect(atCursor.filter((v) => v === "100")).toHaveLength(9);
+  }, 20000);
+
+  it("lists the folded members' names on the aggregate curve card", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(manyAgents(6));
+      const { left, width } = plotBounds(container);
+      const tokensLabel = [
+        ...container.querySelectorAll("text[class*='bandLabel']"),
+      ].find((label) => label.textContent === "TOKEN BURN");
+      const hit = container.querySelector("rect[class*='plotHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+      fireEvent.mouseMove(hit, {
+        clientX: left + width,
+        clientY: attr(tokensLabel ?? null, "y") + 30,
+      });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const card = container.querySelector("[class*='tooltip']")?.textContent;
+      expect(card).toContain("+2 more");
+      expect(card).toContain("200");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe("ActivityChart curve read-outs", () => {
   /** Hover the context band at `clientX` and open the curve card. */
   const hoverContext = (container: HTMLElement, clientX: number) => {
