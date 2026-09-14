@@ -1517,6 +1517,102 @@ describe("zero-ModelEvent samples", () => {
   });
 });
 
+describe("numeric telemetry bounds (review round 2)", () => {
+  const usageOf = (input: number, output = 0) =>
+    testModelOutput({
+      usage: testModelUsage({
+        input_tokens: input,
+        output_tokens: output,
+        total_tokens: input + output,
+      }),
+    });
+
+  it("treats overflowing or non-finite token counts as missing usage", () => {
+    // Two 1e308 usages pass the normalizer's typeof checks but sum to
+    // Infinity; Infinity/NaN can also arrive directly.
+    const events = normalizeEvents([
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(1),
+        uuid: "a",
+        output: usageOf(1e308),
+      }),
+      testModelEvent({
+        timestamp: iso(2),
+        completed: iso(3),
+        uuid: "b",
+        output: usageOf(1e308),
+      }),
+      testModelEvent({
+        timestamp: iso(4),
+        completed: iso(5),
+        uuid: "c",
+        output: usageOf(Infinity),
+      }),
+      testModelEvent({
+        timestamp: iso(6),
+        completed: iso(7),
+        uuid: "d",
+        output: usageOf(NaN),
+      }),
+      testModelEvent({
+        timestamp: iso(8),
+        completed: iso(9),
+        uuid: "e",
+        output: usageOf(100, Infinity),
+      }),
+      testModelEvent({
+        timestamp: iso(10),
+        completed: iso(11),
+        uuid: "f",
+        output: usageOf(100),
+      }),
+    ]);
+    const data = deriveActivityData({ events });
+
+    expect(data.totalTokens).toBe(100);
+    expect(data.tokenPoints.map((p) => p.uuid)).toEqual(["f"]);
+    expect(data.contextSeries.map((p) => p.uuid)).toEqual(["f"]);
+    expect(data.contextPeak).toBe(100);
+    // The model spans still render; only their token detail is absent.
+    expect(data.agentRows[0]?.spans).toHaveLength(6);
+    const corrupt = data.agentRows[0]?.spans.find((s) => s.uuid === "e");
+    expect(corrupt?.inputTokens).toBeUndefined();
+    expect(corrupt?.outputTokens).toBeUndefined();
+    for (const value of [
+      ...data.tokenSeries.map((p) => p.value),
+      ...data.contextSeries.map((p) => p.value),
+      data.totalTokens,
+      data.contextPeak,
+    ]) {
+      expect(Number.isFinite(value)).toBe(true);
+    }
+  });
+
+  it("drops non-finite compaction counts and working time", () => {
+    const events = normalizeEvents([
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(1),
+        working_start: 0,
+        working_time: Infinity,
+        output: usageOf(100),
+      }),
+      testCompactionEvent({
+        timestamp: iso(2),
+        tokens_before: Infinity,
+        tokens_after: NaN,
+      }),
+    ]);
+    const data = deriveActivityData({ events });
+
+    // before falls back to the last context; after is simply unknown.
+    expect(data.compactions[0]).toMatchObject({ before: 100 });
+    expect(data.compactions[0]?.after).toBeUndefined();
+    expect(Number.isFinite(data.agentRows[0]?.spans[0]?.working)).toBe(true);
+  });
+});
+
 describe("approval decisions (review round 2)", () => {
   it("captions unknown and prototype-named decisions with a plain string", () => {
     // The decision enum is not validated at parse time. A crafted

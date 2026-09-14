@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
   testModelEvent,
   testModelOutput,
@@ -194,6 +195,25 @@ describe("ActivityChart hidden conversations", () => {
     expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
       4
     );
+  });
+});
+
+describe("ActivityChart corrupt telemetry", () => {
+  it("keeps token and context geometry finite when usage overflows", () => {
+    // 1e308 + 1e308 = Infinity: without a bound the token path's d
+    // attribute reads "NaN" and the curve vanishes.
+    const { container } = renderChart(
+      normalizeEvents([
+        modelCall({ start: 0, end: 1, uuid: "a", input: 1e308 }),
+        modelCall({ start: 2, end: 3, uuid: "b", input: 1e308 }),
+        modelCall({ start: 4, end: 5, uuid: "c", input: 100 }),
+      ])
+    );
+    const d = container
+      .querySelector("path[class*='tokenSeries']")
+      ?.getAttribute("d");
+    expect(d).toBeTruthy();
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
   });
 });
 

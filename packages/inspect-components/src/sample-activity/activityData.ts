@@ -492,6 +492,23 @@ const scoreText = (score: ScoreEvent["score"]): string => {
   return String(value);
 };
 
+/** Largest token count this surface accepts per field. The normalizer only
+ *  checks that token fields are numbers: a crafted or corrupt log can carry
+ *  1e308 (two of which sum to Infinity), Infinity or NaN, and any of those
+ *  would poison the cumulative totals and the SVG scale divisions. Above
+ *  this bound (or non-finite / negative) a count is corrupt and reads as
+ *  missing — the call renders without curves, like one with no usage. */
+const kMaxTokenCount = Number.MAX_SAFE_INTEGER;
+
+/** A token count that is safe to accumulate and divide by, else undefined. */
+const tokenCount = (value: number | null | undefined): number | undefined =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= kMaxTokenCount
+    ? value
+    : undefined;
+
 /** Input-side tokens for one model call (context occupancy): the shared
  *  total minus the output side. Summing input + cache categories directly
  *  would double-count on providers whose input_tokens already includes
@@ -500,7 +517,10 @@ const scoreText = (score: ScoreEvent["score"]): string => {
 const inputSideTokens = (event: ModelEvent): number | undefined => {
   const usage = event.output.usage;
   if (!usage) return undefined;
-  return Math.max(0, usageTotal(usage) - usage.output_tokens);
+  const total = tokenCount(usageTotal(usage));
+  const output = tokenCount(usage.output_tokens);
+  if (total === undefined || output === undefined) return undefined;
+  return Math.max(0, total - output);
 };
 
 /** All tokens for one model call — the burn curve's increment. Shares
@@ -508,7 +528,7 @@ const inputSideTokens = (event: ModelEvent): number | undefined => {
 const allTokens = (event: ModelEvent): number | undefined => {
   const usage = event.output.usage;
   if (!usage) return undefined;
-  return usageTotal(usage);
+  return tokenCount(usageTotal(usage));
 };
 
 /** The model turn's stop reason and issued tool calls (tooltip "stop"). */
@@ -803,7 +823,9 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     checkpoints.push({ wall: t, work: event.working_start });
     const completed = completedEpoch(event);
     const workingTime =
-      "working_time" in event && typeof event.working_time === "number"
+      "working_time" in event &&
+      typeof event.working_time === "number" &&
+      Number.isFinite(event.working_time)
         ? event.working_time
         : undefined;
     if (completed !== undefined && workingTime !== undefined) {
@@ -839,8 +861,8 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           retries: event.retries ?? undefined,
           uuid,
           inputTokens: usage ? inputSideTokens(event) : undefined,
-          cachedTokens: usage?.input_tokens_cache_read ?? undefined,
-          outputTokens: usage?.output_tokens,
+          cachedTokens: tokenCount(usage?.input_tokens_cache_read),
+          outputTokens: tokenCount(usage?.output_tokens),
           stopReason,
           toolCalls,
         };
@@ -1062,8 +1084,9 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         const rowId = conversationForEvent(event.span_id).id;
         const lastContext = lastContextByRow.get(rowId) ?? 0;
         const before =
-          event.tokens_before ?? (lastContext > 0 ? lastContext : undefined);
-        const after = event.tokens_after ?? undefined;
+          tokenCount(event.tokens_before) ??
+          (lastContext > 0 ? lastContext : undefined);
+        const after = tokenCount(event.tokens_after);
         compactions.push({
           time: t,
           rowId,
