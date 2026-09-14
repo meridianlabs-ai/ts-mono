@@ -1,54 +1,26 @@
+import { useQuery } from "@tanstack/react-query";
 import { ColumnTable } from "arquero";
-import { useEffect, useMemo, useState } from "react";
 
 import { ScanResultSummary } from "../types";
-import { parseScanResultSummaries } from "../utils/arrowHelpers";
 
-export const useScanResultSummaries = (columnTable?: ColumnTable) => {
-  const [scanResultSummaries, setScanResultsSummaries] = useState<
-    ScanResultSummary[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(false);
+import { scanResultSummariesQuery } from "./scanResultQueries";
 
-  const rowData = useMemo(() => columnTable?.objects(), [columnTable]);
+const kNoSummaries: ScanResultSummary[] = [];
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!rowData || rowData.length === 0) {
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setScanResultsSummaries([]);
-      setIsLoading(false);
-      /* eslint-enable react-hooks/set-state-in-effect */
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoading(true);
-
-    const run = async () => {
-      try {
-        const result = await parseScanResultSummaries(rowData);
-        if (!cancelled) {
-          setScanResultsSummaries(result);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Error parsing scanner previews:", error);
-          setScanResultsSummaries([]);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [rowData]);
-
-  return { data: scanResultSummaries, isLoading };
+export const useScanResultSummaries = (
+  columnTable?: ColumnTable
+): { data: ScanResultSummary[]; isLoading: boolean; error: Error | null } => {
+  // An absent or empty table has nothing to parse; answer without a query
+  // round so callers can tell "no results" from "still parsing".
+  const table =
+    columnTable && columnTable.numRows() > 0 ? columnTable : undefined;
+  const query = useQuery(scanResultSummariesQuery(table));
+  if (!table) {
+    return { data: kNoSummaries, isLoading: false, error: null };
+  }
+  return {
+    data: query.data ?? kNoSummaries,
+    isLoading: query.isPending,
+    error: query.error,
+  };
 };

@@ -1,12 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { ColumnTable } from "arquero";
-import { useEffect, useMemo, useState } from "react";
 
 import { AsyncData, data, loading } from "@tsmono/util";
 
 import { ScanResultData } from "../types";
-import { withParams } from "../utils/arrowCells";
-import { parseScanResultData } from "../utils/arrowHelpers";
 
+import { scanResultDataQuery } from "./scanResultQueries";
 import { useSelectedScanDataframe } from "./useSelectedScanDataframe";
 
 export const useSelectedScanResultData = (
@@ -24,75 +23,15 @@ const useScanResultData = (
   columnTable: ColumnTable | undefined,
   rowIdentifier: string | undefined
 ): AsyncData<ScanResultData | undefined> => {
-  const [scanResultData, setScanResultData] = useState<
-    ScanResultData | undefined
-  >(undefined);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const filtered = useMemo((): ColumnTable | undefined => {
-    // Not a valid index
-    if (!rowIdentifier || !columnTable) {
-      return undefined;
-    }
-
-    // Empty table
-    if (columnTable.columnNames().length === 0) {
-      return undefined;
-    }
-
-    // arquero types params() as `this | Params`, which collapses the chained
-    // result to `any`; params() returns the table, so narrow back to it.
-    const filtered = withParams(columnTable, {
-      targetIdentifier: rowIdentifier,
-    }).filter(
-      (d: { identifier: string }, $: { targetIdentifier: string }) =>
-        d.identifier === $.targetIdentifier
-    );
-
-    if (filtered.numRows() === 0) {
-      return undefined;
-    }
-
-    return filtered;
-  }, [columnTable, rowIdentifier]);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!filtered) {
-      // TODO: lint react-hooks/set-state-in-effect - consider if fixing this violation makes sense
-      /* eslint-disable react-hooks/set-state-in-effect */
-      setScanResultData(undefined);
-      setIsLoading(false);
-      /* eslint-enable react-hooks/set-state-in-effect */
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoading(true);
-
-    const run = async () => {
-      try {
-        const result = await parseScanResultData(filtered);
-        if (!cancelled) {
-          setScanResultData(result);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Error parsing scanner data:", error);
-          setScanResultData(undefined);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [filtered]);
-
-  return isLoading ? loading : data(scanResultData);
+  const query = useQuery(scanResultDataQuery(columnTable, rowIdentifier));
+  if (!columnTable || !rowIdentifier) {
+    return data(undefined);
+  }
+  if (query.isPending) {
+    return loading;
+  }
+  if (query.isError) {
+    return { loading: false, error: query.error };
+  }
+  return data(query.data ?? undefined);
 };

@@ -841,19 +841,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/hooks/useScanResultSummaries.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/set-state-in-effect (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/hooks/useScanRoute.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -868,19 +855,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
-    }
-  },
-  "apps/scout/src/app/hooks/useSelectedScanResultData.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/set-state-in-effect (file-wide)": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/scout/src/app/hooks/useWindowMessaging.ts": {
