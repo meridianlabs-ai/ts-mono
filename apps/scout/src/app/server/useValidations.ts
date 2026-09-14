@@ -220,7 +220,14 @@ export const useDeleteValidationCase = (uri: string) => {
     mutationFn: (caseId) => api.deleteValidationCase(uri, caseId),
     // Not optimistic: stay pending until the refetch lands so the deleted
     // row can't linger after the spinner stops.
-    onSuccess: async () => {
+    onSuccess: async (_data, caseId) => {
+      // The server just confirmed there is no case: write that truth rather
+      // than refetching a 404 (see validationCaseQuery), so an open editor
+      // drops straight to the empty state.
+      queryClient.setQueryData(
+        validationCaseQuery(api, { url: uri, caseId }).queryKey,
+        null
+      );
       await queryClient.invalidateQueries({
         queryKey: validationCasesQuery(api, uri).queryKey,
       });
