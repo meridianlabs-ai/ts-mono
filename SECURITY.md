@@ -2,17 +2,23 @@
 
 ## Reporting a vulnerability
 
-Email **security@meridianlabs.ai**. Please do not open a public issue,
-discussion, or pull request for a suspected vulnerability.
+Please report suspected security vulnerabilities privately using GitHub's
+[private vulnerability reporting](https://github.com/meridianlabs-ai/ts-mono/security/advisories/new)
+for this repository ("Security" tab → "Report a vulnerability").
 
-Include the version of `inspect_ai`, `inspect_scout`, the Inspect VS Code
-extension, or `@meridianlabs/log-viewer` you tested, a description of what an
-attacker could do, and steps to reproduce (a log file that triggers the
-behaviour is ideal).
+Please do **not** report security vulnerabilities through public GitHub
+issues, discussions, or pull requests.
 
-We acknowledge reports within 3 business days, say within 10 business days
-whether we consider it a vulnerability, and aim to ship a fix within 30 days.
-We do not run a bug bounty program.
+When reporting, please include:
+
+- A description of the issue and what an attacker could do with it
+- Steps to reproduce (a log file that triggers the behaviour is ideal)
+- The version of `inspect_ai`, `inspect_scout`, the Inspect VS Code
+  extension, or `@meridianlabs/log-viewer` you tested, and your browser
+
+We will acknowledge reports within 5 business days and keep you informed as
+we work on a fix. We ask that you give us a reasonable opportunity to address
+the issue before any public disclosure. We do not run a bug bounty program.
 
 ## Supported versions
 
