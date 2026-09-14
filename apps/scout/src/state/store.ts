@@ -18,18 +18,19 @@ import { debounce, getOwn, isRecord } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 import { ColumnSizingStrategyKey } from "../app/components/columnSizing";
-import type { ScanColumnKey } from "../app/scans/columns";
-import { ResultGroup, ScanResultSummary, SortColumn } from "../app/types";
 import { TranscriptInfo } from "../types/api-types";
 
 import { createAppSlice, type AppSlice } from "./appSlice";
 import { emptyDataframeState, type DataframeState } from "./dataframeState";
 import { createRoutingSlice, type RoutingSlice } from "./routingSlice";
+import { createScanSlice, type ScanSlice } from "./scanSlice";
+import { createScansSlice, type ScansSlice } from "./scansSlice";
 
 export type {
   ColumnFilter,
   FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+export type { ScansTableState } from "./scansSlice";
 
 // Transcripts table UI state
 export interface TranscriptsTableState {
@@ -44,19 +45,6 @@ export interface TranscriptsTableState {
   manuallyResizedColumns: string[];
 }
 
-// Scans table UI state
-export interface ScansTableState {
-  columnSizing: ColumnSizingState;
-  columnOrder: ScanColumnKey[];
-  sorting: SortingState;
-  rowSelection: RowSelectionState;
-  focusedRowId: string | null;
-  columnFilters: Record<string, ColumnFilter>;
-  visibleColumns?: ScanColumnKey[];
-  sizingStrategy: ColumnSizingStrategyKey;
-  manuallyResizedColumns: string[];
-}
-
 interface TranscriptState {
   excludedTypes?: string[];
   collapsed?: boolean;
@@ -65,37 +53,11 @@ interface TranscriptState {
   validationSidebarCollapsed?: boolean;
 }
 
-export interface StoreState extends AppSlice, RoutingSlice {
-  // Scans
-  visibleScanJobCount?: number;
-
-  // Scanner
-  visibleScannerResults: ScanResultSummary[];
-  visibleScannerResultsCount: number;
-
-  // Dataframes
-  selectedScanResult?: string;
-  displayedScanResult?: string;
-
+export interface StoreState
+  extends AppSlice, RoutingSlice, ScansSlice, ScanSlice {
   // general UI state
   properties: Record<string, Record<string, unknown> | undefined>;
   gridStates: Record<string, DataframeState>;
-
-  // Scan specific properties (clear when switching scans)
-  selectedResultsTab?: string;
-  selectedResultTab?: string;
-  selectedScanner?: string;
-  selectedResultsView?: string;
-  selectedFilter?: string;
-  showingRefPopover?: string;
-  groupResultsBy?: ResultGroup;
-  sortResults?: SortColumn[];
-  scansSearchText?: string;
-  highlightLabeled?: boolean;
-  selectedResultRow?: number;
-  dataframeWrapText?: boolean;
-  dataframeShowFilterColumns?: boolean;
-  dataframeFilterColumns?: string[];
 
   // Transcript
   transcriptCollapsedEvents: Record<string, Record<string, boolean>>;
@@ -109,9 +71,6 @@ export interface StoreState extends AppSlice, RoutingSlice {
   transcriptsDir?: string;
   transcriptsTableState: TranscriptsTableState;
 
-  // Scans table state
-  scansTableState: ScansTableState;
-
   // Transcript Detail Data
   transcriptState: TranscriptState;
 
@@ -124,19 +83,7 @@ export interface StoreState extends AppSlice, RoutingSlice {
   // validationEditorState
   editorSelectedValidationSetUri?: string;
 
-  // List of scans
-  setVisibleScanJobCount: (count: number) => void;
-
-  // Track the select result and data
-  setSelectedScanner: (scanner: string) => void;
-  setSelectedScanResult: (result: string) => void;
-  setDisplayedScanResult: (result: string | undefined) => void;
-  setVisibleScannerResults: (results: ScanResultSummary[]) => void;
-  setVisibleScannerResultsCount: (count: number) => void;
-
   // Clearing state
-  clearScanState: () => void;
-  clearScansState: () => void;
   clearTranscriptState: () => void;
 
   setPropertyValue: (id: string, propertyName: string, value: unknown) => void;
@@ -156,9 +103,6 @@ export interface StoreState extends AppSlice, RoutingSlice {
     state: DataframeState | ((previous: DataframeState) => DataframeState)
   ) => void;
   clearGridState: (name: string) => void;
-
-  setSelectedResultsTab: (tab: string) => void;
-  setSelectedResultTab: (tab: string) => void;
 
   setTranscriptOutlineId: (id: string) => void;
   clearTranscriptOutlineId: () => void;
@@ -181,20 +125,6 @@ export interface StoreState extends AppSlice, RoutingSlice {
   ) => void;
   clearTranscriptCollapsedEvents: (scope: string) => void;
 
-  setSelectedResultsView: (view: string) => void;
-
-  setSelectedFilter: (filter: string) => void;
-  setShowingRefPopover: (popoverKey: string) => void;
-  clearShowingRefPopover: () => void;
-  setGroupResultsBy: (groupBy: ResultGroup) => void;
-  setSortResults: (sortColumns?: SortColumn[]) => void;
-  setScansSearchText: (text: string) => void;
-  setHighlightLabeled: (highlight: boolean) => void;
-  setSelectedResultRow: (row: number) => void;
-  setDataframeWrapText: (wrap: boolean) => void;
-  setDataframeFilterColumns: (columns: string[]) => void;
-  setDataframeShowFilterColumns: (show: boolean) => void;
-
   setTranscriptsDir: (path: string) => void;
   setTranscriptsTableState: (
     updater:
@@ -203,9 +133,6 @@ export interface StoreState extends AppSlice, RoutingSlice {
   ) => void;
   setTranscriptState: (
     updater: TranscriptState | ((prev: TranscriptState) => TranscriptState)
-  ) => void;
-  setScansTableState: (
-    updater: ScansTableState | ((prev: ScansTableState) => ScansTableState)
   ) => void;
 
   // Validation actions
@@ -286,15 +213,14 @@ export const createStore = (api: ScoutApiV2) =>
         immer((set, get, store) => ({
           ...createAppSlice(set, get, store),
           ...createRoutingSlice(set, get, store),
+          ...createScansSlice(set, get, store),
+          ...createScanSlice(set, get, store),
 
           // Initial state
           properties: {},
           gridStates: {},
           transcriptCollapsedEvents: {},
           searchPanelStates: {},
-          visibleScannerResults: [],
-          visibleScannerResultsCount: 0,
-          highlightLabeled: false,
           transcriptsTableState: {
             columnSizing: {},
             columnOrder: [],
@@ -305,68 +231,10 @@ export const createStore = (api: ScoutApiV2) =>
             sizingStrategy: "fit-content",
             manuallyResizedColumns: [],
           },
-          scansTableState: {
-            columnSizing: {},
-            columnOrder: [],
-            sorting: [{ id: "timestamp", desc: true }],
-            rowSelection: {},
-            focusedRowId: null,
-            columnFilters: {},
-            sizingStrategy: "fit-content",
-            manuallyResizedColumns: [],
-          },
           transcriptState: {},
           validationCaseSelection: {},
 
           // Actions
-          setVisibleScanJobCount: (count: number) =>
-            set((state) => {
-              state.visibleScanJobCount = count;
-            }),
-          setSelectedScanner: (scanner: string) => {
-            set((state) => {
-              state.selectedScanner = scanner;
-            });
-          },
-          setSelectedScanResult: (result: string) =>
-            set((state) => {
-              state.selectedScanResult = result;
-            }),
-          setDisplayedScanResult: (result: string | undefined) =>
-            set((state) => {
-              state.displayedScanResult = result;
-            }),
-          setVisibleScannerResults: (results: ScanResultSummary[]) => {
-            set((state) => {
-              state.visibleScannerResults = results;
-            });
-          },
-          setVisibleScannerResultsCount(count: number) {
-            set((state) => {
-              state.visibleScannerResultsCount = count;
-            });
-          },
-          clearScanState: () => {
-            set((state) => {
-              state.selectedResultsTab = undefined;
-              state.transcriptCollapsedEvents = {};
-              state.transcriptOutlineId = undefined;
-              state.selectedResultTab = undefined;
-              state.groupResultsBy = undefined;
-              state.scansSearchText = undefined;
-              state.sortResults = undefined;
-            });
-          },
-          clearScansState: () => {
-            set((state) => {
-              state.selectedResultsView = undefined;
-              state.selectedFilter = undefined;
-              state.selectedScanner = undefined;
-              state.selectedScanResult = undefined;
-              state.displayedScanResult = undefined;
-              state.sortResults = undefined;
-            });
-          },
           clearTranscriptState: () => {
             set((state) => {
               state.selectedTranscriptTab = undefined;
@@ -461,16 +329,6 @@ export const createStore = (api: ScoutApiV2) =>
               };
             });
           },
-          setSelectedResultsTab: (tab: string) => {
-            set((state) => {
-              state.selectedResultsTab = tab;
-            });
-          },
-          setSelectedResultTab: (tab: string) => {
-            set((state) => {
-              state.selectedResultTab = tab;
-            });
-          },
           setTranscriptOutlineId: (id: string) => {
             set((state) => {
               state.transcriptOutlineId = id;
@@ -526,66 +384,6 @@ export const createStore = (api: ScoutApiV2) =>
               state.transcriptCollapsedEvents[scope] = {};
             });
           },
-          setSelectedResultsView: (view: string) => {
-            set((state) => {
-              state.selectedResultsView = view;
-            });
-          },
-          setSelectedFilter: (filter: string) => {
-            set((state) => {
-              state.selectedFilter = filter;
-            });
-          },
-          setShowingRefPopover: (popoverKey: string) => {
-            set((state) => {
-              state.showingRefPopover = popoverKey;
-            });
-          },
-          clearShowingRefPopover: () => {
-            set((state) => {
-              state.showingRefPopover = undefined;
-            });
-          },
-          setGroupResultsBy: (groupBy: ResultGroup) => {
-            set((state) => {
-              state.groupResultsBy = groupBy;
-            });
-          },
-          setSortResults: (sortColumns?: SortColumn[]) => {
-            set((state) => {
-              state.sortResults = sortColumns;
-            });
-          },
-          setScansSearchText: (text: string) => {
-            set((state) => {
-              state.scansSearchText = text;
-            });
-          },
-          setHighlightLabeled: (highlight: boolean) => {
-            set((state) => {
-              state.highlightLabeled = highlight;
-            });
-          },
-          setSelectedResultRow: (row: number) => {
-            set((state) => {
-              state.selectedResultRow = row;
-            });
-          },
-          setDataframeWrapText: (wrap: boolean) => {
-            set((state) => {
-              state.dataframeWrapText = wrap;
-            });
-          },
-          setDataframeFilterColumns: (columns: string[]) => {
-            set((state) => {
-              state.dataframeFilterColumns = columns;
-            });
-          },
-          setDataframeShowFilterColumns: (show: boolean) => {
-            set((state) => {
-              state.dataframeShowFilterColumns = show;
-            });
-          },
           setTranscriptsDir: (path: string) => {
             set((state) => {
               state.transcriptsDir = path;
@@ -604,14 +402,6 @@ export const createStore = (api: ScoutApiV2) =>
               state.transcriptState =
                 typeof updater === "function"
                   ? updater(state.transcriptState)
-                  : updater;
-            });
-          },
-          setScansTableState(updater) {
-            set((state) => {
-              state.scansTableState =
-                typeof updater === "function"
-                  ? updater(state.scansTableState)
                   : updater;
             });
           },
