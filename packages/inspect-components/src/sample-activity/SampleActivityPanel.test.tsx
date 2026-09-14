@@ -580,6 +580,42 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
     }
   });
 
+  it("restarts the show dwell when the pointer moves to another span", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = mountPanel();
+      const rects = spanRects(container);
+      const model = rects.find((rect) =>
+        rect.getAttribute("class")?.includes("modelSpan")
+      );
+      const tool = rects.find((rect) =>
+        rect.getAttribute("class")?.includes("toolSpan")
+      );
+      if (!(model instanceof SVGElement) || !(tool instanceof SVGElement))
+        throw new Error("expected a model and a tool span");
+      // 100ms on the model, then straight onto the tool: the model's card
+      // never appears, and the tool's only after its own full dwell.
+      fireEvent.mouseEnter(model);
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      fireEvent.mouseLeave(model);
+      fireEvent.mouseEnter(tool);
+      act(() => {
+        vi.advanceTimersByTime(60);
+      });
+      expect(container.querySelector("[class*='tooltip']")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      const card = container.querySelector("[class*='tooltip']");
+      expect(card?.textContent).toContain("bash");
+      expect(card?.textContent).not.toContain("Model turn");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("reads a model turn's tokens and stop reason", () => {
     vi.useFakeTimers();
     try {

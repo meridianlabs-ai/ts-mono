@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { useTimeout } from "@tsmono/react/hooks";
+import { useDebouncedCallback, useTimeout } from "@tsmono/react/hooks";
 
 import styles from "./ActivityChart.module.css";
 import {
@@ -197,14 +197,23 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   // ── hover state (handoff 11a): one cursor, one tooltip target ─────────
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [hoverTarget, setHoverTarget] = useState<HoverTarget | null>(null);
-  // The tooltip appears kTooltipDelayMs after a target arrives; the shown
-  // key trails the live target so a quick sweep across spans shows nothing.
+  // The card appears once the pointer has rested on ONE target for
+  // kTooltipDelayMs: the dwell restarts when the target changes (a sweep
+  // across spans or burst lanes shows nothing until the pointer settles)
+  // but not while the pointer moves within the same target (a curve band).
+  // The shown key trails the live target; the debounce is cancelled on
+  // unmount by the hook.
   const [shownKey, setShownKey] = useState<string | null>(null);
   const targetKey = hoverTargetKey(hoverTarget);
-  useTimeout(
-    () => setShownKey(targetKey),
-    targetKey !== null && shownKey !== targetKey ? kTooltipDelayMs : null
+  const pendingKey = useRef<string | null>(null);
+  const revealTarget = useDebouncedCallback(
+    (key: string) => setShownKey(key),
+    kTooltipDelayMs
   );
+  const cancelReveal = () => {
+    pendingKey.current = null;
+    revealTarget.cancel();
+  };
   // Pointer over the tooltip itself (its footer is clickable) holds it.
   const [tooltipHeld, setTooltipHeld] = useState(false);
   // The card follows the pointer horizontally (handoff 11b) while the
@@ -220,13 +229,21 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   useTimeout(
     () => {
       setClosePending(false);
-      if (!tooltipHeld) setHoverTarget(null);
+      if (!tooltipHeld) {
+        setHoverTarget(null);
+        cancelReveal();
+      }
     },
     closePending ? kTooltipGraceMs : null
   );
   const showTarget = (target: HoverTarget) => {
     setClosePending(false);
     setHoverTarget(target);
+    const key = hoverTargetKey(target);
+    if (key !== null && key !== pendingKey.current) {
+      pendingKey.current = key;
+      revealTarget(key);
+    }
   };
   const clearTarget = () => {
     if (!tooltipHeld) setClosePending(true);
@@ -238,6 +255,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     setShownKey(null);
     setTooltipHeld(false);
     setClosePending(false);
+    cancelReveal();
   };
 
   // ── conversation rows: fold, hide, gutter ─────────────────────────────
