@@ -1,0 +1,104 @@
+import { from } from "arquero";
+import { StrictMode, useState } from "react";
+import { createRoot } from "react-dom/client";
+
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
+import "@tsmono/theme/base";
+import "@tsmono/theme/vscode";
+import "../../../src/app/App.css";
+
+import { apiScoutServer } from "../../../src/api/api-scout-server";
+import { DataframeView } from "../../../src/app/components/DataframeView";
+import { DataframeGridApiProvider } from "../../../src/app/scan/scanners/dataframe/DataframeGridApiContext";
+import { ScannerDataframeClearFiltersButton } from "../../../src/app/scan/scanners/dataframe/ScannerDataframeClearFiltersButton";
+import {
+  ScannerDataframeCopyCSVButton,
+  ScannerDataframeDownloadCSVButton,
+} from "../../../src/app/scan/scanners/dataframe/ScannerDataframeCSVButtons";
+import { createStore, StoreProvider } from "../../../src/state/store";
+
+const columns = ["transcript_id", "value", "explanation", "metadata", "passed"];
+const params = new URLSearchParams(location.search);
+document.documentElement.dataset.bsTheme = params.get("theme") ?? "light";
+const rowCount = Number(params.get("rows") ?? 6);
+const data = from(
+  Array.from({ length: rowCount }, (_, index) => ({
+    identifier: `result-${index}`,
+    transcript_id: `transcript-${index.toString().padStart(4, "0")}`,
+    value: [10, 2, null, -4, 2, 100][index % 6],
+    explanation: [
+      'Alpha, quoted "text"\nnext line',
+      "beta",
+      "",
+      "ALPHA",
+      null,
+      "Long explanation ".repeat(100),
+    ][index % 6],
+    metadata: { index, tags: ["a", "b"] },
+    passed: index % 2 === 0,
+  }))
+);
+const store = createStore({ ...apiScoutServer(), storage: localStorage });
+store.setState({
+  dataframeFilterColumns: columns,
+  selectedScanner: "regression/scanner",
+});
+
+function Fixture() {
+  const [wrap, setWrap] = useState(false);
+  const [visible, setVisible] = useState(0);
+  const [opened, setOpened] = useState("");
+  const [shownColumns, setShownColumns] = useState(columns);
+  const [mounted, setMounted] = useState(true);
+  return (
+    <StoreProvider value={store}>
+      <DataframeGridApiProvider>
+        <div style={{ display: "flex", gap: 12, padding: 8 }}>
+          <ScannerDataframeCopyCSVButton />
+          <ScannerDataframeDownloadCSVButton />
+          <ScannerDataframeClearFiltersButton />
+          <button onClick={() => setWrap(!wrap)}>Wrap Text</button>
+          <button
+            onClick={() =>
+              setShownColumns(
+                shownColumns.length === columns.length
+                  ? columns.slice(0, 3)
+                  : columns
+              )
+            }
+          >
+            Toggle columns
+          </button>
+          <button onClick={() => setMounted(!mounted)}>Toggle grid</button>
+          <input aria-label="Unrelated input" />
+        </div>
+        <div style={{ height: 500, width: "100%" }}>
+          {mounted && (
+            <DataframeView
+              columnTable={data}
+              sortedColumns={shownColumns}
+              showRowNumbers
+              wrapText={wrap}
+              options={{ maxStrLen: 1024 }}
+              onVisibleRowCountChanged={setVisible}
+              onRowDoubleClicked={(row) => {
+                if ("identifier" in row) setOpened(String(row.identifier));
+              }}
+            />
+          )}
+        </div>
+        <output aria-label="Visible rows">{visible}</output>
+        <output aria-label="Opened result">{opened}</output>
+      </DataframeGridApiProvider>
+    </StoreProvider>
+  );
+}
+
+const root = document.getElementById("app");
+if (!root) throw new Error("Missing fixture root");
+createRoot(root).render(
+  <StrictMode>
+    <Fixture />
+  </StrictMode>
+);
