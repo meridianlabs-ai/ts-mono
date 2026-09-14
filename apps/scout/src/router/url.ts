@@ -162,20 +162,28 @@ export const getRelativePathFromParams = (
   return params["*"] || "";
 };
 
+/**
+ * Decodes a base64url route segment, treating a malformed one (a hand-typed
+ * or truncated URL) as absent rather than letting `atob` throw mid-render.
+ */
+export const tryDecodeBase64Url = (encoded: string): string | undefined => {
+  try {
+    return decodeBase64Url(encoded);
+  } catch {
+    return undefined;
+  }
+};
+
 export const parseTranscriptParams = (
   params: Readonly<Partial<{ transcriptsDir: string; transcriptId: string }>>
 ): { transcriptsDir?: string; transcriptId?: string } => {
   const transcriptId = params.transcriptId;
-  const encodedDir = params.transcriptsDir;
-  if (!encodedDir) {
-    return { transcriptId };
-  }
-
-  try {
-    return { transcriptsDir: decodeBase64Url(encodedDir), transcriptId };
-  } catch {
-    return { transcriptId };
-  }
+  const transcriptsDir = params.transcriptsDir
+    ? tryDecodeBase64Url(params.transcriptsDir)
+    : undefined;
+  return transcriptsDir === undefined
+    ? { transcriptId }
+    : { transcriptsDir, transcriptId };
 };
 
 export const parseScanParams = (
@@ -188,22 +196,12 @@ export const parseScanParams = (
 } => {
   const relativePath = getRelativePathFromParams(params);
   const { scanPath, scanResultUuid } = parseScanResultPath(relativePath);
-  const encodedDir = params.scansDir;
-
-  if (!encodedDir) {
-    return { relativePath, scanPath, scanResultUuid };
-  }
-
-  try {
-    return {
-      scansDir: decodeBase64Url(encodedDir),
-      relativePath,
-      scanPath,
-      scanResultUuid,
-    };
-  } catch {
-    return { relativePath, scanPath, scanResultUuid };
-  }
+  const scansDir = params.scansDir
+    ? tryDecodeBase64Url(params.scansDir)
+    : undefined;
+  return scansDir === undefined
+    ? { relativePath, scanPath, scanResultUuid }
+    : { scansDir, relativePath, scanPath, scanResultUuid };
 };
 
 // Extracts the scanPath and scanResultUuid from a full path.
@@ -322,12 +320,7 @@ export const getValidationSetParam = (
   searchParams: URLSearchParams
 ): string | undefined => {
   const encoded = searchParams.get(kValidationSetQueryParam);
-  if (!encoded) return undefined;
-  try {
-    return decodeBase64Url(encoded);
-  } catch {
-    return undefined;
-  }
+  return encoded ? tryDecodeBase64Url(encoded) : undefined;
 };
 
 // Updates the validation set URI parameter in URL search params.

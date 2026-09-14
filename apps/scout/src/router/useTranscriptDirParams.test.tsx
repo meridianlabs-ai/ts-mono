@@ -44,6 +44,13 @@ describe("useTranscriptDirParams", () => {
     expect(store.getState().userTranscriptsDir).toBe(transcriptsDir);
   });
 
+  it("treats a malformed directory segment as absent", () => {
+    const { result, store } = renderAt("/transcripts/not!valid/transcript-1");
+
+    expect(result.current.dir).toBeUndefined();
+    expect(store.getState().userTranscriptsDir).toBeUndefined();
+  });
+
   it("returns undefined and leaves the store alone without a param", () => {
     const { result, store } = renderAt("/transcripts");
 

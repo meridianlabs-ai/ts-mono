@@ -1,7 +1,7 @@
 import { useMountEffect } from "@tsmono/react/hooks";
 
 import { useLoggingNavigate } from "../debugging/navigationDebugging";
-import { useStore } from "../state/store";
+import { useStoreApi } from "../state/store";
 
 import { scanResultRoute, scanRoute } from "./url";
 
@@ -19,19 +19,20 @@ export const useRestoreLastRoute = (
   serverScansDir: string | undefined
 ): void => {
   const navigate = useLoggingNavigate("useRestoreLastRoute");
-  const hasInitializedRouting = useStore(
-    (state) => state.hasInitializedRouting
-  );
-  const setHasInitializedRouting = useStore(
-    (state) => state.setHasInitializedRouting
-  );
-  const displayedScanResult = useStore((state) => state.displayedScanResult);
-  const selectedScanLocation = useStore((state) => state.selectedScanLocation);
-  const userScansDir = useStore((state) => state.userScansDir);
+  const store = useStoreApi();
 
   // Mount-only by design: the redirect is decided from the values present at
-  // first load, and anything that arrives later must not trigger it.
+  // first load, and anything that arrives later must not trigger it. Read
+  // through the store API rather than selectors so the layout isn't
+  // subscribed to fields this hook only ever looks at once.
   useMountEffect(() => {
+    const {
+      hasInitializedRouting,
+      setHasInitializedRouting,
+      displayedScanResult,
+      selectedScanLocation,
+      userScansDir,
+    } = store.getState();
     if (hasInitializedRouting) {
       return;
     }

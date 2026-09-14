@@ -856,6 +856,17 @@ export function useStore<T>(selector?: (state: StoreState) => T) {
   return useBoundStore<T | StoreState>(selector ?? selectWholeState);
 }
 
+/**
+ * The bound store itself, for one-shot `getState()` reads (a mount effect
+ * that decides once) where a `useStore` selector would subscribe the
+ * component to fields it never re-renders on.
+ */
+export const useStoreApi = (): StoreApi => {
+  const store = useContext(StoreContext);
+  if (!store) throw new Error("useStoreApi must be used within StoreProvider");
+  return store;
+};
+
 export const useApi = (): ScoutApiV2 => {
   const api = useContext(ApiContext);
   if (!api) throw new Error("useApi must be used within ApiProvider");
