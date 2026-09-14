@@ -44,7 +44,9 @@ export const hoverTargetKey = (target: HoverTarget | null): string | null => {
     case "span":
       return `span:${target.row.id}:${target.span.start}:${target.span.label}`;
     case "burst":
-      return `burst:${target.row.id}:${target.burst.start}`;
+      // Each lane is its own target (the card marks the hovered member
+      // and opens its event), so moving between lanes restarts the dwell.
+      return `burst:${target.row.id}:${target.burst.start}:${target.hovered.uuid ?? `${target.hovered.start}:${target.hovered.label}`}`;
     case "marker":
       return `marker:${target.members.map((m) => m.key).join(",")}`;
     case "context":

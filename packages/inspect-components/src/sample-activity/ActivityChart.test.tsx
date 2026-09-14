@@ -256,6 +256,49 @@ describe("ActivityChart tool bursts", () => {
     expect(screen.getByText("bash ×6 · +2")).toBeTruthy();
   });
 
+  it("restarts the tooltip dwell when the hovered lane changes", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart([
+        modelCall({ start: 0, end: 1, uuid: "m" }),
+        testToolEvent({
+          uuid: "t1",
+          function: "first",
+          timestamp: iso(2),
+          completed: iso(5),
+        }),
+        testToolEvent({
+          uuid: "t2",
+          function: "second",
+          timestamp: iso(3),
+          completed: iso(6),
+        }),
+      ]);
+      const [a, b] = container.querySelectorAll("rect[class*='toolSpan']");
+      if (!(a instanceof SVGElement) || !(b instanceof SVGElement))
+        throw new Error("expected two burst lanes");
+      // 100ms on one lane, then straight onto the other (pointer travel
+      // inside the chart): the dwell restarts for the new lane.
+      fireEvent.mouseEnter(a);
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      fireEvent.mouseLeave(a, { relatedTarget: b });
+      fireEvent.mouseEnter(b, { relatedTarget: a });
+      act(() => {
+        vi.advanceTimersByTime(60);
+      });
+      expect(container.querySelector("[class*='tooltip']")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      const hovered = container.querySelector("[class*='listRowHovered']");
+      expect(hovered?.textContent).toContain("second");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("counts a burst's working weight once in the Turns split", () => {
     // 1s of model work against 6 × 7s of tool work: the model share is
     // 1/43 of the column whether or not two members are folded (they used

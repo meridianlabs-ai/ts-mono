@@ -594,13 +594,16 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
       if (!(model instanceof SVGElement) || !(tool instanceof SVGElement))
         throw new Error("expected a model and a tool span");
       // 100ms on the model, then straight onto the tool: the model's card
-      // never appears, and the tool's only after its own full dwell.
+      // never appears, and the tool's only after its own full dwell. The
+      // pointer travels inside the chart (relatedTarget is the next span),
+      // so the chart's own leave handler — which cancels the dwell — must
+      // not fire; only a per-target restart can keep the card away.
       fireEvent.mouseEnter(model);
       act(() => {
         vi.advanceTimersByTime(100);
       });
-      fireEvent.mouseLeave(model);
-      fireEvent.mouseEnter(tool);
+      fireEvent.mouseLeave(model, { relatedTarget: tool });
+      fireEvent.mouseEnter(tool, { relatedTarget: model });
       act(() => {
         vi.advanceTimersByTime(60);
       });
