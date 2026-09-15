@@ -530,8 +530,8 @@ const StallBody: FC<{ stall: StallRegion }> = ({ stall }) => (
   </Card>
 );
 
-/** A curve value with its `max` caption when it stands for a group; a
- *  missing value is a bare dash, never a captioned one. */
+// A grouped value is captioned `max`; a missing value is a bare dash, never a
+// captioned one.
 const CurveValueText: FC<{ value?: number; aggregate?: "max" }> = ({
   value,
   aggregate,

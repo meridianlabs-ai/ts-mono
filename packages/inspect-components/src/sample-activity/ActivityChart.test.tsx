@@ -616,8 +616,8 @@ describe("ActivityChart folded conversations at scale", () => {
     expect(atCursor.filter((v) => v === "100")).toHaveLength(8);
   }, 20000);
 
-  /** Six conversations: the two folded ones hold 100 and 300 tokens of
-   *  context, so a sum (400) and a maximum (300) are told apart. */
+  // The two folded conversations hold 100 and 300 tokens of context, so a
+  // sum (400) and a maximum (300) are told apart.
   const sixWithContext = (): Event[] =>
     Array.from({ length: 6 }, (_, i) => [
       testSpanBeginEvent({
@@ -640,7 +640,6 @@ describe("ActivityChart folded conversations at scale", () => {
       (el) => el.textContent
     );
 
-  /** Moves the pointer to the plot's right edge, over the context band. */
   const hoverContextEdge = (container: HTMLElement) => {
     const { right } = plotBounds(container);
     const contextLabel = [
