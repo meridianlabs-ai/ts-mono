@@ -514,6 +514,54 @@ test("the tooltip survives pointer travel from the span to its footer", async ({
   await expect(page).toHaveURL(/\/transcript\?event=tool-fail/);
 });
 
+// A human hand does not jump 25 px per event: it crosses the gap between
+// the span and the card's footer in small moves, down and to the right,
+// over the Context / Token bands beside the card. Every step must still
+// show the same card, or the link can never be reached (round 12).
+for (const axis of ["Wall clock", "Turns"] as const) {
+  test(`the span tooltip survives a slow diagonal path across the curve bands to its footer (${axis})`, async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network);
+    if (axis === "Turns") {
+      await page.getByRole("button", { name: "Turns", exact: true }).click();
+      await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+    }
+
+    const span = page.locator("rect[class*='failedSpan']").first();
+    await span.hover();
+    const card = page.locator("[class*='tooltip']");
+    await expect(card).toContainText("bash tool call");
+    const footer = card.getByRole("button", { name: "open in transcript →" });
+    await expect(footer).toBeVisible();
+
+    const spanBox = await span.boundingBox();
+    const footerBox = await footer.boundingBox();
+    if (!spanBox || !footerBox) throw new Error("expected span and footer");
+    const from = {
+      x: spanBox.x + spanBox.width / 2,
+      y: spanBox.y + spanBox.height / 2,
+    };
+    const to = {
+      x: footerBox.x + footerBox.width / 2,
+      y: footerBox.y + footerBox.height / 2,
+    };
+    // Twenty moves of a few px each; the assertion between them paces the
+    // journey at roughly human speed and pins the card at every step.
+    const steps = 20;
+    for (let i = 1; i <= steps; i++) {
+      await page.mouse.move(
+        from.x + ((to.x - from.x) * i) / steps,
+        from.y + ((to.y - from.y) * i) / steps
+      );
+      await expect(card, `step ${i}`).toContainText("bash tool call");
+    }
+    await footer.click();
+    await expect(page).toHaveURL(/\/transcript\?event=tool-fail/);
+  });
+}
+
 test("the span tooltip follows the pointer horizontally", async ({
   page,
   network,

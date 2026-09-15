@@ -1379,3 +1379,166 @@ describe("ActivityChart curve read-outs", () => {
     }
   });
 });
+
+describe("ActivityChart tooltip travel", () => {
+  // Two turns with context so the context band draws under the activity
+  // band; the second span sits mid-plot, clear of the plot's left edge.
+  const twoTurns = (): Event[] => [
+    modelCall({ start: 0, end: 10, uuid: "m1", input: 100 }),
+    modelCall({ start: 20, end: 30, uuid: "m2", input: 200 }),
+  ];
+  const plotHit = (container: HTMLElement): SVGElement => {
+    const hit = container.querySelector("rect[class*='plotHit']");
+    if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+    return hit;
+  };
+  /** A y inside the context band's plot (its label sits 14px below the
+   *  band top). */
+  const contextBandY = (container: HTMLElement): number => {
+    const label = [
+      ...container.querySelectorAll("text[class*='bandLabel']"),
+    ].find((l) => l.textContent === "CONTEXT SIZE");
+    return attr(label ?? null, "y") + 30;
+  };
+  const card = (container: HTMLElement): HTMLElement | null => {
+    const el = container.querySelector("[class*='tooltip']");
+    return el instanceof HTMLElement ? el : null;
+  };
+  const cardLeft = (container: HTMLElement): number =>
+    parseFloat(card(container)?.style.left ?? "NaN");
+  /** Leave `span` for the empty plot — a real pointer always goes
+   *  somewhere, and the chart's own leave handler must not fire. */
+  const leaveSpan = (span: SVGElement, hit: SVGElement) => {
+    fireEvent.mouseLeave(span, { relatedTarget: hit });
+  };
+  /** Hover the second model span and wait out the show delay. */
+  const showSecondCard = (container: HTMLElement): SVGElement => {
+    const span = container.querySelectorAll("rect[class*='modelSpan']")[1];
+    if (!(span instanceof SVGElement)) throw new Error("expected two spans");
+    fireEvent.mouseEnter(span);
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    expect(card(container)?.textContent).toContain("Model turn 2");
+    return span;
+  };
+
+  it("holds the span card while the pointer closes in on it across the context band", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(twoTurns());
+      const span = showSecondCard(container);
+      const left = cardLeft(container);
+      const hit = plotHit(container);
+      const y = contextBandY(container);
+      leaveSpan(span, hit);
+      // Six moves 200 ms apart just left of the card, each a little
+      // nearer: 1.2 s in all, four times the grace, and never a curve
+      // read-out in place of the span card.
+      for (let i = 1; i <= 6; i++) {
+        fireEvent.mouseMove(hit, {
+          clientX: left - 22 + 3 * i,
+          clientY: y + i,
+        });
+        act(() => {
+          vi.advanceTimersByTime(200);
+        });
+        expect(card(container)?.textContent ?? "", `move ${i}`).toContain(
+          "Model turn 2"
+        );
+      }
+      // The card waited where it was rather than chasing the pointer.
+      expect(cardLeft(container)).toBe(left);
+      // Resting beside it runs the grace out; the next move over the band
+      // is an ordinary curve hover again.
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      expect(card(container)).toBeNull();
+      fireEvent.mouseMove(hit, { clientX: left - 4, clientY: y + 6 });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("tokens in context");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("lets the grace run out on a pointer that drifts away inside the card's column", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(twoTurns());
+      const span = showSecondCard(container);
+      const left = cardLeft(container);
+      const hit = plotHit(container);
+      const y = contextBandY(container);
+      leaveSpan(span, hit);
+      // Still within the column, but each move a little further from the
+      // card: no curve read-out yet, and no fresh grace either.
+      for (let i = 1; i <= 3; i++) {
+        fireEvent.mouseMove(hit, { clientX: left - 2 - 7 * i, clientY: y });
+        act(() => {
+          vi.advanceTimersByTime(80);
+        });
+        expect(card(container)?.textContent ?? "", `move ${i}`).toContain(
+          "Model turn 2"
+        );
+      }
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(card(container)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads the curve at once when the pointer leaves the card's column", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(twoTurns());
+      const span = showSecondCard(container);
+      const left = cardLeft(container);
+      const hit = plotHit(container);
+      leaveSpan(span, hit);
+      fireEvent.mouseMove(hit, {
+        clientX: left - 60,
+        clientY: contextBandY(container),
+      });
+      expect(card(container)).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("tokens in context");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops following the pointer horizontally once it leaves the span", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(twoTurns());
+      const span = showSecondCard(container);
+      const svg = container.querySelector("svg");
+      if (!svg) throw new Error("expected the chart svg");
+      const spanX = attr(span, "x");
+      const spanY = attr(span, "y");
+      // Over the span the card follows the pointer (handoff 11b)...
+      fireEvent.mouseMove(svg, { clientX: spanX + 30, clientY: spanY + 5 });
+      expect(cardLeft(container)).toBe(spanX + 30 + 12);
+      // ...and holds still once the pointer has left it for the empty plot.
+      const hit = plotHit(container);
+      leaveSpan(span, hit);
+      fireEvent.mouseMove(hit, {
+        clientX: spanX + 60,
+        clientY: spanY + 20,
+      });
+      expect(card(container)?.textContent ?? "").toContain("Model turn 2");
+      expect(cardLeft(container)).toBe(spanX + 30 + 12);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

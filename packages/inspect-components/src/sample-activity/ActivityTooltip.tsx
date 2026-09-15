@@ -1,5 +1,11 @@
 import clsx from "clsx";
-import { FC, Fragment, MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import {
+  FC,
+  Fragment,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  Ref,
+} from "react";
 
 import {
   ActivityMarker,
@@ -90,6 +96,8 @@ export interface ActivityTooltipProps {
   style?: React.CSSProperties;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  /** The card element, for the chart's pointer geometry. */
+  ref?: Ref<HTMLDivElement>;
 }
 
 const timeRange = (start: number, end: number, pending: boolean): string =>
@@ -591,6 +599,7 @@ export const ActivityTooltip: FC<ActivityTooltipProps> = ({
   style,
   onMouseEnter,
   onMouseLeave,
+  ref,
 }) => {
   let body: ReactNode;
   switch (target.kind) {
@@ -664,6 +673,7 @@ export const ActivityTooltip: FC<ActivityTooltipProps> = ({
   }
   return (
     <div
+      ref={ref}
       className={clsx(styles.tooltip, className)}
       style={style}
       onMouseEnter={onMouseEnter}

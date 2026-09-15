@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import { useDebouncedCallback, useTimeout } from "@tsmono/react/hooks";
+import { useDebouncedCallback } from "@tsmono/react/hooks";
 
 import styles from "./ActivityChart.module.css";
 import {
@@ -168,6 +168,12 @@ const kTooltipFlipPx = 280;
 // Leaving a target keeps the card this long: it sits below the whole
 // activity band, so the pointer crosses empty plot to reach its footer.
 const kTooltipGraceMs = 300;
+// The card's column — its width plus this margin either side — is the
+// corridor to its footer: a pointer there after leaving the hovered thing is
+// on its way, so a curve band under it must not take the card over, and
+// every move that brings it nearer restarts the grace (round 12). The
+// margin covers the 12px the card sits off the pointer.
+const kTooltipCorridorMarginPx = 24;
 // A curve hover within this many px of a context point reads that point.
 const kContextPointSnapPx = 6;
 
@@ -307,21 +313,35 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const [foldExpanded, setFoldExpanded] = useState(false);
 
   // Leaving a span/marker schedules the close instead of clearing at once;
-  // entering any target or the card cancels it. The timer is declarative
-  // (useTimeout), so unmount cleans it up.
-  const [closePending, setClosePending] = useState(false);
-  useTimeout(
-    () => {
-      setClosePending(false);
-      if (!tooltipHeld) {
-        setHoverTarget(null);
-        cancelReveal();
-      }
-    },
-    closePending ? kTooltipGraceMs : null
-  );
+  // entering any target or the card cancels it. Debounced rather than a
+  // one-shot timer so a pointer heading for the card can push the close
+  // back move by move; the hook cancels it on unmount. `closing` mirrors
+  // the pending close for the pointer handlers, which read it in the same
+  // event that set it — state would still be stale there.
+  const closing = useRef(false);
+  const closeAfterGrace = useDebouncedCallback(() => {
+    closing.current = false;
+    if (!tooltipHeld) {
+      setHoverTarget(null);
+      cancelReveal();
+    }
+  }, kTooltipGraceMs);
+  // Distance from the pointer to the card at its last move off-target;
+  // the grace restarts only while that shrinks.
+  const cardDistance = useRef<number | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const requestClose = () => {
+    closing.current = true;
+    cardDistance.current = null;
+    closeAfterGrace();
+  };
+  const cancelClose = () => {
+    closing.current = false;
+    cardDistance.current = null;
+    closeAfterGrace.cancel();
+  };
   const showTarget = (target: HoverTarget) => {
-    setClosePending(false);
+    cancelClose();
     setHoverTarget(target);
     const key = hoverTargetKey(target);
     if (key !== null && key !== pendingKey.current) {
@@ -330,7 +350,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     }
   };
   const clearTarget = () => {
-    if (!tooltipHeld) setClosePending(true);
+    if (!tooltipHeld && !closing.current) requestClose();
   };
   const leaveChart = () => {
     setCursor(null);
@@ -338,7 +358,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     setHoverTarget(null);
     setShownKey(null);
     setTooltipHeld(false);
-    setClosePending(false);
+    cancelClose();
     cancelReveal();
   };
 
@@ -2251,6 +2271,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const onPlotMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const px = pointerPx(event);
     const py = pointerPy(event);
+    if (holdCardForPointer(px, py)) return;
     const t = timeAtPx(px);
     setCursor({ x: px, t });
     const band = bands.find((b) => py >= b.top && py < b.top + b.height);
@@ -2319,9 +2340,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   // ── tooltip placement (handoff 11b) ───────────────────────────────────
   // Below the activity band (never over the hovered row); follows the
-  // pointer horizontally; flips left near the right edge. Keyboard focus
-  // on a marker has no pointer, so the anchor stands in.
-  const renderTooltip = () => {
+  // pointer horizontally while it is on the hovered thing, then stays put
+  // so the pointer can reach it; flips left near the right edge. Keyboard
+  // focus on a marker has no pointer, so the anchor stands in.
+  const tooltipPlacement = (): { left: number; top: number } | null => {
     if (!hoverTarget || !cursor || shownKey !== targetKey) return null;
     const activityBand = bands.find((b) => b.kind === "modelTool");
     const top = activityBand
@@ -2332,19 +2354,56 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       anchorX > width - kTooltipFlipPx
         ? Math.max(anchorX - 12 - kTooltipWidth, 0)
         : anchorX + 12;
+    return { left, top };
+  };
+
+  /** A pointer that has left the hovered thing but is inside the shown
+   *  card's column is travelling to its footer: the cursor and the card
+   *  hold, a curve band under it is not read, and the grace restarts on
+   *  every move that closes the distance (a pointer resting or drifting
+   *  away lets it run out). The curve read-out is the one card that is
+   *  never a destination — its target is the band under the pointer. */
+  const holdCardForPointer = (px: number, py: number): boolean => {
+    if (!closing.current || hoverTarget?.kind === "curve") return false;
+    const placement = tooltipPlacement();
+    if (!placement) return false;
+    const { left, top } = placement;
+    const right = left + kTooltipWidth;
+    if (
+      px < left - kTooltipCorridorMarginPx ||
+      px > right + kTooltipCorridorMarginPx
+    ) {
+      return false;
+    }
+    // jsdom lays nothing out: an unmeasured card is taken to reach the axis.
+    const measured = tooltipRef.current?.offsetHeight ?? 0;
+    const bottom = top + (measured > 0 ? measured : axisY - top);
+    const dx = Math.max(left - px, 0, px - right);
+    const dy = Math.max(top - py, 0, py - bottom);
+    const distance = Math.hypot(dx, dy);
+    const previous = cardDistance.current;
+    cardDistance.current = distance;
+    if (previous !== null && distance < previous) closeAfterGrace();
+    return true;
+  };
+
+  const renderTooltip = () => {
+    const placement = tooltipPlacement();
+    if (!hoverTarget || !placement) return null;
     return (
       <ActivityTooltip
+        ref={tooltipRef}
         target={hoverTarget}
         turnsMode={turnsMode}
         onOpenEvent={onOpenEvent}
-        style={{ left, top }}
+        style={placement}
         onMouseEnter={() => {
           setTooltipHeld(true);
-          setClosePending(false);
+          cancelClose();
         }}
         onMouseLeave={() => {
           setTooltipHeld(false);
-          setClosePending(true);
+          requestClose();
         }}
       />
     );
@@ -2362,11 +2421,14 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           className={styles.svg}
           width={width}
           height={height}
-          onMouseMove={(event) =>
+          onMouseMove={(event) => {
+            // A card that kept 12px ahead of the pointer could never be
+            // reached: it follows only while the pointer is on its target.
+            if (closing.current) return;
             setPointerX(
               event.clientX - event.currentTarget.getBoundingClientRect().left
-            )
-          }
+            );
+          }}
         >
           <rect
             className={styles.plotHit}
