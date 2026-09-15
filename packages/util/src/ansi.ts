@@ -16,11 +16,14 @@ export const isAnsiOutput = (text: string): boolean => {
   //    Examples: \x1b[0m (reset), \x1b[31m (red), \x1b[2J (clear screen)
   // 2. OSC sequences: ESC ] <params> BEL or ESC ] <params> ESC \
   //    Examples: \x1b]0;Title\x07 (set title), \x1b]8;;url\x07 (hyperlink)
+  //    The body excludes ESC (and the line breaks `.` would not cross) so an
+  //    unterminated `ESC ]` stops at the next ESC instead of rescanning to
+  //    end of line; with `.*?` that rescan was quadratic on repeated `ESC ]`.
   // 3. Simple escape sequences: ESC <letter>
   //    Examples: \x1bM (reverse index), \x1b7 (save cursor)
   const ansiRegex =
     // eslint-disable-next-line no-control-regex
-    /\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\].*?(?:\x07|\x1b\\)|[^[\]>])/g;
+    /\x1b(?:\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]|\][^\x07\x1b\n\r\u2028\u2029]*(?:\x07|\x1b\\)|[^[\]>])/g;
 
   return ansiRegex.test(text);
 };

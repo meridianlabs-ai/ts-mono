@@ -102,8 +102,17 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     }
   }
 
-  // It could have ANSI codes
-  if (displayMode === "rendered" && isAnsiOutput(text)) {
+  // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
+  // which the browser re-layerizes on every resize (~1.4s each — laggy in
+  // Blink, spinlocks WebKit). Cap it so the giant node never enters the DOM;
+  // a fixed-height scroller does not help because the off-screen content is
+  // still layerized.
+  const { text: capped, notice } = cappedText(text);
+
+  // It could have ANSI codes. Detection is bounded to the capped prefix so
+  // log-authored output can never feed the regex an unbounded string; the
+  // ANSI renderer still receives the full text as before.
+  if (displayMode === "rendered" && isAnsiOutput(capped)) {
     return (
       <ANSIDisplay
         output={text}
@@ -112,12 +121,6 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
     );
   }
 
-  // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
-  // which the browser re-layerizes on every resize (~1.4s each — laggy in
-  // Blink, spinlocks WebKit). Cap it so the giant node never enters the DOM;
-  // a fixed-height scroller does not help because the off-screen content is
-  // still layerized.
-  const { text: capped, notice } = cappedText(text);
   return (
     <>
       <pre className={clsx(styles.textOutput, "tool-output")}>
