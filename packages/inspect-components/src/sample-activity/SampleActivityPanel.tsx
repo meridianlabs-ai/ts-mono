@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
+import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { isRecord, nullProtoRecord } from "@tsmono/util";
 
@@ -124,22 +125,22 @@ interface AxisToggleProps {
   onChange: (mode: AxisMode) => void;
 }
 
+const kAxisSegments = [
+  { id: "wall", label: "Wall clock" },
+  { id: "turns", label: "Turns" },
+];
+
+// The wrapper only adds the group label and right-aligns the shared control.
 const AxisToggle: FC<AxisToggleProps> = ({ mode, onChange }) => (
-  <div className={styles.segmented} role="group" aria-label="X axis">
-    {(["wall", "turns"] as const).map((value) => (
-      <button
-        key={value}
-        type="button"
-        className={clsx(
-          styles.segment,
-          mode === value && styles.segmentSelected
-        )}
-        aria-pressed={mode === value}
-        onClick={() => onChange(value)}
-      >
-        {value === "wall" ? "Wall clock" : "Turns"}
-      </button>
-    ))}
+  <div className={styles.axisToggle} role="group" aria-label="X axis">
+    <SegmentedControl
+      segments={kAxisSegments}
+      selectedId={mode}
+      onSegmentChange={(id) => {
+        const next = readAxis(id);
+        if (next) onChange(next);
+      }}
+    />
   </div>
 );
 

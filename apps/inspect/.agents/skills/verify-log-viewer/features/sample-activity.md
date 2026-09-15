@@ -41,8 +41,9 @@ an Activity test into the standing spec.
 - Band labels (SVG text, uppercase — use `exact: true` or the chip matches
   too): `WORKING / WAITING`, `TOKEN BURN`, `CONTEXT SIZE`,
   `MODEL & TOOL ACTIVITY`.
-- Axis toggle (right end of the chip row): `getByRole("button", { name:
-"Wall clock", exact: true })` / `"Turns"`; Turns relabels the axis `TURN`
+- Axis toggle (right end of the chip row; the shared `SegmentedControl`, so
+  `aria-pressed` buttons inside `role="group"` named `X axis`):
+  `getByRole("button", { name: "Wall clock", exact: true })` / `"Turns"`; Turns relabels the axis `TURN`
   (one equal-width column per model turn, split in equal model / tool
   halves; 6–10 gridlines from seven turns up, one per column boundary
   below that; a tool half too narrow for its sequential slots draws one

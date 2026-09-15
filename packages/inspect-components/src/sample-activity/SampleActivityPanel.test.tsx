@@ -312,6 +312,18 @@ describe("SampleActivityPanel persisted state (review round 2)", () => {
     expect(screen.getByText("MODEL & TOOL ACTIVITY")).toBeTruthy();
   });
 
+  it("renders the axis toggle with the shared SegmentedControl", () => {
+    mountPanelWith(makeReactiveStateStore());
+    const group = screen.getByRole("group", { name: "X axis" });
+    const wall = within(group).getByRole("button", { name: "Wall clock" });
+    const turns = within(group).getByRole("button", { name: "Turns" });
+    // Both segments sit in the shared control's root, not a bespoke wrapper.
+    expect(wall.parentElement).toBe(turns.parentElement);
+    expect(wall.parentElement?.className).toMatch(/rootControl/);
+    expect(wall.getAttribute("aria-pressed")).toBe("true");
+    expect(turns.getAttribute("aria-pressed")).toBe("false");
+  });
+
   it("drops unknown ids from persisted filters and hidden rows, keeping the rest", () => {
     const store = makeReactiveStateStore();
     store.store.set(persistedKey("filters"), ["bogus", "error", 42]);
