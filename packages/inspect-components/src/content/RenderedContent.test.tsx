@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, render, within } from "@testing-library/react";
+import { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
+
+import {
+  ComponentIconProvider,
+  ComponentNavigationProvider,
+} from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, testIcons } from "@tsmono/react/testing";
 
 import { RenderedContent } from "./RenderedContent";
 
@@ -8,8 +16,21 @@ afterEach(() => {
   cleanup();
 });
 
-const renderWebSearch = (url: string) =>
+// The generic object fallback renders a MetaDataGrid, which needs the
+// component providers.
+const renderContent = (ui: ReactElement) =>
   render(
+    <ComponentStateProvider hooks={makeStateHooks()}>
+      <ComponentIconProvider icons={testIcons}>
+        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+          {ui}
+        </ComponentNavigationProvider>
+      </ComponentIconProvider>
+    </ComponentStateProvider>
+  );
+
+const renderWebSearch = (url: string) =>
+  renderContent(
     <RenderedContent
       id="web-search"
       entry={{
@@ -48,7 +69,7 @@ describe("RenderedContent web_search results", () => {
 // must verify the shape it renders before claiming the value.
 describe("RenderedContent log-shaped objects", () => {
   it("renders an object-valued _model as data instead of throwing", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <RenderedContent
         id="note"
         entry={{ name: "note", value: { _html: 1, _model: { a: 1 } } }}
@@ -60,7 +81,7 @@ describe("RenderedContent log-shaped objects", () => {
   });
 
   it("renders a string _model with the model renderer", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <RenderedContent
         id="model"
         entry={{ name: "model", value: { _model: "gpt-4o" } }}
@@ -79,7 +100,7 @@ describe("RenderedContent log-shaped objects", () => {
   ])(
     "renders a web_search entry holding %s as data instead of throwing",
     (_label, value) => {
-      const { container } = render(
+      const { container } = renderContent(
         <RenderedContent id="ws" entry={{ name: "web_search", value }} />
       );
 
@@ -97,7 +118,7 @@ describe("RenderedContent log-shaped objects", () => {
   });
 
   it("renders an object-valued _html as data instead of raw", () => {
-    const { container } = render(
+    const { container } = renderContent(
       <RenderedContent
         id="html"
         entry={{ name: "html", value: { _html: { nested: "text" } } }}
