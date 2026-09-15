@@ -5,6 +5,7 @@ import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { PulsingDots } from "@tsmono/react/components";
 import { formatDateTime, formatTime, parsePackageName } from "@tsmono/util";
 
+import { useTranscriptHost } from "../host";
 import { TranscriptIcons } from "../icons";
 import { kSandboxSignalName } from "../transform/fixups";
 import { EventNode } from "../types";
@@ -15,34 +16,32 @@ export interface OutlineRowProps {
   node: EventNode;
   running?: boolean;
   selected?: boolean;
-  getEventUrl?: (eventId: string) => string | undefined;
   onSelect?: (nodeId: string) => void;
   /** Called when a URL isn't available but the user clicks to navigate to an event. */
   onNavigateToEvent?: (eventId: string) => void;
   /** Callback-based collapse state. */
   getCollapsed?: (id: string) => boolean;
   setCollapsed?: (id: string, collapsed: boolean) => void;
-  /** Optional custom link renderer for deep linking (replaces react-router Link). */
-  renderLink?: (url: string, children: ReactNode) => ReactNode;
 }
 
 export const OutlineRow: FC<OutlineRowProps> = ({
   node,
   running,
   selected,
-  getEventUrl,
   onSelect,
   onNavigateToEvent,
   getCollapsed,
   setCollapsed,
-  renderLink,
 }) => {
+  const { urls, outline } = useTranscriptHost();
+  const renderLink = outline?.renderLink;
   const collapsed = getCollapsed?.(node.id) ?? false;
   const icon = iconForNode(node);
   const toggle = toggleIcon(node, collapsed);
 
-  // Generate URL for deep linking to this event
-  const eventUrl = getEventUrl?.(node.id);
+  // Deep link to this event — ungated by `linkingEnabled`, which only governs
+  // the event header's copy button.
+  const eventUrl = urls?.getEventUrl?.(node.id);
 
   const labelText = parsePackageName(labelForNode(node)).module;
 

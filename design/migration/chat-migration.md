@@ -51,7 +51,7 @@ and exposes the differences as props/callbacks.
 | **Role headers** | Hides assistant role header via `unlabeledRoles` | Shows all role headers | `unlabeledRoles` array prop on `ChatViewDisplayOptions` |
 | **Message linking/URLs** | Copy-link button with shareable URL per message | No message linking | `ChatViewLinkingOptions` with `enabled`, `getUrl`, `icon` props |
 | **Message labels** | Numbered labels on messages (e.g., for citation refs) | No message labeling | `ChatViewLabelOptions` with `values`, `show`, `highlight` props |
-| **Icon system** | `ApplicationIcons` from `../../appearance/icons` | `ApplicationIcons` from `../../icons` (more comprehensive set) | `useContentIcons()` context hook replaces direct `ApplicationIcons` import; default Bootstrap Icons |
+| **Icon system** | `ApplicationIcons` from `../../appearance/icons` | `ApplicationIcons` from `../../icons` (more comprehensive set) | Shared `ContentIcons` constant (`content/icons.ts`) replaces direct `ApplicationIcons` import; Bootstrap Icons |
 | **Type source** | `@tsmono/inspect-common/types` | Local `../../types/api-types.ts` | All types from `@tsmono/inspect-common/types` |
 | **Tool output merging** | Merges tool responses into preceding assistant message | Same behavior | `resolveIntoPreviousMessage` prop (default: true) |
 | **Event-to-message bridge** | `messagesFromEvents.ts` converts streaming events to messages | Direct message arrays from transcript API | App-local adapter in inspect; shared components accept `ChatMessage[]` |

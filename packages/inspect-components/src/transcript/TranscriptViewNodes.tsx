@@ -1,7 +1,8 @@
 /**
  * Shared component that wraps TranscriptVirtualList with tree flattening,
  * collapse state, turn-map computation, keyboard navigation, and imperative
- * scroll-to-event/index. Apps provide collapse state via callback props.
+ * scroll-to-event/index. Apps provide collapse state via callback props and
+ * URL / navigation / chrome behavior through the `TranscriptHost` context.
  */
 
 import {
@@ -21,6 +22,7 @@ import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import { GoToTurnBar, type GoToTurnBarHandle } from "./GoToTurnBar";
 import { useTranscriptKeyboardNavigation } from "./hooks/useTranscriptKeyboardNavigation";
+import { useTranscriptHost } from "./host";
 import {
   isSelectableEvent,
   toggleTranscriptSelection,
@@ -64,17 +66,6 @@ export interface TranscriptViewNodesProps {
   offsetTop?: number;
   className?: string;
   renderAgentCard?: (node: EventNode, className?: string) => ReactNode;
-  getEventUrl?: (eventId: string) => string | undefined;
-  linkingEnabled?: boolean;
-  /** Builds the focus-mode entry href for the header's focus control
-   *  (plain click enters in-window; modified clicks open a new tab). Omit to
-   *  hide that control. */
-  getEventFocusUrl?: (
-    eventId: string,
-    selectedTab?: string
-  ) => string | undefined;
-  /** Navigate to a focus URL in the current window. */
-  onOpenEventFocus?: (focusRoute: string) => void;
 
   // Collapse state (app provides via its store, already scope-specific)
   collapsedTranscript?: Record<string, boolean>;
@@ -84,21 +75,11 @@ export interface TranscriptViewNodesProps {
   onExpandNodes?: (nodeIds: string[]) => void;
   /** Extra context fields merged into every EventNodeContext entry. */
   eventNodeContext?: Partial<EventNodeContext>;
-  /** Called before this list's own programmatic scrolls so the swimlane
-   *  headroom doesn't flicker mid-scroll; `true` engages the debounced lock. */
-  onProgrammaticScroll?: (debounce?: boolean) => void;
-  /** Force the chrome headroom to the state an equivalent manual scroll would
-   *  produce: nav/deep-link landings collapse it, `k` past turn 1 re-expands. */
-  onHeadroomSetHidden?: (hidden: boolean) => void;
   /** `h` — select the previous agent lane (driven by the parent's swimlane
    *  selection so the lane highlight + scoping update too). */
   onPrevAgent?: () => void;
   /** `l` — select the next agent lane. */
   onNextAgent?: () => void;
-  /** Called when an explicit turn navigation lands (j/k, chevrons, editable
-   *  number) so the app can reflect the turn in the URL (`?event=`, replace) —
-   *  like an outline click. NOT called on passive scroll. */
-  onNavigatedToEvent?: (eventId: string) => void;
   /** Disable turn/agent keyboard nav while find-in-page owns the keyboard. */
   keyboardNavDisabled?: boolean;
   /** Host-owned evidence selection; present only while selection mode is on. */
@@ -146,24 +127,28 @@ export const TranscriptViewNodes = forwardRef<
     offsetTop = 10,
     className,
     renderAgentCard,
-    getEventUrl,
-    linkingEnabled,
-    getEventFocusUrl,
-    onOpenEventFocus,
     collapsedTranscript,
     onCollapseTranscript,
     onExpandNodes,
     eventNodeContext,
-    onProgrammaticScroll,
-    onHeadroomSetHidden,
     onPrevAgent,
     onNextAgent,
-    onNavigatedToEvent,
     keyboardNavDisabled,
     selection,
   },
   ref
 ) {
+  // Host groups may be fresh literals; the callbacks inside are the app's
+  // stable hook results, so the memoization below keys on those.
+  const { urls, navigation, headroom } = useTranscriptHost();
+  const getEventFocusUrl = urls?.getEventFocusUrl;
+  const { onOpenEventFocus, onNavigatedToEvent } = navigation ?? {};
+  // Programmatic scrolls reset the headroom anchor first (`true` = debounced
+  // lock) so the swimlane chrome doesn't flicker mid-scroll; nav landings
+  // force the chrome to the state an equivalent manual scroll would produce.
+  const { setHidden: onHeadroomSetHidden, resetAnchor: onHeadroomResetAnchor } =
+    headroom ?? {};
+
   const listHandle = useRef<VirtualListHandle | null>(null);
 
   // This mount is nav-owned when it lands on a deep link (`?event=`/`?message=`)
@@ -297,7 +282,7 @@ export const TranscriptViewNodes = forwardRef<
   // the scroll tracker's next report steps from the declared target.
   const scrollRowToTop = useCallback(
     (index: number, onDone?: () => void) => {
-      onProgrammaticScroll?.(true);
+      onHeadroomResetAnchor?.(true);
       const rowId = flattenedNodesLatest.current[index]?.id;
       if (rowId !== undefined) {
         const lookup = turnLookupLatest.current;
@@ -319,7 +304,7 @@ export const TranscriptViewNodes = forwardRef<
         onDone,
       });
     },
-    [onProgrammaticScroll]
+    [onHeadroomResetAnchor]
   );
 
   const scrollToEvent = useCallback(
@@ -331,7 +316,7 @@ export const TranscriptViewNodes = forwardRef<
         if (listHandle.current) {
           scrollRowToTop(idx);
         } else {
-          onProgrammaticScroll?.(true);
+          onHeadroomResetAnchor?.(true);
           const el = scrollRef?.current?.querySelector(
             `[id="${escapeAttr(eventId)}"]`
           );
@@ -374,7 +359,7 @@ export const TranscriptViewNodes = forwardRef<
       }
 
       // Fall back to direct DOM scroll.
-      onProgrammaticScroll?.(true);
+      onHeadroomResetAnchor?.(true);
       const el = scrollRef?.current?.querySelector(
         `[id="${escapeAttr(eventId)}"]`
       );
@@ -388,7 +373,7 @@ export const TranscriptViewNodes = forwardRef<
       onExpandNodes,
       scrollRowToTop,
       scrollRef,
-      onProgrammaticScroll,
+      onHeadroomResetAnchor,
       onHeadroomSetHidden,
     ]
   );
@@ -559,13 +544,13 @@ export const TranscriptViewNodes = forwardRef<
   // preamble) and re-expand the chrome, exactly as a manual scroll to the top
   // would. The scroll tracker then confirms the "above turn 1" index.
   const goToVeryTop = useCallback(() => {
-    onProgrammaticScroll?.(true);
+    onHeadroomResetAnchor?.(true);
     // Instant, not smooth: the expand below is gated on actually being at the
     // top, which a smooth scroll only reaches many frames later.
     listHandle.current?.scrollTo({ top: 0, behavior: "auto" });
     onHeadroomSetHidden?.(false);
     currentTurnIndexRef.current = -1;
-  }, [onProgrammaticScroll, onHeadroomSetHidden]);
+  }, [onHeadroomResetAnchor, onHeadroomSetHidden]);
 
   const onNext = useCallback(() => {
     const nextIndex = currentTurnIndexRef.current + 1;
@@ -683,15 +668,12 @@ export const TranscriptViewNodes = forwardRef<
     () => ({
       onCollapse: onCollapseTranscript,
       getCollapsed,
-      getEventUrl,
-      linkingEnabled,
       getEventFocusUrl: getEventFocusUrlArmed,
       onFocusTabChange,
       onPrevTurn,
       onNextTurn,
       onTurnLabelClick,
       onTabSelected,
-      onOpenEventFocus,
       isJumpTarget: jumpTargetId
         ? (eventNodeId: string) => eventNodeId === jumpTargetId
         : undefined,
@@ -699,15 +681,12 @@ export const TranscriptViewNodes = forwardRef<
     [
       onCollapseTranscript,
       getCollapsed,
-      getEventUrl,
-      linkingEnabled,
       getEventFocusUrlArmed,
       onFocusTabChange,
       onPrevTurn,
       onNextTurn,
       onTurnLabelClick,
       onTabSelected,
-      onOpenEventFocus,
       jumpTargetId,
     ]
   );

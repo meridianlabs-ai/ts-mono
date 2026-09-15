@@ -2,10 +2,11 @@
 // @vitest-environment-options {"url": "https://eval.example.org/eval-set/abc123?token=t"}
 //
 // Regression tests for the transcript copy-link URLs (the "copy link" button
-// next to an event title). The shared components treat `getEventUrl` as a
-// *shareable* URL and copy it to the clipboard verbatim, so TranscriptPanel
-// must pass an absolute URL (origin + host path + hash route), while router
-// navigation (markers, outline links) must still use the bare hash route.
+// next to an event title). The shared components treat the host's
+// `urls.getEventUrl` as a *shareable* URL and copy it to the clipboard
+// verbatim, so TranscriptPanel must provide an absolute URL (origin + host
+// path + hash route), while router navigation (markers, outline links) must
+// still use the bare hash route.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { MemoryRouter, useLocation } from "react-router";
@@ -63,31 +64,33 @@ vi.mock("../../../app_config", async (importOriginal) => {
   return { ...actual, useLogDir: () => "dir" };
 });
 
-// Stub the layout with a probe that exercises the three link paths exactly
-// the way the real shared components do: `getEventUrl` feeds the copy button
-// verbatim (gated on `linkingEnabled`), the outline renders
-// `renderLink(getEventUrl(id), ...)` ungated, and markers call
-// `onMarkerNavigate(id)`.
+// Stub the layout with a probe that reads the TranscriptHost the panel
+// provides and exercises the three link paths exactly the way the real shared
+// components do: `urls.getEventUrl` feeds the copy button verbatim (gated on
+// `urls.linkingEnabled`), the outline renders
+// `outline.renderLink(getEventUrl(id), ...)` ungated, and markers call
+// `navigation.onMarkerNavigate(id)`.
 vi.mock("@tsmono/inspect-components/transcript", async (importOriginal) => {
   const actual =
     await importOriginal<
       typeof import("@tsmono/inspect-components/transcript")
     >();
-  const TranscriptLayout: typeof actual.TranscriptLayout = (props) => {
+  const TranscriptLayout: typeof actual.TranscriptLayout = () => {
+    const { urls, navigation, outline } = actual.useTranscriptHost();
     // Mirror the real components: EventPanel gates the copy button on
     // `linkingEnabled`; the outline consumes `getEventUrl` ungated.
     const copyUrl =
-      props.linkingEnabled && props.getEventUrl
-        ? props.getEventUrl("event-1")
+      urls?.linkingEnabled && urls.getEventUrl
+        ? urls.getEventUrl("event-1")
         : undefined;
-    const outlineUrl = props.getEventUrl?.("event-1");
+    const outlineUrl = urls?.getEventUrl?.("event-1");
     return (
       <div>
         <div data-testid="copy-url">{copyUrl}</div>
-        {outlineUrl && props.outline?.renderLink
-          ? props.outline.renderLink(outlineUrl, <span>outline link</span>)
+        {outlineUrl && outline?.renderLink
+          ? outline.renderLink(outlineUrl, <span>outline link</span>)
           : null}
-        <button onClick={() => props.timeline?.onMarkerNavigate?.("event-1")}>
+        <button onClick={() => navigation?.onMarkerNavigate?.("event-1")}>
           marker
         </button>
       </div>

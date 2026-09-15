@@ -56,6 +56,8 @@ export const TranscriptIcons = {
   },
   logging: loggingIcons,
   model: "bi bi-grid-3x3-gap",
+  /** The collapsed outline sidebar's show-outline toggle. */
+  outlineToggle: "bi bi-list",
   sample: "bi bi-database",
   sandbox: "bi bi-box-seam",
   scorer: "bi bi-calculator",

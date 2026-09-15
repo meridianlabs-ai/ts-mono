@@ -16,13 +16,14 @@ apps and by the subsequently migrated chat components.
 
 ## Architecture
 
-The shared package uses three context providers for dependency injection:
+The shared package originally used three context providers for dependency injection:
 
 | Context | Purpose | Status |
 | --- | --- | --- |
 | `DisplayModeContext` | Toggle between rendered markdown and raw text | Actively used -- Scout's TranscriptBody provides this |
-| `IconsContext` | Icon class names (tree expand/collapse, checkbox, tool, etc.) | Defined with Bootstrap Icon defaults; not overridden by apps |
-| `ContentRenderersContext` | Custom content renderer registration | Defined; not yet provided by apps (built-in renderers suffice) |
+| `IconsContext` | Icon class names (tree expand/collapse, checkbox, tool, etc.) | Removed -- never provided by an app; now the `ContentIcons` constant in `content/icons.ts` |
+| `ContentRenderersContext` | Custom content renderer registration | Removed -- never provided by an app (built-in renderers suffice) |
+| `TranscriptHostContext` (`transcript/host.tsx`) | Per-app transcript behavior (deep-link URL builders, router navigation, chrome headroom, outline link renderer) | Added -- `TranscriptHostProvider` / `useTranscriptHost()`; inspect provides it in `TranscriptPanel`, scout in `TranscriptBody` and `ResultBody`. Unprovided mounts read an empty host |
 
 ### Renderer Plugin System
 
@@ -32,7 +33,7 @@ The shared package uses three context providers for dependency injection:
 - Each renderer registers with `canRender(entry)` predicate and `render(entry)` method
 - Built-in renderers handle: ANSI strings, JSON strings, models, booleans, numbers,
   strings, arrays, objects, HTML, images, web_search, web_browser
-- Apps can merge additional renderers via `ContentRenderersContext`
+- The `ContentRenderersContext` merge point was removed once it was clear no app provided renderers
 
 ### Record Processing
 
@@ -53,7 +54,7 @@ The shared package uses three context providers for dependency injection:
 | **ModelUsagePanel** | Token counts: input, output, total | Token counts: input, output, total, reasoning, cache_read, cache_write | Merged: full `ModelUsageData` interface with all token fields |
 | **TokenTable** | Basic table with model name + usage | Same structure | Identical implementations unified |
 | **UsageCard** | Card wrapper around ModelTokenTable | Same structure | Identical implementations unified |
-| **Icon references** | `ApplicationIcons` from local `appearance/icons` | `ApplicationIcons` from local `icons` module (more comprehensive) | `useContentIcons()` context hook with default Bootstrap Icons |
+| **Icon references** | `ApplicationIcons` from local `appearance/icons` | `ApplicationIcons` from local `icons` module (more comprehensive) | Shared `ContentIcons` constant (`content/icons.ts`) with Bootstrap Icons |
 | **Type source** | Types from `@tsmono/inspect-common/types` | Types from local `api-types.ts` | All types from `@tsmono/inspect-common/types` |
 | **Display mode** | Not supported (always rendered) | Zustand-stored toggle (rendered/raw) with UI button | `DisplayModeContext` provider; apps opt in by wrapping content |
 | **Record processors** | `resolveStoreKeys` for store pattern expansion | Same implementation | Unified in `record_processors/store.ts` with tests |
@@ -65,9 +66,8 @@ packages/inspect-components/src/
   index.ts                              # re-exports content/ and usage/
   content/
     index.ts                            # barrel export
-    ContentRenderersContext.tsx          # custom renderer provider
     DisplayModeContext.tsx               # raw/rendered toggle provider
-    IconsContext.tsx                     # icon class provider
+    icons.ts                             # Bootstrap icon class constants
     RenderedContent.tsx                  # type-based content dispatcher
     RenderedText.tsx                     # markdown or raw text
     RecordTree.tsx                       # hierarchical tree view

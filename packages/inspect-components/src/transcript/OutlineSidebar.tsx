@@ -5,17 +5,11 @@
  */
 
 import clsx from "clsx";
-import {
-  FC,
-  ReactNode,
-  RefObject,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
+import { FC, RefObject, useCallback, useMemo, useState } from "react";
 
 import { StickyScroll } from "@tsmono/react/components";
 
+import { TranscriptIcons } from "./icons";
 import { TranscriptOutline } from "./outline/TranscriptOutline";
 import {
   outlineCollapseState,
@@ -29,12 +23,10 @@ export interface TranscriptLayoutOutlineProps {
   onCollapsedChange: (collapsed: boolean) => void;
   toggleDisabled?: boolean;
   toggleTitle?: string;
-  toggleIcon: string;
   /** Header title shown next to the toggle icon when expanded. */
   title?: string;
   /** Name of the agent/subagent currently displayed. Shown as a header in the outline. */
   name?: string;
-  renderLink?: (url: string, children: ReactNode) => ReactNode;
   onNavigateToEvent?: (eventId: string) => void;
   selectedId?: string | null;
   setSelectedId?: (id: string) => void;
@@ -63,7 +55,6 @@ export interface OutlineSidebarProps {
   /** Sticky offset below the swimlanes. */
   offsetTop: number;
   collapseState?: TranscriptCollapseState;
-  getEventUrl?: (eventId: string) => string | undefined;
 }
 
 export const OutlineSidebar: FC<OutlineSidebarProps> = ({
@@ -80,7 +71,6 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
   agentName,
   offsetTop,
   collapseState,
-  getEventUrl,
 }) => {
   // Capture the outline's own scroll container (the StickyScroll div, which
   // has overflow-y:auto) into state so the outline's virtual list can use it
@@ -153,8 +143,6 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
               collapse={collapse}
               selectedOutlineId={outline.selectedId}
               setSelectedOutlineId={outline.setSelectedId}
-              getEventUrl={getEventUrl}
-              renderLink={outline.renderLink}
               onNavigateToEvent={outline.onNavigateToEvent}
               onHasNodesChange={onHasNodesChange}
             />
@@ -177,7 +165,7 @@ export const OutlineSidebar: FC<OutlineSidebarProps> = ({
             }
             aria-label="Show outline"
           >
-            <i className={outline.toggleIcon} />
+            <i className={TranscriptIcons.outlineToggle} />
           </button>
         )}
       </StickyScroll>
