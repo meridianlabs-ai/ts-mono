@@ -5,25 +5,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { testLoggerEvent } from "@tsmono/inspect-common/testing";
 import type { LoggerEvent } from "@tsmono/inspect-common/types";
 import { ComponentNavigationProvider } from "@tsmono/react/components";
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
-import { ResizeObserverStub } from "@tsmono/react/testing";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { LoggerEventView } from "./LoggerEventView";
 import { EventNode } from "./types";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
-
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
 
 const renderView = (message: string) => {
   const event = testLoggerEvent();
@@ -33,7 +21,7 @@ const renderView = (message: string) => {
     0
   );
   return render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
         <LoggerEventView eventNode={node} />
       </ComponentNavigationProvider>

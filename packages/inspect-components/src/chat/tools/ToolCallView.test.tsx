@@ -2,11 +2,8 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
-import { ResizeObserverStub } from "@tsmono/react/testing";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../../content/DisplayModeContext";
 
@@ -16,18 +13,9 @@ import { ToolOutput } from "./ToolOutput";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
-
 const renderToolCall = (output: string, displayMode: "rendered" | "raw") =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <DisplayModeContext.Provider value={{ displayMode }}>
         <ToolCallView
           id="tool-call"
@@ -45,7 +33,7 @@ const renderClientToolCall = (
   displayMode: "rendered" | "raw"
 ) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <DisplayModeContext.Provider value={{ displayMode }}>
         <ClientToolCall
           id="client-tool-call"
@@ -59,7 +47,7 @@ const renderClientToolCall = (
 
 const renderToolOutput = (output: string, displayMode: "rendered" | "raw") =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <DisplayModeContext.Provider value={{ displayMode }}>
         <ToolOutput output={output} />
       </DisplayModeContext.Provider>
@@ -116,7 +104,7 @@ describe("ToolCallView display modes", () => {
 describe("ClientToolCall errors", () => {
   it("shows the annotated screenshot alongside a tool error", () => {
     const { container } = render(
-      <ComponentStateProvider hooks={stateHooks}>
+      <ComponentStateProvider hooks={makeStateHooks()}>
         <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
           <ClientToolCall
             id="failed-click"
