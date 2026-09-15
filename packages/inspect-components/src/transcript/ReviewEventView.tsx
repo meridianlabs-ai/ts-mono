@@ -30,7 +30,9 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
   const alarming = decision === "terminate";
   const explanationIsBlock = explanation.includes("\n");
   const chains = chainOutcomes(event);
-  const source = event.chain ? `${event.chain} · ${reviewer}` : reviewer;
+  const source = event.chain
+    ? `by ${reviewer} (chain "${event.chain}")`
+    : `by ${reviewer}`;
 
   return (
     <EventRow
@@ -57,7 +59,9 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
         <span className={clsx("text-style-secondary")}>
           (
           {chains
-            ? `combined decision of ${Object.keys(chains).length} chains`
+            ? `combined decision of chains ${Object.keys(chains)
+                .map((name) => `"${name}"`)
+                .join(", ")}`
             : source}
           )
         </span>

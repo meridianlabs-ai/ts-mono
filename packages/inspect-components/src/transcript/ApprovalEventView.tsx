@@ -29,7 +29,9 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
   // The combined decision of several policy chains: show each chain's own
   // decision rather than the one-line summary that names them all.
   const chains = chainOutcomes(event);
-  const source = event.chain ? `${event.chain} · ${approver}` : approver;
+  const source = event.chain
+    ? `by ${approver} (chain "${event.chain}")`
+    : `by ${approver}`;
   // Break the explanation out into a markdown block only when it has
   // structure (newlines → paragraphs/lists/code). Otherwise leave it
   // inline so short rationales sit on the same line as `(approver)`,
@@ -61,7 +63,9 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
         <span className={clsx("text-style-secondary")}>
           (
           {chains
-            ? `combined decision of ${Object.keys(chains).length} chains`
+            ? `combined decision of chains ${Object.keys(chains)
+                .map((name) => `"${name}"`)
+                .join(", ")}`
             : source}
           )
         </span>
