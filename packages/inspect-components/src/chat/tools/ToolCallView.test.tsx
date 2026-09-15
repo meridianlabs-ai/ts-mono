@@ -59,9 +59,11 @@ const renderClientToolCall = (
 
 const renderToolOutput = (output: string, displayMode: "rendered" | "raw") =>
   render(
-    <DisplayModeContext.Provider value={{ displayMode }}>
-      <ToolOutput output={output} />
-    </DisplayModeContext.Provider>
+    <ComponentStateProvider hooks={stateHooks}>
+      <DisplayModeContext.Provider value={{ displayMode }}>
+        <ToolOutput output={output} />
+      </DisplayModeContext.Provider>
+    </ComponentStateProvider>
   );
 
 afterEach(() => {
@@ -137,5 +139,36 @@ describe("ClientToolCall errors", () => {
 
     expect(container.textContent).toContain("click timed out");
     expect(container.querySelector("img")).not.toBeNull();
+  });
+});
+
+// Tool output is log content; output that merely looks like JSON must never
+// throw out of render.
+describe("ToolOutput JSON-looking text", () => {
+  it("renders a JSON object as a record tree", async () => {
+    const { container } = renderToolOutput('{"answer": 42}', "rendered");
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("42");
+    });
+    expect(container.querySelector(".record-tree-key")).not.toBeNull();
+  });
+
+  it("renders a JSON object padded with a non-JSON space as a record tree", async () => {
+    const { container } = renderToolOutput(
+      '\u00A0{"answer": 42}\uFEFF',
+      "rendered"
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("42");
+    });
+    expect(container.querySelector(".record-tree-key")).not.toBeNull();
+  });
+
+  it("renders brace-wrapped non-JSON as text", () => {
+    const { container } = renderToolOutput("{not json}", "rendered");
+
+    expect(container.querySelector("code")?.textContent).toBe("{not json}");
   });
 });

@@ -5,9 +5,8 @@ import type { Content } from "@tsmono/inspect-common/types";
 import { ANSIDisplay } from "@tsmono/react/components";
 import {
   isAnsiOutput,
-  isJson,
-  isRecord,
   isRenderableImageSource,
+  parseJsonRecord,
 } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
@@ -95,9 +94,9 @@ interface ToolTextOutputProps {
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
 
-  if (displayMode === "rendered" && isJson(text)) {
-    const obj: unknown = JSON.parse(text);
-    if (isRecord(obj)) {
+  if (displayMode === "rendered") {
+    const obj = parseJsonRecord(text);
+    if (obj) {
       return <JsonMessageContent id={`1-json`} json={obj} />;
     }
   }

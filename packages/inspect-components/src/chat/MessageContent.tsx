@@ -16,7 +16,7 @@ import type {
 import { ExpandablePanel } from "@tsmono/react/components";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
-import { isJson, isRecord, isRenderableImageSource } from "@tsmono/util";
+import { isRenderableImageSource, parseJsonRecord } from "@tsmono/util";
 
 import {
   useDisplayMode,
@@ -148,9 +148,9 @@ const renderContent = (
         return undefined;
       }
 
-      if (displayMode === "rendered" && isJson(c.text)) {
-        const parsed: unknown = JSON.parse(c.text);
-        if (isRecord(parsed)) {
+      if (displayMode === "rendered") {
+        const parsed = parseJsonRecord(c.text);
+        if (parsed) {
           return <JsonMessageContent id={`${key}-json`} json={parsed} />;
         }
       }
@@ -188,12 +188,9 @@ const renderContent = (
         }
       }
 
-      // Detect OpenRouter-style reasoning (JSON array format)
-      const renderReasoningCode = isOpenRouterReasoning(text);
-
-      const codeFormatted = renderReasoningCode
-        ? JSON.stringify(jsonParse(text), null, 2)
-        : text;
+      const openRouterCode = formatOpenRouterReasoning(text);
+      const renderReasoningCode = openRouterCode !== undefined;
+      const codeFormatted = openRouterCode ?? text;
 
       return (
         <div
@@ -412,17 +409,18 @@ const isCitationWithRange = (
   cited_text: [number, number];
 } => Array.isArray(citation.cited_text);
 
-const isOpenRouterReasoning = (text: string): boolean => {
-  return text.startsWith("[{'format'");
-};
-
-const jsonParse = (text: string): unknown => {
+/** Pretty-prints OpenRouter-style reasoning (a Python-repr JSON array of
+ * `{'format': ..., 'text': ...}`); undefined when the text merely starts like
+ * one but does not parse, so it falls through to the markdown renderer. */
+const formatOpenRouterReasoning = (text: string): string | undefined => {
+  if (!text.startsWith("[{'format'")) {
+    return undefined;
+  }
   try {
-    const result: unknown = JSON.parse(text);
-    return result;
+    const parsed: unknown = JSON5.parse(text);
+    return JSON.stringify(parsed, null, 2);
   } catch {
-    const result: unknown = JSON5.parse(text);
-    return result;
+    return undefined;
   }
 };
 
