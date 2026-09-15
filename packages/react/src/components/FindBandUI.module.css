@@ -8,7 +8,8 @@
   background-color: var(--inspect-find-background);
   font-size: 0.9rem;
   display: grid;
-  grid-template-columns: auto auto auto auto auto;
+  /* Count column stays reserved empty↔first-letter so the band does not grow. */
+  grid-template-columns: auto minmax(11ch, max-content) auto auto auto;
   column-gap: 0.2em;
   padding: 0.2rem;
   border-bottom: solid 1px var(--bs-light-border-subtle);
@@ -40,6 +41,21 @@
 .noResults {
   opacity: 1;
   color: var(--bs-danger, #dc3545);
+}
+
+/* A second row under the controls. width: 0 keeps it out of the grid's
+   intrinsic sizing (the input must not move); min-width stretches it back
+   to the band's width. */
+.error {
+  grid-column: 1 / -1;
+  width: 0;
+  min-width: 100%;
+  font-size: 0.8em;
+  color: var(--bs-danger, #dc3545);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 0.1rem 0.1rem;
 }
 
 /* `.btn` stays global (bootstrap); keep it in the compound selector so

@@ -4,7 +4,12 @@ import { useProperty } from "../hooks/useProperty";
 
 import type { VirtualListStateSnapshot } from "./types";
 
-const CURRENT_VERSION = 1 as const;
+const CURRENT_VERSION = 2 as const;
+
+// Older mounts persisted a raw scroll offset under the same key.
+type StoredSnapshot =
+  | VirtualListStateSnapshot
+  | { version: 1; scrollOffset: number; totalCount: number };
 
 export type UseVirtualListStateResult = {
   getRestoreSnapshot: () => VirtualListStateSnapshot | undefined;
@@ -15,7 +20,7 @@ export function useVirtualListState(
   persistenceKey: string,
   enabled = true
 ): UseVirtualListStateResult {
-  const [stored, setStored] = useProperty<VirtualListStateSnapshot | null>(
+  const [stored, setStored] = useProperty<StoredSnapshot | null>(
     persistenceKey,
     "snapshot",
     { defaultValue: null }
@@ -23,9 +28,8 @@ export function useVirtualListState(
 
   const getRestoreSnapshot = useCallback(():
     VirtualListStateSnapshot | undefined => {
-    if (!enabled || !stored) return undefined;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (stored.version !== CURRENT_VERSION) return undefined;
+    if (!enabled || !stored || stored.version !== CURRENT_VERSION)
+      return undefined;
     return stored;
   }, [stored, enabled]);
 

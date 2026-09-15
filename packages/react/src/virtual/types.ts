@@ -6,17 +6,38 @@ import type {
   RefObject,
 } from "react";
 
+/** Scroll position as an item anchor: `index` is the item under the
+ *  viewport top and `offsetInRow` the viewport top's distance below that
+ *  item's start, in unscaled content px. A raw offset would not survive a
+ *  remount (rows above re-measure from estimates); the anchor is resolved
+ *  against the row's start at restore time instead; when the scroller is
+ *  still too short for that target (rows below at their estimates) the
+ *  restore jumps to the index first and applies the offset once the jump has
+ *  settled. `offsetInRow` is negative when the viewport top sits above the
+ *  first item (content above an embedded list). */
 export interface VirtualListStateSnapshot {
-  version: 1;
-  scrollOffset: number;
+  version: 2;
+  index: number;
+  offsetInRow: number;
   totalCount: number;
+  /** Set when the viewport top was above the list start (in the content
+   *  above the list): the scroll container's own offset, restored as is
+   *  since that content, not a row, was in view. */
+  containerOffset?: number;
 }
 
 export interface VirtualListHandle {
+  /** Jump to a row. On a live list this also disarms follow-output, as a
+   *  user scroll away from the tail would; the next streamed row must not
+   *  pull the viewport back. */
   scrollToIndex(opts: {
     index: number;
-    align?: "start" | "center" | "end";
+    /** `auto`: no scroll when the row is already fully in view, else the
+     *  nearest edge. */
+    align?: "start" | "center" | "end" | "auto";
     behavior?: "auto" | "smooth";
+    /** Runs once the jump has settled (the virtualizer reports the scroll
+     *  finished) or the user took over the scroller. */
     onDone?: () => void;
   }): void;
   scrollTo(opts: { top: number; behavior?: "auto" | "smooth" }): void;
