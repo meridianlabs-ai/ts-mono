@@ -254,10 +254,8 @@ export function injectReferenceLinks(
     return html;
   }
 
-  // Match bracket expressions containing at least one M/E ordinal,
-  // then replace each known ordinal inside with a link
-  return html.replace(/\[[^\]]*(?:M|E)\d+[^\]]*\]/g, (bracketMatch) => {
-    return bracketMatch.replace(/\b[ME]\d+\b/g, (ordinal) => {
+  const linkOrdinals = (bracket: string): string =>
+    bracket.replace(/\b[ME]\d+\b/g, (ordinal) => {
       const ref = refByOrdinal.get(ordinal);
       if (!ref) return ordinal;
       // The id and URL come from log content; escaping keeps them inside the
@@ -268,5 +266,26 @@ export function injectReferenceLinks(
       const id = escapeHtmlCharacters(ref.id);
       return `<a${href} class="${escapeHtmlCharacters(citeClass)}" data-ref-id="${id}">${ordinal}</a>`;
     });
-  });
+
+  // Link the ordinals inside every bracket expression that holds at least one.
+  // Equivalent to html.replace(/\[[^\]]*(?:M|E)\d+[^\]]*\]/g, linkOrdinals),
+  // but driven by indexOf: every `[` ahead of a given `]` pairs with that same
+  // `]`, so each candidate bracket is inspected once (the regex rescanned from
+  // every `[`, quadratic on a run of `[` or of ordinals with no closing `]`).
+  let out = "";
+  let emitted = 0;
+  let search = 0;
+  for (;;) {
+    const open = html.indexOf("[", search);
+    if (open === -1) break;
+    const close = html.indexOf("]", open + 1);
+    if (close === -1) break;
+    const bracket = html.slice(open, close + 1);
+    if (/[ME]\d/.test(bracket)) {
+      out += html.slice(emitted, open) + linkOrdinals(bracket);
+      emitted = close + 1;
+    }
+    search = close + 1;
+  }
+  return emitted === 0 ? html : out + html.slice(emitted);
 }
