@@ -34,7 +34,12 @@ import type {
 // the shape recursion can't handle.
 const kMaxJsonDepth = 256;
 
-const pruneDeepJson = <T>(root: T): T => {
+const pruneDeepJson = <T>(root: T, source: string): T => {
+  // Every nesting level costs at least two source characters, so a cell this
+  // short cannot exceed the cap and the walk is skipped for ordinary rows.
+  if (source.length <= 2 * kMaxJsonDepth) {
+    return root;
+  }
   if (!isRecord(root) && !Array.isArray(root)) {
     return root;
   }
@@ -64,7 +69,7 @@ const parseJsonLenient = async (
   text: string
 ): Promise<JsonValue | undefined> => {
   try {
-    return pruneDeepJson(await asyncJsonParse<JsonValue>(text));
+    return pruneDeepJson(await asyncJsonParse<JsonValue>(text), text);
   } catch {
     return undefined;
   }
@@ -199,7 +204,11 @@ const kNullScanValue: ScanValue = { value: null, valueType: "null" };
  * otherwise. The value_type tag is authored independently of the cell and
  * every consumer narrows on the tag alone, so an array/object tag whose cell
  * is absent, malformed, or the other shape is re-tagged null rather than
- * handed downstream as `valueType: "array"` over a record.
+ * handed downstream as `valueType: "array"` over a record, and an absent cell
+ * under a scalar tag is re-tagged null too. Scalar cells are otherwise kept
+ * as-is: the parquet value column is a string column and the server only
+ * casts numbers/booleans when a scanner's value_type is uniform, so a mixed
+ * scanner legitimately delivers "0.9" under a number tag.
  */
 export const normalizeScanValue = async (
   raw: unknown,
@@ -219,7 +228,7 @@ export const normalizeScanValue = async (
     typeof raw === "number" ||
     typeof raw === "boolean"
     ? { value: raw, valueType }
-    : { value: null, valueType };
+    : kNullScanValue;
 };
 
 /**
@@ -259,7 +268,7 @@ export const normalizeValidationTarget = async (
 ): Promise<JsonValue | undefined> => {
   if (typeof raw === "string") {
     try {
-      return await asyncJsonParse<JsonValue>(raw);
+      return pruneDeepJson(await asyncJsonParse<JsonValue>(raw), raw);
     } catch {
       // Legacy targets could be plain (non-JSON) strings; keep them verbatim.
       return raw;

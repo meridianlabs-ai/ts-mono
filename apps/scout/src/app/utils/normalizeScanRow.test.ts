@@ -81,6 +81,15 @@ describe("normalizeValidationTarget", () => {
   it("returns undefined for an absent value", async () => {
     expect(await normalizeValidationTarget(undefined)).toBeUndefined();
   });
+
+  it("bounds nesting depth like the other JSON columns", async () => {
+    const depth = 20_000;
+    const target = await normalizeValidationTarget(
+      "[".repeat(depth) + "]".repeat(depth)
+    );
+    expect(Array.isArray(target)).toBe(true);
+    expect(() => JSON.stringify(target)).not.toThrow();
+  });
 });
 
 describe("normalizeJsonRecord", () => {
@@ -216,6 +225,26 @@ describe("normalizeScanValue", () => {
       value: null,
       valueType: "null",
     });
+  });
+
+  it("keeps string-typed scalars from mixed scanners under their tag", async () => {
+    // The server only casts the string value column when a scanner's
+    // value_type is uniform; a mixed scanner delivers "0.9" tagged number.
+    expect(await normalizeScanValue("0.9", "number")).toEqual({
+      value: "0.9",
+      valueType: "number",
+    });
+    expect(await normalizeScanValue("true", "boolean")).toEqual({
+      value: "true",
+      valueType: "boolean",
+    });
+  });
+
+  it("re-tags an absent cell under a scalar tag as null", async () => {
+    const expected = { value: null, valueType: "null" };
+    expect(await normalizeScanValue(null, "string")).toEqual(expected);
+    expect(await normalizeScanValue(undefined, "number")).toEqual(expected);
+    expect(await normalizeScanValue(null, "boolean")).toEqual(expected);
   });
 
   it("parses array and object cells whose tag matches their shape", async () => {
