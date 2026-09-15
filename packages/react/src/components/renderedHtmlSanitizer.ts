@@ -128,6 +128,13 @@ const RAW_CSS_REJECT_PATTERN = /[\\@<]/;
 
 const MATHJAX_WRAPPER_ID = /^mjx-[a-f0-9]+$/i;
 
+// The viewer binds clipboard.js to `.copy-button, .clipboard-button` for the
+// whole document, and clipboard.js reads what to copy from the trigger's
+// `data-clipboard-*` attributes. Rendered content must not be able to become a
+// trigger (pastejacking: visible text and copied text differ).
+const CLIPBOARD_TRIGGER_CLASSES = new Set(["clipboard-button", "copy-button"]);
+const CLIPBOARD_ATTR_PREFIX = "data-clipboard-";
+
 const PURIFY_CONFIG: Config = {
   ADD_ATTR: [...MATHJAX_ATTRS, "target"],
   // Redundant today — `img` is already in DOMPurify's DEFAULT_DATA_URI_TAGS —
@@ -192,6 +199,26 @@ const installHooks = (purify: DOMPurifyInstance): void => {
   });
 
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
+    if (hookEvent.attrName.startsWith(CLIPBOARD_ATTR_PREFIX)) {
+      hookEvent.keepAttr = false;
+      node.removeAttribute(hookEvent.attrName);
+      return;
+    }
+
+    if (hookEvent.attrName === "class") {
+      const kept = withoutClipboardTriggerClasses(hookEvent.attrValue);
+      if (kept === hookEvent.attrValue) {
+        return;
+      }
+      if (kept) {
+        hookEvent.attrValue = kept;
+      } else {
+        hookEvent.keepAttr = false;
+        node.removeAttribute(hookEvent.attrName);
+      }
+      return;
+    }
+
     if (hookEvent.attrName === "style") {
       // The accessible copy must stay clipped; inline !important could
       // override even the viewer-owned stylesheet's clipping rule.
@@ -263,6 +290,17 @@ const sanitizeStyleAttributeHook = (
 
 const isImgElement = (node: Element): boolean =>
   node.tagName.toLowerCase() === "img";
+
+// Returns the input unchanged when no token matches, so untouched class
+// values round-trip byte-for-byte. Matching is case-insensitive because
+// quirks-mode class selectors are.
+const withoutClipboardTriggerClasses = (value: string): string => {
+  const tokens = value.split(/\s+/).filter(Boolean);
+  const kept = tokens.filter(
+    (token) => !CLIPBOARD_TRIGGER_CLASSES.has(token.toLowerCase())
+  );
+  return kept.length === tokens.length ? value : kept.join(" ");
+};
 
 /**
  * A remote src is not unsafe by protocol, but fetching it leaks a request to an

