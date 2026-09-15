@@ -1,5 +1,3 @@
-import { valueAsString } from "@tsmono/util";
-
 /**
  * Pure colour-scale resolver for score-cell backgrounds.
  *
@@ -20,6 +18,8 @@ import { valueAsString } from "@tsmono/util";
  * `WireScoreColorScale` and `resolveScale`; the consumer-side
  * `colorForValue` API stays the same.
  */
+
+import { valueAsString } from "@tsmono/util";
 
 export type ScoreColorPalette =
   "good-high" | "good-low" | "neutral" | "diverging";
