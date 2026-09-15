@@ -24,7 +24,7 @@ import {
 import { prepareLogDetails } from "../utils/type-utils";
 
 import { DB_NAME } from "./schema";
-import { createDatabaseService, DatabaseService } from "./service";
+import { OpenDatabase } from "./service";
 
 // Helper function to create test LogSummary
 function createTestLogSummary(overrides: Partial<LogPreview> = {}): LogPreview {
@@ -106,7 +106,7 @@ function createTestSampleSummary(
 }
 
 describe("Database Service", () => {
-  let databaseService: DatabaseService;
+  let databaseService: OpenDatabase;
 
   // The service ingests seam-prepared payloads; tests write raw LogDetails
   // through the same normalization.
@@ -121,20 +121,14 @@ describe("Database Service", () => {
     );
 
   beforeEach(async () => {
-    // Create a new database service for each test
-    databaseService = createDatabaseService();
-    await databaseService.openDatabase();
+    databaseService = await OpenDatabase.open();
   });
 
   afterEach(async () => {
-    // Clean up after each test (only if database is still open). The
-    // database name is a constant, so cross-test isolation comes from
-    // deleting it outright.
-    try {
-      await databaseService.closeDatabase();
-    } catch {
-      // Database might already be closed in error handling tests
-    }
+    // The database name is a constant, so cross-test isolation comes from
+    // deleting it outright. close() is idempotent — the error-handling
+    // test's early close is fine.
+    databaseService.close();
     await Dexie.delete(DB_NAME);
   });
 
@@ -691,10 +685,10 @@ describe("Database Service", () => {
 
   describe("Error Handling", () => {
     test("should handle cache retrieval errors gracefully", async () => {
-      // Close database to simulate error
-      await databaseService.closeDatabase();
+      // Close the underlying connection to make reads fail (Dexie rejects
+      // on a closed connection)
+      databaseService.close();
 
-      // Should return null when database is closed (graceful error handling)
       const result = await databaseService.readLogs({ prefix: "/test/logs" });
       expect(result).toBeNull();
     });
