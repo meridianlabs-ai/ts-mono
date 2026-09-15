@@ -96,16 +96,13 @@ export const MessageContent: FC<MessageContentProps> = ({
           references
         );
       } else {
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        if (content) {
-          return renderContent(
-            `text-${content.type}-${index}`,
-            content,
-            index === normalized.length - 1,
-            displayMode,
-            references
-          );
-        }
+        return renderContent(
+          `text-${content.type}-${index}`,
+          content,
+          index === normalized.length - 1,
+          displayMode,
+          references
+        );
       }
     });
   } else {

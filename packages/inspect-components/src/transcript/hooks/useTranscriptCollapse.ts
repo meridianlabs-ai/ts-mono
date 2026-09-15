@@ -51,8 +51,7 @@ export function useTranscriptCollapse(
     }
     if (bulkCollapse === "expand") {
       onSetTranscriptCollapsed({});
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    } else if (bulkCollapse === "collapse") {
+    } else {
       const allCollapsibleIds = collectAllCollapsibleIds(eventNodes);
       onSetTranscriptCollapsed(allCollapsibleIds);
     }
@@ -62,11 +61,11 @@ export function useTranscriptCollapse(
   // (store scope is empty), seed the store with defaults before applying the
   // toggle so that all other nodes retain their default collapsed state.
   const onCollapseTranscriptRaw = collapseState?.onCollapseTranscript;
+  const transcriptCollapsed = collapseState?.transcript;
   const onCollapseTranscript = useCallback(
     (nodeId: string, collapsed: boolean) => {
       if (!onCollapseTranscriptRaw || !onSetTranscriptCollapsed) return;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (!collapseState?.transcript) {
+      if (!transcriptCollapsed) {
         // First toggle — seed defaults then apply the toggle
         onSetTranscriptCollapsed({
           ...defaultCollapsedIds,
@@ -79,7 +78,7 @@ export function useTranscriptCollapse(
     [
       onCollapseTranscriptRaw,
       onSetTranscriptCollapsed,
-      collapseState?.transcript,
+      transcriptCollapsed,
       defaultCollapsedIds,
     ]
   );
@@ -90,12 +89,11 @@ export function useTranscriptCollapse(
   const onExpandNodes = useCallback(
     (nodeIds: string[]) => {
       if (!onSetTranscriptCollapsed) return;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      const next = { ...(collapseState?.transcript ?? defaultCollapsedIds) };
+      const next = { ...(transcriptCollapsed ?? defaultCollapsedIds) };
       for (const id of nodeIds) next[id] = false;
       onSetTranscriptCollapsed(next);
     },
-    [onSetTranscriptCollapsed, collapseState?.transcript, defaultCollapsedIds]
+    [onSetTranscriptCollapsed, transcriptCollapsed, defaultCollapsedIds]
   );
 
   return {

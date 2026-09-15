@@ -700,14 +700,6 @@ const extractInput = (
     return `${key}: ${quotedValue}`;
   };
 
-  // No args
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (!args) {
-    return {
-      args: [],
-    };
-  }
-
   // Use the input descriptor to snip apart args
   if (inputDescriptor) {
     const filterKeys = new Set<string>();

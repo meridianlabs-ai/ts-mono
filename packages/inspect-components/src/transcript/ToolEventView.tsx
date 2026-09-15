@@ -116,8 +116,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       input={input}
       description={description}
       contentType={contentType}
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      output={event.result ?? ""}
+      output={event.result}
       selfAnnotation={context?.selfAnnotation}
       inputScreenshot={context?.inputScreenshot}
       error={showError && event.error ? event.error : undefined}
