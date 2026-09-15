@@ -520,6 +520,20 @@ const StallBody: FC<{ stall: StallRegion }> = ({ stall }) => (
   </Card>
 );
 
+/** A curve value with its `max` caption when it stands for a group; a
+ *  missing value is a bare dash, never a captioned one. */
+const CurveValueText: FC<{ value?: number; aggregate?: "max" }> = ({
+  value,
+  aggregate,
+}) => (
+  <span className={styles.mono}>
+    {aggregate === "max" && value !== undefined && (
+      <span className={styles.muted}>max </span>
+    )}
+    {value === undefined ? "—" : num(value)}
+  </span>
+);
+
 const CurveBody: FC<{
   band: "tokens" | "context";
   time: number;
@@ -531,9 +545,7 @@ const CurveBody: FC<{
       <Card
         subject={
           <Fragment>
-            <span className={styles.mono}>
-              {only.value === undefined ? "—" : num(only.value)}
-            </span>{" "}
+            <CurveValueText value={only.value} aggregate={only.aggregate} />{" "}
             {band === "tokens" ? "tokens burned" : "tokens in context"}
           </Fragment>
         }
@@ -551,12 +563,7 @@ const CurveBody: FC<{
           <div key={row.id} className={styles.listRow}>
             <span className={styles.swatch} style={{ background: row.hue }} />
             <span className={styles.ellipsis}>{row.name}</span>
-            <span className={styles.mono}>
-              {aggregate === "max" && value !== undefined && (
-                <span className={styles.muted}>max </span>
-              )}
-              {value === undefined ? "—" : num(value)}
-            </span>
+            <CurveValueText value={value} aggregate={aggregate} />
           </div>
         ))}
       </div>
