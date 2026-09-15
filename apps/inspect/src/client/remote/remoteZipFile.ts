@@ -1,4 +1,4 @@
-import { fetchRange } from "@tsmono/util";
+import { fetchRange, logFetchInit } from "@tsmono/util";
 
 import { ProgressCallback } from "../api/types";
 
@@ -361,7 +361,7 @@ export const openZipFileFromBuffer = (
 
 export const fetchSize = async (url: string): Promise<number> => {
   // Make a HEAD request to find whether the server supports range requests
-  const acceptResponse = await fetch(url, { method: "HEAD" });
+  const acceptResponse = await fetch(url, { ...logFetchInit, method: "HEAD" });
   const acceptsRanges = acceptResponse.headers.get("Accept-Ranges");
   if (acceptsRanges === "bytes") {
     // attempt a range request to get the content length
@@ -369,6 +369,7 @@ export const fetchSize = async (url: string): Promise<number> => {
     // HEAD requests may return compressed content-length which doesn't
     // match the actual file size needed for downstream operations.
     const getResponse = await fetch(`${url}`, {
+      ...logFetchInit,
       method: "GET",
       headers: { Range: "bytes=0-0" },
     });

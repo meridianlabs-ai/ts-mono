@@ -13,7 +13,9 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { fetchLogFile } from "./fetch";
+import { logFetchInit } from "@tsmono/util";
+
+import { fetchJsonFile, fetchLogFile } from "./fetch";
 
 const fixtureText = readFileSync(
   join(
@@ -77,5 +79,27 @@ describe("fetchLogFile v1 migration", () => {
       expect(sample.store).toEqual({});
       expect(sample.attachments).toEqual({});
     }
+  });
+});
+
+describe("static log fetch options", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response("{}", { status: 200 })))
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("log fetches omit the referrer, scope credentials, and refuse redirects", async () => {
+    await fetchJsonFile("http://localhost:3000/logs/listing.json");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "http://localhost:3000/logs/listing.json",
+      expect.objectContaining(logFetchInit)
+    );
   });
 });

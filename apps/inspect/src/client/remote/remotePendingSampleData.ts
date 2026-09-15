@@ -1,4 +1,4 @@
-import { asyncJsonParseBytes } from "@tsmono/util";
+import { asyncJsonParseBytes, logFetchInit } from "@tsmono/util";
 
 import { PendingSampleUrls, SampleData, SegmentRef } from "../api/types";
 import { ApiError } from "../api/view-server/request";
@@ -116,7 +116,7 @@ const readSegment = async (seg: SegmentRef): Promise<SampleData> => {
   // the zip is ~the member plus trivial framing — ranging buys nothing.
   let bytes: Uint8Array;
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(url, logFetchInit);
     // fetch() never rejects on HTTP status, so surface a non-ok response as a
     // failed direct fetch too (falls back to proxy, same as a rejection).
     if (!resp.ok) {

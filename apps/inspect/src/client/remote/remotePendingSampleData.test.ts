@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { logFetchInit } from "@tsmono/util";
+
 import { ApiError } from "../api/view-server/request";
 
 import {
@@ -90,6 +92,9 @@ describe("fetchPendingSampleDataDirect", () => {
       expect(result!.sampleData.events.map((e) => e.id)).toEqual([
         0, 10, 20, 30,
       ]);
+      for (const [, init] of vi.mocked(globalThis.fetch).mock.calls) {
+        expect(init).toMatchObject(logFetchInit);
+      }
     });
   });
 

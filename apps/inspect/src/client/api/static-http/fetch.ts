@@ -1,4 +1,4 @@
-import { asyncJsonParse, encodePathParts } from "@tsmono/util";
+import { asyncJsonParse, encodePathParts, logFetchInit } from "@tsmono/util";
 
 import { normalizeEvalLog } from "../../utils/normalize";
 import { LogContents, LogFilesFetchResponse, LogPreview } from "../types";
@@ -11,7 +11,10 @@ export async function fetchTextFile(
   handleError?: (response: Response) => boolean
 ): Promise<string | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  const response = await fetch(`${safe_url}`, {
+    ...logFetchInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return text;
@@ -36,7 +39,10 @@ export async function fetchFile<T>(
   handleError?: (response: Response) => boolean
 ): Promise<T | undefined> {
   const safe_url = encodePathParts(url);
-  const response = await fetch(`${safe_url}`, { method: "GET" });
+  const response = await fetch(`${safe_url}`, {
+    ...logFetchInit,
+    method: "GET",
+  });
   if (response.ok) {
     const text = await response.text();
     return await parse(text);
