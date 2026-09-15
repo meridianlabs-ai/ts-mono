@@ -415,7 +415,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const turnsMode = axisMode === "turns" && nTurns > 0;
   const colWidth = turnsMode ? plotWidth / nTurns : 0;
   // Separators and tick labels sit on every `turnStep`-th column (plus
-  // turn 1's label): 6–10 gridlines whether the sample has 5 turns or 1,000.
+  // turn 1's label): 6–10 gridlines from seven turns up; fewer turns keep
+  // one per column boundary.
   const turnStep = turnGridStep(nTurns);
   const onTurnGrid = (index: number): boolean => index % turnStep === 0;
   const colLeft = (index: number): number => plotLeft + (index - 1) * colWidth;
@@ -1086,6 +1087,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   const spanWidth = (row: AgentRow, s: ActivitySpan): number =>
     Math.max(x(spanDrawEnd(row, s)) - x(s.start), kMinSpanPx);
+  // A floored tick at the window's end would overshoot the plot into the
+  // axis inset: it slides left to end on the plot edge instead.
+  const spanX = (row: AgentRow, s: ActivitySpan): number =>
+    Math.max(plotLeft, Math.min(x(s.start), plotRight - spanWidth(row, s)));
 
   /** The single-conversation row label ("model · grader" / "model + tools")
    *  — the burst-label declutter reserves its extent. */
@@ -1187,7 +1192,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                     s.uuid && onOpenEvent && styles.clickableSpan,
                     isHovered && styles.spanHovered
                   )}
-                  x={x(s.start)}
+                  x={spanX(row, s)}
                   y={laneY(s)}
                   width={spanWidth(row, s)}
                   height={h}
@@ -1371,9 +1376,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   };
 
   /** Turns mode (handoff 8b): one gap-free column per turn — the grey model
-   *  share then the teal tool share split by that turn's working ratio,
-   *  bursts keeping their sub-lanes inside the tool share, rejected calls
-   *  drawn as dashed ghosts where the tool would have run. */
+   *  half then the teal tool half (equal halves whenever the turn has a
+   *  slot), bursts keeping their sub-lanes inside the tool half, rejected
+   *  calls drawn as dashed ghosts where the tool would have run. */
   const renderTurnRow = (row: AgentRow, rowTop: number): ReactNode => {
     const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
     const laneY = (s: ActivitySpan): number => {

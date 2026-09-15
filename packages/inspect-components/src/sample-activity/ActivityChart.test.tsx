@@ -563,6 +563,26 @@ describe("ActivityChart sub-second tool ticks", () => {
     });
   });
 
+  it("slides a floored tick at the window's end back inside the plot", () => {
+    const { container } = renderChart([
+      modelCall({ start: 0, end: 999.9, uuid: "m" }),
+      testToolEvent({
+        uuid: "t",
+        function: "python",
+        timestamp: iso(999.9),
+        completed: iso(1000),
+        working_start: 999.9,
+        working_time: 0.1,
+      }),
+    ]);
+    const { right } = plotBounds(container);
+    const tool = container.querySelector("rect[class*='toolSpan']");
+    expect(attr(tool, "width")).toBeGreaterThanOrEqual(kMinTickPx);
+    expect(attr(tool, "x") + attr(tool, "width")).toBeLessThanOrEqual(
+      right + 1e-6
+    );
+  });
+
   it("gives a burst's sub-lanes the whole tool half of a Turns column", () => {
     const { container } = renderChart(longModelShortTool(60, 2), {
       axisMode: "turns",
