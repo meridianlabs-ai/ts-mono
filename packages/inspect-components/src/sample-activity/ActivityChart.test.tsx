@@ -342,6 +342,90 @@ describe("ActivityChart tool bursts", () => {
     }
   });
 
+  it("restarts the dwell when a live completion re-sorts the burst lanes", () => {
+    vi.useFakeTimers();
+    try {
+      // Two pending calls share a burst; when the second completes the
+      // burst re-sorts and its lane index moves, so the lane the pointer
+      // last dwelt on now holds a different call.
+      const first = testToolEvent({
+        id: "first-call",
+        uuid: "first",
+        function: "first",
+        timestamp: iso(2),
+        pending: true,
+        completed: undefined,
+      });
+      const second = testToolEvent({
+        id: "second-call",
+        uuid: "second",
+        function: "second",
+        timestamp: iso(2),
+        pending: true,
+        completed: undefined,
+      });
+      const chartFor = (completed: boolean) => {
+        const data = deriveActivityData({
+          events: [
+            modelCall({ start: 0, end: 1, uuid: "m" }),
+            first,
+            completed
+              ? { ...second, pending: false, completed: iso(5) }
+              : second,
+          ],
+          running: true,
+          now: Date.parse(iso(10)) / 1000,
+        });
+        if (!data.window) throw new Error("expected a time window");
+        return (
+          <ActivityChart
+            data={data}
+            window={data.window}
+            showWorking={false}
+            showMarkers={false}
+            showTokens
+            showContext
+            showModelTool
+            selectedKey={null}
+            onSelectMarker={() => {}}
+          />
+        );
+      };
+      const { container, rerender } = render(chartFor(false));
+      const lane = container.querySelector("rect[class*='toolSpan']");
+      const hit = container.querySelector("rect[class*='plotHit']");
+      if (!(lane instanceof SVGElement) || !(hit instanceof SVGElement))
+        throw new Error("expected a lane and the plot");
+      fireEvent.mouseEnter(lane);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(
+        container.querySelector("[class*='listRowHovered']")?.textContent
+      ).toContain("first");
+      fireEvent.mouseLeave(lane, { relatedTarget: hit });
+      act(() => {
+        vi.advanceTimersByTime(350);
+      });
+      expect(container.querySelector("[class*='tooltip']")).toBeNull();
+
+      rerender(chartFor(true));
+      const newLane = container.querySelector("rect[class*='toolSpan']");
+      if (!(newLane instanceof SVGElement)) throw new Error("expected a lane");
+      fireEvent.mouseEnter(newLane);
+      // A different call under the pointer: no card until its own dwell.
+      expect(container.querySelector("[class*='tooltip']")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(
+        container.querySelector("[class*='listRowHovered']")?.textContent
+      ).toContain("second");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("counts a burst's working weight once in the Turns split", () => {
     // 1s of model work against 6 × 7s of tool work: the model share is
     // 1/43 of the column whether or not two members are folded (they used

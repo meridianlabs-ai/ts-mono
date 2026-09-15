@@ -52,12 +52,22 @@ export const hoverTargetKey = (target: HoverTarget | null): string | null => {
   switch (target.kind) {
     case "span":
       return `span:${target.row.id}:${target.span.start}:${target.span.label}`;
-    case "burst":
+    case "burst": {
       // Each lane is its own target (the card marks the hovered member
       // and opens its event), so moving between lanes restarts the dwell.
-      // The lane index tells the members apart: pre-uuid logs can start
-      // two same-named calls on the same tick.
-      return `burst:${target.row.id}:${target.burst.start}:${target.hovered.subLane ?? target.hovered.uuid ?? target.hovered.label}`;
+      // The event uuid is the stable identity: a live completion re-sorts
+      // the burst and moves lane indices. Pre-uuid logs fall back to the
+      // lane index (two same-named calls can start on the same tick); the
+      // namespaces keep a numeric-looking uuid apart from a lane index.
+      const { uuid, subLane, label } = target.hovered;
+      const member =
+        uuid !== undefined
+          ? `uuid:${uuid}`
+          : subLane !== undefined
+            ? `lane:${subLane}`
+            : `label:${label}`;
+      return `burst:${target.row.id}:${target.burst.start}:${member}`;
+    }
     case "marker":
       return `marker:${target.members.map((m) => m.key).join(",")}`;
     case "context":
