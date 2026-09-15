@@ -23,7 +23,12 @@ import {
 } from "@tsmono/inspect-common/testing";
 import type { Event, ModelEvent } from "@tsmono/inspect-common/types";
 
-import { ActivityChart, ActivityChartProps } from "./ActivityChart";
+import {
+  ActivityChart,
+  ActivityChartProps,
+  turnGridSeparators,
+  turnGridStep,
+} from "./ActivityChart";
 import { deriveActivityData } from "./activityData";
 import { ImmediateResizeObserver, iso } from "./testHelpers";
 
@@ -650,17 +655,33 @@ describe("ActivityChart Turns gridlines", () => {
       "text[class*='axisLabel'][text-anchor='middle']"
     );
 
-  it.each([91, 1000])(
+  // 11 and 22–24 turns fell to 5 and 4 separators under the 1-2-5 steps;
+  // 55–65 is the 5 → 10 gap the added steps close.
+  it.each([11, 22, 24, 55, 65, 91, 1000])(
     "draws 6–10 separators and a label per separator plus turn 1 for %i turns",
     (n) => {
       const { container } = renderChart(nTurns(n), { axisMode: "turns" });
       const seps = separators(container);
       expect(seps.length).toBeGreaterThanOrEqual(6);
       expect(seps.length).toBeLessThanOrEqual(10);
+      expect(seps.length).toBe(turnGridSeparators(n, turnGridStep(n)));
       expect(tickLabels(container)).toHaveLength(seps.length + 1);
     },
     20000
   );
+
+  it("stays within 6–10 separators for every turn count from 7 to 1,200", () => {
+    for (let n = 7; n <= 1200; n++) {
+      const count = turnGridSeparators(n, turnGridStep(n));
+      expect(count, `${n} turns`).toBeGreaterThanOrEqual(6);
+      expect(count, `${n} turns`).toBeLessThanOrEqual(10);
+    }
+    // Below seven columns there are fewer than six boundaries to draw.
+    for (let n = 2; n <= 6; n++) {
+      expect(turnGridStep(n)).toBe(1);
+      expect(turnGridSeparators(n, 1)).toBe(n - 1);
+    }
+  });
 
   it("keeps one separator per column boundary for a handful of turns", () => {
     const { container } = renderChart(nTurns(5), { axisMode: "turns" });

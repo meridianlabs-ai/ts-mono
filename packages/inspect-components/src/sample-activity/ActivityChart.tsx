@@ -137,17 +137,28 @@ const allotWidths = (
   }
   return widths;
 };
-// Turns-mode gridlines: at most this many separators across the plot,
-// whatever the turn count (design owner 2026-09-15).
+// Turns-mode gridlines: 6–10 separators across the plot whatever the turn
+// count (design owner 2026-09-15); fewer only when there are fewer column
+// boundaries than that.
 const kMaxTurnGridlines = 10;
+// Steps 1, 2, 3, 5, 6, 10, 15, 20, 30, 50, 60, 100, …: consecutive steps
+// differ by at most 5/3, so a step that overshoots the cap hands the next
+// one at least six separators (the 1-2-5 table's 2× jumps left 22–24 and
+// 55–65 turns with four or five).
+const kTurnGridUnits = [1, 1.5, 2, 3, 5, 6];
 
-// The smallest 1-2-5 step that keeps the separator count within the cap,
-// like the wall-clock axis' interval table.
-const turnGridStep = (nTurns: number): number => {
+/** Separators drawn for a step: one per grid turn, less turn 1 whose left
+ *  edge is the plot edge. */
+export const turnGridSeparators = (nTurns: number, step: number): number =>
+  step === 1 ? Math.max(nTurns - 1, 0) : Math.floor(nTurns / step);
+
+/** The smallest nice step that keeps the separator count within the cap. */
+export const turnGridStep = (nTurns: number): number => {
   for (let decade = 1; ; decade *= 10) {
-    for (const unit of [1, 2, 5]) {
+    for (const unit of kTurnGridUnits) {
       const step = unit * decade;
-      if (Math.floor(nTurns / step) <= kMaxTurnGridlines) return step;
+      if (!Number.isInteger(step)) continue;
+      if (turnGridSeparators(nTurns, step) <= kMaxTurnGridlines) return step;
     }
   }
 };
