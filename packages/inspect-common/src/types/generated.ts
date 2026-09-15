@@ -590,6 +590,8 @@ export interface components {
             /** Approver */
             approver: string;
             call: components["schemas"]["ToolCall"];
+            /** Chain */
+            chain?: string | null;
             /**
              * Decision
              * @enum {string}
@@ -644,6 +646,8 @@ export interface components {
          *     ```
          */
         ApproverPolicyConfig: {
+            /** Chain */
+            chain?: string | null;
             /** Name */
             name: string;
             /** Params */
@@ -2991,6 +2995,8 @@ export interface components {
          */
         ReviewEvent: {
             call: components["schemas"]["ToolCall"];
+            /** Chain */
+            chain?: string | null;
             /**
              * Decision
              * @enum {string}
@@ -3043,6 +3049,8 @@ export interface components {
          *     ```
          */
         ReviewerPolicyConfig: {
+            /** Chain */
+            chain?: string | null;
             /** Name */
             name: string;
             /** Params */
