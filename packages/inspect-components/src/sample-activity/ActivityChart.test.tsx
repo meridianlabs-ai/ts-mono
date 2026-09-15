@@ -299,6 +299,49 @@ describe("ActivityChart tool bursts", () => {
     }
   });
 
+  it("restarts the dwell between uuid-less lanes of the same call at the same start", () => {
+    vi.useFakeTimers();
+    try {
+      // Pre-uuid logs: two `bash` calls start on the same second, so
+      // start and label can't tell the lanes apart.
+      const { container } = renderChart([
+        modelCall({ start: 0, end: 1, uuid: "m" }),
+        testToolEvent({
+          function: "bash",
+          timestamp: iso(2),
+          completed: iso(5),
+        }),
+        testToolEvent({
+          function: "bash",
+          timestamp: iso(2),
+          completed: iso(6),
+        }),
+      ]);
+      const [a, b] = container.querySelectorAll("rect[class*='toolSpan']");
+      if (!(a instanceof SVGElement) || !(b instanceof SVGElement))
+        throw new Error("expected two burst lanes");
+      fireEvent.mouseEnter(a);
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      fireEvent.mouseLeave(a, { relatedTarget: b });
+      fireEvent.mouseEnter(b, { relatedTarget: a });
+      act(() => {
+        vi.advanceTimersByTime(60);
+      });
+      expect(container.querySelector("[class*='tooltip']")).toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(80);
+      });
+      // Lane B is the 4-second call; the card marks it, not lane A.
+      const hovered = container.querySelectorAll("[class*='listRowHovered']");
+      expect(hovered).toHaveLength(1);
+      expect(hovered[0]?.textContent).toContain("4.0s");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("counts a burst's working weight once in the Turns split", () => {
     // 1s of model work against 6 × 7s of tool work: the model share is
     // 1/43 of the column whether or not two members are folded (they used

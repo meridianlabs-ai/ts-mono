@@ -55,7 +55,9 @@ export const hoverTargetKey = (target: HoverTarget | null): string | null => {
     case "burst":
       // Each lane is its own target (the card marks the hovered member
       // and opens its event), so moving between lanes restarts the dwell.
-      return `burst:${target.row.id}:${target.burst.start}:${target.hovered.uuid ?? `${target.hovered.start}:${target.hovered.label}`}`;
+      // The lane index tells the members apart: pre-uuid logs can start
+      // two same-named calls on the same tick.
+      return `burst:${target.row.id}:${target.burst.start}:${target.hovered.subLane ?? target.hovered.uuid ?? target.hovered.label}`;
     case "marker":
       return `marker:${target.members.map((m) => m.key).join(",")}`;
     case "context":
