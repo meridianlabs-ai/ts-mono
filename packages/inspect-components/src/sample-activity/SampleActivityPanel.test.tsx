@@ -568,8 +568,17 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
       expect(screen.getByText("failed")).toBeTruthy();
       // The error message appears in the history row and now in the card.
       expect(screen.getAllByText(/exit 127/).length).toBeGreaterThanOrEqual(2);
-      // The hovered rect outlines.
+      // The hovered rect outlines; the model call in the same turn keeps
+      // full opacity (the handoff's turn-mate dim was dropped, 2026-09-15).
       expect(failedTool.getAttribute("class")).toContain("spanHovered");
+      const others = spanRects(container).filter((r) => r !== failedTool);
+      expect(others.length).toBeGreaterThanOrEqual(1);
+      for (const other of others) {
+        expect(other.getAttribute("class")).not.toContain("spanHovered");
+        expect(other.getAttribute("class")).not.toMatch(/dim/i);
+        expect(other.getAttribute("opacity")).toBeNull();
+        expect(other.getAttribute("style") ?? "").not.toContain("opacity");
+      }
 
       fireEvent.click(
         screen.getAllByRole("button", { name: "open in transcript →" })[0]!

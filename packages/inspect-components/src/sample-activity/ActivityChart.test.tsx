@@ -643,6 +643,46 @@ describe("ActivityChart tool colour", () => {
   });
 });
 
+describe("ActivityChart span hover", () => {
+  const css = readFileSync(join(__dirname, "ActivityChart.module.css"), "utf8");
+
+  it.each(["wall", "turns"] as const)(
+    "outlines only the hovered span in %s mode: its turn-mate keeps full opacity",
+    (axisMode) => {
+      const { container } = renderChart(
+        [
+          modelCall({ start: 0, end: 10, uuid: "m" }),
+          testToolEvent({
+            uuid: "t",
+            timestamp: iso(10),
+            completed: iso(12),
+            working_start: 10,
+            working_time: 2,
+          }),
+        ],
+        { axisMode }
+      );
+      const tool = container.querySelector("rect[class*='toolSpan']");
+      const model = container.querySelector("rect[class*='modelSpan']");
+      if (!(tool instanceof SVGElement) || !(model instanceof SVGElement))
+        throw new Error("expected a model and a tool span");
+      fireEvent.mouseEnter(tool);
+      expect(tool.getAttribute("class")).toContain("spanHovered");
+      // The model call before the tool shares its turn. Handoff 11a dimmed
+      // it to 0.6; the design owner dropped that (2026-09-15).
+      expect(model.getAttribute("class")).not.toContain("spanHovered");
+      expect(model.getAttribute("class")).not.toMatch(/dim/i);
+      expect(model.getAttribute("opacity")).toBeNull();
+      expect(model.getAttribute("style") ?? "").not.toContain("opacity");
+    }
+  );
+
+  it("declares no turn-mate dim rule", () => {
+    expect(css).toMatch(/\.spanHovered \{/);
+    expect(css).not.toMatch(/spanDim/);
+  });
+});
+
 describe("ActivityChart Turns gridlines", () => {
   const nTurns = (n: number): Event[] =>
     Array.from({ length: n }, (_, i) =>

@@ -1161,12 +1161,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             const h = subLaned ? kSubLaneHeight : kAgentSpanHeight;
             const failedTool = s.kind === "tool" && s.failed;
             const isHovered = hoveredSpan === s;
-            // Span hover (handoff 11a): the other spans in the same turn dim.
-            const dim =
-              hoveredSpan !== undefined &&
-              !isHovered &&
-              hoveredSpan.turn !== undefined &&
-              hoveredSpan.turn === s.turn;
             return (
               <g key={`span-${i}`}>
                 {s.kind === "model" &&
@@ -1187,8 +1181,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                     failedTool && styles.failedSpan,
                     s.pending && styles.pendingSpan,
                     s.uuid && onOpenEvent && styles.clickableSpan,
-                    isHovered && styles.spanHovered,
-                    dim && styles.spanDim
+                    isHovered && styles.spanHovered
                   )}
                   x={x(s.start)}
                   y={laneY(s)}
@@ -1400,11 +1393,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       h: number
     ) => {
       const isHovered = hoveredSpan === s;
-      const dim =
-        hoveredSpan !== undefined &&
-        !isHovered &&
-        hoveredSpan.turn !== undefined &&
-        hoveredSpan.turn === s.turn;
       return (
         <rect
           className={clsx(
@@ -1413,8 +1401,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             s.kind === "tool" && s.failed && styles.failedSpan,
             s.pending && styles.pendingSpan,
             s.uuid && onOpenEvent && styles.clickableSpan,
-            isHovered && styles.spanHovered,
-            dim && styles.spanDim
+            isHovered && styles.spanHovered
           )}
           x={x0}
           y={y}
