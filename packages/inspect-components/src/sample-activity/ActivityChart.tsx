@@ -93,8 +93,50 @@ const kLegendPitch = 14;
 // Density degrade: past ~1 span per 3px a row renders as occupancy columns.
 const kDensityPxPerSpan = 3;
 const kDensityColWidth = 2;
+// A span never draws narrower than this: on a real agentic log a tool call
+// is ~0.2 px of wall clock and < 1 % of a Turns column, so sub-second calls
+// read as ticks (agreed with the design owner 2026-09-15).
+const kMinSpanPx = 3;
+// `.turnRect` strokes a body-coloured seam over its edges, so a Turns share
+// needs the seam on top of the visible floor.
+const kTurnSeamPx = 1.5;
 // Hover/click bins on a dense row aggregate columns to a readable window.
 const kDensityHoverPx = 16;
+
+// Proportional split of `total` px by weight, every share lifted to `min`
+// px while the total allows; the lift comes out of the shares above it.
+const allotWidths = (
+  weights: number[],
+  total: number,
+  min: number
+): number[] => {
+  const n = weights.length;
+  if (n === 0) return [];
+  if (n * min >= total) return weights.map(() => total / n);
+  const sum = weights.reduce((acc, w) => acc + w, 0);
+  let widths = weights.map((w) => (sum > 0 ? (w / sum) * total : total / n));
+  const floored = new Set<number>();
+  for (let pass = 0; pass < n; pass++) {
+    const below = widths.flatMap((w, i) =>
+      !floored.has(i) && w < min ? [i] : []
+    );
+    if (below.length === 0) break;
+    for (const i of below) floored.add(i);
+    const free = total - floored.size * min;
+    const freeWeight = weights.reduce(
+      (acc, w, i) => (floored.has(i) ? acc : acc + w),
+      0
+    );
+    widths = weights.map((w, i) =>
+      floored.has(i)
+        ? min
+        : freeWeight > 0
+          ? (w / freeWeight) * free
+          : free / (n - floored.size)
+    );
+  }
+  return widths;
+};
 // Tooltip behaviour (handoff 11b): show delay, flip-left margin.
 const kTooltipDelayMs = 120;
 const kTooltipFlipPx = 280;
@@ -1064,7 +1106,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   };
 
   const spanWidth = (row: AgentRow, s: ActivitySpan): number =>
-    Math.max(x(spanDrawEnd(row, s)) - x(s.start), 1.5);
+    Math.max(x(spanDrawEnd(row, s)) - x(s.start), kMinSpanPx);
 
   /** The single-conversation row label ("model · grader" / "model + tools")
    *  — the burst-label declutter reserves its extent. */
@@ -1126,58 +1168,65 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             </Fragment>
           );
         })}
-        {row.spans.map((s, i) => {
+        {row.spans
+          .map((s, i) => ({ s, i }))
           // Beyond the lane cap: the burst's +N label stands in for it.
-          if (s.folded) return null;
-          const subLaned = s.subLane !== undefined;
-          const h = subLaned ? kSubLaneHeight : kAgentSpanHeight;
-          const failedTool = s.kind === "tool" && s.failed;
-          const isHovered = hoveredSpan === s;
-          // Span hover (handoff 11a): the other spans in the same turn dim.
-          const dim =
-            hoveredSpan !== undefined &&
-            !isHovered &&
-            hoveredSpan.turn !== undefined &&
-            hoveredSpan.turn === s.turn;
-          return (
-            <g key={`span-${i}`}>
-              {s.kind === "model" &&
-                s.retries !== undefined &&
-                s.retries > 0 && (
-                  <text
-                    className={styles.retryBadge}
-                    x={x(s.start) - 4}
-                    y={spanY + 9}
-                    textAnchor="end"
-                  >
-                    ×{s.retries}
-                  </text>
-                )}
-              <rect
-                className={clsx(
-                  s.kind === "model" ? styles.modelSpan : styles.toolSpan,
-                  failedTool && styles.failedSpan,
-                  s.pending && styles.pendingSpan,
-                  s.uuid && onOpenEvent && styles.clickableSpan,
-                  isHovered && styles.spanHovered,
-                  dim && styles.spanDim
-                )}
-                x={x(s.start)}
-                y={laneY(s)}
-                width={spanWidth(row, s)}
-                height={h}
-                rx={1}
-                onMouseEnter={() => hoverSpan(row, s, x(s.start))}
-                onMouseLeave={clearTarget}
-                onClick={
-                  s.uuid && onOpenEvent
-                    ? (event) => onOpenEvent(s.uuid!, event)
-                    : undefined
-                }
-              />
-            </g>
-          );
-        })}
+          .filter(({ s }) => !s.folded)
+          // Tool ticks draw after the model spans: a floored tick overlaps
+          // the next model span's start and must not be painted over.
+          .sort(
+            (a, b) => Number(a.s.kind === "tool") - Number(b.s.kind === "tool")
+          )
+          .map(({ s, i }) => {
+            const subLaned = s.subLane !== undefined;
+            const h = subLaned ? kSubLaneHeight : kAgentSpanHeight;
+            const failedTool = s.kind === "tool" && s.failed;
+            const isHovered = hoveredSpan === s;
+            // Span hover (handoff 11a): the other spans in the same turn dim.
+            const dim =
+              hoveredSpan !== undefined &&
+              !isHovered &&
+              hoveredSpan.turn !== undefined &&
+              hoveredSpan.turn === s.turn;
+            return (
+              <g key={`span-${i}`}>
+                {s.kind === "model" &&
+                  s.retries !== undefined &&
+                  s.retries > 0 && (
+                    <text
+                      className={styles.retryBadge}
+                      x={x(s.start) - 4}
+                      y={spanY + 9}
+                      textAnchor="end"
+                    >
+                      ×{s.retries}
+                    </text>
+                  )}
+                <rect
+                  className={clsx(
+                    s.kind === "model" ? styles.modelSpan : styles.toolSpan,
+                    failedTool && styles.failedSpan,
+                    s.pending && styles.pendingSpan,
+                    s.uuid && onOpenEvent && styles.clickableSpan,
+                    isHovered && styles.spanHovered,
+                    dim && styles.spanDim
+                  )}
+                  x={x(s.start)}
+                  y={laneY(s)}
+                  width={spanWidth(row, s)}
+                  height={h}
+                  rx={1}
+                  onMouseEnter={() => hoverSpan(row, s, x(s.start))}
+                  onMouseLeave={clearTarget}
+                  onClick={
+                    s.uuid && onOpenEvent
+                      ? (event) => onOpenEvent(s.uuid!, event)
+                      : undefined
+                  }
+                />
+              </g>
+            );
+          })}
         {(() => {
           // Burst labels declutter greedily: the "bash ×3 · 1 failed"
           // annotation is designed for isolated bursts — with parallel tool
@@ -1435,26 +1484,34 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       const slotWeight = slots.reduce((sum, slot) => sum + slot.weight, 0);
       const total = turn.modelWork + slotWeight;
       const modelShare = total > 0 ? turn.modelWork / total : 1;
-      const modelRight = turn.model ? left + colWidth * modelShare : left;
+      // Every slot shows at least a tick, taken out of the model share
+      // (design owner 2026-09-15); a wider ratio share keeps its width.
+      const slotMin = kMinSpanPx + kTurnSeamPx;
+      const ratioToolWidth = turn.model
+        ? colWidth * (1 - modelShare)
+        : colWidth;
+      const toolFloor = Math.min(
+        slots.length * slotMin,
+        turn.model ? Math.max(colWidth - slotMin, 0) : colWidth
+      );
+      const toolWidth =
+        slots.length > 0 ? Math.max(ratioToolWidth, toolFloor) : ratioToolWidth;
+      const modelRight = turn.model ? right - toolWidth : left;
       const toolLeft = modelRight;
-      const toolWidth = right - toolLeft;
-      let acc = 0;
+      const slotWidths = allotWidths(
+        slots.map((slot) => slot.weight),
+        toolWidth,
+        slotMin
+      );
+      let acc = toolLeft;
       return (
         <g key={`turn-${turn.index}`}>
           {turn.model &&
             spanRect(turn.model, left, modelRight, spanY, kAgentSpanHeight)}
           {slots.map((slot, i) => {
-            const x0 =
-              toolLeft +
-              (slotWeight > 0
-                ? (acc / slotWeight) * toolWidth
-                : (i / slots.length) * toolWidth);
-            acc += slot.weight;
-            const x1 =
-              toolLeft +
-              (slotWeight > 0
-                ? (acc / slotWeight) * toolWidth
-                : ((i + 1) / slots.length) * toolWidth);
+            const x0 = acc;
+            acc += slotWidths[i]!;
+            const x1 = acc;
             switch (slot.kind) {
               case "tool":
                 return (

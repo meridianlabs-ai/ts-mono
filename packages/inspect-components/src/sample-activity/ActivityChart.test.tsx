@@ -353,6 +353,90 @@ describe("ActivityChart tool bursts", () => {
   });
 });
 
+describe("ActivityChart sub-second tool ticks", () => {
+  // The teal tick's minimum visible width; Turns-mode column rects lose a
+  // seam to their stroke on top of it.
+  const kMinTickPx = 3;
+  const kTurnSeamPx = 1.5;
+
+  /** `n` turns of a 16 s model call and a 0.1 s tool — the real
+   *  ascii-art log's shape, where a tool is ~0.2 px of wall clock and
+   *  < 1 % of a Turns column. */
+  const longModelShortTool = (n: number, tools = 1): Event[] =>
+    Array.from({ length: n }, (_, i) => {
+      const t0 = i * 16.1;
+      return [
+        modelCall({ start: t0, end: t0 + 16, uuid: `m${i}` }),
+        ...Array.from({ length: tools }, (_, j) =>
+          testToolEvent({
+            uuid: `t${i}-${j}`,
+            function: "python",
+            timestamp: iso(t0 + 16),
+            completed: iso(t0 + 16.1),
+            working_start: t0 + 16,
+            working_time: 0.1,
+          })
+        ),
+      ];
+    }).flat();
+
+  it("floors the tool tick in Wall clock and paints it over the model span", () => {
+    const { container } = renderChart(longModelShortTool(60));
+    const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
+    expect(tools).toHaveLength(60);
+    for (const tool of tools) {
+      expect(attr(tool, "width")).toBeGreaterThanOrEqual(kMinTickPx);
+    }
+    // A floored tick overlaps the next model span's start: it must be drawn
+    // after every model span so it is not painted over.
+    const rects = [
+      ...container.querySelectorAll(
+        "rect[class*='modelSpan'], rect[class*='toolSpan']"
+      ),
+    ];
+    const kinds = rects.map((r) =>
+      r.getAttribute("class")?.includes("toolSpan") ? "tool" : "model"
+    );
+    const lastModel = kinds.lastIndexOf("model");
+    const firstTool = kinds.indexOf("tool");
+    expect(firstTool).toBeGreaterThan(lastModel);
+  });
+
+  it("floors the tool share of a Turns column, taken out of the model share", () => {
+    const { container } = renderChart(longModelShortTool(60), {
+      axisMode: "turns",
+    });
+    const { width } = plotBounds(container);
+    const colWidth = width / 60;
+    const models = [...container.querySelectorAll("rect[class*='modelSpan']")];
+    const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
+    expect(tools).toHaveLength(60);
+    models.forEach((model, i) => {
+      const tool = tools[i]!;
+      expect(attr(tool, "width") - kTurnSeamPx).toBeGreaterThanOrEqual(
+        kMinTickPx
+      );
+      expect(attr(model, "width") + attr(tool, "width")).toBeCloseTo(colWidth);
+      expect(attr(tool, "x")).toBeCloseTo(
+        attr(model, "x") + attr(model, "width")
+      );
+    });
+  });
+
+  it("floors each sub-lane of a burst inside the Turns tool share", () => {
+    const { container } = renderChart(longModelShortTool(60, 2), {
+      axisMode: "turns",
+    });
+    const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
+    expect(tools).toHaveLength(120);
+    for (const tool of tools) {
+      expect(attr(tool, "width") - kTurnSeamPx).toBeGreaterThanOrEqual(
+        kMinTickPx
+      );
+    }
+  });
+});
+
 describe("ActivityChart corrupt telemetry", () => {
   it("keeps token and context geometry finite when usage overflows", () => {
     // 1e308 + 1e308 = Infinity: without a bound the token path's d
