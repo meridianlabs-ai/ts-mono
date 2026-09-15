@@ -7,7 +7,7 @@ import type { JsonValue } from "@tsmono/inspect-common/types";
 import { LoadingBar, NoContentsPanel } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
-import { basename, isRecord } from "@tsmono/util";
+import { basename, isRecord, valueAsString } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
@@ -16,7 +16,6 @@ import { useStore } from "../../../../state/store";
 import { Status } from "../../../../types/api-types";
 import { useScanResultSummaries } from "../../../hooks/useScanResultSummaries";
 import { ScanResultSummary, SortColumn } from "../../../types";
-import { valueAsString } from "../../../utils/format";
 import {
   resultIdentifierStr,
   resultLog,

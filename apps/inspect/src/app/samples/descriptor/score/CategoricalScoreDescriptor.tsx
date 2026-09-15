@@ -1,6 +1,7 @@
+import { valueAsString } from "@tsmono/util";
+
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypeCategorical } from "../../../../constants";
-import { valueAsString } from "../../../../utils/format";
 import { ScoreDescriptor } from "../types";
 
 export const categoricalScoreDescriptor = (

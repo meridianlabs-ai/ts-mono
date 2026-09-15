@@ -1,9 +1,10 @@
 import clsx from "clsx";
 import { CSSProperties, FC } from "react";
 
+import { valueAsString } from "@tsmono/util";
+
 import { ScoreValue } from "../../../@types/extraInspect";
 import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
-import { valueAsString } from "../../../utils/format";
 
 import { scoreTone, Tone } from "./scoreTone";
 import styles from "./ScoreValueDisplay.module.css";

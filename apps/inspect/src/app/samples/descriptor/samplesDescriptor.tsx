@@ -1,12 +1,11 @@
 import { ReactNode } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString, isRecord } from "@tsmono/util";
+import { arrayToString, isRecord, valueAsString } from "@tsmono/util";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
-import { valueAsString } from "../../../utils/format";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";

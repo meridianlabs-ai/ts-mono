@@ -4,9 +4,7 @@
 
 import { ColumnSizingState } from "@tanstack/react-table";
 
-import { isRecord } from "@tsmono/util";
-
-import { valueAsString } from "../../utils/format";
+import { isRecord, valueAsString } from "@tsmono/util";
 
 import {
   clampSize,
