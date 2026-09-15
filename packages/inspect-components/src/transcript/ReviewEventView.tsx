@@ -31,8 +31,8 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
   const explanationIsBlock = explanation.includes("\n");
   const chains = chainOutcomes(event);
   const source = event.chain
-    ? `by ${reviewer} (chain "${event.chain}")`
-    : `by ${reviewer}`;
+    ? `by reviewer "${reviewer}" (chain "${event.chain}")`
+    : `by reviewer "${reviewer}"`;
 
   return (
     <EventRow
