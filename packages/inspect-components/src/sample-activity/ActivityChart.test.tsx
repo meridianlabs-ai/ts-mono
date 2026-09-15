@@ -29,8 +29,8 @@ import {
   turnGridSeparators,
   turnGridStep,
 } from "./ActivityChart";
-import { deriveActivityData } from "./activityData";
-import { ImmediateResizeObserver, iso } from "./testHelpers";
+import { deriveActivityData, type TimeWindow } from "./activityData";
+import { ImmediateResizeObserver, iso, kRunStart } from "./testHelpers";
 
 // A full-height span rect (a burst lane is thinner).
 const kAgentSpanHeight = 11;
@@ -574,6 +574,135 @@ describe("ActivityChart sub-second tool ticks", () => {
     for (const tool of tools) {
       expect(attr(tool, "width")).toBeCloseTo(colWidth / 2);
     }
+  });
+});
+
+describe("ActivityChart crowded Turns tool halves", () => {
+  const kSlotMinPx = 3 + 1.5;
+
+  /** `nTurns` one-second model calls 100 s apart; turn 1 also runs `tools`
+   *  sequential one-second tool calls (the first `failed` of them erroring)
+   *  — the shape that squeezes a dozen slots into a 5 px half at 91 turns. */
+  const sequentialTools = (
+    nTurns: number,
+    tools: number,
+    failed = 0
+  ): Event[] => [
+    modelCall({ start: 0, end: 1, uuid: "m0" }),
+    ...Array.from({ length: tools }, (_, i) =>
+      testToolEvent({
+        uuid: `t${i}`,
+        function: "python",
+        timestamp: iso(1 + i * 2),
+        completed: iso(2 + i * 2),
+        working_start: 1 + i * 2,
+        working_time: 1,
+        error: i < failed ? { type: "unknown", message: "boom" } : undefined,
+      })
+    ),
+    ...Array.from({ length: nTurns - 1 }, (_, i) =>
+      modelCall({
+        start: (i + 1) * 100,
+        end: (i + 1) * 100 + 1,
+        uuid: `m${i + 1}`,
+      })
+    ),
+  ];
+
+  const toolRects = (container: HTMLElement): Element[] =>
+    [...container.querySelectorAll("rect[class*='toolSpan']")].sort(
+      (a, b) => attr(a, "x") - attr(b, "x")
+    );
+
+  it("collapses twelve sequential tools in a 5 px half to one bounded aggregate rect", () => {
+    const onFilterWindow = vi.fn<(window: TimeWindow) => void>();
+    const { container } = renderChart(sequentialTools(91, 12), {
+      axisMode: "turns",
+      onFilterWindow,
+    });
+    const { left, width } = plotBounds(container);
+    const colWidth = width / 91;
+    const tools = toolRects(container);
+    expect(tools).toHaveLength(1);
+    const aggregate = tools[0]!;
+    expect(attr(aggregate, "x")).toBeCloseTo(left + colWidth / 2);
+    expect(attr(aggregate, "width")).toBeCloseTo(colWidth / 2);
+    expect(attr(aggregate, "width")).toBeGreaterThanOrEqual(3);
+    expect(attr(aggregate, "x") + attr(aggregate, "width")).toBeLessThanOrEqual(
+      left + colWidth + 1e-6
+    );
+    const models = [...container.querySelectorAll("rect[class*='modelSpan']")];
+    expect(attr(models[0]!, "width")).toBeCloseTo(colWidth / 2);
+    // The headline still counts every call the aggregate stands for.
+    expect(screen.getByText(/12 tool calls/)).toBeTruthy();
+    // Click filters the history to the turn's window (density-strip
+    // semantics), which spans the model call and all twelve tools.
+    fireEvent.click(aggregate);
+    expect(onFilterWindow).toHaveBeenCalledTimes(1);
+    const window = onFilterWindow.mock.calls[0]![0];
+    expect(window.start).toBe(kRunStart);
+    expect(window.end - window.start).toBeGreaterThanOrEqual(24);
+    expect(window.end - window.start).toBeLessThan(100);
+  });
+
+  it("reads the aggregate's call and failure counts on hover and outlines it", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(sequentialTools(91, 12, 1), {
+        axisMode: "turns",
+      });
+      const aggregate = container.querySelector("rect[class*='toolSpan']");
+      if (!(aggregate instanceof SVGElement))
+        throw new Error("expected the aggregate tool rect");
+      // One failed call among twelve keeps the teal fill and adds the
+      // density strip's red failure hairline instead of the failed fill.
+      expect(aggregate.getAttribute("class")).not.toContain("failedSpan");
+      expect(
+        container.querySelector("rect[class*='densityFailure']")
+      ).not.toBeNull();
+      fireEvent.mouseEnter(aggregate);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(aggregate.getAttribute("class")).toContain("spanHovered");
+      const card = container.querySelector("[class*='tooltip']");
+      expect(card?.textContent).toContain("turn 1 · 12 tool calls · 1 failed");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("collapses four sequential tools at the 91-turn width too", () => {
+    const { container } = renderChart(sequentialTools(91, 4), {
+      axisMode: "turns",
+    });
+    const { width } = plotBounds(container);
+    // Four slots need 18 px of floor + seam; the half has ~5.3 px.
+    expect(4 * kSlotMinPx).toBeGreaterThan(width / 91 / 2);
+    expect(toolRects(container)).toHaveLength(1);
+  });
+
+  it("keeps individual, contiguous, non-overlapping rects while the slots fit", () => {
+    const { container } = renderChart(sequentialTools(10, 4), {
+      axisMode: "turns",
+    });
+    const { left, width } = plotBounds(container);
+    const colWidth = width / 10;
+    const tools = toolRects(container);
+    expect(tools).toHaveLength(4);
+    expect(attr(tools[0]!, "x")).toBeCloseTo(left + colWidth / 2);
+    tools.forEach((tool, i) => {
+      expect(attr(tool, "width")).toBeGreaterThanOrEqual(kSlotMinPx);
+      const next = tools[i + 1];
+      if (next) {
+        expect(attr(next, "x")).toBeCloseTo(
+          attr(tool, "x") + attr(tool, "width")
+        );
+      }
+    });
+    const last = tools[3]!;
+    expect(attr(last, "x") + attr(last, "width")).toBeCloseTo(left + colWidth);
+    expect(container.querySelector("[class*='densityFailure']")).toBeNull();
   });
 });
 

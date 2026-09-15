@@ -44,7 +44,9 @@ an Activity test into the standing spec.
 - Axis toggle (right end of the chip row): `getByRole("button", { name:
 "Wall clock", exact: true })` / `"Turns"`; Turns relabels the axis `TURN`
   (one equal-width column per model turn, split in equal model / tool
-  halves, 6–10 gridlines whatever the turn count)
+  halves, 6–10 gridlines whatever the turn count; a tool half too narrow for its sequential slots draws one
+  aggregate teal rect whose hover reads `turn N · M tool calls[ · k
+failed]` and whose click filters the history to that turn)
   and greys the Working / waiting chip (`disabled`, suffix `wall clock
 only`) — the band hides there but its override is kept.
 - Agent gutter (only when a sample has more than one conversation — agent /

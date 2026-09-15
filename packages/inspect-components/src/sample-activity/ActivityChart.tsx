@@ -1091,6 +1091,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  — the burst-label declutter reserves its extent. */
   const rowLabelText = (row: AgentRow): string =>
     `${row.model} ${row.role ? `· ${row.role}` : row.toolCount > 0 ? "+ tools" : ""}`;
+  /** Where an annotation above the row may start without crowding the
+   *  single-conversation row label (the gutter carries it otherwise). */
+  const rowLabelEnd = (row: AgentRow): number =>
+    multiAgent ? plotLeft : kYAxisWidth + 4 + rowLabelText(row).length * 5 + 12;
 
   const hoveredSpan =
     hoverTarget?.kind === "span"
@@ -1206,9 +1210,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           // row label. A label renders only with clear horizontal room
           // (after the row label and the previous burst label); the span
           // hover tooltip keeps the full detail for unlabeled bursts.
-          let lastLabelEnd = multiAgent
-            ? plotLeft
-            : kYAxisWidth + 4 + rowLabelText(row).length * 5 + 12;
+          let lastLabelEnd = rowLabelEnd(row);
           return row.bursts.map((burst, i) => {
             const text =
               `${burst.label} ×${burst.count}` +
@@ -1405,7 +1407,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           )}
           x={x0}
           y={y}
-          width={Math.max(x1 - x0, 0.5)}
+          width={x1 - x0}
           height={h}
           onMouseEnter={() => hoverSpan(row, s, x0)}
           onMouseLeave={clearTarget}
@@ -1415,6 +1417,75 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               : undefined
           }
         />
+      );
+    };
+    /** A tool half too narrow for its slots: the allocator would hand out
+     *  sub-seam shares that vanish under the strokes, so the half draws as
+     *  one aggregate tool rect with the density strip's hover and click
+     *  semantics scoped to the turn. */
+    const crowdedToolHalf = (
+      turn: TurnColumn,
+      x0: number,
+      x1: number
+    ): ReactNode => {
+      const count = turn.tools.length;
+      const failed = turn.tools.filter((t) => t.failed).length;
+      const label = [
+        `turn ${turn.index}`,
+        `${count} tool ${count === 1 ? "call" : "calls"}`,
+        ...(failed > 0 ? [`${failed} failed`] : []),
+        ...(turn.rejected > 0 ? [`${turn.rejected} rejected`] : []),
+      ].join(" · ");
+      const window: TimeWindow = { start: turn.start, end: turn.end };
+      const isHovered =
+        hoverTarget?.kind === "bin" &&
+        hoverTarget.window.start === window.start &&
+        hoverTarget.window.end === window.end;
+      const countText = `×${count}`;
+      const countHalf = (countText.length * 4.5) / 2;
+      const mid = (x0 + x1) / 2;
+      const countFits =
+        x1 - x0 >= countHalf * 2 + 4 && mid - countHalf >= rowLabelEnd(row) + 8;
+      return (
+        <Fragment>
+          <rect
+            className={clsx(
+              styles.turnRect,
+              styles.toolSpan,
+              onFilterWindow && styles.clickableSpan,
+              isHovered && styles.spanHovered
+            )}
+            x={x0}
+            y={spanY}
+            width={x1 - x0}
+            height={kAgentSpanHeight}
+            onMouseEnter={() => {
+              setCursor({ x: x0, t: turn.tools[0]?.start ?? turn.start });
+              showTarget({ kind: "bin", label, window });
+            }}
+            onMouseLeave={clearTarget}
+            onClick={onFilterWindow ? () => onFilterWindow(window) : undefined}
+          />
+          {failed > 0 && (
+            <rect
+              className={styles.densityFailure}
+              x={x0}
+              y={spanY}
+              width={1.5}
+              height={kAgentSpanHeight}
+            />
+          )}
+          {countFits && (
+            <text
+              className={styles.burstLabel}
+              x={mid}
+              y={spanY - 4}
+              textAnchor="middle"
+            >
+              {countText}
+            </text>
+          )}
+        </Fragment>
       );
     };
     return rowTurns(row).map((turn) => {
@@ -1456,71 +1527,75 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           : 0;
       const modelRight = right - toolWidth;
       const toolLeft = modelRight;
+      const slotMin = kMinSpanPx + kTurnSeamPx;
+      const crowded = slots.length > 1 && slots.length * slotMin > toolWidth;
       const slotWidths = allotWidths(
         slots.map((slot) => slot.weight),
         toolWidth,
-        kMinSpanPx + kTurnSeamPx
+        slotMin
       );
       let acc = toolLeft;
       return (
         <g key={`turn-${turn.index}`}>
           {turn.model &&
             spanRect(turn.model, left, modelRight, spanY, kAgentSpanHeight)}
-          {slots.map((slot, i) => {
-            const x0 = acc;
-            acc += slotWidths[i]!;
-            const x1 = acc;
-            switch (slot.kind) {
-              case "tool":
-                return (
-                  <Fragment key={`slot-${i}`}>
-                    {spanRect(slot.span, x0, x1, spanY, kAgentSpanHeight)}
-                  </Fragment>
-                );
-              case "burst":
-                return (
-                  <Fragment key={`slot-${i}`}>
-                    {slot.members.map((member, j) =>
-                      member.folded ? null : (
-                        <Fragment key={j}>
-                          {spanRect(
-                            member,
-                            x0,
-                            x1,
-                            laneY(member),
-                            member.subLane === undefined
-                              ? kAgentSpanHeight
-                              : kSubLaneHeight
-                          )}
-                        </Fragment>
-                      )
-                    )}
-                  </Fragment>
-                );
-              case "ghost":
-                return (
-                  <Fragment key={`slot-${i}`}>
-                    <rect
-                      className={styles.ghostSpan}
-                      x={x0 + 0.75}
-                      y={spanY}
-                      width={Math.max(x1 - x0 - 1.5, 0.5)}
-                      height={kAgentSpanHeight}
-                    />
-                    {x1 - x0 >= 90 && (
-                      <text
-                        className={styles.ghostLabel}
-                        x={(x0 + x1) / 2}
-                        y={spanY - 3}
-                        textAnchor="middle"
-                      >
-                        rejected · no tool run
-                      </text>
-                    )}
-                  </Fragment>
-                );
-            }
-          })}
+          {crowded && crowdedToolHalf(turn, toolLeft, right)}
+          {!crowded &&
+            slots.map((slot, i) => {
+              const x0 = acc;
+              acc += slotWidths[i]!;
+              const x1 = acc;
+              switch (slot.kind) {
+                case "tool":
+                  return (
+                    <Fragment key={`slot-${i}`}>
+                      {spanRect(slot.span, x0, x1, spanY, kAgentSpanHeight)}
+                    </Fragment>
+                  );
+                case "burst":
+                  return (
+                    <Fragment key={`slot-${i}`}>
+                      {slot.members.map((member, j) =>
+                        member.folded ? null : (
+                          <Fragment key={j}>
+                            {spanRect(
+                              member,
+                              x0,
+                              x1,
+                              laneY(member),
+                              member.subLane === undefined
+                                ? kAgentSpanHeight
+                                : kSubLaneHeight
+                            )}
+                          </Fragment>
+                        )
+                      )}
+                    </Fragment>
+                  );
+                case "ghost":
+                  return (
+                    <Fragment key={`slot-${i}`}>
+                      <rect
+                        className={styles.ghostSpan}
+                        x={x0 + 0.75}
+                        y={spanY}
+                        width={Math.max(x1 - x0 - 1.5, 0.5)}
+                        height={kAgentSpanHeight}
+                      />
+                      {x1 - x0 >= 90 && (
+                        <text
+                          className={styles.ghostLabel}
+                          x={(x0 + x1) / 2}
+                          y={spanY - 3}
+                          textAnchor="middle"
+                        >
+                          rejected · no tool run
+                        </text>
+                      )}
+                    </Fragment>
+                  );
+              }
+            })}
         </g>
       );
     });
