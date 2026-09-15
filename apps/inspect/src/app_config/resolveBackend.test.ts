@@ -118,6 +118,17 @@ const testVscodeApi = (): NonNullable<ReturnType<typeof getVscodeApi>> => ({
   setState: () => {},
 });
 
+describe("resolveBackend transport", () => {
+  it("only the static backend fetches log locations from the browser", () => {
+    setSearch("");
+    expect(resolveBackend(dirSource("logs")).browserDirect).toBe(true);
+    expect(resolveBackend(fileSource("run.eval")).browserDirect).toBe(true);
+    expect(resolveBackend(noneSource).browserDirect).toBe(false);
+    setSearch("?inspect_server=true");
+    expect(resolveBackend(dirSource("logs")).browserDirect).toBe(false);
+  });
+});
+
 describe("resolveBackend selection", () => {
   it("vscode host with http_request capability → vscode backend (wins over source)", async () => {
     const vscode = testVscodeApi();

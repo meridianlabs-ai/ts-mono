@@ -31,6 +31,7 @@ import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
   AppConfigGate,
+  LogLocationGate,
   readEmbeddedStartupState,
   resolveEmbeddedLogDir,
   setLogRoot,
@@ -200,9 +201,11 @@ const ZustandStorePanel: FC<{ theme: "light" | "dark" }> = ({ theme }) =>
 
 export const App: FC = () => (
   <QueryClientProvider client={queryClient}>
-    <AppConfigGate>
-      <AppContent />
-    </AppConfigGate>
+    <LogLocationGate>
+      <AppConfigGate>
+        <AppContent />
+      </AppConfigGate>
+    </LogLocationGate>
     {/* navigator.webdriver: skip devtools under Playwright — the floating
         button is an extra img/button that trips strict-mode locators. */}
     {import.meta.env.DEV && !navigator.webdriver && (

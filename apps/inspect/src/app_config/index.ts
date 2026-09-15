@@ -6,9 +6,11 @@ export {
   getAppConfig,
   getBootstrap,
   initAppConfig, // TODO: Exported for tests?! review
+  resolveRouteLogFile,
   setLogRoot,
 } from "./appConfig";
 export { AppConfigGate } from "./AppConfigGate";
+export { LogLocationGate } from "./LogLocationGate";
 export { setApiFactory } from "./resolveBackend";
 export {
   readEmbeddedStartupState, // TODO: This should be private/encapsulated

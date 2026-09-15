@@ -54,6 +54,11 @@ export interface BackendBootstrap {
    *  instances. */
   createApi: (logDir: string) => ClientAPI;
   capabilities: BackendCapabilities;
+  /** Whether the browser itself fetches from the log location (static-http)
+   *  rather than a server or host proxy that applies its own trust policy.
+   *  Only then does a location named by the page URL or a route need the
+   *  viewer's own approval (#615). */
+  browserDirect: boolean;
 }
 
 let embedderFactory:
@@ -119,6 +124,7 @@ const embedderBackend = (
   resolveConfiguredDir: () => Promise.resolve(logDir),
   createApi,
   capabilities: { downloadLogs: false, streamSamples: false },
+  browserDirect: false,
 });
 
 // A backend that can't work at all (e.g. legacy VS Code host). Constructed
@@ -130,6 +136,7 @@ const unsupportedHostBackend = (message: string): BackendBootstrap => ({
     throw new Error(message);
   },
   capabilities: { downloadLogs: false, streamSamples: false },
+  browserDirect: false,
 });
 
 const viewServerBackend = (logDirHint?: string): BackendBootstrap => ({
@@ -137,6 +144,7 @@ const viewServerBackend = (logDirHint?: string): BackendBootstrap => ({
   resolveConfiguredDir: () => fetchViewServerLogDir(),
   createApi: (logDir) => clientApi(viewServerApi({ logDir })),
   capabilities: { downloadLogs: true, streamSamples: true },
+  browserDirect: false,
 });
 
 const staticBackend = (
@@ -150,6 +158,7 @@ const staticBackend = (
       : Promise.reject(new Error("Unable to determine log paths.")),
   createApi: (logDir) => clientApi(staticHttpApi(logDir, app_config)),
   capabilities: { downloadLogs: false, streamSamples: false },
+  browserDirect: true,
 });
 
 /**
@@ -189,6 +198,7 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
       resolveLogRoot: () => fetchViewServerLogRoot({ customFetch: proxyFetch }),
       createApi: (logDir) => clientApi(apiVscode(vscode, logDir, proxyFetch)),
       capabilities: { downloadLogs: false, streamSamples: true },
+      browserDirect: false,
     };
   }
 

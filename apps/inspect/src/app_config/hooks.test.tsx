@@ -216,6 +216,7 @@ const bootstrapFor = (
         resolveConfiguredDir: d.resolveConfiguredDir,
         createApi,
         capabilities: { downloadLogs: false, streamSamples: false },
+        browserDirect: false,
       },
       singleFileMode: d.singleFileMode,
       loader: d.singleFileMode ? "direct" : "replicator",
