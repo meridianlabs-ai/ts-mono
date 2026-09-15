@@ -832,11 +832,6 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/hooks/useSelectedScan.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/scout/src/app/hooks/useSelectedScanner.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -941,7 +936,7 @@
   },
   "apps/scout/src/app/scan/ScanPanel.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/scout/src/app/scan/ScanPanelBody.tsx": {
@@ -966,9 +961,6 @@
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 3
     }
   },
   "apps/scout/src/app/scans/ScansGrid.tsx": {
