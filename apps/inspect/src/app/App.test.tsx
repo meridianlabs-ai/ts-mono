@@ -1,7 +1,13 @@
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { initializeStore, storeImplementation } from "../state/store";
+import { getVscodeApi } from "@tsmono/util";
+
+import {
+  initializeStore,
+  storeImplementation,
+  StoreState,
+} from "../state/store";
 
 import { AppContent } from "./App";
 
@@ -16,37 +22,96 @@ vi.mock("../log_data", () => ({
   imperativeLogData: { invalidateLogListing },
 }));
 
-afterEach(() => {
-  cleanup();
-  vi.restoreAllMocks();
-});
+const setLogRoot = vi.hoisted(() => vi.fn());
+vi.mock("../app_config", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../app_config")>()),
+  setLogRoot,
+}));
 
-it("backgroundUpdate refreshes the listing and leaves the selected log alone", () => {
+vi.mock("@tsmono/util", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tsmono/util")>()),
+  getVscodeApi: vi.fn(),
+}));
+
+const hostApi = { postMessage: vi.fn(), getState: vi.fn(), setState: vi.fn() };
+
+const postHostMessage = (data: unknown) => {
+  act(() => {
+    window.dispatchEvent(new MessageEvent("message", { data }));
+  });
+};
+
+const store = (): StoreState => {
+  if (!storeImplementation) throw new Error("store not initialized");
+  return storeImplementation.getState();
+};
+
+beforeEach(() => {
   initializeStore({
     downloadFiles: false,
     downloadLogs: false,
     webWorkers: false,
     streamSamples: false,
   });
-  const store = storeImplementation;
-  if (!store) throw new Error("store not initialized");
-  store.getState().logsActions.setSelectedLogFile("file:///logs/open.eval");
-  // The host posts backgroundUpdate while the webview is unfocused.
-  vi.spyOn(document, "hasFocus").mockReturnValue(false);
-  render(<AppContent />);
+  store().logsActions.setSelectedLogFile("file:///logs/open.eval");
+});
 
-  act(() => {
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: {
-          type: "backgroundUpdate",
-          url: "/logs/new.eval",
-          log_dir: "file:///logs",
-        },
-      })
-    );
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
+
+describe("in VS Code", () => {
+  beforeEach(() => {
+    vi.mocked(getVscodeApi).mockReturnValue(hostApi);
   });
 
-  expect(store.getState().logs.selectedLogFile).toBe("file:///logs/open.eval");
-  expect(invalidateLogListing).toHaveBeenCalledTimes(1);
+  it("backgroundUpdate refreshes the listing and leaves the selected log alone", () => {
+    // The host posts backgroundUpdate while the webview is unfocused.
+    vi.spyOn(document, "hasFocus").mockReturnValue(false);
+    render(<AppContent />);
+
+    postHostMessage({
+      type: "backgroundUpdate",
+      url: "/logs/new.eval",
+      log_dir: "file:///logs",
+    });
+
+    expect(store().logs.selectedLogFile).toBe("file:///logs/open.eval");
+    expect(invalidateLogListing).toHaveBeenCalledTimes(1);
+  });
+
+  it("updateState re-points the log root at the host's file", () => {
+    render(<AppContent />);
+
+    postHostMessage({ type: "updateState", url: "file:///other/run.eval" });
+
+    expect(setLogRoot).toHaveBeenCalledWith("file:///other");
+    expect(store().app.initialState?.log).toBe("run.eval");
+  });
+});
+
+describe("outside VS Code", () => {
+  beforeEach(() => {
+    vi.mocked(getVscodeApi).mockReturnValue(undefined);
+  });
+
+  it("ignores window messages: an embedding page can't choose the log location", () => {
+    render(<AppContent />);
+
+    postHostMessage({
+      type: "updateState",
+      url: "https://attacker.example/logs/run.eval",
+    });
+    postHostMessage({
+      type: "backgroundUpdate",
+      url: "/logs/new.eval",
+      log_dir: "file:///logs",
+    });
+
+    expect(setLogRoot).not.toHaveBeenCalled();
+    expect(store().app.initialState).toBeUndefined();
+    expect(invalidateLogListing).not.toHaveBeenCalled();
+  });
 });
