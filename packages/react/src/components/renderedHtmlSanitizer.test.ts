@@ -354,6 +354,12 @@ describe("sanitizeRenderedHtml clipboard triggers", () => {
     ).toBe(false);
   });
 
+  it("matches trigger tokens case-insensitively, as quirks-mode selectors do", () => {
+    expect(
+      firstElement('<span class="Copy-Button">x</span>')?.hasAttribute("class")
+    ).toBe(false);
+  });
+
   it("keeps classes that merely contain a trigger token as a substring", () => {
     expect(
       firstElement(
