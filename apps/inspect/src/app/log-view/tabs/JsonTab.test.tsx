@@ -19,7 +19,11 @@ beforeEach(() => {
   });
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 it("copies the JSON it was given and shows transient feedback", async () => {
   vi.useFakeTimers();
@@ -37,12 +41,11 @@ it("copies the JSON it was given and shows transient feedback", async () => {
     vi.advanceTimersByTime(1500);
   });
   expect(screen.getByRole("button", { name: /Copy JSON/ })).toBeEnabled();
-  vi.useRealTimers();
 });
 
 it("stays usable when the clipboard write is refused", async () => {
   writeText.mockRejectedValue(new Error("denied"));
-  vi.spyOn(console, "warn").mockImplementation(() => {});
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
   render(<CopyJsonButton json="{}" />);
 
   fireEvent.click(screen.getByRole("button", { name: /Copy JSON/ }));
@@ -50,5 +53,25 @@ it("stays usable when the clipboard write is refused", async () => {
     await Promise.resolve();
   });
 
+  expect(error).toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: /Copy JSON/ })).toBeEnabled();
+});
+
+it("warns instead of throwing when there is no clipboard (insecure context)", async () => {
+  Object.defineProperty(navigator, "clipboard", {
+    value: undefined,
+    configurable: true,
+  });
+  const error = vi.spyOn(console, "error").mockImplementation(() => {});
+  render(<CopyJsonButton json="{}" />);
+
+  expect(() =>
+    fireEvent.click(screen.getByRole("button", { name: /Copy JSON/ }))
+  ).not.toThrow();
+  await act(async () => {
+    await Promise.resolve();
+  });
+
+  expect(error).toHaveBeenCalled();
   expect(screen.getByRole("button", { name: /Copy JSON/ })).toBeEnabled();
 });

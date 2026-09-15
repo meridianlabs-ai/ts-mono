@@ -1,6 +1,7 @@
-import { FC, useMemo, useState } from "react";
+import { FC, useMemo } from "react";
 
 import { JSONPanel, ToolButton } from "@tsmono/react/components";
+import { useCopyToClipboard } from "@tsmono/react/hooks";
 import { filename } from "@tsmono/util";
 
 import { LogHeader } from "../../../client/api/types";
@@ -43,33 +44,20 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
   }, [selectedLogFile, logDetails, selectedTab]);
 };
 
-const kCopiedFeedbackMs = 1250;
-
 /**
  * Copies the tab's JSON from props. The copy is bound to this element by
  * React, not discovered by a document-wide selector, so log-authored markup
  * can never become a copy trigger.
  */
 export const CopyJsonButton: FC<{ json: string }> = ({ json }) => {
-  const [copied, setCopied] = useState(false);
-  const copy = (): void => {
-    navigator.clipboard
-      .writeText(json)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), kCopiedFeedbackMs);
-      })
-      .catch((error: unknown) => {
-        console.warn("Failed to copy JSON", error);
-      });
-  };
+  const { copied, copy } = useCopyToClipboard();
   return (
     <ToolButton
       label={copied ? "Copied!" : "Copy JSON"}
       icon={copied ? ApplicationIcons.confirm : ApplicationIcons.copy}
       subtle
       disabled={copied}
-      onClick={copy}
+      onClick={() => copy(json)}
     />
   );
 };
