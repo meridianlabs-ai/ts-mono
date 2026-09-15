@@ -236,6 +236,18 @@
   fill: #6b4fa8;
 }
 
+/* A crowded half whose slots are all rejected calls: one ghost that,
+   unlike the per-slot ghosts, takes the aggregate's hover and click. Its
+   dashed stroke is declared after `.spanHovered`, so the hover outline is
+   restated at higher specificity. */
+.ghostAggregate {
+  pointer-events: auto;
+}
+
+.ghostAggregate.spanHovered {
+  stroke: #212529;
+}
+
 .axisLabelMuted {
   fill: var(--bs-secondary-color);
   opacity: 0.8;
@@ -482,4 +494,8 @@
 
 :global([data-bs-theme="dark"]) .ghostLabel {
   fill: #b39ddb;
+}
+
+:global([data-bs-theme="dark"]) .ghostAggregate.spanHovered {
+  stroke: #f8f9fa;
 }

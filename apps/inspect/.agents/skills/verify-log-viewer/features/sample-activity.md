@@ -47,7 +47,9 @@ an Activity test into the standing spec.
   halves; 6–10 gridlines from seven turns up, one per column boundary
   below that; a tool half too narrow for its sequential slots draws one
   aggregate teal rect whose hover reads `turn N · M tool calls[ · k
-failed]` and whose click filters the history to that turn)
+failed][ · r rejected]` and whose click filters the history to that
+  turn; when every slot is a rejected call the aggregate is a dashed
+  ghost reading `turn N · r rejected · no tool run`)
   and greys the Working / waiting chip (`disabled`, suffix `wall clock
 only`) — the band hides there but its override is kept.
 - Agent gutter (only when a sample has more than one conversation — agent /

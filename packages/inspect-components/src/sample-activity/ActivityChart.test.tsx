@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { normalizeEvents } from "@tsmono/inspect-common/normalize";
 import {
+  testApprovalEvent,
   testCompactionEvent,
   testModelEvent,
   testModelOutput,
@@ -629,6 +630,39 @@ const sequentialTools = (
   ),
 ];
 
+/** `nTurns` one-second model calls 100 s apart; turn `at` also runs `tools`
+ *  sequential one-second tool calls and has `rejected` calls turned down. */
+const turnWith = (opts: {
+  nTurns: number;
+  at: number;
+  tools?: number;
+  rejected?: number;
+}): Event[] => {
+  const base = (opts.at - 1) * 100;
+  return [
+    ...Array.from({ length: opts.nTurns }, (_, i) =>
+      modelCall({ start: i * 100, end: i * 100 + 1, uuid: `m${i}` })
+    ),
+    ...Array.from({ length: opts.tools ?? 0 }, (_, i) =>
+      testToolEvent({
+        uuid: `t${i}`,
+        function: "python",
+        timestamp: iso(base + 2 + i * 2),
+        completed: iso(base + 3 + i * 2),
+        working_start: base + 2 + i * 2,
+        working_time: 1,
+      })
+    ),
+    ...Array.from({ length: opts.rejected ?? 0 }, (_, i) =>
+      testApprovalEvent({
+        uuid: `r${i}`,
+        timestamp: iso(base + 1.5 + i * 0.1),
+        decision: "reject",
+      })
+    ),
+  ];
+};
+
 const toolRects = (container: HTMLElement): Element[] =>
   [...container.querySelectorAll("rect[class*='toolSpan']")].sort(
     (a, b) => attr(a, "x") - attr(b, "x")
@@ -707,6 +741,89 @@ describe("ActivityChart crowded Turns tool halves", () => {
     // Four slots need 18 px of floor + seam; the half has ~5.3 px.
     expect(4 * kSlotMinPx).toBeGreaterThan(width / 91 / 2);
     expect(toolRects(container)).toHaveLength(1);
+  });
+
+  it("keeps the ghost encoding when a crowded turn's calls were all rejected", () => {
+    vi.useFakeTimers();
+    try {
+      // Two rejected calls and no tool run at the 91-turn width: two ghost
+      // slots need 9 px, the half has ~5.3.
+      const { container } = renderChart(
+        turnWith({ nTurns: 91, at: 1, rejected: 2 }),
+        { axisMode: "turns" }
+      );
+      const { left, width } = plotBounds(container);
+      const colWidth = width / 91;
+      expect(toolRects(container)).toHaveLength(0);
+      const ghosts = [
+        ...container.querySelectorAll("rect[class*='ghostSpan']"),
+      ];
+      expect(ghosts).toHaveLength(1);
+      const ghost = ghosts[0]!;
+      if (!(ghost instanceof SVGElement)) throw new Error("expected a rect");
+      expect(ghost.getAttribute("class")).toContain("ghostAggregate");
+      expect(ghost.getAttribute("class")).not.toContain("toolSpan");
+      // Inside the tool half, inset for its own dashed stroke.
+      expect(attr(ghost, "x")).toBeGreaterThanOrEqual(left + colWidth / 2);
+      expect(attr(ghost, "x") + attr(ghost, "width")).toBeLessThanOrEqual(
+        left + colWidth + 1e-6
+      );
+      expect(attr(ghost, "width")).toBeGreaterThanOrEqual(3);
+      expect(screen.getByText(/2 rejected/)).toBeTruthy();
+      expect(screen.queryByText(/×/)).toBeNull();
+      fireEvent.mouseEnter(ghost);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(ghost.getAttribute("class")).toContain("spanHovered");
+      const card = container.querySelector("[class*='tooltip']");
+      expect(card?.textContent).toContain("turn 1 · 2 rejected · no tool run");
+      expect(card?.textContent).not.toContain("0 tool");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("gives a wide rejected-only aggregate no count label at all", () => {
+    // Six rejections in turn 10 of 20: the 24 px half is crowded (27 px of
+    // slot floors) and has room for a `×N` — which would read `×0`.
+    const { container } = renderChart(
+      turnWith({ nTurns: 20, at: 10, rejected: 6 }),
+      { axisMode: "turns" }
+    );
+    expect(toolRects(container)).toHaveLength(0);
+    expect(
+      container.querySelectorAll("rect[class*='ghostAggregate']")
+    ).toHaveLength(1);
+    expect(screen.queryByText(/×/)).toBeNull();
+    expect(screen.getByText(/6 rejected/)).toBeTruthy();
+  });
+
+  it("keeps teal and the executed count for a mixed crowded turn", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(
+        turnWith({ nTurns: 20, at: 10, tools: 8, rejected: 2 }),
+        { axisMode: "turns" }
+      );
+      const tools = toolRects(container);
+      expect(tools).toHaveLength(1);
+      expect(
+        container.querySelectorAll("rect[class*='ghostSpan']")
+      ).toHaveLength(0);
+      // The label counts the eight executed calls, not the ten slots.
+      expect(screen.getByText("×8")).toBeTruthy();
+      fireEvent.mouseEnter(tools[0]!);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const card = container.querySelector("[class*='tooltip']");
+      expect(card?.textContent).toContain(
+        "turn 10 · 8 tool calls · 2 rejected"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("keeps individual, contiguous, non-overlapping rects while the slots fit", () => {

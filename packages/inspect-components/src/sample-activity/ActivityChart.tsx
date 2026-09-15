@@ -1444,8 +1444,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     };
     /** A tool half too narrow for its slots: the allocator would hand out
      *  sub-seam shares that vanish under the strokes, so the half draws as
-     *  one aggregate tool rect with the density strip's hover and click
-     *  semantics scoped to the turn. */
+     *  one aggregate rect with the density strip's hover and click
+     *  semantics scoped to the turn — teal for executed calls, the
+     *  rejected-call ghost when nothing ran (the count label and the
+     *  card's call count only ever speak for executed calls). */
     const crowdedToolHalf = (
       turn: TurnColumn,
       x0: number,
@@ -1453,11 +1455,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     ): ReactNode => {
       const count = turn.tools.length;
       const failed = turn.tools.filter((t) => t.failed).length;
+      const ghostOnly = count === 0;
       const label = [
         `turn ${turn.index}`,
-        `${count} tool ${count === 1 ? "call" : "calls"}`,
+        ...(count > 0
+          ? [`${count} tool ${count === 1 ? "call" : "calls"}`]
+          : []),
         ...(failed > 0 ? [`${failed} failed`] : []),
         ...(turn.rejected > 0 ? [`${turn.rejected} rejected`] : []),
+        ...(ghostOnly ? ["no tool run"] : []),
       ].join(" · ");
       const window: TimeWindow = { start: turn.start, end: turn.end };
       const isHovered =
@@ -1468,27 +1474,49 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       const countHalf = (countText.length * 4.5) / 2;
       const mid = (x0 + x1) / 2;
       const countFits =
-        x1 - x0 >= countHalf * 2 + 4 && mid - countHalf >= rowLabelEnd(row) + 8;
+        count > 0 &&
+        x1 - x0 >= countHalf * 2 + 4 &&
+        mid - countHalf >= rowLabelEnd(row) + 8;
+      const enter = () => {
+        setCursor({ x: x0, t: turn.tools[0]?.start ?? turn.start });
+        showTarget({ kind: "bin", label, window });
+      };
+      const click = onFilterWindow ? () => onFilterWindow(window) : undefined;
       return (
         <Fragment>
-          <rect
-            className={clsx(
-              styles.turnRect,
-              styles.toolSpan,
-              onFilterWindow && styles.clickableSpan,
-              isHovered && styles.spanHovered
-            )}
-            x={x0}
-            y={spanY}
-            width={x1 - x0}
-            height={kAgentSpanHeight}
-            onMouseEnter={() => {
-              setCursor({ x: x0, t: turn.tools[0]?.start ?? turn.start });
-              showTarget({ kind: "bin", label, window });
-            }}
-            onMouseLeave={clearTarget}
-            onClick={onFilterWindow ? () => onFilterWindow(window) : undefined}
-          />
+          {ghostOnly ? (
+            <rect
+              className={clsx(
+                styles.ghostSpan,
+                styles.ghostAggregate,
+                onFilterWindow && styles.clickableSpan,
+                isHovered && styles.spanHovered
+              )}
+              x={x0 + 0.75}
+              y={spanY}
+              width={Math.max(x1 - x0 - 1.5, 0.5)}
+              height={kAgentSpanHeight}
+              onMouseEnter={enter}
+              onMouseLeave={clearTarget}
+              onClick={click}
+            />
+          ) : (
+            <rect
+              className={clsx(
+                styles.turnRect,
+                styles.toolSpan,
+                onFilterWindow && styles.clickableSpan,
+                isHovered && styles.spanHovered
+              )}
+              x={x0}
+              y={spanY}
+              width={x1 - x0}
+              height={kAgentSpanHeight}
+              onMouseEnter={enter}
+              onMouseLeave={clearTarget}
+              onClick={click}
+            />
+          )}
           {failed > 0 && (
             <rect
               className={styles.densityFailure}
