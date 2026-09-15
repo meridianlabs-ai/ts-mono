@@ -3,7 +3,7 @@ import { FC } from "react";
 
 import type { LoggerEvent } from "@tsmono/inspect-common/types";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
-import { isRecord, parsedJson as maybeParseJson } from "@tsmono/util";
+import { parseJsonRecord } from "@tsmono/util";
 
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
@@ -20,7 +20,7 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const obj = maybeParseJson(event.message.message);
+  const obj = parseJsonRecord(event.message.message);
   return (
     <EventRow
       eventNodeId={eventNode.id}
@@ -33,11 +33,7 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
     >
       <div className={clsx("text-size-base", styles.grid)}>
         <div className={clsx("text-size-smaller")}>
-          {isRecord(obj) ? (
-            <MetaDataGrid entries={obj} />
-          ) : (
-            event.message.message
-          )}
+          {obj ? <MetaDataGrid entries={obj} /> : event.message.message}
         </div>
         <div className={clsx("text-size-smaller", "text-style-secondary")}>
           {event.message.filename}:{event.message.lineno}
