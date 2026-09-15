@@ -156,6 +156,45 @@ describe("normalizeEvents", () => {
     expect(event.tools).toEqual([]);
   });
 
+  it("model: fills stop_reason on choices and drops non-record choices", () => {
+    const message = { role: "assistant", content: "hi", source: "generate" };
+    const event = expectEvent(
+      normalizeEvent({
+        event: "model",
+        timestamp: "t",
+        model: "m",
+        output: {
+          model: "m",
+          choices: [{ message }, "bogus", { message, stop_reason: "stop" }],
+          completion: "hi",
+        },
+      }),
+      "model"
+    );
+    expect(event.output.choices).toEqual([
+      { message, stop_reason: "unknown" },
+      { message, stop_reason: "stop" },
+    ]);
+  });
+
+  it("model: keeps output identity when every choice is complete", () => {
+    const output = {
+      model: "m",
+      choices: [
+        {
+          message: { role: "assistant", content: "hi", source: "generate" },
+          stop_reason: "stop",
+        },
+      ],
+      completion: "hi",
+    };
+    const event = expectEvent(
+      normalizeEvent({ event: "model", timestamp: "t", model: "m", output }),
+      "model"
+    );
+    expect(event.output).toBe(output);
+  });
+
   it("fills usage token counts when usage is present but partial", () => {
     const event = expectEvent(
       normalizeEvent({
@@ -365,6 +404,27 @@ describe("per-event-type read-time defaults", () => {
       score: { value: "", history: [] },
       intermediate: false,
     });
+  });
+
+  it("score_edit: fills score_name and the UNCHANGED edit sentinels", () => {
+    const event = normalizeEvent({
+      ...base,
+      event: "score_edit",
+      edit: { answer: "b", metadata: null },
+    });
+    expect(event).toMatchObject({
+      score_name: "",
+      edit: { answer: "b", value: "UNCHANGED", metadata: "UNCHANGED" },
+    });
+  });
+
+  it("score_edit: keeps a complete edit's identity", () => {
+    const edit = { value: 1, metadata: { by: "reviewer" } };
+    const event = expectEvent(
+      normalizeEvent({ ...base, event: "score_edit", score_name: "s", edit }),
+      "score_edit"
+    );
+    expect(event.edit).toBe(edit);
   });
 
   it("score: fills value and history on a score that omits them", () => {

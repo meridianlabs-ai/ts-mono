@@ -54,15 +54,10 @@ const messageToStr = (
       const funcName = tool.function;
       const args = tool.arguments;
 
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (typeof args === "object" && args !== null) {
-        const argsText = Object.entries(args)
-          .map(([k, v]) => `${k}: ${String(v)}`)
-          .join("\n");
-        entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
-      } else {
-        entry += `\nTool Call: ${funcName}\n`;
-      }
+      const argsText = Object.entries(args)
+        .map(([k, v]) => `${k}: ${String(v)}`)
+        .join("\n");
+      entry += `\nTool Call: ${funcName}\nArguments:\n${argsText}\n`;
     }
 
     return entry;

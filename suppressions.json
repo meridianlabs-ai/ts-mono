@@ -725,12 +725,6 @@
       "undescribed": 1
     }
   },
-  "apps/scout/src/api/api-scout-server.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/api/attachmentsHelpers.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
@@ -765,15 +759,10 @@
   },
   "apps/scout/src/app/components/columnSizing/strategies.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/scout/src/app/components/dataGrid/DataGrid.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "jsx-a11y/no-noninteractive-tabindex": {
       "count": 1,
       "undescribed": 1
@@ -818,10 +807,6 @@
     }
   },
   "apps/scout/src/app/components/TranscriptsNavbar.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "react-hooks/exhaustive-deps": {
       "count": 1,
       "undescribed": 1
@@ -832,17 +817,7 @@
       "count": 1
     }
   },
-  "apps/scout/src/app/hooks/useSelectedScanner.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/hooks/useWindowMessaging.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 2
     }
@@ -875,10 +850,6 @@
     }
   },
   "apps/scout/src/app/project/SettingsContent.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    },
     "react-hooks/set-state-in-effect": {
       "count": 1,
       "undescribed": 1
@@ -901,12 +872,6 @@
       "count": 2
     }
   },
-  "apps/scout/src/app/scan/scanners/dataframe/ScannerDataframeCSVButtons.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsHeader.tsx": {
     "react-hooks/exhaustive-deps": {
       "count": 1,
@@ -914,18 +879,8 @@
     }
   },
   "apps/scout/src/app/scan/scanners/list/ScannerResultsList.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 6
-    }
-  },
-  "apps/scout/src/app/scan/scanners/list/ScannerResultsRow.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/scout/src/app/scan/scanners/results/ScannerResultsSearch.tsx": {
@@ -940,10 +895,6 @@
     }
   },
   "apps/scout/src/app/scan/ScanPanelBody.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    },
     "react-hooks/exhaustive-deps": {
       "count": 1,
       "undescribed": 1
@@ -965,8 +916,7 @@
   },
   "apps/scout/src/app/scans/ScansGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     },
     "tsmono/no-raw-use-effect": {
       "count": 3
@@ -988,10 +938,6 @@
     }
   },
   "apps/scout/src/app/timeline/components/TimelineEventsView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -1020,8 +966,7 @@
   },
   "apps/scout/src/app/transcripts/TranscriptsGrid.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
+      "count": 2
     },
     "tsmono/no-raw-use-effect": {
       "count": 2
@@ -1034,8 +979,7 @@
   },
   "apps/scout/src/app/utils/arrow.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/scout/src/app/utils/normalizeScanRow.ts": {
@@ -1044,10 +988,6 @@
     }
   },
   "apps/scout/src/app/utils/refs.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    },
     "react-hooks/preserve-manual-memoization": {
       "count": 1,
       "undescribed": 1
@@ -1060,10 +1000,6 @@
     }
   },
   "apps/scout/src/app/validation/components/ValidationCaseEditor.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -1092,18 +1028,13 @@
       "count": 1,
       "undescribed": 1
     },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
   "apps/scout/src/debugging/navigationDebugging.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
+      "count": 1
     }
   },
   "apps/scout/src/types/json-value.ts": {
@@ -1153,18 +1084,6 @@
       "undescribed": 2
     }
   },
-  "packages/inspect-components/src/chat/ChatMessage.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
-  "packages/inspect-components/src/chat/ChatMessageRow.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-components/src/chat/ChatViewVirtualList.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -1177,51 +1096,13 @@
     }
   },
   "packages/inspect-components/src/chat/MessageContent.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "jsx-a11y/media-has-caption": {
       "count": 2,
       "undescribed": 1
     }
   },
-  "packages/inspect-components/src/chat/messageSearchText.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "packages/inspect-components/src/chat/messagesToStr.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "packages/inspect-components/src/chat/server-tools/ServerToolCall.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
-  "packages/inspect-components/src/chat/tools/ClientToolCall.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-components/src/chat/tools/tool.ts": {
     "@typescript-eslint/no-base-to-string": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "packages/inspect-components/src/chat/tools/ToolOutput.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
     }
@@ -1359,12 +1240,6 @@
       "undescribed": 1
     }
   },
-  "packages/inspect-components/src/transcript/BranchPoint.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-components/src/transcript/event/EventNavs.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
@@ -1376,10 +1251,6 @@
     }
   },
   "packages/inspect-components/src/transcript/event/EventPanel.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -1392,12 +1263,6 @@
   "packages/inspect-components/src/transcript/event/StopReasonBadge.test.tsx": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/event/StopReasonBadge.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/eventText.test.ts": {
@@ -1462,10 +1327,6 @@
     }
   },
   "packages/inspect-components/src/transcript/hooks/useTranscriptCollapse.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }
@@ -1488,12 +1349,6 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/ScoreEditEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "packages/inspect-components/src/transcript/search/useTranscriptSearchSource.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 3
@@ -1502,12 +1357,6 @@
   "packages/inspect-components/src/transcript/state/StateEventView.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/SubtaskEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/timeline/components/TimelineSelector.tsx": {
@@ -1524,33 +1373,9 @@
       "count": 1
     }
   },
-  "packages/inspect-components/src/transcript/timeline/contentItems.test.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
-    }
-  },
   "packages/inspect-components/src/transcript/timeline/fixtureTimeline.test.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/timeline/hooks/useTranscriptTimeline.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/timeline/markers.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
-  "packages/inspect-components/src/transcript/timeline/swimlaneLayout.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/timeline/timelineEventNodes.ts": {
@@ -1559,20 +1384,12 @@
     }
   },
   "packages/inspect-components/src/transcript/ToolEventView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "react-hooks/exhaustive-deps": {
       "count": 1,
       "undescribed": 1
     }
   },
   "packages/inspect-components/src/transcript/TranscriptViewNodes.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
       "count": 4
     }
@@ -1580,12 +1397,6 @@
   "packages/inspect-components/src/transcript/TranscriptVirtualListComponent.tsx": {
     "tsmono/no-raw-use-effect": {
       "count": 2
-    }
-  },
-  "packages/inspect-components/src/transcript/transform/treeify.ts": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "packages/inspect-components/src/usage/connectionHistory.test.ts": {

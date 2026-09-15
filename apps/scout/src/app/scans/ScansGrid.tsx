@@ -134,7 +134,7 @@ export const ScansGrid: FC<ScansGridProps> = ({
 
   // Compute effective column order
   const effectiveColumnOrder = useMemo(() => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): an older build's scansTableState blob is merged wholesale, so keys added since may be absent
     if (columnOrder && columnOrder.length > 0) {
       return columnOrder;
     }
