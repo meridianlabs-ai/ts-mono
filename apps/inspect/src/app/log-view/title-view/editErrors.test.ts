@@ -10,10 +10,9 @@
 
 import { describe, expect, test } from "vitest";
 
-import {
-  ApiError,
-  unwrapFastapiDetail,
-} from "../../../client/api/view-server/request";
+import { ApiError } from "@tsmono/util";
+
+import { unwrapFastapiDetail } from "../../../client/api/view-server/request";
 
 import { formatEditError } from "./editErrors";
 
