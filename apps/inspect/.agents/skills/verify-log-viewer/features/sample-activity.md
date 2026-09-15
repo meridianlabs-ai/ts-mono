@@ -85,7 +85,11 @@ only`) — the band hides there but its override is kept.
 - Dense logs (50+ turns): the merged model+tool band degrades to a
   per-pixel occupancy strip and the headline appends `per-pixel occupancy`;
   in Turns mode the strip bins by turn index and bin hovers read
-  `turns a–b · N model · M tool`.
+  `turns a–b · N model · M tool`. A Turns row also degrades once its
+  columns are narrower than 9 px (two 4.5 px halves: the 3 px tick floor
+  plus the 1.5 px seam each) if any of its turns splits into model and
+  tool halves — about 107 turns on a 960 px plot; a model-only row keeps
+  full columns down to the global 3 px-per-turn threshold.
 - Multi-conversation samples (`example_of_weird_subagent_logging.eval` in
   test_evals has 3 hand-off agents): one activity row per conversation with
   a checkbox gutter, a dotted `awaiting <child>` thread on the parent while

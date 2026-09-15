@@ -365,6 +365,111 @@ test("state outlines win over the Turns column seam in both themes", async ({
   await expect.poll(outline).toEqual(redDark);
 });
 
+/** `turns` one-second model calls 100 s apart; turn 1 also runs `tools`
+ *  sequential one-second tool calls — the narrow-column Turns shapes. */
+function narrowTurnsEvents(turns: number, tools: number): Events {
+  return [
+    activityModelEvent({ uuid: "m0", startSec: 0, endSec: 1, workingStart: 0 }),
+    ...Array.from({ length: tools }, (_, i) =>
+      activityToolEvent({
+        uuid: `t${i}`,
+        startSec: 2 + i * 2,
+        endSec: 3 + i * 2,
+        workingStart: 2 + i * 2,
+      })
+    ),
+    ...Array.from({ length: turns - 1 }, (_, i) =>
+      activityModelEvent({
+        uuid: `m${i + 1}`,
+        startSec: 100 * (i + 1),
+        endSec: 100 * (i + 1) + 1,
+        workingStart: 100 * (i + 1),
+      })
+    ),
+  ];
+}
+
+const kToolTealLight = "rgb(20, 184, 166)";
+const kToolTealDark = "rgb(45, 212, 191)";
+
+/** The plot's width, read from the widest horizontal axis line. */
+const plotWidth = (page: Page) =>
+  page.locator("line[class*='axisLine']").evaluateAll((lines) =>
+    Math.max(
+      ...lines.map((line) => {
+        const y1 = line.getAttribute("y1");
+        const y2 = line.getAttribute("y2");
+        if (y1 !== y2) return 0;
+        return (
+          Number(line.getAttribute("x2")) - Number(line.getAttribute("x1"))
+        );
+      })
+    )
+  );
+
+const toDark = (page: Page) =>
+  page.evaluate(() => {
+    document.documentElement.setAttribute("data-bs-theme", "dark");
+  });
+
+// A 1032 px viewport gives the 960 px plot where the global 3 px-per-turn
+// density threshold sits at exactly 320 turns: `turnsDense` is false at
+// equality and a tool half there is 1.5 px — entirely under the 1.5 px
+// seam stroke. 300 turns leaves ~0.1 px of teal.
+for (const turns of [320, 300]) {
+  test(`a ${turns}-turn Turns chart degrades to the strip before its tool half vanishes under the seam`, async ({
+    page,
+    network,
+  }) => {
+    await page.setViewportSize({ width: 1032, height: 900 });
+    await openSample(page, network, { events: narrowTurnsEvents(turns, 4) });
+    await page.getByRole("button", { name: "Turns", exact: true }).click();
+    await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+    expect(Math.abs((await plotWidth(page)) - 960)).toBeLessThan(1);
+    await expect(page.locator("rect[class*='toolSpan']")).toHaveCount(0);
+    await expect(page.locator("rect[class*='turnRect']")).toHaveCount(0);
+    await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+    // Turn 1 (one model call, four tools) is a tool-majority strip column
+    // in the tool teal, in both themes.
+    const column = page.locator("rect[class*='densityTool']").first();
+    await expect(column).toBeVisible();
+    const fill = () => column.evaluate((el) => getComputedStyle(el).fill);
+    await expect.poll(fill).toBe(kToolTealLight);
+    await toDark(page);
+    await expect.poll(fill).toBe(kToolTealDark);
+    await expect(page.locator("rect[class*='toolSpan']")).toHaveCount(0);
+  });
+}
+
+test("a tool half that keeps the tick floor under its seam stays a discrete rect in both themes", async ({
+  page,
+  network,
+}) => {
+  await page.setViewportSize({ width: 1032, height: 900 });
+  await openSample(page, network, { events: narrowTurnsEvents(100, 1) });
+  await page.getByRole("button", { name: "Turns", exact: true }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+  const tool = page.locator("rect[class*='toolSpan']");
+  await expect(tool).toHaveCount(1);
+  await expect(page.locator("rect[class*='densityTool']")).toHaveCount(0);
+  // Visible teal = the rect's width minus the seam stroke it carries.
+  const paint = () =>
+    tool.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return {
+        fill: style.fill,
+        visible:
+          Number(el.getAttribute("width")) - parseFloat(style.strokeWidth),
+      };
+    });
+  const light = await paint();
+  expect(light.fill).toBe(kToolTealLight);
+  expect(light.visible).toBeGreaterThanOrEqual(3);
+  await toDark(page);
+  await expect.poll(async () => (await paint()).fill).toBe(kToolTealDark);
+  expect((await paint()).visible).toBeGreaterThanOrEqual(3);
+});
+
 test("the tooltip survives pointer travel from the span to its footer", async ({
   page,
   network,

@@ -597,43 +597,50 @@ describe("ActivityChart sub-second tool ticks", () => {
   });
 });
 
+// A Turns slot's legibility floor: the 3 px tick plus the 1.5 px seam.
+const kSlotMinPx = 3 + 1.5;
+
+/** `nTurns` one-second model calls 100 s apart; turn 1 also runs `tools`
+ *  sequential one-second tool calls (the first `failed` of them erroring)
+ *  — the shape that squeezes a dozen slots into a 5 px half at 91 turns. */
+const sequentialTools = (
+  nTurns: number,
+  tools: number,
+  failed = 0
+): Event[] => [
+  modelCall({ start: 0, end: 1, uuid: "m0" }),
+  ...Array.from({ length: tools }, (_, i) =>
+    testToolEvent({
+      uuid: `t${i}`,
+      function: "python",
+      timestamp: iso(1 + i * 2),
+      completed: iso(2 + i * 2),
+      working_start: 1 + i * 2,
+      working_time: 1,
+      error: i < failed ? { type: "unknown", message: "boom" } : undefined,
+    })
+  ),
+  ...Array.from({ length: nTurns - 1 }, (_, i) =>
+    modelCall({
+      start: (i + 1) * 100,
+      end: (i + 1) * 100 + 1,
+      uuid: `m${i + 1}`,
+    })
+  ),
+];
+
+const toolRects = (container: HTMLElement): Element[] =>
+  [...container.querySelectorAll("rect[class*='toolSpan']")].sort(
+    (a, b) => attr(a, "x") - attr(b, "x")
+  );
+
+const densityRects = (container: HTMLElement): Element[] => [
+  ...container.querySelectorAll(
+    "rect[class*='densityModel'], rect[class*='densityTool']"
+  ),
+];
+
 describe("ActivityChart crowded Turns tool halves", () => {
-  const kSlotMinPx = 3 + 1.5;
-
-  /** `nTurns` one-second model calls 100 s apart; turn 1 also runs `tools`
-   *  sequential one-second tool calls (the first `failed` of them erroring)
-   *  — the shape that squeezes a dozen slots into a 5 px half at 91 turns. */
-  const sequentialTools = (
-    nTurns: number,
-    tools: number,
-    failed = 0
-  ): Event[] => [
-    modelCall({ start: 0, end: 1, uuid: "m0" }),
-    ...Array.from({ length: tools }, (_, i) =>
-      testToolEvent({
-        uuid: `t${i}`,
-        function: "python",
-        timestamp: iso(1 + i * 2),
-        completed: iso(2 + i * 2),
-        working_start: 1 + i * 2,
-        working_time: 1,
-        error: i < failed ? { type: "unknown", message: "boom" } : undefined,
-      })
-    ),
-    ...Array.from({ length: nTurns - 1 }, (_, i) =>
-      modelCall({
-        start: (i + 1) * 100,
-        end: (i + 1) * 100 + 1,
-        uuid: `m${i + 1}`,
-      })
-    ),
-  ];
-
-  const toolRects = (container: HTMLElement): Element[] =>
-    [...container.querySelectorAll("rect[class*='toolSpan']")].sort(
-      (a, b) => attr(a, "x") - attr(b, "x")
-    );
-
   it("collapses twelve sequential tools in a 5 px half to one bounded aggregate rect", () => {
     const onFilterWindow = vi.fn<(window: TimeWindow) => void>();
     const { container } = renderChart(sequentialTools(91, 12), {
@@ -723,6 +730,97 @@ describe("ActivityChart crowded Turns tool halves", () => {
     const last = tools[3]!;
     expect(attr(last, "x") + attr(last, "width")).toBeCloseTo(left + colWidth);
     expect(container.querySelector("[class*='densityFailure']")).toBeNull();
+  });
+});
+
+describe("ActivityChart narrow Turns columns", () => {
+  // The stubbed chart is 1000 px wide → a 960 px plot, the reviewer's
+  // geometry: the global 3 px-per-turn density threshold sits at 320 turns
+  // and the 9 px column that gives each half its 4.5 px floor at 106.
+
+  it("degrades a row to the strip at the global density boundary instead of a seam-covered half", () => {
+    // 320 turns: `turnsDense` is false at equality, the tool half would be
+    // 1.5 px — all seam stroke, no teal.
+    const { container } = renderChart(sequentialTools(320, 4), {
+      axisMode: "turns",
+    });
+    const { width } = plotBounds(container);
+    expect(width / 320).toBeCloseTo(3);
+    expect(toolRects(container)).toHaveLength(0);
+    expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
+      0
+    );
+    expect(densityRects(container).length).toBeGreaterThan(0);
+    expect(screen.getByText(/per-pixel occupancy/)).toBeTruthy();
+  });
+
+  it("degrades at 300 turns, where the aggregate would keep ~0.1 px of teal", () => {
+    const { container } = renderChart(sequentialTools(300, 4), {
+      axisMode: "turns",
+    });
+    expect(toolRects(container)).toHaveLength(0);
+    expect(densityRects(container).length).toBeGreaterThan(0);
+  });
+
+  it("degrades a single narrow slot the same way (200 turns, one tool)", () => {
+    const { container } = renderChart(sequentialTools(200, 1), {
+      axisMode: "turns",
+    });
+    expect(toolRects(container)).toHaveLength(0);
+    expect(densityRects(container).length).toBeGreaterThan(0);
+    expect(screen.getByText(/per-pixel occupancy/)).toBeTruthy();
+  });
+
+  it("switches exactly where a half drops under the tick floor plus seam", () => {
+    const legible = renderChart(sequentialTools(106, 1), { axisMode: "turns" });
+    const { width } = plotBounds(legible.container);
+    expect(width / 106 / 2).toBeGreaterThanOrEqual(kSlotMinPx);
+    const tools = toolRects(legible.container);
+    expect(tools).toHaveLength(1);
+    expect(attr(tools[0]!, "width")).toBeCloseTo(width / 106 / 2);
+    expect(densityRects(legible.container)).toHaveLength(0);
+    cleanup();
+    const dense = renderChart(sequentialTools(107, 1), { axisMode: "turns" });
+    expect(width / 107 / 2).toBeLessThan(kSlotMinPx);
+    expect(toolRects(dense.container)).toHaveLength(0);
+    expect(densityRects(dense.container).length).toBeGreaterThan(0);
+  });
+
+  it("keeps a model-only row's columns down to the global threshold", () => {
+    const { container } = renderChart(sequentialTools(200, 0), {
+      axisMode: "turns",
+    });
+    expect(
+      container.querySelectorAll("rect[class*='turnRect']").length
+    ).toBeGreaterThan(0);
+    expect(densityRects(container)).toHaveLength(0);
+    expect(screen.queryByText(/per-pixel occupancy/)).toBeNull();
+  });
+
+  it("never draws a tool rect narrower than the floor plus seam at any turn count", () => {
+    for (const [nTurns, tools] of [
+      [50, 1],
+      [91, 12],
+      [106, 4],
+      [107, 4],
+      [150, 1],
+      [200, 2],
+      [300, 4],
+      [320, 4],
+    ] as const) {
+      const { container } = renderChart(sequentialTools(nTurns, tools), {
+        axisMode: "turns",
+      });
+      const rects = toolRects(container);
+      if (rects.length === 0) {
+        expect(densityRects(container).length).toBeGreaterThan(0);
+      } else {
+        for (const rect of rects) {
+          expect(attr(rect, "width")).toBeGreaterThanOrEqual(kSlotMinPx - 1e-6);
+        }
+      }
+      cleanup();
+    }
   });
 });
 

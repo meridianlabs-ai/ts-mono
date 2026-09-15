@@ -454,6 +454,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     turnsMode && turn !== undefined ? colRight(turn) : xAt(t);
   // Density fallback in Turns mode bins by turn index instead of time.
   const turnsDense = turnsMode && nTurns > plotWidth / kDensityPxPerSpan;
+  // A split column hands each half colWidth / 2; under the tick floor plus
+  // the seam the half's fill is all stroke, so a row that splits any turn
+  // degrades to the strip before that (review pass 8).
+  const turnHalfLegible = colWidth / 2 >= kMinSpanPx + kTurnSeamPx;
 
   // ── marker clusters (computed before the bands: a cluster's count box
   //    needs extra rail headroom, which shifts every band down) ──────────
@@ -1375,6 +1379,20 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     return turns.filter((t) => members.has(t.rowId));
   };
 
+  /** Whether a display row draws the Turns density strip: the global turn
+   *  count threshold, or columns too narrow for the equal halves a turn
+   *  with a tool or rejected slot needs (a model-only row keeps its full
+   *  columns down to the global threshold). */
+  const turnRowDense = (row: AgentRow): boolean =>
+    turnsDense ||
+    (turnsMode &&
+      !turnHalfLegible &&
+      rowTurns(row).some(
+        (turn) =>
+          turn.model !== undefined &&
+          (turn.tools.length > 0 || turn.rejected > 0)
+      ));
+
   /** Turns mode (handoff 8b): one gap-free column per turn — the grey model
    *  half then the teal tool half (equal halves whenever the turn has a
    *  slot), bursts keeping their sub-lanes inside the tool half, rejected
@@ -1792,7 +1810,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       0
     );
     const anyDense = turnsMode
-      ? turnsDense
+      ? visibleRows.some(turnRowDense)
       : visibleRows.some(
           (row) => row.spans.length > plotWidth / kDensityPxPerSpan
         );
@@ -1839,7 +1857,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               )}
               {on &&
                 (turnsMode
-                  ? turnsDense
+                  ? turnRowDense(row)
                     ? renderTurnDenseRow(row, rowTop)
                     : renderTurnRow(row, rowTop)
                   : dense
