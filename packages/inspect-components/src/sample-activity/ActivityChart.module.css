@@ -141,13 +141,6 @@
   fill: transparent;
 }
 
-/* Gutter legend caption while the cursor is live. */
-.legendCaption {
-  font-size: 7px;
-  fill: var(--bs-secondary-color);
-  letter-spacing: 0.4px;
-}
-
 /* Token burn stacked by conversation (handoff 10a): each layer fills in
    its row hue at 0.28 with a 1px top edge in the same hue (both inline). */
 .tokenLayer {
@@ -160,16 +153,10 @@
   stroke-width: 1;
 }
 
-/* Gutter legend under a curve band's label: swatch · name · mono value. */
+/* Gutter legend under a curve band's label: swatch · name. */
 .legendName {
   font-size: 9px;
   fill: var(--bs-body-color);
-}
-
-.legendValue {
-  font-size: 9px;
-  fill: var(--bs-secondary-color);
-  font-family: var(--bs-font-monospace);
 }
 
 /* ── model & tool activity ── */

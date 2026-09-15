@@ -499,8 +499,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     kPlotBottom,
     kAgentRowFirstLabelY - 4 + agentRowCount * kAgentRowPitch + 4
   );
-  // Curve bands with a gutter legend grow to fit one legend line per row
-  // plus the AT CURSOR caption.
+  // Curve bands with a gutter legend grow to fit one legend line per row.
   const legendPlotBottom = multiAgent
     ? Math.max(kPlotBottom, kPlotTop + 6 + curveRows.length * kLegendPitch + 8)
     : kPlotBottom;
@@ -566,7 +565,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  compaction drops so the line doesn't slope through the cliff — each
    *  drop restarts the run at tokens_after. This is the geometry the
    *  context band draws AND what its read-outs evaluate, so the dots and
-   *  AT CURSOR values always sit on the line. */
+   *  the hover card's values always sit on the line. */
   const contextRunsCache = new Map<string, ContextVertex[][]>();
   const contextRuns = (row: AgentRow): ContextVertex[][] => {
     if (isFoldRow(row)) {
@@ -642,22 +641,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       const value = contextValueAt(row, px);
       return isFoldRow(row) ? { row, value, aggregate: "max" } : { row, value };
     });
-  /** A legend context value; the fold's is labelled as its largest
-   *  member's, at rest and at the cursor alike. */
-  const contextLegendValue = (
-    row: AgentRow,
-    value: number | undefined
-  ): ReactNode => {
-    if (value === undefined) return "—";
-    const text = fmtTokens(value);
-    if (!isFoldRow(row)) return text;
-    return (
-      <Fragment>
-        <tspan className={styles.legendCaption}>max </tspan>
-        {text}
-      </Fragment>
-    );
-  };
 
   // ── shared band chrome ────────────────────────────────────────────────
 
@@ -702,48 +685,23 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     </text>
   );
 
-  /** Gutter legend for a curve band (handoff 10a/11a): swatch · name ·
-   *  value — the peak/total normally, the value AT CURSOR while hovering. */
-  const gutterLegend = (
-    band: Band,
-    restingValue: (row: AgentRow) => ReactNode,
-    cursorValue: (row: AgentRow, at: Cursor) => ReactNode
-  ): ReactNode => {
+  /** Gutter legend for a curve band (handoff 10a): swatch · name, one row
+   *  per curve. The per-row values (peak / total, value at the cursor)
+   *  used to sit here too and read as a second axis against the y ticks;
+   *  they live in the hover card now (design owner 2026-09-15). */
+  const gutterLegend = (band: Band): ReactNode => {
     if (!multiAgent) return null;
-    return (
-      <Fragment>
-        {curveRows.map((row, i) => {
-          const y = band.top + kPlotTop + 6 + i * kLegendPitch;
-          return (
-            <g key={`legend-${row.id}`}>
-              <circle cx={10} cy={y - 3} r={3} fill={row.hue} />
-              <text className={styles.legendName} x={17} y={y}>
-                {truncateLabel(row.name, 11)}
-              </text>
-              {/* Right-aligned short of the y-tick labels, which keep the
-                  gutter's right edge. */}
-              <text
-                className={styles.legendValue}
-                x={plotLeft - 30}
-                y={y}
-                textAnchor="end"
-              >
-                {cursor ? cursorValue(row, cursor) : restingValue(row)}
-              </text>
-            </g>
-          );
-        })}
-        {cursor && (
-          <text
-            className={styles.legendCaption}
-            x={17}
-            y={band.top + kPlotTop + 6 + curveRows.length * kLegendPitch}
-          >
-            AT CURSOR
+    return curveRows.map((row, i) => {
+      const y = band.top + kPlotTop + 6 + i * kLegendPitch;
+      return (
+        <g key={`legend-${row.id}`}>
+          <circle cx={10} cy={y - 3} r={3} fill={row.hue} />
+          <text className={styles.legendName} x={17} y={y}>
+            {truncateLabel(row.name, 16)}
           </text>
-        )}
-      </Fragment>
-    );
+        </g>
+      );
+    });
   };
 
   const pointerPx = (event: ReactMouseEvent<SVGElement>): number => {
@@ -992,11 +950,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         )}
         {axisFrame(band)}
         {yTicks(y, max)}
-        {gutterLegend(
-          band,
-          (row) => fmtTokens(curveTokenTotal(row)),
-          (row) => fmtTokens(cursorValues?.get(row.id) ?? 0)
-        )}
+        {gutterLegend(band)}
         {readoutDots(dots)}
       </g>
     );
@@ -1103,11 +1057,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         })()}
         {axisFrame(band)}
         {yTicks(y, max)}
-        {gutterLegend(
-          band,
-          (row) => contextLegendValue(row, curveContextPeak(row)),
-          (row, at) => contextLegendValue(row, contextValueAt(row, at.x))
-        )}
+        {gutterLegend(band)}
         {readoutDots(dots)}
       </g>
     );

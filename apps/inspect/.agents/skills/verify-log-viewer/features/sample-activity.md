@@ -43,14 +43,15 @@ an Activity test into the standing spec.
   `MODEL & TOOL ACTIVITY`.
 - Axis toggle (right end of the chip row): `getByRole("button", { name:
 "Wall clock", exact: true })` / `"Turns"`; Turns relabels the axis `TURN`
-  (one equal-width column per model turn, ticks thin to every 10th/100th)
+  (one equal-width column per model turn, split in equal model / tool
+  halves, 6–10 gridlines whatever the turn count)
   and greys the Working / waiting chip (`disabled`, suffix `wall clock
 only`) — the band hides there but its override is kept.
 - Agent gutter (only when a sample has more than one conversation — agent /
   subtask / solver spans, plus grader rows): `getByRole("checkbox", { name:
 "Hide <agent>" | "Show <agent>" })`; rows past 4 fold into a
-  `+N more` button. Curve bands carry a swatch · name · value legend that
-  reads `AT CURSOR` while hovering.
+  `+N more` button. Curve bands carry a swatch · name legend
+  (`text[class*='legendName']`); per-row values are on the hover card only.
 - Hover: any pointer position over the plot draws one hairline through
   every band plus a dark time pill on the axis (`[class*='cursorPillText']`,
   `turn N` in Turns mode). Hovering a span, marker, stall, burst, context

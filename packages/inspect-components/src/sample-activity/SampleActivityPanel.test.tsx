@@ -670,7 +670,7 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
     }
   });
 
-  it("switches the gutter legend to AT CURSOR values on a multi-conversation sample", () => {
+  it("names each conversation in the curve-band gutter legends, without values", () => {
     const events: Event[] = [
       testSpanBeginEvent({
         id: "a",
@@ -719,22 +719,30 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
       testSpanEndEvent({ id: "a", timestamp: iso(20) }),
     ];
     const { container } = mountPanel({ events });
-    expect(screen.queryByText("AT CURSOR")).toBeNull();
-    const legendValues = () =>
-      [...container.querySelectorAll("text[class*='legendValue']")].map(
+    // Swatch + name per row, context band first; the peaks/totals live in
+    // the y-axis ticks and the hover card, not next to the names (design
+    // owner 2026-09-15).
+    const legendNames = () =>
+      [...container.querySelectorAll("text[class*='legendName']")].map(
         (el) => el.textContent
       );
-    // At rest: context peaks (1,000 / 500) and burn totals (1,100 / 550),
-    // context band first.
-    expect(legendValues()).toEqual(["1k", "500", "1k", "550"]);
+    expect(legendNames()).toEqual([
+      "orchestrator",
+      "researcher",
+      "orchestrator",
+      "researcher",
+    ]);
+    expect(container.querySelector("text[class*='legendValue']")).toBeNull();
+    expect(screen.queryByText("AT CURSOR")).toBeNull();
+    const yTicks = [
+      ...container.querySelectorAll("text[class*='yTickLabel']"),
+    ].map((el) => el.textContent);
+    expect(yTicks).toContain("1k");
 
     const plot = container.querySelector("rect[class*='plotHit']");
     if (!(plot instanceof SVGElement))
       throw new Error("expected the plot hit rect");
-    // Pointer at t≈15 of the 30s window (the harness completes at 30s):
-    // the orchestrator's call completed at t=10 and burned 1,100; the
-    // researcher's completes at t=20, so it has burned nothing yet, while
-    // its context (500 at t=10) is already in view.
+    // A live cursor changes nothing in the legend.
     const axisLine = [
       ...container.querySelectorAll("line[class*='axisLine']"),
     ].find((line) => line.getAttribute("y1") === line.getAttribute("y2"));
@@ -744,8 +752,9 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
       clientX: plotLeft + (plotRight - plotLeft) / 2,
       clientY: 40,
     });
-    expect(screen.getAllByText("AT CURSOR").length).toBeGreaterThan(0);
-    expect(legendValues()).toEqual(["1k", "500", "1k", "0"]);
+    expect(screen.queryByText("AT CURSOR")).toBeNull();
+    expect(legendNames()).toHaveLength(4);
+    expect(container.querySelector("text[class*='legendValue']")).toBeNull();
   });
 });
 

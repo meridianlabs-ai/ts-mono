@@ -711,26 +711,25 @@ describe("ActivityChart folded conversations at scale", () => {
     ).toHaveLength(5);
     expect(attr(container.querySelector("svg"), "height")).toBeLessThan(600);
     expect(screen.getAllByText("+996 more").length).toBeGreaterThanOrEqual(3);
-    // Resting legend: the fold's total is its members' (996 × 100).
-    const legend = [
-      ...container.querySelectorAll("text[class*='legendValue']"),
-    ].map((el) => el.textContent);
-    expect(legend).toContain("100k");
+    // The gutter legend is swatch + name only (design owner 2026-09-15):
+    // five names per curve band, no per-row values next to the y ticks.
+    const legendNames = () =>
+      [...container.querySelectorAll("text[class*='legendName']")].map(
+        (el) => el.textContent
+      );
+    expect(legendNames()).toHaveLength(10);
+    expect(legendNames().filter((n) => n === "+996 more")).toHaveLength(2);
+    expect(container.querySelector("text[class*='legendValue']")).toBeNull();
 
-    // A cursor at the right edge reads every point: the fold's AT CURSOR
-    // burn is the same aggregate (its context is the largest member's),
-    // computed once for all five rows.
+    // A cursor at the right edge draws the read-out dots and the hover
+    // card; the legend stays as it was, with no AT CURSOR caption.
     const { right } = plotBounds(container);
     const hit = container.querySelector("rect[class*='plotHit']");
     if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
     fireEvent.mouseMove(hit, { clientX: right, clientY: 50 });
-    const atCursor = [
-      ...container.querySelectorAll("text[class*='legendValue']"),
-    ].map((el) => el.textContent);
-    expect(atCursor).toHaveLength(10);
-    expect(atCursor.filter((v) => v === "100k")).toHaveLength(1);
-    expect(atCursor.filter((v) => v === "max 100")).toHaveLength(1);
-    expect(atCursor.filter((v) => v === "100")).toHaveLength(8);
+    expect(legendNames()).toHaveLength(10);
+    expect(screen.queryByText("AT CURSOR")).toBeNull();
+    expect(container.querySelector("text[class*='legendValue']")).toBeNull();
   }, 20000);
 
   // The two folded conversations hold 100 and 300 tokens of context, so a
@@ -752,11 +751,6 @@ describe("ActivityChart folded conversations at scale", () => {
       }),
     ]).flat();
 
-  const legendValues = (container: HTMLElement) =>
-    [...container.querySelectorAll("text[class*='legendValue']")].map(
-      (el) => el.textContent
-    );
-
   const hoverContextEdge = (container: HTMLElement) => {
     const { right } = plotBounds(container);
     const contextLabel = [
@@ -770,26 +764,18 @@ describe("ActivityChart folded conversations at scale", () => {
     });
   };
 
-  it("labels the fold's context as its largest member's while its burn sums", () => {
+  it("captions the fold's context on the hover card as its largest member's", () => {
     vi.useFakeTimers();
     try {
       const { container } = renderChart(sixWithContext());
-      // At rest: context legend "max 300", burn legend 400.
-      expect(legendValues(container)).toContain("max 300");
-      expect(legendValues(container)).toContain("400");
-      expect(legendValues(container)).not.toContain("300");
-
-      // At the cursor: the same labelled maximum in the legend and on the
-      // card.
       hoverContextEdge(container);
-      expect(legendValues(container)).toContain("max 300");
-      expect(legendValues(container)).toContain("400");
       act(() => {
         vi.advanceTimersByTime(150);
       });
       const card = container.querySelector("[class*='tooltip']")?.textContent;
       expect(card).toContain("+2 more");
       expect(card).toContain("max 300");
+      expect(card).not.toContain("400");
     } finally {
       vi.useRealTimers();
     }
@@ -804,7 +790,6 @@ describe("ActivityChart folded conversations at scale", () => {
         hiddenAgentIds: ["a0", "a1", "a2", "a3"],
       });
       hoverContextEdge(container);
-      expect(legendValues(container)).toContain("max 300");
       act(() => {
         vi.advanceTimersByTime(150);
       });
