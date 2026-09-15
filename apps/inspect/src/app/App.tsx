@@ -16,7 +16,6 @@ import "./App.css";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
-import ClipboardJS from "clipboard";
 import { FC, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { RouterProvider } from "react-router/dom";
 
@@ -24,7 +23,7 @@ import {
   ComponentIconProvider,
   ComponentIcons,
 } from "@tsmono/react/components";
-import { useEventListener, useMountEffect } from "@tsmono/react/hooks";
+import { useEventListener } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename, getVscodeApi, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
@@ -167,11 +166,6 @@ export const AppContent: FC = () => {
       onMessage({ data: embedded });
     }
   }, [onMessage]);
-
-  useMountEffect(() => {
-    const clipboard = new ClipboardJS(".clipboard-button,.copy-button");
-    return () => clipboard.destroy();
-  });
 
   return (
     <>
