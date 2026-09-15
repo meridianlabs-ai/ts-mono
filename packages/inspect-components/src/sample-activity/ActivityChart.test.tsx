@@ -437,6 +437,38 @@ describe("ActivityChart sub-second tool ticks", () => {
   });
 });
 
+describe("ActivityChart Turns gridlines", () => {
+  const nTurns = (n: number): Event[] =>
+    Array.from({ length: n }, (_, i) =>
+      modelCall({ start: i * 2, end: i * 2 + 1, uuid: `m${i}` })
+    );
+  const separators = (container: HTMLElement) =>
+    container.querySelectorAll("line[class*='turnSeparator']");
+  const tickLabels = (container: HTMLElement) =>
+    container.querySelectorAll(
+      "text[class*='axisLabel'][text-anchor='middle']"
+    );
+
+  it.each([91, 1000])(
+    "draws 6–10 separators and a label per separator plus turn 1 for %i turns",
+    (n) => {
+      const { container } = renderChart(nTurns(n), { axisMode: "turns" });
+      const seps = separators(container);
+      expect(seps.length).toBeGreaterThanOrEqual(6);
+      expect(seps.length).toBeLessThanOrEqual(10);
+      expect(tickLabels(container)).toHaveLength(seps.length + 1);
+    },
+    20000
+  );
+
+  it("keeps one separator per column boundary for a handful of turns", () => {
+    const { container } = renderChart(nTurns(5), { axisMode: "turns" });
+    expect(separators(container)).toHaveLength(4);
+    const labels = [...tickLabels(container)].map((l) => l.textContent);
+    expect(labels).toEqual(["1", "2", "3", "4", "5"]);
+  });
+});
+
 describe("ActivityChart corrupt telemetry", () => {
   it("keeps token and context geometry finite when usage overflows", () => {
     // 1e308 + 1e308 = Infinity: without a bound the token path's d

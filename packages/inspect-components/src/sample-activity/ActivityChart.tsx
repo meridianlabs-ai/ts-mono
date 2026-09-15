@@ -137,6 +137,20 @@ const allotWidths = (
   }
   return widths;
 };
+// Turns-mode gridlines: at most this many separators across the plot,
+// whatever the turn count (design owner 2026-09-15).
+const kMaxTurnGridlines = 10;
+
+// The smallest 1-2-5 step that keeps the separator count within the cap,
+// like the wall-clock axis' interval table.
+const turnGridStep = (nTurns: number): number => {
+  for (let decade = 1; ; decade *= 10) {
+    for (const unit of [1, 2, 5]) {
+      const step = unit * decade;
+      if (Math.floor(nTurns / step) <= kMaxTurnGridlines) return step;
+    }
+  }
+};
 // Tooltip behaviour (handoff 11b): show delay, flip-left margin.
 const kTooltipDelayMs = 120;
 const kTooltipFlipPx = 280;
@@ -389,6 +403,10 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const nTurns = turns.length;
   const turnsMode = axisMode === "turns" && nTurns > 0;
   const colWidth = turnsMode ? plotWidth / nTurns : 0;
+  // Separators and tick labels sit on every `turnStep`-th column (plus
+  // turn 1's label): 6–10 gridlines whether the sample has 5 turns or 1,000.
+  const turnStep = turnGridStep(nTurns);
+  const onTurnGrid = (index: number): boolean => index % turnStep === 0;
   const colLeft = (index: number): number => plotLeft + (index - 1) * colWidth;
   const colRight = (index: number): number => plotLeft + index * colWidth;
   const turnIndexAtPx = (px: number): number =>
@@ -2006,8 +2024,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   // ── axis (task-timeline tick logic) ───────────────────────────────────
 
   const renderTurnAxis = () => {
-    // Tick per column, thinning to every 10th / 100th as columns narrow.
-    const step = colWidth >= 24 ? 1 : colWidth >= 2.4 ? 10 : 100;
     const roleOf = (turn: TurnColumn): string | undefined =>
       data.agentRows.find((row) => row.id === turn.rowId)?.role;
     return (
@@ -2028,9 +2044,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           TURN
         </text>
         {turns.map((turn) => {
-          if (turn.index % step !== 0 && !(step === 1 || turn.index === 1)) {
-            return null;
-          }
+          if (!onTurnGrid(turn.index) && turn.index !== 1) return null;
           const cx = (colLeft(turn.index) + colRight(turn.index)) / 2;
           const role = colWidth >= 40 ? roleOf(turn) : undefined;
           return (
@@ -2296,11 +2310,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             height={Math.max(axisY - plotTopY, 0)}
             onMouseMove={onPlotMove}
           />
-          {/* Faint full-height column separators behind every band (8b). */}
+          {/* Faint full-height separators behind every band (8b) on the
+              gridline columns' left edges; the plot edge itself is skipped. */}
           {turnsMode &&
-            colWidth >= 4 &&
             turns
-              .slice(1)
+              .filter((turn) => turn.index > 1 && onTurnGrid(turn.index))
               .map((turn) => (
                 <line
                   key={`sep-${turn.index}`}

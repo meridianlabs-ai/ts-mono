@@ -863,11 +863,22 @@ describe("SampleActivityPanel Turns axis", () => {
     expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
       0
     );
-    // ~2px columns: ticks thin to every 100th turn.
+    // 400 turns: the 1-2-5 gridline step lands on 50 (8 separators).
     const tickLabels = [
       ...container.querySelectorAll("text[class*='axisLabel']"),
     ].map((tick) => tick.textContent);
-    expect(tickLabels).toEqual(["TURN", "1", "100", "200", "300", "400"]);
+    expect(tickLabels).toEqual([
+      "TURN",
+      "1",
+      "50",
+      "100",
+      "150",
+      "200",
+      "250",
+      "300",
+      "350",
+      "400",
+    ]);
     // A bin hover reads a turn range.
     const hit = container.querySelector("rect[class*='densityHit']");
     if (!(hit instanceof SVGElement))
