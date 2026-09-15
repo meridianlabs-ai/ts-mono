@@ -114,6 +114,7 @@ export {
   usePassiveEvalSampleData,
   useEvalSampleData,
 } from "./sampleData";
+export { resolveSample } from "./sampleFetch";
 export {
   type SamplesListingRow,
   type SamplesScope,
@@ -149,6 +150,11 @@ export { useSampleMessages } from "./sampleMessages";
 export type { MessageRowsFeed } from "./messageRowsQuery";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export { useSampleSummaries } from "./sampleSummaries";
+export {
+  createSampleStreamSession,
+  type SampleStreamSession,
+  type SampleStreamTick,
+} from "./sampleStream";
 export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
 export { FetchEngineController } from "./FetchEngineController";
 export { useDatabaseStats } from "./useFetchEngineStatus";

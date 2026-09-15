@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "declarationMap": false,
+    "rootDir": "../.."
+  },
+  "extends": "./tsconfig.json",
+  "include": ["src", "../../packages/*/src", "../../tooling/tsconfig/css.d.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "lib",
+    "e2e",
+    "../../packages/*/src/**/*.test.ts",
+    "../../packages/*/src/**/*.test.tsx",
+    "../../packages/*/src/**/*.stories.ts",
+    "../../packages/*/src/**/*.stories.tsx",
+    "../../packages/*/src/**/test/**",
+    "../../packages/*/src/**/testing/**",
+    "../../packages/*/src/**/testFixtures.*",
+    "../../packages/*/src/**/testHelpers.*",
+    "../../packages/*/src/**/syntheticNodes.*",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/testFixtures.*",
+    "src/**/testClientApi.*",
+    "src/**/testDescriptors.*",
+    "src/**/testStore.*",
+    "src/setupTests.ts"
+  ]
+}

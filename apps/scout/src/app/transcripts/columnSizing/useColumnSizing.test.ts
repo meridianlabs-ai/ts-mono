@@ -5,6 +5,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TranscriptColumn } from "../columns";
 
+import { useColumnSizing } from "./useColumnSizing";
+
 // Mock the store
 const mockSetTableState = vi.fn();
 const mockStoreState = {
@@ -23,10 +25,6 @@ const storeDouble = vi.hoisted(() => ({ useStore: vi.fn() }));
 vi.mock("../../../state/store", () => storeDouble);
 
 describe("useColumnSizing", () => {
-  // Dynamic import ensures the module resolves against the vi.mock above
-  const loadUseColumnSizing = async () =>
-    (await import("./useColumnSizing")).useColumnSizing;
-
   const mockColumns: TranscriptColumn[] = [
     {
       accessorKey: "col1",
@@ -50,9 +48,7 @@ describe("useColumnSizing", () => {
 
   const mockData: never[] = [];
 
-  let useColumnSizing: Awaited<ReturnType<typeof loadUseColumnSizing>>;
-
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks();
 
     // Reset mock store state
@@ -61,8 +57,6 @@ describe("useColumnSizing", () => {
       sizingStrategy: "default",
       manuallyResizedColumns: [],
     };
-
-    useColumnSizing = await loadUseColumnSizing();
 
     // Setup useStore mock to return setTableState
     storeDouble.useStore.mockImplementation(
