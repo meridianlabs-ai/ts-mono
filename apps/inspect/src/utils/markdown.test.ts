@@ -156,6 +156,78 @@ describe("truncateMarkdown", () => {
     });
   });
 
+  describe("output parity", () => {
+    it("pins truncation of text with a link", () => {
+      const text =
+        "Read the [inspect docs](https://inspect.aisi.org.uk/) before you start writing evals, then come back here for the rest of the walkthrough.";
+      expect(truncateMarkdown(text, 60)).toBe(
+        "Read the inspect docs before you start writing evals,..."
+      );
+    });
+
+    it("pins truncation of text with an image", () => {
+      const text =
+        "Diagram: ![architecture overview](https://example.com/arch.png) shows how the solver, scorer and model interact during a run.";
+      expect(truncateMarkdown(text, 50)).toBe(
+        "Diagram: architecture overview shows how the..."
+      );
+    });
+
+    it("pins truncation of text with a fenced block", () => {
+      const text =
+        "Run this first:\n```python\nprint('hello world')\n```\nThen inspect the output carefully and report anything odd.";
+      expect(truncateMarkdown(text, 70)).toBe(
+        "Run this first:print('hello world')..."
+      );
+    });
+
+    it("pins truncation of plain text", () => {
+      const text =
+        "The quick brown fox jumps over the lazy dog while the cat watches from the window sill.";
+      expect(truncateMarkdown(text, 40)).toBe(
+        "The quick brown fox jumps over the..."
+      );
+    });
+  });
+
+  describe("adversarial input", () => {
+    // Log-authored sample text reaches truncateMarkdown unbounded, so its
+    // cost must not grow with the size of the string. Bounds are generous:
+    // the fixed path takes single-digit milliseconds.
+    const kBudgetMs = 200;
+
+    it("does not backtrack cubically on a line of repeated '[]('", () => {
+      const text = "[](".repeat(2000);
+      const start = performance.now();
+      const result = truncateMarkdown(text, 250);
+      expect(performance.now() - start).toBeLessThan(kBudgetMs);
+      expect(result.length).toBeLessThanOrEqual(250);
+    });
+
+    it("does not scan quadratically on a line of repeated '['", () => {
+      const text = "[".repeat(30_000);
+      const start = performance.now();
+      const result = truncateMarkdown(text, 250);
+      expect(performance.now() - start).toBeLessThan(kBudgetMs);
+      expect(result.length).toBeLessThanOrEqual(250);
+    });
+
+    it("costs the same for a 300KB sample as for a short one", () => {
+      const text = "[](".repeat(100_000) + " " + "word ".repeat(20_000);
+      const start = performance.now();
+      const result = truncateMarkdown(text, 360);
+      expect(performance.now() - start).toBeLessThan(kBudgetMs);
+      expect(result.length).toBeLessThanOrEqual(360);
+    });
+
+    it("keeps the ellipsis when the bounded window hides later content", () => {
+      // A setext underline carries no visible text, so the window ends
+      // before any content limit is reached; the text is still truncated.
+      const text = "Title *now*\n" + "=".repeat(5000) + "\n\nMore text after";
+      expect(truncateMarkdown(text, 250)).toBe("Title now...");
+    });
+  });
+
   describe("default values", () => {
     it("should use default max length of 250", () => {
       const text = "a".repeat(300);
