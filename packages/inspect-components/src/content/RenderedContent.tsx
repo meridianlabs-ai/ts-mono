@@ -35,11 +35,11 @@ interface RenderedContentProps {
 
 interface WebSearchResult {
   url: string;
-  summary: string;
+  summary?: string | null;
 }
 
 interface WebSearchValue {
-  query?: string;
+  query?: string | null;
   results: WebSearchResult[];
 }
 
@@ -51,12 +51,16 @@ interface WebSearchValue {
 const isModelValue = (v: unknown): v is { _model: string | number } =>
   isRecord(v) && (typeof v._model === "string" || typeof v._model === "number");
 
+// Optional fields arrive as `null` from pydantic, not as missing keys.
+const isOptionalString = (v: unknown): v is string | null | undefined =>
+  v == null || typeof v === "string";
+
 const isWebSearchResult = (v: unknown): v is WebSearchResult =>
-  isRecord(v) && typeof v.url === "string" && typeof v.summary === "string";
+  isRecord(v) && typeof v.url === "string" && isOptionalString(v.summary);
 
 const isWebSearchValue = (v: unknown): v is WebSearchValue =>
   isRecord(v) &&
-  (v.query === undefined || typeof v.query === "string") &&
+  isOptionalString(v.query) &&
   Array.isArray(v.results) &&
   v.results.every(isWebSearchResult);
 

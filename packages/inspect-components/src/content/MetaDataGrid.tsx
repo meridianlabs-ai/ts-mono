@@ -26,11 +26,8 @@ interface MetadataGridProps {
   };
 }
 
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === "object" && !Array.isArray(v);
-
 const isNonEmptyObject = (v: unknown): v is Record<string, unknown> =>
-  isPlainObject(v) && Object.keys(v).length > 0;
+  isRecord(v) && Object.keys(v).length > 0;
 
 /**
  * Renders structured metadata as a grid with section cards.
