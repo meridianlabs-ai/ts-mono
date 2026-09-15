@@ -22,6 +22,6 @@ export const sizingStrategies: Record<ColumnSizingStrategyKey, SizingStrategy> =
 export function getSizingStrategy(
   key: ColumnSizingStrategyKey
 ): SizingStrategy {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- persisted store state (#555): the key is read back from a table-state blob an older build wrote, so it may name a strategy this build no longer registers
   return sizingStrategies[key] ?? sizingStrategies.default;
 }

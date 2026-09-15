@@ -185,8 +185,7 @@ const referenceTable = (
       {}
     );
   } else if (isTranscriptInput(inputData)) {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const eventRefs = (inputData.input.events || []).reduce<
+    const eventRefs = inputData.input.events.reduce<
       Record<string, () => ReactNode>
     >((acc, event) => {
       if (event.uuid) {
@@ -197,8 +196,7 @@ const referenceTable = (
       return acc;
     }, {});
 
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const messageRefs = (inputData.input.messages || []).reduce<
+    const messageRefs = inputData.input.messages.reduce<
       Record<string, () => ReactNode>
     >((acc, msg) => {
       if (msg.id) {

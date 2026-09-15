@@ -48,8 +48,7 @@ interface ResultGroup {
 const isResultGroup = (
   entry: ResultGroup | ScanResultSummary
 ): entry is ResultGroup => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  return "type" in entry && entry.type === "group";
+  return "type" in entry;
 };
 
 interface ScannerResultsListProps {
