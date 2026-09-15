@@ -42,3 +42,69 @@ describe("RenderedContent web_search results", () => {
     }
   );
 });
+
+// Metadata objects come straight from the eval log, so a renderer keyed on
+// a magic property name (`_model`, `_html`) or entry name (`web_search`)
+// must verify the shape it renders before claiming the value.
+describe("RenderedContent log-shaped objects", () => {
+  it("renders an object-valued _model as data instead of throwing", () => {
+    const { container } = render(
+      <RenderedContent
+        id="note"
+        entry={{ name: "note", value: { _html: 1, _model: { a: 1 } } }}
+      />
+    );
+
+    expect(container.textContent).toContain("a");
+    expect(container.textContent).toContain("1");
+  });
+
+  it("renders a string _model with the model renderer", () => {
+    const { container } = render(
+      <RenderedContent
+        id="model"
+        entry={{ name: "model", value: { _model: "gpt-4o" } }}
+      />
+    );
+
+    expect(container.querySelector("i")).not.toBeNull();
+    expect(container.textContent).toContain("gpt-4o");
+  });
+
+  it.each([
+    ["an empty object", {}],
+    ["an object without results", { _html: 1 }],
+    ["results that are not records", { query: "q", results: ["x"] }],
+    ["a non-array results", { query: "q", results: { url: "u" } }],
+  ])(
+    "renders a web_search entry holding %s as data instead of throwing",
+    (_label, value) => {
+      const { container } = render(
+        <RenderedContent id="ws" entry={{ name: "web_search", value }} />
+      );
+
+      expect(container.textContent).not.toContain("[Unable to display value]");
+    }
+  );
+
+  it("renders a well-formed web_search result with the search renderer", () => {
+    const { container } = renderWebSearch("https://example.test/a");
+
+    expect(container.textContent).toContain("q");
+    expect(
+      within(container).getByRole("link", { name: "https://example.test/a" })
+    ).toBeTruthy();
+  });
+
+  it("renders an object-valued _html as data instead of raw", () => {
+    const { container } = render(
+      <RenderedContent
+        id="html"
+        entry={{ name: "html", value: { _html: { nested: "text" } } }}
+      />
+    );
+
+    expect(container.textContent).toContain("nested");
+    expect(container.textContent).toContain("text");
+  });
+});
