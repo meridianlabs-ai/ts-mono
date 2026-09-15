@@ -1,6 +1,14 @@
+/* Colour roles (handoff decision 4): hue says WHO (agent rows), red says
+   STATUS, and these two say WHAT. The tool teal is saturated and lifted
+   well off the model grey (≥ 1.8 : 1 light, ≥ 2.4 : 1 dark) so a tool
+   tick reads next to a model span in either theme (design owner
+   2026-09-15). */
 .chart {
   position: relative;
   width: 100%;
+  --sa-model-color: #64748b;
+  --sa-tool-color: #14b8a6;
+  --sa-tool-label-color: #0f766e;
 }
 
 .svg {
@@ -176,11 +184,11 @@
 }
 
 .modelSpan {
-  fill: #64748b;
+  fill: var(--sa-model-color);
 }
 
 .toolSpan {
-  fill: #4f8f8b;
+  fill: var(--sa-tool-color);
 }
 
 /* Failed tool call: red-outlined span (handoff decision 4). */
@@ -306,12 +314,21 @@
 
 .burstLabel {
   font-size: 8px;
-  fill: #2f6f6b;
+  fill: var(--sa-tool-label-color);
 }
 
 .retryBadge {
   font-size: 9px;
   fill: #b04a3c;
+}
+
+/* Density strip columns: the majority kind's colour, opacity by count. */
+.densityModel {
+  fill: var(--sa-model-color);
+}
+
+.densityTool {
+  fill: var(--sa-tool-color);
 }
 
 .densityFailure {
@@ -354,6 +371,11 @@
 }
 
 /* ── dark theme ── */
+
+:global([data-bs-theme="dark"]) .chart {
+  --sa-tool-color: #2dd4bf;
+  --sa-tool-label-color: #5eead4;
+}
 
 :global([data-bs-theme="dark"]) .tokenSeries {
   stroke: #adb5bd;
@@ -398,10 +420,6 @@
 
 :global([data-bs-theme="dark"]) .densityFailure {
   fill: #d98b7f;
-}
-
-:global([data-bs-theme="dark"]) .burstLabel {
-  fill: #7ab8b3;
 }
 
 :global([data-bs-theme="dark"]) .rowLabelMuted {

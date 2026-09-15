@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import {
   act,
   cleanup,
@@ -108,9 +111,10 @@ afterEach(() => {
 });
 
 describe("ActivityChart Turns mode geometry", () => {
-  it("splits a column by working time, not wall time", () => {
-    // 10s of model work, then a tool that waited 80s of its 90s wall span:
-    // 10s model : 10s tool → an even split of the 960px column.
+  it("splits a column into equal model and tool halves whatever the working time", () => {
+    // 10s of model work, then a tool that worked 2s of its 90s wall span:
+    // the column still splits 50/50 (design owner 2026-09-15) — the ratio
+    // is Wall clock's and the tooltip's to show.
     const { container } = renderChart(
       [
         modelCall({ start: 0, end: 10, uuid: "m" }),
@@ -119,17 +123,60 @@ describe("ActivityChart Turns mode geometry", () => {
           timestamp: iso(10),
           completed: iso(100),
           working_start: 10,
-          working_time: 10,
+          working_time: 2,
         }),
       ],
       { axisMode: "turns" }
     );
     const { left, width } = plotBounds(container);
     const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "x")).toBeCloseTo(left);
     expect(attr(model, "width")).toBeCloseTo(width / 2);
     const tool = container.querySelector("rect[class*='toolSpan']");
     expect(attr(tool, "x")).toBeCloseTo(left + width / 2);
     expect(attr(tool, "width")).toBeCloseTo(width / 2);
+  });
+
+  it("gives a turn with no tool call the whole column", () => {
+    const { container } = renderChart(
+      [modelCall({ start: 0, end: 10, uuid: "m" })],
+      { axisMode: "turns" }
+    );
+    const { width } = plotBounds(container);
+    const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "width")).toBeCloseTo(width);
+  });
+
+  it("stacks a burst of three as sub-lanes across the tool half", () => {
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 1, uuid: "m" }),
+        ...Array.from({ length: 3 }, (_, i) =>
+          testToolEvent({
+            uuid: `t${i}`,
+            timestamp: iso(2 + i * 0.1),
+            completed: iso(10),
+            working_start: 2,
+            working_time: 7,
+            function: "bash",
+          })
+        ),
+      ],
+      { axisMode: "turns" }
+    );
+    const { left, width } = plotBounds(container);
+    const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "width")).toBeCloseTo(width / 2);
+    const lanes = [...container.querySelectorAll("rect[class*='toolSpan']")];
+    expect(lanes).toHaveLength(3);
+    const ys = new Set<number>();
+    for (const lane of lanes) {
+      expect(attr(lane, "x")).toBeCloseTo(left + width / 2);
+      expect(attr(lane, "width")).toBeCloseTo(width / 2);
+      expect(attr(lane, "height")).toBeLessThan(kAgentSpanHeight);
+      ys.add(attr(lane, "y"));
+    }
+    expect(ys.size).toBe(3);
   });
 
   it("builds the token path left to right when calls overlap", () => {
@@ -426,14 +473,17 @@ describe("ActivityChart tool bursts", () => {
     }
   });
 
-  it("counts a burst's working weight once in the Turns split", () => {
-    // 1s of model work against 6 × 7s of tool work: the model share is
-    // 1/43 of the column whether or not two members are folded (they used
-    // to be counted in the burst and again as their own slots).
+  it("keeps the model half when a burst folds members in Turns mode", () => {
+    // 1s of model work against 6 × 7s of tool work: the model still keeps
+    // half the column, and the four drawn lanes share the other half.
     const { container } = renderChart(sixTools(), { axisMode: "turns" });
-    const { width } = plotBounds(container);
+    const { left, width } = plotBounds(container);
     const model = container.querySelector("rect[class*='modelSpan']");
-    expect(attr(model, "width")).toBeCloseTo(width / 43);
+    expect(attr(model, "width")).toBeCloseTo(width / 2);
+    for (const lane of container.querySelectorAll("rect[class*='toolSpan']")) {
+      expect(attr(lane, "x")).toBeCloseTo(left + width / 2);
+      expect(attr(lane, "width")).toBeCloseTo(width / 2);
+    }
   });
 });
 
@@ -486,7 +536,7 @@ describe("ActivityChart sub-second tool ticks", () => {
     expect(firstTool).toBeGreaterThan(lastModel);
   });
 
-  it("floors the tool share of a Turns column, taken out of the model share", () => {
+  it("splits every Turns column equally between the long model call and the tick", () => {
     const { container } = renderChart(longModelShortTool(60), {
       axisMode: "turns",
     });
@@ -497,27 +547,94 @@ describe("ActivityChart sub-second tool ticks", () => {
     expect(tools).toHaveLength(60);
     models.forEach((model, i) => {
       const tool = tools[i]!;
+      expect(attr(model, "width")).toBeCloseTo(colWidth / 2);
+      expect(attr(tool, "width")).toBeCloseTo(colWidth / 2);
       expect(attr(tool, "width") - kTurnSeamPx).toBeGreaterThanOrEqual(
         kMinTickPx
       );
-      expect(attr(model, "width") + attr(tool, "width")).toBeCloseTo(colWidth);
       expect(attr(tool, "x")).toBeCloseTo(
         attr(model, "x") + attr(model, "width")
       );
     });
   });
 
-  it("floors each sub-lane of a burst inside the Turns tool share", () => {
+  it("gives a burst's sub-lanes the whole tool half of a Turns column", () => {
     const { container } = renderChart(longModelShortTool(60, 2), {
       axisMode: "turns",
     });
+    const { width } = plotBounds(container);
+    const colWidth = width / 60;
     const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
     expect(tools).toHaveLength(120);
     for (const tool of tools) {
-      expect(attr(tool, "width") - kTurnSeamPx).toBeGreaterThanOrEqual(
-        kMinTickPx
-      );
+      expect(attr(tool, "width")).toBeCloseTo(colWidth / 2);
     }
+  });
+});
+
+describe("ActivityChart tool colour", () => {
+  // The module css is not loaded under jsdom, so the token is checked at
+  // its source: one variable on the chart root, redefined for dark theme.
+  const css = readFileSync(join(__dirname, "ActivityChart.module.css"), "utf8");
+  const declared = (block: RegExp, name: string): string => {
+    const match = block
+      .exec(css)?.[1]
+      ?.match(new RegExp(`${name}:\\s*(#[0-9a-f]{6})`));
+    if (!match?.[1]) throw new Error(`expected ${name} in ${block}`);
+    return match[1];
+  };
+  const light = /^\.chart \{([^}]*)\}/m;
+  const dark = /^:global\(\[data-bs-theme="dark"\]\) \.chart \{([^}]*)\}/m;
+  const channel = (hex: string, at: number): number => {
+    const v = parseInt(hex.slice(at, at + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = (hex: string): number =>
+    0.2126 * channel(hex, 1) +
+    0.7152 * channel(hex, 3) +
+    0.0722 * channel(hex, 5);
+  const contrast = (a: string, b: string): number => {
+    const la = luminance(a);
+    const lb = luminance(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+
+  it("fills tool rects from the tool colour token in both axis modes", () => {
+    for (const axisMode of ["wall", "turns"] as const) {
+      const { container } = renderChart(
+        [
+          modelCall({ start: 0, end: 10, uuid: "m" }),
+          testToolEvent({
+            uuid: "t",
+            timestamp: iso(10),
+            completed: iso(20),
+            working_start: 10,
+            working_time: 10,
+          }),
+        ],
+        { axisMode }
+      );
+      const tool = container.querySelector("rect[class*='toolSpan']");
+      expect(tool).not.toBeNull();
+      cleanup();
+    }
+    expect(css).toMatch(/\.toolSpan \{\s*fill: var\(--sa-tool-color\);/);
+    expect(css).toMatch(/\.modelSpan \{\s*fill: var\(--sa-model-color\);/);
+    expect(css).toMatch(
+      /\.burstLabel \{\s*[^}]*fill: var\(--sa-tool-label-color\);/
+    );
+  });
+
+  it("keeps the tool colour clearly apart from the model grey in light and dark", () => {
+    const grey = declared(light, "--sa-model-color");
+    const lightTool = declared(light, "--sa-tool-color");
+    const darkTool = declared(dark, "--sa-tool-color");
+    // The round-6 teal (#4f8f8b) sat at 1.28 : 1 against the grey.
+    expect(contrast(lightTool, grey)).toBeGreaterThanOrEqual(1.8);
+    expect(contrast(darkTool, grey)).toBeGreaterThanOrEqual(2.4);
+    // Visible as a fill on each theme's page background.
+    expect(contrast(lightTool, "#ffffff")).toBeGreaterThanOrEqual(2.4);
+    expect(contrast(darkTool, "#212529")).toBeGreaterThanOrEqual(6);
   });
 });
 

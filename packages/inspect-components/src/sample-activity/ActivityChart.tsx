@@ -1356,11 +1356,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           return (
             <rect
               key={`col-${i}`}
+              className={share > 0.5 ? styles.densityTool : styles.densityModel}
               x={plotLeft + i * kDensityColWidth}
               y={spanY}
               width={kDensityColWidth}
               height={rowH}
-              fill={share > 0.5 ? "#4f8f8b" : "#64748b"}
               opacity={0.3 + Math.min(0.6, total * 0.18)}
             />
           );
@@ -1492,34 +1492,26 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         }
       }
       // A rejected call takes the room a tool would have: weighted like the
-      // turn's model work so it stays visible even with no tools at all.
+      // turn's model work so it holds its own next to the turn's real tools.
       for (let i = 0; i < turn.rejected; i++) {
         slots.push({ kind: "ghost", weight: Math.max(turn.modelWork, 1e-3) });
       }
-      // Model : tool split by working seconds (handoff 8b) — the slot
-      // weights are the spans' working time, so they sum to turn.toolWork
-      // plus any ghost slots.
-      const slotWeight = slots.reduce((sum, slot) => sum + slot.weight, 0);
-      const total = turn.modelWork + slotWeight;
-      const modelShare = total > 0 ? turn.modelWork / total : 1;
-      // Every slot shows at least a tick, taken out of the model share
-      // (design owner 2026-09-15); a wider ratio share keeps its width.
-      const slotMin = kMinSpanPx + kTurnSeamPx;
-      const ratioToolWidth = turn.model
-        ? colWidth * (1 - modelShare)
-        : colWidth;
-      const toolFloor = Math.min(
-        slots.length * slotMin,
-        turn.model ? Math.max(colWidth - slotMin, 0) : colWidth
-      );
-      const toolWidth =
-        slots.length > 0 ? Math.max(ratioToolWidth, toolFloor) : ratioToolWidth;
-      const modelRight = turn.model ? right - toolWidth : left;
+      // Model and tools split the column in equal halves whenever the turn
+      // has a slot (design owner 2026-09-15, superseding the handoff's
+      // working-time ratio for legibility); the ratio stays readable on
+      // the Wall clock and in the tooltip's durations. Inside the tool
+      // half, slots still share by working time, each at least a tick.
+      const toolWidth = !turn.model
+        ? colWidth
+        : slots.length > 0
+          ? colWidth / 2
+          : 0;
+      const modelRight = right - toolWidth;
       const toolLeft = modelRight;
       const slotWidths = allotWidths(
         slots.map((slot) => slot.weight),
         toolWidth,
-        slotMin
+        kMinSpanPx + kTurnSeamPx
       );
       let acc = toolLeft;
       return (
@@ -1643,11 +1635,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           return (
             <rect
               key={`col-${i}`}
+              className={share > 0.5 ? styles.densityTool : styles.densityModel}
               x={plotLeft + i * kDensityColWidth}
               y={spanY}
               width={kDensityColWidth}
               height={rowH}
-              fill={share > 0.5 ? "#4f8f8b" : "#64748b"}
               opacity={0.3 + Math.min(0.6, total * 0.18)}
             />
           );
