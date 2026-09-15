@@ -1114,12 +1114,6 @@
       "undescribed": 1
     }
   },
-  "apps/scout/src/types/json-value.ts": {
-    "@typescript-eslint/no-empty-object-type": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/inspect-common/src/normalize/events.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
       "count": 4
