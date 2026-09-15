@@ -59,6 +59,10 @@ export interface BackendBootstrap {
    *  Only then does a location named by the page URL or a route need the
    *  viewer's own approval (#615). */
   browserDirect: boolean;
+  /** Set when a `?log_dir=` in the invocation chose this backend's dir. Absent
+   *  when embedded config or a host fixed it: the param is then ignored, so a
+   *  location it names is never fetched and there is nothing to approve. */
+  dirFromUrl?: true;
 }
 
 let embedderFactory:
@@ -237,7 +241,10 @@ export const resolveBackend = (source: UrlLogSource): BackendBootstrap => {
   }
 
   if (resolved_log_dir !== undefined || resolved_log_file !== undefined) {
-    return staticBackend(resolved_log_dir);
+    return {
+      ...staticBackend(resolved_log_dir),
+      ...(resolved_log_dir !== undefined ? { dirFromUrl: true } : {}),
+    };
   }
 
   // No signal information so use the standard

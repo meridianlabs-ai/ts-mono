@@ -43,9 +43,10 @@ rather than mutating either in place.
 `useApi` passthrough), `app_config/LogLocationGate.tsx` (mounted above the
 config gate: holds resolution while a link-named location on another origin
 awaits the user's approval, #615), `resolveRouteLogFile` (route names are
-untrusted input; browser-direct backends keep them inside the resolved dir), `app_config/useLogDir.ts` (logDir accessors over the
-config cache entry; the one post-resolution mutation is embedded VS Code
-live-nav via `setLogRoot`), and the sanctioned non-React escape hatches on
+untrusted input; browser-direct backends keep them inside the resolved dir),
+`app_config/useLogDir.ts` (logDir accessors over the config cache entry; the
+one post-resolution mutation is embedded VS Code live-nav via `setLogRoot`),
+and the sanctioned non-React escape hatches on
 `app_config/appConfig.ts` (`getAppConfig` asserting, `peekAppConfig` non-asserting).
 Priority order for reading config: `useAppConfig` (or a passthrough like
 `useApi`) → `useAppConfigAsync` → `resolveAppConfig` → `getAppConfig` /

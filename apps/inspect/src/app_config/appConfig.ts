@@ -15,7 +15,7 @@ import {
   resolveEmbeddedLogDir,
   resolveSingleFileLogDir,
 } from "./singleFileMode";
-import { parseUrlLogSource } from "./urlLogSource";
+import { parseUrlLogSource, UrlLogSource } from "./urlLogSource";
 
 /**
  * The application configuration — the one currency. Everything the viewer needs
@@ -70,6 +70,10 @@ export const resolveBootstrap = (): AppConfigBootstrap => {
   const source = parseUrlLogSource(window.location.search);
   const singleFileMode = detectInitialSingleFileMode(source, document);
   const backend = resolveBackend(source);
+  // A `?log_file=` is always selected, but a `?log_dir=` the backend didn't
+  // take (embedded config fixed the dir) is never read: nothing to approve.
+  const honored: UrlLogSource =
+    source.kind === "dir" && !backend.dirFromUrl ? { kind: "none" } : source;
   return {
     backend,
     singleFileMode,
@@ -78,7 +82,7 @@ export const resolveBootstrap = (): AppConfigBootstrap => {
     // A proxied backend (view server, VS Code, embedder) applies its own
     // policy to the named location; only browser-direct fetching needs ours.
     logLocationProposal: backend.browserDirect
-      ? proposeLogLocation(source)
+      ? proposeLogLocation(honored)
       : undefined,
   };
 };

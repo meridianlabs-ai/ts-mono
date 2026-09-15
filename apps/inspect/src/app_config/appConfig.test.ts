@@ -121,6 +121,12 @@ describe("resolveBootstrap log location trust", () => {
     });
   });
 
+  it("a cross-origin ?log_dir= the embedded context overrides is never read, so not proposed", () => {
+    addLogDirContext({ log_dir: "logs" });
+    setSearch("?log_dir=https://bucket.example/logs");
+    expect(resolveBootstrap().logLocationProposal).toBeUndefined();
+  });
+
   it("a server-proxied location is the server's call, not a proposal", () => {
     setSearch("?log_dir=https://bucket.example/logs&inspect_server=true");
     expect(resolveBootstrap().logLocationProposal).toBeUndefined();

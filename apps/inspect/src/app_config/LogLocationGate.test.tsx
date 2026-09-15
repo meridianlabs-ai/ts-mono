@@ -12,7 +12,7 @@ vi.mock("./appConfig", () => ({
   getBootstrap: () => bootstrap.current,
 }));
 
-const proxiedBootstrap = (
+const browserDirectBootstrap = (
   logLocationProposal?: LogLocationProposal
 ): AppConfigBootstrap => ({
   backend: {
@@ -31,7 +31,7 @@ const proxiedBootstrap = (
 afterEach(cleanup);
 
 it("renders the app directly when nothing was proposed", () => {
-  bootstrap.current = proxiedBootstrap();
+  bootstrap.current = browserDirectBootstrap();
   render(
     <LogLocationGate>
       <div>app</div>
@@ -42,7 +42,7 @@ it("renders the app directly when nothing was proposed", () => {
 });
 
 it("holds the app behind an approval that names the foreign origin", () => {
-  bootstrap.current = proxiedBootstrap({
+  bootstrap.current = browserDirectBootstrap({
     kind: "dir",
     location: "https://bucket.example/team/logs",
     origin: "https://bucket.example",
