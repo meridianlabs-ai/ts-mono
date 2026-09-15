@@ -5,6 +5,7 @@ import {
   normalizeJsonRecord,
   normalizeScanEvents,
   normalizeScanModelUsage,
+  normalizeScanValue,
   normalizeValidationResult,
   normalizeValidationTarget,
   resolveTranscriptIdentityFromMetadata,
@@ -194,5 +195,77 @@ describe("resolveTranscriptIdentityFromMetadata", () => {
     resolveTranscriptIdentityFromMetadata(data);
     expect(data).not.toHaveProperty("transcriptModel");
     expect(data).not.toHaveProperty("transcriptTaskRepeat");
+  });
+});
+
+describe("normalizeScanValue", () => {
+  it("keeps scalar cells under their scalar tags", async () => {
+    expect(await normalizeScanValue("yes", "string")).toEqual({
+      value: "yes",
+      valueType: "string",
+    });
+    expect(await normalizeScanValue(0.5, "number")).toEqual({
+      value: 0.5,
+      valueType: "number",
+    });
+    expect(await normalizeScanValue(false, "boolean")).toEqual({
+      value: false,
+      valueType: "boolean",
+    });
+    expect(await normalizeScanValue(null, "null")).toEqual({
+      value: null,
+      valueType: "null",
+    });
+  });
+
+  it("parses array and object cells whose tag matches their shape", async () => {
+    expect(await normalizeScanValue("[1,2,3]", "array")).toEqual({
+      value: [1, 2, 3],
+      valueType: "array",
+    });
+    const nested = '{"a":{"b":{"c":{"d":{"e":1}}}}}';
+    expect(await normalizeScanValue(nested, "object")).toEqual({
+      value: { a: { b: { c: { d: { e: 1 } } } } },
+      valueType: "object",
+    });
+  });
+
+  // The value_type column is scan-authored independently of the value cell;
+  // consumers narrow on the tag alone, so a disagreeing pair must not survive
+  // normalization.
+  it("re-tags an array-tagged cell that is not an array as null", async () => {
+    const expected = { value: null, valueType: "null" };
+    expect(await normalizeScanValue("{}", "array")).toEqual(expected);
+    expect(await normalizeScanValue('{"a":1}', "array")).toEqual(expected);
+    expect(await normalizeScanValue(undefined, "array")).toEqual(expected);
+    expect(await normalizeScanValue(null, "array")).toEqual(expected);
+    expect(await normalizeScanValue("not json {", "array")).toEqual(expected);
+    expect(await normalizeScanValue("42", "array")).toEqual(expected);
+  });
+
+  it("re-tags an object-tagged cell that is not a record as null", async () => {
+    const expected = { value: null, valueType: "null" };
+    expect(await normalizeScanValue("[1,2]", "object")).toEqual(expected);
+    expect(await normalizeScanValue("null", "object")).toEqual(expected);
+    expect(await normalizeScanValue(undefined, "object")).toEqual(expected);
+    expect(await normalizeScanValue("not json {", "object")).toEqual(expected);
+  });
+
+  it("bounds nesting depth so render-time stringify cannot overflow", async () => {
+    const depth = 20_000;
+    const cell = "[".repeat(depth) + "]".repeat(depth);
+    const { value, valueType } = await normalizeScanValue(cell, "array");
+    expect(valueType).toBe("array");
+    expect(Array.isArray(value)).toBe(true);
+    expect(() => JSON.stringify(value)).not.toThrow();
+
+    // 8,000 levels: still overflows a recursive stringify, and the cell stays
+    // under asyncJsonParse's 50KB worker threshold so it parses in-process.
+    const objectDepth = 8_000;
+    const objectCell =
+      '{"k":'.repeat(objectDepth) + "1" + "}".repeat(objectDepth);
+    const nested = await normalizeScanValue(objectCell, "object");
+    expect(nested.valueType).toBe("object");
+    expect(() => JSON.stringify(nested.value)).not.toThrow();
   });
 });
