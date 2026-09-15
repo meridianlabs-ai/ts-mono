@@ -203,6 +203,19 @@
   stroke-width: 1.5;
 }
 
+/* The seam rule above shares `.failedSpan` / `.spanHovered`'s specificity
+   and comes later, so on a Turns rect it would win: the failed outline and
+   the hover outline are restated at higher specificity. */
+.turnRect.failedSpan {
+  stroke: #b04a3c;
+  stroke-width: 1;
+}
+
+.turnRect.spanHovered {
+  stroke: #212529;
+  stroke-width: 1;
+}
+
 /* Faint full-height column separators behind every band. */
 .turnSeparator {
   stroke: #f1f3f5;
@@ -398,6 +411,10 @@
   stroke: #d98b7f;
 }
 
+:global([data-bs-theme="dark"]) .turnRect.failedSpan {
+  stroke: #d98b7f;
+}
+
 :global([data-bs-theme="dark"]) .retryBadge {
   fill: #d98b7f;
 }
@@ -447,6 +464,10 @@
 }
 
 :global([data-bs-theme="dark"]) .spanHovered {
+  stroke: #f8f9fa;
+}
+
+:global([data-bs-theme="dark"]) .turnRect.spanHovered {
   stroke: #f8f9fa;
 }
 

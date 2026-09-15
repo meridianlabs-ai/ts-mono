@@ -320,6 +320,51 @@ test("hovering a span shows the tooltip card with click-through", async ({
   await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
 });
 
+test("state outlines win over the Turns column seam in both themes", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
+  const failed = page.locator("rect[class*='failedSpan']").first();
+  const outline = () =>
+    failed.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { stroke: style.stroke, width: style.strokeWidth };
+    });
+  const red = { stroke: "rgb(176, 74, 60)", width: "1px" };
+  const hoverLight = { stroke: "rgb(33, 37, 41)", width: "1px" };
+  const hoverDark = { stroke: "rgb(248, 249, 250)", width: "1px" };
+  const redDark = { stroke: "rgb(217, 139, 127)", width: "1px" };
+
+  // Wall clock: the failed outline at rest, the hover outline on hover.
+  await expect.poll(outline).toEqual(red);
+  await failed.hover();
+  await expect(failed).toHaveClass(/spanHovered/);
+  await expect.poll(outline).toEqual(hoverLight);
+
+  // Turns: every column rect also carries the 1.5px body-coloured seam
+  // stroke, which must not override either state outline.
+  await page.getByRole("button", { name: "Turns" }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+  await expect(failed).toHaveClass(/turnRect/);
+  await page.mouse.move(0, 0);
+  await expect(failed).not.toHaveClass(/spanHovered/);
+  await expect.poll(outline).toEqual(red);
+  await failed.hover();
+  await expect(failed).toHaveClass(/spanHovered/);
+  await expect.poll(outline).toEqual(hoverLight);
+
+  // Dark theme is the `data-bs-theme` attribute the theme bootstrap writes
+  // on <html>; the same precedence must hold there.
+  await page.evaluate(() => {
+    document.documentElement.setAttribute("data-bs-theme", "dark");
+  });
+  await expect.poll(outline).toEqual(hoverDark);
+  await page.mouse.move(0, 0);
+  await expect(failed).not.toHaveClass(/spanHovered/);
+  await expect.poll(outline).toEqual(redDark);
+});
+
 test("the tooltip survives pointer travel from the span to its footer", async ({
   page,
   network,
