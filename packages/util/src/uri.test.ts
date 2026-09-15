@@ -75,6 +75,21 @@ describe("encodePathParts", () => {
   ])("encodes URL path segments in %j", (value, expected) => {
     expect(encodePathParts(value)).toBe(expected);
   });
+
+  // A "%" not followed by two hex digits is not percent-encoding; the
+  // segment is a raw name and must be encoded as-is instead of throwing.
+  test.each([
+    ["100%done.eval", "100%25done.eval"],
+    ["50%-subset/run%zz.json", "50%25-subset/run%25zz.json"],
+    ["/logs/100%done.eval", "/logs/100%25done.eval"],
+    ["mixed%20ok/100%done.eval", "mixed%20ok/100%25done.eval"],
+    [
+      "https://example.test/50%-subset/100%done.eval",
+      "https://example.test/50%25-subset/100%25done.eval",
+    ],
+  ])("encodes a malformed percent sequence in %j", (value, expected) => {
+    expect(encodePathParts(value)).toBe(expected);
+  });
 });
 
 describe("rootName", () => {

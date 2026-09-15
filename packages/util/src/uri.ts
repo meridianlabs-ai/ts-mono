@@ -57,6 +57,23 @@ export const join = (file: string, dir?: string): string => {
   return dirWithSlash + normalizedFile;
 };
 
+// Decoding first keeps already-encoded input idempotent. A "%" that is not
+// valid percent-encoding (a file literally named `100%done.eval`) makes
+// decodeURIComponent throw; that segment is a raw name, so encode it as-is.
+const reencodeSegment = (segment: string): string => {
+  if (!segment) return "";
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    decoded = segment;
+  }
+  return encodeURIComponent(decoded);
+};
+
+const encodePathSegmentsIdempotent = (path: string): string =>
+  path.split("/").map(reencodeSegment).join("/");
+
 /**
  * Encodes the path segments of a URL or relative path to ensure special characters
  * (like `+`, spaces, etc.) are properly encoded without affecting legal characters like `/`.
@@ -68,25 +85,15 @@ export const join = (file: string, dir?: string): string => {
 export function encodePathParts(url: string): string {
   if (!url) return url; // Handle empty strings
 
+  let fullUrl: URL;
   try {
-    // Parse a full Uri
-    const fullUrl = new URL(url);
-    fullUrl.pathname = fullUrl.pathname
-      .split("/")
-      .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
-      )
-      .join("/");
-    return fullUrl.toString();
+    fullUrl = new URL(url);
   } catch {
     // This is a relative path that isn't parseable as Uri
-    return url
-      .split("/")
-      .map((segment) =>
-        segment ? encodeURIComponent(decodeURIComponent(segment)) : ""
-      )
-      .join("/");
+    return encodePathSegmentsIdempotent(url);
   }
+  fullUrl.pathname = encodePathSegmentsIdempotent(fullUrl.pathname);
+  return fullUrl.toString();
 }
 
 /**
