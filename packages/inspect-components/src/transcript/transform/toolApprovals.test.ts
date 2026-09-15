@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   testApprovalEvent,
+  testReviewEvent,
   testSpanBeginEvent,
   testToolCall,
   testToolEvent,
@@ -48,13 +49,61 @@ const parent = (nodeId: string, children: EventNode[]): EventNode => {
 };
 
 describe("pairToolApprovals", () => {
+  it("keeps every approval for a call, in order", () => {
+    const tool = toolNode("tool-1", "call-1");
+    const chainA = approvalNode("appr-a", "call-1", { approver: "monitor" });
+    const chainB = approvalNode("appr-b", "call-1", {
+      approver: "auto",
+      decision: "terminate",
+    });
+    const summary = approvalNode("appr-s", "call-1", {
+      approver: "policy",
+      decision: "terminate",
+    });
+
+    const result = pairToolApprovals([tool, chainA, chainB, summary]);
+
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-a",
+      "appr-b",
+      "appr-s",
+    ]);
+    expect(result.hiddenApprovalIds).toEqual(
+      new Set(["appr-a", "appr-b", "appr-s"])
+    );
+  });
+
+  it("pairs reviews with their tool the same way", () => {
+    const tool = toolNode("tool-1", "call-1");
+    const review = new EventNode(
+      "rev-1",
+      testReviewEvent({
+        uuid: "rev-1",
+        call: testToolCall({ id: "call-1", function: "bash" }),
+        decision: "terminate",
+        timestamp: "2026-01-01T00:00:02Z",
+      }),
+      0
+    );
+
+    const result = pairToolApprovals([tool, review]);
+
+    expect(result.toolReviews.get("call-1")?.map((n) => n.id)).toEqual([
+      "rev-1",
+    ]);
+    expect(result.hiddenApprovalIds.has("rev-1")).toBe(true);
+    expect(result.approvalScrollRedirects.get("rev-1")).toBe("tool-1");
+  });
+
   it("pairs an approval with its tool, hides it, and redirects to the tool node", () => {
     const tool = toolNode("tool-1", "call-1");
     const approval = approvalNode("appr-1", "call-1");
 
     const result = pairToolApprovals([tool, approval]);
 
-    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+    ]);
     expect(result.hiddenApprovalIds.has("appr-1")).toBe(true);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
   });
@@ -102,7 +151,9 @@ describe("pairToolApprovals", () => {
 
     const result = pairToolApprovals([tree]);
 
-    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+    ]);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
   });
 
@@ -116,7 +167,9 @@ describe("pairToolApprovals", () => {
     const result = pairToolApprovals([tool, approval]);
 
     // Auto non-approve decisions carry information: they pair like human ones.
-    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+    ]);
     expect(result.hiddenApprovalIds.has("appr-1")).toBe(true);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
   });

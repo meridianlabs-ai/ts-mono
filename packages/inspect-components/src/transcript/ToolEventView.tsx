@@ -19,6 +19,7 @@ import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
+import { ReviewEventView } from "./ReviewEventView";
 import styles from "./ToolEventView.module.css";
 import {
   EventNode,
@@ -64,7 +65,8 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     [event.view, event.arguments]
   );
 
-  const approvalNode = context?.toolApprovals?.get(event.id);
+  const approvalNodes = context?.toolApprovals?.get(event.id) ?? [];
+  const reviewNodes = context?.toolReviews?.get(event.id) ?? [];
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
@@ -166,12 +168,28 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           />
         ) : undefined}
 
-        {approvalNode ? (
+        {approvalNodes.length > 0 ? (
           <div className={styles.approvalWrap}>
-            <ApprovalEventView
-              eventNode={approvalNode}
-              className={styles.approval}
-            />
+            {approvalNodes.map((node) => (
+              <ApprovalEventView
+                key={node.id}
+                eventNode={node}
+                className={styles.approval}
+              />
+            ))}
+          </div>
+        ) : (
+          ""
+        )}
+        {reviewNodes.length > 0 ? (
+          <div className={styles.approvalWrap}>
+            {reviewNodes.map((node) => (
+              <ReviewEventView
+                key={node.id}
+                eventNode={node}
+                className={styles.approval}
+              />
+            ))}
           </div>
         ) : (
           ""

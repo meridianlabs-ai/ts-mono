@@ -279,7 +279,8 @@ export interface EventNodeContext {
   /** Per-tool labels rendered in tool event gutters. Keyed by `ToolEvent.id`. */
   toolLabels?: Record<string, string>;
   /** Approval events paired to their tool event via `call.id == ToolEvent.id`. `ToolEventView` reads from this instead of scanning the tree, so paired approvals don't need to be nested as children (avoids spurious expand chevrons and duplicate flat rows). */
-  toolApprovals?: Map<string, EventNode<ApprovalEvent>>;
+  toolApprovals?: Map<string, EventNode<ApprovalEvent>[]>;
+  toolReviews?: Map<string, EventNode<ReviewEvent>[]>;
   /** Retry attempts paired to their successful ModelEvent via `retryAttemptKey(event)`. `ModelEventView` reads from this to render the inline retry chip and swap bodies between attempts. */
   retryAttempts?: Map<string, ModelEvent[]>;
   selfAnnotation?: ToolAnnotation;

@@ -4,6 +4,7 @@ import { FC } from "react";
 import type { ReviewEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
 
+import { ChainOutcomes, chainOutcomes } from "./ApprovalEventView";
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
@@ -28,6 +29,8 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
   const reviewer = event.reviewer;
   const alarming = decision === "terminate";
   const explanationIsBlock = explanation.includes("\n");
+  const chains = chainOutcomes(event);
+  const source = event.chain ? `${event.chain} · ${reviewer}` : reviewer;
 
   return (
     <EventRow
@@ -43,14 +46,22 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
       iconClassName={alarming ? styles.rejected : undefined}
       className={className}
       below={
-        explanation && explanationIsBlock ? (
+        chains ? (
+          <ChainOutcomes chains={chains} />
+        ) : explanation && explanationIsBlock ? (
           <MarkdownDiv markdown={explanation} />
         ) : undefined
       }
     >
       <span className={styles.headline}>
-        <span className={clsx("text-style-secondary")}>({reviewer})</span>
-        {explanation && !explanationIsBlock ? (
+        <span className={clsx("text-style-secondary")}>
+          (
+          {chains
+            ? `combined decision of ${Object.keys(chains).length} chains`
+            : source}
+          )
+        </span>
+        {!chains && explanation && !explanationIsBlock ? (
           <span className={styles.inlineExplanation}>{explanation}</span>
         ) : null}
       </span>
