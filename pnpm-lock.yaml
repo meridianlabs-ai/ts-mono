@@ -839,13 +839,13 @@ importers:
     dependencies:
       '@css-modules-kit/eslint-plugin':
         specifier: ^1.4.0
-        version: 1.4.0(@eslint/css@1.4.0)(@typescript/typescript6@6.0.2)(eslint@10.8.1(supports-color@10.2.2))(postcss@8.5.28)
+        version: 1.4.0(@eslint/css@2.0.0)(@typescript/typescript6@6.0.2)(eslint@10.8.1(supports-color@10.2.2))(postcss@8.5.28)
       '@eslint/compat':
         specifier: ^2.1.1
         version: 2.1.1(eslint@10.8.1(supports-color@10.2.2))
       '@eslint/css':
-        specifier: ^1.4.0
-        version: 1.4.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.8.1(supports-color@10.2.2))
@@ -1275,8 +1275,8 @@ packages:
     resolution: {integrity: sha512-iPmijIAq4hlIJB86PYmY/fcZORHtjphSqICDbwuw32A/JmkhZQ/K/6TjHE03zqf3n5yABpVcbRAMG8Mi9ojy8g==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
-  '@eslint/css@1.4.0':
-    resolution: {integrity: sha512-OnRNKgnbX+tufPuZc2kOJS+v1iIARvfJHRNEAVwN77DBpojl+rGjEP8NKTL6pEZ7BR+HtwIuSSdrymEFlANGxg==}
+  '@eslint/css@2.0.0':
+    resolution: {integrity: sha512-lODVRbtxOXgcSOWNvv3gE4A8oRTSUHefA0tX9zrWUD57F+5RTLGDX9I8bnHQROO8nWb0hrmke0uO23pTlNfZ0A==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24}
 
   '@eslint/js@10.0.1':
@@ -5113,10 +5113,10 @@ snapshots:
       postcss-value-parser: 4.2.0
       typescript: '@typescript/typescript6@6.0.2'
 
-  '@css-modules-kit/eslint-plugin@1.4.0(@eslint/css@1.4.0)(@typescript/typescript6@6.0.2)(eslint@10.8.1(supports-color@10.2.2))(postcss@8.5.28)':
+  '@css-modules-kit/eslint-plugin@1.4.0(@eslint/css@2.0.0)(@typescript/typescript6@6.0.2)(eslint@10.8.1(supports-color@10.2.2))(postcss@8.5.28)':
     dependencies:
       '@css-modules-kit/core': 1.4.0(@typescript/typescript6@6.0.2)
-      '@eslint/css': 1.4.0
+      '@eslint/css': 2.0.0
       eslint: 10.8.1(supports-color@10.2.2)
       postcss-safe-parser: 7.0.1(postcss@8.5.28)
     transitivePeerDependencies:
@@ -5306,7 +5306,7 @@ snapshots:
       mdn-data: 2.29.0
       source-map-js: 1.2.1
 
-  '@eslint/css@1.4.0':
+  '@eslint/css@2.0.0':
     dependencies:
       '@eslint/core': 1.2.1
       '@eslint/css-tree': 4.0.5
