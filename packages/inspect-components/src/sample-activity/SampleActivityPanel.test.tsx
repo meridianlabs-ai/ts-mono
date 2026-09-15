@@ -788,20 +788,31 @@ describe("SampleActivityPanel Turns axis", () => {
     ).toBe("true");
   });
 
-  it("disables the working band in Turns mode without touching its override", () => {
-    mountPanel();
+  it("hides the working chip and band in Turns mode without touching the override", () => {
+    const store = makeReactiveStateStore();
+    mountPanelWith(store);
     fireEvent.click(screen.getByRole("button", { name: "Working / waiting" }));
     expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    expect(store.store.get(persistedKey("bands"))).toEqual({ working: true });
 
     toTurns();
     expect(screen.queryByText("WORKING / WAITING")).toBeNull();
-    const chip = screen.getByRole("button", { name: /Working \/ waiting/ });
-    expect(chip.hasAttribute("disabled")).toBe(true);
-    expect(chip.textContent).toContain("wall clock only");
+    expect(screen.queryByText(/gap = waiting/)).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /Working \/ waiting/ })
+    ).toBeNull();
+    // The other chips stay put.
+    expect(screen.getByRole("button", { name: /Markers/ })).toBeTruthy();
+    expect(store.store.get(persistedKey("bands"))).toEqual({ working: true });
 
-    // Back on the wall clock the band returns — the override was kept on.
+    // Back on the wall clock the chip and band return — the override was
+    // kept on across the round trip.
     fireEvent.click(screen.getByRole("button", { name: /^Wall clock$/ }));
     expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Working / waiting" }).textContent
+    ).toBe("Working / waiting");
+    expect(store.store.get(persistedKey("bands"))).toEqual({ working: true });
   });
 
   it("draws a rejected call as a dashed ghost slot", () => {

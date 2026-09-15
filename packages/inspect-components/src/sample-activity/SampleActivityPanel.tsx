@@ -106,29 +106,16 @@ interface BandChipProps {
   label: string;
   on: boolean;
   onToggle: () => void;
-  /** Greyed out with a hint — the band has no meaning on this axis. */
-  disabledHint?: string;
 }
 
-const BandChip: FC<BandChipProps> = ({ label, on, onToggle, disabledHint }) => (
+const BandChip: FC<BandChipProps> = ({ label, on, onToggle }) => (
   <button
     type="button"
-    className={clsx(
-      styles.bandChip,
-      on && !disabledHint && styles.bandChipOn,
-      disabledHint && styles.bandChipDisabled
-    )}
+    className={clsx(styles.bandChip, on && styles.bandChipOn)}
     onClick={onToggle}
-    disabled={disabledHint !== undefined}
-    aria-disabled={disabledHint !== undefined}
   >
-    {on && !disabledHint ? (
-      <i className="bi bi-check" aria-hidden="true" />
-    ) : null}
+    {on ? <i className="bi bi-check" aria-hidden="true" /> : null}
     {label}
-    {disabledHint && (
-      <span className={styles.bandChipHint}>{disabledHint}</span>
-    )}
   </button>
 );
 
@@ -216,7 +203,8 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
   // working/waiting is the opt-in band. No working clock (mid-vintage
   // logs) → no working band at all; an all-zero clock would render the
   // whole run as waiting. Waiting has no extent on the Turns axis, so the
-  // band hides there regardless of its override (the override is kept).
+  // band and its chip hide there regardless of the override; the override
+  // is kept so Wall clock restores the previous state.
   const showModelTool = bandOn("modelTool", true) && data.agentRows.length > 0;
   const showContext = bandOn("context", true) && data.contextSeries.length > 0;
   const showTokens = bandOn("tokens", true) && data.tokenSeries.length > 0;
@@ -360,12 +348,11 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
             onToggle={() => toggleBand("markers", true)}
           />
         )}
-        {data.hasWorkingSignal && (
+        {data.hasWorkingSignal && !turnsMode && (
           <BandChip
             label="Working / waiting"
             on={bandOn("working", false)}
             onToggle={() => toggleBand("working", false)}
-            disabledHint={turnsMode ? "wall clock only" : undefined}
           />
         )}
         {showWorking && (

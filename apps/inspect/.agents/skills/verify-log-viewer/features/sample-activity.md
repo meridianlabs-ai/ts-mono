@@ -50,8 +50,9 @@ an Activity test into the standing spec.
 failed][ · r rejected]` and whose click filters the history to that
   turn; when every slot is a rejected call the aggregate is a dashed
   ghost reading `turn N · r rejected · no tool run`)
-  and greys the Working / waiting chip (`disabled`, suffix `wall clock
-only`) — the band hides there but its override is kept.
+  and removes the Working / waiting chip from the picker — the band hides
+  there too, but its override is kept, so Wall clock restores both as they
+  were.
 - Agent gutter (only when a sample has more than one conversation — agent /
   subtask / solver spans, plus grader rows): `getByRole("checkbox", { name:
 "Hide <agent>" | "Show <agent>" })`; rows past 4 fold into a

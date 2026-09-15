@@ -282,23 +282,30 @@ test("band chips toggle the opt-in working band and default bands", async ({
   ).not.toBeVisible();
 });
 
-test("axis toggle tiles turns and greys the working chip", async ({
+test("axis toggle tiles turns and hides the working chip", async ({
   page,
   network,
 }) => {
   await openSample(page, network);
+  const workingChip = page.getByRole("button", { name: /Working \/ waiting/ });
+  const workingBand = page.getByText("WORKING / WAITING", { exact: true });
+  await workingChip.click();
+  await expect(workingBand).toBeVisible();
 
   await page.getByRole("button", { name: "Turns" }).click();
   await expect(page.getByText("TURN", { exact: true })).toBeVisible();
   // Three model turns → three column ticks.
   await expect(page.getByText("3", { exact: true }).first()).toBeVisible();
-  const workingChip = page.getByRole("button", { name: /Working \/ waiting/ });
-  await expect(workingChip).toBeDisabled();
-  await expect(workingChip).toContainText("wall clock only");
+  // Waiting has no extent on the Turns axis: chip and band both go.
+  await expect(workingChip).toHaveCount(0);
+  await expect(workingBand).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "Markers" })).toBeVisible();
 
+  // Back on the wall clock the chip returns still on — the override was kept.
   await page.getByRole("button", { name: "Wall clock", exact: true }).click();
   await expect(page.getByText("TURN", { exact: true })).not.toBeVisible();
-  await expect(workingChip).toBeEnabled();
+  await expect(workingChip).toBeVisible();
+  await expect(workingBand).toBeVisible();
 });
 
 test("hovering a span shows the tooltip card with click-through", async ({

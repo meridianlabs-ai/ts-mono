@@ -48,19 +48,6 @@
   font-size: 0.7rem;
 }
 
-/* Greyed chip: the band is meaningless on the current axis (Turns has no
-   extent for waiting). The override is untouched; only the chip greys. */
-.bandChipDisabled {
-  border-style: dashed;
-  color: var(--bs-secondary-color);
-  cursor: default;
-}
-
-.bandChipHint {
-  font-size: 0.62rem;
-  color: var(--bs-secondary-color);
-}
-
 /* Wall clock | Turns segmented control at the right end of the picker. */
 .segmented {
   margin-left: auto;
