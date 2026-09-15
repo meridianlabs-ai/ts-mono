@@ -7,6 +7,7 @@ import {
   join,
   prettyDirUri,
   rootName,
+  tryDecodeURIComponent,
 } from "./uri";
 
 describe("directoryRelativeUrl", () => {
@@ -89,6 +90,18 @@ describe("encodePathParts", () => {
     ],
   ])("encodes a malformed percent sequence in %j", (value, expected) => {
     expect(encodePathParts(value)).toBe(expected);
+  });
+});
+
+describe("tryDecodeURIComponent", () => {
+  test.each([
+    ["", ""],
+    ["hello%20world", "hello world"],
+    ["plain", "plain"],
+    ["100%done.eval", "100%done.eval"],
+    ["%ZZ", "%ZZ"],
+  ])("decodes %j without throwing", (value, expected) => {
+    expect(tryDecodeURIComponent(value)).toBe(expected);
   });
 });
 

@@ -57,22 +57,26 @@ export const join = (file: string, dir?: string): string => {
   return dirWithSlash + normalizedFile;
 };
 
-// Decoding first keeps already-encoded input idempotent. A "%" that is not
-// valid percent-encoding (a file literally named `100%done.eval`) makes
-// decodeURIComponent throw; that segment is a raw name, so encode it as-is.
-const reencodeSegment = (segment: string): string => {
-  if (!segment) return "";
-  let decoded: string;
+/**
+ * `decodeURIComponent` that returns the input unchanged when it is not valid
+ * percent-encoding (a name literally containing `100%done`), instead of
+ * throwing URIError.
+ */
+export const tryDecodeURIComponent = (value: string): string => {
   try {
-    decoded = decodeURIComponent(segment);
+    return decodeURIComponent(value);
   } catch {
-    decoded = segment;
+    return value;
   }
-  return encodeURIComponent(decoded);
 };
 
+// Decoding first keeps already-encoded input idempotent; a raw "%" that
+// fails to decode is part of the name and gets encoded as-is.
 const encodePathSegmentsIdempotent = (path: string): string =>
-  path.split("/").map(reencodeSegment).join("/");
+  path
+    .split("/")
+    .map((segment) => encodeURIComponent(tryDecodeURIComponent(segment)))
+    .join("/");
 
 /**
  * Encodes the path segments of a URL or relative path to ensure special characters
