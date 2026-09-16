@@ -9,6 +9,7 @@ import {
   AppDatabase,
   fromLogRecord,
   LogRecord,
+  SampleSummaryKey,
   SampleSummaryRecord,
   scopePrefix,
   SyncScopeRecord,
@@ -284,10 +285,11 @@ export class DatabaseService {
     epoch: number
   ): Promise<boolean> {
     const db = this.getDb();
-    const keys = sampleIdsForLookup(id).map(
-      (sampleId) =>
-        [filePath, sampleId, epoch] as [string, string | number, number]
-    );
+    const keys = sampleIdsForLookup(id).map((sampleId): SampleSummaryKey => [
+      filePath,
+      sampleId,
+      epoch,
+    ]);
     const records = await db.sample_summaries.bulkGet(keys);
     return records.some(
       (record) => record !== undefined && record.summary.completed !== false

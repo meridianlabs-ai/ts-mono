@@ -10,7 +10,7 @@ import { ClientAPI, LogDetails, SampleSummary } from "../client/api/types";
 import { queryClient } from "../state/queryClient";
 
 import { useLogHeader } from "./log";
-import { getLogRows } from "./logsContent";
+import { resolveLogKey } from "./logsContent";
 import {
   fetchSample,
   SampleNotFoundError,
@@ -100,9 +100,6 @@ interface StreamSlot {
   key: string;
   session: SampleStreamSession;
   last: RunningSampleData | undefined;
-  /** Listing collection used for the last storage-key resolution. */
-  listingRows?: ReturnType<typeof getLogRows>;
-  listedLogFile?: string;
   /** Backfill latch: the stream has caught up to live at least once. */
   reachedLive: boolean;
 }
@@ -136,28 +133,18 @@ const slotFor = (
   return slot;
 };
 
-const listedLogFileFor = (
-  streamSlot: StreamSlot,
-  logDir: string,
-  logFile: string
-): string => {
-  const rows = getLogRows(logDir);
-  if (streamSlot.listingRows !== rows) {
-    const match = rows.find((row) => row.name.endsWith(logFile));
-    streamSlot.listingRows = rows;
-    streamSlot.listedLogFile = match?.name;
-  }
-  return streamSlot.listedLogFile ?? logFile;
-};
-
 /** The opened log's settled summaries report the sample completed (finalize
  *  input) — no pending merge, mirroring what the log file itself records. */
 const hasCompletedLogSummary = (
   logDir: string,
-  logFile: string,
   handle: SampleHandle
 ): Promise<boolean> =>
-  hasCompletedSettledSummary(logDir, logFile, handle.id, handle.epoch);
+  hasCompletedSettledSummary(
+    logDir,
+    resolveLogKey(logDir, handle.logFile),
+    handle.id,
+    handle.epoch
+  );
 
 const findLiveSummary = async (
   logDir: string,
@@ -216,9 +203,8 @@ export const streamRunningSampleTick = async (
   handle: SampleHandle
 ): Promise<RunningSampleData> => {
   const streamSlot = slotFor(api, logDir, handle);
-  const listedLogFile = listedLogFileFor(streamSlot, logDir, handle.logFile);
   const tick = await streamSlot.session.tick(
-    await hasCompletedLogSummary(logDir, listedLogFile, handle)
+    await hasCompletedLogSummary(logDir, handle)
   );
   const finalized = tick.done
     ? await finalizeRunningSample(api, logDir, handle, tick.bufferComplete)

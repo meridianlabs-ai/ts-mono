@@ -193,17 +193,12 @@ export const hasCompletedSettledSummary = async (
   if (db.opened()) {
     return db.hasCompletedSampleSummary(logFile, id, epoch);
   }
-  const scope: SamplesScope = { file: logFile };
-  const cached = queryClient.getQueryData<SamplesListingRow[]>(
-    samplesListingKey({ logDir, scope })
-  );
-  return (
-    cached?.some(
-      (row) =>
-        sampleIdsEqual(row.summary.id, id) &&
-        row.summary.epoch === epoch &&
-        row.summary.completed !== false
-    ) ?? false
+  const summaries = await readSettledSummaries(logDir, logFile);
+  return summaries.some(
+    (summary) =>
+      sampleIdsEqual(summary.id, id) &&
+      summary.epoch === epoch &&
+      summary.completed !== false
   );
 };
 
