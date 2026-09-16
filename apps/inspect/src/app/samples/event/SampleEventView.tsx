@@ -16,11 +16,7 @@ import {
   kLogViewSamplesTabId,
   kSampleTranscriptTabId,
 } from "../../../constants";
-import {
-  selectLogFile,
-  selectSample,
-  setDocumentTitle,
-} from "../../../state/actions";
+import { setDocumentTitle } from "../../../state/actions";
 import {
   useSelectedEvalSampleData,
   useSelectedLogDetails,
@@ -34,6 +30,7 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../../routing/url";
+import { useRouteSelectionMirror } from "../../routing/useRouteSelectionMirror";
 import { SampleNavbar } from "../SampleNavbar";
 
 import styles from "./SampleEventView.module.css";
@@ -54,19 +51,8 @@ export const SampleEventView: FC = () => {
   const location = useLocation();
   const isSamplesSurface = location.pathname.startsWith("/samples/");
 
-  // Initialize log and sample loading (same pattern as SamplePrintView /
-  // LogSampleDetailView) — data then flows through the react-query pipeline.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (logPath && sampleId && epoch) {
-      selectLogFile(logPath);
-
-      const targetEpoch = parseInt(epoch, 10);
-      if (!isNaN(targetEpoch)) {
-        selectSample(sampleId, targetEpoch, logPath);
-      }
-    }
-  }, [logPath, sampleId, epoch]);
+  // Sample data then flows through the react-query pipeline off the selection.
+  useRouteSelectionMirror({ logPath, sampleId, epoch });
 
   const sampleData = useSelectedEvalSampleData();
   const sample = sampleData.sample;
