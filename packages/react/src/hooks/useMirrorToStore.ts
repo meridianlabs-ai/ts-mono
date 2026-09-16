@@ -20,3 +20,23 @@ export function useMirrorToStore<T>(
     if (value !== undefined) writeRef.current(value);
   }, [value, writeRef]);
 }
+
+export type MirrorKey = readonly (string | number | boolean | undefined)[];
+
+/**
+ * The keyed form of `useMirrorToStore`, for a value with no primitive
+ * identity (a tuple of route params). Runs `write` when the first render has
+ * a key and again each time the key's elements change, compared one by one
+ * like an effect's deps. An `undefined` key is "nothing to mirror" and never
+ * writes, so the store keeps what the last key wrote. `write` is always the
+ * latest closure, so it can read the params the key was built from.
+ */
+export function useMirrorKeyedToStore(
+  key: MirrorKey | undefined,
+  write: () => void
+): void {
+  // JSON keeps the elements' types apart ("1" vs 1, undefined vs "") so two
+  // keys serialize alike only when they would compare equal element-wise.
+  // undefined serializes as null, which is why null is not a key element.
+  useMirrorToStore(key === undefined ? undefined : JSON.stringify(key), write);
+}

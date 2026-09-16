@@ -2,7 +2,11 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { useMirrorToStore } from "./useMirrorToStore";
+import {
+  MirrorKey,
+  useMirrorKeyedToStore,
+  useMirrorToStore,
+} from "./useMirrorToStore";
 
 describe("useMirrorToStore", () => {
   it("writes the initial value and each change, not re-renders", () => {
@@ -56,5 +60,67 @@ describe("useMirrorToStore", () => {
     expect(first).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenCalledTimes(1);
     expect(second).toHaveBeenLastCalledWith(2);
+  });
+});
+
+describe("useMirrorKeyedToStore", () => {
+  it("writes on the first key and on each element-wise change only", () => {
+    const write = vi.fn();
+    const { rerender } = renderHook(
+      ({ key }: { key: MirrorKey | undefined }) =>
+        useMirrorKeyedToStore(key, write),
+      { initialProps: { key: ["run.eval", "s1", "2"] } }
+    );
+    expect(write).toHaveBeenCalledTimes(1);
+
+    // A new array with equal elements is the same key.
+    rerender({ key: ["run.eval", "s1", "2"] });
+    expect(write).toHaveBeenCalledTimes(1);
+
+    rerender({ key: ["run.eval", "s1", "3"] });
+    expect(write).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps elements of different types apart", () => {
+    const write = vi.fn();
+    const initialProps: { key: MirrorKey | undefined } = {
+      key: ["run.eval", 1],
+    };
+    const { rerender } = renderHook(
+      ({ key }: { key: MirrorKey | undefined }) =>
+        useMirrorKeyedToStore(key, write),
+      { initialProps }
+    );
+    rerender({ key: ["run.eval", "1"] });
+    rerender({ key: ["run.eval", undefined] });
+    rerender({ key: ["run.eval", ""] });
+    expect(write).toHaveBeenCalledTimes(4);
+  });
+
+  it("never writes for an undefined key", () => {
+    const write = vi.fn();
+    const initialProps: { key: MirrorKey | undefined } = { key: undefined };
+    const { rerender } = renderHook(
+      ({ key }: { key: MirrorKey | undefined }) =>
+        useMirrorKeyedToStore(key, write),
+      { initialProps }
+    );
+    expect(write).not.toHaveBeenCalled();
+
+    rerender({ key: ["run.eval"] });
+    rerender({ key: undefined });
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls the latest write closure", () => {
+    const seen: string[] = [];
+    const { rerender } = renderHook(
+      ({ key, label }: { key: MirrorKey; label: string }) =>
+        useMirrorKeyedToStore(key, () => seen.push(label)),
+      { initialProps: { key: ["a"], label: "first" } }
+    );
+    rerender({ key: ["a"], label: "stale" });
+    rerender({ key: ["b"], label: "second" });
+    expect(seen).toEqual(["first", "second"]);
   });
 });

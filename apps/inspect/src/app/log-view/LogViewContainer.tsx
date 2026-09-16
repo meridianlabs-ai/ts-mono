@@ -6,7 +6,7 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { useMirrorToStore, useUnmount } from "@tsmono/react/hooks";
+import { useMirrorKeyedToStore, useUnmount } from "@tsmono/react/hooks";
 
 import { kLogViewSamplesTabId } from "../../constants";
 import { unloadLog } from "../../state/actions";
@@ -92,10 +92,10 @@ export const LogViewContainer: FC = () => {
   // Sync the workspace tab from the URL. Keyed per log, not just per tab:
   // LogLoadController defaults an empty log to the info tab in the store
   // only, so opening another log at the same route tab must re-assert it.
-  const routeTab = tabId ?? kLogViewSamplesTabId;
-  useMirrorToStore(
-    logPath ? JSON.stringify([logPath, routeTab]) : undefined,
-    () => setWorkspaceTab(routeTab)
+  // Keyed on the raw `tabId` so `/logs/x` and `/logs/x/samples` still count
+  // as a change, as the effect this replaced did.
+  useMirrorKeyedToStore(logPath ? [logPath, tabId] : undefined, () =>
+    setWorkspaceTab(tabId ?? kLogViewSamplesTabId)
   );
 
   useRouteLogSelectionMirror(logPath);

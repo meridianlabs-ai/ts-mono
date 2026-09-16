@@ -1,4 +1,4 @@
-import { useMirrorToStore } from "@tsmono/react/hooks";
+import { useMirrorKeyedToStore, useMirrorToStore } from "@tsmono/react/hooks";
 
 import { selectLogFile, selectSample } from "../../state/actions";
 
@@ -41,15 +41,14 @@ const applyRouteSelection = ({ logPath, sampleId, epoch }: RouteSelection) => {
  */
 export const useRouteSelectionMirror = (params: RouteSelectionParams): void => {
   const selection = routeSelection(params);
-  // useMirrorToStore compares by Object.is, so the mirrored value is a
-  // primitive key over the three params; the writer applies the params
-  // themselves (it is always the latest closure).
-  const key = selection
-    ? JSON.stringify([selection.logPath, selection.sampleId, selection.epoch])
-    : undefined;
-  useMirrorToStore(key, () => {
-    if (selection) applyRouteSelection(selection);
-  });
+  useMirrorKeyedToStore(
+    selection
+      ? [selection.logPath, selection.sampleId, selection.epoch]
+      : undefined,
+    () => {
+      if (selection) applyRouteSelection(selection);
+    }
+  );
 };
 
 /**
