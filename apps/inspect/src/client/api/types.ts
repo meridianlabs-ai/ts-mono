@@ -470,7 +470,7 @@ export interface LogPreview {
   started_at?: EvalStats["started_at"];
   completed_at?: EvalStats["completed_at"];
 
-  primary_metric?: EvalMetric | null;
+  primary_metric?: EvalMetric;
 }
 
 /**
@@ -556,7 +556,7 @@ export interface Log extends LogHandle {
   model_roles?: Record<string, string> | null;
   started_at?: string;
   completed_at?: string;
-  primary_metric?: EvalMetric | null;
+  primary_metric?: EvalMetric;
 
   header?: LogHeader;
   derived?: LogDerived;

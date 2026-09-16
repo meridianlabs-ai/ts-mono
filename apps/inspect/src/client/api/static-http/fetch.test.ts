@@ -138,7 +138,7 @@ describe("fetchManifest", () => {
     vi.unstubAllGlobals();
   });
 
-  test("normalizes listing entries a legacy bundle left unfilled", async () => {
+  test("parses a legacy bundle listing and passes its entries through", async () => {
     const manifest = await fetchManifest("http://localhost:3000/logs");
 
     expect(fetch).toHaveBeenCalledWith(
@@ -146,12 +146,7 @@ describe("fetchManifest", () => {
       expect.objectContaining(logFetchInit)
     );
     const [preview] = Object.values(manifest?.parsed ?? {});
-    expect(preview).toMatchObject({
-      task: "solo_agent",
-      model: "openai/gpt-4o-mini-2024-07-18-free",
-      error: null,
-      model_roles: null,
-      primary_metric: null,
-    });
+    expect(preview).toEqual(Object.values(legacyListing)[0]);
+    expect(preview?.primary_metric).toBeUndefined();
   });
 });

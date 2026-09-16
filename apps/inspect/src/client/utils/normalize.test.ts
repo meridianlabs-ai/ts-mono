@@ -178,35 +178,30 @@ describe("normalizeLogPreview", () => {
     expect(() => normalizeLogPreview(null)).toThrow();
   });
 
-  it("fills pydantic's None defaults for fields older bundles omit", () => {
+  it("passes a legacy overview through, leaving absent fields absent", () => {
     const preview = normalizeLogPreview(legacyOverview);
-    expect(preview.error).toBeNull();
-    expect(preview.model_roles).toBeNull();
-    expect(preview.primary_metric).toBeNull();
+    expect(preview).toEqual(legacyOverview);
+    expect("error" in preview).toBe(false);
+    expect("model_roles" in preview).toBe(false);
+    expect("primary_metric" in preview).toBe(false);
   });
 
-  it("passes provided fields through unchanged", () => {
+  it("passes provided optional fields through unchanged", () => {
+    const error = { message: "boom", traceback: "tb", traceback_ansi: "tb" };
+    const primary_metric = { name: "accuracy", value: 0.5, params: {} };
     const preview = normalizeLogPreview({
       ...legacyOverview,
-      error: { message: "boom", traceback: "tb", traceback_ansi: "tb" },
+      error,
       model_roles: { grader: "openai/gpt-4o" },
-      primary_metric: { name: "accuracy", value: 0.5, params: {} },
+      primary_metric,
     });
-    expect(preview).toMatchObject(legacyOverview);
-    expect(preview.error?.message).toBe("boom");
+    expect(preview.error).toBe(error);
     expect(preview.model_roles).toEqual({ grader: "openai/gpt-4o" });
-    expect(preview.primary_metric).toEqual({
-      name: "accuracy",
-      value: 0.5,
-      params: {},
-      group: null,
-      metadata: null,
-    });
+    expect(preview.primary_metric).toBe(primary_metric);
   });
 
   it("fills required strings and task_version like normalizeEvalSpec", () => {
-    const preview = normalizeLogPreview({});
-    expect(preview).toMatchObject({
+    expect(normalizeLogPreview({})).toEqual({
       eval_id: "--",
       run_id: "",
       task: "",
@@ -214,9 +209,6 @@ describe("normalizeLogPreview", () => {
       task_version: 0,
       model: "",
     });
-    expect(preview.version).toBeUndefined();
-    expect(preview.status).toBeUndefined();
-    expect(preview.started_at).toBeUndefined();
   });
 
   it("synthesizes eval_id from run_id/task_id/started_at when absent", () => {
@@ -225,20 +217,6 @@ describe("normalizeLogPreview", () => {
     expect(preview.eval_id).toBe(
       "DSwRm98qw3sm8uTY6hCWhk-KLVSy7Dn9tHf7WCHbFmbPY-2024-11-21T07:19:57-08:00"
     );
-  });
-
-  it("drops values of the wrong shape instead of trusting them", () => {
-    const preview = normalizeLogPreview({
-      ...legacyOverview,
-      status: "unknown-status",
-      error: "not an object",
-      primary_metric: { name: "accuracy", value: "high" },
-      model_roles: { grader: 42 },
-    });
-    expect(preview.status).toBeUndefined();
-    expect(preview.error).toBeNull();
-    expect(preview.primary_metric).toBeNull();
-    expect(preview.model_roles).toEqual({});
   });
 
   it("preserves fields it doesn't model (future schema growth)", () => {
@@ -268,11 +246,6 @@ describe("normalizeLogListing", () => {
       "c.eval": null,
     });
     expect(Object.keys(listing)).toEqual(["a.eval"]);
-    expect(listing["a.eval"]).toMatchObject({
-      task: "solo_agent",
-      error: null,
-      model_roles: null,
-      primary_metric: null,
-    });
+    expect(listing["a.eval"]).toEqual(legacyOverview);
   });
 });

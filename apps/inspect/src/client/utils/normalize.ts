@@ -9,7 +9,6 @@ import {
   ConfigUpdate,
   EvalError,
   EvalLog,
-  EvalMetric,
   EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
@@ -58,71 +57,17 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
   /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 };
 
-// `satisfies` keeps this keyset exhaustive: a status added to the generated
-// union fails typecheck here instead of silently normalizing to undefined.
-const kEvalLogStatuses = {
-  started: true,
-  success: true,
-  cancelled: true,
-  error: true,
-} satisfies Record<EvalLogStatus, true>;
-
-const isEvalLogStatus = (value: unknown): value is EvalLogStatus =>
-  typeof value === "string" && Object.hasOwn(kEvalLogStatuses, value);
-
 const stringOr = (value: unknown, fallback: string): string =>
   typeof value === "string" ? value : fallback;
 
-const optionalString = (value: unknown): string | undefined =>
-  typeof value === "string" ? value : undefined;
-
-const normalizeEvalError = (raw: unknown): EvalError | null => {
-  if (!isRecord(raw)) {
-    return null;
-  }
-  return {
-    ...raw,
-    message: stringOr(raw["message"], ""),
-    traceback: stringOr(raw["traceback"], ""),
-    traceback_ansi: stringOr(raw["traceback_ansi"], ""),
-  };
-};
-
-// A metric without a numeric value can't feed the score column, so it
-// degrades to "no primary metric" rather than a fabricated 0.
-const normalizeEvalMetric = (raw: unknown): EvalMetric | null => {
-  if (!isRecord(raw) || typeof raw["value"] !== "number") {
-    return null;
-  }
-  return {
-    ...raw,
-    name: stringOr(raw["name"], ""),
-    value: raw["value"],
-    params: isRecord(raw["params"]) ? raw["params"] : {},
-    group: optionalString(raw["group"]) ?? null,
-    metadata: isRecord(raw["metadata"]) ? raw["metadata"] : null,
-  };
-};
-
-const normalizeModelRoles = (raw: unknown): Record<string, string> | null => {
-  if (!isRecord(raw)) {
-    return null;
-  }
-  const roles: Record<string, string> = {};
-  for (const [role, model] of Object.entries(raw)) {
-    if (typeof model === "string") roles[role] = model;
-  }
-  return roles;
-};
-
 /**
- * Normalize one `listing.json` entry (pydantic's `LogOverview`), filling the
- * defaults the model applies at read time: `error`, `model_roles` and
- * `primary_metric` are null when absent, required strings are "" (eval_id
- * synthesized from run_id/task_id/started_at, mirroring normalizeEvalSpec),
- * task_version is 0. Bundles built by older inspect_ai releases predate
- * `model_roles` and `invalidated` entirely, and write with exclude_none, so
- * absent fields are the norm rather than the exception.
+ * Normalize one `listing.json` entry (pydantic's `LogOverview`). Like
+ * `normalizeEvalSpec`, this fills only what the type requires: the required
+ * strings ("" when missing, `eval_id` synthesized from run_id/task_id/
+ * started_at) and `task_version` (0). Everything else is wire data and passes
+ * through untouched: bundles built by older inspect_ai releases predate
+ * `model_roles` and `invalidated`, and write with exclude_none, so optional
+ * fields are routinely absent and stay absent.
  */
 export const normalizeLogPreview = (raw: unknown): LogPreview => {
   if (!isRecord(raw)) {
@@ -130,16 +75,13 @@ export const normalizeLogPreview = (raw: unknown): LogPreview => {
   }
   const run_id = stringOr(raw["run_id"], "");
   const task_id = stringOr(raw["task_id"], "");
-  const started_at = optionalString(raw["started_at"]);
+  const started_at = stringOr(raw["started_at"], "");
   const task_version = raw["task_version"];
   return {
     // Spread first so fields the schema grows later survive parsing (matching
-    // normalizeEvalHeader); normalized fields override below.
+    // normalizeEvalHeader); required fields override below.
     ...raw,
-    eval_id: stringOr(
-      raw["eval_id"],
-      `${run_id}-${task_id}-${started_at ?? ""}`
-    ),
+    eval_id: stringOr(raw["eval_id"], `${run_id}-${task_id}-${started_at}`),
     run_id,
     task: stringOr(raw["task"], ""),
     task_id,
@@ -147,14 +89,7 @@ export const normalizeLogPreview = (raw: unknown): LogPreview => {
       typeof task_version === "number" || typeof task_version === "string"
         ? task_version
         : 0,
-    version: typeof raw["version"] === "number" ? raw["version"] : undefined,
-    status: isEvalLogStatus(raw["status"]) ? raw["status"] : undefined,
-    error: normalizeEvalError(raw["error"]),
     model: stringOr(raw["model"], ""),
-    model_roles: normalizeModelRoles(raw["model_roles"]),
-    started_at,
-    completed_at: optionalString(raw["completed_at"]),
-    primary_metric: normalizeEvalMetric(raw["primary_metric"]),
   };
 };
 
