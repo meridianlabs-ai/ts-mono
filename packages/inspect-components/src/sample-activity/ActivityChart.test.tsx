@@ -2459,6 +2459,89 @@ describe("ActivityChart tooltip travel", () => {
     }
   });
 
+  // A range card's footer sits below the whole activity band, so on a
+  // multi-row chart the pointer crosses the lower rows' hit surfaces on
+  // its way there (review pass 15): a strip or marker under a travelling
+  // pointer must not take the card over.
+  const twoDenseRows = (): Event[] => {
+    const events: Event[] = [];
+    for (const [agent, offset] of [
+      ["agentA", 0],
+      ["agentB", 1000],
+    ] as const) {
+      events.push(
+        testSpanBeginEvent({
+          id: agent,
+          name: agent,
+          type: "agent",
+          timestamp: iso(offset),
+        })
+      );
+      for (let i = 0; i < 400; i++) {
+        events.push(
+          modelCall({
+            start: offset + i * 2,
+            end: offset + i * 2 + 1,
+            uuid: `${agent}-m${i}`,
+            spanId: agent,
+            input: 100 + i,
+          })
+        );
+      }
+    }
+    return events;
+  };
+  const strips = (container: HTMLElement): SVGElement[] =>
+    [...container.querySelectorAll("rect[class*='densityHit']")].filter(
+      (el): el is SVGElement => el instanceof SVGElement
+    );
+
+  it("keeps a first-row bin card while the pointer crosses the second row's strip", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(twoDenseRows(), { onOpenEvent });
+      const [first, second] = strips(container);
+      if (!first || !second) throw new Error("expected two density strips");
+      const x = attr(first, "x") + 2;
+      fireEvent.mouseMove(first, { clientX: x, clientY: attr(first, "y") + 5 });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const subject = card(container)?.textContent ?? "";
+      expect(subject).toMatch(/\d+ model calls · 0 tool calls/);
+      const left = cardLeft(container);
+      fireEvent.mouseLeave(first, { relatedTarget: second });
+      // Down the second row's strip inside the card's column, then on
+      // across the plot below it: the same card all the way.
+      for (let i = 1; i <= 4; i++) {
+        fireEvent.mouseMove(second, {
+          clientX: left - 20 + 4 * i,
+          clientY: attr(second, "y") + i,
+        });
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+        expect(card(container)?.textContent ?? "", `strip ${i}`).toBe(subject);
+      }
+      fireEvent.mouseLeave(second, { relatedTarget: plotHit(container) });
+      fireEvent.mouseMove(plotHit(container), {
+        clientX: left,
+        clientY: contextBandY(container),
+      });
+      act(() => {
+        vi.advanceTimersByTime(100);
+      });
+      expect(card(container)?.textContent ?? "").toBe(subject);
+      fireEvent.click(
+        screen.getByRole("button", { name: "open first in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("agentA-m0", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops following the pointer horizontally once it leaves the span", () => {
     vi.useFakeTimers();
     try {

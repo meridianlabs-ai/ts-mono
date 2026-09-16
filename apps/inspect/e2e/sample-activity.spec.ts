@@ -16,6 +16,8 @@ import {
   testModelUsage,
   testScore,
   testScoreEvent,
+  testSpanBeginEvent,
+  testSpanEndEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type {
@@ -52,11 +54,14 @@ function activityModelEvent(overrides: {
   retries?: number;
   /** Working seconds within the wall span (defaults to the whole span). */
   working?: number;
+  /** The conversation span the call belongs to (a row of its own). */
+  spanId?: string;
 }): ModelEvent {
   const input = overrides.inputTokens ?? 1000;
   const output = overrides.outputTokens ?? 200;
   return testModelEvent({
     uuid: overrides.uuid,
+    span_id: overrides.spanId,
     model: "claude-sonnet-4-5-20250929",
     output: testModelOutput({
       usage: testModelUsage({
@@ -101,9 +106,11 @@ function activityCompactionEvent(overrides: {
   workingStart: number;
   before: number;
   after: number;
+  spanId?: string;
 }): CompactionEvent {
   return testCompactionEvent({
     uuid: overrides.uuid,
+    span_id: overrides.spanId,
     timestamp: iso(overrides.atSec),
     working_start: overrides.workingStart,
     tokens_before: overrides.before,
@@ -827,6 +834,130 @@ for (const path of ["straight", "down then across"] as const) {
     await expect(page).toHaveURL(/\/transcript\?event=fan-b$/);
   });
 }
+
+/** Two conversations, each dense enough for the strip at a 1032 px
+ *  viewport, the first with a two-compaction cluster on the rail: the
+ *  multi-row shape whose footer travel crosses another row's hit
+ *  surfaces. */
+function twoDenseRowsEvents(): Events {
+  const events: Events = [];
+  for (const [agent, offset] of [
+    ["agentA", 0],
+    ["agentB", 1000],
+  ] as const) {
+    events.push(
+      testSpanBeginEvent({
+        id: agent,
+        name: agent,
+        type: "agent",
+        timestamp: iso(offset),
+        working_start: offset,
+      })
+    );
+    for (let i = 0; i < 330; i++) {
+      const start = offset + i * 2;
+      events.push(
+        activityModelEvent({
+          uuid: `${agent}-m${i}`,
+          startSec: start,
+          endSec: start + 1,
+          workingStart: start,
+          inputTokens: 1_000 + i * 10,
+          spanId: agent,
+        })
+      );
+      if (agent === "agentA" && (i === 50 || i === 51)) {
+        events.push(
+          activityCompactionEvent({
+            uuid: `compact-a${i - 49}`,
+            atSec: start + 1.5,
+            workingStart: start + 1.5,
+            before: 1_000 + i * 10,
+            after: 500,
+            spanId: agent,
+          })
+        );
+      }
+    }
+    events.push(
+      testSpanEndEvent({
+        id: agent,
+        timestamp: iso(offset + 660),
+        working_start: offset + 660,
+      })
+    );
+  }
+  return events;
+}
+
+// A range card's footer sits below the whole activity band, so on a
+// multi-row chart the pointer crosses the lower rows' strips on the way
+// (review pass 15): the card must not change hands mid-journey.
+for (const axis of ["Wall clock", "Turns"] as const) {
+  test(`a first-row bin card survives travel across the second row's strip to its footer (${axis})`, async ({
+    page,
+    network,
+  }) => {
+    await page.setViewportSize({ width: 1032, height: 900 });
+    await openSample(page, network, { events: twoDenseRowsEvents() });
+    await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+    if (axis === "Turns") {
+      await page.getByRole("button", { name: "Turns", exact: true }).click();
+      await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+    }
+    const strips = page.locator("rect[class*='densityHit']");
+    await expect(strips).toHaveCount(2);
+    const box = await strips.first().boundingBox();
+    if (!box) throw new Error("expected the first row's strip");
+    const from = { x: box.x + 2, y: box.y + box.height / 2 };
+    await page.mouse.move(from.x, from.y);
+    const card = page.locator("[class*='tooltip']");
+    await expect(card).toContainText(/[1-9]\d* model calls · 0 tool calls/);
+    const subject = /[1-9]\d* model calls · 0 tool calls/.exec(
+      (await card.textContent()) ?? ""
+    )?.[0];
+    if (!subject) throw new Error("expected the first row's bin card");
+    const footer = card.getByRole("button", {
+      name: "open first in transcript →",
+    });
+    await expect(footer).toBeVisible();
+    const footerBox = await footer.boundingBox();
+    if (!footerBox) throw new Error("expected the card's footer");
+    await travel(page, from, center(footerBox), 30, async (step) => {
+      await expect(card, `${axis} step ${step}`).toContainText(subject);
+    });
+    await footer.click();
+    await expect(page).toHaveURL(/\/transcript\?event=agentA-m0$/);
+  });
+}
+
+test("a marker cluster's card survives travel across the strips to its footer", async ({
+  page,
+  network,
+}) => {
+  await page.setViewportSize({ width: 1032, height: 900 });
+  await openSample(page, network, { events: twoDenseRowsEvents() });
+  await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+  const glyph = page
+    .getByRole("button", { name: /^2 events: Context compacted/ })
+    .and(page.locator("rect"));
+  await glyph.hover();
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toContainText("2 events");
+  const footer = card.getByRole("button", {
+    name: "open first in transcript →",
+  });
+  await expect(footer).toBeVisible();
+  const glyphBox = await glyph.boundingBox();
+  const footerBox = await footer.boundingBox();
+  if (!glyphBox || !footerBox) throw new Error("expected glyph and footer");
+  // Down from the rail through both rows' strips to the footer.
+  await travel(page, center(glyphBox), center(footerBox), 30, async (step) => {
+    await expect(card, `step ${step}`).toContainText("2 events");
+  });
+  await footer.click();
+  await expect(page).toHaveURL(/\/transcript\?event=compact-a1$/);
+});
 
 test("history row clicks through to the transcript event", async ({
   page,

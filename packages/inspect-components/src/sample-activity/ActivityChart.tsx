@@ -1397,6 +1397,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           width={Math.max(plotWidth, 0)}
           height={rowH + 4}
           onMouseMove={(event) => {
+            if (travellingToCard(event)) return;
             const px = pointerPx(event);
             const bin = binAt(px);
             setCursor({ x: px, t: timeAt(px) });
@@ -1512,7 +1513,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         count > 0 &&
         x1 - x0 >= countHalf * 2 + 4 &&
         mid - countHalf >= rowLabelEnd(row) + 8;
-      const enter = () => {
+      const enter = (event: ReactMouseEvent<SVGElement>) => {
+        if (travellingToCard(event)) return;
         setCursor({ x: x0, t: firstTool?.start ?? turn.start });
         showTarget({ kind: "bin", label, time, window, firstUuid });
       };
@@ -1751,6 +1753,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           width={Math.max(plotWidth, 0)}
           height={rowH + 4}
           onMouseMove={(event) => {
+            if (travellingToCard(event)) return;
             const px = pointerPx(event);
             const bin = binAt(px);
             setCursor({ x: px, t: timeAtPx(px) });
@@ -2077,7 +2080,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 role="button"
                 tabIndex={0}
                 aria-label={label}
-                onMouseEnter={activate}
+                onMouseEnter={(event) => {
+                  if (!travellingToCard(event)) activate();
+                }}
                 onMouseLeave={deactivate}
                 onFocus={activate}
                 onBlur={deactivate}
@@ -2395,6 +2400,12 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     if (previous !== null && distance < previous) closeAfterGrace();
     return true;
   };
+  /** The hit surfaces a travelling pointer crosses on its way down to a
+   *  card's footer — a lower row's density strip, a crowded tool half,
+   *  the marker rail — hold the card too instead of taking it over
+   *  (review pass 15). */
+  const travellingToCard = (event: ReactMouseEvent<SVGElement>): boolean =>
+    holdCardForPointer(pointerPx(event), pointerPy(event));
 
   const renderTooltip = () => {
     const placement = tooltipPlacement();

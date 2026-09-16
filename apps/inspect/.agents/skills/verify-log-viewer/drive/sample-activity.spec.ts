@@ -236,15 +236,39 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   // Hovering the glyph still opens its card. A cluster card lists its
   // members and links to the earliest of them (Charles, 2026-09-16: a
   // collapsed range keeps a link to its first event), so the way through
-  // from here is the card's own footer.
+  // from here is the card's own footer — reached the way a hand reaches
+  // it, in small moves down from the rail across both rows' density
+  // strips (review pass 15: a direct locator click skips the travel and
+  // missed a strip taking the card over).
   await glyph.hover();
   const card = page.locator("[class*='tooltip']");
   await expect(card).toBeVisible();
   await expect(card).toContainText(/\d+ events/);
   await expect(card).toContainText("Context compacted");
-  await card
-    .getByRole("button", { name: "open first in transcript →" })
-    .click();
+  const footer = card.getByRole("button", {
+    name: "open first in transcript →",
+  });
+  await expect(footer).toBeVisible();
+  const glyphBox = await glyph.boundingBox();
+  const footerBox = await footer.boundingBox();
+  if (!glyphBox || !footerBox) throw new Error("expected glyph and footer");
+  const from = {
+    x: glyphBox.x + glyphBox.width / 2,
+    y: glyphBox.y + glyphBox.height / 2,
+  };
+  const to = {
+    x: footerBox.x + footerBox.width / 2,
+    y: footerBox.y + footerBox.height / 2,
+  };
+  const steps = 30;
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(
+      from.x + ((to.x - from.x) * i) / steps,
+      from.y + ((to.y - from.y) * i) / steps
+    );
+    await expect(card, `step ${i}`).toContainText("Context compacted");
+  }
+  await footer.click();
   await expect(page).toHaveURL(/\/transcript\?event=/);
 });
 

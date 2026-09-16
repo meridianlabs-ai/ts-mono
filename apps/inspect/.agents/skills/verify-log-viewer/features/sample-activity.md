@@ -79,7 +79,12 @@ calls[ · k failed][ · r rejected]`; when every slot is a rejected call the agg
   for a range — a strip bin, a crowded Turns tool half, a ×N marker
   cluster, a Wall clock vertex covering parallel calls — carries
   `open first in transcript →` instead and lands on the range's earliest
-  event.
+  event. Every footer is reached by ordinary pointer travel: once the
+  pointer leaves the hovered thing the card holds while the pointer heads
+  for it, and the surfaces crossed on the way — curve bands, a lower
+  row's strip, a crowded tool half, the marker rail — do not take the
+  card over. Drive it with stepped `mouse.move`s, not a direct locator
+  click, which skips the travel.
 - Marker glyphs: `getByRole("button", { name: <marker label> })`, e.g.
   `Tool bash errored`.
 - History filter pills: `getByRole("button", { name: /Errors \d/ })` etc.;
