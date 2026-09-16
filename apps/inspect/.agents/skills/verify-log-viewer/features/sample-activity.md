@@ -65,7 +65,8 @@ calls[ · k failed][ · r rejected]`; when every slot is a rejected call the agg
 - Hover: any pointer position over the plot draws one hairline through
   every band plus a dark time pill on the axis (`[class*='cursorPillText']`,
   `turn N` in Turns mode). Hovering a span, marker, stall, burst, context
-  point or dense bin shows the single tooltip card after 120ms (header ·
+  point or dense bin shows the single tooltip card after 120ms (header = subject + status
+  on the full card width · mono time line beneath it (`[class*='timeLine']`) ·
   who · detail grid · `open in transcript →` footer).
 - Marker glyphs: `getByRole("button", { name: <marker label> })`, e.g.
   `Tool bash errored`.

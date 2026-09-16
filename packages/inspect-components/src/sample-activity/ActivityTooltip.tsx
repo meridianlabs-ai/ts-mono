@@ -105,8 +105,9 @@ const timeRange = (start: number, end: number, pending: boolean): string =>
     ? `${fmtTimeSec(start)} → ${pending ? "now" : fmtTimeSec(end)}`
     : fmtTimeSec(start);
 
-/** Header time: the wall range, or `turn N · hh:mm:ss` in Turns mode
- *  (handoff 8b) — the start alone keeps the header on one line. */
+/** Card time: the wall range, or `turn N · hh:mm:ss` in Turns mode
+ *  (handoff 8b). Rendered on its own line under the header so the
+ *  subject keeps the card's full width (design owner, 2026-09-16). */
 const headerTime = (
   turn: number | undefined,
   turnsMode: boolean,
@@ -151,8 +152,8 @@ const Card: FC<CardProps> = ({
           {status.text}
         </span>
       )}
-      <span className={styles.time}>{time}</span>
     </div>
+    <div className={styles.timeLine}>{time}</div>
     {who && (
       <div className={styles.who}>
         <span className={styles.swatch} style={{ background: who.hue }} />

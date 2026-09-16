@@ -41,9 +41,7 @@
   color: #6b4fa8;
 }
 
-.time {
-  margin-left: auto;
-  flex-shrink: 0;
+.timeLine {
   font-family: var(--bs-font-monospace);
   font-size: 0.68rem;
   color: var(--bs-secondary-color);

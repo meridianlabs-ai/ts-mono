@@ -579,6 +579,16 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
       });
       expect(screen.getByText("tool call")).toBeTruthy();
       expect(screen.getByText("failed")).toBeTruthy();
+      // The header holds subject + status only; the time gets its own
+      // line beneath so a long title has the card's full width
+      // (design owner, 2026-09-16: "model turn 41 · claude…" always
+      // ellipsized beside the range).
+      const header = container.querySelector("[class*='header']");
+      const timeLine = container.querySelector("[class*='timeLine']");
+      expect(header?.textContent).toBe("bash tool callfailed");
+      expect(timeLine).not.toBeNull();
+      expect(timeLine?.previousElementSibling).toBe(header);
+      expect(timeLine?.textContent).toContain("→");
       // The error message appears in the history row and now in the card.
       expect(screen.getAllByText(/exit 127/).length).toBeGreaterThanOrEqual(2);
       // The hovered rect outlines; the model call in the same turn keeps
