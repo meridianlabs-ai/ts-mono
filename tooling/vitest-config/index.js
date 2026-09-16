@@ -1,14 +1,6 @@
 import { globSync, readFileSync } from "node:fs";
 
-// Vitest's own defaults, restated because a project-level `include` replaces
-// them wholesale.
-const DEFAULT_INCLUDE = ["**/*.{test,spec}.?(c|m)[jt]s?(x)"];
-const DEFAULT_EXCLUDE = [
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/.{idea,git,cache,output,temp}/**",
-  "**/{vite,vitest,playwright}.config.*",
-];
+import { defaultExclude, defaultInclude } from "vitest/config";
 
 const ENVIRONMENT_DIRECTIVE =
   /^\s*(?:\/\/|\/\*\*?|\*)\s*@vitest-environment\s+(\S+)/m;
@@ -46,9 +38,9 @@ const classify = (file) => {
  */
 export const splitTestEnvironments = (config, root) => {
   const test = config.test ?? {};
-  const files = globSync(test.include ?? DEFAULT_INCLUDE, {
+  const files = globSync(test.include ?? defaultInclude, {
     cwd: root,
-    exclude: test.exclude ?? DEFAULT_EXCLUDE,
+    exclude: test.exclude ?? defaultExclude,
   }).sort();
 
   /** @type {Record<"pure" | "mocked" | "dom", string[]>} */
