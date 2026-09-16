@@ -124,17 +124,20 @@ test("activity tab renders bands and history against a real dense log", async ({
   }
   await shot(page, "sample-activity-all-bands-light.png");
 
-  // Turns axis: gap-free columns, TURN label, working chip greyed.
+  // Turns axis: gap-free columns, TURN label; waiting has no extent on
+  // this axis, so the Working time chip and band are hidden (not greyed)
+  // and come back with Wall clock.
+  const workingChip = page.getByRole("button", { name: /Working time/ });
   await page.getByRole("button", { name: "Turns" }).click();
   await expect(page.getByText("TURN", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: /Working time/ })
-  ).toBeDisabled();
+  await expect(workingChip).toHaveCount(0);
   await expect(
     page.getByText("WORKING TIME", { exact: true })
   ).not.toBeVisible();
   await shot(page, "sample-activity-turns-light.png");
   await page.getByRole("button", { name: "Wall clock", exact: true }).click();
+  await expect(workingChip).toBeVisible();
+  await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
 });
 
 test("activity history filters and clicks through to the transcript", async ({
