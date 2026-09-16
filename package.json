@@ -13,7 +13,8 @@
     "check": "manypkg check && node scripts/check-suppressions.mjs && turbo run check",
     "manypkg:check": "manypkg check",
     "manypkg:fix": "manypkg fix",
-    "test": "turbo run test",
+    "test": "vitest run",
+    "test:turbo": "turbo run test",
     "format": "turbo run format",
     "format:check": "turbo run format:check",
     "dev": "turbo run dev",
@@ -35,6 +36,7 @@
     "picocolors": "^1.1.1",
     "prettier": "^3.9.6",
     "turbo": "^2.10.12",
-    "typescript": "npm:@typescript/typescript6@^6.0.2"
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "vitest": "^5.0.0"
   }
 }
