@@ -57,7 +57,11 @@ calls[ · k failed][ · r rejected]`; when every slot is a rejected call the agg
   curve points anchor inside their own column: a turn's context dot sits at
   the column's left edge and its burn step and any compaction cliff rise
   at the end of the model half, so column 1 carries turn 1's values and the
-  last step ends before the axis end; curve cards read `turn N · hh:mm:ss`)
+  last step ends before the axis end; curve cards read `turn N · hh:mm:ss`;
+  the context line's vertices follow the turn order, so parallel calls
+  issued together never step back across their columns — on the Wall
+  clock such a fan-out draws one vertex at its largest context and its
+  dot's card lists `N parallel calls · min – max`)
   and removes the Working time chip from the picker — the band hides
   there too, but its override is kept, so Wall clock restores both as they
   were.
@@ -71,7 +75,11 @@ calls[ · k failed][ · r rejected]`; when every slot is a rejected call the agg
   `turn N` in Turns mode). Hovering a span, marker, stall, burst, context
   point or dense bin shows the single tooltip card after 120ms (header = subject + status
   on the full card width · mono time line beneath it (`[class*='timeLine']`) ·
-  who · detail grid · `open in transcript →` footer).
+  who · detail grid · `open in transcript →` footer). A card that stands
+  for a range — a strip bin, a crowded Turns tool half, a ×N marker
+  cluster, a Wall clock vertex covering parallel calls — carries
+  `open first in transcript →` instead and lands on the range's earliest
+  event.
 - Marker glyphs: `getByRole("button", { name: <marker label> })`, e.g.
   `Tool bash errored`.
 - History filter pills: `getByRole("button", { name: /Errors \d/ })` etc.;

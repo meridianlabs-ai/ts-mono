@@ -42,7 +42,14 @@ export type HoverTarget =
   | { kind: "span"; span: ActivitySpan; row: AgentRow }
   | { kind: "burst"; burst: ToolBurst; row: AgentRow; hovered: ActivitySpan }
   | { kind: "marker"; members: ActivityMarker[]; compaction?: CompactionDrop }
-  | { kind: "context"; point: ContextPoint; row: AgentRow }
+  | {
+      kind: "context";
+      point: ContextPoint;
+      row: AgentRow;
+      /** The fan-out the point belongs to (two or more calls issued
+       *  together), earliest first — the card lists them. */
+      parallel?: ContextPoint[];
+    }
   | { kind: "stall"; stall: StallRegion }
   | {
       /** A collapsed range — a density-strip bin or a crowded tool half.
@@ -130,6 +137,10 @@ const headerTime = (
     ? `turn ${turn} · ${fmtTimeSec(start)}`
     : timeRange(start, end, pending);
 
+/** A card that stands for a range of events links to the range's first
+ *  event (design owner, 2026-09-16) and says so. */
+const kFooterFirst = "open first in transcript →";
+
 interface CardProps {
   subject: ReactNode;
   status?: { text: string; tone: "failed" | "rejected" };
@@ -137,10 +148,7 @@ interface CardProps {
   who?: { hue: string; name: string; model?: string; turn?: number };
   children?: ReactNode;
   uuid?: string;
-/** A card that stands for a range of events links to the range's first
- *  event (design owner, 2026-09-16) and says so. */
-const kFooterFirst = "open first in transcript →";
-
+  footerLabel?: string;
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
 }
 
@@ -148,10 +156,10 @@ const Card: FC<CardProps> = ({
   subject,
   status,
   time,
-  footerLabel?: string;
   who,
   children,
   uuid,
+  footerLabel = "open in transcript →",
   onOpenEvent,
 }) => (
   <Fragment>
@@ -159,7 +167,6 @@ const Card: FC<CardProps> = ({
       <span className={styles.subject}>{subject}</span>
       {status && (
         <span
-  footerLabel = "open in transcript →",
           className={
             status.tone === "failed"
               ? styles.statusFailed
@@ -355,6 +362,9 @@ const BurstBody: FC<{
   onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
 }> = ({ burst, row, hovered, turnsMode, onOpenEvent }) => {
   const members = row.spans.filter((s) => s.burst === burst);
+  // The card marks the hovered lane, so its link is that member's; a
+  // pre-uuid member falls back to the burst's first linkable one.
+  const firstUuid = members.find((m) => m.uuid !== undefined)?.uuid;
   return (
     <Card
       subject={
@@ -362,9 +372,6 @@ const BurstBody: FC<{
           <span className={styles.mono}>{burst.label}</span> ×{burst.count}
         </Fragment>
       }
-  // The card marks the hovered lane, so its link is that member's; a
-  // pre-uuid member falls back to the burst's first linkable one.
-  const firstUuid = members.find((m) => m.uuid !== undefined)?.uuid;
       status={
         burst.failed > 0
           ? { text: `${burst.failed} failed`, tone: "failed" }
@@ -412,10 +419,17 @@ const BurstBody: FC<{
 const ContextPointBody: FC<{
   point: ContextPoint;
   row: AgentRow;
+  parallel?: ContextPoint[];
   turnsMode: boolean;
   onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
-}> = ({ point, row, turnsMode, onOpenEvent }) => {
+}> = ({ point, row, parallel, turnsMode, onOpenEvent }) => {
   const rows: GridRow[] = [];
+  // On the wall clock the vertex stands for the whole fan-out (drawn at
+  // its largest member), so the card links the fan-out's first call; in
+  // Turns mode each call has its own column and the card is its own.
+  const collapsed = parallel !== undefined && !turnsMode;
+  const first = parallel?.[0];
+  const values = parallel?.map((p) => p.value) ?? [];
   if (point.delta !== undefined) {
     rows.push({
       key: "Δ prev turn",
@@ -440,6 +454,36 @@ const ContextPointBody: FC<{
       onOpenEvent={onOpenEvent}
     >
       {rows.length > 0 && <Grid rows={rows} />}
+      {parallel && (
+        <div className={styles.list}>
+          <div className={styles.note}>
+            {parallel.length} parallel calls ·{" "}
+            <span className={styles.mono}>
+              {num(Math.min(...values))} – {num(Math.max(...values))}
+            </span>
+          </div>
+          {parallel.slice(0, 4).map((member, i) => (
+            <div
+              key={i}
+              className={clsx(
+                styles.listRow,
+                member === point && styles.listRowHovered
+              )}
+            >
+              <span className={styles.mono}>{num(member.value)} tokens</span>
+              <span className={clsx(styles.mono, styles.muted)}>
+                {fmtSeconds(member.end - member.time)}
+              </span>
+              {member.turn !== undefined && (
+                <span className={styles.muted}>turn {member.turn}</span>
+              )}
+            </div>
+          ))}
+          {parallel.length > 4 && (
+            <div className={styles.muted}>+{parallel.length - 4} more</div>
+          )}
+        </div>
+      )}
     </Card>
   );
 };
@@ -522,10 +566,15 @@ const MarkerBody: FC<{
       />
     );
   }
+  // Members arrive in time order; the earliest linkable one is the target.
+  const firstUuid = members.find((m) => m.uuid !== undefined)?.uuid;
   return (
     <Card
       subject={`${members.length} events`}
       time={`${fmtTimeSec(head.time)} → ${fmtTimeSec(members[members.length - 1]!.time)}`}
+      uuid={firstUuid}
+      footerLabel={kFooterFirst}
+      onOpenEvent={onOpenEvent}
     >
       <div className={styles.list}>
         {members.slice(0, 6).map((member, i) => (
@@ -548,6 +597,21 @@ const MarkerBody: FC<{
   );
 };
 
+const BinBody: FC<{
+  label: string;
+  time: string;
+  firstUuid?: string;
+  onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
+}> = ({ label, time, firstUuid, onOpenEvent }) => (
+  <Card
+    subject={label}
+    time={time}
+    uuid={firstUuid}
+    footerLabel={kFooterFirst}
+    onOpenEvent={onOpenEvent}
+  />
+);
+
 const StallBody: FC<{ stall: StallRegion }> = ({ stall }) => (
   <Card
     subject={`Waiting ${fmtDurationWords(stall.duration)}`}
@@ -566,15 +630,10 @@ const StallBody: FC<{ stall: StallRegion }> = ({ stall }) => (
 const CurveValueText: FC<{ value?: number; aggregate?: "max" }> = ({
   value,
   aggregate,
-  // Members arrive in time order; the earliest linkable one is the target.
-  const firstUuid = members.find((m) => m.uuid !== undefined)?.uuid;
 }) => (
   <span className={styles.mono}>
     {aggregate === "max" && value !== undefined && (
       <span className={styles.muted}>max </span>
-      uuid={firstUuid}
-      footerLabel={kFooterFirst}
-      onOpenEvent={onOpenEvent}
     )}
     {value === undefined ? "—" : num(value)}
   </span>
@@ -597,21 +656,6 @@ const CurveBody: FC<{
             <CurveValueText value={only.value} aggregate={only.aggregate} />{" "}
             {band === "tokens" ? "tokens burned" : "tokens in context"}
           </Fragment>
-const BinBody: FC<{
-  label: string;
-  time: string;
-  firstUuid?: string;
-  onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
-}> = ({ label, time, firstUuid, onOpenEvent }) => (
-  <Card
-    subject={label}
-    time={time}
-    uuid={firstUuid}
-    footerLabel={kFooterFirst}
-    onOpenEvent={onOpenEvent}
-  />
-);
-
         }
         time={headerText}
       />
@@ -696,6 +740,7 @@ export const ActivityTooltip: FC<ActivityTooltipProps> = ({
         <ContextPointBody
           point={target.point}
           row={target.row}
+          parallel={target.parallel}
           turnsMode={turnsMode}
           onOpenEvent={onOpenEvent}
         />

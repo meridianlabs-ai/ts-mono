@@ -25,6 +25,7 @@ import {
   fmtTokens,
   kCategoryColor,
   kScorerHue,
+  parallelContextGroups,
   StallRegion,
   TimeWindow,
   TokenPoint,
@@ -144,7 +145,6 @@ const kTooltipCorridorMarginPx = 24;
 // A curve hover within this many px of a context point reads that point.
 const kContextPointSnapPx = 6;
 
-/** The shared cursor: a time on the axis, anchored to a hovered span or
 const plural = (count: number, noun: string): string =>
   `${count} ${noun}${count === 1 ? "" : "s"}`;
 /** A collapsed range's call counts with the unit spelled out — the card
@@ -153,6 +153,7 @@ const callCountsLabel = (model: number, tool: number, failed: number): string =>
   `${plural(model, "model call")} · ${plural(tool, "tool call")}` +
   (failed > 0 ? ` (${failed} failed)` : "");
 
+/** The shared cursor: a time on the axis, anchored to a hovered span or
  *  marker start when one is hovered, else the raw pointer position. */
 interface Cursor {
   x: number;
@@ -381,8 +382,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       (peak, member) => Math.max(peak, data.contextPeakByRow[member.id] ?? 0),
       0
     );
-  const contextPointsOf = (row: AgentRow): ContextPoint[] =>
-    memberRows(row).flatMap((member) => data.contextByRow[member.id] ?? []);
 
   const plotLeft = multiAgent ? kYAxisWidthGutter : kYAxisWidth;
   const plotRight = Math.max(width - kPlotRightInset, plotLeft);
@@ -451,6 +450,35 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     turnsMode && point.turn !== undefined
       ? colLeft(point.turn)
       : xAt(point.time);
+  /** What a row's context line is built from. Turns mode keeps one node
+   *  per call (each has its own column); the wall clock draws one per
+   *  fan-out — calls issued together at one instant — at the largest
+   *  member's value, so parallel calls read as one vertex instead of a
+   *  vertical zigzag (design owner, 2026-09-16). `parallel` is set when
+   *  the node's call ran alongside others, for the card. */
+  interface ContextNode {
+    point: ContextPoint;
+    x: number;
+    parallel?: ContextPoint[];
+  }
+  const contextNodesCache = new Map<string, ContextNode[]>();
+  const contextNodes = (row: AgentRow): ContextNode[] => {
+    const cached = contextNodesCache.get(row.id);
+    if (cached) return cached;
+    const groups = parallelContextGroups(data.contextByRow[row.id] ?? []);
+    const nodes: ContextNode[] = groups.flatMap((group) => {
+      const parallel = group.length > 1 ? group : undefined;
+      if (turnsMode) {
+        return group.map((point) => ({ point, x: contextX(point), parallel }));
+      }
+      const largest = group.reduce((a, b) => (b.value > a.value ? b : a));
+      return [{ point: largest, x: contextX(group[0]!), parallel }];
+    });
+    contextNodesCache.set(row.id, nodes);
+    return nodes;
+  };
+  const contextNodesOf = (row: AgentRow): ContextNode[] =>
+    memberRows(row).flatMap((member) => contextNodes(member));
   const modelHalfEnd = (turn: number): number => colLeft(turn) + colWidth / 2;
   const burnX = (point: TokenPoint): number =>
     turnsMode && point.turn !== undefined
@@ -607,15 +635,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       run =
         drop.after !== undefined ? [{ x: dropX(drop), value: drop.after }] : [];
     };
-    for (const point of series) {
+    for (const node of contextNodes(row)) {
       while (
         dropIndex < drops.length &&
-        (drops[dropIndex]?.time ?? Infinity) <= point.time
+        (drops[dropIndex]?.time ?? Infinity) <= node.point.time
       ) {
         applyDrop(drops[dropIndex]!);
         dropIndex += 1;
       }
-      run.push({ x: contextX(point), value: point.value });
+      run.push({ x: node.x, value: node.point.value });
     }
     // A compaction with no model call after it (running sample, truncated
     // or completed log) still ends the line at tokens_after: the read-out
@@ -994,7 +1022,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
     // Dots only at sparse density — they'd smear into a rope at scale.
     const visiblePoints = curveRows.reduce(
-      (sum, row) => sum + contextPointsOf(row).length,
+      (sum, row) => sum + contextNodesOf(row).length,
       0
     );
     const sparse = visiblePoints <= plotWidth / 8;
@@ -1028,13 +1056,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               />
             ))}
             {sparse &&
-              contextPointsOf(row).map((point, i) => (
+              contextNodesOf(row).map((node, i) => (
                 <circle
                   key={`ctx-dot-${i}`}
                   className={styles.contextDot}
                   style={multiAgent ? { fill: row.hue } : undefined}
-                  cx={contextX(point)}
-                  cy={y(point.value)}
+                  cx={node.x}
+                  cy={y(node.point.value)}
                   r={2}
                 />
               ))}
@@ -1252,6 +1280,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     failed: number;
   }
 
+  interface Bin {
+    label: string;
+    time: string;
+    window: TimeWindow;
+    firstUuid?: string;
+  }
+
   const renderDenseRow = (row: AgentRow, rowTop: number): ReactNode => {
     const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
     const rowH = kAgentSpanHeight + 1;
@@ -1280,13 +1315,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
     const binAt = (px: number): Bin => {
       const binStart =
-  interface Bin {
-    label: string;
-    time: string;
-    window: TimeWindow;
-    firstUuid?: string;
-  }
-
         plotLeft +
         Math.floor((px - plotLeft) / kDensityHoverPx) * kDensityHoverPx;
       const binEnd = Math.min(binStart + kDensityHoverPx, plotRight);
@@ -1358,7 +1386,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             showTarget({
               kind: "bin",
               label: bin.label,
+              time: bin.time,
               window: bin.window,
+              firstUuid: bin.firstUuid,
             });
           }}
           onMouseLeave={clearTarget}
@@ -1386,9 +1416,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  one gap-free column per turn, always split into the grey model half
    *  on the left and the teal tool half on the right. A tool-less turn
    *  leaves its tool half empty; a tool-only turn leaves its model half
-              time: bin.time,
    *  empty. Sequential calls split the tool half into equal slots,
-              firstUuid: bin.firstUuid,
    *  rejected calls (dashed ghosts) taking a slot like any other, and a
    *  burst keeps its sub-lanes inside its slot. */
   const renderTurnRow = (row: AgentRow, rowTop: number): ReactNode => {
@@ -1450,6 +1478,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         ...(turn.rejected > 0 ? [`${turn.rejected} rejected`] : []),
         ...(ghostOnly ? ["no tool run"] : []),
       ].join(" · ");
+      const firstTool = turn.tools[0];
+      const time = `turn ${turn.index} · ${fmtTimeSec(firstTool?.start ?? turn.start)}`;
+      // The half stands for the turn's tool calls, so its link is the
+      // first of them (a rejected-only half has no event to open).
+      const firstUuid = turn.tools.find((t) => t.uuid !== undefined)?.uuid;
       const window: TimeWindow = { start: turn.start, end: turn.end };
       const isHovered =
         hoverTarget?.kind === "bin" &&
@@ -1478,11 +1511,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               x={x0 + 0.75}
               y={spanY}
               width={Math.max(x1 - x0 - 1.5, 0.5)}
-      const firstTool = turn.tools[0];
-      const time = `turn ${turn.index} · ${fmtTimeSec(firstTool?.start ?? turn.start)}`;
-      // The half stands for the turn's tool calls, so its link is the
-      // first of them (a rejected-only half has no event to open).
-      const firstUuid = turn.tools.find((t) => t.uuid !== undefined)?.uuid;
               height={kAgentSpanHeight}
               onMouseEnter={enter}
               onMouseLeave={clearTarget}
@@ -1650,11 +1678,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       let model = 0;
       let tool = 0;
       let failed = 0;
+      let firstUuid: string | undefined;
+      // Turns are index-sorted: the first one in range is the earliest.
       for (const turn of rowTurns(row)) {
         if (turn.index < a || turn.index > b) continue;
         if (turn.model) model += 1;
         tool += turn.tools.length;
         failed += turn.tools.filter((t) => t.failed).length;
+        firstUuid ??=
+          turn.model?.uuid ??
+          turn.tools.find((t) => t.uuid !== undefined)?.uuid;
       }
       const start = turns[a - 1]?.start ?? timeWindow.start;
       return {
@@ -1675,16 +1708,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               key={`col-${i}`}
               className={share > 0.5 ? styles.densityTool : styles.densityModel}
               x={plotLeft + i * kDensityColWidth}
-      let firstUuid: string | undefined;
-      // Turns are index-sorted: the first one in range is the earliest.
               y={spanY}
               width={kDensityColWidth}
               height={rowH}
               opacity={0.3 + Math.min(0.6, total * 0.18)}
             />
-        firstUuid ??=
-          turn.model?.uuid ??
-          turn.tools.find((t) => t.uuid !== undefined)?.uuid;
           );
         })}
         {cols.map((col, i) =>
@@ -1712,7 +1740,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             showTarget({
               kind: "bin",
               label: bin.label,
+              time: bin.time,
               window: bin.window,
+              firstUuid: bin.firstUuid,
             });
           }}
           onMouseLeave={clearTarget}
@@ -1740,9 +1770,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             ▸
           </text>
         ) : (
-              time: bin.time,
           <Fragment>
-              firstUuid: bin.firstUuid,
             <rect
               className={clsx(
                 styles.gutterCheckbox,
@@ -2228,19 +2256,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         );
       };
       // Snap to a context point when the pointer is right on it.
-      let nearest: { row: AgentRow; point: ContextPoint } | undefined;
+      let nearest: { row: AgentRow; node: ContextNode } | undefined;
       let nearestDist = Infinity;
       // The snap names the actual conversation, a fold member included.
       for (const curveRow of curveRows) {
         for (const row of memberRows(curveRow)) {
-          for (const point of data.contextByRow[row.id] ?? []) {
-            const dist = Math.hypot(
-              contextX(point) - px,
-              yOf(point.value) - py
-            );
+          for (const node of contextNodes(row)) {
+            const dist = Math.hypot(node.x - px, yOf(node.point.value) - py);
             if (dist < nearestDist) {
               nearestDist = dist;
-              nearest = { row, point };
+              nearest = { row, node };
             }
           }
         }
@@ -2248,8 +2273,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       if (nearest && nearestDist <= kContextPointSnapPx) {
         showTarget({
           kind: "context",
-          point: nearest.point,
+          point: nearest.node.point,
           row: nearest.row,
+          parallel: nearest.node.parallel,
         });
         return;
       }

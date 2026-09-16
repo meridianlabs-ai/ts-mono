@@ -112,6 +112,8 @@ export interface TokenPoint {
 
 export interface ContextPoint {
   time: number;
+  /** The call's completion — parallel-call grouping reads it. */
+  end: number;
   value: number;
   rowId: string;
   uuid?: string;
@@ -418,6 +420,42 @@ interface Checkpoint {
 const kMinGapSeconds = 1;
 
 /** Sub-lane cap for concurrent tool bursts (handoff decision 4). */
+/** Calls issued within this many seconds of each other, all still running,
+ *  are one fan-out (a `gather` of parallel calls lands microseconds apart;
+ *  the log's timestamps keep sub-millisecond precision only until parsed). */
+export const kParallelStartSec = 1;
+
+/** A row's context points grouped into fan-outs: consecutive points whose
+ *  calls started within `kParallelStartSec` of the group's first and
+ *  before any member completed. Sequential calls, however close, and a
+ *  follow-up issued later into a running call stay their own group. The
+ *  Wall clock draws one vertex per group at the largest context; Turns
+ *  mode keeps a column per call and names the fan-out on the card. */
+export const parallelContextGroups = (
+  points: ContextPoint[]
+): ContextPoint[][] => {
+  const groups: ContextPoint[][] = [];
+  let group: ContextPoint[] = [];
+  let earliestEnd = Infinity;
+  for (const point of points) {
+    const first = group[0];
+    if (
+      first &&
+      point.time - first.time <= kParallelStartSec &&
+      point.time < earliestEnd
+    ) {
+      group.push(point);
+    } else {
+      if (group.length > 0) groups.push(group);
+      group = [point];
+      earliestEnd = Infinity;
+    }
+    earliestEnd = Math.min(earliestEnd, point.end);
+  }
+  if (group.length > 0) groups.push(group);
+  return groups;
+};
+
 export const kMaxSubLanes = 4;
 
 /** span_begin types that open a conversation (inspect_ai: AGENT_SPAN_TYPE
@@ -907,6 +945,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
         if (context !== undefined && context > 0) {
           const point: ContextPoint = {
             time: t,
+            end,
             value: context,
             rowId: row.id,
             uuid,
@@ -1366,11 +1405,19 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
   }
 
   // ── context: per-row lines, deltas, peaks ─────────────────────────────
-  contextSeries.sort((a, b) => a.time - b.time);
+  // Calls issued together share a start; their turns sort by completion,
+  // so the series follows the turn index within a start — the order Turns
+  // mode emits the line's vertices in. A time-only sort left a fan-out's
+  // points in event order and the line stepping back across its columns.
+  for (const point of contextSeries) {
+    point.turn = turnOfPoint.get(point)?.index;
+  }
+  contextSeries.sort(
+    (a, b) => a.time - b.time || (a.turn ?? 0) - (b.turn ?? 0)
+  );
   const contextByRow = new Map<string, ContextPoint[]>();
   const contextPeakByRow = new Map<string, number>();
   for (const point of contextSeries) {
-    point.turn = turnOfPoint.get(point)?.index;
     let rowPoints = contextByRow.get(point.rowId);
     if (!rowPoints) contextByRow.set(point.rowId, (rowPoints = []));
     const previous = rowPoints[rowPoints.length - 1];

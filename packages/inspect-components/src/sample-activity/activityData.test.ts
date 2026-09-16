@@ -27,6 +27,7 @@ import {
   kAgentHues,
   kCategoryLong,
   kScorerHue,
+  parallelContextGroups,
   rowHaystack,
   rowKind,
   turnAfter,
@@ -352,6 +353,141 @@ describe("token burn", () => {
 });
 
 describe("context size", () => {
+  it("orders a fan-out's context points by turn, not event order", () => {
+    // Three calls issued together share a start; the turns sort by
+    // completion within it, so the context series — the order Turns mode
+    // emits the line's vertices in — must follow the turn index, or the
+    // line walks backwards across the fan-out's columns.
+    const events: Event[] = [
+      modelCall({
+        start: 0,
+        duration: 5,
+        workingStart: 0,
+        input: 100,
+        uuid: "m0",
+      }),
+      modelCall({
+        start: 10,
+        duration: 15,
+        workingStart: 10,
+        input: 1470,
+        uuid: "a",
+      }),
+      modelCall({
+        start: 10,
+        duration: 5,
+        workingStart: 10,
+        input: 984,
+        uuid: "b",
+      }),
+      modelCall({
+        start: 10,
+        duration: 10,
+        workingStart: 10,
+        input: 1200,
+        uuid: "c",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    expect(data.contextSeries.map((p) => p.turn)).toEqual([1, 2, 3, 4]);
+    expect(data.contextSeries.map((p) => p.uuid)).toEqual([
+      "m0",
+      "b",
+      "c",
+      "a",
+    ]);
+    // Deltas follow the same order, and every point knows when its call ended.
+    expect(data.contextByRow.root?.map((p) => p.delta)).toEqual([
+      undefined,
+      884,
+      216,
+      270,
+    ]);
+    expect(data.contextSeries.map((p) => p.end - kRunStart)).toEqual([
+      5, 15, 20, 25,
+    ]);
+  });
+
+  it("groups a row's parallel calls and leaves sequential and follow-up calls alone", () => {
+    const events: Event[] = [
+      modelCall({
+        start: 0,
+        duration: 5,
+        workingStart: 0,
+        input: 100,
+        uuid: "m0",
+      }),
+      // A fan-out: issued within the same second, all running at once.
+      modelCall({
+        start: 10,
+        duration: 15,
+        workingStart: 10,
+        input: 1470,
+        uuid: "a",
+      }),
+      modelCall({
+        start: 10.2,
+        duration: 5,
+        workingStart: 10,
+        input: 984,
+        uuid: "b",
+      }),
+      modelCall({
+        start: 10.4,
+        duration: 10,
+        workingStart: 10,
+        input: 1200,
+        uuid: "c",
+      }),
+      // Overlaps `a` but was issued 5 s later: a follow-up, not a fan-out.
+      modelCall({
+        start: 15,
+        duration: 20,
+        workingStart: 15,
+        input: 1600,
+        uuid: "d",
+      }),
+      modelCall({
+        start: 40,
+        duration: 5,
+        workingStart: 40,
+        input: 1700,
+        uuid: "e",
+      }),
+    ];
+    const data = deriveActivityData({ events });
+    const groups = parallelContextGroups(data.contextByRow.root ?? []);
+    expect(groups.map((group) => group.map((p) => p.uuid))).toEqual([
+      ["m0"],
+      ["a", "b", "c"],
+      ["d"],
+      ["e"],
+    ]);
+    // Same start, but the first call is over before the second begins:
+    // sequential, however close the timestamps.
+    const quick = deriveActivityData({
+      events: [
+        modelCall({
+          start: 0,
+          duration: 0.1,
+          workingStart: 0,
+          input: 100,
+          uuid: "p",
+        }),
+        modelCall({
+          start: 0.2,
+          duration: 1,
+          workingStart: 0.2,
+          input: 200,
+          uuid: "q",
+        }),
+      ],
+    });
+    expect(
+      parallelContextGroups(quick.contextByRow.root ?? []).map((g) => g.length)
+    ).toEqual([1, 1]);
+  });
+
   it("plots input-side tokens per call and tracks the peak", () => {
     const events: Event[] = [
       modelCall({
@@ -378,6 +514,7 @@ describe("context size", () => {
     expect(data.contextSeries).toEqual([
       {
         time: kRunStart,
+        end: kRunStart + 5,
         value: 1500,
         uuid: "m1",
         rowId: "root",
@@ -386,6 +523,7 @@ describe("context size", () => {
       },
       {
         time: kRunStart + 10,
+        end: kRunStart + 15,
         value: 2500,
         uuid: "m2",
         rowId: "root",

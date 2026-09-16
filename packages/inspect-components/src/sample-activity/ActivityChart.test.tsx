@@ -1826,6 +1826,163 @@ describe("ActivityChart curve read-outs", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("ActivityChart parallel model calls", () => {
+  /** A call, then three issued together (one start, different context
+   *  sizes and completions), then one more: the triframe fan-out shape. */
+  const fanOut = (): Event[] => [
+    modelCall({ start: 0, end: 5, uuid: "m0", input: 100 }),
+    modelCall({ start: 10, end: 25, uuid: "a", input: 1470 }),
+    modelCall({ start: 10, end: 15, uuid: "b", input: 984 }),
+    modelCall({ start: 10, end: 20, uuid: "c", input: 1200 }),
+    modelCall({ start: 30, end: 35, uuid: "m4", input: 1600 }),
+  ];
+  /** Every context polyline's vertices, in drawing order. */
+  const contextVertices = (
+    container: HTMLElement
+  ): { x: number; y: number }[] =>
+    [...container.querySelectorAll("polyline[class*='contextSeries']")].flatMap(
+      (line) =>
+        (line.getAttribute("points") ?? "")
+          .split(" ")
+          .filter(Boolean)
+          .map((pair) => {
+            const [x, y] = pair.split(",").map(Number);
+            return { x: x ?? NaN, y: y ?? NaN };
+          })
+    );
+  const hoverDot = (container: HTMLElement, dot: Element) => {
+    const hit = container.querySelector("rect[class*='plotHit']");
+    if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+    const svgTop = hit.ownerSVGElement?.getBoundingClientRect().top ?? 0;
+    fireEvent.mouseMove(hit, {
+      clientX: attr(dot, "cx"),
+      clientY: svgTop + attr(dot, "cy"),
+    });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    return container.querySelector("[class*='tooltip']");
+  };
+
+  it("draws the Turns-mode context line left to right across a fan-out", () => {
+    const { container } = renderChart(fanOut(), { axisMode: "turns" });
+    const { left, width } = plotBounds(container);
+    const colWidth = width / 5;
+    const vertices = contextVertices(container);
+    // One vertex per turn at its column's left edge, never a step back;
+    // the fan-out's columns hold 984 / 1,200 / 1,470 in turn order (the
+    // turns sort by completion within a shared start), so the line rises
+    // across them.
+    expect(vertices.map((v) => v.x)).toEqual(
+      [1, 2, 3, 4, 5].map((k) => Number((left + (k - 1) * colWidth).toFixed(1)))
+    );
+    for (let i = 1; i < vertices.length; i++) {
+      expect(vertices[i]!.x).toBeGreaterThan(vertices[i - 1]!.x);
+    }
+    expect(vertices[1]!.y).toBeGreaterThan(vertices[2]!.y);
+    expect(vertices[2]!.y).toBeGreaterThan(vertices[3]!.y);
+  });
+
+  it("draws one Wall clock vertex per shared start, at the largest context", () => {
+    const { container } = renderChart(fanOut());
+    const vertices = contextVertices(container);
+    expect(vertices).toHaveLength(3);
+    for (let i = 1; i < vertices.length; i++) {
+      expect(vertices[i]!.x).toBeGreaterThan(vertices[i - 1]!.x);
+    }
+    // y is linear in the value: the fan-out vertex sits at 1,470 between
+    // the 100 before it and the 1,600 after it.
+    const [v0, v1, v2] = vertices;
+    expect((v0!.y - v1!.y) / (v0!.y - v2!.y)).toBeCloseTo(
+      (1470 - 100) / (1600 - 100),
+      2
+    );
+    expect(
+      container.querySelectorAll("circle[class*='contextDot']")
+    ).toHaveLength(3);
+  });
+
+  it("lists the parallel calls on the Wall clock vertex's card and links the first", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(fanOut(), { onOpenEvent });
+      const dots = container.querySelectorAll("circle[class*='contextDot']");
+      const card = hoverDot(container, dots[1]!);
+      const text = card?.textContent ?? "";
+      expect(text).toContain("Context 1,470 tokens");
+      expect(text).toContain("3 parallel calls");
+      expect(text).toContain("984 – 1,470");
+      fireEvent.click(
+        screen.getByRole("button", { name: "open first in transcript →" })
+      );
+      // The earliest of the fan-out: same start, first to complete.
+      expect(onOpenEvent).toHaveBeenCalledWith("b", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps one card per call in Turns mode and still names the fan-out", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(fanOut(), {
+        axisMode: "turns",
+        onOpenEvent,
+      });
+      const dots = container.querySelectorAll("circle[class*='contextDot']");
+      expect(dots).toHaveLength(5);
+      // Column 4 is `a` (1,470): its own value, its own link, and a note
+      // that it ran alongside two others.
+      const card = hoverDot(container, dots[3]!);
+      const text = card?.textContent ?? "";
+      expect(text).toContain("Context 1,470 tokens");
+      expect(text).toContain("turn 4 ·");
+      expect(text).toContain("3 parallel calls");
+      fireEvent.click(
+        screen.getByRole("button", { name: "open in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("a", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each(["wall", "turns"] as const)(
+    "burns every parallel call's tokens in %s mode",
+    (axisMode) => {
+      vi.useFakeTimers();
+      try {
+        const { container } = renderChart(fanOut(), { axisMode });
+        const { right } = plotBounds(container);
+        const hit = container.querySelector("rect[class*='plotHit']");
+        if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+        const tokensLabel = [
+          ...container.querySelectorAll("text[class*='bandLabel']"),
+        ].find((label) => label.textContent === "TOKEN BURN");
+        // The last call completes at the window's end, so its step sits
+        // on the plot's right edge; the cursor there counts every call.
+        fireEvent.mouseMove(hit, {
+          clientX: right,
+          clientY: attr(tokensLabel ?? null, "y") + 30,
+        });
+        act(() => {
+          vi.advanceTimersByTime(150);
+        });
+        expect(
+          container.querySelector("[class*='tooltip']")?.textContent
+        ).toContain("5,354 tokens burned");
+      } finally {
+        vi.useRealTimers();
+      }
+    }
+  );
+});
+
 describe("ActivityChart collapsed-range footers", () => {
   // Charles, 2026-09-16: a card that stands for a range of events still
   // links to the transcript — at the first event in the range.
