@@ -1,15 +1,15 @@
-import { FC, useCallback, useEffect } from "react";
+import { FC, useCallback } from "react";
 import { Navigate } from "react-router";
 
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
-import { selectLogFile, selectSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import {
   useLogSampleNavigationActions,
   useSampleUuidRedirectUrl,
 } from "../routing/sampleNavigation";
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
+import { useRouteSelectionMirror } from "../routing/useRouteSelectionMirror";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
 
 /**
@@ -55,20 +55,12 @@ export const LogSampleDetailView: FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
   const epoch = routeEpoch || selectedSampleHandle?.epoch?.toString();
 
-  // Load the log and select the sample when route params change
-  // Only run this effect when we have route params (not state fallback)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (routeLogPath && routeSampleId && routeEpoch) {
-      selectLogFile(routeLogPath);
-
-      const targetEpoch = parseInt(routeEpoch, 10);
-      if (isNaN(targetEpoch)) {
-        return;
-      }
-      selectSample(routeSampleId, targetEpoch, routeLogPath);
-    }
-  }, [routeLogPath, routeSampleId, routeEpoch]);
+  // Route params only (not the state fallback) drive the selection.
+  useRouteSelectionMirror({
+    logPath: routeLogPath,
+    sampleId: routeSampleId,
+    epoch: routeEpoch,
+  });
 
   // Canonicalize a sampleUuid route to its id/epoch URL once resolvable.
   const sampleUuidRedirectUrl = useSampleUuidRedirectUrl({

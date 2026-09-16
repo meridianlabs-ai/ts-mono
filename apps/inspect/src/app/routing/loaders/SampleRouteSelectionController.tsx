@@ -1,8 +1,7 @@
-import { FC, useEffect } from "react";
+import { FC } from "react";
 
-import { selectLogFile, selectSample } from "../../../state/actions";
-import { useStore } from "../../../state/store";
 import { useSamplesRouteParams } from "../url";
+import { useRouteSelectionMirror } from "../useRouteSelectionMirror";
 
 /**
  * Syncs the samples route's log file + sample into the selection; the
@@ -12,26 +11,7 @@ import { useSamplesRouteParams } from "../url";
  * Returns null.
  */
 export const SampleRouteSelectionController: FC = () => {
-  const {
-    samplesPath: routeLogPath,
-    sampleId,
-    epoch,
-  } = useSamplesRouteParams();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (routeLogPath && sampleId && epoch) {
-      if (selectedLogFile !== routeLogPath) {
-        selectLogFile(routeLogPath);
-      }
-      const targetEpoch = parseInt(epoch, 10);
-      if (isNaN(targetEpoch)) {
-        return;
-      }
-      selectSample(sampleId, targetEpoch, routeLogPath);
-    }
-  }, [routeLogPath, sampleId, epoch, selectedLogFile]);
-
+  const { samplesPath: logPath, sampleId, epoch } = useSamplesRouteParams();
+  useRouteSelectionMirror({ logPath, sampleId, epoch });
   return null;
 };

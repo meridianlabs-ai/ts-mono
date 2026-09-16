@@ -18,11 +18,6 @@ const selectLogFile = vi.hoisted(() => vi.fn());
 const selectSample = vi.hoisted(() => vi.fn());
 vi.mock("../../../state/actions", () => ({ selectLogFile, selectSample }));
 
-vi.mock("../../../state/store", () => ({
-  useStore: (selector: (state: unknown) => unknown) =>
-    selector({ logs: { selectedLogFile: undefined } }),
-}));
-
 beforeEach(() => {
   selectLogFile.mockReset();
   selectSample.mockReset();

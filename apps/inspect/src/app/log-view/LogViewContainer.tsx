@@ -6,14 +6,15 @@ import {
   useSearchParams,
 } from "react-router";
 
-import { useUnmount } from "@tsmono/react/hooks";
+import { useMirrorToStore, useUnmount } from "@tsmono/react/hooks";
 
 import { kLogViewSamplesTabId } from "../../constants";
-import { selectLogFile, unloadLog } from "../../state/actions";
+import { unloadLog } from "../../state/actions";
 import { useEvalSpec } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useSampleUuidRedirectUrl } from "../routing/sampleNavigation";
 import { baseUrl, useLogRouteParams, type RoutePrefix } from "../routing/url";
+import { useRouteLogSelectionMirror } from "../routing/useRouteSelectionMirror";
 
 import { LogViewLayout } from "./LogViewLayout";
 
@@ -88,21 +89,16 @@ export const LogViewContainer: FC = () => {
     }
   }, [logPath, clearSelectedSample]);
 
-  // Sync the workspace tab from the URL synchronously. Kept separate from
-  // the async log-loading effect below so a tab click can't race with a
-  // pending initLogDir() and snap the view back to an older tab.
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!logPath) return;
-    setWorkspaceTab(tabId ?? kLogViewSamplesTabId);
-  }, [logPath, tabId, setWorkspaceTab]);
+  // Sync the workspace tab from the URL. Keyed per log, not just per tab:
+  // LogLoadController defaults an empty log to the info tab in the store
+  // only, so opening another log at the same route tab must re-assert it.
+  const routeTab = tabId ?? kLogViewSamplesTabId;
+  useMirrorToStore(
+    logPath ? JSON.stringify([logPath, routeTab]) : undefined,
+    () => setWorkspaceTab(routeTab)
+  );
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (logPath) {
-      selectLogFile(logPath);
-    }
-  }, [logPath]);
+  useRouteLogSelectionMirror(logPath);
 
   if (sampleUuidRedirectUrl) {
     const search = searchParams.toString();
