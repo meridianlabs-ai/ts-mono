@@ -181,16 +181,11 @@ function staticHttpApiForLog(logInfo: {
     },
     get_log_summary: async (log_file: string) => {
       const manifest = await getManifest();
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (manifest) {
-        const manifestAbs: Record<string, LogPreview> = {};
-        Object.entries(manifest).forEach(([key, preview]) => {
-          manifestAbs[joinURI(canonical_log_dir, key)] = preview;
-        });
-        const header = manifestAbs[log_file];
-        if (header) {
-          return header;
-        }
+      const entry = Object.entries(manifest).find(
+        ([key]) => joinURI(canonical_log_dir, key) === log_file
+      );
+      if (entry) {
+        return entry[1];
       }
       throw new Error(`Unable to load eval log header for ${log_file}`);
     },
@@ -200,26 +195,16 @@ function staticHttpApiForLog(logInfo: {
       }
 
       const manifest = await getManifest();
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (manifest) {
-        const keys = Object.keys(manifest);
-        const result: LogPreview[] = [];
-        files.forEach((file) => {
-          const fileKey = keys.find((key) => {
-            return file.endsWith(key);
-          });
-          if (fileKey) {
-            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-            result.push(manifest[fileKey]);
-          }
-        });
-        return result;
-      }
-
-      // No log.json could be found, and there isn't a log file,
-      throw new Error(
-        `Failed to load a listing file using the directory: ${log_dir}. Please be sure you have deployed a manifest file (listing.json).`
-      );
+      const keys = Object.keys(manifest);
+      const result: LogPreview[] = [];
+      files.forEach((file) => {
+        const fileKey = keys.find((key) => file.endsWith(key));
+        const preview = fileKey === undefined ? undefined : manifest[fileKey];
+        if (preview) {
+          result.push(preview);
+        }
+      });
+      return result;
     },
     get_app_config: () => Promise.resolve(app_config),
     download_file,

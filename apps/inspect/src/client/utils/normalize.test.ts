@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeEvalHeader,
   normalizeEvalLog,
+  normalizeLogListing,
+  normalizeLogPreview,
   normalizeLogStart,
 } from "./normalize";
 
@@ -152,5 +154,125 @@ describe("normalizeEvalLog", () => {
       results: { scores: [{ name: "match", scorer: "match" }] },
     });
     expect(log.results?.scores).toHaveLength(1);
+  });
+});
+
+// The shape inspect_ai 0.3.150 writes to listing.json: no `error`,
+// `model_roles`, `invalidated`, and `primary_metric` only when scored.
+const legacyOverview = {
+  eval_id: "TcENcn2QPtcgSkeNc5nSbj",
+  run_id: "DSwRm98qw3sm8uTY6hCWhk",
+  task: "solo_agent",
+  task_id: "KLVSy7Dn9tHf7WCHbFmbPY",
+  task_version: 0,
+  version: 2,
+  status: "success",
+  model: "openai/gpt-4o-mini",
+  started_at: "2024-11-21T07:19:57-08:00",
+  completed_at: "2024-11-21T08:22:27-08:00",
+};
+
+describe("normalizeLogPreview", () => {
+  it("throws on non-object input", () => {
+    expect(() => normalizeLogPreview("bad")).toThrow();
+    expect(() => normalizeLogPreview(null)).toThrow();
+  });
+
+  it("fills pydantic's None defaults for fields older bundles omit", () => {
+    const preview = normalizeLogPreview(legacyOverview);
+    expect(preview.error).toBeNull();
+    expect(preview.model_roles).toBeNull();
+    expect(preview.primary_metric).toBeNull();
+  });
+
+  it("passes provided fields through unchanged", () => {
+    const preview = normalizeLogPreview({
+      ...legacyOverview,
+      error: { message: "boom", traceback: "tb", traceback_ansi: "tb" },
+      model_roles: { grader: "openai/gpt-4o" },
+      primary_metric: { name: "accuracy", value: 0.5, params: {} },
+    });
+    expect(preview).toMatchObject(legacyOverview);
+    expect(preview.error?.message).toBe("boom");
+    expect(preview.model_roles).toEqual({ grader: "openai/gpt-4o" });
+    expect(preview.primary_metric).toEqual({
+      name: "accuracy",
+      value: 0.5,
+      params: {},
+      group: null,
+      metadata: null,
+    });
+  });
+
+  it("fills required strings and task_version like normalizeEvalSpec", () => {
+    const preview = normalizeLogPreview({});
+    expect(preview).toMatchObject({
+      eval_id: "--",
+      run_id: "",
+      task: "",
+      task_id: "",
+      task_version: 0,
+      model: "",
+    });
+    expect(preview.version).toBeUndefined();
+    expect(preview.status).toBeUndefined();
+    expect(preview.started_at).toBeUndefined();
+  });
+
+  it("synthesizes eval_id from run_id/task_id/started_at when absent", () => {
+    const { eval_id: _dropped, ...noEvalId } = legacyOverview;
+    const preview = normalizeLogPreview(noEvalId);
+    expect(preview.eval_id).toBe(
+      "DSwRm98qw3sm8uTY6hCWhk-KLVSy7Dn9tHf7WCHbFmbPY-2024-11-21T07:19:57-08:00"
+    );
+  });
+
+  it("drops values of the wrong shape instead of trusting them", () => {
+    const preview = normalizeLogPreview({
+      ...legacyOverview,
+      status: "unknown-status",
+      error: "not an object",
+      primary_metric: { name: "accuracy", value: "high" },
+      model_roles: { grader: 42 },
+    });
+    expect(preview.status).toBeUndefined();
+    expect(preview.error).toBeNull();
+    expect(preview.primary_metric).toBeNull();
+    expect(preview.model_roles).toEqual({});
+  });
+
+  it("preserves fields it doesn't model (future schema growth)", () => {
+    const preview = normalizeLogPreview({
+      ...legacyOverview,
+      invalidated: true,
+      some_future_field: { nested: true },
+    });
+    expect(preview).toMatchObject({
+      invalidated: true,
+      some_future_field: { nested: true },
+    });
+  });
+});
+
+describe("normalizeLogListing", () => {
+  it("returns an empty listing for non-object input", () => {
+    expect(normalizeLogListing(undefined)).toEqual({});
+    expect(normalizeLogListing("bad")).toEqual({});
+    expect(normalizeLogListing([legacyOverview])).toEqual({});
+  });
+
+  it("normalizes each entry and drops non-record entries", () => {
+    const listing = normalizeLogListing({
+      "a.eval": legacyOverview,
+      "b.eval": "corrupt",
+      "c.eval": null,
+    });
+    expect(Object.keys(listing)).toEqual(["a.eval"]);
+    expect(listing["a.eval"]).toMatchObject({
+      task: "solo_agent",
+      error: null,
+      model_roles: null,
+      primary_metric: null,
+    });
   });
 });

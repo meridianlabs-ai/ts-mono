@@ -439,15 +439,6 @@
       "undescribed": 1
     }
   },
-  "apps/inspect/src/client/api/static-http/api-static-http.ts": {
-    "@ts-expect-error": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "apps/inspect/src/client/api/view-server/api-view-server.test.ts": {
     "@typescript-eslint/no-base-to-string": {
       "count": 7,
