@@ -25,8 +25,8 @@ import { openZipFileFromBuffer } from "../remote/remoteZipFile";
 import { normalizeEvalHeader, normalizeLogStart } from "./normalize";
 
 const fixturesDir = join(
-  process.cwd(),
-  "src/log_data/chunked/fixtures/logs/original"
+  import.meta.dirname,
+  "../../log_data/chunked/fixtures/logs/original"
 );
 const logNames = readdirSync(fixturesDir).filter((name) =>
   name.endsWith(".eval")

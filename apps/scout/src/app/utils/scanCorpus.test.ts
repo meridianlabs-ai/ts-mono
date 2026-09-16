@@ -25,7 +25,7 @@ import { expandResultsetRows } from "./arrow";
 import { stringColumn } from "./arrowCells";
 import { parseScanResultData, parseScanResultSummaries } from "./arrowHelpers";
 
-const fixturesDir = join(process.cwd(), "src/app/utils/fixtures");
+const fixturesDir = join(import.meta.dirname, "fixtures");
 
 const loadFixture = async (name: string): Promise<ColumnTable> =>
   expandResultsetRows(

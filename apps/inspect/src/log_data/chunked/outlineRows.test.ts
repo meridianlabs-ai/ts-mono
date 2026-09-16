@@ -22,11 +22,7 @@ interface SkeletonFixture {
   expected: SampleSkeleton;
 }
 
-// jsdom rewrites import.meta.url, so resolve from the vitest root (apps/inspect)
-const fixturesDir = join(
-  process.cwd(),
-  "src/log_data/chunked/fixtures/skeleton"
-);
+const fixturesDir = join(import.meta.dirname, "fixtures/skeleton");
 
 const fixtures = readdirSync(fixturesDir)
   .filter((name) => name.endsWith(".json"))

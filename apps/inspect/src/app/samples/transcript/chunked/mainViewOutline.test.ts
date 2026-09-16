@@ -46,7 +46,10 @@ import {
   outlineViewTree,
 } from "./mainViewOutline";
 
-const fixturesDir = join(process.cwd(), "src/log_data/chunked/fixtures/logs");
+const fixturesDir = join(
+  import.meta.dirname,
+  "../../../../log_data/chunked/fixtures/logs"
+);
 
 interface FixtureSample {
   key: string;

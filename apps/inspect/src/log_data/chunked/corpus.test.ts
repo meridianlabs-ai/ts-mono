@@ -25,10 +25,7 @@ import { classifySampleShape } from "./format";
 import { RowSpace } from "./rowSpace";
 import { sampleSkeleton } from "./skeleton";
 
-const logsDir = join(
-  process.cwd(),
-  "src/log_data/chunked/fixtures/logs/chunked"
-);
+const logsDir = join(import.meta.dirname, "fixtures/logs/chunked");
 
 interface SampleRef {
   id: string;

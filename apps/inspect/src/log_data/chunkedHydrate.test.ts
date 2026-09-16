@@ -21,10 +21,7 @@ import {
   TIMELINE_HYDRATION_BYTES,
 } from "./chunkedHydrate";
 
-const logsDir = join(
-  process.cwd(),
-  "src/log_data/chunked/fixtures/logs/chunked"
-);
+const logsDir = join(import.meta.dirname, "chunked/fixtures/logs/chunked");
 const logNames = readdirSync(logsDir).filter((name) => name.endsWith(".eval"));
 
 interface OpenedSample {

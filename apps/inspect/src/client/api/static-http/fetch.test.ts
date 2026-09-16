@@ -19,8 +19,8 @@ import { fetchJsonFile, fetchLogFile } from "./fetch";
 
 const fixtureText = readFileSync(
   join(
-    process.cwd(),
-    "src/client/api/static-http/fixtures/2024-06-26T08-50-44+00-00_pico-ctf_LVDZAPGgTfBDUo3yzLpPmG_v1_truncated.json"
+    import.meta.dirname,
+    "fixtures/2024-06-26T08-50-44+00-00_pico-ctf_LVDZAPGgTfBDUo3yzLpPmG_v1_truncated.json"
   ),
   "utf-8"
 );
