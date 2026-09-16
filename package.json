@@ -13,7 +13,7 @@
     "check": "manypkg check && node scripts/check-suppressions.mjs && turbo run check",
     "manypkg:check": "manypkg check",
     "manypkg:fix": "manypkg fix",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=2",
     "format": "turbo run format",
     "format:check": "turbo run format:check",
     "dev": "turbo run dev",
