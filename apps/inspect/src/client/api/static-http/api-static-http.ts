@@ -93,6 +93,20 @@ function staticHttpApiForLog(logInfo: {
     return manifest || {};
   };
 
+  // Manifest keys are log-dir-relative. Match the absolute form first, then a
+  // whole trailing path segment, so `b.eval` never claims `.../xb.eval`.
+  const findPreview = (
+    manifest: Record<string, LogPreview>,
+    file: string
+  ): LogPreview | undefined => {
+    const key = Object.keys(manifest).find(
+      (candidate) =>
+        joinURI(canonical_log_dir, candidate) === file ||
+        file.endsWith(`/${candidate}`)
+    );
+    return key === undefined ? undefined : manifest[key];
+  };
+
   async function open_log_file() {
     // No op
   }
@@ -180,12 +194,9 @@ function staticHttpApiForLog(logInfo: {
       return await fetchRange(log_file, start, end);
     },
     get_log_summary: async (log_file: string) => {
-      const manifest = await getManifest();
-      const entry = Object.entries(manifest).find(
-        ([key]) => joinURI(canonical_log_dir, key) === log_file
-      );
-      if (entry) {
-        return entry[1];
+      const preview = findPreview(await getManifest(), log_file);
+      if (preview) {
+        return preview;
       }
       throw new Error(`Unable to load eval log header for ${log_file}`);
     },
@@ -195,11 +206,9 @@ function staticHttpApiForLog(logInfo: {
       }
 
       const manifest = await getManifest();
-      const keys = Object.keys(manifest);
       const result: LogPreview[] = [];
       files.forEach((file) => {
-        const fileKey = keys.find((key) => file.endsWith(key));
-        const preview = fileKey === undefined ? undefined : manifest[fileKey];
+        const preview = findPreview(manifest, file);
         if (preview) {
           result.push(preview);
         }

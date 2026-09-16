@@ -58,15 +58,17 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
   /* eslint-enable @typescript-eslint/no-unsafe-type-assertion */
 };
 
-const kEvalLogStatuses: readonly EvalLogStatus[] = [
-  "started",
-  "success",
-  "cancelled",
-  "error",
-];
+// `satisfies` keeps this keyset exhaustive: a status added to the generated
+// union fails typecheck here instead of silently normalizing to undefined.
+const kEvalLogStatuses = {
+  started: true,
+  success: true,
+  cancelled: true,
+  error: true,
+} satisfies Record<EvalLogStatus, true>;
 
 const isEvalLogStatus = (value: unknown): value is EvalLogStatus =>
-  kEvalLogStatuses.some((status) => status === value);
+  typeof value === "string" && Object.hasOwn(kEvalLogStatuses, value);
 
 const stringOr = (value: unknown, fallback: string): string =>
   typeof value === "string" ? value : fallback;
