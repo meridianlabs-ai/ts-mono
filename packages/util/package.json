@@ -25,6 +25,7 @@
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
+    "@tsmono/vitest-config": "workspace:*",
     "@types/lz4js": "^0.2.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@uwdata/flechette": "^2.5.0",

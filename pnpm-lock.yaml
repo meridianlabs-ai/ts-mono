@@ -190,6 +190,9 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@tsmono/zustand-devtools':
         specifier: workspace:*
         version: link:../../packages/zustand-devtools
@@ -359,6 +362,9 @@ importers:
       '@tsmono/util':
         specifier: workspace:*
         version: link:../../packages/util
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@types/bootstrap':
         specifier: ^5.2.11
         version: 5.2.11
@@ -450,6 +456,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
@@ -499,6 +508,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@types/node':
         specifier: ^26.5.0
         version: 26.5.0
@@ -596,6 +608,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@types/lodash-es':
         specifier: ^4.17.12
         version: 4.17.12
@@ -681,6 +696,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@types/picomatch':
         specifier: ^4.0.2
         version: 4.0.3
@@ -729,6 +747,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@typescript/native':
         specifier: npm:typescript@^7.0.2
         version: typescript@7.0.2
@@ -753,6 +774,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@types/lz4js':
         specifier: ^0.2.2
         version: 0.2.2
@@ -801,6 +825,9 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
@@ -885,6 +912,12 @@ importers:
         version: 4.7.1(prettier@3.9.6)(supports-color@10.2.2)
 
   tooling/tsconfig: {}
+
+  tooling/vitest-config:
+    dependencies:
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.5.0)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.5.0)(typescript@6.0.3))(vite@8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0))
 
 packages:
 
@@ -6417,6 +6450,16 @@ snapshots:
       msw: 2.15.0(@types/node@26.5.0)(@typescript/typescript6@6.0.2)
       vite: 8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0)
 
+  '@vitest/mocker@5.0.0(msw@2.15.0(@types/node@26.5.0)(typescript@6.0.3))(vite@8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0))':
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@vitest/spy': 5.0.0
+      estree-walker: 3.0.3
+      magic-string: 1.2.3
+    optionalDependencies:
+      msw: 2.15.0(@types/node@26.5.0)(typescript@6.0.3)
+      vite: 8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0)
+
   '@vitest/pretty-format@3.2.4':
     dependencies:
       tinyrainbow: 2.0.0
@@ -7786,6 +7829,32 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
+  msw@2.15.0(@types/node@26.5.0)(typescript@6.0.3):
+    dependencies:
+      '@inquirer/confirm': 6.1.1(@types/node@26.5.0)
+      '@mswjs/interceptors': 0.41.9
+      '@open-draft/deferred-promise': 3.0.0
+      '@types/statuses': 2.0.6
+      cookie: 1.1.1
+      graphql: 16.14.2
+      headers-polyfill: 5.0.1
+      is-node-process: 1.2.0
+      outvariant: 1.4.3
+      path-to-regexp: 6.3.0
+      picocolors: 1.1.1
+      rettime: 0.11.11
+      statuses: 2.0.2
+      strict-event-emitter: 0.5.1
+      tough-cookie: 6.0.2
+      type-fest: 5.8.0
+      until-async: 3.0.2
+      yargs: 17.7.3
+    optionalDependencies:
+      typescript: 6.0.3
+    transitivePeerDependencies:
+      - '@types/node'
+    optional: true
+
   mute-stream@3.0.0: {}
 
   nanoid@3.3.18: {}
@@ -8708,6 +8777,28 @@ snapshots:
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.0(msw@2.15.0(@types/node@26.5.0)(@typescript/typescript6@6.0.2))(vite@8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0))
+      chai: 6.2.2
+      es-module-lexer: 2.3.2
+      expect-type: 1.4.0
+      magic-string: 1.2.3
+      obug: 2.1.4
+      picomatch: 4.0.7
+      std-env: 4.2.0
+      tinybench: 6.1.4
+      tinyexec: 1.3.0
+      tinyglobby: 0.2.17
+      vite: 8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 26.5.0
+      jsdom: 30.0.1
+    transitivePeerDependencies:
+      - msw
+
+  vitest@5.0.0(@types/node@26.5.0)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.5.0)(typescript@6.0.3))(vite@8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0)):
+    dependencies:
+      '@types/chai': 5.2.3
+      '@vitest/mocker': 5.0.0(msw@2.15.0(@types/node@26.5.0)(typescript@6.0.3))(vite@8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0))
       chai: 6.2.2
       es-module-lexer: 2.3.2
       expect-type: 1.4.0

@@ -27,6 +27,7 @@
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
+    "@tsmono/vitest-config": "workspace:*",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.7.0",
     "openapi-typescript": "^7.10.1",
