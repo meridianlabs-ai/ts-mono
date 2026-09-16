@@ -27,6 +27,7 @@ import {
   kScorerHue,
   StallRegion,
   TimeWindow,
+  TokenPoint,
   ToolBurst,
   turnAfter,
   turnAt,
@@ -431,9 +432,26 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     );
     return turn.start + frac * (turn.end - turn.start);
   };
-  /** Curve points sit at the right edge of their turn's column. */
-  const pointX = (t: number, turn: number | undefined): number =>
-    turnsMode && turn !== undefined ? colRight(turn) : xAt(t);
+  // Turns-mode curve anchors sit inside their own turn's column so column
+  // k carries turn k's values (design owner, 2026-09-16): the context dot
+  // at the model half's left edge — the context is the call's input, read
+  // as the turn starts — and the burn step and compaction cliff at the
+  // model half's end, where the call that consumed the tokens finishes.
+  // The last step then ends before the axis end. Wall clock keeps the
+  // event time (context at the call's start, burn at its completion).
+  const contextX = (point: ContextPoint): number =>
+    turnsMode && point.turn !== undefined
+      ? colLeft(point.turn)
+      : xAt(point.time);
+  const modelHalfEnd = (turn: number): number => colLeft(turn) + colWidth / 2;
+  const burnX = (point: TokenPoint): number =>
+    turnsMode && point.turn !== undefined
+      ? modelHalfEnd(point.turn)
+      : xAt(point.time);
+  const dropX = (drop: CompactionDrop): number =>
+    turnsMode && drop.turn !== undefined
+      ? modelHalfEnd(drop.turn)
+      : xAt(drop.time);
   // Density fallback in Turns mode bins by turn index instead of time.
   const turnsDense = turnsMode && nTurns > plotWidth / kDensityPxPerSpan;
   // A split column hands each half colWidth / 2; under the tick floor plus
@@ -532,14 +550,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
 
   /** Cumulative burn per curve row at cursor x, keyed by curve-row id:
    *  the drawn step counts every burn point at or left of the cursor — on
-   *  the wall clock by completion time, in Turns mode by column edge. One
-   *  pass over the points per cursor position; callers read by id. */
+   *  the wall clock by completion time, in Turns mode by its model half's
+   *  end, so a cursor past that edge counts the turn's burn once. One pass
+   *  over the points per cursor position; callers read by id. */
   const tokenValuesAt = (px: number): Map<string, number> => {
     const values = new Map<string, number>();
     for (const point of data.tokenPoints) {
       const id = curveRowIdOf.get(point.rowId);
       if (id === undefined) continue;
-      if (pointX(point.time, point.turn) <= px + 0.01) {
+      if (burnX(point) <= px + 0.01) {
         values.set(id, (values.get(id) ?? 0) + point.burned);
       }
     }
@@ -579,9 +598,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     const applyDrop = (drop: CompactionDrop) => {
       if (run.length > 0) runs.push(run);
       run =
-        drop.after !== undefined
-          ? [{ x: xAt(drop.time), value: drop.after }]
-          : [];
+        drop.after !== undefined ? [{ x: dropX(drop), value: drop.after }] : [];
     };
     for (const point of series) {
       while (
@@ -591,7 +608,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         applyDrop(drops[dropIndex]!);
         dropIndex += 1;
       }
-      run.push({ x: pointX(point.time, point.turn), value: point.value });
+      run.push({ x: contextX(point), value: point.value });
     }
     // A compaction with no model call after it (running sample, truncated
     // or completed log) still ends the line at tokens_after: the read-out
@@ -854,9 +871,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     // turn can complete after a later one, so the points re-sort by column.
     const points = data.tokenPoints.flatMap((point) => {
       const layer = curveRowIdOf.get(point.rowId);
-      return layer === undefined
-        ? []
-        : [{ point, layer, px: pointX(point.time, point.turn) }];
+      return layer === undefined ? [] : [{ point, layer, px: burnX(point) }];
     });
     if (turnsMode) points.sort((a, b) => a.px - b.px);
     const running = new Map<string, number>();
@@ -1011,7 +1026,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   key={`ctx-dot-${i}`}
                   className={styles.contextDot}
                   style={multiAgent ? { fill: row.hue } : undefined}
-                  cx={pointX(point.time, point.turn)}
+                  cx={contextX(point)}
                   cy={y(point.value)}
                   r={2}
                 />
@@ -1028,7 +1043,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             if (drop.before === undefined || drop.after === undefined) {
               return null;
             }
-            const dx = xAt(drop.time);
+            const dx = dropX(drop);
             const labeled = dx - lastLabelX >= 60;
             if (labeled) lastLabelX = dx;
             return (
@@ -2200,7 +2215,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         for (const row of memberRows(curveRow)) {
           for (const point of data.contextByRow[row.id] ?? []) {
             const dist = Math.hypot(
-              pointX(point.time, point.turn) - px,
+              contextX(point) - px,
               yOf(point.value) - py
             );
             if (dist < nearestDist) {
@@ -2222,6 +2237,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         kind: "curve",
         band: "context",
         time: t,
+        turn: turnsMode ? turnIndexAtPx(px) : undefined,
         values: contextValuesAt(px),
       });
       return;
@@ -2231,6 +2247,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         kind: "curve",
         band: "tokens",
         time: t,
+        turn: turnsMode ? turnIndexAtPx(px) : undefined,
         values: tokenValueRows(tokenValuesAt(px)),
       });
       return;

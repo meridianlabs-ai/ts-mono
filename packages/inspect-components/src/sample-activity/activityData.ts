@@ -133,6 +133,10 @@ export interface CompactionDrop {
   strategy?: string;
   key: string;
   uuid?: string;
+  /** 1-based interleaved index of the turn whose call this compacted —
+   *  the conversation's current turn when the event landed (set after the
+   *  pass; undefined before the row's first model call). */
+  turn?: number;
 }
 
 export interface ActivitySpan {
@@ -646,6 +650,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
    *  after the pass (they interleave across conversations), so the link is
    *  by identity — pre-uuid logs have no other handle. */
   const turnOfPoint = new Map<TokenPoint | ContextPoint, TurnColumn>();
+  const turnOfDrop = new Map<CompactionDrop, TurnColumn>();
 
   let minTime = Infinity;
   let maxTime = -Infinity;
@@ -1096,7 +1101,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           tokenCount(event.tokens_before) ??
           (lastContext > 0 ? lastContext : undefined);
         const after = tokenCount(event.tokens_after);
-        compactions.push({
+        const drop: CompactionDrop = {
           time: t,
           rowId,
           before,
@@ -1104,7 +1109,10 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           strategy: event.type,
           key,
           uuid,
-        });
+        };
+        compactions.push(drop);
+        const turn = currentTurnByRow.get(rowId);
+        if (turn) turnOfDrop.set(drop, turn);
         markers.push({
           time: t,
           category: "compaction",
@@ -1331,6 +1339,9 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
     }
     turn.toolWork = turn.tools.reduce((sum, tool) => sum + tool.working, 0);
   });
+  for (const drop of compactions) {
+    drop.turn = turnOfDrop.get(drop)?.index;
+  }
 
   // ── token burn: total + per-row cumulative ────────────────────────────
   // Overlapping calls complete out of event order — sort the raw burns by

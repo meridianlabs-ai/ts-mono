@@ -106,6 +106,16 @@ const attr = (element: Element | null, name: string): number =>
 const pathXs = (d: string): number[] =>
   [...d.matchAll(/[ML] ([\d.]+) /g)].map((m) => Number(m[1]));
 
+/** Where a burn edge path steps up: every vertex whose x differs from the
+ *  previous one's, after the plot-left start (each step is drawn as a
+ *  horizontal run from its rise to the next rise). */
+const stepRises = (d: string): number[] => {
+  const xs = pathXs(d);
+  const rises: number[] = [];
+  for (let i = 2; i < xs.length; i += 2) rises.push(xs[i]!);
+  return rises;
+};
+
 beforeEach(() => {
   vi.stubGlobal("ResizeObserver", ImmediateResizeObserver);
 });
@@ -345,22 +355,105 @@ describe("ActivityChart Turns mode geometry", () => {
     xs.forEach((x, i) => {
       if (i > 0) expect(x).toBeGreaterThanOrEqual(xs[i - 1]!);
     });
-    // The first step lands on the first column's right edge.
+    // The first step rises at the end of turn 1's model half, inside its
+    // own column.
     const { left, width } = plotBounds(container);
-    expect(xs).toContain(left + width / 2);
+    expect(stepRises(d)[0]).toBeCloseTo(left + width / 4, 0);
   });
 
-  it("lands pre-uuid curve points on their turn's right edge", () => {
+  it("lands pre-uuid curve points at their turn's column start", () => {
     // Older logs have timestamps but no event uuids: the points still
     // belong to the turn that produced them.
     const { container } = renderChart(
       [modelCall({ start: 0, end: 10 }), modelCall({ start: 20, end: 30 })],
       { axisMode: "turns" }
     );
-    const { left, right, width } = plotBounds(container);
+    const { left, width } = plotBounds(container);
     const dots = container.querySelectorAll("circle[class*='contextDot']");
-    expect(attr(dots[0] ?? null, "cx")).toBe(left + width / 2);
-    expect(attr(dots[1] ?? null, "cx")).toBe(right);
+    expect(attr(dots[0] ?? null, "cx")).toBe(left);
+    expect(attr(dots[1] ?? null, "cx")).toBe(left + width / 2);
+  });
+
+  it("anchors each turn's context dot and burn step inside its own column", () => {
+    // Four turns. The context dot is the call's input, so it sits at the
+    // column's left edge; the burn step rises where the model half ends,
+    // so column k shows turn k's increment and the last step ends before
+    // the axis end (design owner, 2026-09-16).
+    const { container } = renderChart(
+      [1, 2, 3, 4].map((k) =>
+        modelCall({
+          start: k * 10,
+          end: k * 10 + 1,
+          uuid: `m${k}`,
+          input: 100 * k,
+        })
+      ),
+      { axisMode: "turns" }
+    );
+    const { left, right, width } = plotBounds(container);
+    const colWidth = width / 4;
+    const colLeft = (k: number): number => left + (k - 1) * colWidth;
+    const dots = [...container.querySelectorAll("circle[class*='contextDot']")];
+    expect(dots).toHaveLength(4);
+    dots.forEach((dot, i) => {
+      expect(attr(dot, "cx")).toBeCloseTo(colLeft(i + 1));
+    });
+    const line = container.querySelector("polyline[class*='contextSeries']");
+    const vertexXs = (line?.getAttribute("points") ?? "")
+      .split(" ")
+      .map((v) => Number(v.split(",")[0]));
+    vertexXs.forEach((vx, i) => {
+      expect(vx).toBeCloseTo(colLeft(i + 1), 0);
+    });
+    const d =
+      container
+        .querySelector("path[class*='tokenSeries']")
+        ?.getAttribute("d") ?? "";
+    const rises = stepRises(d);
+    expect(rises).toHaveLength(4);
+    rises.forEach((rise, i) => {
+      expect(rise).toBeCloseTo(colLeft(i + 1) + colWidth / 2, 0);
+    });
+    // Turn 1's values are inside column 1, not on its boundary with turn 2.
+    expect(attr(dots[0]!, "cx")).toBeLessThan(colLeft(2));
+    expect(rises[0]!).toBeLessThan(colLeft(2) - 1);
+    expect(rises[3]!).toBeLessThan(right - 1);
+  });
+
+  it("draws a Turns-mode compaction cliff at the end of its turn's model half", () => {
+    // Context 100 on turn 1, compacted to 10 between the turns, then turn
+    // 2 opens with 30: the cliff belongs to turn 1 (the call it followed),
+    // so it sits in column 1 after the burn step and the second run starts
+    // there — between the right turns, never on turn 2's dot.
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 4, uuid: "m1", input: 100 }),
+        testCompactionEvent({
+          timestamp: iso(9),
+          tokens_before: 100,
+          tokens_after: 10,
+        }),
+        modelCall({ start: 10, end: 14, uuid: "m2", input: 30 }),
+      ],
+      { axisMode: "turns" }
+    );
+    const { left, width } = plotBounds(container);
+    const colWidth = width / 2;
+    const cliff = container.querySelector("line[class*='compactionDrop']");
+    expect(attr(cliff, "x1")).toBeCloseTo(left + colWidth / 2);
+    expect(attr(cliff, "x2")).toBeCloseTo(left + colWidth / 2);
+    const runs = [
+      ...container.querySelectorAll("polyline[class*='contextSeries']"),
+    ].map((run) =>
+      (run.getAttribute("points") ?? "")
+        .split(" ")
+        .map((v) => Number(v.split(",")[0]))
+    );
+    expect(runs).toHaveLength(2);
+    expect(runs[0]).toHaveLength(1);
+    expect(runs[0]![0]).toBeCloseTo(left, 0);
+    expect(runs[1]![0]).toBeCloseTo(left + colWidth / 2, 0);
+    expect(runs[1]![1]).toBeCloseTo(left + colWidth, 0);
   });
 });
 
@@ -1599,9 +1692,9 @@ describe("ActivityChart curve read-outs", () => {
       vi.useFakeTimers();
       try {
         // Context 100 at t=0, compaction 100→20 at t=5 and nothing but a
-        // stray span end after it: hovering past the cliff reads 20. The
-        // Turns axis has no column after the last turn, so the drop sits
-        // on the plot's right edge and the read-out there holds it.
+        // stray span end after it: hovering past the cliff reads 20. In
+        // Turns mode the drop sits at the end of turn 1's model half and
+        // the read-out on the plot's right edge holds the compacted size.
         const { container } = renderChart(
           [
             modelCall({ start: 0, end: 1, uuid: "m", input: 100 }),
@@ -1626,6 +1719,72 @@ describe("ActivityChart curve read-outs", () => {
       }
     }
   );
+
+  it("reads turn 1's burn under a turn 1 header at the middle of its column", () => {
+    vi.useFakeTimers();
+    try {
+      // Three turns burning 100 / 200 / 300. The cursor at the middle of
+      // column 1 is past turn 1's step (the model half's end) and before
+      // turn 2's, so the burn card reads 100 — never 0 with the step on
+      // the far column edge — and the card names the column's turn.
+      const { container } = renderChart(
+        [1, 2, 3].map((k) =>
+          modelCall({
+            start: k * 10,
+            end: k * 10 + 1,
+            uuid: `m${k}`,
+            input: 100 * k,
+          })
+        ),
+        { axisMode: "turns" }
+      );
+      const { left, width } = plotBounds(container);
+      const colWidth = width / 3;
+      const hit = container.querySelector("rect[class*='plotHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected plot hit");
+      const tokensLabel = [
+        ...container.querySelectorAll("text[class*='bandLabel']"),
+      ].find((label) => label.textContent === "TOKEN BURN");
+      fireEvent.mouseMove(hit, {
+        clientX: left + colWidth / 2,
+        clientY: attr(tokensLabel ?? null, "y") + 30,
+      });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const burnCard =
+        container.querySelector("[class*='tooltip']")?.textContent ?? "";
+      expect(burnCard).toContain("100 tokens burned");
+      expect(burnCard).toContain("turn 1 ·");
+      expect(
+        container.querySelector("text[class*='cursorPillText']")?.textContent
+      ).toBe("turn 1");
+
+      // The context read-out at the same x sits on the drawn line between
+      // turn 1's dot (100, at the column's left edge) and turn 2's (200),
+      // under the same turn 1 header.
+      const contextCard = hoverContext(container, left + colWidth / 2);
+      expect(contextCard).toContain("150 tokens in context");
+      expect(contextCard).toContain("turn 1 ·");
+
+      // Hovering turn 1's own dot reads its exact context as turn 1.
+      const dot = container.querySelector("circle[class*='contextDot']");
+      const svgTop = hit.ownerSVGElement?.getBoundingClientRect().top ?? 0;
+      fireEvent.mouseMove(hit, {
+        clientX: attr(dot, "cx"),
+        clientY: svgTop + attr(dot, "cy"),
+      });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const dotCard =
+        container.querySelector("[class*='tooltip']")?.textContent ?? "";
+      expect(dotCard).toContain("Context 100 tokens");
+      expect(dotCard).toContain("turn 1 ·");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("reads the context line at the cursor, interpolating between points", () => {
     vi.useFakeTimers();

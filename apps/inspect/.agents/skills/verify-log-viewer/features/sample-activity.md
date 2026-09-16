@@ -53,7 +53,11 @@ an Activity test into the standing spec.
   per column boundary below that; a tool half too narrow for its slots
   draws one aggregate teal rect whose hover reads `turn N · M tool
 calls[ · k failed][ · r rejected]`; when every slot is a rejected call the aggregate is a
-  dashed ghost reading `turn N · r rejected · no tool run`)
+  dashed ghost reading `turn N · r rejected · no tool run`;
+  curve points anchor inside their own column: a turn's context dot sits at
+  the column's left edge and its burn step and any compaction cliff rise
+  at the end of the model half, so column 1 carries turn 1's values and the
+  last step ends before the axis end; curve cards read `turn N · hh:mm:ss`)
   and removes the Working time chip from the picker — the band hides
   there too, but its override is kept, so Wall clock restores both as they
   were.

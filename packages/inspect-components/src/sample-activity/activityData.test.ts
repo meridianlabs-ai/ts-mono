@@ -421,6 +421,7 @@ describe("context size", () => {
         strategy: "summary",
         key: "comp-1",
         uuid: "comp-1",
+        turn: 1,
       },
     ]);
     const row = data.rows.find((r) => r.category === "compaction");
@@ -1177,7 +1178,7 @@ describe("turns (handoff 8b)", () => {
 
   it("links curve points to their turn without event uuids", () => {
     // Pre-uuid logs: the burn/context points still know which turn made
-    // them, so Turns mode can place them on the column's right edge.
+    // them, so Turns mode can place them inside the turn's own column.
     const events: Event[] = [
       modelCall({ start: 0, duration: 10, workingStart: 0, input: 100 }),
       modelCall({ start: 20, duration: 10, workingStart: 20, input: 200 }),
@@ -1228,9 +1229,11 @@ describe("turns (handoff 8b)", () => {
     // The failed tool's marker (at its completion) is inside turn 1.
     expect(turnAt(data.turns, kRunStart + 8)?.index).toBe(1);
     // The compaction at 9s falls between turns: no containing turn, snaps
-    // to turn 2.
+    // to turn 2 as a marker — but as a drop it belongs to turn 1, the
+    // call it compacted.
     expect(turnAt(data.turns, kRunStart + 9)).toBeUndefined();
     expect(turnAfter(data.turns, kRunStart + 9)?.index).toBe(2);
+    expect(data.compactions.map((drop) => drop.turn)).toEqual([1]);
     expect(turnAfter(data.turns, kRunStart + 20)).toBeUndefined();
   });
 

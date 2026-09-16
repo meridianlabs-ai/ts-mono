@@ -49,6 +49,8 @@ export type HoverTarget =
       kind: "curve";
       band: "tokens" | "context";
       time: number;
+      /** The cursor's column in Turns mode — the card's `turn N ·` header. */
+      turn?: number;
       values: CurveValue[];
     };
 
@@ -427,7 +429,7 @@ const CompactionBody: FC<{
   drop: CompactionDrop;
   turnsMode: boolean;
   onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
-}> = ({ marker, drop, onOpenEvent }) => {
+}> = ({ marker, drop, turnsMode, onOpenEvent }) => {
   const rows: GridRow[] = [];
   if (drop.before !== undefined && drop.after !== undefined) {
     const freed = drop.before - drop.after;
@@ -468,7 +470,7 @@ const CompactionBody: FC<{
           Context compacted
         </Fragment>
       }
-      time={fmtTimeSec(marker.time)}
+      time={headerTime(drop.turn, turnsMode, marker.time, marker.time, false)}
       uuid={marker.uuid}
       onOpenEvent={onOpenEvent}
     >
@@ -556,8 +558,11 @@ const CurveValueText: FC<{ value?: number; aggregate?: "max" }> = ({
 const CurveBody: FC<{
   band: "tokens" | "context";
   time: number;
+  turn?: number;
+  turnsMode: boolean;
   values: CurveValue[];
-}> = ({ band, time, values }) => {
+}> = ({ band, time, turn, turnsMode, values }) => {
+  const headerText = headerTime(turn, turnsMode, time, time, false);
   if (values.length === 1) {
     const only = values[0]!;
     return (
@@ -568,14 +573,14 @@ const CurveBody: FC<{
             {band === "tokens" ? "tokens burned" : "tokens in context"}
           </Fragment>
         }
-        time={fmtTimeSec(time)}
+        time={headerText}
       />
     );
   }
   return (
     <Card
       subject={band === "tokens" ? "Token burn" : "Context size"}
-      time={fmtTimeSec(time)}
+      time={headerText}
     >
       <div className={styles.list}>
         {values.map(({ row, value, aggregate }) => (
@@ -667,6 +672,8 @@ export const ActivityTooltip: FC<ActivityTooltipProps> = ({
         <CurveBody
           band={target.band}
           time={target.time}
+          turn={target.turn}
+          turnsMode={turnsMode}
           values={target.values}
         />
       );
