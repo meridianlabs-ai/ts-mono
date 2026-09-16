@@ -21,7 +21,7 @@ export function useMirrorToStore<T>(
   }, [value, writeRef]);
 }
 
-export type MirrorKey = readonly (string | number | boolean | undefined)[];
+export type MirrorKey = readonly (string | boolean | undefined)[];
 
 /**
  * The keyed form of `useMirrorToStore`, for a value with no primitive
@@ -35,8 +35,9 @@ export function useMirrorKeyedToStore(
   key: MirrorKey | undefined,
   write: () => void
 ): void {
-  // JSON keeps the elements' types apart ("1" vs 1, undefined vs "") so two
-  // keys serialize alike only when they would compare equal element-wise.
-  // undefined serializes as null, which is why null is not a key element.
+  // JSON keeps the elements' types apart ("true" vs true, undefined vs "")
+  // so two keys serialize alike only when they would compare equal
+  // element-wise. Numbers are excluded because NaN, Infinity and -0 do not
+  // round-trip, and null because it serializes the same as undefined.
   useMirrorToStore(key === undefined ? undefined : JSON.stringify(key), write);
 }

@@ -84,14 +84,14 @@ describe("useMirrorKeyedToStore", () => {
   it("keeps elements of different types apart", () => {
     const write = vi.fn();
     const initialProps: { key: MirrorKey | undefined } = {
-      key: ["run.eval", 1],
+      key: ["run.eval", true],
     };
     const { rerender } = renderHook(
       ({ key }: { key: MirrorKey | undefined }) =>
         useMirrorKeyedToStore(key, write),
       { initialProps }
     );
-    rerender({ key: ["run.eval", "1"] });
+    rerender({ key: ["run.eval", "true"] });
     rerender({ key: ["run.eval", undefined] });
     rerender({ key: ["run.eval", ""] });
     expect(write).toHaveBeenCalledTimes(4);
