@@ -450,14 +450,21 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     turnsMode && point.turn !== undefined
       ? colLeft(point.turn)
       : xAt(point.time);
+  const visibleCompactions = data.compactions.filter((drop) =>
+    visibleRowIds.has(drop.rowId)
+  );
   /** What a row's context line is built from. Turns mode keeps one node
    *  per call (each has its own column); the wall clock draws one per
    *  fan-out — calls issued together at one instant — at the largest
    *  member's value, so parallel calls read as one vertex instead of a
    *  vertical zigzag (design owner, 2026-09-16). `parallel` is set when
-   *  the node's call ran alongside others, for the card. */
+   *  the node's call ran alongside others, for the card. `time` is the
+   *  node's one anchor — the fan-out's first start, which is also where
+   *  its x sits — so a compaction is ordered against the same instant the
+   *  node is drawn at (review pass 15). */
   interface ContextNode {
     point: ContextPoint;
+    time: number;
     x: number;
     parallel?: ContextPoint[];
   }
@@ -465,14 +472,28 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   const contextNodes = (row: AgentRow): ContextNode[] => {
     const cached = contextNodesCache.get(row.id);
     if (cached) return cached;
-    const groups = parallelContextGroups(data.contextByRow[row.id] ?? []);
+    const dropTimes = visibleCompactions
+      .filter((drop) => drop.rowId === row.id)
+      .map((drop) => drop.time);
+    const groups = parallelContextGroups(
+      data.contextByRow[row.id] ?? [],
+      dropTimes
+    );
     const nodes: ContextNode[] = groups.flatMap((group) => {
       const parallel = group.length > 1 ? group : undefined;
       if (turnsMode) {
-        return group.map((point) => ({ point, x: contextX(point), parallel }));
+        return group.map((point) => ({
+          point,
+          time: point.time,
+          x: contextX(point),
+          parallel,
+        }));
       }
+      const first = group[0]!;
       const largest = group.reduce((a, b) => (b.value > a.value ? b : a));
-      return [{ point: largest, x: contextX(group[0]!), parallel }];
+      return [
+        { point: largest, time: first.time, x: contextX(first), parallel },
+      ];
     });
     contextNodesCache.set(row.id, nodes);
     return nodes;
@@ -605,10 +626,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   ): { row: AgentRow; value: number }[] =>
     curveRows.map((row) => ({ row, value: values.get(row.id) ?? 0 }));
 
-  const visibleCompactions = data.compactions.filter((drop) =>
-    visibleRowIds.has(drop.rowId)
-  );
-
   interface ContextVertex {
     x: number;
     value: number;
@@ -638,7 +655,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     for (const node of contextNodes(row)) {
       while (
         dropIndex < drops.length &&
-        (drops[dropIndex]?.time ?? Infinity) <= node.point.time
+        (drops[dropIndex]?.time ?? Infinity) <= node.time
       ) {
         applyDrop(drops[dropIndex]!);
         dropIndex += 1;

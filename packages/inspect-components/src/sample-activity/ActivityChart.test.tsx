@@ -1983,6 +1983,75 @@ describe("ActivityChart parallel model calls", () => {
   );
 });
 
+describe("ActivityChart fan-out across a compaction", () => {
+  // Two starts that would be one fan-out with a compaction between them
+  // (review pass 15): `a` at 10 s, the drop at 10.2 s, `b` at 10.4 s. The
+  // drop closes `a`'s run and `b` opens the next; neither line steps back.
+  const fanOutAcrossDrop = (): Event[] => [
+    modelCall({ start: 0, end: 5, uuid: "initial", input: 100 }),
+    modelCall({ start: 10, end: 20, uuid: "a", input: 200 }),
+    testCompactionEvent({
+      uuid: "compact",
+      timestamp: iso(10.2),
+      tokens_before: 200,
+      tokens_after: 80,
+    }),
+    modelCall({ start: 10.4, end: 25, uuid: "b", input: 300 }),
+    modelCall({ start: 30, end: 35, uuid: "final", input: 400 }),
+  ];
+  /** Each context polyline's vertex x coordinates, in drawing order. */
+  const runXs = (container: HTMLElement): number[][] =>
+    [...container.querySelectorAll("polyline[class*='contextSeries']")].map(
+      (line) =>
+        (line.getAttribute("points") ?? "")
+          .split(" ")
+          .filter(Boolean)
+          .map((pair) => Number(pair.split(",")[0]))
+    );
+  const expectMonotonic = (runs: number[][]) => {
+    for (const run of runs) {
+      for (let i = 1; i < run.length; i++) {
+        expect(run[i]).toBeGreaterThanOrEqual(run[i - 1]!);
+      }
+    }
+  };
+
+  it("splits the fan-out at the drop on the Wall clock so no segment runs backwards", () => {
+    const { container } = renderChart(fanOutAcrossDrop());
+    const runs = runXs(container);
+    const { left, width } = plotBounds(container);
+    const xAt = (t: number) => left + (t / 35) * width;
+    // initial → a, then the cliff at 10.2 s restarts at tokens_after and
+    // b → final continue from there.
+    expect(runs.map((run) => run.length)).toEqual([2, 3]);
+    const expected = [
+      [0, 10],
+      [10.2, 10.4, 30],
+    ];
+    runs.forEach((run, r) => {
+      run.forEach((x, i) => expect(x).toBeCloseTo(xAt(expected[r]![i]!), 0));
+    });
+    expectMonotonic(runs);
+    // Split apart, neither call is drawn as a fan-out vertex any more.
+    expect(
+      container.querySelectorAll("circle[class*='contextDot']")
+    ).toHaveLength(4);
+  });
+
+  it("leaves the Turns-mode line at one vertex per column, left to right", () => {
+    const { container } = renderChart(fanOutAcrossDrop(), {
+      axisMode: "turns",
+    });
+    const runs = runXs(container);
+    expect(runs.map((run) => run.length)).toEqual([2, 3]);
+    expectMonotonic(runs);
+    const flat = runs.flat();
+    for (let i = 1; i < flat.length; i++) {
+      expect(flat[i]).toBeGreaterThan(flat[i - 1]!);
+    }
+  });
+});
+
 describe("ActivityChart collapsed-range footers", () => {
   // Charles, 2026-09-16: a card that stands for a range of events still
   // links to the transcript — at the first event in the range.

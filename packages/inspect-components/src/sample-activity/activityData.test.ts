@@ -488,6 +488,58 @@ describe("context size", () => {
     ).toEqual([1, 1]);
   });
 
+  it("splits a fan-out at a compaction that lands between its members' starts", () => {
+    // `a` and `b` start 0.4 s apart with both still running — a fan-out by
+    // the grouping rule — but the compaction at 10.2 s changed the context
+    // between them, so they are drawn on either side of the cliff.
+    const data = deriveActivityData({
+      events: [
+        modelCall({
+          start: 10,
+          duration: 10,
+          workingStart: 10,
+          input: 200,
+          uuid: "a",
+        }),
+        testCompactionEvent({
+          uuid: "compact",
+          timestamp: iso(10.2),
+          tokens_before: 200,
+          tokens_after: 80,
+        }),
+        modelCall({
+          start: 10.4,
+          duration: 15,
+          workingStart: 10.4,
+          input: 300,
+          uuid: "b",
+        }),
+      ],
+    });
+    const points = data.contextByRow.root ?? [];
+    const ids = (groups: (typeof points)[]) =>
+      groups.map((group) => group.map((p) => p.uuid));
+    expect(ids(parallelContextGroups(points))).toEqual([["a", "b"]]);
+    expect(
+      ids(
+        parallelContextGroups(
+          points,
+          data.compactions.map((drop) => drop.time)
+        )
+      )
+    ).toEqual([["a"], ["b"]]);
+    // A drop at the group's first start precedes the whole group (the
+    // line applies it before the node); one at a later member's start
+    // splits before that member.
+    const [a, b] = points;
+    if (!a || !b) throw new Error("expected two points");
+    expect(ids(parallelContextGroups(points, [a.time]))).toEqual([["a", "b"]]);
+    expect(ids(parallelContextGroups(points, [b.time]))).toEqual([
+      ["a"],
+      ["b"],
+    ]);
+  });
+
   it("plots input-side tokens per call and tracks the peak", () => {
     const events: Event[] = [
       modelCall({

@@ -428,11 +428,15 @@ export const kParallelStartSec = 1;
 /** A row's context points grouped into fan-outs: consecutive points whose
  *  calls started within `kParallelStartSec` of the group's first and
  *  before any member completed. Sequential calls, however close, and a
- *  follow-up issued later into a running call stay their own group. The
- *  Wall clock draws one vertex per group at the largest context; Turns
- *  mode keeps a column per call and names the fan-out on the card. */
+ *  follow-up issued later into a running call stay their own group. A
+ *  group never straddles one of `boundaries` (the row's compaction
+ *  times): a call issued after the compaction saw a different context, so
+ *  it starts the next group — on the line, the next run. The Wall clock
+ *  draws one vertex per group at the largest context; Turns mode keeps a
+ *  column per call and names the fan-out on the card. */
 export const parallelContextGroups = (
-  points: ContextPoint[]
+  points: ContextPoint[],
+  boundaries: number[] = []
 ): ContextPoint[][] => {
   const groups: ContextPoint[][] = [];
   let group: ContextPoint[] = [];
@@ -442,7 +446,8 @@ export const parallelContextGroups = (
     if (
       first &&
       point.time - first.time <= kParallelStartSec &&
-      point.time < earliestEnd
+      point.time < earliestEnd &&
+      !boundaries.some((b) => b > first.time && b <= point.time)
     ) {
       group.push(point);
     } else {
