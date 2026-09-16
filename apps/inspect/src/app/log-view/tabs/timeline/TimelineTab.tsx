@@ -75,8 +75,10 @@ export const useTimelineTab = (
   const scrollRef = useRef<HTMLDivElement | null>(null);
   return useMemo(() => {
     return {
+      // Label-only rename (sample Activity's companion) — the internal tab
+      // id and persisted store keys deliberately stay "timeline".
       id: kLogViewTimelineTabId,
-      label: "Timeline",
+      label: "Activity",
       scrollable: true,
       scrollRef,
       component: TimelineTab,

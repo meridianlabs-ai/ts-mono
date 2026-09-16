@@ -1,0 +1,500 @@
+/* Colour roles (handoff decision 4): hue says WHO (agent rows), red says
+   STATUS, and these two say WHAT. The tool teal is saturated and lifted
+   well off the model grey (≥ 1.8 : 1 light, ≥ 2.4 : 1 dark) so a tool
+   tick reads next to a model span in either theme (design owner
+   2026-09-15). */
+.chart {
+  position: relative;
+  width: 100%;
+  --sa-model-color: #64748b;
+  --sa-tool-color: #14b8a6;
+  --sa-tool-label-color: #0f766e;
+}
+
+.svg {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+/* Uppercase 9px band labels, letter-spacing set inline (SVG attr). */
+.bandLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.bandHeadline {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+  font-family: var(--bs-font-monospace);
+}
+
+.axisLine {
+  stroke: var(--bs-border-color);
+}
+
+.axisLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.yTickLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+/* ── working time ── */
+
+.workingBlock {
+  fill: #5b8ec4;
+}
+
+.stallBracket {
+  stroke: #adb5bd;
+  stroke-width: 1;
+  fill: none;
+}
+
+.stallBracketRetry {
+  stroke: #b04a3c;
+  stroke-width: 1;
+  fill: none;
+}
+
+.stallLabel {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.stallLabelRetry {
+  font-size: 9px;
+  fill: #b04a3c;
+}
+
+/* ── curves ── */
+
+.tokenSeries {
+  fill: none;
+  stroke: #495057;
+  stroke-width: 1.2;
+}
+
+.contextSeries {
+  fill: none;
+  stroke: #3a7bd5;
+  stroke-width: 1.2;
+}
+
+.contextDot {
+  fill: #3a7bd5;
+  pointer-events: none;
+}
+
+.compactionDrop {
+  stroke: #2b6a94;
+  stroke-dasharray: 3 2;
+}
+
+.compactionLabel {
+  font-size: 9px;
+  fill: #2b6a94;
+}
+
+/* ── shared cursor (handoff 11a) ── */
+
+/* One hairline through every band at the anchor time. */
+.cursorLine {
+  stroke: #adb5bd;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* Dark pill on the axis pinning the exact time (or turn). */
+.cursorPill {
+  fill: #212529;
+  pointer-events: none;
+}
+
+.cursorPillText {
+  fill: #fff;
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+/* Read-out dot per visible row on the curve bands (stroke = row hue). */
+.readoutDot {
+  fill: var(--bs-body-bg);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+/* Full-plot hit surface — sits under every span/marker so they still
+   receive their own hovers. */
+.plotHit {
+  fill: transparent;
+}
+
+/* Stall regions on the working band carry their own hover target. */
+.stallHit {
+  fill: transparent;
+}
+
+/* Token burn stacked by conversation (handoff 10a): each layer fills in
+   its row hue at 0.28 with a 1px top edge in the same hue (both inline). */
+.tokenLayer {
+  opacity: 0.28;
+  stroke: none;
+}
+
+.tokenLayerEdge {
+  fill: none;
+  stroke-width: 1;
+}
+
+/* Gutter legend under a curve band's label: swatch · name. */
+.legendName {
+  font-size: 9px;
+  fill: var(--bs-body-color);
+}
+
+/* ── model & tool activity ── */
+
+.rowLabel {
+  font-size: 9px;
+  fill: var(--bs-body-color);
+}
+
+.rowLabelMuted {
+  fill: #adb5bd;
+}
+
+.modelSpan {
+  fill: var(--sa-model-color);
+}
+
+.toolSpan {
+  fill: var(--sa-tool-color);
+}
+
+/* Failed tool call: red-outlined span (handoff decision 4). */
+.failedSpan {
+  fill: #fdf1ef;
+  stroke: #b04a3c;
+}
+
+.pendingSpan {
+  opacity: 0.55;
+}
+
+/* Span hover (handoff 11a): the hovered rect outlines. Its turn-mates no
+   longer dim (design owner, 2026-09-15). */
+.spanHovered {
+  stroke: #212529;
+  stroke-width: 1;
+}
+
+/* ── Turns axis (handoff 8b) ── */
+
+/* Column rects: no rounding, a 1.5px body-bg seam between columns. */
+.turnRect {
+  stroke: var(--bs-body-bg);
+  stroke-width: 1.5;
+}
+
+/* The seam rule above shares `.failedSpan` / `.spanHovered`'s specificity
+   and comes later, so on a Turns rect it would win: the failed outline and
+   the hover outline are restated at higher specificity. */
+.turnRect.failedSpan {
+  stroke: #b04a3c;
+  stroke-width: 1;
+}
+
+.turnRect.spanHovered {
+  stroke: #212529;
+  stroke-width: 1;
+}
+
+/* Faint full-height column separators behind every band. */
+.turnSeparator {
+  stroke: #f1f3f5;
+  stroke-width: 1;
+  pointer-events: none;
+}
+
+/* A rejected call's slot: the tool never ran. */
+.ghostSpan {
+  fill: #f7f3fc;
+  stroke: #6b4fa8;
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+
+.ghostLabel {
+  font-size: 8px;
+  fill: #6b4fa8;
+}
+
+/* A crowded half whose slots are all rejected calls: one ghost that,
+   unlike the per-slot ghosts, takes the aggregate's hover and click. Its
+   dashed stroke is declared after `.spanHovered`, so the hover outline is
+   restated at higher specificity. */
+.ghostAggregate {
+  pointer-events: auto;
+}
+
+.ghostAggregate.spanHovered {
+  stroke: #212529;
+}
+
+.axisLabelMuted {
+  fill: var(--bs-secondary-color);
+  opacity: 0.8;
+}
+
+/* Grader / secondary-role rows render muted (handoff decision 4). */
+.roleRow {
+  opacity: 0.7;
+}
+
+/* "+N more" fold row: a grey summary of the conversations past the cap. */
+.foldRow {
+  opacity: 0.6;
+}
+
+/* Parent conversation waiting on a spawned child — the only idle ever
+   drawn on the activity band (handoff 10a). */
+.blockedThread {
+  stroke: #adb5bd;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.blockedLabel {
+  font-size: 8px;
+  fill: #adb5bd;
+}
+
+/* ── agent gutter (handoff 10a) ── */
+
+.gutterCheckbox {
+  fill: none;
+  stroke: #212529;
+  stroke-width: 1;
+}
+
+.gutterCheckboxOn {
+  fill: #212529;
+}
+
+.gutterCheck {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.gutterExpand {
+  font-size: 9px;
+  fill: var(--bs-secondary-color);
+}
+
+.gutterName {
+  font-size: 9px;
+  fill: #212529;
+}
+
+.gutterModel {
+  font-size: 8px;
+  fill: var(--bs-secondary-color);
+}
+
+.gutterHit {
+  fill: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.burstLabel {
+  font-size: 8px;
+  fill: var(--sa-tool-label-color);
+}
+
+.retryBadge {
+  font-size: 9px;
+  fill: #b04a3c;
+}
+
+/* Density strip columns: the majority kind's colour, opacity by count. */
+.densityModel {
+  fill: var(--sa-model-color);
+}
+
+.densityTool {
+  fill: var(--sa-tool-color);
+}
+
+.densityFailure {
+  fill: #b04a3c;
+  pointer-events: none;
+}
+
+/* Hover-only: the strip has no click action, so no pointer cursor. */
+.densityHit {
+  fill: transparent;
+}
+
+/* ── marker rail ── */
+
+/* Only the hit rect is interactive — the group's stem line would
+   otherwise capture hovers meant for the bands beneath it. */
+.marker {
+  pointer-events: none;
+}
+
+/* Focusable for keyboard access to the card, but click-inert. Bootstrap's
+   reboot gives every [role="button"] a pointer; the descendant selector
+   outranks it. */
+.marker .markerHit {
+  fill: transparent;
+  pointer-events: all;
+  cursor: default;
+  outline: none;
+}
+
+/* Bordered count box above a clustered glyph (stroke/text take the
+   category hue inline) — the task timeline's ordinal-box token. */
+.clusterBoxRect {
+  fill: var(--bs-body-bg);
+  stroke-opacity: 0.55;
+  pointer-events: none;
+}
+
+.clusterBoxText {
+  font-family: var(--bs-font-monospace);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+/* ── dark theme ── */
+
+:global([data-bs-theme="dark"]) .chart {
+  --sa-tool-color: #2dd4bf;
+  --sa-tool-label-color: #5eead4;
+}
+
+:global([data-bs-theme="dark"]) .tokenSeries {
+  stroke: #adb5bd;
+}
+
+:global([data-bs-theme="dark"]) .contextSeries {
+  stroke: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .contextDot {
+  fill: #6ea0dc;
+}
+
+:global([data-bs-theme="dark"]) .compactionDrop {
+  stroke: #6ba3c9;
+}
+
+:global([data-bs-theme="dark"]) .compactionLabel {
+  fill: #8fbcd9;
+}
+
+:global([data-bs-theme="dark"]) .stallBracket {
+  stroke: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .stallBracketRetry {
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .stallLabelRetry {
+  fill: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .failedSpan {
+  fill: #322019;
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .turnRect.failedSpan {
+  stroke: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .retryBadge {
+  fill: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .densityFailure {
+  fill: #d98b7f;
+}
+
+:global([data-bs-theme="dark"]) .rowLabelMuted {
+  fill: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .blockedThread {
+  stroke: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .blockedLabel {
+  fill: #868e96;
+}
+
+:global([data-bs-theme="dark"]) .gutterCheckbox {
+  stroke: #dee2e6;
+}
+
+:global([data-bs-theme="dark"]) .gutterCheckboxOn {
+  fill: #dee2e6;
+}
+
+:global([data-bs-theme="dark"]) .gutterCheck {
+  stroke: #212529;
+}
+
+:global([data-bs-theme="dark"]) .gutterName {
+  fill: #dee2e6;
+}
+
+:global([data-bs-theme="dark"]) .cursorLine {
+  stroke: #6c757d;
+}
+
+:global([data-bs-theme="dark"]) .cursorPill {
+  fill: #dee2e6;
+}
+
+:global([data-bs-theme="dark"]) .cursorPillText {
+  fill: #212529;
+}
+
+:global([data-bs-theme="dark"]) .spanHovered {
+  stroke: #f8f9fa;
+}
+
+:global([data-bs-theme="dark"]) .turnRect.spanHovered {
+  stroke: #f8f9fa;
+}
+
+:global([data-bs-theme="dark"]) .turnSeparator {
+  stroke: #2b3035;
+}
+
+:global([data-bs-theme="dark"]) .ghostSpan {
+  fill: #2a2436;
+  stroke: #b39ddb;
+}
+
+:global([data-bs-theme="dark"]) .ghostLabel {
+  fill: #b39ddb;
+}
+
+:global([data-bs-theme="dark"]) .ghostAggregate.spanHovered {
+  stroke: #f8f9fa;
+}
