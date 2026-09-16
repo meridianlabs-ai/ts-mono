@@ -1,19 +1,30 @@
 import { globSync, readFileSync } from "node:fs";
+import { sep } from "node:path";
 
 import { defaultExclude, defaultInclude } from "vitest/config";
 
-const ENVIRONMENT_DIRECTIVE =
-  /^\s*(?:\/\/|\/\*\*?|\*)\s*@vitest-environment\s+(\S+)/m;
-const MODULE_MOCK = /\bvi\.(?:mock|doMock|unmock|doUnmock|hoisted)\(/;
+// Same pattern Vitest itself uses to detect a per-file environment, so the
+// classification here can never disagree with the environment a file runs in.
+const ENVIRONMENT_DIRECTIVE = /@(?:vitest|jest)-environment\s+([\w-]+)\b/;
+const MODULE_MOCK =
+  /\bvi\.(?:mock|doMock|unmock|doUnmock|hoisted|resetModules|importMock)\(/;
 
 /** @param {string} file */
 const classify = (file) => {
   const source = readFileSync(file, "utf8");
-  const environment =
-    ENVIRONMENT_DIRECTIVE.exec(source.slice(0, 2048))?.[1] ?? "node";
+  const environment = ENVIRONMENT_DIRECTIVE.exec(source)?.[1] ?? "node";
   if (environment !== "node") return "dom";
   return MODULE_MOCK.test(source) ? "mocked" : "pure";
 };
+
+// Membership is computed once when the config loads, so in watch mode a test
+// file created or reclassified later would run in no project at all. Watch
+// runs keep the plain single-project config instead.
+const isWatchMode = () =>
+  !process.env.CI &&
+  (process.argv.includes("--watch") ||
+    process.argv.includes("-w") ||
+    !process.argv.includes("run"));
 
 /**
  * Splits a package's tests into Vitest projects by what each file needs from
@@ -21,7 +32,9 @@ const classify = (file) => {
  *
  * - `pure`: no DOM, no module mocks. Runs with `isolate: false`, sharing one
  *   module graph per worker, so the import and transform work that dominates
- *   these suites happens once instead of once per file.
+ *   these suites happens once instead of once per file. Tests here own the
+ *   restoration of anything they stub (`vi.unstubAllGlobals`,
+ *   `vi.useRealTimers`); Vitest restores spies between files but not those.
  * - `mocked`: no DOM, but calls `vi.mock` or friends. Isolated, because a
  *   shared module registry lets one file's mocks leak into the next.
  * - `dom`: declares a DOM `@vitest-environment`. Isolated, because a shared
@@ -29,7 +42,7 @@ const classify = (file) => {
  *
  * Membership is derived from the source, so adding a test needs no config
  * change: a new file lands in `pure` unless it declares an environment or
- * mocks a module.
+ * mocks a module. The split is skipped in watch mode (see `isWatchMode`).
  *
  * @param {import("vitest/config").ViteUserConfig} config the package's config;
  *   everything in it is inherited by every project via `extends: true`
@@ -37,11 +50,15 @@ const classify = (file) => {
  * @returns {import("vitest/config").ViteUserConfig}
  */
 export const splitTestEnvironments = (config, root) => {
+  if (isWatchMode()) return config;
+
   const test = config.test ?? {};
   const files = globSync(test.include ?? defaultInclude, {
     cwd: root,
     exclude: test.exclude ?? defaultExclude,
-  }).sort();
+  })
+    .map((file) => file.split(sep).join("/"))
+    .sort();
 
   /** @type {Record<"pure" | "mocked" | "dom", string[]>} */
   const groups = { pure: [], mocked: [], dom: [] };
