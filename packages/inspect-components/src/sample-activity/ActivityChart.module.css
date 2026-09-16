@@ -253,10 +253,6 @@
   opacity: 0.8;
 }
 
-.clickableSpan {
-  cursor: pointer;
-}
-
 /* Grader / secondary-role rows render muted (handoff decision 4). */
 .roleRow {
   opacity: 0.7;

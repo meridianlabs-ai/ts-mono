@@ -306,13 +306,14 @@ test("axis toggle tiles turns and hides the working chip", async ({
   await expect(workingBand).toBeVisible();
 });
 
-test("hovering a span shows the tooltip card with click-through", async ({
+test("hovering a span shows the tooltip card; the span itself has no click action", async ({
   page,
   network,
 }) => {
   await openSample(page, network);
 
-  await page.locator("rect[class*='failedSpan']").first().hover();
+  const span = page.locator("rect[class*='failedSpan']").first();
+  await span.hover();
   const card = page.locator("[class*='tooltip']");
   await expect(card).toBeVisible();
   await expect(card).toContainText("bash tool call");
@@ -323,6 +324,12 @@ test("hovering a span shows the tooltip card with click-through", async ({
   ).toBeVisible();
   // Shared cursor: the axis pill pins the hovered span's start.
   await expect(page.locator("[class*='cursorPillText']")).toBeVisible();
+  // Clicking the span goes nowhere (Charles, 2026-09-16): the card's
+  // footer link is the chart's only navigation.
+  await expect(span).toHaveCSS("cursor", /^(auto|default)$/);
+  await span.click();
+  await expect(page).toHaveURL(/\/activity$/);
+  await expect(page).not.toHaveURL(/\/transcript/);
 });
 
 test("state outlines win over the Turns column seam in both themes", async ({
@@ -606,7 +613,7 @@ test("history list filters by category pill and search", async ({
   await expect(page.getByText(/exit 127/)).not.toBeVisible();
 });
 
-test("marker click selects and reveals its history row", async ({
+test("marker glyph click is inert; its card's footer navigates", async ({
   page,
   network,
 }) => {
@@ -616,9 +623,17 @@ test("marker click selects and reveals its history row", async ({
   await page.getByRole("button", { name: /Scores/ }).click();
   await expect(page.getByText(/exit 127/)).not.toBeVisible();
 
-  // …then click the error glyph: the filter widens and the row appears.
-  await page.getByRole("button", { name: "Tool bash errored" }).click();
-  await expect(page.getByText(/exit 127/)).toBeVisible();
+  // …clicking the error glyph changes nothing: the filter stays narrow and
+  // the URL stays put. Its hover card still carries the way through.
+  const glyph = page.getByRole("button", { name: "Tool bash errored" });
+  await glyph.click();
+  await expect(page.getByText(/exit 127/)).not.toBeVisible();
+  await expect(page).toHaveURL(/\/activity$/);
+  await glyph.hover();
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toBeVisible();
+  await card.getByRole("button", { name: "open in transcript →" }).click();
+  await expect(page).toHaveURL(/\/transcript\?event=/);
 });
 
 test("history row clicks through to the transcript event", async ({

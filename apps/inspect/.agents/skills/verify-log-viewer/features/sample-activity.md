@@ -52,8 +52,7 @@ an Activity test into the standing spec.
   its sub-lanes inside its slot; 6–10 gridlines from seven turns up, one
   per column boundary below that; a tool half too narrow for its slots
   draws one aggregate teal rect whose hover reads `turn N · M tool
-calls[ · k failed][ · r rejected]` and whose click filters the history
-  to that turn; when every slot is a rejected call the aggregate is a
+calls[ · k failed][ · r rejected]`; when every slot is a rejected call the aggregate is a
   dashed ghost reading `turn N · r rejected · no tool run`)
   and removes the Working time chip from the picker — the band hides
   there too, but its override is kept, so Wall clock restores both as they
@@ -86,10 +85,13 @@ calls[ · k failed][ · r rejected]` and whose click filters the history
   pill is the decision word — rejected / escalated / terminated / modified);
   the filter pill reads `Rejections`; the By cell shows the approver name.
 - Chips toggle bands on/off and persist across tab switches.
-- Category pills filter the list additively; `All` resets; a glyph click
-  widens filters so its row is always revealed.
-- `open in transcript →` (and any span/glyph click-through) lands on
-  `/transcript?event=<uuid>` with the transcript scrolled to the event.
+- Category pills filter the list additively; `All` resets.
+- `open in transcript →` (the hover card's footer link, and the button on a
+  history row) lands on `/transcript?event=<uuid>` with the transcript
+  scrolled to the event. Nothing drawn in the chart has a click action:
+  clicking a span, marker glyph, strip column or crowded-half aggregate
+  leaves the URL and the history filters unchanged (the pointer cursor
+  stays `default` over them); hover or keyboard focus shows the card.
 - Dense logs (50+ turns): the merged model+tool band degrades to a
   per-pixel occupancy strip and the headline appends `per-pixel occupancy`;
   in Turns mode the strip bins by turn index and bin hovers read

@@ -398,15 +398,18 @@ describe("SampleActivityPanel burst labels", () => {
 });
 
 describe("SampleActivityPanel marker ↔ list link", () => {
-  it("marker click widens a filter that would hide its row", () => {
-    mountPanel();
+  it("marker click leaves the history filter alone", () => {
+    const onOpenEvent = vi.fn();
+    mountPanel({ onOpenEvent });
     // Narrow to Scores — the error row disappears.
     fireEvent.click(screen.getByRole("button", { name: /Scores 1/ }));
     expect(screen.queryByText(/exit 127/)).toBeNull();
 
-    // Click the error glyph on the rail — the filter widens to include it.
+    // Clicking the error glyph on the rail is inert: the filter stays
+    // narrow and nothing navigates (its card's footer is the way through).
     fireEvent.click(screen.getByRole("button", { name: "Tool bash errored" }));
-    expect(screen.getByText(/exit 127/)).toBeTruthy();
+    expect(screen.queryByText(/exit 127/)).toBeNull();
+    expect(onOpenEvent).not.toHaveBeenCalled();
   });
 
   it("hovering a glyph washes its history row", () => {
@@ -590,6 +593,9 @@ describe("SampleActivityPanel hover (shared cursor + tooltip)", () => {
         expect(other.getAttribute("style") ?? "").not.toContain("opacity");
       }
 
+      // The span itself is inert; only the card's footer link navigates.
+      fireEvent.click(failedTool);
+      expect(onOpenEvent).not.toHaveBeenCalled();
       fireEvent.click(
         screen.getAllByRole("button", { name: "open in transcript →" })[0]!
       );

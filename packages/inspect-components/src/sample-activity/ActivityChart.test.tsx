@@ -30,8 +30,8 @@ import {
   turnGridSeparators,
   turnGridStep,
 } from "./ActivityChart";
-import { deriveActivityData, type TimeWindow } from "./activityData";
-import { ImmediateResizeObserver, iso, kRunStart } from "./testHelpers";
+import { deriveActivityData } from "./activityData";
+import { ImmediateResizeObserver, iso } from "./testHelpers";
 
 // A full-height span rect (a burst lane is thinner).
 const kAgentSpanHeight = 11;
@@ -94,7 +94,6 @@ const renderChart = (
       showContext
       showModelTool
       selectedKey={null}
-      onSelectMarker={() => {}}
       {...props}
     />
   );
@@ -582,7 +581,6 @@ describe("ActivityChart tool bursts", () => {
             showContext
             showModelTool
             selectedKey={null}
-            onSelectMarker={() => {}}
           />
         );
       };
@@ -818,10 +816,8 @@ const densityRects = (container: HTMLElement): Element[] => [
 
 describe("ActivityChart crowded Turns tool halves", () => {
   it("collapses twelve sequential tools in a 5 px half to one bounded aggregate rect", () => {
-    const onFilterWindow = vi.fn<(window: TimeWindow) => void>();
     const { container } = renderChart(sequentialTools(91, 12), {
       axisMode: "turns",
-      onFilterWindow,
     });
     const { left, width } = plotBounds(container);
     const colWidth = width / 91;
@@ -838,14 +834,6 @@ describe("ActivityChart crowded Turns tool halves", () => {
     expect(attr(models[0]!, "width")).toBeCloseTo(colWidth / 2);
     // The headline still counts every call the aggregate stands for.
     expect(screen.getByText(/12 tool calls/)).toBeTruthy();
-    // Click filters the history to the turn's window (density-strip
-    // semantics), which spans the model call and all twelve tools.
-    fireEvent.click(aggregate);
-    expect(onFilterWindow).toHaveBeenCalledTimes(1);
-    const window = onFilterWindow.mock.calls[0]![0];
-    expect(window.start).toBe(kRunStart);
-    expect(window.end - window.start).toBeGreaterThanOrEqual(24);
-    expect(window.end - window.start).toBeLessThan(100);
   });
 
   it("reads the aggregate's call and failure counts on hover and outlines it", () => {
@@ -990,6 +978,123 @@ describe("ActivityChart crowded Turns tool halves", () => {
     const last = tools[3]!;
     expect(attr(last, "x") + attr(last, "width")).toBeCloseTo(left + colWidth);
     expect(container.querySelector("[class*='densityFailure']")).toBeNull();
+  });
+});
+
+describe("ActivityChart click actions", () => {
+  // Charles, 2026-09-16: the hover card's footer link is the chart's only
+  // navigation. Nothing drawn in the plot carries a click action any more —
+  // not spans, not the density strip, not the crowded-half aggregate, not
+  // marker glyphs — and nothing promises one with a pointer cursor.
+  const twoTurnsWithTool = (): Event[] => [
+    modelCall({ start: 0, end: 10, uuid: "m1" }),
+    testToolEvent({
+      uuid: "t1",
+      function: "bash",
+      timestamp: iso(10),
+      completed: iso(12),
+      working_start: 10,
+      working_time: 2,
+      error: { type: "unknown", message: "exit 127" },
+    }),
+    modelCall({ start: 20, end: 30, uuid: "m2" }),
+  ];
+  const clickEvery = (container: HTMLElement, selector: string): number => {
+    const targets = [...container.querySelectorAll(selector)];
+    for (const target of targets) fireEvent.click(target);
+    return targets.length;
+  };
+  const noPointerCursor = (container: HTMLElement) => {
+    for (const el of container.querySelectorAll("rect")) {
+      expect(el.getAttribute("class") ?? "").not.toMatch(/clickable/i);
+    }
+  };
+
+  it("does not navigate when a Wall clock span is clicked", () => {
+    const onOpenEvent = vi.fn();
+    const { container } = renderChart(twoTurnsWithTool(), { onOpenEvent });
+    expect(
+      clickEvery(container, "rect[class*='modelSpan'], rect[class*='toolSpan']")
+    ).toBe(3);
+    expect(onOpenEvent).not.toHaveBeenCalled();
+    noPointerCursor(container);
+  });
+
+  it("does not navigate when a Turns column rect is clicked", () => {
+    const onOpenEvent = vi.fn();
+    const { container } = renderChart(twoTurnsWithTool(), {
+      axisMode: "turns",
+      onOpenEvent,
+    });
+    expect(clickEvery(container, "rect[class*='turnRect']")).toBe(3);
+    expect(onOpenEvent).not.toHaveBeenCalled();
+    noPointerCursor(container);
+  });
+
+  it("leaves the crowded-half aggregate and the density strip inert", () => {
+    const onOpenEvent = vi.fn();
+    const crowded = renderChart(sequentialTools(91, 12), {
+      axisMode: "turns",
+      onOpenEvent,
+    });
+    expect(clickEvery(crowded.container, "rect[class*='toolSpan']")).toBe(1);
+    noPointerCursor(crowded.container);
+    cleanup();
+    const dense = renderChart(sequentialTools(320, 4), {
+      axisMode: "turns",
+      onOpenEvent,
+    });
+    expect(densityRects(dense.container).length).toBeGreaterThan(0);
+    clickEvery(
+      dense.container,
+      "rect[class*='density'], rect[class*='plotHit']"
+    );
+    expect(onOpenEvent).not.toHaveBeenCalled();
+    noPointerCursor(dense.container);
+  });
+
+  it("shows a marker's card on focus without selecting or navigating", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      renderChart(twoTurnsWithTool(), { showMarkers: true, onOpenEvent });
+      const glyph = screen.getByRole("button", { name: /Tool bash errored/ });
+      fireEvent.click(glyph);
+      fireEvent.keyDown(glyph, { key: "Enter" });
+      expect(onOpenEvent).not.toHaveBeenCalled();
+      fireEvent.focus(glyph);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      fireEvent.click(
+        screen.getByRole("button", { name: "open in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("t1", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("navigates only through the hovered span's card footer", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(twoTurnsWithTool(), { onOpenEvent });
+      const tool = container.querySelector("rect[class*='toolSpan']");
+      if (!(tool instanceof SVGElement)) throw new Error("expected the tool");
+      fireEvent.mouseEnter(tool);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      fireEvent.click(tool);
+      expect(onOpenEvent).not.toHaveBeenCalled();
+      fireEvent.click(
+        screen.getByRole("button", { name: "open in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("t1", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

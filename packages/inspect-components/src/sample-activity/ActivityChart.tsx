@@ -165,16 +165,14 @@ export interface ActivityChartProps {
   axisMode?: "wall" | "turns";
   /** Selected history-row key — its marker holds the active treatment. */
   selectedKey: string | null;
-  /** Marker click: select + scroll to its history row (auto-widening). */
-  onSelectMarker: (key: string | null) => void;
   /** Row hovered in the history list — its glyph lights up. */
   hoveredRowKey?: string | null;
   /** Hovering a glyph washes its history row(s); null clears. */
   onHoverMarker?: (keys: string[] | null) => void;
-  /** Click-through to the Transcript via event uuid. */
+  /** Click-through to the Transcript from the hover card's footer link —
+   *  the chart's only navigation: spans, glyphs, strip columns and
+   *  aggregates carry no click action (Charles, 2026-09-16). */
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
-  /** Dense-band bin click: filter the history list to the bin's window. */
-  onFilterWindow?: (window: TimeWindow) => void;
 }
 
 const kNoIds: string[] = [];
@@ -226,11 +224,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   onToggleAgent,
   axisMode = "wall",
   selectedKey,
-  onSelectMarker,
   hoveredRowKey,
   onHoverMarker,
   onOpenEvent,
-  onFilterWindow,
 }) => {
   const [width, setWidth] = useState(0);
   // Callback ref, not useResizeObserver — the chart renders null while every
@@ -1179,7 +1175,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                     s.kind === "model" ? styles.modelSpan : styles.toolSpan,
                     failedTool && styles.failedSpan,
                     s.pending && styles.pendingSpan,
-                    s.uuid && onOpenEvent && styles.clickableSpan,
                     isHovered && styles.spanHovered
                   )}
                   x={spanX(row, s)}
@@ -1189,11 +1184,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   rx={1}
                   onMouseEnter={() => hoverSpan(row, s, x(s.start))}
                   onMouseLeave={clearTarget}
-                  onClick={
-                    s.uuid && onOpenEvent
-                      ? (event) => onOpenEvent(s.uuid!, event)
-                      : undefined
-                  }
                 />
               </g>
             );
@@ -1345,13 +1335,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             });
           }}
           onMouseLeave={clearTarget}
-          onClick={
-            onFilterWindow
-              ? (event) => {
-                  onFilterWindow(binAt(pointerPx(event)).window);
-                }
-              : undefined
-          }
         />
       </Fragment>
     );
@@ -1407,7 +1390,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             s.kind === "model" ? styles.modelSpan : styles.toolSpan,
             s.kind === "tool" && s.failed && styles.failedSpan,
             s.pending && styles.pendingSpan,
-            s.uuid && onOpenEvent && styles.clickableSpan,
             isHovered && styles.spanHovered
           )}
           x={x0}
@@ -1416,18 +1398,13 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           height={h}
           onMouseEnter={() => hoverSpan(row, s, x0)}
           onMouseLeave={clearTarget}
-          onClick={
-            s.uuid && onOpenEvent
-              ? (event) => onOpenEvent(s.uuid!, event)
-              : undefined
-          }
         />
       );
     };
     /** A tool half too narrow for its slots: the allocator would hand out
      *  sub-seam shares that vanish under the strokes, so the half draws as
-     *  one aggregate rect with the density strip's hover and click
-     *  semantics scoped to the turn — teal for executed calls, the
+     *  one aggregate rect with the density strip's hover semantics
+     *  scoped to the turn — teal for executed calls, the
      *  rejected-call ghost when nothing ran (the count label and the
      *  card's call count only ever speak for executed calls). */
     const crowdedToolHalf = (
@@ -1463,7 +1440,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         setCursor({ x: x0, t: turn.tools[0]?.start ?? turn.start });
         showTarget({ kind: "bin", label, window });
       };
-      const click = onFilterWindow ? () => onFilterWindow(window) : undefined;
       return (
         <Fragment>
           {ghostOnly ? (
@@ -1471,7 +1447,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               className={clsx(
                 styles.ghostSpan,
                 styles.ghostAggregate,
-                onFilterWindow && styles.clickableSpan,
                 isHovered && styles.spanHovered
               )}
               x={x0 + 0.75}
@@ -1480,14 +1455,12 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               height={kAgentSpanHeight}
               onMouseEnter={enter}
               onMouseLeave={clearTarget}
-              onClick={click}
             />
           ) : (
             <rect
               className={clsx(
                 styles.turnRect,
                 styles.toolSpan,
-                onFilterWindow && styles.clickableSpan,
                 isHovered && styles.spanHovered
               )}
               x={x0}
@@ -1496,7 +1469,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               height={kAgentSpanHeight}
               onMouseEnter={enter}
               onMouseLeave={clearTarget}
-              onClick={click}
             />
           )}
           {failed > 0 && (
@@ -1711,11 +1683,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             });
           }}
           onMouseLeave={clearTarget}
-          onClick={
-            onFilterWindow
-              ? (event) => onFilterWindow(binAt(pointerPx(event)).window)
-              : undefined
-          }
         />
       </Fragment>
     );
@@ -1967,9 +1934,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             clearTarget();
             onHoverMarker?.(null);
           };
-          const selected = selectedKey !== null && keys.includes(selectedKey);
-          const toggle = () =>
-            onSelectMarker(selected ? null : (keys[0] ?? null));
           const cluster = group.members.length > 1;
           const boxW = badgeWidth(group.members.length);
           return (
@@ -2021,8 +1985,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               )}
               {/* The interactive element is this generous invisible rect on
                   the rail, NOT the group: the group's bounding box includes
-                  the full-height stem, which would put its click point
-                  mid-chart and let stems steal hovers from the bands. */}
+                  the full-height stem, which would let stems steal hovers
+                  from the bands. Hover or keyboard focus shows the card;
+                  there is no click action — the card's footer navigates. */}
               <rect
                 className={styles.markerHit}
                 x={group.x - Math.max(boxW, 12) / 2}
@@ -2032,13 +1997,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 role="button"
                 tabIndex={0}
                 aria-label={label}
-                onClick={toggle}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    toggle();
-                  }
-                }}
                 onMouseEnter={activate}
                 onMouseLeave={deactivate}
                 onFocus={activate}

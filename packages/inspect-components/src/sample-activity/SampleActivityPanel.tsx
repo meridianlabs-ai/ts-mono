@@ -1,11 +1,5 @@
 import clsx from "clsx";
-import {
-  FC,
-  MouseEvent as ReactMouseEvent,
-  RefObject,
-  useRef,
-  useState,
-} from "react";
+import { FC, MouseEvent as ReactMouseEvent, RefObject, useState } from "react";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import { SegmentedControl } from "@tsmono/react/components";
@@ -17,13 +11,8 @@ import {
   ActivityCategory,
   deriveActivityData,
   kActivityCategories,
-  rowHaystack,
-  TimeWindow,
 } from "./activityData";
-import {
-  ActivityHistoryList,
-  type ActivityHistoryListHandle,
-} from "./ActivityHistoryList";
+import { ActivityHistoryList } from "./ActivityHistoryList";
 import styles from "./SampleActivityPanel.module.css";
 
 /** Property bag for the Activity tab's durable UI state, keyed per sample. */
@@ -282,36 +271,6 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
     source: "marker" | "row";
     keys: string[];
   } | null>(null);
-  // Dense-band bin click narrows the list to the bin's window (transient).
-  const [windowFilter, setWindowFilter] = useState<TimeWindow | null>(null);
-
-  const listRef = useRef<ActivityHistoryListHandle | null>(null);
-
-  // Glyph click → select + scroll to its history row, clearing any filter
-  // that would hide it: the category filter widens to include the row, a
-  // non-matching search is dropped, and a window filter that excludes the
-  // row is cleared.
-  const selectMarker = (key: string | null) => {
-    setSelectedKey(key);
-    if (key === null) return;
-    const row = data.rows.find((r) => r.key === key);
-    if (row) {
-      if (categoryList.length > 0 && !categoryList.includes(row.category)) {
-        setCategoryList([...categoryList, row.category]);
-      }
-      const query = search.trim().toLowerCase();
-      if (query !== "" && !rowHaystack(row).toLowerCase().includes(query)) {
-        setSearch("");
-      }
-      if (
-        windowFilter !== null &&
-        (row.time < windowFilter.start || row.time > windowFilter.end)
-      ) {
-        setWindowFilter(null);
-      }
-    }
-    listRef.current?.scrollToKey(key);
-  };
 
   if (!data.window) {
     return null;
@@ -376,7 +335,6 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
         onToggleAgent={toggleAgent}
         axisMode={turnsMode ? "turns" : "wall"}
         selectedKey={selectedKey}
-        onSelectMarker={selectMarker}
         hoveredRowKey={
           hoverLink?.source === "row" ? (hoverLink.keys[0] ?? null) : null
         }
@@ -386,10 +344,8 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
           )
         }
         onOpenEvent={onOpenEvent}
-        onFilterWindow={setWindowFilter}
       />
       <ActivityHistoryList
-        ref={listRef}
         rows={data.rows}
         scrollRef={scrollRef}
         persistenceKey={`sample-activity-history:${persistScope}`}
@@ -406,8 +362,6 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
           setHoverLink(key !== null ? { source: "row", keys: [key] } : null)
         }
         onOpenEvent={onOpenEvent}
-        windowFilter={windowFilter}
-        onClearWindowFilter={() => setWindowFilter(null)}
       />
     </div>
   );

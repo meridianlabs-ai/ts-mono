@@ -1,28 +1,17 @@
 import clsx from "clsx";
-import {
-  FC,
-  Fragment,
-  MouseEvent as ReactMouseEvent,
-  Ref,
-  RefObject,
-  useImperativeHandle,
-  useRef,
-} from "react";
+import { FC, Fragment, MouseEvent as ReactMouseEvent, RefObject } from "react";
 
-import { useLatestRef } from "@tsmono/react/hooks";
-import { VirtualList, type VirtualListHandle } from "@tsmono/react/virtual";
+import { VirtualList } from "@tsmono/react/virtual";
 
 import { fmtDayClock } from "../usage";
 
 import {
   ActivityCategory,
   ActivityHistoryRow,
-  fmtTime,
   kActivityCategories,
   kCategoryLong,
   rowHaystack,
   rowKind,
-  TimeWindow,
 } from "./activityData";
 import styles from "./ActivityHistoryList.module.css";
 
@@ -47,12 +36,6 @@ const kWashClass: Record<ActivityCategory, string> = {
   score: styles.washScore,
 };
 
-export interface ActivityHistoryListHandle {
-  /** Scroll the row with this key into view (after the next commit, so a
-   *  filter widened in the same event has already re-rendered the list). */
-  scrollToKey: (key: string) => void;
-}
-
 export interface ActivityHistoryListProps {
   rows: ActivityHistoryRow[];
   /** The tab's scroll container — rows virtualize against it. */
@@ -74,9 +57,6 @@ export interface ActivityHistoryListProps {
   /** Click-through to the Transcript via event uuid. */
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
   /** Dense-band bin click narrows the list to this window (clear chip). */
-  windowFilter?: TimeWindow | null;
-  onClearWindowFilter?: () => void;
-  ref?: Ref<ActivityHistoryListHandle>;
 }
 
 export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
@@ -94,9 +74,6 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
   washKeys,
   onHoverRow,
   onOpenEvent,
-  windowFilter,
-  onClearWindowFilter,
-  ref,
 }) => {
   const counts = new Map<ActivityCategory, number>();
   for (const row of rows) {
@@ -107,26 +84,9 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
   const visible = rows.filter(
     (row) =>
       (selectedCategories.size === 0 || selectedCategories.has(row.category)) &&
-      (query === "" || rowHaystack(row).toLowerCase().includes(query)) &&
-      (windowFilter == null ||
-        (row.time >= windowFilter.start && row.time <= windowFilter.end))
+      (query === "" || rowHaystack(row).toLowerCase().includes(query))
   );
   const ordered = timeDescending ? [...visible].reverse() : visible;
-
-  const listHandle = useRef<VirtualListHandle | null>(null);
-  const orderedRef = useLatestRef(ordered);
-  useImperativeHandle(ref, () => ({
-    scrollToKey: (key: string) => {
-      // After the commit triggered by the same click (filters widened,
-      // search cleared) — the index must come from the NEW ordered list.
-      requestAnimationFrame(() => {
-        const index = orderedRef.current.findIndex((row) => row.key === key);
-        if (index >= 0) {
-          listHandle.current?.scrollToIndex({ index, align: "center" });
-        }
-      });
-    },
-  }));
 
   const renderRow = (index: number, row: ActivityHistoryRow) => {
     const selected = selectedKey === row.key;
@@ -237,17 +197,6 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
             </button>
           );
         })}
-        {windowFilter != null && onClearWindowFilter && (
-          <button
-            type="button"
-            className={clsx(styles.filterPill, styles.pillWindow)}
-            onClick={onClearWindowFilter}
-            title="Clear the time-window filter"
-          >
-            {fmtTime(windowFilter.start)}–{fmtTime(windowFilter.end)}{" "}
-            <span aria-hidden="true">✕</span>
-          </button>
-        )}
         <input
           type="text"
           className={styles.search}
@@ -275,7 +224,6 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
           <div className={styles.empty}>No events</div>
         ) : (
           <VirtualList<ActivityHistoryRow>
-            ref={listHandle}
             persistenceKey={persistenceKey}
             scrollRef={scrollRef}
             embedded
