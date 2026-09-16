@@ -1,8 +1,8 @@
 import type { ViteUserConfig } from "vitest/config";
 
 /**
- * Splits a package's tests into a non-isolated `pure` project and an isolated
- * `dom` project based on each file's `@vitest-environment` directive. See
+ * Splits a package's tests into a non-isolated `pure` project and isolated
+ * `mocked` and `dom` projects, classified from each file's source. See
  * index.js for the rationale.
  */
 export declare const splitTestEnvironments: (
