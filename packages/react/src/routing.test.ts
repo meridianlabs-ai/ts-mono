@@ -71,23 +71,29 @@ describe("webview route restoration", () => {
     expect(storage.getItem(key)).toBe("/host-command?event=next");
   });
 
-  it("migrates a legacy checkpoint only when no current checkpoint exists", () => {
-    const storage = webview();
-    const router = open({
-      key,
-      storage,
-      initialPath: "/launch",
-      legacyPath: "/legacy",
-    });
-    expect(router.state.location.pathname).toBe("/legacy");
-    expect(storage.getItem(key)).toBe("/legacy");
-    router.dispose();
-    storage.setItem(key, "/new");
-    window.history.replaceState(null, "", "/");
-    expect(
-      open({ key, storage, legacyPath: "/legacy" }).state.location.pathname
-    ).toBe("/new");
-  });
+  it.each([
+    {
+      "app-storage": JSON.stringify({
+        state: { app: { urlHash: "#/old-sample" } },
+      }),
+    },
+    {
+      "inspect-scout-storage": JSON.stringify({
+        state: {
+          selectedScanLocation: "old-scan",
+          displayedScanResult: "old-result",
+        },
+      }),
+    },
+  ])(
+    "starts from the launch route when only an old UI snapshot exists",
+    (snapshot) => {
+      const storage = webview(snapshot);
+      const router = open({ key, storage, initialPath: "/launch" });
+      expect(router.state.location.pathname).toBe("/launch");
+      expect(storage.getItem(key)).toBe("/launch");
+    }
+  );
 
   it.each(["https://example.com", "//example.com", "invalid"])(
     "ignores invalid checkpoints: %s",

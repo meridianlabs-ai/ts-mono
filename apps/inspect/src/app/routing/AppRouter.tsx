@@ -13,7 +13,7 @@ import {
   readEmbeddedStartupState,
   useAppConfig,
 } from "../../app_config";
-import { readLegacyRoute, webviewStorage } from "../../client/storage";
+import { webviewStorage } from "../../client/storage";
 import { kSampleEventTabId } from "../../constants";
 import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
@@ -136,7 +136,6 @@ const createAppRouter = () => {
       storage: webviewStorage,
       key: "inspect-route-v1",
       initialPath,
-      legacyPath: readLegacyRoute(),
     },
     { basename: "" }
   );

@@ -6,7 +6,6 @@ interface RouteRestoration {
   storage?: WebviewStorage;
   key: string;
   initialPath?: string;
-  legacyPath?: string;
 }
 
 const isAppPath = (value: string | null | undefined): value is string =>
@@ -15,16 +14,12 @@ const isAppPath = (value: string | null | undefined): value is string =>
 /** Restore before creating the router; checkpoint committed locations outside React. */
 export function createRestorableHashRouter(
   routes: Parameters<typeof createHashRouter>[0],
-  { storage, key, initialPath, legacyPath }: RouteRestoration,
+  { storage, key, initialPath }: RouteRestoration,
   options?: Parameters<typeof createHashRouter>[1]
 ): ReturnType<typeof createHashRouter> {
   const target = options?.window ?? window;
   const saved = storage?.getItem(key);
-  const restored = isAppPath(saved)
-    ? saved
-    : isAppPath(legacyPath)
-      ? legacyPath
-      : initialPath;
+  const restored = isAppPath(saved) ? saved : initialPath;
 
   // An explicit URL always wins. An empty webview starts from its checkpoint
   // (or host launch destination), before any route-dependent view can mount.

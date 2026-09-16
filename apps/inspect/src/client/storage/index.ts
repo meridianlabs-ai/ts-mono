@@ -1,6 +1,6 @@
 import JSON5 from "json5";
 
-import { createWebviewStorage, getVscodeApi, isRecord } from "@tsmono/util";
+import { createWebviewStorage, getVscodeApi } from "@tsmono/util";
 
 import type { ClientStorage } from "../api/types";
 
@@ -21,23 +21,5 @@ const storage: ClientStorage | undefined = webviewStorage
       removeItem: (name) => webviewStorage.removeItem(name),
     }
   : undefined;
-
-/** One-time compatibility with route checkpoints inside the old UI store. */
-export function readLegacyRoute(): string | undefined {
-  try {
-    const saved = storage?.getItem("app-storage");
-    if (
-      !isRecord(saved) ||
-      !isRecord(saved.state) ||
-      !isRecord(saved.state.app)
-    ) {
-      return undefined;
-    }
-    const path = saved.state.app.urlHash;
-    return typeof path === "string" ? path.replace(/^#/, "") : undefined;
-  } catch {
-    return undefined;
-  }
-}
 
 export default storage;

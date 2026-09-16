@@ -23,19 +23,19 @@ location changes, immediately through `getState`/`setState`. The debounced
 Zustand UI snapshot remains separate. Its later writes must preserve the route
 checkpoint, and route writes must preserve UI state. `createWebviewStorage`
 provides named entries with read/merge/write semantics for both apps. It also
-reads Inspect's previous raw JSON string as the legacy `app-storage` entry.
+reads Inspect's previous raw JSON string as the `app-storage` entry to retain
+UI preferences; old navigation fields inside that snapshot are ignored.
 
 Restoration happens before router creation and before route-dependent views
 mount. Precedence is an explicit nonempty URL hash, the current webview route
-checkpoint, a compatible legacy checkpoint, then the embedded launch route.
+checkpoint, then the embedded launch route.
 Without any of these, normal index routing applies. A fresh browser page has
 no webview checkpoint and starts from its URL or launch parameters.
 
-Inspect's legacy checkpoint is `app.urlHash`. Scout's legacy checkpoint is
-reconstructed from `selectedScanLocation` and `displayedScanResult`, using the
-saved scan directory when present. Compatibility readers accept unknown data
-and ignore malformed snapshots. These legacy values never drive subsequent
-navigation.
+There is no migration from Inspect's former `app.urlHash` or Scout's former
+selected scan/result fields. An older webview without a route checkpoint starts
+from its explicit URL, host launch destination, or normal index route once.
+Subsequent navigation writes the current checkpoint and resumes normally.
 
 ## Host lifecycle and messages
 
@@ -100,7 +100,7 @@ with a broader generic mirroring abstraction.
 
 Automated checks include actual hash-router recreation, immediate checkpoints,
 query/fragment preservation, explicit deep-link priority, browser non-persistence,
-legacy migration, independent UI/route writes, and host replay handling.
+old-navigation snapshot reset, independent UI/route writes, and host replay handling.
 `pnpm check` and `pnpm test` pass. Browser navigation regression suites passed:
 20 Inspect cases (top-level views, message deep links, log-location trust) and
 10 Scout cases (application navigation, scans, scan and transcript detail).
@@ -150,3 +150,16 @@ With the production build and installed VS Code extension, manually verified:
 Scout code is unchanged in this follow-up. Temporary test panels were closed
 and the original installed Inspect frontend assets restored and byte-verified.
 Full VS Code application restart remains outside the manual coverage above.
+
+### Removal of old navigation migration
+
+Old UI snapshots no longer provide a restoration destination. Removed both
+app-specific readers and the shared router's `legacyPath` option. Tests cover
+starting from the host launch route when only an old snapshot exists, along
+with the existing exact-location recreation and explicit deep-link priority
+checks. UI preference storage and highlighted-row compatibility are separate
+from route restoration and remain unchanged.
+
+After removal, `pnpm check` and `pnpm test` pass. The production Inspect build
+also restored epoch 3 and Messages after hiding/revealing its VS Code custom
+editor. Original installed frontend assets were restored and byte-verified.

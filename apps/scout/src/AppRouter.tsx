@@ -29,7 +29,6 @@ import {
   LoggingNavigate,
   useLoggingNavigate,
 } from "./debugging/navigationDebugging";
-import { readLegacyRoute } from "./router/legacyRoute";
 import {
   isValidScanPath,
   kProjectRouteUrlPattern,
@@ -193,7 +192,6 @@ export const createAppRouter = (config: AppRouterConfig) => {
       storage,
       key: "scout-route-v1",
       initialPath,
-      legacyPath: readLegacyRoute(storage, config.config.scans.dir),
     },
     { basename: "" }
   );
