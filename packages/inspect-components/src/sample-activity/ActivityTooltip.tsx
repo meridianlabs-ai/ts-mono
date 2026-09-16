@@ -44,7 +44,16 @@ export type HoverTarget =
   | { kind: "marker"; members: ActivityMarker[]; compaction?: CompactionDrop }
   | { kind: "context"; point: ContextPoint; row: AgentRow }
   | { kind: "stall"; stall: StallRegion }
-  | { kind: "bin"; label: string; window: TimeWindow }
+  | {
+      /** A collapsed range — a density-strip bin or a crowded tool half.
+       *  `label` counts its calls; `time` is the card's time line. */
+      kind: "bin";
+      label: string;
+      time: string;
+      window: TimeWindow;
+      /** The range's earliest event — the footer's target. */
+      firstUuid?: string;
+    }
   | {
       kind: "curve";
       band: "tokens" | "context";
@@ -128,6 +137,10 @@ interface CardProps {
   who?: { hue: string; name: string; model?: string; turn?: number };
   children?: ReactNode;
   uuid?: string;
+/** A card that stands for a range of events links to the range's first
+ *  event (design owner, 2026-09-16) and says so. */
+const kFooterFirst = "open first in transcript →";
+
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
 }
 
@@ -135,6 +148,7 @@ const Card: FC<CardProps> = ({
   subject,
   status,
   time,
+  footerLabel?: string;
   who,
   children,
   uuid,
@@ -145,6 +159,7 @@ const Card: FC<CardProps> = ({
       <span className={styles.subject}>{subject}</span>
       {status && (
         <span
+  footerLabel = "open in transcript →",
           className={
             status.tone === "failed"
               ? styles.statusFailed
@@ -179,7 +194,7 @@ const Card: FC<CardProps> = ({
           onOpenEvent(uuid, event);
         }}
       >
-        open in transcript →
+        {footerLabel}
       </button>
     )}
   </Fragment>
@@ -347,6 +362,9 @@ const BurstBody: FC<{
           <span className={styles.mono}>{burst.label}</span> ×{burst.count}
         </Fragment>
       }
+  // The card marks the hovered lane, so its link is that member's; a
+  // pre-uuid member falls back to the burst's first linkable one.
+  const firstUuid = members.find((m) => m.uuid !== undefined)?.uuid;
       status={
         burst.failed > 0
           ? { text: `${burst.failed} failed`, tone: "failed" }
@@ -359,7 +377,8 @@ const BurstBody: FC<{
         model: row.model,
         turn: hovered.turn,
       }}
-      uuid={hovered.uuid}
+      uuid={hovered.uuid ?? firstUuid}
+      footerLabel={hovered.uuid === undefined ? kFooterFirst : undefined}
       onOpenEvent={onOpenEvent}
     >
       <div className={styles.list}>
@@ -416,7 +435,8 @@ const ContextPointBody: FC<{
       }
       time={headerTime(point.turn, turnsMode, point.time, point.time, false)}
       who={{ hue: row.hue, name: row.name, turn: point.turn }}
-      uuid={point.uuid}
+      uuid={collapsed ? first?.uuid : point.uuid}
+      footerLabel={collapsed ? kFooterFirst : undefined}
       onOpenEvent={onOpenEvent}
     >
       {rows.length > 0 && <Grid rows={rows} />}
@@ -546,10 +566,15 @@ const StallBody: FC<{ stall: StallRegion }> = ({ stall }) => (
 const CurveValueText: FC<{ value?: number; aggregate?: "max" }> = ({
   value,
   aggregate,
+  // Members arrive in time order; the earliest linkable one is the target.
+  const firstUuid = members.find((m) => m.uuid !== undefined)?.uuid;
 }) => (
   <span className={styles.mono}>
     {aggregate === "max" && value !== undefined && (
       <span className={styles.muted}>max </span>
+      uuid={firstUuid}
+      footerLabel={kFooterFirst}
+      onOpenEvent={onOpenEvent}
     )}
     {value === undefined ? "—" : num(value)}
   </span>
@@ -572,6 +597,21 @@ const CurveBody: FC<{
             <CurveValueText value={only.value} aggregate={only.aggregate} />{" "}
             {band === "tokens" ? "tokens burned" : "tokens in context"}
           </Fragment>
+const BinBody: FC<{
+  label: string;
+  time: string;
+  firstUuid?: string;
+  onOpenEvent?: ActivityTooltipProps["onOpenEvent"];
+}> = ({ label, time, firstUuid, onOpenEvent }) => (
+  <Card
+    subject={label}
+    time={time}
+    uuid={firstUuid}
+    footerLabel={kFooterFirst}
+    onOpenEvent={onOpenEvent}
+  />
+);
+
         }
         time={headerText}
       />
@@ -665,7 +705,14 @@ export const ActivityTooltip: FC<ActivityTooltipProps> = ({
       body = <StallBody stall={target.stall} />;
       break;
     case "bin":
-      body = <div className={styles.note}>{target.label}</div>;
+      body = (
+        <BinBody
+          label={target.label}
+          time={target.time}
+          firstUuid={target.firstUuid}
+          onOpenEvent={onOpenEvent}
+        />
+      );
       break;
     case "curve":
       body = (

@@ -145,6 +145,14 @@ const kTooltipCorridorMarginPx = 24;
 const kContextPointSnapPx = 6;
 
 /** The shared cursor: a time on the axis, anchored to a hovered span or
+const plural = (count: number, noun: string): string =>
+  `${count} ${noun}${count === 1 ? "" : "s"}`;
+/** A collapsed range's call counts with the unit spelled out — the card
+ *  answers "one tool call or one tool type?" (design owner, 2026-09-16). */
+const callCountsLabel = (model: number, tool: number, failed: number): string =>
+  `${plural(model, "model call")} · ${plural(tool, "tool call")}` +
+  (failed > 0 ? ` (${failed} failed)` : "");
+
  *  marker start when one is hovered, else the raw pointer position. */
 interface Cursor {
   x: number;
@@ -590,7 +598,6 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     }
     const cached = contextRunsCache.get(row.id);
     if (cached) return cached;
-    const series = data.contextByRow[row.id] ?? [];
     const drops = visibleCompactions.filter((d) => d.rowId === row.id);
     const runs: ContextVertex[][] = [];
     let run: ContextVertex[] = [];
@@ -1240,8 +1247,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   interface DensityColumn {
     model: number;
     tool: number;
-    /** Failed calls overlapping this column (not a column-hit flag — the
-     *  bin readout takes a max like the model/tool counts). */
+    /** Failed calls overlapping this column (drives the failure hairline;
+     *  the bin card counts calls over its window instead). */
     failed: number;
   }
 
@@ -1271,36 +1278,41 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       }
     }
 
-    const binAt = (px: number): { label: string; window: TimeWindow } => {
+    const binAt = (px: number): Bin => {
       const binStart =
+  interface Bin {
+    label: string;
+    time: string;
+    window: TimeWindow;
+    firstUuid?: string;
+  }
+
         plotLeft +
         Math.floor((px - plotLeft) / kDensityHoverPx) * kDensityHoverPx;
       const binEnd = Math.min(binStart + kDensityHoverPx, plotRight);
-      const c0 = Math.max(
-        0,
-        Math.floor((binStart - plotLeft) / kDensityColWidth)
-      );
-      const c1 = Math.min(
-        nCols - 1,
-        Math.floor((binEnd - plotLeft) / kDensityColWidth)
-      );
-      // Column counts overcount spans crossing bins — good enough for a
-      // hover readout, and O(width) like the strip itself.
+      const windowStart = timeAt(binStart);
+      const windowEnd = timeAt(binEnd);
+      // Distinct calls overlapping the window — the busiest pixel's overlap
+      // count read "1 model" for eight sequential calls. The spans are
+      // start-sorted, so the scan ends at the first one starting past it.
       let model = 0;
       let tool = 0;
       let failed = 0;
-      for (let c = c0; c <= c1; c++) {
-        const col = cols[c]!;
-        model = Math.max(model, col.model);
-        tool = Math.max(tool, col.tool);
-        failed = Math.max(failed, col.failed);
+      let firstUuid: string | undefined;
+      for (const s of row.spans) {
+        if (s.start > windowEnd) break;
+        if (s.end < windowStart) continue;
+        if (s.kind === "model") model += 1;
+        else tool += 1;
+        if (s.failed) failed += 1;
+        firstUuid ??= s.uuid;
       }
-      const windowStart = timeAt(binStart);
-      const windowEnd = timeAt(binEnd);
-      const label =
-        `${fmtTime(windowStart)}–${fmtTime(windowEnd)} · ` +
-        `${model} model · ${tool} tool${failed > 0 ? ` (${failed} failed)` : ""}`;
-      return { label, window: { start: windowStart, end: windowEnd } };
+      return {
+        label: callCountsLabel(model, tool, failed),
+        time: `${fmtTimeSec(windowStart)} → ${fmtTimeSec(windowEnd)}`,
+        window: { start: windowStart, end: windowEnd },
+        firstUuid,
+      };
     };
 
     return (
@@ -1374,7 +1386,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
    *  one gap-free column per turn, always split into the grey model half
    *  on the left and the teal tool half on the right. A tool-less turn
    *  leaves its tool half empty; a tool-only turn leaves its model half
+              time: bin.time,
    *  empty. Sequential calls split the tool half into equal slots,
+              firstUuid: bin.firstUuid,
    *  rejected calls (dashed ghosts) taking a slot like any other, and a
    *  burst keeps its sub-lanes inside its slot. */
   const renderTurnRow = (row: AgentRow, rowTop: number): ReactNode => {
@@ -1431,10 +1445,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       const failed = turn.tools.filter((t) => t.failed).length;
       const ghostOnly = count === 0;
       const label = [
-        `turn ${turn.index}`,
-        ...(count > 0
-          ? [`${count} tool ${count === 1 ? "call" : "calls"}`]
-          : []),
+        ...(count > 0 ? [plural(count, "tool call")] : []),
         ...(failed > 0 ? [`${failed} failed`] : []),
         ...(turn.rejected > 0 ? [`${turn.rejected} rejected`] : []),
         ...(ghostOnly ? ["no tool run"] : []),
@@ -1452,8 +1463,8 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         x1 - x0 >= countHalf * 2 + 4 &&
         mid - countHalf >= rowLabelEnd(row) + 8;
       const enter = () => {
-        setCursor({ x: x0, t: turn.tools[0]?.start ?? turn.start });
-        showTarget({ kind: "bin", label, window });
+        setCursor({ x: x0, t: firstTool?.start ?? turn.start });
+        showTarget({ kind: "bin", label, time, window, firstUuid });
       };
       return (
         <Fragment>
@@ -1467,6 +1478,11 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               x={x0 + 0.75}
               y={spanY}
               width={Math.max(x1 - x0 - 1.5, 0.5)}
+      const firstTool = turn.tools[0];
+      const time = `turn ${turn.index} · ${fmtTimeSec(firstTool?.start ?? turn.start)}`;
+      // The half stands for the turn's tool calls, so its link is the
+      // first of them (a rejected-only half has no event to open).
+      const firstUuid = turn.tools.find((t) => t.uuid !== undefined)?.uuid;
               height={kAgentSpanHeight}
               onMouseEnter={enter}
               onMouseLeave={clearTarget}
@@ -1624,7 +1640,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       col.tool += turn.tools.length;
       col.failed += turn.tools.filter((t) => t.failed).length;
     }
-    const binAt = (px: number): { label: string; window: TimeWindow } => {
+    const binAt = (px: number): Bin => {
       const binStart =
         plotLeft +
         Math.floor((px - plotLeft) / kDensityHoverPx) * kDensityHoverPx;
@@ -1640,15 +1656,12 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         tool += turn.tools.length;
         failed += turn.tools.filter((t) => t.failed).length;
       }
-      const label =
-        `turns ${a}–${b} · ${model} model · ${tool} tool` +
-        (failed > 0 ? ` (${failed} failed)` : "");
+      const start = turns[a - 1]?.start ?? timeWindow.start;
       return {
-        label,
-        window: {
-          start: turns[a - 1]?.start ?? timeWindow.start,
-          end: turns[b - 1]?.end ?? timeWindow.end,
-        },
+        label: callCountsLabel(model, tool, failed),
+        time: `${a === b ? `turn ${a}` : `turns ${a}–${b}`} · ${fmtTimeSec(start)}`,
+        window: { start, end: turns[b - 1]?.end ?? timeWindow.end },
+        firstUuid,
       };
     };
     return (
@@ -1662,11 +1675,16 @@ export const ActivityChart: FC<ActivityChartProps> = ({
               key={`col-${i}`}
               className={share > 0.5 ? styles.densityTool : styles.densityModel}
               x={plotLeft + i * kDensityColWidth}
+      let firstUuid: string | undefined;
+      // Turns are index-sorted: the first one in range is the earliest.
               y={spanY}
               width={kDensityColWidth}
               height={rowH}
               opacity={0.3 + Math.min(0.6, total * 0.18)}
             />
+        firstUuid ??=
+          turn.model?.uuid ??
+          turn.tools.find((t) => t.uuid !== undefined)?.uuid;
           );
         })}
         {cols.map((col, i) =>
@@ -1722,7 +1740,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
             ▸
           </text>
         ) : (
+              time: bin.time,
           <Fragment>
+              firstUuid: bin.firstUuid,
             <rect
               className={clsx(
                 styles.gutterCheckbox,

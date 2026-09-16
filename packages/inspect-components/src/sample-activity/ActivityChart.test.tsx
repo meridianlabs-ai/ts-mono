@@ -35,6 +35,8 @@ import { ImmediateResizeObserver, iso } from "./testHelpers";
 
 // A full-height span rect (a burst lane is thinner).
 const kAgentSpanHeight = 11;
+// The density strip's hover bin (the chart's `kDensityHoverPx`).
+const kDensityHoverPx = 16;
 
 /** The plot's horizontal extent, read from the drawn axis baseline (the
  *  widest horizontal axis line) so the tests don't hardcode the gutter. */
@@ -950,7 +952,8 @@ describe("ActivityChart crowded Turns tool halves", () => {
       });
       expect(aggregate.getAttribute("class")).toContain("spanHovered");
       const card = container.querySelector("[class*='tooltip']");
-      expect(card?.textContent).toContain("turn 1 · 12 tool calls · 1 failed");
+      expect(card?.textContent).toContain("12 tool calls · 1 failed");
+      expect(card?.textContent).toContain("turn 1 ·");
     } finally {
       vi.useRealTimers();
     }
@@ -1000,7 +1003,8 @@ describe("ActivityChart crowded Turns tool halves", () => {
       });
       expect(ghost.getAttribute("class")).toContain("spanHovered");
       const card = container.querySelector("[class*='tooltip']");
-      expect(card?.textContent).toContain("turn 1 · 2 rejected · no tool run");
+      expect(card?.textContent).toContain("2 rejected · no tool run");
+      expect(card?.textContent).toContain("turn 1 ·");
       expect(card?.textContent).not.toContain("0 tool");
     } finally {
       vi.useRealTimers();
@@ -1041,9 +1045,8 @@ describe("ActivityChart crowded Turns tool halves", () => {
         vi.advanceTimersByTime(150);
       });
       const card = container.querySelector("[class*='tooltip']");
-      expect(card?.textContent).toContain(
-        "turn 10 · 8 tool calls · 2 rejected"
-      );
+      expect(card?.textContent).toContain("8 tool calls · 2 rejected");
+      expect(card?.textContent).toContain("turn 10 ·");
     } finally {
       vi.useRealTimers();
     }
@@ -1820,6 +1823,157 @@ describe("ActivityChart curve read-outs", () => {
       expect(
         container.querySelector("[class*='tooltip']")?.textContent
       ).toContain("200 tokens in context");
+    } finally {
+      vi.useRealTimers();
+    }
+describe("ActivityChart collapsed-range footers", () => {
+  // Charles, 2026-09-16: a card that stands for a range of events still
+  // links to the transcript — at the first event in the range.
+  const footerFirst = () =>
+    screen.getByRole("button", { name: "open first in transcript →" });
+  const settle = () => {
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+  };
+
+  it("links the crowded Turns tool half to its first tool call", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(sequentialTools(91, 12, 1), {
+        axisMode: "turns",
+        onOpenEvent,
+      });
+      const aggregate = container.querySelector("rect[class*='toolSpan']");
+      if (!(aggregate instanceof SVGElement)) throw new Error("expected rect");
+      fireEvent.mouseEnter(aggregate);
+      settle();
+      const text = container.querySelector("[class*='tooltip']")?.textContent;
+      expect(text).toContain("12 tool calls · 1 failed");
+      expect(text).toContain("turn 1 ·");
+      fireEvent.click(footerFirst());
+      expect(onOpenEvent).toHaveBeenCalledWith("t0", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("links a Turns density bin to the first event of its turn range and counts calls", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(sequentialTools(320, 4), {
+        axisMode: "turns",
+        onOpenEvent,
+      });
+      const { left, width } = plotBounds(container);
+      const hit = container.querySelector("rect[class*='densityHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected strip");
+      fireEvent.mouseMove(hit, { clientX: left + 1, clientY: 60 });
+      settle();
+      const text = container.querySelector("[class*='tooltip']")?.textContent;
+      // The first 16 px hover bin spans turns 1–b on ~3 px columns: one
+      // model call per turn plus turn 1's four tools.
+      const b = Math.floor((kDensityHoverPx - 0.01) / (width / 320)) + 1;
+      expect(b).toBeGreaterThanOrEqual(6);
+      expect(text).toContain(`${b} model calls · 4 tool calls`);
+      expect(text).toContain(`turns 1–${b} ·`);
+      fireEvent.click(footerFirst());
+      expect(onOpenEvent).toHaveBeenCalledWith("m0", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("counts the distinct calls inside a Wall clock density bin and links the first", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      // 324 spans on the 960 px plot: dense on the wall clock too. The
+      // first 16 px bin covers ~530 s: m0, its four sequential tools and
+      // m1…m5 — ten calls that never overlap, so the busiest pixel holds
+      // one of each kind.
+      const { container } = renderChart(sequentialTools(320, 4), {
+        onOpenEvent,
+      });
+      expect(screen.getByText(/per-pixel occupancy/)).toBeTruthy();
+      const { left } = plotBounds(container);
+      const hit = container.querySelector("rect[class*='densityHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected strip");
+      fireEvent.mouseMove(hit, { clientX: left + 1, clientY: 60 });
+      settle();
+      const text = container.querySelector("[class*='tooltip']")?.textContent;
+      expect(text).toContain("6 model calls · 4 tool calls");
+      expect(text).toMatch(/\d+:\d\d:\d\d [AP]M → \d+:\d\d:\d\d [AP]M/);
+      fireEvent.click(footerFirst());
+      expect(onOpenEvent).toHaveBeenCalledWith("m0", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("pluralises a lone call and reports failures on the bin card", () => {
+    vi.useFakeTimers();
+    try {
+      // Only turn 1 has tools (one of them failed); the last bin holds
+      // model calls only — "0 tool calls", not "0 tool".
+      const { container } = renderChart(sequentialTools(320, 1, 1), {
+        axisMode: "turns",
+      });
+      const { left, right } = plotBounds(container);
+      const hit = container.querySelector("rect[class*='densityHit']");
+      if (!(hit instanceof SVGElement)) throw new Error("expected strip");
+      fireEvent.mouseMove(hit, { clientX: left + 1, clientY: 60 });
+      settle();
+      expect(
+        container.querySelector("[class*='tooltip']")?.textContent
+      ).toMatch(/\d+ model calls · 1 tool call \(1 failed\)/);
+      fireEvent.mouseMove(hit, { clientX: right - 1, clientY: 60 });
+      settle();
+      expect(
+        container.querySelector("[class*='tooltip']")?.textContent
+      ).toMatch(/\d+ model calls · 0 tool calls/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("links a marker cluster to its earliest event", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      // Two tool errors 10 ms apart in a 30 s window share a pixel → one
+      // ×2 cluster on the rail.
+      const { container } = renderChart(
+        [
+          modelCall({ start: 0, end: 10, uuid: "m1" }),
+          testToolEvent({
+            uuid: "t1",
+            function: "bash",
+            timestamp: iso(10),
+            completed: iso(12),
+            error: { type: "unknown", message: "exit 127" },
+          }),
+          testToolEvent({
+            uuid: "t2",
+            function: "python",
+            timestamp: iso(10.01),
+            completed: iso(12),
+            error: { type: "unknown", message: "boom" },
+          }),
+          modelCall({ start: 20, end: 30, uuid: "m2" }),
+        ],
+        { showMarkers: true, onOpenEvent }
+      );
+      const glyph = screen.getByRole("button", { name: /^2 events: / });
+      fireEvent.focus(glyph);
+      settle();
+      expect(
+        container.querySelector("[class*='tooltip']")?.textContent
+      ).toContain("2 events");
+      fireEvent.click(footerFirst());
+      expect(onOpenEvent).toHaveBeenCalledWith("t1", expect.anything());
     } finally {
       vi.useRealTimers();
     }

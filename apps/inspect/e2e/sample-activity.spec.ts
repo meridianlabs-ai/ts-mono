@@ -676,6 +676,38 @@ test("a density-strip column shows the default cursor in both axis modes", async
   await expect(column).toHaveCSS("cursor", kInertCursor);
 });
 
+// Charles, 2026-09-16: a card that stands for a collapsed range still links
+// to the transcript — at the first event in the range.
+for (const axis of ["Wall clock", "Turns"] as const) {
+  test(`a density-strip bin's card links to the first call in the bin (${axis})`, async ({
+    page,
+    network,
+  }) => {
+    await page.setViewportSize({ width: 1032, height: 900 });
+    await openSample(page, network, { events: narrowTurnsEvents(320, 4) });
+    await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+    if (axis === "Turns") {
+      await page.getByRole("button", { name: "Turns", exact: true }).click();
+      await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+    }
+    const column = page.locator("rect[class*='densityHit']").first();
+    const box = await column.boundingBox();
+    if (!box) throw new Error("expected the strip's hit rect");
+    // The first bin: m0, its four tools and the next few turns' calls.
+    await page.mouse.move(box.x + 2, box.y + box.height / 2);
+    const card = page.locator("[class*='tooltip']");
+    await expect(card).toBeVisible();
+    await expect(card).toContainText(/\d+ model calls · 4 tool calls/);
+    await expect(card).toContainText(
+      axis === "Turns" ? /turns 1–\d+ · / : /\d+:\d\d:\d\d [AP]M → /
+    );
+    await card
+      .getByRole("button", { name: "open first in transcript →" })
+      .click();
+    await expect(page).toHaveURL(/\/transcript\?event=m0$/);
+  });
+}
+
 test("history row clicks through to the transcript event", async ({
   page,
   network,

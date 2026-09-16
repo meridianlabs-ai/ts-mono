@@ -99,8 +99,10 @@ calls[ · k failed][ · r rejected]`; when every slot is a rejected call the agg
   stays `default` over them); hover or keyboard focus shows the card.
 - Dense logs (50+ turns): the merged model+tool band degrades to a
   per-pixel occupancy strip and the headline appends `per-pixel occupancy`;
-  in Turns mode the strip bins by turn index and bin hovers read
-  `turns a–b · N model · M tool`. A Turns row also degrades once its
+  bin hovers read `N model calls · M tool calls[ (K failed)]` — distinct
+  calls overlapping the bin's window, with the window (`hh:mm:ss →
+hh:mm:ss`, or `turns a–b · hh:mm:ss` in Turns mode, where the strip
+  bins by turn index) on the time line. A Turns row also degrades once its
   columns are narrower than 9 px (two 4.5 px halves: the 3 px tick floor
   plus the 1.5 px seam each) — about 107 turns on a 960 px plot; every
   grid cell is a half, so a model-only row switches at the same width.

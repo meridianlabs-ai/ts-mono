@@ -941,7 +941,8 @@ describe("SampleActivityPanel Turns axis", () => {
       act(() => {
         vi.advanceTimersByTime(150);
       });
-      expect(screen.getByText(/turns \d+–\d+ · \d+ model/)).toBeTruthy();
+      expect(screen.getByText(/\d+ model calls · \d+ tool calls/)).toBeTruthy();
+      expect(screen.getByText(/turns \d+–\d+ · /)).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

@@ -234,20 +234,16 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   await shot(page, "sample-activity-compaction-glyph-inert.png");
 
   // Hovering the glyph still opens its card. A cluster card lists its
-  // members and carries no footer (only single-event cards navigate); the
-  // way through from here is the history row's footer.
+  // members and links to the earliest of them (Charles, 2026-09-16: a
+  // collapsed range keeps a link to its first event), so the way through
+  // from here is the card's own footer.
   await glyph.hover();
   const card = page.locator("[class*='tooltip']");
   await expect(card).toBeVisible();
   await expect(card).toContainText(/\d+ events/);
   await expect(card).toContainText("Context compacted");
-  await expect(
-    card.getByRole("button", { name: "open in transcript →" })
-  ).toHaveCount(0);
-  await page.mouse.move(0, 0);
-  await historyRows
-    .first()
-    .getByRole("button", { name: "open in transcript →" })
+  await card
+    .getByRole("button", { name: "open first in transcript →" })
     .click();
   await expect(page).toHaveURL(/\/transcript\?event=/);
 });
