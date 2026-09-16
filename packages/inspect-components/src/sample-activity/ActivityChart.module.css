@@ -341,9 +341,9 @@
   pointer-events: none;
 }
 
+/* Hover-only: the strip has no click action, so no pointer cursor. */
 .densityHit {
   fill: transparent;
-  cursor: pointer;
 }
 
 /* ── marker rail ── */
@@ -354,10 +354,13 @@
   pointer-events: none;
 }
 
-.markerHit {
+/* Focusable for keyboard access to the card, but click-inert. Bootstrap's
+   reboot gives every [role="button"] a pointer; the descendant selector
+   outranks it. */
+.marker .markerHit {
   fill: transparent;
   pointer-events: all;
-  cursor: pointer;
+  cursor: default;
   outline: none;
 }
 

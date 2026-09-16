@@ -636,6 +636,46 @@ test("marker glyph click is inert; its card's footer navigates", async ({
   await expect(page).toHaveURL(/\/transcript\?event=/);
 });
 
+// Charles, 2026-09-16: the chart has no click actions. Marker hit rects stay
+// focusable for keyboard access to the card, which needs no pointer cursor;
+// the density strip has no action at all. The unit suite's `noPointerCursor`
+// reads the module css; these read the browser's computed style.
+const kInertCursor = /^(auto|default)$/;
+
+test("a marker glyph shows the default cursor in both axis modes", async ({
+  page,
+  network,
+}) => {
+  await openSample(page, network);
+  // The history row shares the glyph's name; the glyph is the rail's rect.
+  const glyph = page
+    .getByRole("button", { name: "Tool bash errored" })
+    .and(page.locator("rect"));
+  await expect(glyph).toBeVisible();
+  await expect(glyph).toHaveCSS("cursor", kInertCursor);
+  await page.getByRole("button", { name: "Turns", exact: true }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+  await expect(glyph).toHaveCSS("cursor", kInertCursor);
+});
+
+test("a density-strip column shows the default cursor in both axis modes", async ({
+  page,
+  network,
+}) => {
+  await page.setViewportSize({ width: 1032, height: 900 });
+  // 324 spans on a 960 px plot: past the 3 px-per-span threshold on the
+  // wall clock as well as in Turns, so both strips render.
+  await openSample(page, network, { events: narrowTurnsEvents(320, 4) });
+  await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+  const column = page.locator("rect[class*='densityHit']").first();
+  await expect(column).toBeVisible();
+  await expect(column).toHaveCSS("cursor", kInertCursor);
+  await page.getByRole("button", { name: "Turns", exact: true }).click();
+  await expect(page.getByText("TURN", { exact: true })).toBeVisible();
+  await expect(column).toBeVisible();
+  await expect(column).toHaveCSS("cursor", kInertCursor);
+});
+
 test("history row clicks through to the transcript event", async ({
   page,
   network,

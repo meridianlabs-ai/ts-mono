@@ -1004,9 +1004,35 @@ describe("ActivityChart click actions", () => {
     for (const target of targets) fireEvent.click(target);
     return targets.length;
   };
+  // jsdom loads no module css, so pointer cursors are read at their
+  // source: every class named by a rule block declaring `cursor: pointer`.
+  const pointerClasses = (() => {
+    const css = readFileSync(
+      join(__dirname, "ActivityChart.module.css"),
+      "utf8"
+    );
+    const classes = new Set<string>();
+    for (const rule of css.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      if (!/cursor:\s*pointer/.test(rule[2] ?? "")) continue;
+      for (const cls of (rule[1] ?? "").matchAll(/\.([\w-]+)/g)) {
+        if (cls[1]) classes.add(cls[1]);
+      }
+    }
+    return classes;
+  })();
+  // The gutter's row toggles are real controls and keep their pointer.
+  const kPointerAllowed = new Set(["gutterHit"]);
   const noPointerCursor = (container: HTMLElement) => {
+    expect(pointerClasses.size).toBeGreaterThan(0);
     for (const el of container.querySelectorAll("rect")) {
-      expect(el.getAttribute("class") ?? "").not.toMatch(/clickable/i);
+      const classes = el.getAttribute("class") ?? "";
+      for (const cls of pointerClasses) {
+        if (kPointerAllowed.has(cls)) continue;
+        // vitest renders module class `.name` as `_name_<hash>`.
+        expect(classes, `.${cls} keeps cursor: pointer`).not.toMatch(
+          new RegExp(`(^|[\\s_])${cls}([_\\s]|$)`)
+        );
+      }
     }
   };
 
@@ -1057,11 +1083,15 @@ describe("ActivityChart click actions", () => {
     vi.useFakeTimers();
     try {
       const onOpenEvent = vi.fn();
-      renderChart(twoTurnsWithTool(), { showMarkers: true, onOpenEvent });
+      const { container } = renderChart(twoTurnsWithTool(), {
+        showMarkers: true,
+        onOpenEvent,
+      });
       const glyph = screen.getByRole("button", { name: /Tool bash errored/ });
       fireEvent.click(glyph);
       fireEvent.keyDown(glyph, { key: "Enter" });
       expect(onOpenEvent).not.toHaveBeenCalled();
+      noPointerCursor(container);
       fireEvent.focus(glyph);
       act(() => {
         vi.advanceTimersByTime(150);
