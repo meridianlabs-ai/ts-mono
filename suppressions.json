@@ -16,7 +16,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/inspect/src/app/flow/FlowButton.tsx": {
@@ -84,12 +84,8 @@
     }
   },
   "apps/inspect/src/app/log-view/LogViewContainer.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 3
     }
   },
   "apps/inspect/src/app/log-view/LogViewLayout.tsx": {
@@ -178,11 +174,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
       "undescribed": 1
-    }
-  },
-  "apps/inspect/src/app/routing/AppRouter.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/routing/loaders/LogLoadController.tsx": {
@@ -806,11 +797,6 @@
   "apps/scout/src/app/hooks/useEnsureVisibleScannerResults.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/hooks/useWindowMessaging.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 2
     }
   },
   "apps/scout/src/app/project/components/FormFields.tsx": {

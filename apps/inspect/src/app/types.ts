@@ -52,13 +52,6 @@ export interface AppState {
   collapsed: Record<string, boolean>;
   messages: Record<string, boolean>;
   propertyBags: Record<string, Record<string, unknown>>;
-  urlHash?: string;
-  initialState?: {
-    log: string;
-    sample_id?: string;
-    sample_epoch?: string;
-  };
-  rehydrated?: boolean;
   displayMode?: "rendered" | "raw";
   logsSampleView: boolean;
 }

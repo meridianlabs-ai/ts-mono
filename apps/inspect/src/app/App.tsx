@@ -16,14 +16,14 @@ import "./App.css";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
-import { FC, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { FC, useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { RouterProvider } from "react-router/dom";
 
 import {
   ComponentIconProvider,
   ComponentIcons,
 } from "@tsmono/react/components";
-import { useEventListener } from "@tsmono/react/hooks";
+import { navigateAndForget, useEventListener } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename, getVscodeApi, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
@@ -36,17 +36,20 @@ import {
   setLogRoot,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
+import { webviewStorage } from "../client/storage";
 import { FetchEngineController, imperativeLogData } from "../log_data";
 import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
-import { storeImplementation, useStore } from "../state/store.ts";
+import { storeImplementation } from "../state/store.ts";
 import {
   SETTINGS_STORAGE_KEY,
   useUserSettings,
 } from "../state/userSettings.ts";
 
 import { ApplicationIcons } from "./appearance/icons.ts";
-import { AppRouter } from "./routing/AppRouter.tsx";
+import { getAppRouter } from "./routing/AppRouter.tsx";
+import { createHostCommandFilter } from "./routing/hostNavigation";
+import { baseUrl } from "./routing/url";
 
 const componentIcons: ComponentIcons = {
   arrowDown: ApplicationIcons.arrows.down,
@@ -110,16 +113,16 @@ const ThemePreferenceSyncController: FC = () => {
  * read the resolved app config.
  */
 export const AppContent: FC = () => {
-  // Whether the app was rehydrated
-  const rehydrated = useStore((state) => state.app.rehydrated);
-
-  const setInitialState = useStore((state) => state.appActions.setInitialState);
+  const [router] = useState(getAppRouter);
+  const [isNewHostCommand] = useState(() =>
+    createHostCommandFilter(webviewStorage, readEmbeddedStartupState())
+  );
 
   const onMessage = useCallback(
     (e: HostMessage) => {
       switch (e.data.type) {
         case "updateState": {
-          if (e.data.url) {
+          if (e.data.url && isNewHostCommand(e.data)) {
             const decodedUrl = decodeURIComponent(e.data.url);
 
             // Update the resolved log dir for host-driven (live) navigation —
@@ -127,13 +130,15 @@ export const AppContent: FC = () => {
             // dir is already seeded by the log-root resolution at startup.
             setLogRoot(resolveEmbeddedLogDir(decodedUrl));
 
-            if (!rehydrated) {
-              setInitialState(
+            navigateAndForget(
+              router.navigate.bind(router),
+              baseUrl(
                 isUri(decodedUrl) ? basename(decodedUrl) : decodedUrl,
                 e.data.sample_id,
                 e.data.sample_epoch
-              );
-            }
+              ),
+              { replace: true }
+            );
           }
           break;
         }
@@ -143,7 +148,7 @@ export const AppContent: FC = () => {
         }
       }
     },
-    [setInitialState, rehydrated]
+    [router, isNewHostCommand]
   );
 
   // Only the VS Code host may drive the log location. A window message can't
@@ -151,29 +156,13 @@ export const AppContent: FC = () => {
   // VS Code the bridge is never attached (#615).
   useEventListener(getVscodeApi() ? window : null, "message", onMessage);
 
-  // Embedded state (VS Code) is the host-message bootstrap and feeds the same
-  // onMessage bridge as live postMessage events. The URL-param single-file
-  // deep link (`?log_file=`) is selected at app-config resolution
-  // (`resolveAppConfig`). Ref-guarded: onMessage's identity changes with its
-  // reactive inputs, but the startup blob must be dispatched exactly once.
-  const embeddedDispatched = useRef(false);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (embeddedDispatched.current) return;
-    embeddedDispatched.current = true;
-    const embedded = readEmbeddedStartupState();
-    if (embedded) {
-      onMessage({ data: embedded });
-    }
-  }, [onMessage]);
-
   return (
     <>
       <ThemePreferenceSyncController />
       <FetchEngineController />
       <ComponentIconProvider icons={componentIcons}>
         <ComponentStateProvider hooks={inspectStateHooks}>
-          <RouterProvider router={AppRouter} />
+          <RouterProvider router={router} />
         </ComponentStateProvider>
       </ComponentIconProvider>
     </>

@@ -1,40 +1,43 @@
 import JSON5 from "json5";
 
-import { getVscodeApi } from "@tsmono/util";
+import { createWebviewStorage, getVscodeApi, isRecord } from "@tsmono/util";
 
-import { PersistedState } from "../../state/store";
-import { ClientStorage } from "../api/types";
+import type { ClientStorage } from "../api/types";
 
-const resolveStorage = (): ClientStorage | undefined => {
-  const vscodeApi = getVscodeApi();
-  if (vscodeApi) {
-    return {
-      getItem: (
-        _name: string
-      ): {
-        state: PersistedState;
-        version: number;
-      } => {
-        const state = vscodeApi.getState();
-        if (typeof state !== "string") {
-          throw new Error("vscode state is not a serialized string");
-        }
-        return JSON5.parse<{
-          state: PersistedState;
-          version: number;
-        }>(state);
+const vscode = getVscodeApi();
+export const webviewStorage = vscode
+  ? createWebviewStorage(vscode, "app-storage")
+  : undefined;
+
+const storage: ClientStorage | undefined = webviewStorage
+  ? {
+      getItem: (name) => {
+        const raw = webviewStorage.getItem(name);
+        return raw === null ? null : JSON5.parse<unknown>(raw);
       },
-      setItem: (_name: string, value: unknown) => {
-        // zustand-persist hands back what getItem returned; it round-trips
-        // through JSON5 either way, so no shape claim is needed here.
-        vscodeApi.setState(JSON5.stringify(value));
+      setItem: (name, value) => {
+        webviewStorage.setItem(name, JSON5.stringify(value));
       },
-      removeItem: (_name: string) => {
-        vscodeApi.setState(null);
-      },
-    };
+      removeItem: (name) => webviewStorage.removeItem(name),
+    }
+  : undefined;
+
+/** One-time compatibility with route checkpoints inside the old UI store. */
+export function readLegacyRoute(): string | undefined {
+  try {
+    const saved = storage?.getItem("app-storage");
+    if (
+      !isRecord(saved) ||
+      !isRecord(saved.state) ||
+      !isRecord(saved.state.app)
+    ) {
+      return undefined;
+    }
+    const path = saved.state.app.urlHash;
+    return typeof path === "string" ? path.replace(/^#/, "") : undefined;
+  } catch {
+    return undefined;
   }
-  return undefined;
-};
+}
 
-export default resolveStorage();
+export default storage;

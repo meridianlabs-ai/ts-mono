@@ -1,19 +1,13 @@
 import { FC, useEffect, useLayoutEffect, useRef } from "react";
-import {
-  Navigate,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router";
+import { Navigate, useLocation, useSearchParams } from "react-router";
 
 import { useUnmount } from "@tsmono/react/hooks";
 
 import { kLogViewSamplesTabId } from "../../constants";
 import { selectLogFile, unloadLog } from "../../state/actions";
-import { useEvalSpec } from "../../state/hooks";
 import { useStore } from "../../state/store";
 import { useSampleUuidRedirectUrl } from "../routing/sampleNavigation";
-import { baseUrl, useLogRouteParams, type RoutePrefix } from "../routing/url";
+import { useLogRouteParams, type RoutePrefix } from "../routing/url";
 
 import { LogViewLayout } from "./LogViewLayout";
 
@@ -24,18 +18,12 @@ import { LogViewLayout } from "./LogViewLayout";
 export const LogViewContainer: FC = () => {
   const { logPath, tabId, sampleUuid, sampleTabId } = useLogRouteParams();
 
-  const initialState = useStore((state) => state.app.initialState);
-  const clearInitialState = useStore(
-    (state) => state.appActions.clearInitialState
-  );
-  const evalSpec = useEvalSpec();
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
   const clearSelectedSample = useStore(
     (state) => state.sampleActions.clearSelectedSample
   );
 
-  const navigate = useNavigate();
   const location = useLocation();
   const prefix: RoutePrefix = location.pathname.startsWith("/tasks/")
     ? "/tasks"
@@ -56,21 +44,6 @@ export const LogViewContainer: FC = () => {
   useUnmount(() => {
     unloadLog();
   });
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (initialState && !evalSpec) {
-      const url = baseUrl(
-        initialState.log,
-        initialState.sample_id,
-        initialState.sample_epoch,
-        prefix
-      );
-      clearInitialState();
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
-    }
-  }, [initialState, evalSpec, clearInitialState, navigate, prefix]);
 
   const prevLogPathRef = useRef<string | undefined>(undefined);
 

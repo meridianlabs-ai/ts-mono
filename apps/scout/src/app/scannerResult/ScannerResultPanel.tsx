@@ -146,18 +146,11 @@ export const ScannerResultPanel: FC = () => {
     useScansDir(true);
   useScannerParam();
 
-  // The viewed result drives both selectedScanResult (list highlighting)
-  // and displayedScanResult (route restoration).
+  // Keep the last highlighted row when returning to the list.
   const setSelectedScanResult = useStore(
     (state) => state.setSelectedScanResult
   );
-  const setDisplayedScanResult = useStore(
-    (state) => state.setDisplayedScanResult
-  );
-  useMirrorToStore(scanResultUuid, (uuid) => {
-    setSelectedScanResult(uuid);
-    setDisplayedScanResult(uuid);
-  });
+  useMirrorToStore(scanResultUuid, setSelectedScanResult);
 
   const appConfig = useAppConfig();
 

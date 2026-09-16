@@ -248,7 +248,6 @@ describe("persisted state", () => {
     const state = store.getState();
 
     state.setShowFind(true);
-    state.setHasInitializedRouting(true);
     state.setSelectedScanLocation("scans/one");
     state.setVisibleScanJobCount(3);
     state.setSelectedScanner("scanner-a");

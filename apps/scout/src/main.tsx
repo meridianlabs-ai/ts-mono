@@ -58,6 +58,17 @@ const selectApi = (): ScoutApiV2 => {
 // Create the API, store, and query client
 const api = selectApi();
 const store = createStore(api);
+const embedded = getEmbeddedAppMessage();
+if (embedded) {
+  store
+    .getState()
+    .setSingleFileMode(
+      embedded.type === "updateState" || embedded.mode === "single-file"
+    );
+  if (embedded.type === "updateState" && embedded.scanner) {
+    store.getState().setSelectedScanner(embedded.scanner);
+  }
+}
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: defaultRetry } },
 });
