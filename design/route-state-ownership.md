@@ -104,7 +104,9 @@ Manual testing with production builds in VS Code 0.9.18 extension:
 A `Scout: Validations` command sent while full Scout View was hidden revealed
 the panel but left its Scans destination unchanged. The extension's reveal path
 calls `updateVisibleView` immediately and checks `isVisible()` before posting;
-this is a suspected extension-side visibility race. Comparison with the prior
-installed frontend was interrupted by the Mac locking, so its baseline status
-is not yet confirmed. No extension code is changed here. Restart/deserialization
-of full View panels was not manually tested.
+this is a suspected extension-side visibility race. Reproduced with the prior
+installed frontend after restoring its original assets: from hidden Transcripts,
+`Scout: Validations` revealed the panel but left it on Transcripts; repeating the
+command while visible navigated to Validation. This behavior predates this
+branch. No extension code is changed here. Restart/deserialization of full View
+panels was not manually tested.
