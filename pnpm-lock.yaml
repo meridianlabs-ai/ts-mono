@@ -914,7 +914,7 @@ importers:
   tooling/tsconfig: {}
 
   tooling/vitest-config:
-    dependencies:
+    devDependencies:
       vitest:
         specifier: ^5.0.0
         version: 5.0.0(@types/node@26.5.0)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.5.0)(typescript@6.0.3))(vite@8.2.2(@types/node@26.5.0)(esbuild@0.28.2)(yaml@2.9.0))
