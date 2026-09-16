@@ -623,10 +623,30 @@ export interface components {
             /** Working Start */
             working_start: number;
         };
-        /** ApprovalPolicyConfig */
+        /**
+         * ApprovalPolicyConfig
+         * @description Approval policy configuration: a list of approvers, or named chains of them.
+         *
+         *     A list is one chain. A mapping names independent chains that all run on
+         *     every call:
+         *
+         *     ```yaml
+         *     approvers:
+         *       attempt:
+         *         - name: internet_attempt
+         *           tools: "*"
+         *         - name: human
+         *           tools: "*"
+         *       escape:
+         *         - name: sandbox_escape
+         *           tools: "*"
+         *     ```
+         */
         ApprovalPolicyConfig: {
             /** Approvers */
-            approvers: components["schemas"]["ApproverPolicyConfig"][];
+            approvers: components["schemas"]["ApproverPolicyConfig"][] | {
+                [key: string]: components["schemas"]["ApproverPolicyConfig"][];
+            };
         };
         /**
          * ApproverPolicyConfig
@@ -646,8 +666,6 @@ export interface components {
          *     ```
          */
         ApproverPolicyConfig: {
-            /** Chain */
-            chain?: string | null;
             /** Name */
             name: string;
             /** Params */
@@ -3028,10 +3046,30 @@ export interface components {
             /** Working Start */
             working_start: number;
         };
-        /** ReviewPolicyConfig */
+        /**
+         * ReviewPolicyConfig
+         * @description Review policy configuration: a list of reviewers, or named chains of them.
+         *
+         *     A list is one chain. A mapping names independent chains that all review
+         *     every result:
+         *
+         *     ```yaml
+         *     reviewers:
+         *       output:
+         *         - name: output_monitor
+         *           tools: "*"
+         *         - name: human
+         *           tools: "*"
+         *       exfil:
+         *         - name: exfiltration_monitor
+         *           tools: "*"
+         *     ```
+         */
         ReviewPolicyConfig: {
             /** Reviewers */
-            reviewers: components["schemas"]["ReviewerPolicyConfig"][];
+            reviewers: components["schemas"]["ReviewerPolicyConfig"][] | {
+                [key: string]: components["schemas"]["ReviewerPolicyConfig"][];
+            };
         };
         /**
          * ReviewerPolicyConfig
@@ -3049,8 +3087,6 @@ export interface components {
          *     ```
          */
         ReviewerPolicyConfig: {
-            /** Chain */
-            chain?: string | null;
             /** Name */
             name: string;
             /** Params */
