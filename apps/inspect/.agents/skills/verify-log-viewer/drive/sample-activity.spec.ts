@@ -60,7 +60,7 @@ test("activity tab renders bands and history against a real dense log", async ({
   await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("WORKING / WAITING", { exact: true })
+    page.getByText("WORKING TIME", { exact: true })
   ).not.toBeVisible();
   // Scoring guarantees a score row; both fixture tasks terminate on a
   // sample limit (message or token) → a limit marker ▲ and pill.
@@ -86,10 +86,8 @@ test("activity tab renders bands and history against a real dense log", async ({
   await shot(page, "sample-activity-default-light.png");
 
   // The opt-in working band via its chip.
-  await page.getByRole("button", { name: "Working / waiting" }).click();
-  await expect(
-    page.getByText("WORKING / WAITING", { exact: true })
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Working time" }).click();
+  await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
   if (hasToolErrors) {
     // Failed tool calls: error ✕ glyph on the rail (single or clustered —
     // cluster aria-labels concatenate member labels)…
@@ -130,10 +128,10 @@ test("activity tab renders bands and history against a real dense log", async ({
   await page.getByRole("button", { name: "Turns" }).click();
   await expect(page.getByText("TURN", { exact: true })).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Working \/ waiting/ })
+    page.getByRole("button", { name: /Working time/ })
   ).toBeDisabled();
   await expect(
-    page.getByText("WORKING / WAITING", { exact: true })
+    page.getByText("WORKING TIME", { exact: true })
   ).not.toBeVisible();
   await shot(page, "sample-activity-turns-light.png");
   await page.getByRole("button", { name: "Wall clock", exact: true }).click();
@@ -224,7 +222,7 @@ test.describe(() => {
     await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible({
       timeout: 20_000,
     });
-    await page.getByRole("button", { name: "Working / waiting" }).click();
+    await page.getByRole("button", { name: "Working time" }).click();
     await expect(
       page.getByText("MODEL & TOOL ACTIVITY", { exact: true })
     ).toBeVisible();

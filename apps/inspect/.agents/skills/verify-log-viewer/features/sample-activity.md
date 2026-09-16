@@ -1,7 +1,7 @@
 # Sample Activity tab
 
 The operational timeline for a single sample: stacked bands on one shared
-wall-clock axis (working/waiting with stall brackets, marker rail, token
+wall-clock axis (working time with waiting gaps and stall brackets, marker rail, token
 burn, context size with compaction drops, merged model+tool activity), with
 a filterable virtualized history list beneath. Companion rename: the
 log-level workspace tab with id `timeline` is now labeled **Activity**.
@@ -36,10 +36,10 @@ an Activity test into the standing spec.
 ## Selectors
 
 - Band chips, in order: `getByRole("button", { name: "Model & tool activity"
-| "Context size" | "Token burn" | "Markers" | "Working / waiting" })` —
-  default-on set is the first four; Working / waiting is opt-in.
+| "Context size" | "Token burn" | "Markers" | "Working time" })` —
+  default-on set is the first four; Working time is opt-in.
 - Band labels (SVG text, uppercase — use `exact: true` or the chip matches
-  too): `WORKING / WAITING`, `TOKEN BURN`, `CONTEXT SIZE`,
+  too): `WORKING TIME`, `TOKEN BURN`, `CONTEXT SIZE`,
   `MODEL & TOOL ACTIVITY`.
 - Axis toggle (right end of the chip row; the shared `SegmentedControl`, so
   `aria-pressed` buttons inside `role="group"` named `X axis`):
@@ -55,7 +55,7 @@ an Activity test into the standing spec.
 calls[ · k failed][ · r rejected]` and whose click filters the history
   to that turn; when every slot is a rejected call the aggregate is a
   dashed ghost reading `turn N · r rejected · no tool run`)
-  and removes the Working / waiting chip from the picker — the band hides
+  and removes the Working time chip from the picker — the band hides
   there too, but its override is kept, so Wall clock restores both as they
   were.
 - Agent gutter (only when a sample has more than one conversation — agent /

@@ -757,7 +757,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
     ));
   };
 
-  // ── WORKING / WAITING ─────────────────────────────────────────────────
+  // ── WORKING TIME ─────────────────────────────────────────────────
 
   const renderWorking = (band: Band) => {
     // Only the N longest stalls get labels; brackets render for those same
@@ -772,7 +772,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         : fmtDurationWords(stall.duration);
     return (
       <g key="band-working">
-        {bandLabel(band, "WORKING / WAITING")}
+        {bandLabel(band, "WORKING TIME")}
         {bandHeadline(
           band,
           `working ${fmtDurationWords(data.workingTime)} · total ${fmtDurationWords(data.totalTime)}`

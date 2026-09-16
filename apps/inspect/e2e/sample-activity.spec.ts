@@ -255,9 +255,9 @@ test("activity tab appears and its default bands render", async ({
   await expect(page.getByText("TOKEN BURN", { exact: true })).toBeVisible();
   // Compaction annotated as a cliff drop.
   await expect(page.getByText("142k → 38k").first()).toBeVisible();
-  // Working / waiting is the opt-in band.
+  // Working time is the opt-in band.
   await expect(
-    page.getByText("WORKING / WAITING", { exact: true })
+    page.getByText("WORKING TIME", { exact: true })
   ).not.toBeVisible();
 });
 
@@ -267,10 +267,8 @@ test("band chips toggle the opt-in working band and default bands", async ({
 }) => {
   await openSample(page, network);
 
-  await page.getByRole("button", { name: "Working / waiting" }).click();
-  await expect(
-    page.getByText("WORKING / WAITING", { exact: true })
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Working time" }).click();
+  await expect(page.getByText("WORKING TIME", { exact: true })).toBeVisible();
   // The retry-attributable stall is bracketed and labeled.
   await expect(page.getByText(/rate limit ×3/)).toBeVisible();
 
@@ -287,8 +285,8 @@ test("axis toggle tiles turns and hides the working chip", async ({
   network,
 }) => {
   await openSample(page, network);
-  const workingChip = page.getByRole("button", { name: /Working \/ waiting/ });
-  const workingBand = page.getByText("WORKING / WAITING", { exact: true });
+  const workingChip = page.getByRole("button", { name: /Working time/ });
+  const workingBand = page.getByText("WORKING TIME", { exact: true });
   await workingChip.click();
   await expect(workingBand).toBeVisible();
 

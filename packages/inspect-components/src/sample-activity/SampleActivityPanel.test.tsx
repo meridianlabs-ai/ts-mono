@@ -141,8 +141,8 @@ describe("SampleActivityPanel band chips", () => {
     expect(screen.getByText("MODEL & TOOL ACTIVITY")).toBeTruthy();
     expect(screen.getByText("CONTEXT SIZE")).toBeTruthy();
     expect(screen.getByText("TOKEN BURN")).toBeTruthy();
-    // Working / waiting is the opt-in band.
-    expect(screen.queryByText("WORKING / WAITING")).toBeNull();
+    // Working time is the opt-in band.
+    expect(screen.queryByText("WORKING TIME")).toBeNull();
     expect(screen.queryByText(/gap = waiting/)).toBeNull();
   });
 
@@ -157,7 +157,7 @@ describe("SampleActivityPanel band chips", () => {
           "Context size",
           "Token burn",
           "Markers",
-          "Working / waiting",
+          "Working time",
         ].includes(text)
       );
     expect(labels).toEqual([
@@ -165,14 +165,14 @@ describe("SampleActivityPanel band chips", () => {
       "Context size",
       "Token burn",
       "Markers",
-      "Working / waiting",
+      "Working time",
     ]);
   });
 
   it("toggles the opt-in band on and default bands off via chips", () => {
     mountPanel();
-    fireEvent.click(screen.getByRole("button", { name: "Working / waiting" }));
-    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Working time" }));
+    expect(screen.getByText("WORKING TIME")).toBeTruthy();
     expect(screen.getByText(/gap = waiting/)).toBeTruthy();
 
     fireEvent.click(screen.getByRole("button", { name: /Token burn/ }));
@@ -201,10 +201,8 @@ describe("SampleActivityPanel band chips", () => {
         }),
       ],
     });
-    expect(
-      screen.queryByRole("button", { name: /Working \/ waiting/ })
-    ).toBeNull();
-    expect(screen.queryByText("WORKING / WAITING")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Working time/ })).toBeNull();
+    expect(screen.queryByText("WORKING TIME")).toBeNull();
     // The rest of the panel still renders.
     expect(screen.getByText("TOKEN BURN")).toBeTruthy();
   });
@@ -803,16 +801,14 @@ describe("SampleActivityPanel Turns axis", () => {
   it("hides the working chip and band in Turns mode without touching the override", () => {
     const store = makeReactiveStateStore();
     mountPanelWith(store);
-    fireEvent.click(screen.getByRole("button", { name: "Working / waiting" }));
-    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Working time" }));
+    expect(screen.getByText("WORKING TIME")).toBeTruthy();
     expect(store.store.get(persistedKey("bands"))).toEqual({ working: true });
 
     toTurns();
-    expect(screen.queryByText("WORKING / WAITING")).toBeNull();
+    expect(screen.queryByText("WORKING TIME")).toBeNull();
     expect(screen.queryByText(/gap = waiting/)).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: /Working \/ waiting/ })
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: /Working time/ })).toBeNull();
     // The other chips stay put.
     expect(screen.getByRole("button", { name: /Markers/ })).toBeTruthy();
     expect(store.store.get(persistedKey("bands"))).toEqual({ working: true });
@@ -820,10 +816,10 @@ describe("SampleActivityPanel Turns axis", () => {
     // Back on the wall clock the chip and band return — the override was
     // kept on across the round trip.
     fireEvent.click(screen.getByRole("button", { name: /^Wall clock$/ }));
-    expect(screen.getByText("WORKING / WAITING")).toBeTruthy();
+    expect(screen.getByText("WORKING TIME")).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Working / waiting" }).textContent
-    ).toBe("Working / waiting");
+      screen.getByRole("button", { name: "Working time" }).textContent
+    ).toBe("Working time");
     expect(store.store.get(persistedKey("bands"))).toEqual({ working: true });
   });
 
