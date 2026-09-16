@@ -238,10 +238,11 @@ export interface TurnColumn {
   end: number;
   model?: ActivitySpan;
   tools: ActivitySpan[];
-  /** Working seconds spent on the model call (the Turns grid ignores it;
-   *  the tooltip's durations show it). */
+  /** Working seconds spent on the model call. Derived data for consumers
+   *  and the derivation tests: nothing in the chart reads it (the Turns
+   *  grid is fixed-width; tooltips read the span's own durations). */
   modelWork: number;
-  /** Working seconds spent in tool calls (likewise layout-neutral). */
+  /** Working seconds spent in tool calls (likewise unread by the chart). */
   toolWork: number;
   /** Non-approve approval decisions inside the turn (ghost slots). */
   rejected: number;

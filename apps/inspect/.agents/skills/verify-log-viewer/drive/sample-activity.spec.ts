@@ -203,18 +203,53 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
   );
   await shot(page, "sample-activity-compactions-light.png");
 
-  // Marker click widens a filter that would hide its row.
-  await page.getByRole("button", { name: /Limits 1/ }).click();
-  await expect(page.getByText("Context compacted").first()).not.toBeVisible();
-  await page
-    .getByRole("button", { name: /Context compacted/ })
-    .first()
-    .click();
-  await expect(page.getByText("Context compacted").first()).toBeVisible();
-
   // Densest fixture yet (1291 events / ~478 spans): the merged band must
   // degrade to the per-pixel occupancy strip.
   await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+
+  // Glyph clicks are inert (Charles, 2026-09-16): a Limits filter that hides
+  // the compaction rows stays put, the search and row selection are
+  // untouched, and no compaction row appears. Rows are matched by role and
+  // class — the glyph's own hover card also says "Context compacted".
+  const limits = page.getByRole("button", { name: /Limits 1/ });
+  const search = page.getByPlaceholder("filter by event or detail");
+  const historyRows = page.locator("[role='button'][class*='row']");
+  const compactionRows = historyRows.filter({ hasText: "Context compacted" });
+  await limits.click();
+  await expect(limits).toHaveClass(/pillSelected/);
+  await expect(compactionRows).toHaveCount(0);
+  await expect(historyRows).toHaveCount(1);
+  // On this fixture every compaction glyph is a cluster ("N events: …").
+  const glyph = page
+    .getByRole("button", { name: /^\d+ events: Context compacted/ })
+    .and(page.locator("rect"))
+    .first();
+  await glyph.click();
+  await expect(limits).toHaveClass(/pillSelected/);
+  await expect(search).toHaveValue("");
+  await expect(page.locator("[class*='rowSelected']")).toHaveCount(0);
+  await expect(compactionRows).toHaveCount(0);
+  await expect(historyRows).toHaveCount(1);
+  await expect(page).toHaveURL(/\/activity$/);
+  await shot(page, "sample-activity-compaction-glyph-inert.png");
+
+  // Hovering the glyph still opens its card. A cluster card lists its
+  // members and carries no footer (only single-event cards navigate); the
+  // way through from here is the history row's footer.
+  await glyph.hover();
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toBeVisible();
+  await expect(card).toContainText(/\d+ events/);
+  await expect(card).toContainText("Context compacted");
+  await expect(
+    card.getByRole("button", { name: "open in transcript →" })
+  ).toHaveCount(0);
+  await page.mouse.move(0, 0);
+  await historyRows
+    .first()
+    .getByRole("button", { name: "open in transcript →" })
+    .click();
+  await expect(page).toHaveURL(/\/transcript\?event=/);
 });
 
 test.describe(() => {

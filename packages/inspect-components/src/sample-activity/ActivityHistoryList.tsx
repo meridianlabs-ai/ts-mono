@@ -56,7 +56,6 @@ export interface ActivityHistoryListProps {
   onHoverRow: (key: string | null) => void;
   /** Click-through to the Transcript via event uuid. */
   onOpenEvent?: (uuid: string, event: ReactMouseEvent) => void;
-  /** Dense-band bin click narrows the list to this window (clear chip). */
 }
 
 export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
