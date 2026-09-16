@@ -238,9 +238,10 @@ export interface TurnColumn {
   end: number;
   model?: ActivitySpan;
   tools: ActivitySpan[];
-  /** Working seconds spent on the model call — the column's grey share. */
+  /** Working seconds spent on the model call (the Turns grid ignores it;
+   *  the tooltip's durations show it). */
   modelWork: number;
-  /** Working seconds spent in tool calls — the column's teal share. */
+  /** Working seconds spent in tool calls (likewise layout-neutral). */
   toolWork: number;
   /** Non-approve approval decisions inside the turn (ghost slots). */
   rejected: number;

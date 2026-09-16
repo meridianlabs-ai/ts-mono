@@ -143,14 +143,156 @@ describe("ActivityChart Turns mode geometry", () => {
     expect(attr(tool, "width")).toBeCloseTo(width / 2);
   });
 
-  it("gives a turn with no tool call the whole column", () => {
+  it("reserves an empty tool half for a turn with no tool call", () => {
+    // Strict grid (design owner 2026-09-15): the model rect is the left
+    // half whether or not a tool ran; the right half stays empty.
     const { container } = renderChart(
       [modelCall({ start: 0, end: 10, uuid: "m" })],
       { axisMode: "turns" }
     );
-    const { width } = plotBounds(container);
+    const { left, width } = plotBounds(container);
     const model = container.querySelector("rect[class*='modelSpan']");
-    expect(attr(model, "width")).toBeCloseTo(width);
+    expect(attr(model, "x")).toBeCloseTo(left);
+    expect(attr(model, "width")).toBeCloseTo(width / 2);
+    expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
+      1
+    );
+    expect(container.querySelector("rect[class*='toolSpan']")).toBeNull();
+    expect(container.querySelector("rect[class*='ghostSpan']")).toBeNull();
+  });
+
+  it("splits sequential tools into equal slots whatever their working time", () => {
+    // 2 s and 18 s of tool work: two quarter-column slots, not a 1:9
+    // share — the durations stay on the tooltip.
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 10, uuid: "m" }),
+        testToolEvent({
+          uuid: "t1",
+          timestamp: iso(10),
+          completed: iso(12),
+          working_start: 10,
+          working_time: 2,
+        }),
+        testToolEvent({
+          uuid: "t2",
+          timestamp: iso(12),
+          completed: iso(30),
+          working_start: 12,
+          working_time: 18,
+        }),
+      ],
+      { axisMode: "turns" }
+    );
+    const { left, width } = plotBounds(container);
+    const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "width")).toBeCloseTo(width / 2);
+    const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
+    expect(tools).toHaveLength(2);
+    expect(attr(tools[0]!, "x")).toBeCloseTo(left + width / 2);
+    expect(attr(tools[0]!, "width")).toBeCloseTo(width / 4);
+    expect(attr(tools[1]!, "x")).toBeCloseTo(left + (3 * width) / 4);
+    expect(attr(tools[1]!, "width")).toBeCloseTo(width / 4);
+    for (const tool of tools) {
+      expect(attr(tool, "height")).toBe(kAgentSpanHeight);
+    }
+  });
+
+  it("gives a rejected call the same slot as the executed tool beside it", () => {
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 10, uuid: "m" }),
+        testToolEvent({
+          uuid: "t",
+          timestamp: iso(10),
+          completed: iso(12),
+          working_start: 10,
+          working_time: 2,
+        }),
+        testApprovalEvent({
+          uuid: "r",
+          timestamp: iso(12.5),
+          decision: "reject",
+        }),
+      ],
+      { axisMode: "turns" }
+    );
+    const { left, width } = plotBounds(container);
+    const tool = container.querySelector("rect[class*='toolSpan']");
+    expect(attr(tool, "x")).toBeCloseTo(left + width / 2);
+    expect(attr(tool, "width")).toBeCloseTo(width / 4);
+    const ghost = container.querySelector("rect[class*='ghostSpan']");
+    // The ghost is inset 0.75 px each side for its own dashed stroke.
+    expect(attr(ghost, "x")).toBeCloseTo(left + (3 * width) / 4 + 0.75);
+    expect(attr(ghost, "width")).toBeCloseTo(width / 4 - 1.5);
+  });
+
+  it("keeps a burst's sub-lanes inside its equal slot next to a sequential tool", () => {
+    // A two-call burst (14 s of work) then a 1 s tool: two equal
+    // quarter-column slots, the burst's lanes stacked inside the first.
+    const { container } = renderChart(
+      [
+        modelCall({ start: 0, end: 1, uuid: "m" }),
+        ...Array.from({ length: 2 }, (_, i) =>
+          testToolEvent({
+            uuid: `b${i}`,
+            timestamp: iso(2 + i * 0.1),
+            completed: iso(9),
+            working_start: 2,
+            working_time: 7,
+            function: "bash",
+          })
+        ),
+        testToolEvent({
+          uuid: "t",
+          timestamp: iso(10),
+          completed: iso(11),
+          working_start: 10,
+          working_time: 1,
+        }),
+      ],
+      { axisMode: "turns" }
+    );
+    const { left, width } = plotBounds(container);
+    const tools = [...container.querySelectorAll("rect[class*='toolSpan']")];
+    expect(tools).toHaveLength(3);
+    const lanes = tools.filter((t) => attr(t, "height") < kAgentSpanHeight);
+    expect(lanes).toHaveLength(2);
+    for (const lane of lanes) {
+      expect(attr(lane, "x")).toBeCloseTo(left + width / 2);
+      expect(attr(lane, "width")).toBeCloseTo(width / 4);
+    }
+    const single = tools.find((t) => attr(t, "height") === kAgentSpanHeight);
+    expect(attr(single ?? null, "x")).toBeCloseTo(left + (3 * width) / 4);
+    expect(attr(single ?? null, "width")).toBeCloseTo(width / 4);
+  });
+
+  it("gives a tool-only fallback turn the tool half and leaves the model half empty", () => {
+    // A tool before any model call on its row opens a tool-only turn.
+    const { container } = renderChart(
+      [
+        testToolEvent({
+          uuid: "t",
+          timestamp: iso(0),
+          completed: iso(5),
+          working_start: 0,
+          working_time: 5,
+        }),
+        modelCall({ start: 10, end: 20, uuid: "m" }),
+      ],
+      { axisMode: "turns" }
+    );
+    const { left, width } = plotBounds(container);
+    const colWidth = width / 2;
+    const tool = container.querySelector("rect[class*='toolSpan']");
+    expect(attr(tool, "x")).toBeCloseTo(left + colWidth / 2);
+    expect(attr(tool, "width")).toBeCloseTo(colWidth / 2);
+    const model = container.querySelector("rect[class*='modelSpan']");
+    expect(attr(model, "x")).toBeCloseTo(left + colWidth);
+    expect(attr(model, "width")).toBeCloseTo(colWidth / 2);
+    expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
+      2
+    );
   });
 
   it("stacks a burst of three as sub-lanes across the tool half", () => {
@@ -837,6 +979,7 @@ describe("ActivityChart crowded Turns tool halves", () => {
     expect(attr(tools[0]!, "x")).toBeCloseTo(left + colWidth / 2);
     tools.forEach((tool, i) => {
       expect(attr(tool, "width")).toBeGreaterThanOrEqual(kSlotMinPx);
+      expect(attr(tool, "width")).toBeCloseTo(colWidth / 8);
       const next = tools[i + 1];
       if (next) {
         expect(attr(next, "x")).toBeCloseTo(
@@ -903,15 +1046,24 @@ describe("ActivityChart narrow Turns columns", () => {
     expect(densityRects(dense.container).length).toBeGreaterThan(0);
   });
 
-  it("keeps a model-only row's columns down to the global threshold", () => {
+  it("degrades a model-only row at the same column width: its rects are halves too", () => {
+    // The strict grid gives a tool-less turn a half-column model rect, so
+    // a model-only row loses legibility at the same 9 px column as any
+    // other and no longer keeps full columns down to the global threshold.
     const { container } = renderChart(sequentialTools(200, 0), {
       axisMode: "turns",
     });
+    expect(container.querySelectorAll("rect[class*='turnRect']")).toHaveLength(
+      0
+    );
+    expect(densityRects(container).length).toBeGreaterThan(0);
+    expect(screen.getByText(/per-pixel occupancy/)).toBeTruthy();
+    cleanup();
+    const legible = renderChart(sequentialTools(106, 0), { axisMode: "turns" });
     expect(
-      container.querySelectorAll("rect[class*='turnRect']").length
-    ).toBeGreaterThan(0);
-    expect(densityRects(container)).toHaveLength(0);
-    expect(screen.queryByText(/per-pixel occupancy/)).toBeNull();
+      legible.container.querySelectorAll("rect[class*='turnRect']")
+    ).toHaveLength(106);
+    expect(densityRects(legible.container)).toHaveLength(0);
   });
 
   it("never draws a tool rect narrower than the floor plus seam at any turn count", () => {

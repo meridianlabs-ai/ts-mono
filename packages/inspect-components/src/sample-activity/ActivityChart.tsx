@@ -103,40 +103,6 @@ const kTurnSeamPx = 1.5;
 // Hover/click bins on a dense row aggregate columns to a readable window.
 const kDensityHoverPx = 16;
 
-// Proportional split of `total` px by weight, every share lifted to `min`
-// px while the total allows; the lift comes out of the shares above it.
-const allotWidths = (
-  weights: number[],
-  total: number,
-  min: number
-): number[] => {
-  const n = weights.length;
-  if (n === 0) return [];
-  if (n * min >= total) return weights.map(() => total / n);
-  const sum = weights.reduce((acc, w) => acc + w, 0);
-  let widths = weights.map((w) => (sum > 0 ? (w / sum) * total : total / n));
-  const floored = new Set<number>();
-  for (let pass = 0; pass < n; pass++) {
-    const below = widths.flatMap((w, i) =>
-      !floored.has(i) && w < min ? [i] : []
-    );
-    if (below.length === 0) break;
-    for (const i of below) floored.add(i);
-    const free = total - floored.size * min;
-    const freeWeight = weights.reduce(
-      (acc, w, i) => (floored.has(i) ? acc : acc + w),
-      0
-    );
-    widths = weights.map((w, i) =>
-      floored.has(i)
-        ? min
-        : freeWeight > 0
-          ? (w / freeWeight) * free
-          : free / (n - floored.size)
-    );
-  }
-  return widths;
-};
 // Turns-mode gridlines: 6–10 separators across the plot whatever the turn
 // count (design owner 2026-09-15); fewer only when there are fewer column
 // boundaries than that.
@@ -1400,23 +1366,19 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   };
 
   /** Whether a display row draws the Turns density strip: the global turn
-   *  count threshold, or columns too narrow for the equal halves a turn
-   *  with a tool or rejected slot needs (a model-only row keeps its full
-   *  columns down to the global threshold). */
+   *  count threshold, or columns too narrow for the half every grid cell
+   *  is (a model-only row's rects are halves too, so it degrades at the
+   *  same width). */
   const turnRowDense = (row: AgentRow): boolean =>
-    turnsDense ||
-    (turnsMode &&
-      !turnHalfLegible &&
-      rowTurns(row).some(
-        (turn) =>
-          turn.model !== undefined &&
-          (turn.tools.length > 0 || turn.rejected > 0)
-      ));
+    turnsDense || (turnsMode && !turnHalfLegible && rowTurns(row).length > 0);
 
-  /** Turns mode (handoff 8b): one gap-free column per turn — the grey model
-   *  half then the teal tool half (equal halves whenever the turn has a
-   *  slot), bursts keeping their sub-lanes inside the tool half, rejected
-   *  calls drawn as dashed ghosts where the tool would have run. */
+  /** Turns mode (handoff 8b) as a strict grid (design owner 2026-09-15):
+   *  one gap-free column per turn, always split into the grey model half
+   *  on the left and the teal tool half on the right. A tool-less turn
+   *  leaves its tool half empty; a tool-only turn leaves its model half
+   *  empty. Sequential calls split the tool half into equal slots,
+   *  rejected calls (dashed ghosts) taking a slot like any other, and a
+   *  burst keeps its sub-lanes inside its slot. */
   const renderTurnRow = (row: AgentRow, rowTop: number): ReactNode => {
     const spanY = rowTop + (kAgentSpanOffset - kAgentRowFirstLabelY);
     const laneY = (s: ActivitySpan): number => {
@@ -1427,9 +1389,9 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       return spanY + s.subLane * pitch;
     };
     type Slot =
-      | { kind: "tool"; span: ActivitySpan; weight: number }
-      | { kind: "burst"; members: ActivitySpan[]; weight: number }
-      | { kind: "ghost"; weight: number };
+      | { kind: "tool"; span: ActivitySpan }
+      | { kind: "burst"; members: ActivitySpan[] }
+      | { kind: "ghost" };
     const spanRect = (
       s: ActivitySpan,
       x0: number,
@@ -1571,51 +1533,33 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         if (burst) {
           if (seenBurst.has(burst)) continue;
           seenBurst.add(burst);
-          const members = turn.tools.filter((t) => t.burst === burst);
           slots.push({
             kind: "burst",
-            members,
-            weight: members.reduce((sum, member) => sum + member.working, 0),
+            members: turn.tools.filter((t) => t.burst === burst),
           });
         } else {
-          slots.push({ kind: "tool", span: tool, weight: tool.working });
+          slots.push({ kind: "tool", span: tool });
         }
       }
-      // A rejected call takes the room a tool would have: weighted like the
-      // turn's model work so it holds its own next to the turn's real tools.
-      for (let i = 0; i < turn.rejected; i++) {
-        slots.push({ kind: "ghost", weight: Math.max(turn.modelWork, 1e-3) });
-      }
-      // Model and tools split the column in equal halves whenever the turn
-      // has a slot (design owner 2026-09-15, superseding the handoff's
-      // working-time ratio for legibility); the ratio stays readable on
-      // the Wall clock and in the tooltip's durations. Inside the tool
-      // half, slots still share by working time, each at least a tick.
-      const toolWidth = !turn.model
-        ? colWidth
-        : slots.length > 0
-          ? colWidth / 2
-          : 0;
-      const modelRight = right - toolWidth;
-      const toolLeft = modelRight;
+      for (let i = 0; i < turn.rejected; i++) slots.push({ kind: "ghost" });
+      // The grid is a layout rule, not a data one: the halves and the
+      // equal slots ignore working time, which the Wall clock and the
+      // tooltip's durations still show. The seam floor decides whether the
+      // slots draw individually or as one aggregate rect.
+      const toolWidth = colWidth / 2;
+      const toolLeft = left + toolWidth;
       const slotMin = kMinSpanPx + kTurnSeamPx;
       const crowded = slots.length > 1 && slots.length * slotMin > toolWidth;
-      const slotWidths = allotWidths(
-        slots.map((slot) => slot.weight),
-        toolWidth,
-        slotMin
-      );
-      let acc = toolLeft;
+      const slotWidth = slots.length > 0 ? toolWidth / slots.length : 0;
       return (
         <g key={`turn-${turn.index}`}>
           {turn.model &&
-            spanRect(turn.model, left, modelRight, spanY, kAgentSpanHeight)}
+            spanRect(turn.model, left, toolLeft, spanY, kAgentSpanHeight)}
           {crowded && crowdedToolHalf(turn, toolLeft, right)}
           {!crowded &&
             slots.map((slot, i) => {
-              const x0 = acc;
-              acc += slotWidths[i]!;
-              const x1 = acc;
+              const x0 = toolLeft + i * slotWidth;
+              const x1 = i === slots.length - 1 ? right : x0 + slotWidth;
               switch (slot.kind) {
                 case "tool":
                   return (

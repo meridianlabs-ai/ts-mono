@@ -44,13 +44,17 @@ an Activity test into the standing spec.
 - Axis toggle (right end of the chip row; the shared `SegmentedControl`, so
   `aria-pressed` buttons inside `role="group"` named `X axis`):
   `getByRole("button", { name: "Wall clock", exact: true })` / `"Turns"`; Turns relabels the axis `TURN`
-  (one equal-width column per model turn, split in equal model / tool
-  halves; 6–10 gridlines from seven turns up, one per column boundary
-  below that; a tool half too narrow for its sequential slots draws one
-  aggregate teal rect whose hover reads `turn N · M tool calls[ · k
-failed][ · r rejected]` and whose click filters the history to that
-  turn; when every slot is a rejected call the aggregate is a dashed
-  ghost reading `turn N · r rejected · no tool run`)
+  (a strict grid: one equal-width column per model turn, always split
+  into a left model half and a right tool half — a tool-less turn leaves
+  the tool half empty, a tool-only turn the model half; N sequential tool
+  calls split the tool half into N equal slots regardless of working
+  time, rejected calls taking a slot as dashed ghosts, a burst stacking
+  its sub-lanes inside its slot; 6–10 gridlines from seven turns up, one
+  per column boundary below that; a tool half too narrow for its slots
+  draws one aggregate teal rect whose hover reads `turn N · M tool
+calls[ · k failed][ · r rejected]` and whose click filters the history
+  to that turn; when every slot is a rejected call the aggregate is a
+  dashed ghost reading `turn N · r rejected · no tool run`)
   and removes the Working / waiting chip from the picker — the band hides
   there too, but its override is kept, so Wall clock restores both as they
   were.
@@ -91,9 +95,8 @@ failed][ · r rejected]` and whose click filters the history to that
   in Turns mode the strip bins by turn index and bin hovers read
   `turns a–b · N model · M tool`. A Turns row also degrades once its
   columns are narrower than 9 px (two 4.5 px halves: the 3 px tick floor
-  plus the 1.5 px seam each) if any of its turns splits into model and
-  tool halves — about 107 turns on a 960 px plot; a model-only row keeps
-  full columns down to the global 3 px-per-turn threshold.
+  plus the 1.5 px seam each) — about 107 turns on a 960 px plot; every
+  grid cell is a half, so a model-only row switches at the same width.
 - Multi-conversation samples (`example_of_weird_subagent_logging.eval` in
   test_evals has 3 hand-off agents): one activity row per conversation with
   a checkbox gutter, a dotted `awaiting <child>` thread on the parent while
