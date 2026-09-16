@@ -841,6 +841,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     navOwnsRef: chromeNavOwnsRef,
   } = useChromeNavOwnership(scrollRef, {
     ownedForKey: () => mountsAtDeepLink,
+    // The header survives sibling navigation; its collapse belongs to this visit.
+    resetKey: visitId,
     scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
 
