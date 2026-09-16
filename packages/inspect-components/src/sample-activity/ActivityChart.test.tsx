@@ -2342,6 +2342,123 @@ describe("ActivityChart tooltip travel", () => {
     }
   });
 
+  // A fan-out vertex's card (review pass 15): leaving the 6 px snap radius
+  // must hold the card for the pointer the way a span card holds — not
+  // swap in the curve read-out at once, which left its footer unreachable.
+  const fanOutTurns = (): Event[] => [
+    modelCall({ start: 0, end: 5, uuid: "m0", input: 100 }),
+    modelCall({ start: 20, end: 35, uuid: "a", input: 1470 }),
+    modelCall({ start: 20, end: 25, uuid: "b", input: 984 }),
+    modelCall({ start: 40, end: 45, uuid: "m3", input: 1600 }),
+  ];
+  /** Hover the fan-out's vertex and wait out the show delay. */
+  const showVertexCard = (container: HTMLElement): { x: number; y: number } => {
+    const dot = container.querySelectorAll("circle[class*='contextDot']")[1];
+    if (!dot) throw new Error("expected the fan-out's dot");
+    const x = attr(dot, "cx");
+    const y = attr(dot, "cy");
+    fireEvent.mouseMove(plotHit(container), { clientX: x, clientY: y });
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    expect(card(container)?.textContent).toContain("2 parallel calls");
+    return { x, y };
+  };
+
+  it("holds a fan-out vertex's card while the pointer closes in on its footer", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(fanOutTurns(), { onOpenEvent });
+      const { x, y } = showVertexCard(container);
+      const left = cardLeft(container);
+      const hit = plotHit(container);
+      // Eight moves 150 ms apart just left of the card, the first already
+      // off the vertex, each nearer the card: 1.2 s in all, four times
+      // the grace, and the same card — footer included — at every step.
+      for (let i = 1; i <= 8; i++) {
+        fireEvent.mouseMove(hit, {
+          clientX: x + 3 + i,
+          clientY: y + 3 + 3 * i,
+        });
+        act(() => {
+          vi.advanceTimersByTime(150);
+        });
+        expect(card(container)?.textContent ?? "", `move ${i}`).toContain(
+          "2 parallel calls"
+        );
+      }
+      expect(cardLeft(container)).toBe(left);
+      fireEvent.click(
+        screen.getByRole("button", { name: "open first in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("b", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the vertex card when the pointer lands on a neighbouring point inside its column", () => {
+    vi.useFakeTimers();
+    try {
+      // A call two seconds after the fan-out: on a dense real log the
+      // first move off a vertex can land inside the next point's snap
+      // radius, and that point must not take the card over mid-journey.
+      const [m0, a, b, m3] = fanOutTurns();
+      const { container } = renderChart([
+        m0!,
+        a!,
+        b!,
+        modelCall({ start: 22, end: 27, uuid: "n", input: 1200 }),
+        m3!,
+      ]);
+      showVertexCard(container);
+      const hit = plotHit(container);
+      const neighbour = container.querySelectorAll(
+        "circle[class*='contextDot']"
+      )[2];
+      if (!neighbour) throw new Error("expected the neighbouring dot");
+      const nx = attr(neighbour, "cx");
+      const ny = attr(neighbour, "cy");
+      fireEvent.mouseMove(hit, { clientX: nx, clientY: ny });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("2 parallel calls");
+      // Resting there runs the grace out; the next move reads the
+      // neighbour as an ordinary snap.
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(card(container)).toBeNull();
+      fireEvent.mouseMove(hit, { clientX: nx, clientY: ny });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("Context 1,200 tokens");
+      expect(card(container)?.textContent).not.toContain("parallel calls");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads the curve at once when the pointer leaves the vertex card's column", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(fanOutTurns());
+      const { x, y } = showVertexCard(container);
+      const hit = plotHit(container);
+      fireEvent.mouseMove(hit, { clientX: x - 60, clientY: y + 10 });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("tokens in context");
+      expect(card(container)?.textContent).not.toContain("parallel calls");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops following the pointer horizontally once it leaves the span", () => {
     vi.useFakeTimers();
     try {

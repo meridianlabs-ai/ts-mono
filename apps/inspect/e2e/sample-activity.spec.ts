@@ -708,6 +708,126 @@ for (const axis of ["Wall clock", "Turns"] as const) {
   });
 }
 
+/** A call, three issued together (one start, different context sizes and
+ *  completions), then one more: the fan-out whose Wall clock vertex
+ *  carries a range card. */
+function fanOutEvents(): Events {
+  return [
+    activityModelEvent({
+      uuid: "m0",
+      startSec: 0,
+      endSec: 5,
+      workingStart: 0,
+      inputTokens: 1_000,
+    }),
+    activityModelEvent({
+      uuid: "fan-a",
+      startSec: 20,
+      endSec: 35,
+      workingStart: 20,
+      inputTokens: 14_700,
+    }),
+    activityModelEvent({
+      uuid: "fan-b",
+      startSec: 20,
+      endSec: 25,
+      workingStart: 20,
+      inputTokens: 9_840,
+    }),
+    activityModelEvent({
+      uuid: "fan-c",
+      startSec: 20,
+      endSec: 30,
+      workingStart: 20,
+      inputTokens: 12_000,
+    }),
+    activityModelEvent({
+      uuid: "m4",
+      startSec: 40,
+      endSec: 45,
+      workingStart: 40,
+      inputTokens: 16_000,
+    }),
+  ];
+}
+
+/** Walk the pointer from `from` to `to` in `steps` moves, checking the
+ *  card between moves — the assertion paces the journey at roughly human
+ *  speed and pins the card at every step. */
+async function travel(
+  page: Page,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  steps: number,
+  check: (step: number) => Promise<void>
+) {
+  for (let i = 1; i <= steps; i++) {
+    await page.mouse.move(
+      from.x + ((to.x - from.x) * i) / steps,
+      from.y + ((to.y - from.y) * i) / steps
+    );
+    await check(i);
+  }
+}
+
+const center = (box: {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}) => ({
+  x: box.x + box.width / 2,
+  y: box.y + box.height / 2,
+});
+
+// A fan-out's Wall clock vertex carries a range card (review pass 15): its
+// footer must survive ordinary pointer travel off the 6 px snap radius —
+// small steps straight at the footer, or a first leg down out of the
+// radius before the diagonal — not only a direct click on a fresh card.
+for (const path of ["straight", "down then across"] as const) {
+  test(`the fan-out vertex card survives pointer travel to its footer (${path})`, async ({
+    page,
+    network,
+  }) => {
+    await openSample(page, network, { events: fanOutEvents() });
+    await expect(page.getByText("CONTEXT SIZE", { exact: true })).toBeVisible();
+    const dotBox = await page
+      .locator("circle[class*='contextDot']")
+      .nth(1)
+      .boundingBox();
+    if (!dotBox) throw new Error("expected the fan-out's context dot");
+    const from = center(dotBox);
+    await page.mouse.move(from.x, from.y);
+    const card = page.locator("[class*='tooltip']");
+    await expect(card).toContainText("3 parallel calls");
+    const footer = card.getByRole("button", {
+      name: "open first in transcript →",
+    });
+    await expect(footer).toBeVisible();
+    const footerBox = await footer.boundingBox();
+    if (!footerBox) throw new Error("expected the card's footer");
+    const to = center(footerBox);
+    const legs =
+      path === "straight"
+        ? [{ to, steps: 30 }]
+        : [
+            { to: { x: from.x + 4, y: from.y + 14 }, steps: 6 },
+            { to, steps: 24 },
+          ];
+    let at = from;
+    for (const leg of legs) {
+      await travel(page, at, leg.to, leg.steps, async (step) => {
+        await expect(card, `${path} step ${step}`).toContainText(
+          "3 parallel calls"
+        );
+      });
+      at = leg.to;
+    }
+    await footer.click();
+    await expect(page).toHaveURL(/\/transcript\?event=fan-b$/);
+  });
+}
+
 test("history row clicks through to the transcript event", async ({
   page,
   network,

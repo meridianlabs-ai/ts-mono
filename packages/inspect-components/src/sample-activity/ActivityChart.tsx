@@ -2250,50 +2250,77 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   /** The full-plot hit surface under every band: moves the cursor with the
    *  pointer and reads the curve under it (a context point within a few px
    *  gets its own tooltip; otherwise the per-row values). */
+  /** The context point under the pointer, when it is within the snap
+   *  radius of one; the snap names the actual conversation, a fold member
+   *  included. */
+  const snappedContextNode = (
+    band: Band,
+    px: number,
+    py: number
+  ): { row: AgentRow; node: ContextNode } | undefined => {
+    const yOf = (v: number) => {
+      const dropMax = visibleCompactions.reduce(
+        (m, c) => Math.max(m, c.before ?? 0),
+        0
+      );
+      const peak = curveRows.reduce(
+        (m, row) => Math.max(m, curveContextPeak(row)),
+        0
+      );
+      const yMax = Math.max(peak, dropMax, 1) * 1.05;
+      return (
+        band.top + band.plotBottom - (v / yMax) * (band.plotBottom - kPlotTop)
+      );
+    };
+    let nearest: { row: AgentRow; node: ContextNode } | undefined;
+    let nearestDist = Infinity;
+    for (const curveRow of curveRows) {
+      for (const row of memberRows(curveRow)) {
+        for (const node of contextNodes(row)) {
+          const dist = Math.hypot(node.x - px, yOf(node.point.value) - py);
+          if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = { row, node };
+          }
+        }
+      }
+    }
+    return nearestDist <= kContextPointSnapPx ? nearest : undefined;
+  };
+
   const onPlotMove = (event: ReactMouseEvent<SVGRectElement>) => {
     const px = pointerPx(event);
     const py = pointerPy(event);
     if (holdCardForPointer(px, py)) return;
+    const band = bands.find((b) => py >= b.top && py < b.top + b.height);
+    const snapped =
+      band?.kind === "context" ? snappedContextNode(band, px, py) : undefined;
+    const snappedTarget: HoverTarget | null = snapped
+      ? {
+          kind: "context",
+          point: snapped.node.point,
+          row: snapped.row,
+          parallel: snapped.node.parallel,
+        }
+      : null;
+    // Off a context point's card — onto empty plot or, on a dense line,
+    // straight into a neighbouring point's snap radius — it holds for the
+    // pointer the way a span card does (round 12): the close starts, and
+    // a pointer already in the card's column keeps it; only one that has
+    // left the column reads what is under it (review pass 15).
+    if (
+      hoverTarget?.kind === "context" &&
+      !closing.current &&
+      hoverTargetKey(snappedTarget) !== targetKey
+    ) {
+      requestClose();
+      if (holdCardForPointer(px, py)) return;
+    }
     const t = timeAtPx(px);
     setCursor({ x: px, t });
-    const band = bands.find((b) => py >= b.top && py < b.top + b.height);
     if (band?.kind === "context") {
-      const yOf = (v: number) => {
-        const dropMax = visibleCompactions.reduce(
-          (m, c) => Math.max(m, c.before ?? 0),
-          0
-        );
-        const peak = curveRows.reduce(
-          (m, row) => Math.max(m, curveContextPeak(row)),
-          0
-        );
-        const yMax = Math.max(peak, dropMax, 1) * 1.05;
-        return (
-          band.top + band.plotBottom - (v / yMax) * (band.plotBottom - kPlotTop)
-        );
-      };
-      // Snap to a context point when the pointer is right on it.
-      let nearest: { row: AgentRow; node: ContextNode } | undefined;
-      let nearestDist = Infinity;
-      // The snap names the actual conversation, a fold member included.
-      for (const curveRow of curveRows) {
-        for (const row of memberRows(curveRow)) {
-          for (const node of contextNodes(row)) {
-            const dist = Math.hypot(node.x - px, yOf(node.point.value) - py);
-            if (dist < nearestDist) {
-              nearestDist = dist;
-              nearest = { row, node };
-            }
-          }
-        }
-      }
-      if (nearest && nearestDist <= kContextPointSnapPx) {
-        showTarget({
-          kind: "context",
-          point: nearest.node.point,
-          row: nearest.row,
-          parallel: nearest.node.parallel,
-        });
+      if (snappedTarget) {
+        showTarget(snappedTarget);
         return;
       }
       showTarget({

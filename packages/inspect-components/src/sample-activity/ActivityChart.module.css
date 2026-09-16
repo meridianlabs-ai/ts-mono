@@ -74,16 +74,22 @@
 
 /* ── curves ── */
 
+/* Painted geometry only: the full-plot hit surface beneath reads the
+   curves, so a stroke or fill must never catch the pointer — a hover
+   landing on a context vertex, or a travelling pointer crossing the line,
+   would otherwise reach nothing (review pass 15). */
 .tokenSeries {
   fill: none;
   stroke: #495057;
   stroke-width: 1.2;
+  pointer-events: none;
 }
 
 .contextSeries {
   fill: none;
   stroke: #3a7bd5;
   stroke-width: 1.2;
+  pointer-events: none;
 }
 
 .contextDot {
@@ -146,11 +152,13 @@
 .tokenLayer {
   opacity: 0.28;
   stroke: none;
+  pointer-events: none;
 }
 
 .tokenLayerEdge {
   fill: none;
   stroke-width: 1;
+  pointer-events: none;
 }
 
 /* Gutter legend under a curve band's label: swatch · name. */
