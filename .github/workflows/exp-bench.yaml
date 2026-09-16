@@ -1,0 +1,59 @@
+name: exp-bench
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - brandly/vitest-split-projects
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        copy: [1, 2]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          path: base
+      - uses: actions/checkout@v7
+        with:
+          path: split
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: base/package.json
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: |
+          for d in base split; do (cd $d && pnpm install --frozen-lockfile); done
+      - name: Bench
+        run: |
+          nproc; grep -m1 "model name" /proc/cpuinfo
+          bench() {
+            local label=$1 dir=$2; shift 2
+            local s=$(date +%s%3N)
+            if ! (cd "$dir" && "$@") > "/tmp/${label// /_}.log" 2>&1; then echo "FAILED: $label"; fi
+            local e=$(date +%s%3N)
+            awk -v l="$label" -v ms=$((e - s)) 'BEGIN { printf "%-28s %6.1fs\n", l, ms / 1000 }' | tee -a /tmp/bench.txt
+          }
+          for round in 1 2; do
+            bench "base full r$round"       base  pnpm turbo run test
+            bench "split full r$round"      split pnpm turbo run test
+            bench "split+fscache full r$round" split pnpm turbo run test -- --fsModuleCache
+            bench "base inspect r$round"    base  pnpm --filter ./apps/inspect test
+            bench "split inspect r$round"   split pnpm --filter ./apps/inspect test
+            bench "base components r$round"  base  pnpm --filter ./packages/inspect-components test
+            bench "split components r$round" split pnpm --filter ./packages/inspect-components test
+          done
+          du -sh split/node_modules/.vite/vitest || true
+          { echo '```'; cat /tmp/bench.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bench-logs-${{ github.run_id }}-${{ matrix.copy }}
+          path: /tmp/*.log
+          retention-days: 3
