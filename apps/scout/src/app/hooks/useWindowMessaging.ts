@@ -3,7 +3,7 @@ import { basename, getVscodeApi } from "@tsmono/util";
 
 import { useLoggingNavigate } from "../../debugging/navigationDebugging";
 import { scanRoute } from "../../router/url";
-import { useStore } from "../../state/store";
+import { useStoreApi, type StoreState } from "../../state/store";
 import { useAppConfig } from "../server/useAppConfig";
 
 export interface UpdateStateMessage {
@@ -67,10 +67,21 @@ export function embeddedRoute(
   return message.url ? scanRoute(scansDir, basename(message.url)) : undefined;
 }
 
+export function applyHostDisplayState(
+  message: AppMessage,
+  actions: Pick<StoreState, "setSingleFileMode" | "setSelectedScanner">
+): void {
+  actions.setSingleFileMode(
+    message.type === "updateState" || message.mode === "single-file"
+  );
+  if (message.type === "updateState" && message.scanner) {
+    actions.setSelectedScanner(message.scanner);
+  }
+}
+
 export const useWindowMessaging = (): void => {
   const navigate = useLoggingNavigate("useWindowMessaging");
-  const setSingleFileMode = useStore((state) => state.setSingleFileMode);
-  const setSelectedScanner = useStore((state) => state.setSelectedScanner);
+  const store = useStoreApi();
   const scansDir = useAppConfig().scans.dir;
 
   useEventListener(
@@ -80,12 +91,7 @@ export const useWindowMessaging = (): void => {
       if (!isAppMessage(event.data)) return;
       const message = event.data;
       const route = embeddedRoute(message, scansDir);
-      if (message.type === "updateRoute") {
-        setSingleFileMode(message.mode === "single-file");
-      } else {
-        setSingleFileMode(true);
-        if (message.scanner) setSelectedScanner(message.scanner);
-      }
+      applyHostDisplayState(message, store.getState());
       if (route) navigate(route, { replace: true });
     }
   );

@@ -10,7 +10,10 @@ import { ScoutApiV2 } from "./api/api";
 import { apiScoutServer } from "./api/api-scout-server";
 import { apiVscode } from "./api/api-vscode";
 import { App } from "./App";
-import { getEmbeddedAppMessage } from "./app/hooks/useWindowMessaging";
+import {
+  applyHostDisplayState,
+  getEmbeddedAppMessage,
+} from "./app/hooks/useWindowMessaging";
 import { ApiProvider, createStore, StoreProvider } from "./state/store";
 
 declare global {
@@ -60,14 +63,7 @@ const api = selectApi();
 const store = createStore(api);
 const embedded = getEmbeddedAppMessage();
 if (embedded) {
-  store
-    .getState()
-    .setSingleFileMode(
-      embedded.type === "updateState" || embedded.mode === "single-file"
-    );
-  if (embedded.type === "updateState" && embedded.scanner) {
-    store.getState().setSelectedScanner(embedded.scanner);
-  }
+  applyHostDisplayState(embedded, store.getState());
 }
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: defaultRetry } },

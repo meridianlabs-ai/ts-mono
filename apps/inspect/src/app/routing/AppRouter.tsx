@@ -21,6 +21,7 @@ import { LogViewContainer } from "../log-view/LogViewContainer";
 import { SampleEventView } from "../samples/event/SampleEventView";
 
 import { CurrentSelectionProvider } from "./currentSelection";
+import { hostDestinationRoute } from "./hostNavigation";
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
@@ -83,16 +84,12 @@ const AppLayout = () => {
 // Create router with our routes (using hash router for static deployments)
 const createAppRouter = () => {
   const embedded = readEmbeddedStartupState();
-  const log = embedded?.url
-    ? decodeURIComponent(embedded.url)
-    : getAppConfig().logFile;
-  const initialPath = log
-    ? baseUrl(
-        isUri(log) ? basename(log) : log,
-        embedded?.sample_id,
-        embedded?.sample_epoch
-      )
-    : undefined;
+  const log = getAppConfig().logFile;
+  const initialPath = embedded?.url
+    ? hostDestinationRoute(embedded)
+    : log
+      ? baseUrl(isUri(log) ? basename(log) : log)
+      : undefined;
   return createRestorableHashRouter(
     [
       {

@@ -58,6 +58,9 @@ make that intent explicit and remove this compatibility bookkeeping.
 Scout View does not re-post its route merely on focus. Delivered `updateRoute`
 commands replace the current destination. Embedded startup mode is applied
 before rendering instead of being guarded by persisted initialization flags.
+Both apps attach their host-message listeners only when the VS Code API is
+present. Browser-mode Scout no longer accepts navigation from arbitrary window
+messages, matching Inspect's existing host boundary.
 
 ## Scope of this change
 
@@ -163,3 +166,22 @@ from route restoration and remain unchanged.
 After removal, `pnpm check` and `pnpm test` pass. The production Inspect build
 also restored epoch 3 and Messages after hiding/revealing its VS Code custom
 editor. Original installed frontend assets were restored and byte-verified.
+
+### Review and full browser regression checks
+
+The full Inspect browser suite caught a header-collapse leak when navigating
+from a deep-linked sample to its sibling. The header survives that route
+change, so its navigation ownership now resets with the existing sample visit
+key. The original regression test passes without changes; all 114 Inspect and
+82 Scout browser cases pass, along with `pnpm check` and `pnpm test`.
+
+Startup and live host commands share their route conversion in Inspect and
+their mode/scanner application in Scout. Scout hydration discards the three
+retired navigation fields while preserving UI preferences; it does not derive
+a route from them or migrate old route snapshots.
+
+With the updated builds in VS Code, Inspect restored epoch 3, Transcript, and
+turn 10 after hiding/revealing its custom editor. Advancing to epoch 4 showed
+the expanded header at the top. Scout restored its efficiency result and
+Events tab after custom-editor recreation. Original installed assets were
+restored after testing.

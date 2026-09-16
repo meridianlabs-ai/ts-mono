@@ -25,7 +25,7 @@ import {
 } from "@tsmono/react/components";
 import { navigateAndForget, useEventListener } from "@tsmono/react/hooks";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { basename, getVscodeApi, isUri } from "@tsmono/util";
+import { getVscodeApi } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
 import {
@@ -48,8 +48,10 @@ import {
 
 import { ApplicationIcons } from "./appearance/icons.ts";
 import { getAppRouter } from "./routing/AppRouter.tsx";
-import { createHostCommandFilter } from "./routing/hostNavigation";
-import { baseUrl } from "./routing/url";
+import {
+  createHostCommandFilter,
+  hostDestinationRoute,
+} from "./routing/hostNavigation";
 
 const componentIcons: ComponentIcons = {
   arrowDown: ApplicationIcons.arrows.down,
@@ -132,11 +134,7 @@ export const AppContent: FC = () => {
 
             navigateAndForget(
               router.navigate.bind(router),
-              baseUrl(
-                isUri(decodedUrl) ? basename(decodedUrl) : decodedUrl,
-                e.data.sample_id,
-                e.data.sample_epoch
-              ),
+              hostDestinationRoute(e.data),
               { replace: true }
             );
           }
