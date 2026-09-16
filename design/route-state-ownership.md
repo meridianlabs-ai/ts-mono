@@ -101,87 +101,79 @@ with a broader generic mirroring abstraction.
 
 ## Verification
 
-Automated checks include actual hash-router recreation, immediate checkpoints,
-query/fragment preservation, explicit deep-link priority, browser non-persistence,
-old-navigation snapshot reset, independent UI/route writes, and host replay handling.
-`pnpm check` and `pnpm test` pass. Browser navigation regression suites passed:
-20 Inspect cases (top-level views, message deep links, log-location trust) and
-10 Scout cases (application navigation, scans, scan and transcript detail).
+The acceptance pass on 2026-09-16 covers the complete suites, not just selected
+navigation specs: **115 Inspect and 84 Scout Playwright tests**, `pnpm check`
+(33 tasks), and `pnpm test` (all nine packages) pass.
 
-Manual testing with production builds in VS Code 0.9.18 extension:
+The full Inspect suite previously caught a header-collapse leak when moving
+from a deep-linked sample to its sibling. The header now resets navigation
+ownership with the sample visit key. The original regression test passes
+unchanged. The acceptance pass below found no further application regressions.
 
-- Inspect custom editor: existing saved Task tab restored; navigated to sample
-  1, epoch 2, Messages; hid and reopened; epoch and tab restored.
-- Scout custom editor: opened a scan and result, selected Events; hid and
-  reopened; result and tab restored.
-- Full Inspect View: opened a one-sample evaluation, selected Messages; hid and
-  reopened; inline sample and tab remained selected.
-- Full Scout View: opened a transcript, selected Messages; hid and reopened;
-  transcript and tab remained selected. A visible-panel `Scout: Scans` command
-  navigated away from the transcript correctly.
+### Durable regression coverage
 
-A `Scout: Validations` command sent while full Scout View was hidden revealed
-the panel but left its Scans destination unchanged. The extension's reveal path
-calls `updateVisibleView` immediately and checks `isVisible()` before posting;
-this is a suspected extension-side visibility race. Reproduced with the prior
-installed frontend after restoring its original assets: from hidden Transcripts,
-`Scout: Validations` revealed the panel but left it on Transcripts; repeating the
-command while visible navigated to Validation. This behavior predates this
-branch. No extension code is changed here. Restart/deserialization of full View
-panels was not manually tested.
+- Shared router/storage tests cover exact route/query/fragment restoration,
+  immediate checkpoints, explicit URL priority, malformed checkpoints, old
+  navigation snapshots being ignored, browser non-persistence, independent
+  UI/route writes, and host replay filtering.
+- New app-level Playwright tests run both viewers with `acquireVsCodeApi`,
+  JSON-RPC HTTP transport, embedded host launch data, and panel-owned state.
+  They recreate the document **without its hash** while retaining that state.
+  Inspect checks epoch/tab restoration, focus replay, a different host log,
+  and explicit deep-link priority. Scout checks full-view host navigation and
+  single-file transcript/event routes, query parameters, and display mode.
+- The test host forwards HTTP requests to the existing MSW network boundary;
+  it does not replace the app's router, store, selection hooks, or API adapter.
+  Scout's polling transport receives real topic-version responses from MSW.
+  These tests simulate the webview contract, not VS Code's extension runtime.
+- Cross-log browser navigation covers repeated sample IDs, different epochs,
+  a sole inline sample, reload, Back, list highlighting, and reopening. Printing
+  from the inline sample after crossing logs verifies the current log's content
+  is printed and the previous log's content is absent.
+- Existing complete suites cover search/find, filters, transcript navigation,
+  scrolling, sibling header reset, error states, chat, and scan/dataframe views.
+  Public embedding selection hooks are tested outside RouterProvider.
 
-### Active selection follow-up
+### Real VS Code acceptance
 
-The route-derived Inspect selection change passes `pnpm check`, `pnpm test`
-(including 1,414 Inspect tests), and 30 Inspect browser cases. Added coverage
-checks route changes and Back across logs/epochs, a one-sample inline view,
-reload without a store selection, return-to-list highlighting and reopening,
-legacy UI-state migration, and all three public embedding selection hooks
-outside RouterProvider. Existing deep-link, transcript, and log-location trust
-regressions also pass.
+Tested the production builds in a separate, trusted local workspace with
+copies of eval/scan files. The installed `ukaisi.inspect-ai-0.9.18` extension
+contains local compiled security changes; this was **not** an untouched
+Marketplace release. Python used Inspect `0.3.259.dev6+g552b4fe43.d20260831`
+and Scout `0.4.46` from the Inspect development virtual environment.
 
-With the production build and installed VS Code extension, manually verified:
+| Scenario | Observed result |
+| --- | --- |
+| Inspect multi-sample custom editor | Epoch 3 / Messages survived hiding and full window reload. |
+| Inspect sole-sample custom editor | Metadata survived recreation and full window reload independently of the multi-sample panel. |
+| Multiple Inspect panels | Each retained its own log, sample, and tab across switching/restart. |
+| Search after restoration | Local grep returned matching text from the restored sample. |
+| Edit after restoration | Added a test tag to the disposable single-sample log; disk inspection confirmed only that log changed. |
+| Scout full View | Scan, efficiency scanner, exact result, and Events tab survived full window reload and closing/reopening the workspace. |
+| Inspect live eval | Six-sample mock-model eval completed successfully. Selected sample / Messages survived hiding while further samples arrived; subsequent samples remained navigable. |
+| Closed workspace reopened | Inspect returned to sample 6 / Messages; Scout returned to the exact result / Events. |
+| Full Inspect View | Inline sample / Messages survived full window reload. |
+| Earlier production checks | Scout custom-editor result / Events recreation; full Scout transcript / Messages hide/reveal; Inspect turn 10 restoration followed by next epoch with expanded header. |
 
-- Multi-sample custom editor: opened epoch 2, chose Messages, hid/revealed the
-  editor (webview reconstruction), retained epoch/tab, then advanced to epoch 3.
-- Single-sample custom editor: derived and displayed the inline sample, chose
-  Messages, hid/revealed, and retained the inline sample and tab.
-- Full Inspect View: navigated from workspace Tasks into a one-sample log,
-  opened its focused turn, hid/revealed the retained panel, and exited focus
-  mode back to the transcript.
+Window reload restarts the renderer and extension host. Closing/reopening the
+workspace additionally exercises serialized panel restoration. The entire VS
+Code application was not quit, preserving the user's other window and unsaved
+work. Remote/SSH/web VS Code and other extension versions were not exercised.
 
-Scout code is unchanged in this follow-up. Temporary test panels were closed
-and the original installed Inspect frontend assets restored and byte-verified.
-Full VS Code application restart remains outside the manual coverage above.
+### Known boundaries
 
-### Removal of old navigation migration
+A hidden full Scout View sometimes ignores the command that reveals it. This
+was reproduced with the original installed frontend: hidden Transcripts →
+`Scout: Validations` revealed Transcripts; repeating the command while visible
+opened Validation. The extension's reveal callback can call `updateVisibleView`
+before `isVisible()` becomes true. This predates the branch; no extension code
+is changed here.
 
-Old UI snapshots no longer provide a restoration destination. Removed both
-app-specific readers and the shared router's `legacyPath` option. Tests cover
-starting from the host launch route when only an old snapshot exists, along
-with the existing exact-location recreation and explicit deep-link priority
-checks. UI preference storage and highlighted-row compatibility are separate
-from route restoration and remain unchanged.
+Inspect's host protocol cannot distinguish a deliberate repeat of the exact
+same destination from a focus replay. The filter preserves in-app navigation
+on focus; a future command identity is needed to distinguish those intentions.
 
-After removal, `pnpm check` and `pnpm test` pass. The production Inspect build
-also restored epoch 3 and Messages after hiding/revealing its VS Code custom
-editor. Original installed frontend assets were restored and byte-verified.
-
-### Review and full browser regression checks
-
-The full Inspect browser suite caught a header-collapse leak when navigating
-from a deep-linked sample to its sibling. The header survives that route
-change, so its navigation ownership now resets with the existing sample visit
-key. The original regression test passes without changes; all 114 Inspect and
-82 Scout browser cases pass, along with `pnpm check` and `pnpm test`.
-
-Startup and live host commands share their route conversion in Inspect and
-their mode/scanner application in Scout. Scout hydration discards the three
-retired navigation fields while preserving UI preferences; it does not derive
-a route from them or migrate old route snapshots.
-
-With the updated builds in VS Code, Inspect restored epoch 3, Transcript, and
-turn 10 after hiding/revealing its custom editor. Advancing to epoch 4 showed
-the expanded header at the top. Scout restored its efficiency result and
-Events tab after custom-editor recreation. Original installed assets were
-restored after testing.
+Non-route UI persistence retains its existing debounce timing; route checkpoints
+are immediate. There is deliberately no migration of old navigation snapshots,
+so an older saved panel starts from its host launch destination once. Browser
+sessions continue to use their URLs without persisting webview checkpoints.

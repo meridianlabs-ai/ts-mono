@@ -6,8 +6,13 @@ import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 test("route identity survives cross-log navigation, Back, and reload without a store selection", async ({
   page,
+  context,
   network,
 }) => {
+  await context.addInitScript(() => {
+    window.print = () => undefined;
+    window.close = () => undefined;
+  });
   const sample = (epoch: number, content: string) =>
     createEvalSample({
       id: "same-id",
@@ -71,6 +76,17 @@ test("route identity survives cross-log navigation, Back, and reload without a s
   await expect(
     page.getByText("Different log response", { exact: true })
   ).toBeVisible();
+
+  const popup = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Print" }).click();
+  const printPage = await popup;
+  await expect(
+    printPage.getByText("Different log response", { exact: true })
+  ).toBeVisible();
+  await expect(
+    printPage.getByText("Second epoch response", { exact: true })
+  ).toHaveCount(0);
+  await printPage.close();
 
   await page.goBack();
   await expect(
