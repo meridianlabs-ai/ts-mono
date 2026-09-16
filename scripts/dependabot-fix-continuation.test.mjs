@@ -249,10 +249,9 @@ test("e2e: fork PR named dependabot-fix/* is skipped and nothing is checked out"
   assert.equal(readFileSync(join(fx.work, "other.txt"), "utf8"), "base\n");
 });
 
-test("e2e: no dependabot-fix branches in origin needs no gh at all", (t) => {
+test("e2e: no dependabot-fix branches in origin still names a fresh branch (one gh call, for its head name)", (t) => {
   const fx = fixture([]);
   t.after(() => rmSync(fx.root, { recursive: true, force: true }));
-  rmSync(join(fx.bin, "gh"));
   const r = runScript(fx, []);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.outputs.branch, NEW_BRANCH);
@@ -324,6 +323,21 @@ test("e2e: --select-only names the branch and PR but checks nothing out", (t) =>
     "overrides:\n  a: ^1\n"
   );
   assert.equal(git(fx.work, "branch", "--list", BATCH_BRANCH.name), "");
+});
+
+test("e2e: a new batch branch skips a head name an open fork PR uses", (t) => {
+  const fx = fixture([]);
+  t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  const today = `dependabot-fix/${new Date().toISOString().slice(0, 10)}`;
+  const r = runScript(
+    fx,
+    [pr(3, { headRefName: today, isCrossRepository: true })],
+    ["--select-only"]
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.outputs.branch, `${today}-2`);
+  assert.equal(r.outputs.continuing, "false");
+  assert.match(r.stdout, /an open PR already uses that head name/);
 });
 
 test("e2e: --select-only with nothing to continue names a branch that is not in origin", (t) => {

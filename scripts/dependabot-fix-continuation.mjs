@@ -67,12 +67,14 @@ export function selectContinuation(candidates) {
 }
 
 // Name for a new batch branch when nothing is continued: the run date, with
-// a numeric suffix when that name is already taken in origin (a batch
-// merged or closed earlier the same day) so the land job never pushes onto
-// a branch whose tip it did not start from.
-export function newBatchBranch(existing, date = new Date()) {
+// a numeric suffix when that name is taken — a branch in origin (a batch
+// merged or closed earlier the same day), so the land job never pushes onto
+// a branch whose tip it did not start from, or the head name of any open PR
+// (main() adds those, forks included), so the landing's open-or-adopt step
+// finds no PR by that name but the one it opens.
+export function newBatchBranch(taken, date = new Date()) {
   const base = `${PREFIX}${date.toISOString().slice(0, 10)}`;
-  const taken = new Set(existing);
+  taken = new Set(taken);
   let name = base;
   for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
   return name;
@@ -185,12 +187,22 @@ function main() {
     if (!selected) lines.push("- none: no eligible continuation PR");
   }
 
-  const branch = selected?.branch ?? newBatchBranch(branches);
+  let branch = selected?.branch;
   if (selected) {
     lines.push(
       `- continuing \`${selected.branch}\` (PR ${selected.number}, ${selected.url})`
     );
   } else {
+    // A fresh name is not in origin, but a fork PR can carry any head
+    // name; skip names an open PR uses so the landing cannot adopt it.
+    const taken = [...branches];
+    for (branch = newBatchBranch(taken); listOpenPrs(branch).length > 0;) {
+      lines.push(
+        `- skipped \`${branch}\`: an open PR already uses that head name`
+      );
+      taken.push(branch);
+      branch = newBatchBranch(taken);
+    }
     lines.push(`- new batch branch: \`${branch}\``);
   }
   const outputs = {

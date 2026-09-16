@@ -144,8 +144,10 @@ no user to ask, so wherever this skill says to ask, defer instead:
   no PR.
 - The agent holds no GitHub write credential: commit on the branch the
   workflow checked out, never push, never `gh pr create`/`gh pr edit`.
-  Write the PR title and body to the files the prompt names; a trusted job
-  pushes the commits and opens or updates the PR as the GitHub App
+  Write the PR text to the files the prompt names — title and body for a
+  new batch, a batch-update note when continuing a PR (posted there as a
+  comment; write it even when nothing new was committed). A trusted job
+  pushes the commits and opens or comments on the PR as the GitHub App
   (`meridian-marvin[bot]`) after the agent job ends.
 
 ## Gotchas

@@ -23,10 +23,12 @@
 #                     file, edits the tree, commits locally and writes the PR
 #                     title/body as files; `emit-landing` packages the commits
 #                     and a manifest for the land job.
-#   land  (trusted)   a fresh runner that checks out nothing: mints an App
+#   land  (trusted)   a fresh runner that checks out nothing: checks the
+#                     manifest names exactly the gate's branch, mints an App
 #                     token for this repo (contents + pull requests), validates
-#                     the manifest, pushes the batch branch, opens the PR (or,
-#                     on a continued batch, updates the open PR's body).
+#                     the manifest, pushes the batch branch and opens the PR
+#                     (or, on a continued batch, posts the run's batch update
+#                     as a comment on the open PR).
 #
 # GitHub identity is the org's GitHub App, meridian-marvin[bot], minted per
 # job with actions/create-github-app-token from the org secrets
@@ -49,9 +51,10 @@
 # scripts/dependabot-fix-continuation.mjs in the gate job — the selection
 # rule and its rationale live in that script's header — and the agent job
 # checks it out before the agent starts. The agent is told the result and
-# instructed not to touch any other ref. The land job pins the manifest's
-# branch to the gate's choice (the open PR's live head ref, or exactly the
-# fresh branch name), so a tampered artifact cannot steer the push.
+# instructed not to touch any other ref. The land job refuses a manifest
+# whose branch is not exactly the gate's choice, and the landing composite
+# pins a continued batch to the open PR's live head ref besides, so a
+# tampered artifact cannot steer the push.
 #
 # The permission allowlist below is defense in depth, not a boundary:
 # `Bash(pnpm:*)` is arbitrary execution and `gh api` is general-purpose.
@@ -164,6 +167,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+      pull-requests: read # the agent's `gh pr list/view` (an omitted permission is none, public repo or not)
       id-token: write
     env:
       # Commit identity for the merge below and the agent's own commits: the
@@ -317,13 +321,15 @@ jobs:
 
             Commit your fixes on the current branch (git add / git commit;
             never push). A trusted job pushes your commits after this job
-            ends and opens the PR, or updates the open PR, from two files you
-            write in ${{ runner.temp }}/agent-io:
-            - pr-title.txt: one line, the PR title (a new batch only).
-            - pr-body.md: the full PR body per the skill (one line per alert
-              fixed, every deferred alert and why). When continuing a PR,
-              write the body for the whole batch — it replaces the open PR's
-              body (`gh pr view <number> --json body` shows the current one).
+            ends and opens or updates the PR from files you write in
+            ${{ runner.temp }}/agent-io:
+            - A new batch: pr-title.txt (one line, the PR title) and
+              pr-body.md (the full PR body per the skill: one line per alert
+              fixed, every deferred alert and why).
+            - Continuing a PR: pr-update.md, what this run fixed or deferred
+              and why; it is posted as a comment on the open PR. Write it
+              whenever the PR needs an update, even when you made no new
+              commit (newly deferred alerts, say).
             If nothing is actionable and no open PR needs updating, commit
             nothing and write no PR files.
 
@@ -363,13 +369,13 @@ jobs:
       # by name, never interpolated into a command. A run that committed
       # nothing is a legitimate no-op (nothing actionable), not an error.
       # Fields:
-      #   pr     — a new batch only: open the PR for the branch; title from
-      #            pr-title.txt (first line, control characters stripped)
-      #   error  — the Surface step's message, an unresolved merge, or a
-      #            missing PR body; fail_run true
-      # On a continued batch the manifest names no PR change (the land
-      # composite pushes to the pinned PR's branch); pr-body.md rides along
-      # in the artifact for the land job's "Update the batch PR body" step.
+      #   pr       — a new batch only: open the PR for the branch; title from
+      #              pr-title.txt (first line, control characters stripped)
+      #   comments — a continued batch only: pr-update.md as a comment on the
+      #              pinned PR, whether or not this run committed anything
+      #              (the land composite pushes to the pinned PR's branch)
+      #   error    — the Surface step's message, an unresolved merge, or a
+      #              missing PR body; fail_run true
       - name: Compose landing manifest
         if: always()
         env:
@@ -378,6 +384,7 @@ jobs:
           EXTRA: ${{ runner.temp }}/landing-extra.json
           START: ${{ steps.base.outputs.sha }}
           CONTINUING: ${{ needs.gate.outputs.continuing }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
           ERROR_FILE: ${{ runner.temp }}/agent-error.md
         run: |
           set -euo pipefail
@@ -388,20 +395,32 @@ jobs:
           if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
             err="The merge of the default branch into the batch branch was left unfinished, so nothing was landed."
           fi
+          committed=false
           if [ -n "$START" ] && [ "$tip" != "$START" ]; then
+            committed=true
+          else
+            echo "landing: no commits above $START; nothing to push."
+          fi
+          if [ "$CONTINUING" = "true" ]; then
+            # The pinned PR (a trusted gate output). The update is a comment,
+            # independent of whether this run committed: a run that only
+            # defers alerts still owes the PR a note.
+            if [ -s "$IO/pr-update.md" ]; then
+              head -c 60000 "$IO/pr-update.md" >"$DIR/pr-update.md"
+              extra=$(jq -c --argjson n "$PR_NUMBER" '.comments = [{number: $n, body_file: "pr-update.md"}]' <<<"$extra")
+            elif [ "$committed" = "true" ]; then
+              err="${err:+$err }The agent committed changes to the open batch PR but wrote no pr-update.md; the PR got no note about them."
+            fi
+          elif [ "$committed" = "true" ]; then
             if [ -s "$IO/pr-body.md" ]; then
               head -c 60000 "$IO/pr-body.md" >"$DIR/pr-body.md"
             else
               err="${err:+$err }The agent committed changes but wrote no pr-body.md; the PR body is a placeholder."
               printf 'Dependabot fix batch — the agent wrote no PR body; see the workflow run log.\n' >"$DIR/pr-body.md"
             fi
-            if [ "$CONTINUING" != "true" ]; then
-              title=$( { head -n1 "$IO/pr-title.txt" 2>/dev/null || true; } | tr -d '\000-\037\177' | head -c 200)
-              [ -n "$title" ] || title="chore(deps): fix dependabot alerts"
-              extra=$(jq -c --arg t "$title" '.pr = {open: true, title: $t, body_file: "pr-body.md"}' <<<"$extra")
-            fi
-          else
-            echo "landing: no commits above $START; nothing to push."
+            title=$( { head -n1 "$IO/pr-title.txt" 2>/dev/null || true; } | tr -d '\000-\037\177' | head -c 200)
+            [ -n "$title" ] || title="chore(deps): fix dependabot alerts"
+            extra=$(jq -c --arg t "$title" '.pr = {open: true, title: $t, body_file: "pr-body.md"}' <<<"$extra")
           fi
           if [ -s "$ERROR_FILE" ]; then
             err=$(printf '%s%s' "$(cat "$ERROR_FILE")" "${err:+$(printf '\n\n%s' "$err")}")
@@ -442,9 +461,40 @@ jobs:
       pull-requests: read # the continued PR's head-ref lookup (read token)
       actions: read # artifact download
     steps:
+      # The landing composite pins a manifest's branch by PREFIX on a run
+      # that names no PR, and `dependabot-fix/<date>` is a prefix of
+      # `dependabot-fix/<date>-other`. A tampered artifact could steer a
+      # new batch's push at such a sibling, so the manifest's branch is
+      # compared with the gate's (trusted) branch for equality first — an
+      # equality test on one field read as text, before any token is minted;
+      # the composite validates everything else. A missing artifact is the
+      # composite's to report (it posts on the pinned PR), so it is not
+      # failed here.
+      - name: Download the landing manifest
+        id: manifest
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: landing
+          path: ${{ runner.temp }}/landing-check
+
+      - name: Refuse a manifest that names another branch
+        env:
+          MANIFEST: ${{ runner.temp }}/landing-check/manifest.json
+          BRANCH: ${{ needs.gate.outputs.branch }}
+        run: |
+          set -euo pipefail
+          [ -f "$MANIFEST" ] || { echo "No landing manifest; the landing composite reports the missing artifact."; exit 0; }
+          named=$(jq -r '.branch // ""' "$MANIFEST" 2>/dev/null || true)
+          if [ "$named" != "$BRANCH" ]; then
+            echo "::error::The landing manifest names branch '$named', not the gate's '$BRANCH'; refusing to land."
+            exit 1
+          fi
+          echo "Manifest branch matches the gate's: $BRANCH"
+
       # Scoped to this repo and to this job's writes: the push (contents) and
-      # the PR — open, or its body on a continued batch (pull requests). Both
-      # come from meridian-marvin[bot], so CI runs on the PR.
+      # the PR — open it, or comment on a continued batch (pull requests).
+      # Both come from meridian-marvin[bot], so CI runs on the PR.
       - name: Mint the App token
         id: mint
         uses: actions/create-github-app-token@v2
@@ -466,41 +516,10 @@ jobs:
           allowed-issue-repos: ""
           # The same value emit-landing got above: on a continued batch the
           # validator pins the manifest's pr_number to it and the branch to
-          # that PR's live head ref; the push then updates the open PR.
+          # that PR's live head ref; the push then updates the open PR and
+          # the manifest's comment lands on it.
           pr-number: ${{ needs.gate.outputs.pr_number }}
-          # A new batch names no PR to pin the branch to, so the gate's
-          # branch name is the pin: the manifest's branch must start with it
-          # (here: equal it), as in the agents repo's landing smoke test.
+          # A new batch names no PR to pin the branch to; the gate's branch
+          # name is the composite's pin (prefix), and the equality check
+          # above makes it exact.
           branch-prefix: ${{ needs.gate.outputs.branch }}
-
-      # The manifest cannot express "replace the open PR's body" (its `pr`
-      # block only opens a PR), so on a continued batch the agent's
-      # pr-body.md rides along in the landing artifact and is applied here
-      # from a separate download, after the composite pushed. Agent text
-      # posted as the App: the same de-fang as the composite's lib.sh
-      # (triggers lose their `@`, loop markers are split) before it goes out.
-      - name: Download the landing artifact for the batch PR body
-        if: needs.gate.outputs.continuing == 'true' && steps.land.outputs.pushed == '1'
-        uses: actions/download-artifact@v7
-        with:
-          name: landing
-          path: ${{ runner.temp }}/batch-body
-
-      - name: Update the batch PR body
-        if: needs.gate.outputs.continuing == 'true' && steps.land.outputs.pushed == '1'
-        env:
-          GH_TOKEN: ${{ steps.mint.outputs.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ needs.gate.outputs.pr_number }}
-          SRC: ${{ runner.temp }}/batch-body/pr-body.md
-        run: |
-          set -euo pipefail
-          [ -s "$SRC" ] || { echo "No pr-body.md in the landing; the PR body is unchanged."; exit 0; }
-          # shellcheck disable=SC2016 # sed back-references, not shell expansions
-          sed -E -e 's/@(review|claude|auto)/`\1`/gI' \
-                 -e 's/claude-review-(summary|verdict|comment|nudge)/claude-review \1/gI' \
-                 -e 's/auto-(handoff|converged|review-rounds|review-head|fix-attempts)/auto \1/gI' \
-                 "$SRC" >"$RUNNER_TEMP/pr-body.md"
-          gh pr edit "$PR" --repo "$REPO" --body-file "$RUNNER_TEMP/pr-body.md" \
-            || { echo "::error::Could not update the body of PR #$PR; the push landed, update the body by hand."; exit 1; }
-          echo "Updated the body of PR #$PR."
