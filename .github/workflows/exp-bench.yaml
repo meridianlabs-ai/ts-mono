@@ -1,0 +1,40 @@
+name: exp-bench
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Bench
+        run: |
+          nproc; grep -m1 "model name" /proc/cpuinfo
+          bench() {
+            local label=$1; shift
+            local s=$(date +%s%3N)
+            if ! "$@" > "/tmp/${label// /_}.log" 2>&1; then echo "FAILED: $label"; fi
+            local e=$(date +%s%3N)
+            awk -v l="$label" -v ms=$((e - s)) 'BEGIN { printf "%-24s %6.1fs\n", l, ms / 1000 }' | tee -a /tmp/bench.txt
+          }
+          for round in 1 2; do
+            bench "turbo-default r$round"   pnpm turbo run test
+            bench "turbo-conc1 r$round"     pnpm turbo run test --concurrency=1
+            bench "turbo-conc2 r$round"     pnpm turbo run test --concurrency=2
+            bench "vitest-projects r$round" pnpm vitest run
+          done
+          { echo '```'; cat /tmp/bench.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bench-logs-${{ github.run_id }}
+          path: /tmp/*.log
+          retention-days: 3
