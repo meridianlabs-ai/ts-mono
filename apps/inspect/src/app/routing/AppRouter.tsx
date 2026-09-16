@@ -20,6 +20,7 @@ import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 import { SampleEventView } from "../samples/event/SampleEventView";
 
+import { CurrentSelectionProvider } from "./currentSelection";
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
 import { SamplesRouter } from "./SamplesRouter";
@@ -71,7 +72,9 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <LoaderMounts>{content}</LoaderMounts>
+        <CurrentSelectionProvider>
+          <LoaderMounts>{content}</LoaderMounts>
+        </CurrentSelectionProvider>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );

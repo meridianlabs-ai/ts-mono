@@ -1,10 +1,7 @@
-import { FC, useEffect, useLayoutEffect, useRef } from "react";
+import { FC, useEffect } from "react";
 import { Navigate, useLocation, useSearchParams } from "react-router";
 
-import { useUnmount } from "@tsmono/react/hooks";
-
 import { kLogViewSamplesTabId } from "../../constants";
-import { selectLogFile, unloadLog } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useSampleUuidRedirectUrl } from "../routing/sampleNavigation";
 import { useLogRouteParams, type RoutePrefix } from "../routing/url";
@@ -20,10 +17,6 @@ export const LogViewContainer: FC = () => {
 
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const clearSelectedSample = useStore(
-    (state) => state.sampleActions.clearSelectedSample
-  );
-
   const location = useLocation();
   const prefix: RoutePrefix = location.pathname.startsWith("/tasks/")
     ? "/tasks"
@@ -38,44 +31,13 @@ export const LogViewContainer: FC = () => {
     prefix,
   });
 
-  // Unload the log when this is mounted. This prevents the old log
-  // data from being displayed when navigating back to the logs panel
-  // and also ensures that we reload logs when freshly navigating to them.
-  useUnmount(() => {
-    unloadLog();
-  });
-
-  const prevLogPathRef = useRef<string | undefined>(undefined);
-
-  // Clear the previous eval's data before paint when the route changes, so the
-  // old eval doesn't flash while the new one loads. A useEffect would run after
-  // the browser has already painted the stale eval. (Details and pending
-  // summaries are query-keyed per log file, so the selected sample handle is
-  // the only cross-log store state to clear.)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useLayoutEffect(() => {
-    const prevLogPath = prevLogPathRef.current;
-    prevLogPathRef.current = logPath;
-    if (prevLogPath && logPath && logPath !== prevLogPath) {
-      clearSelectedSample();
-    }
-  }, [logPath, clearSelectedSample]);
-
-  // Sync the workspace tab from the URL synchronously. Kept separate from
-  // the async log-loading effect below so a tab click can't race with a
-  // pending initLogDir() and snap the view back to an older tab.
+  // Workspace tab consumers still use UI state; active log/sample identity
+  // already comes directly from routing.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     if (!logPath) return;
     setWorkspaceTab(tabId ?? kLogViewSamplesTabId);
   }, [logPath, tabId, setWorkspaceTab]);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (logPath) {
-      selectLogFile(logPath);
-    }
-  }, [logPath]);
 
   if (sampleUuidRedirectUrl) {
     const search = searchParams.toString();

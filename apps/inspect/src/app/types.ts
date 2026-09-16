@@ -63,7 +63,6 @@ export interface DisplayedSample {
 }
 
 export interface LogsState {
-  selectedLogFile?: string;
   listing: LogsListing;
   samplesListState: {
     // samplesPanel is cross-log by nature (lists samples from many logs in
@@ -126,9 +125,7 @@ export interface SampleHandle {
 }
 
 export interface LogState {
-  loadedLog?: string;
-
-  selectedSampleHandle?: SampleHandle;
+  highlightedSample?: SampleHandle;
 
   filter: string;
   filterError?: FilterError;

@@ -10,9 +10,10 @@ import type {
 import { formatNoDecimal } from "@tsmono/util";
 
 import { MessageBand } from "../../../components/MessageBand";
-import { selectSample, setDocumentTitle } from "../../../state/actions";
+import { highlightSample, setDocumentTitle } from "../../../state/actions";
 import { useSelectedLogDetails } from "../../../state/hooks";
 import { useStore } from "../../../state/store";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import { useSampleNavigationActions } from "../../routing/sampleNavigation";
 import { useLogRouteParams } from "../../routing/url";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
@@ -79,9 +80,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
 
   const sampleNavigation = useSampleNavigationActions();
   const { sampleId: routeSampleId, epoch: routeEpoch } = useLogRouteParams();
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const highlightedSample = useStore((state) => state.log.highlightedSample);
 
   const selectedLogDetails = useSelectedLogDetails();
   const evalSpec = selectedLogDetails?.eval;
@@ -93,8 +92,8 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
       // Re-clicking the sample that's currently open in the detail view
-      // would re-run selectSample + navigate redundantly — skip only that.
-      // Keyed off the route (not selectedSampleHandle, which persists after
+      // would re-run highlightSample + navigate redundantly — skip only that.
+      // Keyed off the route (not highlightedSample, which persists after
       // navigating back to the log and would wrongly ignore the re-click).
       if (
         isSampleOpenInRoute(routeSampleId, routeEpoch, row.sampleId, row.epoch)
@@ -114,13 +113,15 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
   // Keyboard/click selection moves flow to the selection's owner (zustand),
   // which feeds back through selectedRowId — the grid never shadows it.
   const handleRowSelect = useCallback(
-    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
+    (row: SampleRow) => highlightSample(row.sampleId, row.epoch, row.logFile),
     []
   );
 
-  const selectedRowId = selectedSampleHandle
-    ? makeSampleRowId(selectedSampleHandle.id, selectedSampleHandle.epoch)
-    : undefined;
+  const logFile = useCurrentLogFile();
+  const selectedRowId =
+    highlightedSample?.logFile === logFile && highlightedSample
+      ? makeSampleRowId(highlightedSample.id, highlightedSample.epoch)
+      : undefined;
 
   const sampleCount = items.length;
 

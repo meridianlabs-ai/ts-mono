@@ -1,10 +1,12 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 
+import { navigateAndForget, useUnmount } from "@tsmono/react/hooks";
 import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useAppConfig, useLogDir } from "../../app_config";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import {
   samplesSampleUrl,
   samplesUrl,
@@ -19,7 +21,6 @@ import { SampleDetailComponent } from "../samples/SampleDetailComponent";
  * This component handles:
  * - Navigation state calculation using displayedSamples from samples grid
  * - Navigation callbacks (handlePrevious, handleNext)
- * - Cleanup on unmount (clears log state since this is a standalone view)
  *
  * Rendering is delegated to SampleDetailComponent.
  */
@@ -35,15 +36,14 @@ export const SampleDetailView: FC = () => {
   } = useSamplesRouteParams();
   const navigate = useNavigate();
 
-  // Get store state for navigation
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  // The grid remembers its visible order for cross-log navigation.
+  const selectedLogFile = useCurrentLogFile();
   const logDir = useLogDir();
   const displayedSamples = useStore(
     (state) => state.logs.samplesListState.displayedSamples
   );
 
   // Cleanup actions
-  const clearLog = useStore((state) => state.logActions.clearLog);
   const clearSampleTab = useStore((state) => state.appActions.clearSampleTab);
 
   // Find current sample in displayed samples list
@@ -71,18 +71,15 @@ export const SampleDetailView: FC = () => {
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0 && displayedSamples && routeLogPath && logDir) {
       const prev = displayedSamples[currentIndex - 1];
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+      if (!prev) return;
       const relativePath = directoryRelativeUrl(prev.logFile, logDir);
       const url = samplesSampleUrl(
         relativePath,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         prev.sampleId,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         prev.epoch,
         tabId
       );
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
+      navigateAndForget(navigate, url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
@@ -95,29 +92,19 @@ export const SampleDetailView: FC = () => {
       logDir
     ) {
       const next = displayedSamples[currentIndex + 1];
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+      if (!next) return;
       const relativePath = directoryRelativeUrl(next.logFile, logDir);
       const url = samplesSampleUrl(
         relativePath,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         next.sampleId,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
         next.epoch,
         tabId
       );
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
+      navigateAndForget(navigate, url);
     }
   }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
 
-  // Cleanup on unmount - clear log state since this is a standalone view
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    return () => {
-      clearLog();
-      clearSampleTab();
-    };
-  }, [clearLog, clearSampleTab]);
+  useUnmount(clearSampleTab);
 
   return (
     <SampleDetailComponent

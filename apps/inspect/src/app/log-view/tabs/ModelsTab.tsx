@@ -19,7 +19,7 @@ import {
 
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
-import { useStore } from "../../../state/store";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import { useShowTimelineForModel } from "../useShowTimeline";
 
 // Individual hook for Info tab
@@ -59,7 +59,7 @@ export const ModelTab: FC<ModelTabProps> = ({
   configUpdates,
 }) => {
   const showTimelineForModel = useShowTimelineForModel();
-  const loadedLog = useStore((state) => state.log.loadedLog);
+  const logFile = useCurrentLogFile();
   const configsByModel = useMemo(
     () => buildConfigsByModel(evalSpec),
     [evalSpec]
@@ -138,7 +138,7 @@ export const ModelTab: FC<ModelTabProps> = ({
           completed_at={evalStats?.completed_at}
           config_updates={configUpdates}
           main_model={evalSpec?.model}
-          state_key={loadedLog ?? undefined}
+          state_key={logFile ?? undefined}
           onViewTimeline={showTimelineForModel}
         />
       </div>

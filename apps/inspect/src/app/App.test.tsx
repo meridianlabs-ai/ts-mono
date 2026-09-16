@@ -4,11 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getVscodeApi } from "@tsmono/util";
 
-import {
-  initializeStore,
-  storeImplementation,
-  StoreState,
-} from "../state/store";
+import { initializeStore } from "../state/store";
 
 import { AppContent } from "./App";
 
@@ -45,11 +41,6 @@ const postHostMessage = (data: unknown) => {
   });
 };
 
-const store = (): StoreState => {
-  if (!storeImplementation) throw new Error("store not initialized");
-  return storeImplementation.getState();
-};
-
 beforeEach(() => {
   initializeStore({
     downloadFiles: false,
@@ -57,7 +48,6 @@ beforeEach(() => {
     webWorkers: false,
     streamSamples: false,
   });
-  store().logsActions.setSelectedLogFile("file:///logs/open.eval");
 });
 
 afterEach(() => {
@@ -82,7 +72,7 @@ describe("in VS Code", () => {
       log_dir: "file:///logs",
     });
 
-    expect(store().logs.selectedLogFile).toBe("file:///logs/open.eval");
+    expect(navigate).not.toHaveBeenCalled();
     expect(invalidateLogListing).toHaveBeenCalledTimes(1);
   });
 

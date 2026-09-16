@@ -4,7 +4,6 @@ import {
   Fragment,
   RefObject,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -34,7 +33,6 @@ import {
 } from "../../../app/samples/SamplesTools.tsx";
 import { totalSampleTokens } from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
-import { selectSample } from "../../../state/actions.ts";
 import {
   useEffectiveEvalConfig,
   useFilteredSamples,
@@ -48,6 +46,7 @@ import {
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
   sortingToViewSort,
   viewSortToSorting,
@@ -202,7 +201,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // compute over the settled rows this AsyncData carries.
   const summariesState = useSelectedSampleSummaries();
   const selectedLogDetails = useSelectedLogDetails();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
 
   // Effective (folded) config — limit/epochs are launch-shaped, but routing
   // every config read through the fold makes that assumption enforced.
@@ -461,15 +460,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       };
     });
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const sample =
-      sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;
-    if (sample && selectedLogFile) {
-      selectSample(sample.id, sample.epoch, selectedLogFile);
-    }
-  }, [sampleSummaries, selectedLogFile]);
 
   if (summariesState.error) {
     return (
