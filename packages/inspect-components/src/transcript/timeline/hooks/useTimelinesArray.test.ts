@@ -55,12 +55,17 @@ function makeModelEvent(
   });
 }
 
-function spanBegin(id: string, name: string, type: string): Event {
+function spanBegin(
+  id: string,
+  name: string,
+  type: string,
+  parentId: string | null = null
+): Event {
   return testSpanBeginEvent({
     id,
     name,
     type,
-    parent_id: null,
+    parent_id: parentId,
     timestamp: new Date(1705312800000).toISOString(),
     working_start: 0,
   });
@@ -187,6 +192,91 @@ describe("useTimelinesArray", () => {
       "orphan-2",
     ]);
   });
+
+  it.each([
+    { name: "self", parents: [{ id: "cycle", parent: "cycle" }] },
+    {
+      name: "two-span",
+      parents: [
+        { id: "cycle", parent: "other" },
+        { id: "other", parent: "cycle" },
+      ],
+    },
+    {
+      name: "ancestor",
+      parents: [
+        { id: "leaf", parent: "cycle" },
+        { id: "cycle", parent: "other" },
+        { id: "other", parent: "cycle" },
+      ],
+    },
+  ])(
+    "rejects a $name parent cycle instead of hanging the transcript",
+    ({ parents }) => {
+      const events = [
+        makeModelEvent("referenced", 0),
+        ...parents.map(({ id, parent }) => spanBegin(id, id, "agent", parent)),
+        makeModelEvent("orphan", 1, parents[0]!.id),
+      ];
+
+      expect(() =>
+        renderHook(() =>
+          useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
+        )
+      ).toThrow("Invalid transcript: cyclic span parent chain");
+    }
+  );
+
+  it("preserves nested orphan spans and events sharing an ancestor", () => {
+    const events = [
+      makeModelEvent("referenced", 0),
+      spanBegin("parent", "parent", "agent"),
+      spanBegin("child", "child", "agent", "parent"),
+      makeModelEvent("child-event", 1, "child"),
+      makeModelEvent("parent-event", 2, "parent"),
+      makeModelEvent("root-event", 3),
+    ];
+    const { result } = renderHook(() =>
+      useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
+    );
+
+    expect(eventUuids(result.current[0]!)).toEqual([
+      "referenced",
+      "child-event",
+      "parent-event",
+      "root-event",
+    ]);
+    const parent = result.current[0]!.root.content.find(
+      (item) => item.type === "span"
+    );
+    expect(parent?.id).toBe("parent");
+    expect(parent?.content[0]?.id).toBe("child");
+  });
+
+  it.each([null, "missing"])(
+    "promotes orphans below a referenced span whose parent is %s",
+    (parentId) => {
+      const events = [
+        spanBegin("ancestor", "ancestor", "agent", parentId),
+        spanBegin("represented", "represented", "agent", "ancestor"),
+        makeModelEvent("referenced", 0, "represented"),
+        spanBegin("orphan-span", "orphan-span", "agent", "represented"),
+        makeModelEvent("orphan", 1, "orphan-span"),
+      ];
+      const server: ServerTimeline = {
+        name: "A",
+        description: "server description",
+        root: makeServerSpan("represented", "Server root", ["referenced"]),
+      };
+      const { result } = renderHook(() => useTimelinesArray(events, [server]));
+
+      expect(result.current[0]?.name).toBe("A");
+      expect(result.current[0]?.description).toBe("server description");
+      expect(result.current[0]?.root.name).toBe("Server root");
+      expect(eventUuids(result.current[0]!)).toEqual(["referenced", "orphan"]);
+      expect(result.current[0]?.root.content[1]?.id).toBe("orphan-span");
+    }
+  );
 
   it("preserves server timelines when there are no orphan events", () => {
     const events = [makeModelEvent("a-1", 0), makeModelEvent("b-1", 1)];
