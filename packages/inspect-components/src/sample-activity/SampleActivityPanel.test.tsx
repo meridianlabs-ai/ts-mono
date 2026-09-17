@@ -143,7 +143,6 @@ describe("SampleActivityPanel band chips", () => {
     expect(screen.getByText("TOKEN BURN")).toBeTruthy();
     // Working time is the opt-in band.
     expect(screen.queryByText("WORKING TIME")).toBeNull();
-    expect(screen.queryByText(/gap = waiting/)).toBeNull();
   });
 
   it("orders the chips activity → context → tokens → markers → working", () => {
@@ -170,10 +169,16 @@ describe("SampleActivityPanel band chips", () => {
   });
 
   it("toggles the opt-in band on and default bands off via chips", () => {
-    mountPanel();
+    const { container } = mountPanel();
     fireEvent.click(screen.getByRole("button", { name: "Working time" }));
     expect(screen.getByText("WORKING TIME")).toBeTruthy();
-    expect(screen.getByText(/gap = waiting/)).toBeTruthy();
+    // The picker row carries no legend hint beside the chips (round 22):
+    // its only text is the caption and the controls' own labels.
+    const pickerRow = container.querySelector("[class*='pickerRow']");
+    const controlText = [...(pickerRow?.querySelectorAll("button") ?? [])]
+      .map((button) => button.textContent)
+      .join("");
+    expect(pickerRow?.textContent).toBe(`Activity${controlText}`);
 
     fireEvent.click(screen.getByRole("button", { name: /Token burn/ }));
     expect(screen.queryByText("TOKEN BURN")).toBeNull();
@@ -823,7 +828,6 @@ describe("SampleActivityPanel Turns axis", () => {
 
     toTurns();
     expect(screen.queryByText("WORKING TIME")).toBeNull();
-    expect(screen.queryByText(/gap = waiting/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Working time/ })).toBeNull();
     // The other chips stay put.
     expect(screen.getByRole("button", { name: /Markers/ })).toBeTruthy();

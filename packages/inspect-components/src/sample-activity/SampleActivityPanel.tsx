@@ -315,12 +315,6 @@ const SampleActivityPanelBody: FC<SampleActivityPanelProps> = ({
             onToggle={() => toggleBand("working", false)}
           />
         )}
-        {showWorking && (
-          <span className={styles.legend}>
-            <span className={styles.legendSwatch} /> working time · gap =
-            waiting
-          </span>
-        )}
         <AxisToggle mode={axisMode} onChange={setAxisMode} />
       </div>
       <ActivityChart

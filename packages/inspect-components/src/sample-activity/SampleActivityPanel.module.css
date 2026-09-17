@@ -53,20 +53,3 @@
   margin-left: auto;
   display: inline-flex;
 }
-
-.legend {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.7rem;
-  color: var(--bs-secondary-color);
-  white-space: nowrap;
-}
-
-.legendSwatch {
-  width: 9px;
-  height: 9px;
-  border-radius: 1px;
-  background: #5b8ec4;
-  display: inline-block;
-}
