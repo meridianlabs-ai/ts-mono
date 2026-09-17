@@ -48,7 +48,7 @@ const open = (refs: unknown = [[0, 1]], structure: unknown = skeleton()) => {
   ]);
   const readFile = vi.fn((name: string) => {
     if (!files.has(name)) throw new Error(`Missing ${name}`);
-    const json = JSON.stringify(files.get(name));
+    const json = JSON.stringify(files.get(name)).replaceAll('"1e400"', "1e400");
     return Promise.resolve(new TextEncoder().encode(json));
   });
   return {
@@ -59,9 +59,15 @@ const open = (refs: unknown = [[0, 1]], structure: unknown = skeleton()) => {
 
 describe("chunked sidecar bounds", () => {
   it.each(
-    [[[0, -1]], [[0, "x"]], [[0, null]], [[0, 0.5]], [[0, 1e15]], [[1, 0]]].map(
-      (refs) => ({ refs })
-    )
+    [
+      [[0, -1]],
+      [[0, "x"]],
+      [[0, "1e400"]],
+      [[0, null]],
+      [[0, 0.5]],
+      [[0, 1e15]],
+      [[1, 0]],
+    ].map((refs) => ({ refs }))
   )(
     "rejects invalid message_refs %j before exposing the sample",
     async ({ refs }) => {
@@ -82,7 +88,7 @@ describe("chunked sidecar bounds", () => {
     await expect(open([], structure).result).rejects.toThrow();
   });
 
-  it.each([1e9, null, -1, 0.5])(
+  it.each([1e9, "1e400", null, -1, 0.5])(
     "rejects invalid gap model count %s",
     async (count) => {
       const structure = skeleton();
