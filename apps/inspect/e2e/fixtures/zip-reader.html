@@ -12,6 +12,12 @@
       import { zipSync } from "fflate";
 
       const output = document.querySelector("output");
+      let workerRequests = 0;
+      const originalPostMessage = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (...args) {
+        if (args[0]?.type === "decompress") workerRequests++;
+        return originalPostMessage.apply(this, args);
+      };
       try {
         const size = 2 * 1024 * 1024;
         const blockSize = 128 * 1024;
@@ -78,6 +84,24 @@
         ) {
           throw new Error("Zstd compressed blocks failed in the worker");
         }
+        const historyFrame = new Uint8Array([
+          0x28, 0xb5, 0x2f, 0xfd, 0, 120, 9, 0, 0, 65,
+        ]);
+        const requestsBeforeHistory = workerRequests;
+        await decompressData(historyFrame, 93, 1, "large history");
+        if (workerRequests !== requestsBeforeHistory + 1) {
+          throw new Error("Large zstd history work ran on the main thread");
+        }
+        const fragmented = new Uint8Array(6 + 40 * 4);
+        fragmented.set([0x28, 0xb5, 0x2f, 0xfd, 0, 72]);
+        for (let index = 0; index < 40; index++) {
+          fragmented.set([index === 39 ? 9 : 8, 0, 0, 65], 6 + index * 4);
+        }
+        const requestsBeforeBlocks = workerRequests;
+        await decompressData(fragmented, 93, 40, "fragmented history");
+        if (workerRequests !== requestsBeforeBlocks + 1) {
+          throw new Error("Aggregate zstd block work ran on the main thread");
+        }
         const deflateBytes = zipSync({
           text: new TextEncoder().encode("hello".repeat(1000)),
         });
@@ -106,6 +130,7 @@
       } catch (error) {
         output.textContent = "Failed: " + error.message;
       }
+      Worker.prototype.postMessage = originalPostMessage;
     </script>
   </body>
 </html>

@@ -22,6 +22,9 @@ const WORKER_THRESHOLD = 1024 * 1024;
  * Maximum history allocation allowed by the viewer (2^25 = 32 MiB).
  */
 const MAX_WINDOW_LOG = 25;
+// fzstd copies its history after every block. Budget this work separately
+// from live allocation to bound tiny-frame/block amplification.
+const MAX_HISTORY_WORK = 32 * 1024 * 1024 * 1024;
 
 /**
  * Error thrown when zstd data uses a window size too large for fzstd.
@@ -46,9 +49,18 @@ export class ZstdWindowSizeError extends Error {
 
 // Scan every frame before fzstd allocates its history window. In particular,
 // single-segment frames use their content size as the window size.
-function validateZstdFrames(data: Uint8Array, expectedSize: number): void {
+function validateZstdFrames(data: Uint8Array, expectedSize: number): boolean {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let offset = 0;
+  let historyWork = 0;
+  const addHistoryWork = (size: number) => {
+    historyWork += size;
+    if (historyWork > MAX_HISTORY_WORK) {
+      throw new Error(
+        "Zstd history work exceeds the 32 GiB viewer budget; use smaller windows or ZIP deflate"
+      );
+    }
+  };
   const requireBytes = (count: number) => {
     if (count > data.length - offset) throw new Error("Truncated zstd frame");
   };
@@ -96,6 +108,7 @@ function validateZstdFrames(data: Uint8Array, expectedSize: number): void {
     if (windowSize > 2 ** MAX_WINDOW_LOG) {
       throw new ZstdWindowSizeError(Math.ceil(Math.log2(windowSize)));
     }
+    addHistoryWork(windowSize);
     let last = false;
     while (!last) {
       requireBytes(3);
@@ -107,6 +120,7 @@ function validateZstdFrames(data: Uint8Array, expectedSize: number): void {
       const size = block >> 3;
       if (type === 3 || size > 128 * 1024)
         throw new Error("Invalid zstd block");
+      addHistoryWork(windowSize);
       const compressedSize = type === 1 ? 1 : size;
       requireBytes(compressedSize);
       offset += compressedSize;
@@ -116,6 +130,7 @@ function validateZstdFrames(data: Uint8Array, expectedSize: number): void {
       offset += 4;
     }
   }
+  return historyWork >= WORKER_THRESHOLD;
 }
 
 function decompressZstdBounded(
@@ -237,10 +252,14 @@ export async function decompressZstd(
   expectedSize: number
 ): Promise<Uint8Array> {
   // Check window size before attempting decompression
-  validateZstdFrames(data, expectedSize);
+  const requiresWorker = validateZstdFrames(data, expectedSize);
 
   // For small data, synchronous is faster (avoids worker overhead)
-  if (data.length < WORKER_THRESHOLD && expectedSize < WORKER_THRESHOLD) {
+  if (
+    !requiresWorker &&
+    data.length < WORKER_THRESHOLD &&
+    expectedSize < WORKER_THRESHOLD
+  ) {
     return decompressZstdBounded(data, expectedSize);
   }
 

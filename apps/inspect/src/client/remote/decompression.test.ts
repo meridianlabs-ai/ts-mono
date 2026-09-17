@@ -86,13 +86,24 @@ test("rejects oversized zstd blocks before the decoder allocates them", async ()
   );
 });
 
-// zstd CLI output with and without a known input size.
+// zstd CLI output with and without a known input size, using a 128 KiB window.
 test.each([
-  "KLUv/QRYbQAAKGhlbGxvAQCAg75oAdQtBKI=",
+  "KLUv/QQ4bQAAKGhlbGxvAQCAg75oAdQtBKI=",
   "KLUv/WSIEm0AAChoZWxsbwEAgIO+aAHULQSi",
 ])("reads compressed zstd blocks (%#)", async (base64) => {
   const bytes = new Uint8Array(Buffer.from(base64, "base64"));
   expect(new TextDecoder().decode(await decompress(bytes, 5000))).toBe(
     "hello".repeat(1000)
+  );
+});
+
+test("rejects excessive aggregate zstd history work before allocating any windows", async () => {
+  const frame = new Uint8Array([0x28, 0xb5, 0x2f, 0xfd, 0, 120, 9, 0, 0, 65]);
+  const count = 1100;
+  const bytes = new Uint8Array(frame.length * count);
+  for (let index = 0; index < count; index++)
+    bytes.set(frame, index * frame.length);
+  await expect(decompress(bytes, count)).rejects.toThrow(
+    /history work exceeds/
   );
 });
