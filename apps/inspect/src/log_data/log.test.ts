@@ -18,11 +18,11 @@ const fetchLog = vi.hoisted(() => vi.fn());
 vi.mock("./replicationControl", () => ({ fetchLog }));
 
 const db = vi.hoisted(() => ({
-  opened: vi.fn(() => false),
+  available: false,
   readLogRow: vi.fn(),
 }));
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => db,
+vi.mock("./databaseInstance", () => ({
+  currentDatabase: () => (db.available ? { readLogRow: db.readLogRow } : null),
 }));
 
 const LOG_DIR = "/logs";
@@ -66,8 +66,7 @@ const pendingForever = () => new Promise<void>(() => {});
 beforeEach(() => {
   fetchLog.mockReset();
   fetchLog.mockImplementation(pendingForever);
-  db.opened.mockReset();
-  db.opened.mockReturnValue(false);
+  db.available = false;
   db.readLogRow.mockReset();
   db.readLogRow.mockResolvedValue(null);
 });
@@ -104,7 +103,7 @@ describe("useLogHeader", () => {
   });
 
   it("surfaces the row's retrieval error when it has no header", async () => {
-    db.opened.mockReturnValue(true);
+    db.available = true;
     db.readLogRow.mockResolvedValue(erroredRow(LOG_FILE, "boom"));
 
     const { result } = renderHook(
@@ -124,7 +123,7 @@ describe("useLogHeader", () => {
       ...detailedRow(LOG_FILE),
       details_fetch_error: "stale",
     };
-    db.opened.mockReturnValue(true);
+    db.available = true;
     db.readLogRow.mockResolvedValue(row);
 
     const { result } = renderHook(
@@ -168,7 +167,7 @@ describe("useLogHeader", () => {
 
   it("re-seeds from the Dexie row on remount after eviction, without an engine settle", async () => {
     const row = detailedRow(LOG_FILE);
-    db.opened.mockReturnValue(true);
+    db.available = true;
     db.readLogRow.mockResolvedValue(row);
 
     const first = renderHook(

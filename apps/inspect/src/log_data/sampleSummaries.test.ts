@@ -13,11 +13,7 @@ import {
   PendingSampleResponse,
   SampleSummary,
 } from "../client/api/types";
-import {
-  createDatabaseService,
-  DatabaseService,
-  DB_NAME,
-} from "../client/database";
+import { DB_NAME, OpenDatabase } from "../client/database";
 import { queryClient } from "../state/queryClient";
 
 import { fetchEngine } from "./fetchEngine";
@@ -34,14 +30,15 @@ import {
 } from "./testFixtures";
 
 const holder = vi.hoisted(() => ({
-  service: null as DatabaseService | null,
+  service: null as OpenDatabase | null,
   api: null as ClientAPI | null,
 }));
-vi.mock("./databaseServiceInstance", () => ({
-  getDatabaseService: () => {
+vi.mock("./databaseInstance", () => ({
+  acquireDatabase: () => {
     if (!holder.service) throw new Error("test service not initialized");
-    return holder.service;
+    return Promise.resolve(holder.service);
   },
+  currentDatabase: () => holder.service,
 }));
 vi.mock("../app_config", () => ({
   getApi: () => {
@@ -160,13 +157,12 @@ describe("useSampleSummaries during a running eval", () => {
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 
-  let db: DatabaseService;
+  let db: OpenDatabase;
 
   beforeEach(async () => {
-    db = createDatabaseService();
+    db = await OpenDatabase.open();
     holder.service = db;
     holder.api = api;
-    await db.openDatabase();
     // What <FetchEngineController> does below the gate: start the engine
     // from a config snapshot (acquisition paths only await readiness).
     activateFetchEngine({
@@ -182,7 +178,7 @@ describe("useSampleSummaries during a running eval", () => {
   afterEach(async () => {
     deactivateFetchEngine();
     fetchEngine.stop();
-    await db.closeDatabase();
+    db.close();
     await Dexie.delete(DB_NAME);
     holder.service = null;
     holder.api = null;
