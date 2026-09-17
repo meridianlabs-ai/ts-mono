@@ -13,7 +13,7 @@ import { Decompress } from "fzstd";
 import { kFzstdBase64, kZstdWorkerCode } from "./zstd-worker-code";
 
 /**
- * Threshold for using Web Worker (1MB compressed).
+ * Threshold for using a Web Worker (1MB compressed or expected output).
  * Below this, synchronous decompression is fast enough.
  */
 const WORKER_THRESHOLD = 1024 * 1024;
@@ -229,6 +229,7 @@ function getZstdWorker(): Promise<Worker> {
  * - Output data is transferred (zero-copy) back from the worker
  *
  * @param data - The zstd-compressed data
+ * @param expectedSize - Validated ZIP output size, enforced while streaming
  * @returns Promise resolving to the decompressed data
  */
 export async function decompressZstd(

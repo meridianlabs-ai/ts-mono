@@ -99,7 +99,7 @@ async function decompressDeflate(
       }
     });
     function push() {
-      const end = Math.min(position + 1024, data.length);
+      const end = Math.min(position + 8 * 1024, data.length);
       try {
         stream.push(data.slice(position, end), end === data.length);
         position = end;

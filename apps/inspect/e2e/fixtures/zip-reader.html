@@ -66,6 +66,18 @@
           rejected = true;
         }
         if (!rejected) throw new Error("Forged output size was accepted");
+        const compressed = Uint8Array.from(
+          atob(
+            "KLUv/aQAACAAVAAAEAAAAQD7/znAAgIAEAACABAAAgAQAAIAEAACABAAAgAQAAIAEAACABAAAgAQAAIAEAACABAAAgAQAAIAEAACABAAAwAQANsjjvg="
+          ),
+          (char) => char.charCodeAt(0)
+        );
+        if (
+          (await decompressData(compressed, 93, size, "compressed")).length !==
+          size
+        ) {
+          throw new Error("Zstd compressed blocks failed in the worker");
+        }
         const deflateBytes = zipSync({
           text: new TextEncoder().encode("hello".repeat(1000)),
         });

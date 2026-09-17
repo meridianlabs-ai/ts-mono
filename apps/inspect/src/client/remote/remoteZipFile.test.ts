@@ -231,3 +231,15 @@ test.each([
     "hello"
   );
 });
+
+test("reads deflate data spanning multiple worker input chunks", async () => {
+  const expected = new Uint8Array(32 * 1024);
+  let state = 1;
+  for (let index = 0; index < expected.length; index++) {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    expected[index] = state >>> 24;
+  }
+  const bytes = zipSync({ "header.json": expected });
+  const zip = await openZipFileFromBuffer(bytes);
+  expect(await zip.readFile("header.json")).toEqual(expected);
+});
