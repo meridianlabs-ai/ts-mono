@@ -24,6 +24,7 @@ import {
   buildConnectionLanes,
   poolRetunes,
 } from "@tsmono/inspect-components/usage";
+import { ErrorPanel } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
@@ -43,6 +44,7 @@ import {
 } from "../../useShowTimeline";
 
 import { HistoryList } from "./HistoryList";
+import { connectionHistoryError } from "./timelineAxis";
 import { TimelineChart } from "./TimelineChart";
 import {
   activeSamplesSeries,
@@ -131,6 +133,14 @@ const kNoCategories: HistoryCategory[] = [];
 // links, chart popovers) when the log in view changes.
 export const TimelineTab: FC<TimelineTabProps> = (props) => {
   const logKey = useTimelineLogKey("tab");
+  const error = connectionHistoryError(
+    props.evalStats?.connection_limit_history
+  );
+  if (error) {
+    return (
+      <ErrorPanel title="Unable to display timeline" error={new Error(error)} />
+    );
+  }
   return <TimelineTabBody key={logKey} {...props} />;
 };
 

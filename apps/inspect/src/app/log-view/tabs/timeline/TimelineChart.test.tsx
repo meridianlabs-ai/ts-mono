@@ -2,6 +2,9 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { ComponentIconProvider } from "@tsmono/react/components";
+import { testIcons } from "@tsmono/react/testing";
+
 import { TimelineChart } from "./TimelineChart";
 import type { TimeWindow } from "./timelineData";
 
@@ -20,20 +23,22 @@ describe("invalid timeline window", () => {
     // No visible bands/measurement: the old implementation fails safely
     // without entering its non-terminating tick loop.
     render(
-      <TimelineChart
-        window={window}
-        showActiveSamples={false}
-        showTerminations={false}
-        connectionModels={[]}
-        activeSeries={[]}
-        samplesGuide={[]}
-        terminationDots={[]}
-        lanes={{}}
-        retunes={{}}
-        markers={[]}
-        selectedMarker={null}
-        onSelectMarker={() => {}}
-      />
+      <ComponentIconProvider icons={testIcons}>
+        <TimelineChart
+          window={window}
+          showActiveSamples={false}
+          showTerminations={false}
+          connectionModels={[]}
+          activeSeries={[]}
+          samplesGuide={[]}
+          terminationDots={[]}
+          lanes={{}}
+          retunes={{}}
+          markers={[]}
+          selectedMarker={null}
+          onSelectMarker={() => {}}
+        />
+      </ComponentIconProvider>
     );
     expect(screen.getByText("Unable to display timeline")).toBeVisible();
     expect(screen.getByTestId("error-panel")).toHaveTextContent(
