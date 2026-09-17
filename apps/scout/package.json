@@ -68,6 +68,7 @@
     "@tsmono/theme": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@tsmono/util": "workspace:*",
+    "@tsmono/vitest-config": "workspace:*",
     "@types/bootstrap": "^5.2.11",
     "@types/lz4js": "^0.2.2",
     "@types/node": "^26.5.0",
