@@ -406,6 +406,7 @@ jobs:
             # independent of whether this run committed: a run that only
             # defers alerts still owes the PR a note.
             if [ -s "$IO/pr-update.md" ]; then
+              [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "::error::continuing without a PR number from the gate."; exit 1; }
               head -c 60000 "$IO/pr-update.md" >"$DIR/pr-update.md"
               extra=$(jq -c --argjson n "$PR_NUMBER" '.comments = [{number: $n, body_file: "pr-update.md"}]' <<<"$extra")
             elif [ "$committed" = "true" ]; then
