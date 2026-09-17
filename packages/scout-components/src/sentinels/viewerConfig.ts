@@ -9,14 +9,18 @@
  * must hide from its dump. Falls back to a built-in default when no descriptor
  * applies.
  */
-import picomatch from "picomatch";
-
 import type {
   MetadataField,
   ScannerResultField,
   ScannerResultView,
   ViewerConfig,
 } from "@tsmono/inspect-common/types";
+
+import {
+  kMaxScannerPatterns,
+  ScannerGlobBudget,
+  scannerGlobMatches,
+} from "./scannerGlob";
 
 export type ResolvedField = ScannerResultField | MetadataField;
 
@@ -140,7 +144,17 @@ function scannerResultViewEntries(
   if (!raw) return [];
   // Bare `ScannerResultView` shorthand for `{"*": view}`.
   if (isScannerResultView(raw)) return [{ pattern: "*", view: raw }];
-  return Object.entries(raw).map(([pattern, view]) => ({ pattern, view }));
+  const entries: Array<{ pattern: string; view: ScannerResultView }> = [];
+  for (const pattern in raw) {
+    if (!Object.hasOwn(raw, pattern)) continue;
+    if (entries.length === kMaxScannerPatterns) {
+      throw new Error(
+        "Scanner result view must contain at most 1024 glob patterns."
+      );
+    }
+    entries.push({ pattern, view: raw[pattern]! });
+  }
+  return entries;
 }
 
 function isScannerResultView(v: unknown): v is ScannerResultView {
@@ -156,8 +170,9 @@ function rankMatchingEntries(
   scannerName: string
 ): MatchedEntry[] {
   const matches: MatchedEntry[] = [];
+  const budget = new ScannerGlobBudget();
   entries.forEach(({ pattern, view }, order) => {
-    if (!globMatches(pattern, scannerName)) return;
+    if (!scannerGlobMatches(pattern, scannerName, budget)) return;
     matches.push({
       pattern,
       view,
@@ -171,18 +186,6 @@ function rankMatchingEntries(
     return a.order - b.order;
   });
   return matches;
-}
-
-// Scanner names aren't filesystem paths — disable brace / negation / extglob
-// sugar so the only active wildcards are `*` and `?`.
-const kGlobOptions = {
-  nobrace: true,
-  nonegate: true,
-  noextglob: true,
-} as const;
-
-function globMatches(pattern: string, value: string): boolean {
-  return picomatch.isMatch(value, pattern, kGlobOptions);
 }
 
 function specificityOf(pattern: string): number {

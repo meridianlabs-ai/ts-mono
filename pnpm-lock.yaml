@@ -668,9 +668,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      picomatch:
-        specifier: ^4.0.7
-        version: 4.0.7
     devDependencies:
       '@testing-library/react':
         specifier: ^16.3.3
@@ -681,9 +678,6 @@ importers:
       '@tsmono/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/tsconfig
-      '@types/picomatch':
-        specifier: ^4.0.2
-        version: 4.0.3
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
@@ -2307,9 +2301,6 @@ packages:
 
   '@types/node@26.5.0':
     resolution: {integrity: sha512-dVSGpriSoCgz8WnDNTuSSuSv1PC/ALXihO4ulRZt7Md8k9mlbdin3lGOcDE8SnWOgf513ByWlXd7BK4azmyg/A==}
-
-  '@types/picomatch@4.0.3':
-    resolution: {integrity: sha512-iG0T6+nYJ9FAPmx9SsUlnwcq1ZVRuCXcVEvWnntoPlrOpwtSTKNDC9uVAxTsC3PUvJ+99n4RpAcNgBbHX3JSnQ==}
 
   '@types/prismjs@1.26.6':
     resolution: {integrity: sha512-vqlvI7qlMvcCBbVe0AKAb4f97//Hy0EBTaiW8AalRnG/xAN5zOiWWyrNqNXeq8+KAuvRewjCVY1+IPxk4RdNYw==}
@@ -6139,8 +6130,6 @@ snapshots:
   '@types/node@26.5.0':
     dependencies:
       undici-types: 8.9.0
-
-  '@types/picomatch@4.0.3': {}
 
   '@types/prismjs@1.26.6': {}
 
