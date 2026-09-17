@@ -250,7 +250,7 @@ describe("useTimelinesArray", () => {
       (item) => item.type === "span"
     );
     expect(parent?.id).toBe("parent");
-    expect(parent?.content[0]?.id).toBe("child");
+    expect(parent?.content[0]).toMatchObject({ type: "span", id: "child" });
   });
 
   it.each([null, "missing"])(
@@ -274,7 +274,10 @@ describe("useTimelinesArray", () => {
       expect(result.current[0]?.description).toBe("server description");
       expect(result.current[0]?.root.name).toBe("Server root");
       expect(eventUuids(result.current[0]!)).toEqual(["referenced", "orphan"]);
-      expect(result.current[0]?.root.content[1]?.id).toBe("orphan-span");
+      expect(result.current[0]?.root.content[1]).toMatchObject({
+        type: "span",
+        id: "orphan-span",
+      });
     }
   );
 

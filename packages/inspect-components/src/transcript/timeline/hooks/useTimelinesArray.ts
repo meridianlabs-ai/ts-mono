@@ -124,15 +124,30 @@ function buildOrphanContent(
     }
   }
 
-  // Walk up parent chains to find all ancestor spans needed
-  const allNeededSpanIds = new Set(neededSpanIds);
+  // Cache completed ancestor paths so shared ancestry is traversed only once.
+  const spanDepths = new Map<string, number>();
   for (const spanId of neededSpanIds) {
+    const path: string[] = [];
+    const visiting = new Set<string>();
     let current = spanLookup.get(spanId);
-    while (current?.parentId) {
-      if (referencedSpanIds.has(current.parentId)) break;
-      if (!spanLookup.has(current.parentId)) break;
-      allNeededSpanIds.add(current.parentId);
-      current = spanLookup.get(current.parentId);
+    while (
+      current &&
+      !referencedSpanIds.has(current.id) &&
+      !spanDepths.has(current.id)
+    ) {
+      if (visiting.has(current.id)) {
+        throw new Error(
+          `Invalid transcript: cyclic span parent chain at "${current.id}".`
+        );
+      }
+      visiting.add(current.id);
+      path.push(current.id);
+      current = current.parentId ? spanLookup.get(current.parentId) : undefined;
+    }
+
+    let depth = current ? (spanDepths.get(current.id) ?? -1) : -1;
+    for (const id of path.reverse()) {
+      spanDepths.set(id, ++depth);
     }
   }
 
@@ -156,18 +171,8 @@ function buildOrphanContent(
 
   // Register each needed span under its effective parent
   // Process from leaves to roots by sorting by depth
-  const spanDepth = (id: string): number => {
-    let depth = 0;
-    let current = spanLookup.get(id);
-    while (current?.parentId && allNeededSpanIds.has(current.parentId)) {
-      depth++;
-      current = spanLookup.get(current.parentId);
-    }
-    return depth;
-  };
-
-  const sortedSpanIds = [...allNeededSpanIds].sort(
-    (a, b) => spanDepth(b) - spanDepth(a)
+  const sortedSpanIds = [...spanDepths.keys()].sort(
+    (a, b) => spanDepths.get(b)! - spanDepths.get(a)!
   );
 
   for (const spanId of sortedSpanIds) {
@@ -187,17 +192,10 @@ function buildOrphanContent(
       utility: false,
     });
 
-    // Find effective parent: nearest needed ancestor, or null for root
-    let parentId: string | null = null;
-    let current = info;
-    while (current.parentId) {
-      if (allNeededSpanIds.has(current.parentId)) {
-        parentId = current.parentId;
-        break;
-      }
-      current = spanLookup.get(current.parentId) ?? current;
-      if (current === info) break; // safety: prevent infinite loop
-    }
+    // Every unrepresented ancestor is included, so only the direct parent
+    // can contain this span. Referenced or missing parents promote it to root.
+    const parentId =
+      info.parentId && spanDepths.has(info.parentId) ? info.parentId : null;
 
     let parentGroup = spanChildren.get(parentId);
     if (!parentGroup) {
