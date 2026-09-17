@@ -270,3 +270,27 @@ describe("windowedMessageRows late-system discovery", () => {
     expect(pages.flatMap((page) => page.rows)).toEqual(oracle.rows);
   });
 });
+
+describe("inconsistent conversation length", () => {
+  const truncated = (): SampleConversation => {
+    let reads = 0;
+    const getMessages = () => {
+      if (++reads > 1) throw new Error("read again after exhaustion");
+      return Promise.resolve([]);
+    };
+    return { messageCount: 1e15, getMessages, getMessagesRaw: getMessages };
+  };
+
+  it("rejects a short scan instead of trusting the declared count", async () => {
+    const source = windowedMessageRows(truncated());
+    await expect(
+      source.getRows({ limit: 100, cursor: null, direction: "forward" })
+    ).rejects.toThrow("Unexpected end of conversation");
+  });
+
+  it("rejects a short export instead of yielding indefinitely", async () => {
+    await expect(collectText(windowedMessageRows(truncated()))).rejects.toThrow(
+      "Unexpected end of conversation"
+    );
+  });
+});
