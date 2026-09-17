@@ -4,7 +4,7 @@ import { FC, ReactNode } from "react";
 import type { ContentDocument } from "@tsmono/inspect-common/types";
 import { isImage } from "@tsmono/util";
 
-import { useContentIcons } from "../../content/IconsContext";
+import { ContentIcons } from "../../content/icons";
 import { MediaReference } from "../../media/MediaReference";
 import { isRenderableImageDocument } from "../../media/mediaSource";
 
@@ -62,8 +62,6 @@ const ContentDocumentFrame: FC<ContentDocumentFrameProps> = ({
   children,
   onDownloadFile,
 }) => {
-  const icons = useContentIcons();
-
   return (
     <div
       className={clsx(
@@ -74,7 +72,9 @@ const ContentDocumentFrame: FC<ContentDocumentFrameProps> = ({
     >
       <div className={clsx(styles.documentFrameTitle)}>
         <i
-          className={clsx(icons.iconForMimeType(document.mime_type || ""))}
+          className={clsx(
+            ContentIcons.iconForMimeType(document.mime_type || "")
+          )}
           aria-hidden="true"
         />
         <div>

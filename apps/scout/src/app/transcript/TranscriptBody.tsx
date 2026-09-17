@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import type { Event } from "@tsmono/inspect-common/types";
 import {
@@ -24,6 +24,7 @@ import {
   eventsToMarkdown,
   eventsToStr,
   selectionMenuChrome,
+  TranscriptHostProvider,
   TranscriptSelectTool,
   useTranscriptSelection,
   type TranscriptLayoutRightRailProps,
@@ -39,10 +40,8 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
-  navigateAndForget,
   useCopyToClipboard,
   useProperty,
-  useReflectEventNavigationInUrl,
   useVisitId,
 } from "@tsmono/react/hooks";
 import { formatDateTime, isHostedEnvironment } from "@tsmono/util";
@@ -60,6 +59,7 @@ import { TimelineEventsView } from "../timeline/components/TimelineEventsView";
 import { useTranscriptsDir } from "../utils/useTranscriptsDir";
 import { ValidationCaseEditor } from "../validation/components/ValidationCaseEditor";
 
+import { useScoutTranscriptHost } from "./hooks/useScoutTranscriptHost";
 import { useSearchReferenceLabels } from "./hooks/useSearchReferenceLabels";
 import { useTranscriptColumnFilter } from "./hooks/useTranscriptColumnFilter";
 import { useTranscriptNavigation } from "./hooks/useTranscriptNavigation";
@@ -92,7 +92,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   onHeadroomResetAnchor,
   onHeadroomSetHidden,
 }) => {
-  const navigate = useNavigate();
   const { resolvedTranscriptsDir } = useTranscriptsDir(true);
 
   // Measure tab bar height so downstream sticky offsets align exactly
@@ -112,13 +111,14 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
   }, []);
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const {
-    getEventUrl,
-    getFullEventUrl,
-    getFullMessageUrl,
-    getEventFocusUrl,
-    onOpenEventFocus,
-  } = useTranscriptNavigation();
+  const { getFullMessageUrl } = useTranscriptNavigation();
+  // Deep-link URLs, router navigation and the page's chrome headroom for the
+  // Events tab's transcript, provided once around it.
+  const transcriptHost = useScoutTranscriptHost({
+    scrollRef,
+    onHeadroomSetHidden,
+    onHeadroomResetAnchor,
+  });
   const tabParam = searchParams.get("tab");
 
   // Get event or message ID from query params for deep linking
@@ -180,21 +180,6 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       });
     },
     [setSelectedTranscriptTab, setSearchParams]
-  );
-
-  const onNavigatedToEvent = useReflectEventNavigationInUrl(setSearchParams);
-
-  // Navigate to a specific event when a marker is clicked on the timeline.
-  // When selectedKey is provided (compaction markers), the bar is selected
-  // atomically in the same URL update to avoid a race between setSearchParams
-  // and navigate.
-  const handleMarkerNavigate = useCallback(
-    (eventId: string, selectedKey?: string) => {
-      const url = getEventUrl(eventId, selectedKey);
-      if (!url) return;
-      navigateAndForget(navigate, url, { replace: true });
-    },
-    [getEventUrl, navigate]
   );
 
   // Auto-switch tab based on deep link params
@@ -501,37 +486,31 @@ export const TranscriptBody: FC<TranscriptBodyProps> = ({
       selected={resolvedSelectedTranscriptTab === kTranscriptEventsTabId}
       scrollable={false}
     >
-      <TimelineEventsView
-        events={transcript.events}
-        hiddenEventTypes={excludedEventTypes}
-        scrollRef={scrollRef}
-        offsetTop={contentOffsetTop}
-        initialEventId={eventParam}
-        initialMessageId={messageParam}
-        defaultOutlineExpanded={true}
-        id={`transcript-events-list-${visitId}`}
-        bulkCollapse={
-          eventsCollapsed === undefined
-            ? undefined
-            : eventsCollapsed
-              ? "collapse"
-              : "expand"
-        }
-        onMarkerNavigate={handleMarkerNavigate}
-        timelines={transcript.timelines}
-        headroomHidden={headroomHidden}
-        onHeadroomResetAnchor={onHeadroomResetAnchor}
-        onHeadroomSetHidden={onHeadroomSetHidden}
-        getEventUrl={getFullEventUrl}
-        getEventFocusUrl={getEventFocusUrl}
-        onOpenEventFocus={onOpenEventFocus}
-        onNavigatedToEvent={onNavigatedToEvent}
-        linkingEnabled={isHostedEnvironment()}
-        messageLabels={eventsReferenceLabels?.messageLabels}
-        eventLabels={eventsReferenceLabels?.eventLabels}
-        rightRail={eventsRightRail}
-        selection={evidence.selection}
-      />
+      <TranscriptHostProvider host={transcriptHost}>
+        <TimelineEventsView
+          events={transcript.events}
+          hiddenEventTypes={excludedEventTypes}
+          scrollRef={scrollRef}
+          offsetTop={contentOffsetTop}
+          initialEventId={eventParam}
+          initialMessageId={messageParam}
+          defaultOutlineExpanded={true}
+          id={`transcript-events-list-${visitId}`}
+          bulkCollapse={
+            eventsCollapsed === undefined
+              ? undefined
+              : eventsCollapsed
+                ? "collapse"
+                : "expand"
+          }
+          timelines={transcript.timelines}
+          headroomHidden={headroomHidden}
+          messageLabels={eventsReferenceLabels?.messageLabels}
+          eventLabels={eventsReferenceLabels?.eventLabels}
+          rightRail={eventsRightRail}
+          selection={evidence.selection}
+        />
+      </TranscriptHostProvider>
       <TranscriptFilterPopover
         showing={transcriptFilterShowing}
         setShowing={setTranscriptFilterShowing}

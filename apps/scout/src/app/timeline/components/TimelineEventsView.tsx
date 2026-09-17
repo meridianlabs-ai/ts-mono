@@ -6,6 +6,7 @@ import {
   kTranscriptOutlineCollapseScope,
   TranscriptLayout,
   useTimelinesArray,
+  useTranscriptHost,
   type EventNodeContext,
   type MarkerConfig,
   type TranscriptCollapseState,
@@ -15,7 +16,6 @@ import {
 } from "@tsmono/inspect-components/transcript";
 import { useProperty } from "@tsmono/react/hooks";
 
-import { ApplicationIcons } from "../../../icons";
 import { useStore } from "../../../state/store";
 import type { ServerTimeline } from "../../../types/api-types";
 import { useActiveTimelineSearchParams } from "../hooks/useActiveTimeline";
@@ -47,9 +47,6 @@ interface TimelineEventsViewProps {
   id: string;
   /** Bulk collapse/expand of all collapsible events. Omit for no-op. */
   bulkCollapse?: "collapse" | "expand";
-  /** Called when a marker (error, compaction) is clicked on the swimlane.
-   *  Optional `selectedKey` requests the bar be selected atomically with navigation. */
-  onMarkerNavigate?: (eventId: string, selectedKey?: string) => void;
   /** Controls which marker kinds are shown and at what depth. */
   markerConfig?: MarkerConfig;
   /** Controls swimlane visibility. `"auto"` shows when data has child spans. Default: `"auto"`. */
@@ -58,29 +55,10 @@ interface TimelineEventsViewProps {
   agentConfig?: TimelineOptions;
   /** Server-provided timelines (used when available instead of building from events). */
   timelines?: ServerTimeline[];
-  /** Headroom direction signal: true = scrolling down (hide). */
+  /** Headroom direction signal: true = scrolling down (hide). The headroom's
+   *  setters, deep-link URLs and navigation come from the TranscriptHost the
+   *  mounting surface provides. */
   headroomHidden?: boolean;
-  /** Reset the headroom anchor before a layout shift or programmatic scroll.
-   *  Pass `true` to debounce (keeps lock alive while scrolling continues). */
-  onHeadroomResetAnchor?: (debounce?: boolean) => void;
-  /** Force the chrome shown/hidden: nav landings (deep link, j/k, go-to-turn,
-   *  outline click) collapse it; `k` past turn 1 re-expands. Every call claims
-   *  nav ownership of the chrome — see the host's TranscriptPanel. */
-  onHeadroomSetHidden?: (hidden: boolean) => void;
-  /** Callback to generate a full deep-link URL for an event. */
-  getEventUrl?: (eventId: string) => string | undefined;
-  /** Builds the focus-mode entry href (ctrl/cmd/middle-click → new tab). */
-  getEventFocusUrl?: (
-    eventId: string,
-    selectedTab?: string
-  ) => string | undefined;
-  // focus-mode entry: plain click navigates in-window; modified clicks use the href
-  onOpenEventFocus?: (focusRoute: string) => void;
-  /** Reflect an explicit turn navigation (j/k, chevrons, go-to-turn bar) in
-   *  the URL, like inspect does — not called on passive scroll. */
-  onNavigatedToEvent?: (eventId: string) => void;
-  /** Whether deep-link copy buttons are enabled. */
-  linkingEnabled?: boolean;
   /** Per-message labels rendered in model-call message gutters. */
   messageLabels?: Record<string, string>;
   /** Per-event labels rendered beside transcript event rows. */
@@ -106,19 +84,11 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   defaultOutlineExpanded = false,
   id,
   bulkCollapse,
-  onMarkerNavigate,
   markerConfig,
   timeline: timelineProp = "auto",
   agentConfig,
   timelines: serverTimelines,
   headroomHidden,
-  onHeadroomResetAnchor,
-  onHeadroomSetHidden,
-  getEventUrl,
-  getEventFocusUrl,
-  onOpenEventFocus,
-  onNavigatedToEvent,
-  linkingEnabled,
   messageLabels,
   eventLabels,
   rightRail,
@@ -223,6 +193,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
   // ---------------------------------------------------------------------------
 
   const eventsListRef = useRef<TranscriptViewNodesHandle>(null);
+  const onHeadroomResetAnchor = useTranscriptHost().headroom?.resetAnchor;
   const handleOutlineNavigate = useCallback(
     (eventId: string) => {
       onHeadroomResetAnchor?.(true);
@@ -230,10 +201,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     },
     [onHeadroomResetAnchor]
   );
-
-  const scrollToTop = useCallback(() => {
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [scrollRef]);
 
   const eventNodeContext = useMemo<
     Partial<EventNodeContext> | undefined
@@ -267,30 +234,18 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
         markerConfig,
         agentConfig,
         showSwimlanes: timelineProp,
-        onMarkerNavigate,
-        onScrollToTop: scrollToTop,
       }}
-      headroom={{
-        hidden: headroomHidden,
-        onSetHidden: onHeadroomSetHidden,
-        onResetAnchor: onHeadroomResetAnchor,
-      }}
+      headroomHidden={headroomHidden}
       listId={id}
       deepLink={{ eventId: initialEventId, messageId: initialMessageId }}
       eventsListRef={eventsListRef}
-      getEventUrl={getEventUrl}
-      getEventFocusUrl={getEventFocusUrl}
-      onOpenEventFocus={onOpenEventFocus}
-      onNavigatedToEvent={onNavigatedToEvent}
       keyboardNavDisabled={showFind}
-      linkingEnabled={linkingEnabled}
       eventNodeContext={eventNodeContext}
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       outline={{
         collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
-        toggleIcon: ApplicationIcons.sidebar,
         onNavigateToEvent: handleOutlineNavigate,
         selectedId: selectedOutlineId,
         setSelectedId: setSelectedOutlineId,

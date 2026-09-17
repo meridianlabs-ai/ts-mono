@@ -3,7 +3,7 @@ import { FC, Ref } from "react";
 
 import { isRecord } from "@tsmono/util";
 
-import { useContentIcons } from "../../../content/IconsContext";
+import { ContentIcons } from "../../../content/icons";
 
 import styles from "./TodoWriteInput.module.css";
 
@@ -45,7 +45,6 @@ export const TodoWriteInput: FC<{
   contents: unknown;
   parentRef: Ref<HTMLDivElement>;
 }> = ({ contents, parentRef }) => {
-  const icons = useContentIcons();
   const todoItems = toToolTodos(contents);
   return (
     <div ref={parentRef} className={clsx(styles.todoList)}>
@@ -55,8 +54,8 @@ export const TodoWriteInput: FC<{
             <i
               className={clsx(
                 todo.status === "completed"
-                  ? icons.checkbox.checked
-                  : icons.checkbox.unchecked,
+                  ? ContentIcons.checkbox.checked
+                  : ContentIcons.checkbox.unchecked,
                 "text-size-smallest"
               )}
             />

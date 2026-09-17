@@ -1,14 +1,13 @@
 import {
   FC,
   memo,
-  ReactNode,
   RefObject,
   useCallback,
   useEffect,
   useMemo,
   useRef,
 } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 
 import type { Timeline as ServerTimeline } from "@tsmono/inspect-common/types";
 import {
@@ -16,6 +15,7 @@ import {
   dynamicDefaultExcludeEvents,
   kTranscriptCollapseScope,
   kTranscriptOutlineCollapseScope,
+  TranscriptHostProvider,
   TranscriptLayout,
   type EventNodeContext,
   type SelectOptions,
@@ -24,31 +24,14 @@ import {
   type TranscriptSelection,
   type TranscriptViewNodesHandle,
 } from "@tsmono/inspect-components/transcript";
-import {
-  navigateAndForget,
-  useChromeNavOwnership,
-  useOpenEventFocus,
-  useReflectEventNavigationInUrl,
-  type ChromeTarget,
-} from "@tsmono/react/hooks";
-import { isHostedEnvironment } from "@tsmono/util";
+import { useChromeNavOwnership, type ChromeTarget } from "@tsmono/react/hooks";
 
 import { Events } from "../../../@types/extraInspect";
-import { useLogDir } from "../../../app_config";
 import { useStore } from "../../../state/store";
-import { ApplicationIcons } from "../../appearance/icons";
-import {
-  makeLogsPath,
-  routeFromFullUrl,
-  sampleEventUrl,
-  toFullUrlMaybe,
-  useLogOrSampleRouteParams,
-  useLogRouteParams,
-  useSampleEventFocusUrlBuilder,
-  useSampleUrlBuilder,
-} from "../../routing/url";
+import { useLogRouteParams } from "../../routing/url";
 
 import { useTranscriptFilter } from "./hooks";
+import { useInspectTranscriptHost } from "./useInspectTranscriptHost";
 
 interface TranscriptPanelProps {
   id: string;
@@ -361,79 +344,14 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   }, [initialEventId, setSelectedOutlineId]);
 
   // ---------------------------------------------------------------------------
-  // Deep-link URL builder
+  // Host: deep-link URLs, router navigation, chrome headroom
   // ---------------------------------------------------------------------------
 
-  const builder = useSampleUrlBuilder();
-  const {
-    logPath: urlLogPath,
-    id: urlSampleId,
-    epoch: urlEpoch,
-  } = useLogOrSampleRouteParams();
-  const logFile = useStore((state) => state.logs.selectedLogFile);
-  const logDir = useLogDir();
-
-  const getEventUrl = useCallback(
-    (eventId: string) => {
-      let targetLogPath = urlLogPath;
-      if (!targetLogPath && logFile) {
-        targetLogPath = makeLogsPath(logFile, logDir);
-      }
-      if (!targetLogPath) return undefined;
-      return sampleEventUrl(
-        builder,
-        eventId,
-        targetLogPath,
-        urlSampleId,
-        urlEpoch
-      );
-    },
-    [builder, urlLogPath, urlSampleId, urlEpoch, logFile, logDir]
-  );
-
-  // The shared `getEventUrl` prop is dual-purpose: the copy button copies it
-  // verbatim (needs an absolute, shareable URL), while the outline feeds it to
-  // `renderLink` below (which strips the origin back off for in-app nav). So
-  // the value handed to the layout must be absolute.
-  const getFullEventUrl = useCallback(
-    (eventId: string) => toFullUrlMaybe(getEventUrl(eventId)),
-    [getEventUrl]
-  );
-
-  const getEventFocusUrl = useSampleEventFocusUrlBuilder();
-
-  const onNavigatedToEvent = useReflectEventNavigationInUrl(setSearchParams);
-
-  // Outline link clicks are in-view navigation (jumping to an event in the
-  // same transcript), so recover the hash route from the absolute URL and
-  // use `replace` to keep the back button clean.
-  const renderLink = useCallback(
-    (url: string, children: ReactNode) => (
-      <Link to={routeFromFullUrl(url)} replace>
-        {children}
-      </Link>
-    ),
-    []
-  );
-
-  // ---------------------------------------------------------------------------
-  // Marker navigation (branch markers, error markers, etc.)
-  // ---------------------------------------------------------------------------
-
-  const navigate = useNavigate();
-  const onOpenEventFocus = useOpenEventFocus();
-
-  const onMarkerNavigate = useCallback(
-    (eventId: string, selectedKey?: string) => {
-      const url = getEventUrl(eventId);
-      if (!url) return;
-      if (selectedKey) {
-        setTimelineSelected(selectedKey);
-      }
-      navigateAndForget(navigate, url, { replace: true });
-    },
-    [getEventUrl, navigate, setTimelineSelected]
-  );
+  const host = useInspectTranscriptHost({
+    setTimelineSelected,
+    onHeadroomSetHidden,
+    onHeadroomResetAnchor,
+  });
 
   // Outline navigation. Imperative scroll on every click — including
   // re-clicks of the already-selected item — so users can scroll away
@@ -450,72 +368,59 @@ export const TranscriptPanel: FC<TranscriptPanelProps> = memo((props) => {
   // ---------------------------------------------------------------------------
 
   return (
-    <TranscriptLayout
-      events={events}
-      hiddenEventTypes={filteredEventTypes}
-      running={running}
-      backfilling={backfilling}
-      scrollToTopOnFinish={scrollToTopOnFinish}
-      scrollRef={scrollRef}
-      offsetTop={offsetTop}
-      timeline={{
-        selection: timelineSelection,
-        active: activeTimeline,
-        serverTimelines,
-        showSwimlanes: "auto",
-        onMarkerNavigate,
-      }}
-      headroom={{
-        hidden: headroomHidden,
-        onSetHidden: onHeadroomSetHidden,
-        onResetAnchor: onHeadroomResetAnchor,
-      }}
-      eventNodeContext={eventNodeContext}
-      listId={id}
-      deepLink={{
-        eventId: initialEventId,
-        messageId: initialMessageId,
-        follow: followRequested,
-      }}
-      getEventUrl={getFullEventUrl}
-      getEventFocusUrl={getEventFocusUrl}
-      onOpenEventFocus={onOpenEventFocus}
-      onNavigatedToEvent={onNavigatedToEvent}
-      keyboardNavDisabled={showFind}
-      selection={selection}
-      // Only surface the copy-link button where a shared absolute URL is
-      // meaningful — not in VS Code webviews or localhost. Matches the message
-      // copy-link (SampleDisplay's `enabled: isHostedEnvironment()`).
-      linkingEnabled={isHostedEnvironment()}
-      bulkCollapse={bulkCollapse}
-      collapseState={collapseState}
-      eventsListRef={eventsListRef}
-      rightRail={rightRail}
-      outline={{
-        collapsed: outlineCollapsed,
-        onCollapsedChange: setOutlineCollapsed,
-        toggleIcon: ApplicationIcons.sidebar,
-        toggleTitle: outlineCollapsed
-          ? "Show transcript outline"
-          : "Hide transcript outline",
-        renderLink,
-        onNavigateToEvent: onOutlineNavigate,
-        selectedId: selectedOutlineId,
-        setSelectedId: setSelectedOutlineId,
-        scrollRef: outlineScrollRef,
-      }}
-      empty={{
-        text:
-          backfilling && isDefaultFilter
-            ? "Loading events"
-            : running && isDefaultFilter
-              ? "Sample is starting"
-              : filteredEventTypes.length > 0
-                ? "The currently applied filter hides all events."
-                : undefined,
-        busy: (running || backfilling) && isDefaultFilter,
-      }}
-    />
+    <TranscriptHostProvider host={host}>
+      <TranscriptLayout
+        events={events}
+        hiddenEventTypes={filteredEventTypes}
+        running={running}
+        backfilling={backfilling}
+        scrollToTopOnFinish={scrollToTopOnFinish}
+        scrollRef={scrollRef}
+        offsetTop={offsetTop}
+        timeline={{
+          selection: timelineSelection,
+          active: activeTimeline,
+          serverTimelines,
+          showSwimlanes: "auto",
+        }}
+        headroomHidden={headroomHidden}
+        eventNodeContext={eventNodeContext}
+        listId={id}
+        deepLink={{
+          eventId: initialEventId,
+          messageId: initialMessageId,
+          follow: followRequested,
+        }}
+        keyboardNavDisabled={showFind}
+        selection={selection}
+        bulkCollapse={bulkCollapse}
+        collapseState={collapseState}
+        eventsListRef={eventsListRef}
+        rightRail={rightRail}
+        outline={{
+          collapsed: outlineCollapsed,
+          onCollapsedChange: setOutlineCollapsed,
+          toggleTitle: outlineCollapsed
+            ? "Show transcript outline"
+            : "Hide transcript outline",
+          onNavigateToEvent: onOutlineNavigate,
+          selectedId: selectedOutlineId,
+          setSelectedId: setSelectedOutlineId,
+          scrollRef: outlineScrollRef,
+        }}
+        empty={{
+          text:
+            backfilling && isDefaultFilter
+              ? "Loading events"
+              : running && isDefaultFilter
+                ? "Sample is starting"
+                : filteredEventTypes.length > 0
+                  ? "The currently applied filter hides all events."
+                  : undefined,
+          busy: (running || backfilling) && isDefaultFilter,
+        }}
+      />
+    </TranscriptHostProvider>
   );
 });
 

@@ -3,6 +3,7 @@ import { FC, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 
 import { ChatViewVirtualList } from "@tsmono/inspect-components/chat";
+import { TranscriptHostProvider } from "@tsmono/inspect-components/transcript";
 import { NoContentsPanel } from "@tsmono/react/components";
 import { useChromeNavOwnership } from "@tsmono/react/hooks";
 
@@ -10,6 +11,7 @@ import { useStore } from "../../../state/store";
 import { ScannerInput } from "../../../types/api-types";
 import { ColumnHeader } from "../../components/ColumnHeader";
 import { TimelineEventsView } from "../../timeline/components/TimelineEventsView";
+import { useScoutChromeTranscriptHost } from "../../transcript/hooks/useScoutTranscriptHost";
 import {
   isEventInput,
   isEventsInput,
@@ -58,23 +60,31 @@ export const ResultBody: FC<ResultBodyProps> = ({ resultData, inputData }) => {
     expandOnlyAtTop: true,
   });
 
+  // The chrome above is this surface's only host behavior: the event inputs
+  // have no transcript route of their own, so no deep-link URLs or navigation.
+  const transcriptHost = useScoutChromeTranscriptHost({
+    scrollRef,
+    onHeadroomSetHidden,
+    onHeadroomResetAnchor: headroomResetAnchor,
+  });
+
   const highlightLabeled = useStore((state) => state.highlightLabeled);
 
   return (
     <div className={clsx(styles.container, containerClass(inputData))}>
       <ColumnHeader label="Input" />
       <div ref={scrollRef} className={clsx(styles.scrollable)}>
-        <InputRenderer
-          resultData={resultData}
-          inputData={inputData}
-          scrollRef={scrollRef}
-          initialMessageId={initialMessageId}
-          initialEventId={initialEventId}
-          highlightLabeled={highlightLabeled}
-          headroomHidden={headroomHidden}
-          onHeadroomResetAnchor={headroomResetAnchor}
-          onHeadroomSetHidden={onHeadroomSetHidden}
-        />
+        <TranscriptHostProvider host={transcriptHost}>
+          <InputRenderer
+            resultData={resultData}
+            inputData={inputData}
+            scrollRef={scrollRef}
+            initialMessageId={initialMessageId}
+            initialEventId={initialEventId}
+            highlightLabeled={highlightLabeled}
+            headroomHidden={headroomHidden}
+          />
+        </TranscriptHostProvider>
       </div>
     </div>
   );
@@ -89,8 +99,6 @@ interface InputRendererProps {
   initialEventId?: string | null;
   highlightLabeled?: boolean;
   headroomHidden?: boolean;
-  onHeadroomSetHidden?: (hidden: boolean) => void;
-  onHeadroomResetAnchor?: (debounce?: boolean) => void;
 }
 
 const containerClass = (
@@ -112,8 +120,6 @@ const InputRenderer: FC<InputRendererProps> = ({
   initialEventId,
   highlightLabeled,
   headroomHidden,
-  onHeadroomSetHidden,
-  onHeadroomResetAnchor,
 }) => {
   if (isTranscriptInput(inputData)) {
     if (inputData.input.messages.length > 0) {
@@ -145,8 +151,6 @@ const InputRenderer: FC<InputRendererProps> = ({
           initialEventId={initialEventId}
           initialMessageId={initialMessageId}
           headroomHidden={headroomHidden}
-          onHeadroomSetHidden={onHeadroomSetHidden}
-          onHeadroomResetAnchor={onHeadroomResetAnchor}
         />
       );
     } else {
@@ -184,8 +188,6 @@ const InputRenderer: FC<InputRendererProps> = ({
         initialMessageId={initialMessageId}
         timeline={false}
         headroomHidden={headroomHidden}
-        onHeadroomSetHidden={onHeadroomSetHidden}
-        onHeadroomResetAnchor={onHeadroomResetAnchor}
       />
     );
   } else if (isEventInput(inputData)) {
@@ -198,8 +200,6 @@ const InputRenderer: FC<InputRendererProps> = ({
         initialMessageId={initialMessageId}
         timeline={false}
         headroomHidden={headroomHidden}
-        onHeadroomSetHidden={onHeadroomSetHidden}
-        onHeadroomResetAnchor={onHeadroomResetAnchor}
       />
     );
   } else {

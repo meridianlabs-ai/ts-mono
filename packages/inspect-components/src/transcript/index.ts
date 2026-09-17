@@ -134,9 +134,20 @@ export {
   type TranscriptLayoutRightRailProps,
   type TranscriptLayoutTimelineProps,
   type TranscriptLayoutDeepLinkProps,
-  type TranscriptLayoutHeadroomProps,
   type TranscriptLayoutEmptyProps,
 } from "./TranscriptLayout";
+
+// Host adapter (per-app URL / navigation / chrome behavior)
+export {
+  kEmptyTranscriptHost,
+  TranscriptHostProvider,
+  useTranscriptHost,
+  type TranscriptHost,
+  type TranscriptHostHeadroom,
+  type TranscriptHostNavigation,
+  type TranscriptHostOutline,
+  type TranscriptHostUrls,
+} from "./host";
 
 // Icons
 export { TranscriptIcons } from "./icons";
