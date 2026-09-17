@@ -11,7 +11,7 @@
  */
 export const kZstdWorkerCode = `
 // fzstd decompress function, loaded dynamically
-let decompress = null;
+let Decompress = null;
 
 self.onmessage = function(e) {
   const { type } = e.data || {};
@@ -19,15 +19,15 @@ self.onmessage = function(e) {
   if (type === 'init') {
     const { scriptContent } = e.data;
     try {
-      if (!decompress) {
+      if (!Decompress) {
         // Decode and evaluate the fzstd UMD library
         const script = atob(scriptContent);
         // The UMD module self-executes and assigns to self.fzstd
         new Function(script)();
-        if (!self.fzstd || typeof self.fzstd.decompress !== 'function') {
+        if (!self.fzstd || typeof self.fzstd.Decompress !== 'function') {
           throw new Error('Failed to initialize fzstd decompressor');
         }
-        decompress = self.fzstd.decompress;
+        Decompress = self.fzstd.Decompress;
       }
       self.postMessage({ type: 'init_complete', success: true });
     } catch (err) {
@@ -38,12 +38,26 @@ self.onmessage = function(e) {
   }
 
   if (type === 'decompress') {
-    const { requestId, data } = e.data;
+    const { requestId, data, expectedSize } = e.data;
     try {
-      if (!decompress) {
+      if (!Decompress) {
         throw new Error('Worker not initialized');
       }
-      const result = decompress(data);
+      const chunks = [];
+      let total = 0;
+      const stream = new Decompress((chunk) => {
+        total += chunk.length;
+        if (total > expectedSize) throw new Error('Zstd output exceeds its ZIP entry size');
+        chunks.push(chunk);
+      });
+      stream.push(data, true);
+      if (total !== expectedSize) throw new Error('Zstd output does not match its ZIP entry size');
+      const result = new Uint8Array(total);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
       // Transfer the result buffer back to avoid copying
       self.postMessage(
         { requestId, success: true, data: result },

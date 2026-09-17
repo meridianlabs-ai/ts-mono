@@ -8,7 +8,7 @@
  * CORS restrictions preventing external worker script loading.
  */
 
-import { decompress as decompressZstdSync } from "fzstd";
+import { Decompress } from "fzstd";
 
 import { kFzstdBase64, kZstdWorkerCode } from "./zstd-worker-code";
 
@@ -19,8 +19,7 @@ import { kFzstdBase64, kZstdWorkerCode } from "./zstd-worker-code";
 const WORKER_THRESHOLD = 1024 * 1024;
 
 /**
- * Maximum window log supported by fzstd (2^25 = 32MB).
- * Ultra compression levels (20+) often use larger windows.
+ * Maximum history allocation allowed by the viewer (2^25 = 32 MiB).
  */
 const MAX_WINDOW_LOG = 25;
 
@@ -34,8 +33,8 @@ export class ZstdWindowSizeError extends Error {
   constructor(windowLog: number) {
     super(
       `Zstd window size too large (windowLog=${windowLog}, max=${MAX_WINDOW_LOG}). ` +
-        `This file may have been compressed with zstd "ultra" mode (level 20+). ` +
-        `Try recompressing with --long=${MAX_WINDOW_LOG} or a lower compression level.`
+        `The viewer supports zstd frames with history windows up to 32 MiB. ` +
+        `Recompress using smaller zstd frames or ZIP deflate.`
     );
     this.name = "ZstdWindowSizeError";
     this.windowLog = windowLog;
@@ -45,53 +44,102 @@ export class ZstdWindowSizeError extends Error {
   }
 }
 
-/**
- * Validates that the zstd frame's window size is within fzstd's limits.
- * Parses the frame header to extract the window descriptor.
- *
- * @param data - The zstd-compressed data
- * @throws ZstdWindowSizeError if window size exceeds 2^25 bytes
- */
-function validateZstdWindowSize(data: Uint8Array): void {
-  // Need at least 5 bytes for magic + frame header descriptor
-  if (data.length < 5) {
-    return; // Let fzstd handle malformed data
+// Scan every frame before fzstd allocates its history window. In particular,
+// single-segment frames use their content size as the window size.
+function validateZstdFrames(data: Uint8Array, expectedSize: number): void {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let offset = 0;
+  const requireBytes = (count: number) => {
+    if (count > data.length - offset) throw new Error("Truncated zstd frame");
+  };
+  while (offset < data.length) {
+    requireBytes(4);
+    const magic = view.getUint32(offset, true);
+    offset += 4;
+    if ((magic & 0xfffffff0) === 0x184d2a50) {
+      requireBytes(4);
+      const size = view.getUint32(offset, true);
+      offset += 4;
+      requireBytes(size);
+      offset += size;
+      continue;
+    }
+    if (magic !== 0xfd2fb528) throw new Error("Invalid zstd frame");
+    requireBytes(1);
+    const descriptor = view.getUint8(offset++);
+    const singleSegment = (descriptor & 32) !== 0;
+    let windowSize = 0;
+    if (!singleSegment) {
+      requireBytes(1);
+      const windowDescriptor = view.getUint8(offset++);
+      const base = 2 ** (10 + (windowDescriptor >> 3));
+      windowSize = base + (base / 8) * (windowDescriptor & 7);
+    }
+    const dictionaryFlag = descriptor & 3;
+    const dictionaryBytes = dictionaryFlag === 3 ? 4 : dictionaryFlag;
+    requireBytes(dictionaryBytes);
+    offset += dictionaryBytes;
+    const sizeFlag = descriptor >> 6;
+    const sizeBytes = sizeFlag ? 2 ** sizeFlag : singleSegment ? 1 : 0;
+    requireBytes(sizeBytes);
+    let contentSize = sizeFlag === 1 ? 256 : 0;
+    for (let index = 0; index < sizeBytes; index++) {
+      contentSize += view.getUint8(offset++) * 256 ** index;
+    }
+    if (
+      sizeBytes &&
+      (!Number.isSafeInteger(contentSize) || contentSize > expectedSize)
+    ) {
+      throw new Error("Zstd frame size exceeds its ZIP entry size");
+    }
+    if (singleSegment) windowSize = contentSize;
+    if (windowSize > 2 ** MAX_WINDOW_LOG) {
+      throw new ZstdWindowSizeError(Math.ceil(Math.log2(windowSize)));
+    }
+    let last = false;
+    while (!last) {
+      requireBytes(3);
+      const block =
+        view.getUint8(offset) + view.getUint16(offset + 1, true) * 256;
+      offset += 3;
+      last = (block & 1) !== 0;
+      const type = (block >> 1) & 3;
+      const size = block >> 3;
+      if (type === 3 || size > 128 * 1024)
+        throw new Error("Invalid zstd block");
+      const compressedSize = type === 1 ? 1 : size;
+      requireBytes(compressedSize);
+      offset += compressedSize;
+    }
+    if (descriptor & 4) {
+      requireBytes(4);
+      offset += 4;
+    }
   }
+}
 
-  // Check magic number (0xFD2FB528, little-endian)
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const magic = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-  if (magic !== 0xfd2fb528) {
-    return; // Not a zstd frame, let fzstd handle it
+function decompressZstdBounded(
+  data: Uint8Array,
+  expectedSize: number
+): Uint8Array {
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  const stream = new Decompress((chunk) => {
+    total += chunk.length;
+    if (total > expectedSize)
+      throw new Error("Zstd output exceeds its ZIP entry size");
+    chunks.push(chunk);
+  });
+  stream.push(data, true);
+  if (total !== expectedSize)
+    throw new Error("Zstd output does not match its ZIP entry size");
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.length;
   }
-
-  // Frame header descriptor byte
-  const descriptor = data[4];
-
-  // Single_Segment_flag is bit 5
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const singleSegmentFlag = (descriptor >> 5) & 1;
-
-  if (singleSegmentFlag) {
-    // No window descriptor - window size equals frame content size
-    // Frame content size is in the header, but for single-segment frames
-    // fzstd should handle this fine as long as we have enough memory
-    return;
-  }
-
-  // Window descriptor is at byte 5 (after magic + descriptor)
-  if (data.length < 6) {
-    return;
-  }
-
-  const windowDescriptor = data[5];
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const exponent = windowDescriptor >> 3; // bits 7-3
-  const windowLog = 10 + exponent;
-
-  if (windowLog > MAX_WINDOW_LOG) {
-    throw new ZstdWindowSizeError(windowLog);
-  }
+  return result;
 }
 
 // Messages posted back by the zstd worker (see kZstdWorkerCode).
@@ -173,7 +221,7 @@ function getZstdWorker(): Promise<Worker> {
 /**
  * Decompresses zstd-compressed data.
  *
- * For small payloads (< 1MB), uses synchronous decompression.
+ * For payloads with both compressed and expected output sizes below 1MB, uses synchronous decompression.
  * For larger payloads, uses a Web Worker to avoid blocking the main thread.
  *
  * Data transfer efficiency:
@@ -183,13 +231,16 @@ function getZstdWorker(): Promise<Worker> {
  * @param data - The zstd-compressed data
  * @returns Promise resolving to the decompressed data
  */
-export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
+export async function decompressZstd(
+  data: Uint8Array,
+  expectedSize: number
+): Promise<Uint8Array> {
   // Check window size before attempting decompression
-  validateZstdWindowSize(data);
+  validateZstdFrames(data, expectedSize);
 
   // For small data, synchronous is faster (avoids worker overhead)
-  if (data.length < WORKER_THRESHOLD) {
-    return decompressZstdSync(data);
+  if (data.length < WORKER_THRESHOLD && expectedSize < WORKER_THRESHOLD) {
+    return decompressZstdBounded(data, expectedSize);
   }
 
   // For large data, use Web Worker to avoid blocking UI
@@ -241,6 +292,7 @@ export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
         type: "decompress",
         requestId,
         data,
+        expectedSize,
       },
       [data.buffer]
     );

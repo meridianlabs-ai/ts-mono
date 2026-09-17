@@ -485,15 +485,7 @@
       "undescribed": 1
     }
   },
-  "apps/inspect/src/client/remote/remoteZipFile.ts": {
-    "@ts-expect-error": {
-      "count": 3
-    }
-  },
   "apps/inspect/src/client/remote/zstd-worker.ts": {
-    "@ts-expect-error": {
-      "count": 3
-    },
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1
     },
