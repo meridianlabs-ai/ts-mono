@@ -1397,17 +1397,19 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           width={Math.max(plotWidth, 0)}
           height={rowH + 4}
           onMouseMove={(event) => {
-            if (travellingToCard(event)) return;
             const px = pointerPx(event);
             const bin = binAt(px);
-            setCursor({ x: px, t: timeAt(px) });
-            showTarget({
+            const target: HoverTarget = {
               kind: "bin",
+              row,
               label: bin.label,
               time: bin.time,
               window: bin.window,
               firstUuid: bin.firstUuid,
-            });
+            };
+            if (travellingToCard(event, target)) return;
+            setCursor({ x: px, t: timeAt(px) });
+            showTarget(target);
           }}
           onMouseLeave={clearTarget}
         />
@@ -1504,6 +1506,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
       const window: TimeWindow = { start: turn.start, end: turn.end };
       const isHovered =
         hoverTarget?.kind === "bin" &&
+        hoverTarget.row.id === row.id &&
         hoverTarget.window.start === window.start &&
         hoverTarget.window.end === window.end;
       const countText = `×${count}`;
@@ -1513,10 +1516,18 @@ export const ActivityChart: FC<ActivityChartProps> = ({
         count > 0 &&
         x1 - x0 >= countHalf * 2 + 4 &&
         mid - countHalf >= rowLabelEnd(row) + 8;
+      const target: HoverTarget = {
+        kind: "bin",
+        row,
+        label,
+        time,
+        window,
+        firstUuid,
+      };
       const enter = (event: ReactMouseEvent<SVGElement>) => {
-        if (travellingToCard(event)) return;
+        if (travellingToCard(event, target)) return;
         setCursor({ x: x0, t: firstTool?.start ?? turn.start });
-        showTarget({ kind: "bin", label, time, window, firstUuid });
+        showTarget(target);
       };
       return (
         <Fragment>
@@ -1753,17 +1764,19 @@ export const ActivityChart: FC<ActivityChartProps> = ({
           width={Math.max(plotWidth, 0)}
           height={rowH + 4}
           onMouseMove={(event) => {
-            if (travellingToCard(event)) return;
             const px = pointerPx(event);
             const bin = binAt(px);
-            setCursor({ x: px, t: timeAtPx(px) });
-            showTarget({
+            const target: HoverTarget = {
               kind: "bin",
+              row,
               label: bin.label,
               time: bin.time,
               window: bin.window,
               firstUuid: bin.firstUuid,
-            });
+            };
+            if (travellingToCard(event, target)) return;
+            setCursor({ x: px, t: timeAtPx(px) });
+            showTarget(target);
           }}
           onMouseLeave={clearTarget}
         />
@@ -2001,16 +2014,17 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                   .map((m) => m.label)
                   .join("; ")}`
               : head.label;
+          const target: HoverTarget = {
+            kind: "marker",
+            members: group.members,
+            compaction:
+              head.category === "compaction"
+                ? data.compactions.find((drop) => drop.key === head.key)
+                : undefined,
+          };
           const activate = () => {
             setCursor({ x: group.x, t: head.time });
-            showTarget({
-              kind: "marker",
-              members: group.members,
-              compaction:
-                head.category === "compaction"
-                  ? data.compactions.find((drop) => drop.key === head.key)
-                  : undefined,
-            });
+            showTarget(target);
             onHoverMarker?.(keys);
           };
           const deactivate = () => {
@@ -2081,7 +2095,7 @@ export const ActivityChart: FC<ActivityChartProps> = ({
                 tabIndex={0}
                 aria-label={label}
                 onMouseEnter={(event) => {
-                  if (!travellingToCard(event)) activate();
+                  if (!travellingToCard(event, target)) activate();
                 }}
                 onMouseLeave={deactivate}
                 onFocus={activate}
@@ -2403,8 +2417,15 @@ export const ActivityChart: FC<ActivityChartProps> = ({
   /** The hit surfaces a travelling pointer crosses on its way down to a
    *  card's footer — a lower row's density strip, a crowded tool half,
    *  the marker rail — hold the card too instead of taking it over
-   *  (review pass 15). */
-  const travellingToCard = (event: ReactMouseEvent<SVGElement>): boolean =>
+   *  (review pass 15). Returning to the target the card already shows is
+   *  not a crossing: the pointer slipped off and came back, so it must
+   *  re-show — cancelling the pending close — or the grace would run out
+   *  under a pointer resting on the thing the card is about (pass 16). */
+  const travellingToCard = (
+    event: ReactMouseEvent<SVGElement>,
+    entering: HoverTarget
+  ): boolean =>
+    hoverTargetKey(entering) !== targetKey &&
     holdCardForPointer(pointerPx(event), pointerPy(event));
 
   const renderTooltip = () => {

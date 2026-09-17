@@ -2542,6 +2542,131 @@ describe("ActivityChart tooltip travel", () => {
     }
   });
 
+  // Returning to the very thing a card shows is not a crossing (review
+  // pass 16): a pointer that slips off a glyph and straight back inside the
+  // grace must find the same card, footer and history link — not a corridor
+  // guard that lets the pending close run out under it.
+  const compactionMarker = (): Event[] => [
+    modelCall({ start: 0, end: 10, uuid: "m1", input: 100 }),
+    testCompactionEvent({
+      uuid: "compact",
+      timestamp: iso(12),
+      working_start: 12,
+      tokens_before: 100,
+      tokens_after: 20,
+    }),
+    modelCall({ start: 20, end: 30, uuid: "m2", input: 30 }),
+  ];
+  const centre = (el: Element): { x: number; y: number } => ({
+    x: attr(el, "x") + attr(el, "width") / 2,
+    y: attr(el, "y") + attr(el, "height") / 2,
+  });
+
+  it("re-shows a marker card when the pointer returns to its glyph inside the grace", () => {
+    vi.useFakeTimers();
+    try {
+      const onHoverMarker = vi.fn();
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(compactionMarker(), {
+        showMarkers: true,
+        onHoverMarker,
+        onOpenEvent,
+      });
+      const glyph = screen.getByRole("button", { name: /Context compacted/ });
+      const { x, y } = centre(glyph);
+      fireEvent.mouseEnter(glyph, { clientX: x, clientY: y });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("Context compacted");
+      fireEvent.mouseLeave(glyph, { relatedTarget: plotHit(container) });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      fireEvent.mouseEnter(glyph, { clientX: x, clientY: y });
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(card(container)?.textContent).toContain("Context compacted");
+      // The history row's wash left with the pointer and came back with it.
+      expect(onHoverMarker.mock.calls).toEqual([
+        [["compact"]],
+        [null],
+        [["compact"]],
+      ]);
+      fireEvent.click(
+        screen.getByRole("button", { name: "open in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("compact", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("re-shows a crowded tool half's card when the pointer returns to it inside the grace", () => {
+    vi.useFakeTimers();
+    try {
+      const onOpenEvent = vi.fn();
+      const { container } = renderChart(sequentialTools(91, 12), {
+        axisMode: "turns",
+        onOpenEvent,
+      });
+      const aggregate = container.querySelector("rect[class*='toolSpan']");
+      if (!(aggregate instanceof SVGElement))
+        throw new Error("expected the aggregate tool rect");
+      const { x, y } = centre(aggregate);
+      fireEvent.mouseEnter(aggregate, { clientX: x, clientY: y });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(card(container)?.textContent).toContain("12 tool calls");
+      fireEvent.mouseLeave(aggregate, { relatedTarget: plotHit(container) });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      fireEvent.mouseEnter(aggregate, { clientX: x, clientY: y });
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(card(container)?.textContent).toContain("12 tool calls");
+      expect(aggregate.getAttribute("class")).toContain("spanHovered");
+      fireEvent.click(
+        screen.getByRole("button", { name: "open first in transcript →" })
+      );
+      expect(onOpenEvent).toHaveBeenCalledWith("t0", expect.anything());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("re-shows a bin card when the pointer returns to the same bin inside the grace", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart(twoDenseRows());
+      const [first] = strips(container);
+      if (!first) throw new Error("expected a density strip");
+      const x = attr(first, "x") + 2;
+      const y = attr(first, "y") + 5;
+      fireEvent.mouseMove(first, { clientX: x, clientY: y });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      const subject = card(container)?.textContent ?? "";
+      expect(subject).toMatch(/\d+ model calls · 0 tool calls/);
+      fireEvent.mouseLeave(first, { relatedTarget: plotHit(container) });
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      fireEvent.mouseMove(first, { clientX: x, clientY: y });
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(card(container)?.textContent ?? "").toBe(subject);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("stops following the pointer horizontally once it leaves the span", () => {
     vi.useFakeTimers();
     try {

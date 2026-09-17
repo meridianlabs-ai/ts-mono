@@ -55,6 +55,7 @@ export type HoverTarget =
       /** A collapsed range — a density-strip bin or a crowded tool half.
        *  `label` counts its calls; `time` is the card's time line. */
       kind: "bin";
+      row: AgentRow;
       label: string;
       time: string;
       window: TimeWindow;
@@ -99,7 +100,9 @@ export const hoverTargetKey = (target: HoverTarget | null): string | null => {
     case "stall":
       return `stall:${target.stall.start}`;
     case "bin":
-      return `bin:${target.window.start}`;
+      // Every row bins the same axis, so the window alone would make row
+      // 2's bin read as row 1's (a return to "the same target").
+      return `bin:${target.row.id}:${target.window.start}`;
     case "curve":
       return `curve:${target.band}`;
   }

@@ -959,6 +959,50 @@ test("a marker cluster's card survives travel across the strips to its footer", 
   await expect(page).toHaveURL(/\/transcript\?event=compact-a1$/);
 });
 
+// A pointer that slips off the glyph and straight back inside the grace
+// (review pass 16) must find the same card and history wash: the corridor
+// guard is for crossing OTHER surfaces, not for returning to the one the
+// card shows.
+test("a marker cluster's card survives a slip off the glyph and back inside the grace", async ({
+  page,
+  network,
+}) => {
+  await page.setViewportSize({ width: 1032, height: 900 });
+  await openSample(page, network, { events: twoDenseRowsEvents() });
+  await expect(page.getByText(/per-pixel occupancy/)).toBeVisible();
+  const glyph = page
+    .getByRole("button", { name: /^2 events: Context compacted/ })
+    .and(page.locator("rect"));
+  const glyphBox = await glyph.boundingBox();
+  if (!glyphBox) throw new Error("expected the cluster glyph");
+  const at = center(glyphBox);
+  await page.mouse.move(at.x, at.y);
+  const card = page.locator("[class*='tooltip']");
+  await expect(card).toContainText("2 events");
+  const washed = page.locator("[class*='rowWash']");
+  await expect(washed).toHaveCount(2);
+  // Two pixels below the hit rect and straight back, well inside the grace.
+  await page.mouse.move(at.x, glyphBox.y + glyphBox.height + 2);
+  await page.mouse.move(at.x, at.y);
+  await page.waitForTimeout(450);
+  await expect(card).toContainText("2 events");
+  await expect(washed).toHaveCount(2);
+  const from = { x: at.x + 1, y: at.y };
+  await page.mouse.move(from.x, from.y);
+  await expect(card).toContainText("2 events");
+  // ...and the footer is still reached by the ordinary travel.
+  const footer = card.getByRole("button", {
+    name: "open first in transcript →",
+  });
+  const footerBox = await footer.boundingBox();
+  if (!footerBox) throw new Error("expected the card's footer");
+  await travel(page, from, center(footerBox), 30, async (step) => {
+    await expect(card, `step ${step}`).toContainText("2 events");
+  });
+  await footer.click();
+  await expect(page).toHaveURL(/\/transcript\?event=compact-a1$/);
+});
+
 test("history row clicks through to the transcript event", async ({
   page,
   network,

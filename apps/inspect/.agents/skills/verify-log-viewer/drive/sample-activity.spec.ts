@@ -256,6 +256,13 @@ test("compaction events render cliff drops, ▼ markers, and rows", async ({
     x: glyphBox.x + glyphBox.width / 2,
     y: glyphBox.y + glyphBox.height / 2,
   };
+  // A slip two pixels off the glyph and straight back inside the grace
+  // keeps the card (review pass 16: the corridor guard swallowed the
+  // return and the pending close ran out under the pointer).
+  await page.mouse.move(from.x, glyphBox.y + glyphBox.height + 2);
+  await page.mouse.move(from.x, from.y);
+  await page.waitForTimeout(450);
+  await expect(card).toContainText("Context compacted");
   const to = {
     x: footerBox.x + footerBox.width / 2,
     y: footerBox.y + footerBox.height / 2,
