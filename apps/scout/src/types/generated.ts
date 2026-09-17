@@ -1377,6 +1377,8 @@ export interface components {
          * @description Text content.
          */
         ContentText: {
+            /** Cache Breakpoint */
+            cache_breakpoint?: boolean | null;
             /** Citations */
             citations?: (components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"])[] | null;
             internal?: components["schemas"]["JsonValue"] | null;
@@ -1599,7 +1601,7 @@ export interface components {
             /** Cache */
             cache?: boolean | components["schemas"]["CachePolicy"] | null;
             /** Cache Prompt */
-            cache_prompt?: "auto" | boolean | null;
+            cache_prompt?: ("auto" | "prefix") | boolean | null;
             /** Effort */
             effort?: ("low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Extra Body */
@@ -1690,7 +1692,7 @@ export interface components {
             /** Cache */
             cache?: boolean | components["schemas"]["CachePolicy"] | null;
             /** Cache Prompt */
-            cache_prompt?: "auto" | boolean | null;
+            cache_prompt?: ("auto" | "prefix") | boolean | null;
             /** Effort */
             effort?: ("low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Extra Body */
