@@ -51,6 +51,17 @@ const withAppendedDefaults = (
 };
 
 describe("resolveScannerResultView", () => {
+  it("resolves hostile wildcard patterns without blocking the viewer", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: {
+        ["*a".repeat(24)]: { fields: [builtin("value")], exclude_fields: [] },
+      },
+    };
+    expect(resolveScannerResultView(viewer, "a".repeat(40) + "b")).toEqual(
+      kDefaultResolvedView
+    );
+  });
+
   it("returns the built-in default when viewer is null/undefined", () => {
     expect(resolveScannerResultView(null, "any")).toEqual(kDefaultResolvedView);
     expect(resolveScannerResultView(undefined, "any")).toEqual(
