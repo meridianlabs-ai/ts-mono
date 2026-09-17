@@ -24,7 +24,8 @@
 #                     title/body as files; `emit-landing` packages the commits
 #                     and a manifest for the land job.
 #   land  (trusted)   a fresh runner that checks out nothing: checks the
-#                     manifest names exactly the gate's branch, mints an App
+#                     manifest names exactly the gate's branch and PR (and
+#                     nothing else the gate did not decide), mints an App
 #                     token for this repo (contents + pull requests), validates
 #                     the manifest, pushes the batch branch and opens the PR
 #                     (or, on a continued batch, posts the run's batch update
@@ -52,9 +53,10 @@
 # rule and its rationale live in that script's header — and the agent job
 # checks it out before the agent starts. The agent is told the result and
 # instructed not to touch any other ref. The land job refuses a manifest
-# whose branch is not exactly the gate's choice, and the landing composite
-# pins a continued batch to the open PR's live head ref besides, so a
-# tampered artifact cannot steer the push.
+# whose branch, PR number or comment targets are not exactly the gate's
+# choices (or that carries any channel this workflow does not compose),
+# and the landing composite pins a continued batch to the open PR's live
+# head ref besides, so a tampered artifact cannot steer the push or a post.
 #
 # The permission allowlist below is defense in depth, not a boundary:
 # `Bash(pnpm:*)` is arbitrary execution and `gh api` is general-purpose.
@@ -462,36 +464,57 @@ jobs:
       pull-requests: read # the continued PR's head-ref lookup (read token)
       actions: read # artifact download
     steps:
-      # The landing composite pins a manifest's branch by PREFIX on a run
-      # that names no PR, and `dependabot-fix/<date>` is a prefix of
-      # `dependabot-fix/<date>-other`. A tampered artifact could steer a
-      # new batch's push at such a sibling, so the manifest's branch is
-      # compared with the gate's (trusted) branch for equality first — an
-      # equality test on one field read as text, before any token is minted;
-      # the composite validates everything else. A missing artifact is the
-      # composite's to report (it posts on the pinned PR), so it is not
-      # failed here.
+      # Trusted pre-check of the landing manifest, before any token is minted.
+      # The landing composite validates shape and pins pr_number, the branch
+      # of a continued batch (live PR head ref) and file references, but two
+      # things it cannot know: a run that names no PR is pinned by PREFIX
+      # only (`dependabot-fix/<date>` is a prefix of `dependabot-fix/<date>-
+      # other`), and comments[].number is not tied to pr_number. The agent
+      # job composes the manifest, so a tampered artifact could steer a new
+      # batch's push at a sibling branch or a comment at another PR. This
+      # step downloads the artifact (a failed download fails the job: nothing
+      # lands uninspected) and refuses a manifest unless its branch and
+      # pr_number are exactly the gate's, every comment targets the gate's
+      # PR (none on a new batch), `pr` carries only what the compose step
+      # writes, and no other channel (handback, hand-off, stage, replies,
+      # issues, ...) is present. Everything else is the composite's job.
       - name: Download the landing manifest
-        id: manifest
         uses: actions/download-artifact@v7
-        continue-on-error: true
         with:
           name: landing
           path: ${{ runner.temp }}/landing-check
 
-      - name: Refuse a manifest that names another branch
+      - name: Refuse a manifest that strays from the gate's decisions
         env:
           MANIFEST: ${{ runner.temp }}/landing-check/manifest.json
           BRANCH: ${{ needs.gate.outputs.branch }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
         run: |
           set -euo pipefail
-          [ -f "$MANIFEST" ] || { echo "No landing manifest; the landing composite reports the missing artifact."; exit 0; }
-          named=$(jq -r '.branch // ""' "$MANIFEST" 2>/dev/null || true)
-          if [ "$named" != "$BRANCH" ]; then
-            echo "::error::The landing manifest names branch '$named', not the gate's '$BRANCH'; refusing to land."
+          [ -f "$MANIFEST" ] || { echo "::error::The landing artifact has no manifest.json; refusing to land."; exit 1; }
+          # One jq program lists every violation; any jq error (not JSON,
+          # wrong types, a non-numeric gate PR number) is a violation too.
+          violations=$(jq -r --arg branch "$BRANCH" --arg pr "$PR_NUMBER" \
+            --argjson allowed '["schema","repo","run_id","branch","start_sha","head_sha","has_bundle","pr_number","issue_number","pr","comments","error"]' '
+            def prn: if $pr == "" then null else ($pr | tonumber) end;
+            if type != "object" then "manifest is not a JSON object" else
+            [ ((keys - $allowed)[] | "unexpected key \(.)"),
+              (if .branch != $branch then "branch \(.branch | tojson) is not the gate branch \($branch | tojson)" else empty end),
+              (if .pr_number != prn then "pr_number \(.pr_number | tojson) is not the gate PR \(prn | tojson)" else empty end),
+              (if (.pr | type) == "null" then empty
+               elif (.pr | type) != "object" then "pr is not an object"
+               elif prn != null then "pr must not be set when continuing an open PR"
+               else ((.pr | keys) - ["open","title","body_file"])[] | "unexpected pr key \(.)" end),
+              (if (.comments | type) == "null" then empty
+               elif (.comments | type) != "array" then "comments is not an array"
+               elif prn == null then "comments are not allowed on a new batch (no PR selected by the gate)"
+               else .comments[] | select((. | type) != "object" or .number != prn) | "comment target \(.number? | tojson) is not the gate PR \(prn)" end)
+            ] | .[] end' "$MANIFEST" 2>&1) || violations="manifest could not be read: $violations"
+          if [ -n "$violations" ]; then
+            printf '::error::Refusing the landing manifest:\n%s\n' "$violations"
             exit 1
           fi
-          echo "Manifest branch matches the gate's: $BRANCH"
+          echo "Manifest matches the gate: branch $BRANCH, PR ${PR_NUMBER:-none}."
 
       # Scoped to this repo and to this job's writes: the push (contents) and
       # the PR — open it, or comment on a continued batch (pull requests).
