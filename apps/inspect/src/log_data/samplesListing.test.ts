@@ -16,7 +16,11 @@ import {
 import { queryClient } from "../state/queryClient";
 
 import { clearFile, createLogsContentSink, writeDetails } from "./logsContent";
-import { useSamplesListing } from "./samplesListing";
+import {
+  invalidateSamplesListingsForFiles,
+  samplesListingKey,
+  useSamplesListing,
+} from "./samplesListing";
 import { testLogDetails, testSampleSummary } from "./testFixtures";
 
 // The module-under-test reads Dexie through the shared instance; route it to
@@ -128,6 +132,41 @@ describe("details ingestion (sink split)", () => {
     await clearFile(db, LOG_DIR, FILE_A);
     const rows = await db.readSampleSummaries({ file: FILE_A });
     expect(rows).toEqual([]);
+  });
+});
+
+describe("targeted samples-listing invalidation", () => {
+  it("invalidates file and prefix scopes that cover a changed file", () => {
+    const keys = {
+      fileA: samplesListingKey({
+        logDir: LOG_DIR,
+        scope: { file: FILE_A },
+      }),
+      fileB: samplesListingKey({
+        logDir: LOG_DIR,
+        scope: { file: FILE_B },
+      }),
+      root: samplesListingKey({
+        logDir: LOG_DIR,
+        scope: { prefix: LOG_DIR },
+      }),
+      sub: samplesListingKey({
+        logDir: LOG_DIR,
+        scope: { prefix: `${LOG_DIR}/sub` },
+      }),
+    };
+    for (const key of Object.values(keys)) {
+      queryClient.setQueryData(key, []);
+    }
+
+    invalidateSamplesListingsForFiles(LOG_DIR, [FILE_B]);
+
+    const invalidated = (key: readonly unknown[]) =>
+      queryClient.getQueryCache().find({ queryKey: key })?.state.isInvalidated;
+    expect(invalidated(keys.fileA)).toBe(false);
+    expect(invalidated(keys.fileB)).toBe(true);
+    expect(invalidated(keys.root)).toBe(true);
+    expect(invalidated(keys.sub)).toBe(true);
   });
 });
 
