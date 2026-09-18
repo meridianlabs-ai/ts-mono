@@ -31,7 +31,7 @@ import {
 export const parseScanResultData = async (
   filtered: ColumnTable
 ): Promise<ScanResultData> => {
-  const valueType = normalizeValueType(rawCell(filtered, "value_type", 0));
+  const valueTag = normalizeValueType(rawCell(filtered, "value_type", 0));
 
   const [
     eventReferences,
@@ -46,7 +46,7 @@ export const parseScanResultData = async (
     transcriptMetadata,
     validationResult,
     validationTarget,
-    value,
+    scanValue,
     transcriptAgentArgs,
     transcriptScore,
   ] = await Promise.all([
@@ -62,7 +62,7 @@ export const parseScanResultData = async (
     normalizeJsonRecord(rawCell(filtered, "transcript_metadata", 0)),
     normalizeValidationResult(rawCell(filtered, "validation_result", 0)),
     normalizeValidationTarget(rawCell(filtered, "validation_target", 0)),
-    normalizeScanValue(rawCell(filtered, "value", 0), valueType),
+    normalizeScanValue(rawCell(filtered, "value", 0), valueTag),
     normalizeAgentArgs(rawCell(filtered, "transcript_agent_args", 0)),
     normalizeTranscriptScore(rawCell(filtered, "transcript_score", 0)),
   ]);
@@ -122,8 +122,7 @@ export const parseScanResultData = async (
     transcriptLimit: optionalStringCell(filtered, "transcript_limit"),
     validationResult,
     validationTarget,
-    value,
-    valueType,
+    ...scanValue,
   };
 
   resolveTranscriptIdentityFromMetadata(baseData);
@@ -143,7 +142,7 @@ const parseScanResultSummary = async (
   row: object
 ): Promise<ScanResultSummary> => {
   const cell = rowCell(row);
-  const valueType = normalizeValueType(cell("value_type"));
+  const valueTag = normalizeValueType(cell("value_type"));
 
   const [
     validationResult,
@@ -151,14 +150,14 @@ const parseScanResultSummary = async (
     transcriptMetadata,
     eventReferences,
     messageReferences,
-    value,
+    scanValue,
   ] = await Promise.all([
     normalizeValidationResult(cell("validation_result")),
     normalizeValidationTarget(cell("validation_target")),
     normalizeJsonRecord(cell("transcript_metadata")),
     normalizeReferences(cell("event_references")),
     normalizeReferences(cell("message_references")),
-    normalizeScanValue(cell("value"), valueType),
+    normalizeScanValue(cell("value"), valueTag),
   ]);
 
   const baseSummary = {
@@ -172,8 +171,7 @@ const parseScanResultSummary = async (
     messageReferences,
     validationResult,
     validationTarget,
-    value,
-    valueType,
+    ...scanValue,
     transcriptTaskSet: stringOf(cell("transcript_task_set")),
     transcriptTaskId: idOf(cell("transcript_task_id")),
     transcriptTaskRepeat: numberOf(cell("transcript_task_repeat")),

@@ -24,11 +24,52 @@ import type {
  * ScanResultData can trust the declared types.
  */
 
+// JSON.parse is iterative in every current engine while JSON.stringify and
+// JSON5.stringify recurse, so a scan-authored cell nested tens of thousands
+// of levels deep parses cleanly and then overflows the stack the first time
+// the viewer serializes it (column sizing, search, sort, title tooltips).
+// No legitimate scanner output nests anywhere near this deep, so subtrees
+// below the cap become null. The freshly parsed graph is owned here, so it
+// is pruned in place; the walk is iterative because the input is exactly
+// the shape recursion can't handle.
+const kMaxJsonDepth = 256;
+
+const pruneDeepJson = <T>(root: T, source: string): T => {
+  // Every nesting level costs at least two source characters, so a cell this
+  // short cannot exceed the cap and the walk is skipped for ordinary rows.
+  if (source.length <= 2 * kMaxJsonDepth) {
+    return root;
+  }
+  if (!isRecord(root) && !Array.isArray(root)) {
+    return root;
+  }
+  const stack: { node: Record<string, unknown> | unknown[]; depth: number }[] =
+    [{ node: root, depth: 1 }];
+  for (let frame = stack.pop(); frame !== undefined; frame = stack.pop()) {
+    const { node, depth } = frame;
+    for (const [key, child] of Object.entries(node)) {
+      if (!isRecord(child) && !Array.isArray(child)) {
+        continue;
+      }
+      if (depth >= kMaxJsonDepth) {
+        if (Array.isArray(node)) {
+          node[Number(key)] = null;
+        } else {
+          node[key] = null;
+        }
+      } else {
+        stack.push({ node: child, depth: depth + 1 });
+      }
+    }
+  }
+  return root;
+};
+
 const parseJsonLenient = async (
   text: string
 ): Promise<JsonValue | undefined> => {
   try {
-    return await asyncJsonParse<JsonValue>(text);
+    return pruneDeepJson(await asyncJsonParse<JsonValue>(text), text);
   } catch {
     return undefined;
   }
@@ -154,23 +195,40 @@ export const normalizeInputType = (
 ): ScannerInputType | undefined =>
   typeof raw === "string" && isInputType(raw) ? raw : undefined;
 
+type ScanValue = Pick<ScanResultSummary, "value" | "valueType">;
+
+const kNullScanValue: ScanValue = { value: null, valueType: "null" };
+
 /**
  * The `value` cell: JSON-encoded for object/array results, the raw scalar
- * otherwise.
+ * otherwise. The value_type tag is authored independently of the cell and
+ * every consumer narrows on the tag alone, so an array/object tag whose cell
+ * is absent, malformed, or the other shape is re-tagged null rather than
+ * handed downstream as `valueType: "array"` over a record, and an absent cell
+ * under a scalar tag is re-tagged null too. Scalar cells are otherwise kept
+ * as-is: the parquet value column is a string column and the server only
+ * casts numbers/booleans when a scanner's value_type is uniform, so a mixed
+ * scanner legitimately delivers "0.9" under a number tag.
  */
 export const normalizeScanValue = async (
   raw: unknown,
   valueType: ScanResultValueType
-): Promise<ScanResultSummary["value"]> => {
-  if (valueType === "object" || valueType === "array") {
+): Promise<ScanValue> => {
+  if (valueType === "array") {
     const parsed = await parseJsonCell(raw);
-    return typeof parsed === "object" ? parsed : null;
+    return Array.isArray(parsed)
+      ? { value: parsed, valueType }
+      : kNullScanValue;
+  }
+  if (valueType === "object") {
+    const parsed = await parseJsonCell(raw);
+    return isRecord(parsed) ? { value: parsed, valueType } : kNullScanValue;
   }
   return typeof raw === "string" ||
     typeof raw === "number" ||
     typeof raw === "boolean"
-    ? raw
-    : null;
+    ? { value: raw, valueType }
+    : kNullScanValue;
 };
 
 /**
@@ -210,7 +268,7 @@ export const normalizeValidationTarget = async (
 ): Promise<JsonValue | undefined> => {
   if (typeof raw === "string") {
     try {
-      return await asyncJsonParse<JsonValue>(raw);
+      return pruneDeepJson(await asyncJsonParse<JsonValue>(raw), raw);
     } catch {
       // Legacy targets could be plain (non-JSON) strings; keep them verbatim.
       return raw;
