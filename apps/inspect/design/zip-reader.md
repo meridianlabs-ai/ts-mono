@@ -40,8 +40,49 @@ result still requires a second output-sized allocation.
 These limits can reject previously readable zstd entries. The old window check
 compared a signed bitwise magic value with an unsigned constant, so it was
 ineffective for ordinary frames as well as bypassed for single-segment frames.
-Large archives remain supported, but oversized windows and unusually fragmented
-or expensive entries require recompression. There is no cross-entry memory budget.
+Large archives remain supported, but these are resource-policy limits, not a
+guarantee that every valid entry below 2 GiB is readable. There is no cross-entry
+memory budget.
+
+## Compatibility of the work budget
+
+The fixed work budget intentionally favors bounded decoder cost over accepting
+every valid compression configuration. It is not restricted to malformed or
+pathological inputs: ordinary large samples can exceed it. The estimate sums
+`windowSize × (1 + blockCount)` over frames, including one window allocation per
+frame. With full 128 KiB blocks, the approximate output ceilings are:
+
+| History window | Approximate output ceiling from the 32 GiB work budget |
+| -------------- | -----------------------------------------------------: |
+| 2 MiB          |                                                  2 GiB |
+| 4 MiB          |                                                  1 GiB |
+| 8 MiB          |                                                512 MiB |
+| 32 MiB         |                                                128 MiB |
+
+Frame allocation overhead makes the exact ceilings slightly lower. Blocks can
+also be smaller than 128 KiB, so even the 2 MiB window used by the current Inspect
+default writer can exhaust the work budget well before the 2 GiB entry limit.
+Higher compression settings can select larger windows; compression level alone
+is not a portable mapping to window size.
+
+In the local corpus, all 628 zstd entries passed the metadata limits and used
+windows no larger than 2 MiB. The original MirrorCode sample has 6 frames and
+13,142 blocks, charging **25.68 GiB (80%)** of the work allowance for its 1.15 GB
+output. A larger sample with similar block density could exceed the budget;
+default compression does not guarantee acceptance. The largest charge for one
+entry in the chunked MirrorCode archive is **0.64 GiB (2%)**.
+
+The budget resets for each ZIP entry, not each zstd frame. Splitting a sample into
+separate chunk entries therefore provides substantially more headroom; merely
+concatenating smaller frames in the same entry does not. Existing unchunked logs
+can still require conversion to chunked entries or recompression with smaller
+windows or ZIP deflate. The error reports the budget rather than treating these
+files as corrupt.
+
+Keep the ceiling independent of compressed input size: padding or skippable
+frames could otherwise increase the allowed decoder work without contributing
+useful output. Any future increase should be an explicit change to the supported
+resource policy, backed by measurements of the affected files.
 
 ## Large-log compatibility verification
 

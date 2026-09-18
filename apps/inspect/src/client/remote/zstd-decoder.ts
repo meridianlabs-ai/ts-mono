@@ -9,6 +9,7 @@ export function createZstdDecoder(Decompress: typeof ZstdDecompress) {
   const MAX_WINDOW_LOG = 25;
   // fzstd copies its history after every block. Budget this work separately
   // from live allocation to bound tiny-frame/block amplification.
+  // Keep an absolute ceiling: input padding must not buy more decoder work.
   const MAX_HISTORY_WORK = 32 * 1024 * 1024 * 1024;
   const MAX_FRAME_BLOCK_COUNT = 1_000_000;
 

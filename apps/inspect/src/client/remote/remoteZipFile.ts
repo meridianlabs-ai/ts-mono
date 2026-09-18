@@ -218,6 +218,7 @@ export const openRemoteZipFile = async (
 /** Opens an in-memory ZIP archive using the same metadata validation as remote reads. */
 export const openZipFileFromBuffer = (bytes: Uint8Array) =>
   openRemoteZipFile("in-memory ZIP", bytes.length, (_url, start, end) =>
+    // Copy: a worker may transfer this buffer, which must not detach the archive.
     Promise.resolve(bytes.slice(start, end + 1))
   );
 
