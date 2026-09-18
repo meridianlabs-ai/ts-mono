@@ -116,3 +116,30 @@ test("legacy stats without connection history still open the timeline", async ({
   await expect(page.getByTestId("error-panel")).not.toBeVisible();
   await expect(page.getByText("History", { exact: true })).toBeVisible();
 });
+
+for (const history of ["history", [null], [{ timestamp: "123" }]]) {
+  test(`malformed history ${JSON.stringify(history)} only disables the timeline`, async ({
+    page,
+    network,
+  }) => {
+    const log = createEvalLog();
+    serveEvalLog(network, log, "malformed-timeline.json");
+    network.use(
+      http.get("*/api/logs/:file", () =>
+        HttpResponse.json({
+          ...log,
+          stats: { ...log.stats, connection_limit_history: history },
+        })
+      )
+    );
+    await page.goto("/#/logs/malformed-timeline.json");
+    await page.getByRole("tab", { name: "Timeline", exact: true }).click();
+    await expect(page.getByText("Unable to display timeline")).toBeVisible();
+    await expect(page.getByTestId("error-panel")).toContainText(
+      "Invalid connection history"
+    );
+    await expect(page.getByTestId("error-panel")).not.toContainText(/\bat /);
+    await page.getByRole("tab", { name: "Info", exact: true }).click();
+    await expect(page.getByTestId("error-panel")).not.toBeVisible();
+  });
+}

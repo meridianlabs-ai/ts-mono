@@ -4,18 +4,17 @@ import {
   normalizeEvalResults,
   normalizeEvalSample,
   normalizeEvalSpec,
+  normalizeEvalStats,
 } from "@tsmono/inspect-common/normalize";
 import {
   ConfigUpdate,
   EvalError,
-  EvalLog,
-  EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
 import { EvalLogStatus } from "../../@types/extraInspect";
-import { EvalHeader, LogPreview } from "../api/types";
+import { EvalHeader, LogContents, LogPreview } from "../api/types";
 import { LogStart } from "../remote/remoteLogFile";
 
 /**
@@ -41,7 +40,7 @@ export const normalizeEvalHeader = (raw: unknown): EvalHeader => {
     eval: evalSpec,
     plan: normalizeEvalPlan(raw["plan"]),
     results: normalizeEvalResults(raw["results"]),
-    stats: raw["stats"] as EvalStats | undefined,
+    stats: normalizeEvalStats(raw["stats"]),
     error: raw["error"] as EvalError | null | undefined,
     tags: (raw["tags"] ?? evalSpec.tags ?? []) as string[],
     metadata: (raw["metadata"] ?? evalSpec.metadata ?? {}) as Record<
@@ -160,7 +159,7 @@ const migrateV1Log = (
  * server's `/logs/{file}` responses): format-version migrations, then
  * read-time defaults.
  */
-export const normalizeEvalLog = (rawInput: unknown): EvalLog => {
+export const normalizeEvalLog = (rawInput: unknown): LogContents["parsed"] => {
   if (!isRecord(rawInput)) {
     throw new Error("Invalid eval log: expected an object");
   }
@@ -179,7 +178,7 @@ export const normalizeEvalLog = (rawInput: unknown): EvalLog => {
     samples,
   };
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): `reductions` is pass-through wire data, and `stats` is required on EvalLog but only written at end-of-eval — EvalHeader models that with `stats?`, EvalLog does not. A known type/wire mismatch confined to this normalizer.
-  return log as EvalLog;
+  return log as LogContents["parsed"];
 };
 
 /** Re-export for boundary call sites that read journal entries directly. */

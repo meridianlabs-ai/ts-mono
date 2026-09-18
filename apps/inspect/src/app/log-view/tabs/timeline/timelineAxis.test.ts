@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { testConnectionLimitChange } from "@tsmono/inspect-common/testing";
+
 import {
   connectionHistoryError,
   isTimelineTimestamp,
@@ -69,7 +71,7 @@ describe("timeline axis ticks", () => {
     );
   });
 
-  it.each([null, undefined, "0", NaN, Infinity, -Infinity, 2 ** 57])(
+  it.each([NaN, Infinity, -Infinity, 2 ** 57])(
     "rejects raw timestamp %s",
     (value) => {
       expect(isTimelineTimestamp(value)).toBe(false);
@@ -84,29 +86,24 @@ describe("timeline axis ticks", () => {
   );
 });
 
-describe("connection history boundary", () => {
-  it.each([undefined, null, []].map((history) => ({ history })))(
-    "accepts missing or empty legacy history %s",
-    ({ history }) => {
-      expect(connectionHistoryError(history)).toBeUndefined();
+describe("connection history timestamps", () => {
+  it("accepts empty history", () => {
+    expect(connectionHistoryError([])).toBeUndefined();
+  });
+  it.each([NaN, Infinity, -Infinity, 2 ** 57, -(2 ** 57)])(
+    "rejects unrepresentable timestamp %s",
+    (timestamp) => {
+      expect(
+        connectionHistoryError([testConnectionLimitChange({ timestamp })])
+      ).toMatch("Invalid timeline");
     }
   );
-  it.each(
-    [
-      {},
-      "history",
-      [null],
-      [{}],
-      [{ timestamp: "123" }],
-      [{ timestamp: Infinity }],
-      [{ timestamp: 2 ** 57 }],
-    ].map((history) => ({ history }))
-  )("rejects malformed history %j visibly", ({ history }) => {
-    expect(connectionHistoryError(history)).toMatch("Invalid timeline");
-  });
   it("accepts valid timestamps without changing the history", () => {
-    const history = [{ timestamp: 0 }, { timestamp: 1736935200 }];
+    const history = [-8.64e12, 0, 1736935200, 8.64e12].map((timestamp) =>
+      testConnectionLimitChange({ timestamp })
+    );
+    const original = structuredClone(history);
     expect(connectionHistoryError(history)).toBeUndefined();
-    expect(history).toEqual([{ timestamp: 0 }, { timestamp: 1736935200 }]);
+    expect(history).toEqual(original);
   });
 });

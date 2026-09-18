@@ -1,3 +1,5 @@
+import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
+
 import type { TimeWindow } from "./timelineData";
 
 // Epoch seconds must fit the same Date range as the ISO-derived signals.
@@ -8,33 +10,15 @@ const kIntervals = [
   15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400,
 ];
 
-export const isTimelineTimestamp = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  Math.abs(value) <= kMaxEpochSeconds;
+export const isTimelineTimestamp = (value: number): boolean =>
+  Number.isFinite(value) && Math.abs(value) <= kMaxEpochSeconds;
 
-// EvalStats connection history is not normalized yet (#555), so its wire
-// shape can differ from the generated type. Keep guards until that boundary is normalized.
 export const connectionHistoryError = (
-  history: unknown
-): string | undefined => {
-  if (history === undefined || history === null) return undefined;
-  if (!Array.isArray(history)) {
-    return "Invalid timeline: connection history must be an array.";
-  }
-  for (const value of history) {
-    const event: unknown = value;
-    if (
-      typeof event !== "object" ||
-      event === null ||
-      !("timestamp" in event) ||
-      !isTimelineTimestamp(event.timestamp)
-    ) {
-      return "Invalid timeline: connection history contains an invalid or out-of-range timestamp.";
-    }
-  }
-  return undefined;
-};
+  history: ConnectionLimitChange[]
+): string | undefined =>
+  history.some((event) => !isTimelineTimestamp(event.timestamp))
+    ? "Invalid timeline: connection history contains an invalid or out-of-range timestamp."
+    : undefined;
 
 export const timelineWindowError = (window: TimeWindow): string | undefined => {
   if (!isTimelineTimestamp(window.start) || !isTimelineTimestamp(window.end)) {
