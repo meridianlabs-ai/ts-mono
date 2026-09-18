@@ -1,6 +1,4 @@
-// Scanner names are not paths: dots and slashes match like any other character.
-// Support *, ?, bracket classes/ranges, and backslash escapes; all other
-// punctuation is literal. Matching never delegates a log-authored regex.
+// Preserve the existing path/dot wildcard rules without log-authored regexes.
 const kMaxNameLength = 4096;
 const kMaxPatternLength = 4096;
 const kMaxMatchingWork = 4_000_000;
@@ -21,7 +19,7 @@ export class ScannerGlobBudget {
 }
 
 type Token =
-  | { kind: "star" | "any" }
+  | { kind: "star" | "globstar" | "any" }
   | { kind: "literal"; value: string }
   | { kind: "class"; negate: boolean; ranges: Array<[number, number]> };
 
@@ -30,14 +28,21 @@ function tokenize(pattern: string, budget: ScannerGlobBudget): Token[] {
   for (let i = 0; i < pattern.length; i++) {
     const ch = pattern[i]!;
     if (ch === "*") {
-      if (tokens.at(-1)?.kind !== "star") tokens.push({ kind: "star" });
+      const start = i;
+      while (pattern[i + 1] === "*") i++;
+      const wholeSegment =
+        (start === 0 || pattern[start - 1] === "/") &&
+        (i + 1 === pattern.length || pattern[i + 1] === "/");
+      tokens.push({
+        kind: wholeSegment && i - start === 1 ? "globstar" : "star",
+      });
     } else if (ch === "?") {
       tokens.push({ kind: "any" });
     } else if (ch === "\\" && i + 1 < pattern.length) {
       tokens.push({ kind: "literal", value: pattern[++i]! });
     } else if (ch === "[") {
       let end = i + 1;
-      const negate = pattern[end] === "!" || pattern[end] === "^";
+      const negate = pattern[end] === "^";
       if (negate) end++;
       const chars: Array<{ code: number; escaped: boolean }> = [];
       // A closing bracket in the first position is a member of the class.
@@ -94,22 +99,23 @@ function matchesCharacter(
       return token.negate ? !member : member;
     }
     case "star":
+    case "globstar":
       return false;
   }
 }
 
-export function scannerGlobMatches(
-  pattern: string,
+function matchesSegment(
+  tokens: Token[],
   value: string,
   budget: ScannerGlobBudget
 ): boolean {
-  if (pattern.length > kMaxPatternLength || value.length > kMaxNameLength) {
-    throw new Error(
-      "Scanner result view glob patterns and scanner names must be at most 4096 characters."
-    );
+  const first = tokens[0];
+  if (
+    (first?.kind === "star" || first?.kind === "any") &&
+    (value.length === 0 || value.startsWith("."))
+  ) {
+    return false;
   }
-  budget.spend(pattern.length + value.length);
-  const tokens = tokenize(pattern, budget);
   let tokenIndex = 0;
   let valueIndex = 0;
   let starIndex = -1;
@@ -133,4 +139,82 @@ export function scannerGlobMatches(
   }
   while (tokens[tokenIndex]?.kind === "star") tokenIndex++;
   return tokenIndex === tokens.length;
+}
+
+function matchesSegments(
+  segments: Token[][],
+  values: string[],
+  budget: ScannerGlobBudget
+): boolean {
+  // Keep all reachable segment positions so multiple ** cannot cause backtracking.
+  let reachable = new Set([0]);
+  for (let segmentIndex = 0; segmentIndex < segments.length; segmentIndex++) {
+    const segment = segments[segmentIndex]!;
+    const next = new Set<number>();
+    if (segment.length === 1 && segment[0]?.kind === "globstar") {
+      // Picomatch requires the slash in */**, but allows a/** to match a.
+      const requiresSlash =
+        segmentIndex === segments.length - 1 &&
+        segments[segmentIndex - 1]?.at(-1)?.kind === "star";
+      for (let index = 0; index <= values.length; index++) {
+        budget.spend(1);
+        if (reachable.has(index) && (!requiresSlash || index < values.length)) {
+          next.add(index);
+        }
+        const value = values[index];
+        if (next.has(index) && value !== undefined && !value.startsWith(".")) {
+          next.add(index + 1);
+        }
+      }
+    } else {
+      for (const index of reachable) {
+        budget.spend(1);
+        const value = values[index];
+        if (value !== undefined && matchesSegment(segment, value, budget)) {
+          next.add(index + 1);
+        }
+      }
+    }
+    if (next.size === 0) return false;
+    reachable = next;
+  }
+  return reachable.has(values.length);
+}
+
+export function scannerGlobMatches(
+  pattern: string,
+  value: string,
+  budget: ScannerGlobBudget
+): boolean {
+  if (pattern.length > kMaxPatternLength || value.length > kMaxNameLength) {
+    throw new Error(
+      "Scanner result view glob patterns and scanner names must be at most 4096 characters."
+    );
+  }
+  if (pattern.length === 0) {
+    throw new Error("Scanner result view glob patterns must not be empty.");
+  }
+  budget.spend(pattern.length + value.length);
+  if (value.length === 0) return false;
+  if (pattern === value) return true;
+  if (pattern.startsWith("./")) pattern = pattern.slice(2);
+  const tokens = tokenize(pattern, budget);
+  const segments: Token[][] = [[]];
+  for (const token of tokens) {
+    if (token.kind === "literal" && token.value === "/") segments.push([]);
+    else segments[segments.length - 1]!.push(token);
+  }
+  const values = value.split("/");
+  if (matchesSegments(segments, values, budget)) return true;
+  const last = tokens.at(-1);
+  // Preserve the optional trailing slash used by path patterns and bracket classes.
+  const optionalSlash =
+    last?.kind === "class" ||
+    (last?.kind === "star" &&
+      (pattern.includes("/") || pattern.startsWith("*") || pattern === ".*"));
+  return (
+    optionalSlash &&
+    value.endsWith("/") &&
+    matchesSegments(segments, values.slice(0, -1), budget)
+  );
 }

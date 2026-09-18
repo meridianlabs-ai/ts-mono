@@ -1,3 +1,4 @@
+import picomatch from "picomatch";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -68,14 +69,13 @@ describe("resolveScannerResultView", () => {
     ["audit_?", "audit_ab", false],
     ["audit_[a-c]", "audit_b", true],
     ["audit_[a-c]", "audit_z", false],
-    ["audit_[!a-c]", "audit_z", true],
+    ["audit_[!a-c]", "audit_z", false],
     ["audit_[^a-c]", "audit_b", false],
     ["audit_[]a]", "audit_]", true],
     ["audit_[a-]", "audit_-", true],
     ["audit_[\\]]", "audit_]", true],
-    ["[ab]", "[ab]", false],
-    ["", "", true],
-    ["*", "", true],
+    ["[ab]", "[ab]", true],
+    ["*", "", false],
     ["?", "", false],
     ["audit_[z-a]", "audit_a", false],
     ["audit_[ab", "audit_[ab", true],
@@ -88,9 +88,9 @@ describe("resolveScannerResultView", () => {
     ["audit_\\", "audit_\\", true],
     ["audit_?", "audit_😀", false],
     ["audit_??", "audit_😀", true],
-    ["*", ".hidden", true],
-    ["*", "package/scanner", true],
-    ["audit_**", "audit_nested/scanner", true],
+    ["*", ".hidden", false],
+    ["*", "package/scanner", false],
+    ["audit_**", "audit_nested/scanner", false],
     ["audit_(a|b)", "audit_(a|b)", true],
     ["audit_(a|b)", "audit_a", false],
     ["audit_{a,b}", "audit_{a,b}", true],
@@ -104,6 +104,138 @@ describe("resolveScannerResultView", () => {
     expect(resolveScannerResultView(viewer, scannerName).fields).toEqual(
       matches ? withAppendedDefaults([builtin("value")]) : kDefaultFields
     );
+  });
+
+  it("preserves picomatch display rules for ordinary scanner names and paths", () => {
+    // Only short, trusted patterns go to the old regex engine; attacks test the resolver alone.
+    const parts = [
+      "a",
+      "b",
+      "ab",
+      ".a",
+      "*",
+      "?",
+      "a*",
+      "*a",
+      "a?",
+      "?a",
+      ".*",
+      "[ab]",
+      "[a-c]",
+      "[^a]",
+      "[!a]",
+      "**",
+    ];
+    const patterns = parts.flatMap((part) => [
+      part,
+      `pkg/${part}`,
+      `${part}/a`,
+      `**/${part}`,
+      `pkg/**/${part}`,
+      `${part}/**`,
+      `${part}/**/b`,
+      `**/${part}/**/b`,
+    ]);
+    const names = [
+      "a",
+      "b",
+      "ab",
+      "a.a",
+      "a-b",
+      ".a",
+      "aa",
+      "abc",
+      "c",
+      "!",
+      "pkg",
+      "pkg/a",
+      "pkg/b",
+      "pkg/.a",
+      "pkg/sub/a",
+      "pkg/.sub/a",
+      ".pkg/a",
+      "a/b",
+      "a/a",
+      "b/a",
+      "ab/a",
+      "a/.a",
+      "a/x/b",
+      "a/x/y/b",
+      "pkg/a/b",
+      "a/",
+      "pkg/a/",
+      "pkg/a/b/",
+      "pkg/",
+    ];
+    for (const pattern of patterns) {
+      const viewer: ViewerConfig = {
+        scanner_result_view: {
+          [pattern]: {
+            fields: [builtin("value")],
+            exclude_fields: [builtin("answer"), meta("internal")],
+          },
+        },
+      };
+      for (const name of names) {
+        const matches = picomatch.isMatch(name, pattern, {
+          nobrace: true,
+          nonegate: true,
+          noextglob: true,
+        });
+        const resolved = resolveScannerResultView(viewer, name);
+        expect(resolved, `${pattern} against ${name}`).toEqual(
+          matches
+            ? {
+                fields: withAppendedDefaults([builtin("value")]).filter(
+                  (field) => field.kind !== "builtin" || field.name !== "answer"
+                ),
+                excludedMetadataKeys: ["internal"],
+              }
+            : kDefaultResolvedView
+        );
+      }
+    }
+  });
+
+  it.each(["package/scanner", ".hidden", "package/.hidden"])(
+    "keeps bare display rules from hiding fields for %s",
+    (name) => {
+      expect(
+        resolveScannerResultView(
+          {
+            scanner_result_view: {
+              fields: [builtin("value")],
+              exclude_fields: [builtin("answer")],
+            },
+          },
+          name
+        )
+      ).toEqual(kDefaultResolvedView);
+    }
+  );
+
+  it("rejects empty patterns", () => {
+    expect(() =>
+      resolveScannerResultView(
+        {
+          scanner_result_view: { "": { fields: null, exclude_fields: [] } },
+        },
+        "scanner"
+      )
+    ).toThrow("glob patterns must not be empty");
+  });
+
+  it("bounds work across multiple globstar segments", () => {
+    expect(() =>
+      resolveScannerResultView(
+        {
+          scanner_result_view: {
+            ["**/a/".repeat(800) + "b"]: { fields: null, exclude_fields: [] },
+          },
+        },
+        "a/".repeat(2047) + "c"
+      )
+    ).toThrow("glob matching work limit");
   });
 
   it("handles hundreds of hostile patterns while preserving the matching view", () => {
