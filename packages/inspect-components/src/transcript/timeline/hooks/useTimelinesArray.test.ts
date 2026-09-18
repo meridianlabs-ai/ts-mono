@@ -211,19 +211,34 @@ describe("useTimelinesArray", () => {
       ],
     },
   ])(
-    "rejects a $name parent cycle instead of hanging the transcript",
+    "preserves events in a $name parent cycle without hanging the transcript",
     ({ parents }) => {
       const events = [
         makeModelEvent("referenced", 0),
         ...parents.map(({ id, parent }) => spanBegin(id, id, "agent", parent)),
-        makeModelEvent("orphan", 1, parents[0]!.id),
+        ...parents.map(({ id }, index) =>
+          makeModelEvent(`orphan-${id}`, index + 1, id)
+        ),
+        spanBegin("sibling", "sibling", "agent", "cycle"),
+        makeModelEvent("sibling-event", parents.length + 1, "sibling"),
+        makeModelEvent("root-event", parents.length + 2),
       ];
 
-      expect(() =>
-        renderHook(() =>
-          useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
-        )
-      ).toThrow("Invalid transcript: cyclic span parent chain");
+      const { result } = renderHook(() =>
+        useTimelinesArray(events, [makeServerTimeline("A", ["referenced"])])
+      );
+
+      expect(eventUuids(result.current[0]!).sort()).toEqual(
+        [
+          "referenced",
+          ...parents.map(({ id }) => `orphan-${id}`),
+          "sibling-event",
+          "root-event",
+        ].sort()
+      );
+      expect(result.current[0]!.root.content).toContainEqual(
+        expect.objectContaining({ type: "span", id: parents.at(-1)!.id })
+      );
     }
   );
 

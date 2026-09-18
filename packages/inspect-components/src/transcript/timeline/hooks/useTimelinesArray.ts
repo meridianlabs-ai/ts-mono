@@ -92,7 +92,7 @@ function buildSpanLookup(events: Event[]): Map<string, SpanInfo> {
  * Walks the orphaned events, groups them by their direct parent span, and
  * recursively builds only the ancestor spans that contain at least one orphan.
  * Spans that are already represented in a server timeline are not recreated —
- * their orphaned children are promoted to the level above.
+ * their orphaned children are promoted to root.
  */
 function buildOrphanContent(
   orphanEvents: Event[],
@@ -126,6 +126,7 @@ function buildOrphanContent(
 
   // Cache completed ancestor paths so shared ancestry is traversed only once.
   const spanDepths = new Map<string, number>();
+  const cycleRoots = new Set<string>();
   for (const spanId of neededSpanIds) {
     const path: string[] = [];
     const visiting = new Set<string>();
@@ -135,14 +136,21 @@ function buildOrphanContent(
       !referencedSpanIds.has(current.id) &&
       !spanDepths.has(current.id)
     ) {
-      if (visiting.has(current.id)) {
-        throw new Error(
-          `Invalid transcript: cyclic span parent chain at "${current.id}".`
-        );
-      }
       visiting.add(current.id);
       path.push(current.id);
-      current = current.parentId ? spanLookup.get(current.parentId) : undefined;
+      const parent = current.parentId
+        ? spanLookup.get(current.parentId)
+        : undefined;
+      if (parent && visiting.has(parent.id)) {
+        // Cut the closing edge so bottom-up attachment cannot recreate the cycle.
+        cycleRoots.add(current.id);
+        console.warn(
+          `Invalid transcript: cyclic span parent chain at "${parent.id}"; promoting "${current.id}" to root.`
+        );
+        current = undefined;
+        break;
+      }
+      current = parent;
     }
 
     let depth = current ? (spanDepths.get(current.id) ?? -1) : -1;
@@ -195,7 +203,9 @@ function buildOrphanContent(
     // Every unrepresented ancestor is included, so only the direct parent
     // can contain this span. Referenced or missing parents promote it to root.
     const parentId =
-      info.parentId && spanDepths.has(info.parentId) ? info.parentId : null;
+      !cycleRoots.has(spanId) && info.parentId && spanDepths.has(info.parentId)
+        ? info.parentId
+        : null;
 
     let parentGroup = spanChildren.get(parentId);
     if (!parentGroup) {
