@@ -47,10 +47,10 @@ match, as before.
 ## Compatibility boundaries
 
 This is a bounded replacement for the existing matcher, not a new scanner-name
-pattern language. Tests compare ordinary names, wildcards, dot rules, ranges,
-and globstars directly with picomatch 4.0.7 using the previous options
-(`nobrace`, `nonegate`, and `noextglob`). Picomatch remains a test-only dependency;
-log-authored patterns never reach it in production.
+pattern language. Tests cover 3,712 ordinary name/pattern pairs against fixed
+expectations captured from picomatch 4.0.7 with the previous options (`nobrace`,
+`nonegate`, and `noextglob`). These fixtures preserve the verified compatibility
+baseline without retaining a direct picomatch dependency in production or tests.
 
 Some less common picomatch behavior is intentionally not reproduced:
 

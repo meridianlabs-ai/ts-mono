@@ -1,4 +1,3 @@
-import picomatch from "picomatch";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -8,6 +7,7 @@ import type {
   ViewerConfig,
 } from "@tsmono/inspect-common/types";
 
+import { scannerGlobCompatibility } from "./scannerGlobCompatibility.fixture";
 import {
   kDefaultFields,
   kDefaultResolvedView,
@@ -107,67 +107,7 @@ describe("resolveScannerResultView", () => {
   });
 
   it("preserves picomatch display rules for ordinary scanner names and paths", () => {
-    // Only short, trusted patterns go to the old regex engine; attacks test the resolver alone.
-    const parts = [
-      "a",
-      "b",
-      "ab",
-      ".a",
-      "*",
-      "?",
-      "a*",
-      "*a",
-      "a?",
-      "?a",
-      ".*",
-      "[ab]",
-      "[a-c]",
-      "[^a]",
-      "[!a]",
-      "**",
-    ];
-    const patterns = parts.flatMap((part) => [
-      part,
-      `pkg/${part}`,
-      `${part}/a`,
-      `**/${part}`,
-      `pkg/**/${part}`,
-      `${part}/**`,
-      `${part}/**/b`,
-      `**/${part}/**/b`,
-    ]);
-    const names = [
-      "a",
-      "b",
-      "ab",
-      "a.a",
-      "a-b",
-      ".a",
-      "aa",
-      "abc",
-      "c",
-      "!",
-      "pkg",
-      "pkg/a",
-      "pkg/b",
-      "pkg/.a",
-      "pkg/sub/a",
-      "pkg/.sub/a",
-      ".pkg/a",
-      "a/b",
-      "a/a",
-      "b/a",
-      "ab/a",
-      "a/.a",
-      "a/x/b",
-      "a/x/y/b",
-      "pkg/a/b",
-      "a/",
-      "pkg/a/",
-      "pkg/a/b/",
-      "pkg/",
-    ];
-    for (const pattern of patterns) {
+    for (const { pattern, matchingNames } of scannerGlobCompatibility.cases) {
       const viewer: ViewerConfig = {
         scanner_result_view: {
           [pattern]: {
@@ -176,12 +116,8 @@ describe("resolveScannerResultView", () => {
           },
         },
       };
-      for (const name of names) {
-        const matches = picomatch.isMatch(name, pattern, {
-          nobrace: true,
-          nonegate: true,
-          noextglob: true,
-        });
+      for (const name of scannerGlobCompatibility.names) {
+        const matches = matchingNames.includes(name);
         const resolved = resolveScannerResultView(viewer, name);
         expect(resolved, `${pattern} against ${name}`).toEqual(
           matches
