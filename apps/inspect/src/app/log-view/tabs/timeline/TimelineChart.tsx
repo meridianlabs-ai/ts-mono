@@ -182,7 +182,7 @@ export interface TimelineChartProps {
 export const TimelineChart: FC<TimelineChartProps> = (props) => {
   const error = timelineWindowError(props.window);
   return error ? (
-    <ErrorPanel title="Unable to display timeline" error={new Error(error)} />
+    <ErrorPanel title="Unable to display timeline" error={{ message: error }} />
   ) : (
     <TimelineChartBody {...props} />
   );

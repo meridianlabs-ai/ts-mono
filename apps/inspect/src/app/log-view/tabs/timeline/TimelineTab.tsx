@@ -138,7 +138,10 @@ export const TimelineTab: FC<TimelineTabProps> = (props) => {
   );
   if (error) {
     return (
-      <ErrorPanel title="Unable to display timeline" error={new Error(error)} />
+      <ErrorPanel
+        title="Unable to display timeline"
+        error={{ message: error }}
+      />
     );
   }
   return <TimelineTabBody key={logKey} {...props} />;

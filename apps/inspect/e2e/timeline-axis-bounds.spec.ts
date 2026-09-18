@@ -52,6 +52,7 @@ for (const start of [2 ** 57, -(2 ** 57), Infinity]) {
     await expect(page.getByTestId("error-panel")).toContainText(
       "connection history contains an invalid or out-of-range timestamp"
     );
+    await expect(page.getByTestId("error-panel")).not.toContainText(/\bat /);
     await page.getByRole("tab", { name: "Info", exact: true }).click();
     await expect(
       page.getByText("Unable to display timeline")

@@ -13,6 +13,8 @@ export const isTimelineTimestamp = (value: unknown): value is number =>
   Number.isFinite(value) &&
   Math.abs(value) <= kMaxEpochSeconds;
 
+// EvalStats connection history is not normalized yet (#555), so its wire
+// shape can differ from the generated type. Keep guards until that boundary is normalized.
 export const connectionHistoryError = (
   history: unknown
 ): string | undefined => {

@@ -44,5 +44,6 @@ describe("invalid timeline window", () => {
     expect(screen.getByTestId("error-panel")).toHaveTextContent(
       "Invalid timeline"
     );
+    expect(screen.getByTestId("error-panel")).not.toHaveTextContent(/\bat /);
   });
 });
