@@ -1,9 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { isRecord } from "@tsmono/util";
+import { createWebviewStorage, isRecord } from "@tsmono/util";
 
 import { apiScoutServer } from "../api/api-scout-server";
-import { createVSCodeStore } from "../api/vscode-storage";
 
 import {
   emptyDataframeState,
@@ -189,7 +188,7 @@ describe("dataframe state lifetime", () => {
       },
       postMessage: () => {},
     };
-    const api = { ...apiScoutServer(), storage: createVSCodeStore(vscode) };
+    const api = { ...apiScoutServer(), storage: createWebviewStorage(vscode) };
     const original = createStore(api);
     original.getState().setGridState(GRID_STATE_NAME, dataframe);
     original.getState().setSelectedResultRow(5);
@@ -225,6 +224,48 @@ describe("persisted state", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
+  it("drops retired navigation mirrors while retaining UI preferences", () => {
+    const { blobs, storage } = createMemoryStorage();
+    blobs.set(
+      kStorageKey,
+      JSON.stringify({
+        version: 1,
+        state: {
+          displayedScanResult: "retired-result",
+          hasInitializedRouting: true,
+          hasInitializedEmbeddedData: true,
+          selectedScanner: "scanner-a",
+          selectedTranscriptTab: "messages",
+          properties: { panel: { open: true } },
+        },
+      })
+    );
+    const store = createStore({ ...apiScoutServer(), storage });
+    expect(store.getState().selectedScanner).toBe("scanner-a");
+    expect(store.getState().selectedTranscriptTab).toBe("messages");
+    expect(store.getState().properties).toEqual({ panel: { open: true } });
+    for (const key of [
+      "displayedScanResult",
+      "hasInitializedRouting",
+      "hasInitializedEmbeddedData",
+    ]) {
+      expect(store.getState()).not.toHaveProperty(key);
+    }
+
+    store.getState().setShowFind(true);
+    vi.runAllTimers();
+    const saved = readPersistedState(blobs);
+    expect(saved).toMatchObject({
+      selectedScanner: "scanner-a",
+      selectedTranscriptTab: "messages",
+      properties: { panel: { open: true } },
+      showFind: true,
+    });
+    expect(saved).not.toHaveProperty("displayedScanResult");
+    expect(saved).not.toHaveProperty("hasInitializedRouting");
+    expect(saved).not.toHaveProperty("hasInitializedEmbeddedData");
+  });
+
   // The keys written to storage are the contract with VS Code webview state
   // (the browser build uses NoPersistence); a slice refactor must not move
   // them.
@@ -248,7 +289,6 @@ describe("persisted state", () => {
     const state = store.getState();
 
     state.setShowFind(true);
-    state.setHasInitializedRouting(true);
     state.setSelectedScanLocation("scans/one");
     state.setVisibleScanJobCount(3);
     state.setSelectedScanner("scanner-a");

@@ -3,7 +3,7 @@ import { create, type StateCreator } from "zustand";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 
-import { debounce } from "@tsmono/util";
+import { debounce, isRecord } from "@tsmono/util";
 
 import { ScoutApiV2 } from "../api/api";
 
@@ -96,12 +96,19 @@ export const createStore = (api: ScoutApiV2) =>
             createJSONStorage(() => api.storage)
           ),
           version: 1,
-          partialize: (state) => {
+          merge: (persisted, current) => {
+            if (!isRecord(persisted)) return current;
+            // Retired navigation mirrors must not return through hydration.
             const {
+              displayedScanResult,
               hasInitializedRouting,
-              visibleScannerResults,
-              ...persistedState
-            } = state;
+              hasInitializedEmbeddedData,
+              ...uiState
+            } = persisted;
+            return { ...current, ...uiState };
+          },
+          partialize: (state) => {
+            const { visibleScannerResults, ...persistedState } = state;
             return persistedState;
           },
         }

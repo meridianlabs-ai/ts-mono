@@ -67,7 +67,6 @@ export const createScansSlice: StoreSlice<ScansSlice> = (set) => ({
       state.selectedFilter = undefined;
       state.selectedScanner = undefined;
       state.selectedScanResult = undefined;
-      state.displayedScanResult = undefined;
       state.sortResults = undefined;
     });
   },

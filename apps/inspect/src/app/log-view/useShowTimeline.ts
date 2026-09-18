@@ -5,6 +5,7 @@ import { isRecord } from "@tsmono/util";
 import { useLogDir } from "../../app_config";
 import { kLogViewTimelineTabId } from "../../constants";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import { useLogNavigationAction } from "../routing/logNavigation";
 import { logsUrl, useRoutePrefix } from "../routing/url";
 import { openInNewTab } from "../shared/openInNewTab";
@@ -18,10 +19,8 @@ export const timelineBandId = (band: string, model?: string): string =>
 
 /** A timeline property key scoped to the log currently in view. */
 export const useTimelineLogKey = (name: string): string => {
-  // The app routes are splat patterns, so no logPath param exists —
-  // loadedLog is the only source for the log in view.
-  const loadedLog = useStore((state) => state.log.loadedLog);
-  return `${name}:${loadedLog ?? ""}`;
+  const logFile = useCurrentLogFile();
+  return `${name}:${logFile ?? ""}`;
 };
 
 /** The band-picker property key for the log currently in view. */
@@ -44,13 +43,13 @@ export const useShowTimeline = (): ((event?: NavClickEvent) => void) => {
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const navigation = useLogNavigationAction();
   const logDir = useLogDir();
-  const loadedLog = useStore((state) => state.log.loadedLog);
+  const logFile = useCurrentLogFile();
   const prefix = useRoutePrefix();
   return useCallback(
     (event?: NavClickEvent) => {
       if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
-        const url = loadedLog
-          ? logsUrl(loadedLog, logDir, kLogViewTimelineTabId, prefix)
+        const url = logFile
+          ? logsUrl(logFile, logDir, kLogViewTimelineTabId, prefix)
           : undefined;
         if (url) {
           openInNewTab(url);
@@ -60,7 +59,7 @@ export const useShowTimeline = (): ((event?: NavClickEvent) => void) => {
       setWorkspaceTab(kLogViewTimelineTabId);
       navigation.selectTab(kLogViewTimelineTabId);
     },
-    [setWorkspaceTab, navigation, loadedLog, logDir, prefix]
+    [setWorkspaceTab, navigation, logFile, logDir, prefix]
   );
 };
 

@@ -99,6 +99,7 @@ import { useStore } from "../../state/store";
 import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
+import { useCurrentSampleHandle } from "../routing/currentSelection";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
@@ -197,7 +198,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // sample: each tab's VirtualList snapshot is keyed by the visit, so a
   // later return to the same sample (or a hop to a sibling) can never
   // restore this visit's offsets — a fresh visit starts at the top.
-  const visitHandle = useStore((state) => state.log.selectedSampleHandle);
+  const visitHandle = useCurrentSampleHandle();
   const visitId = useVisitId(
     `${visitHandle?.logFile}-${visitHandle?.id}-${visitHandle?.epoch}`
   );
@@ -264,9 +265,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // the conversation (monolith fetch, chunked hydration, live stream) is
   // subsystem-private; the tab-open gate keeps chunked hydration from ever
   // being paid at sample open.
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const sampleHandle = useCurrentSampleHandle();
 
   // Dynamic Default event-filter exclusions: store events with rich renderers
   // (e.g. human-baseline terminal sessions) are visible by default. Chunked
@@ -278,7 +277,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
   const sampleDetailNavigation = useSampleDetailNavigation();
   const sampleMessages = useSampleMessages(
-    selectedSampleHandle,
+    sampleHandle,
     sampleData,
     messagesTabOpen,
     running,
@@ -368,13 +367,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     useState<HTMLButtonElement | null>(null);
   const optionsRef = useRef<HTMLButtonElement | null>(null);
 
-  // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const printLogPath = urlLogPath || selectedLogFile;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
+  // Inline single-sample routes omit id/epoch; the current handle derives them.
+  const printLogPath = urlLogPath;
+  const printSampleId = urlSampleId ?? sampleHandle?.id.toString();
+  const printEpoch = urlEpoch ?? sampleHandle?.epoch.toString();
 
   // Evidence selection: with events selected, Copy/Download/Print act on them.
   const isTranscriptTab = effectiveSelectedTab === kSampleTranscriptTabId;
@@ -845,6 +841,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     navOwnsRef: chromeNavOwnsRef,
   } = useChromeNavOwnership(scrollRef, {
     ownedForKey: () => mountsAtDeepLink,
+    // The header survives sibling navigation; its collapse belongs to this visit.
+    resetKey: visitId,
     scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
 

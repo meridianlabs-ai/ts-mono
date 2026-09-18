@@ -16,7 +16,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 3
+      "count": 2
     }
   },
   "apps/inspect/src/app/flow/FlowButton.tsx": {
@@ -61,14 +61,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/log-view/LogSampleDetailView.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 2
-    },
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/log-view/LogView.tsx": {
     "@typescript-eslint/no-explicit-any": {
       "count": 1,
@@ -84,23 +76,14 @@
     }
   },
   "apps/inspect/src/app/log-view/LogViewContainer.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    },
     "tsmono/no-raw-use-effect": {
-      "count": 4
+      "count": 1
     }
   },
   "apps/inspect/src/app/log-view/LogViewLayout.tsx": {
     "jsx-a11y/no-noninteractive-tabindex": {
       "count": 1,
       "undescribed": 1
-    }
-  },
-  "apps/inspect/src/app/log-view/tabs/SamplesTab.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
     }
   },
   "apps/inspect/src/app/log-view/tabs/TaskTab.tsx": {
@@ -180,11 +163,6 @@
       "undescribed": 1
     }
   },
-  "apps/inspect/src/app/routing/AppRouter.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/app/routing/loaders/LogLoadController.tsx": {
     "react-hooks/exhaustive-deps": {
       "count": 1,
@@ -199,36 +177,8 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/routing/loaders/SampleRouteSelectionController.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/routing/logNavigation.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
-  "apps/inspect/src/app/routing/sampleNavigation.ts": {
-    "@ts-expect-error": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/routing/url.ts": {
+  "apps/inspect/src/app/routing/routeParams.ts": {
     "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
-  "apps/inspect/src/app/samples-panel/SampleDetailView.tsx": {
-    "@ts-expect-error": {
-      "count": 6
-    },
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
-    "tsmono/no-raw-use-effect": {
       "count": 1
     }
   },
@@ -256,7 +206,7 @@
   },
   "apps/inspect/src/app/samples/event/SampleEventView.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/InlineSampleDisplay.tsx": {
@@ -286,7 +236,7 @@
       "undescribed": 3
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/sample-tools/sample-filter/completions.ts": {
@@ -311,7 +261,7 @@
       "undescribed": 1
     },
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3
+      "count": 1
     },
     "react-hooks/refs": {
       "count": 1,
@@ -650,14 +600,6 @@
       "count": 4
     }
   },
-  "apps/inspect/src/state/logSlice.test.ts": {
-    "@typescript-eslint/consistent-type-assertions": {
-      "count": 1
-    },
-    "@typescript-eslint/no-unsafe-type-assertion": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/state/logSlice.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -806,11 +748,6 @@
   "apps/scout/src/app/hooks/useEnsureVisibleScannerResults.ts": {
     "tsmono/no-raw-use-effect": {
       "count": 1
-    }
-  },
-  "apps/scout/src/app/hooks/useWindowMessaging.ts": {
-    "tsmono/no-raw-use-effect": {
-      "count": 2
     }
   },
   "apps/scout/src/app/project/components/FormFields.tsx": {

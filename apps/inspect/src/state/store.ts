@@ -104,7 +104,7 @@ export const initializeStore = (
           partialize: (state) =>
             // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- zustand-persist types partialize as StoreState -> StoreState, but a partial slice is exactly what it is for
             ({
-              app: { ...state.app, rehydrated: true },
+              app: state.app,
               log: state.log,
               logs: state.logs,
             }) as unknown as StoreState,
