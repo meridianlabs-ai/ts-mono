@@ -20,9 +20,11 @@ export const test = base.extend<AppFixtures>({
         skipAssetRequests: false,
       });
 
-      await network.enable();
+      // Against a real view server (E2E_LOG_DIR, see serve-log.ts) nothing
+      // is mocked: requests go through vite's /api proxy.
+      if (!process.env.E2E_LOG_DIR) await network.enable();
       await use(network);
-      await network.disable();
+      if (!process.env.E2E_LOG_DIR) await network.disable();
     },
     { auto: true },
   ],

@@ -91,6 +91,12 @@
   --inspect-tool-block-output-bg: var(--bs-body-bg);
   --inspect-tool-block-ink: var(--bs-secondary-color);
   --inspect-turn-prose-edge: 1px solid var(--bs-light-border-subtle);
+
+  /* Find-in-page highlights (CSS Custom Highlight API) + the flash
+     fallback. Match = every occurrence; active = the one the user is on. */
+  --inspect-find-match-bg: rgba(255, 210, 0, 0.4);
+  --inspect-find-active-bg: #ff9632;
+  --inspect-find-active-fg: #1f2328;
 }
 
 :root[data-bs-theme="dark"] {
@@ -112,6 +118,39 @@
   --inspect-readable-system-bg: #0a0b0d;
   --inspect-readable-system-border: #67696f;
   --inspect-readable-body-color: #e6e8ea;
+
+  --inspect-find-match-bg: rgba(255, 196, 0, 0.28);
+  --inspect-find-active-bg: #b36b00;
+  --inspect-find-active-fg: #ffffff;
+}
+
+/* Find-in-page: rows register Ranges under these highlight names via the
+   shared registry in @tsmono/react/find. */
+::highlight(find-match) {
+  background-color: var(--inspect-find-match-bg);
+}
+
+::highlight(find-active) {
+  background-color: var(--inspect-find-active-bg);
+  color: var(--inspect-find-active-fg);
+}
+
+/* Never-silent-jump fallback (flash the revealed row): applied by
+   flashElement() when Custom Highlights are unsupported or the active
+   occurrence isn't in the row's rendered text. */
+@keyframes inspect-find-flash {
+  0%,
+  100% {
+    background-color: transparent;
+  }
+  25%,
+  75% {
+    background-color: var(--inspect-find-match-bg);
+  }
+}
+
+.find-flash {
+  animation: inspect-find-flash 0.9s ease-in-out;
 }
 
 /* Readable variant: trade design consistency for transcript scannability —
