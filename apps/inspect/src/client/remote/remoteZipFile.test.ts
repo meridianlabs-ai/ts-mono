@@ -243,3 +243,73 @@ test("reads deflate data spanning multiple worker input chunks", async () => {
   const zip = await openZipFileFromBuffer(bytes);
   expect(await zip.readFile("header.json")).toEqual(expected);
 });
+
+test("handles local extra fields larger than speculative padding", async () => {
+  const expected = new Uint8Array([1, 2, 3]);
+  const bytes = zipSync(
+    { a: [expected, { extra: { 12345: new Uint8Array(1024) } }] },
+    { level: 0 }
+  );
+  const zip = await openZipFileFromBuffer(bytes);
+  expect(await zip.readFile("a")).toEqual(expected);
+});
+
+test("assembles out-of-order parallel ranges with bounded concurrency and progress", async () => {
+  const size = 88 * 1024 * 1024;
+  const headerSize = 31;
+  const directoryOffset = headerSize + size;
+  const length = directoryOffset + 47 + 22;
+  const header = new Uint8Array(headerSize);
+  const hv = new DataView(header.buffer);
+  hv.setUint32(0, 0x04034b50, true);
+  hv.setUint32(18, size, true);
+  hv.setUint32(22, size, true);
+  hv.setUint16(26, 1, true);
+  header[30] = 97;
+  const tail = new Uint8Array(69);
+  const tv = new DataView(tail.buffer);
+  tv.setUint32(0, 0x02014b50, true);
+  tv.setUint32(20, size, true);
+  tv.setUint32(24, size, true);
+  tv.setUint16(28, 1, true);
+  tail[46] = 97;
+  tv.setUint32(47, 0x06054b50, true);
+  tv.setUint32(59, 47, true);
+  tv.setUint32(63, directoryOffset, true);
+  let active = 0;
+  let peak = 0;
+  const zip = await openRemoteZipFile(
+    "sparse",
+    length,
+    async (_url, start, end) => {
+      expect(start).toBeGreaterThanOrEqual(0);
+      expect(end).toBeLessThan(length);
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, start === 0 ? 20 : 1));
+      const result = new Uint8Array(end - start + 1).fill(
+        Math.floor(start / (8 * 1024 * 1024))
+      );
+      if (start === 0) result.set(header);
+      if (end >= directoryOffset) {
+        const from = Math.max(start, directoryOffset);
+        result.set(
+          tail.subarray(from - directoryOffset, end - directoryOffset + 1),
+          from - start
+        );
+      }
+      active--;
+      return result;
+    }
+  );
+  const progress: number[] = [];
+  const output = await zip.readFile("a", undefined, (loaded) =>
+    progress.push(loaded)
+  );
+  expect(output.length).toBe(size);
+  for (let i = 1; i <= 10; i++)
+    expect(output[i * 8 * 1024 * 1024 - headerSize]).toBe(i);
+  expect(peak).toBe(10);
+  expect(progress).toEqual([...progress].sort((a, b) => a - b));
+  expect(progress.at(-1)).toBe(length);
+});

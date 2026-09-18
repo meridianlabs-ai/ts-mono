@@ -40,6 +40,12 @@ export function installNodeBlobWorker(): void {
         .catch((error: unknown) => this.reportError(error));
     }
 
+    terminate(): void {
+      this.ready
+        .then((worker) => worker.terminate())
+        .catch((error: unknown) => this.reportError(error));
+    }
+
     private reportError(error: unknown): void {
       const message = error instanceof Error ? error.message : String(error);
       this.dispatchEvent(Object.assign(new Event("error"), { message }));

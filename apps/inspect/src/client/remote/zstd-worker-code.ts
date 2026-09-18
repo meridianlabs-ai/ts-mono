@@ -1,3 +1,5 @@
+import { createZstdDecoder } from "./zstd-decoder";
+
 /**
  * Zstandard decompression Web Worker code.
  *
@@ -11,7 +13,8 @@
  */
 export const kZstdWorkerCode = `
 // fzstd decompress function, loaded dynamically
-let Decompress = null;
+let decoder = null;
+const createZstdDecoder = ${createZstdDecoder.toString()};
 
 self.onmessage = function(e) {
   const { type } = e.data || {};
@@ -19,7 +22,7 @@ self.onmessage = function(e) {
   if (type === 'init') {
     const { scriptContent } = e.data;
     try {
-      if (!Decompress) {
+      if (!decoder) {
         // Decode and evaluate the fzstd UMD library
         const script = atob(scriptContent);
         // The UMD module self-executes and assigns to self.fzstd
@@ -27,7 +30,7 @@ self.onmessage = function(e) {
         if (!self.fzstd || typeof self.fzstd.Decompress !== 'function') {
           throw new Error('Failed to initialize fzstd decompressor');
         }
-        Decompress = self.fzstd.Decompress;
+        decoder = createZstdDecoder(self.fzstd.Decompress);
       }
       self.postMessage({ type: 'init_complete', success: true });
     } catch (err) {
@@ -40,24 +43,10 @@ self.onmessage = function(e) {
   if (type === 'decompress') {
     const { requestId, data, expectedSize } = e.data;
     try {
-      if (!Decompress) {
+      if (!decoder) {
         throw new Error('Worker not initialized');
       }
-      const chunks = [];
-      let total = 0;
-      const stream = new Decompress((chunk) => {
-        total += chunk.length;
-        if (total > expectedSize) throw new Error('Zstd output exceeds its ZIP entry size');
-        chunks.push(chunk);
-      });
-      stream.push(data, true);
-      if (total !== expectedSize) throw new Error('Zstd output does not match its ZIP entry size');
-      const result = new Uint8Array(total);
-      let offset = 0;
-      for (const chunk of chunks) {
-        result.set(chunk, offset);
-        offset += chunk.length;
-      }
+      const result = decoder.decompress(data, expectedSize);
       // Transfer the result buffer back to avoid copying
       self.postMessage(
         { requestId, success: true, data: result },

@@ -6,18 +6,6 @@ import { decompressData } from "./decompression";
 
 export type { ProgressCallback };
 
-export interface ZipFileEntry {
-  versionNeeded: number;
-  bitFlag: number;
-  compressionMethod: number;
-  crc32: number;
-  compressedSize: number;
-  uncompressedSize: number;
-  filenameLength: number;
-  extraFieldLength: number;
-  data: Uint8Array;
-}
-
 export interface CentralDirectoryEntry {
   filename: string;
   compressionMethod: number;
@@ -216,9 +204,9 @@ export const openRemoteZipFile = async (
       if (actualTotal > fileData.length) {
         fileData = await read(entry.fileOffset, actualTotal);
       }
-      const zipFileEntry = parseZipFileEntry(file, fileData, entry);
+      const payload = parseZipFileEntry(file, fileData, entry);
       return decompressData(
-        zipFileEntry.data,
+        payload,
         entry.compressionMethod,
         entry.uncompressedSize,
         file
@@ -305,7 +293,7 @@ function parseZipFileEntry(
   file: string,
   rawData: Uint8Array,
   entry: CentralDirectoryEntry
-): ZipFileEntry {
+): Uint8Array {
   const view = dataView(rawData);
   if (view.getUint32(0, true) !== 0x04034b50) {
     throw new Error(`Invalid ZIP entry signature for ${file}`);
@@ -344,17 +332,7 @@ function parseZipFileEntry(
   ) {
     throw new Error(`Inconsistent stored ZIP entry sizes for ${file}`);
   }
-  return {
-    versionNeeded: view.getUint16(4, true),
-    bitFlag,
-    compressionMethod,
-    crc32: view.getUint32(14, true),
-    compressedSize: entry.compressedSize,
-    uncompressedSize: entry.uncompressedSize,
-    filenameLength,
-    extraFieldLength,
-    data: rawData.subarray(dataOffset, dataOffset + entry.compressedSize),
-  };
+  return rawData.subarray(dataOffset, dataOffset + entry.compressedSize);
 }
 
 function parseCentralDirectory(
