@@ -91,12 +91,19 @@ export async function decodeRange(
     }
   }
 
+  let previousOrdinal = -1;
   for (;;) {
     const item = await cursor.peek();
     if (!item || item.ordinal >= endOrd) {
       break;
     }
     const { ordinal, ev } = item;
+    if (ordinal <= previousOrdinal) {
+      throw new Error(
+        "Invalid chunked sample: transcript decode did not advance"
+      );
+    }
+    previousOrdinal = ordinal;
 
     if (isSpanBegin(ev)) {
       const spanIdx = ctx.skel.spanAtBegin(ordinal);

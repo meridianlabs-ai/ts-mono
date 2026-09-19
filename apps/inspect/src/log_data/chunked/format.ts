@@ -86,11 +86,26 @@ export const sequenceChunkStarts = (
     if (name.startsWith(prefix) && name.endsWith(".json")) {
       const stem = name.slice(prefix.length, -".json".length);
       if (/^\d+$/.test(stem)) {
-        starts.push(Number(stem));
+        const start = Number(stem);
+        if (!Number.isSafeInteger(start)) {
+          throw new Error(
+            `Invalid chunked sample: unsafe chunk start in ${name}`
+          );
+        }
+        starts.push(start);
       }
     }
   }
-  return starts.sort((a, b) => a - b);
+  starts.sort((a, b) => a - b);
+  if (starts.length > 0 && starts[0] !== 0) {
+    throw new Error(`Invalid chunked sample: ${sequence} must start at zero`);
+  }
+  if (starts.some((start, i) => i > 0 && start === starts[i - 1])) {
+    throw new Error(
+      `Invalid chunked sample: duplicate ${sequence} chunk starts`
+    );
+  }
+  return starts;
 };
 
 /**
