@@ -125,7 +125,7 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
                 <button
                   type="button"
                   className={styles.actionLink}
-                  title="View on timeline"
+                  title="View on activity"
                   onClick={(event) => onViewTimeline(model, event)}
                 >
                   <i className="bi bi-graph-up" aria-hidden="true" />
