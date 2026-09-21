@@ -81,17 +81,17 @@ const scoreCategorizers: ScoreCategorizer[] = [
   },
   {
     describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
-      if (types && types.length !== 0 && types[0] === "number") {
+      if (types && types.length === 1 && types[0] === "number") {
         return numericScoreDescriptor(values);
       }
     },
   },
   {
     describe: (values: ScoreValue[], types?: ScorerTypes[]) => {
-      if (types && types.length !== 0 && types[0] === "object") {
-        if (values.length > 0 && Array.isArray(values[0])) {
+      if (types && types.length === 1 && types[0] === "object") {
+        if (values.length > 0 && values.every(Array.isArray)) {
           return listScoreDescriptor(values);
-        } else {
+        } else if (values.every((value) => !Array.isArray(value))) {
           return objectScoreDescriptor(values);
         }
       }
