@@ -19,6 +19,21 @@ const minimalEval = {
 };
 
 describe("normalizeEvalHeader", () => {
+  it.each([normalizeEvalHeader, normalizeEvalLog])(
+    "normalizes stats at both header and whole-log boundaries",
+    (normalize) => {
+      const result = normalize({
+        eval: minimalEval,
+        stats: { connection_limit_history: [null] },
+      });
+      expect(result.stats?.connection_limit_history).toEqual([]);
+      expect(result.stats?.connectionHistoryError).toMatch(
+        "Invalid connection history"
+      );
+      expect(result.eval.task).toBe("demo");
+    }
+  );
+
   it("throws on non-object input", () => {
     expect(() => normalizeEvalHeader("bad")).toThrow();
     expect(() => normalizeEvalHeader(null)).toThrow();

@@ -5,13 +5,19 @@
 // branch in. Prints "none" and leaves the checkout alone when there is
 // nothing to continue.
 //
+// With `--select-only` (the scheduled workflow's gate job) it only selects:
+// nothing is fetched or checked out, and the agent job checks out and
+// merges the branch this script named. When nothing is continued, the
+// `branch` output names a fresh `dependabot-fix/<date>` branch instead, so
+// the workflow — never the agent — decides which branch a run lands on.
+//
 // SECURITY MODEL. The scheduled workflow runs this before the agent and
 // then runs pnpm install / check / build / test on whatever is checked
-// out, holding the org machine-account PAT. A head-branch-name match
-// alone is not a safe selection rule: `gh pr list` reports fork PRs with
-// the fork's branch name, so anyone could open a fork PR named
-// dependabot-fix/<x> and have its tree executed here. A candidate must
-// therefore be:
+// out, and pushes the agent's commits as the org's GitHub App. A
+// head-branch-name match alone is not a safe selection rule: `gh pr list`
+// reports fork PRs with the fork's branch name, so anyone could open a
+// fork PR named dependabot-fix/<x> and have its tree executed here. A
+// candidate must therefore be:
 //   1. a branch that exists in THIS repository (`git ls-remote origin`) —
 //      only write-access accounts can create one; fork branches never
 //      appear there; and
@@ -58,6 +64,20 @@ export function selectContinuation(candidates) {
     });
   }
   return { selected, skipped };
+}
+
+// Name for a new batch branch when nothing is continued: the run date, with
+// a numeric suffix when that name is taken — a branch in origin (a batch
+// merged or closed earlier the same day), so the land job never pushes onto
+// a branch whose tip it did not start from, or the head name of any open PR
+// (main() adds those, forks included), so the landing's open-or-adopt step
+// finds no PR by that name but the one it opens.
+export function newBatchBranch(taken, date = new Date()) {
+  const base = `${PREFIX}${date.toISOString().slice(0, 10)}`;
+  taken = new Set(taken);
+  let name = base;
+  for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
+  return name;
 }
 
 const run = (cmd, args, { allowExit = [0] } = {}) => {
@@ -145,6 +165,7 @@ const summarize = (lines) => {
 };
 
 function main() {
+  const selectOnly = process.argv.includes("--select-only");
   const defaultBranch = process.env.DEFAULT_BRANCH || "main";
   const lines = ["### dependabot-fix continuation"];
 
@@ -166,22 +187,46 @@ function main() {
     if (!selected) lines.push("- none: no eligible continuation PR");
   }
 
-  const conflicts = selected
-    ? checkoutAndMerge(selected.branch, defaultBranch)
-    : false;
+  let branch = selected?.branch;
   if (selected) {
     lines.push(
-      `- continuing \`${selected.branch}\` (PR ${selected.number}, ${selected.url})`,
-      `- merged \`${defaultBranch}\`: ${conflicts ? "CONFLICTS left in the worktree" : "clean"}`
+      `- continuing \`${selected.branch}\` (PR ${selected.number}, ${selected.url})`
     );
+  } else {
+    // A fresh name is not in origin, but a fork PR can carry any head
+    // name; skip names an open PR uses so the landing cannot adopt it.
+    const taken = [...branches];
+    for (branch = newBatchBranch(taken); listOpenPrs(branch).length > 0;) {
+      lines.push(
+        `- skipped \`${branch}\`: an open PR already uses that head name`
+      );
+      taken.push(branch);
+      branch = newBatchBranch(taken);
+    }
+    lines.push(`- new batch branch: \`${branch}\``);
   }
-
-  emit({
-    branch: selected?.branch ?? "",
+  const outputs = {
+    branch,
+    continuing: String(selected !== null),
     pr_number: selected?.number ?? "",
     pr_url: selected?.url ?? "",
-    merge_conflicts: String(conflicts),
-  });
+  };
+
+  if (selectOnly) {
+    lines.push("- checkout deferred (--select-only)");
+  } else {
+    const conflicts = selected
+      ? checkoutAndMerge(selected.branch, defaultBranch)
+      : false;
+    if (selected) {
+      lines.push(
+        `- merged \`${defaultBranch}\`: ${conflicts ? "CONFLICTS left in the worktree" : "clean"}`
+      );
+    }
+    outputs.merge_conflicts = String(conflicts);
+  }
+
+  emit(outputs);
   summarize(lines);
 }
 

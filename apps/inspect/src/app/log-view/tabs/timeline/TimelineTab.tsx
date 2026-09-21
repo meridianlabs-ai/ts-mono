@@ -10,11 +10,11 @@ import {
   useState,
 } from "react";
 
+import type { NormalizedEvalStats } from "@tsmono/inspect-common/normalize";
 import {
   ConfigUpdate,
   EarlyStoppingSummary,
   EvalSpec,
-  EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
@@ -24,6 +24,7 @@ import {
   buildConnectionLanes,
   poolRetunes,
 } from "@tsmono/inspect-components/usage";
+import { ErrorPanel } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
@@ -43,6 +44,7 @@ import {
 } from "../../useShowTimeline";
 
 import { HistoryList } from "./HistoryList";
+import { connectionHistoryError } from "./timelineAxis";
 import { TimelineChart } from "./TimelineChart";
 import {
   activeSamplesSeries,
@@ -64,7 +66,7 @@ import styles from "./TimelineTab.module.css";
 
 export const useTimelineTab = (
   evalSpec: EvalSpec | undefined,
-  evalStats: EvalStats | undefined,
+  evalStats: NormalizedEvalStats | undefined,
   evalStatus?: EvalLogStatus,
   configUpdates?: ConfigUpdate[] | null,
   logUpdates?: LogUpdate[] | null,
@@ -102,7 +104,7 @@ export const useTimelineTab = (
 
 interface TimelineTabProps {
   evalSpec?: EvalSpec;
-  evalStats?: EvalStats;
+  evalStats?: NormalizedEvalStats;
   evalStatus?: EvalLogStatus;
   configUpdates?: ConfigUpdate[] | null;
   logUpdates?: LogUpdate[] | null;
@@ -131,6 +133,17 @@ const kNoCategories: HistoryCategory[] = [];
 // links, chart popovers) when the log in view changes.
 export const TimelineTab: FC<TimelineTabProps> = (props) => {
   const logKey = useTimelineLogKey("tab");
+  const error =
+    props.evalStats?.connectionHistoryError ??
+    connectionHistoryError(props.evalStats?.connection_limit_history ?? []);
+  if (error) {
+    return (
+      <ErrorPanel
+        title="Unable to display timeline"
+        error={{ message: error }}
+      />
+    );
+  }
   return <TimelineTabBody key={logKey} {...props} />;
 };
 

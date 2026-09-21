@@ -23,8 +23,7 @@
     "@tsmono/inspect-components": "workspace:*",
     "@tsmono/react": "workspace:*",
     "@tsmono/util": "workspace:*",
-    "clsx": "^2.1.1",
-    "picomatch": "^4.0.7"
+    "clsx": "^2.1.1"
   },
   "peerDependencies": {
     "@vscode-elements/react-elements": "^2.4.0",
@@ -36,7 +35,6 @@
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@tsmono/vitest-config": "workspace:*",
-    "@types/picomatch": "^4.0.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@typescript/native": "npm:typescript@^7.0.2",

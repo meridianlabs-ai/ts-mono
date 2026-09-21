@@ -221,7 +221,7 @@ export const pushFileSamples = async (
   rows: SamplesListingRow[]
 ): Promise<void> => {
   const key = samplesListingKey({ logDir, scope: { file: logFile } });
-  if (!queryClient.getQueryCache().find({ queryKey: key })) {
+  if (!queryClient.getQueryState(key)) {
     return;
   }
   // A mount-time fetch still in flight would commit over this push (it read

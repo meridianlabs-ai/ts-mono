@@ -7,30 +7,65 @@
 # Model auth is Workload Identity Federation (same IDs as
 # meridianlabs-ai/agents claude.yml); requires id-token: write.
 #
-# MARVIN_TOKEN (org secret, machine-account PAT) is required, for two reasons
-# GITHUB_TOKEN can't cover: reading the dependabot alerts API (no workflow
-# permission key exists for it), and opening a PR that triggers CI (recursion
-# guard blocks GITHUB_TOKEN-authored PRs). PAT must have Dependabot alerts:
-# read on this repo — the preflight step fails loudly if not.
+# Three jobs, split so that the job that runs the agent holds no GitHub write
+# credential (credential separation, Phase 2; the landing shape is
+# meridianlabs-ai/agents design/architecture.md → "Landing job"):
+#
+#   gate  (trusted)   mints a one-hour GitHub App token that can only read
+#                     this repo's Dependabot alerts, reads them, and runs
+#                     scripts/dependabot-fix-continuation.mjs --select-only to
+#                     name the branch this run lands on: the still-open batch
+#                     PR's branch, or a fresh dependabot-fix/<date>. Both are
+#                     job outputs; nothing is checked out beyond the script.
+#   agent (untrusted) checks out and merges the branch the gate named, then
+#                     runs the agent with the job token ONLY (contents: read,
+#                     no gh writes, no push). It receives the alert list as a
+#                     file, edits the tree, commits locally and writes the PR
+#                     title/body as files; `emit-landing` packages the commits
+#                     and a manifest for the land job.
+#   land  (trusted)   a fresh runner that checks out nothing: checks the
+#                     manifest names exactly the gate's branch and PR (and
+#                     nothing else the gate did not decide), mints an App
+#                     token for this repo (contents + pull requests), validates
+#                     the manifest, pushes the batch branch and opens the PR
+#                     (or, on a continued batch, posts the run's batch update
+#                     as a comment on the open PR).
+#
+# GitHub identity is the org's GitHub App, meridian-marvin[bot], minted per
+# job with actions/create-github-app-token from the org secrets
+# MARVIN_APP_CLIENT_ID / MARVIN_APP_PRIVATE_KEY and scoped to this repo and
+# to what that job does: `gate` gets Dependabot alerts read (the API has no
+# workflow permission key, and the job token cannot read it), `land` gets
+# contents + pull requests write (a GITHUB_TOKEN-authored PR triggers no CI —
+# GitHub's recursion guard — an App-authored one does). Tokens are revoked at
+# job end; the agent job never sees the private key or a minted token. The
+# preflight in `gate` fails loudly if the App cannot read the alerts.
 #
 # SECURITY MODEL — read before editing.
 #
-# The agent runs pnpm install / check / build / test on the checkout while
-# holding MARVIN_TOKEN (and the WIF OIDC identity), so the checkout must
+# The agent runs pnpm install / check / build / test on the checkout, and
+# whatever it commits is pushed as the App by `land`, so the checkout must
 # only ever contain this repository's own code. Fork PRs are accepted here
 # (ci.yaml runs them under the read-only GITHUB_TOKEN), so the skill's
 # "continue the open batch PR" step must never select one. The workflow,
 # not the agent, picks that branch, via
-# scripts/dependabot-fix-continuation.mjs — the selection rule and its
-# rationale live in that script's header. The agent is told the result and
-# instructed not to touch any other ref.
+# scripts/dependabot-fix-continuation.mjs in the gate job — the selection
+# rule and its rationale live in that script's header — and the agent job
+# checks it out before the agent starts. The agent is told the result and
+# instructed not to touch any other ref. The land job refuses a manifest
+# whose branch, PR number or comment targets are not exactly the gate's
+# choices (or that carries any channel this workflow does not compose),
+# and the landing composite pins a continued batch to the open PR's live
+# head ref besides, so a tampered artifact cannot steer the push or a post.
 #
 # The permission allowlist below is defense in depth, not a boundary:
 # `Bash(pnpm:*)` is arbitrary execution and `gh api` is general-purpose.
 # It still omits the direct routes — no `git fetch`, no bare `git
-# checkout`/`git switch` (only branch creation and merge-conflict forms),
-# no `gh pr checkout` (gh is allowed per subcommand). Do NOT "fix" a stuck
-# run by re-allowing those or by letting the agent pick the PR itself.
+# checkout`/`git switch` (only the merge-conflict forms), no `gh pr
+# checkout` (gh is allowed per subcommand) — and, since the agent holds no
+# write credential, no `git push`, `gh pr create` or `gh pr edit` either.
+# Do NOT "fix" a stuck run by re-allowing those or by letting the agent
+# pick the PR itself.
 
 name: Dependabot Fix
 
@@ -42,8 +77,8 @@ on:
       dry_run:
         description: >-
           Run preflight and the continuation-branch selection only; skip the
-          agent. Use to verify the selection logic against the repo's current
-          open PRs without spending a model run.
+          agent and the landing. Use to verify the selection logic against
+          the repo's current open PRs without spending a model run.
         type: boolean
         default: false
 
@@ -52,60 +87,169 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  fix:
+  # TRUSTED: reads the alerts with the App token and decides the branch. No
+  # untrusted code runs here (the checkout is this repo's default branch,
+  # only for the selection script and its `git ls-remote`).
+  gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 10
     permissions:
-      contents: read # checkout only; writes go through MARVIN_TOKEN
-      id-token: write # WIF OIDC exchange
+      contents: read # checkout for the selection script
+      pull-requests: read # the selection script's `gh pr list` (job token)
+    outputs:
+      alerts: ${{ steps.alerts.outputs.alerts }}
+      branch: ${{ steps.continuation.outputs.branch }}
+      continuing: ${{ steps.continuation.outputs.continuing }}
+      pr_number: ${{ steps.continuation.outputs.pr_number }}
+      pr_url: ${{ steps.continuation.outputs.pr_url }}
     steps:
-      - name: Preflight - MARVIN_TOKEN can read dependabot alerts
+      # One-hour installation token scoped to this repo and to the one read
+      # this job needs. `schedule` events carry no `repository` payload, so
+      # the repo is named literally. (Dependabot alerts is the
+      # `vulnerability_alerts` permission in the App API.)
+      - name: Mint the App token
+        id: mint
+        uses: actions/create-github-app-token@v2
+        with:
+          # `app-id` takes the App ID or the Client ID; the action has no client-id input.
+          app-id: ${{ secrets.MARVIN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MARVIN_APP_PRIVATE_KEY }}
+          owner: meridianlabs-ai
+          repositories: ts-mono
+          permission-vulnerability-alerts: read
+
+      # Preflight, then the batch: the open alerts, reduced to the fields the
+      # skill's step 1 lists, as ONE compact JSON array. The agent job writes
+      # it to a file for the agent, which cannot read the alerts API itself.
+      - name: Read the open dependabot alerts
+        id: alerts
         env:
-          GH_TOKEN: ${{ secrets.MARVIN_TOKEN }}
+          GH_TOKEN: ${{ steps.mint.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [ -z "$GH_TOKEN" ]; then
-            echo "::error::MARVIN_TOKEN secret is not set; this workflow cannot run without it."
-            exit 1
-          fi
           if ! gh api "repos/$REPO/dependabot/alerts?per_page=1" --silent; then
-            echo "::error::MARVIN_TOKEN cannot read dependabot alerts on $REPO — grant the PAT 'Dependabot alerts: read'."
+            echo "::error::The App token cannot read dependabot alerts on $REPO — check that the meridian-marvin App is installed on this repo with 'Dependabot alerts: read'."
             exit 1
           fi
+          alerts=$(gh api --paginate --slurp "repos/$REPO/dependabot/alerts?state=open&per_page=100" \
+            | jq -c '[.[][] | select(.state == "open") | {
+                number,
+                package: .dependency.package.name,
+                ecosystem: .dependency.package.ecosystem,
+                manifest: .dependency.manifest_path,
+                severity: .security_advisory.severity,
+                vulnerable: .security_vulnerability.vulnerable_version_range,
+                patched: .security_vulnerability.first_patched_version.identifier,
+                ghsa: .security_advisory.ghsa_id,
+                summary: .security_advisory.summary}]')
+          echo "alerts=$alerts" >>"$GITHUB_OUTPUT"
+          count=$(jq 'length' <<<"$alerts")
+          echo "Open dependabot alerts: $count"
+          echo "- open dependabot alerts: $count" >>"$GITHUB_STEP_SUMMARY"
 
+      - uses: actions/checkout@v7
+
+      # Trusted code decides which branch the run lands on (see the security
+      # model above). Select only: the agent job does the checkout and the
+      # merge. Reads PRs with the job token; the App token above cannot.
+      - name: Select the batch branch
+        id: continuation
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: node scripts/dependabot-fix-continuation.mjs --select-only
+
+  # UNTRUSTED: this job references no secret and holds the job token only.
+  # id-token is the Anthropic WIF OIDC exchange.
+  agent:
+    needs: gate
+    if: inputs.dry_run != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read # the agent's `gh pr list/view` (an omitted permission is none, public repo or not)
+      id-token: write
+    env:
+      # Commit identity for the merge below and the agent's own commits: the
+      # App token pushes them, so they carry the App's bot identity.
+      GIT_AUTHOR_NAME: meridian-marvin[bot]
+      GIT_AUTHOR_EMAIL: 330132053+meridian-marvin[bot]@users.noreply.github.com
+      GIT_COMMITTER_NAME: meridian-marvin[bot]
+      GIT_COMMITTER_EMAIL: 330132053+meridian-marvin[bot]@users.noreply.github.com
+    steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
+      - uses: meridianlabs-ai/agents/.github/actions/assert-no-persisted-credential@main
 
-      # A dry run only exercises the selection script (node + git + gh), so
-      # the pnpm/turbo setup is skipped along with the agent.
+      # The branch the gate named: an open batch PR's branch, checked out and
+      # with the default branch merged in (conflicts are left for the agent),
+      # or a fresh branch off the default branch. `sha` is the tip on origin
+      # the landing manifest is anchored to — the merge commit and the
+      # agent's commits above it are what the land job pushes. The alert list
+      # goes to a file in the agent's I/O directory, next to where it writes
+      # the PR text.
+      - name: Check out the batch branch
+        id: base
+        env:
+          BRANCH: ${{ needs.gate.outputs.branch }}
+          CONTINUING: ${{ needs.gate.outputs.continuing }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+          ALERTS: ${{ needs.gate.outputs.alerts }}
+          IO: ${{ runner.temp }}/agent-io
+          # Step-scoped read credential for the fetch (checkout persisted
+          # none), as the landing smoke test does.
+          GIT_TOKEN: ${{ github.token }}
+          GIT_CONFIG_COUNT: "2"
+          GIT_CONFIG_KEY_0: credential.helper
+          GIT_CONFIG_VALUE_0: ""
+          GIT_CONFIG_KEY_1: credential.${{ github.server_url }}.helper
+          GIT_CONFIG_VALUE_1: '!f() { echo username=x-access-token; echo "password=$GIT_TOKEN"; }; f'
+        run: |
+          set -euo pipefail
+          conflicts=false
+          if [ "$CONTINUING" = "true" ]; then
+            git fetch --quiet --no-tags origin "$BRANCH" "$DEFAULT_BRANCH"
+            git checkout --quiet -B "$BRANCH" "origin/$BRANCH"
+            sha=$(git rev-parse HEAD)
+            # Exit 1 is conflicts (left in the worktree for the agent);
+            # anything else is a real error.
+            rc=0
+            git merge --no-edit "origin/$DEFAULT_BRANCH" || rc=$?
+            case "$rc" in
+              0) ;;
+              1) conflicts=true ;;
+              *) exit "$rc" ;;
+            esac
+          else
+            git checkout --quiet -b "$BRANCH"
+            sha=$(git rev-parse HEAD)
+          fi
+          mkdir -p "$IO"
+          printf '%s\n' "$ALERTS" >"$IO/alerts.json"
+          {
+            echo "sha=$sha"
+            echo "merge_conflicts=$conflicts"
+          } >>"$GITHUB_OUTPUT"
+          echo "Batch branch $BRANCH (continuing: $CONTINUING) at $sha; merge conflicts: $conflicts"
+
       - uses: pnpm/action-setup@v6
-        if: inputs.dry_run != true
 
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
-          cache: ${{ inputs.dry_run != true && 'pnpm' || '' }}
+          cache: pnpm
 
       - name: Cache Turbo
-        if: inputs.dry_run != true
         uses: actions/cache@v6
         with:
           path: .turbo
           key: turbo-${{ github.sha }}
           restore-keys: turbo-
-
-      # Trusted code decides what is checked out (see the security model
-      # above).
-      - name: Select continuation branch
-        id: continuation
-        env:
-          GH_TOKEN: ${{ secrets.MARVIN_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: node scripts/dependabot-fix-continuation.mjs
 
       # Pre-install so the agent's pnpm why/audit/check/build/test work
       # immediately (and hit the pnpm store cache). Only on a fresh checkout
@@ -113,38 +257,43 @@ jobs:
       # textually clean yet fail --frozen-lockfile, and the agent runs
       # `pnpm install` as its first verify step anyway.
       - name: Install dependencies
-        if: inputs.dry_run != true && steps.continuation.outputs.branch == ''
+        if: needs.gate.outputs.continuing != 'true'
         run: pnpm install --frozen-lockfile
 
+      # The job token is passed explicitly so the action does not mint its
+      # own App token: `gh` here can read (advisories, PR list/view) and
+      # nothing else. --add-dir lets the agent read the alert list and write
+      # the PR text in the I/O directory.
       - uses: anthropics/claude-code-action@v1
         id: claude
-        if: inputs.dry_run != true
         with:
           anthropic_federation_rule_id: fdrl_01GpNgJm9jE6ZfvcqoJYQL2Y
           anthropic_organization_id: be5d0086-bc43-45d2-9184-20ecdd647aa7
           anthropic_service_account_id: svac_01RL4wYD7ikbypwYKf4wFojv
           anthropic_workspace_id: wrkspc_01RKCQ5DTPBatQ7kHLkaEueD
-          github_token: ${{ secrets.MARVIN_TOKEN }}
+          github_token: ${{ github.token }}
           # Default-deny: headless runs auto-deny anything not allowed. gh per
-          # subcommand (alerts/advisory API, PR list/view/create/edit — not
-          # `gh pr checkout`), pnpm for the verify loop, git scoped to
-          # create-branch/commit/push, the forms needed to finish or back
-          # out the merge the workflow started, and read-only subcommands
-          # (no fetch, no bare checkout/switch: the workflow already put the
-          # right branch in place), echo for the GITHUB_STEP_SUMMARY line.
+          # subcommand (advisory API, PR list/view — not `gh pr checkout`, and
+          # no create/edit: this job cannot write), pnpm for the verify loop,
+          # git scoped to add/commit plus the forms needed to finish or back
+          # out the merge the workflow started, and read-only subcommands (no
+          # fetch, no checkout/switch/branch creation, no push: the workflow
+          # already put the right branch in place and the land job pushes),
+          # echo for the GITHUB_STEP_SUMMARY line.
           settings: |
             {"permissions":{"allow":["Read","Edit","Write",
             "Bash(pnpm:*)","Bash(grep:*)","Bash(echo:*)",
             "Bash(gh api:*)","Bash(gh pr list:*)","Bash(gh pr view:*)",
-            "Bash(gh pr create:*)","Bash(gh pr edit:*)",
-            "Bash(git switch -c:*)","Bash(git checkout -b:*)",
             "Bash(git checkout --ours:*)","Bash(git checkout --theirs:*)",
             "Bash(git merge --continue)","Bash(git merge --abort)",
             "Bash(git branch:*)","Bash(git status:*)","Bash(git log:*)",
             "Bash(git diff:*)","Bash(git show:*)","Bash(git rev-parse:*)",
             "Bash(git remote:*)","Bash(git add:*)","Bash(git commit:*)",
-            "Bash(git push:*)","Bash(git config:*)"]}}
-          claude_args: --model fable --fallback-model default
+            "Bash(git config:*)"]}}
+          claude_args: >-
+            --model fable
+            --fallback-model default
+            --add-dir ${{ runner.temp }}/agent-io
           prompt: |
             Run the dependabot-fix skill (.agents/skills/dependabot-fix/SKILL.md)
             to clear the currently open GitHub dependabot security alerts.
@@ -152,50 +301,249 @@ jobs:
             This is an unattended scheduled run — follow the skill's
             "Unattended runs" rules.
 
+            Your GitHub token is read-only: `gh` works for reads (advisories,
+            PR list/view), but you cannot read the alerts API, push, open or
+            edit a PR, and must not try. The workflow read the open alerts for
+            you: ${{ runner.temp }}/agent-io/alerts.json (a JSON array with
+            the fields the skill's step 1 lists). Do not run the skill's
+            step 1 command.
+
             The workflow has already run the skill's step 5 continuation
-            script — do not run it again. Its result:
-            - Continuation branch: ${{ steps.continuation.outputs.branch || 'none' }}
-            - Continuation PR: ${{ steps.continuation.outputs.pr_url || 'none' }} (number: ${{ steps.continuation.outputs.pr_number || 'n/a' }})
-            - Merging the default branch left conflicts: ${{ steps.continuation.outputs.merge_conflicts }}
-            If a branch is named you are already checked out on it with the
-            default branch merged in; if conflicts is true, resolve them
-            first (pnpm-workspace.yaml overrides, pnpm-lock.yaml) and
-            commit. Follow step 5's rules on what not to check out.
+            script and checked out the branch this run lands on — do not run
+            the script again, and do not create, switch or check out any
+            other branch. Its result:
+            - Branch: ${{ needs.gate.outputs.branch }} (already checked out)
+            - Continuing an open batch PR: ${{ needs.gate.outputs.continuing }}
+            - Continuation PR: ${{ needs.gate.outputs.pr_url || 'none' }} (number: ${{ needs.gate.outputs.pr_number || 'n/a' }})
+            - Merging the default branch left conflicts: ${{ steps.base.outputs.merge_conflicts }}
+            If a PR is being continued the default branch is already merged
+            in; if conflicts is true, resolve them first (pnpm-workspace.yaml
+            overrides, pnpm-lock.yaml) and commit. Follow step 5's rules on
+            what not to check out.
+
+            Commit your fixes on the current branch (git add / git commit;
+            never push). A trusted job pushes your commits after this job
+            ends and opens or updates the PR from files you write in
+            ${{ runner.temp }}/agent-io:
+            - A new batch: pr-title.txt (one line, the PR title) and
+              pr-body.md (the full PR body per the skill: one line per alert
+              fixed, every deferred alert and why).
+            - Continuing a PR: pr-update.md, what this run fixed or deferred
+              and why; it is posted as a comment on the open PR. Write it
+              whenever the PR needs an update, even when you made no new
+              commit (newly deferred alerts, say).
+            If nothing is actionable and no open PR needs updating, commit
+            nothing and write no PR files.
 
             Finish every run — including no-op runs — by appending a brief
-            status (alerts fixed, alerts deferred, PR link or "no action") to
-            the file named by the GITHUB_STEP_SUMMARY environment variable.
+            status (alerts fixed, alerts deferred, "PR pending" or "no action")
+            to the file named by the GITHUB_STEP_SUMMARY environment variable.
 
       # The action can finish green even when the agent errored (model
-      # overload etc.). Fail the run so a scheduled failure is visible.
+      # overload etc.). This job cannot post: the message becomes the
+      # manifest's `error` (fail_run true) and the land job posts it on the
+      # PR and fails the run after everything else landed. Exits 0 on every
+      # path: the red X is the land job's.
       - name: Surface agent errors
-        if: always() && inputs.dry_run != true
+        if: always()
         env:
           EXEC: ${{ steps.claude.outputs.execution_file }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          ERROR_FILE: ${{ runner.temp }}/agent-error.md
         run: |
           set -uo pipefail
           file="${EXEC:-/home/runner/work/_temp/claude-execution-output.json}"
-          # The action re-points origin at an x-access-token URL embedding
-          # MARVIN_TOKEN; a git remote -v/git config --list in a tool result
-          # would land the raw PAT in this file, and artifacts are publicly
-          # downloadable without log masking. Scrub before upload.
-          [ -f "$file" ] && sed -E -i 's#x-access-token:[^@"]*@#x-access-token:***@#g' "$file"
           err=""
           # SDK error results (error_max_turns, error_during_execution, ...)
           # carry no .result field — fall back to .subtype.
           [ -f "$file" ] && err=$(jq -r '(if type=="array" then . else .messages end) | map(select(.type=="result" and .is_error==true)) | last | (.result // .subtype) // empty' "$file" 2>/dev/null || true)
-          if [ -z "$err" ] && [ "$CLAUDE_OUTCOME" = "failure" ]; then
-            err="the Claude Code step failed before producing a result (see the job logs)."
+          if [ -z "$err" ] && [ "$CLAUDE_OUTCOME" != "success" ]; then
+            err="the Claude Code step ended with outcome '$CLAUDE_OUTCOME' before producing a result (see the job logs)."
           fi
           [ -z "$err" ] && { echo "No agent error detected."; exit 0; }
           echo "::error::Claude run did not complete: $err"
-          exit 1
+          printf 'The dependabot-fix agent errored before finishing:\n\n> %s\n\nUsually transient (model API capacity/overload or a model-availability blip); if it persists see https://status.claude.com.\n' "$err" >"$ERROR_FILE"
 
-      - name: Upload execution log
-        if: always() && inputs.dry_run != true
-        uses: actions/upload-artifact@v7
+      # Everything the land job pushes and posts, as ONE JSON object for
+      # emit-landing's manifest-extra (schema: agents
+      # .github/actions/emit-landing/README.md). The agent's files are DATA:
+      # copied (capped under the validator's 64 KiB file limit) and referenced
+      # by name, never interpolated into a command. A run that committed
+      # nothing is a legitimate no-op (nothing actionable), not an error.
+      # Fields:
+      #   pr       — a new batch only: open the PR for the branch; title from
+      #              pr-title.txt (first line, control characters stripped)
+      #   comments — a continued batch only: pr-update.md as a comment on the
+      #              pinned PR, whether or not this run committed anything
+      #              (the land composite pushes to the pinned PR's branch)
+      #   error    — the Surface step's message, an unresolved merge, or a
+      #              missing PR body; fail_run true
+      - name: Compose landing manifest
+        if: always()
+        env:
+          DIR: ${{ runner.temp }}/landing
+          IO: ${{ runner.temp }}/agent-io
+          EXTRA: ${{ runner.temp }}/landing-extra.json
+          START: ${{ steps.base.outputs.sha }}
+          CONTINUING: ${{ needs.gate.outputs.continuing }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+          ERROR_FILE: ${{ runner.temp }}/agent-error.md
+        run: |
+          set -euo pipefail
+          mkdir -p "$DIR"
+          extra='{}'
+          err=""
+          tip=$(git rev-parse HEAD 2>/dev/null || echo "$START")
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+            err="The merge of the default branch into the batch branch was left unfinished, so nothing was landed."
+          fi
+          committed=false
+          if [ -n "$START" ] && [ "$tip" != "$START" ]; then
+            committed=true
+          else
+            echo "landing: no commits above $START; nothing to push."
+          fi
+          if [ "$CONTINUING" = "true" ]; then
+            # The pinned PR (a trusted gate output). The update is a comment,
+            # independent of whether this run committed: a run that only
+            # defers alerts still owes the PR a note.
+            if [ -s "$IO/pr-update.md" ]; then
+              [[ "$PR_NUMBER" =~ ^[0-9]+$ ]] || { echo "::error::continuing without a PR number from the gate."; exit 1; }
+              head -c 60000 "$IO/pr-update.md" >"$DIR/pr-update.md"
+              extra=$(jq -c --argjson n "$PR_NUMBER" '.comments = [{number: $n, body_file: "pr-update.md"}]' <<<"$extra")
+            elif [ "$committed" = "true" ]; then
+              err="${err:+$err }The agent committed changes to the open batch PR but wrote no pr-update.md; the PR got no note about them."
+            fi
+          elif [ "$committed" = "true" ]; then
+            if [ -s "$IO/pr-body.md" ]; then
+              head -c 60000 "$IO/pr-body.md" >"$DIR/pr-body.md"
+            else
+              err="${err:+$err }The agent committed changes but wrote no pr-body.md; the PR body is a placeholder."
+              printf 'Dependabot fix batch — the agent wrote no PR body; see the workflow run log.\n' >"$DIR/pr-body.md"
+            fi
+            title=$( { head -n1 "$IO/pr-title.txt" 2>/dev/null || true; } | tr -d '\000-\037\177' | head -c 200)
+            [ -n "$title" ] || title="chore(deps): fix dependabot alerts"
+            extra=$(jq -c --arg t "$title" '.pr = {open: true, title: $t, body_file: "pr-body.md"}' <<<"$extra")
+          fi
+          if [ -s "$ERROR_FILE" ]; then
+            err=$(printf '%s%s' "$(cat "$ERROR_FILE")" "${err:+$(printf '\n\n%s' "$err")}")
+          fi
+          if [ -n "$err" ]; then
+            msg=$(printf '⚠️ The scheduled dependabot-fix run did not complete.\n\n%s' "$err")
+            extra=$(jq -c --arg msg "$msg" '.error = {message: $msg, fail_run: true}' <<<"$extra")
+          fi
+          printf '%s\n' "$extra" >"$EXTRA"
+          echo "landing: $(jq -c 'if .error then .error.message = "<\(.error.message | length) chars>" else . end' <<<"$extra")"
+
+      # Last, always: package the commits above the start SHA and the manifest
+      # for the land job. This action holds no token.
+      - name: Emit landing manifest
+        if: always()
+        uses: meridianlabs-ai/agents/.github/actions/emit-landing@main
         with:
-          name: claude-execution-output
-          path: ${{ steps.claude.outputs.execution_file || '/home/runner/work/_temp/claude-execution-output.json' }}
-          if-no-files-found: ignore
+          start-sha: ${{ steps.base.outputs.sha }}
+          branch: ${{ needs.gate.outputs.branch }}
+          # The SAME value the land job gets (a gate output, computed before
+          # any untrusted code ran): the validator pins the manifest's
+          # pr_number to it, and on a continued batch the branch to that
+          # PR's live head ref.
+          pr-number: ${{ needs.gate.outputs.pr_number }}
+          manifest-extra: ${{ runner.temp }}/landing-extra.json
+
+  # TRUSTED, last: a fresh runner that checks out nothing and installs
+  # nothing. Runs whatever the agent job did (always()), so an agent failure
+  # is reported instead of dying in the log; skipped on a dry run or when the
+  # gate failed.
+  land:
+    needs: [gate, agent]
+    if: always() && inputs.dry_run != true && needs.gate.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # fetch the start SHA (land's read token)
+      pull-requests: read # the continued PR's head-ref lookup (read token)
+      actions: read # artifact download
+    steps:
+      # Trusted pre-check of the landing manifest, before any token is minted.
+      # The landing composite validates shape and pins pr_number, the branch
+      # of a continued batch (live PR head ref) and file references, but two
+      # things it cannot know: a run that names no PR is pinned by PREFIX
+      # only (`dependabot-fix/<date>` is a prefix of `dependabot-fix/<date>-
+      # other`), and comments[].number is not tied to pr_number. The agent
+      # job composes the manifest, so a tampered artifact could steer a new
+      # batch's push at a sibling branch or a comment at another PR. This
+      # step downloads the artifact (a failed download fails the job: nothing
+      # lands uninspected) and refuses a manifest unless its branch and
+      # pr_number are exactly the gate's, every comment targets the gate's
+      # PR (none on a new batch), `pr` carries only what the compose step
+      # writes, and no other channel (handback, hand-off, stage, replies,
+      # issues, ...) is present. Everything else is the composite's job.
+      - name: Download the landing manifest
+        uses: actions/download-artifact@v7
+        with:
+          name: landing
+          path: ${{ runner.temp }}/landing-check
+
+      - name: Refuse a manifest that strays from the gate's decisions
+        env:
+          MANIFEST: ${{ runner.temp }}/landing-check/manifest.json
+          BRANCH: ${{ needs.gate.outputs.branch }}
+          PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          [ -f "$MANIFEST" ] || { echo "::error::The landing artifact has no manifest.json; refusing to land."; exit 1; }
+          # One jq program lists every violation; any jq error (not JSON,
+          # wrong types, a non-numeric gate PR number) is a violation too.
+          violations=$(jq -r --arg branch "$BRANCH" --arg pr "$PR_NUMBER" \
+            --argjson allowed '["schema","repo","run_id","branch","start_sha","head_sha","has_bundle","pr_number","issue_number","pr","comments","error"]' '
+            def prn: if $pr == "" then null else ($pr | tonumber) end;
+            if type != "object" then "manifest is not a JSON object" else
+            [ ((keys - $allowed)[] | "unexpected key \(.)"),
+              (if .branch != $branch then "branch \(.branch | tojson) is not the gate branch \($branch | tojson)" else empty end),
+              (if .pr_number != prn then "pr_number \(.pr_number | tojson) is not the gate PR \(prn | tojson)" else empty end),
+              (if (.pr | type) == "null" then empty
+               elif (.pr | type) != "object" then "pr is not an object"
+               elif prn != null then "pr must not be set when continuing an open PR"
+               else ((.pr | keys) - ["open","title","body_file"])[] | "unexpected pr key \(.)" end),
+              (if (.comments | type) == "null" then empty
+               elif (.comments | type) != "array" then "comments is not an array"
+               elif prn == null then "comments are not allowed on a new batch (no PR selected by the gate)"
+               else .comments[] | select((. | type) != "object" or .number != prn) | "comment target \(.number? | tojson) is not the gate PR \(prn)" end)
+            ] | .[] end' "$MANIFEST" 2>&1) || violations="manifest could not be read: $violations"
+          if [ -n "$violations" ]; then
+            printf '::error::Refusing the landing manifest:\n%s\n' "$violations"
+            exit 1
+          fi
+          echo "Manifest matches the gate: branch $BRANCH, PR ${PR_NUMBER:-none}."
+
+      # Scoped to this repo and to this job's writes: the push (contents) and
+      # the PR — open it, or comment on a continued batch (pull requests).
+      # Both come from meridian-marvin[bot], so CI runs on the PR.
+      - name: Mint the App token
+        id: mint
+        uses: actions/create-github-app-token@v2
+        with:
+          # `app-id` takes the App ID or the Client ID; the action has no client-id input.
+          app-id: ${{ secrets.MARVIN_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MARVIN_APP_PRIVATE_KEY }}
+          owner: meridianlabs-ai
+          repositories: ts-mono
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Land
+        id: land
+        uses: meridianlabs-ai/agents/.github/actions/land@main
+        with:
+          token: ${{ steps.mint.outputs.token }}
+          # The manifest creates no issues.
+          allowed-issue-repos: ""
+          # The same value emit-landing got above: on a continued batch the
+          # validator pins the manifest's pr_number to it and the branch to
+          # that PR's live head ref; the push then updates the open PR and
+          # the manifest's comment lands on it.
+          pr-number: ${{ needs.gate.outputs.pr_number }}
+          # A new batch names no PR to pin the branch to; the gate's branch
+          # name is the composite's pin (prefix), and the equality check
+          # above makes it exact.
+          branch-prefix: ${{ needs.gate.outputs.branch }}
