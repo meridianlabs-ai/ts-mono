@@ -46,7 +46,9 @@
   border: 1px solid var(--bs-light-border-subtle);
   border-left: none;
   border-radius: var(--bs-border-radius);
-  overflow: hidden;
+  /* `clip` rounds the corners without becoming a scroll container, which
+     would trap the sticky "less…" toggle of the panels inside. */
+  overflow: clip;
 }
 
 /* Self-contained box (used when tool calls are un-embedded) so the assistant
