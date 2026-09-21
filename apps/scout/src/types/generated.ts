@@ -1601,7 +1601,7 @@ export interface components {
             /** Cache */
             cache?: boolean | components["schemas"]["CachePolicy"] | null;
             /** Cache Prompt */
-            cache_prompt?: ("auto" | "prefix") | boolean | null;
+            cache_prompt?: "auto" | boolean | null;
             /** Effort */
             effort?: ("low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Extra Body */
@@ -1692,7 +1692,7 @@ export interface components {
             /** Cache */
             cache?: boolean | components["schemas"]["CachePolicy"] | null;
             /** Cache Prompt */
-            cache_prompt?: ("auto" | "prefix") | boolean | null;
+            cache_prompt?: "auto" | boolean | null;
             /** Effort */
             effort?: ("low" | "medium" | "high" | "xhigh" | "max") | null;
             /** Extra Body */
