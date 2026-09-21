@@ -3,6 +3,8 @@ import { Worker as NodeWorker } from "node:worker_threads";
 
 import { afterAll, beforeAll, vi } from "vitest";
 
+import { resetZstdWorker } from "../client/remote/zstd-worker";
+
 // Run the production Blob worker script and its real transfer lists in Node.
 // These corpus tests now exercise the worker path for large zstd windows too.
 export function installNodeBlobWorker(): void {
@@ -54,6 +56,10 @@ export function installNodeBlobWorker(): void {
 
   beforeAll(() => vi.stubGlobal("Worker", BlobWorker));
   afterAll(async () => {
+    // The production module caches one worker for the whole module graph,
+    // which under `isolate: false` outlives this file. Forget it before
+    // killing its thread, so the next file gets a live one.
+    resetZstdWorker();
     await Promise.all([...workers].map((worker) => worker.terminate()));
     vi.unstubAllGlobals();
   });

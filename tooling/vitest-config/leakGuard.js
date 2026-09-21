@@ -23,6 +23,7 @@ const WATCHED_GLOBALS = [
   "TextEncoder",
   "TextDecoder",
   "console",
+  "Worker",
 ];
 
 /** @type {Map<string, unknown>} */

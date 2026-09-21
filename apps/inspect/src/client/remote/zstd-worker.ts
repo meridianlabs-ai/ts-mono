@@ -104,6 +104,20 @@ function getZstdWorker(): Promise<Worker> {
 }
 
 /**
+ * Drop the cached worker so the next large read starts a fresh one. For
+ * tests: the worker is a module-level singleton, and a test file that
+ * installs its own `Worker` and terminates the threads it created must also
+ * forget the promise here, or the next file sharing this module graph posts
+ * to a dead worker and never hears back.
+ */
+export function resetZstdWorker(): void {
+  zstdWorker?.terminate();
+  zstdWorker = null;
+  workerInitPromise = null;
+  pendingRequests.clear();
+}
+
+/**
  * Decompresses zstd-compressed data.
  *
  * For payloads with both compressed and expected output sizes below 1MB, uses synchronous decompression.
