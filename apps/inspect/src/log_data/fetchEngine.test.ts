@@ -11,7 +11,7 @@ import {
   LogHeader,
   LogPreview,
 } from "../client/api/types";
-import { DatabaseService } from "../client/database";
+import { OpenDatabase } from "../client/database";
 import { toLogHeader, toLogPreview } from "../client/utils/type-utils";
 import { WorkResult } from "../utils/workQueue";
 
@@ -212,13 +212,12 @@ const createFakeApi = (options: FakeApiOptions = {}) => {
 // Holds the unified Log rows keyed by name — the fake analogue of the v12
 // `logs` table. Mutable so relayed writes (fetch states, resets, deletes)
 // are visible to later reads, exercising the real persistence round-trips.
-const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
+const createFakeDb = (initialRows: Log[] = []): OpenDatabase => {
   const rows: Record<string, Log> = Object.fromEntries(
     initialRows.map((row) => [row.name, { ...row }])
   );
 
   return testDatabaseService({
-    opened: () => true,
     readLogs: () =>
       Promise.resolve(Object.values(rows).map((row) => ({ ...row }))),
     readLogRow: (file: string) =>
@@ -271,7 +270,7 @@ const createFakeDb = (initialRows: Log[] = []): DatabaseService => {
 // (logsContent.ts) persists through to IndexedDB, so tests can exercise
 // persistence round-trips (start()-time reset, settle-seq bumps, invalidation
 // resets) without a real database.
-const createFakeSink = (db?: DatabaseService) => {
+const createFakeSink = (db?: OpenDatabase) => {
   const calls = {
     seedRows: [] as Log[][],
     setListing: [] as LogHandle[][],

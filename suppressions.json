@@ -465,7 +465,7 @@
       "count": 1
     }
   },
-  "apps/inspect/src/client/database/manager.ts": {
+  "apps/inspect/src/client/database/service.ts": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
       "undescribed": 1
