@@ -1597,12 +1597,9 @@
   },
   "packages/react/src/hooks/useScrollDirection.ts": {
     "react-hooks/exhaustive-deps": {
-      "count": 2
+      "count": 1
     },
     "react-hooks/refs": {
-      "count": 2
-    },
-    "react-hooks/use-memo": {
       "count": 1
     }
   },
