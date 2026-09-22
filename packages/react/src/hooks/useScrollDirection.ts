@@ -132,8 +132,8 @@ export function useScrollDirection(
   // render.
   const incomingRefs = asArray(scrollRef);
   const [refArray, setRefArray] = useState(incomingRefs);
-  const refsChanged = !sameItems(refArray, incomingRefs);
-  if (refsChanged) setRefArray(incomingRefs);
+  const primaryRefChanged = refArray[0] !== incomingRefs[0];
+  if (!sameItems(refArray, incomingRefs)) setRefArray(incomingRefs);
 
   // The primary scroll element (used by resetAnchor — typically the main
   // list's scroller).
@@ -158,8 +158,9 @@ export function useScrollDirection(
     return () => observer.disconnect();
   }, [refArray]);
 
-  // Reset hidden when the scroller changes — different refs from the caller,
-  // or the same logical scroller remounting its element (loading→loaded
+  // Reset hidden when the primary scroller changes — a different ref from the
+  // caller (secondary scrollers joining or leaving don't count), or the same
+  // logical scroller remounting its element (loading→loaded
   // swaps, content switches): a fresh scroller starts at the top, where the
   // headroom shows. EXCEPT while suppressed: a nav-owned deep-link mount
   // swaps its element mid-landing, and wiping the forced/initial state there
@@ -169,7 +170,7 @@ export function useScrollDirection(
   );
   const primaryEl = scrollEls[0] ?? null;
   const scrollerChanged =
-    refsChanged || (prevPrimary !== primaryEl && prevPrimary !== null);
+    primaryRefChanged || (prevPrimary !== primaryEl && prevPrimary !== null);
   if (prevPrimary !== primaryEl) setPrevPrimary(primaryEl);
   // eslint-disable-next-line react-hooks/refs -- deliberate render-phase gate: the reset must be suppressed in the SAME render the scroller swaps, or the headroom paints expanded for a frame before a nav-owned landing re-collapses it
   if (scrollerChanged && hidden && !suppressRef?.current) {
