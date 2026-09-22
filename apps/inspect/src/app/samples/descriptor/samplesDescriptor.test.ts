@@ -23,6 +23,17 @@ const sampleWithRawScore = (entry: unknown): SampleSummary => {
 };
 
 describe("dictionary score values", () => {
+  it.each([0, false, "", "C"])(
+    "preserves standalone score value %s",
+    (value) => {
+      const label: ScoreLabel = { scorer: "s", name: "s" };
+      const sample = sampleWithRawScore(testScore({ value }));
+      const descriptor = createEvalDescriptor([label], [sample]);
+
+      expect(descriptor?.score(sample, label)?.value).toBe(value);
+    }
+  );
+
   it.each([
     { name: "null", entry: { value: null } },
     { name: "missing", entry: {} },

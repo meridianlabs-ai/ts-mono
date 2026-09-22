@@ -50,28 +50,15 @@ export const createEvalDescriptor = (
       return undefined;
     }
 
-    if (
-      scoreLabel.scorer !== scoreLabel.name &&
-      sample.scores[scoreLabel.scorer] &&
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      sample.scores[scoreLabel.scorer].value
-    ) {
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      if (typeof sample.scores[scoreLabel.scorer].value === "object") {
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        const temp = sample.scores[scoreLabel.scorer].value;
-        // The dict form of Score.value; the typeof check above is what
-        // distinguishes it from the scalar forms.
-        return isRecord(temp) ? temp[scoreLabel.name] : undefined;
+    const entry = sample.scores[scoreLabel.scorer];
+    if (scoreLabel.scorer !== scoreLabel.name && entry?.value) {
+      if (typeof entry.value === "object") {
+        return isRecord(entry.value) ? entry.value[scoreLabel.name] : undefined;
       } else {
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        return sample.scores[scoreLabel.scorer].value;
+        return entry.value;
       }
-    } else if (sample.scores[scoreLabel.name]) {
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      return sample.scores[scoreLabel.name].value;
     } else {
-      return undefined;
+      return sample.scores[scoreLabel.name]?.value;
     }
   };
 

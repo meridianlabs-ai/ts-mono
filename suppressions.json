@@ -239,7 +239,7 @@
   },
   "apps/inspect/src/app/samples/descriptor/samplesDescriptor.tsx": {
     "@ts-expect-error": {
-      "count": 6
+      "count": 1
     }
   },
   "apps/inspect/src/app/samples/descriptor/score/ListScoreDescriptor.tsx": {

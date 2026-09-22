@@ -2,6 +2,8 @@ import { isRecord } from "@tsmono/util";
 
 // Drop unusable whole scores, not valid null dictionary leaves. A whole null
 // might be a legacy serialized NaN, but the value alone cannot establish that.
+// This intentionally omits the entry's explanation and other context from the
+// normalized view too; the original input remains available unchanged.
 export const normalizeSampleScores = (
   raw: unknown
 ): Record<string, unknown> | null => {

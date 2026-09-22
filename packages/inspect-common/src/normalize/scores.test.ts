@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { testScore } from "../testing";
+import { testScore, testScoreEdit } from "../testing";
 
 import { normalizeEvalSample, normalizeSampleSummary } from "./index";
 
@@ -35,7 +35,12 @@ describe.each([
       empty: testScore({ value: "" }),
       list: testScore({ value: [1, 2] }),
       dictionary: testScore({ value: { accuracy: null } }),
-      unscored: testScore({ value: NaN }),
+      unscored: testScore({
+        value: NaN,
+        reason: "refusal",
+        explanation: "The model declined to answer.",
+        answer: "I cannot answer that.",
+      }),
     };
     const normalized = normalize({ id: "sample", epoch: 1, scores });
 
@@ -44,7 +49,29 @@ describe.each([
       accuracy: null,
     });
     expect(normalized?.scores?.["unscored"]?.value).toBeNaN();
+    expect(normalized?.scores?.["unscored"]).toBe(scores.unscored);
   });
+
+  it.each([null, undefined])(
+    "omits the whole unusable score with value %s, including its context",
+    (value) => {
+      const entry = {
+        ...testScore({
+          answer: "answer",
+          explanation: "explanation",
+          reason: "refusal",
+          metadata: { source: "grader" },
+          history: [testScoreEdit({ value: 1 })],
+        }),
+        value,
+      };
+      const raw = { id: "sample", epoch: 1, scores: { unusable: entry } };
+      const original = structuredClone(raw);
+
+      expect(normalize(raw)?.scores).toEqual({});
+      expect(raw).toEqual(original);
+    }
+  );
 
   it("keeps the sample when all score entries are unusable", () => {
     const normalized = normalize({
