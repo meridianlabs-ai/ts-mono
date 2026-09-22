@@ -128,12 +128,9 @@ export const createEvalDescriptor = (
             }
 
             if (scoreLabel.scorer !== scoreLabel.name) {
+              const value = sample.scores[scoreLabel.scorer]?.value;
               return (
-                Object.keys(sample.scores).includes(scoreLabel.scorer) &&
-                // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-                Object.keys(sample.scores[scoreLabel.scorer].value).includes(
-                  scoreLabel.name
-                )
+                isRecord(value) && Object.keys(value).includes(scoreLabel.name)
               );
             } else {
               return Object.keys(sample.scores).includes(scoreLabel.name);
@@ -225,10 +222,12 @@ export const createEvalDescriptor = (
           return score.name;
         });
         const sampleScorer = sample.scores[scoreLabel.scorer];
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        const scoreVal = sampleScorer.value;
+        const scoreVal = sampleScorer?.value;
+        if (scoreVal == null) {
+          return [];
+        }
 
-        if (typeof scoreVal === "object") {
+        if (isRecord(scoreVal)) {
           const names = Object.keys(scoreVal);
 
           // See if this is a dictionary of score names
