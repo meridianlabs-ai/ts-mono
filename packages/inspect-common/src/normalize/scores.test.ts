@@ -82,4 +82,27 @@ describe.each([
     expect(normalized?.id).toBe("sample");
     expect(normalized?.scores).toEqual({});
   });
+
+  it.each([
+    { name: "numeric answer", fields: { answer: 5 } },
+    { name: "object answer", fields: { answer: { a: 1 } } },
+    { name: "array explanation", fields: { explanation: ["x"] } },
+    { name: "object reason", fields: { reason: { code: 1 } } },
+    { name: "string metadata", fields: { metadata: "grader" } },
+  ])("clears a $name to null while keeping the score value", ({ fields }) => {
+    const valid = testScore({ value: 1, answer: "A" });
+    const raw = {
+      id: "sample",
+      epoch: 1,
+      scores: { malformed: { ...testScore({ value: 0.5 }), ...fields }, valid },
+    };
+    const original = structuredClone(raw);
+    const scores = normalize(raw)?.scores;
+
+    const [field] = Object.keys(fields);
+    expect(scores?.["malformed"]?.value).toBe(0.5);
+    expect(scores?.["malformed"]).toHaveProperty(field!, null);
+    expect(scores?.["valid"]).toBe(valid);
+    expect(raw).toEqual(original);
+  });
 });
