@@ -314,7 +314,7 @@ const createFakeSink = (db?: DatabaseService) => {
     },
     writeDetails: (details) => {
       calls.writeDetails.push(details);
-      return Promise.resolve();
+      return Promise.resolve({});
     },
     mergeFetchStates: (states) => {
       calls.mergeFetchStates.push(states);
@@ -1893,5 +1893,115 @@ describe("FetchEngine opts.fresh on dedupe-join (F6)", () => {
     await Promise.all([first, second]);
 
     expect(fake.detailCalls.length).toBe(1);
+  });
+});
+
+describe("FetchEngine records details that fetch but fail ingestion", () => {
+  it("caps the attempts of a background details payload the sink rejects", async () => {
+    const fake = createFakeApi();
+    const { sink, calls } = createFakeSink();
+    const rejectingSink: LogsContentSink = {
+      ...sink,
+      writeDetails: async (details) => {
+        await sink.writeDetails(details);
+        const failures: Record<string, Error> = {};
+        if ("bad.eval" in details) {
+          failures["bad.eval"] = new Error("derive failed");
+        }
+        return failures;
+      },
+    };
+    const { engine } = await createEngine({
+      api: fake.api,
+      sink: rejectingSink,
+    });
+
+    await engine.applyListing({
+      listing: [handle("bad.eval"), handle("good.eval")],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+
+    await vi.waitFor(() => {
+      expect(calls.fetchStates["bad.eval"]).toMatchObject({
+        details_fetch_error: "derive failed",
+        details_attempts: 5,
+      });
+    });
+    expect(calls.fetchStates["good.eval"]?.details_fetch_error).toBeUndefined();
+  });
+
+  it("drops an ingest failure that resolves after a newer read of the log was claimed", async () => {
+    const fake = createFakeApi();
+    const { sink, calls } = createFakeSink();
+    const writeGate = deferred<void>();
+    let firstWrite = true;
+    const gatedSink: LogsContentSink = {
+      ...sink,
+      writeDetails: async (details) => {
+        const stale = firstWrite;
+        firstWrite = false;
+        await sink.writeDetails(details);
+        if (!stale) {
+          return {};
+        }
+        await writeGate.promise;
+        const failures: Record<string, Error> = {};
+        failures["a.eval"] = new Error("derive failed");
+        return failures;
+      },
+    };
+    const { engine } = await createEngine({ api: fake.api, sink: gatedSink });
+
+    await engine.applyListing({
+      listing: [handle("a.eval")],
+      invalidated: [],
+      deleted: [],
+      persistListing: true,
+    });
+    await vi.waitFor(() => expect(firstWrite).toBe(false));
+
+    // The file changed and a fresh read landed while the old flush was
+    // still ingesting.
+    await engine.applyListing({
+      listing: [handle("a.eval", 2)],
+      invalidated: ["a.eval"],
+      deleted: [],
+      persistListing: true,
+    });
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
+    writeGate.resolve();
+    await tick();
+    await tick();
+
+    expect(calls.fetchStates["a.eval"]?.details_fetch_error).toBeUndefined();
+  });
+
+  it("rejects the waiter and keeps the worker alive when the preview can't be derived", async () => {
+    const fake = createFakeApi({
+      detailsFor: (file) =>
+        file === "bad.eval"
+          ? Object.defineProperty(makeDetails(file), "status", {
+              get: () => {
+                throw new Error("malformed header");
+              },
+            })
+          : makeDetails(file),
+    });
+    const { engine, sinkCalls } = await createEngine({ api: fake.api });
+
+    await expect(
+      engine.ensure("bad.eval", { depth: "detailed", priority: "user" })
+    ).rejects.toThrow("malformed header");
+    expect(sinkCalls.fetchStates["bad.eval"]).toMatchObject({
+      details_fetch_error: "malformed header",
+      details_attempts: 5,
+    });
+
+    await engine.ensure("good.eval", { depth: "detailed", priority: "user" });
+    expect(sinkCalls.writeDetails).toContainEqual({
+      "good.eval": makeDetails("good.eval"),
+    });
   });
 });

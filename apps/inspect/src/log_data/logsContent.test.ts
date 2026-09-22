@@ -5,11 +5,15 @@
 import Dexie from "dexie";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
+import { testEvalSpec } from "@tsmono/inspect-common/testing";
+
+import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
 import { DB_NAME } from "../client/database/schema";
 import {
   createDatabaseService,
   DatabaseService,
 } from "../client/database/service";
+import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
 import {
@@ -17,6 +21,7 @@ import {
   logKey,
   mergeFetchStates,
   setListing,
+  writeDetails,
   writeListing,
   writePreviews,
 } from "./logsContent";
@@ -65,6 +70,49 @@ describe("writeListing", () => {
     // ...and nothing was persisted where no scoped read could reach it.
     expect(await db.readLogs({ prefix: "~/logs" })).toHaveLength(0);
     expect(await db.getSyncScope("~/logs")).toBeUndefined();
+  });
+});
+
+describe("writeDetails", () => {
+  let db: DatabaseService;
+
+  beforeEach(async () => {
+    db = createDatabaseService();
+    await db.openDatabase();
+  });
+
+  afterEach(async () => {
+    queryClient.clear();
+    await db.closeDatabase();
+    await Dexie.delete(DB_NAME);
+    vi.restoreAllMocks();
+  });
+
+  test("a payload whose derivation throws is skipped and reported without taking the rest of the batch with it", async () => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+    // Wire data the normalizers pass through but derivation rejects: the
+    // spec normalizer does not validate model_roles, and modelRoleNames
+    // dereferences each role's config.
+    const poisoned = normalizeEvalHeader({
+      eval: { ...testEvalSpec(), model_roles: { grader: null } },
+    });
+
+    const failures = await writeDetails(db, "file:///logs", {
+      "file:///logs/bad.eval": testLogDetails(poisoned),
+      "file:///logs/good.eval": testLogDetails({
+        sampleSummaries: [testSampleSummary({ id: "s1" })],
+      }),
+    });
+
+    const rows = await db.readLogs({ prefix: "file:///logs" });
+    expect(rows?.map((row) => [row.name, row.depth])).toEqual([
+      ["file:///logs/good.eval", "detailed"],
+    ]);
+    expect(
+      await db.readSampleSummaries({ file: "file:///logs/good.eval" })
+    ).toHaveLength(1);
+    expect(Object.keys(failures)).toEqual(["file:///logs/bad.eval"]);
+    expect(logError).toHaveBeenCalledTimes(1);
   });
 });
 

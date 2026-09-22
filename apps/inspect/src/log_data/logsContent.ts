@@ -11,6 +11,7 @@ import {
 import { DatabaseService, scopePrefix } from "../client/database";
 import {
   maxDepth,
+  PreparedLogDetails,
   prepareLogDetails,
   previewTier,
 } from "../client/utils/type-utils";
@@ -295,6 +296,31 @@ export const writePreviews = async (
   invalidateDatabaseLogsListings();
 };
 
+interface PreparedBatch {
+  prepared: (readonly [string, PreparedLogDetails])[];
+  failures: Record<string, Error>;
+}
+
+/**
+ * Prepare each payload of a flush batch on its own, so a payload the
+ * normalizers let through but derivation still rejects can't keep every
+ * unrelated log in the same flush out of the stores.
+ */
+const prepareBatch = (details: Record<string, LogDetails>): PreparedBatch => {
+  const prepared: (readonly [string, PreparedLogDetails])[] = [];
+  const failures: Record<string, Error> = {};
+  for (const [name, payload] of Object.entries(details)) {
+    try {
+      prepared.push([name, prepareLogDetails(payload)]);
+    } catch (error) {
+      log.error(`Skipping details ingestion for ${name}`, error);
+      failures[name] =
+        error instanceof Error ? error : new Error(String(error));
+    }
+  }
+  return { prepared, failures };
+};
+
 /**
  * Details INGESTION: normalize each transport payload into the entity
  * stores — the detailed tier onto the log row, sample summaries into their
@@ -305,16 +331,15 @@ export const writePreviews = async (
  * persistence-gated: samples listings read from the database, and in db-less
  * sessions invalidating would clobber the pushes — the only landing spot —
  * with an empty read. Log listings have a cache-backed read path, so their
- * invalidation is unconditional.
+ * invalidation is unconditional. Resolves to the payloads that could not be
+ * ingested (those logs stay at their current depth).
  */
 export const writeDetails = async (
   db: DatabaseService | null | undefined,
   logDir: string,
   details: Record<string, LogDetails>
-): Promise<void> => {
-  const prepared = Object.entries(details).map(
-    ([name, payload]) => [name, prepareLogDetails(payload)] as const
-  );
+): Promise<Record<string, Error>> => {
+  const { prepared, failures } = prepareBatch(details);
   await Promise.all(
     prepared.map(([name, file]) =>
       pushFileSamples(
@@ -333,6 +358,7 @@ export const writeDetails = async (
     invalidateSamplesListings(logDir);
   }
   invalidateDatabaseLogsListings();
+  return failures;
 };
 
 export const writeFetchStates = async (
