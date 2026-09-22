@@ -3,6 +3,7 @@ import { isRecord } from "@tsmono/util";
 import type { EvalSample } from "../types";
 
 import { normalizeEvents, normalizeModelOutput } from "./events";
+import { normalizeSampleScores } from "./scores";
 import { normalizeModelUsageMap } from "./summary";
 import { isWireTimeline, normalizeTimelines } from "./timeline";
 
@@ -48,7 +49,7 @@ export const normalizeEvalSample = (raw: unknown): EvalSample => {
   }
   if (!Array.isArray(sample["messages"])) sample["messages"] = [];
   sample["output"] = normalizeModelOutput(sample["output"]);
-  if (!isRecord(sample["scores"])) sample["scores"] = null;
+  sample["scores"] = normalizeSampleScores(sample["scores"]);
   for (const field of ["metadata", "store", "attachments"]) {
     if (!isRecord(sample[field])) sample[field] = {};
   }

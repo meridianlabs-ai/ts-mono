@@ -222,10 +222,10 @@ export const createEvalDescriptor = (
           return score.name;
         });
         const sampleScorer = sample.scores[scoreLabel.scorer];
-        const scoreVal = sampleScorer?.value;
-        if (scoreVal == null) {
+        if (!sampleScorer) {
           return [];
         }
+        const scoreVal = sampleScorer.value;
 
         if (isRecord(scoreVal)) {
           const names = Object.keys(scoreVal);

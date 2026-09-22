@@ -3,6 +3,7 @@ import { isRecord } from "@tsmono/util";
 import type { EvalSampleSummary, ModelUsage } from "../types";
 
 import { normalizeModelUsage } from "./events";
+import { normalizeSampleScores } from "./scores";
 
 /**
  * Normalize a raw model-usage map (model name → ModelUsage): token defaults
@@ -63,7 +64,8 @@ export const normalizeSampleSummary = (
   if (typeof raw["target"] !== "string" && !Array.isArray(raw["target"])) {
     fix("target", "");
   }
-  if (!isRecord(raw["scores"]) && raw["scores"] !== null) fix("scores", null);
+  const scores = normalizeSampleScores(raw["scores"]);
+  if (scores !== raw["scores"]) fix("scores", scores);
   if (!isRecord(raw["metadata"])) fix("metadata", {});
   // Usage entries carry their own required-with-default token fields, read
   // unguarded by the tokens column — fill inside, not just the map.

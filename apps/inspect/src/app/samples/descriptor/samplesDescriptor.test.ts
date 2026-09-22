@@ -41,7 +41,7 @@ describe("dictionary score values", () => {
       []
     );
     expect(descriptor?.score(invalid, otherLabel)?.value).toBe(9);
-    expect(invalid.scores?.["s"]).toEqual(entry);
+    expect(invalid.scores?.["s"]).toBeUndefined();
   });
 
   it("preserves a legitimate null dictionary entry", () => {

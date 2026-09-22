@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeSampleSummary } from "@tsmono/inspect-common/normalize";
 import { testScore } from "@tsmono/inspect-common/testing";
 
 import { testSampleSummary } from "../../../client/api/testClientApi";
@@ -98,6 +99,29 @@ describe("filterExpression built-in shadowing", () => {
 
   it("the colliding score stays reachable via its qualified name", () => {
     expect(filterExpression(sd, s, "grader.epoch == 99").matches).toBe(true);
+  });
+});
+
+describe("filterExpression after score normalization", () => {
+  it.each([
+    { name: "null", entry: { value: null } },
+    { name: "missing", entry: {} },
+  ])("filters samples with a $name whole score value", ({ entry }) => {
+    const normalized = normalizeSampleSummary({
+      ...sample(),
+      scores: { broken: entry, other: testScore({ value: 9 }) },
+    });
+    if (!normalized) throw new Error("Expected a sample summary");
+    const descriptor = samplesDescriptorWith([
+      { name: "k", scorer: "broken", scoreType: "numeric" },
+      { name: "other", scorer: "other", scoreType: "numeric" },
+    ]);
+
+    for (const expression of ["epoch == 2", "other == 9"]) {
+      const result = filterExpression(descriptor, normalized, expression);
+      expect(result.error).toBeUndefined();
+      expect(result.matches).toBe(true);
+    }
   });
 });
 
