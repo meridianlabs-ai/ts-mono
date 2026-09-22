@@ -77,10 +77,6 @@
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 2,
       "undescribed": 2
-    },
-    "react-hooks/exhaustive-deps": {
-      "count": 1,
-      "undescribed": 1
     }
   },
   "apps/inspect/src/app/log-view/LogViewContainer.tsx": {
