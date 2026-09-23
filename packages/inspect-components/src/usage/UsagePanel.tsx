@@ -5,6 +5,7 @@ import type {
   ConfigUpdate,
   ConnectionLimitChange,
 } from "@tsmono/inspect-common/types";
+import { costSummary } from "@tsmono/inspect-common/utils";
 import { SegmentedControl } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 import { formatCurrency } from "@tsmono/util";
@@ -18,7 +19,6 @@ import {
 } from "./connectionHistory";
 import { ConnectionLogModal } from "./ConnectionLogModal";
 import { ConnectionsLegend, ConnectionsView } from "./ConnectionsView";
-import { costSummary } from "./cost";
 import { ModelTokenTable } from "./ModelTokenTable";
 import { ModelUsageData } from "./ModelUsagePanel";
 import { rolesForModel } from "./roleAliases";

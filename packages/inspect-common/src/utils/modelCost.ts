@@ -1,4 +1,14 @@
-import { ModelUsageData } from "./ModelUsagePanel";
+/** The usage fields cost summing reads — structural so both the generated
+ *  `ModelUsage` and the viewer's looser `ModelUsageData` satisfy it. */
+export interface CostedUsage {
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  total_tokens?: number | null;
+  reasoning_tokens?: number | null;
+  input_tokens_cache_read?: number | null;
+  input_tokens_cache_write?: number | null;
+  total_cost?: number | null;
+}
 
 export interface CostSummary {
   /** Summed cost across rows that recorded one. */
@@ -9,7 +19,7 @@ export interface CostSummary {
   partial: boolean;
 }
 
-const tokenTotal = (usage: ModelUsageData): number =>
+const tokenTotal = (usage: CostedUsage): number =>
   usage.total_tokens ||
   (usage.input_tokens ?? 0) +
     (usage.input_tokens_cache_read ?? 0) +
@@ -20,7 +30,7 @@ const tokenTotal = (usage: ModelUsageData): number =>
 /** Sum recorded costs across a usage dict; undefined when nothing is priced
  *  (old logs and unpriced runs render no cost UI at all). */
 export const costSummary = (
-  usage: Record<string, ModelUsageData> | undefined
+  usage: Record<string, CostedUsage> | undefined
 ): CostSummary | undefined => {
   if (!usage) return undefined;
   let total = 0;
