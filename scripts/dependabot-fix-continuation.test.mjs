@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   newBatchBranch,
+  requireSha,
   selectContinuation,
 } from "./dependabot-fix-continuation.mjs";
 
@@ -117,6 +118,23 @@ test("a new batch branch never reuses a name that exists in origin", () => {
     ),
     "dependabot-fix/2026-09-16-3"
   );
+});
+
+test("the run's start must be a full lowercase commit SHA", () => {
+  const sha = "0123456789abcdef0123456789abcdef01234567";
+  assert.equal(requireSha(sha, "x"), sha);
+  for (const bad of [
+    undefined,
+    "",
+    sha.slice(1),
+    sha.toUpperCase(),
+    `${sha}\n`,
+  ]) {
+    assert.throws(
+      () => requireSha(bad, "tip of b"),
+      /run's start \(tip of b\)/
+    );
+  }
 });
 
 const NEW_BRANCH = /^dependabot-fix\/\d{4}-\d{2}-\d{2}$/;
@@ -263,15 +281,19 @@ test("e2e: no dependabot-fix branches in origin still names a fresh branch (one 
 test("e2e: same-repo PR is checked out with main merged cleanly", (t) => {
   const fx = fixture([BATCH_BRANCH], { file: "other.txt", content: "main\n" });
   t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  const tip = git(fx.work, "rev-parse", `origin/${BATCH_BRANCH.name}`);
   const r = runScript(fx, [BATCH_PR]);
   assert.equal(r.status, 0, r.stderr);
+  // The start is the branch's tip before the merge, not the merge commit.
   assert.deepEqual(r.outputs, {
     branch: BATCH_BRANCH.name,
     continuing: "true",
     pr_number: "4",
     pr_url: BATCH_PR.url,
+    start: tip,
     merge_conflicts: "false",
   });
+  assert.notEqual(git(fx.work, "rev-parse", "HEAD"), tip);
   assert.equal(
     git(fx.work, "rev-parse", "--abbrev-ref", "HEAD"),
     BATCH_BRANCH.name
@@ -315,6 +337,7 @@ test("e2e: --select-only names the branch and PR but checks nothing out", (t) =>
     continuing: "true",
     pr_number: "4",
     pr_url: BATCH_PR.url,
+    start: git(fx.work, "rev-parse", `origin/${BATCH_BRANCH.name}`),
   });
   assert.match(r.stdout, /checkout deferred/);
   assert.equal(git(fx.work, "rev-parse", "--abbrev-ref", "HEAD"), "main");
@@ -352,6 +375,18 @@ test("e2e: --select-only with nothing to continue names a branch that is not in 
   assert.equal(r.outputs.pr_number, "");
   assert.equal(r.outputs.merge_conflicts, undefined);
   assert.equal(git(fx.work, "rev-parse", "--abbrev-ref", "HEAD"), "main");
+  // A new batch starts from the checkout it is cut from, not a branch tip.
+  assert.equal(r.outputs.start, git(fx.work, "rev-parse", "HEAD"));
+});
+
+test("e2e: a failed read of origin's branches fails the script with no outputs", (t) => {
+  const fx = fixture([BATCH_BRANCH]);
+  t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  git(fx.work, "remote", "set-url", "origin", join(fx.root, "missing.git"));
+  const r = runScript(fx, [BATCH_PR], ["--select-only"]);
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /git ls-remote/);
+  assert.deepEqual(r.outputs, {});
 });
 
 test("e2e: a gh failure fails the script rather than falling back to a fresh branch", (t) => {

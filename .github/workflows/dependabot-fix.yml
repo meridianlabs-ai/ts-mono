@@ -15,8 +15,10 @@
 #                     this repo's Dependabot alerts, reads them, and runs
 #                     scripts/dependabot-fix-continuation.mjs --select-only to
 #                     name the branch this run lands on: the still-open batch
-#                     PR's branch, or a fresh dependabot-fix/<date>. Both are
-#                     job outputs; nothing is checked out beyond the script.
+#                     PR's branch, or a fresh dependabot-fix/<date>, and the
+#                     run's start: that branch's tip, or github.sha for a
+#                     fresh one. All are job outputs; nothing is checked out
+#                     beyond the script.
 #   agent (untrusted) checks out and merges the branch the gate named, then
 #                     runs the agent with the job token ONLY (contents: read,
 #                     no gh writes, no push). It receives the alert list as a
@@ -102,6 +104,12 @@ jobs:
       continuing: ${{ steps.continuation.outputs.continuing }}
       pr_number: ${{ steps.continuation.outputs.pr_number }}
       pr_url: ${{ steps.continuation.outputs.pr_url }}
+      # The run's START, recorded before the agent job runs (Claude Security
+      # finding 4628444, criterion 2): the continued branch's tip as the
+      # script's `git ls-remote` read it, or the checkout (github.sha) a new
+      # branch is cut from. The agent job's checkout must be at it and the
+      # land job refuses a manifest with commits that names any other start.
+      start: ${{ steps.continuation.outputs.start }}
     steps:
       # One-hour installation token scoped to this repo and to the one read
       # this job needs. `schedule` events carry no `repository` payload, so
@@ -199,6 +207,7 @@ jobs:
           CONTINUING: ${{ needs.gate.outputs.continuing }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
           ALERTS: ${{ needs.gate.outputs.alerts }}
+          START: ${{ needs.gate.outputs.start }}
           IO: ${{ runner.temp }}/agent-io
           # Step-scoped read credential for the fetch (checkout persisted
           # none), as the landing smoke test does.
@@ -210,11 +219,20 @@ jobs:
           GIT_CONFIG_VALUE_1: '!f() { echo username=x-access-token; echo "password=$GIT_TOKEN"; }; f'
         run: |
           set -euo pipefail
+          # The land job lands only on the gate's start; checked before the
+          # merge so nothing is merged onto a head the gate did not read.
+          assert_start() {
+            [ "$sha" = "$START" ] || {
+              echo "::error::The batch branch checkout is at $sha, but the gate recorded ${START:-nothing} as this run's start: $BRANCH moved between the gate's read and this checkout. Nothing was merged or pushed; the next scheduled run picks it up."
+              exit 1
+            }
+          }
           conflicts=false
           if [ "$CONTINUING" = "true" ]; then
             git fetch --quiet --no-tags origin "$BRANCH" "$DEFAULT_BRANCH"
             git checkout --quiet -B "$BRANCH" "origin/$BRANCH"
             sha=$(git rev-parse HEAD)
+            assert_start
             # Exit 1 is conflicts (left in the worktree for the agent);
             # anything else is a real error.
             rc=0
@@ -227,6 +245,7 @@ jobs:
           else
             git checkout --quiet -b "$BRANCH"
             sha=$(git rev-parse HEAD)
+            assert_start
           fi
           mkdir -p "$IO"
           printf '%s\n' "$ALERTS" >"$IO/alerts.json"
@@ -547,3 +566,7 @@ jobs:
           # name is the composite's pin (prefix), and the equality check
           # above makes it exact.
           branch-prefix: ${{ needs.gate.outputs.branch }}
+          # The gate's record of the run's start, never the agent job's: a
+          # manifest that carries commits must name exactly it as start_sha,
+          # or the validator refuses it before the fetch (finding 4628444).
+          start-sha: ${{ needs.gate.outputs.start }}

@@ -10,6 +10,11 @@
 // merges the branch this script named. When nothing is continued, the
 // `branch` output names a fresh `dependabot-fix/<date>` branch instead, so
 // the workflow — never the agent — decides which branch a run lands on.
+// The `start` output is the commit that run starts from, recorded here
+// before any untrusted code runs: the continued branch's tip as `git
+// ls-remote` read it, or the checkout a fresh branch is cut from (the
+// workflow's github.sha). The agent job refuses a checkout at any other
+// commit and the land job refuses a manifest that names any other start.
 //
 // SECURITY MODEL. The scheduled workflow runs this before the agent and
 // then runs pnpm install / check / build / test on whatever is checked
@@ -92,6 +97,7 @@ const run = (cmd, args, { allowExit = [0] } = {}) => {
   return result;
 };
 
+// Branch name -> tip, from the one ls-remote read the selection uses.
 const listRemoteBranches = () => {
   const { stdout } = run("git", [
     "ls-remote",
@@ -99,13 +105,26 @@ const listRemoteBranches = () => {
     "origin",
     `refs/heads/${PREFIX}*`,
   ]);
-  return stdout
-    .split("\n")
-    .map((line) => line.split("\t")[1])
-    .filter((ref) => ref?.startsWith(`refs/heads/${PREFIX}`))
-    .map((ref) => ref.slice("refs/heads/".length))
-    .sort();
+  const tips = new Map();
+  for (const line of stdout.split("\n")) {
+    const [sha, ref] = line.split("\t");
+    if (ref?.startsWith(`refs/heads/${PREFIX}`)) {
+      tips.set(ref.slice("refs/heads/".length), sha);
+    }
+  }
+  return tips;
 };
+
+// A start the workflow cannot pin a checkout to is a failed read: fail
+// rather than let a later job fall back to a value it chose itself.
+export function requireSha(sha, what) {
+  if (typeof sha !== "string" || !/^[0-9a-f]{40}$/.test(sha)) {
+    throw new Error(
+      `could not read the run's start (${what}): got ${JSON.stringify(sha)}`
+    );
+  }
+  return sha;
+}
 
 const listOpenPrs = (branch) => {
   const { stdout } = run("gh", [
@@ -169,7 +188,8 @@ function main() {
   const defaultBranch = process.env.DEFAULT_BRANCH || "main";
   const lines = ["### dependabot-fix continuation"];
 
-  const branches = listRemoteBranches();
+  const tips = listRemoteBranches();
+  const branches = [...tips.keys()].sort();
   let selected = null;
   if (branches.length === 0) {
     lines.push(`- none: no \`${PREFIX}*\` branch in origin`);
@@ -188,7 +208,12 @@ function main() {
   }
 
   let branch = selected?.branch;
+  let start;
   if (selected) {
+    start = requireSha(
+      tips.get(selected.branch),
+      `tip of ${selected.branch} in origin`
+    );
     lines.push(
       `- continuing \`${selected.branch}\` (PR ${selected.number}, ${selected.url})`
     );
@@ -203,13 +228,19 @@ function main() {
       taken.push(branch);
       branch = newBatchBranch(taken);
     }
+    start = requireSha(
+      run("git", ["rev-parse", "HEAD"]).stdout.trim(),
+      "the checkout a new batch branch is cut from"
+    );
     lines.push(`- new batch branch: \`${branch}\``);
   }
+  lines.push(`- run start: \`${start}\``);
   const outputs = {
     branch,
     continuing: String(selected !== null),
     pr_number: selected?.number ?? "",
     pr_url: selected?.url ?? "",
+    start,
   };
 
   if (selectOnly) {
