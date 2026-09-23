@@ -1,5 +1,6 @@
-/** The usage fields cost summing reads — structural so both the generated
- *  `ModelUsage` and the viewer's looser `ModelUsageData` satisfy it. */
+/** Per-model usage as the viewer reads it — structural so the generated
+ *  `ModelUsage` satisfies it. Also exported as `ModelUsageData` from
+ *  `@tsmono/inspect-components/usage`. */
 export interface CostedUsage {
   input_tokens?: number | null;
   output_tokens?: number | null;
