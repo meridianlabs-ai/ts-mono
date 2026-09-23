@@ -79,13 +79,13 @@ jobs:
           echo "bin: $BIN"
           tools=""
           IFS=: read -r -a dirs <<<"$BIN"
-          for t in node pnpm npm prettier eslint tsc turbo vitest; do
+          for t in node pnpm npm prettier turbo manypkg; do
             for d in "${dirs[@]}"; do
               [ -x "$d/$t" ] && { tools="$tools$t=$d/$t "; break; }
             done
           done
           echo "discovered: ${tools:-none}"
-          for t in pnpm prettier eslint tsc turbo; do
+          for t in pnpm prettier turbo manypkg; do
             case " $tools" in *" $t="*) ;; *) echo "::error::$t not discovered in $BIN"; exit 1 ;; esac
           done
           for kv in $tools; do
@@ -105,7 +105,10 @@ jobs:
           [ "pnpm@$pv" = "$want" ] || { echo "::error::expected $want from packageManager, got pnpm $pv"; exit 1; }
           [ "$(sha256sum <pnpm-lock.yaml)" = "$LOCK_BEFORE" ] || { echo "::error::pnpm install changed the lockfile"; exit 1; }
           [ -z "$(git status --porcelain --untracked-files=no)" ] || { git status --short; echo "::error::provisioning changed tracked files"; exit 1; }
-          echo "Node $nv, pnpm $pv via corepack in ~codex/.local/bin, frozen install, lockfile unchanged"
+          for t in eslint tsc vitest; do
+            sudo -u codex -H -- "apps/inspect/node_modules/.bin/$t" --version >/dev/null || { echo "::error::apps/inspect's $t does not run as codex"; exit 1; }
+          done
+          echo "Node $nv, pnpm $pv via corepack in ~codex/.local/bin, frozen install, lockfile unchanged, workspace eslint/tsc/vitest run as codex"
 
       # The repository's own gate (manypkg, suppressions ledger, lint,
       # typecheck, format) run as codex with only what provisioning put on a
