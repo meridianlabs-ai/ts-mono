@@ -527,6 +527,9 @@ export interface LogDerived {
 export interface SampleDerived {
   /** Total tokens summed across all models. */
   tokens?: number;
+  /** Total cost in dollars; undefined when any model that used tokens was
+   *  unpriced. */
+  cost?: number;
   /** Input as displayable/filterable text. */
   input: string;
   /** Target as displayable/filterable text. */

@@ -139,6 +139,13 @@ describe("deriveLogFields", () => {
   });
 });
 
+const priced = (total_tokens: number, total_cost: number) => ({
+  input_tokens: total_tokens,
+  output_tokens: 0,
+  total_tokens,
+  total_cost,
+});
+
 describe("deriveSampleFields", () => {
   test("derives text, tokens, fallbacks, and scores", () => {
     const summary = makeSummary({
@@ -175,7 +182,37 @@ describe("deriveSampleFields", () => {
     expect(derived.input).toBe("test input");
     expect(derived.target).toBe("test target");
     expect(derived.tokens).toBeUndefined();
+    expect(derived.cost).toBeUndefined();
     expect(derived.fallbacks).toBeUndefined();
     expect(derived.scores).toBeUndefined();
+  });
+
+  test("sums cost when every model that used tokens was priced", () => {
+    const derived = deriveSampleFields(
+      makeSummary({
+        model_usage: {
+          "openai/gpt-4": priced(15, 0.5),
+          "anthropic/claude": priced(30, 0.25),
+        },
+      })
+    );
+    expect(derived.cost).toBe(0.75);
+  });
+
+  test("leaves cost undefined when any model that used tokens is unpriced", () => {
+    const derived = deriveSampleFields(
+      makeSummary({
+        model_usage: {
+          "openai/gpt-4": priced(15, 0.5),
+          "mockllm/model": {
+            input_tokens: 10,
+            output_tokens: 5,
+            total_tokens: 15,
+          },
+        },
+      })
+    );
+    expect(derived.tokens).toBe(30);
+    expect(derived.cost).toBeUndefined();
   });
 });
