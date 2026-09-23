@@ -7,7 +7,12 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
-import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
+import {
+  testClientAPI,
+  testLogDetails,
+  testSampleSummary,
+} from "../client/api/testClientApi";
+import type { Log } from "../client/api/types";
 import { DB_NAME } from "../client/database/schema";
 import {
   createDatabaseService,
@@ -16,8 +21,7 @@ import {
 import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
-import type { Log } from "../client/api/types";
-
+import { FetchEngine } from "./fetchEngine";
 import {
   clearFile,
   createLogsContentSink,
@@ -229,6 +233,58 @@ describe("sink mergeRows", () => {
       ["/logs/b.eval", "error"],
       ["/logs/c.eval", "success"],
       ["/logs/d.eval", "success"],
+    ]);
+  });
+});
+
+describe("opening a cached log", () => {
+  const dir = "file:///logs";
+  const opened = `${dir}/a.eval`;
+  const limited = `${dir}/b.eval`;
+  let db: DatabaseService;
+  let engine: FetchEngine;
+
+  beforeEach(async () => {
+    db = createDatabaseService();
+    await db.openDatabase();
+    await writeListing(db, dir, [{ name: opened }, { name: limited }]);
+    await writeDetails(db, dir, {
+      [opened]: testLogDetails(),
+      [limited]: testLogDetails({
+        sampleSummaries: [testSampleSummary({ id: "s1", limit: "token" })],
+      }),
+    });
+    queryClient.clear();
+    engine = new FetchEngine({ flushDelayMs: 0, statsDelayMs: 0 });
+    await engine.start({
+      api: testClientAPI(),
+      database: db,
+      sink: createLogsContentSink(db, dir),
+      logDir: dir,
+    });
+  });
+
+  afterEach(async () => {
+    engine.stop();
+    queryClient.clear();
+    await db.closeDatabase();
+    await Dexie.delete(DB_NAME);
+  });
+
+  test("keeps the rest of the listing (and its header facts) in the cache", async () => {
+    await engine.ensure(opened, {
+      depth: "detailed",
+      priority: "user",
+      demand: "passive",
+    });
+
+    expect(
+      queryClient
+        .getQueryData<Log[]>(logsKey(dir))
+        ?.map((row) => [row.name, row.header?.sampleLimits])
+    ).toEqual([
+      [opened, []],
+      [limited, ["token"]],
     ]);
   });
 });
