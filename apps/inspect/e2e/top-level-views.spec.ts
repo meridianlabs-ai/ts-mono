@@ -304,6 +304,8 @@ test.describe("Open in new tab", () => {
     await expect(
       page.locator('[role="row"][aria-selected="true"]')
     ).toContainText("task-beta");
+    // Focus stays on the grid, so arrow keys keep working.
+    await expect(page.getByRole("grid")).toBeFocused();
   });
 
   test("middle-click on a log row opens it in a new tab", async ({

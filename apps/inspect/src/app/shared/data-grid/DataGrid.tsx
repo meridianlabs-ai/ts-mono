@@ -674,6 +674,15 @@ export function DataGrid<TRow extends RowData>({
 
   const handleRowClick = useCallback(
     (e: MouseEvent<HTMLElement>, rowId: string, row: TRow) => {
+      // A link rendered inside a cell (e.g. markdown in list mode) keeps its
+      // own click rather than opening the row.
+      const link =
+        e.target instanceof Element ? e.target.closest("a[href]") : null;
+      if (link && link !== e.currentTarget) return;
+      // Pull focus to the grid so arrow-key navigation works after a click.
+      // Clicking a row link focuses it, and focus would drop to <body> once
+      // the virtualizer unmounts that row.
+      containerRef.current?.focus();
       // A new-tab gesture is left to the row's native <a> (which opens a
       // background tab, unlike window.open); just move the selection onto
       // the row so it's clear which one was opened.
@@ -682,9 +691,6 @@ export function DataGrid<TRow extends RowData>({
         return;
       }
       e.preventDefault();
-      // Pull focus to the grid so arrow-key navigation works after a click
-      // (relevant when onRowActivate doesn't navigate away).
-      containerRef.current?.focus();
       selectRow(rowId, row);
       onRowActivate(row);
     },
