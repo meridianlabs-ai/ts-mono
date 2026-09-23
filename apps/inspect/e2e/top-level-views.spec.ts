@@ -290,7 +290,8 @@ test.describe("Open in new tab", () => {
     network,
   }) => {
     setupLogListHandlers(network);
-    await page.goto("/");
+    // The host page's query (e.g. ?log_dir=) must survive into the new tab.
+    await page.goto("/?keep=1");
     await expect(gridCell(page, "task-beta")).toBeVisible();
     const listUrl = page.url();
 
@@ -298,7 +299,7 @@ test.describe("Open in new tab", () => {
       context.waitForEvent("page"),
       lastCellOf(page, "task-beta").click({ modifiers: ["ControlOrMeta"] }),
     ]);
-    await expectTabUrl(newPage, /#\/tasks\/.*task-beta/);
+    await expectTabUrl(newPage, /\?keep=1#\/tasks\/.*task-beta/);
 
     expect(page.url()).toBe(listUrl);
     await expect(
@@ -342,7 +343,7 @@ test.describe("Open in new tab", () => {
       createEvalLog({ samples: [sample(1), sample(2)] }),
       logFile
     );
-    await page.goto(`/#/logs/${logFile}`);
+    await page.goto(`/?keep=1#/logs/${logFile}`);
     const sampleRow = page
       .getByRole("grid")
       .getByRole("rowgroup")
@@ -358,7 +359,7 @@ test.describe("Open in new tab", () => {
     ]);
     await expectTabUrl(
       newPage,
-      /#\/logs\/two-samples\.json\/samples\/sample\/2\/1/
+      /\?keep=1#\/logs\/two-samples\.json\/samples\/sample\/2\/1/
     );
     expect(page.url()).toBe(listUrl);
   });

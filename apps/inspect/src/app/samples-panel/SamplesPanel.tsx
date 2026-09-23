@@ -30,12 +30,11 @@ import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
-import { samplesUrl, useSamplesRouteParams } from "../routing/url";
+import { samplesUrl, toFullUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import { type PickerColumn } from "../shared/gridUtils";
-import { hashRouteHref } from "../shared/openInNewTab";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -380,7 +379,7 @@ export const SamplesPanel: FC = () => {
     [navigateToSampleDetail]
   );
   const getRowHref = (row: SampleRow) =>
-    hashRouteHref(getSampleDetailUrl(row.logFile, row.sampleId, row.epoch));
+    toFullUrl(getSampleDetailUrl(row.logFile, row.sampleId, row.epoch));
 
   // Reflect the grid's post-filter/post-sort rows into store-backed
   // displayed-samples state (drives the footer count + cross-tab prev/next

@@ -1127,7 +1127,9 @@ function GridRowInner<TRow extends RowData>({
       // A real link so the browser owns new-tab gestures. Keyboard focus and
       // activation stay with the grid container (arrows / Enter), so the row
       // is kept out of the tab order; draggable={false} stops a mouse drag
-      // from dragging the URL.
+      // from dragging the URL. List-mode markdown cells can nest their own
+      // <a> in here (invalid HTML, but the innermost link owns activation and
+      // handleRowClick defers to it).
       <a
         className={className}
         style={style}

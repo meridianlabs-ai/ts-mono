@@ -21,6 +21,7 @@ import { FindBandUI, useFindBandShortcut } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { useLogsListing } from "../../../state/hooks";
+import { toFullUrlMaybe } from "../../routing/url";
 import { DataGrid } from "../../shared/data-grid/DataGrid";
 import {
   buildSearchIndex,
@@ -28,7 +29,6 @@ import {
   rowSearchText,
 } from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
-import { hashRouteHref } from "../../shared/openInNewTab";
 import {
   useLogsListingMatches,
   type LogsListingDescriptor,
@@ -375,7 +375,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           selectedRowId={activeMatchId ?? persistedSelectedId}
           onSelectedRowChange={handleSelectedRowChange}
           onRowActivate={handleRowActivate}
-          getRowHref={(row) => (row.url ? hashRouteHref(row.url) : undefined)}
+          getRowHref={(row) => toFullUrlMaybe(row.url)}
           autoFocus
           ariaLabel="Evaluation logs"
           loading={totalRowCount === 0 && busy}
