@@ -13,6 +13,7 @@ import {
 } from "../../tooling/python-repo/index.js";
 import {
   inlineThemeBootstrap,
+  inlineWorkerUrls,
   rewriteLoopbackOrigin,
 } from "../../tooling/vite-plugins/index.js";
 
@@ -78,6 +79,7 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
+        inlineWorkerUrls(),
         dts({
           insertTypesEntry: true,
           exclude: ["**/*.test.ts", "**/*.test.tsx", "src/setupTests.ts"],

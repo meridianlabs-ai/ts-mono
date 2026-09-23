@@ -1,4 +1,4 @@
-import { build } from "esbuild";
+import { build, type Plugin } from "esbuild";
 import { chromium, type Browser, type Page } from "playwright-core";
 import {
   afterAll,
@@ -10,13 +10,15 @@ import {
 } from "vitest";
 
 // json-worker.test.ts covers only the <50KB main-thread paths; the worker
-// itself is an injected source string (kWorkerCode) that Vitest's node
-// environment can never execute. This suite bundles the bench harness with
+// itself (json-parse.worker.ts) needs a real Web Worker, which Vitest's node
+// environment can never run. This suite bundles the bench harness with
 // esbuild and drives real Chromium (real Web Workers) via playwright-core so
 // a syntax, serialization, or lifecycle regression inside the worker fails
 // normal CI: large string input, large byte input (transfer), the reparse
-// path for node-dense payloads, the non-finite repair fallback, JSON5 init
-// from the embedded bundle, and worker error propagation. Correctness checks
+// path for node-dense payloads, the non-finite repair fallback, JSON5 inside
+// the worker, worker error propagation, and both ways workerLauncher starts
+// the worker: directly from a same-origin script under a strict CSP, and
+// from a Blob when the script is cross-origin (VS Code webviews). Correctness checks
 // (structural probes + exact non-finite value counts) come from
 // bench/browser-entry.ts.
 
@@ -84,8 +86,59 @@ const launchBrowser = async (): Promise<Browser | null> => {
   return null;
 };
 
+const kPageOrigin = "http://json-worker.test";
+// A second origin serving the same scripts, the way a VS Code webview loads
+// the viewer's assets from a CDN origin.
+const kAssetOrigin = "http://assets.json-worker.test";
+
+// The CSP the viewer ships, minus what this bare page doesn't load.
+const kStrictPolicy =
+  "default-src 'none'; script-src 'self'; worker-src 'self'; connect-src 'self'";
+
+// Resolves `?worker&url` imports the way the app build does: the worker is
+// bundled to its own classic script, served next to the harness, and the
+// import yields its URL relative to the script that imported it.
+const kWorkerUrlQuery = "?worker&url";
+
+const workerUrlPlugin = (workers: Map<string, string>): Plugin => ({
+  name: "worker-url",
+  setup(pluginBuild) {
+    pluginBuild.onResolve({ filter: /\?worker&url$/ }, (args) => ({
+      path: decodeURIComponent(
+        new URL(
+          `${args.path.slice(0, -kWorkerUrlQuery.length)}.ts`,
+          `file://${args.resolveDir}/`
+        ).pathname
+      ),
+      namespace: "worker-url",
+    }));
+    pluginBuild.onLoad(
+      { filter: /.*/, namespace: "worker-url" },
+      async (args) => {
+        const name = `${args.path.split("/").pop()?.replace(/\.ts$/, "")}.js`;
+        const worker = await build({
+          entryPoints: [args.path],
+          bundle: true,
+          write: false,
+          format: "iife",
+          platform: "browser",
+          target: "es2022",
+        });
+        workers.set(`/${name}`, worker.outputFiles[0]!.text);
+        return {
+          contents: `export default new URL(${JSON.stringify(name)}, document.currentScript.src).href;`,
+          loader: "js",
+        };
+      }
+    );
+  },
+});
+
 let browser: Browser | null = null;
 let page: Page | null = null;
+let workerUrls: string[] = [];
+let crossOriginPage: Page | null = null;
+let crossOriginWorkerUrls: string[] = [];
 
 // Skip (rather than fail) where no Chromium exists at all — e.g. a bare
 // local checkout. CI runners always provide one, so coverage there is real.
@@ -126,10 +179,54 @@ const buildDensePayload = (opts: {
   return window.JsonWorkerBench.setPayload(`[${rows.join(",")}]`);
 };
 
+const openHarness = async (
+  b: Browser,
+  scriptOrigin: string,
+  bundleJs: string,
+  workers: Map<string, string>
+): Promise<{ page: Page; workerUrls: string[] }> => {
+  const p = await b.newPage();
+  const urls: string[] = [];
+  p.setDefaultTimeout(60_000);
+  p.on("console", (msg) => {
+    if (msg.type() === "error") console.error("[page]", msg.text());
+  });
+  p.on("pageerror", (err) => console.error("[pageerror]", err.message));
+  p.on("worker", (worker) => urls.push(worker.url()));
+
+  // Serve the harness from routed fake origins — no HTTP server needed
+  await p.route("**/*", (route) => {
+    const url = new URL(route.request().url());
+    const script =
+      url.pathname === "/harness.js" ? bundleJs : workers.get(url.pathname);
+    if (script !== undefined) {
+      return route.fulfill({
+        contentType: "application/javascript",
+        headers: { "access-control-allow-origin": kPageOrigin },
+        body: script,
+      });
+    }
+    return route.fulfill({
+      contentType: "text/html",
+      body:
+        "<!doctype html>" +
+        (scriptOrigin === kPageOrigin
+          ? `<meta http-equiv="Content-Security-Policy" content="${kStrictPolicy}">`
+          : "") +
+        `<script src='${scriptOrigin}/harness.js'></script>`,
+    });
+  });
+  await p.goto(`${kPageOrigin}/`);
+  await p.waitForFunction(() => !!window.JsonWorkerBench);
+  await p.evaluate(() => window.JsonWorkerBench.warmupPool());
+  return { page: p, workerUrls: urls };
+};
+
 beforeAll(async () => {
   const benchDir = decodeURIComponent(
     new URL("../bench/", import.meta.url).pathname
   );
+  const workers = new Map<string, string>();
   const bundle = await build({
     entryPoints: [`${benchDir}browser-entry.ts`],
     bundle: true,
@@ -138,6 +235,7 @@ beforeAll(async () => {
     platform: "browser",
     target: "es2022",
     absWorkingDir: benchDir,
+    plugins: [workerUrlPlugin(workers)],
   });
   const bundleJs = bundle.outputFiles[0]!.text;
 
@@ -150,30 +248,14 @@ beforeAll(async () => {
     return;
   }
 
-  const p = await browser.newPage();
-  p.setDefaultTimeout(60_000);
-  p.on("console", (msg) => {
-    if (msg.type() === "error") console.error("[page]", msg.text());
-  });
-  p.on("pageerror", (err) => console.error("[pageerror]", err.message));
-
-  // Serve the harness from a routed fake origin — no HTTP server needed
-  await p.route("**/*", (route) => {
-    const url = route.request().url();
-    return url.endsWith("/harness.js")
-      ? route.fulfill({
-          contentType: "application/javascript",
-          body: bundleJs,
-        })
-      : route.fulfill({
-          contentType: "text/html",
-          body: "<!doctype html><script src='/harness.js'></script>",
-        });
-  });
-  await p.goto("http://json-worker.test/");
-  await p.waitForFunction(() => !!window.JsonWorkerBench);
-  await p.evaluate(() => window.JsonWorkerBench.warmupPool());
-  page = p;
+  ({ page, workerUrls } = await openHarness(
+    browser,
+    kPageOrigin,
+    bundleJs,
+    workers
+  ));
+  ({ page: crossOriginPage, workerUrls: crossOriginWorkerUrls } =
+    await openHarness(browser, kAssetOrigin, bundleJs, workers));
 }, TEST_TIMEOUT);
 
 afterAll(async () => {
@@ -181,6 +263,35 @@ afterAll(async () => {
 });
 
 describe("json-worker in real Chromium (worker paths)", () => {
+  test(
+    "a same-origin worker script starts directly under a strict CSP",
+    (ctx) => {
+      requirePage(ctx);
+      expect(workerUrls.length).toBeGreaterThan(0);
+      for (const url of workerUrls) {
+        expect(url).toBe(`${kPageOrigin}/json-parse.worker.js`);
+      }
+    },
+    TEST_TIMEOUT
+  );
+
+  test(
+    "a cross-origin worker script starts from a Blob and parses",
+    async (ctx) => {
+      requirePage(ctx);
+      const p = crossOriginPage;
+      if (!p) throw new Error("cross-origin harness did not open");
+      expect(crossOriginWorkerUrls.length).toBeGreaterThan(0);
+      for (const url of crossOriginWorkerUrls) {
+        expect(url).toMatch(/^blob:http:\/\/json-worker\.test\//);
+      }
+      await p.evaluate(() => window.JsonWorkerBench.generate("flat", 200_000));
+      await runVerified(p, "asyncJsonParse");
+      await p.evaluate(() => window.JsonWorkerBench.releasePayload());
+    },
+    TEST_TIMEOUT
+  );
+
   test(
     "large string and large bytes parse via the worker (clone path)",
     async (ctx) => {
@@ -250,7 +361,7 @@ describe("json-worker in real Chromium (worker paths)", () => {
     "real JSON5 syntax falls back to JSON5.parse inside the worker",
     async (ctx) => {
       const p = requirePage(ctx);
-      // exercises the embedded base64 JSON5 bundle + worker init message
+      // exercises JSON5 bundled into the worker script
       const size = await p.evaluate(() =>
         window.JsonWorkerBench.generate("json5", 100_000)
       );

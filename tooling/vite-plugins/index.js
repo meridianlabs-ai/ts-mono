@@ -2,7 +2,9 @@
  * Shared Vite plugins for ts-mono apps.
  */
 
-import { context as esbuildContext } from "esbuild";
+import { relative, resolve as resolvePath } from "path";
+
+import { build as esbuildBuild, context as esbuildContext } from "esbuild";
 
 const LOOPBACK_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/;
 
@@ -91,6 +93,60 @@ export function inlineThemeBootstrap(
         ctxPromise = undefined;
         await ctx.dispose();
       }
+    },
+  };
+}
+
+const WORKER_URL_QUERY = "?worker&url";
+const INLINE_WORKER_PREFIX = "\0inline-worker-url:";
+
+/**
+ * Library builds only: resolve `?worker&url` imports to a Blob URL of the
+ * bundled worker instead of an emitted asset.
+ *
+ * Vite's library mode emits a worker asset with a root-absolute URL
+ * ("/assets/…"), which an embedding app does not serve, and bundlers
+ * handle `new URL(…, import.meta.url)` inside dependencies unevenly. An
+ * inline Blob keeps the package self-contained; embedders need
+ * `worker-src blob:`, but no eval.
+ *
+ * @returns {import("vite").Plugin}
+ */
+export function inlineWorkerUrls() {
+  return {
+    name: "inline-worker-urls",
+    enforce: "pre",
+    async resolveId(source, importer) {
+      if (!source.endsWith(WORKER_URL_QUERY)) return null;
+      const resolved = await this.resolve(
+        source.slice(0, -WORKER_URL_QUERY.length),
+        importer,
+        { skipSelf: true }
+      );
+      // Relative, so the module id (echoed in output comments) carries no
+      // local absolute path into the published package.
+      return resolved
+        ? `${INLINE_WORKER_PREFIX}${relative(process.cwd(), resolved.id)}`
+        : null;
+    },
+    async load(id) {
+      if (!id.startsWith(INLINE_WORKER_PREFIX)) return null;
+      const entry = resolvePath(id.slice(INLINE_WORKER_PREFIX.length));
+      const result = await esbuildBuild({
+        entryPoints: [entry],
+        bundle: true,
+        format: "iife",
+        platform: "browser",
+        target: "es2020",
+        minify: true,
+        write: false,
+        metafile: true,
+      });
+      for (const input of Object.keys(result.metafile.inputs)) {
+        this.addWatchFile(resolvePath(input));
+      }
+      const code = JSON.stringify(result.outputFiles[0].text);
+      return `export default URL.createObjectURL(new Blob([${code}], { type: "text/javascript" }));`;
     },
   };
 }
