@@ -2,6 +2,7 @@
  * Shared Vite plugins for ts-mono apps.
  */
 
+import { createHash } from "crypto";
 import { relative, resolve as resolvePath } from "path";
 
 import { build as esbuildBuild, context as esbuildContext } from "esbuild";
@@ -147,6 +148,65 @@ export function inlineWorkerUrls() {
       }
       const code = JSON.stringify(result.outputFiles[0].text);
       return `export default URL.createObjectURL(new Blob([${code}], { type: "text/javascript" }));`;
+    },
+  };
+}
+
+const INLINE_SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+const SCRIPT_SRC = /\bsrc\s*=/i;
+// A script with any other type is a data block (e.g. the log_dir_context
+// JSON `inspect view bundle` adds), which CSP does not govern.
+const SCRIPT_TYPE = /\btype\s*=\s*["']?([^"'\s>]+)/i;
+const EXECUTABLE_TYPES = new Set([
+  "module",
+  "text/javascript",
+  "application/javascript",
+]);
+
+/**
+ * Build only: inject a Content-Security-Policy <meta> as the first child of
+ * <head>, adding a `'sha256-…'` source to script-src (after its first
+ * source) for every inline script in the emitted page, so the hashes always
+ * match what ships.
+ *
+ * The dev server is skipped: its HMR client and React preamble are inline
+ * and differ per session, and a weaker dev policy would only mislead.
+ *
+ * @param {Record<string, string[]>} directives the policy, in order
+ * @returns {import("vite").Plugin}
+ */
+export function contentSecurityPolicy(directives) {
+  return {
+    name: "content-security-policy",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler(html) {
+        const hashes = [];
+        for (const [, attributes, code] of html.matchAll(INLINE_SCRIPT)) {
+          if (SCRIPT_SRC.test(attributes)) continue;
+          const type = SCRIPT_TYPE.exec(attributes)?.[1]?.toLowerCase();
+          if (type && !EXECUTABLE_TYPES.has(type)) continue;
+          const digest = createHash("sha256").update(code).digest("base64");
+          hashes.push(`'sha256-${digest}'`);
+        }
+        const policy = Object.entries(directives)
+          .map(([name, sources]) => {
+            const all =
+              name === "script-src"
+                ? [...sources.slice(0, 1), ...hashes, ...sources.slice(1)]
+                : sources;
+            return [name, ...all].join(" ");
+          })
+          .join("; ");
+        if (!/<head>/.test(html)) {
+          throw new Error("contentSecurityPolicy: no <head> in index.html");
+        }
+        return html.replace(
+          "<head>",
+          `<head>\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`
+        );
+      },
     },
   };
 }

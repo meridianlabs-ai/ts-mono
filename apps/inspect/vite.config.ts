@@ -12,6 +12,7 @@ import {
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
 import {
+  contentSecurityPolicy,
   inlineThemeBootstrap,
   inlineWorkerUrls,
   rewriteLoopbackOrigin,
@@ -34,6 +35,27 @@ function copyToPythonRepo(): Plugin {
 }
 
 const viewServerUrl = "http://127.0.0.1:7575";
+
+// The viewer renders untrusted log content; this is the second layer behind
+// the sanitizer (see SECURITY.md). Inline scripts are hashed at build time.
+// 'wasm-unsafe-eval' is for the asciinema player's WebAssembly, and inline
+// style attributes carry MathJax's per-glyph layout. e2e/csp.spec.ts pins
+// this policy, so changing it means changing that test too.
+const contentSecurityPolicyDirectives = {
+  "default-src": ["'none'"],
+  "script-src": ["'self'", "'wasm-unsafe-eval'"],
+  "worker-src": ["'self'"],
+  "style-src-elem": ["'self'"],
+  "style-src-attr": ["'unsafe-inline'"],
+  "img-src": ["'self'", "data:"],
+  "media-src": ["data:"],
+  "font-src": ["'self'"],
+  "connect-src": ["'self'"],
+  "object-src": ["'none'"],
+  "frame-src": ["'none'"],
+  "base-uri": ["'none'"],
+  "form-action": ["'none'"],
+};
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
@@ -136,6 +158,7 @@ export default defineConfig(({ mode }) => {
         inlineThemeBootstrap(
           resolve(import.meta.dirname, "src/theme/bootstrap.ts")
         ),
+        contentSecurityPolicy(contentSecurityPolicyDirectives),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
         copyToPythonRepo(),
       ],
