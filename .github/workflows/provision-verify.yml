@@ -111,10 +111,11 @@ jobs:
           echo "Node $nv, pnpm $pv via corepack in ~codex/.local/bin, frozen install, lockfile unchanged, workspace eslint/tsc/vitest run as codex"
 
       # The repository's own gate (manypkg, suppressions ledger, lint,
-      # typecheck, format) run as codex with only what provisioning put on a
-      # reset PATH, as an agent would verify its work.
-      - name: pnpm check as codex
+      # typecheck, format) as codex under codex-action's launch shape: sudo's
+      # reset environment and PATH, nothing added, pnpm by absolute path as
+      # the compose steps hand it to the agent.
+      - name: pnpm check as codex (reset PATH)
         run: |
           set -euo pipefail
-          sudo -u codex -H -- env PATH="/home/codex/.local/bin:$PWD/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-            /home/codex/.local/bin/pnpm check
+          sudo -u codex -H -- sh -c 'echo "codex PATH: $PATH"; command -v node || echo "node: not on PATH"'
+          sudo -u codex -H -- /home/codex/.local/bin/pnpm check
