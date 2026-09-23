@@ -1,0 +1,117 @@
+# SCRATCH BRANCH ONLY (executed-paths-step2-provision-verify): verifies the
+# `provision:` recipe the agent stubs pass to the agents reusable workflows,
+# on this repository's real tree, through the same composites the codex jobs
+# run (agents @main): create-codex-user, provision-fallback as the codex user
+# with the recipe, reset-home, then tool discovery and checks as codex under
+# codex-action's launch shape (sudo -u codex, reset PATH). Not for main.
+
+name: Provision recipe verify
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [executed-paths-step2-provision-verify]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Read the recipe from every stub call site, so the run verifies what
+      # the stubs pass, and require the five to agree.
+      - name: Read the stubs' provision recipe
+        id: fx
+        run: |
+          set -euo pipefail
+          n=0
+          for f in .github/workflows/claude.yml .github/workflows/claude-auto.yml .github/workflows/claude-review.yml; do
+            for j in $(yq '.jobs | keys | .[]' "$f"); do
+              uses=$(yq ".jobs.\"$j\".uses // \"\"" "$f")
+              case "$uses" in meridianlabs-ai/agents/.github/workflows/*) ;; *) continue ;; esac
+              yq ".jobs.\"$j\".with.provision // \"\"" "$f" >"$RUNNER_TEMP/recipe-$n.sh"
+              [ -s "$RUNNER_TEMP/recipe-$n.sh" ] || { echo "::error::$f $j sets no provision"; exit 1; }
+              cmp -s "$RUNNER_TEMP/recipe-0.sh" "$RUNNER_TEMP/recipe-$n.sh" || { echo "::error::$f $j recipe differs"; exit 1; }
+              echo "$f $j -> $uses: recipe present"
+              n=$((n + 1))
+            done
+          done
+          [ "$n" = 5 ] || { echo "::error::expected 5 stub call sites, found $n"; exit 1; }
+          echo "--- recipe"; cat "$RUNNER_TEMP/recipe-0.sh"
+          {
+            echo "recipe<<RECIPE_EOF"
+            cat "$RUNNER_TEMP/recipe-0.sh"
+            echo "RECIPE_EOF"
+          } >>"$GITHUB_OUTPUT"
+          echo "lock=$(sha256sum <pnpm-lock.yaml)" >>"$GITHUB_OUTPUT"
+
+      - name: Create codex user (agents @main)
+        uses: meridianlabs-ai/agents/.github/actions/create-codex-user@main
+
+      # The reusable workflows' condition for this step, evaluated the same
+      # way: ts-mono has no pyproject.toml, so the recipe alone enables it.
+      - name: Provision as the codex user with the stubs' recipe (agents @main)
+        id: setup
+        timeout-minutes: 15
+        if: hashFiles('pyproject.toml') != '' || steps.fx.outputs.recipe != ''
+        uses: meridianlabs-ai/agents/.github/actions/provision-fallback@main
+        with:
+          user: codex
+          recipe: ${{ steps.fx.outputs.recipe }}
+
+      - name: Reset codex home (agents @main)
+        uses: meridianlabs-ai/agents/.github/actions/create-codex-user@main
+        with:
+          mode: reset-home
+
+      - name: Discovered tools run as codex
+        env:
+          BIN: ${{ steps.setup.outputs.bin }}
+        run: |
+          set -euo pipefail
+          [ "${{ steps.setup.outcome }}" = success ] || { echo "::error::provisioning did not succeed"; exit 1; }
+          echo "bin: $BIN"
+          tools=""
+          IFS=: read -r -a dirs <<<"$BIN"
+          for t in node pnpm npm prettier eslint tsc turbo vitest; do
+            for d in "${dirs[@]}"; do
+              [ -x "$d/$t" ] && { tools="$tools$t=$d/$t "; break; }
+            done
+          done
+          echo "discovered: ${tools:-none}"
+          for t in pnpm prettier eslint tsc turbo; do
+            case " $tools" in *" $t="*) ;; *) echo "::error::$t not discovered in $BIN"; exit 1 ;; esac
+          done
+          for kv in $tools; do
+            path=${kv#*=}
+            v=$(sudo -u codex -H -- "$path" --version 2>&1 | head -1) || { echo "::error::$path does not run as codex"; exit 1; }
+            echo "runs as codex: $path ($v)"
+          done
+
+      - name: Recipe checks
+        env:
+          LOCK_BEFORE: ${{ steps.fx.outputs.lock }}
+        run: |
+          set -euo pipefail
+          nv=$(sudo -u codex -H -- node --version)
+          pv=$(sudo -u codex -H -- /home/codex/.local/bin/pnpm --version)
+          want=$(jq -r .packageManager package.json)
+          [ "pnpm@$pv" = "$want" ] || { echo "::error::expected $want from packageManager, got pnpm $pv"; exit 1; }
+          [ "$(sha256sum <pnpm-lock.yaml)" = "$LOCK_BEFORE" ] || { echo "::error::pnpm install changed the lockfile"; exit 1; }
+          [ -z "$(git status --porcelain --untracked-files=no)" ] || { git status --short; echo "::error::provisioning changed tracked files"; exit 1; }
+          echo "Node $nv, pnpm $pv via corepack in ~codex/.local/bin, frozen install, lockfile unchanged"
+
+      # The repository's own gate (manypkg, suppressions ledger, lint,
+      # typecheck, format) run as codex with only what provisioning put on a
+      # reset PATH, as an agent would verify its work.
+      - name: pnpm check as codex
+        run: |
+          set -euo pipefail
+          sudo -u codex -H -- env PATH="/home/codex/.local/bin:$PWD/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+            /home/codex/.local/bin/pnpm check
