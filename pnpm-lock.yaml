@@ -102,9 +102,6 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
-      filtrex:
-        specifier: ^3.1.0
-        version: 3.1.0
       fzstd:
         specifier: ^0.1.1
         version: 0.1.1
@@ -226,6 +223,9 @@ importers:
       fake-indexeddb:
         specifier: ^6.2.2
         version: 6.2.5
+      filtrex:
+        specifier: ^3.1.0
+        version: 3.1.0
       globals:
         specifier: ^17.12.0
         version: 17.12.0
