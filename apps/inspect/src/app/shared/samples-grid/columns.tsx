@@ -6,6 +6,7 @@ import type { FilterType } from "@tsmono/inspect-components/columnFilter";
 import {
   arrayToString,
   filename,
+  formatCurrency,
   formatNumber,
   getOwn,
   valueAsString,
@@ -345,6 +346,25 @@ export function buildSampleColumns(
         <EmptyCell />
       ) : (
         <div>{formatNumber(value)}</div>
+      );
+    },
+  });
+
+  // cost (hidden by default; undefined when any model went unpriced)
+  cols.push({
+    id: "cost",
+    header: "Cost",
+    size: 100,
+    minSize: 60,
+    maxSize: 140,
+    meta: { sortComparator: numberCompare },
+    accessorFn: (row) => row.cost,
+    cell: ({ getValue }) => {
+      const value = getValue<number | undefined>();
+      return value === undefined ? (
+        <EmptyCell />
+      ) : (
+        <div>{formatCurrency(value)}</div>
       );
     },
   });

@@ -42,6 +42,7 @@ export interface SampleRow {
   retries?: number | null;
   fallbacks?: number;
   tokens?: number;
+  cost?: number;
   duration?: number;
 
   [key: string]: unknown;

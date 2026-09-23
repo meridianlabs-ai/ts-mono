@@ -32,7 +32,10 @@ import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
-import { totalSampleTokens } from "../../../client/utils/derive.ts";
+import {
+  totalSampleCost,
+  totalSampleTokens,
+} from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
 import { selectSample } from "../../../state/actions.ts";
 import {
@@ -326,6 +329,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       if (id === "fallbacks") return !!shape?.fallbacksSize;
       if (id === "error") return !!shape?.errorSize;
       if (id === "sampleUuid") return false;
+      if (id === "cost") return false;
       return true;
     },
     [shape, epochs]
@@ -457,6 +461,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         retries: sample.retries,
         fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
         tokens,
+        cost: totalSampleCost(sample.model_usage),
         duration: sample.total_time ?? undefined,
       };
     });

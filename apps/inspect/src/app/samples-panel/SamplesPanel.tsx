@@ -211,6 +211,7 @@ export const SamplesPanel: FC = () => {
       // `created` defaults off — many users won't care.
       if (id === "created") return false;
       if (id === "sampleUuid") return false;
+      if (id === "cost") return false;
       return true;
     },
     [optionalHasData]
@@ -344,6 +345,7 @@ export const SamplesPanel: FC = () => {
           fallbacks: derived.fallbacks,
           completed: sample.completed,
           tokens: derived.tokens,
+          cost: derived.cost,
           duration: sample.total_time ?? undefined,
         };
         if (derived.scores) {

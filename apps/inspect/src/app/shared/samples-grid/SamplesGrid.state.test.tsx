@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { ExtendedColumnDef } from "../data-grid/columnTypes";
 
+import { buildSampleColumns } from "./columns";
 import { SamplesGrid } from "./SamplesGrid";
 import type { SampleRow } from "./types";
 
@@ -102,5 +103,36 @@ describe("SamplesGrid controlled sorting", () => {
     // A header click flips to descending locally (asc → desc).
     fireEvent.click(screen.getByText("Input"));
     expect(displayedInputs(displayed)).toEqual(["banana", "apple"]);
+  });
+});
+
+describe("SamplesGrid cost column", () => {
+  const costRows: SampleRow[] = [
+    { logFile: "a.eval", sampleId: 1, epoch: 1, input: "unpriced" },
+    { logFile: "a.eval", sampleId: 2, epoch: 1, input: "cheap", cost: 0.1 },
+    { logFile: "a.eval", sampleId: 3, epoch: 1, input: "pricey", cost: 0.5 },
+  ];
+  const costColumns = buildSampleColumns({
+    viewMode: "grid",
+    multiLog: true,
+  }).filter((c) => c.id === "cost");
+
+  test.each([
+    [false, ["cheap", "pricey", "unpriced"]],
+    [true, ["pricey", "cheap", "unpriced"]],
+  ])("sorts samples without a cost last (desc=%s)", (desc, expected) => {
+    const displayed = vi.fn();
+    render(
+      <SamplesGrid
+        rowData={costRows}
+        columnDefs={costColumns}
+        getRowId={getRowId}
+        onRowOpen={() => {}}
+        sorting={[{ id: "cost", desc }]}
+        onSortingChange={() => {}}
+        onDisplayedRowsChange={displayed}
+      />
+    );
+    expect(displayedInputs(displayed)).toEqual(expected);
   });
 });
