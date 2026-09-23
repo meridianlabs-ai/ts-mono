@@ -227,25 +227,10 @@ describe("normalizeScanValue", () => {
     });
   });
 
-  // The server only casts the string value column when a scanner's
-  // value_type is uniform, so a mixed scanner delivers text under a
-  // number/boolean tag; resultset expansion delivers native JSON values.
+  // Text under a number/boolean tag is decoded upstream (castScanValue), so
+  // any scalar reaching the normalizer keeps its value under its own type.
   it.each([
-    { raw: "0.9", tag: "number", value: 0.9, valueType: "number" },
-    { raw: "1", tag: "number", value: 1, valueType: "number" },
-    { raw: "-2.5e3", tag: "number", value: -2500, valueType: "number" },
-    { raw: "NaN", tag: "number", value: NaN, valueType: "number" },
-    { raw: "true", tag: "boolean", value: true, valueType: "boolean" },
-    { raw: "False", tag: "boolean", value: false, valueType: "boolean" },
-  ] as const)(
-    "decodes $raw under a $tag tag the way inspect_scout does",
-    async ({ raw, tag, value, valueType }) => {
-      expect(await normalizeScanValue(raw, tag)).toEqual({ value, valueType });
-    }
-  );
-
-  it.each([
-    { raw: "n/a", tag: "number", valueType: "string" },
+    { raw: "0.9", tag: "number", valueType: "string" },
     { raw: "yes", tag: "boolean", valueType: "string" },
     { raw: 3, tag: "string", valueType: "number" },
     { raw: true, tag: "string", valueType: "boolean" },
