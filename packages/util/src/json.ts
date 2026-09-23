@@ -1,3 +1,5 @@
+import { isRecord } from "./type";
+
 export const isJson = (text: string): boolean => {
   text = text.trim();
   if (text.startsWith("{") && text.endsWith("}")) {
@@ -42,6 +44,19 @@ export const parsedJson = (text: string): unknown => {
     }
   }
   return undefined;
+};
+
+/**
+ * Parses `text` as a JSON object, returning `undefined` for anything else
+ * (invalid JSON, arrays, scalars). Validates and parses the same trimmed
+ * string, so callers never need a separate `isJson` check that could
+ * disagree with the parse (`trim()` strips whitespace JSON.parse rejects).
+ */
+export const parseJsonRecord = (
+  text: string
+): Record<string, unknown> | undefined => {
+  const parsed = parsedJson(text);
+  return isRecord(parsed) ? parsed : undefined;
 };
 
 // Estimates the size of a list of objects by sampling a subset of the list.

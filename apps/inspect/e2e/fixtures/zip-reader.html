@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- THEME_BOOTSTRAP -->
+    <title>ZIP worker regression</title>
+  </head>
+  <body>
+    <output>Running</output>
+    <script type="module">
+      import { decompressData } from "/src/client/remote/decompression.ts";
+      import { openZipFileFromBuffer } from "/src/client/remote/remoteZipFile.ts";
+      import { zipSync } from "fflate";
+
+      const output = document.querySelector("output");
+      let workerRequests = 0;
+      const originalPostMessage = Worker.prototype.postMessage;
+      Worker.prototype.postMessage = function (...args) {
+        if (args[0]?.type === "decompress") workerRequests++;
+        return originalPostMessage.apply(this, args);
+      };
+      try {
+        const size = 2 * 1024 * 1024;
+        const blockSize = 128 * 1024;
+        const blocks = size / blockSize;
+        const frame = new Uint8Array(9 + blocks * 3 + size);
+        const view = new DataView(frame.buffer);
+        view.setUint32(0, 0xfd2fb528, true);
+        view.setUint8(4, 0xa0);
+        view.setUint32(5, size, true);
+        for (let index = 0; index < blocks; index++) {
+          const offset = 9 + index * (3 + blockSize);
+          const header = blockSize * 8 + (index === blocks - 1 ? 1 : 0);
+          view.setUint8(offset, header & 255);
+          view.setUint16(offset + 1, header >> 8, true);
+        }
+        const bytes = zipSync(
+          {
+            first: frame,
+            second: new TextEncoder().encode("hello"),
+          },
+          { level: 0 }
+        );
+        const archiveView = new DataView(bytes.buffer);
+        const directory = archiveView.getUint32(bytes.length - 6, true);
+        archiveView.setUint16(8, 93, true);
+        archiveView.setUint32(22, size, true);
+        archiveView.setUint16(directory + 10, 93, true);
+        archiveView.setUint32(directory + 24, size, true);
+        const zip = await openZipFileFromBuffer(bytes);
+        const first = await zip.readFile("first");
+        const second = await zip.readFile("second");
+        const again = await zip.readFile("first");
+        if (
+          first.length !== size ||
+          again.length !== size ||
+          new TextDecoder().decode(second) !== "hello"
+        ) {
+          throw new Error("Reading one entry damaged another entry");
+        }
+        if (bytes.byteLength === 0)
+          throw new Error("Source archive was detached");
+
+        // A tiny input and large declared output must use the worker without
+        // allocating that declared output or blocking later valid reads.
+        const tiny = new Uint8Array([
+          0x28, 0xb5, 0x2f, 0xfd, 0x20, 1, 9, 0, 0, 65,
+        ]);
+        let rejected = false;
+        try {
+          await decompressData(tiny, 93, 1024 * 1024 * 1024, "forged");
+        } catch {
+          rejected = true;
+        }
+        if (!rejected) throw new Error("Forged output size was accepted");
+        const compressed = Uint8Array.from(
+          atob(
+            "KLUv/aQAACAAVAAAEAAAAQD7/znAAgIAEAACABAAAgAQAAIAEAACABAAAgAQAAIAEAACABAAAgAQAAIAEAACABAAAgAQAAIAEAACABAAAwAQANsjjvg="
+          ),
+          (char) => char.charCodeAt(0)
+        );
+        if (
+          (await decompressData(compressed, 93, size, "compressed")).length !==
+          size
+        ) {
+          throw new Error("Zstd compressed blocks failed in the worker");
+        }
+        const historyFrame = new Uint8Array([
+          0x28, 0xb5, 0x2f, 0xfd, 0, 120, 9, 0, 0, 65,
+        ]);
+        const requestsBeforeHistory = workerRequests;
+        await decompressData(historyFrame, 93, 1, "large history");
+        if (workerRequests !== requestsBeforeHistory + 1) {
+          throw new Error("Large zstd history work ran on the main thread");
+        }
+        const fragmented = new Uint8Array(6 + 40 * 4);
+        fragmented.set([0x28, 0xb5, 0x2f, 0xfd, 0, 72]);
+        for (let index = 0; index < 40; index++) {
+          fragmented.set([index === 39 ? 9 : 8, 0, 0, 65], 6 + index * 4);
+        }
+        const requestsBeforeBlocks = workerRequests;
+        await decompressData(fragmented, 93, 40, "fragmented history");
+        if (workerRequests !== requestsBeforeBlocks + 1) {
+          throw new Error("Aggregate zstd block work ran on the main thread");
+        }
+        const deflateBytes = zipSync({
+          text: new TextEncoder().encode("hello".repeat(1000)),
+        });
+        const deflateZip = await openZipFileFromBuffer(deflateBytes);
+        if ((await deflateZip.readFile("text")).length !== 5000) {
+          throw new Error("Deflate worker failed to read a valid entry");
+        }
+        const deflateView = new DataView(deflateBytes.buffer);
+        const deflateDirectory = deflateView.getUint32(
+          deflateBytes.length - 6,
+          true
+        );
+        deflateView.setUint32(22, 1024 * 1024 * 1024, true);
+        deflateView.setUint32(deflateDirectory + 24, 1024 * 1024 * 1024, true);
+        const forgedDeflate = await openZipFileFromBuffer(deflateBytes);
+        let deflateRejected = false;
+        try {
+          await forgedDeflate.readFile("text");
+        } catch {
+          deflateRejected = true;
+        }
+        if (!deflateRejected)
+          throw new Error("Forged deflate output size was accepted");
+        output.textContent =
+          "Passed: zstd and deflate workers, repeated entry reads, archive ownership, forged output size";
+      } catch (error) {
+        output.textContent = "Failed: " + error.message;
+      }
+      Worker.prototype.postMessage = originalPostMessage;
+    </script>
+  </body>
+</html>

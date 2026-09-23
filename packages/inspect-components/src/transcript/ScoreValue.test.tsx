@@ -7,22 +7,10 @@ import {
   ComponentIconProvider,
   ComponentNavigationProvider,
 } from "@tsmono/react/components";
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
-import { testIcons } from "@tsmono/react/testing";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, testIcons } from "@tsmono/react/testing";
 
 import { ScoreValue } from "./ScoreValue";
-
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
 
 const defaultScore = { first: "one", second: "two", third: "three" };
 
@@ -32,7 +20,7 @@ const renderScore = (
   maxRows = 2
 ) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentIconProvider icons={testIcons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
           <ScoreValue

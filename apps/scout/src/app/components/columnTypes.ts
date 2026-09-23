@@ -1,7 +1,8 @@
 import { ColumnDef, RowData } from "@tanstack/react-table";
 
+import { valueAsString } from "@tsmono/util";
+
 import type { FilterType } from "../../state/store";
-import { valueAsString } from "../utils/format";
 
 import type { DataGridFeatures } from "./dataGrid/tableFeatures";
 

@@ -18,6 +18,7 @@ import {
   type ConnectionLaneData,
   type PoolRetune,
 } from "@tsmono/inspect-components/usage";
+import { ErrorPanel } from "@tsmono/react/components";
 
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { SampleSummary } from "../../../../client/api/types";
@@ -25,6 +26,7 @@ import { kScoreTypeOther } from "../../../../constants";
 import { EvalDescriptor } from "../../../samples/descriptor/types";
 import { ScoreValueDisplay } from "../../../samples/header-v2/ScoreValueDisplay";
 
+import { timelineAxisTicks, timelineWindowError } from "./timelineAxis";
 import styles from "./TimelineChart.module.css";
 import {
   dotLadderStep,
@@ -177,7 +179,16 @@ export interface TimelineChartProps {
   ) => void;
 }
 
-export const TimelineChart: FC<TimelineChartProps> = ({
+export const TimelineChart: FC<TimelineChartProps> = (props) => {
+  const error = timelineWindowError(props.window);
+  return error ? (
+    <ErrorPanel title="Unable to display timeline" error={{ message: error }} />
+  ) : (
+    <TimelineChartBody {...props} />
+  );
+};
+
+const TimelineChartBody: FC<TimelineChartProps> = ({
   window: timeWindow,
   running = false,
   showActiveSamples,
@@ -735,22 +746,11 @@ export const TimelineChart: FC<TimelineChartProps> = ({
       },
       { x: plotRight, label: fmtTime(timeWindow.end), anchor: "end" },
     ];
-    const intervals = [
-      15, 30, 60, 120, 300, 600, 900, 1800, 3600, 7200, 14400, 43200, 86400,
-    ];
-    const plotSpan = plotRight - plotLeft;
-    const interval = intervals.find((i) => (i / span) * plotSpan >= 80);
-    if (interval) {
-      const fmt = interval < 60 ? fmtTimeSec : fmtTime;
-      for (
-        let t = Math.ceil(timeWindow.start / interval) * interval;
-        t < timeWindow.end;
-        t += interval
-      ) {
-        const px = x(t);
-        if (px < plotLeft + 110 || px > plotRight - 60) continue;
-        ticks.push({ x: px, label: fmt(t), anchor: "middle" });
-      }
+    for (const tick of timelineAxisTicks(timeWindow, plotRight - plotLeft)) {
+      const px = x(tick.time);
+      if (px < plotLeft + 110 || px > plotRight - 60) continue;
+      const fmt = tick.showSeconds ? fmtTimeSec : fmtTime;
+      ticks.push({ x: px, label: fmt(tick.time), anchor: "middle" });
     }
     return (
       <g key="axis">

@@ -18,7 +18,7 @@ import {
 } from "@tsmono/inspect-common/utils";
 import { ConfigChangesCountChip } from "@tsmono/inspect-components/config";
 import { ExpandablePanel, LabeledValue } from "@tsmono/react/components";
-import { formatDataset } from "@tsmono/util";
+import { formatDataset, valueAsString } from "@tsmono/util";
 
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
@@ -27,11 +27,7 @@ import {
   useEvalDescriptor,
   useSelectedSampleInvalidation,
 } from "../../../state/hooks";
-import {
-  formatDateTime,
-  formatDuration,
-  valueAsString,
-} from "../../../utils/format";
+import { formatDateTime, formatDuration } from "../../../utils/format";
 import { useShowTimeline } from "../useShowTimeline";
 
 import styles from "./SecondaryBar.module.css";

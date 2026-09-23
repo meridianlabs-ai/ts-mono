@@ -22,7 +22,7 @@ const createSink = () => {
     writePreviews: () => Promise.resolve(),
     writeDetails: (details) => {
       detailWrites.push(...Object.keys(details));
-      return Promise.resolve();
+      return Promise.resolve({});
     },
     mergeFetchStates: () => {},
     writeFetchStates: () => Promise.resolve(),

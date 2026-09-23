@@ -1,7 +1,12 @@
 import { defineConfig } from "vitest/config";
 
-export default defineConfig({
-  test: {
-    setupFiles: ["./vitest.setup.ts"],
-  },
-});
+import { splitTestEnvironments } from "@tsmono/vitest-config";
+
+export default splitTestEnvironments(
+  defineConfig({
+    test: {
+      setupFiles: ["./vitest.setup.ts"],
+    },
+  }),
+  import.meta.dirname
+);

@@ -1,3 +1,5 @@
+import { createZstdDecoder } from "./zstd-decoder";
+
 /**
  * Zstandard decompression Web Worker code.
  *
@@ -11,7 +13,8 @@
  */
 export const kZstdWorkerCode = `
 // fzstd decompress function, loaded dynamically
-let decompress = null;
+let decoder = null;
+const createZstdDecoder = ${createZstdDecoder.toString()};
 
 self.onmessage = function(e) {
   const { type } = e.data || {};
@@ -19,15 +22,15 @@ self.onmessage = function(e) {
   if (type === 'init') {
     const { scriptContent } = e.data;
     try {
-      if (!decompress) {
+      if (!decoder) {
         // Decode and evaluate the fzstd UMD library
         const script = atob(scriptContent);
         // The UMD module self-executes and assigns to self.fzstd
         new Function(script)();
-        if (!self.fzstd || typeof self.fzstd.decompress !== 'function') {
+        if (!self.fzstd || typeof self.fzstd.Decompress !== 'function') {
           throw new Error('Failed to initialize fzstd decompressor');
         }
-        decompress = self.fzstd.decompress;
+        decoder = createZstdDecoder(self.fzstd.Decompress);
       }
       self.postMessage({ type: 'init_complete', success: true });
     } catch (err) {
@@ -38,12 +41,12 @@ self.onmessage = function(e) {
   }
 
   if (type === 'decompress') {
-    const { requestId, data } = e.data;
+    const { requestId, data, expectedSize } = e.data;
     try {
-      if (!decompress) {
+      if (!decoder) {
         throw new Error('Worker not initialized');
       }
-      const result = decompress(data);
+      const result = decoder.decompress(data, expectedSize);
       // Transfer the result buffer back to avoid copying
       self.postMessage(
         { requestId, success: true, data: result },

@@ -1,7 +1,7 @@
-import clsx from "clsx";
-import { FC, MouseEvent, useMemo } from "react";
+import { FC, useMemo } from "react";
 
 import { JSONPanel, ToolButton } from "@tsmono/react/components";
+import { useCopyToClipboard } from "@tsmono/react/hooks";
 import { filename } from "@tsmono/util";
 
 import { LogHeader } from "../../../client/api/types";
@@ -27,6 +27,7 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
       sampleLimits: _limits,
       ...header
     } = logDetails ?? {};
+    const json = JSON.stringify(header, null, 2);
 
     return {
       id: kLogViewJsonTabId,
@@ -35,43 +36,30 @@ export const useJsonTabConfig = (logDetails: LogHeader | undefined) => {
       component: JsonTab,
       componentProps: {
         logFile: selectedLogFile,
-        json: JSON.stringify(header, null, 2),
+        json,
         selected: selectedTab === kLogViewJsonTabId,
       },
-      tools: () => [
-        <ToolButton
-          key="copy-json"
-          label="Copy JSON"
-          icon={ApplicationIcons.copy}
-          className={clsx("task-btn-json-copy", "clipboard-button")}
-          data-clipboard-target="#task-json-contents"
-          subtle
-          onClick={copyFeedback}
-        />,
-      ],
+      tools: () => [<CopyJsonButton key="copy-json" json={json} />],
     };
   }, [selectedLogFile, logDetails, selectedTab]);
 };
 
-// Helper function for copy feedback
-const copyFeedback = (e: MouseEvent<HTMLElement>) => {
-  const textEl = e.currentTarget.querySelector(".task-btn-copy-content");
-  const iconEl = e.currentTarget.querySelector("i.bi");
-  if (textEl instanceof HTMLElement && iconEl instanceof HTMLElement) {
-    const htmlEl = textEl;
-    const htmlIconEl = iconEl;
-    const oldText = htmlEl.innerText;
-    const oldIconClz = htmlIconEl.className;
-    htmlEl.innerText = "Copied!";
-    htmlIconEl.className = `${ApplicationIcons.confirm}`;
-    setTimeout(() => {
-      window.getSelection()?.removeAllRanges();
-    }, 50);
-    setTimeout(() => {
-      htmlEl.innerText = oldText;
-      htmlIconEl.className = oldIconClz;
-    }, 1250);
-  }
+/**
+ * Copies the tab's JSON from props. The copy is bound to this element by
+ * React, not discovered by a document-wide selector, so log-authored markup
+ * can never become a copy trigger.
+ */
+export const CopyJsonButton: FC<{ json: string }> = ({ json }) => {
+  const { copied, copy } = useCopyToClipboard();
+  return (
+    <ToolButton
+      label={copied ? "Copied!" : "Copy JSON"}
+      icon={copied ? ApplicationIcons.confirm : ApplicationIcons.copy}
+      subtle
+      disabled={copied}
+      onClick={() => copy(json)}
+    />
+  );
 };
 
 interface JsonTabProps {

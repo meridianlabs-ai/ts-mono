@@ -29,9 +29,14 @@ export function truncateMarkdown(
     return markdown.slice(0, maxLength);
   }
 
+  // Sample text arrives unbounded from the log, and only ~maxLength
+  // characters can ever be shown, so detection and parsing run over a
+  // bounded prefix: the cost of a cell then does not grow with the sample.
+  const prefix = markdown.slice(0, maxLength * kParseWindowFactor);
+
   // For simple cases without markdown, use simple truncation
-  if (!hasMarkdownSyntax(markdown)) {
-    return simpleMarkdownTruncate(markdown, maxLength, ellipsis);
+  if (!hasMarkdownSyntax(prefix)) {
+    return simpleMarkdownTruncate(prefix, maxLength, ellipsis);
   }
 
   // Create a markdown parser instance
@@ -41,12 +46,12 @@ export function truncateMarkdown(
   });
 
   // Parse the markdown into tokens
-  const tokens = md.parse(markdown, {});
+  const tokens = md.parse(prefix, {});
 
   // Track accumulated text and find truncation point
   let accumulated = "";
   let lastSafePoint = "";
-  let isTruncated = false;
+  let isTruncated = prefix.length < markdown.length;
 
   // Process tokens to find safe truncation point
   for (const token of tokens) {
@@ -94,13 +99,19 @@ export function truncateMarkdown(
   return finalText;
 }
 
+// 8x leaves 7 * maxLength of headroom for markup that carries no visible
+// text (URLs, tags, fences) before the cut can change what is shown.
+const kParseWindowFactor = 8;
+
 /**
  * Check if text contains markdown syntax
  */
 function hasMarkdownSyntax(text: string): boolean {
+  if (hasLinkSyntax(text)) {
+    return true;
+  }
+
   const markdownPatterns = [
-    /\[.*?\]\(.*?\)/, // Links
-    /!\[.*?\]\(.*?\)/, // Images
     /`[^`]+`/, // Inline code
     /```[\s\S]*?```/, // Code blocks
     /\*{1,2}[^*]+\*{1,2}/, // Bold/italic
@@ -111,6 +122,24 @@ function hasMarkdownSyntax(text: string): boolean {
   ];
 
   return markdownPatterns.some((pattern) => pattern.test(text));
+}
+
+// What "." refuses to cross in a regex without the s flag.
+const kLineTerminator = /[\n\r\u2028\u2029]/;
+
+// Same predicate as /\[.*?\]\(.*?\)/ ("[" then "](" then ")" on one line,
+// which also covers images) without its cubic backtracking on a line of many
+// "[" and "](" and no ")". Backtracking-safe regex forms are still quadratic
+// on "[" repeated, so this is a plain scan.
+function hasLinkSyntax(text: string): boolean {
+  return text.split(kLineTerminator).some((line) => {
+    const open = line.indexOf("[");
+    if (open < 0) {
+      return false;
+    }
+    const close = line.indexOf("](", open + 1);
+    return close >= 0 && line.indexOf(")", close + 2) >= 0;
+  });
 }
 
 /**

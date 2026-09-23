@@ -8,172 +8,119 @@
  * CORS restrictions preventing external worker script loading.
  */
 
-import { decompress as decompressZstdSync } from "fzstd";
+import { Decompress } from "fzstd";
 
+import { createZstdDecoder } from "./zstd-decoder";
 import { kFzstdBase64, kZstdWorkerCode } from "./zstd-worker-code";
 
 /**
- * Threshold for using Web Worker (1MB compressed).
+ * Threshold for using a Web Worker (1MB compressed or expected output).
  * Below this, synchronous decompression is fast enough.
  */
 const WORKER_THRESHOLD = 1024 * 1024;
 
-/**
- * Maximum window log supported by fzstd (2^25 = 32MB).
- * Ultra compression levels (20+) often use larger windows.
- */
-const MAX_WINDOW_LOG = 25;
+const decoder = createZstdDecoder(Decompress);
+export const ZstdWindowSizeError = decoder.ZstdWindowSizeError;
 
-/**
- * Error thrown when zstd data uses a window size too large for fzstd.
- */
-export class ZstdWindowSizeError extends Error {
-  public readonly windowLog: number;
-  public readonly maxWindowLog: number;
-
-  constructor(windowLog: number) {
-    super(
-      `Zstd window size too large (windowLog=${windowLog}, max=${MAX_WINDOW_LOG}). ` +
-        `This file may have been compressed with zstd "ultra" mode (level 20+). ` +
-        `Try recompressing with --long=${MAX_WINDOW_LOG} or a lower compression level.`
-    );
-    this.name = "ZstdWindowSizeError";
-    this.windowLog = windowLog;
-    this.maxWindowLog = MAX_WINDOW_LOG;
-
-    Object.setPrototypeOf(this, ZstdWindowSizeError.prototype);
-  }
-}
-
-/**
- * Validates that the zstd frame's window size is within fzstd's limits.
- * Parses the frame header to extract the window descriptor.
- *
- * @param data - The zstd-compressed data
- * @throws ZstdWindowSizeError if window size exceeds 2^25 bytes
- */
-function validateZstdWindowSize(data: Uint8Array): void {
-  // Need at least 5 bytes for magic + frame header descriptor
-  if (data.length < 5) {
-    return; // Let fzstd handle malformed data
-  }
-
-  // Check magic number (0xFD2FB528, little-endian)
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const magic = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-  if (magic !== 0xfd2fb528) {
-    return; // Not a zstd frame, let fzstd handle it
-  }
-
-  // Frame header descriptor byte
-  const descriptor = data[4];
-
-  // Single_Segment_flag is bit 5
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const singleSegmentFlag = (descriptor >> 5) & 1;
-
-  if (singleSegmentFlag) {
-    // No window descriptor - window size equals frame content size
-    // Frame content size is in the header, but for single-segment frames
-    // fzstd should handle this fine as long as we have enough memory
-    return;
-  }
-
-  // Window descriptor is at byte 5 (after magic + descriptor)
-  if (data.length < 6) {
-    return;
-  }
-
-  const windowDescriptor = data[5];
-  // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-  const exponent = windowDescriptor >> 3; // bits 7-3
-  const windowLog = 10 + exponent;
-
-  if (windowLog > MAX_WINDOW_LOG) {
-    throw new ZstdWindowSizeError(windowLog);
-  }
-}
-
-// Messages posted back by the zstd worker (see kZstdWorkerCode).
-interface ZstdInitMessage {
-  type: "init_complete";
-  success: boolean;
-  error?: string;
-}
-
-interface ZstdDecompressMessage {
-  requestId: number;
-  success: boolean;
-  data?: Uint8Array;
-  error?: string;
-}
-
-/** Cached worker and blob URL */
 let zstdWorker: Worker | null = null;
-let blobURL: string | null = null;
 let workerInitPromise: Promise<Worker> | null = null;
-
-/** Request ID counter for worker messages */
 let nextRequestId = 0;
-
-/** Pending decompression requests */
 const pendingRequests = new Map<
   number,
   { resolve: (value: Uint8Array) => void; reject: (error: Error) => void }
 >();
 
-/** Whether message handlers have been attached to the worker */
-let handlersAttached = false;
+function messageError(message: object, fallback: string): Error {
+  return new Error(
+    "error" in message && typeof message.error === "string"
+      ? message.error
+      : fallback
+  );
+}
 
-/**
- * Gets or creates the zstd decompression worker.
- * Uses a Blob URL to work in VSCode webviews which have CORS restrictions.
- * Returns a promise that resolves when the worker is fully initialized.
- */
 function getZstdWorker(): Promise<Worker> {
-  if (workerInitPromise) {
-    return workerInitPromise;
+  if (workerInitPromise) return workerInitPromise;
+  const blobURL = URL.createObjectURL(
+    new Blob([kZstdWorkerCode], { type: "application/javascript" })
+  );
+  let worker: Worker;
+  try {
+    worker = new Worker(blobURL);
+  } finally {
+    URL.revokeObjectURL(blobURL);
   }
-
+  zstdWorker = worker;
   workerInitPromise = new Promise((resolve, reject) => {
-    // Create worker from inline code using Blob URL
-    // This avoids CORS issues in VSCode webviews
-    const blob = new Blob([kZstdWorkerCode], {
-      type: "application/javascript",
-    });
-    blobURL = URL.createObjectURL(blob);
-    zstdWorker = new Worker(blobURL);
-
-    // Wait for init confirmation before resolving
-    const initHandler = (event: MessageEvent) => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- worker message boundary: MessageEvent.data is `any`, and the payload is only what our own zstd worker posts back
-      const message = event.data as ZstdInitMessage;
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the assertion above names the message we want; other message types reach this same listener at runtime
-      if (message.type === "init_complete") {
-        zstdWorker!.removeEventListener("message", initHandler);
-        if (message.success) {
-          resolve(zstdWorker!);
-        } else {
-          reject(new Error(message.error || "Worker initialization failed"));
-        }
-      }
+    const fail = (error: Error) => {
+      if (zstdWorker !== worker) return;
+      reject(error);
+      for (const pending of pendingRequests.values()) pending.reject(error);
+      pendingRequests.clear();
+      worker.terminate();
+      zstdWorker = null;
+      workerInitPromise = null;
     };
-    zstdWorker.addEventListener("message", initHandler);
-
-    // Send the fzstd library code to initialize the worker
-    zstdWorker.postMessage({
-      type: "init",
-      scriptContent: kFzstdBase64,
+    worker.addEventListener("error", (event: ErrorEvent) =>
+      fail(new Error(`Worker error: ${event.message}`))
+    );
+    worker.addEventListener("messageerror", () =>
+      fail(new Error("Worker response could not be deserialized"))
+    );
+    worker.addEventListener("message", (event: MessageEvent<unknown>) => {
+      const message = event.data;
+      if (typeof message !== "object" || message === null) return;
+      if ("type" in message && message.type === "init_complete") {
+        if ("success" in message && message.success === true) resolve(worker);
+        else fail(messageError(message, "Worker initialization failed"));
+        return;
+      }
+      if (!("requestId" in message) || typeof message.requestId !== "number")
+        return;
+      const pending = pendingRequests.get(message.requestId);
+      if (!pending) return;
+      pendingRequests.delete(message.requestId);
+      if (
+        "success" in message &&
+        message.success === true &&
+        "data" in message &&
+        message.data instanceof Uint8Array
+      ) {
+        pending.resolve(message.data);
+      } else {
+        pending.reject(messageError(message, "Decompression failed"));
+      }
+    });
+    // Defer posting until the promise is cached, so synchronous send failures
+    // can clear it and allow the next read to initialize a fresh worker.
+    queueMicrotask(() => {
+      try {
+        worker.postMessage({ type: "init", scriptContent: kFzstdBase64 });
+      } catch (error) {
+        fail(error instanceof Error ? error : new Error(String(error)));
+      }
     });
   });
-
   return workerInitPromise;
+}
+
+/**
+ * Drop the cached worker so the next large read starts a fresh one. For
+ * tests: the worker is a module-level singleton, and a test file that
+ * installs its own `Worker` and terminates the threads it created must also
+ * forget the promise here, or the next file sharing this module graph posts
+ * to a dead worker and never hears back.
+ */
+export function resetZstdWorker(): void {
+  zstdWorker?.terminate();
+  zstdWorker = null;
+  workerInitPromise = null;
+  pendingRequests.clear();
 }
 
 /**
  * Decompresses zstd-compressed data.
  *
- * For small payloads (< 1MB), uses synchronous decompression.
+ * For payloads with both compressed and expected output sizes below 1MB, uses synchronous decompression.
  * For larger payloads, uses a Web Worker to avoid blocking the main thread.
  *
  * Data transfer efficiency:
@@ -181,15 +128,24 @@ function getZstdWorker(): Promise<Worker> {
  * - Output data is transferred (zero-copy) back from the worker
  *
  * @param data - The zstd-compressed data
+ * @param expectedSize - Validated ZIP output size, enforced while streaming
  * @returns Promise resolving to the decompressed data
  */
-export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
+export async function decompressZstd(
+  data: Uint8Array,
+  expectedSize: number
+): Promise<Uint8Array> {
   // Check window size before attempting decompression
-  validateZstdWindowSize(data);
+  const requiresWorker =
+    decoder.scanFrames(data, expectedSize) >= WORKER_THRESHOLD;
 
   // For small data, synchronous is faster (avoids worker overhead)
-  if (data.length < WORKER_THRESHOLD) {
-    return decompressZstdSync(data);
+  if (
+    !requiresWorker &&
+    data.length < WORKER_THRESHOLD &&
+    expectedSize < WORKER_THRESHOLD
+  ) {
+    return decoder.decompress(data, expectedSize);
   }
 
   // For large data, use Web Worker to avoid blocking UI
@@ -201,48 +157,21 @@ export async function decompressZstd(data: Uint8Array): Promise<Uint8Array> {
 
     pendingRequests.set(requestId, { resolve, reject });
 
-    // Only add listeners once
-    if (!handlersAttached) {
-      handlersAttached = true;
-
-      worker.addEventListener("message", (event: MessageEvent) => {
-        const {
-          requestId: respId,
-          success,
-          data: resultData,
-          error,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- worker message boundary: see initHandler above
-        } = event.data as ZstdDecompressMessage;
-        const pending = pendingRequests.get(respId);
-        if (!pending) return;
-
-        pendingRequests.delete(respId);
-
-        if (success && resultData) {
-          pending.resolve(resultData);
-        } else {
-          pending.reject(new Error(error || "Decompression failed"));
-        }
-      });
-
-      worker.addEventListener("error", (error: ErrorEvent) => {
-        // Reject all pending requests on worker error
-        for (const [id, pending] of pendingRequests) {
-          pending.reject(new Error(`Worker error: ${error.message}`));
-          pendingRequests.delete(id);
-        }
-      });
-    }
-
     // Transfer the input buffer to avoid copying (zero-copy transfer)
     // Note: After transfer, the original data.buffer becomes detached/unusable
-    worker.postMessage(
-      {
-        type: "decompress",
-        requestId,
-        data,
-      },
-      [data.buffer]
-    );
+    try {
+      worker.postMessage(
+        {
+          type: "decompress",
+          requestId,
+          data,
+          expectedSize,
+        },
+        [data.buffer]
+      );
+    } catch (error) {
+      pendingRequests.delete(requestId);
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
   });
 }

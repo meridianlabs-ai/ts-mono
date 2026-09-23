@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { CSSProperties, FC, useMemo } from "react";
 
 import { ToolDropdownButton } from "@tsmono/react/components";
+import { valueAsString } from "@tsmono/util";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
@@ -19,7 +20,6 @@ import {
   useScorePanelSort,
   useScorePanelView,
 } from "../../../state/hooks";
-import { valueAsString } from "../../../utils/format";
 import {
   colorForValue,
   resolveScale,

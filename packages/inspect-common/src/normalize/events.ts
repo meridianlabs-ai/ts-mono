@@ -22,6 +22,32 @@ export const normalizeModelUsage = (raw: unknown): ModelUsage | undefined => {
 };
 
 /**
+ * ChatCompletionChoice rows: `stop_reason` defaults to "unknown" upstream.
+ * Rows that aren't records are dropped — pydantic would refuse them.
+ * Identity-preserving when nothing needs filling.
+ */
+const normalizeChoices = (raw: unknown): unknown[] => {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  let changed = false;
+  const choices: unknown[] = [];
+  for (const choice of raw as unknown[]) {
+    if (!isRecord(choice)) {
+      changed = true;
+      continue;
+    }
+    if (typeof choice["stop_reason"] !== "string") {
+      changed = true;
+      choices.push({ ...choice, stop_reason: "unknown" });
+    } else {
+      choices.push(choice);
+    }
+  }
+  return changed ? choices : raw;
+};
+
+/**
  * The ModelOutput pydantic constructs when a field is absent
  * (`output: ModelOutput = Field(default_factory=ModelOutput)`).
  */
@@ -42,7 +68,10 @@ export const normalizeModelOutput = (raw: unknown): ModelOutput => {
   }
   const fixes: Record<string, unknown> = {};
   if (typeof raw["model"] !== "string") fixes["model"] = "";
-  if (!Array.isArray(raw["choices"])) fixes["choices"] = [];
+  {
+    const choices = normalizeChoices(raw["choices"]);
+    if (choices !== raw["choices"]) fixes["choices"] = choices;
+  }
   if (typeof raw["completion"] !== "string") fixes["completion"] = "";
   const usage = raw["usage"];
   if (isRecord(usage)) {
@@ -61,6 +90,21 @@ const normalizeScore = (raw: unknown): Record<string, unknown> => {
   const fixes: Record<string, unknown> = {};
   if (raw["value"] === undefined) fixes["value"] = "";
   if (!Array.isArray(raw["history"])) fixes["history"] = [];
+  return Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
+};
+
+/**
+ * ScoreEdit: `value` and `metadata` default to the "UNCHANGED" sentinel
+ * upstream. Neither admits null, so an explicit wire null fills like an
+ * absence. A non-record edit is degradation — pydantic would refuse it.
+ */
+const normalizeScoreEdit = (raw: unknown): Record<string, unknown> => {
+  if (!isRecord(raw)) {
+    return { value: "UNCHANGED", metadata: "UNCHANGED" };
+  }
+  const fixes: Record<string, unknown> = {};
+  if (raw["value"] == null) fixes["value"] = "UNCHANGED";
+  if (raw["metadata"] == null) fixes["metadata"] = "UNCHANGED";
   return Object.keys(fixes).length > 0 ? { ...raw, ...fixes } : raw;
 };
 
@@ -150,6 +194,13 @@ const eventFixes = (
         if (score !== raw["score"]) fix("score", score);
       }
       if (typeof raw["intermediate"] !== "boolean") fix("intermediate", false);
+      break;
+    case "score_edit":
+      if (typeof raw["score_name"] !== "string") fix("score_name", "");
+      {
+        const edit = normalizeScoreEdit(raw["edit"]);
+        if (edit !== raw["edit"]) fix("edit", edit);
+      }
       break;
     case "state":
     case "store":

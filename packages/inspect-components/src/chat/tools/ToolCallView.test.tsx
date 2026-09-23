@@ -2,11 +2,8 @@
 import { cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
-import { ResizeObserverStub } from "@tsmono/react/testing";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../../content/DisplayModeContext";
 
@@ -16,18 +13,9 @@ import { ToolOutput } from "./ToolOutput";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
-
 const renderToolCall = (output: string, displayMode: "rendered" | "raw") =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <DisplayModeContext.Provider value={{ displayMode }}>
         <ToolCallView
           id="tool-call"
@@ -45,7 +33,7 @@ const renderClientToolCall = (
   displayMode: "rendered" | "raw"
 ) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <DisplayModeContext.Provider value={{ displayMode }}>
         <ClientToolCall
           id="client-tool-call"
@@ -59,9 +47,11 @@ const renderClientToolCall = (
 
 const renderToolOutput = (output: string, displayMode: "rendered" | "raw") =>
   render(
-    <DisplayModeContext.Provider value={{ displayMode }}>
-      <ToolOutput output={output} />
-    </DisplayModeContext.Provider>
+    <ComponentStateProvider hooks={makeStateHooks()}>
+      <DisplayModeContext.Provider value={{ displayMode }}>
+        <ToolOutput output={output} />
+      </DisplayModeContext.Provider>
+    </ComponentStateProvider>
   );
 
 afterEach(() => {
@@ -114,7 +104,7 @@ describe("ToolCallView display modes", () => {
 describe("ClientToolCall errors", () => {
   it("shows the annotated screenshot alongside a tool error", () => {
     const { container } = render(
-      <ComponentStateProvider hooks={stateHooks}>
+      <ComponentStateProvider hooks={makeStateHooks()}>
         <DisplayModeContext.Provider value={{ displayMode: "rendered" }}>
           <ClientToolCall
             id="failed-click"
@@ -137,5 +127,36 @@ describe("ClientToolCall errors", () => {
 
     expect(container.textContent).toContain("click timed out");
     expect(container.querySelector("img")).not.toBeNull();
+  });
+});
+
+// Tool output is log content; output that merely looks like JSON must never
+// throw out of render.
+describe("ToolOutput JSON-looking text", () => {
+  it("renders a JSON object as a record tree", async () => {
+    const { container } = renderToolOutput('{"answer": 42}', "rendered");
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("42");
+    });
+    expect(container.querySelector(".record-tree-key")).not.toBeNull();
+  });
+
+  it("renders a JSON object padded with a non-JSON space as a record tree", async () => {
+    const { container } = renderToolOutput(
+      '\u00A0{"answer": 42}\uFEFF',
+      "rendered"
+    );
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("42");
+    });
+    expect(container.querySelector(".record-tree-key")).not.toBeNull();
+  });
+
+  it("renders brace-wrapped non-JSON as text", () => {
+    const { container } = renderToolOutput("{not json}", "rendered");
+
+    expect(container.querySelector("code")?.textContent).toBe("{not json}");
   });
 });

@@ -1,4 +1,4 @@
-import { decompress } from "fflate";
+import { AsyncInflate } from "fflate";
 
 import { decompressZstd } from "./zstd-worker";
 
@@ -35,7 +35,7 @@ export class UnsupportedCompressionError extends Error {
  *
  * @param data - The compressed data
  * @param compressionMethod - ZIP compression method code
- * @param uncompressedSize - Expected uncompressed size (used by deflate)
+ * @param uncompressedSize - Expected uncompressed size, also the streaming output limit
  * @param filename - Filename for error messages
  * @returns Decompressed data
  */
@@ -53,27 +53,61 @@ export async function decompressData(
       return decompressDeflate(data, uncompressedSize);
 
     case CompressionMethod.ZSTANDARD:
-      return decompressZstd(data);
+      return decompressZstd(data, uncompressedSize);
 
     default:
       throw new UnsupportedCompressionError(compressionMethod, filename);
   }
 }
 
-/**
- * Deflate decompression using fflate's async worker-based API.
- */
+// Feed small chunks only after their output arrives. fflate's one-shot size
+// hint allocates attacker-declared bytes up front and silently truncates excess.
 async function decompressDeflate(
   data: Uint8Array,
   size: number
 ): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
-    decompress(data, { size }, (err, result) => {
-      if (err) {
-        reject(err);
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    let position = 0;
+    const stream = new AsyncInflate((error, chunk, final) => {
+      if (error) {
+        stream.terminate();
+        reject(error);
+        return;
+      }
+      loaded += chunk.length;
+      if (loaded > size || (final && loaded !== size)) {
+        stream.terminate();
+        reject(
+          new Error("Decompressed ZIP entry size does not match its directory")
+        );
+        return;
+      }
+      chunks.push(chunk);
+      if (final) {
+        stream.terminate();
+        const output = new Uint8Array(loaded);
+        let offset = 0;
+        for (const part of chunks) {
+          output.set(part, offset);
+          offset += part.length;
+        }
+        resolve(output);
       } else {
-        resolve(result);
+        push();
       }
     });
+    function push() {
+      const end = Math.min(position + 8 * 1024, data.length);
+      try {
+        stream.push(data.slice(position, end), end === data.length);
+        position = end;
+      } catch (error) {
+        stream.terminate();
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    }
+    push();
   });
 }

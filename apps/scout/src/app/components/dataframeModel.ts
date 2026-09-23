@@ -4,9 +4,7 @@ import type {
   FilterType,
   UiOperator,
 } from "@tsmono/inspect-components/columnFilter";
-import { centerTruncate } from "@tsmono/util";
-
-import { valueAsString } from "../utils/format";
+import { centerTruncate, valueAsString } from "@tsmono/util";
 
 export type DataframeRow = Record<string, unknown>;
 

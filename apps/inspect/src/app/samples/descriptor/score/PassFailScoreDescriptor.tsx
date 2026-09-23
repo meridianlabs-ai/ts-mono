@@ -1,8 +1,9 @@
 import clsx from "clsx";
 
+import { valueAsString } from "@tsmono/util";
+
 import { ScoreValue } from "../../../../@types/extraInspect";
 import { kScoreTypePassFail } from "../../../../constants";
-import { valueAsString } from "../../../../utils/format";
 import { ScoreDescriptor, SelectedScore } from "../types";
 
 import styles from "./PassFailScoreDescriptor.module.css";

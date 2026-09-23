@@ -1,4 +1,4 @@
-import { ApiError } from "../../../client/api/view-server/request";
+import { ApiError } from "@tsmono/util";
 
 // Shared mapper used by both edit dialogs.
 //

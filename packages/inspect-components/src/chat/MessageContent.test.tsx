@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type {
   ContentData,
+  ContentReasoning,
   ContentText,
   ContentToolUse,
 } from "@tsmono/inspect-common/types";
@@ -185,5 +186,77 @@ describe("MessageContent log-supplied link hrefs", () => {
       expect(container.querySelector("a")).toBeNull();
       expect(tooltips(container)).toContain(url);
     });
+  });
+});
+
+// Text and reasoning blocks come from the log; a block that merely looks like
+// JSON must never throw out of render (that unmounts the whole viewer).
+describe("MessageContent JSON-looking blocks", () => {
+  const text = (t: string): ContentText => ({
+    type: "text",
+    text: t,
+    citations: null,
+  });
+
+  const reasoning = (r: string): ContentReasoning => ({
+    type: "reasoning",
+    reasoning: r,
+    redacted: false,
+  });
+
+  it("renders a JSON object text block as a record tree", async () => {
+    const { container } = renderMessage([text('{"answer": 42}')]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("42");
+    });
+    expect(container.querySelector(".record-tree-key")).not.toBeNull();
+  });
+
+  it.each([
+    ["NBSP", "\u00A0"],
+    ["BOM", "\uFEFF"],
+    ["LINE SEPARATOR", "\u2028"],
+  ])(
+    "renders a JSON object text block padded with %s as a record tree",
+    async (_label, pad) => {
+      const { container } = renderMessage([text(`${pad}{"answer": 42}${pad}`)]);
+
+      await waitFor(() => {
+        expect(container.textContent).toContain("42");
+      });
+      expect(container.querySelector(".record-tree-key")).not.toBeNull();
+    }
+  );
+
+  it("renders a brace-wrapped non-JSON text block as text", async () => {
+    const { container } = renderMessage([text("{not json}")]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("{not json}");
+    });
+    expect(container.querySelector(".record-tree-key")).toBeNull();
+  });
+
+  it("pretty-prints OpenRouter-style reasoning as JSON", async () => {
+    const { container } = renderMessage([
+      reasoning("[{'format': 'unknown', 'text': 'thinking'}]"),
+    ]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("thinking");
+    });
+    expect(container.querySelector("code.language-json")?.textContent).toBe(
+      JSON.stringify([{ format: "unknown", text: "thinking" }], null, 2)
+    );
+  });
+
+  it("renders reasoning with an OpenRouter prefix but invalid JSON5 as text", async () => {
+    const { container } = renderMessage([reasoning("[{'format' oops")]);
+
+    await waitFor(() => {
+      expect(container.textContent).toContain("[{'format' oops");
+    });
+    expect(container.querySelector("code.language-json")).toBeNull();
   });
 });

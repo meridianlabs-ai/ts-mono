@@ -157,8 +157,7 @@ export const ValidationCaseEditor: FC<ValidationCaseEditorProps> = ({
       {!error && (
         <>
           <LoadingBar loading={loading} />
-          {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
-          {showPanel && setsData && (
+          {showPanel && (
             <ValidationCaseEditorComponent
               // Remount per (set, transcript) so per-case UI state — the
               // unsaved draft in particular — never carries across cases.
@@ -480,8 +479,7 @@ const ValidationCaseEditorComponent: FC<ValidationCaseEditorComponentProps> = ({
           <SecondaryDisplayValue label="ID" value={transcriptId} />
           <Field label="Validation Set">
             <ValidationSetSelector
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              validationSets={validationSets || []}
+              validationSets={validationSets}
               selectedUri={editorValidationSetUri}
               onSelect={handleValidationSetSelect}
               allowCreate={true}

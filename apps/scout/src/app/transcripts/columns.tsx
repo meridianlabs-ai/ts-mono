@@ -6,6 +6,7 @@ import {
   formatTime,
   printArray,
   printObject,
+  valueAsString,
 } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
@@ -13,7 +14,6 @@ import { FilterType } from "../../state/store";
 import { TranscriptInfo } from "../../types/api-types";
 import type { AvailableColumn } from "../components/columnFilter";
 import type { ExtendedColumnDef } from "../components/columnTypes";
-import { valueAsString } from "../utils/format";
 
 import styles from "./columns.module.css";
 

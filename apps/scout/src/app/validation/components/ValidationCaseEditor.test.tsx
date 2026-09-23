@@ -146,6 +146,9 @@ describe("ValidationCaseEditor", () => {
     cleanup();
   });
 
+  // First test in the file: it pays the cold-start render of the Lit web
+  // components on top of the 600ms typing debounce, which lands at 3-5s on a
+  // loaded CI runner and trips the 5s default.
   it("does not save a new case until it has a target, then saves what was typed", async () => {
     const { requests, postBodies } = installCaseServer(new Map());
     await renderEditor("t1");
@@ -173,7 +176,7 @@ describe("ValidationCaseEditor", () => {
     await screen.findByText("Saved");
     expect(targetInput().value).toBe("foo");
     expect(radio("Other").checked).toBe(true);
-  });
+  }, 15_000);
 
   it("keeps the unsaved draft out of the cache and off other transcripts", async () => {
     const { requests } = installCaseServer(new Map());

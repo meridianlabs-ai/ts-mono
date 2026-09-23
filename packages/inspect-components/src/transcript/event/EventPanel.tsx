@@ -507,8 +507,7 @@ export const EventPanel: FC<EventPanelProps> = ({
             <div
               key={`children-${id}-${index}`}
               id={id}
-              // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-              className={clsx("tab-pane", "show", isSelected ? "active" : "")}
+              className={clsx("tab-pane", "show", "active")}
             >
               {child}
             </div>

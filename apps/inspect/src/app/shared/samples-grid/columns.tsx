@@ -3,7 +3,13 @@ import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
-import { arrayToString, filename, formatNumber, getOwn } from "@tsmono/util";
+import {
+  arrayToString,
+  filename,
+  formatNumber,
+  getOwn,
+  valueAsString,
+} from "@tsmono/util";
 
 import { ScoreLabel } from "../../../app/types";
 import { SampleSummary } from "../../../client/api/types";
@@ -12,11 +18,7 @@ import {
   kScoreTypeNumeric,
   kScoreTypePassFail,
 } from "../../../constants";
-import {
-  formatDateTime,
-  formatTime,
-  valueAsString,
-} from "../../../utils/format";
+import { formatDateTime, formatTime } from "../../../utils/format";
 import { SamplesDescriptor } from "../../samples/descriptor/samplesDescriptor";
 import {
   samplesOperatorsForKind,

@@ -1,7 +1,6 @@
-import { asyncJsonParseBytes, logFetchInit } from "@tsmono/util";
+import { ApiError, asyncJsonParseBytes, logFetchInit } from "@tsmono/util";
 
 import { PendingSampleUrls, SampleData, SegmentRef } from "../api/types";
-import { ApiError } from "../api/view-server/request";
 
 import { openZipFileFromBuffer } from "./remoteZipFile";
 

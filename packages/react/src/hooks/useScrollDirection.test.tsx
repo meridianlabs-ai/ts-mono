@@ -10,6 +10,7 @@ import {
 
 afterEach(() => {
   vi.useRealTimers();
+  vi.restoreAllMocks();
   cleanup();
 });
 
@@ -144,5 +145,111 @@ describe("useScrollDirection transition lock semantics", () => {
       scrollTo(500 + i * 60);
     }
     expect(api!.hidden).toBe(true);
+  });
+});
+
+function MultiHarness({
+  refs,
+  onHidden,
+}: {
+  refs: RefObject<HTMLElement | null>[];
+  onHidden: (hidden: boolean) => void;
+}) {
+  const { hidden } = useScrollDirection(refs);
+  onHidden(hidden);
+  return null;
+}
+
+const scrollDown = (el: HTMLElement) => {
+  el.scrollTop = 200;
+  act(() => {
+    el.dispatchEvent(new Event("scroll"));
+  });
+};
+
+describe("useScrollDirection with a list of scrollers", () => {
+  it("follows a list that changes length between renders", async () => {
+    const consoleError = vi.spyOn(console, "error");
+    const refs: RefObject<HTMLElement | null>[] = [1, 2, 3].map(() => ({
+      current: makeScrollableEl(),
+    }));
+    const added: RefObject<HTMLElement | null> = {
+      current: makeScrollableEl(),
+    };
+    let hidden: boolean | undefined;
+    const { rerender } = render(
+      <MultiHarness refs={refs} onHidden={(h) => (hidden = h)} />
+    );
+
+    await act(async () => {
+      rerender(
+        <MultiHarness refs={[...refs, added]} onHidden={(h) => (hidden = h)} />
+      );
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    scrollDown(added.current!);
+
+    expect(hidden).toBe(true);
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it("keeps its state when the caller passes a fresh array of the same refs", () => {
+    const refs: RefObject<HTMLElement | null>[] = [1, 2].map(() => ({
+      current: makeScrollableEl(),
+    }));
+    let hidden: boolean | undefined;
+    const { rerender } = render(
+      <MultiHarness refs={[...refs]} onHidden={(h) => (hidden = h)} />
+    );
+    scrollDown(refs[0]!.current!);
+    expect(hidden).toBe(true);
+
+    rerender(<MultiHarness refs={[...refs]} onHidden={(h) => (hidden = h)} />);
+
+    expect(hidden).toBe(true);
+  });
+
+  it("stays collapsed when a secondary scroller joins the list", () => {
+    const refs: RefObject<HTMLElement | null>[] = [1, 2].map(() => ({
+      current: makeScrollableEl(),
+    }));
+    const added: RefObject<HTMLElement | null> = {
+      current: makeScrollableEl(),
+    };
+    let hidden: boolean | undefined;
+    const { rerender } = render(
+      <MultiHarness refs={refs} onHidden={(h) => (hidden = h)} />
+    );
+    scrollDown(refs[0]!.current!);
+    expect(hidden).toBe(true);
+
+    rerender(
+      <MultiHarness refs={[...refs, added]} onHidden={(h) => (hidden = h)} />
+    );
+
+    // The primary scroller is still scrolled down, so the headroom must not
+    // re-expand just because another tab's scroller appeared.
+    expect(hidden).toBe(true);
+  });
+
+  it("re-expands when the primary scroller is replaced", () => {
+    const refs: RefObject<HTMLElement | null>[] = [1, 2].map(() => ({
+      current: makeScrollableEl(),
+    }));
+    const primary: RefObject<HTMLElement | null> = {
+      current: makeScrollableEl(),
+    };
+    let hidden: boolean | undefined;
+    const { rerender } = render(
+      <MultiHarness refs={refs} onHidden={(h) => (hidden = h)} />
+    );
+    scrollDown(refs[0]!.current!);
+    expect(hidden).toBe(true);
+
+    rerender(
+      <MultiHarness refs={[primary, refs[1]!]} onHidden={(h) => (hidden = h)} />
+    );
+
+    expect(hidden).toBe(false);
   });
 });

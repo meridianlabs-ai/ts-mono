@@ -175,3 +175,35 @@ describe("injectReferenceLinks attribute escaping", () => {
     expect(anchor?.attributes).toHaveLength(3);
   });
 });
+
+describe("injectReferenceLinks on adversarial input", () => {
+  it("runs in linear time on a long run of unclosed brackets", () => {
+    const refs = [makeRef("M1", "msg-1")];
+    const html = "[".repeat(250_000);
+    const start = performance.now();
+    const result = injectReferenceLinks(html, refs, CITE_CLASS);
+    const ms = performance.now() - start;
+    expect(result).toBe(html);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("runs in linear time on a long run of ordinals with no closing bracket", () => {
+    const refs = [makeRef("M1", "msg-1")];
+    const html = "[" + "M1 ".repeat(100_000);
+    const start = performance.now();
+    const result = injectReferenceLinks(html, refs, CITE_CLASS);
+    const ms = performance.now() - start;
+    expect(result).toBe(html);
+    expect(ms).toBeLessThan(1000);
+  });
+
+  it("links every ordinal in a bracket that spans lines and nested brackets", () => {
+    const refs = [makeRef("M1", "msg-1"), makeRef("E2", "evt-2")];
+    expect(injectReferenceLinks("[a\n[M1, E2] tail", refs, CITE_CLASS)).toBe(
+      `[a\n[${link("M1", "msg-1")}, ${link("E2", "evt-2")}] tail`
+    );
+    expect(injectReferenceLinks("[x] [M1]", refs, CITE_CLASS)).toBe(
+      `[x] [${link("M1", "msg-1")}]`
+    );
+  });
+});

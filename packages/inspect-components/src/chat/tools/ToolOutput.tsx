@@ -5,9 +5,8 @@ import type { Content } from "@tsmono/inspect-common/types";
 import { ANSIDisplay } from "@tsmono/react/components";
 import {
   isAnsiOutput,
-  isJson,
-  isRecord,
   isRenderableImageSource,
+  parseJsonRecord,
 } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
@@ -70,8 +69,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
         if (out.reasoning) {
           outputs.push(<ToolTextOutput text={out.reasoning} key={key} />);
         }
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      } else if (out.type === "data" && out.data) {
+      } else if (out.type === "data") {
         outputs.push(
           <ToolTextOutput text={JSON.stringify(out.data)} key={key} />
         );
@@ -95,21 +93,11 @@ interface ToolTextOutputProps {
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
 
-  if (displayMode === "rendered" && isJson(text)) {
-    const obj: unknown = JSON.parse(text);
-    if (isRecord(obj)) {
+  if (displayMode === "rendered") {
+    const obj = parseJsonRecord(text);
+    if (obj) {
       return <JsonMessageContent id={`1-json`} json={obj} />;
     }
-  }
-
-  // It could have ANSI codes
-  if (displayMode === "rendered" && isAnsiOutput(text)) {
-    return (
-      <ANSIDisplay
-        output={text}
-        style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
-      />
-    );
   }
 
   // A multi-megabyte tool result becomes a single ~1,000,000px-tall <pre>,
@@ -118,6 +106,19 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   // a fixed-height scroller does not help because the off-screen content is
   // still layerized.
   const { text: capped, notice } = cappedText(text);
+
+  // It could have ANSI codes. Detection is bounded to the capped prefix so
+  // log-authored output can never feed the regex an unbounded string; the
+  // ANSI renderer still receives the full text as before.
+  if (displayMode === "rendered" && isAnsiOutput(capped)) {
+    return (
+      <ANSIDisplay
+        output={text}
+        style={{ fontSize: "clamp(0.4rem, 1.15vw, 0.9rem)" }}
+      />
+    );
+  }
+
   return (
     <>
       <pre className={clsx(styles.textOutput, "tool-output")}>

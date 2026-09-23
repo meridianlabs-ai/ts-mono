@@ -38,6 +38,7 @@ import {
   type SampleSkeleton,
   type SkeletonEvent,
 } from "../../../../log_data";
+import { installNodeBlobWorker } from "../../../../test/nodeBlobWorker";
 import { resolveAttachments } from "../../../../utils/attachments";
 
 import {
@@ -233,3 +234,5 @@ describe("chunked outline twin (real pipeline: real events vs synthetic)", () =>
     ]);
   });
 });
+
+installNodeBlobWorker();

@@ -28,6 +28,9 @@ export const fromLogRecord = (record: LogRecord): Log => {
   return { ...rest, name: file_path };
 };
 
+/** Primary key of `sample_summaries`: `[file_path+id+epoch]`. */
+export type SampleSummaryKey = [string, string | number, number];
+
 // Sample Summaries Table - one row per sample summary, split out of the
 // details payload at ingestion.
 export interface SampleSummaryRecord {
@@ -60,7 +63,7 @@ export interface SyncScopeRecord {
 // The schema's shape version — bump on any table/index change, or when the
 // shape of stored row content changes (e.g. boundary normalization now fills
 // fields rows cached before it existed would lack).
-const SCHEMA_VERSION = 15;
+const SCHEMA_VERSION = 16;
 
 // Runtime backstop for derive.ts's DeriveVersion type constraint: at 100 the
 // composition below aliases into the next schema version's namespace, and an
@@ -98,10 +101,7 @@ export const scopePrefix = (dir: string): string =>
 
 export class AppDatabase extends Dexie {
   logs!: Dexie.Table<LogRecord, number>;
-  sample_summaries!: Dexie.Table<
-    SampleSummaryRecord,
-    [string, string | number, number]
-  >;
+  sample_summaries!: Dexie.Table<SampleSummaryRecord, SampleSummaryKey>;
   sync_scopes!: Dexie.Table<SyncScopeRecord, string>;
 
   /**

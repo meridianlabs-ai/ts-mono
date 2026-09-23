@@ -1,7 +1,11 @@
 import { useCallback, useMemo } from "react";
 import { useLocation, useParams } from "react-router";
 
-import { directoryRelativeUrl, encodePathParts } from "@tsmono/util";
+import {
+  directoryRelativeUrl,
+  encodePathParts,
+  tryDecodeURIComponent,
+} from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
 import {
@@ -21,12 +25,7 @@ export const decodeUrlParam = (
   param: string | undefined
 ): string | undefined => {
   if (!param) return param;
-  try {
-    return decodeURIComponent(param);
-  } catch {
-    // If decoding fails, return the original string
-    return param;
-  }
+  return tryDecodeURIComponent(param);
 };
 
 /**

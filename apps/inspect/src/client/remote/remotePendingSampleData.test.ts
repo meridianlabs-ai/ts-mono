@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
-import { logFetchInit } from "@tsmono/util";
-
-import { ApiError } from "../api/view-server/request";
+import { ApiError, logFetchInit } from "@tsmono/util";
 
 import {
   fetchPendingSampleDataDirect,
