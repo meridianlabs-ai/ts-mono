@@ -1,4 +1,4 @@
-/// <reference types="@tsmono/util/worker-url" />
+/// <reference types="@tsmono/util/vite-imports" />
 /**
  * ZIP entry decompression (zstd and DEFLATE) via Web Worker.
  *

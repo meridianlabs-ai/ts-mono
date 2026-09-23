@@ -1,4 +1,4 @@
-/// <reference types="./worker-url.d.ts" />
+/// <reference types="./vite-imports.d.ts" />
 import JSON5 from "json5";
 
 import {
