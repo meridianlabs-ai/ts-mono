@@ -16,9 +16,13 @@ import {
 import { normalizeEvalHeader } from "../client/utils/normalize";
 import { queryClient } from "../state/queryClient";
 
+import type { Log } from "../client/api/types";
+
 import {
   clearFile,
+  createLogsContentSink,
   logKey,
+  logsKey,
   mergeFetchStates,
   setListing,
   writeDetails,
@@ -186,5 +190,45 @@ describe("mergeFetchStates", () => {
     mergeFetchStates("/logs", { "/logs/a.eval": fetchState });
 
     expect(queryClient.getQueryState(key)).toBeUndefined();
+  });
+});
+
+describe("sink mergeRows", () => {
+  const row = (name: string, status: Log["status"]): Log => ({
+    name,
+    depth: "previewed",
+    status,
+    preview_attempts: 0,
+    details_attempts: 0,
+    details_settled_seq: 0,
+  });
+
+  afterEach(() => {
+    queryClient.clear();
+  });
+
+  test("upserts rows by name without dropping the rest of the listing", () => {
+    const sink = createLogsContentSink(null, "/logs");
+    sink.seedRows([
+      row("/logs/a.eval", "success"),
+      row("/logs/b.eval", "started"),
+      row("/logs/c.eval", "success"),
+    ]);
+
+    sink.mergeRows([
+      row("/logs/b.eval", "error"),
+      row("/logs/d.eval", "success"),
+    ]);
+
+    expect(
+      queryClient
+        .getQueryData<Log[]>(logsKey("/logs"))
+        ?.map((r) => [r.name, r.status])
+    ).toEqual([
+      ["/logs/a.eval", "success"],
+      ["/logs/b.eval", "error"],
+      ["/logs/c.eval", "success"],
+      ["/logs/d.eval", "success"],
+    ]);
   });
 });
