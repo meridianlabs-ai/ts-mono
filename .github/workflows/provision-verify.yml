@@ -119,3 +119,13 @@ jobs:
           set -euo pipefail
           sudo -u codex -H -- sh -c 'echo "codex PATH: $PATH"; command -v node || echo "node: not on PATH"'
           sudo -u codex -H -- /home/codex/.local/bin/pnpm check
+
+      # Probe for the review-1 follow-up (not the stubs' recipe): with pnpm
+      # also linked into the root node_modules/.bin, which pnpm puts on its
+      # scripts' PATH, does turbo find pnpm under the reset PATH?
+      - name: "Probe: pnpm check (reset PATH) with pnpm linked in node_modules/.bin"
+        if: always() && steps.setup.outcome == 'success'
+        run: |
+          set -euo pipefail
+          sudo -u codex -H -- ln -sf /home/codex/.local/bin/pnpm node_modules/.bin/pnpm
+          sudo -u codex -H -- /home/codex/.local/bin/pnpm check
