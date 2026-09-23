@@ -557,6 +557,10 @@ jobs:
           token: ${{ steps.mint.outputs.token }}
           # The manifest creates no issues.
           allowed-issue-repos: ""
+          # The composer opens the PR with no labels. A label land applies is
+          # the machine account's, and the loop gates trust its `auto`, so a
+          # manifest rewritten after the composer must not add any.
+          allowed-pr-labels: "[]"
           # The same value emit-landing got above: on a continued batch the
           # validator pins the manifest's pr_number to it and the branch to
           # that PR's live head ref; the push then updates the open PR and
