@@ -35,6 +35,7 @@ import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
 import { type PickerColumn } from "../shared/gridUtils";
+import { hashRouteHref } from "../shared/openInNewTab";
 import {
   buildSampleColumns,
   SCORE_FIELD_RAW_PREFIX,
@@ -370,13 +371,16 @@ export const SamplesPanel: FC = () => {
     return [_sampleRows, _hasRetriedLogs];
   }, [scopedSamples, currentDirLogFiles]);
 
-  const { navigateToSampleDetail } = useSamplesGridNavigationAction();
+  const { getSampleDetailUrl, navigateToSampleDetail } =
+    useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
       navigateToSampleDetail(row.logFile, row.sampleId, row.epoch);
     },
     [navigateToSampleDetail]
   );
+  const getRowHref = (row: SampleRow) =>
+    hashRouteHref(getSampleDetailUrl(row.logFile, row.sampleId, row.epoch));
 
   // Reflect the grid's post-filter/post-sort rows into store-backed
   // displayed-samples state (drives the footer count + cross-tab prev/next
@@ -503,6 +507,7 @@ export const SamplesPanel: FC = () => {
             selectedRowId={selectedRowId}
             onRowSelect={handleRowSelect}
             onRowOpen={handleRowOpen}
+            getRowHref={getRowHref}
             loading={isEmptyAndLoading}
           />
         )}

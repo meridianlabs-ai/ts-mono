@@ -16,6 +16,7 @@ import { useStore } from "../../../state/store";
 import { useSampleNavigationActions } from "../../routing/sampleNavigation";
 import { useLogRouteParams } from "../../routing/url";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes";
+import { hashRouteHref } from "../../shared/openInNewTab";
 import { isSampleOpenInRoute } from "../../shared/sample";
 import { SamplesGrid } from "../../shared/samples-grid/SamplesGrid";
 import { SampleRow } from "../../shared/samples-grid/types";
@@ -106,6 +107,11 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
     [sampleNavigation, routeSampleId, routeEpoch]
   );
 
+  const getRowHref = (row: SampleRow) => {
+    const url = sampleNavigation.getSampleUrl(row.sampleId, row.epoch);
+    return url ? hashRouteHref(url) : undefined;
+  };
+
   const getRowId = useCallback(
     (row: SampleRow) => makeSampleRowId(row.sampleId, row.epoch),
     []
@@ -188,6 +194,7 @@ export const SampleList: FC<SampleListProps> = memo((props) => {
         onRowSelect={handleRowSelect}
         scrollRef={scrollRef}
         onRowOpen={handleRowOpen}
+        getRowHref={getRowHref}
         columnFilters={columnFilters}
         onColumnFilterChange={onColumnFilterChange}
         hideColumnFilters={hideColumnFilters}

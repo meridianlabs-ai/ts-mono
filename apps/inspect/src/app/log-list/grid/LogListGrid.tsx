@@ -28,6 +28,7 @@ import {
   rowSearchText,
 } from "../../shared/data-grid/findMatches";
 import gridStyles from "../../shared/gridCells.module.css";
+import { hashRouteHref } from "../../shared/openInNewTab";
 import {
   useLogsListingMatches,
   type LogsListingDescriptor,
@@ -374,6 +375,7 @@ export const LogListGrid: FC<LogListGridProps> = ({
           selectedRowId={activeMatchId ?? persistedSelectedId}
           onSelectedRowChange={handleSelectedRowChange}
           onRowActivate={handleRowActivate}
+          getRowHref={(row) => (row.url ? hashRouteHref(row.url) : undefined)}
           autoFocus
           ariaLabel="Evaluation logs"
           loading={totalRowCount === 0 && busy}

@@ -34,6 +34,8 @@ import {
 } from "@tsmono/inspect-components/columnFilter";
 import { isRecord } from "@tsmono/util";
 
+import { openHrefInNewTab } from "../openInNewTab";
+
 import { computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
 import {
@@ -133,6 +135,11 @@ const kAfterRotatedGap = 24;
 // invisible.
 const kFitSlack = 4;
 
+/** A click the browser turns into "open link in a new tab/window". */
+function isNewTabClick(e: MouseEvent<HTMLElement>): boolean {
+  return e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1;
+}
+
 export interface DataGridProps<TRow extends RowData> {
   data: TRow[];
   columns: ExtendedColumnDef<TRow>[];
@@ -174,9 +181,13 @@ export interface DataGridProps<TRow extends RowData> {
    *  one so a parent can observe scrolling (e.g. title-bar collapse-on-scroll
    *  via `useScrollDirection`). */
   scrollRef?: RefObject<HTMLDivElement | null>;
-  /** Plain left-click on a row (modifier/middle clicks are left to in-cell
-   *  links). */
+  /** Plain left-click / Enter on a row. */
   onRowActivate: (row: TRow) => void;
+  /** Link target for a row. When set, the row renders as an `<a>` so native
+   *  link gestures (cmd/ctrl/shift/middle-click, context menu, hover
+   *  preview) open it in a new tab; plain clicks still go to
+   *  `onRowActivate`. Cmd/ctrl/shift+Enter opens it in a new tab too. */
+  getRowHref?: (row: TRow) => string | undefined;
   rowHeight?: number;
   headerHeight?: number;
   /** Tall, wrapping rows (list mode). Top-aligns cell content so a single-line
@@ -225,6 +236,7 @@ export function DataGrid<TRow extends RowData>({
   onSelectedRowChange,
   scrollRef,
   onRowActivate,
+  getRowHref,
   rowHeight = kRowHeight,
   headerHeight = kHeaderHeight,
   multiline = false,
@@ -661,10 +673,15 @@ export function DataGrid<TRow extends RowData>({
   }, [selectedId, rows, rowVirtualizer]);
 
   const handleRowClick = useCallback(
-    (e: MouseEvent<HTMLDivElement>, rowId: string, row: TRow) => {
-      // Modifier / middle clicks are handled by the in-cell <a> overlay
-      // (native open-in-new-tab); a plain left click selects + activates.
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    (e: MouseEvent<HTMLElement>, rowId: string, row: TRow) => {
+      // A new-tab gesture is left to the row's native <a> (which opens a
+      // background tab, unlike window.open); just move the selection onto
+      // the row so it's clear which one was opened.
+      if (isNewTabClick(e)) {
+        selectRow(rowId, row);
+        return;
+      }
+      e.preventDefault();
       // Pull focus to the grid so arrow-key navigation works after a click
       // (relevant when onRowActivate doesn't navigate away).
       containerRef.current?.focus();
@@ -700,7 +717,13 @@ export function DataGrid<TRow extends RowData>({
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         const row = currentIndex === -1 ? undefined : rows[currentIndex];
-        if (row) onRowActivate(row.original);
+        if (!row) return;
+        const href =
+          e.key === "Enter" && (e.metaKey || e.ctrlKey || e.shiftKey)
+            ? getRowHref?.(row.original)
+            : undefined;
+        if (href) openHrefInNewTab(href);
+        else onRowActivate(row.original);
         return;
       }
 
@@ -723,7 +746,7 @@ export function DataGrid<TRow extends RowData>({
       // pending scrollToIndex, so the effect's call wins anyway).
       selectRow(targetRow.id, targetRow.original);
     },
-    [rows, selectedId, onRowActivate, selectRow]
+    [rows, selectedId, onRowActivate, getRowHref, selectRow]
   );
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -1006,6 +1029,7 @@ export function DataGrid<TRow extends RowData>({
                 // subtract it.
                 top={virtualRow.start - effectiveHeaderHeight}
                 afterRotatedIds={afterRotatedIds}
+                href={getRowHref?.(row.original)}
                 onRowClick={handleRowClick}
               />
             );
@@ -1033,7 +1057,8 @@ interface GridRowProps<TRow extends RowData> {
   width: number;
   top: number;
   afterRotatedIds: ReadonlySet<string>;
-  onRowClick: (e: MouseEvent<HTMLDivElement>, rowId: string, row: TRow) => void;
+  href?: string;
+  onRowClick: (e: MouseEvent<HTMLElement>, rowId: string, row: TRow) => void;
 }
 
 function GridRowInner<TRow extends RowData>({
@@ -1044,57 +1069,88 @@ function GridRowInner<TRow extends RowData>({
   width,
   top,
   afterRotatedIds,
+  href,
   onRowClick,
 }: GridRowProps<TRow>): ReactElement {
+  const className = clsx(styles.row, isSelected && styles.rowSelected);
+  const style = {
+    height: rowHeight,
+    width,
+    transform: `translateY(${top}px)`,
+  };
+  const handleClick = (e: MouseEvent<HTMLElement>) =>
+    onRowClick(e, row.id, row.original);
+  const cells = row.getVisibleCells().map((cell, colIndex) => {
+    const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
+    const align = cellDef.meta?.align;
+    const cellStyle = cellDef.meta?.cellStyle?.(row.original);
+    const pinned = cell.column.getIsPinned() === "start";
+    return (
+      <div
+        key={cell.id}
+        className={clsx(
+          styles.cell,
+          align === "center" && styles.cellCenter,
+          pinned && styles.cellPinned
+        )}
+        style={{
+          width:
+            cell.column.getSize() +
+            (afterRotatedIds.has(cell.column.id) ? kAfterRotatedGap : 0),
+          ...(pinned && {
+            position: "sticky" as const,
+            left: cell.column.getStart("start"),
+            zIndex: 1,
+          }),
+          ...cellStyle,
+        }}
+        title={cellDef.titleValue?.(row.original)}
+        role="gridcell"
+        aria-colindex={colIndex + 1}
+        data-col-id={cell.column.id}
+      >
+        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+      </div>
+    );
+  });
+
+  if (href) {
+    return (
+      // A real link so the browser owns new-tab gestures. Keyboard focus and
+      // activation stay with the grid container (arrows / Enter), so the row
+      // is kept out of the tab order; draggable={false} stops a mouse drag
+      // from dragging the URL.
+      <a
+        className={className}
+        style={style}
+        href={href}
+        tabIndex={-1}
+        draggable={false}
+        onClick={handleClick}
+        onAuxClick={(e) => {
+          if (e.button === 1) handleClick(e);
+        }}
+        role="row"
+        aria-rowindex={ariaRowIndex}
+        aria-selected={isSelected}
+      >
+        {cells}
+      </a>
+    );
+  }
   return (
     // Row selection from the keyboard is the grid container's arrow-key
     // handler; the row click is the mouse path onto the same action.
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/interactive-supports-focus
     <div
-      className={clsx(styles.row, isSelected && styles.rowSelected)}
-      style={{
-        height: rowHeight,
-        width,
-        transform: `translateY(${top}px)`,
-      }}
-      onClick={(e) => onRowClick(e, row.id, row.original)}
+      className={className}
+      style={style}
+      onClick={handleClick}
       role="row"
       aria-rowindex={ariaRowIndex}
       aria-selected={isSelected}
     >
-      {row.getVisibleCells().map((cell, colIndex) => {
-        const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
-        const align = cellDef.meta?.align;
-        const cellStyle = cellDef.meta?.cellStyle?.(row.original);
-        const pinned = cell.column.getIsPinned() === "start";
-        return (
-          <div
-            key={cell.id}
-            className={clsx(
-              styles.cell,
-              align === "center" && styles.cellCenter,
-              pinned && styles.cellPinned
-            )}
-            style={{
-              width:
-                cell.column.getSize() +
-                (afterRotatedIds.has(cell.column.id) ? kAfterRotatedGap : 0),
-              ...(pinned && {
-                position: "sticky" as const,
-                left: cell.column.getStart("start"),
-                zIndex: 1,
-              }),
-              ...cellStyle,
-            }}
-            title={cellDef.titleValue?.(row.original)}
-            role="gridcell"
-            aria-colindex={colIndex + 1}
-            data-col-id={cell.column.id}
-          >
-            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-          </div>
-        );
-      })}
+      {cells}
     </div>
   );
 }

@@ -7,6 +7,8 @@
  * - Each view renders its expected content
  * - Route prefixes are preserved when navigating into a log and back
  */
+import type { Page } from "@playwright/test";
+
 import { expect, test } from "./fixtures/app";
 import {
   columnHeader,
@@ -14,6 +16,8 @@ import {
   segmentButton,
   setupLogListHandlers,
 } from "./fixtures/log-list-scenario";
+import { serveEvalLog } from "./fixtures/serve-log";
+import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 test.describe("Top-level views", () => {
   test("default route shows the Tasks view", async ({ page, network }) => {
@@ -259,6 +263,102 @@ test.describe("Keyboard navigation", () => {
     await page.keyboard.press("Enter");
     await page.waitForURL(/#\/tasks\/.+/);
     expect(page.url()).toMatch(/#\/tasks\/.+/);
+  });
+});
+
+test.describe("Open in new tab", () => {
+  // page.url() stays "about:blank" for a background tab opened by a native
+  // link gesture, so read the location from inside the page (retrying while
+  // its initial navigation tears down the execution context).
+  const expectTabUrl = (tab: Page, url: RegExp) =>
+    expect
+      .poll(() => tab.evaluate(() => location.href).catch(() => ""))
+      .toMatch(url);
+
+  // Clicked away from the name cell: the whole row is the link, not just the
+  // task text.
+  const lastCellOf = (page: Page, rowText: string) =>
+    page
+      .getByRole("row")
+      .filter({ hasText: rowText })
+      .getByRole("gridcell")
+      .last();
+
+  test("cmd/ctrl-click on a log row opens it in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-beta")).toBeVisible();
+    const listUrl = page.url();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      lastCellOf(page, "task-beta").click({ modifiers: ["ControlOrMeta"] }),
+    ]);
+    await expectTabUrl(newPage, /#\/tasks\/.*task-beta/);
+
+    expect(page.url()).toBe(listUrl);
+    await expect(
+      page.locator('[role="row"][aria-selected="true"]')
+    ).toContainText("task-beta");
+  });
+
+  test("middle-click on a log row opens it in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-beta")).toBeVisible();
+    const listUrl = page.url();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      lastCellOf(page, "task-beta").click({ button: "middle" }),
+    ]);
+    await expectTabUrl(newPage, /#\/tasks\/.*task-beta/);
+    expect(page.url()).toBe(listUrl);
+  });
+
+  test("cmd/ctrl-click on a sample row opens the sample in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    const logFile = "two-samples.json";
+    const sample = (id: number) =>
+      createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      });
+    serveEvalLog(
+      network,
+      createEvalLog({ samples: [sample(1), sample(2)] }),
+      logFile
+    );
+    await page.goto(`/#/logs/${logFile}`);
+    const sampleRow = page
+      .getByRole("grid")
+      .getByRole("rowgroup")
+      .last()
+      .getByRole("row")
+      .filter({ hasText: "input 2" });
+    await expect(sampleRow).toBeVisible();
+    const listUrl = page.url();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      sampleRow.click({ modifiers: ["ControlOrMeta"] }),
+    ]);
+    await expectTabUrl(
+      newPage,
+      /#\/logs\/two-samples\.json\/samples\/sample\/2\/1/
+    );
+    expect(page.url()).toBe(listUrl);
   });
 });
 

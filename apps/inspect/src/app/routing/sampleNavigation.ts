@@ -11,7 +11,6 @@ import {
   useSelectedSampleSummaries,
 } from "../../state/hooks";
 import { useStore } from "../../state/store";
-import { openInNewTab } from "../shared/openInNewTab";
 import { sampleIdsEqual } from "../shared/sample";
 
 import {
@@ -277,28 +276,24 @@ export const useSamplesGridNavigationAction = () => {
   const navigate = useNavigate();
   const logDirectory = useLogDir();
 
-  const navigateToSampleDetail = useCallback(
-    (
-      logFile: string,
-      sampleId: string | number,
-      epoch: number,
-      openInNewWindow = false
-    ) => {
+  const getSampleDetailUrl = useCallback(
+    (logFile: string, sampleId: string | number, epoch: number) => {
       // Convert absolute logFile path to relative path
       const relativePath = directoryRelativeUrl(logFile, logDirectory);
-      const url = samplesSampleUrl(relativePath, sampleId, epoch);
-
-      if (openInNewWindow) {
-        // Open in new window/tab
-        openInNewTab(url);
-      } else {
-        navigateAndForget(navigate, url);
-      }
+      return samplesSampleUrl(relativePath, sampleId, epoch);
     },
-    [navigate, logDirectory]
+    [logDirectory]
+  );
+
+  const navigateToSampleDetail = useCallback(
+    (logFile: string, sampleId: string | number, epoch: number) => {
+      navigateAndForget(navigate, getSampleDetailUrl(logFile, sampleId, epoch));
+    },
+    [navigate, getSampleDetailUrl]
   );
 
   return {
+    getSampleDetailUrl,
     navigateToSampleDetail,
   };
 };
