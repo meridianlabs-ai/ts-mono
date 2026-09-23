@@ -196,8 +196,14 @@ describe("worker pool lifecycle", () => {
     terminated = false;
     answered = false;
 
-    constructor(readonly answers: boolean) {
+    constructor(
+      readonly answers: boolean,
+      announces: boolean
+    ) {
       workers.push(this);
+      if (announces) {
+        queueMicrotask(() => this.onmessage?.({ data: { type: "ready" } }));
+      }
     }
 
     postMessage(message: { requestId: number }): void {
@@ -218,7 +224,7 @@ describe("worker pool lifecycle", () => {
     }
   }
 
-  const loadPool = async (answers: () => boolean) => {
+  const loadPool = async (answers: () => boolean, announces = false) => {
     workers = [];
     vi.resetModules();
     vi.stubGlobal("location", new URL("http://viewer.test/"));
@@ -226,7 +232,7 @@ describe("worker pool lifecycle", () => {
       "Worker",
       class extends StubWorker {
         constructor() {
-          super(answers());
+          super(answers(), announces);
         }
       }
     );
@@ -246,6 +252,14 @@ describe("worker pool lifecycle", () => {
     // replaced, so a worker that can never start can't spin.
     expect(workers).toHaveLength(4);
     expect(workers.filter((worker) => worker.terminated)).toHaveLength(1);
+  });
+
+  test("a worker that announced itself but dies on its first job is replaced", async () => {
+    const { asyncJsonParse } = await loadPool(() => false, true);
+    await expect(asyncJsonParse(largeArray)).rejects.toThrow(
+      "Worker error: script blocked"
+    );
+    expect(workers).toHaveLength(5);
   });
 
   test("a worker that fails after answering is replaced", async () => {

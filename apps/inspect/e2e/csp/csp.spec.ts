@@ -26,6 +26,7 @@ const kExpectedPolicy =
 declare global {
   interface Window {
     __cspViolations: string[];
+    __workerMessages: string[];
   }
 }
 
@@ -54,7 +55,24 @@ const watchPolicy = async (page: Page, baseURL: string | undefined) => {
   page.on("requestfailed", (request) => {
     if (request.failure()?.errorText === "csp") blocked.add(request.url());
   });
+  const workers: string[] = [];
+  page.on("worker", (worker) => workers.push(worker.url()));
   await page.addInitScript(() => {
+    window.__workerMessages = [];
+    const original: unknown = Reflect.get(Worker.prototype, "postMessage");
+    if (typeof original !== "function") return;
+    Object.defineProperty(Worker.prototype, "postMessage", {
+      value(this: Worker, message: unknown, ...rest: unknown[]) {
+        if (
+          typeof message === "object" &&
+          message !== null &&
+          "type" in message
+        ) {
+          window.__workerMessages.push(String(message.type));
+        }
+        Reflect.apply(original, this, [message, ...rest]);
+      },
+    });
     window.__cspViolations = [];
     document.addEventListener("securitypolicyviolation", (event) => {
       window.__cspViolations.push(
@@ -68,6 +86,9 @@ const watchPolicy = async (page: Page, baseURL: string | undefined) => {
       ...consoleErrors,
     ],
     offOrigin: (): string[] => requested.filter((url) => !blocked.has(url)),
+    workers,
+    workerMessages: (): Promise<string[]> =>
+      page.evaluate(() => window.__workerMessages),
   };
 };
 
@@ -170,6 +191,17 @@ test("the main flows run with no CSP violation", async ({
   await expect(page.locator(".ap-player").first()).toBeVisible();
   await expect(page.locator(".ap-player").first()).toContainText(kTerminalText);
 
+  // The log response is past the JSON parser's worker threshold, so the
+  // bundled worker started from the build's own origin and did the parse.
+  // (A same-origin worker script gets no policy from this page's meta tag,
+  // so this proves the worker starts under `worker-src 'self'`, not that
+  // its code avoids eval: that part is grep-checked in the bundle.)
+  expect(await policy.workerMessages()).toContain("parse");
+  expect(policy.workers.length).toBeGreaterThan(0);
+  for (const url of policy.workers) {
+    expect(url).toMatch(new RegExp(`^${baseURL}/assets/json-parse\\.worker`));
+  }
+
   expect(await policy.violations()).toEqual([]);
   expect(policy.offOrigin()).toEqual([]);
 });
@@ -214,27 +246,39 @@ for (const preference of ["light", "dark", "system"] as const) {
   });
 }
 
-// filtrex compiles each filter with `new Function`, which the policy blocks;
-// the evaluator on brandly/filtrex-evaluator replaces it. Drop test.fail when
-// that lands.
-test("the sample filter evaluates without eval", async ({
+// Known gap, pinned so it flips when fixed: filtrex compiles each filter
+// with `new Function`, which the policy blocks, so the filter never applies.
+// The evaluator on brandly/filtrex-evaluator replaces it; then assert the
+// filter narrows the list with no violation instead.
+test("the policy blocks filtrex's eval in the sample filter", async ({
   page,
   network,
   baseURL,
 }) => {
-  test.fail();
   serveLog(network, mainLog, "csp-main.json");
   const policy = await watchPolicy(page, baseURL);
   await page.goto(`/#/logs/${encodeURIComponent("csp-main.json")}/samples`);
+  await expect(page.getByText("terminal", { exact: true })).toBeVisible();
   await page.locator(".cm-content").first().click();
   await page.keyboard.type('id == "media"');
-  await expect(page.getByText("terminal", { exact: true })).toHaveCount(0, {
-    timeout: 5_000,
-  });
-  expect(await policy.violations()).toEqual([]);
+  await expect
+    .poll(async () =>
+      (await policy.violations()).some((v) => v.startsWith("script-src eval"))
+    )
+    .toBe(true);
+  await expect(page.getByText("terminal", { exact: true })).toBeVisible();
 });
 
 test.describe("rendering canary", () => {
+  const openCanary = async (page: Page) => {
+    await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
+    // Elements, not text: the escaped source would contain the same words
+    // if the breakout stopped producing markup.
+    // They land inside MathJax's clipped SVG, so exist rather than show.
+    await expect(page.locator("a", { hasText: /^js link$/ })).toHaveCount(1);
+    await expect(page.locator("div", { hasText: /^css url$/ })).toHaveCount(1);
+  };
+
   test("injected vectors never reach the probe host", async ({
     page,
     network,
@@ -247,34 +291,41 @@ test.describe("rendering canary", () => {
       return route.fulfill({ status: 204 });
     });
     const policy = await watchPolicy(page, baseURL);
-    await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
-    await expect(page.getByText("js link")).toBeVisible();
-    await page.getByText("js link").click();
-    await page.getByText("css url").hover();
+    await openCanary(page);
+    await page.locator("a", { hasText: /^js link$/ }).dispatchEvent("click");
+    await page
+      .locator("div", { hasText: /^css url$/ })
+      .dispatchEvent("mouseover");
     await page.waitForTimeout(500);
 
     expect(probed).toEqual([]);
     expect(policy.offOrigin()).toEqual([]);
-    // Every report is the policy blocking a probe fetch, nothing else.
-    for (const violation of await policy.violations()) {
-      expect(violation).toContain(kProbeHost);
-    }
   });
 
-  // The sanitizer still lets `<table background>` through (fixed
-  // separately), so the policy has to block, and report, that fetch. Drop
-  // test.fail once the sanitizer strips it.
-  test("injected vectors raise no CSP report", async ({
+  // Known gap, pinned so it flips when fixed: the sanitizer still admits
+  // `<table background>` (fixed separately), so the policy has to block,
+  // and report, that one fetch. Once the sanitizer strips it, assert no
+  // report at all.
+  test("the only CSP report is the blocked <table background> fetch", async ({
     page,
     network,
     baseURL,
   }) => {
-    test.fail();
     serveLog(network, canaryLog, "csp-canary.json");
     const policy = await watchPolicy(page, baseURL);
-    await page.goto(sampleUrl("csp-canary.json", "canary", "messages"));
-    await expect(page.getByText("js link")).toBeVisible();
+    await openCanary(page);
+    await expect(
+      page.locator(`table[background*="${kProbeHost}"]`)
+    ).toHaveCount(1);
     await page.waitForTimeout(500);
-    expect(await policy.violations()).toEqual([]);
+    const violations = await policy.violations();
+    expect(
+      violations.some((v) =>
+        v.startsWith(`img-src https://${kProbeHost}/table`)
+      )
+    ).toBe(true);
+    for (const violation of violations) {
+      expect(violation).toContain(`${kProbeHost}/table`);
+    }
   });
 });

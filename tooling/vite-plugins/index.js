@@ -147,16 +147,19 @@ export function inlineWorkerUrls() {
         this.addWatchFile(resolvePath(input));
       }
       const code = JSON.stringify(result.outputFiles[0].text);
-      return `export default URL.createObjectURL(new Blob([${code}], { type: "text/javascript" }));`;
+      // Guarded so importing the package cannot throw where Blob URLs don't
+      // exist (e.g. an embedder's jsdom tests); starting a worker there
+      // fails later, as it would anyway.
+      return `export default typeof URL.createObjectURL === "function" ? URL.createObjectURL(new Blob([${code}], { type: "text/javascript" })) : "";`;
     },
   };
 }
 
 const INLINE_SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-const SCRIPT_SRC = /\bsrc\s*=/i;
+const SCRIPT_SRC = /(?:^|\s)src\s*=/i;
 // A script with any other type is a data block (e.g. the log_dir_context
 // JSON `inspect view bundle` adds), which CSP does not govern.
-const SCRIPT_TYPE = /\btype\s*=\s*["']?([^"'\s>]+)/i;
+const SCRIPT_TYPE = /(?:^|\s)type\s*=\s*["']?([^"'\s>]+)/i;
 const EXECUTABLE_TYPES = new Set([
   "module",
   "text/javascript",

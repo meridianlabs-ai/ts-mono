@@ -14,6 +14,10 @@ const probe = (path: string): string => `https://${kProbeHost}/${path}`;
 
 export const kTerminalText = "csp-terminal-ok";
 
+// Pushes the log response past the JSON parser's 50k-char worker threshold,
+// so the JSON worker runs under the policy too.
+const kWorkerPadding = "padding ".repeat(8_000);
+
 // A `script -T` recording: header line, then the bytes the timing file meters.
 const terminalHeader =
   'Script started on 2026-01-01 00:00:00+00:00 [COLUMNS="40" LINES="6"]\n';
@@ -24,6 +28,7 @@ export const mainLog: EvalLog = createEvalLog({
   samples: [
     createEvalSample({
       id: "media",
+      metadata: { padding: kWorkerPadding },
       messages: [
         testUserMessage({
           content: [

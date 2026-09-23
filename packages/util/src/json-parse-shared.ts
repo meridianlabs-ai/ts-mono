@@ -17,6 +17,17 @@ export interface ParseRequest {
   bytes?: Uint8Array;
 }
 
+// Posted once by the worker when its script has loaded.
+export interface WorkerReady {
+  type: "ready";
+}
+
+export const isWorkerReady = (value: unknown): value is WorkerReady =>
+  typeof value === "object" &&
+  value !== null &&
+  "type" in value &&
+  value.type === "ready";
+
 // Shape posted back by the worker for a parse request.
 export interface ParseResponse {
   requestId: number;

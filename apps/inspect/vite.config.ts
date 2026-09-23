@@ -187,6 +187,11 @@ export default defineConfig(({ mode }) => {
           },
         },
       },
+      // Unhashed like the app's own chunks, so the committed dist in the
+      // Python repo keeps stable file names.
+      worker: {
+        rollupOptions: { output: { entryFileNames: "assets/[name].js" } },
+      },
       build: {
         outDir: "dist",
         emptyOutDir: true,

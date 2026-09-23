@@ -3,6 +3,7 @@ import JSON5 from "json5";
 
 import {
   applyNonFinitePaths,
+  isWorkerReady,
   makeSentinels,
   ParseRequest,
   ParseResponse,
@@ -25,8 +26,8 @@ class JsonWorkerPool {
   private workers: Worker[] = [];
   private launcher: Promise<WorkerLauncher> | null = null;
   private launched: WorkerLauncher | null = null;
-  // Workers that have answered at least once. One that errors before ever
-  // answering (a missing script, a blocked worker) is not replaced, or a
+  // Workers whose script loaded (they post a ready message). One that errors
+  // before that (a missing script, a blocked worker) is not replaced, or a
   // worker that can never start would be respawned in a tight loop.
   private started = new WeakSet<Worker>();
   private nextRequestId = 0;
@@ -34,12 +35,13 @@ class JsonWorkerPool {
   private readonly poolSize = 4;
 
   private async ensureWorkers(): Promise<void> {
-    this.launcher ??= workerLauncher(jsonParseWorkerUrl);
+    const pending = (this.launcher ??= workerLauncher(jsonParseWorkerUrl));
     let launcher: WorkerLauncher;
     try {
-      launcher = await this.launcher;
+      launcher = await pending;
     } catch (error) {
-      this.launcher = null;
+      // Only forget the attempt that failed, not a newer one.
+      if (this.launcher === pending) this.launcher = null;
       throw error;
     }
     this.launched = launcher;
@@ -67,6 +69,7 @@ class JsonWorkerPool {
 
   private handleMessage(worker: Worker, e: MessageEvent) {
     this.started.add(worker);
+    if (isWorkerReady(e.data)) return;
     const {
       requestId,
       success,

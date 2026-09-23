@@ -9,6 +9,7 @@ import {
   repairWithSentinels,
   replaceSentinelsInPlace,
   restoreRootSentinel,
+  WorkerReady,
 } from "./json-parse-shared";
 
 type ParseOutcome = Omit<ParseResponse, "requestId" | "success">;
@@ -120,3 +121,7 @@ self.addEventListener("message", (event: MessageEvent<unknown>) => {
   }
   self.postMessage(response);
 });
+
+// Lets the pool tell a worker that started (and may later fail, e.g. out of
+// memory on a huge parse) from one whose script never loaded.
+self.postMessage({ type: "ready" } satisfies WorkerReady);
