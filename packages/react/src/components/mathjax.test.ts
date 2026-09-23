@@ -1,17 +1,18 @@
 // @vitest-environment jsdom
 /// <reference types="@tsmono/util/vite-imports" />
+import markdownit from "markdown-it";
 import { expect, it } from "vitest";
 
-import { renderMarkdown } from "./markdownRendering";
+import { getMathjaxPlugin, renderMarkdown } from "./markdownRendering";
 import mathJaxCss from "./mathjax.css?raw";
 
 /**
  * Drift check for the viewer-owned MathJax stylesheet in mathjax.css.
  *
  * markdown-it-mathjax3 wraps every formula in `<span id="mjx-…"><style>…`
- * carrying MathJax's SVG stylesheet. The sanitizer drops that element,
- * because a log could forge the wrapper and the viewer's CSP allows no
- * inline <style>; mathjax.css supplies the rules instead. This snapshot pins
+ * carrying MathJax's SVG stylesheet. The viewer's CSP allows no inline
+ * <style>, so the markdown pipeline drops that element (and the sanitizer
+ * drops any that a log forges); mathjax.css supplies the rules instead. This snapshot pins
  * the stylesheet the installed MathJax emits so a dependency upgrade that
  * changes it fails here rather than silently leaving the copy stale.
  *
@@ -27,7 +28,9 @@ import mathJaxCss from "./mathjax.css?raw";
  * carries the position: relative that MathJax puts inline.
  */
 it("MathJax emits the stylesheet the viewer-owned copy was written from", async () => {
-  const raw = await renderMarkdown("$x$", "full");
+  const raw = markdownit()
+    .use(await getMathjaxPlugin())
+    .render("$x$");
   const authored = /<style>([\s\S]*?)<\/style>/.exec(raw)?.[1] ?? "";
   const normalized = authored
     .replace(/#mjx-[a-f0-9]+/gi, "#mjx-ID")
@@ -210,4 +213,13 @@ it("keeps assistive MathML clipped and SVG paint inside its box", () => {
   // mjx-status is fixed-positioned in MathJax's default sheet; nothing in
   // rendered output uses it and fixed positioning is not admitted.
   expect(mathJaxCss).not.toMatch(/fixed|mjx-tool|mjx-tip|mjx-status|url\(/);
+});
+
+it("drops MathJax's inline sheet from rendered markdown", async () => {
+  const html = await renderMarkdown(
+    "inline $x$ and\n\n$$y=\\frac{1}{2}$$",
+    "full"
+  );
+  expect(html.match(/<mjx-container/g)).toHaveLength(2);
+  expect(html).not.toContain("<style");
 });
