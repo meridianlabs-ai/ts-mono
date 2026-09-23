@@ -1,10 +1,8 @@
-import { FC, useCallback, useEffect } from "react";
+import { FC, useCallback } from "react";
 import { Navigate } from "react-router";
 
 import { useAppConfig } from "../../app_config";
 import { kLogViewSamplesTabId } from "../../constants";
-import { selectLogFile, selectSample } from "../../state/actions";
-import { useStore } from "../../state/store";
 import {
   useLogSampleNavigationActions,
   useSampleUuidRedirectUrl,
@@ -12,22 +10,7 @@ import {
 import { logsUrl, useLogRouteParams, useRoutePrefix } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
 
-/**
- * Component that displays a single sample in detail view within the logs route.
- * This is shown when navigating to /logs/path/to/file.eval/samples/sample/id/epoch
- *
- * This component handles:
- * - Log + sample selection from route params (fetching rides the details and
- *   sample queries)
- * - Navigation state via useLogSampleNavigationActions (respects log filters)
- *
- * Unlike SampleDetailView, this component:
- * - Does NOT clear log state on unmount (user expects to return to same log state)
- * - Uses filteredSamples for navigation (respects current log filters)
- * - Navigates back to log view rather than samples grid
- *
- * Rendering is delegated to SampleDetailComponent.
- */
+/** Log-relative sample navigation, preserving the current log's filters. */
 export const LogSampleDetailView: FC = () => {
   // Get route params
   const {
@@ -42,33 +25,9 @@ export const LogSampleDetailView: FC = () => {
 
   const prefix = useRoutePrefix();
 
-  // Fall back to state for VSCode restored state scenario
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
-
-  // Use route params if available, otherwise fall back to state
-  const logPath = routeLogPath || selectedLogFile;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const sampleId = routeSampleId || selectedSampleHandle?.id?.toString();
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const epoch = routeEpoch || selectedSampleHandle?.epoch?.toString();
-
-  // Load the log and select the sample when route params change
-  // Only run this effect when we have route params (not state fallback)
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (routeLogPath && routeSampleId && routeEpoch) {
-      selectLogFile(routeLogPath);
-
-      const targetEpoch = parseInt(routeEpoch, 10);
-      if (isNaN(targetEpoch)) {
-        return;
-      }
-      selectSample(routeSampleId, targetEpoch, routeLogPath);
-    }
-  }, [routeLogPath, routeSampleId, routeEpoch]);
+  const logPath = routeLogPath;
+  const sampleId = routeSampleId;
+  const epoch = routeEpoch;
 
   // Canonicalize a sampleUuid route to its id/epoch URL once resolvable.
   const sampleUuidRedirectUrl = useSampleUuidRedirectUrl({

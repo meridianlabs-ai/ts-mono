@@ -10,6 +10,10 @@ import { AsyncData, createLogger, isRecord } from "@tsmono/util";
 
 import { getApi, useLogDir } from "../app_config";
 import {
+  useCurrentLogFile,
+  useCurrentSampleHandle,
+} from "../app/routing/currentSelection";
+import {
   createEvalDescriptor,
   createSamplesDescriptor,
 } from "../app/samples/descriptor/samplesDescriptor";
@@ -175,7 +179,7 @@ const log = createLogger("hooks");
  */
 export const useSelectedLogDetails = (): LogHeader | undefined => {
   const logDir = useLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   return useLogHeader(logDir, selectedLogFile, { demand: "passive" }).data;
 };
 
@@ -211,7 +215,7 @@ export const useSelectedRunningMetrics = (): AsyncData<
   RunningMetric[] | undefined
 > => {
   const logDir = useLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   return useRunningMetrics(logDir, selectedLogFile);
 };
 
@@ -237,13 +241,13 @@ export interface LogEditAffordance {
 export const useLogEditAffordance = (): LogEditAffordance => {
   const api = getApi();
   const hasEditApi = Boolean(api.edit_log);
-  const selectedLogFile = useStore((s) => s.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   const logStatus = useSelectedLogDetails()?.status;
   const isInProgress = logStatus === "started";
   return {
     canEdit: hasEditApi && !!selectedLogFile && !isInProgress,
     selectedLogFile,
-    refreshOnSave: refreshLog,
+    refreshOnSave: () => refreshLog(selectedLogFile),
   };
 };
 
@@ -254,7 +258,7 @@ export const useLogEditAffordance = (): LogEditAffordance => {
  */
 export const useSelectedSampleSummaries = (): AsyncData<SampleSummary[]> => {
   const logDir = useLogDir();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   return useSampleSummaries(logDir, selectedLogFile);
 };
 
@@ -408,19 +412,17 @@ export const useFilteredSamples = () => {
 // Provides the currently selected sample summary
 export const useSelectedSampleSummary = (): SampleSummary | undefined => {
   const sampleSummaries = useSelectedSampleSummariesData();
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const sampleHandle = useCurrentSampleHandle();
   return useMemo(() => {
     const selectedSampleSummary = sampleSummaries.find((sample) => {
       return (
-        sampleIdsEqual(sample.id, selectedSampleHandle?.id) &&
-        sample.epoch === selectedSampleHandle?.epoch
+        sampleIdsEqual(sample.id, sampleHandle?.id) &&
+        sample.epoch === sampleHandle?.epoch
       );
     });
 
     return selectedSampleSummary;
-  }, [selectedSampleHandle, sampleSummaries]);
+  }, [sampleHandle, sampleSummaries]);
 };
 
 /**
@@ -429,7 +431,7 @@ export const useSelectedSampleSummary = (): SampleSummary | undefined => {
  */
 export const useSelectedEvalSampleData = (): EvalSampleData => {
   const logDir = useLogDir();
-  const handle = useStore((state) => state.log.selectedSampleHandle);
+  const handle = useCurrentSampleHandle();
   return useEvalSampleData(logDir, handle);
 };
 
@@ -440,22 +442,8 @@ export const useSelectedEvalSampleData = (): EvalSampleData => {
  */
 export const useSelectedSampleInvalidation = ():
   EvalSample["invalidation"] | undefined =>
-  usePassiveEvalSampleData(useStore((state) => state.log.selectedSampleHandle))
-    .data?.sample?.invalidation ?? undefined;
-
-export const useLogSelection = () => {
-  const selectedSampleSummary = useSelectedSampleSummary();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const loadedLog = useStore((state) => state.log.loadedLog);
-
-  return useMemo(() => {
-    return {
-      logFile: selectedLogFile,
-      loadedLog: loadedLog,
-      sample: selectedSampleSummary,
-    };
-  }, [loadedLog, selectedLogFile, selectedSampleSummary]);
-};
+  usePassiveEvalSampleData(useCurrentSampleHandle()).data?.sample
+    ?.invalidation ?? undefined;
 
 export const useCollapseSampleEvent = (
   scope: string,
@@ -490,7 +478,7 @@ export const useMessageVisibility = (
   const isFirstRender = useRef(true);
 
   // Reset state if the eval changes, but not during initialization
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
     // Skip the first effect run
@@ -504,9 +492,7 @@ export const useMessageVisibility = (
   }, [selectedLogFile, clearVisible, id]);
 
   // Maybe reset state if sample changes
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const sampleHandle = useCurrentSampleHandle();
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
@@ -519,7 +505,14 @@ export const useMessageVisibility = (
       log.debug("clear message (sample)", id);
       clearVisible(id);
     }
-  }, [selectedSampleHandle, clearVisible, id, scope]);
+  }, [
+    sampleHandle?.logFile,
+    sampleHandle?.id,
+    sampleHandle?.epoch,
+    clearVisible,
+    id,
+    scope,
+  ]);
 
   return useMemo(() => {
     log.debug("visibility", id, visible);

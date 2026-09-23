@@ -11,7 +11,6 @@ export interface ScanSlice {
 
   // Dataframes
   selectedScanResult?: string;
-  displayedScanResult?: string;
 
   // Scan specific properties (clear when switching scans)
   selectedResultsTab?: string;
@@ -30,7 +29,6 @@ export interface ScanSlice {
 
   setSelectedScanner: (scanner: string) => void;
   setSelectedScanResult: (result: string) => void;
-  setDisplayedScanResult: (result: string | undefined) => void;
   setVisibleScannerResults: (results: ScanResultSummary[]) => void;
   setVisibleScannerResultsCount: (count: number) => void;
   clearScanState: () => void;
@@ -62,10 +60,6 @@ export const createScanSlice: StoreSlice<ScanSlice> = (set) => ({
   setSelectedScanResult: (result: string) =>
     set((state) => {
       state.selectedScanResult = result;
-    }),
-  setDisplayedScanResult: (result: string | undefined) =>
-    set((state) => {
-      state.displayedScanResult = result;
     }),
   setVisibleScannerResults: (results: ScanResultSummary[]) => {
     set((state) => {

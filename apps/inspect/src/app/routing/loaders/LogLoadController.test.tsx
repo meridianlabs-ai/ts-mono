@@ -27,14 +27,12 @@ vi.mock("../../../app_config", () => ({
   useLogDir: () => "/logs",
 }));
 
-const setLoadedLog = vi.hoisted(() => vi.fn());
 const clearSelectedScores = vi.hoisted(() => vi.fn());
 const setWorkspaceTab = vi.hoisted(() => vi.fn());
 vi.mock("../../../state/store", () => ({
   useStore: (selector: (state: unknown) => unknown) =>
     selector({
-      logs: { selectedLogFile: "run.eval" },
-      logActions: { setLoadedLog, clearSelectedScores },
+      logActions: { clearSelectedScores },
       appActions: { setWorkspaceTab },
     }),
 }));
@@ -52,7 +50,6 @@ const makeDetails = (n: number): LogDetails => ({
 });
 
 beforeEach(() => {
-  setLoadedLog.mockReset();
   clearSelectedScores.mockReset();
   setWorkspaceTab.mockReset();
   useLogHeader.mockReset();
@@ -71,7 +68,6 @@ describe("LogLoadController", () => {
     useLogFetchState.mockReturnValue(data({ details_settled_seq: 1 }));
 
     const { rerender } = render(<LogLoadController />);
-    expect(setLoadedLog).toHaveBeenCalledTimes(1);
     expect(clearSelectedScores).toHaveBeenCalledTimes(1);
 
     // Poll-tick merge: a new details object, same settled seq — must NOT refire.
@@ -81,13 +77,11 @@ describe("LogLoadController", () => {
       error: undefined,
     });
     rerender(<LogLoadController />);
-    expect(setLoadedLog).toHaveBeenCalledTimes(1);
     expect(clearSelectedScores).toHaveBeenCalledTimes(1);
 
     // A waitered fetch settling bumps the seq — must refire.
     useLogFetchState.mockReturnValue(data({ details_settled_seq: 2 }));
     rerender(<LogLoadController />);
-    expect(setLoadedLog).toHaveBeenCalledTimes(2);
     expect(clearSelectedScores).toHaveBeenCalledTimes(2);
   });
 
@@ -125,13 +119,13 @@ describe("LogLoadController", () => {
     useLogFetchState.mockReturnValue(loading);
 
     const { rerender } = render(<LogLoadController />);
-    expect(setLoadedLog).not.toHaveBeenCalled();
     expect(clearSelectedScores).not.toHaveBeenCalled();
 
     // The waitered settle (cache hit or network) bumps the seq.
     useLogFetchState.mockReturnValue(data({ details_settled_seq: 1 }));
     rerender(<LogLoadController />);
-    expect(setLoadedLog).toHaveBeenCalledTimes(1);
     expect(clearSelectedScores).toHaveBeenCalledTimes(1);
   });
 });
+
+vi.mock("../currentSelection", () => ({ useCurrentLogFile: () => "run.eval" }));

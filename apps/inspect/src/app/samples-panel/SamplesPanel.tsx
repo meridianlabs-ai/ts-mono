@@ -19,7 +19,7 @@ import {
   useSamplesListing,
   type SamplesListingRow,
 } from "../../log_data";
-import { selectSample } from "../../state/actions";
+import { highlightSample } from "../../state/actions";
 import { useStore } from "../../state/store";
 import { useUserSettings } from "../../state/userSettings";
 import { ApplicationIcons } from "../appearance/icons";
@@ -109,9 +109,7 @@ export const SamplesPanel: FC = () => {
     (state) => state.logsActions.setPreviousSamplesPath
   );
 
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const highlightedSample = useStore((state) => state.log.highlightedSample);
 
   const [showColumnSelector, setShowColumnSelector] = useState(false);
   const [columnButtonEl, setColumnButtonEl] =
@@ -405,18 +403,18 @@ export const SamplesPanel: FC = () => {
   // logFile and rows are scope-filtered, so a handle from another scope
   // matches nothing (inert), while returning from the detail view keeps the
   // selection highlighted.
-  const selectedRowId = selectedSampleHandle
+  const selectedRowId = highlightedSample
     ? sampleRowId(
-        selectedSampleHandle.logFile,
-        selectedSampleHandle.id,
-        selectedSampleHandle.epoch
+        highlightedSample.logFile,
+        highlightedSample.id,
+        highlightedSample.epoch
       )
     : undefined;
 
   // Keyboard/click selection moves flow to the selection's owner (zustand),
   // which feeds back through selectedRowId — the grid never shadows it.
   const handleRowSelect = useCallback(
-    (row: SampleRow) => selectSample(row.sampleId, row.epoch, row.logFile),
+    (row: SampleRow) => highlightSample(row.sampleId, row.epoch, row.logFile),
     []
   );
 

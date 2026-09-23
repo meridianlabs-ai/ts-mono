@@ -156,7 +156,8 @@ data and it stays current.
 ### Selected-log lifecycle
 
 Everything that follows from "the user is viewing this log" — thin
-_selection bindings_: read the UI selection from zustand, delegate to a
+_selection bindings_: read the current identity from the route-derived
+`CurrentSelectionProvider`, delegate to a
 param-driven log_data hook. No polling mechanics, no API calls, no cache
 writes; a binding that grows a queryFn has sunk too low.
 
@@ -170,10 +171,10 @@ writes; a binding that grows a queryFn has sunk too low.
 - **Sample-summaries binding** — `useSelectedSampleSummaries()` delegates to
   `useSampleSummaries(logDir, selectedLogFile)`. (`state/hooks.ts`)
 - **Sample-data binding** — `useSelectedEvalSampleData()` delegates to
-  `useEvalSampleData(logDir, selectedSampleHandle)`; likewise
+  `useEvalSampleData(logDir, currentSampleHandle)`; likewise
   `useSelectedSampleInvalidation()`. (`state/hooks.ts`)
 - **Reaction controller** — the residual non-derivable side effects of the
-  details query settling: recording `loadedLog`, per-log score resets,
+  details query settling: per-log score resets,
   workspace-tab default for empty logs. No fetching. (`LogLoadController`)
 - **Sample reaction controller** — resets per-sample UI state that isn't
   derivable from the new sample (scroll/list positions, collapsed events,
@@ -187,13 +188,20 @@ params and this layer binds them.
 
 ### UI state (leaf)
 
-Which log the user is viewing, filters, tabs, sample selection, grid state,
-`loadedLog`, rehydration — zustand slices, and nothing else. Known only by
-components/handlers; knows nothing below it; nothing writes into it from below
-(engine status flows out through its own external store; the leaf rule has no
-exceptions). Absolutizing a relative log name against the log dir is a
-config-aware derivation and lives at the event-handler seam (`useSelectLogFile`
-in `state/hooks.ts`), not in the slice.
+Filters, tab preferences, highlighted rows, and grid state belong in zustand.
+The current log/sample belongs to the router; `CurrentSelectionProvider`
+resolves the route through the configuration trust boundary and derives the
+single-sample inline case from summaries. Its context contains no writable
+selection. Data consumers bind to that context rather than a store mirror.
+
+`highlightedSample` remembers list selection across detail navigation; it is
+never an active data source. `loadedLog` is no longer stored. The public embed
+hooks subscribe to the actual router outside RouterProvider and derive loaded
+status from the data cache. See [route ownership](../../../design/route-state-ownership.md)
+for VS Code restoration, compatibility, and remaining tab mirrors.
+
+The store remains known only by components/handlers; nothing writes into it
+from acquisition (engine status flows through its own external store).
 
 ## Media & derivations
 
@@ -225,11 +233,11 @@ Arrows point at what a layer is allowed to know.
 
 ```
 Components / handlers ──→ hooks only (useAppConfig/useApi/useLogDir/useEvalSet/
-       │                  useSelectLogFile/useDatabaseStats/useStore)
+       │                  useCurrentLogFile/useDatabaseStats/useStore)
        │                  zustand (UI-state leaf) lives here; knows nothing below
        ▼
 Lifecycle controllers     AppConfigGate, FetchEngineController, LogLoadController,
-       │                  SampleLoadController, SampleRouteSelectionController,
+       │                  SampleLoadController,
        │                  ThemePreferenceSyncController (reactions / irreducible
        │                  effects; no fetching)
        ▼
@@ -297,5 +305,5 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a
   possible future step; the sink is the only coupling that would move.
-- **`loadedLog`** — recorded by the reaction controller as zustand UI state
-  (navigation reads it), not derived from the query.
+- **Active selection** — derived from the router at the UI boundary; acquisition
+  receives explicit log/sample parameters and never reads routing or zustand.
