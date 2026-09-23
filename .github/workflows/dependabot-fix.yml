@@ -175,6 +175,10 @@ jobs:
     if: inputs.dry_run != true
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Restore but never save the Actions cache: the pnpm store and .turbo
+    # saves would land in default-branch scope (Claude Security 4629157;
+    # meridianlabs-ai/agents design/agent-cache-scope.md).
+    cache-mode: read
     permissions:
       contents: read
       pull-requests: read # the agent's `gh pr list/view` (an omitted permission is none, public repo or not)
