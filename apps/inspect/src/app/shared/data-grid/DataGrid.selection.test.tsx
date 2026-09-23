@@ -112,6 +112,31 @@ describe("DataGrid open in new tab", () => {
     }
   );
 
+  test("inside VS Code, cmd+Enter activates instead of opening a tab", () => {
+    document.body.setAttribute("data-vscode-theme-kind", "vscode-dark");
+    try {
+      const onRowActivate = vi.fn();
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+      render(
+        <DataGrid<Row>
+          data={rows}
+          columns={columns}
+          getRowId={(r) => r.id}
+          selectedRowId="r2"
+          onSelectedRowChange={() => {}}
+          onRowActivate={onRowActivate}
+          getRowHref={hrefFor}
+        />
+      );
+
+      fireEvent.keyDown(grid(), { key: "Enter", metaKey: true });
+      expect(open).not.toHaveBeenCalled();
+      expect(onRowActivate).toHaveBeenCalledWith(rows[1]);
+    } finally {
+      document.body.removeAttribute("data-vscode-theme-kind");
+    }
+  });
+
   test("cmd+Enter falls back to activating a row with no href", () => {
     const onRowActivate = vi.fn();
     const open = vi.spyOn(window, "open").mockReturnValue(null);

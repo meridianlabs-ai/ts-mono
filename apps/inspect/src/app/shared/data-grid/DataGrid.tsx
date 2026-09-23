@@ -32,7 +32,7 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
-import { isRecord } from "@tsmono/util";
+import { isRecord, isVscode } from "@tsmono/util";
 
 import { openHrefInNewTab } from "../openInNewTab";
 
@@ -186,7 +186,8 @@ export interface DataGridProps<TRow extends RowData> {
   /** Link target for a row. When set, the row renders as an `<a>` so native
    *  link gestures (cmd/ctrl/shift/middle-click, context menu, hover
    *  preview) open it in a new tab; plain clicks still go to
-   *  `onRowActivate`. Cmd/ctrl/shift+Enter opens it in a new tab too. */
+   *  `onRowActivate`. Cmd/ctrl/shift+Enter opens it in a new tab too.
+   *  Ignored inside the VS Code webview, where browser tabs don't exist. */
   getRowHref?: (row: TRow) => string | undefined;
   rowHeight?: number;
   headerHeight?: number;
@@ -236,7 +237,7 @@ export function DataGrid<TRow extends RowData>({
   onSelectedRowChange,
   scrollRef,
   onRowActivate,
-  getRowHref,
+  getRowHref: getRowHrefProp,
   rowHeight = kRowHeight,
   headerHeight = kHeaderHeight,
   multiline = false,
@@ -247,6 +248,7 @@ export function DataGrid<TRow extends RowData>({
   ariaLabel,
 }: DataGridProps<TRow>): ReactElement {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const getRowHref = isVscode() ? undefined : getRowHrefProp;
 
   // Attach both the internal scroll ref (virtualizer / focus / scroll-into-
   // view) and the optional external one to the container element.
