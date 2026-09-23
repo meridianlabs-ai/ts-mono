@@ -291,7 +291,7 @@ jobs:
             "Bash(git remote:*)","Bash(git add:*)","Bash(git commit:*)",
             "Bash(git config:*)"]}}
           claude_args: >-
-            --model fable
+            --model opus
             --fallback-model default
             --add-dir ${{ runner.temp }}/agent-io
           prompt: |
