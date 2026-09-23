@@ -131,6 +131,12 @@ jobs:
     with:
       # companion branches reference the fork's tracker (mention derivation)
       anchor_repo: meridianlabs-ai/inspect_ai
+      # Provisioning recipe for the agent jobs (see claude.yml's stubs for
+      # rationale).
+      provision: |
+        export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+        corepack enable --install-directory ~/.local/bin
+        pnpm install --frozen-lockfile
     permissions:
       contents: read
       pull-requests: read     # the review is posted by the land job as the machine account (agents#114)
