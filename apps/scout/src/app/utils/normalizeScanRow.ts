@@ -199,16 +199,41 @@ type ScanValue = Pick<ScanResultSummary, "value" | "valueType">;
 
 const kNullScanValue: ScanValue = { value: null, valueType: "null" };
 
+// Mirrors inspect_scout's _cast_value_column, which decodes the string value
+// column only when a scanner's value_type is uniform; a mixed scanner's cells
+// reach the viewer as this text.
+const kBooleanText = new Map([
+  ["true", true],
+  ["True", true],
+  ["false", false],
+  ["False", false],
+]);
+const kNumberText =
+  /^\s*(-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?|-?Infinity|NaN)\s*$/;
+
+const decodeScalar = (
+  raw: string,
+  valueType: "string" | "number" | "boolean"
+): ScanValue => {
+  if (valueType === "number" && kNumberText.test(raw)) {
+    return { value: Number(raw), valueType: "number" };
+  }
+  const boolean = valueType === "boolean" ? kBooleanText.get(raw) : undefined;
+  if (boolean !== undefined) {
+    return { value: boolean, valueType: "boolean" };
+  }
+  return { value: raw, valueType: "string" };
+};
+
 /**
  * The `value` cell: JSON-encoded for object/array results, the raw scalar
  * otherwise. The value_type tag is authored independently of the cell and
- * every consumer narrows on the tag alone, so an array/object tag whose cell
- * is absent, malformed, or the other shape is re-tagged null rather than
- * handed downstream as `valueType: "array"` over a record, and an absent cell
- * under a scalar tag is re-tagged null too. Scalar cells are otherwise kept
- * as-is: the parquet value column is a string column and the server only
- * casts numbers/booleans when a scanner's value_type is uniform, so a mixed
- * scanner legitimately delivers "0.9" under a number tag.
+ * every consumer narrows on the tag alone, so the returned tag always matches
+ * the value's runtime shape: an array/object tag whose cell is absent,
+ * malformed, or the other shape is re-tagged null, as is an absent scalar
+ * cell. A scalar is never dropped: text under a number/boolean tag decodes
+ * the way inspect_scout's reader decodes a uniform column, and a scalar that
+ * doesn't fit its tag keeps its value under the tag of its own type.
  */
 export const normalizeScanValue = async (
   raw: unknown,
@@ -224,11 +249,14 @@ export const normalizeScanValue = async (
     const parsed = await parseJsonCell(raw);
     return isRecord(parsed) ? { value: parsed, valueType } : kNullScanValue;
   }
-  return typeof raw === "string" ||
-    typeof raw === "number" ||
-    typeof raw === "boolean"
-    ? { value: raw, valueType }
-    : kNullScanValue;
+  if (typeof raw === "string") {
+    return valueType === "number" || valueType === "boolean"
+      ? decodeScalar(raw, valueType)
+      : { value: raw, valueType: "string" };
+  }
+  if (typeof raw === "number") return { value: raw, valueType: "number" };
+  if (typeof raw === "boolean") return { value: raw, valueType: "boolean" };
+  return kNullScanValue;
 };
 
 /**

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ScanResultSummary } from "../types";
 
+import { normalizeScanValue } from "./normalizeScanRow";
 import { sortByColumns, sortValue, stringifyValue } from "./results";
 
 const baseSummary: ScanResultSummary = {
@@ -119,6 +120,37 @@ describe("sortValue", () => {
     const b = make({ value: 1, valueType: "number" });
     // "z" vs "1" — string comparison
     expect(sortValue(a, b)).toBeGreaterThan(0);
+  });
+});
+
+describe("sortValue over normalized mixed-scanner cells", () => {
+  const normalized = async (
+    raw: unknown,
+    tag: ScanResultSummary["valueType"]
+  ): Promise<ScanResultSummary> => make(await normalizeScanValue(raw, tag));
+
+  it("orders text booleans by their meaning", async () => {
+    const rows = [
+      await normalized("true", "boolean"),
+      await normalized("false", "boolean"),
+    ];
+    expect(rows.sort(sortValue).map((r) => r.value)).toEqual([false, true]);
+  });
+
+  it("orders text numbers numerically", async () => {
+    const rows = [
+      await normalized("10", "number"),
+      await normalized("9", "number"),
+    ];
+    expect(rows.sort(sortValue).map((r) => r.value)).toEqual([9, 10]);
+  });
+
+  it("sorts a number carried under a string tag without throwing", async () => {
+    const rows = [
+      await normalized("b", "string"),
+      await normalized(3, "string"),
+    ];
+    expect(() => rows.sort(sortValue)).not.toThrow();
   });
 });
 

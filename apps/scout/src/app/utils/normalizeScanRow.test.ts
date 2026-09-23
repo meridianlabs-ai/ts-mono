@@ -227,18 +227,39 @@ describe("normalizeScanValue", () => {
     });
   });
 
-  it("keeps string-typed scalars from mixed scanners under their tag", async () => {
-    // The server only casts the string value column when a scanner's
-    // value_type is uniform; a mixed scanner delivers "0.9" tagged number.
-    expect(await normalizeScanValue("0.9", "number")).toEqual({
-      value: "0.9",
-      valueType: "number",
-    });
-    expect(await normalizeScanValue("true", "boolean")).toEqual({
-      value: "true",
-      valueType: "boolean",
-    });
-  });
+  // The server only casts the string value column when a scanner's
+  // value_type is uniform, so a mixed scanner delivers text under a
+  // number/boolean tag; resultset expansion delivers native JSON values.
+  it.each([
+    { raw: "0.9", tag: "number", value: 0.9, valueType: "number" },
+    { raw: "1", tag: "number", value: 1, valueType: "number" },
+    { raw: "-2.5e3", tag: "number", value: -2500, valueType: "number" },
+    { raw: "NaN", tag: "number", value: NaN, valueType: "number" },
+    { raw: "true", tag: "boolean", value: true, valueType: "boolean" },
+    { raw: "False", tag: "boolean", value: false, valueType: "boolean" },
+  ] as const)(
+    "decodes $raw under a $tag tag the way inspect_scout does",
+    async ({ raw, tag, value, valueType }) => {
+      expect(await normalizeScanValue(raw, tag)).toEqual({ value, valueType });
+    }
+  );
+
+  it.each([
+    { raw: "n/a", tag: "number", valueType: "string" },
+    { raw: "yes", tag: "boolean", valueType: "string" },
+    { raw: 3, tag: "string", valueType: "number" },
+    { raw: true, tag: "string", valueType: "boolean" },
+    { raw: 1, tag: "boolean", valueType: "number" },
+    { raw: "text", tag: "null", valueType: "string" },
+  ] as const)(
+    "keeps $raw under a $tag tag, re-tagged to its own type",
+    async ({ raw, tag, valueType }) => {
+      expect(await normalizeScanValue(raw, tag)).toEqual({
+        value: raw,
+        valueType,
+      });
+    }
+  );
 
   it("re-tags an absent cell under a scalar tag as null", async () => {
     const expected = { value: null, valueType: "null" };
