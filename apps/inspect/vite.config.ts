@@ -19,9 +19,15 @@ import {
 } from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
+  let outDir = "dist";
   return {
     name: "copy-to-python-repo",
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
     closeBundle() {
+      // Only the real app build ships; the CSP e2e builds elsewhere.
+      if (outDir !== "dist") return;
       const pythonRoot = findPythonRepoRoot("inspect_ai");
       if (!pythonRoot) return;
       const target = join(pythonRoot, "src/inspect_ai/_view/dist");
