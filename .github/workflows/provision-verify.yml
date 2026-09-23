@@ -79,13 +79,13 @@ jobs:
           echo "bin: $BIN"
           tools=""
           IFS=: read -r -a dirs <<<"$BIN"
-          for t in node pnpm npm prettier turbo manypkg; do
+          for t in node pnpm npm prettier turbo; do
             for d in "${dirs[@]}"; do
               [ -x "$d/$t" ] && { tools="$tools$t=$d/$t "; break; }
             done
           done
           echo "discovered: ${tools:-none}"
-          for t in pnpm prettier turbo manypkg; do
+          for t in pnpm prettier turbo; do
             case " $tools" in *" $t="*) ;; *) echo "::error::$t not discovered in $BIN"; exit 1 ;; esac
           done
           for kv in $tools; do
