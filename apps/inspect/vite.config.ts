@@ -141,6 +141,10 @@ export default defineConfig(({ mode }) => {
       ],
       mode: "development",
       base: "",
+      // Overrides postcss.config.cjs, whose inlining is for the library's
+      // self-contained stylesheet: the app serves its fonts as files, since
+      // the viewer's CSP allows `font-src 'self'` but not `data:`.
+      css: { postcss: {} },
       server: {
         // Pinned so `pnpm dev` from the root always gives inspect 5173 and
         // scout 5174 regardless of startup order (e2e uses 5175/5176).
