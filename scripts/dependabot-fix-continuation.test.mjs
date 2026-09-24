@@ -398,6 +398,32 @@ test("e2e: a gh failure fails the script rather than falling back to a fresh bra
   assert.equal(r.outputs.branch, undefined);
 });
 
+// A dispatch on an agent's branch must not run that branch's selection script
+// in the gate, which holds an App token.
+test("the workflow's gate checks out only the default branch", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const gate = workflow.match(/^ {2}gate:\n(?: {4}.*\n| *#.*\n|\n)*/m)?.[0];
+  assert.ok(gate, "no gate job in dependabot-fix.yml");
+  const checkouts = [
+    ...gate.matchAll(/^ {6}- uses: actions\/checkout@.*\n(?: {8}.*\n)*/gm),
+  ].map((m) => m[0]);
+  assert.equal(checkouts.length, 1);
+  assert.match(
+    checkouts[0],
+    /^ {10}ref: \$\{\{ github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch \|\| 'main'\) && github\.sha \|\| github\.event\.repository\.default_branch \|\| 'main' \}\}$/m
+  );
+  assert.ok(
+    gate.indexOf(checkouts[0]) <
+      gate.indexOf("run: node scripts/dependabot-fix-continuation.mjs"),
+    "the selection script runs before the pinned checkout"
+  );
+});
+
 // land applies pr.labels as the machine account, whose `auto` the loop gates
 // trust; the composer opens the PR with none, so the Land step must allow none.
 test("the workflow's Land step allows no PR labels", () => {

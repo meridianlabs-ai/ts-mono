@@ -167,7 +167,14 @@ jobs:
           echo "Open dependabot alerts: $count"
           echo "- open dependabot alerts: $count" >>"$GITHUB_STEP_SUMMARY"
 
+      # Always the default branch: a dispatch on another ref (an agent's
+      # branch) must not run that ref's selection script here, after the App
+      # token is minted. github.sha when the run is on the default branch, so
+      # a fresh batch's start is the commit the agent job checks out; on any
+      # other ref the agent job's start check then refuses a fresh batch.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch || 'main') && github.sha || github.event.repository.default_branch || 'main' }}
 
       # Trusted code decides which branch the run lands on (see the security
       # model above). Select only: the agent job does the checkout and the
