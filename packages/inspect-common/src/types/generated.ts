@@ -1947,6 +1947,83 @@ export interface components {
             task_id: string;
         };
         /**
+         * EvalShardEntry
+         * @description Ledger entry for one shard, as of the merge that last read it.
+         */
+        EvalShardEntry: {
+            /** Attempts */
+            attempts: number;
+            /** Completed At */
+            completed_at: string | "";
+            error?: components["schemas"]["EvalError"] | null;
+            /** Etag */
+            etag?: string | null;
+            /** Eval Id */
+            eval_id: string;
+            /** Eval Set Id */
+            eval_set_id?: string | null;
+            /** Log */
+            log: string;
+            /** Model Usage */
+            model_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Mtime */
+            mtime?: number | null;
+            /** Role Usage */
+            role_usage: {
+                [key: string]: components["schemas"]["ModelUsage"];
+            };
+            /** Sample Keys */
+            sample_keys: components["schemas"]["EvalShardSampleKey"][];
+            /** Shard */
+            shard: string;
+            /** Size */
+            size: number;
+            /** Started At */
+            started_at: string | "";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "started" | "success" | "cancelled" | "error";
+            /** Task Id */
+            task_id: string;
+        };
+        /**
+         * EvalShardSampleKey
+         * @description One `(id, epoch)` record merged from a shard.
+         */
+        EvalShardSampleKey: {
+            /** Epoch */
+            epoch: number;
+            /** Id */
+            id: string | number;
+        };
+        /**
+         * EvalShards
+         * @description Provenance of a merged log: its shards and the ledger of the last merge.
+         */
+        EvalShards: {
+            /** Ledger */
+            ledger: components["schemas"]["EvalShardEntry"][];
+            /** Location */
+            location: string;
+            /** Merged At */
+            merged_at: string;
+            /**
+             * Metrics Source
+             * @enum {string}
+             */
+            metrics_source: "registry" | "task_file";
+            /** Sample Count */
+            sample_count?: number | null;
+            /** Sample Ids */
+            sample_ids?: string[] | number[] | (string | number)[] | null;
+            /** Template */
+            template: string;
+        };
+        /**
          * EvalSpec
          * @description Eval target and configuration.
          */
@@ -1993,6 +2070,7 @@ export interface components {
             sandbox?: components["schemas"]["SandboxEnvironmentSpec"] | null;
             /** Scorers */
             scorers?: components["schemas"]["EvalScorer"][] | null;
+            shards?: components["schemas"]["EvalShards"] | null;
             /** Solver */
             solver?: string | null;
             /** Solver Args */
