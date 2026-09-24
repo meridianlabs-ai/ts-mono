@@ -43,27 +43,10 @@ export const StateEventView: FC<StateEventViewProps> = ({
     return summarizeChanges(event.changes);
   }, [event.changes]);
 
-  // Synthesize objects for comparison
-  const [before, after] = useMemo(() => {
-    try {
-      return synthesizeComparable(event.changes);
-    } catch (e) {
-      console.error(
-        "Unable to synthesize comparable object to display state diffs.",
-        e
-      );
-      return [{}, {}];
-    }
-  }, [event.changes]);
-
-  // This clone is important since the state is used by react as potential values that are rendered
-  // and as a result may be decorated with additional properties, etc..., resulting in DOM elements
-  // appearing attached to state.
   const changePreview = useMemo(() => {
     const isStore = eventNode.event.event === "store";
-    const afterClone = structuredClone(after);
-    return generatePreview(event.changes, afterClone, isStore, eventNode.id);
-  }, [event.changes, eventNode.event.event, after, eventNode.id]);
+    return generatePreview(event.changes, isStore, eventNode.id);
+  }, [event.changes, eventNode.event.event, eventNode.id]);
   // Compute the title
   const title = event.event === "state" ? "State Updated" : "Store Updated";
 
@@ -92,8 +75,7 @@ export const StateEventView: FC<StateEventViewProps> = ({
         </div>
       ) : undefined}
       <StateDiffView
-        before={before}
-        after={after}
+        changes={event.changes}
         data-name="Diff"
         className={clsx(styles.diff)}
       />
@@ -106,7 +88,6 @@ export const StateEventView: FC<StateEventViewProps> = ({
  */
 const generatePreview = (
   changes: JsonChange[],
-  resolvedState: Record<string, unknown>,
   isStore: boolean,
   eventNodeId: string
 ) => {
@@ -117,14 +98,14 @@ const generatePreview = (
   ]) {
     if (changeType.signature) {
       if (matchesChangeSignature(changes, changeType.signature)) {
-        const el = changeType.render(changes, resolvedState, eventNodeId);
+        const el = changeType.render(changes, eventNodeId);
         results.push(el);
         break;
       }
     } else if (changeType.match) {
       const matches = changeType.match(changes);
       if (matches) {
-        const el = changeType.render(changes, resolvedState, eventNodeId);
+        const el = changeType.render(changes, eventNodeId);
         results.push(el);
         break;
       }
@@ -189,303 +170,3 @@ const summarizeChanges = (changes: JsonChange[]): string => {
   }
   return changeList.join(", ");
 };
-
-/**
- * JSON-pointer paths step through arrays as well as objects — a numeric
- * segment addresses an array index — so the synthesized-diff traversal
- * carries both shapes.
- */
-type PathContainer = Record<string, unknown> | unknown[];
-
-const isPathContainer = (value: unknown): value is PathContainer =>
-  typeof value === "object" && value !== null;
-
-// Path segments come from the log, so reads stay on the synthesized tree's
-// own properties: a `/__proto__/x` path read through the prototype chain
-// would step into Object.prototype and the write below would land there.
-const getChild = (container: PathContainer, key: string): unknown => {
-  if (Array.isArray(container)) {
-    const index = Number(key);
-    return Object.hasOwn(container, index) ? container[index] : undefined;
-  }
-  return Object.hasOwn(container, key) ? container[key] : undefined;
-};
-
-const setChild = (
-  container: PathContainer,
-  key: string,
-  value: unknown
-): void => {
-  if (Array.isArray(container)) {
-    container[Number(key)] = value;
-  } else if (key === "__proto__") {
-    // Assignment would hit the inherited setter and re-parent the container.
-    // defineProperty stores an own key instead (jsondiffpatch skips the key
-    // when diffing, so the change is dropped from the view, not rendered).
-    Object.defineProperty(container, key, {
-      value,
-      enumerable: true,
-      writable: true,
-      configurable: true,
-    });
-  } else {
-    container[key] = value;
-  }
-};
-
-// An array can't hold a non-numeric key — string props set on an array are
-// invisible to JSON.stringify and the diff renderer's array walk — so when a
-// path needs one (a dict with mixed numeric/non-numeric keys), re-key the
-// array as a plain object.
-const arrayToObject = (arr: unknown[]): Record<string, unknown> => {
-  const obj: Record<string, unknown> = {};
-  arr.forEach((item, index) => {
-    obj[index] = item;
-  });
-  return obj;
-};
-
-/**
- * Synthesizes before/after objects from a list of JSON-patch changes so the
- * pair can be diffed. Exported for tests.
- */
-export const synthesizeComparable = (
-  changes: JsonChange[]
-): [Record<string, unknown>, Record<string, unknown>] => {
-  const before: Record<string, unknown> = {};
-  const after: Record<string, unknown> = {};
-  const budget: GrowthBudget = { remaining: kArrayGrowthBudget };
-
-  for (const change of changes) {
-    switch (change.op) {
-      case "add":
-        // 'Fill in' arrays with empty strings to ensure there is no unnecessary diff
-        initializeArrays(before, after, change.path, budget);
-        setPath(after, change.path, change.value, budget);
-        break;
-      case "copy":
-        setPath(before, change.path, change.value, budget);
-        setPath(after, change.path, change.value, budget);
-        break;
-      case "move":
-        setPath(before, change.from || "", change.value, budget);
-        setPath(after, change.path, change.value, budget);
-        break;
-      case "remove":
-        setPath(before, change.path, change.value, budget);
-        break;
-      case "replace":
-        // 'Fill in' arrays with empty strings to ensure there is no unnecessary diff
-        initializeArrays(before, after, change.path, budget);
-
-        setPath(before, change.path, change.replaced, budget);
-        setPath(after, change.path, change.value, budget);
-        break;
-      case "test":
-        break;
-    }
-  }
-  reconcileContainerKinds(before, after);
-  return [before, after];
-};
-
-/**
- * Aligns container kinds between the two synthesized sides. Ops that write
- * only one side (remove, move, copy) skip initializeArrays, so a mixed-key
- * re-key can fire on one side only — and jsondiffpatch renders array-vs-object
- * at the same path as a whole-value swap instead of key-level edits.
- */
-function reconcileContainerKinds(a: PathContainer, b: PathContainer): void {
-  const keys = Array.isArray(a)
-    ? a.map((_, index) => String(index))
-    : Object.keys(a);
-  for (const key of keys) {
-    const leftRaw = getChild(a, key);
-    const rightRaw = getChild(b, key);
-    if (!isPathContainer(leftRaw) || !isPathContainer(rightRaw)) continue;
-    let left: PathContainer = leftRaw;
-    let right: PathContainer = rightRaw;
-    if (Array.isArray(left) && !Array.isArray(right)) {
-      left = arrayToObject(left);
-      setChild(a, key, left);
-    } else if (Array.isArray(right) && !Array.isArray(left)) {
-      right = arrayToObject(right);
-      setChild(b, key, right);
-    }
-    reconcileContainerKinds(left, right);
-  }
-}
-
-/**
- * Sets a value at a path in an object
- */
-function setPath(
-  target: Record<string, unknown>,
-  path: string,
-  value: unknown,
-  budget: GrowthBudget
-): void {
-  const keys = parsePath(path);
-  let current: PathContainer = target;
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    const nextKey = keys[i + 1];
-    if (!key || !nextKey) return;
-    const existing = getChild(current, key);
-    // A scalar already here gets overwritten: a change list writing /a and
-    // then /a/b onto the same side loses the /a scalar. Coherent jsonpatch
-    // output doesn't produce that shape, so we accept the (silent) drop
-    // rather than complicate the synthesis.
-    const next = containerFor(existing, nextKey, budget);
-    if (next !== existing) {
-      setChild(current, key, next);
-    }
-    current = next;
-  }
-
-  const lastKey = keys[keys.length - 1];
-  if (lastKey) {
-    setChild(current, lastKey, value);
-  }
-}
-
-/**
- * Places structure in both sides (without placing values), padding arrays
- * with empty strings up to the path's index so the diff shows no spurious
- * entries. The sides are walked together so each segment gets the same
- * container kind on both.
- */
-function initializeArrays(
-  before: Record<string, unknown>,
-  after: Record<string, unknown>,
-  path: string,
-  budget: GrowthBudget
-): void {
-  const keys = parsePath(path);
-  let left: PathContainer = before;
-  let right: PathContainer = after;
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    const nextKey = keys[i + 1];
-    if (!key || !nextKey) return;
-
-    const [nextLeft, nextRight] = containerPairFor(
-      getChild(left, key),
-      getChild(right, key),
-      nextKey,
-      budget
-    );
-    const index = Number(nextKey);
-    for (const next of [nextLeft, nextRight]) {
-      if (Array.isArray(next)) {
-        while (next.length < index) {
-          next.push("");
-        }
-      }
-    }
-    setChild(left, key, nextLeft);
-    setChild(right, key, nextRight);
-    left = nextLeft;
-    right = nextRight;
-  }
-}
-
-/**
- * Parses a path into an array of keys
- */
-function parsePath(path: string): string[] {
-  return path.split("/").filter(Boolean);
-}
-
-/**
- * Checks if a key represents an array index
- */
-function isArrayIndex(key: string): boolean {
-  return /^\d+$/.test(key);
-}
-
-/**
- * Array growth per event charged for padding past the longer side (or a
- * sparse write), beyond one-per-change appends; catching the trailing side
- * up is free, so up to about twice this many slots get added. Path indexes
- * come from the log, so without a cap one `/x/2000000000`
- * change pads an array to that length on the render path.
- */
-const kArrayGrowthBudget = 10_000;
-
-interface GrowthBudget {
-  remaining: number;
-}
-
-/**
- * Picks the container that `nextKey` gets written into, reusing `existing`
- * when it fits. A numeric key selects an array only while the budget covers
- * growing it to that index; past that it becomes an object key, the same
- * re-key a mixed numeric/non-numeric dict gets.
- */
-function containerFor(
-  existing: unknown,
-  nextKey: string,
-  budget: GrowthBudget
-): PathContainer {
-  const arr = arrayFor(existing);
-  if (
-    arr &&
-    isArrayIndex(nextKey) &&
-    reserve(budget, growthTo(arr, Number(nextKey)))
-  ) {
-    return arr;
-  }
-  return objectFor(existing);
-}
-
-/**
- * containerFor for both sides at once: they become arrays only if the budget
- * covers both, so one side can't end up an array while the other is re-keyed.
- */
-function containerPairFor(
-  left: unknown,
-  right: unknown,
-  nextKey: string,
-  budget: GrowthBudget
-): [PathContainer, PathContainer] {
-  const leftArr = arrayFor(left);
-  const rightArr = arrayFor(right);
-  if (leftArr && rightArr && isArrayIndex(nextKey)) {
-    // Only padding past the longer side is charged. Catching the other side
-    // up is bounded by that side's length, which was itself charged or
-    // appended; after an add, the unwritten side trails by one.
-    const lead = leftArr.length > rightArr.length ? leftArr : rightArr;
-    if (reserve(budget, growthTo(lead, Number(nextKey)))) {
-      return [leftArr, rightArr];
-    }
-  }
-  return [objectFor(left), objectFor(right)];
-}
-
-/** The array a write goes through, or undefined when a plain object is here. */
-const arrayFor = (existing: unknown): unknown[] | undefined => {
-  if (!isPathContainer(existing)) return [];
-  return Array.isArray(existing) ? existing : undefined;
-};
-
-const objectFor = (existing: unknown): Record<string, unknown> => {
-  if (!isPathContainer(existing)) return {};
-  return Array.isArray(existing) ? arrayToObject(existing) : existing;
-};
-
-/**
- * Elements needed for `arr` to hold `index`, beyond appending the next one:
- * appends are free because each takes a change, so the change list already
- * bounds them.
- */
-const growthTo = (arr: unknown[], index: number): number =>
-  Math.max(0, index - arr.length);
-
-function reserve(budget: GrowthBudget, amount: number): boolean {
-  if (amount > budget.remaining) return false;
-  budget.remaining -= amount;
-  return true;
-}
