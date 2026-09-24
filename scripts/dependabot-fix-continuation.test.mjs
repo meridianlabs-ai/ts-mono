@@ -397,3 +397,35 @@ test("e2e: a gh failure fails the script rather than falling back to a fresh bra
   assert.notEqual(r.status, 0);
   assert.equal(r.outputs.branch, undefined);
 });
+
+// land applies pr.labels as the machine account, whose `auto` the loop gates
+// trust; the composer opens the PR with none, so the Land step must allow none.
+test("the workflow's Land step allows no PR labels", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const land = workflow.match(
+    /^ {6}- name: Land\n(?: {8}.*\n| *#.*\n|\n)*/m
+  )?.[0];
+  assert.ok(land, "no Land step in dependabot-fix.yml");
+  assert.match(land, /uses: meridianlabs-ai\/agents\/\.github\/actions\/land@/);
+  assert.match(land, /^ {10}allowed-pr-labels: "\[\]"$/m);
+});
+
+// The agent job's pnpm store and .turbo saves would land in default-branch
+// scope, which ci.yaml and npm-publish.yml restore (Claude Security 4629157).
+test("the workflow's agent job cannot save the Actions cache", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const agent = workflow.match(/^ {2}agent:\n(?: {4}.*\n| *#.*\n|\n)*/m)?.[0];
+  assert.ok(agent, "no agent job in dependabot-fix.yml");
+  assert.match(agent, /^ {4}cache-mode: read$/m);
+  assert.doesNotMatch(workflow, /^\s*cache-mode: (?!read$)/m);
+});
