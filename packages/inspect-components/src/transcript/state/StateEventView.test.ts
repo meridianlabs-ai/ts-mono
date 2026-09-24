@@ -138,26 +138,31 @@ describe("synthesizeComparable array index bounds", () => {
 
   // Both sides pad from one budget; if only `before` could afford an index,
   // reconciling would turn its padding into thousands of phantom deletions.
-  it("pads both sides as arrays when the budget covers both", () => {
-    const [before, after] = synthesizeComparable([add("/a/4000", 1)]);
-    expect(before).toEqual({ a: Array<string>(4000).fill("") });
-    expect(after).toEqual({ a: [...Array<string>(4000).fill(""), 1] });
-  });
-
-  it("re-keys both sides when the budget covers only one", () => {
-    const [before, after] = synthesizeComparable([add("/a/6000", 1)]);
-    expect(before).toEqual({ a: {} });
-    expect(after).toEqual({ a: { 6000: 1 } });
+  it("pads both sides as arrays for an index within the budget", () => {
+    const [before, after] = synthesizeComparable([add("/a/9000", 1)]);
+    expect(before).toEqual({ a: Array<string>(9000).fill("") });
+    expect(after).toEqual({ a: [...Array<string>(9000).fill(""), 1] });
   });
 
   it("gives both sides the same container kind once the budget runs out", () => {
     const [before, after] = synthesizeComparable([
-      add("/a/3000", 1),
-      add("/b/3000", 2),
+      add("/a/6000", 1),
+      add("/b/6000", 2),
     ]);
     expect(Array.isArray(before["a"]) && Array.isArray(after["a"])).toBe(true);
     expect(before["b"]).toEqual({});
-    expect(after["b"]).toEqual({ 3000: 2 });
+    expect(after["b"]).toEqual({ 6000: 2 });
+  });
+
+  // jsonpatch emits one add per new list element; the side that isn't
+  // written trails by one each time, and catching it up mustn't be charged.
+  it("keeps a list grown by many appends as an array on both sides", () => {
+    const count = 12_000;
+    const [before, after] = synthesizeComparable(
+      Array.from({ length: count }, (_, i) => add(`/items/${i}`, i))
+    );
+    expect(Array.isArray(before["items"])).toBe(true);
+    expect(after["items"]).toEqual(Array.from({ length: count }, (_, i) => i));
   });
 
   it("keeps earlier elements when an over-budget index re-keys an array", () => {

@@ -407,9 +407,10 @@ function isArrayIndex(key: string): boolean {
 }
 
 /**
- * Array elements the synthesis may add beyond one-per-change appends. Path
- * indexes come from the log, so without a cap one `/x/2000000000` change
- * pads (or sparsely grows) an array to that length on the render path.
+ * Array slots per event that padding (or a sparse write) may add beyond
+ * one-per-change appends; a paired add/replace fills a slot on both sides.
+ * Path indexes come from the log, so without a cap one `/x/2000000000`
+ * change pads an array to that length on the render path.
  */
 const kArrayGrowthBudget = 10_000;
 
@@ -452,8 +453,11 @@ function containerPairFor(
   const leftArr = arrayFor(left);
   const rightArr = arrayFor(right);
   if (leftArr && rightArr && isArrayIndex(nextKey)) {
-    const index = Number(nextKey);
-    if (reserve(budget, growthTo(leftArr, index) + growthTo(rightArr, index))) {
+    // Only padding past the longer side is charged. Catching the other side
+    // up is bounded by that side's length, which was itself charged or
+    // appended; after an add, the unwritten side trails by one.
+    const lead = leftArr.length > rightArr.length ? leftArr : rightArr;
+    if (reserve(budget, growthTo(lead, Number(nextKey)))) {
       return [leftArr, rightArr];
     }
   }
