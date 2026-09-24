@@ -145,3 +145,79 @@ describe("sampleFilterItems with built-in collisions", () => {
     expect(items).toHaveLength(0);
   });
 });
+
+describe("filterExpression results and errors", () => {
+  const sd = samplesDescriptorWith([
+    { name: "accuracy", scorer: "grader", scoreType: "numeric" },
+  ]);
+  const s = sample({
+    metadata: { difficulty: "hard" },
+    scores: { grader: testScore({ value: { accuracy: 0.75 } }) },
+  });
+  const run = (expression: string) => filterExpression(sd, s, expression);
+
+  it("evaluates sample variables, scores, metadata and functions", () => {
+    expect(run("epoch == 2 and accuracy > 0.5").matches).toBe(true);
+    expect(run('metadata.difficulty == "hard"').matches).toBe(true);
+    expect(run('input_contains("INPUT") and not target_contains("x")')).toEqual(
+      { matches: true, error: undefined }
+    );
+    expect(run("epoch in (1, 2) and epoch not in (3)").matches).toBe(true);
+    expect(run("if has_error then False else True").matches).toBe(true);
+  });
+
+  it("treats a missing metadata key as absent, not as an error", () => {
+    expect(run("metadata.missing == None")).toEqual({
+      matches: false,
+      error: undefined,
+    });
+  });
+
+  it("warns at an unknown variable", () => {
+    expect(run("epoch == 2 and nope > 1")).toEqual({
+      matches: false,
+      error: {
+        from: 15,
+        to: 19,
+        message: "Property “nope” does not exist.",
+        severity: "warning",
+      },
+    });
+  });
+
+  it("marks where a syntax error starts", () => {
+    expect(run("epoch and")).toEqual({
+      matches: false,
+      error: { from: 6, message: "Syntax error", severity: "error" },
+    });
+    expect(run("epoch == 1 #").error).toEqual({
+      from: 11,
+      message: "Syntax error",
+      severity: "error",
+    });
+  });
+
+  it("stops advancing the syntax error marker after 20 characters", () => {
+    expect(run("epoch == 1 and epoch == 2 and epoch ==").error?.from).toBe(23);
+  });
+
+  it("reports runtime errors with their message", () => {
+    expect(run("input > 1").error).toEqual({
+      message: "Expected a number, but got a text instead.",
+      severity: "error",
+    });
+    expect(run("nope(1)").error).toEqual({
+      message: "Unknown function: nope()",
+      severity: "error",
+    });
+    expect(run("epoch + 1").error).toEqual({
+      message: "Filter expression returned a non-boolean value: 3",
+      severity: "error",
+    });
+  });
+
+  it("reads numbers with a leading zero as JavaScript literals did", () => {
+    expect(run("epoch == 02").matches).toBe(true);
+    expect(run("epoch * 4 == 010").matches).toBe(true);
+  });
+});

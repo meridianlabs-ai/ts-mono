@@ -105,9 +105,6 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
-      filtrex:
-        specifier: ^3.1.0
-        version: 3.1.0
       fzstd:
         specifier: ^0.1.1
         version: 0.1.1
@@ -172,6 +169,9 @@ importers:
       '@tsmono/eslint-config':
         specifier: workspace:*
         version: link:../../tooling/eslint-config
+      '@tsmono/filter-expression':
+        specifier: workspace:*
+        version: link:../../packages/filter-expression
       '@tsmono/inspect-common':
         specifier: workspace:*
         version: link:../../packages/inspect-common
@@ -449,6 +449,36 @@ importers:
       zstd-codec:
         specifier: ^0.1.5
         version: 0.1.5
+
+  packages/filter-expression:
+    devDependencies:
+      '@tsmono/eslint-config':
+        specifier: workspace:*
+        version: link:../../tooling/eslint-config
+      '@tsmono/tsconfig':
+        specifier: workspace:*
+        version: link:../../tooling/tsconfig
+      '@tsmono/vitest-config':
+        specifier: workspace:*
+        version: link:../../tooling/vitest-config
+      '@typescript/native':
+        specifier: npm:typescript@^7.0.2
+        version: typescript@7.0.2
+      eslint:
+        specifier: ^10.7.0
+        version: 10.8.1(supports-color@10.2.2)
+      filtrex:
+        specifier: ^3.1.0
+        version: 3.1.0
+      typescript:
+        specifier: npm:@typescript/typescript6@^6.0.2
+        version: '@typescript/typescript6@6.0.2'
+      typescript-eslint:
+        specifier: ^8.70.0
+        version: 8.70.0(@typescript/typescript6@6.0.2)(eslint@10.8.1(supports-color@10.2.2))(supports-color@10.2.2)
+      vitest:
+        specifier: ^5.0.0
+        version: 5.0.0(@types/node@26.5.1)(jsdom@30.0.1)(msw@2.15.0(@types/node@26.5.1)(@typescript/typescript6@6.0.2))(vite@8.3.0(@types/node@26.5.1)(esbuild@0.28.2)(yaml@2.9.0))
 
   packages/inspect-common:
     dependencies:

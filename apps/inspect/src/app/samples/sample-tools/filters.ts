@@ -1,5 +1,4 @@
-import { compileExpression } from "filtrex";
-
+import { compileFilterExpression } from "@tsmono/filter-expression";
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { arrayToString, isRecord } from "@tsmono/util";
 
@@ -331,7 +330,7 @@ export const filterExpression = (
       // Score variables exist only if the sample completed successfully.
       return sample.error ? undefined : get(name);
     };
-    const expression = compileExpression(filterValue, {
+    const expression = compileFilterExpression(filterValue, {
       extraFunctions,
       constants: filterExpressionConstants,
       customProp: resolveVariable,
@@ -384,7 +383,7 @@ export const filterExpression = (
       message.startsWith("Parse error") ||
       message.startsWith("Lexical error")
     ) {
-      // Filterex uses formatting like this:
+      // Syntax errors keep filtrex's formatting:
       //   foo and
       //   ----^
       const from = message.match(/^(-*)\^$/m)?.[1]?.length;
