@@ -49,8 +49,9 @@ const system_msg_added_sig: ChangeType = {
   },
 };
 
-// Every value below is read out of a JSON-patch change — untyped wire data. These keep what matches and drop what doesn't, so
-// a malformed log renders less rather than rendering wrong.
+// Every value below is read out of a JSON-patch change — untyped wire data.
+// These keep what matches and drop what doesn't, so a malformed log renders
+// less rather than rendering wrong.
 const readNumber = (value: unknown): number | undefined =>
   typeof value === "number" ? value : undefined;
 

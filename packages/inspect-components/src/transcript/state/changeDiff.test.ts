@@ -127,6 +127,29 @@ describe("diffFromChanges", () => {
     ).toEqual(["/a - null", "/b + null"]);
   });
 
+  it("gives a key's own row and its subtree row distinct ids", () => {
+    const ids = (entry: DiffEntry | undefined) =>
+      entry?.kind === "node" ? entry.children.map((c) => c.id) : [];
+    const diff = diffFromChanges([
+      add("/x", 1),
+      add("/x/y", 2),
+      add("/x#own/y", 3),
+      add("/=x", 4),
+    ]);
+    expect(new Set(ids(diff)).size).toBe(ids(diff).length);
+  });
+
+  // JSON-patch replays in order: a later write or remove at a path replaces
+  // whatever earlier ops wrote beneath it.
+  it("drops sub-path writes superseded by a later write to the parent", () => {
+    expect(
+      diffRows([add("/a/b", 1), replace("/a", { b: 1 }, { c: 2 })])
+    ).toEqual(["/a {}", "/a/b - 1", "/a/c + 2"]);
+    expect(diffRows([add("/a/b", 1), remove("/a", null)])).toEqual([
+      "/a - null",
+    ]);
+  });
+
   it("unescapes JSON-pointer segments", () => {
     expect(diffRows([add("/a~1b/c~0d", 1)])).toEqual([
       "/a/b {}",
@@ -258,6 +281,35 @@ describe("resolveAfter", () => {
     expect(
       resolveAfter([add("/logs", { a: "1" }), add("/logs/b", "2")], "/logs")
     ).toEqual({ a: "1", b: "2" });
+  });
+
+  it("reads through a write to a parent of the path", () => {
+    expect(
+      resolveAfter(
+        [replace("/messages", [], [{ role: "system", content: "x" }])],
+        "/messages/0/role"
+      )
+    ).toBe("system");
+  });
+
+  it("replays writes in order across parent and child paths", () => {
+    const tools = [{ name: "b" }];
+    expect(
+      resolveAfter(
+        [add("/tools/0/name", "a"), replace("/tools", [], tools)],
+        "/tools"
+      )
+    ).toEqual(tools);
+    expect(
+      resolveAfter(
+        [add("/logs", { a: "1", b: "2" }), remove("/logs/a", null)],
+        "/logs"
+      )
+    ).toEqual({ b: "2" });
+    expect(
+      resolveAfter([add("/a", 1), remove("/a", null)], "/a")
+    ).toBeUndefined();
+    expect(resolveAfter([remove("/m/0/source", null)], "/m/0")).toBeUndefined();
   });
 
   it("is undefined for a path no change touches", () => {
