@@ -407,9 +407,10 @@ function isArrayIndex(key: string): boolean {
 }
 
 /**
- * Array slots per event that padding (or a sparse write) may add beyond
- * one-per-change appends; a paired add/replace fills a slot on both sides.
- * Path indexes come from the log, so without a cap one `/x/2000000000`
+ * Array growth per event charged for padding past the longer side (or a
+ * sparse write), beyond one-per-change appends; catching the trailing side
+ * up is free, so up to about twice this many slots get added. Path indexes
+ * come from the log, so without a cap one `/x/2000000000`
  * change pads an array to that length on the render path.
  */
 const kArrayGrowthBudget = 10_000;
