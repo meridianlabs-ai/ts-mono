@@ -28,6 +28,11 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # Release builds restore no cache (decision: Ransom, 2026-09-21): a cache
+    # other workflows saved is mutable state outside this job's inputs. Turbo
+    # reads and writes its local cache by default, so turn it off here.
+    env:
+      TURBO_CACHE: "local:,remote:"
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -42,7 +47,7 @@ jobs:
         with:
           node-version: "22.x"
           registry-url: "https://registry.npmjs.org"
-          cache: "pnpm"
+          package-manager-cache: false
 
       - name: Upgrade npm (for Trusted Publishing)
         run: |
