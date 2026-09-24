@@ -20,7 +20,8 @@
 #                     fresh one. All are job outputs; nothing is checked out
 #                     beyond the script.
 #   agent (untrusted) checks out and merges the branch the gate named, then
-#                     runs the agent with the job token ONLY (contents: read,
+#                     provisions it and runs the agent as the unprivileged
+#                     `claude-agent` user, with the job token ONLY (contents: read,
 #                     no gh writes, no push). It receives the alert list as a
 #                     file, edits the tree, commits locally and writes the PR
 #                     title/body as files; `emit-landing` packages the commits
@@ -59,6 +60,16 @@
 # choices (or that carries any channel this workflow does not compose),
 # and the landing composite pins a continued batch to the open PR's live
 # head ref besides, so a tampered artifact cannot steer the push or a post.
+#
+# Nothing from the checkout runs as the runner (Claude Security finding
+# 4628446; meridianlabs-ai/agents design/executed-paths-residual.md, step 7):
+# the batch branch is one this workflow's agent — or a reusable-workflow
+# follow-up on its PR — wrote, so its pnpm lifecycle scripts, build and tests
+# are untrusted code. The agent job provisions the checkout as the
+# unprivileged `claude-agent` user and launches the CLI as that user in its
+# own PID and mount namespace, the same boundary and the same agents
+# composites the reusable Claude jobs use (see "The agent user boundary"
+# below).
 #
 # The permission allowlist below is defense in depth, not a boundary:
 # `Bash(pnpm:*)` is arbitrary execution and `gh api` is general-purpose.
@@ -175,17 +186,20 @@ jobs:
     if: inputs.dry_run != true
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # Restore but never save the Actions cache: the pnpm store and .turbo
-    # saves would land in default-branch scope (Claude Security 4629157;
-    # meridianlabs-ai/agents design/agent-cache-scope.md).
+    # Never save to the Actions cache: a save would land in default-branch
+    # scope (Claude Security 4629157; meridianlabs-ai/agents
+    # design/agent-cache-scope.md). No step restores one either: the agent
+    # user provisions without the runner's pnpm and turbo caches.
     cache-mode: read
     permissions:
       contents: read
       pull-requests: read # the agent's `gh pr list/view` (an omitted permission is none, public repo or not)
       id-token: write
     env:
-      # Commit identity for the merge below and the agent's own commits: the
-      # App token pushes them, so they carry the App's bot identity.
+      # Commit identity for the merge below: the App token pushes it, so it
+      # carries the App's bot identity. The agent's environment is an
+      # allow-list without these; its commits get the same identity from the
+      # action's bot_name/bot_id, which it writes to .git/config.
       GIT_AUTHOR_NAME: meridian-marvin[bot]
       GIT_AUTHOR_EMAIL: 330132053+meridian-marvin[bot]@users.noreply.github.com
       GIT_COMMITTER_NAME: meridian-marvin[bot]
@@ -201,18 +215,14 @@ jobs:
       # with the default branch merged in (conflicts are left for the agent),
       # or a fresh branch off the default branch. `sha` is the tip on origin
       # the landing manifest is anchored to — the merge commit and the
-      # agent's commits above it are what the land job pushes. The alert list
-      # goes to a file in the agent's I/O directory, next to where it writes
-      # the PR text.
+      # agent's commits above it are what the land job pushes.
       - name: Check out the batch branch
         id: base
         env:
           BRANCH: ${{ needs.gate.outputs.branch }}
           CONTINUING: ${{ needs.gate.outputs.continuing }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
-          ALERTS: ${{ needs.gate.outputs.alerts }}
           START: ${{ needs.gate.outputs.start }}
-          IO: ${{ runner.temp }}/agent-io
           # Step-scoped read credential for the fetch (checkout persisted
           # none), as the landing smoke test does.
           GIT_TOKEN: ${{ github.token }}
@@ -251,42 +261,76 @@ jobs:
             sha=$(git rev-parse HEAD)
             assert_start
           fi
-          mkdir -p "$IO"
-          printf '%s\n' "$ALERTS" >"$IO/alerts.json"
           {
             echo "sha=$sha"
             echo "merge_conflicts=$conflicts"
           } >>"$GITHUB_OUTPUT"
           echo "Batch branch $BRANCH (continuing: $CONTINUING) at $sha; merge conflicts: $conflicts"
 
-      - uses: pnpm/action-setup@v6
-
-      - name: Install Node.js
-        uses: actions/setup-node@v6
+      # ---- The agent user boundary (agents design/executed-paths-residual.md)
+      # The agents composites the reusable Claude jobs run, in their order:
+      # `Create agent user` snapshots `.git/config` and the embedded-repo
+      # list, creates `claude-agent`, checks the job PATH and group-grants the
+      # workspace; provisioning runs AS that user; the pre-agent reclaim kills
+      # whatever provisioning left running and takes `.git` back before the
+      # action's prepare runs git as the runner; the launcher installs the CLI
+      # root-owned and the wrapper the action spawns in its place, which
+      # starts the CLI as `claude-agent` in its own PID and mount namespace.
+      # Step name and id are load-bearing: the post-agent reclaim gates on
+      # `steps.agentuser.outcome`.
+      - name: Create agent user
+        id: agentuser
+        uses: meridianlabs-ai/agents/.github/actions/create-codex-user@main
         with:
-          node-version: 22
-          cache: pnpm
+          user: claude-agent
 
-      - name: Cache Turbo
-        uses: actions/cache@v6
+      # The agent stubs' recipe (pnpm from package.json's packageManager via
+      # corepack into the agent user's ~/.local/bin), run under `env -i` as
+      # `claude-agent`; its `bin` output is the agent's PATH prefix. The
+      # frozen install only on a fresh branch off the default branch, as
+      # before: a just-merged continuation branch can be textually clean yet
+      # fail --frozen-lockfile, and the agent runs `pnpm install` as its first
+      # verify step anyway. `pnpm --version` fetches pnpm while the download
+      # prompt is off, so the agent's first pnpm call does not stop at it.
+      - name: Provision the checkout (as the agent user)
+        id: setup
+        timeout-minutes: 10
+        uses: meridianlabs-ai/agents/.github/actions/provision-fallback@main
         with:
-          path: .turbo
-          key: turbo-${{ github.sha }}
-          restore-keys: turbo-
+          user: claude-agent
+          recipe: |
+            export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+            corepack enable --install-directory ~/.local/bin
+            pnpm --version
+            continuing=${{ needs.gate.outputs.continuing == 'true' && 'true' || 'false' }}
+            [ "$continuing" = true ] || pnpm install --frozen-lockfile
 
-      # Pre-install so the agent's pnpm why/audit/check/build/test work
-      # immediately (and hit the pnpm store cache). Only on a fresh checkout
-      # of the default branch: a just-merged continuation branch can be
-      # textually clean yet fail --frozen-lockfile, and the agent runs
-      # `pnpm install` as its first verify step anyway.
-      - name: Install dependencies
-        if: needs.gate.outputs.continuing != 'true'
-        run: pnpm install --frozen-lockfile
+      - name: Reclaim workspace before the agent
+        id: agentprereclaim
+        uses: meridianlabs-ai/agents/.github/actions/reclaim-codex-workspace@main
+        with:
+          user: claude-agent
+
+      - name: Prepare the agent launch
+        id: launcher
+        uses: meridianlabs-ai/agents/.github/actions/claude-agent-launcher@main
+        with:
+          path-prefix: ${{ steps.setup.outputs.bin }}
+
+      # The alert list goes into the agent's landing directory, the one
+      # runner-temp directory its namespace can reach, where it also writes
+      # the PR text. After the launcher, which empties that directory after
+      # its last kill of the agent user.
+      - name: Hand the agent the alert list
+        env:
+          ALERTS: ${{ needs.gate.outputs.alerts }}
+          LANDING: ${{ runner.temp }}/claude-agent
+        run: printf '%s\n' "$ALERTS" >"$LANDING/alerts.json"
 
       # The job token is passed explicitly so the action does not mint its
       # own App token: `gh` here can read (advisories, PR list/view) and
       # nothing else. --add-dir lets the agent read the alert list and write
-      # the PR text in the I/O directory.
+      # the PR text in its landing directory.
       - uses: anthropics/claude-code-action@v1
         id: claude
         with:
@@ -295,6 +339,17 @@ jobs:
           anthropic_service_account_id: svac_01RL4wYD7ikbypwYKf4wFojv
           anthropic_workspace_id: wrkspc_01RKCQ5DTPBatQ7kHLkaEueD
           github_token: ${{ github.token }}
+          # The identity the action writes to .git/config for the agent's
+          # commits (user.email becomes <bot_id>+<bot_name>@users.noreply…),
+          # the same as the job's GIT_AUTHOR_* above.
+          bot_name: meridian-marvin[bot]
+          bot_id: "330132053"
+          # The launcher's wrapper, spawned in place of the CLI: it starts the
+          # real one as `claude-agent` in its own namespace.
+          path_to_claude_code_executable: ${{ steps.launcher.outputs.executable }}
+          # Skips the action's `Post buffered inline comments` post-step (the
+          # agent's /tmp is private anyway; belt and braces).
+          classify_inline_comments: "false"
           # Default-deny: headless runs auto-deny anything not allowed. gh per
           # subcommand (advisory API, PR list/view — not `gh pr checkout`, and
           # no create/edit: this job cannot write), pnpm for the verify loop,
@@ -302,7 +357,7 @@ jobs:
           # out the merge the workflow started, and read-only subcommands (no
           # fetch, no checkout/switch/branch creation, no push: the workflow
           # already put the right branch in place and the land job pushes),
-          # echo for the GITHUB_STEP_SUMMARY line.
+          # echo for the status line.
           settings: |
             {"permissions":{"allow":["Read","Edit","Write",
             "Bash(pnpm:*)","Bash(grep:*)","Bash(echo:*)",
@@ -316,7 +371,7 @@ jobs:
           claude_args: >-
             --model opus
             --fallback-model default
-            --add-dir ${{ runner.temp }}/agent-io
+            --add-dir ${{ runner.temp }}/claude-agent
           prompt: |
             Run the dependabot-fix skill (.agents/skills/dependabot-fix/SKILL.md)
             to clear the currently open GitHub dependabot security alerts.
@@ -327,7 +382,7 @@ jobs:
             Your GitHub token is read-only: `gh` works for reads (advisories,
             PR list/view), but you cannot read the alerts API, push, open or
             edit a PR, and must not try. The workflow read the open alerts for
-            you: ${{ runner.temp }}/agent-io/alerts.json (a JSON array with
+            you: ${{ runner.temp }}/claude-agent/alerts.json (a JSON array with
             the fields the skill's step 1 lists). Do not run the skill's
             step 1 command.
 
@@ -347,7 +402,7 @@ jobs:
             Commit your fixes on the current branch (git add / git commit;
             never push). A trusted job pushes your commits after this job
             ends and opens or updates the PR from files you write in
-            ${{ runner.temp }}/agent-io:
+            ${{ runner.temp }}/claude-agent:
             - A new batch: pr-title.txt (one line, the PR title) and
               pr-body.md (the full PR body per the skill: one line per alert
               fixed, every deferred alert and why).
@@ -358,25 +413,99 @@ jobs:
             If nothing is actionable and no open PR needs updating, commit
             nothing and write no PR files.
 
-            Finish every run — including no-op runs — by appending a brief
+            Finish every run — including no-op runs — by writing a brief
             status (alerts fixed, alerts deferred, "PR pending" or "no action")
-            to the file named by the GITHUB_STEP_SUMMARY environment variable.
+            to ${{ runner.temp }}/claude-agent/status.md; the workflow adds it
+            to the run summary.
+
+      # FIRST step after the agent, on every path (the agent step succeeded,
+      # failed, was cancelled or was skipped after provisioning ran as the
+      # agent user): kill every `claude-agent` process, remove the Workload
+      # Identity ACL entries and the agent's config dir, then refuse or
+      # reclaim `.git` as the codex reclaim does. Every later step that runs
+      # git (the composer, emit-landing) is gated on its success.
+      - name: Reclaim workspace from the agent
+        id: agentreclaim
+        if: always() && steps.agentuser.outcome == 'success'
+        uses: meridianlabs-ai/agents/.github/actions/reclaim-codex-workspace@main
+        with:
+          user: claude-agent
+
+      # The runner's own file, not the agent's output: removed so the import
+      # below does not warn about an entry the agent user does not own. After
+      # the reclaim's kill; rm unlinks a name and never follows it.
+      - name: Take the alert list back
+        if: always() && steps.agentreclaim.outcome == 'success'
+        env:
+          LANDING: ${{ runner.temp }}/claude-agent
+        run: rm -f "$LANDING/alerts.json"
+
+      # The agent's PR text and status, across the user boundary ONCE: every
+      # regular, single-link, `claude-agent`-owned file directly under its
+      # landing directory with a plain name, opened O_NOFOLLOW and
+      # size-capped, is copied into a fresh runner-only
+      # $RUNNER_TEMP/agent-io, the only place the steps below read. A
+      # refusal leaves no copy, and the composer then finds no PR files. Only
+      # for an agent that was launched: what provisioning wrote into the
+      # directory is not its output.
+      - name: Import the agent's landing files
+        id: agentfiles
+        continue-on-error: true
+        if: always() && steps.agentreclaim.outcome == 'success' && steps.launcher.outcome == 'success' && steps.claude.outcome != 'skipped'
+        uses: meridianlabs-ai/agents/.github/actions/import-codex-final@main
+        with:
+          mode: dir
+          dest: ${{ runner.temp }}/agent-io
+
+      - name: Add the agent's status to the run summary
+        if: always()
+        env:
+          STATUS: ${{ runner.temp }}/agent-io/status.md
+        run: |
+          if [ -s "$STATUS" ]; then head -c 20000 "$STATUS" >>"$GITHUB_STEP_SUMMARY"; fi
 
       # The action can finish green even when the agent errored (model
       # overload etc.). This job cannot post: the message becomes the
       # manifest's `error` (fail_run true) and the land job posts it on the
       # PR and fails the run after everything else landed. Exits 0 on every
-      # path: the red X is the land job's.
+      # path: the red X is the land job's. A failed boundary step ahead of the
+      # agent (which skips the agent step) and a failed reclaim after it are
+      # named first: neither is the model's transient.
       - name: Surface agent errors
         if: always()
         env:
           EXEC: ${{ steps.claude.outputs.execution_file }}
           CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
+          AGENTUSER_OUTCOME: ${{ steps.agentuser.outcome }}
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          AGENTPRERECLAIM_OUTCOME: ${{ steps.agentprereclaim.outcome }}
+          LAUNCHER_OUTCOME: ${{ steps.launcher.outcome }}
+          AGENTRECLAIM_OUTCOME: ${{ steps.agentreclaim.outcome }}
           ERROR_FILE: ${{ runner.temp }}/agent-error.md
         run: |
           set -uo pipefail
           file="${EXEC:-/home/runner/work/_temp/claude-execution-output.json}"
           err=""
+          boundary=""
+          if [ "${AGENTUSER_OUTCOME:-}" = "failure" ]; then
+            boundary="creating the agent user"
+          elif [ "${SETUP_OUTCOME:-}" = "failure" ]; then
+            boundary="provisioning the checkout as the agent user (corepack, pnpm install)"
+          elif [ "${AGENTPRERECLAIM_OUTCOME:-}" = "failure" ]; then
+            boundary="taking the workspace back from provisioning (a process still running as the agent user, a redirected .git or a new embedded repository)"
+          elif [ "${LAUNCHER_OUTCOME:-}" = "failure" ]; then
+            boundary="preparing the agent's launch (installing Claude Code at the action's pinned version, or the agent user's isolation check)"
+          fi
+          if [ -n "$boundary" ]; then
+            err="$boundary failed before the agent started (see the job logs)."
+          elif [ "${AGENTUSER_OUTCOME:-}" = "success" ] && [ "${AGENTRECLAIM_OUTCOME:-}" != "success" ]; then
+            err="the workspace could not be reclaimed from the agent user after its run (reclaim outcome: ${AGENTRECLAIM_OUTCOME:-unknown}; see the job logs), so nothing was landed."
+          fi
+          if [ -n "$err" ]; then
+            echo "::error::Claude run did not complete: $err"
+            printf 'The dependabot-fix run stopped at the agent-user boundary:\n\n> %s\n\nCheck the job logs before re-running: a repeat points at the runner image, the provisioning recipe or the agents composites, not the model.\n' "$err" >"$ERROR_FILE"
+            exit 0
+          fi
           # SDK error results (error_max_turns, error_during_execution, ...)
           # carry no .result field — fall back to .subtype.
           [ -f "$file" ] && err=$(jq -r '(if type=="array" then . else .messages end) | map(select(.type=="result" and .is_error==true)) | last | (.result // .subtype) // empty' "$file" 2>/dev/null || true)
@@ -401,6 +530,10 @@ jobs:
       #              (the land composite pushes to the pinned PR's branch)
       #   error    — the Surface step's message, an unresolved merge, or a
       #              missing PR body; fail_run true
+      # No git runs unless the post-agent reclaim succeeded: before it the
+      # agent user could still write `.git`. The git dir and hooks are pinned
+      # by env as on the reusable workflows' landing steps (belt and braces
+      # behind the reclaim's refusal of a redirect).
       - name: Compose landing manifest
         if: always()
         env:
@@ -411,14 +544,29 @@ jobs:
           CONTINUING: ${{ needs.gate.outputs.continuing }}
           PR_NUMBER: ${{ needs.gate.outputs.pr_number }}
           ERROR_FILE: ${{ runner.temp }}/agent-error.md
+          AGENTRECLAIM_OUTCOME: ${{ steps.agentreclaim.outcome }}
+          GIT_DIR: ${{ github.workspace }}/.git
+          GIT_COMMON_DIR: ${{ github.workspace }}/.git
+          GIT_WORK_TREE: ${{ github.workspace }}
+          GIT_CONFIG_GLOBAL: /dev/null
+          GIT_CONFIG_COUNT: "2"
+          GIT_CONFIG_KEY_0: core.hooksPath
+          GIT_CONFIG_VALUE_0: ${{ runner.temp }}/no-hooks
+          GIT_CONFIG_KEY_1: core.fsmonitor
+          GIT_CONFIG_VALUE_1: "false"
         run: |
           set -euo pipefail
           mkdir -p "$DIR"
           extra='{}'
           err=""
-          tip=$(git rev-parse HEAD 2>/dev/null || echo "$START")
-          if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
-            err="The merge of the default branch into the batch branch was left unfinished, so nothing was landed."
+          tip="$START"
+          if [ "${AGENTRECLAIM_OUTCOME:-}" = "success" ]; then
+            tip=$(git rev-parse HEAD 2>/dev/null || echo "$START")
+            if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+              err="The merge of the default branch into the batch branch was left unfinished, so nothing was landed."
+            fi
+          else
+            echo "landing: the workspace was not reclaimed from the agent user (reclaim outcome: ${AGENTRECLAIM_OUTCOME:-unknown}); running no git, nothing lands."
           fi
           committed=false
           if [ -n "$START" ] && [ "$tip" != "$START" ]; then
@@ -472,6 +620,10 @@ jobs:
           # PR's live head ref.
           pr-number: ${{ needs.gate.outputs.pr_number }}
           manifest-extra: ${{ runner.temp }}/landing-extra.json
+          # No git over a `.git` the agent user could still write: without a
+          # successful reclaim nothing is bundled, and the manifest still
+          # carries the Surface step's error.
+          read-only: ${{ steps.agentreclaim.outcome != 'success' && 'true' || 'false' }}
 
   # TRUSTED, last: a fresh runner that checks out nothing and installs
   # nothing. Runs whatever the agent job did (always()), so an agent failure
