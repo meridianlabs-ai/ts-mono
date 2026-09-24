@@ -77,6 +77,75 @@ describe("synthesizeComparable", () => {
   });
 });
 
+// Numeric path segments come from the log. Padding an array out to one must
+// cost work proportional to the change list, not to the number in the path,
+// or a single `/x/2000000000` change freezes the viewer.
+describe("synthesizeComparable array index bounds", () => {
+  const kHugeIndex = "1000000";
+
+  // Checked before any toEqual so a regression fails on a number instead of
+  // diff-printing a million-element array.
+  const serializedSize = (
+    sides: [Record<string, unknown>, Record<string, unknown>]
+  ) => JSON.stringify(sides).length;
+
+  it("keeps a huge add index as an object key instead of padding to it", () => {
+    const sides = synthesizeComparable([add(`/x/${kHugeIndex}`, 1)]);
+    expect(serializedSize(sides)).toBeLessThan(100);
+    expect(sides).toEqual([{ x: {} }, { x: { [kHugeIndex]: 1 } }]);
+  });
+
+  it("keeps a huge replace index as an object key on both sides", () => {
+    const sides = synthesizeComparable([
+      { op: "replace", path: `/x/${kHugeIndex}`, value: 2, replaced: 1 },
+    ]);
+    expect(serializedSize(sides)).toBeLessThan(100);
+    expect(sides).toEqual([
+      { x: { [kHugeIndex]: 1 } },
+      { x: { [kHugeIndex]: 2 } },
+    ]);
+  });
+
+  it("bounds a huge index in a middle segment", () => {
+    const sides = synthesizeComparable([add(`/x/${kHugeIndex}/y`, 1)]);
+    expect(serializedSize(sides)).toBeLessThan(100);
+    expect(sides).toEqual([
+      { x: { [kHugeIndex]: {} } },
+      { x: { [kHugeIndex]: { y: 1 } } },
+    ]);
+  });
+
+  // remove/move/copy skip padding, so the write itself mustn't leave a
+  // holey array whose length is the log's number.
+  it("does not grow a sparse array for a huge remove index", () => {
+    const sides = synthesizeComparable([
+      { op: "remove", path: `/x/${kHugeIndex}`, value: 1, replaced: null },
+    ]);
+    expect(serializedSize(sides)).toBeLessThan(100);
+    expect(sides).toEqual([{ x: { [kHugeIndex]: 1 } }, {}]);
+  });
+
+  it("bounds total padding across many moderately indexed changes", () => {
+    const changes = Array.from({ length: 200 }, (_, i) =>
+      add(`/list${i}/999`, i)
+    );
+    const sides = synthesizeComparable(changes);
+    expect(serializedSize(sides)).toBeLessThan(100_000);
+    const [, after] = sides;
+    expect(after["list0"]).toEqual([...Array<string>(999).fill(""), 0]);
+    expect(after["list199"]).toEqual({ 999: 199 });
+  });
+
+  it("keeps arrays that grow one element per change as arrays", () => {
+    const [before, after] = synthesizeComparable([
+      add("/items/0", "a"),
+      add("/items/1", "b"),
+    ]);
+    expect(before).toEqual({ items: [""] });
+    expect(after).toEqual({ items: ["a", "b"] });
+  });
+});
+
 // Paths come straight from the log. A `__proto__` segment must become an
 // ordinary key in the synthesized tree, never a step into Object.prototype:
 // a write there would be read back by every plain object in the page.
