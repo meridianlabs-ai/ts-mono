@@ -730,3 +730,11 @@ jobs:
           # manifest that carries commits must name exactly it as start_sha,
           # or the validator refuses it before the fetch (finding 4628444).
           start-sha: ${{ needs.gate.outputs.start }}
+          # Tier 2 (agents design/executed-paths-residual.md → Land: tier-2
+          # opt-in): the batch is package.json, pnpm-workspace.yaml and
+          # pnpm-lock.yaml changes. Allowed because every automated consumer
+          # of the branches landed here runs its provisioning and agent as a
+          # non-runner user: this workflow's agent job (the agent user
+          # boundary above) and the reusable workflows the stubs call, which
+          # opt in too. Drop it if either stops holding.
+          allow-build-config: "true"

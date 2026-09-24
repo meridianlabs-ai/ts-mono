@@ -415,6 +415,47 @@ test("the workflow's Land step allows no PR labels", () => {
   assert.match(land, /^ {10}allowed-pr-labels: "\[\]"$/m);
 });
 
+// The tier-2 opt-in is sound only while nothing from the batch branch runs as
+// the runner: provisioning and the CLI both run as claude-agent.
+test("the workflow's Land step opts into build config only behind the agent user boundary", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const land = workflow.match(
+    /^ {6}- name: Land\n(?: {8}.*\n| *#.*\n|\n)*/m
+  )?.[0];
+  assert.ok(land, "no Land step in dependabot-fix.yml");
+  assert.match(land, /^ {10}allow-build-config: "true"$/m);
+  const agent = workflow.match(/^ {2}agent:\n(?: {4}.*\n| *#.*\n|\n)*/m)?.[0];
+  assert.ok(agent, "no agent job in dependabot-fix.yml");
+  const step = (name) =>
+    agent.match(
+      new RegExp(`^ {6}- name: ${name}\\n(?: {8}.*\\n| *#.*\\n|\\n)*`, "m")
+    )?.[0] ?? assert.fail(`no "${name}" step in the agent job`);
+  const provision = step(
+    String.raw`Provision the checkout \(as the agent user\)`
+  );
+  assert.match(
+    provision,
+    /uses: meridianlabs-ai\/agents\/\.github\/actions\/provision-fallback@/
+  );
+  assert.match(provision, /^ {10}user: claude-agent$/m);
+  assert.match(step("Create agent user"), /^ {10}user: claude-agent$/m);
+  assert.match(
+    step("Reclaim workspace before the agent"),
+    /^ {10}user: claude-agent$/m
+  );
+  assert.match(step("Prepare the agent launch"), /claude-agent-launcher@/);
+  assert.match(
+    agent,
+    /^ {10}path_to_claude_code_executable: \$\{\{ steps\.launcher\.outputs\.executable \}\}$/m
+  );
+  assert.doesNotMatch(agent, /uses: (pnpm\/action-setup|actions\/setup-node)@/);
+});
+
 // The agent job's pnpm store and .turbo saves would land in default-branch
 // scope, which ci.yaml and npm-publish.yml restore (Claude Security 4629157).
 test("the workflow's agent job cannot save the Actions cache", () => {
