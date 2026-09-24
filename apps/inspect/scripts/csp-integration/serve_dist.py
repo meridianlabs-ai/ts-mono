@@ -17,9 +17,10 @@ import inspect_ai.log._bundle as bundle_module
 from inspect_ai._cli.main import main
 
 dist = Path(sys.argv[1]).resolve()
-dist_module.resolve_dist_directory = lambda: dist
-server_module.resolve_dist_directory = lambda: dist
-bundle_module._dist_dir = lambda: str(dist)
+# setattr: these names aren't re-exported, so mypy rejects assigning them.
+setattr(dist_module, "resolve_dist_directory", lambda: dist)
+setattr(server_module, "resolve_dist_directory", lambda: dist)
+setattr(bundle_module, "_dist_dir", lambda: str(dist))
 
 sys.argv = ["inspect", *sys.argv[2:]]
 main()

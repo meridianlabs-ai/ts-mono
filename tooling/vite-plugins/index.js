@@ -3,7 +3,7 @@
  */
 
 import { createHash } from "crypto";
-import { readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { relative, resolve as resolvePath } from "path";
 
 import { build as esbuildBuild, context as esbuildContext } from "esbuild";
@@ -167,6 +167,26 @@ const EXECUTABLE_TYPES = new Set([
   "application/javascript",
 ]);
 
+// The hosts that deliver the policy (inspect_ai's _view/_csp.py, the VS Code
+// extension's webview-csp.ts) reject these; fail the build instead of them.
+const HOST_OWNED_DIRECTIVES = new Set(["frame-ancestors"]);
+const TOKEN = /^[\x21-\x7e]+$/;
+
+const validateDirectives = (directives) => {
+  for (const [name, sources] of Object.entries(directives)) {
+    if (HOST_OWNED_DIRECTIVES.has(name.toLowerCase())) {
+      throw new Error(`contentSecurityPolicy: ${name} is set by each host`);
+    }
+    for (const token of [name, ...sources]) {
+      if (!TOKEN.test(token) || /[;,]/.test(token)) {
+        throw new Error(
+          `contentSecurityPolicy: ${JSON.stringify(token)} in ${name} can't go in a header`
+        );
+      }
+    }
+  }
+};
+
 /** File the build writes next to index.html; hosts deliver the policy from it. */
 export const CSP_FILE = "content-security-policy.json";
 
@@ -203,6 +223,9 @@ export function contentSecurityPolicy(directives) {
     configResolved(config) {
       outDir = resolvePath(config.root, config.build.outDir);
     },
+    buildStart() {
+      validateDirectives(directives);
+    },
     writeBundle(options) {
       const dir = options.dir ?? outDir;
       const html = readFileSync(resolvePath(dir, "index.html"), "utf8");
@@ -229,6 +252,11 @@ export function contentSecurityPolicy(directives) {
     },
     configurePreviewServer(server) {
       const file = resolvePath(outDir, CSP_FILE);
+      if (!existsSync(file)) {
+        throw new Error(
+          `${outDir} has no ${CSP_FILE}; rebuild before previewing`
+        );
+      }
       server.middlewares.use((_req, res, next) => {
         const { directives: built } = JSON.parse(readFileSync(file, "utf8"));
         res.setHeader("Content-Security-Policy", policyString(built));
