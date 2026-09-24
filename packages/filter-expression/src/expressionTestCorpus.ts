@@ -596,3 +596,26 @@ export const kCorpus: readonly string[] = [
   ...kHandPickedExpressions,
   ...kGeneratedExpressions,
 ];
+
+const kChunkSize = 250;
+
+/**
+ * The corpus in fixed slices, for tests that run both engines per
+ * expression: no single test does thousands of filtrex compiles, which a
+ * contended CI runner can stretch past the default timeout, and a failure
+ * names the slice it came from.
+ */
+export const kCorpusChunks: ReadonlyArray<{
+  label: string;
+  expressions: readonly string[];
+}> = Array.from(
+  { length: Math.ceil(kCorpus.length / kChunkSize) },
+  (_, index) => {
+    const start = index * kChunkSize;
+    const expressions = kCorpus.slice(start, start + kChunkSize);
+    return {
+      label: `${start}-${start + expressions.length - 1}`,
+      expressions,
+    };
+  }
+);

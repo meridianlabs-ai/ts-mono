@@ -2,7 +2,11 @@ import { compileExpression } from "filtrex";
 import { describe, expect, it, vi } from "vitest";
 
 import { ExpressionNode, parseExpression } from "./expressionParser";
-import { kCorpus, kHandPickedExpressions } from "./expressionTestCorpus";
+import {
+  kCorpus,
+  kCorpusChunks,
+  kHandPickedExpressions,
+} from "./expressionTestCorpus";
 
 // filtrex compiles by pasting code fragments together; printing our tree
 // with the same fragments lets us compare parse trees exactly, including
@@ -101,14 +105,17 @@ describe("parseExpression matches filtrex's parser", () => {
     expect(ourOutcome(expression)).toEqual(filtrexOutcome(expression));
   });
 
-  it("agrees on every generated expression", () => {
-    const mismatches = kCorpus.filter(
-      (expression) =>
-        JSON.stringify(ourOutcome(expression)) !==
-        JSON.stringify(filtrexOutcome(expression))
-    );
-    expect(mismatches).toEqual([]);
-  });
+  it.each(kCorpusChunks)(
+    "agrees on corpus expressions $label",
+    ({ expressions }) => {
+      const mismatches = expressions.filter(
+        (expression) =>
+          JSON.stringify(ourOutcome(expression)) !==
+          JSON.stringify(filtrexOutcome(expression))
+      );
+      expect(mismatches).toEqual([]);
+    }
+  );
 
   it("parses the generated corpus into a mix of trees and errors", () => {
     const parsed = kCorpus.filter((e) => "code" in ourOutcome(e)).length;

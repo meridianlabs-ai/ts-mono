@@ -6,7 +6,11 @@ import {
   CompileFilterOptions,
   UnknownPropertyError,
 } from "./expressionEvaluator";
-import { kCorpus, kHandPickedExpressions } from "./expressionTestCorpus";
+import {
+  kCorpus,
+  kCorpusChunks,
+  kHandPickedExpressions,
+} from "./expressionTestCorpus";
 
 const kData: Record<string, unknown> = {
   a: 1,
@@ -149,19 +153,22 @@ describe.each(kConfigurations)(
       );
     });
 
-    it("agrees on every generated expression", () => {
-      const mismatches = kCorpus.filter((expression) => {
-        const expected = outcome(filtrex, expression, options());
-        const actual = outcome(ours, expression, options());
-        try {
-          expect(actual).toEqual(expected);
-          return false;
-        } catch {
-          return true;
-        }
-      });
-      expect(mismatches).toEqual([]);
-    });
+    it.each(kCorpusChunks)(
+      "agrees on corpus expressions $label",
+      ({ expressions }) => {
+        const mismatches = expressions.filter((expression) => {
+          const expected = outcome(filtrex, expression, options());
+          const actual = outcome(ours, expression, options());
+          try {
+            expect(actual).toEqual(expected);
+            return false;
+          } catch {
+            return true;
+          }
+        });
+        expect(mismatches).toEqual([]);
+      }
+    );
   }
 );
 
