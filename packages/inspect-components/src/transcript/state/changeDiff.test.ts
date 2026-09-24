@@ -184,6 +184,13 @@ describe("diffFromChanges huge indexes", () => {
     expect(rows(diff).join("\n")).toContain(`/x/${kHugeIndex}`);
   });
 
+  it("stays linear across many moderately indexed changes", () => {
+    const diff = diffFromChanges(
+      Array.from({ length: 200 }, (_, i) => add(`/list${i}/999`, i))
+    );
+    expect(rows(diff)).toHaveLength(400);
+  });
+
   it("orders index keys numerically without converting them", () => {
     const huge = "123456789012345678901234567890";
     expect(
