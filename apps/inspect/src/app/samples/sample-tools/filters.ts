@@ -1,3 +1,4 @@
+import { compileFilterExpression } from "@tsmono/filter-expression";
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
 import { arrayToString, isRecord } from "@tsmono/util";
 
@@ -9,7 +10,6 @@ import { kScoreTypeBoolean } from "../../../constants";
 import { SamplesDescriptor } from "../descriptor/samplesDescriptor";
 import { EvalDescriptor, ScoreDescriptor } from "../descriptor/types";
 
-import { compileFilterExpression } from "./expressionEvaluator";
 import { kSampleMetadataPrefix } from "./sample-filter/language";
 
 export interface SampleFilterItem {
