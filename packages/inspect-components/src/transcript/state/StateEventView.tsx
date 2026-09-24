@@ -260,8 +260,7 @@ export const synthesizeComparable = (
     switch (change.op) {
       case "add":
         // 'Fill in' arrays with empty strings to ensure there is no unnecessary diff
-        initializeArrays(before, change.path, budget);
-        initializeArrays(after, change.path, budget);
+        initializeArrays(before, after, change.path, budget);
         setPath(after, change.path, change.value, budget);
         break;
       case "copy":
@@ -277,8 +276,7 @@ export const synthesizeComparable = (
         break;
       case "replace":
         // 'Fill in' arrays with empty strings to ensure there is no unnecessary diff
-        initializeArrays(before, change.path, budget);
-        initializeArrays(after, change.path, budget);
+        initializeArrays(before, after, change.path, budget);
 
         setPath(before, change.path, change.replaced, budget);
         setPath(after, change.path, change.value, budget);
@@ -353,31 +351,44 @@ function setPath(
 }
 
 /**
- * Places structure in an object (without placing values), padding arrays with
- * empty strings up to the path's index so the diff shows no spurious entries.
+ * Places structure in both sides (without placing values), padding arrays
+ * with empty strings up to the path's index so the diff shows no spurious
+ * entries. The sides are walked together so each segment gets the same
+ * container kind on both.
  */
 function initializeArrays(
-  target: Record<string, unknown>,
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
   path: string,
   budget: GrowthBudget
 ): void {
   const keys = parsePath(path);
-  let current: PathContainer = target;
+  let left: PathContainer = before;
+  let right: PathContainer = after;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
     const nextKey = keys[i + 1];
     if (!key || !nextKey) return;
 
-    const next = containerFor(getChild(current, key), nextKey, budget);
-    if (Array.isArray(next)) {
-      const index = Number(nextKey);
-      while (next.length < index) {
-        next.push("");
+    const [nextLeft, nextRight] = containerPairFor(
+      getChild(left, key),
+      getChild(right, key),
+      nextKey,
+      budget
+    );
+    const index = Number(nextKey);
+    for (const next of [nextLeft, nextRight]) {
+      if (Array.isArray(next)) {
+        while (next.length < index) {
+          next.push("");
+        }
       }
     }
-    setChild(current, key, next);
-    current = next;
+    setChild(left, key, nextLeft);
+    setChild(right, key, nextRight);
+    left = nextLeft;
+    right = nextRight;
   }
 }
 
@@ -417,30 +428,59 @@ function containerFor(
   nextKey: string,
   budget: GrowthBudget
 ): PathContainer {
-  if (isPathContainer(existing) && !Array.isArray(existing)) {
-    // A plain object holds numeric-string keys fine.
-    return existing;
-  }
-  const arr: unknown[] = Array.isArray(existing) ? existing : [];
-  if (isArrayIndex(nextKey) && reserveIndex(arr, Number(nextKey), budget)) {
+  const arr = arrayFor(existing);
+  if (
+    arr &&
+    isArrayIndex(nextKey) &&
+    reserve(budget, growthTo(arr, Number(nextKey)))
+  ) {
     return arr;
   }
-  return arr.length > 0 ? arrayToObject(arr) : {};
+  return objectFor(existing);
 }
 
 /**
- * Charges the budget for growing `arr` to hold `index`. Appending the next
- * element is free: it takes a change per element, so it's already bounded
- * by the change list.
+ * containerFor for both sides at once: they become arrays only if the budget
+ * covers both, so one side can't end up an array while the other is re-keyed.
  */
-function reserveIndex(
-  arr: unknown[],
-  index: number,
+function containerPairFor(
+  left: unknown,
+  right: unknown,
+  nextKey: string,
   budget: GrowthBudget
-): boolean {
-  const growth = index - arr.length;
-  if (growth <= 0) return true;
-  if (growth > budget.remaining) return false;
-  budget.remaining -= growth;
+): [PathContainer, PathContainer] {
+  const leftArr = arrayFor(left);
+  const rightArr = arrayFor(right);
+  if (leftArr && rightArr && isArrayIndex(nextKey)) {
+    const index = Number(nextKey);
+    if (reserve(budget, growthTo(leftArr, index) + growthTo(rightArr, index))) {
+      return [leftArr, rightArr];
+    }
+  }
+  return [objectFor(left), objectFor(right)];
+}
+
+/** The array a write goes through, or undefined when a plain object is here. */
+const arrayFor = (existing: unknown): unknown[] | undefined => {
+  if (!isPathContainer(existing)) return [];
+  return Array.isArray(existing) ? existing : undefined;
+};
+
+const objectFor = (existing: unknown): Record<string, unknown> => {
+  if (!isPathContainer(existing)) return {};
+  return Array.isArray(existing) ? arrayToObject(existing) : existing;
+};
+
+/**
+ * Elements needed for `arr` to hold `index`, beyond appending the next one:
+ * appends are free because each takes a change, so the change list already
+ * bounds them.
+ */
+const growthTo = (arr: unknown[], index: number): number =>
+  Math.max(0, index - arr.length);
+
+function reserve(budget: GrowthBudget, amount: number): boolean {
+  if (amount > budget.remaining) return false;
+  budget.remaining -= amount;
   return true;
 }

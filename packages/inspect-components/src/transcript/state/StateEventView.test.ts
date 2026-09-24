@@ -136,6 +136,52 @@ describe("synthesizeComparable array index bounds", () => {
     expect(after["list199"]).toEqual({ 999: 199 });
   });
 
+  // Both sides pad from one budget; if only `before` could afford an index,
+  // reconciling would turn its padding into thousands of phantom deletions.
+  it("pads both sides as arrays when the budget covers both", () => {
+    const [before, after] = synthesizeComparable([add("/a/4000", 1)]);
+    expect(before).toEqual({ a: Array<string>(4000).fill("") });
+    expect(after).toEqual({ a: [...Array<string>(4000).fill(""), 1] });
+  });
+
+  it("re-keys both sides when the budget covers only one", () => {
+    const [before, after] = synthesizeComparable([add("/a/6000", 1)]);
+    expect(before).toEqual({ a: {} });
+    expect(after).toEqual({ a: { 6000: 1 } });
+  });
+
+  it("gives both sides the same container kind once the budget runs out", () => {
+    const [before, after] = synthesizeComparable([
+      add("/a/3000", 1),
+      add("/b/3000", 2),
+    ]);
+    expect(Array.isArray(before["a"]) && Array.isArray(after["a"])).toBe(true);
+    expect(before["b"]).toEqual({});
+    expect(after["b"]).toEqual({ 3000: 2 });
+  });
+
+  it("keeps earlier elements when an over-budget index re-keys an array", () => {
+    const [, after] = synthesizeComparable([
+      add("/a/0", "x"),
+      add(`/a/${kHugeIndex}`, "y"),
+    ]);
+    expect(after).toEqual({ a: { 0: "x", [kHugeIndex]: "y" } });
+  });
+
+  it("bounds a huge index in a move's from path", () => {
+    const sides = synthesizeComparable([
+      {
+        op: "move",
+        path: "/y",
+        from: `/x/${kHugeIndex}`,
+        value: 1,
+        replaced: null,
+      },
+    ]);
+    expect(serializedSize(sides)).toBeLessThan(100);
+    expect(sides).toEqual([{ x: { [kHugeIndex]: 1 } }, { y: 1 }]);
+  });
+
   it("keeps arrays that grow one element per change as arrays", () => {
     const [before, after] = synthesizeComparable([
       add("/items/0", "a"),
