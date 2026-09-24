@@ -113,7 +113,6 @@
     "fzstd": "^0.1.1",
     "immer": "^11.1.18",
     "json5": "^2.2.3",
-    "jsondiffpatch": "^0.7.6",
     "markdown-it": "^15.0.2",
     "postcss-url": "^10.1.4",
     "prismjs": "^1.30.0",
