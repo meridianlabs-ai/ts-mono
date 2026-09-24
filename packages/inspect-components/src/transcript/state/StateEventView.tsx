@@ -233,9 +233,6 @@ const setChild = (
   }
 };
 
-const asArray = (value: unknown): unknown[] | undefined =>
-  Array.isArray(value) ? value : undefined;
-
 // An array can't hold a non-numeric key — string props set on an array are
 // invisible to JSON.stringify and the diff renderer's array walk — so when a
 // path needs one (a dict with mixed numeric/non-numeric keys), re-key the
@@ -257,33 +254,34 @@ export const synthesizeComparable = (
 ): [Record<string, unknown>, Record<string, unknown>] => {
   const before: Record<string, unknown> = {};
   const after: Record<string, unknown> = {};
+  const budget: GrowthBudget = { remaining: kArrayGrowthBudget };
 
   for (const change of changes) {
     switch (change.op) {
       case "add":
         // 'Fill in' arrays with empty strings to ensure there is no unnecessary diff
-        initializeArrays(before, change.path);
-        initializeArrays(after, change.path);
-        setPath(after, change.path, change.value);
+        initializeArrays(before, change.path, budget);
+        initializeArrays(after, change.path, budget);
+        setPath(after, change.path, change.value, budget);
         break;
       case "copy":
-        setPath(before, change.path, change.value);
-        setPath(after, change.path, change.value);
+        setPath(before, change.path, change.value, budget);
+        setPath(after, change.path, change.value, budget);
         break;
       case "move":
-        setPath(before, change.from || "", change.value);
-        setPath(after, change.path, change.value);
+        setPath(before, change.from || "", change.value, budget);
+        setPath(after, change.path, change.value, budget);
         break;
       case "remove":
-        setPath(before, change.path, change.value);
+        setPath(before, change.path, change.value, budget);
         break;
       case "replace":
         // 'Fill in' arrays with empty strings to ensure there is no unnecessary diff
-        initializeArrays(before, change.path);
-        initializeArrays(after, change.path);
+        initializeArrays(before, change.path, budget);
+        initializeArrays(after, change.path, budget);
 
-        setPath(before, change.path, change.replaced);
-        setPath(after, change.path, change.value);
+        setPath(before, change.path, change.replaced, budget);
+        setPath(after, change.path, change.value, budget);
         break;
       case "test":
         break;
@@ -326,32 +324,23 @@ function reconcileContainerKinds(a: PathContainer, b: PathContainer): void {
 function setPath(
   target: Record<string, unknown>,
   path: string,
-  value: unknown
+  value: unknown,
+  budget: GrowthBudget
 ): void {
   const keys = parsePath(path);
   let current: PathContainer = target;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
-    if (!key) return;
     const nextKey = keys[i + 1];
+    if (!key || !nextKey) return;
     const existing = getChild(current, key);
-    let next: PathContainer;
-    if (isPathContainer(existing)) {
-      next =
-        Array.isArray(existing) && nextKey && !isArrayIndex(nextKey)
-          ? arrayToObject(existing)
-          : existing;
-      if (next !== existing) {
-        setChild(current, key, next);
-      }
-    } else {
-      // If the next key is a number, create an array, otherwise an object.
-      // A scalar already here gets overwritten: a change list writing /a and
-      // then /a/b onto the same side loses the /a scalar. Coherent jsonpatch
-      // output doesn't produce that shape, so we accept the (silent) drop
-      // rather than complicate the synthesis.
-      next = nextKey && isArrayIndex(nextKey) ? [] : {};
+    // A scalar already here gets overwritten: a change list writing /a and
+    // then /a/b onto the same side loses the /a scalar. Coherent jsonpatch
+    // output doesn't produce that shape, so we accept the (silent) drop
+    // rather than complicate the synthesis.
+    const next = containerFor(existing, nextKey, budget);
+    if (next !== existing) {
       setChild(current, key, next);
     }
     current = next;
@@ -364,40 +353,31 @@ function setPath(
 }
 
 /**
- * Places structure in an object (without placing values)
+ * Places structure in an object (without placing values), padding arrays with
+ * empty strings up to the path's index so the diff shows no spurious entries.
  */
-function initializeArrays(target: Record<string, unknown>, path: string): void {
+function initializeArrays(
+  target: Record<string, unknown>,
+  path: string,
+  budget: GrowthBudget
+): void {
   const keys = parsePath(path);
   let current: PathContainer = target;
 
   for (let i = 0; i < keys.length - 1; i++) {
     const key = keys[i];
     const nextKey = keys[i + 1];
-    if (!key || !nextKey) {
-      continue;
-    }
+    if (!key || !nextKey) return;
 
-    const existing = getChild(current, key);
-    if (isArrayIndex(nextKey)) {
-      // A plain object holds numeric-string keys fine — only build (or pad)
-      // an array when there's no object here to reuse.
-      if (Array.isArray(existing) || !isPathContainer(existing)) {
-        setChild(current, key, initializeArray(asArray(existing), nextKey));
+    const next = containerFor(getChild(current, key), nextKey, budget);
+    if (Array.isArray(next)) {
+      const index = Number(nextKey);
+      while (next.length < index) {
+        next.push("");
       }
-    } else if (Array.isArray(existing)) {
-      setChild(current, key, arrayToObject(existing));
-    } else {
-      setChild(current, key, isPathContainer(existing) ? existing : {});
     }
-
-    const next = getChild(current, key);
-    if (!isPathContainer(next)) return;
+    setChild(current, key, next);
     current = next;
-  }
-
-  const lastKey = keys[keys.length - 1];
-  if (lastKey && isArrayIndex(lastKey)) {
-    initializeArray(asArray(getChild(current, lastKey)), lastKey);
   }
 }
 
@@ -416,18 +396,51 @@ function isArrayIndex(key: string): boolean {
 }
 
 /**
- * Initializes an array at a given key, ensuring it is large enough
+ * Array elements the synthesis may add beyond one-per-change appends. Path
+ * indexes come from the log, so without a cap one `/x/2000000000` change
+ * pads (or sparsely grows) an array to that length on the render path.
  */
-function initializeArray(
-  current: unknown[] | undefined,
-  nextKey: string
-): unknown[] {
-  if (!Array.isArray(current)) {
-    current = [];
+const kArrayGrowthBudget = 10_000;
+
+interface GrowthBudget {
+  remaining: number;
+}
+
+/**
+ * Picks the container that `nextKey` gets written into, reusing `existing`
+ * when it fits. A numeric key selects an array only while the budget covers
+ * growing it to that index; past that it becomes an object key, the same
+ * re-key a mixed numeric/non-numeric dict gets.
+ */
+function containerFor(
+  existing: unknown,
+  nextKey: string,
+  budget: GrowthBudget
+): PathContainer {
+  if (isPathContainer(existing) && !Array.isArray(existing)) {
+    // A plain object holds numeric-string keys fine.
+    return existing;
   }
-  const nextKeyIndex = parseInt(nextKey, 10);
-  while (current.length < nextKeyIndex) {
-    current.push("");
+  const arr: unknown[] = Array.isArray(existing) ? existing : [];
+  if (isArrayIndex(nextKey) && reserveIndex(arr, Number(nextKey), budget)) {
+    return arr;
   }
-  return current;
+  return arr.length > 0 ? arrayToObject(arr) : {};
+}
+
+/**
+ * Charges the budget for growing `arr` to hold `index`. Appending the next
+ * element is free: it takes a change per element, so it's already bounded
+ * by the change list.
+ */
+function reserveIndex(
+  arr: unknown[],
+  index: number,
+  budget: GrowthBudget
+): boolean {
+  const growth = index - arr.length;
+  if (growth <= 0) return true;
+  if (growth > budget.remaining) return false;
+  budget.remaining -= growth;
+  return true;
 }
