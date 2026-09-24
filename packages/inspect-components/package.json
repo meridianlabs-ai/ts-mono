@@ -38,7 +38,6 @@
     "@tanstack/react-query": "^5.0.0",
     "@vscode-elements/react-elements": "^2.4.0",
     "json5": "^2.2.3",
-    "jsondiffpatch": "^0.7.6",
     "react": "^19.0.0"
   },
   "devDependencies": {
@@ -55,7 +54,6 @@
     "eslint": "^10.7.0",
     "jsdom": "^30.0.1",
     "json5": "^2.2.3",
-    "jsondiffpatch": "^0.7.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
