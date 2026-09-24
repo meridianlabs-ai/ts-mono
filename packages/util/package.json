@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./base64url": "./src/base64url.ts",
     "./vite-imports": {
       "types": "./src/vite-imports.d.ts"
     }
