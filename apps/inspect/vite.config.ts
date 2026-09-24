@@ -43,10 +43,12 @@ function copyToPythonRepo(): Plugin {
 const viewServerUrl = "http://127.0.0.1:7575";
 
 // The viewer renders untrusted log content; this is the second layer behind
-// the sanitizer (see SECURITY.md). Inline scripts are hashed at build time.
-// 'wasm-unsafe-eval' is for the asciinema player's WebAssembly, and inline
-// style attributes carry MathJax's per-glyph layout. e2e/csp.spec.ts pins
-// this policy, so changing it means changing that test too.
+// the sanitizer (see SECURITY.md). The build writes it, with hashes of the
+// inline scripts, to dist/content-security-policy.json for hosts to deliver
+// (see contentSecurityPolicy). 'wasm-unsafe-eval' is for the asciinema
+// player's WebAssembly, and inline style attributes carry MathJax's
+// per-glyph layout. e2e/csp/csp.spec.ts pins this policy, so changing it
+// means changing that test too.
 const contentSecurityPolicyDirectives = {
   "default-src": ["'none'"],
   "script-src": ["'self'", "'wasm-unsafe-eval'"],

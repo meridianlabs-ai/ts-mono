@@ -11,8 +11,9 @@ import { serveEvalLog } from "../fixtures/serve-log";
 
 import { canaryLog, kProbeHost, kTerminalText, mainLog } from "./cspLogs";
 
-// Runs against the production build (`vite preview`, see
-// playwright.config.ts): the dev server ships no policy.
+// Runs against the production build under `vite preview`, which sends the
+// built policy as a header the way `inspect view` does (see
+// playwright.config.ts and contentSecurityPolicy); the dev server sends none.
 
 // Pinned deliberately: loosening the viewer's CSP should mean editing this
 // line. HASHES stands for the build's inline-script hashes.
@@ -108,19 +109,27 @@ const serveLog = (network: NetworkFixture, evalLog: EvalLog, file: string) => {
   );
 };
 
+const isDirectives = (value: unknown): value is Record<string, string[]> =>
+  typeof value === "object" &&
+  value !== null &&
+  Object.values(value).every(
+    (sources) =>
+      Array.isArray(sources) &&
+      sources.every((source) => typeof source === "string")
+  );
+
 const sampleUrl = (file: string, id: string, tab: string) =>
   `/#/logs/${encodeURIComponent(file)}/samples/sample/${id}/1/${tab}`;
 
 test("the build ships the pinned policy, hashing each inline script", async ({
   request,
 }) => {
-  const html = await (await request.get("/")).text();
-  const policy =
-    /<meta http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(
-      html
-    )?.[1] ?? "";
-  // First child of <head>, so it governs the theme bootstrap too.
-  expect(html).toMatch(/<head>\s*<meta http-equiv="Content-Security-Policy"/);
+  const response = await request.get("/");
+  const html = await response.text();
+  // Delivered by the host (here as a header), never baked into index.html,
+  // where it would also bind hosts that can't strip it (VS Code).
+  expect(html).not.toContain("Content-Security-Policy");
+  const policy = response.headers()["content-security-policy"] ?? "";
 
   const inlineHashes = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
     ([, code]) =>
@@ -132,6 +141,22 @@ test("the build ships the pinned policy, hashing each inline script", async ({
   expect(policy).toBe(
     kExpectedPolicy.replace("HASHES", inlineHashes.join(" "))
   );
+
+  // The file hosts read the policy from says the same thing.
+  const file: unknown = await (
+    await request.get("/content-security-policy.json")
+  ).json();
+  expect(file).toMatchObject({ version: 1 });
+  const directives =
+    typeof file === "object" &&
+    file !== null &&
+    "directives" in file &&
+    isDirectives(file.directives)
+      ? Object.entries(file.directives)
+      : [];
+  expect(
+    directives.map(([name, sources]) => [name, ...sources].join(" ")).join("; ")
+  ).toBe(policy);
 });
 
 test("the main flows run with no CSP violation", async ({

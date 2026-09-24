@@ -3,6 +3,7 @@
  */
 
 import { createHash } from "crypto";
+import { readFileSync, writeFileSync } from "fs";
 import { relative, resolve as resolvePath } from "path";
 
 import { build as esbuildBuild, context as esbuildContext } from "esbuild";
@@ -166,50 +167,73 @@ const EXECUTABLE_TYPES = new Set([
   "application/javascript",
 ]);
 
+/** File the build writes next to index.html; hosts deliver the policy from it. */
+export const CSP_FILE = "content-security-policy.json";
+
+/** The header / meta value for a policy file's directives, in file order. */
+export const policyString = (directives) =>
+  Object.entries(directives)
+    .map(([name, sources]) => [name, ...sources].join(" "))
+    .join("; ");
+
 /**
- * Build only: inject a Content-Security-Policy <meta> as the first child of
- * <head>, adding a `'sha256-…'` source to script-src (after its first
- * source) for every inline script in the emitted page, so the hashes always
- * match what ships.
+ * Build: write the viewer's Content-Security-Policy to `CSP_FILE` in the
+ * output directory, with a `'sha256-…'` source added to script-src (after
+ * its first source) for every inline script in the emitted index.html, so
+ * the hashes always match what ships.
  *
- * The dev server is skipped: its HMR client and React preamble are inline
- * and differ per session, and a weaker dev policy would only mislead.
+ * The policy is data rather than a <meta> in index.html because each host
+ * delivers it its own way: `inspect view` as a header, `inspect view bundle`
+ * as a meta tag, and the VS Code extension translated for its webview
+ * origin. A meta baked into index.html would also bind hosts that can't
+ * strip it, such as older VS Code extensions.
+ *
+ * Preview: `vite preview` sends the built policy as a header on every
+ * response, as `inspect view` does. The dev server gets no policy; its HMR
+ * client and React preamble are inline and differ per session.
  *
  * @param {Record<string, string[]>} directives the policy, in order
  * @returns {import("vite").Plugin}
  */
 export function contentSecurityPolicy(directives) {
+  let outDir = "dist";
   return {
     name: "content-security-policy",
-    apply: "build",
-    transformIndexHtml: {
-      order: "post",
-      handler(html) {
-        const hashes = [];
-        for (const [, attributes, code] of html.matchAll(INLINE_SCRIPT)) {
-          if (SCRIPT_SRC.test(attributes)) continue;
-          const type = SCRIPT_TYPE.exec(attributes)?.[1]?.toLowerCase();
-          if (type && !EXECUTABLE_TYPES.has(type)) continue;
-          const digest = createHash("sha256").update(code).digest("base64");
-          hashes.push(`'sha256-${digest}'`);
-        }
-        const policy = Object.entries(directives)
-          .map(([name, sources]) => {
-            const all =
-              name === "script-src"
-                ? [...sources.slice(0, 1), ...hashes, ...sources.slice(1)]
-                : sources;
-            return [name, ...all].join(" ");
-          })
-          .join("; ");
-        if (!/<head>/.test(html)) {
-          throw new Error("contentSecurityPolicy: no <head> in index.html");
-        }
-        return html.replace(
-          "<head>",
-          `<head>\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`
-        );
-      },
+    apply: (_config, env) => env.command === "build" || env.isPreview === true,
+    configResolved(config) {
+      outDir = resolvePath(config.root, config.build.outDir);
+    },
+    writeBundle(options) {
+      const dir = options.dir ?? outDir;
+      const html = readFileSync(resolvePath(dir, "index.html"), "utf8");
+      const hashes = [];
+      for (const [, attributes, code] of html.matchAll(INLINE_SCRIPT)) {
+        if (SCRIPT_SRC.test(attributes)) continue;
+        const type = SCRIPT_TYPE.exec(attributes)?.[1]?.toLowerCase();
+        if (type && !EXECUTABLE_TYPES.has(type)) continue;
+        const digest = createHash("sha256").update(code).digest("base64");
+        hashes.push(`'sha256-${digest}'`);
+      }
+      const withHashes = Object.fromEntries(
+        Object.entries(directives).map(([name, sources]) => [
+          name,
+          name === "script-src"
+            ? [...sources.slice(0, 1), ...hashes, ...sources.slice(1)]
+            : sources,
+        ])
+      );
+      writeFileSync(
+        resolvePath(dir, CSP_FILE),
+        `${JSON.stringify({ version: 1, directives: withHashes }, null, 2)}\n`
+      );
+    },
+    configurePreviewServer(server) {
+      const file = resolvePath(outDir, CSP_FILE);
+      server.middlewares.use((_req, res, next) => {
+        const { directives: built } = JSON.parse(readFileSync(file, "utf8"));
+        res.setHeader("Content-Security-Policy", policyString(built));
+        next();
+      });
     },
   };
 }
