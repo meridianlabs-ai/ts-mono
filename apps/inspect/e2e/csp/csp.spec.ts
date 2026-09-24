@@ -271,11 +271,9 @@ for (const preference of ["light", "dark", "system"] as const) {
   });
 }
 
-// Known gap, pinned so it flips when fixed: filtrex compiles each filter
-// with `new Function`, which the policy blocks, so the filter never applies.
-// The evaluator on brandly/filtrex-evaluator replaces it; then assert the
-// filter narrows the list with no violation instead.
-test("the policy blocks filtrex's eval in the sample filter", async ({
+// The sample filter used to compile through filtrex's `new Function`; the
+// evaluator in @tsmono/filter-expression walks the tree instead.
+test("the sample filter filters with no eval", async ({
   page,
   network,
   baseURL,
@@ -286,12 +284,9 @@ test("the policy blocks filtrex's eval in the sample filter", async ({
   await expect(page.getByText("terminal", { exact: true })).toBeVisible();
   await page.locator(".cm-content").first().click();
   await page.keyboard.type('id == "media"');
-  await expect
-    .poll(async () =>
-      (await policy.violations()).some((v) => v.startsWith("script-src eval"))
-    )
-    .toBe(true);
-  await expect(page.getByText("terminal", { exact: true })).toBeVisible();
+  await expect(page.getByText("terminal", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("media", { exact: true })).toBeVisible();
+  expect(await policy.violations()).toEqual([]);
 });
 
 test.describe("rendering canary", () => {
