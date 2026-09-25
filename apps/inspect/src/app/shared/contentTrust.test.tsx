@@ -1,0 +1,132 @@
+// @vitest-environment jsdom
+import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { useContentTrust, type ContentTrust } from "@tsmono/react/components";
+
+import {
+  SelectionContentTrustProvider,
+  useSelectedSamplesContentTrust,
+} from "./contentTrust";
+
+interface Header {
+  eval: { viewer?: { trust_content?: boolean } };
+}
+
+interface MockState {
+  selectedLogFile?: string;
+  sampleLogFile?: string;
+  // A file absent from `headers` is still loading.
+  headers: Record<string, Header>;
+  rowTrusts: ContentTrust[];
+}
+
+const mocks = vi.hoisted(() => {
+  const state: MockState = { headers: {}, rowTrusts: [] };
+  return state;
+});
+
+vi.mock("../../state/store", () => ({
+  useStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      logs: { selectedLogFile: mocks.selectedLogFile },
+      log: {
+        selectedSampleHandle: mocks.sampleLogFile
+          ? { id: 1, epoch: 1, logFile: mocks.sampleLogFile }
+          : undefined,
+      },
+    }),
+}));
+
+vi.mock("../../app_config", () => ({ useLogDir: () => "dir" }));
+
+vi.mock("../../log_data", () => ({
+  useLogHeader: (_dir: string, file: string | undefined) =>
+    file !== undefined && file in mocks.headers
+      ? { loading: false, data: mocks.headers[file] }
+      : { loading: file !== undefined, data: undefined },
+  useSampleSummariesContentTrust: () => mocks.rowTrusts,
+}));
+
+const TRUSTED: Header = { eval: {} };
+const UNTRUSTED: Header = { eval: { viewer: { trust_content: false } } };
+
+const TrustProbe = () => <span>{useContentTrust()}</span>;
+const SamplesTrustProbe = () => <span>{useSelectedSamplesContentTrust()}</span>;
+
+const selectionTrust = () =>
+  render(
+    <SelectionContentTrustProvider>
+      <TrustProbe />
+    </SelectionContentTrustProvider>
+  ).container.textContent;
+
+afterEach(() => {
+  cleanup();
+  mocks.selectedLogFile = undefined;
+  mocks.sampleLogFile = undefined;
+  mocks.headers = {};
+  mocks.rowTrusts = [];
+});
+
+describe("SelectionContentTrustProvider", () => {
+  it("is untrusted with nothing selected", () => {
+    expect(selectionTrust()).toBe("untrusted");
+  });
+
+  it("is untrusted while the selected log's header loads", () => {
+    mocks.selectedLogFile = "a.eval";
+    expect(selectionTrust()).toBe("untrusted");
+  });
+
+  it("is trusted for a loaded log without the setting", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.headers = { "a.eval": TRUSTED };
+    expect(selectionTrust()).toBe("trusted");
+  });
+
+  it("is untrusted for a log that sets trust_content=false", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.headers = { "a.eval": UNTRUSTED };
+    expect(selectionTrust()).toBe("untrusted");
+  });
+
+  it("is untrusted when the selected sample's log is untrusted", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.sampleLogFile = "b.eval";
+    mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
+    expect(selectionTrust()).toBe("untrusted");
+  });
+
+  it("is untrusted while the selected sample's log header loads", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.sampleLogFile = "b.eval";
+    mocks.headers = { "a.eval": TRUSTED };
+    expect(selectionTrust()).toBe("untrusted");
+  });
+});
+
+describe("useSelectedSamplesContentTrust", () => {
+  it("is untrusted when any listed row came from an untrusted log", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.headers = { "a.eval": TRUSTED };
+    mocks.rowTrusts = ["trusted", "untrusted"];
+    expect(render(<SamplesTrustProbe />).container.textContent).toBe(
+      "untrusted"
+    );
+  });
+
+  it("is trusted when the log and all its rows are", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.headers = { "a.eval": TRUSTED };
+    mocks.rowTrusts = ["trusted", "trusted"];
+    expect(render(<SamplesTrustProbe />).container.textContent).toBe("trusted");
+  });
+
+  it("is untrusted with no log selected", () => {
+    mocks.rowTrusts = ["trusted"];
+    expect(render(<SamplesTrustProbe />).container.textContent).toBe(
+      "untrusted"
+    );
+  });
+});
