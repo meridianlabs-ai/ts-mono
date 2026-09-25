@@ -103,3 +103,9 @@
   bottom: 0.25em;
   z-index: 2;
 }
+
+/* Keeps this panel's inline toggle below a nested panel's toggle when the
+   nested panel ends flush with this one (their corners would coincide). */
+.nestedToggleStrip {
+  height: 24px;
+}
