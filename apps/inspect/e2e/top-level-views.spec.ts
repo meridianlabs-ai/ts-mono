@@ -13,7 +13,7 @@ import { expect, test } from "./fixtures/app";
 import {
   columnHeader,
   gridCell,
-  segmentButton,
+  segmentLink,
   setupLogListHandlers,
 } from "./fixtures/log-list-scenario";
 import { serveEvalLog } from "./fixtures/serve-log";
@@ -25,7 +25,7 @@ test.describe("Top-level views", () => {
     await page.goto("/");
 
     // The Tasks segment should be visible
-    await expect(segmentButton(page, "Tasks")).toBeVisible();
+    await expect(segmentLink(page, "Tasks")).toBeVisible();
 
     // Should show task rows in a grid (flat list, no folder grouping)
     const grid = page.getByRole("grid");
@@ -44,7 +44,7 @@ test.describe("Top-level views", () => {
     await page.goto("/");
 
     // Click the Folders segment
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
 
     // URL should update to /logs
     await expect(page).toHaveURL(/#\/logs/);
@@ -61,7 +61,7 @@ test.describe("Top-level views", () => {
     await page.goto("/");
 
     // Click the Samples segment
-    await segmentButton(page, "Samples").click();
+    await segmentLink(page, "Samples").click();
 
     // URL should update to /samples
     await expect(page).toHaveURL(/#\/samples/);
@@ -90,15 +90,15 @@ test.describe("Top-level views", () => {
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
     // Switch to Folders
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
 
     // Switch to Samples
-    await segmentButton(page, "Samples").click();
+    await segmentLink(page, "Samples").click();
     await expect(page).toHaveURL(/#\/samples/);
 
     // Switch back to Tasks
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await expect(gridCell(page, "task-alpha")).toBeVisible();
   });
