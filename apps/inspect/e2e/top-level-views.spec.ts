@@ -422,6 +422,16 @@ test.describe("Open in new tab", () => {
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
     const nav = page.getByRole("navigation");
+    for (const [name, route] of [
+      ["Tasks", /#\/tasks\/$/],
+      ["Folders", /#\/logs\/$/],
+      ["Samples", /#\/samples\/$/],
+    ] as const) {
+      await expect(nav.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        route
+      );
+    }
     await expectOpensInNewTab(
       page,
       context,
@@ -474,6 +484,33 @@ test.describe("Open in new tab", () => {
     // Plain clicks still navigate in place.
     await next.click();
     await expect(page).toHaveURL(/\/samples\/sample\/2\/1\/transcript$/);
+  });
+
+  test("sample links keep the route surface and the current view", async ({
+    page,
+    network,
+  }) => {
+    serveTwoSamples(network);
+    // Under /tasks, links stay under /tasks and keep the sample tab.
+    await page.goto("/#/tasks/two-samples.json/samples/sample/1/1/messages");
+    await expect(
+      page.getByRole("link", { name: "Next sample" })
+    ).toHaveAttribute(
+      "href",
+      /#\/tasks\/two-samples\.json\/samples\/sample\/2\/1\/messages$/
+    );
+    await expect(page.getByRole("tab", { name: "Transcript" })).toHaveAttribute(
+      "href",
+      /#\/tasks\/two-samples\.json\/samples\/sample\/1\/1\/transcript$/
+    );
+    // In focus mode, next-sample stays in focus mode.
+    await page.goto("/#/logs/two-samples.json/samples/sample/1/1/event");
+    await expect(
+      page.getByRole("link", { name: "Next sample" })
+    ).toHaveAttribute(
+      "href",
+      /#\/logs\/two-samples\.json\/samples\/sample\/2\/1\/event$/
+    );
   });
 });
 
