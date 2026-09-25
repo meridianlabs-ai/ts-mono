@@ -139,6 +139,12 @@ const mergePatches = (
   }
 };
 
+/** Upsert complete rows (e.g. one read back from the store) into the
+ *  collection by name, keeping every other row. */
+export const mergeRows = (logDir: string, rows: Log[]): void => {
+  mergePatches(logDir, Object.fromEntries(rows.map((row) => [row.name, row])));
+};
+
 export const mergePreviews = (
   logDir: string,
   previews: Record<string, LogPreview>
@@ -458,6 +464,7 @@ export const createLogsContentSink = (
     invalidateSamplesListings(logDir);
   },
   setListing: (handles) => setListing(logDir, handles),
+  mergeRows: (rows) => mergeRows(logDir, rows),
   mergePreviews: (previews) => mergePreviews(logDir, previews),
   writeListing: (handles) => writeListing(db, logDir, handles),
   writePreviews: (previews) => writePreviews(db, logDir, previews),
