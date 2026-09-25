@@ -2241,6 +2241,11 @@ export interface components {
              */
             exclude_reasoning: boolean;
             /**
+             * Exclude Role Label
+             * @default false
+             */
+            exclude_role_label: boolean;
+            /**
              * Exclude System
              * @default true
              */
