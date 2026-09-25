@@ -58,6 +58,11 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
     canNext: hasNext,
   });
 
+  // Once either chevron is a link, both stay <a> for the component's life:
+  // swapping a focused <a> for a <div> when it disables (e.g. Next on the last
+  // sample) would remount it and drop keyboard focus to <body>.
+  const linkMode = inAppHref(previousHref ?? nextHref) !== undefined;
+
   return (
     <div className={styles.container}>
       <Chevron
@@ -65,6 +70,7 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
         action={onPrevious}
         enabled={hasPrevious}
         href={previousHref}
+        linkMode={linkMode}
         label={previousLabel ?? previousTitle ?? "Previous"}
         title={previousTitle && `${previousTitle} (←)`}
       />
@@ -74,6 +80,7 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
         action={onNext}
         enabled={hasNext}
         href={nextHref}
+        linkMode={linkMode}
         label={nextLabel ?? nextTitle ?? "Next"}
         title={nextTitle && `${nextTitle} (→)`}
       />
@@ -86,35 +93,43 @@ interface ChevronProps {
   action: (() => void) | undefined;
   enabled: boolean;
   href: string | undefined;
+  linkMode: boolean;
   label: string;
   title: string | undefined;
 }
 
-/** One prev/next control: a link when it has somewhere to go, otherwise a
- *  focusable div. */
+/** One prev/next control: a link (a disabled link when there's nowhere to
+ *  go) in link mode, otherwise a focusable div. */
 const Chevron: FC<ChevronProps> = ({
   icon,
   action,
   enabled,
   href,
+  linkMode,
   label,
   title,
 }) => {
-  const linkHref = enabled && action ? inAppHref(href) : undefined;
-  if (linkHref && action) {
+  if (linkMode) {
+    const linkHref = enabled ? inAppHref(href) : undefined;
+    const live = linkHref !== undefined && action !== undefined;
     return (
       <a
-        href={linkHref}
-        onClick={inAppLinkClick(action)}
+        href={live ? linkHref : undefined}
+        // Without an href an <a> has no role; this is the disabled-link
+        // pattern, focusable only so a focused chevron keeps focus.
+        role={live ? undefined : "link"}
+        aria-disabled={live ? undefined : true}
+        tabIndex={live ? undefined : -1}
+        onClick={live ? inAppLinkClick(action) : undefined}
         onKeyDown={(e) => {
           // Links activate on Enter natively; the chevrons also take Space.
-          if (e.key === " ") {
+          if (live && e.key === " ") {
             e.preventDefault();
             action();
           }
         }}
         aria-label={label}
-        className={styles.nav}
+        className={clsx(styles.nav, !live && styles.disabled)}
         title={title}
       >
         <i className={icon} />

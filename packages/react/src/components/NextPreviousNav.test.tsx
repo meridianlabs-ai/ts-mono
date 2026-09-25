@@ -139,10 +139,38 @@ describe("NextPreviousNav links", () => {
     expect(next.getAttribute("href")).toBe("#/s/3");
   });
 
-  it("keeps a disabled chevron as a non-link", () => {
+  it("renders a disabled chevron as a disabled link with nowhere to go", () => {
     const { previous } = renderNav(hrefs);
-    expect(previous.tagName).toBe("DIV");
+    expect(previous.tagName).toBe("A");
+    expect(previous.hasAttribute("href")).toBe(false);
+    expect(previous.getAttribute("role")).toBe("link");
     expect(previous.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps keyboard focus when the focused chevron becomes disabled", () => {
+    const props = { onPrevious: vi.fn(), onNext: vi.fn(), hasPrevious: true };
+    const { rerender } = render(
+      <NextPreviousNav
+        {...props}
+        hasNext
+        previousHref="#/s/1"
+        nextHref="#/s/3"
+        nextTitle="Next sample"
+      />
+    );
+    const next = screen.getByLabelText("Next sample");
+    next.focus();
+    // Stepping onto the last sample: Next has nowhere to go.
+    rerender(
+      <NextPreviousNav
+        {...props}
+        hasNext={false}
+        previousHref="#/s/2"
+        nextTitle="Next sample"
+      />
+    );
+    expect(screen.getByLabelText("Next sample")).toBe(next);
+    expect(document.activeElement).toBe(next);
   });
 
   it("steps in place on a plain click", () => {
