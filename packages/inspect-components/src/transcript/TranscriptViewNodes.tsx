@@ -194,10 +194,12 @@ export const TranscriptViewNodes = forwardRef<
   // Pair each ApprovalEvent to its ToolEvent by call.id, so ToolEventView
   // can render the approval inline without nesting it in the tree (which
   // would give the tool panel a bogus expand chevron).
-  const { toolApprovals, hiddenApprovalIds, approvalScrollRedirects } = useMemo(
-    () => pairToolApprovals(eventNodes),
-    [eventNodes]
-  );
+  const {
+    toolApprovals,
+    toolReviews,
+    hiddenApprovalIds,
+    approvalScrollRedirects,
+  } = useMemo(() => pairToolApprovals(eventNodes), [eventNodes]);
 
   // Hidden approvals have no row of their own — retarget deep links at the
   // tool row that renders them inline.
@@ -216,8 +218,8 @@ export const TranscriptViewNodes = forwardRef<
   }, [eventNodes, collapsedTranscript, defaultCollapsedIds, hiddenApprovalIds]);
 
   const mergedEventNodeContext = useMemo<Partial<EventNodeContext>>(
-    () => ({ ...eventNodeContext, toolApprovals }),
-    [eventNodeContext, toolApprovals]
+    () => ({ ...eventNodeContext, toolApprovals, toolReviews }),
+    [eventNodeContext, toolApprovals, toolReviews]
   );
 
   // Bails out of React Compiler (checked with SWC): the row toggle keeps a

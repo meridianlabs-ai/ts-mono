@@ -10,3 +10,13 @@
 .rejected {
   color: var(--bs-danger);
 }
+
+.chains {
+  display: grid;
+  gap: 0.15rem;
+  margin-top: 0.25rem;
+}
+
+.chain {
+  min-width: 0;
+}

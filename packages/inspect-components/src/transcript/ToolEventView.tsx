@@ -16,10 +16,13 @@ import { MessageLabel } from "../chat/MessageLabel";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { ApprovalEventView } from "./ApprovalEventView";
+import { ChainGroupsView } from "./ChainGroupsView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
+import { ReviewEventView } from "./ReviewEventView";
 import styles from "./ToolEventView.module.css";
+import { groupByChain } from "./transform/chainOutcomes";
 import {
   EventNode,
   EventNodeContext,
@@ -64,7 +67,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     [event.view, event.arguments]
   );
 
-  const approvalNode = context?.toolApprovals?.get(event.id);
+  const approvalNodes = context?.toolApprovals?.get(event.id) ?? [];
+  const reviewNodes = context?.toolReviews?.get(event.id) ?? [];
+  const approvalChains = groupByChain(approvalNodes);
+  const reviewChains = groupByChain(reviewNodes);
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
@@ -165,12 +171,68 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           />
         ) : undefined}
 
-        {approvalNode ? (
+        {approvalChains ? (
           <div className={styles.approvalWrap}>
-            <ApprovalEventView
-              eventNode={approvalNode}
-              className={styles.approval}
+            <ChainGroupsView
+              groups={approvalChains}
+              renderSummary={(node) => (
+                <ApprovalEventView
+                  eventNode={node}
+                  className={styles.approval}
+                  showChains={false}
+                />
+              )}
+              renderNode={(node) => (
+                <ApprovalEventView
+                  eventNode={node}
+                  className={styles.approval}
+                  showChain={false}
+                />
+              )}
             />
+          </div>
+        ) : approvalNodes.length > 0 ? (
+          <div className={styles.approvalWrap}>
+            {approvalNodes.map((node) => (
+              <ApprovalEventView
+                key={node.id}
+                eventNode={node}
+                className={styles.approval}
+              />
+            ))}
+          </div>
+        ) : (
+          ""
+        )}
+        {reviewChains ? (
+          <div className={styles.approvalWrap}>
+            <ChainGroupsView
+              groups={reviewChains}
+              renderSummary={(node) => (
+                <ReviewEventView
+                  eventNode={node}
+                  className={styles.approval}
+                  showChains={false}
+                />
+              )}
+              renderNode={(node) => (
+                <ReviewEventView
+                  eventNode={node}
+                  className={styles.approval}
+                  showChain={false}
+                />
+              )}
+            />
+          </div>
+        ) : reviewNodes.length > 0 ? (
+          <div className={styles.approvalWrap}>
+            {reviewNodes.map((node) => (
+              <ReviewEventView
+                key={node.id}
+                eventNode={node}
+                className={styles.approval}
+              />
+            ))}
           </div>
         ) : (
           ""
