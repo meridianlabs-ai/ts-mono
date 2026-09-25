@@ -207,7 +207,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const summariesState = useSelectedSampleSummaries();
   const selectedLogDetails = useSelectedLogDetails();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const samplesContentTrust = useSelectedSamplesContentTrust();
+  const rowContentTrust = useSelectedSamplesContentTrust();
 
   // Effective (folded) config — limit/epochs are launch-shaped, but routing
   // every config read through the fold makes that assumption enforced.
@@ -447,7 +447,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       const tokens = totalSampleTokens(sample.model_usage);
       return {
         logFile: selectedLogFile,
-        contentTrust: samplesContentTrust,
+        contentTrust: rowContentTrust(sample.id, sample.epoch),
         sampleId: sample.id,
         epoch: sample.epoch,
         data: sample,
@@ -468,12 +468,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         duration: sample.total_time ?? undefined,
       };
     });
-  }, [
-    sampleSummaries,
-    samplesDescriptor,
-    selectedLogFile,
-    samplesContentTrust,
-  ]);
+  }, [sampleSummaries, samplesDescriptor, selectedLogFile, rowContentTrust]);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {

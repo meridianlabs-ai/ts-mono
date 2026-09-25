@@ -98,15 +98,25 @@ export const getSampleSummaries = async (
       );
 
 /**
- * The content trust of the rows {@link useSampleSummaries} returns for
- * `logFile`, taken from each row's own log context. While a switch between
- * logs keeps the previous log's rows on screen, this reflects those rows, not
- * the newly requested log.
+ * The content trust of each settled summary {@link useSampleSummaries}
+ * returns for `logFile` (keyed by {@link sampleSummaryKey}), taken from the
+ * row's own log context — read together with the row, so it never lags it.
+ * While a switch between logs keeps the previous log's rows on screen, these
+ * describe those rows, not the newly requested log. Pending-buffer samples
+ * have no entry.
  */
 export const useSampleSummariesContentTrust = (
   logDir: string,
   logFile: string | undefined
-): ContentTrust[] =>
-  (useSamplesListing(summariesListing(logDir, logFile)).data ?? []).map(
-    (row) => row.log.contentTrust
+): ReadonlyMap<string, ContentTrust> =>
+  new Map(
+    (useSamplesListing(summariesListing(logDir, logFile)).data ?? []).map(
+      (row) => [
+        sampleSummaryKey(row.summary.id, row.summary.epoch),
+        row.log.contentTrust,
+      ]
+    )
   );
+
+export const sampleSummaryKey = (id: string | number, epoch: number): string =>
+  `${typeof id}:${id}:${epoch}`;

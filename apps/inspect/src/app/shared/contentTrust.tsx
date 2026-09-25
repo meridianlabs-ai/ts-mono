@@ -8,7 +8,11 @@ import {
 } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
-import { useLogHeader, useSampleSummariesContentTrust } from "../../log_data";
+import {
+  sampleSummaryKey,
+  useLogHeader,
+  useSampleSummariesContentTrust,
+} from "../../log_data";
 import { useStore } from "../../state/store";
 
 /**
@@ -62,16 +66,23 @@ export const SelectedSampleContentTrustProvider: FC<{
 };
 
 /**
- * Trust for the selected log's sample list: the selected log and every log
- * the listed rows actually came from (which differ while the previous log's
- * rows are still shown after a switch).
+ * Trust for each row of the selected log's sample list. A settled row uses
+ * the trust read with it from its own log (which differs from the selected
+ * log while the previous log's rows are still shown after a switch). A
+ * pending-buffer row, which only the selected log produces, uses the
+ * selected log's trust.
+ *
+ * Reading each row's trust with the row (rather than from the separately
+ * loaded header) keeps rows from rendering plain and then re-rendering rich
+ * as the header arrives, which would remount the content under a click.
  */
-export const useSelectedSamplesContentTrust = (): ContentTrust => {
+export const useSelectedSamplesContentTrust = (): ((
+  id: string | number,
+  epoch: number
+) => ContentTrust) => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const logTrust = useLogFileContentTrust(selectedLogFile);
+  const logTrust = useLogFileContentTrust(selectedLogFile) ?? "untrusted";
   const rowTrusts = useSampleSummariesContentTrust(logDir, selectedLogFile);
-  return combineContentTrust(
-    logTrust === undefined ? [] : [logTrust, ...rowTrusts]
-  );
+  return (id, epoch) => rowTrusts.get(sampleSummaryKey(id, epoch)) ?? logTrust;
 };

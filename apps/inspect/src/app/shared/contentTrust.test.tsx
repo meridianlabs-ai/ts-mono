@@ -19,11 +19,12 @@ interface MockState {
   sampleLogFile?: string;
   // A file absent from `headers` is still loading.
   headers: Record<string, Header>;
-  rowTrusts: ContentTrust[];
+  // Trust read with each settled row, keyed by sampleSummaryKey.
+  rowTrusts: Map<string, ContentTrust>;
 }
 
 const mocks = vi.hoisted(() => {
-  const state: MockState = { headers: {}, rowTrusts: [] };
+  const state: MockState = { headers: {}, rowTrusts: new Map() };
   return state;
 });
 
@@ -47,13 +48,19 @@ vi.mock("../../log_data", () => ({
       ? { loading: false, data: mocks.headers[file] }
       : { loading: file !== undefined, data: undefined },
   useSampleSummariesContentTrust: () => mocks.rowTrusts,
+  sampleSummaryKey: (id: string | number, epoch: number) => `${id}:${epoch}`,
 }));
 
 const TRUSTED: Header = { eval: {} };
 const UNTRUSTED: Header = { eval: { viewer: { trust_content: false } } };
 
 const TrustProbe = () => <span>{useContentTrust()}</span>;
-const SamplesTrustProbe = () => <span>{useSelectedSamplesContentTrust()}</span>;
+const RowTrustProbe = ({ id }: { id: number }) => (
+  <span>{useSelectedSamplesContentTrust()(id, 1)}</span>
+);
+
+const rowTrust = (id: number) =>
+  render(<RowTrustProbe id={id} />).container.textContent;
 
 const selectionTrust = () =>
   render(
@@ -74,7 +81,7 @@ afterEach(() => {
   mocks.selectedLogFile = undefined;
   mocks.sampleLogFile = undefined;
   mocks.headers = {};
-  mocks.rowTrusts = [];
+  mocks.rowTrusts = new Map();
 });
 
 describe("SelectionContentTrustProvider", () => {
@@ -138,26 +145,34 @@ describe("SelectedSampleContentTrustProvider", () => {
 });
 
 describe("useSelectedSamplesContentTrust", () => {
-  it("is untrusted when any listed row came from an untrusted log", () => {
+  it("uses the trust read with each settled row", () => {
     mocks.selectedLogFile = "a.eval";
     mocks.headers = { "a.eval": TRUSTED };
-    mocks.rowTrusts = ["trusted", "untrusted"];
-    expect(render(<SamplesTrustProbe />).container.textContent).toBe(
-      "untrusted"
-    );
+    // Row 2 is left over from an untrusted log after a switch.
+    mocks.rowTrusts = new Map([
+      ["1:1", "trusted"],
+      ["2:1", "untrusted"],
+    ]);
+    expect(rowTrust(1)).toBe("trusted");
+    expect(rowTrust(2)).toBe("untrusted");
   });
 
-  it("is trusted when the log and all its rows are", () => {
+  it("doesn't wait on the selected log's header for a settled row", () => {
     mocks.selectedLogFile = "a.eval";
-    mocks.headers = { "a.eval": TRUSTED };
-    mocks.rowTrusts = ["trusted", "trusted"];
-    expect(render(<SamplesTrustProbe />).container.textContent).toBe("trusted");
+    mocks.rowTrusts = new Map([["1:1", "trusted"]]);
+    expect(rowTrust(1)).toBe("trusted");
   });
 
-  it("is untrusted with no log selected", () => {
-    mocks.rowTrusts = ["trusted"];
-    expect(render(<SamplesTrustProbe />).container.textContent).toBe(
-      "untrusted"
-    );
+  it("uses the selected log's trust for a pending row", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.headers = { "a.eval": UNTRUSTED };
+    expect(rowTrust(3)).toBe("untrusted");
+    mocks.headers = { "a.eval": TRUSTED };
+    expect(rowTrust(3)).toBe("trusted");
+  });
+
+  it("treats a pending row as untrusted while the header loads", () => {
+    mocks.selectedLogFile = "a.eval";
+    expect(rowTrust(3)).toBe("untrusted");
   });
 });
