@@ -21,6 +21,7 @@ import { invalidateDatabaseLogsListings } from "./databaseListings";
 import type { LogsContentSink } from "./fetchEngine";
 import {
   invalidateSamplesListings,
+  invalidateSamplesListingsForFiles,
   pushFileSamples,
   removeSamplesListings,
   toSamplesListingRows,
@@ -355,7 +356,10 @@ export const writeDetails = async (
   );
   if (db?.opened()) {
     await db.writeLogDetails(Object.fromEntries(prepared));
-    invalidateSamplesListings(logDir);
+    invalidateSamplesListingsForFiles(
+      logDir,
+      prepared.map(([name]) => name)
+    );
   }
   invalidateDatabaseLogsListings();
   return failures;

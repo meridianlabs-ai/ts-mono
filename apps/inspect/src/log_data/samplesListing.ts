@@ -1,7 +1,7 @@
 import { keepPreviousData } from "@tanstack/react-query";
 
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
-import { AsyncData } from "@tsmono/util";
+import { AsyncData, createLogger } from "@tsmono/util";
 
 import { EvalLogStatus } from "../@types/extraInspect";
 import { sampleIdsEqual } from "../app/shared/sample";
@@ -55,6 +55,7 @@ export interface SamplesListingParams {
 }
 
 const EMPTY_ROWS: SamplesListingRow[] = [];
+const log = createLogger("samplesListing");
 
 /** The whole key family for a dir — the invalidation target. */
 export const samplesListingDirKey = (logDir: string) =>
@@ -237,6 +238,36 @@ export const invalidateSamplesListings = (logDir: string): void => {
   queryClient.invalidateQueries({
     queryKey: samplesListingDirKey(logDir),
   });
+};
+
+const scopeIncludesAnyFile = (scope: unknown, files: Set<string>): boolean => {
+  if (scope === null || typeof scope !== "object") return false;
+  if ("file" in scope && typeof scope.file === "string") {
+    return files.has(scope.file);
+  }
+  if ("prefix" in scope && typeof scope.prefix === "string") {
+    for (const file of files) {
+      if (file.startsWith(scope.prefix)) return true;
+    }
+  }
+  return false;
+};
+
+/** Mark only samples listings whose scope covers a changed file stale. */
+export const invalidateSamplesListingsForFiles = (
+  logDir: string,
+  logFiles: Iterable<string>
+): void => {
+  const files = new Set(logFiles);
+  if (files.size === 0) return;
+  queryClient
+    .invalidateQueries({
+      queryKey: samplesListingDirKey(logDir),
+      predicate: (query) => scopeIncludesAnyFile(query.queryKey[3], files),
+    })
+    .catch((error: unknown) => {
+      log.error("Failed to invalidate samples listings:", error);
+    });
 };
 
 /** Drop every samples listing entry under the dir (clear-all path). */
