@@ -3,6 +3,7 @@ import { CSSProperties, FC, useRef } from "react";
 
 import { usePrismHighlight } from "../hooks";
 
+import { ContentText } from "./ContentTrust";
 import styles from "./SourceCodePanel.module.css";
 
 interface SourceCodePanelProps {
@@ -39,7 +40,7 @@ export const SourceCodePanel: FC<SourceCodePanelProps> = ({
           id={id}
           className={clsx("source-code", styles.code, `language-${language}`)}
         >
-          {code}
+          <ContentText text={code} />
         </code>
       </pre>
     </div>

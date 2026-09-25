@@ -47,11 +47,16 @@ const summary = (
 const payload = (
   file: string,
   status: LogDetails["status"],
-  sampleSummaries: SampleSummary[]
+  sampleSummaries: SampleSummary[],
+  trustContent?: boolean
 ): LogDetails =>
   testLogDetails({
     status,
     eval: testEvalSpec({
+      viewer:
+        trustContent === undefined
+          ? undefined
+          : { scanner_result_view: {}, trust_content: trustContent },
       eval_id: `eval-${file}`,
       run_id: `run-${file}`,
       created: "2026-01-01T00:00:00Z",
@@ -202,6 +207,28 @@ describe("useSamplesListing", () => {
     expect(byFile.get(`${FILE_A}:a1`)?.log.created).toBe(
       "2026-01-01T00:00:00Z"
     );
+  });
+
+  it("each row carries the content trust of the log it came from", async () => {
+    await writeDetails(db, LOG_DIR, {
+      [FILE_A]: payload(FILE_A, "success", [summary("a1")]),
+      [FILE_B]: payload(FILE_B, "success", [summary("b1")], false),
+    });
+
+    const { result } = renderHook(
+      () => useSamplesListing({ logDir: LOG_DIR, scope: { prefix: "/logs" } }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
+
+    const trustByFile = new Map(
+      (result.current.data ?? []).map((row) => [
+        row.logFile,
+        row.log.contentTrust,
+      ])
+    );
+    expect(trustByFile.get(FILE_A)).toBe("trusted");
+    expect(trustByFile.get(FILE_B)).toBe("untrusted");
   });
 
   it("prefix scope excludes files outside the prefix", async () => {

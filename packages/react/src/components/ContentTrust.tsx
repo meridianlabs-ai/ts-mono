@@ -35,6 +35,13 @@ export const untrustedText = (text: string): string =>
   revealHiddenCharacters(text);
 
 /**
+ * Log-derived text rendered as plain text: as-is when trusted, with hidden
+ * characters revealed when not.
+ */
+export const ContentText: FC<{ text: string }> = ({ text }) =>
+  useIsContentTrusted() ? text : untrustedText(text);
+
+/**
  * Renders `children` (media, an embedded player, a link) only when content is
  * trusted; otherwise a placeholder naming what was withheld.
  */

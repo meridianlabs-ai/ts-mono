@@ -1,6 +1,6 @@
 import { FC, ReactNode } from "react";
 
-import { useIsContentTrusted } from "@tsmono/react/components";
+import { ContentText, useIsContentTrusted } from "@tsmono/react/components";
 import { parseAbsoluteHttpUrl } from "@tsmono/util";
 
 interface ExternalLinkProps {
@@ -29,7 +29,11 @@ export const ExternalLink: FC<ExternalLinkProps> = ({
   if (safeHref === undefined) {
     return (
       <span className={className} title={title}>
-        {children}
+        {typeof children === "string" && !trusted ? (
+          <ContentText text={children} />
+        ) : (
+          children
+        )}
       </span>
     );
   }

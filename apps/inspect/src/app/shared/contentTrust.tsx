@@ -23,15 +23,28 @@ export const useLogFileContentTrust = (
   return logFile === undefined ? undefined : logContentTrust(header.data);
 };
 
-/**
- * Trust for everything the current selection can put on screen: the
- * selected log and the selected sample's log. They normally match; while a
- * navigation is mid-flight they can briefly differ, and then the content is
- * trusted only if both logs are.
- */
+/** Trust for the selected log's content (untrusted when none is selected). */
 export const SelectionContentTrustProvider: FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const logTrust = useLogFileContentTrust(selectedLogFile);
+  return (
+    <ContentTrustProvider value={logTrust ?? "untrusted"}>
+      {children}
+    </ContentTrustProvider>
+  );
+};
+
+/**
+ * Trust for views that show the selected sample: the selected log and the
+ * selected sample's log. They normally match; while a navigation is
+ * mid-flight (or a stale selection is restored) they can differ, and then
+ * the content is trusted only if both logs are.
+ */
+export const SelectedSampleContentTrustProvider: FC<{
+  children: ReactNode;
+}> = ({ children }) => {
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const sampleLogFile = useStore(
     (state) => state.log.selectedSampleHandle?.logFile

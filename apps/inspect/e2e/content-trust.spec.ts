@@ -6,9 +6,16 @@ import { serveEvalFiles } from "./fixtures/serve-eval-file";
 // Real .eval logs from fixtures/content-trust/generate_logs.py. Their model
 // output exercises every rich-rendering path; untrusted.eval sets
 // ViewerConfig(trust_content=False), trusted.eval has no viewer config.
-// Each log's links point under https://example.com/<label>/, so rich content
-// can be attributed to the log it came from.
+// Each log's links point under https://example.com/<label>/ and its images
+// use a distinct PNG, so rich content can be attributed to the log it came
+// from.
 type Label = "untrusted" | "trusted";
+
+/** A substring unique to each log's PNG data URI. */
+const PNG_MARKERS: Record<Label, string> = {
+  untrusted: "CAYAAAAfFcSJ",
+  trusted: "CAQAAAC1HAwC",
+};
 
 const fixture = (label: Label) => ({
   path: new URL(`./fixtures/content-trust/${label}.eval`, import.meta.url),
@@ -69,6 +76,18 @@ const VIEWS: View[] = [
     url: (label) => sampleUrl(label, "print"),
     ready: /Score: CORRECT/,
     trustedShows: ["links", "images", "media", "math", "markdown"],
+  },
+  {
+    name: "sample JSON",
+    url: (label) => sampleUrl(label, "json"),
+    ready: /Sample 1:/,
+    trustedShows: ["highlighted"],
+  },
+  {
+    name: "log JSON",
+    url: (label) => logUrl(label, "json"),
+    ready: /mockllm\/model/,
+    trustedShows: ["highlighted"],
   },
 ];
 
@@ -133,25 +152,33 @@ const openView = async (page: Page, url: string, ready: RegExp) => {
   await page.waitForTimeout(500);
 };
 
+type RichContentLog = Record<string, string[]>;
+
 /**
- * Record, from the first byte of the page, every rich element added to the
- * DOM that carries content from `label`'s log — so content that renders
- * richly even for a moment (before a log's trust is known, mid-navigation)
- * is caught, not just what's on screen at the end.
+ * Record, from the first byte of the page, every link or image added to the
+ * DOM, attributed to the log it came from — so content that renders richly
+ * even for a moment (before a log's trust is known, mid-navigation) is
+ * caught, not just what's on screen at the end. Returns a reader for one
+ * log's recorded selectors.
  */
-const recordRichContent = async (page: Page, label: Label) => {
-  await page.addInitScript((logLabel) => {
-    const selectors = [
-      `a[href*="example.com/${logLabel}/"]`,
-      `a[href*="${logLabel}-other.eval"]`,
-    ];
-    const seen: string[] = [];
-    (window as Window & { __richContent?: string[] }).__richContent = seen;
+const recordRichContent = async (page: Page) => {
+  await page.addInitScript((pngMarkers) => {
+    const seen: RichContentLog = {};
+    const selectors = Object.entries(pngMarkers).flatMap(([label, png]) => {
+      seen[label] = [];
+      return [
+        `a[href*="example.com/${label}/"]`,
+        `a[href*="${label}-other.eval"]`,
+        `img[src*="${png}"]`,
+      ].map((selector) => ({ label, selector }));
+    });
+    (window as Window & { __richContent?: RichContentLog }).__richContent =
+      seen;
     const check = (node: Node) => {
       if (!(node instanceof Element)) return;
-      for (const selector of selectors) {
+      for (const { label, selector } of selectors) {
         if (node.matches(selector) || node.querySelector(selector)) {
-          seen.push(selector);
+          seen[label]?.push(selector);
         }
       }
     };
@@ -164,13 +191,16 @@ const recordRichContent = async (page: Page, label: Label) => {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["href"],
+      attributeFilter: ["href", "src"],
     });
-  }, label);
-  return () =>
+  }, PNG_MARKERS);
+  return (label: Label) =>
     page.evaluate(
-      () =>
-        (window as Window & { __richContent?: string[] }).__richContent ?? []
+      (logLabel) =>
+        (window as Window & { __richContent?: RichContentLog }).__richContent?.[
+          logLabel
+        ] ?? [],
+      label
     );
 };
 
@@ -229,12 +259,12 @@ test.describe("an untrusted log", () => {
     network,
   }) => {
     serveFixtures(network);
-    const recorded = await recordRichContent(page, "untrusted");
+    const recorded = await recordRichContent(page);
     for (const view of VIEWS) {
       await openView(page, view.url("untrusted"), view.ready);
       await collectMarkers(page);
     }
-    expect(await recorded()).toEqual([]);
+    expect(await recorded("untrusted")).toEqual([]);
   });
 
   test("stays plain when navigated to from a trusted log", async ({
@@ -242,7 +272,7 @@ test.describe("an untrusted log", () => {
     network,
   }) => {
     serveFixtures(network);
-    const recorded = await recordRichContent(page, "untrusted");
+    const recorded = await recordRichContent(page);
     await openView(page, sampleUrl("trusted", "messages"), /Sample 1:/);
     // In-app navigation (no reload) between logs and into a sample.
     await page.evaluate(() => {
@@ -255,7 +285,7 @@ test.describe("an untrusted log", () => {
     });
     await expect(page.getByText(/Sample 1:/).first()).toBeVisible();
     await collectMarkers(page);
-    expect(await recorded()).toEqual([]);
+    expect(await recorded("untrusted")).toEqual([]);
   });
 });
 
@@ -284,12 +314,32 @@ test.describe("a trusted log", () => {
     network,
   }) => {
     serveFixtures(network);
-    const recorded = await recordRichContent(page, "trusted");
+    const recorded = await recordRichContent(page);
     await openView(page, sampleUrl("untrusted", "messages"), /Sample 1:/);
     await page.evaluate(() => {
       window.location.hash = "#/logs/trusted.eval/samples/sample/1/1/messages";
     });
     await expect(page.getByText(/Sample 1:/).first()).toBeVisible();
-    await expect.poll(async () => (await recorded()).length).toBeGreaterThan(0);
+    await collectMarkers(page);
+    const trusted = await recorded("trusted");
+    expect(trusted.some((selector) => selector.startsWith("a["))).toBe(true);
+    expect(trusted.some((selector) => selector.startsWith("img["))).toBe(true);
+    // Nothing from the untrusted log it came from renders richly on the way.
+    expect(await recorded("untrusted")).toEqual([]);
+  });
+
+  test("isn't held plain by an untrusted sample viewed earlier", async ({
+    page,
+    network,
+  }) => {
+    serveFixtures(network);
+    await openView(page, sampleUrl("untrusted", "messages"), /Sample 1:/);
+    await page.evaluate(() => {
+      window.location.hash = "#/logs/trusted.eval/json";
+    });
+    await expect(page.getByText(/mockllm\/model/).first()).toBeVisible();
+    await expect
+      .poll(async () => (await richMarkers(page)).highlighted)
+      .toBeGreaterThan(0);
   });
 });

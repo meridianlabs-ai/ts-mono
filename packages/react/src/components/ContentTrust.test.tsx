@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import {
+  ContentText,
   ContentTrustProvider,
   RequireTrustedContent,
   useContentTrust,
 } from "./ContentTrust";
+import { JSONPanel } from "./JsonPanel";
 import { MarkdownDiv } from "./MarkdownDiv";
 
 const MARKDOWN = [
@@ -103,5 +105,33 @@ describe("content trust", () => {
     expect(
       screen.getByText(/terminal session not shown: log content is untrusted/)
     ).toBeTruthy();
+  });
+
+  it("reveals hidden characters in untrusted plain text", () => {
+    const { container } = render(
+      <ContentTrustProvider value="untrusted">
+        <ContentText text={"a\u202Eb"} />
+      </ContentTrustProvider>
+    );
+    expect(container.textContent).toBe("a⟨U+202E⟩b");
+  });
+
+  it("leaves trusted plain text as-is", () => {
+    const { container } = render(
+      <ContentTrustProvider value="trusted">
+        <ContentText text={"a\u202Eb"} />
+      </ContentTrustProvider>
+    );
+    expect(container.textContent).toBe("a\u202Eb");
+  });
+
+  it("reveals hidden characters in untrusted JSON", () => {
+    const { container } = render(
+      <ContentTrustProvider value="untrusted">
+        <JSONPanel data={{ name: "\u202Egnp.exe" }} />
+      </ContentTrustProvider>
+    );
+    expect(container.textContent).toContain("⟨U+202E⟩gnp.exe");
+    expect(container.querySelector(".token")).toBeNull();
   });
 });

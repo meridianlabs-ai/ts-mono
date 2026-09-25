@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { useContentTrust, type ContentTrust } from "@tsmono/react/components";
 
 import {
+  SelectedSampleContentTrustProvider,
   SelectionContentTrustProvider,
   useSelectedSamplesContentTrust,
 } from "./contentTrust";
@@ -61,6 +62,13 @@ const selectionTrust = () =>
     </SelectionContentTrustProvider>
   ).container.textContent;
 
+const sampleTrust = () =>
+  render(
+    <SelectedSampleContentTrustProvider>
+      <TrustProbe />
+    </SelectedSampleContentTrustProvider>
+  ).container.textContent;
+
 afterEach(() => {
   cleanup();
   mocks.selectedLogFile = undefined;
@@ -91,18 +99,41 @@ describe("SelectionContentTrustProvider", () => {
     expect(selectionTrust()).toBe("untrusted");
   });
 
+  it("ignores a sample selection left over from another log", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.sampleLogFile = "b.eval";
+    mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
+    expect(selectionTrust()).toBe("trusted");
+  });
+});
+
+describe("SelectedSampleContentTrustProvider", () => {
+  it("is trusted when the selected log and sample's log are", () => {
+    mocks.selectedLogFile = "a.eval";
+    mocks.sampleLogFile = "a.eval";
+    mocks.headers = { "a.eval": TRUSTED };
+    expect(sampleTrust()).toBe("trusted");
+  });
+
   it("is untrusted when the selected sample's log is untrusted", () => {
     mocks.selectedLogFile = "a.eval";
     mocks.sampleLogFile = "b.eval";
     mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
-    expect(selectionTrust()).toBe("untrusted");
+    expect(sampleTrust()).toBe("untrusted");
+  });
+
+  it("is untrusted when the selected log is untrusted", () => {
+    mocks.selectedLogFile = "b.eval";
+    mocks.sampleLogFile = "a.eval";
+    mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
+    expect(sampleTrust()).toBe("untrusted");
   });
 
   it("is untrusted while the selected sample's log header loads", () => {
     mocks.selectedLogFile = "a.eval";
     mocks.sampleLogFile = "b.eval";
     mocks.headers = { "a.eval": TRUSTED };
-    expect(selectionTrust()).toBe("untrusted");
+    expect(sampleTrust()).toBe("untrusted");
   });
 });
 
