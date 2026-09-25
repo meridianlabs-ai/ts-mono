@@ -56,4 +56,32 @@ describe("useTimeout", () => {
     vi.advanceTimersByTime(500);
     expect(callback).not.toHaveBeenCalled();
   });
+
+  it("uses the latest callback without restarting an unchanged deadline", () => {
+    const first = vi.fn();
+    const latest = vi.fn();
+    const { rerender } = renderHook(
+      ({ callback }) => useTimeout(callback, 300),
+      { initialProps: { callback: first } }
+    );
+    vi.advanceTimersByTime(100);
+    rerender({ callback: latest });
+    vi.advanceTimersByTime(200);
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the previous deadline when reset identity changes", () => {
+    const callback = vi.fn();
+    const { rerender } = renderHook(
+      ({ identity }) => useTimeout(callback, 300, identity),
+      { initialProps: { identity: {} } }
+    );
+    vi.advanceTimersByTime(100);
+    rerender({ identity: {} });
+    vi.advanceTimersByTime(200);
+    expect(callback).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(100);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
 });

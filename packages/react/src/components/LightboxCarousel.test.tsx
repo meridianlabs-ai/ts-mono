@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
 import {
   act,
+  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
 import { FC, ReactNode, useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
-import { makeReactiveStateHooks } from "../test/component-state-hooks";
+import {
+  makeReactiveStateHooks,
+  makeReactiveStateStore,
+} from "../test/component-state-hooks";
 import { testIcons } from "../test/test-icons";
 
 import { ComponentIconProvider } from "./ComponentIconContext";
@@ -97,5 +101,86 @@ describe("LightboxCarousel", () => {
 
     pressKey("ArrowLeft");
     expect(screen.getByText("slide-1-body")).toBeTruthy();
+  });
+});
+
+describe("LightboxCarousel fade-out lifecycle", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  function setup() {
+    const state = makeReactiveStateStore();
+    for (const id of ["first-id", "second-id"]) {
+      state.store.set(`${id}::isOpen`, false);
+      state.store.set(`${id}::showOverlay`, true);
+    }
+    const element = (id: string) => (
+      <ComponentStateProvider hooks={state.hooks}>
+        <ComponentIconProvider icons={testIcons}>
+          <LightboxCarousel id={id} slides={slides} />
+        </ComponentIconProvider>
+      </ComponentStateProvider>
+    );
+    return { state, element, view: render(element("first-id")) };
+  }
+
+  it("keeps the overlay for the full fade-out duration", () => {
+    const { state } = setup();
+    act(() => {
+      vi.advanceTimersByTime(299);
+    });
+    expect(screen.getByText("slide-0-body")).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(screen.queryByText("slide-0-body")).toBeNull();
+    expect(state.store.get("first-id::showOverlay")).toBe(false);
+  });
+
+  it("restarts the fade-out deadline for a new property identity", () => {
+    const { state, element, view } = setup();
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    view.rerender(element("second-id"));
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(state.store.get("first-id::showOverlay")).toBe(true);
+    expect(state.store.get("second-id::showOverlay")).toBe(true);
+    expect(screen.getByText("slide-0-body")).toBeTruthy();
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(state.store.get("second-id::showOverlay")).toBe(false);
+    expect(screen.queryByText("slide-0-body")).toBeNull();
+  });
+
+  it("cancels fade-out when the lightbox reopens", () => {
+    const { state } = setup();
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    fireEvent.click(screen.getByText("first"));
+    act(() => {
+      vi.advanceTimersByTime(10);
+    });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(state.store.get("first-id::showOverlay")).toBe(true);
+    expect(document.querySelector(`.${styles.open}`)).toBeTruthy();
+  });
+
+  it("does not update stored overlay state after unmount", () => {
+    const { state, view } = setup();
+    view.unmount();
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    expect(state.store.get("first-id::showOverlay")).toBe(true);
   });
 });

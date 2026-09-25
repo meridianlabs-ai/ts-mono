@@ -1450,7 +1450,7 @@
   },
   "packages/react/src/components/LightboxCarousel.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/react/src/components/MarkdownDiv.tsx": {

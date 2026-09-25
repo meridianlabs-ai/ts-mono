@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, MouseEvent, ReactNode, useCallback, useEffect } from "react";
 
-import { useProperty } from "../hooks";
+import { useProperty, useTimeout } from "../hooks";
 
 import { useComponentIcons } from "./ComponentIconContext";
 import styles from "./LightboxCarousel.module.css";
@@ -49,16 +49,12 @@ export const LightboxCarousel: FC<LightboxCarouselProps> = ({ id, slides }) => {
     setIsOpen(false);
   }, [setIsOpen]);
 
-  // Remove the overlay from the DOM after fade-out completes
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!isOpen && showOverlay) {
-      const timer = setTimeout(() => {
-        setShowOverlay(false);
-      }, 300); // match your transition duration
-      return () => clearTimeout(timer);
-    }
-  }, [isOpen, showOverlay, setShowOverlay]);
+  // Preserve the full fade-out delay when the property store or carousel id changes.
+  useTimeout(
+    () => setShowOverlay(false),
+    !isOpen && showOverlay ? 300 : null,
+    setShowOverlay
+  );
 
   const showNext = useCallback(() => {
     setCurrentIndex((currentIndex + 1) % slides.length);
