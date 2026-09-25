@@ -3,12 +3,13 @@ import {
   FC,
   KeyboardEvent,
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+
+import { useEventListener } from "@tsmono/react/hooks";
 
 import styles from "./EventNavsPicker.module.css";
 
@@ -56,17 +57,9 @@ export const EventNavsPicker: FC<EventNavsPickerProps> = ({
     if (open) computePosition();
   }, [open, computePosition]);
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!open) return;
-    const handler = () => computePosition();
-    window.addEventListener("resize", handler);
-    window.addEventListener("scroll", handler, true);
-    return () => {
-      window.removeEventListener("resize", handler);
-      window.removeEventListener("scroll", handler, true);
-    };
-  }, [open, computePosition]);
+  const windowTarget = open && typeof window !== "undefined" ? window : null;
+  useEventListener(windowTarget, "resize", computePosition);
+  useEventListener(windowTarget, "scroll", computePosition, { capture: true });
 
   const handleKeyDown = useCallback((e: KeyboardEvent<HTMLElement>) => {
     if (e.key === "Escape") {

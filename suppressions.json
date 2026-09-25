@@ -1212,7 +1212,7 @@
   },
   "packages/inspect-components/src/transcript/event/EventNavsPicker.tsx": {
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/inspect-components/src/transcript/event/EventPanel.tsx": {
