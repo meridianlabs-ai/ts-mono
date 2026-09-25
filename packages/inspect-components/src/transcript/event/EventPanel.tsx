@@ -12,7 +12,11 @@ import {
   useState,
 } from "react";
 
-import { CopyButton, useStickyScroll } from "@tsmono/react/components";
+import {
+  CopyButton,
+  isNewTabClick,
+  useStickyScroll,
+} from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { MessageLabel } from "../../chat/MessageLabel";
@@ -429,14 +433,7 @@ export const EventPanel: FC<EventPanelProps> = ({
                 title="Open focused turn view (f)"
                 aria-label="Open focused turn view"
                 onClick={(e) => {
-                  if (
-                    onOpenEventFocus &&
-                    e.button === 0 &&
-                    !e.ctrlKey &&
-                    !e.metaKey &&
-                    !e.shiftKey &&
-                    !e.altKey
-                  ) {
+                  if (onOpenEventFocus && !isNewTabClick(e)) {
                     e.preventDefault();
                     // The same href, so the tab param (and any future params)
                     // survive the in-window entry too.
