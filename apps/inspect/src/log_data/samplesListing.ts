@@ -1,5 +1,7 @@
 import { keepPreviousData } from "@tanstack/react-query";
 
+import { logContentTrust } from "@tsmono/inspect-components/content";
+import type { ContentTrust } from "@tsmono/react/components";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
@@ -34,6 +36,9 @@ import { getDatabaseService } from "./databaseServiceInstance";
 export type SamplesScope = SampleSummariesScope;
 
 export interface SamplesListingLogContext {
+  /** From the same header read as the rest of this context, so a row's
+   *  trust always describes the log the row came from. */
+  contentTrust: ContentTrust;
   created?: string;
   task?: string;
   model?: string;
@@ -70,8 +75,9 @@ export const samplesListingKey = (params: SamplesListingParams) =>
 
 const logContext = (header: LogHeader | undefined): SamplesListingLogContext =>
   header === undefined
-    ? {}
+    ? { contentTrust: logContentTrust(undefined) }
     : {
+        contentTrust: logContentTrust(header),
         created: header.eval.created,
         task: header.eval.task,
         model: header.eval.model,
@@ -80,8 +86,9 @@ const logContext = (header: LogHeader | undefined): SamplesListingLogContext =>
 
 const rowContext = (row: Log | undefined): SamplesListingLogContext =>
   row === undefined
-    ? {}
+    ? { contentTrust: logContentTrust(undefined) }
     : {
+        contentTrust: logContentTrust(row.header),
         created: row.header?.eval.created,
         task: row.task ?? undefined,
         model: row.model,
@@ -138,7 +145,7 @@ const readSamplesListing = async (
       logFile: record.file_path,
       summary: record.summary,
       derived: record.derived,
-      log: contexts.get(record.file_path) ?? {},
+      log: contexts.get(record.file_path) ?? rowContext(undefined),
     })),
     params
   );

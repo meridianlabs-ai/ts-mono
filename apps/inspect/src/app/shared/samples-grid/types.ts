@@ -1,3 +1,5 @@
+import type { ContentTrust } from "@tsmono/react/components";
+
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { SampleSummary } from "../../../client/api/types";
 
@@ -19,6 +21,8 @@ export type SampleGridScope = "samplesPanel" | "logViewSamples";
  */
 export interface SampleRow {
   logFile: string;
+  /** Trust of the log this row came from; cells render within it. */
+  contentTrust: ContentTrust;
   sampleId: string | number;
   epoch: number;
 

@@ -79,7 +79,7 @@ const seedLogDetails = (logFile: string, summaries: SampleSummary[]) => {
       logFile,
       summary,
       derived: deriveSampleFields(summary),
-      log: {},
+      log: { contentTrust: "trusted" },
     }))
   );
 };

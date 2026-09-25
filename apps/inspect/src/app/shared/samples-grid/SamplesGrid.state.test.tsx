@@ -13,8 +13,20 @@ import type { SampleRow } from "./types";
 afterEach(cleanup);
 
 const rows: SampleRow[] = [
-  { logFile: "a.eval", sampleId: 2, epoch: 1, input: "banana" },
-  { logFile: "a.eval", sampleId: 1, epoch: 1, input: "apple" },
+  {
+    logFile: "a.eval",
+    contentTrust: "trusted",
+    sampleId: 2,
+    epoch: 1,
+    input: "banana",
+  },
+  {
+    logFile: "a.eval",
+    contentTrust: "trusted",
+    sampleId: 1,
+    epoch: 1,
+    input: "apple",
+  },
 ];
 
 const columns: ExtendedColumnDef<SampleRow>[] = [
@@ -108,9 +120,29 @@ describe("SamplesGrid controlled sorting", () => {
 
 describe("SamplesGrid cost column", () => {
   const costRows: SampleRow[] = [
-    { logFile: "a.eval", sampleId: 1, epoch: 1, input: "unpriced" },
-    { logFile: "a.eval", sampleId: 2, epoch: 1, input: "cheap", cost: 0.1 },
-    { logFile: "a.eval", sampleId: 3, epoch: 1, input: "pricey", cost: 0.5 },
+    {
+      logFile: "a.eval",
+      contentTrust: "trusted",
+      sampleId: 1,
+      epoch: 1,
+      input: "unpriced",
+    },
+    {
+      logFile: "a.eval",
+      contentTrust: "trusted",
+      sampleId: 2,
+      epoch: 1,
+      input: "cheap",
+      cost: 0.1,
+    },
+    {
+      logFile: "a.eval",
+      contentTrust: "trusted",
+      sampleId: 3,
+      epoch: 1,
+      input: "pricey",
+      cost: 0.5,
+    },
   ];
   const costColumns = buildSampleColumns({
     viewMode: "grid",

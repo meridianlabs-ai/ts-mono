@@ -329,6 +329,7 @@ export const SamplesPanel: FC = () => {
       ({ logFile, summary: sample, derived, log }) => {
         const row: SampleRow = {
           logFile,
+          contentTrust: log.contentTrust,
           sampleId: sample.id,
           epoch: sample.epoch,
           data: sample,

@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
+import { untrustedText, useIsContentTrusted } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import { RenderedText } from "../../content/RenderedText";
@@ -75,8 +76,10 @@ const RenderTool: FC<RenderToolProps> = ({
     return <TodoWriteInput contents={contents} parentRef={parentRef} />;
   }
 
-  const formattedContent =
+  const trusted = useIsContentTrusted();
+  const serialized =
     typeof contents === "object" ? JSON.stringify(contents) : contents;
+  const formattedContent = trusted ? serialized : untrustedText(serialized);
 
   return (
     <div ref={parentRef}>

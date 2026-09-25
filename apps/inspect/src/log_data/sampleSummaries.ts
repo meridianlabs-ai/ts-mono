@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 
+import type { ContentTrust } from "@tsmono/react/components";
 import { AsyncData, compose, map as mapAsyncData } from "@tsmono/util";
 
 import { SampleSummary } from "../client/api/types";
@@ -85,3 +86,25 @@ export const getSampleSummaries = async (
         await readSettledSummaries(logDir, resolveLogKey(logDir, logFile)),
         getPendingSamples(logDir, logFile)?.samples ?? []
       );
+
+/**
+ * The content trust of the rows {@link useSampleSummaries} returns for
+ * `logFile`, taken from each row's own log context. While a switch between
+ * logs keeps the previous log's rows on screen, this reflects those rows, not
+ * the newly requested log.
+ */
+export const useSampleSummariesContentTrust = (
+  logDir: string,
+  logFile: string | undefined
+): ContentTrust[] => {
+  const rows = useSamplesListing({
+    logDir,
+    scope: {
+      file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
+    },
+  });
+  return useMemo(
+    () => (rows.data ?? []).map((row) => row.log.contentTrust),
+    [rows.data]
+  );
+};

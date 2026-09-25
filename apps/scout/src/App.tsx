@@ -27,6 +27,7 @@ import {
   AppErrorBoundary,
   ComponentIconProvider,
   ComponentIcons,
+  ContentTrustProvider,
   ExtendedFindProvider,
   FindTargetProvider,
 } from "@tsmono/react/components";
@@ -109,7 +110,12 @@ const AppContent: FC<AppProps> = ({ mode = "scans" }) => {
           <AppModeContext.Provider value={mode}>
             <ExtendedFindProvider>
               <FindTargetProvider>
-                <RouterProvider router={router} />
+                {/* Scout doesn't yet know which eval log a transcript came from,
+                    so it can't honor a log's trust_content setting; its content
+                    renders as trusted, as it did before that setting existed. */}
+                <ContentTrustProvider value="trusted">
+                  <RouterProvider router={router} />
+                </ContentTrustProvider>
               </FindTargetProvider>
             </ExtendedFindProvider>
           </AppModeContext.Provider>
