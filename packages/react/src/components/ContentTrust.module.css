@@ -1,4 +1,5 @@
 .placeholder {
   font-style: italic;
   color: var(--bs-secondary-color);
+  margin-inline-end: 0.5em;
 }
