@@ -121,11 +121,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       }
       setMatchCount(total > 0 ? total : null);
 
-      const focusedElement =
-        document.activeElement instanceof HTMLElement
-          ? document.activeElement
-          : null;
-
       const selection = window.getSelection();
       let savedRange: Range | null = null;
       if (selection && selection.rangeCount > 0) {
@@ -204,8 +199,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
           }, 100);
         }
       }
-
-      focusedElement?.focus();
     },
     [setFindTarget, extendedFindTerm, countAllMatches, getMatchCountersVersion]
   );
@@ -237,9 +230,6 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
     (e: KeyboardEvent<HTMLInputElement>) => {
       if (e.key === "Escape") {
         onClose();
-      } else if (e.key === "Enter") {
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        handleSearch(e.shiftKey);
       } else if (isFindNextShortcut(e)) {
         e.preventDefault();
         // eslint-disable-next-line @typescript-eslint/no-floating-promises
@@ -336,6 +326,21 @@ export const FindBand: FC<FindBandProps> = ({ onClose, debounceMs = 100 }) => {
       }
 
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      // window.find in Firefox moves focus to the selection, and the input
+      // must stay unfocused for the selection to stay visible, so Enter is
+      // handled here rather than in the input.
+      const target = e.target instanceof Element ? e.target : null;
+      const ownsEnter =
+        target !== searchBoxRef.current &&
+        (isEditableTarget(target) || target instanceof HTMLButtonElement);
+      if (e.key === "Enter" && !ownsEnter) {
+        // Do not follow a link inside the selection on Enter for next match.
+        e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        handleSearch(e.shiftKey);
+        return;
+      }
 
       if (e.key.length !== 1 && e.key !== "Backspace" && e.key !== "Delete")
         return;

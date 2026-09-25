@@ -239,15 +239,15 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}-chromium-firefox
 
       - name: Install Playwright browsers
         if: steps.pw-cache.outputs.cache-hit != 'true'
-        run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install --with-deps chromium
+        run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install --with-deps chromium firefox
 
       - name: Install Playwright system deps (on cache hit)
         if: steps.pw-cache.outputs.cache-hit == 'true'
-        run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install-deps chromium
+        run: pnpm --filter ./apps/${{ matrix.app }} exec playwright install-deps chromium firefox
 
       - name: Run e2e tests
         # A step timeout SIGINTs Playwright so it finalizes the report and the

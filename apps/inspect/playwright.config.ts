@@ -21,6 +21,13 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      // Find specs only: chat-components (math selection), turn-navigation
+      // (scroll leak) and viewer-xss (print) already fail on main under Firefox.
+      name: "firefox",
+      testMatch: /messages-find/,
+      use: { ...devices["Desktop Firefox"] },
+    },
   ],
   webServer: {
     command: "pnpm dev --port 5175",
