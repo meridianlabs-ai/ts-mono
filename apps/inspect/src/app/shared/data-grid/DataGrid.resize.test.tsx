@@ -105,4 +105,28 @@ describe("DataGrid column resizing", () => {
     expect(cellWidths("columnheader")).toEqual(["200px", "50px", "50px"]);
     expect(cellWidths("gridcell")).toEqual(["200px", "50px", "50px"]);
   });
+
+  test("body cells follow new column defs at unchanged widths", () => {
+    vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(500);
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(500);
+    // e.g. toggling heat-map colours rebuilds defs with a new cellStyle.
+    const colored = makeAbcColumns().map((c) => ({
+      ...c,
+      meta: { cellStyle: () => ({ color: "red" }) },
+    }));
+    const props = {
+      data: abcRows,
+      getRowId: (r: AbcRow) => r.id,
+      onRowActivate: () => {},
+      columnVisibility: { a: true, b: true, c: true },
+    };
+    const { rerender } = render(
+      <DataGrid<AbcRow> {...props} columns={makeAbcColumns()} />
+    );
+    rerender(<DataGrid<AbcRow> {...props} columns={colored} />);
+    const colors = screen
+      .getAllByRole("gridcell")
+      .map((el) => (el instanceof HTMLElement ? el.style.color : ""));
+    expect(colors).toEqual(["red", "red", "red"]);
+  });
 });
