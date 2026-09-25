@@ -15,7 +15,7 @@ const MARKDOWN = [
   "# Heading",
   "[link](https://example.com/phish)",
   "![img](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==)",
-  "$x^2$ and bidi ‮gnp.exe‬",
+  "$x^2$ and bidi \u202Egnp.exe\u202C",
 ].join("\n");
 
 const TrustValue = () => <span>{useContentTrust()}</span>;

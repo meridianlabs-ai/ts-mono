@@ -9,12 +9,16 @@ describe("revealHiddenCharacters", () => {
   });
 
   it.each([
-    ["zero width space", "a​b", "a⟨U+200B⟩b"],
-    ["zero width joiner", "a‍b", "a⟨U+200D⟩b"],
-    ["right-to-left override", "‮gnp.exe‬", "⟨U+202E⟩gnp.exe⟨U+202C⟩"],
-    ["bidi isolate", "⁦x⁩", "⟨U+2066⟩x⟨U+2069⟩"],
-    ["byte order mark", "﻿text", "⟨U+FEFF⟩text"],
-    ["soft hyphen", "in­visible", "in⟨U+00AD⟩visible"],
+    ["zero width space", "a\u200Bb", "a⟨U+200B⟩b"],
+    ["zero width joiner", "a\u200Db", "a⟨U+200D⟩b"],
+    [
+      "right-to-left override",
+      "\u202Egnp.exe\u202C",
+      "⟨U+202E⟩gnp.exe⟨U+202C⟩",
+    ],
+    ["bidi isolate", "\u2066x\u2069", "⟨U+2066⟩x⟨U+2069⟩"],
+    ["byte order mark", "\uFEFFtext", "⟨U+FEFF⟩text"],
+    ["soft hyphen", "in\u00ADvisible", "in⟨U+00AD⟩visible"],
     ["escape", "\u001b[32mPASS", "⟨U+001B⟩[32mPASS"],
     ["null", "a\u0000b", "a⟨U+0000⟩b"],
     ["C1 control", "a\u009Bb", "a⟨U+009B⟩b"],
