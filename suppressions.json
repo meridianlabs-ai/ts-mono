@@ -1176,11 +1176,6 @@
       "undescribed": 1
     }
   },
-  "packages/inspect-components/src/theme/ThemeToggle.tsx": {
-    "tsmono/no-raw-use-effect": {
-      "count": 1
-    }
-  },
   "packages/inspect-components/src/transcript-search/referenceLabels.ts": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -1406,7 +1401,7 @@
       "undescribed": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 5
+      "count": 4
     }
   },
   "packages/react/src/components/CopyButton.tsx": {
@@ -1502,7 +1497,7 @@
       "count": 1
     },
     "tsmono/no-raw-use-effect": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/react/src/components/NavPills.tsx": {

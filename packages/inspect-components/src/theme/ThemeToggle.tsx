@@ -1,7 +1,8 @@
 import clsx from "clsx";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 
 import { PopOver } from "@tsmono/react/components";
+import { useEventListener } from "@tsmono/react/hooks";
 import type { ThemePreference } from "@tsmono/theme/bootstrap";
 
 import styles from "./ThemeToggle.module.css";
@@ -53,18 +54,16 @@ export const ThemeToggle = ({
     onChange(nextEventColors ? `readable-${nextBase}` : nextBase);
   };
 
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
+  useEventListener(
+    open && typeof document !== "undefined" ? document : null,
+    "keydown",
+    (e) => {
       if (e.key === "Escape") {
         setOpen(false);
         buttonEl?.focus();
       }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [buttonEl, open]);
+    }
+  );
 
   return (
     // data-testid: stable hook for automated tests and for downstream

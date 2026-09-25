@@ -216,3 +216,38 @@ describe("Modal accessibility", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });
+
+describe("Modal keyboard listener lifecycle", () => {
+  it("uses replacement callbacks, ignores hidden dialogs, and cleans up on unmount", () => {
+    const firstHide = vi.fn();
+    const nextHide = vi.fn();
+    const nextSubmit = vi.fn();
+    const ui = (show: boolean, onHide: () => void) => (
+      <ComponentIconProvider icons={icons}>
+        <Modal
+          show={show}
+          onHide={onHide}
+          onSubmit={nextSubmit}
+          title="Lifecycle"
+        >
+          <input aria-label="Lifecycle input" />
+        </Modal>
+      </ComponentIconProvider>
+    );
+    const { rerender, unmount } = render(ui(true, firstHide));
+    rerender(ui(true, nextHide));
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(firstHide).not.toHaveBeenCalled();
+    expect(nextHide).toHaveBeenCalledTimes(1);
+    expect(nextSubmit).toHaveBeenCalledTimes(1);
+    rerender(ui(false, nextHide));
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Enter" });
+    expect(nextHide).toHaveBeenCalledTimes(1);
+    expect(nextSubmit).toHaveBeenCalledTimes(1);
+    unmount();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(nextHide).toHaveBeenCalledTimes(1);
+  });
+});
