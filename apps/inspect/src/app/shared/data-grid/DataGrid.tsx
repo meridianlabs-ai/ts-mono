@@ -35,6 +35,7 @@ import {
 import { isRecord, isVscode } from "@tsmono/util";
 
 import { openHrefInNewTab } from "../openInNewTab";
+import { useStableValue } from "../useStableValue";
 
 import { computeAutoSizeWidth } from "./autoSize";
 import { resolveColumnWidths } from "./columnFit";
@@ -138,6 +139,48 @@ const kFitSlack = 4;
 /** A click the browser turns into "open link in a new tab/window". */
 function isNewTabClick(e: MouseEvent<HTMLElement>): boolean {
   return e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1;
+}
+
+/** Rendered width (including any after-rotated gap) and, for left-pinned
+ *  columns, sticky offset of each visible column, in display order. Keyed
+ *  by a Map because column ids can come from log content (scorer names). */
+type ColumnLayout = ReadonlyMap<
+  string,
+  { width: number; pinnedLeft: number | undefined }
+>;
+
+function buildColumnLayout<TRow extends RowData>(
+  visibleColumns: Column<DataGridFeatures, TRow, unknown>[],
+  afterRotatedIds: ReadonlySet<string>
+): ColumnLayout {
+  return new Map(
+    visibleColumns.map((column) => [
+      column.id,
+      {
+        width:
+          column.getSize() +
+          (afterRotatedIds.has(column.id) ? kAfterRotatedGap : 0),
+        pinnedLeft:
+          column.getIsPinned() === "start"
+            ? column.getStart("start")
+            : undefined,
+      },
+    ])
+  );
+}
+
+function isSameColumnLayout(a: ColumnLayout, b: ColumnLayout): boolean {
+  if (a.size !== b.size) return false;
+  const bEntries = [...b];
+  return [...a].every(([id, layout], i) => {
+    const other = bEntries[i];
+    return (
+      other !== undefined &&
+      other[0] === id &&
+      other[1].width === layout.width &&
+      other[1].pinnedLeft === layout.pinnedLeft
+    );
+  });
 }
 
 export interface DataGridProps<TRow extends RowData> {
@@ -632,6 +675,16 @@ export function DataGrid<TRow extends RowData>({
   // unrelated grid-state changes.
   const visibleColumns = table.getVisibleLeafColumns();
 
+  // Header and body cells both place themselves from this, and rows must
+  // read it rather than `getSize()`: widths can shift between columns at a
+  // constant total (a resize absorbed by flex columns), which changes no
+  // other GridRow prop, so a row reading the table would stay stale under
+  // memo and the React Compiler.
+  const columnLayout = useStableValue(
+    buildColumnLayout(visibleColumns, afterRotatedIds),
+    isSameColumnLayout
+  );
+
   // The sticky header occupies layout space at the top of the scroll
   // container, so the virtualized rows start `headerHeight` px down. Two knobs
   // keep scrollToIndex in the same coordinate space as the DOM:
@@ -906,14 +959,10 @@ export function DataGrid<TRow extends RowData>({
                       dropSide === "right" && styles.headerCellDropRight
                     )}
                     style={{
-                      width:
-                        header.getSize() +
-                        (afterRotatedIds.has(header.column.id)
-                          ? kAfterRotatedGap
-                          : 0),
+                      width: columnLayout.get(header.column.id)?.width,
                       ...(pinned && {
                         position: "sticky" as const,
-                        left: header.column.getStart("start"),
+                        left: columnLayout.get(header.column.id)?.pinnedLeft,
                         zIndex: 3,
                       }),
                     }}
@@ -1036,7 +1085,7 @@ export function DataGrid<TRow extends RowData>({
                 // the tbody already sits below the in-flow header, so
                 // subtract it.
                 top={virtualRow.start - effectiveHeaderHeight}
-                afterRotatedIds={afterRotatedIds}
+                columnLayout={columnLayout}
                 href={getRowHref?.(row.original)}
                 onRowClick={handleRowClick}
               />
@@ -1064,7 +1113,7 @@ interface GridRowProps<TRow extends RowData> {
   rowHeight: number;
   width: number;
   top: number;
-  afterRotatedIds: ReadonlySet<string>;
+  columnLayout: ColumnLayout;
   href?: string;
   onRowClick: (e: MouseEvent<HTMLElement>, rowId: string, row: TRow) => void;
 }
@@ -1076,7 +1125,7 @@ function GridRowInner<TRow extends RowData>({
   rowHeight,
   width,
   top,
-  afterRotatedIds,
+  columnLayout,
   href,
   onRowClick,
 }: GridRowProps<TRow>): ReactElement {
@@ -1092,7 +1141,8 @@ function GridRowInner<TRow extends RowData>({
     const cellDef = cell.column.columnDef as ExtendedColumnDef<TRow>;
     const align = cellDef.meta?.align;
     const cellStyle = cellDef.meta?.cellStyle?.(row.original);
-    const pinned = cell.column.getIsPinned() === "start";
+    const layout = columnLayout.get(cell.column.id);
+    const pinned = layout?.pinnedLeft !== undefined;
     return (
       <div
         key={cell.id}
@@ -1102,12 +1152,10 @@ function GridRowInner<TRow extends RowData>({
           pinned && styles.cellPinned
         )}
         style={{
-          width:
-            cell.column.getSize() +
-            (afterRotatedIds.has(cell.column.id) ? kAfterRotatedGap : 0),
+          width: layout?.width,
           ...(pinned && {
             position: "sticky" as const,
-            left: cell.column.getStart("start"),
+            left: layout.pinnedLeft,
             zIndex: 1,
           }),
           ...cellStyle,
