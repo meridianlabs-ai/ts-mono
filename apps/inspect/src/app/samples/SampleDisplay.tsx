@@ -13,11 +13,21 @@ import {
 } from "react";
 import { useNavigate } from "react-router";
 
-import { EvalSample, EvalSpec } from "@tsmono/inspect-common/types";
+import {
+  ChatMessage,
+  EvalSample,
+  EvalSpec,
+} from "@tsmono/inspect-common/types";
 import { modelRoleNames } from "@tsmono/inspect-common/utils";
 import {
+  buildSelectableMessageIndex,
   ChatViewRowsVirtualList,
+  messagesToMarkdown,
+  messagesToStr,
+  resolveSelectedMessageIds,
+  resolveSelectedMessages,
   type MessageRow,
+  type MessageRowSelectionProps,
 } from "@tsmono/inspect-components/chat";
 import {
   DisplayModeContext,
@@ -31,6 +41,7 @@ import {
   resolveSelectedEvents,
   resolveSelectedIds,
   selectionMenuChrome,
+  toggleIdSelection,
   TranscriptSelectTool,
   type TranscriptLayoutRightRailProps,
 } from "@tsmono/inspect-components/transcript";
@@ -66,6 +77,7 @@ import {
   useChromeNavOwnership,
   useCopyToClipboard,
   useElementHeight,
+  useLatestRef,
   useVisitId,
 } from "@tsmono/react/hooks";
 import { isHostedEnvironment, isVscode } from "@tsmono/util";
@@ -85,6 +97,7 @@ import {
 } from "../../constants";
 import {
   kDefaultMessageRowOptions,
+  messagesFromEvents,
   useMessagesExport,
   useSampleMessages,
 } from "../../log_data";
@@ -411,6 +424,76 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const canSelectEvents =
     isTranscriptTab && !isChunked && sampleEvents.length > 0;
 
+  // Evidence selection for the Messages tab (issue #631): mirrors the
+  // transcript's selection and reuses the store slot — the visit key already
+  // differs per tab, so each tab owns its selection independently.
+  const isMessagesTab = effectiveSelectedTab === kSampleMessagesTabId;
+  const messageSelection =
+    isMessagesTab && storedSelection.key === selectionKey
+      ? storedSelection
+      : kNoEventSelection;
+  const messageSelectedIdSet = useMemo(
+    () => new Set(messageSelection.selectedIds),
+    [messageSelection.selectedIds]
+  );
+  // Ids → messages needs a full fold, so it happens at export/print time,
+  // never per render; the toolbar counts the stored ids. Running samples
+  // derive the conversation from the streamed events on the spot.
+  const resolveMessageIndex = () =>
+    buildSelectableMessageIndex(
+      sample?.messages ?? messagesFromEvents(sampleData.running)
+    );
+  const messageSelectionCount = messageSelection.active
+    ? messageSelectedIdSet.size
+    : 0;
+  const hasMessageSelection = isMessagesTab && messageSelectionCount > 0;
+  // Chunked samples window their messages, so there is no full conversation
+  // to select from or export.
+  const canSelectMessages =
+    isMessagesTab && !isChunked && (sampleMessages.rows.data?.length ?? 0) > 0;
+
+  // Stable row toggle: reads live selection state through a ref (mirror of
+  // TranscriptViewNodes' onToggleSelected). Ranges span the VISIBLE rows, as
+  // the user sees them.
+  const setEventSelection = useStore(
+    (state) => state.sampleActions.setEventSelection
+  );
+  const messageSelectionLatest = useLatestRef({
+    key: selectionKey,
+    selectedIds: messageSelection.selectedIds,
+    lastToggledId: messageSelection.lastToggledId,
+    rows: sampleMessages.rows.data,
+  });
+  const onToggleMessageSelected = useCallback(
+    (messageId: string, extend: boolean) => {
+      const current = messageSelectionLatest.current;
+      const visibleIds = (current.rows ?? [])
+        .map((row) => row.resolved.message.id)
+        .filter((id): id is string => typeof id === "string");
+      const next = toggleIdSelection(
+        {
+          selectedIds: new Set(current.selectedIds),
+          lastToggledId: current.lastToggledId,
+        },
+        visibleIds,
+        messageId,
+        extend
+      );
+      setEventSelection(current.key, [...next.selectedIds], next.lastToggledId);
+    },
+    [messageSelectionLatest, setEventSelection]
+  );
+  const messageRowSelection = useMemo<MessageRowSelectionProps | undefined>(
+    () =>
+      messageSelection.active
+        ? {
+            selectedIds: messageSelectedIdSet,
+            onToggle: onToggleMessageSelected,
+          }
+        : undefined,
+    [messageSelection.active, messageSelectedIdSet, onToggleMessageSelected]
+  );
+
   const handlePrintClick = useCallback(() => {
     if (printLogPath && printSampleId && printEpoch) {
       const printUrl = printSampleUrl(
@@ -427,6 +510,17 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               ),
               selectedIdSet
             )
+          : undefined,
+        hasMessageSelection
+          ? withStoredFallback(
+              resolveSelectedMessageIds(
+                buildSelectableMessageIndex(
+                  sample?.messages ?? messagesFromEvents(sampleData.running)
+                ),
+                messageSelectedIdSet
+              ),
+              messageSelectedIdSet
+            )
           : undefined
       );
       openInNewTab(printUrl);
@@ -441,6 +535,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     selectedIdSet,
     sampleEvents,
     running,
+    hasMessageSelection,
+    messageSelectedIdSet,
+    sample,
+    sampleData,
   ]);
 
   // Intercept Cmd+P / Ctrl+P to use custom print route
@@ -506,9 +604,28 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     }
     action(events);
   };
-  const selectionMenu = hasSelection
-    ? selectionMenuChrome(selectionCount, clearEventSelection)
-    : undefined;
+  const exportSelectedMessages = (
+    action: (messages: ChatMessage[]) => void
+  ) => {
+    const messages = resolveSelectedMessages(
+      resolveMessageIndex(),
+      messageSelectedIdSet
+    );
+    if (messages.length === 0) {
+      console.warn("Selected messages are no longer in this sample.");
+      return;
+    }
+    action(messages);
+  };
+  const selectionMenu = hasMessageSelection
+    ? selectionMenuChrome(
+        messageSelectionCount,
+        clearEventSelection,
+        "messages"
+      )
+    : hasSelection
+      ? selectionMenuChrome(selectionCount, clearEventSelection)
+      : undefined;
 
   // Right-docked sidebar — search and scans share a single slot (one at a
   // time), each toggled from the toolbar. Scope follows the active tab. The
@@ -661,6 +778,21 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     );
   }
 
+  if (canSelectMessages) {
+    tools.push(
+      <TranscriptSelectTool
+        key="sample-select-messages"
+        active={messageSelection.active}
+        count={messageSelectionCount}
+        onToggle={() =>
+          setEventSelectionActive(selectionKey, !messageSelection.active)
+        }
+        onClear={resetEventSelection}
+        itemName="messages"
+      />
+    );
+  }
+
   tools.push(
     <ToolDropdownButton
       key="sample-copy"
@@ -671,41 +803,54 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
       heading={selectionMenu?.heading}
       footer={selectionMenu?.footer}
       items={
-        hasSelection
+        hasMessageSelection
           ? {
               Markdown: () =>
-                exportSelected((events) => copyText(eventsToMarkdown(events))),
+                exportSelectedMessages((messages) =>
+                  copyText(messagesToMarkdown(messages))
+                ),
               Text: () =>
-                exportSelected((events) => copyText(eventsToStr(events))),
+                exportSelectedMessages((messages) =>
+                  copyText(messagesToStr(messages))
+                ),
             }
-          : {
-              UUID: () => {
-                if (sample?.uuid) {
-                  copyText(sample.uuid);
-                }
-              },
-              // offered only when a settled conversation exists to export —
-              // live streaming samples have none, and a silent no-op menu
-              // item reads as broken (chunked samples stream the text on
-              // demand inside the export, window by window — never a
-              // whole-conversation hydration)
-              ...(exportMessages
-                ? {
-                    Messages: () => {
-                      exportMessages()
-                        .then((parts) => copyText(parts.join("")))
-                        .catch((error: unknown) => {
-                          console.error("Failed to copy messages:", error);
-                        });
-                    },
+          : hasSelection
+            ? {
+                Markdown: () =>
+                  exportSelected((events) =>
+                    copyText(eventsToMarkdown(events))
+                  ),
+                Text: () =>
+                  exportSelected((events) => copyText(eventsToStr(events))),
+              }
+            : {
+                UUID: () => {
+                  if (sample?.uuid) {
+                    copyText(sample.uuid);
                   }
-                : {}),
-              Transcript: () => {
-                if (sampleEvents.length > 0) {
-                  copyText(eventsToStr(sampleEvents));
-                }
-              },
-            }
+                },
+                // offered only when a settled conversation exists to export —
+                // live streaming samples have none, and a silent no-op menu
+                // item reads as broken (chunked samples stream the text on
+                // demand inside the export, window by window — never a
+                // whole-conversation hydration)
+                ...(exportMessages
+                  ? {
+                      Messages: () => {
+                        exportMessages()
+                          .then((parts) => copyText(parts.join("")))
+                          .catch((error: unknown) => {
+                            console.error("Failed to copy messages:", error);
+                          });
+                      },
+                    }
+                  : {}),
+                Transcript: () => {
+                  if (sampleEvents.length > 0) {
+                    copyText(eventsToStr(sampleEvents));
+                  }
+                },
+              }
       }
     />
   );
@@ -722,64 +867,91 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
         heading={selectionMenu?.heading}
         footer={selectionMenu?.footer}
         items={
-          hasSelection
+          hasMessageSelection
             ? {
                 Markdown: () =>
-                  exportSelected((events) =>
+                  exportSelectedMessages((messages) =>
                     downloadFile(
-                      `${sampleId}-events.md`,
-                      eventsToMarkdown(events)
+                      `${sampleId}-messages.md`,
+                      messagesToMarkdown(messages)
                     )
                   ),
                 Text: () =>
-                  exportSelected((events) =>
-                    downloadFile(`${sampleId}-events.txt`, eventsToStr(events))
+                  exportSelectedMessages((messages) =>
+                    downloadFile(
+                      `${sampleId}-messages.txt`,
+                      messagesToStr(messages)
+                    )
                   ),
                 JSON: () =>
-                  exportSelected((events) =>
+                  exportSelectedMessages((messages) =>
                     downloadFile(
-                      `${sampleId}-events.json`,
-                      JSON.stringify(events, null, 2)
+                      `${sampleId}-messages.json`,
+                      JSON.stringify(messages, null, 2)
                     )
                   ),
               }
-            : {
-                "Sample JSON": () => {
-                  downloadFile(
-                    `${sampleId}.json`,
-                    JSON.stringify(sample, null, 2)
-                  );
-                },
-                // offered only when a settled conversation exists to export
-                // (see the copy dropdown)
-                ...(exportMessages
-                  ? {
-                      Messages: () => {
-                        exportMessages()
-                          .then((parts) =>
-                            downloadFile(
-                              `${sampleId}-messages.txt`,
-                              new Blob(parts, { type: "text/plain" })
-                            )
-                          )
-                          .catch((error: unknown) => {
-                            console.error(
-                              "Failed to download messages:",
-                              error
-                            );
-                          });
-                      },
-                    }
-                  : {}),
-                Transcript: () => {
-                  if (sampleEvents.length > 0) {
+            : hasSelection
+              ? {
+                  Markdown: () =>
+                    exportSelected((events) =>
+                      downloadFile(
+                        `${sampleId}-events.md`,
+                        eventsToMarkdown(events)
+                      )
+                    ),
+                  Text: () =>
+                    exportSelected((events) =>
+                      downloadFile(
+                        `${sampleId}-events.txt`,
+                        eventsToStr(events)
+                      )
+                    ),
+                  JSON: () =>
+                    exportSelected((events) =>
+                      downloadFile(
+                        `${sampleId}-events.json`,
+                        JSON.stringify(events, null, 2)
+                      )
+                    ),
+                }
+              : {
+                  "Sample JSON": () => {
                     downloadFile(
-                      `${sampleId}-transcript.txt`,
-                      eventsToStr(sampleEvents)
+                      `${sampleId}.json`,
+                      JSON.stringify(sample, null, 2)
                     );
-                  }
-                },
-              }
+                  },
+                  // offered only when a settled conversation exists to export
+                  // (see the copy dropdown)
+                  ...(exportMessages
+                    ? {
+                        Messages: () => {
+                          exportMessages()
+                            .then((parts) =>
+                              downloadFile(
+                                `${sampleId}-messages.txt`,
+                                new Blob(parts, { type: "text/plain" })
+                              )
+                            )
+                            .catch((error: unknown) => {
+                              console.error(
+                                "Failed to download messages:",
+                                error
+                              );
+                            });
+                        },
+                      }
+                    : {}),
+                  Transcript: () => {
+                    if (sampleEvents.length > 0) {
+                      downloadFile(
+                        `${sampleId}-transcript.txt`,
+                        eventsToStr(sampleEvents)
+                      );
+                    }
+                  },
+                }
         }
       />
     );
@@ -789,11 +961,19 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     tools.push(
       <ToolButton
         key="sample-print-tool"
-        label={hasSelection ? `Print · ${selectionCount}` : "Print"}
+        label={
+          hasMessageSelection
+            ? `Print · ${messageSelectionCount}`
+            : hasSelection
+              ? `Print · ${selectionCount}`
+              : "Print"
+        }
         title={
-          hasSelection
-            ? `Print ${selectionCount} selected ${selectionCount === 1 ? "event" : "events"}`
-            : undefined
+          hasMessageSelection
+            ? `Print ${messageSelectionCount} selected ${messageSelectionCount === 1 ? "message" : "messages"}`
+            : hasSelection
+              ? `Print ${selectionCount} selected ${selectionCount === 1 ? "event" : "events"}`
+              : undefined
         }
         icon={ApplicationIcons.copy}
         onClick={handlePrintClick}
@@ -1099,6 +1279,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                     backfilling={backfilling || sampleMessages.rows.loading}
                     scrollToTopOnFinish={scrollToTopOnFinish}
                     className={styles.fullWidth}
+                    selection={messageRowSelection}
                   />
                 )}
               </RailSidebarHost>

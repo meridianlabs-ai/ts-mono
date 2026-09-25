@@ -145,6 +145,7 @@ export {
 export { resolvedEventsReader } from "./chunkedAttachments";
 export { kDefaultMessageRowOptions } from "./messageRows";
 export { useMessagesExport } from "./messagesExport";
+export { messagesFromEvents } from "./messagesFromEvents";
 export { useSampleMessages } from "./sampleMessages";
 export type { MessageRowsFeed } from "./messageRowsQuery";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";

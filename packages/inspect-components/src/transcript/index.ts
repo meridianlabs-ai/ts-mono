@@ -62,7 +62,7 @@ export {
   resolveSelectedIds,
   selectedEventNodes,
   selectionMenuChrome,
-  toggleTranscriptSelection,
+  toggleIdSelection,
   type TranscriptSelection,
   type TranscriptSelectionState,
 } from "./selection/transcriptSelection";

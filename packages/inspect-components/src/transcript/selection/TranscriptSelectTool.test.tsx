@@ -61,4 +61,19 @@ describe("TranscriptSelectTool", () => {
     );
     expect(onClear).toHaveBeenCalledOnce();
   });
+
+  it("names the item in titles when itemName is set", () => {
+    render(
+      <TranscriptSelectTool
+        active={false}
+        count={0}
+        onToggle={() => {}}
+        onClear={() => {}}
+        itemName="messages"
+      />
+    );
+    expect(screen.getByRole("button", { name: "Select" }).title).toBe(
+      "Select messages"
+    );
+  });
 });

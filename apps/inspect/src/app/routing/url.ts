@@ -412,17 +412,21 @@ export const printSampleUrl = (
   epoch: string | number,
   view: string,
   prefix: RoutePrefix = "/logs",
-  eventIds?: readonly string[]
+  eventIds?: readonly string[],
+  messageIds?: readonly string[]
 ) => {
   const decodedLogPath = decodeUrlParam(logPath) || logPath;
   const encodedSampleId = encodeURIComponent(String(sampleId));
   const eventParams = (eventIds ?? [])
     .map((id) => `&events=${encodeURIComponent(id)}`)
     .join("");
+  const messageParams = (messageIds ?? [])
+    .map((id) => `&messages=${encodeURIComponent(id)}`)
+    .join("");
   return (
     encodePathParts(
       `${prefix}/${decodedLogPath}/samples/sample/${encodedSampleId}/${epoch}/print`
-    ) + `?view=${view}${eventParams}`
+    ) + `?view=${view}${eventParams}${messageParams}`
   );
 };
 

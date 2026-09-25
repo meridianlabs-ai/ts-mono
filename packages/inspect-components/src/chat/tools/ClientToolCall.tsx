@@ -34,6 +34,9 @@ export interface ClientToolCallProps {
   error?: ToolCallError;
   className?: string | string[];
   getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
+  /** Optional leading element rendered before the tool icon in the header
+   *  (e.g. a selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
 }
 
 /**
@@ -56,6 +59,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   error,
   className,
   getCustomToolView,
+  headerLeading,
 }) => {
   const displayMode = useDisplayMode();
 
@@ -103,6 +107,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       title={title || tool}
       summary={description ?? (argsInInputZone ? undefined : argsSummary)}
       className={className}
+      headerLeading={headerLeading}
     >
       {hasInput || argsInInputZone ? (
         <ToolBlockInput>

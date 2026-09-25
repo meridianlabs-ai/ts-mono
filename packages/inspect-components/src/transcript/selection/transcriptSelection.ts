@@ -49,7 +49,7 @@ export const kEmptyTranscriptSelection: TranscriptSelectionState = {
  * `id` in `visibleIds` takes the clicked row's new state, so a range can be
  * selected or cleared in one gesture; without a usable anchor only `id` flips.
  */
-export const toggleTranscriptSelection = (
+export const toggleIdSelection = (
   state: TranscriptSelectionState,
   visibleIds: readonly string[],
   id: string,
@@ -136,7 +136,11 @@ export const resolveSelectedIds = (
 ): string[] => [...index.keys()].filter((id) => selectedIds.has(id));
 
 /** Heading and footer for a Copy/Download menu acting on a selection. */
-export const selectionMenuChrome = (count: number, onClear: () => void) => ({
-  heading: `Selected events (${count})`,
+export const selectionMenuChrome = (
+  count: number,
+  onClear: () => void,
+  itemLabel = "events"
+) => ({
+  heading: `Selected ${itemLabel} (${count})`,
   footer: { label: "Clear selection", icon: kClearIcon, onClick: onClear },
 });

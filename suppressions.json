@@ -278,8 +278,8 @@
   },
   "apps/inspect/src/app/samples/print/SamplePrintView.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
-      "count": 3,
-      "undescribed": 3
+      "count": 2,
+      "undescribed": 2
     },
     "tsmono/no-raw-use-effect": {
       "count": 2

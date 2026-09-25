@@ -40,6 +40,9 @@ interface ChatMessageProps {
   references?: MarkdownReference[];
   /** Optional position-label chip, rendered at the far right of the role line. */
   label?: ReactNode;
+  /** Optional leading element rendered before the role text (e.g. a
+   *  selection checkbox while evidence selection mode is on). */
+  headerLeading?: ReactNode;
 }
 
 export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
@@ -49,6 +52,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   linking,
   references,
   label,
+  headerLeading,
 }) {
   const indented = display?.indented ?? false;
   const unlabeledRoles = display?.unlabeledRoles;
@@ -117,6 +121,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
       )}
     >
       <div>
+        {headerLeading}
         {message.role}
         {message.role === "tool"
           ? message.function
