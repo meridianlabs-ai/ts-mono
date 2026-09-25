@@ -13,7 +13,7 @@ import {
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
-import { useShowTimeline } from "../useShowTimeline";
+import { useShowTimeline, useTimelineHref } from "../useShowTimeline";
 
 import styles from "./ConfigCard.module.css";
 
@@ -29,6 +29,7 @@ interface ConfigCardProps {
  */
 export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
   const showTimeline = useShowTimeline();
+  const timelineHref = useTimelineHref();
 
   const changes = useMemo(
     () => evalConfigChanges(configUpdates),
@@ -50,6 +51,7 @@ export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
                 value={value}
                 change={change}
                 onViewTimeline={showTimeline}
+                timelineHref={timelineHref}
               />
             ),
           }
@@ -65,13 +67,14 @@ export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
               value={undefined}
               change={change}
               onViewTimeline={showTimeline}
+              timelineHref={timelineHref}
             />
           ),
         };
       }
     }
     return result;
-  }, [config, configUpdates, changes, showTimeline]);
+  }, [config, configUpdates, changes, showTimeline, timelineHref]);
 
   if (Object.keys(entries).length === 0) {
     return null;
@@ -90,7 +93,7 @@ export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
                 {changeCount} {changeCount === 1 ? "change" : "changes"}
               </span>
               <span className={styles.headerSep} />
-              <TimelineLink onClick={showTimeline} />
+              <TimelineLink onClick={showTimeline} href={timelineHref} />
             </span>
           </span>
         ) : null}
