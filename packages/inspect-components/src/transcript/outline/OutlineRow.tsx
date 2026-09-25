@@ -3,7 +3,12 @@ import { FC, ReactNode } from "react";
 
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { isNewTabClick, PulsingDots } from "@tsmono/react/components";
-import { formatDateTime, formatTime, parsePackageName } from "@tsmono/util";
+import {
+  formatDateTime,
+  formatTime,
+  isVscode,
+  parsePackageName,
+} from "@tsmono/util";
 
 import { TranscriptIcons } from "../icons";
 import { kSandboxSignalName } from "../transform/fixups";
@@ -65,10 +70,11 @@ export const OutlineRow: FC<OutlineRowProps> = ({
         tabIndex={0}
         onClick={(e) => {
           // A new-tab gesture on the label link opens the event in another
-          // tab; don't also jump this transcript to it.
+          // tab; don't also jump this transcript to it. (The VS Code webview
+          // has no browser tabs, so there the row still jumps.)
           const link =
             e.target instanceof Element ? e.target.closest("a[href]") : null;
-          if (link && isNewTabClick(e)) return;
+          if (link && isNewTabClick(e) && !isVscode()) return;
           activate();
         }}
         onKeyDown={(e) => {

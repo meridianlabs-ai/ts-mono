@@ -182,4 +182,15 @@ describe("OutlineRow event link", () => {
       expect(onNavigateToEvent).not.toHaveBeenCalled();
     }
   );
+
+  it("still jumps inside the VS Code webview, which has no browser tabs", () => {
+    document.body.setAttribute("data-vscode-theme-kind", "vscode-dark");
+    try {
+      const { link, node, onSelect } = renderLinked();
+      fireEvent.click(link, { metaKey: true });
+      expect(onSelect).toHaveBeenCalledWith(node.id);
+    } finally {
+      document.body.removeAttribute("data-vscode-theme-kind");
+    }
+  });
 });
