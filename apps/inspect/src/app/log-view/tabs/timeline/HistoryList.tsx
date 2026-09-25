@@ -523,6 +523,10 @@ export const HistoryList: FC<HistoryListProps> = ({
                   onKeyDown={
                     key !== undefined
                       ? (event) => {
+                          // Only the row itself: keys bubbling up from the
+                          // nested "open →" link keep their own default
+                          // (Enter opens the sample).
+                          if (event.target !== event.currentTarget) return;
                           if (event.key === "Enter" || event.key === " ") {
                             event.preventDefault();
                             onSelectEvent(selected ? null : key);
