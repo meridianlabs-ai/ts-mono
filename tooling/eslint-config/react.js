@@ -56,35 +56,112 @@ const noRawUseEffect = {
   },
 };
 
-export default tseslint.config(
-  ...baseConfig,
-  {
-    files: ["**/*.{ts,tsx}"],
-    plugins: {
-      // eslint-plugin-react still calls context APIs removed in ESLint 10
-      // (e.g. context.getFilename); fixup shims them until it ships v10 support.
-      react: fixupPluginRules(reactPlugin),
-      "react-hooks": reactHooksPlugin,
-      "react-refresh": reactRefreshPlugin,
-      "jsx-a11y": jsxA11yPlugin,
-      tsmono: { rules: { "no-raw-use-effect": noRawUseEffect } },
+// Log content can be untrusted model output (a log may set
+// `trust_content=False`). Media elements render it richly, so each must sit
+// inside <RequireTrustedContent>, which withholds it for untrusted content.
+// Raw HTML is confined to the markdown renderer, which checks trust itself.
+const MEDIA_ELEMENTS = new Set([
+  "audio",
+  "embed",
+  "iframe",
+  "img",
+  "object",
+  "video",
+]);
+const RAW_HTML_FILES = ["packages/react/src/components/MarkdownDiv.tsx"];
+
+const requireTrustedContent = {
+  meta: {
+    type: "problem",
+    docs: {
+      description:
+        "Require media elements to be gated by content trust and confine raw HTML to the markdown renderer",
     },
-    rules: {
-      ...reactPlugin.configs.recommended.rules,
-      ...reactPlugin.configs["jsx-runtime"].rules,
-      "react/prop-types": "off",
-      ...reactHooksPlugin.configs.recommended.rules,
-      ...jsxA11yPlugin.flatConfigs.recommended.rules,
-      // The rule can't see what a custom component does with an `autoFocus`
-      // prop, so flagging non-DOM elements is guesswork. Real DOM autoFocus
-      // is still an error.
-      "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
-      "tsmono/no-raw-use-effect": "error",
+    schema: [],
+    messages: {
+      media:
+        "<{{name}}> can render untrusted log content. Wrap it in " +
+        "<RequireTrustedContent> from @tsmono/react/components.",
+      rawHtml:
+        "dangerouslySetInnerHTML can render untrusted log content. Render " +
+        "markdown through MarkdownDiv, which checks content trust.",
     },
-    settings: {
-      react: {
-        version: "detect",
+  },
+  create(context) {
+    const rawHtmlAllowed = RAW_HTML_FILES.some((file) =>
+      context.filename.endsWith(file)
+    );
+    const insideTrustGate = (node) => {
+      for (let parent = node.parent; parent; parent = parent.parent) {
+        if (
+          parent.type === "JSXElement" &&
+          parent.openingElement.name.type === "JSXIdentifier" &&
+          parent.openingElement.name.name === "RequireTrustedContent"
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+    return {
+      JSXOpeningElement(node) {
+        if (
+          node.name.type === "JSXIdentifier" &&
+          MEDIA_ELEMENTS.has(node.name.name) &&
+          !insideTrustGate(node.parent)
+        ) {
+          context.report({
+            node,
+            messageId: "media",
+            data: { name: node.name.name },
+          });
+        }
+      },
+      JSXAttribute(node) {
+        if (
+          node.name.type === "JSXIdentifier" &&
+          node.name.name === "dangerouslySetInnerHTML" &&
+          !rawHtmlAllowed
+        ) {
+          context.report({ node, messageId: "rawHtml" });
+        }
+      },
+    };
+  },
+};
+
+export default tseslint.config(...baseConfig, {
+  files: ["**/*.{ts,tsx}"],
+  plugins: {
+    // eslint-plugin-react still calls context APIs removed in ESLint 10
+    // (e.g. context.getFilename); fixup shims them until it ships v10 support.
+    react: fixupPluginRules(reactPlugin),
+    "react-hooks": reactHooksPlugin,
+    "react-refresh": reactRefreshPlugin,
+    "jsx-a11y": jsxA11yPlugin,
+    tsmono: {
+      rules: {
+        "no-raw-use-effect": noRawUseEffect,
+        "require-trusted-content": requireTrustedContent,
       },
     },
-  }
-);
+  },
+  rules: {
+    ...reactPlugin.configs.recommended.rules,
+    ...reactPlugin.configs["jsx-runtime"].rules,
+    "react/prop-types": "off",
+    ...reactHooksPlugin.configs.recommended.rules,
+    ...jsxA11yPlugin.flatConfigs.recommended.rules,
+    // The rule can't see what a custom component does with an `autoFocus`
+    // prop, so flagging non-DOM elements is guesswork. Real DOM autoFocus
+    // is still an error.
+    "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
+    "tsmono/no-raw-use-effect": "error",
+    "tsmono/require-trusted-content": "error",
+  },
+  settings: {
+    react: {
+      version: "detect",
+    },
+  },
+});

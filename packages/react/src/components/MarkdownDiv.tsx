@@ -48,15 +48,16 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
 
 MarkdownDivComponent.displayName = "MarkdownDivComponent";
 
-/** Untrusted markdown is never parsed: it's shown as its source text. */
+/**
+ * Untrusted markdown is never parsed: it's shown as its source text. There
+ * are no anchors to delegate clicks for, so `onClick` is not wired.
+ */
 const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
-  ({ markdown, style, className, onClick }, ref) => (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- same delegation contract as the rich branch; plain text holds no anchors
+  ({ markdown, style, className }, ref) => (
     <div
       ref={ref}
       style={style}
       className={clsx(className, "untrusted-content")}
-      onClick={onClick}
     >
       {untrustedText(markdown)}
     </div>

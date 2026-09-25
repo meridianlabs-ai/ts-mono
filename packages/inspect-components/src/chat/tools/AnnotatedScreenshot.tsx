@@ -56,13 +56,7 @@ interface AnnotatedScreenshotProps {
  * in screenshot pixels) map to display position without any JS measurement,
  * and the overlay rescales with the image automatically.
  */
-export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = (props) => (
-  <RequireTrustedContent kind="screenshot">
-    <AnnotatedScreenshotImage {...props} />
-  </RequireTrustedContent>
-);
-
-const AnnotatedScreenshotImage: FC<AnnotatedScreenshotProps> = ({
+export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = ({
   src,
   annotation,
 }) => {
@@ -72,29 +66,31 @@ const AnnotatedScreenshotImage: FC<AnnotatedScreenshotProps> = ({
   }>();
 
   return (
-    <div className={styles.container}>
-      <img
-        src={src}
-        alt="Annotated screenshot"
-        className={styles.screenshot}
-        onLoad={(e) =>
-          setNaturalSize({
-            width: e.currentTarget.naturalWidth,
-            height: e.currentTarget.naturalHeight,
-          })
-        }
-      />
-      {naturalSize && naturalSize.width > 0 && naturalSize.height > 0 && (
-        <svg
-          viewBox={`0 0 ${naturalSize.width} ${naturalSize.height}`}
-          preserveAspectRatio="none"
-          className={styles.overlay}
-        >
-          {renderSvgAnnotation(annotation)}
-        </svg>
-      )}
-      {renderHtmlAnnotation(annotation)}
-    </div>
+    <RequireTrustedContent kind="screenshot">
+      <div className={styles.container}>
+        <img
+          src={src}
+          alt="Annotated screenshot"
+          className={styles.screenshot}
+          onLoad={(e) =>
+            setNaturalSize({
+              width: e.currentTarget.naturalWidth,
+              height: e.currentTarget.naturalHeight,
+            })
+          }
+        />
+        {naturalSize && naturalSize.width > 0 && naturalSize.height > 0 && (
+          <svg
+            viewBox={`0 0 ${naturalSize.width} ${naturalSize.height}`}
+            preserveAspectRatio="none"
+            className={styles.overlay}
+          >
+            {renderSvgAnnotation(annotation)}
+          </svg>
+        )}
+        {renderHtmlAnnotation(annotation)}
+      </div>
+    </RequireTrustedContent>
   );
 };
 

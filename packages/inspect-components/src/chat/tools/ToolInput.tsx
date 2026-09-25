@@ -72,11 +72,11 @@ const RenderTool: FC<RenderToolProps> = ({
   parentRef,
   className,
 }) => {
+  const trusted = useIsContentTrusted();
   if (contentType === kToolTodoContentType) {
     return <TodoWriteInput contents={contents} parentRef={parentRef} />;
   }
 
-  const trusted = useIsContentTrusted();
   const serialized =
     typeof contents === "object" ? JSON.stringify(contents) : contents;
   const formattedContent = trusted ? serialized : untrustedText(serialized);
