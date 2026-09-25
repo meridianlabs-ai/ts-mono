@@ -9,6 +9,7 @@ import {
   LoadingBar,
   useFindBandShortcut,
 } from "@tsmono/react/components";
+import { FindProvider } from "@tsmono/react/find";
 
 import { useAppConfig } from "../../app_config";
 import { useSelectedLogDetail } from "../../state/selectedLogDetails";
@@ -50,41 +51,43 @@ export const LogViewLayout: FC = () => {
   });
 
   return (
-    <ExtendedFindProvider>
-      <FindTargetProvider>
-        <div
-          ref={mainAppRef}
-          className={clsx(
-            "app-main-grid",
-            singleFileMode ? "single-file-mode" : undefined,
-            "log-view"
-          )}
-          // The VS Code webview focuses the nearest container tabstop when a
-          // non-interactive spot is clicked, and App.css suppresses the focus
-          // ring this one would otherwise show. Keep it until that interaction
-          // is retested in the extension.
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-          tabIndex={0}
-        >
-          {showFind ? <FindBand onClose={hideFind} /> : ""}
-          {!singleFileMode ? (
-            <ApplicationNavbar
-              fnNavigationUrl={navigationUrl}
-              currentPath={logPath}
-            />
-          ) : (
-            <LoadingBar loading={logLoading} />
-          )}
-          {logError ? (
-            <ErrorPanel
-              title="An error occurred while loading this task."
-              error={logError}
-            />
-          ) : (
-            <LogView />
-          )}
-        </div>
-      </FindTargetProvider>
-    </ExtendedFindProvider>
+    <FindProvider>
+      <ExtendedFindProvider>
+        <FindTargetProvider>
+          <div
+            ref={mainAppRef}
+            className={clsx(
+              "app-main-grid",
+              singleFileMode ? "single-file-mode" : undefined,
+              "log-view"
+            )}
+            // The VS Code webview focuses the nearest container tabstop when a
+            // non-interactive spot is clicked, and App.css suppresses the focus
+            // ring this one would otherwise show. Keep it until that interaction
+            // is retested in the extension.
+            // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+            tabIndex={0}
+          >
+            {showFind ? <FindBand onClose={hideFind} /> : ""}
+            {!singleFileMode ? (
+              <ApplicationNavbar
+                fnNavigationUrl={navigationUrl}
+                currentPath={logPath}
+              />
+            ) : (
+              <LoadingBar loading={logLoading} />
+            )}
+            {logError ? (
+              <ErrorPanel
+                title="An error occurred while loading this task."
+                error={logError}
+              />
+            ) : (
+              <LogView />
+            )}
+          </div>
+        </FindTargetProvider>
+      </ExtendedFindProvider>
+    </FindProvider>
   );
 };
