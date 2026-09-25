@@ -7,7 +7,11 @@ import { SampleSummary } from "../client/api/types";
 
 import { resolveLogKey } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
-import { readSettledSummaries, useSamplesListing } from "./samplesListing";
+import {
+  readSettledSummaries,
+  SamplesListingParams,
+  useSamplesListing,
+} from "./samplesListing";
 
 // Merge a log's completed summaries with its pending-buffer samples
 // (exported for tests; consumers use useSampleSummaries / getSampleSummaries)
@@ -41,6 +45,18 @@ export const mergeSampleSummaries = (
   return [...logSamples, ...uniquePendingSamples];
 };
 
+/** The listing a log's summaries (and their trust) are read from. */
+const summariesListing = (
+  logDir: string,
+  logFile: string | undefined
+): SamplesListingParams => ({
+  logDir,
+  // "" matches no stored file; the row set stays empty until a log is given.
+  scope: {
+    file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
+  },
+});
+
 /**
  * The live sample-summary list for a log: the settled summaries (the
  * samples store) merged with the pending-buffer samples. How the list is
@@ -52,13 +68,7 @@ export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
 ): AsyncData<SampleSummary[]> => {
-  const rows = useSamplesListing({
-    logDir,
-    // "" matches no stored file; the row set stays empty until a log is given.
-    scope: {
-      file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
-    },
-  });
+  const rows = useSamplesListing(summariesListing(logDir, logFile));
   const pending = usePendingSamples(logDir, logFile);
   return useMemo(
     () =>
@@ -96,15 +106,7 @@ export const getSampleSummaries = async (
 export const useSampleSummariesContentTrust = (
   logDir: string,
   logFile: string | undefined
-): ContentTrust[] => {
-  const rows = useSamplesListing({
-    logDir,
-    scope: {
-      file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
-    },
-  });
-  return useMemo(
-    () => (rows.data ?? []).map((row) => row.log.contentTrust),
-    [rows.data]
+): ContentTrust[] =>
+  (useSamplesListing(summariesListing(logDir, logFile)).data ?? []).map(
+    (row) => row.log.contentTrust
   );
-};

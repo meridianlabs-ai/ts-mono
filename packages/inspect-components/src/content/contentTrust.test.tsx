@@ -107,15 +107,37 @@ describe("untrusted content rendering", () => {
     expect(container.querySelector("a, strong")).toBeNull();
   });
 
-  it("renders links as plain text", () => {
+  it("renders links as plain text that shows the destination", () => {
     const { container } = render(
       withTrust(
         "untrusted",
-        <ExternalLink href="https://example.com">click me</ExternalLink>
+        <ExternalLink
+          href={"https://example.com/\u202Egnp.exe"}
+          title={"https://example.com/\u202Egnp.exe"}
+        >
+          click me
+        </ExternalLink>
       )
     );
     expect(container.querySelector("a")).toBeNull();
-    expect(container.textContent).toBe("click me");
+    expect(container.textContent).toBe(
+      "click me (https://example.com/⟨U+202E⟩gnp.exe)"
+    );
+    expect(container.querySelector("span")?.getAttribute("title")).toBe(
+      "https://example.com/⟨U+202E⟩gnp.exe"
+    );
+  });
+
+  it("doesn't repeat a destination that is already the link text", () => {
+    const { container } = render(
+      withTrust(
+        "untrusted",
+        <ExternalLink href="https://example.com">
+          https://example.com
+        </ExternalLink>
+      )
+    );
+    expect(container.textContent).toBe("https://example.com");
   });
 
   it("withholds message images, audio and video", () => {

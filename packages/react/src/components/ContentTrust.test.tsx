@@ -20,6 +20,9 @@ const MARKDOWN = [
   "$x^2$ and bidi \u202Egnp.exe\u202C",
 ].join("\n");
 
+// No math: the trusted-path test shouldn't wait on MathJax's lazy chunk load.
+const RICH_MARKDOWN = MARKDOWN.split("\n").slice(0, 3).join("\n");
+
 const TrustValue = () => <span>{useContentTrust()}</span>;
 
 describe("content trust", () => {
@@ -47,7 +50,7 @@ describe("content trust", () => {
   it("renders trusted markdown richly", async () => {
     const { container } = render(
       <ContentTrustProvider value="trusted">
-        <MarkdownDiv markdown={MARKDOWN} />
+        <MarkdownDiv markdown={RICH_MARKDOWN} />
       </ContentTrustProvider>
     );
     await waitFor(() => {
