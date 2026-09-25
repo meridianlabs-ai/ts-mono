@@ -3,7 +3,6 @@ import clsx from "clsx";
 import {
   FC,
   Fragment,
-  MouseEvent as ReactMouseEvent,
   ReactNode,
   RefObject,
   useDeferredValue,
@@ -20,6 +19,7 @@ import {
 } from "@tsmono/inspect-components/usage";
 
 import styles from "./HistoryList.module.css";
+import { OpenSampleLink, type SampleOpener } from "./OpenSampleLink";
 import {
   formatShort,
   HistoryCategory,
@@ -84,11 +84,7 @@ export interface HistoryListProps {
   /** Rows washed lavender while their marker is hovered on the rail. */
   washKeys: string[];
   onHoverRow: (key: string | null) => void;
-  onOpenSample?: (
-    id: string | number,
-    epoch: number,
-    event: ReactMouseEvent
-  ) => void;
+  sampleOpener?: SampleOpener;
 }
 
 export const HistoryList: FC<HistoryListProps> = ({
@@ -105,7 +101,7 @@ export const HistoryList: FC<HistoryListProps> = ({
   onSelectEvent,
   washKeys,
   onHoverRow,
-  onOpenSample,
+  sampleOpener,
 }) => {
   const counts = useMemo(() => {
     const map = new Map<HistoryCategory, number>();
@@ -194,17 +190,15 @@ export const HistoryList: FC<HistoryListProps> = ({
     id: string | number;
     epoch: number;
   }): ReactNode =>
-    onOpenSample ? (
-      <button
-        type="button"
+    sampleOpener ? (
+      <OpenSampleLink
+        opener={sampleOpener}
+        sample={sample}
         className={styles.openSample}
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpenSample(sample.id, sample.epoch, event);
-        }}
+        stopPropagation
       >
         open →
-      </button>
+      </OpenSampleLink>
     ) : null;
 
   // One sentence per row: body colour for the event itself, muted for

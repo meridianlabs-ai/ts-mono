@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import {
   FC,
-  MouseEvent as ReactMouseEvent,
   RefObject,
   useCallback,
   useEffect,
@@ -35,7 +34,7 @@ import {
   useSelectedSampleSummaries,
 } from "../../../../state/hooks";
 import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
-import { openInNewTab } from "../../../shared/openInNewTab";
+import { routeFromFullUrl, toFullUrl } from "../../../routing/url";
 import {
   kTimelineBag,
   timelineBandId,
@@ -44,6 +43,7 @@ import {
 } from "../../useShowTimeline";
 
 import { HistoryList } from "./HistoryList";
+import type { SampleOpener } from "./OpenSampleLink";
 import { connectionHistoryError } from "./timelineAxis";
 import { TimelineChart } from "./TimelineChart";
 import {
@@ -459,20 +459,13 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
     [markers]
   );
 
-  // Plain click navigates in place; cmd/ctrl/shift click opens a new tab.
-  const openSample = useCallback(
-    (id: string | number, epoch: number, event?: ReactMouseEvent) => {
-      if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
-        const url = getSampleUrl(id, epoch);
-        if (url) {
-          openInNewTab(url);
-          return;
-        }
-      }
-      showSample(id, epoch);
+  const sampleOpener: SampleOpener = {
+    href: (id, epoch) => {
+      const url = getSampleUrl(id, epoch);
+      return url ? toFullUrl(routeFromFullUrl(url)) : undefined;
     },
-    [showSample, getSampleUrl]
-  );
+    open: (id, epoch) => showSample(id, epoch),
+  };
 
   const showRateLimitLegend = enabledModels.some(
     (model) => (lanes[model]?.rateLimitCount ?? 0) > 0
@@ -592,7 +585,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
             }
             evalDescriptor={evalDescriptor}
             limitCrossReference={limitCrossReference}
-            onOpenSample={openSample}
+            sampleOpener={sampleOpener}
           />
         )}
         <HistoryList
@@ -611,7 +604,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
           onHoverRow={(key) =>
             setHoverLink(key !== null ? { source: "row", keys: [key] } : null)
           }
-          onOpenSample={openSample}
+          sampleOpener={sampleOpener}
         />
       </div>
     </div>

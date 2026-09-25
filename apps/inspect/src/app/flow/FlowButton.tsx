@@ -1,46 +1,55 @@
 import clsx from "clsx";
-import { forwardRef } from "react";
+import { FC } from "react";
 import { useLocation, useNavigate } from "react-router";
 
+import { inAppHref, inAppLinkClick } from "@tsmono/react/components";
+import { navigateAndForget } from "@tsmono/react/hooks";
+
 import { ApplicationIcons } from "../appearance/icons";
-import { useLogOrSampleRouteParams } from "../routing/url";
+import { toFullUrl, useLogOrSampleRouteParams } from "../routing/url";
 
 import styles from "./FlowButton.module.css";
 
-export const FlowButton = forwardRef<HTMLButtonElement>((_, ref) => {
+export const FlowButton: FC = () => {
   const navigateRouter = useNavigate();
   const location = useLocation();
   const { logPath } = useLogOrSampleRouteParams();
 
-  const navigate = () => {
-    // Navigate to flow.yaml in the current directory
-    // Preserve whether we're in /samples or /logs context
-    const isSamplesRoute = location.pathname.startsWith("/samples/");
-    const routePrefix = isSamplesRoute ? "/samples" : "/logs";
+  // Flow for the current directory, keeping the /samples or /logs context.
+  const routePrefix = location.pathname.startsWith("/samples/")
+    ? "/samples"
+    : "/logs";
+  const flowPath = logPath
+    ? `${routePrefix}/${logPath}/flow.yaml`
+    : `${routePrefix}/flow.yaml`;
+  const href = inAppHref(toFullUrl(flowPath));
+  const navigate = () => navigateAndForget(navigateRouter, flowPath);
 
-    const flowPath = logPath
-      ? `${routePrefix}/${logPath}/flow.yaml`
-      : `${routePrefix}/flow.yaml`;
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    navigateRouter(flowPath);
-  };
-
+  const title = "View Flow configuration for this directory";
+  const icon = (
+    <i className={clsx(ApplicationIcons.flow, styles.viewerOptions)} />
+  );
   return (
     <div>
-      <button
-        ref={ref}
-        type="button"
-        className={clsx(styles.button)}
-        onClick={navigate}
-        title={"View Flow configuration for this directory"}
-      >
-        <i
-          ref={ref}
-          className={clsx(ApplicationIcons.flow, styles.viewerOptions)}
-        />
-      </button>
+      {href ? (
+        <a
+          href={href}
+          className={clsx(styles.button)}
+          onClick={inAppLinkClick(navigate)}
+          title={title}
+        >
+          {icon}
+        </a>
+      ) : (
+        <button
+          type="button"
+          className={clsx(styles.button)}
+          onClick={navigate}
+          title={title}
+        >
+          {icon}
+        </button>
+      )}
     </div>
   );
-});
-
-FlowButton.displayName = "FlowButton";
+};
