@@ -42,23 +42,24 @@
   line-height: 1;
 }
 
+/* Backdrop and menu render in a body portal (the header title cell clips
+   overflow, which would hide an in-place absolute menu); z-indexes sit above
+   Bootstrap's sticky-top (1020), matching EventNavsPicker. */
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10;
+  z-index: 1049;
 }
 
 .menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+  position: fixed;
   min-width: 280px;
   background: var(--bs-body-bg);
   border: 1px solid var(--bs-border-color);
   border-radius: 4px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   padding: 4px;
-  z-index: 11;
+  z-index: 1050;
   font-size: 12px;
 }
 
