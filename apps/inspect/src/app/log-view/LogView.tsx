@@ -18,6 +18,7 @@ import {
 import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
 import { useLogNavigationAction } from "../routing/logNavigation";
+import { toFullUrlMaybe } from "../routing/url";
 
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
@@ -172,6 +173,7 @@ export const LogView: FC = () => {
                     id={tab.id}
                     title={tab.label}
                     onSelected={onSelected}
+                    href={toFullUrlMaybe(navigation.getTabUrl(tab.id))}
                     selected={selectedTab === tab.id}
                     scrollable={!!tab.scrollable}
                     scrollRef={tab.scrollable ? tab.scrollRef : undefined}
