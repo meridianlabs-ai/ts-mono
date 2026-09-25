@@ -2,12 +2,10 @@ import { useCallback } from "react";
 
 import { isRecord } from "@tsmono/util";
 
-import { useLogDir } from "../../app_config";
 import { kLogViewTimelineTabId } from "../../constants";
 import { useStore } from "../../state/store";
 import { useLogNavigationAction } from "../routing/logNavigation";
-import { logsUrl, useRoutePrefix } from "../routing/url";
-import { openInNewTab } from "../shared/openInNewTab";
+import { toFullUrlMaybe } from "../routing/url";
 
 // Timeline tab UI state (band toggles, filters, search, sort, selection),
 // keyed per log so it doesn't leak between logs viewed in the same session.
@@ -28,50 +26,31 @@ export const useTimelineLogKey = (name: string): string => {
 export const useTimelineBandsKey = (): string =>
   useTimelineLogKey(kTimelineBandsKey);
 
-/** The modifier keys that turn a navigation click into open-in-new-tab. */
-export interface NavClickEvent {
-  metaKey: boolean;
-  ctrlKey: boolean;
-  shiftKey: boolean;
-}
-
 /**
- * Navigate to the Timeline tab — the target of every "View on timeline"
- * affordance (config chips, connection lanes, popovers). Cmd/ctrl/shift
- * click opens the tab in a new browser tab instead.
+ * Navigate to the Timeline tab — the in-app target of every "View on
+ * timeline" affordance (config chips, connection lanes, popovers). Those
+ * render as links to {@link useTimelineHref}, so new-tab gestures never reach
+ * this.
  */
-export const useShowTimeline = (): ((event?: NavClickEvent) => void) => {
+export const useShowTimeline = (): (() => void) => {
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const navigation = useLogNavigationAction();
-  const logDir = useLogDir();
-  const loadedLog = useStore((state) => state.log.loadedLog);
-  const prefix = useRoutePrefix();
-  return useCallback(
-    (event?: NavClickEvent) => {
-      if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
-        const url = loadedLog
-          ? logsUrl(loadedLog, logDir, kLogViewTimelineTabId, prefix)
-          : undefined;
-        if (url) {
-          openInNewTab(url);
-          return;
-        }
-      }
-      setWorkspaceTab(kLogViewTimelineTabId);
-      navigation.selectTab(kLogViewTimelineTabId);
-    },
-    [setWorkspaceTab, navigation, loadedLog, logDir, prefix]
-  );
+  return useCallback(() => {
+    setWorkspaceTab(kLogViewTimelineTabId);
+    navigation.selectTab(kLogViewTimelineTabId);
+  }, [setWorkspaceTab, navigation]);
 };
+
+/** The Timeline tab's URL, for "View on timeline" links. */
+export const useTimelineHref = (): string | undefined =>
+  toFullUrlMaybe(useLogNavigationAction().getTabUrl(kLogViewTimelineTabId));
 
 /**
  * Navigate to the Timeline tab with a model's Connections band toggled on
- * (the Models tab's deep link).
+ * (the Models tab's deep link). A new tab opened from the link lands on the
+ * timeline without the band: the toggle is per-tab state, not in the URL.
  */
-export const useShowTimelineForModel = (): ((
-  model: string,
-  event?: NavClickEvent
-) => void) => {
+export const useShowTimelineForModel = (): ((model: string) => void) => {
   const showTimeline = useShowTimeline();
   const bandsKey = useTimelineBandsKey();
   const setPropertyValue = useStore(
@@ -82,20 +61,13 @@ export const useShowTimelineForModel = (): ((
     return isRecord(stored) ? stored : undefined;
   });
   return useCallback(
-    (model: string, event?: NavClickEvent) => {
-      // Modifier clicks open a new browser tab that doesn't share this
-      // store — writing the toggle here would silently flip the band in
-      // the *current* tab instead, so only in-app navigation writes it.
-      const newTab =
-        !!event && (event.metaKey || event.ctrlKey || event.shiftKey);
-      if (!newTab) {
-        const bandId = timelineBandId("connections", model);
-        setPropertyValue(kTimelineBag, bandsKey, {
-          ...bands,
-          [bandId]: true,
-        });
-      }
-      showTimeline(event);
+    (model: string) => {
+      const bandId = timelineBandId("connections", model);
+      setPropertyValue(kTimelineBag, bandsKey, {
+        ...bands,
+        [bandId]: true,
+      });
+      showTimeline();
     },
     [setPropertyValue, bandsKey, bands, showTimeline]
   );

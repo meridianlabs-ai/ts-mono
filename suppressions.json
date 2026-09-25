@@ -19,12 +19,6 @@
       "count": 3
     }
   },
-  "apps/inspect/src/app/flow/FlowButton.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "apps/inspect/src/app/log-list/grid/columns/hooks.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 6
@@ -164,12 +158,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/app/navbar/ViewSegmentedControl.tsx": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 3,
-      "undescribed": 3
-    }
-  },
   "apps/inspect/src/app/plan/DatasetDetailView.tsx": {
     "@typescript-eslint/no-unnecessary-condition": {
       "count": 1,
@@ -200,12 +188,6 @@
       "count": 1
     }
   },
-  "apps/inspect/src/app/routing/logNavigation.ts": {
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    }
-  },
   "apps/inspect/src/app/routing/sampleNavigation.ts": {
     "@ts-expect-error": {
       "count": 1
@@ -217,13 +199,6 @@
     }
   },
   "apps/inspect/src/app/samples-panel/SampleDetailView.tsx": {
-    "@ts-expect-error": {
-      "count": 6
-    },
-    "@typescript-eslint/no-floating-promises": {
-      "count": 2,
-      "undescribed": 2
-    },
     "tsmono/no-raw-use-effect": {
       "count": 1
     }

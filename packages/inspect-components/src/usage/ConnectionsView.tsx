@@ -1,6 +1,7 @@
 import clsx from "clsx";
-import { FC, Fragment, MouseEvent, useCallback, useState } from "react";
+import { FC, Fragment, useCallback, useState } from "react";
 
+import { inAppHref, inAppLinkClick } from "@tsmono/react/components";
 import { useResizeObserver } from "@tsmono/react/hooks";
 
 import {
@@ -21,10 +22,9 @@ interface ConnectionsViewProps {
   role_aliases?: Record<string, string>;
   retunes_by_model?: Record<string, PoolRetune[]>;
   onShowLog?: (model: string) => void;
-  onViewTimeline?: (
-    model: string,
-    event: MouseEvent<HTMLButtonElement>
-  ) => void;
+  onViewTimeline?: (model: string) => void;
+  /** The Timeline tab's URL, so the per-model timeline action is a link. */
+  timelineHref?: string;
 }
 
 /** The legend for the Connections view header row (◆ / rate limit / max). */
@@ -56,6 +56,7 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
   retunes_by_model,
   onShowLog,
   onViewTimeline,
+  timelineHref,
 }) => {
   const models = Object.keys(lanes).sort();
   if (models.length === 0) return null;
@@ -122,15 +123,10 @@ export const ConnectionsView: FC<ConnectionsViewProps> = ({
                 </button>
               )}
               {onViewTimeline && (
-                <button
-                  type="button"
-                  className={styles.actionLink}
-                  title="View on timeline"
-                  onClick={(event) => onViewTimeline(model, event)}
-                >
-                  <i className="bi bi-graph-up" aria-hidden="true" />
-                  Timeline
-                </button>
+                <TimelineAction
+                  href={timelineHref}
+                  onClick={() => onViewTimeline(model)}
+                />
               )}
             </div>
           </Fragment>
@@ -319,5 +315,38 @@ const PoolLane: FC<PoolLaneProps> = ({
         </svg>
       )}
     </div>
+  );
+};
+
+/** A lane's "Timeline" action: a link when the timeline has a URL. */
+const TimelineAction: FC<{ href?: string; onClick: () => void }> = ({
+  href,
+  onClick,
+}) => {
+  const linkHref = inAppHref(href);
+  const content = (
+    <>
+      <i className="bi bi-graph-up" aria-hidden="true" />
+      Timeline
+    </>
+  );
+  return linkHref ? (
+    <a
+      href={linkHref}
+      className={styles.actionLink}
+      title="View on timeline"
+      onClick={inAppLinkClick(onClick)}
+    >
+      {content}
+    </a>
+  ) : (
+    <button
+      type="button"
+      className={styles.actionLink}
+      title="View on timeline"
+      onClick={onClick}
+    >
+      {content}
+    </button>
   );
 };

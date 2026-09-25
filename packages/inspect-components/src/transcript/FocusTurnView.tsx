@@ -9,7 +9,12 @@ import {
   useState,
 } from "react";
 
-import { PopOver, StickyScrollProvider } from "@tsmono/react/components";
+import {
+  inAppHref,
+  inAppLinkClick,
+  PopOver,
+  StickyScrollProvider,
+} from "@tsmono/react/components";
 import { isEditableTarget } from "@tsmono/util";
 
 import styles from "./FocusTurnView.module.css";
@@ -48,6 +53,12 @@ interface FocusTurnViewProps {
    */
   onExit?: () => void;
   /**
+   * Where exiting goes. When set, the exit control is a link, so
+   * cmd/ctrl/middle-click open the transcript in a new tab; `onExit` still
+   * handles plain clicks (and Esc/f).
+   */
+  exitHref?: string;
+  /**
    * Sample/transcript-level error, surfaced as a persistent strip under the
    * header on EVERY focused turn (only the last turn's slice carries the
    * actual error card). Clicking jumps to the last turn.
@@ -69,6 +80,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
   header,
   className,
   onExit,
+  exitHref,
   error,
 }) => {
   const {
@@ -99,6 +111,7 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
       onExit();
     };
   }, [onExit]);
+  const exitLink = inAppHref(exitHref);
 
   // Esc/f exit focus mode (f mirrors the transcript's enter-focus binding); lane picker claims both keys first, and typing targets are ignored. `f` ignores modifiers so Cmd+F find is intact.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -241,15 +254,27 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
           {handleExit && (
             <>
               <span className={styles.divider} />
-              <button
-                type="button"
-                className={styles.button}
-                title="Exit focus mode (Esc or f)"
-                aria-label="Exit focus mode"
-                onClick={handleExit}
-              >
-                <i className={kExitFocusIcon} />
-              </button>
+              {exitLink ? (
+                <a
+                  href={exitLink}
+                  className={styles.button}
+                  title="Exit focus mode (Esc or f)"
+                  aria-label="Exit focus mode"
+                  onClick={inAppLinkClick(handleExit)}
+                >
+                  <i className={kExitFocusIcon} />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.button}
+                  title="Exit focus mode (Esc or f)"
+                  aria-label="Exit focus mode"
+                  onClick={handleExit}
+                >
+                  <i className={kExitFocusIcon} />
+                </button>
+              )}
             </>
           )}
         </div>

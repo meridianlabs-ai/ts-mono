@@ -25,7 +25,7 @@ import { expect, test } from "./fixtures/app";
 import {
   columnHeader,
   gridCell,
-  segmentButton,
+  segmentLink,
   setupLogListHandlers,
   waitForGrid,
 } from "./fixtures/log-list-scenario";
@@ -92,7 +92,7 @@ test.describe("Per-scope filter and ordering", () => {
 
     await sortByTaskDesc(page);
 
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
     await waitForGrid(page);
     // Folders has its own (empty) state — Tasks' sort doesn't bleed in.
@@ -109,7 +109,7 @@ test.describe("Per-scope filter and ordering", () => {
 
     await applyTaskFilter(page, "alpha");
 
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
     await waitForGrid(page);
     await expect(resetFiltersButton(page)).toBeHidden();
@@ -125,12 +125,12 @@ test.describe("Per-scope filter and ordering", () => {
 
     await sortByTaskDesc(page);
 
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
     await waitForGrid(page);
     await expectNoSort(page);
 
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await waitForGrid(page);
     // Tasks' sort is restored — independent of Folders' state.
@@ -147,12 +147,12 @@ test.describe("Per-scope filter and ordering", () => {
 
     await applyTaskFilter(page, "alpha");
 
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
     await waitForGrid(page);
     await expect(resetFiltersButton(page)).toBeHidden();
 
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await waitForGrid(page);
     await expect(resetFiltersButton(page)).toBeVisible();
@@ -209,10 +209,10 @@ test.describe("Tasks ↔ Samples round-trip preserves ordering", () => {
 
     await sortByTaskDesc(page);
 
-    await segmentButton(page, "Samples").click();
+    await segmentLink(page, "Samples").click();
     await expect(page).toHaveURL(/#\/samples/);
 
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await waitForGrid(page);
     await expectSortedDesc(page);

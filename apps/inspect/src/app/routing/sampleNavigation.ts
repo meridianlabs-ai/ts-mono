@@ -5,6 +5,7 @@ import { navigateAndForget } from "@tsmono/react/hooks";
 import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useLogDir } from "../../app_config";
+import type { SampleSummary } from "../../client/api/types";
 import { selectSample } from "../../state/actions";
 import {
   useFilteredSamples,
@@ -17,6 +18,7 @@ import {
   logSamplesUrl,
   logsUrlRaw,
   samplesSampleUrl,
+  toFullUrlMaybe,
   useLogOrSampleRouteParams,
   useLogRouteParams,
   useRoutePrefix,
@@ -353,78 +355,43 @@ export const useLogSampleNavigationActions = () => {
   const hasNext =
     currentIndex >= 0 && currentIndex < sampleSummaries.length - 1;
 
+  // The sibling samples' routes, shared by the click handlers and the
+  // chevrons' hrefs so a plain click and a new-tab open land in one place.
+  const siblingRoute = (sample: SampleSummary | undefined) => {
+    if (!sample || !logPath) return undefined;
+    return isSamplesSurface
+      ? samplesSampleUrl(logPath, sample.id, sample.epoch, sampleTabId)
+      : logSamplesUrl(logPath, sample.id, sample.epoch, sampleTabId, prefix);
+  };
+  const prevSample = hasPrevious
+    ? sampleSummaries[currentIndex - 1]
+    : undefined;
+  const nextSample = hasNext ? sampleSummaries[currentIndex + 1] : undefined;
+  const previousRoute = siblingRoute(prevSample);
+  const nextRoute = siblingRoute(nextSample);
+
   // Navigate to previous sample
   const onPrevious = useCallback(() => {
-    if (hasPrevious && logPath && currentIndex > 0) {
-      const prevSample = sampleSummaries[currentIndex - 1];
-      if (!prevSample) return;
-      // Update store state before navigation
-      selectSample(prevSample.id, prevSample.epoch, logPath);
-      const url = isSamplesSurface
-        ? samplesSampleUrl(
-            logPath,
-            prevSample.id,
-            prevSample.epoch,
-            sampleTabId
-          )
-        : logSamplesUrl(
-            logPath,
-            prevSample.id,
-            prevSample.epoch,
-            sampleTabId,
-            prefix
-          );
-      navigateAndForget(navigate, url);
-    }
-  }, [
-    hasPrevious,
-    logPath,
-    sampleSummaries,
-    currentIndex,
-    sampleTabId,
-    navigate,
-    prefix,
-    isSamplesSurface,
-  ]);
+    if (!prevSample || !previousRoute || !logPath) return;
+    // Update store state before navigation
+    selectSample(prevSample.id, prevSample.epoch, logPath);
+    navigateAndForget(navigate, previousRoute);
+  }, [prevSample, previousRoute, logPath, navigate]);
 
   // Navigate to next sample
   const onNext = useCallback(() => {
-    if (hasNext && logPath && currentIndex < sampleSummaries.length - 1) {
-      const nextSample = sampleSummaries[currentIndex + 1];
-      if (!nextSample) return;
-      // Update store state before navigation
-      selectSample(nextSample.id, nextSample.epoch, logPath);
-      const url = isSamplesSurface
-        ? samplesSampleUrl(
-            logPath,
-            nextSample.id,
-            nextSample.epoch,
-            sampleTabId
-          )
-        : logSamplesUrl(
-            logPath,
-            nextSample.id,
-            nextSample.epoch,
-            sampleTabId,
-            prefix
-          );
-      navigateAndForget(navigate, url);
-    }
-  }, [
-    hasNext,
-    logPath,
-    sampleSummaries,
-    currentIndex,
-    sampleTabId,
-    navigate,
-    prefix,
-    isSamplesSurface,
-  ]);
+    if (!nextSample || !nextRoute || !logPath) return;
+    // Update store state before navigation
+    selectSample(nextSample.id, nextSample.epoch, logPath);
+    navigateAndForget(navigate, nextRoute);
+  }, [nextSample, nextRoute, logPath, navigate]);
 
   return {
     onPrevious,
     onNext,
     hasPrevious,
     hasNext,
+    previousHref: toFullUrlMaybe(previousRoute),
+    nextHref: toFullUrlMaybe(nextRoute),
   };
 };

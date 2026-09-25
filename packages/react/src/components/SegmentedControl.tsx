@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, useCallback } from "react";
 
+import { inAppHref, inAppLinkClick } from "./inAppLink";
 import styles from "./SegmentedControl.module.css";
 
 export interface Segment {
@@ -9,6 +10,10 @@ export interface Segment {
   icon?: string;
   selectedId?: string;
   disabled?: boolean;
+  /** URL the segment navigates to. When set (and the segment is enabled) it
+   *  renders as a link so cmd/ctrl/middle-click open that view in a new tab;
+   *  `onSegmentChange` still handles plain clicks. Ignored inside VS Code. */
+  href?: string;
 }
 
 export interface SegmentedControlProps {
@@ -44,28 +49,52 @@ export const SegmentedControl: FC<SegmentedControlProps> = ({
 
   return (
     <div id={id} className={clsx(styles.rootControl)}>
-      {segments.map((segment, index) => (
-        <button
-          type="button"
-          key={segment.id}
-          className={clsx(
-            styles.segment,
-            selectedId === segment.id && styles.selected,
-            compact && styles.compact,
-            segment.disabled && styles.disabled,
-            "text-size-smallest",
-            selectedId === segment.id ? undefined : "text-style-secondary"
-          )}
-          onClick={() => handleSegmentClick(segment.id, index)}
-          disabled={segment.disabled}
-          aria-pressed={selectedId === segment.id}
-          aria-label={compact ? segment.label : undefined}
-          title={compact ? segment.label : undefined}
-        >
-          {segment.icon && <i className={segment.icon} />}
-          {!compact && <span>{segment.label}</span>}
-        </button>
-      ))}
+      {segments.map((segment, index) => {
+        const selected = selectedId === segment.id;
+        const className = clsx(
+          styles.segment,
+          selected && styles.selected,
+          compact && styles.compact,
+          segment.disabled && styles.disabled,
+          "text-size-smallest",
+          selected ? undefined : "text-style-secondary"
+        );
+        const content = (
+          <>
+            {segment.icon && <i className={segment.icon} />}
+            {!compact && <span>{segment.label}</span>}
+          </>
+        );
+        const href = segment.disabled ? undefined : inAppHref(segment.href);
+        return href ? (
+          <a
+            key={segment.id}
+            href={href}
+            className={className}
+            onClick={inAppLinkClick(() =>
+              handleSegmentClick(segment.id, index)
+            )}
+            aria-current={selected ? "page" : undefined}
+            aria-label={compact ? segment.label : undefined}
+            title={compact ? segment.label : undefined}
+          >
+            {content}
+          </a>
+        ) : (
+          <button
+            type="button"
+            key={segment.id}
+            className={className}
+            onClick={() => handleSegmentClick(segment.id, index)}
+            disabled={segment.disabled}
+            aria-pressed={selected}
+            aria-label={compact ? segment.label : undefined}
+            title={compact ? segment.label : undefined}
+          >
+            {content}
+          </button>
+        );
+      })}
     </div>
   );
 };
