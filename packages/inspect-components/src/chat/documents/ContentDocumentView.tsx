@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import type { ContentDocument } from "@tsmono/inspect-common/types";
+import { RequireTrustedContent } from "@tsmono/react/components";
 import { isImage } from "@tsmono/util";
 
 import { useContentIcons } from "../../content/IconsContext";
@@ -26,12 +27,14 @@ export const ContentDocumentView: FC<ContentDocumentProps> = ({
       document.document,
       document.mime_type || ""
     ) ? (
-      <img
-        className={clsx(styles.imageDocument)}
-        src={document.document}
-        alt={document.filename}
-        id={id}
-      />
+      <RequireTrustedContent kind="image">
+        <img
+          className={clsx(styles.imageDocument)}
+          src={document.document}
+          alt={document.filename}
+          id={id}
+        />
+      </RequireTrustedContent>
     ) : (
       <MediaReference source={document.document} />
     );

@@ -1,6 +1,8 @@
 import { highlightElement } from "prismjs";
 import { RefObject, useEffect } from "react";
 
+import { useIsContentTrusted } from "../components/ContentTrust";
+
 // Syntax highlighting strings larger than this is too slow
 const kPrismRenderMaxSize = 250000;
 
@@ -23,8 +25,10 @@ export const usePrismHighlight = (
   containerRef: RefObject<HTMLDivElement | null>,
   contentLength: number
 ) => {
+  const trusted = useIsContentTrusted();
   useEffect(() => {
     if (
+      !trusted ||
       contentLength <= 0 ||
       containerRef.current === null ||
       contentLength > kPrismRenderMaxSize
@@ -67,5 +71,5 @@ export const usePrismHighlight = (
     return () => {
       observer.disconnect();
     };
-  }, [contentLength, containerRef]);
+  }, [contentLength, containerRef, trusted]);
 };

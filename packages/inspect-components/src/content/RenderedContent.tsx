@@ -8,6 +8,7 @@ import {
   ANSIDisplay,
   JSONPanel,
   MarkdownReference,
+  RequireTrustedContent,
 } from "@tsmono/react/components";
 import {
   formatNumber,
@@ -361,7 +362,11 @@ const contentRenderers: (
       },
       render: (_id, entry, _options) => {
         return {
-          rendered: <img src={entry.value} alt="Attachment" />,
+          rendered: (
+            <RequireTrustedContent kind="image">
+              <img src={entry.value} alt="Attachment" />
+            </RequireTrustedContent>
+          ),
         };
       },
     },

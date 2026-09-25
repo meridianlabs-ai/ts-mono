@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode, useState } from "react";
 
+import { RequireTrustedContent } from "@tsmono/react/components";
 import { isRenderableImageSource } from "@tsmono/util";
 
 import { MessageContent } from "../MessageContent";
@@ -55,7 +56,13 @@ interface AnnotatedScreenshotProps {
  * in screenshot pixels) map to display position without any JS measurement,
  * and the overlay rescales with the image automatically.
  */
-export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = ({
+export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = (props) => (
+  <RequireTrustedContent kind="screenshot">
+    <AnnotatedScreenshotImage {...props} />
+  </RequireTrustedContent>
+);
+
+const AnnotatedScreenshotImage: FC<AnnotatedScreenshotProps> = ({
   src,
   annotation,
 }) => {

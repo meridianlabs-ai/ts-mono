@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import { untrustedText, useIsContentTrusted } from "@tsmono/react/components";
 import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
 
 import styles from "./MediaReference.module.css";
@@ -14,7 +15,8 @@ export const MediaReference: FC<MediaReferenceProps> = ({
   source,
   className,
 }) => {
-  const href = parseAbsoluteHttpUrl(source);
+  const trusted = useIsContentTrusted();
+  const href = trusted ? parseAbsoluteHttpUrl(source) : undefined;
   const dataUri = parseDataUri(source);
   const label = dataUri
     ? `data:${dataUri.mimeType}${dataUri.base64 ? ";base64" : ""},...`
@@ -31,6 +33,6 @@ export const MediaReference: FC<MediaReferenceProps> = ({
       {href}
     </a>
   ) : (
-    <code className={classes}>{label}</code>
+    <code className={classes}>{trusted ? label : untrustedText(label)}</code>
   );
 };

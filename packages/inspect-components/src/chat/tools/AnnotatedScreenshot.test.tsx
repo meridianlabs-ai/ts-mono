@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import { cleanup, fireEvent, render as renderUi } from "@testing-library/react";
 import { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ComponentNavigationProvider } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks } from "@tsmono/react/testing";
+import { makeStateHooks, TrustedContentWrapper } from "@tsmono/react/testing";
 
 import {
   AnnotatedScreenshot,
@@ -14,6 +14,10 @@ import {
   renderSvgAnnotation,
 } from "./AnnotatedScreenshot";
 import type { ToolAnnotation } from "./browserActionUtils";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 afterEach(() => {
   cleanup();

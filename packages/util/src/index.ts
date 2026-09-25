@@ -13,6 +13,7 @@ export * from "./date";
 export * from "./format";
 export * from "./git";
 export * from "./http";
+export * from "./hiddenCharacters";
 export * from "./html";
 export * from "./json";
 export * from "./json-value";

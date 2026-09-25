@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, within } from "@testing-library/react";
+import { cleanup, render as renderUi, within } from "@testing-library/react";
 import { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -8,9 +8,17 @@ import {
   ComponentNavigationProvider,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
-import { makeStateHooks, testIcons } from "@tsmono/react/testing";
+import {
+  makeStateHooks,
+  testIcons,
+  TrustedContentWrapper,
+} from "@tsmono/react/testing";
 
 import { RenderedContent } from "./RenderedContent";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 afterEach(() => {
   cleanup();

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { cleanup, render as renderUi, waitFor } from "@testing-library/react";
 import { ComponentProps } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -18,11 +18,16 @@ import {
   makeStateHooks,
   ResizeObserverStub,
   testIcons,
+  TrustedContentWrapper,
 } from "@tsmono/react/testing";
 
 import { DisplayModeContext } from "../content/DisplayModeContext";
 
 import { MessageContent } from "./MessageContent";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 

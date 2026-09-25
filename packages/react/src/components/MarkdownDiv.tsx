@@ -11,6 +11,7 @@ import {
 
 import "./MarkdownDiv.css";
 
+import { untrustedText, useIsContentTrusted } from "./ContentTrust";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
@@ -35,6 +36,36 @@ const sanitizeMarkdown = (md: string): string => {
 };
 
 const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
+  (props, ref) => {
+    const trusted = useIsContentTrusted();
+    return trusted ? (
+      <RichMarkdownDiv {...props} ref={ref} />
+    ) : (
+      <UntrustedMarkdownDiv {...props} ref={ref} />
+    );
+  }
+);
+
+MarkdownDivComponent.displayName = "MarkdownDivComponent";
+
+/** Untrusted markdown is never parsed: it's shown as its source text. */
+const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
+  ({ markdown, style, className, onClick }, ref) => (
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events -- same delegation contract as the rich branch; plain text holds no anchors
+    <div
+      ref={ref}
+      style={style}
+      className={clsx(className, "untrusted-content")}
+      onClick={onClick}
+    >
+      {untrustedText(markdown)}
+    </div>
+  )
+);
+
+UntrustedMarkdownDiv.displayName = "UntrustedMarkdownDiv";
+
+const RichMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
   ({ markdown, renderer, style, className, postProcess, onClick }, ref) => {
     const rendererName = renderer ?? defaultMarkdownRenderer;
 
@@ -124,7 +155,7 @@ const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
   }
 );
 
-MarkdownDivComponent.displayName = "MarkdownDivComponent";
+RichMarkdownDiv.displayName = "RichMarkdownDiv";
 
 // Memoize component to prevent re-renders when props haven't changed
 export const MarkdownDiv = memo(MarkdownDivComponent);
