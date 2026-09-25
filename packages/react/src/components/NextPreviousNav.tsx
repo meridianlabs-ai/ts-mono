@@ -1,9 +1,10 @@
 import clsx from "clsx";
-import { FC, ReactNode, useCallback } from "react";
+import { FC, ReactNode } from "react";
 
 import { useArrowStepper } from "../hooks/useArrowStepper";
 import { baseApplicationIcons } from "../icons";
 
+import { inAppHref, inAppLinkClick } from "./inAppLink";
 import styles from "./NextPreviousNav.module.css";
 
 interface NextPreviousNavProps {
@@ -24,6 +25,11 @@ interface NextPreviousNavProps {
   previousLabel?: string;
   /** Accessible name for the next button. */
   nextLabel?: string;
+  /** URLs of the previous/next items. When set, the enabled chevrons render
+   *  as links so cmd/ctrl/middle-click open that item in a new tab; the
+   *  `onPrevious`/`onNext` handlers still run for plain clicks and arrows. */
+  previousHref?: string;
+  nextHref?: string;
 }
 
 /**
@@ -42,6 +48,8 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
   nextTitle,
   previousLabel,
   nextLabel,
+  previousHref,
+  nextHref,
 }) => {
   useArrowStepper({
     onPrev: onPrevious,
@@ -50,49 +58,88 @@ export const NextPreviousNav: FC<NextPreviousNavProps> = ({
     canNext: hasNext,
   });
 
-  // These controls are focusable divs (not <button>), so a focused control
-  // needs its own Enter/Space handler to be operable by keyboard.
-  const handleKeyDown = useCallback(
-    (
-      e: React.KeyboardEvent,
-      action: (() => void) | undefined,
-      enabled: boolean
-    ) => {
-      if ((e.key === "Enter" || e.key === " ") && enabled && action) {
-        e.preventDefault();
-        action();
-      }
-    },
-    []
-  );
-
   return (
     <div className={styles.container}>
-      <div
-        onClick={hasPrevious ? onPrevious : undefined}
-        onKeyDown={(e) => handleKeyDown(e, onPrevious, hasPrevious)}
-        tabIndex={hasPrevious ? 0 : -1}
-        role="button"
-        aria-label={previousLabel ?? previousTitle ?? "Previous"}
-        aria-disabled={!hasPrevious}
-        className={clsx(styles.nav, !hasPrevious && styles.disabled)}
+      <Chevron
+        icon={baseApplicationIcons.previous}
+        action={onPrevious}
+        enabled={hasPrevious}
+        href={previousHref}
+        label={previousLabel ?? previousTitle ?? "Previous"}
         title={previousTitle && `${previousTitle} (←)`}
-      >
-        <i className={baseApplicationIcons.previous} />
-      </div>
+      />
       {children && <div className={styles.center}>{children}</div>}
-      <div
-        onClick={hasNext ? onNext : undefined}
-        onKeyDown={(e) => handleKeyDown(e, onNext, hasNext)}
-        tabIndex={hasNext ? 0 : -1}
-        role="button"
-        aria-label={nextLabel ?? nextTitle ?? "Next"}
-        aria-disabled={!hasNext}
-        className={clsx(styles.nav, !hasNext && styles.disabled)}
+      <Chevron
+        icon={baseApplicationIcons.next}
+        action={onNext}
+        enabled={hasNext}
+        href={nextHref}
+        label={nextLabel ?? nextTitle ?? "Next"}
         title={nextTitle && `${nextTitle} (→)`}
+      />
+    </div>
+  );
+};
+
+interface ChevronProps {
+  icon: string;
+  action: (() => void) | undefined;
+  enabled: boolean;
+  href: string | undefined;
+  label: string;
+  title: string | undefined;
+}
+
+/** One prev/next control: a link when it has somewhere to go, otherwise a
+ *  focusable div. */
+const Chevron: FC<ChevronProps> = ({
+  icon,
+  action,
+  enabled,
+  href,
+  label,
+  title,
+}) => {
+  const linkHref = enabled && action ? inAppHref(href) : undefined;
+  if (linkHref && action) {
+    return (
+      <a
+        href={linkHref}
+        onClick={inAppLinkClick(action)}
+        onKeyDown={(e) => {
+          // Links activate on Enter natively; the chevrons also take Space.
+          if (e.key === " ") {
+            e.preventDefault();
+            action();
+          }
+        }}
+        aria-label={label}
+        className={styles.nav}
+        title={title}
       >
-        <i className={baseApplicationIcons.next} />
-      </div>
+        <i className={icon} />
+      </a>
+    );
+  }
+  return (
+    <div
+      onClick={enabled ? action : undefined}
+      // A focusable div (not <button>), so it needs its own Enter/Space
+      // handler to be operable by keyboard.
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && enabled && action) {
+          e.preventDefault();
+          action();
+        }
+      }}
+      tabIndex={enabled ? 0 : -1}
+      role="button"
+      aria-label={label}
+      aria-disabled={!enabled}
+      className={clsx(styles.nav, !enabled && styles.disabled)}
+      title={title}
+    >
+      <i className={icon} />
     </div>
   );
 };

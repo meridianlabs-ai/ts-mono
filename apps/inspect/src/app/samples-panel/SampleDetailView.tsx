@@ -1,6 +1,7 @@
-import { FC, useCallback, useEffect, useMemo } from "react";
+import { FC, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 
+import { navigateAndForget } from "@tsmono/react/hooks";
 import { directoryRelativeUrl } from "@tsmono/util";
 
 import { useAppConfig, useLogDir } from "../../app_config";
@@ -8,6 +9,7 @@ import { useStore } from "../../state/store";
 import {
   samplesSampleUrl,
   samplesUrl,
+  toFullUrlMaybe,
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
@@ -67,48 +69,27 @@ export const SampleDetailView: FC = () => {
     currentIndex >= 0 &&
     currentIndex < displayedSamples.length - 1;
 
-  // Navigation handlers
-  const handlePrevious = useCallback(() => {
-    if (currentIndex > 0 && displayedSamples && routeLogPath && logDir) {
-      const prev = displayedSamples[currentIndex - 1];
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      const relativePath = directoryRelativeUrl(prev.logFile, logDir);
-      const url = samplesSampleUrl(
-        relativePath,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        prev.sampleId,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        prev.epoch,
-        tabId
-      );
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
-    }
-  }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
-
-  const handleNext = useCallback(() => {
-    if (
-      displayedSamples &&
-      currentIndex >= 0 &&
-      currentIndex < displayedSamples.length - 1 &&
-      routeLogPath &&
-      logDir
-    ) {
-      const next = displayedSamples[currentIndex + 1];
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      const relativePath = directoryRelativeUrl(next.logFile, logDir);
-      const url = samplesSampleUrl(
-        relativePath,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        next.sampleId,
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        next.epoch,
-        tabId
-      );
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      navigate(url);
-    }
-  }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
+  // The neighbouring samples' routes, shared by the click handlers and the
+  // chevrons' hrefs so a plain click and a new-tab open land in one place.
+  const siblingRoute = (offset: number) => {
+    if (currentIndex < 0 || !routeLogPath || !logDir) return undefined;
+    const sibling = displayedSamples?.[currentIndex + offset];
+    if (!sibling) return undefined;
+    return samplesSampleUrl(
+      directoryRelativeUrl(sibling.logFile, logDir),
+      sibling.sampleId,
+      sibling.epoch,
+      tabId
+    );
+  };
+  const previousRoute = siblingRoute(-1);
+  const nextRoute = siblingRoute(1);
+  const handlePrevious = () => {
+    if (previousRoute) navigateAndForget(navigate, previousRoute);
+  };
+  const handleNext = () => {
+    if (nextRoute) navigateAndForget(navigate, nextRoute);
+  };
 
   // Cleanup on unmount - clear log state since this is a standalone view
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -129,6 +110,8 @@ export const SampleDetailView: FC = () => {
         onNext: handleNext,
         hasPrevious: !!hasPrevious,
         hasNext: !!hasNext,
+        previousHref: toFullUrlMaybe(previousRoute),
+        nextHref: toFullUrlMaybe(nextRoute),
       }}
       navbarConfig={{
         currentPath: routeLogPath,
