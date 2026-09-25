@@ -72,3 +72,10 @@ allowBuilds:
   esbuild: false
   msw: false
   unrs-resolver: false
+
+# style-mod (CodeMirror's style injection) writes a <style> tag into
+# documents, which the viewer's CSP blocks; the patch makes it adopt a
+# constructed stylesheet there too, as it already does in shadow roots.
+# Re-check on every style-mod bump: upstream still branches on `root.head`.
+patchedDependencies:
+  style-mod@4.1.3: patches/style-mod@4.1.3.patch

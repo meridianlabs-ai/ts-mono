@@ -13,7 +13,7 @@ import type { Timeline } from "@tsmono/inspect-common/types";
 
 import type { LogZipAccess } from "../client/remote/remoteLogFile";
 import { openZipFileFromBuffer } from "../client/remote/remoteZipFile";
-import { installNodeBlobWorker } from "../test/nodeBlobWorker";
+import { installNodeWorker } from "../test/nodeWorker";
 
 import { openChunkedSample, type ChunkedSample } from "./chunked";
 import {
@@ -159,4 +159,4 @@ describe("hydrateFullSample", () => {
   });
 });
 
-installNodeBlobWorker();
+installNodeWorker();

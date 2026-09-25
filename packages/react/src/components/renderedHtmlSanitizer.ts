@@ -7,7 +7,6 @@ import createDOMPurify, {
 import { canonicalImageSource } from "@tsmono/util";
 
 import { escapeHtmlCharacters } from "./markdownRendering";
-import { mathJaxStyles } from "./mathjaxStyles";
 
 const FORBIDDEN_TAGS = [
   "animate",
@@ -32,12 +31,15 @@ const FORBIDDEN_TAGS = [
   "select",
   "set",
   "source",
+  // DOMPurify allows <style> by default; MathJax's rules come from the
+  // viewer's own mathjax.css, and the CSP forbids inline <style> anyway.
+  "style",
   "textarea",
   "track",
   "video",
 ];
 
-const MATHJAX_TAGS = ["mjx-assistive-mml", "mjx-container", "style"];
+const MATHJAX_TAGS = ["mjx-assistive-mml", "mjx-container"];
 
 const MATHJAX_ATTRS = [
   "display",
@@ -126,8 +128,6 @@ const UNSAFE_CSS_PATTERN =
 // (`\75rl(` is `url(`); `@` starts an at-rule; `<` is markup. MathJax emits none.
 const RAW_CSS_REJECT_PATTERN = /[\\@<]/;
 
-const MATHJAX_WRAPPER_ID = /^mjx-[a-f0-9]+$/i;
-
 const PURIFY_CONFIG: Config = {
   ADD_ATTR: [...MATHJAX_ATTRS, "target"],
   // Redundant today — `img` is already in DOMPurify's DEFAULT_DATA_URI_TAGS —
@@ -178,18 +178,6 @@ const installHooks = (purify: DOMPurifyInstance): void => {
     return;
   }
   hooksInstalled = true;
-
-  purify.addHook("uponSanitizeElement", (node, hookEvent) => {
-    if (hookEvent.tagName !== "style" || !(node instanceof Element)) {
-      return;
-    }
-    const css = sanitizeMathJaxStyleElement(node);
-    if (css) {
-      node.textContent = css;
-    } else {
-      node.remove();
-    }
-  });
 
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
     if (hookEvent.attrName === "style") {
@@ -354,18 +342,4 @@ const isSafeStyleValue = (property: string, value: string): boolean => {
     return false;
   }
   return true;
-};
-
-// A MathJax-shaped wrapper is not proof that its CSS came from MathJax.
-// Replace the sheet with viewer-owned rules; only the validated id is reused.
-const sanitizeMathJaxStyleElement = (element: Element): string => {
-  const parent = element.parentElement;
-  const scopeId = parent?.getAttribute("id") ?? "";
-  if (
-    parent?.tagName.toLowerCase() !== "span" ||
-    !MATHJAX_WRAPPER_ID.test(scopeId)
-  ) {
-    return "";
-  }
-  return mathJaxStyles(scopeId);
 };

@@ -14,7 +14,7 @@ import {
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
-const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
+export const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
     const loading = import("markdown-it-mathjax3").then(
       // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- untyped dependency: markdown-it-mathjax3 ships no types, so its default export arrives as any
@@ -32,6 +32,16 @@ const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   }
   return mathjaxPluginPromise;
 };
+
+// markdown-it-mathjax3 opens each formula with its own <style>. The viewer
+// loads those rules from mathjax.css instead, and the sheet is dropped here,
+// before any parse: even an inert parse of an inline <style> (the sanitizer's
+// DOMParser) is reported as a CSP violation.
+const MATHJAX_STYLE =
+  /^(\s*<span id="mjx-[a-f0-9]+">\s*)<style>[\s\S]*?<\/style>/i;
+
+export const withoutMathJaxStyle = (html: string): string =>
+  html.replace(MATHJAX_STYLE, "$1");
 
 export const hasMathContent = (text: string): boolean =>
   text.includes("$") || text.includes("\\(") || text.includes("\\[");
@@ -134,7 +144,7 @@ export const getMarkdownInstance = async (
         if (token) {
           token.content = unescapeHtmlForMath(token.content);
         }
-        return origInline(tokens, idx, options, env, self);
+        return withoutMathJaxStyle(origInline(tokens, idx, options, env, self));
       };
     }
     if (origBlock) {
@@ -143,7 +153,7 @@ export const getMarkdownInstance = async (
         if (token) {
           token.content = unescapeHtmlForMath(token.content);
         }
-        return origBlock(tokens, idx, options, env, self);
+        return withoutMathJaxStyle(origBlock(tokens, idx, options, env, self));
       };
     }
   }

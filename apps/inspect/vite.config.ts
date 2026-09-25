@@ -12,14 +12,22 @@ import {
   warnIfWatchingWithoutSubmodule,
 } from "../../tooling/python-repo/index.js";
 import {
+  contentSecurityPolicy,
   inlineThemeBootstrap,
+  inlineWorkerUrls,
   rewriteLoopbackOrigin,
 } from "../../tooling/vite-plugins/index.js";
 
 function copyToPythonRepo(): Plugin {
+  let outDir = "dist";
   return {
     name: "copy-to-python-repo",
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
     closeBundle() {
+      // Only the real app build ships; the CSP e2e builds elsewhere.
+      if (outDir !== "dist") return;
       const pythonRoot = findPythonRepoRoot("inspect_ai");
       if (!pythonRoot) return;
       const target = join(pythonRoot, "src/inspect_ai/_view/dist");
@@ -33,6 +41,31 @@ function copyToPythonRepo(): Plugin {
 }
 
 const viewServerUrl = "http://127.0.0.1:7575";
+
+// The viewer renders untrusted log content; this is the second layer behind
+// the sanitizer (see SECURITY.md). The build writes it, with hashes of the
+// inline scripts, to dist/content-security-policy.json for hosts to deliver
+// (see contentSecurityPolicy). 'wasm-unsafe-eval' is for the asciinema
+// player's WebAssembly, and inline style attributes carry MathJax's
+// per-glyph layout. Hosts rely on worker-src staying explicit (the VS Code
+// extension adds blob: to it for cross-origin workers) and on an empty list
+// meaning a directive without sources. e2e/csp/csp.spec.ts pins this
+// policy, so changing it means changing that test too.
+const contentSecurityPolicyDirectives = {
+  "default-src": ["'none'"],
+  "script-src": ["'self'", "'wasm-unsafe-eval'"],
+  "worker-src": ["'self'"],
+  "style-src-elem": ["'self'"],
+  "style-src-attr": ["'unsafe-inline'"],
+  "img-src": ["'self'", "data:"],
+  "media-src": ["data:"],
+  "font-src": ["'self'"],
+  "connect-src": ["'self'"],
+  "object-src": ["'none'"],
+  "frame-src": ["'none'"],
+  "base-uri": ["'none'"],
+  "form-action": ["'none'"],
+};
 
 export default defineConfig(({ mode }) => {
   const isLibrary = mode === "library";
@@ -78,6 +111,7 @@ export default defineConfig(({ mode }) => {
       ...baseConfig,
       plugins: [
         ...baseConfig.plugins,
+        inlineWorkerUrls(),
         dts({
           insertTypesEntry: true,
           exclude: ["**/*.test.ts", "**/*.test.tsx", "src/setupTests.ts"],
@@ -134,11 +168,16 @@ export default defineConfig(({ mode }) => {
         inlineThemeBootstrap(
           resolve(import.meta.dirname, "src/theme/bootstrap.ts")
         ),
+        contentSecurityPolicy(contentSecurityPolicyDirectives),
         warnIfWatchingWithoutSubmodule("inspect_ai"),
         copyToPythonRepo(),
       ],
       mode: "development",
       base: "",
+      // Overrides postcss.config.cjs, whose inlining is for the library's
+      // self-contained stylesheet: the app serves its fonts as files, since
+      // the viewer's CSP allows `font-src 'self'` but not `data:`.
+      css: { postcss: {} },
       server: {
         // Pinned so `pnpm dev` from the root always gives inspect 5173 and
         // scout 5174 regardless of startup order (e2e uses 5175/5176).
@@ -151,6 +190,11 @@ export default defineConfig(({ mode }) => {
             configure: rewriteLoopbackOrigin(viewServerUrl),
           },
         },
+      },
+      // Unhashed like the app's own chunks, so the committed dist in the
+      // Python repo keeps stable file names.
+      worker: {
+        rollupOptions: { output: { entryFileNames: "assets/[name].js" } },
       },
       build: {
         outDir: "dist",

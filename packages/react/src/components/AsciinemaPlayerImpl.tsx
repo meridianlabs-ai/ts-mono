@@ -6,9 +6,9 @@ import { CSSProperties, FC, useEffect, useRef } from "react";
 
 interface AsciinemaPlayerProps {
   id?: string;
-  inputUrl: string;
-  outputUrl: string;
-  timingUrl: string;
+  input: string;
+  output: string;
+  timing: string;
   rows?: number;
   cols?: number;
   fit?: "width" | "height" | "both" | "none" | false;
@@ -25,9 +25,9 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
   id,
   rows,
   cols,
-  inputUrl,
-  outputUrl,
-  timingUrl,
+  input,
+  output,
+  timing,
   fit,
   speed,
   autoPlay,
@@ -44,7 +44,14 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
 
     const player = create(
       {
-        url: [timingUrl, outputUrl, inputUrl],
+        // In-memory Responses, not Blob URLs the player would fetch: the
+        // viewer's CSP allows no blob: connections. Fresh per load, since a
+        // Response body reads once.
+        data: () => [
+          new Response(timing),
+          new Response(output),
+          new Response(input),
+        ],
         parser: "typescript",
       },
       playerContainerRef.current,
@@ -67,9 +74,9 @@ const AsciinemaPlayerImpl: FC<AsciinemaPlayerProps> = ({
       player.dispose();
     };
   }, [
-    timingUrl,
-    outputUrl,
-    inputUrl,
+    timing,
+    output,
+    input,
     rows,
     cols,
     autoPlay,
