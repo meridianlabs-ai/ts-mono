@@ -38,6 +38,7 @@ const samplesWith = (values: number[]): SampleSummary[] =>
 
 const rowWith = (value: number): SampleRow => ({
   logFile: "log.eval",
+  contentTrust: "trusted",
   sampleId: 1,
   epoch: 1,
   [kField]: value,

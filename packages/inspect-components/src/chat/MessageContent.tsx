@@ -13,7 +13,10 @@ import type {
   ContentToolUse,
   ContentVideo,
 } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
+import {
+  ExpandablePanel,
+  RequireTrustedContent,
+} from "@tsmono/react/components";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isRenderableImageSource, parseJsonRecord } from "@tsmono/util";
@@ -217,12 +220,13 @@ const renderContent = (
       const c = content;
       if (isRenderableImageSource(c.image)) {
         return (
-          <img
-            src={c.image}
-            alt="Message attachment"
-            className={styles.contentImage}
-            key={key}
-          />
+          <RequireTrustedContent kind="image" key={key}>
+            <img
+              src={c.image}
+              alt="Message attachment"
+              className={styles.contentImage}
+            />
+          </RequireTrustedContent>
         );
       } else {
         return <MediaReference source={c.image} key={key} />;
@@ -234,12 +238,14 @@ const renderContent = (
         return <MediaReference source={c.audio} key={key} />;
       }
       return (
-        // Log content carries no caption track and none can be synthesised
-        // here; the audio is model input being replayed, not authored media.
-        // eslint-disable-next-line jsx-a11y/media-has-caption
-        <audio controls key={key}>
-          <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
-        </audio>
+        <RequireTrustedContent kind="audio" key={key}>
+          {/* Log content carries no caption track and none can be synthesised
+              here; the audio is model input being replayed, not authored media. */}
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio controls>
+            <source src={c.audio} type={audioMimeTypeForFormat(c.format)} />
+          </audio>
+        </RequireTrustedContent>
       );
     }
     case "video": {
@@ -248,10 +254,12 @@ const renderContent = (
         return <MediaReference source={c.video} key={key} />;
       }
       return (
-        // eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above
-        <video width="500" height="375" controls key={key}>
-          <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
-        </video>
+        <RequireTrustedContent kind="video" key={key}>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption -- see audio above */}
+          <video width="500" height="375" controls>
+            <source src={c.video} type={videoMimeTypeForFormat(c.format)} />
+          </video>
+        </RequireTrustedContent>
       );
     }
     case "tool": {

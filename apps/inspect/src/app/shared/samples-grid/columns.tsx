@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
+import { ContentTrustProvider } from "@tsmono/react/components";
 import {
   arrayToString,
   filename,
@@ -510,8 +511,24 @@ export function buildSampleColumns(
     }
   }
 
-  return cols;
+  return cols.map(withRowContentTrust);
 }
+
+/** Renders a column's cells within the trust of the log each row came from. */
+const withRowContentTrust = (col: SampleColumn): SampleColumn => {
+  const cell = col.cell;
+  if (typeof cell !== "function") {
+    return col;
+  }
+  return {
+    ...col,
+    cell: (context) => (
+      <ContentTrustProvider value={context.row.original.contentTrust}>
+        {cell(context)}
+      </ContentTrustProvider>
+    ),
+  };
+};
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {

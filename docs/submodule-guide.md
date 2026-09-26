@@ -203,3 +203,6 @@ pnpm types:generate
 ```
 
 Then commit the updated `generated.ts` in the monorepo.
+**Q: Markdown shows as raw source (and images, highlighting, links are missing) where I render shared components.**
+
+Rich rendering in `@tsmono/react` and `@tsmono/inspect-components` is opt-in: outside a `ContentTrustProvider`, content is treated as untrusted and shown as plain text. Wrap the tree in `<ContentTrustProvider value="trusted">` (from `@tsmono/react/components`) for content you trust, or derive the value from the log it came from (`logContentTrust(header)` from `@tsmono/inspect-components/content`), as the Inspect viewer does.

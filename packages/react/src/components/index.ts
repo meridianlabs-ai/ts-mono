@@ -41,6 +41,7 @@ export * from "./ExpandablePanel";
 export * from "./LightboxCarousel";
 export * from "./HumanBaselineView";
 export * from "./ComponentNavigationContext";
+export * from "./ContentTrust";
 export * from "./FindTargetContext";
 export * from "./FindBand";
 export * from "./FindBandUI";

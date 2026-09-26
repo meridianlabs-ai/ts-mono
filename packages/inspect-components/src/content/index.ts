@@ -10,6 +10,7 @@ export { IconsContext, useContentIcons } from "./IconsContext";
 export { MetaDataGrid } from "./MetaDataGrid";
 export { RecordTree, kMetadataGridKeyPrefix, toTreeItems } from "./RecordTree";
 export { RenderedContent } from "./RenderedContent";
+export { logContentTrust } from "./logContentTrust";
 export { RenderedText } from "./RenderedText";
 export { resolveStoreKeys } from "./record_processors/store";
 export type { RecordProcessor } from "./record_processors/types";

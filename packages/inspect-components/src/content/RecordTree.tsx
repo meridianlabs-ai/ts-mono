@@ -8,7 +8,11 @@ import {
   useMemo,
 } from "react";
 
-import { CopyButton, ExpandablePanel } from "@tsmono/react/components";
+import {
+  ContentText,
+  CopyButton,
+  ExpandablePanel,
+} from "@tsmono/react/components";
 import { useCollapsibleIds } from "@tsmono/react/hooks";
 import { VirtualList } from "@tsmono/react/virtual";
 import { isRecord } from "@tsmono/util";
@@ -206,7 +210,9 @@ export const RecordTree: FC<RecordTreeProps> = ({
               </pre>
             ) : undefined}
           </div>
-          <pre className={clsx(styles.pre)}>{item.key}:</pre>
+          <pre className={clsx(styles.pre)}>
+            <ContentText text={item.key} />:
+          </pre>
         </div>
         <div>
           {showValue ? (

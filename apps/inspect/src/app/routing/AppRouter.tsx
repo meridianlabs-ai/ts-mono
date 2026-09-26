@@ -19,6 +19,7 @@ import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 import { SampleEventView } from "../samples/event/SampleEventView";
+import { SelectionContentTrustProvider } from "../shared/contentTrust";
 
 import { LoaderMounts } from "./loaders/LoaderHost";
 import { RouteDispatcher } from "./RouteDispatcher";
@@ -80,7 +81,11 @@ const AppLayout = () => {
   return (
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
-        <LoaderMounts>{content}</LoaderMounts>
+        <LoaderMounts>
+          <SelectionContentTrustProvider>
+            {content}
+          </SelectionContentTrustProvider>
+        </LoaderMounts>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
   );

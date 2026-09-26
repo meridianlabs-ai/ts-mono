@@ -1,5 +1,10 @@
 import { FC, ReactNode } from "react";
 
+import {
+  ContentText,
+  untrustedText,
+  useIsContentTrusted,
+} from "@tsmono/react/components";
 import { parseAbsoluteHttpUrl } from "@tsmono/util";
 
 interface ExternalLinkProps {
@@ -23,6 +28,29 @@ export const ExternalLink: FC<ExternalLinkProps> = ({
   title,
   children,
 }) => {
+  const trusted = useIsContentTrusted();
+  if (!trusted) {
+    // Inert text, with the destination shown (revealed) so it stays
+    // inspectable; tooltips honor bidi overrides, so the title is revealed too.
+    return (
+      <span
+        className={className}
+        title={title === undefined ? undefined : untrustedText(title)}
+      >
+        {typeof children === "string" ? (
+          <ContentText text={children} />
+        ) : (
+          children
+        )}
+        {children !== href ? (
+          <>
+            {" ("}
+            <ContentText text={href} />)
+          </>
+        ) : null}
+      </span>
+    );
+  }
   const safeHref = parseAbsoluteHttpUrl(href);
   if (safeHref === undefined) {
     return (

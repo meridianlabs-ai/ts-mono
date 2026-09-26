@@ -4,6 +4,11 @@ import { CSSProperties, FC, useState } from "react";
 
 import styles from "./AnsiDisplay.module.css";
 import { useComponentIcons } from "./ComponentIconContext";
+import {
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
+} from "./ContentTrust";
 import { ToolButton } from "./ToolButton";
 
 interface ANSIDisplayProps {
@@ -12,7 +17,35 @@ interface ANSIDisplayProps {
   className?: string[] | string;
 }
 
-export const ANSIDisplay: FC<ANSIDisplayProps> = ({
+export const ANSIDisplay: FC<ANSIDisplayProps> = (props) => {
+  const trusted = useIsContentTrusted();
+  return trusted ? (
+    <RichANSIDisplay {...props} />
+  ) : (
+    <UntrustedANSIDisplay {...props} />
+  );
+};
+
+/** Untrusted terminal output: escape sequences shown, never interpreted. */
+const UntrustedANSIDisplay: FC<ANSIDisplayProps> = ({
+  output,
+  style,
+  className,
+}) => (
+  <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
+    <pre
+      className={clsx(
+        styles.ansiDisplay,
+        styles.ansiDisplayRaw,
+        untrustedTextClassName
+      )}
+    >
+      {untrustedText(output)}
+    </pre>
+  </div>
+);
+
+const RichANSIDisplay: FC<ANSIDisplayProps> = ({
   output,
   style,
   className,

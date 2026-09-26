@@ -6,8 +6,10 @@ import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 
 import {
   ANSIDisplay,
+  ContentText,
   JSONPanel,
   MarkdownReference,
+  RequireTrustedContent,
 } from "@tsmono/react/components";
 import {
   formatNumber,
@@ -125,7 +127,11 @@ export const RenderedContent: FC<RenderedContentProps> = ({
     }
   })();
 
-  return <span>{displayValue}</span>;
+  return (
+    <span>
+      <ContentText text={displayValue} />
+    </span>
+  );
 };
 
 interface ContentIconsForRenderers {
@@ -243,7 +249,7 @@ const contentRenderers: (
           return {
             rendered: (
               <pre className={clsx(styles.preWrap, styles.preCompact)}>
-                {rendered}
+                <ContentText text={rendered} />
               </pre>
             ),
           };
@@ -338,7 +344,11 @@ const contentRenderers: (
       },
       render: (_id, entry, _options) => {
         return {
-          rendered: <pre className={styles.preWrap}>{entry.value}</pre>,
+          rendered: (
+            <pre className={styles.preWrap}>
+              <ContentText text={String(entry.value)} />
+            </pre>
+          ),
         };
       },
     },
@@ -361,7 +371,11 @@ const contentRenderers: (
       },
       render: (_id, entry, _options) => {
         return {
-          rendered: <img src={entry.value} alt="Attachment" />,
+          rendered: (
+            <RequireTrustedContent kind="image">
+              <img src={entry.value} alt="Attachment" />
+            </RequireTrustedContent>
+          ),
         };
       },
     },

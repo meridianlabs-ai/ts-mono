@@ -2,7 +2,13 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import type { Content } from "@tsmono/inspect-common/types";
-import { ANSIDisplay } from "@tsmono/react/components";
+import {
+  ANSIDisplay,
+  RequireTrustedContent,
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
+} from "@tsmono/react/components";
 import {
   isAnsiOutput,
   isRenderableImageSource,
@@ -55,12 +61,13 @@ export const ToolOutput: FC<ToolOutputProps> = ({
       } else if (out.type === "image") {
         if (isRenderableImageSource(out.image)) {
           outputs.push(
-            <img
-              className={clsx(styles.toolImage)}
-              src={out.image}
-              alt="Tool output"
-              key={key}
-            />
+            <RequireTrustedContent kind="image" key={key}>
+              <img
+                className={clsx(styles.toolImage)}
+                src={out.image}
+                alt="Tool output"
+              />
+            </RequireTrustedContent>
           );
         } else {
           outputs.push(<MediaReference source={out.image} key={key} />);
@@ -92,6 +99,7 @@ interface ToolTextOutputProps {
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
+  const trusted = useIsContentTrusted();
 
   if (displayMode === "rendered") {
     const obj = parseJsonRecord(text);
@@ -121,9 +129,19 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
 
   return (
     <>
-      <pre className={clsx(styles.textOutput, "tool-output")}>
+      <pre
+        className={clsx(
+          styles.textOutput,
+          "tool-output",
+          !trusted && untrustedTextClassName
+        )}
+      >
         <code className={clsx("sourceCode", styles.textCode)}>
-          {displayMode === "raw" ? capped : capped.trim()}
+          {!trusted
+            ? untrustedText(capped)
+            : displayMode === "raw"
+              ? capped
+              : capped.trim()}
         </code>
       </pre>
       {notice}

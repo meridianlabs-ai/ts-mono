@@ -1,9 +1,13 @@
+import clsx from "clsx";
 import { CSSProperties, ForwardedRef, forwardRef } from "react";
 
 import {
   MarkdownDivWithReferences,
   MarkdownReference,
   Preformatted,
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
   type MarkdownRenderer,
 } from "@tsmono/react/components";
 
@@ -31,10 +35,12 @@ export const RenderedText = forwardRef<
     ref
   ) => {
     const displayMode = useDisplayMode();
+    const trusted = useIsContentTrusted();
     const { text, notice } = cappedText(markdown);
 
+    // forceRender overrides the display mode, never content trust.
     const body =
-      forceRender || displayMode === "rendered" ? (
+      trusted && (forceRender || displayMode === "rendered") ? (
         <MarkdownDivWithReferences
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLDivElement>}
@@ -49,9 +55,9 @@ export const RenderedText = forwardRef<
         <Preformatted
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLPreElement>}
-          text={text}
+          text={trusted ? text : untrustedText(text)}
           style={style}
-          className={className}
+          className={clsx(className, !trusted && untrustedTextClassName)}
         />
       );
 
