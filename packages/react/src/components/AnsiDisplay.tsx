@@ -4,7 +4,11 @@ import { CSSProperties, FC, useState } from "react";
 
 import styles from "./AnsiDisplay.module.css";
 import { useComponentIcons } from "./ComponentIconContext";
-import { untrustedText, useIsContentTrusted } from "./ContentTrust";
+import {
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
+} from "./ContentTrust";
 import { ToolButton } from "./ToolButton";
 
 interface ANSIDisplayProps {
@@ -29,7 +33,13 @@ const UntrustedANSIDisplay: FC<ANSIDisplayProps> = ({
   className,
 }) => (
   <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
-    <pre className={clsx(styles.ansiDisplay, styles.ansiDisplayRaw)}>
+    <pre
+      className={clsx(
+        styles.ansiDisplay,
+        styles.ansiDisplayRaw,
+        untrustedTextClassName
+      )}
+    >
       {untrustedText(output)}
     </pre>
   </div>

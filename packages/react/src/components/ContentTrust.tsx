@@ -35,11 +35,22 @@ export const untrustedText = (text: string): string =>
   revealHiddenCharacters(text);
 
 /**
+ * Class for the element that holds `untrustedText` output: isolates its bidi
+ * runs so they can't reorder surrounding UI text. Apply to the container
+ * (a `pre`, `div` or `span`) that renders untrusted text directly.
+ */
+export const untrustedTextClassName: string = styles.untrustedText;
+
+const UntrustedText: FC<{ text: string }> = ({ text }) => (
+  <span className={untrustedTextClassName}>{untrustedText(text)}</span>
+);
+
+/**
  * Log-derived text rendered as plain text: as-is when trusted, with hidden
- * characters revealed when not.
+ * characters revealed and bidi runs isolated when not.
  */
 export const ContentText: FC<{ text: string }> = ({ text }) =>
-  useIsContentTrusted() ? text : untrustedText(text);
+  useIsContentTrusted() ? text : <UntrustedText text={text} />;
 
 /**
  * Renders `children` (media, an embedded player, a link) only when content is
@@ -63,7 +74,13 @@ export const UntrustedContentPlaceholder: FC<{
 }> = ({ kind, detail }) => (
   <span className={styles.placeholder} data-untrusted-placeholder={kind}>
     [{kind} not shown: log content is untrusted
-    {detail ? ` (${untrustedText(detail)})` : ""}]
+    {detail ? (
+      <>
+        {" ("}
+        <UntrustedText text={detail} />)
+      </>
+    ) : null}
+    ]
   </span>
 );
 

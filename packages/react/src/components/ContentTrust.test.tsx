@@ -8,6 +8,7 @@ import {
   ContentText,
   ContentTrustProvider,
   RequireTrustedContent,
+  untrustedTextClassName,
   useContentTrust,
 } from "./ContentTrust";
 import { JSONPanel } from "./JsonPanel";
@@ -42,6 +43,7 @@ describe("content trust", () => {
     expect(root?.textContent).toContain("# Heading");
     expect(root?.textContent).toContain("[link](https://example.com/phish)");
     expect(root?.textContent).toContain("⟨U+202E⟩gnp.exe⟨U+202C⟩");
+    expect(root?.classList.contains(untrustedTextClassName)).toBe(true);
     // Give any (wrongly) scheduled async render a chance to land.
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(container.querySelector("a, img, h1, mjx-container")).toBeNull();
@@ -117,6 +119,9 @@ describe("content trust", () => {
       </ContentTrustProvider>
     );
     expect(container.textContent).toBe("a⟨U+202E⟩b");
+    expect(
+      container.querySelector(`.${untrustedTextClassName}`)
+    ).not.toBeNull();
   });
 
   it("leaves trusted plain text as-is", () => {

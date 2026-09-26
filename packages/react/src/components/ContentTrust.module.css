@@ -1,3 +1,10 @@
+/* A bidi island: strong RTL/LTR characters in untrusted text can't reorder
+   the UI text around it, and each line takes its direction from its own
+   content (as a terminal would) instead of the page's. */
+.untrustedText {
+  unicode-bidi: plaintext;
+}
+
 .placeholder {
   font-style: italic;
   color: var(--bs-secondary-color);

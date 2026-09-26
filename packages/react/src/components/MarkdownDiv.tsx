@@ -11,7 +11,11 @@ import {
 
 import "./MarkdownDiv.css";
 
-import { untrustedText, useIsContentTrusted } from "./ContentTrust";
+import {
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
+} from "./ContentTrust";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
@@ -57,7 +61,7 @@ const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
     <div
       ref={ref}
       style={style}
-      className={clsx(className, "untrusted-content")}
+      className={clsx(className, "untrusted-content", untrustedTextClassName)}
     >
       {untrustedText(markdown)}
     </div>

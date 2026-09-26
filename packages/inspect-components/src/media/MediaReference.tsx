@@ -1,7 +1,11 @@
 import clsx from "clsx";
 import { FC } from "react";
 
-import { untrustedText, useIsContentTrusted } from "@tsmono/react/components";
+import {
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
+} from "@tsmono/react/components";
 import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
 
 import styles from "./MediaReference.module.css";
@@ -33,6 +37,8 @@ export const MediaReference: FC<MediaReferenceProps> = ({
       {href}
     </a>
   ) : (
-    <code className={classes}>{trusted ? label : untrustedText(label)}</code>
+    <code className={clsx(classes, !trusted && untrustedTextClassName)}>
+      {trusted ? label : untrustedText(label)}
+    </code>
   );
 };

@@ -2,7 +2,11 @@ import clsx from "clsx";
 import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
-import { untrustedText, useIsContentTrusted } from "@tsmono/react/components";
+import {
+  untrustedText,
+  untrustedTextClassName,
+  useIsContentTrusted,
+} from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import { RenderedText } from "../../content/RenderedText";
@@ -83,7 +87,14 @@ const RenderTool: FC<RenderToolProps> = ({
 
   return (
     <div ref={parentRef}>
-      <pre className={clsx("tool-call-input", styles.outputPre, className)}>
+      <pre
+        className={clsx(
+          "tool-call-input",
+          styles.outputPre,
+          className,
+          !trusted && untrustedTextClassName
+        )}
+      >
         <code
           className={clsx(
             "source-code",

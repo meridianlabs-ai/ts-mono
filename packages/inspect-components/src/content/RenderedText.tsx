@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { CSSProperties, ForwardedRef, forwardRef } from "react";
 
 import {
@@ -5,6 +6,7 @@ import {
   MarkdownReference,
   Preformatted,
   untrustedText,
+  untrustedTextClassName,
   useIsContentTrusted,
   type MarkdownRenderer,
 } from "@tsmono/react/components";
@@ -55,7 +57,7 @@ export const RenderedText = forwardRef<
           ref={ref as ForwardedRef<HTMLPreElement>}
           text={trusted ? text : untrustedText(text)}
           style={style}
-          className={className}
+          className={clsx(className, !trusted && untrustedTextClassName)}
         />
       );
 

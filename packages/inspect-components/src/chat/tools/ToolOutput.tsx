@@ -6,6 +6,7 @@ import {
   ANSIDisplay,
   RequireTrustedContent,
   untrustedText,
+  untrustedTextClassName,
   useIsContentTrusted,
 } from "@tsmono/react/components";
 import {
@@ -128,7 +129,13 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
 
   return (
     <>
-      <pre className={clsx(styles.textOutput, "tool-output")}>
+      <pre
+        className={clsx(
+          styles.textOutput,
+          "tool-output",
+          !trusted && untrustedTextClassName
+        )}
+      >
         <code className={clsx("sourceCode", styles.textCode)}>
           {!trusted
             ? untrustedText(capped)
