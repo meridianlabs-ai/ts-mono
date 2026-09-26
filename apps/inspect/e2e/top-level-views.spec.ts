@@ -16,6 +16,7 @@ import {
   segmentButton,
   setupLogListHandlers,
 } from "./fixtures/log-list-scenario";
+import { expectNewTab } from "./fixtures/new-tab";
 import { serveEvalLog } from "./fixtures/serve-log";
 import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
@@ -282,14 +283,6 @@ test.describe("Keyboard navigation", () => {
 });
 
 test.describe("Open in new tab", () => {
-  // page.url() stays "about:blank" for a background tab opened by a native
-  // link gesture, so read the location from inside the page (retrying while
-  // its initial navigation tears down the execution context).
-  const expectTabUrl = (tab: Page, url: RegExp) =>
-    expect
-      .poll(() => tab.evaluate(() => location.href).catch(() => ""))
-      .toMatch(url);
-
   // Clicked away from the name cell: the whole row is the link, not just the
   // task text.
   const lastCellOf = (page: Page, rowText: string) =>
@@ -301,7 +294,6 @@ test.describe("Open in new tab", () => {
 
   test("cmd/ctrl-click on a log row opens it in a new tab", async ({
     page,
-    context,
     network,
   }) => {
     setupLogListHandlers(network);
@@ -310,11 +302,12 @@ test.describe("Open in new tab", () => {
     await expect(gridCell(page, "task-beta")).toBeVisible();
     const listUrl = page.url();
 
-    const [newPage] = await Promise.all([
-      context.waitForEvent("page"),
-      lastCellOf(page, "task-beta").click({ modifiers: ["ControlOrMeta"] }),
-    ]);
-    await expectTabUrl(newPage, /\?keep=1#\/tasks\/.*task-beta/);
+    await expectNewTab(
+      page,
+      () =>
+        lastCellOf(page, "task-beta").click({ modifiers: ["ControlOrMeta"] }),
+      /\?keep=1#\/tasks\/.*task-beta/
+    );
 
     expect(page.url()).toBe(listUrl);
     await expect(
@@ -326,7 +319,6 @@ test.describe("Open in new tab", () => {
 
   test("middle-click on a log row opens it in a new tab", async ({
     page,
-    context,
     network,
   }) => {
     setupLogListHandlers(network);
@@ -334,17 +326,16 @@ test.describe("Open in new tab", () => {
     await expect(gridCell(page, "task-beta")).toBeVisible();
     const listUrl = page.url();
 
-    const [newPage] = await Promise.all([
-      context.waitForEvent("page"),
-      lastCellOf(page, "task-beta").click({ button: "middle" }),
-    ]);
-    await expectTabUrl(newPage, /#\/tasks\/.*task-beta/);
+    await expectNewTab(
+      page,
+      () => lastCellOf(page, "task-beta").click({ button: "middle" }),
+      /#\/tasks\/.*task-beta/
+    );
     expect(page.url()).toBe(listUrl);
   });
 
   test("cmd/ctrl-click on a sample row opens the sample in a new tab", async ({
     page,
-    context,
     network,
   }) => {
     const logFile = "two-samples.json";
@@ -368,12 +359,9 @@ test.describe("Open in new tab", () => {
     await expect(sampleRow).toBeVisible();
     const listUrl = page.url();
 
-    const [newPage] = await Promise.all([
-      context.waitForEvent("page"),
-      sampleRow.click({ modifiers: ["ControlOrMeta"] }),
-    ]);
-    await expectTabUrl(
-      newPage,
+    await expectNewTab(
+      page,
+      () => sampleRow.click({ modifiers: ["ControlOrMeta"] }),
       /\?keep=1#\/logs\/two-samples\.json\/samples\/sample\/2\/1/
     );
     expect(page.url()).toBe(listUrl);
