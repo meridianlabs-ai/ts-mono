@@ -84,7 +84,7 @@ interface ClaimStamp {
  * The cache write surface the engine writes results through — the
  * `logsContent` seam bound to a log dir (and its database) at the composition
  * root. `write*`/`clear*`/`reset*` persist to the database and mirror into
- * the cache; `seed*`/`set*`/`merge*` are cache-only (for data that is
+ * the cache; `replace*`/`set*`/`merge*` are cache-only (for data that is
  * transient or already persisted). `writeDetails` takes transport payloads —
  * the sink normalizes them into the entity stores; the engine never learns
  * about the split, only which payloads could not be ingested.
