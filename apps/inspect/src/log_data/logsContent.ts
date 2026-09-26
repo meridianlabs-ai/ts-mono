@@ -139,6 +139,13 @@ const mergePatches = (
   }
 };
 
+/** Upsert `patches` into the collection by name (new names are appended) —
+ *  the single-row-safe counterpart to `setRows`' full replace. */
+export const mergeRows = (
+  logDir: string,
+  patches: Record<string, Partial<Log>>
+): void => mergePatches(logDir, patches);
+
 export const mergePreviews = (
   logDir: string,
   previews: Record<string, LogPreview>
@@ -446,7 +453,7 @@ export const createLogsContentSink = (
   db: DatabaseService | null,
   logDir: string
 ): LogsContentSink => ({
-  seedRows: (rows) => {
+  replaceRows: (rows) => {
     setRows(logDir, rows);
     // A warm session coming online must refresh samples listings: a listing
     // query mounted before the db opened settled empty (staleTime: Infinity)
@@ -454,6 +461,11 @@ export const createLogsContentSink = (
     // invalidate it — so /#/samples as the entry route stayed blank. Log
     // listings need the same nudge: one mounted before the db opened read
     // nothing, and a no-change boot never writes.
+    invalidateDatabaseLogsListings();
+    invalidateSamplesListings(logDir);
+  },
+  mergeRows: (patches) => {
+    mergeRows(logDir, patches);
     invalidateDatabaseLogsListings();
     invalidateSamplesListings(logDir);
   },

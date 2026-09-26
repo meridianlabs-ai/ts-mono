@@ -90,7 +90,12 @@ interface ClaimStamp {
  * about the split, only which payloads could not be ingested.
  */
 export interface LogsContentSink {
-  seedRows(rows: Log[]): void;
+  /** Replaces the directory's full row list — `rows` must be the complete
+   *  current set, not one row or a delta. */
+  replaceRows(rows: Log[]): void;
+  /** Upserts by name into the row list — known names are patched in place,
+   *  unknown names are appended. */
+  mergeRows(patches: Record<string, Partial<Log>>): void;
   setListing(handles: LogHandle[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
   writeListing(handles: LogHandle[]): Promise<Log[]>;
@@ -708,7 +713,7 @@ export class FetchEngine {
     if (!rows) {
       return;
     }
-    deps.sink.seedRows(rows);
+    deps.sink.replaceRows(rows);
     this._handles = rows;
 
     // A restart retries every previously-failed file once more — zero the
@@ -868,7 +873,7 @@ export class FetchEngine {
     }
     if (cached?.header !== undefined && cached.status !== "started") {
       this.ensureListed(key);
-      deps.sink.seedRows([cached]);
+      deps.sink.mergeRows({ [cached.name]: cached });
       this._pendingFetches.delete(key);
       // Consult `_activeSettles` live (not a `passive` flag captured at call
       // start) so an active fetch that joined this same pending fetch while

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { testEvalSpec } from "@tsmono/inspect-common/testing";
 
 import { testLogDetails, testSampleSummary } from "../client/api/testClientApi";
+import { Log } from "../client/api/types";
 import { DB_NAME } from "../client/database/schema";
 import {
   createDatabaseService,
@@ -18,13 +19,24 @@ import { queryClient } from "../state/queryClient";
 
 import {
   clearFile,
+  getLogRows,
   logKey,
   mergeFetchStates,
+  mergeRows,
   setListing,
+  setRows,
   writeDetails,
   writeListing,
   writePreviews,
 } from "./logsContent";
+
+const row = (name: string): Log => ({
+  name,
+  depth: "listed",
+  preview_attempts: 0,
+  details_attempts: 0,
+  details_settled_seq: 0,
+});
 
 const invalidateListings = vi.hoisted(() => vi.fn());
 vi.mock("./databaseListings", async (importOriginal) => ({
@@ -113,6 +125,36 @@ describe("writeDetails", () => {
     ).toHaveLength(1);
     expect(Object.keys(failures)).toEqual(["file:///logs/bad.eval"]);
     expect(logError).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("mergeRows", () => {
+  afterEach(() => {
+    queryClient.clear();
+  });
+
+  // Regression for the beginFetch cache-hit path calling seedRows([cached])
+  // (a full-collection replace) instead of a merge — one hit collapsed the
+  // whole directory listing down to that one row.
+  test("upserts one row without dropping the rest of the collection", () => {
+    setRows("/logs", [row("/logs/a.eval"), row("/logs/b.eval")]);
+
+    mergeRows("/logs", { "/logs/a.eval": { status: "success" } });
+
+    const rows = getLogRows("/logs");
+    expect(rows.map((r) => r.name)).toEqual(["/logs/a.eval", "/logs/b.eval"]);
+    expect(rows.find((r) => r.name === "/logs/a.eval")?.status).toBe("success");
+  });
+
+  test("appends a row for a name outside the current collection", () => {
+    setRows("/logs", [row("/logs/a.eval")]);
+
+    mergeRows("/logs", { "/logs/b.eval": { status: "success" } });
+
+    expect(getLogRows("/logs").map((r) => r.name)).toEqual([
+      "/logs/a.eval",
+      "/logs/b.eval",
+    ]);
   });
 });
 
