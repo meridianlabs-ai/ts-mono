@@ -1,24 +1,31 @@
 import { useMemo } from "react";
 
+import { logContentTrust } from "@tsmono/inspect-components/content";
 import type { ContentTrust } from "@tsmono/react/components";
 import { AsyncData, compose, map as mapAsyncData } from "@tsmono/util";
 
 import { SampleSummary } from "../client/api/types";
 
+import { useLogHeader } from "./log";
 import { resolveLogKey } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
-import {
-  readSettledSummaries,
-  SamplesListingParams,
-  useSamplesListing,
-} from "./samplesListing";
+import { readSettledSummaries, useSamplesListing } from "./samplesListing";
+
+/**
+ * A sample summary with the trust of the log it came from, attached where
+ * the summary list is assembled so it travels with the summary through
+ * filtering and sorting.
+ */
+export type SampleSummaryWithTrust = SampleSummary & {
+  readonly contentTrust: ContentTrust;
+};
 
 // Merge a log's completed summaries with its pending-buffer samples
 // (exported for tests; consumers use useSampleSummaries / getSampleSummaries)
-export const mergeSampleSummaries = (
-  logSamples: SampleSummary[],
-  pendingSamples: SampleSummary[]
-) => {
+export const mergeSampleSummaries = <T extends SampleSummary>(
+  logSamples: T[],
+  pendingSamples: T[]
+): T[] => {
   // Create a map of existing sample IDs to avoid duplicates
   const existingSampleIds = new Set(
     logSamples.map((sample) => `${sample.id}-${sample.epoch}`)
@@ -45,40 +52,49 @@ export const mergeSampleSummaries = (
   return [...logSamples, ...uniquePendingSamples];
 };
 
-/** The listing a log's summaries (and their trust) are read from. */
-const summariesListing = (
-  logDir: string,
-  logFile: string | undefined
-): SamplesListingParams => ({
-  logDir,
-  // "" matches no stored file; the row set stays empty until a log is given.
-  scope: {
-    file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
-  },
-});
-
 /**
  * The live sample-summary list for a log: the settled summaries (the
  * samples store) merged with the pending-buffer samples. How the list is
  * assembled (two sources, dedup, streaming-path normalization) is
  * subsystem-private — consumers just get all of a log's samples, kept
  * current.
+ *
+ * Each summary carries its content trust. A settled summary takes the trust
+ * read with it from its own log, so it never lags the summary (and still
+ * describes the previous log's rows while a switch keeps them on screen). A
+ * pending-buffer summary, which only `logFile` produces, takes that log's
+ * trust (untrusted while its header loads).
  */
 export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
-): AsyncData<SampleSummary[]> => {
-  const rows = useSamplesListing(summariesListing(logDir, logFile));
+): AsyncData<SampleSummaryWithTrust[]> => {
+  const rows = useSamplesListing({
+    logDir,
+    // "" matches no stored file; the row set stays empty until a log is given.
+    scope: {
+      file: logFile === undefined ? "" : resolveLogKey(logDir, logFile),
+    },
+  });
   const pending = usePendingSamples(logDir, logFile);
+  const pendingTrust = logContentTrust(
+    useLogHeader(logDir, logFile, { demand: "passive" }).data
+  );
   return useMemo(
     () =>
       mapAsyncData(compose({ rows, pending }), (settled) =>
-        mergeSampleSummaries(
-          settled.rows.map((row) => row.summary),
-          settled.pending?.samples ?? []
+        mergeSampleSummaries<SampleSummaryWithTrust>(
+          settled.rows.map((row) => ({
+            ...row.summary,
+            contentTrust: row.log.contentTrust,
+          })),
+          (settled.pending?.samples ?? []).map((sample) => ({
+            ...sample,
+            contentTrust: pendingTrust,
+          }))
         )
       ),
-    [rows, pending]
+    [rows, pending, pendingTrust]
   );
 };
 
@@ -96,27 +112,3 @@ export const getSampleSummaries = async (
         await readSettledSummaries(logDir, resolveLogKey(logDir, logFile)),
         getPendingSamples(logDir, logFile)?.samples ?? []
       );
-
-/**
- * The content trust of each settled summary {@link useSampleSummaries}
- * returns for `logFile` (keyed by {@link sampleSummaryKey}), taken from the
- * row's own log context — read together with the row, so it never lags it.
- * While a switch between logs keeps the previous log's rows on screen, these
- * describe those rows, not the newly requested log. Pending-buffer samples
- * have no entry.
- */
-export const useSampleSummariesContentTrust = (
-  logDir: string,
-  logFile: string | undefined
-): ReadonlyMap<string, ContentTrust> =>
-  new Map(
-    (useSamplesListing(summariesListing(logDir, logFile)).data ?? []).map(
-      (row) => [
-        sampleSummaryKey(row.summary.id, row.summary.epoch),
-        row.log.contentTrust,
-      ]
-    )
-  );
-
-export const sampleSummaryKey = (id: string | number, epoch: number): string =>
-  `${typeof id}:${id}:${epoch}`;

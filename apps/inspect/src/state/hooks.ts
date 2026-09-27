@@ -24,6 +24,7 @@ import {
   useRunningMetrics,
   useSampleSummaries,
   type EvalSampleData,
+  type SampleSummaryWithTrust,
 } from "../log_data";
 
 import { refreshLog } from "./actions";
@@ -252,18 +253,20 @@ export const useLogEditAffordance = (): LogEditAffordance => {
  * — the selection binding over the param-driven `useSampleSummaries`
  * acquisition hook.
  */
-export const useSelectedSampleSummaries = (): AsyncData<SampleSummary[]> => {
+export const useSelectedSampleSummaries = (): AsyncData<
+  SampleSummaryWithTrust[]
+> => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   return useSampleSummaries(logDir, selectedLogFile);
 };
 
-const kNoSummaries: SampleSummary[] = [];
+const kNoSummaries: SampleSummaryWithTrust[] = [];
 
 // The settled rows for the derivation hooks below — pure computations over
 // whatever has settled (loading/error render in SamplesTab, which reads the
 // AsyncData binding directly).
-const useSelectedSampleSummariesData = (): SampleSummary[] =>
+const useSelectedSampleSummariesData = (): SampleSummaryWithTrust[] =>
   useSelectedSampleSummaries().data ?? kNoSummaries;
 
 // Counts the total number of unfiltered sample summaries (both complete and incomplete)

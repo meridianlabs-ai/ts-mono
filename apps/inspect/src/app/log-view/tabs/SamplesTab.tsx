@@ -64,7 +64,6 @@ import {
   useSamplesViewScoreLabels,
 } from "../../samples/list/useSamplesView.ts";
 import { ColumnSelectorPopover } from "../../shared/ColumnSelectorPopover.tsx";
-import { useSelectedSamplesContentTrust } from "../../shared/contentTrust.tsx";
 import { ExtendedColumnDef } from "../../shared/data-grid/columnTypes.ts";
 import { type PickerColumn } from "../../shared/gridUtils.ts";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale.ts";
@@ -207,7 +206,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   const summariesState = useSelectedSampleSummaries();
   const selectedLogDetails = useSelectedLogDetails();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const rowContentTrust = useSelectedSamplesContentTrust();
 
   // Effective (folded) config — limit/epochs are launch-shaped, but routing
   // every config read through the fold makes that assumption enforced.
@@ -447,7 +445,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       const tokens = totalSampleTokens(sample.model_usage);
       return {
         logFile: selectedLogFile,
-        contentTrust: rowContentTrust(sample.id, sample.epoch),
+        contentTrust: sample.contentTrust,
         sampleId: sample.id,
         epoch: sample.epoch,
         data: sample,
@@ -468,7 +466,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         duration: sample.total_time ?? undefined,
       };
     });
-  }, [sampleSummaries, samplesDescriptor, selectedLogFile, rowContentTrust]);
+  }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
 
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {

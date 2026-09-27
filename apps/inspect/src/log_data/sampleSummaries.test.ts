@@ -122,10 +122,17 @@ describe("useSampleSummaries during a running eval", () => {
   let serverBuffer: { etag: string; samples: SampleSummary[] };
   let serverInfo: { size: number };
 
-  const details = (sampleSummaries: SampleSummary[]): LogDetails =>
+  const details = (
+    sampleSummaries: SampleSummary[],
+    trustContent?: boolean
+  ): LogDetails =>
     testLogDetails({
       status: "started",
       eval: testEvalSpec({
+        viewer:
+          trustContent === undefined
+            ? undefined
+            : { scanner_result_view: {}, trust_content: trustContent },
         eval_id: "eval-run",
         run_id: "run-run",
         created: "2026-01-01T00:00:00Z",
@@ -189,6 +196,37 @@ describe("useSampleSummaries during a running eval", () => {
     queryClient.clear();
     vi.clearAllMocks();
   });
+
+  test.each([
+    ["untrusted", false],
+    ["trusted", undefined],
+  ] as const)(
+    "flushed and pending summaries both carry the log's trust (%s)",
+    async (expected, trustContent) => {
+      serverDetails = details(
+        [createSampleSummary({ id: "s1", completed: true })],
+        trustContent
+      );
+      serverBuffer = {
+        etag: "e1",
+        samples: [createSampleSummary({ id: "s2", completed: false })],
+      };
+      serverInfo = { size: 100 };
+
+      const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
+        wrapper,
+      });
+
+      await waitFor(
+        () => {
+          expect(
+            result.current.data?.map((s) => `${s.id}:${s.contentTrust}`).sort()
+          ).toEqual([`s1:${expected}`, `s2:${expected}`]);
+        },
+        { timeout: 3000 }
+      );
+    }
+  );
 
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {
     // The run begins: nothing flushed to the log yet, sample 1 in the buffer.

@@ -149,9 +149,8 @@ export { useSampleMessages } from "./sampleMessages";
 export type { MessageRowsFeed } from "./messageRowsQuery";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export {
-  sampleSummaryKey,
+  type SampleSummaryWithTrust,
   useSampleSummaries,
-  useSampleSummariesContentTrust,
 } from "./sampleSummaries";
 export { type ScorerMap, scorerMetricKey, useScoreSchema } from "./scoreSchema";
 export { FetchEngineController } from "./FetchEngineController";
