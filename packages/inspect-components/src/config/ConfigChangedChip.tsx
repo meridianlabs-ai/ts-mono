@@ -5,7 +5,7 @@ import {
   formatConfigValue,
   type ConfigChangeInfo,
 } from "@tsmono/inspect-common/utils";
-import { inAppHref, inAppLinkClick, PopOver } from "@tsmono/react/components";
+import { InAppLink, PopOver } from "@tsmono/react/components";
 
 import styles from "./ConfigChangedChip.module.css";
 
@@ -36,32 +36,16 @@ export const TimelineLink: FC<TimelineLinkProps> = ({
   onClick,
   href,
   className,
-}) => {
-  const linkHref = inAppHref(href);
-  const content = (
-    <>
-      <i className="bi bi-graph-up" aria-hidden="true" />
-      View on timeline
-    </>
-  );
-  return linkHref ? (
-    <a
-      href={linkHref}
-      className={clsx(styles.timelineLink, className)}
-      onClick={inAppLinkClick(onClick)}
-    >
-      {content}
-    </a>
-  ) : (
-    <button
-      type="button"
-      className={clsx(styles.timelineLink, className)}
-      onClick={onClick}
-    >
-      {content}
-    </button>
-  );
-};
+}) => (
+  <InAppLink
+    href={href}
+    onNavigate={onClick}
+    className={clsx(styles.timelineLink, className)}
+  >
+    <i className="bi bi-graph-up" aria-hidden="true" />
+    View on timeline
+  </InAppLink>
+);
 
 interface ProvenanceGridProps {
   change: ConfigChangeInfo;

@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment, useCallback, useState } from "react";
 
-import { inAppHref, inAppLinkClick } from "@tsmono/react/components";
+import { InAppLink } from "@tsmono/react/components";
 import { useResizeObserver } from "@tsmono/react/hooks";
 
 import {
@@ -322,31 +322,14 @@ const PoolLane: FC<PoolLaneProps> = ({
 const TimelineAction: FC<{ href?: string; onClick: () => void }> = ({
   href,
   onClick,
-}) => {
-  const linkHref = inAppHref(href);
-  const content = (
-    <>
-      <i className="bi bi-graph-up" aria-hidden="true" />
-      Timeline
-    </>
-  );
-  return linkHref ? (
-    <a
-      href={linkHref}
-      className={styles.actionLink}
-      title="View on timeline"
-      onClick={inAppLinkClick(onClick)}
-    >
-      {content}
-    </a>
-  ) : (
-    <button
-      type="button"
-      className={styles.actionLink}
-      title="View on timeline"
-      onClick={onClick}
-    >
-      {content}
-    </button>
-  );
-};
+}) => (
+  <InAppLink
+    href={href}
+    onNavigate={onClick}
+    className={styles.actionLink}
+    title="View on timeline"
+  >
+    <i className="bi bi-graph-up" aria-hidden="true" />
+    Timeline
+  </InAppLink>
+);

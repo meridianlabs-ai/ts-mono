@@ -4,10 +4,11 @@ import {
   createEvent,
   fireEvent,
   render,
+  screen,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 
-import { inAppHref, inAppLinkClick } from "./inAppLink";
+import { inAppHref, InAppLink, inAppLinkClick } from "./inAppLink";
 
 afterEach(cleanup);
 
@@ -64,5 +65,70 @@ describe("inAppHref", () => {
     } finally {
       document.body.removeAttribute("data-vscode-theme-kind");
     }
+  });
+});
+
+describe("InAppLink", () => {
+  const renderInAppLink = (
+    href: string | undefined,
+    stopPropagation = false
+  ) => {
+    const onNavigate = vi.fn();
+    render(
+      <InAppLink
+        href={href}
+        onNavigate={onNavigate}
+        stopPropagation={stopPropagation}
+      >
+        Go
+      </InAppLink>
+    );
+    return { onNavigate };
+  };
+
+  it("is a link to its href that navigates in place on a plain click", () => {
+    const { onNavigate } = renderInAppLink("#/logs/a.eval");
+    const link = screen.getByRole("link", { name: "Go" });
+    expect(link.getAttribute("href")).toBe("#/logs/a.eval");
+    expect(click(link, { button: 0 })).toBe(true);
+    expect(onNavigate).toHaveBeenCalledOnce();
+  });
+
+  it("leaves cmd/ctrl-click to the browser", () => {
+    const { onNavigate } = renderInAppLink("#/logs/a.eval");
+    const link = screen.getByRole("link", { name: "Go" });
+    expect(click(link, { button: 0, metaKey: true })).toBe(false);
+    expect(click(link, { button: 0, ctrlKey: true })).toBe(false);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it("is a button without an href", () => {
+    const { onNavigate } = renderInAppLink(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Go" }));
+    expect(onNavigate).toHaveBeenCalledOnce();
+  });
+
+  it("is a button inside the VS Code webview", () => {
+    document.body.setAttribute("data-vscode-theme-kind", "vscode-dark");
+    try {
+      renderInAppLink("#/logs/a.eval");
+      expect(screen.getByRole("button", { name: "Go" })).toBeTruthy();
+    } finally {
+      document.body.removeAttribute("data-vscode-theme-kind");
+    }
+  });
+
+  it("keeps clicks from reaching an ancestor when asked", () => {
+    // A listener above React's root only fires if propagation isn't stopped.
+    const onAncestorClick = vi.fn();
+    document.addEventListener("click", onAncestorClick);
+    onTestFinished(() =>
+      document.removeEventListener("click", onAncestorClick)
+    );
+    renderInAppLink("#/logs/a.eval", true);
+    const link = screen.getByRole("link", { name: "Go" });
+    click(link, { button: 0 });
+    click(link, { button: 0, metaKey: true });
+    expect(onAncestorClick).not.toHaveBeenCalled();
   });
 });

@@ -10,8 +10,7 @@ import {
 } from "react";
 
 import {
-  inAppHref,
-  inAppLinkClick,
+  InAppLink,
   PopOver,
   StickyScrollProvider,
 } from "@tsmono/react/components";
@@ -111,7 +110,6 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
       onExit();
     };
   }, [onExit]);
-  const exitLink = inAppHref(exitHref);
 
   // Esc/f exit focus mode (f mirrors the transcript's enter-focus binding); lane picker claims both keys first, and typing targets are ignored. `f` ignores modifiers so Cmd+F find is intact.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
@@ -254,27 +252,15 @@ export const FocusTurnView: FC<FocusTurnViewProps> = ({
           {handleExit && (
             <>
               <span className={styles.divider} />
-              {exitLink ? (
-                <a
-                  href={exitLink}
-                  className={styles.button}
-                  title="Exit focus mode (Esc or f)"
-                  aria-label="Exit focus mode"
-                  onClick={inAppLinkClick(handleExit)}
-                >
-                  <i className={kExitFocusIcon} />
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.button}
-                  title="Exit focus mode (Esc or f)"
-                  aria-label="Exit focus mode"
-                  onClick={handleExit}
-                >
-                  <i className={kExitFocusIcon} />
-                </button>
-              )}
+              <InAppLink
+                href={exitHref}
+                onNavigate={handleExit}
+                className={styles.button}
+                title="Exit focus mode (Esc or f)"
+                aria-label="Exit focus mode"
+              >
+                <i className={kExitFocusIcon} />
+              </InAppLink>
             </>
           )}
         </div>
