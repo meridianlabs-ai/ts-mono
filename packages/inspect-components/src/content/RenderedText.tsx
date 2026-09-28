@@ -5,6 +5,7 @@ import {
   MarkdownDivWithReferences,
   MarkdownReference,
   Preformatted,
+  simpleMarkdownTruncate,
   untrustedText,
   untrustedTextClassName,
   useIsContentTrusted,
@@ -21,6 +22,9 @@ interface RenderedTextProps {
   className?: string | string[];
   forceRender?: boolean;
   renderer?: MarkdownRenderer;
+  /** Show at most about this many characters: markdown-aware when rendered
+   *  richly, plain text otherwise (untrusted content is never parsed). */
+  truncateAt?: number;
   options?: {
     previewRefsOnHover?: boolean;
   };
@@ -31,12 +35,25 @@ export const RenderedText = forwardRef<
   RenderedTextProps
 >(
   (
-    { markdown, references, style, className, forceRender, renderer, options },
+    {
+      markdown,
+      references,
+      style,
+      className,
+      forceRender,
+      renderer,
+      options,
+      truncateAt,
+    },
     ref
   ) => {
     const displayMode = useDisplayMode();
     const trusted = useIsContentTrusted();
     const { text, notice } = cappedText(markdown);
+    const plainText =
+      truncateAt === undefined
+        ? text
+        : simpleMarkdownTruncate(text, truncateAt);
 
     // forceRender overrides the display mode, never content trust.
     const body =
@@ -50,12 +67,13 @@ export const RenderedText = forwardRef<
           style={style}
           className={className}
           renderer={renderer}
+          truncateAt={truncateAt}
         />
       ) : (
         <Preformatted
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLPreElement>}
-          text={trusted ? text : untrustedText(text)}
+          text={trusted ? plainText : untrustedText(plainText)}
           style={style}
           className={clsx(className, !trusted && untrustedTextClassName)}
         />

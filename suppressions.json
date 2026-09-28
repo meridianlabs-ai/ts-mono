@@ -654,11 +654,6 @@
       "count": 2
     }
   },
-  "apps/inspect/src/utils/markdown.test.ts": {
-    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
-      "count": 1
-    }
-  },
   "apps/inspect/src/utils/workQueue.ts": {
     "@typescript-eslint/no-floating-promises": {
       "count": 2,
@@ -1455,6 +1450,11 @@
     "no-misleading-character-class": {
       "count": 1,
       "undescribed": 1
+    }
+  },
+  "packages/react/src/components/markdownTruncate.test.ts": {
+    "@typescript-eslint/no-unsafe-type-assertion (file-wide)": {
+      "count": 1
     }
   },
   "packages/react/src/components/MenuActionButton.tsx": {

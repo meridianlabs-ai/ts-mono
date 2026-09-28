@@ -1,5 +1,7 @@
 import MarkdownIt, { type Token } from "markdown-it";
 
+import { simpleMarkdownTruncate } from "./markdownText";
+
 /**
  * Truncates markdown text to a target length while preserving markdown syntax
  * and avoiding word breaks.
@@ -256,30 +258,4 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
 
   // Last resort: return the substring
   return substr;
-}
-
-/**
- * Simple markdown truncation that falls back to basic string slicing
- * This is a faster alternative when markdown parsing isn't critical
- */
-export function simpleMarkdownTruncate(
-  markdown: string,
-  maxLength: number = 250,
-  ellipsis: string = "..."
-): string {
-  if (!markdown || markdown.length <= maxLength) {
-    return markdown;
-  }
-
-  const targetLength = maxLength - ellipsis.length;
-  const truncated = markdown.slice(0, targetLength);
-
-  // Find the last space to avoid cutting words
-  const lastSpace = truncated.lastIndexOf(" ");
-  if (lastSpace > 0) {
-    return truncated.slice(0, lastSpace) + ellipsis;
-  }
-
-  // If no space found, just truncate at target length
-  return truncated + ellipsis;
 }
