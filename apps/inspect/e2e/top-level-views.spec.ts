@@ -7,7 +7,7 @@
  * - Each view renders its expected content
  * - Route prefixes are preserved when navigating into a log and back
  */
-import type { BrowserContext, Locator, Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { expect, test } from "./fixtures/app";
 import {
@@ -371,18 +371,16 @@ test.describe("Open in new tab", () => {
   // current page stays where it was.
   const expectOpensInNewTab = async (
     page: Page,
-    context: BrowserContext,
     link: Locator,
     url: RegExp
   ) => {
     const before = page.url();
-    const [newPage] = await Promise.all([
-      context.waitForEvent("page"),
-      link.click({ modifiers: ["ControlOrMeta"] }),
-    ]);
-    await expectTabUrl(newPage, url);
+    await expectNewTab(
+      page,
+      () => link.click({ modifiers: ["ControlOrMeta"] }),
+      url
+    );
     expect(page.url()).toBe(before);
-    await newPage.close();
   };
 
   const serveTwoSamples = (
@@ -402,7 +400,6 @@ test.describe("Open in new tab", () => {
 
   test("the Tasks / Folders / Samples switcher opens views in a new tab", async ({
     page,
-    context,
     network,
   }) => {
     setupLogListHandlers(network);
@@ -422,7 +419,6 @@ test.describe("Open in new tab", () => {
     }
     await expectOpensInNewTab(
       page,
-      context,
       nav.getByRole("link", { name: "Folders" }),
       /#\/logs\/$/
     );
@@ -431,7 +427,7 @@ test.describe("Open in new tab", () => {
     await expect(page).toHaveURL(/#\/samples\//);
   });
 
-  test("log tabs open in a new tab", async ({ page, context, network }) => {
+  test("log tabs open in a new tab", async ({ page, network }) => {
     serveTwoSamples(network);
     await page.goto("/#/logs/two-samples.json");
     const infoTab = page.getByRole("tab", { name: "Info" });
@@ -439,7 +435,6 @@ test.describe("Open in new tab", () => {
 
     await expectOpensInNewTab(
       page,
-      context,
       infoTab,
       /#\/logs\/two-samples\.json\/info$/
     );
@@ -449,7 +444,6 @@ test.describe("Open in new tab", () => {
 
   test("sample tabs and prev/next open in a new tab", async ({
     page,
-    context,
     network,
   }) => {
     serveTwoSamples(network);
@@ -459,13 +453,11 @@ test.describe("Open in new tab", () => {
 
     await expectOpensInNewTab(
       page,
-      context,
       next,
       /#\/logs\/two-samples\.json\/samples\/sample\/2\/1\/transcript$/
     );
     await expectOpensInNewTab(
       page,
-      context,
       page.getByRole("tab", { name: "Messages" }),
       /#\/logs\/two-samples\.json\/samples\/sample\/1\/1\/messages$/
     );

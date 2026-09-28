@@ -53,9 +53,10 @@ mode, static hosting, VS Code, and the embeddable library.
   those variants skipped unless launched in that host.
 - **New-tab links.** Assert the control's `href` (it is `toFullUrl(route)`, so
   it keeps the page's `?query`), then Cmd/Ctrl-click with
-  `link.click({ modifiers: ["ControlOrMeta"] })` inside
-  `Promise.all([context.waitForEvent("page"), ...])`. Assert the new tab's
-  location and that the current page's URL is unchanged, and still check a
+  `link.click({ modifiers: ["ControlOrMeta"] })` via `expectNewTab` from
+  `apps/inspect/e2e/fixtures/new-tab.ts` (not `context.waitForEvent("page")`,
+  which intermittently never fires for these background tabs). Assert the new
+  tab's URL and that the current page's URL is unchanged, and still check a
   plain click navigates in place.
 - **Log-location gate.** Only a static-HTTP host triggers it, so drive it the
   way `apps/inspect/e2e/log-location-trust.spec.ts` does: assert
