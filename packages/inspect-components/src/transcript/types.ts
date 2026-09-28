@@ -17,6 +17,7 @@ import type {
   SandboxEvent,
   ScoreEditEvent,
   ScoreEvent,
+  SentinelEvent,
   SpanBeginEvent,
   SpanEndEvent,
   StateEvent,
@@ -85,6 +86,7 @@ export type EventType =
   | AnchorEvent
   | ApprovalEvent
   | ReviewEvent
+  | SentinelEvent
   | BranchEvent
   | CheckpointEvent
   | CompactionEvent
@@ -112,6 +114,7 @@ export const eventTypeValues = [
   "anchor",
   "approval",
   "review",
+  "sentinel",
   "branch",
   "checkpoint",
   "compaction",
