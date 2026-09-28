@@ -581,6 +581,8 @@ export interface components {
             inspect_version: string;
             /** Scout Version */
             scout_version?: string | null;
+            /** Trust Content */
+            trust_content?: boolean | null;
         };
         /**
          * ApprovalEvent
