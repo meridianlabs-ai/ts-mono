@@ -17,12 +17,8 @@ links, and the dedicated printable sample page.
   tab, and formats page headings/breaks for printing.
 - `message-links` copies absolute deep links to individual messages/events in
   hosted environments.
-- `event-evidence` selects transcript events and copies, downloads, or prints
-  just those: a Select toggle in the sample toolbar (`Select · N | ×` once
-  events are checked), a hover checkbox in each event header (shift-click
-  selects a range of visible rows), Copy/Download acting on the selection
-  under a "Selected events (N)" heading, and `Print · N` opening the print
-  route with `events=` params.
+- `event-evidence` exports only checked transcript events via Copy, Download,
+  or Print.
 
 ## How to get to it (user POV)
 
@@ -31,8 +27,8 @@ links, and the dedicated printable sample page.
 - Cmd/Ctrl-P from a standalone sample opens the dedicated print page. VS Code
   leaves printing to the host.
 - Use a message/event link affordance when the hosted surface exposes it.
-- In Transcript, press Select or hover an event header and check it, then use
-  Copy, Download, or Print.
+- In Transcript, press Select; every selectable event header then shows a
+  checkbox. Check events, then use Copy, Download, or Print.
 
 ## Driving it with Playwright
 
@@ -47,9 +43,10 @@ links, and the dedicated printable sample page.
   printable sample identity.
 - Do not invoke copy/download menu items when their source (for example settled
   messages on a live sample) is intentionally unavailable.
-- Evidence: check events with
-  `getByRole("checkbox", { name: "Select event" })` (hover the header first;
-  shift-click another for a range), then assert the Copy/Download menu shows
+- Evidence: press `Select`, check events with
+  `getByRole("checkbox", { name: "Select event" })` (shift-click another for
+  a range of visible rows; the toolbar reads `Select · N`), then assert the
+  Copy/Download menu shows
   "Selected events (N)" and that `Print · N` opens `/print` with `events=`
   params rendering only those events. Clear with
   `getByRole("button", { name: "Clear selection and exit" })`.
@@ -82,5 +79,6 @@ links, and the dedicated printable sample page.
   change elsewhere. Always record the toggle state in a visual bug report.
 - Popup safety is part of correctness: print/new-tab paths must not expose
   `window.opener`, and user strings must remain literal.
-- The event selection is cleared when the sample changes. While a selection
-  exists, Copy, Download, and Print act on it rather than the whole sample.
+- Select exists only on a non-chunked Transcript tab; switching tab or sample
+  starts unlatched and empty. While a selection exists, Copy, Download, and
+  Print act on it rather than the whole sample.

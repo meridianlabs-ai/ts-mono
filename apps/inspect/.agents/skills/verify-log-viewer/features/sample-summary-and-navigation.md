@@ -35,7 +35,7 @@ bar, and scroll/header state while moving between samples.
   `"Previous sample"` and with the keyboard. Assert URL identity, summary
   content, enabled/disabled ends, and that filtering limits siblings. A
   disabled chevron is still `role="link"`, with `aria-disabled="true"` and no
-  `href`.
+  `href`, and keeps keyboard focus when it disables under the cursor.
 - Scroll one tab, switch tabs and back (position retained), move to a sibling
   (starts at top), then return later (fresh visit starts at top).
 - Deep-link to `?message=` or `?event=` and assert the target lands below the
@@ -64,9 +64,6 @@ bar, and scroll/header state while moving between samples.
 
 - Sibling navigation respects the active filtered sample set, not necessarily
   every sample in the log.
-- Once either chevron is a link, both stay `<a>`: a chevron that becomes
-  disabled (Next on the last sample) keeps keyboard focus instead of
-  remounting as a `<div>`.
 - Sample ids can be strings and can contain `/`; URL encoding errors often
   present as a navigation/selection bug.
 - Scroll snapshots are visit-scoped on purpose. Returning through history is

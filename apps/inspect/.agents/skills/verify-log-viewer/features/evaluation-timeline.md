@@ -14,15 +14,17 @@ stopping across the evaluation run.
   "Open sample →"; both open a new tab on Cmd/Ctrl/middle-click.
 - `timeline-filters` toggles lanes/models and event categories and persists
   state per log.
-- `timeline-selection` keeps chart markers, list rows, minimap/range, and
-  programmatic links from Task/Models/Samples in sync.
+- `timeline-selection` keeps chart markers, list rows, and minimap/range in
+  sync. "View on timeline" links (config chips, the SecondaryBar change
+  count, Models lanes) only select the Timeline tab; a Models lane also turns
+  on that model's Connections band.
 - `timeline-live` extends active sample series while a run is in progress.
 
 ## How to get to it (user POV)
 
 - Open a log and choose `Timeline`.
-- Click markers or history rows, change filters/range, and use links from
-  changed-config chips, model usage, or the Samples tab.
+- Click markers or history rows, change filters/range, and use the "View on
+  timeline" links from changed-config chips or Models lanes.
 
 ## Driving it with Playwright
 
@@ -30,11 +32,12 @@ stopping across the evaluation run.
   history, retries, or overlapping samples. A plain completed fixture may
   render a valid but sparse timeline.
 - Assert visible lane/filter labels and fixture-specific marker/history text.
-  Click a history row and assert the corresponding chart selection/popover.
+  Click a history row and assert the chart marker highlights. The sample
+  popover opens on hover over a sample column, not on a row click.
 - Toggle one model or event class and assert both chart and history respond.
-- Enter via a config-change chip's or the Models tab's "View on timeline" link
-  and assert the selected tab plus focused time range/filter. The chart
-  popover opens on hover over a sample column, not on a history-row click.
+- Enter via a config-change chip's "View on timeline" link or a Models lane's
+  `Timeline` link and assert Timeline is selected (from a Models lane, also
+  that model's Connections band).
 - For a running log, wait on a visible active-series change rather than a
   fixed delay; assert settled markers after completion.
 
@@ -60,5 +63,5 @@ stopping across the evaluation run.
   markers against the viewer-rich baseline unless the underlying log has them.
 - Updates carry provenance and apply in order. Sorting by label or render
   arrival can corrupt the effective history.
-- Programmatic entry sets more than the workspace tab: it may also seed time
-  range, lane, model, or selected marker in persisted property bags.
+- Programmatic entry sets only the workspace tab, plus the Connections band
+  for a Models lane. It seeds no time range, filter, or selected marker.

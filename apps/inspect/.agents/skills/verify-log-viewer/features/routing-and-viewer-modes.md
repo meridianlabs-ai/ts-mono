@@ -21,7 +21,8 @@ mode, static hosting, VS Code, and the embeddable library.
   Tasks/Folders/Samples switcher, "View on timeline", the timeline's sample
   links, Flow, focus-mode exit, and reference/outline links. Plain clicks
   navigate in place; Cmd/Ctrl/Shift/middle-click and "Open link in new tab"
-  are the browser's. Inside VS Code these render as buttons.
+  are the browser's. Inside VS Code they fall back to buttons (grid rows to
+  `div role="row"`); outline and reference anchors stay `<a>`.
 - `log-location-gate` holds a cross-origin `?log_dir=` / `?log_file=` on a
   browser-direct (static HTTP) backend behind an approval prompt; no request
   reaches that origin until the user opens it.
@@ -56,6 +57,12 @@ mode, static hosting, VS Code, and the embeddable library.
   `Promise.all([context.waitForEvent("page"), ...])`. Assert the new tab's
   location and that the current page's URL is unchanged, and still check a
   plain click navigates in place.
+- **Log-location gate.** Only a static-HTTP host triggers it, so drive it the
+  way `apps/inspect/e2e/log-location-trust.spec.ts` does: assert
+  `getByTestId("log-location-gate")` /
+  `getByRole("alertdialog", { name: /Open logs from/ })`, that no request
+  reaches the proposed origin, then `Open` or `Don't open` (which strips the
+  proposal from the URL).
 
 ## Code landmarks
 
@@ -97,9 +104,10 @@ mode, static hosting, VS Code, and the embeddable library.
 - `page.url()` stays `about:blank` for a background tab opened by a native
   link gesture. Read `tab.evaluate(() => location.href)` (retrying while its
   first navigation replaces the context) instead.
-- A link's href and its plain-click handler share one route computation. A
-  new tab landing somewhere different from a plain click is a bug in that
-  shared route, not in the link component.
+- Sample prev/next and sample tabs build the href and the plain-click route
+  from one computation (`sampleNavigation.ts`); a new tab landing somewhere
+  different from a plain click there is a route bug, not a link-component
+  bug.
 - `?log_dir=` / `?log_file=` on the same origin, or on a proxied backend (view
-  server, VS Code, embedder), loads without the gate; only browser-direct
-  cross-origin locations prompt.
+  server, VS Code, embedder), loads without the gate; browser-direct
+  cross-origin locations prompt, and so do `data:` or unparseable ones.

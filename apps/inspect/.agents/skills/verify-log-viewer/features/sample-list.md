@@ -18,7 +18,7 @@ sample detail.
 - `samples-status-fields` promotes error, limit, retries, and fallback columns
   when data exists and keeps score/status semantics consistent with detail.
 - `samples-cost` offers an optional Cost column (`cost`, hidden by default),
-  blank when any of the sample's model usage has no known price.
+  blank when any model that used tokens recorded no cost.
 - `samples-single` renders a single sample inline instead of a pointless
   one-row grid where that mode applies.
 
@@ -69,8 +69,9 @@ Preconditions:
   `apps/inspect/src/app/samples/SamplesTools.tsx`, and
   `apps/inspect/src/app/samples/sample-tools/`.
 - Shared row/columns/grid state: `apps/inspect/src/app/shared/samples-grid/`.
-- Filter language: parsed and evaluated by `packages/filter-expression/`,
-  compiled from `apps/inspect/src/app/samples/sample-tools/filters.ts`.
+- Filter language: parsed and evaluated by `packages/filter-expression/`;
+  `apps/inspect/src/app/samples/sample-tools/filters.ts` supplies the fields
+  and helper functions.
 - Cost: `packages/inspect-common/src/utils/modelCost.ts`, derived per sample in
   `apps/inspect/src/client/utils/derive.ts`.
 - Listing data: `apps/inspect/src/log_data/samplesListing.ts`,
@@ -95,5 +96,5 @@ Preconditions:
 - Filters operate on summary/listing fields. Do not load every full sample to
   make a grid filter work.
 - The filter language is interpreted, never compiled to code, so it works
-  under a strict CSP. A wrong filter result usually belongs in
-  `packages/filter-expression/`, not the grid.
+  under a strict CSP. Operator and parse behavior is in
+  `packages/filter-expression/`; field names and helpers are in `filters.ts`.

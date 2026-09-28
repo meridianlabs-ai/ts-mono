@@ -31,9 +31,10 @@ The viewer is a hash-routed React app (`#/...` URLs). Prefer, in order:
 
 1. `getByRole` — `grid` (named "Evaluation logs" / "Samples"), `row`,
    `gridcell`, `columnheader`, `tab`, `dialog`, `button`, `link`,
-   `navigation`. Controls that navigate to another view (tabs, prev/next,
-   the view switcher, "View on timeline", focus exit) are links outside
-   VS Code; in-page controls stay buttons.
+   `navigation`. Controls that navigate to another view (tabs, rows, prev/next,
+   the view switcher, "View on timeline", focus exit) render as `<a href>`
+   outside VS Code; tabs and rows keep their `tab`/`row` roles, the rest are
+   `link`. In-page controls stay buttons.
 2. `getByLabel` / aria-label, then `getByPlaceholder`.
 3. The few explicit test ids: `error-panel`, `score-grid`, `find-band-*`.
 4. Stable DOM ids: `#<tabId>-contents` tab panels, `[id^="sample-heading-"]`,

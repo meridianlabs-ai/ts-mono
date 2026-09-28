@@ -43,7 +43,8 @@ links into the evaluation timeline.
 - Shared usage rendering and derivation:
   `packages/inspect-components/src/usage/`, especially `UsagePanel.tsx`,
   `ModelTokenTable.tsx`, `configsForUsage.ts`, and `roleAliases.ts`; cost
-  pricing is `packages/inspect-common/src/utils/modelCost.ts`.
+  totals (sums of recorded `total_cost`) are
+  `packages/inspect-common/src/utils/modelCost.ts`.
 - Model-role normalization: `packages/inspect-common/src/utils/modelRoles.ts`.
 - Timeline handoff: `apps/inspect/src/app/log-view/useTimelineNavigation.ts`.
 - Regression coverage: tests beside the usage utilities and

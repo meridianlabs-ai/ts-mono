@@ -13,9 +13,10 @@ labels; deep links; event selection; and focused-turn view.
   errors, approvals, retry chips, and stop reasons.
 - `score-state-events` show typed score values/reasons and state/store diffs
   that list only the changed paths, not whole before/after documents.
-- `review-events` render tool-result review events (ReviewEvent).
-- `event-selection` puts a hover checkbox in each event header for selecting
-  events as evidence; see [Export, JSON, and print](./export-json-print.md).
+- `review-events` show a Reviewed/Terminated/Escalated decision on a tool
+  result, with the reviewer and explanation.
+- `event-selection`: after Select, each event header has a checkbox for
+  choosing evidence; see [Export, JSON, and print](./export-json-print.md).
 - `event-deeplink` resolves events/messages across timelines, hidden filters,
   collapsed spans, branches, and lanes.
 - `turn-navigation` labels model turns and supports previous/next, `j`/`k`, and
