@@ -205,6 +205,43 @@ const recordRichContent = async (page: Page) => {
     );
 };
 
+// Modules that interpret content richly (and the libraries behind them). They
+// load on demand, only for trusted content; the dev server serves each as its
+// own request, so a request for one means it loaded.
+const RICH_RENDERING_MODULES = [
+  "markdownPipeline",
+  "markdownRendering",
+  "markdownTruncate",
+  "renderedHtmlSanitizer",
+  "prismHighlighter",
+  "AnsiDisplayRich",
+  "AsciinemaPlayerImpl",
+  "markdown-it",
+  "mathjax",
+  "dompurify",
+  "prismjs",
+  "ansi-output",
+  "asciinema-player",
+];
+
+/** Record every rich-rendering module the page requests. */
+const recordRichRenderingModules = (page: Page) => {
+  const requested = new Set<string>();
+  page.on("request", (request) => {
+    const url = request.url();
+    // Prism's theme is a stylesheet the page loads regardless; it runs nothing.
+    if (url.includes("/prismjs/themes/")) {
+      return;
+    }
+    for (const name of RICH_RENDERING_MODULES) {
+      if (url.toLowerCase().includes(name.toLowerCase())) {
+        requested.add(name);
+      }
+    }
+  });
+  return () => [...requested].sort();
+};
+
 /** Open the focus view of the sample's final model call. */
 const openEventFocus = async (page: Page, label: Label) => {
   await openView(page, sampleUrl(label, "transcript"), /Sample 1:/);
@@ -268,6 +305,20 @@ test.describe("an untrusted log", () => {
     expect(await recorded("untrusted")).toEqual([]);
   });
 
+  test("never loads the rich-rendering libraries", async ({
+    page,
+    network,
+  }) => {
+    serveFixtures(network);
+    const requested = recordRichRenderingModules(page);
+    for (const view of VIEWS) {
+      await openView(page, view.url("untrusted"), view.ready);
+      await collectMarkers(page);
+    }
+    await openEventFocus(page, "untrusted");
+    expect(requested()).toEqual([]);
+  });
+
   test("stays plain when navigated to from a trusted log", async ({
     page,
     network,
@@ -308,6 +359,25 @@ test.describe("a trusted log", () => {
     const markers = await collectMarkers(page);
     expect(markers.links).toBeGreaterThan(0);
     expect(markers.markdown).toBeGreaterThan(0);
+  });
+
+  test("loads the rich-rendering libraries it needs", async ({
+    page,
+    network,
+  }) => {
+    serveFixtures(network);
+    const requested = recordRichRenderingModules(page);
+    for (const view of VIEWS) {
+      await openView(page, view.url("trusted"), view.ready);
+      await collectMarkers(page);
+    }
+    expect(requested()).toEqual(
+      expect.arrayContaining([
+        "AnsiDisplayRich",
+        "markdownPipeline",
+        "prismHighlighter",
+      ])
+    );
   });
 
   test("renders richly when navigated to from an untrusted log", async ({
@@ -372,6 +442,19 @@ test.describe("a viewer started with --no-trust-content", () => {
       expect(await collectMarkers(page)).toEqual(NONE);
     });
   }
+
+  test("never loads the rich-rendering libraries", async ({
+    page,
+    network,
+  }) => {
+    serveUntrustedViewer(network);
+    const requested = recordRichRenderingModules(page);
+    for (const view of VIEWS) {
+      await openView(page, view.url("trusted"), view.ready);
+      await collectMarkers(page);
+    }
+    expect(requested()).toEqual([]);
+  });
 
   test("never renders a trusted log's content richly, even transiently", async ({
     page,
