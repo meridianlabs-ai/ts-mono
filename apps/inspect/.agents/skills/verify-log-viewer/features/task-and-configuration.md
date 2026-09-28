@@ -27,7 +27,7 @@ configuration, mid-run changes, early stopping, and task arguments.
   least one config or task-arg value.
 - For a revision fixture, assert both visible commit text and the anchor href.
 - With config updates, assert the effective final value and change badge, then
-  click View Timeline and assert Timeline selection/filter state.
+  click "View on timeline" and assert Timeline selection/filter state.
 - With early stopping, assert manager and skipped count plus a known metadata
   leaf. Report the section unavailable on ordinary fixtures.
 

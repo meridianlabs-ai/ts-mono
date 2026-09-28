@@ -9,7 +9,9 @@ stopping across the evaluation run.
 - `timeline-chart` plots run duration, sample activity, connection bands, and
   markers against a common time window.
 - `timeline-history` lists the same events with human-readable labels and
-  provenance.
+  provenance. Rows for errored, limit-terminated, or cancelled samples carry
+  an "open →" link to the sample, and the chart's sample popover has
+  "Open sample →"; both open a new tab on Cmd/Ctrl/middle-click.
 - `timeline-filters` toggles lanes/models and event categories and persists
   state per log.
 - `timeline-selection` keeps chart markers, list rows, minimap/range, and
@@ -30,8 +32,9 @@ stopping across the evaluation run.
 - Assert visible lane/filter labels and fixture-specific marker/history text.
   Click a history row and assert the corresponding chart selection/popover.
 - Toggle one model or event class and assert both chart and history respond.
-- Enter via a Config change or View Timeline action elsewhere and assert the
-  selected tab plus focused time range/filter.
+- Enter via a config-change chip's or the Models tab's "View on timeline" link
+  and assert the selected tab plus focused time range/filter. The chart
+  popover opens on hover over a sample column, not on a history-row click.
 - For a running log, wait on a visible active-series change rather than a
   fixed delay; assert settled markers after completion.
 

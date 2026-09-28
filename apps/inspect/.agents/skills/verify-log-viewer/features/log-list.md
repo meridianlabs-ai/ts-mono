@@ -9,7 +9,9 @@ activating a row opens that log.
 
 - `list-render` shows one row per log with status icon, task, model, score.
 - `list-views` switches Tasks / Folders / Samples via the segmented control.
-- `list-open` opens a log from a row (click or Enter) and routes to it.
+- `list-open` opens a log from a row (click or Enter) and routes to it. Rows
+  are links, so Cmd/Ctrl/middle-click open the log in a new tab (see
+  [Routing and viewer modes](./routing-and-viewer-modes.md)).
 - `list-filter` filters rows per column via the header funnel button.
 - `list-find` incremental find across the grid (Cmd/Ctrl-F band).
 - `list-sort-columns` sorts, resizes, reorders, and shows/hides columns while
@@ -37,11 +39,14 @@ Preconditions:
   visible. Cells carry `data-col-id="<columnId>"` (`task`, `model`, `score`,
   `status`, `totalSamples`, …) for column-scoped assertions.
 - **Switch views.** Scope to the navbar to avoid name collisions:
-  `page.getByRole("navigation").getByRole("button", { name: "Folders" })`
-  (also `"Tasks"`, `"Samples"`). After switching, the URL is `#/logs` /
-  `#/tasks` and the grid re-renders.
-- **Open a log.** Click a `gridcell` in the target row (rows are divs with
-  onClick — there is no link role), then `page.waitForURL(/#\/tasks\//)` (or
+  `page.getByRole("navigation").getByRole("link", { name: "Folders" })`
+  (also `"Tasks"`, `"Samples"`). The segments are links with
+  `aria-current="page"` on the current view. After switching, the URL is
+  `#/logs` / `#/tasks` and the grid re-renders.
+- **Open a log.** Click a `gridcell` in the target row (outside VS Code
+  rows render as `<a role="row" href>`; either way they expose the `row`
+  role, not `link`), then
+  `page.waitForURL(/#\/tasks\//)` (or
   `/#\/logs\//` from Folders view). The log view renders with a
   `getByRole("tab", { name: /^Samples?$/ })` tab ("Sample" when the log has
   exactly one).
@@ -88,8 +93,10 @@ the coverage in [Shared grid behavior](./shared-grid-behavior.md).
   match header text with
   `getByRole("columnheader").filter({ has: page.getByText("Task", { exact: true }) })`,
   not by accessible name.
-- Buttons whose aria-labels contain "Samples" exist outside the navbar;
-  always scope the view switcher to `getByRole("navigation")`.
+- Controls whose accessible names contain "Samples" exist outside the navbar;
+  always scope the view switcher to `getByRole("navigation")`. The segments'
+  accessible names include an icon glyph (e.g. `" Folders"`), so don't match
+  them with `exact: true`.
 - The grid is virtualized: a row far down the list may not be in the DOM
   until scrolled. Filter or find instead of scrolling blindly, and count via
   the footer text, never via DOM rows.

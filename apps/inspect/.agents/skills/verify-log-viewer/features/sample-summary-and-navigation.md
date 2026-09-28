@@ -12,7 +12,9 @@ bar, and scroll/header state while moving between samples.
 - `sample-header-collapse` condenses the summary while scrolling and starts
   collapsed for event/message deep links.
 - `sample-siblings` moves previous/next within the currently filtered sample
-  set and disables controls at the ends.
+  set and disables controls at the ends. The chevrons are links to the
+  sibling sample on the current tab (Cmd/Ctrl/middle-click open it in a new
+  tab); in focus mode they stay in focus mode.
 - `sample-visit-state` keeps tab scroll positions within one visit but starts
   a different sample or later revisit at the top.
 - `sample-invalidation` warns when configuration changes make a sample stale.
@@ -20,8 +22,8 @@ bar, and scroll/header state while moving between samples.
 ## How to get to it (user POV)
 
 - Open any row in a log's Samples tab or the top-level Samples view.
-- Use Previous/Next buttons or ArrowLeft/ArrowRight to move among sibling
-  samples.
+- Use the previous/next chevrons or ArrowLeft/ArrowRight to move among
+  sibling samples.
 - Scroll content to collapse the summary; use an event/message deep link to
   land below it.
 
@@ -29,8 +31,11 @@ bar, and scroll/header state while moving between samples.
 
 - Assert `[id^="sample-heading-"]` contains fixture-specific input, target,
   answer, and score plus visible sample id/epoch in the navbar.
-- Move next and previous with buttons and keyboard. Assert URL identity,
-  summary content, enabled/disabled ends, and that filtering limits siblings.
+- Move next and previous with `getByRole("link", { name: "Next sample" })` /
+  `"Previous sample"` and with the keyboard. Assert URL identity, summary
+  content, enabled/disabled ends, and that filtering limits siblings. A
+  disabled chevron is still `role="link"`, with `aria-disabled="true"` and no
+  `href`.
 - Scroll one tab, switch tabs and back (position retained), move to a sibling
   (starts at top), then return later (fresh visit starts at top).
 - Deep-link to `?message=` or `?event=` and assert the target lands below the
@@ -42,8 +47,9 @@ bar, and scroll/header state while moving between samples.
 
 - Detail shells/navigation: `apps/inspect/src/app/log-view/LogSampleDetailView.tsx`,
   `apps/inspect/src/app/samples-panel/SampleDetailView.tsx`,
-  `apps/inspect/src/app/samples/SampleNavbar.tsx`, and
-  `apps/inspect/src/app/routing/sampleNavigation.ts`.
+  `apps/inspect/src/app/samples/SampleNavbar.tsx`,
+  `apps/inspect/src/app/routing/sampleNavigation.ts`, and the shared chevrons
+  in `packages/react/src/components/NextPreviousNav.tsx`.
 - Summary: `apps/inspect/src/app/samples/SampleSummaryView.tsx`,
   `header-v2/`, `status/`, and `error/`.
 - Tab/visit/scroll orchestration: `apps/inspect/src/app/samples/SampleDisplay.tsx`
@@ -58,6 +64,9 @@ bar, and scroll/header state while moving between samples.
 
 - Sibling navigation respects the active filtered sample set, not necessarily
   every sample in the log.
+- Once either chevron is a link, both stay `<a>`: a chevron that becomes
+  disabled (Next on the last sample) keeps keyboard focus instead of
+  remounting as a `<div>`.
 - Sample ids can be strings and can contain `/`; URL encoding errors often
   present as a navigation/selection bug.
 - Scroll snapshots are visit-scoped on purpose. Returning through history is

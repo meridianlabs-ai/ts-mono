@@ -17,6 +17,12 @@ links, and the dedicated printable sample page.
   tab, and formats page headings/breaks for printing.
 - `message-links` copies absolute deep links to individual messages/events in
   hosted environments.
+- `event-evidence` selects transcript events and copies, downloads, or prints
+  just those: a Select toggle in the sample toolbar (`Select · N | ×` once
+  events are checked), a hover checkbox in each event header (shift-click
+  selects a range of visible rows), Copy/Download acting on the selection
+  under a "Selected events (N)" heading, and `Print · N` opening the print
+  route with `events=` params.
 
 ## How to get to it (user POV)
 
@@ -25,6 +31,8 @@ links, and the dedicated printable sample page.
 - Cmd/Ctrl-P from a standalone sample opens the dedicated print page. VS Code
   leaves printing to the host.
 - Use a message/event link affordance when the hosted surface exposes it.
+- In Transcript, press Select or hover an event header and check it, then use
+  Copy, Download, or Print.
 
 ## Driving it with Playwright
 
@@ -39,12 +47,22 @@ links, and the dedicated printable sample page.
   printable sample identity.
 - Do not invoke copy/download menu items when their source (for example settled
   messages on a live sample) is intentionally unavailable.
+- Evidence: check events with
+  `getByRole("checkbox", { name: "Select event" })` (hover the header first;
+  shift-click another for a range), then assert the Copy/Download menu shows
+  "Selected events (N)" and that `Print · N` opens `/print` with `events=`
+  params rendering only those events. Clear with
+  `getByRole("button", { name: "Clear selection and exit" })`.
 
 ## Code landmarks
 
 - Log JSON: `apps/inspect/src/app/log-view/tabs/JsonTab.tsx`.
 - Sample toolbar/JSON: `apps/inspect/src/app/samples/SampleDisplay.tsx` and
   `SampleJSONView.tsx`; message export is `apps/inspect/src/log_data/messagesExport.ts`.
+- Evidence selection: `packages/inspect-components/src/transcript/selection/`
+  (`EventSelectCheckbox.tsx`, `TranscriptSelectTool.tsx`,
+  `transcriptSelection.ts`) and selection state in
+  `apps/inspect/src/state/sampleSlice.ts`.
 - Print route/rendering: `apps/inspect/src/app/samples/print/`,
   `apps/inspect/src/app/routing/RouteDispatcher.tsx`, and URL builders in
   `apps/inspect/src/app/routing/url.ts`.
@@ -64,3 +82,5 @@ links, and the dedicated printable sample page.
   change elsewhere. Always record the toggle state in a visual bug report.
 - Popup safety is part of correctness: print/new-tab paths must not expose
   `window.opener`, and user strings must remain literal.
+- The event selection is cleared when the sample changes. While a selection
+  exists, Copy, Download, and Print act on it rather than the whole sample.
