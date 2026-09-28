@@ -37,7 +37,7 @@ configuration, mid-run changes, early stopping, and task arguments.
   `ConfigCard.tsx`.
 - Header summary and timeline handoff:
   `apps/inspect/src/app/log-view/title-view/SecondaryBar.tsx` and
-  `apps/inspect/src/app/log-view/useShowTimeline.ts`.
+  `apps/inspect/src/app/log-view/useTimelineNavigation.ts`.
 - Effective config folding: `packages/inspect-common/src/utils/effectiveConfig.ts`
   and the generated log types in `packages/inspect-common/src/types/`.
 - Generic records/copy: `packages/inspect-components/src/content/`.

@@ -43,7 +43,7 @@ links into the evaluation timeline.
   `packages/inspect-components/src/usage/`, especially `UsagePanel.tsx`,
   `ModelTokenTable.tsx`, `configsForUsage.ts`, `cost.ts`, and `roleAliases.ts`.
 - Model-role normalization: `packages/inspect-common/src/utils/modelRoles.ts`.
-- Timeline handoff: `apps/inspect/src/app/log-view/useShowTimeline.ts`.
+- Timeline handoff: `apps/inspect/src/app/log-view/useTimelineNavigation.ts`.
 - Regression coverage: tests beside the usage utilities and
   `apps/inspect/src/app/log-view/tabs/timeline/timelineData.test.ts`.
 

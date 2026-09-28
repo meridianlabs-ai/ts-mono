@@ -26,32 +26,39 @@ export const useTimelineLogKey = (name: string): string => {
 export const useTimelineBandsKey = (): string =>
   useTimelineLogKey(kTimelineBandsKey);
 
+/** Where a "View on timeline" link goes, and the in-app navigation there. */
+export interface TimelineNavigation<Args extends unknown[] = []> {
+  href: string | undefined;
+  show: (...args: Args) => void;
+}
+
 /**
- * Navigate to the Timeline tab — the in-app target of every "View on
- * timeline" affordance (config chips, connection lanes, popovers). Those
- * render as links to {@link useTimelineHref}, so new-tab gestures never reach
- * this.
+ * The Timeline tab as the target of every "View on timeline" affordance
+ * (config chips, connection lanes, popovers): its URL for the link, and the
+ * in-app navigation for plain clicks.
  */
-export const useShowTimeline = (): (() => void) => {
+export const useTimelineNavigation = (): TimelineNavigation => {
   const setWorkspaceTab = useStore((state) => state.appActions.setWorkspaceTab);
   const navigation = useLogNavigationAction();
-  return useCallback(() => {
+  const show = useCallback(() => {
     setWorkspaceTab(kLogViewTimelineTabId);
     navigation.selectTab(kLogViewTimelineTabId);
   }, [setWorkspaceTab, navigation]);
+  return {
+    href: toFullUrlMaybe(navigation.getTabUrl(kLogViewTimelineTabId)),
+    show,
+  };
 };
 
-/** The Timeline tab's URL, for "View on timeline" links. */
-export const useTimelineHref = (): string | undefined =>
-  toFullUrlMaybe(useLogNavigationAction().getTabUrl(kLogViewTimelineTabId));
-
 /**
- * Navigate to the Timeline tab with a model's Connections band toggled on
- * (the Models tab's deep link). A new tab opened from the link lands on the
- * timeline without the band: the toggle is per-tab state, not in the URL.
+ * The Timeline tab with a model's Connections band toggled on (the Models
+ * tab's deep link). A new tab opened from the link lands on the timeline
+ * without the band: the toggle is per-tab state, not in the URL.
  */
-export const useShowTimelineForModel = (): ((model: string) => void) => {
-  const showTimeline = useShowTimeline();
+export const useTimelineNavigationForModel = (): TimelineNavigation<
+  [model: string]
+> => {
+  const { href, show: showTimeline } = useTimelineNavigation();
   const bandsKey = useTimelineBandsKey();
   const setPropertyValue = useStore(
     (state) => state.appActions.setPropertyValue
@@ -60,7 +67,7 @@ export const useShowTimelineForModel = (): ((model: string) => void) => {
     const stored = state.app.propertyBags[kTimelineBag]?.[bandsKey];
     return isRecord(stored) ? stored : undefined;
   });
-  return useCallback(
+  const show = useCallback(
     (model: string) => {
       const bandId = timelineBandId("connections", model);
       setPropertyValue(kTimelineBag, bandsKey, {
@@ -71,4 +78,5 @@ export const useShowTimelineForModel = (): ((model: string) => void) => {
     },
     [setPropertyValue, bandsKey, bands, showTimeline]
   );
+  return { href, show };
 };

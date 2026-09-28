@@ -20,7 +20,7 @@ import {
 import { EvalLogStatus } from "../../../@types/extraInspect";
 import { kLogViewModelsTabId } from "../../../constants";
 import { useStore } from "../../../state/store";
-import { useShowTimelineForModel, useTimelineHref } from "../useShowTimeline";
+import { useTimelineNavigationForModel } from "../useTimelineNavigation";
 
 // Individual hook for Info tab
 export const useModelsTab = (
@@ -58,8 +58,8 @@ export const ModelTab: FC<ModelTabProps> = ({
   evalStatus,
   configUpdates,
 }) => {
-  const showTimelineForModel = useShowTimelineForModel();
-  const timelineHref = useTimelineHref();
+  const { href: timelineHref, show: showTimelineForModel } =
+    useTimelineNavigationForModel();
   const loadedLog = useStore((state) => state.log.loadedLog);
   const configsByModel = useMemo(
     () => buildConfigsByModel(evalSpec),

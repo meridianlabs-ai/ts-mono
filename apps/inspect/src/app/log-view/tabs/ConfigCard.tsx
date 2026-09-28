@@ -13,7 +13,7 @@ import {
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 
-import { useShowTimeline, useTimelineHref } from "../useShowTimeline";
+import { useTimelineNavigation } from "../useTimelineNavigation";
 
 import styles from "./ConfigCard.module.css";
 
@@ -28,8 +28,7 @@ interface ConfigCardProps {
  * exactly the plain launch-value grid.
  */
 export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
-  const showTimeline = useShowTimeline();
-  const timelineHref = useTimelineHref();
+  const { href: timelineHref, show: showTimeline } = useTimelineNavigation();
 
   const changes = useMemo(
     () => evalConfigChanges(configUpdates),

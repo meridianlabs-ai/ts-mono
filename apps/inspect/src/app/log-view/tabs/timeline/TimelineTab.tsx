@@ -40,7 +40,7 @@ import {
   timelineBandId,
   useTimelineBandsKey,
   useTimelineLogKey,
-} from "../../useShowTimeline";
+} from "../../useTimelineNavigation";
 
 import { HistoryList } from "./HistoryList";
 import type { SampleOpener } from "./OpenSampleLink";

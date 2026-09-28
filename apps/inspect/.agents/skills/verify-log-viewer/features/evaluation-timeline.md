@@ -41,7 +41,7 @@ stopping across the evaluation run.
 - Chart/list renderers: `TimelineChart.tsx` and `HistoryList.tsx` in the same
   directory; data shaping is `timelineData.ts`.
 - Cross-tab handoff and persisted keys:
-  `apps/inspect/src/app/log-view/useShowTimeline.ts`.
+  `apps/inspect/src/app/log-view/useTimelineNavigation.ts`.
 - Effective configuration and usage connection history:
   `packages/inspect-common/src/utils/effectiveConfig.ts` and
   `packages/inspect-components/src/usage/connectionHistory.ts`.
