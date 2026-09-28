@@ -38,6 +38,10 @@ vi.mock("markdown-it", async (importOriginal) => {
   loaded.add("markdown-it");
   return importOriginal();
 });
+vi.mock("markdown-it-mathjax3", async (importOriginal) => {
+  loaded.add("markdown-it-mathjax3");
+  return importOriginal();
+});
 vi.mock("dompurify", async (importOriginal) => {
   loaded.add("dompurify");
   return importOriginal();
@@ -69,6 +73,7 @@ const renderEverything = (trust: ContentTrust) =>
           <ContentTrustProvider value={trust}>
             <MarkdownDiv markdown={MARKDOWN} />
             <MarkdownDiv markdown={MARKDOWN} truncateAt={10} />
+            <MarkdownDiv markdown={"Math $x^2$"} />
             <MarkdownDivWithReferences
               markdown="See [M1]."
               references={[
@@ -98,7 +103,7 @@ describe("rich-rendering libraries", () => {
     expect([...loaded]).toEqual([]);
   });
 
-  it("load for trusted content", async () => {
+  it("load for trusted content", { timeout: 30000 }, async () => {
     renderEverything("trusted");
     await waitFor(
       () => {
@@ -109,13 +114,15 @@ describe("rich-rendering libraries", () => {
             "ansi-output",
             "dompurify",
             "markdown-it",
+            "markdown-it-mathjax3",
             "markdownPipeline",
             "prismHighlighter",
             "prismjs",
           ].sort()
         );
       },
-      { timeout: 10000 }
+      // MathJax is large; its first import can be slow on a cold runner.
+      { timeout: 20000 }
     );
   });
 });

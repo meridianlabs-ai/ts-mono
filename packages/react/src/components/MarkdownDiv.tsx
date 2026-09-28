@@ -11,6 +11,8 @@ import {
 
 import "./MarkdownDiv.css";
 
+import { onDemandModule } from "../hooks/onDemandModule";
+
 import {
   untrustedText,
   untrustedTextClassName,
@@ -20,33 +22,15 @@ import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
   simpleMarkdownTruncate,
+  truncationWindow,
   type MarkdownRenderer,
 } from "./markdownText";
 
 export type { MarkdownRenderer } from "./markdownText";
 
-type MarkdownPipeline = typeof import("./markdownPipeline");
-
 // The markdown pipeline (markdown-it, DOMPurify, MathJax) loads on first
 // trusted render, so none of it is fetched or run for untrusted content.
-let pipeline: MarkdownPipeline | undefined;
-let pipelinePromise: Promise<MarkdownPipeline> | null = null;
-const loadMarkdownPipeline = (): Promise<MarkdownPipeline> => {
-  if (!pipelinePromise) {
-    const loading = import("./markdownPipeline").then((loaded) => {
-      pipeline = loaded;
-      return loaded;
-    });
-    // Reset on rejection so a transient chunk-load failure retries next time.
-    loading.catch(() => {
-      if (pipelinePromise === loading) {
-        pipelinePromise = null;
-      }
-    });
-    pipelinePromise = loading;
-  }
-  return pipelinePromise;
-};
+const markdownPipeline = onDemandModule(() => import("./markdownPipeline"));
 
 interface MarkdownDivProps {
   markdown: string;
@@ -67,10 +51,15 @@ const sanitizeMarkdown = (md: string): string => {
 const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
   (props, ref) => {
     const trusted = useIsContentTrusted();
+    // Truncation reads only this much, so it's all that's rendered or cached.
+    const markdown =
+      props.truncateAt === undefined
+        ? props.markdown
+        : truncationWindow(props.markdown, props.truncateAt);
     return trusted ? (
-      <RichMarkdownDiv {...props} ref={ref} />
+      <RichMarkdownDiv {...props} markdown={markdown} ref={ref} />
     ) : (
-      <UntrustedMarkdownDiv {...props} ref={ref} />
+      <UntrustedMarkdownDiv {...props} markdown={markdown} ref={ref} />
     );
   }
 );
@@ -122,6 +111,7 @@ const RichMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
     const applyPostProcess = useCallback(
       (html: string): string => {
         // Rendered html (and so a cache hit) implies the pipeline is loaded.
+        const pipeline = markdownPipeline.loaded();
         if (!postProcess || !pipeline) {
           return html;
         }
@@ -155,7 +145,7 @@ const RichMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
       setRenderedHtml(placeholder);
 
       const { promise, cancel } = renderQueue.enqueue(async () => {
-        const loaded = await loadMarkdownPipeline();
+        const loaded = await markdownPipeline.load();
         const source =
           truncateAt === undefined
             ? markdown

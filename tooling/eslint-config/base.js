@@ -6,6 +6,8 @@ import { createTypeScriptImportResolver } from "eslint-import-resolver-typescrip
 import importPlugin from "eslint-plugin-import-x";
 import tseslint from "typescript-eslint";
 
+import { lazyRenderingLibraries } from "./lazy-rendering-libraries.js";
+
 // Everything JS/TS-flavored must be files-scoped: unscoped blocks apply to
 // every linted file, and JS rules / TS parser options crash on the css
 // language used by the *.module.css block below.
@@ -49,7 +51,10 @@ export default tseslint.config(
       // Disallow `void` as an escape hatch for floating promises — prefixing a
       // hanging promise with `void` silently drops errors. Mark genuine cases
       // with an eslint-disable-next-line comment so the issue stays visible.
-      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+      "@typescript-eslint/no-floating-promises": [
+        "error",
+        { ignoreVoid: false },
+      ],
       // A type assertion is an unchecked claim, so `as` silences exactly the
       // errors the compiler exists to catch (`as unknown as T` silences all of
       // them). This rule allows only the direction that can't lie — widening,
@@ -69,6 +74,15 @@ export default tseslint.config(
     settings: {
       "import-x/resolver-next": [createTypeScriptImportResolver()],
     },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    plugins: {
+      "content-trust": {
+        rules: { "lazy-rendering-libraries": lazyRenderingLibraries },
+      },
+    },
+    rules: { "content-trust/lazy-rendering-libraries": "error" },
   },
   { ...prettierConfig, files: [jsish] },
   ...(typedLint

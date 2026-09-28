@@ -120,6 +120,20 @@ describe("untrusted content rendering", () => {
     expect(container.querySelector("a, strong")).toBeNull();
   });
 
+  it.each(["trusted", "untrusted"] as const)(
+    "truncates a very long %s text without a 'truncated' notice",
+    (trust) => {
+      const { container } = render(
+        withTrust(
+          trust,
+          <RenderedText markdown={"word ".repeat(100_000)} truncateAt={250} />
+        )
+      );
+      expect(container.textContent).not.toContain("Output truncated");
+      expect(container.textContent.length).toBeLessThan(300);
+    }
+  );
+
   it("renders links as plain text that shows the destination", () => {
     const { container } = render(
       withTrust(

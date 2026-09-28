@@ -374,8 +374,13 @@ test.describe("a trusted log", () => {
     expect(requested()).toEqual(
       expect.arrayContaining([
         "AnsiDisplayRich",
+        "ansi-output",
+        "dompurify",
+        "markdown-it",
         "markdownPipeline",
+        "mathjax",
         "prismHighlighter",
+        "prismjs",
       ])
     );
   });

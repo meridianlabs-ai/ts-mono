@@ -6,6 +6,21 @@ export type MarkdownRenderer = "full" | "textOnly" | "fragment";
 
 export const defaultMarkdownRenderer: MarkdownRenderer = "full";
 
+// Markdown-aware truncation to `maxLength` reads at most this many times
+// `maxLength` characters (see markdownTruncate.ts). 8x leaves 7 * maxLength of
+// headroom for markup that carries no visible text (URLs, tags, fences)
+// before the cut can change what is shown.
+export const kTruncationWindowFactor = 8;
+
+/**
+ * The part of `text` that truncating it to `maxLength` can depend on (plus
+ * one character, which keeps "was the text longer?"). Cutting to it first
+ * leaves the truncated result unchanged but bounds the work, and the length
+ * of what callers pass on or key caches by.
+ */
+export const truncationWindow = (text: string, maxLength: number): string =>
+  text.slice(0, maxLength * kTruncationWindowFactor + 1);
+
 export const escapeHtmlCharacters = (content: string): string => {
   if (!content) return content;
 

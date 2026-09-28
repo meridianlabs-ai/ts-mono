@@ -2,26 +2,15 @@ import { RefObject, useEffect } from "react";
 
 import { useIsContentTrusted } from "../components/ContentTrust";
 
+import { onDemandModule } from "./onDemandModule";
+
 // Syntax highlighting strings larger than this is too slow
 const kPrismRenderMaxSize = 250000;
 
 type Highlighter = typeof import("./prismHighlighter");
 
 // Prism loads on first use, so it's never fetched for untrusted content.
-let highlighterPromise: Promise<Highlighter> | null = null;
-const loadHighlighter = (): Promise<Highlighter> => {
-  if (!highlighterPromise) {
-    const loading = import("./prismHighlighter");
-    // Reset on rejection so a transient chunk-load failure retries next time.
-    loading.catch(() => {
-      if (highlighterPromise === loading) {
-        highlighterPromise = null;
-      }
-    });
-    highlighterPromise = loading;
-  }
-  return highlighterPromise;
-};
+const prism = onDemandModule(() => import("./prismHighlighter"));
 
 const highlightCodeBlocks = (
   container: HTMLElement,
@@ -60,7 +49,8 @@ export const usePrismHighlight = (
     let cancelled = false;
     let observer: MutationObserver | undefined;
 
-    void loadHighlighter()
+    void prism
+      .load()
       .then(({ highlightElement }) => {
         if (cancelled) {
           return;
@@ -68,7 +58,11 @@ export const usePrismHighlight = (
 
         // Immediate highlight attempt
         requestAnimationFrame(() => {
-          highlightCodeBlocks(container, highlightElement);
+          // The effect may have been cleaned up (unmount, trust change)
+          // before this frame.
+          if (!cancelled) {
+            highlightCodeBlocks(container, highlightElement);
+          }
         });
 
         // MutationObserver for async-rendered content (e.g., MarkdownDiv)

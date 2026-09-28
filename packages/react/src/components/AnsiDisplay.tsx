@@ -1,7 +1,9 @@
 import clsx from "clsx";
-import { CSSProperties, FC, lazy, Suspense } from "react";
+import { CSSProperties, FC } from "react";
 
 import { stripAnsi } from "@tsmono/util";
+
+import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import styles from "./AnsiDisplay.module.css";
 import {
@@ -11,7 +13,7 @@ import {
 } from "./ContentTrust";
 
 // Loaded on first trusted use, so ansi-output never loads for untrusted content.
-const RichANSIDisplay = lazy(() => import("./AnsiDisplayRich"));
+const richRenderer = onDemandModule(() => import("./AnsiDisplayRich"));
 
 export interface ANSIDisplayProps {
   output: string;
@@ -22,9 +24,7 @@ export interface ANSIDisplayProps {
 export const ANSIDisplay: FC<ANSIDisplayProps> = (props) => {
   const trusted = useIsContentTrusted();
   return trusted ? (
-    <Suspense fallback={<LoadingANSIDisplay {...props} />}>
-      <RichANSIDisplay {...props} />
-    </Suspense>
+    <TrustedANSIDisplay {...props} />
   ) : (
     <UntrustedANSIDisplay {...props} />
   );
@@ -48,6 +48,11 @@ const UntrustedANSIDisplay: FC<ANSIDisplayProps> = ({
     </pre>
   </div>
 );
+
+const TrustedANSIDisplay: FC<ANSIDisplayProps> = (props) => {
+  const rich = useOnDemandModule(richRenderer);
+  return rich ? <rich.default {...props} /> : <LoadingANSIDisplay {...props} />;
+};
 
 /** Trusted output while the rich renderer loads: its text, escapes removed. */
 const LoadingANSIDisplay: FC<ANSIDisplayProps> = ({

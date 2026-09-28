@@ -1,4 +1,6 @@
-import { FC, lazy, Suspense } from "react";
+import { FC } from "react";
+
+import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import type { AsciinemaPlayerProps } from "./AsciinemaPlayerImpl";
 import {
@@ -6,13 +8,17 @@ import {
   useIsContentTrusted,
 } from "./ContentTrust";
 
-const LazyAsciinemaPlayer = lazy(() => import("./AsciinemaPlayerImpl"));
+// Loaded on first trusted use, so the player never loads for untrusted content.
+const player = onDemandModule(() => import("./AsciinemaPlayerImpl"));
 
 export const AsciinemaPlayer: FC<AsciinemaPlayerProps> = (props) =>
   useIsContentTrusted() ? (
-    <Suspense fallback={null}>
-      <LazyAsciinemaPlayer {...props} />
-    </Suspense>
+    <TrustedAsciinemaPlayer {...props} />
   ) : (
     <UntrustedContentPlaceholder kind="terminal session" />
   );
+
+const TrustedAsciinemaPlayer: FC<AsciinemaPlayerProps> = (props) => {
+  const loaded = useOnDemandModule(player);
+  return loaded ? <loaded.default {...props} /> : null;
+};

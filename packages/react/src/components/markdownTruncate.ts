@@ -1,6 +1,9 @@
 import MarkdownIt, { type Token } from "markdown-it";
 
-import { simpleMarkdownTruncate } from "./markdownText";
+import {
+  kTruncationWindowFactor,
+  simpleMarkdownTruncate,
+} from "./markdownText";
 
 /**
  * Truncates markdown text to a target length while preserving markdown syntax
@@ -34,7 +37,7 @@ export function truncateMarkdown(
   // Sample text arrives unbounded from the log, and only ~maxLength
   // characters can ever be shown, so detection and parsing run over a
   // bounded prefix: the cost of a cell then does not grow with the sample.
-  const prefix = markdown.slice(0, maxLength * kParseWindowFactor);
+  const prefix = markdown.slice(0, maxLength * kTruncationWindowFactor);
 
   // For simple cases without markdown, use simple truncation
   if (!hasMarkdownSyntax(prefix)) {
@@ -100,10 +103,6 @@ export function truncateMarkdown(
 
   return finalText;
 }
-
-// 8x leaves 7 * maxLength of headroom for markup that carries no visible
-// text (URLs, tags, fences) before the cut can change what is shown.
-const kParseWindowFactor = 8;
 
 /**
  * Check if text contains markdown syntax

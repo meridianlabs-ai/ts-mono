@@ -14,7 +14,7 @@ export * from "./JsonPanel";
 export * from "./LabeledValue";
 export * from "./LoadingBar";
 export * from "./MarkdownDiv";
-export { simpleMarkdownTruncate } from "./markdownText";
+export { simpleMarkdownTruncate, truncationWindow } from "./markdownText";
 export * from "./MenuActionButton";
 export * from "./Modal";
 export * from "./NoContentsPanel";

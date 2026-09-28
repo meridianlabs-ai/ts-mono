@@ -6,6 +6,7 @@ import {
   MarkdownReference,
   Preformatted,
   simpleMarkdownTruncate,
+  truncationWindow,
   untrustedText,
   untrustedTextClassName,
   useIsContentTrusted,
@@ -49,7 +50,12 @@ export const RenderedText = forwardRef<
   ) => {
     const displayMode = useDisplayMode();
     const trusted = useIsContentTrusted();
-    const { text, notice } = cappedText(markdown);
+    // Truncation reads only this much, so the cap never applies to it.
+    const { text, notice } = cappedText(
+      truncateAt === undefined
+        ? markdown
+        : truncationWindow(markdown, truncateAt)
+    );
     const plainText =
       truncateAt === undefined
         ? text
