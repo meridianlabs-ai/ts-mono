@@ -15,6 +15,9 @@ export type ContentTrust = "trusted" | "untrusted";
 // wrapper, a log whose trust isn't known yet) must fail safe.
 const ContentTrustContext = createContext<ContentTrust>("untrusted");
 
+// The most trust any content below may have (e.g. a viewer-wide setting).
+const ContentTrustCeilingContext = createContext<ContentTrust>("trusted");
+
 export const ContentTrustProvider: FC<{
   value: ContentTrust;
   children: ReactNode;
@@ -24,8 +27,29 @@ export const ContentTrustProvider: FC<{
   </ContentTrustContext.Provider>
 );
 
+/**
+ * Caps the trust of everything below it, whatever the nearer
+ * `ContentTrustProvider`s say. A nested ceiling can only lower it further.
+ */
+export const ContentTrustCeilingProvider: FC<{
+  value: ContentTrust;
+  children: ReactNode;
+}> = ({ value, children }) => {
+  const parent = useContext(ContentTrustCeilingContext);
+  return (
+    <ContentTrustCeilingContext.Provider
+      value={combineContentTrust([parent, value])}
+    >
+      {children}
+    </ContentTrustCeilingContext.Provider>
+  );
+};
+
 export const useContentTrust = (): ContentTrust =>
-  useContext(ContentTrustContext);
+  combineContentTrust([
+    useContext(ContentTrustCeilingContext),
+    useContext(ContentTrustContext),
+  ]);
 
 export const useIsContentTrusted = (): boolean =>
   useContentTrust() === "trusted";

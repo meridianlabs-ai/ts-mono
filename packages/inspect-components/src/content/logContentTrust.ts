@@ -28,10 +28,16 @@ export const logContentTrust = (
   if (!isRecord(viewer)) {
     return "untrusted";
   }
-  const trustContent = viewer.trust_content;
-  return trustContent === undefined ||
-    trustContent === null ||
-    trustContent === true
+  return trustContentSetting(viewer.trust_content);
+};
+
+/**
+ * The trust a `trust_content` setting (a log's viewer config, or the
+ * viewer-wide `inspect view --no-trust-content`) allows: absent, null or true
+ * is trusted; anything else — `false`, or a value a newer format might
+ * introduce — is untrusted.
+ */
+export const trustContentSetting = (value: unknown): ContentTrust =>
+  value === undefined || value === null || value === true
     ? "trusted"
     : "untrusted";
-};

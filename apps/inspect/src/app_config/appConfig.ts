@@ -39,6 +39,9 @@ export interface AppConfig {
   logFile?: string;
   inspect_version: string;
   scout_version: string | null;
+  /** The viewer-wide trust setting (`inspect view --no-trust-content`); see
+   *  `trustContentSetting` for how it's read. */
+  trust_content?: boolean | null;
   logDir: string;
   absLogDir?: string;
 }
@@ -166,6 +169,7 @@ export const loadResolvedAppConfig = async (
     logFile: bs.logFile,
     inspect_version: versions.inspect_version,
     scout_version: versions.scout_version ?? null,
+    trust_content: versions.trust_content,
     logDir,
     absLogDir: logRoot.abs_log_dir,
   };

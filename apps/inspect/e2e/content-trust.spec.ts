@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
 import { serveEvalFiles } from "./fixtures/serve-eval-file";
@@ -341,5 +342,47 @@ test.describe("a trusted log", () => {
     await expect
       .poll(async () => (await richMarkers(page)).highlighted)
       .toBeGreaterThan(0);
+  });
+});
+
+test.describe("a viewer started with --no-trust-content", () => {
+  // The app config the view server sends for `inspect view --no-trust-content`.
+  const serveUntrustedViewer = (
+    network: Parameters<typeof serveFixtures>[0]
+  ) => {
+    serveFixtures(network);
+    network.use(
+      http.get("*/api/app-config", () =>
+        HttpResponse.json({
+          inspect_version: "0.0.0-e2e",
+          scout_version: null,
+          trust_content: false,
+        })
+      )
+    );
+  };
+
+  for (const view of VIEWS) {
+    test(`renders a trusted log plainly in the ${view.name}`, async ({
+      page,
+      network,
+    }) => {
+      serveUntrustedViewer(network);
+      await openView(page, view.url("trusted"), view.ready);
+      expect(await collectMarkers(page)).toEqual(NONE);
+    });
+  }
+
+  test("never renders a trusted log's content richly, even transiently", async ({
+    page,
+    network,
+  }) => {
+    serveUntrustedViewer(network);
+    const recorded = await recordRichContent(page);
+    for (const view of VIEWS) {
+      await openView(page, view.url("trusted"), view.ready);
+      await collectMarkers(page);
+    }
+    expect(await recorded("trusted")).toEqual([]);
   });
 });

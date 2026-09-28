@@ -20,7 +20,7 @@ import { MessageContent } from "../chat/MessageContent";
 
 import { DisplayModeContext, useDisplayMode } from "./DisplayModeContext";
 import { ExternalLink } from "./ExternalLink";
-import { logContentTrust } from "./logContentTrust";
+import { logContentTrust, trustContentSetting } from "./logContentTrust";
 import { RenderedText } from "./RenderedText";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
@@ -75,6 +75,19 @@ describe("logContentTrust", () => {
     ["a malformed viewer config", { eval: { viewer: "oops" } }, "untrusted"],
   ] as const)("treats %s as %s", (_name, header, expected) => {
     expect(logContentTrust(header)).toBe(expected);
+  });
+});
+
+describe("trustContentSetting", () => {
+  it.each([
+    [undefined, "trusted"],
+    [null, "trusted"],
+    [true, "trusted"],
+    [false, "untrusted"],
+    ["false", "untrusted"],
+    ["safe", "untrusted"],
+  ] as const)("treats %s as %s", (value, expected) => {
+    expect(trustContentSetting(value)).toBe(expected);
   });
 });
 

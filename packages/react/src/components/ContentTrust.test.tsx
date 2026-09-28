@@ -6,6 +6,7 @@ import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import {
   ContentText,
+  ContentTrustCeilingProvider,
   ContentTrustProvider,
   RequireTrustedContent,
   untrustedTextClassName,
@@ -141,5 +142,40 @@ describe("content trust", () => {
     );
     expect(container.textContent).toContain("⟨U+202E⟩gnp.exe");
     expect(container.querySelector(".token")).toBeNull();
+  });
+
+  it("caps nested trust with a ceiling", () => {
+    render(
+      <ContentTrustCeilingProvider value="untrusted">
+        <ContentTrustProvider value="trusted">
+          <TrustValue />
+        </ContentTrustProvider>
+      </ContentTrustCeilingProvider>
+    );
+    expect(screen.getByText("untrusted")).toBeTruthy();
+  });
+
+  it("doesn't let a nested ceiling raise an outer one", () => {
+    render(
+      <ContentTrustCeilingProvider value="untrusted">
+        <ContentTrustCeilingProvider value="trusted">
+          <ContentTrustProvider value="trusted">
+            <TrustValue />
+          </ContentTrustProvider>
+        </ContentTrustCeilingProvider>
+      </ContentTrustCeilingProvider>
+    );
+    expect(screen.getByText("untrusted")).toBeTruthy();
+  });
+
+  it("leaves trust alone under a trusted ceiling", () => {
+    render(
+      <ContentTrustCeilingProvider value="trusted">
+        <ContentTrustProvider value="trusted">
+          <TrustValue />
+        </ContentTrustProvider>
+      </ContentTrustCeilingProvider>
+    );
+    expect(screen.getByText("trusted")).toBeTruthy();
   });
 });

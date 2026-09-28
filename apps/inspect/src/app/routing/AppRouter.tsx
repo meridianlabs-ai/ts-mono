@@ -7,9 +7,11 @@ import {
   useNavigate,
 } from "react-router";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   AppErrorBoundary,
   ComponentNavigationProvider,
+  ContentTrustCeilingProvider,
 } from "@tsmono/react/components";
 
 import { useAppConfig } from "../../app_config";
@@ -66,7 +68,8 @@ const AppLayout = () => {
   // bypasses the Outlet and its child route table.
   const isFocus = sampleId && epoch && sampleTabId === kSampleEventTabId;
   const isSampleDetail = (sampleId && epoch) || sampleUuid;
-  const content = useAppConfig().singleFileMode ? (
+  const appConfig = useAppConfig();
+  const content = appConfig.singleFileMode ? (
     isFocus ? (
       <SampleEventView />
     ) : isSampleDetail ? (
@@ -82,9 +85,13 @@ const AppLayout = () => {
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
         <LoaderMounts>
-          <SelectionContentTrustProvider>
-            {content}
-          </SelectionContentTrustProvider>
+          <ContentTrustCeilingProvider
+            value={trustContentSetting(appConfig.trust_content)}
+          >
+            <SelectionContentTrustProvider>
+              {content}
+            </SelectionContentTrustProvider>
+          </ContentTrustCeilingProvider>
         </LoaderMounts>
       </AppErrorBoundary>
     </ComponentNavigationProvider>
