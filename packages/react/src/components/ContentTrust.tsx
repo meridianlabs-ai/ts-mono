@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import { createContext, FC, ReactNode, useContext } from "react";
 
 import { revealHiddenCharacters } from "@tsmono/util";
@@ -75,6 +76,33 @@ const UntrustedText: FC<{ text: string }> = ({ text }) => (
  */
 export const ContentText: FC<{ text: string }> = ({ text }) =>
   useIsContentTrusted() ? text : <UntrustedText text={text} />;
+
+/**
+ * A `code` element whose only child is log-derived text, as `ContentText`
+ * would render it. Prism replaces a highlighted element's children, so the
+ * text must be the element's own content (React then updates it by resetting
+ * `textContent`) rather than a nested text node React would try to patch or
+ * remove after Prism has discarded it. Remounts when trust changes, so
+ * untrusted content never inherits a trusted highlight.
+ */
+export const ContentCode: FC<{
+  text: string;
+  id?: string;
+  className?: string;
+}> = ({ text, id, className }) =>
+  useIsContentTrusted() ? (
+    <code key="trusted" id={id} className={className}>
+      {text}
+    </code>
+  ) : (
+    <code
+      key="untrusted"
+      id={id}
+      className={clsx(className, untrustedTextClassName)}
+    >
+      {untrustedText(text)}
+    </code>
+  );
 
 /**
  * Renders `children` (media, an embedded player, a link) only when content is

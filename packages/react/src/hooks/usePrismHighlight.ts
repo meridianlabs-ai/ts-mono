@@ -47,6 +47,7 @@ export const usePrismHighlight = (
 
     const container = containerRef.current;
     let cancelled = false;
+    let frame: number | undefined;
     let observer: MutationObserver | undefined;
 
     void prism
@@ -57,12 +58,8 @@ export const usePrismHighlight = (
         }
 
         // Immediate highlight attempt
-        requestAnimationFrame(() => {
-          // The effect may have been cleaned up (unmount, trust change)
-          // before this frame.
-          if (!cancelled) {
-            highlightCodeBlocks(container, highlightElement);
-          }
+        frame = requestAnimationFrame(() => {
+          highlightCodeBlocks(container, highlightElement);
         });
 
         // MutationObserver for async-rendered content (e.g., MarkdownDiv)
@@ -98,6 +95,10 @@ export const usePrismHighlight = (
 
     return () => {
       cancelled = true;
+      // A trust change must stop highlighting already queued while trusted.
+      if (frame !== undefined) {
+        cancelAnimationFrame(frame);
+      }
       observer?.disconnect();
     };
   }, [contentLength, containerRef, trusted]);
