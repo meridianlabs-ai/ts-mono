@@ -1353,16 +1353,6 @@
       "undescribed": 1
     }
   },
-  "packages/react/src/components/AnsiDisplay.tsx": {
-    "@typescript-eslint/no-unnecessary-condition": {
-      "count": 1,
-      "undescribed": 1
-    },
-    "react-hooks/immutability": {
-      "count": 1,
-      "undescribed": 1
-    }
-  },
   "packages/react/src/components/AsciinemaPlayerImpl.tsx": {
     "@typescript-eslint/no-floating-promises": {
       "count": 1,
