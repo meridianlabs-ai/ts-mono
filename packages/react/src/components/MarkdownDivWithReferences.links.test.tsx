@@ -9,7 +9,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ComponentStateProvider } from "../state/ComponentStateContext";
-import { makeStateHooks } from "../test";
+import { makeStateHooks, TrustedContentWrapper } from "../test";
 
 import { ComponentNavigationProvider } from "./ComponentNavigationContext";
 import { MarkdownDivWithReferences } from "./MarkdownDivWithReferences";
@@ -19,18 +19,21 @@ afterEach(cleanup);
 const renderRefs = async (previewRefsOnHover?: boolean) => {
   const navigate = vi.fn();
   const { container } = render(
-    <ComponentStateProvider hooks={makeStateHooks()}>
-      <ComponentNavigationProvider navigation={{ navigate }}>
-        <MarkdownDivWithReferences
-          markdown="See [M1] and [M2]."
-          options={{ previewRefsOnHover }}
-          references={[
-            { id: "m1", cite: "[M1]", citeUrl: "#/logs/a.eval?message=m1" },
-            { id: "m2", cite: "[M2]" },
-          ]}
-        />
-      </ComponentNavigationProvider>
-    </ComponentStateProvider>
+    // Reference links render only for trusted content.
+    <TrustedContentWrapper>
+      <ComponentStateProvider hooks={makeStateHooks()}>
+        <ComponentNavigationProvider navigation={{ navigate }}>
+          <MarkdownDivWithReferences
+            markdown="See [M1] and [M2]."
+            options={{ previewRefsOnHover }}
+            references={[
+              { id: "m1", cite: "[M1]", citeUrl: "#/logs/a.eval?message=m1" },
+              { id: "m2", cite: "[M2]" },
+            ]}
+          />
+        </ComponentNavigationProvider>
+      </ComponentStateProvider>
+    </TrustedContentWrapper>
   );
   const link = await waitFor(() => {
     const el = container.querySelector<HTMLElement>('[data-ref-id="m1"]');
