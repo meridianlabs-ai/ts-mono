@@ -132,6 +132,8 @@ export const kDefaultExcludeEvents: readonly EventTypeValue[] = [
   "branch",
   "anchor",
   "checkpoint",
+  // No SentinelEvent view yet; drop once the renderer lands.
+  "sentinel",
 ];
 
 // Derive the type from the array (replaces the indexed access approach)
