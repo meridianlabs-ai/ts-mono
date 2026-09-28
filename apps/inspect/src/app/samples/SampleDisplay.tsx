@@ -102,6 +102,7 @@ import { ApplicationIcons } from "../appearance/icons";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
+  toFullUrl,
   useFullSampleMessageUrlBuilder,
   useLogOrSampleRouteParams,
   useRoutePrefix,
@@ -306,6 +307,10 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
 
   // Tab selection
   const sampleUrlBuilder = useSampleUrlBuilder();
+  const sampleTabHref = (tabId: string) =>
+    urlLogPath
+      ? toFullUrl(sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, tabId))
+      : undefined;
   const onSelectedTab = useCallback(
     (e: MouseEvent<HTMLElement>) => {
       const el = e.currentTarget;
@@ -995,6 +1000,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
               className={clsx("sample-tab", styles.overflowVisible)}
               title="Transcript"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleTranscriptTabId)}
               selected={
                 effectiveSelectedTab === kSampleTranscriptTabId ||
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); a restored store may omit the tab selection
@@ -1067,6 +1073,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
               )}
               title="Messages"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleMessagesTabId)}
               selected={effectiveSelectedTab === kSampleMessagesTabId}
               scrollable={false}
             >
@@ -1116,6 +1123,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
               className="sample-tab"
               title="Scoring"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleScoringTabId)}
               selected={effectiveSelectedTab === kSampleScoringTabId}
             >
               <SampleScoresView
@@ -1130,6 +1138,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
                 className={clsx("sample-tab")}
                 title="Usage"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleUsageTabId)}
                 selected={effectiveSelectedTab === kSampleUsageTabId}
               >
                 <div
@@ -1148,6 +1157,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
               className={clsx("sample-tab")}
               title="Metadata"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleMetdataTabId)}
               selected={effectiveSelectedTab === kSampleMetdataTabId}
             >
               {sampleMetadatas.length > 0 ? (
@@ -1170,6 +1180,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
                 className="sample-tab"
                 title="Error"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleErrorTabId)}
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
                 <div className={clsx(styles.error)}>
@@ -1196,6 +1207,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
                 className="sample-tab"
                 title="Retries"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleRetriesTabId)}
                 selected={effectiveSelectedTab === kSampleRetriesTabId}
               >
                 <div className={styles.retriedErrors}>
@@ -1216,6 +1228,7 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
               className={"sample-tab"}
               title="JSON"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleJsonTabId)}
               selected={effectiveSelectedTab === kSampleJsonTabId}
             >
               {!sample ? (

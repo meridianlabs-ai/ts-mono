@@ -26,6 +26,7 @@ import { kScoreTypeOther } from "../../../../constants";
 import { EvalDescriptor } from "../../../samples/descriptor/types";
 import { ScoreValueDisplay } from "../../../samples/header-v2/ScoreValueDisplay";
 
+import { OpenSampleLink, type SampleOpener } from "./OpenSampleLink";
 import { timelineAxisTicks, timelineWindowError } from "./timelineAxis";
 import styles from "./TimelineChart.module.css";
 import {
@@ -172,11 +173,7 @@ export interface TimelineChartProps {
   evalDescriptor?: EvalDescriptor | null;
   /** Amber cross-reference for a hovered limit-terminated dot, if any. */
   limitCrossReference?: (sample: SampleSummary) => string | undefined;
-  onOpenSample?: (
-    id: string | number,
-    epoch: number,
-    event: ReactMouseEvent
-  ) => void;
+  sampleOpener?: SampleOpener;
 }
 
 export const TimelineChart: FC<TimelineChartProps> = (props) => {
@@ -206,7 +203,7 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
   onHoverMarker,
   evalDescriptor,
   limitCrossReference,
-  onOpenSample,
+  sampleOpener,
 }) => {
   const [width, setWidth] = useState(0);
   // Callback ref, not useResizeObserver — the chart renders null until
@@ -1230,7 +1227,7 @@ const TimelineChartBody: FC<TimelineChartProps> = ({
         crossReference={limitCrossReference?.(popover.sample)}
         onHold={hold}
         onRelease={scheduleClosePopover}
-        onOpenSample={onOpenSample}
+        sampleOpener={sampleOpener}
       />
     );
   };
@@ -1314,11 +1311,7 @@ interface PopoverBaseProps {
   /** Keeps the popover open while the pointer is inside it. */
   onHold: () => void;
   onRelease: () => void;
-  onOpenSample?: (
-    id: string | number,
-    epoch: number,
-    event: ReactMouseEvent
-  ) => void;
+  sampleOpener?: SampleOpener;
 }
 
 interface SamplePopoverProps extends PopoverBaseProps {
@@ -1337,7 +1330,7 @@ const SamplePopover: FC<SamplePopoverProps> = ({
   top,
   onHold,
   onRelease,
-  onOpenSample,
+  sampleOpener,
 }) => {
   const preview = inputString(sample.input).join(" ");
   const tokens = sampleTokens(sample);
@@ -1432,14 +1425,14 @@ const SamplePopover: FC<SamplePopoverProps> = ({
         {crossReference && (
           <div className={styles.popoverCallout}>{crossReference}</div>
         )}
-        {onOpenSample && (
-          <button
-            type="button"
+        {sampleOpener && (
+          <OpenSampleLink
+            opener={sampleOpener}
+            sample={sample}
             className={styles.popoverOpen}
-            onClick={(event) => onOpenSample(sample.id, sample.epoch, event)}
           >
             Open sample →
-          </button>
+          </OpenSampleLink>
         )}
       </div>
     </div>

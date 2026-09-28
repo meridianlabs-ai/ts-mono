@@ -30,6 +30,7 @@ import {
   logsUrl,
   sampleEventUrl,
   samplesUrl,
+  toFullUrlMaybe,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
@@ -251,6 +252,7 @@ const SampleEventViewContent: FC = () => {
           : undefined
       }
       onExit={onExit}
+      exitHref={toFullUrlMaybe(exitUrl)}
     />
   );
 };

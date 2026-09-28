@@ -17,6 +17,8 @@ links, and the dedicated printable sample page.
   tab, and formats page headings/breaks for printing.
 - `message-links` copies absolute deep links to individual messages/events in
   hosted environments.
+- `event-evidence` exports only checked transcript events via Copy, Download,
+  or Print.
 
 ## How to get to it (user POV)
 
@@ -25,6 +27,8 @@ links, and the dedicated printable sample page.
 - Cmd/Ctrl-P from a standalone sample opens the dedicated print page. VS Code
   leaves printing to the host.
 - Use a message/event link affordance when the hosted surface exposes it.
+- In Transcript, press Select; every selectable event header then shows a
+  checkbox. Check events, then use Copy, Download, or Print.
 
 ## Driving it with Playwright
 
@@ -39,12 +43,23 @@ links, and the dedicated printable sample page.
   printable sample identity.
 - Do not invoke copy/download menu items when their source (for example settled
   messages on a live sample) is intentionally unavailable.
+- Evidence: press `Select`, check events with
+  `getByRole("checkbox", { name: "Select event" })` (shift-click another for
+  a range of visible rows; the toolbar reads `Select · N`), then assert the
+  Copy/Download menu shows
+  "Selected events (N)" and that `Print · N` opens `/print` with `events=`
+  params rendering only those events. Clear with
+  `getByRole("button", { name: "Clear selection and exit" })`.
 
 ## Code landmarks
 
 - Log JSON: `apps/inspect/src/app/log-view/tabs/JsonTab.tsx`.
 - Sample toolbar/JSON: `apps/inspect/src/app/samples/SampleDisplay.tsx` and
   `SampleJSONView.tsx`; message export is `apps/inspect/src/log_data/messagesExport.ts`.
+- Evidence selection: `packages/inspect-components/src/transcript/selection/`
+  (`EventSelectCheckbox.tsx`, `TranscriptSelectTool.tsx`,
+  `transcriptSelection.ts`) and selection state in
+  `apps/inspect/src/state/sampleSlice.ts`.
 - Print route/rendering: `apps/inspect/src/app/samples/print/`,
   `apps/inspect/src/app/routing/RouteDispatcher.tsx`, and URL builders in
   `apps/inspect/src/app/routing/url.ts`.
@@ -64,3 +79,6 @@ links, and the dedicated printable sample page.
   change elsewhere. Always record the toggle state in a visual bug report.
 - Popup safety is part of correctness: print/new-tab paths must not expose
   `window.opener`, and user strings must remain literal.
+- Select exists only on a non-chunked Transcript tab; switching tab or sample
+  starts unlatched and empty. While a selection exists, Copy, Download, and
+  Print act on it rather than the whole sample.
