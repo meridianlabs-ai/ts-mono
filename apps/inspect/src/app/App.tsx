@@ -1,13 +1,6 @@
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "bootstrap/dist/css/bootstrap.css";
 import "@vscode/codicons/dist/codicon.css";
-import "prismjs";
-import "prismjs/components/prism-bash";
-import "prismjs/components/prism-clike";
-import "prismjs/components/prism-javascript";
-import "prismjs/components/prism-json";
-import "prismjs/components/prism-python";
-import "prismjs/components/prism-yaml";
 import "prismjs/themes/prism.css";
 import "@tsmono/theme/base";
 import "@tsmono/theme/vscode";

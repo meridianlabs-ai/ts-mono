@@ -1,4 +1,3 @@
-import { highlightElement } from "prismjs";
 import { RefObject, useEffect } from "react";
 
 import { useIsContentTrusted } from "../components/ContentTrust";
@@ -6,7 +5,28 @@ import { useIsContentTrusted } from "../components/ContentTrust";
 // Syntax highlighting strings larger than this is too slow
 const kPrismRenderMaxSize = 250000;
 
-const highlightCodeBlocks = (container: HTMLElement) => {
+type Highlighter = typeof import("./prismHighlighter");
+
+// Prism loads on first use, so it's never fetched for untrusted content.
+let highlighterPromise: Promise<Highlighter> | null = null;
+const loadHighlighter = (): Promise<Highlighter> => {
+  if (!highlighterPromise) {
+    const loading = import("./prismHighlighter");
+    // Reset on rejection so a transient chunk-load failure retries next time.
+    loading.catch(() => {
+      if (highlighterPromise === loading) {
+        highlighterPromise = null;
+      }
+    });
+    highlighterPromise = loading;
+  }
+  return highlighterPromise;
+};
+
+const highlightCodeBlocks = (
+  container: HTMLElement,
+  highlightElement: Highlighter["highlightElement"]
+) => {
   const codeBlocks = container.querySelectorAll("pre code");
   codeBlocks.forEach((block) => {
     // Skip already highlighted blocks
@@ -37,39 +57,54 @@ export const usePrismHighlight = (
     }
 
     const container = containerRef.current;
+    let cancelled = false;
+    let observer: MutationObserver | undefined;
 
-    // Immediate highlight attempt
-    requestAnimationFrame(() => {
-      highlightCodeBlocks(container);
-    });
+    void loadHighlighter()
+      .then(({ highlightElement }) => {
+        if (cancelled) {
+          return;
+        }
 
-    // MutationObserver for async-rendered content (e.g., MarkdownDiv)
-    const observer = new MutationObserver((mutations) => {
-      // Check if any mutation added code blocks
-      const hasNewCodeBlocks = mutations.some((mutation) => {
-        if (mutation.type === "childList") {
-          return Array.from(mutation.addedNodes).some((node) => {
-            if (node instanceof Element) {
-              return node.querySelector("pre code") || node.matches("pre code");
+        // Immediate highlight attempt
+        requestAnimationFrame(() => {
+          highlightCodeBlocks(container, highlightElement);
+        });
+
+        // MutationObserver for async-rendered content (e.g., MarkdownDiv)
+        observer = new MutationObserver((mutations) => {
+          // Check if any mutation added code blocks
+          const hasNewCodeBlocks = mutations.some((mutation) => {
+            if (mutation.type === "childList") {
+              return Array.from(mutation.addedNodes).some((node) => {
+                if (node instanceof Element) {
+                  return (
+                    node.querySelector("pre code") || node.matches("pre code")
+                  );
+                }
+                return false;
+              });
             }
             return false;
           });
-        }
-        return false;
+
+          if (hasNewCodeBlocks) {
+            highlightCodeBlocks(container, highlightElement);
+          }
+        });
+
+        observer.observe(container, {
+          childList: true,
+          subtree: true,
+        });
+      })
+      .catch((error: unknown) => {
+        console.error("Unable to load syntax highlighting", error);
       });
 
-      if (hasNewCodeBlocks) {
-        highlightCodeBlocks(container);
-      }
-    });
-
-    observer.observe(container, {
-      childList: true,
-      subtree: true,
-    });
-
     return () => {
-      observer.disconnect();
+      cancelled = true;
+      observer?.disconnect();
     };
   }, [contentLength, containerRef, trusted]);
 };
