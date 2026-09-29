@@ -896,6 +896,7 @@ export function DataGrid<TRow extends RowData>({
                     <RotatedHeaderCell
                       key={header.id}
                       header={header}
+                      width={columnLayout.byId.get(header.column.id)?.width}
                       ariaColIndex={colIndex + 1}
                       filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
@@ -1232,6 +1233,7 @@ const GridRow = memo(GridRowInner) as typeof GridRowInner;
  */
 function RotatedHeaderCell<TRow extends RowData>({
   header,
+  width,
   ariaColIndex,
   filterSpec,
   onColumnFilterChange,
@@ -1246,6 +1248,10 @@ function RotatedHeaderCell<TRow extends RowData>({
   onAutoSize,
 }: {
   header: Header<DataGridFeatures, TRow, unknown>;
+  /** From the grid's column layout, not `header.getSize()`: `header` keeps
+   *  its identity across resizes, so the compiled component would reuse a
+   *  width read off it. */
+  width: number | undefined;
   ariaColIndex: number;
   filterSpec: FilterSpec | null;
   onColumnFilterChange?: (
@@ -1287,7 +1293,7 @@ function RotatedHeaderCell<TRow extends RowData>({
         dropSide === "left" && styles.headerCellDropLeft,
         dropSide === "right" && styles.headerCellDropRight
       )}
-      style={{ width: header.getSize() }}
+      style={{ width }}
       role="columnheader"
       aria-colindex={ariaColIndex}
       aria-sort={
