@@ -2005,3 +2005,58 @@ describe("FetchEngine records details that fetch but fail ingestion", () => {
     });
   });
 });
+
+describe("FetchEngine server content trust", () => {
+  // The file was rewritten in place since its trusted header was cached.
+  const untrustedDetails = (name: string) =>
+    makeDetails(name, "success", {
+      eval: testEvalSpec({
+        eval_id: name,
+        run_id: `run-${name}`,
+        task: "task",
+        model: "m",
+        viewer: { scanner_result_view: {}, trust_content: false },
+      }),
+    });
+
+  it("is unknown until the header is read from the server", async () => {
+    const fake = createFakeApi({ detailsFor: untrustedDetails });
+    const { engine } = await createEngine({
+      api: fake.api,
+      database: createFakeDb([detailedRow(handle("a.eval"))]),
+    });
+
+    // A passive cache hit serves the cached (trusted) header without a read.
+    await engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+      demand: "passive",
+    });
+    expect(engine.serverContentTrust("a.eval")).toBeUndefined();
+
+    await engine.ensure("a.eval", {
+      depth: "detailed",
+      priority: "user",
+      demand: "passive",
+      fresh: true,
+    });
+    expect(fake.detailCalls).toEqual([{ file: "a.eval", cached: false }]);
+    expect(engine.serverContentTrust("a.eval")).toBe("untrusted");
+  });
+
+  it("is forgotten when the engine stops", async () => {
+    const fake = createFakeApi();
+    const { engine } = await createEngine({ api: fake.api });
+    await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
+    expect(engine.serverContentTrust("a.eval")).toBe("trusted");
+
+    engine.stop();
+    await engine.start({
+      api: fake.api,
+      database: null,
+      sink: createFakeSink().sink,
+      logDir: "dir/logs",
+    });
+    expect(engine.serverContentTrust("a.eval")).toBeUndefined();
+  });
+});

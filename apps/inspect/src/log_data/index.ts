@@ -105,7 +105,11 @@ export {
   type LogsOverview,
   type LogsOverviewView,
 } from "./logsListingRead";
-export { useLogHeader, useLogFetchState } from "./log";
+export {
+  useLogHeader,
+  useLogFetchState,
+  useServerLogContentTrust,
+} from "./log";
 export { type LogListingRow, useLogListing } from "./logListing";
 export { resolveLogKey } from "./logsContent";
 export { useRunningMetrics } from "./pendingSamples";

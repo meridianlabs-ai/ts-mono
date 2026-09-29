@@ -1,14 +1,17 @@
 import { useMemo } from "react";
 
 import { logContentTrust } from "@tsmono/inspect-components/content";
-import type { ContentTrust } from "@tsmono/react/components";
+import {
+  combineContentTrust,
+  type ContentTrust,
+} from "@tsmono/react/components";
 import { AsyncData, compose, map as mapAsyncData } from "@tsmono/util";
 
 import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
-import { useLogHeader } from "./log";
+import { useLogHeader, useServerLogContentTrust } from "./log";
 import { resolveLogKey } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
 import { readSettledSummaries, useSamplesListing } from "./samplesListing";
@@ -98,9 +101,11 @@ export const useSampleSummaries = (
   const logKey = logFile === undefined ? "" : resolveLogKey(logDir, logFile);
   const rows = useSamplesListing({ logDir, scope: { file: logKey } });
   const pending = usePendingSamples(logDir, logFile);
-  const pendingTrust = logContentTrust(
-    useLogHeader(logDir, logFile, { demand: "passive" }).data
-  );
+  // Pending samples are read live, so their trust needs a header read now.
+  const pendingTrust = combineContentTrust([
+    logContentTrust(useLogHeader(logDir, logFile, { demand: "passive" }).data),
+    useServerLogContentTrust(logDir, logFile),
+  ]);
   return useMemo(
     () =>
       mapAsyncData(compose({ rows, pending }), (settled) =>

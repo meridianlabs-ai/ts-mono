@@ -1,6 +1,7 @@
 import { skipToken } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
+import type { ContentTrust } from "@tsmono/react/components";
 import { useAsyncDataFromQuery } from "@tsmono/react/hooks";
 import { AsyncData, data as asyncData, loading } from "@tsmono/util";
 
@@ -8,7 +9,7 @@ import { Log, LogFetchState, LogHeader } from "../client/api/types";
 
 import { getDatabaseService } from "./databaseServiceInstance";
 import { logKey, useLogs } from "./logsContent";
-import { fetchLog } from "./replicationControl";
+import { fetchLog, fetchLogContentTrust } from "./replicationControl";
 
 /**
  * One log's entity row as a per-entity, db-backed cache entry. The `queryFn`
@@ -36,6 +37,41 @@ const useLogRow = (
   });
 
 /**
+ * A log's row name. Query keys must use it so they match sink pushes; while
+ * the listing collection settles, the file itself is the fallback.
+ */
+const useResolvedLogName = (
+  logDir: string,
+  logFile: string | undefined
+): string | undefined => {
+  const logs = useLogs(logDir);
+  return logFile === undefined
+    ? undefined
+    : (logs.data?.find((row) => row.name.endsWith(logFile))?.name ?? logFile);
+};
+
+/**
+ * A log's content trust as its header was read from the server this session:
+ * untrusted until that read lands, or if it fails. `useLogHeader` can answer
+ * from IndexedDB with a header cached in an earlier session from a file since
+ * rewritten in place, so it can't decide the trust of content read now.
+ */
+export const useServerLogContentTrust = (
+  logDir: string,
+  logFile: string | undefined
+): ContentTrust => {
+  const key = useResolvedLogName(logDir, logFile);
+  const trust = useAsyncDataFromQuery({
+    queryKey: ["log_data", "serverContentTrust", logDir, key ?? ""],
+    queryFn:
+      key === undefined ? skipToken : () => fetchLogContentTrust(logDir, key),
+    staleTime: Infinity,
+    retry: false,
+  });
+  return trust.data ?? "untrusted";
+};
+
+/**
  * One log at detailed depth: its header. `data(undefined)` when no file is
  * given (idle); `error` is a RETRIEVAL failure — the db re-seed read failing
  * or the row's retrieval facts recording a fetch error (eval errors are
@@ -60,12 +96,7 @@ export const useLogHeader = (
 ): AsyncData<LogHeader | undefined> => {
   const demand = opts.demand;
   const logs = useLogs(logDir);
-  // The queryKey must use the resolved row name so it matches sink pushes;
-  // while the listing collection settles, the file itself is the fallback.
-  const key =
-    logFile === undefined
-      ? undefined
-      : (logs.data?.find((row) => row.name.endsWith(logFile))?.name ?? logFile);
+  const key = useResolvedLogName(logDir, logFile);
   const row = useLogRow(logDir, key);
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {

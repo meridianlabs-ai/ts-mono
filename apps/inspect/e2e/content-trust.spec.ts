@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import type { Page } from "@playwright/test";
 import type { QueryClient } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
@@ -508,6 +510,81 @@ test.describe("a trusted log", () => {
     await expect
       .poll(async () => (await richMarkers(page)).highlighted)
       .toBeGreaterThan(0);
+  });
+});
+
+/** Offset of a zip entry's local header: where the viewer's read of it starts. */
+const zipEntryOffset = (zip: Buffer, name: string): number => {
+  const endOfCentralDirectory = zip.lastIndexOf(
+    Buffer.from([0x50, 0x4b, 0x05, 0x06])
+  );
+  const entries = zip.readUInt16LE(endOfCentralDirectory + 10);
+  let entry = zip.readUInt32LE(endOfCentralDirectory + 16);
+  for (let i = 0; i < entries; i++) {
+    const nameLength = zip.readUInt16LE(entry + 28);
+    const entryName = zip.toString("utf8", entry + 46, entry + 46 + nameLength);
+    if (entryName === name) {
+      return zip.readUInt32LE(entry + 42);
+    }
+    entry +=
+      46 +
+      nameLength +
+      zip.readUInt16LE(entry + 30) +
+      zip.readUInt16LE(entry + 32);
+  }
+  throw new Error(`${name} not found`);
+};
+
+test.describe("a log rewritten since its header was cached", () => {
+  test("stays plain until its current header is read", async ({
+    page,
+    network,
+  }) => {
+    const servedAs = (label: Label) => ({
+      ...fixture(label),
+      logFile: "log.eval",
+    });
+    serveEvalFiles(network, [servedAs("trusted")]);
+    await page.goto("/#/logs/log.eval/samples/sample/1/1/messages");
+    // Rendered richly, which also caches its trusted header.
+    await expect(
+      page.locator('a[href^="https://example.com/trusted/"]').first()
+    ).toBeVisible();
+
+    // Rewrite the file in place (the listing has no mtimes to invalidate the
+    // cache) and hold the fresh read of its header.
+    const untrusted = readFileSync(fixture("untrusted").path);
+    const headerOffset = zipEntryOffset(untrusted, "header.json");
+    let releaseHeader = () => {};
+    const headerHeld = new Promise<void>((resolve) => {
+      releaseHeader = resolve;
+    });
+    let headerRequested = false;
+    serveEvalFiles(network, [servedAs("untrusted")]);
+    network.use(
+      http.get("*/api/log-bytes/:file", async ({ request }) => {
+        const start = new URL(request.url).searchParams.get("start");
+        if (Number(start) === headerOffset) {
+          headerRequested = true;
+          await headerHeld;
+        }
+        // Falls through to the byte-range handler.
+        return undefined;
+      })
+    );
+    const recorded = await recordRichContent(page);
+    await page.reload();
+
+    // The rewritten file's sample loads while its header is held.
+    await expect(page.getByText(/Sample 1:/).first()).toBeVisible();
+    await expect.poll(() => headerRequested).toBe(true);
+    await page.waitForTimeout(500);
+    expect(await recorded("untrusted")).toEqual([]);
+
+    releaseHeader();
+    await expect(page.getByText(/untrusted\/input/).first()).toBeVisible();
+    await page.waitForTimeout(500);
+    expect(await recorded("untrusted")).toEqual([]);
   });
 });
 
