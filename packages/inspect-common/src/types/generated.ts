@@ -1459,6 +1459,10 @@ export interface components {
             score_display?: boolean | null;
             /** Score On Error */
             score_on_error?: boolean | null;
+            /** Sentinel */
+            sentinel?: unknown[] | {
+                [key: string]: unknown;
+            } | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
