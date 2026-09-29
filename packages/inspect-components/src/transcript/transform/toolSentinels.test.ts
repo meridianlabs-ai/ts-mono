@@ -76,11 +76,13 @@ describe("buildSentinelStep", () => {
     expect(step.rows.map((r) => r.depth)).toEqual([1, 1, 0]);
     const human = step.rows.find((r) => r.node.id === "human");
     expect(human?.folded.map((n) => n.id)).toEqual(["chain", "root"]);
+    expect(human?.effect).toBe("final");
+    expect(step.rows.filter((r) => r.effect)).toHaveLength(1);
     expect(foldedIds(step)).toEqual(["chain", "root"]);
     expect(foldedSummary(human?.folded ?? [])).toBe("overrode 2 layers");
   });
 
-  it("marks a terminate that a sibling's final() outran as superseded", () => {
+  it("shows a terminate that a sibling's final() outran only in the fold", () => {
     const step = buildSentinelStep([
       decision("stop", "stop", "stopper", "terminate"),
       sentinel("stop-superseded", {
@@ -96,10 +98,9 @@ describe("buildSentinelStep", () => {
       decision("human", "human", "human", "continue"),
     ]);
 
-    expect(rowIds(step)).toEqual(["stop", "human"]);
-    expect(step.rows.find((r) => r.node.id === "stop")?.superseded).toBe(true);
+    expect(rowIds(step)).toEqual(["human"]);
     const human = step.rows.find((r) => r.node.id === "human");
-    expect(human?.superseded).toBe(false);
+    expect(human?.effect).toBe("final");
     expect(human?.folded.map((n) => n.id)).toEqual(["stop-superseded", "root"]);
     expect(foldedSummary(human?.folded ?? [])).toBe(
       "overrode 1 layer · 1 decision superseded"
@@ -127,6 +128,11 @@ describe("buildSentinelStep", () => {
     expect(step.rows[0]?.depth).toBe(0);
     expect(step.rows[0]?.folded.map((n) => n.id)).toEqual(["slow-a", "slow-b"]);
     expect(foldedSummary(step.rows[0]?.folded ?? [])).toBe("2 cancelled");
+    expect(step.rows.map((r) => r.effect)).toEqual([
+      "took effect",
+      undefined,
+      undefined,
+    ]);
   });
 
   it("keeps folded events on the step when no report took effect", () => {

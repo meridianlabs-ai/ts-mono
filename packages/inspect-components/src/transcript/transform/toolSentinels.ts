@@ -9,8 +9,8 @@ export interface SentinelRow {
   node: SentinelNode;
   /** Nesting depth of the instance path, relative to the step's shallowest row. */
   depth: number;
-  /** A decision that a later `superseded` event says did not take effect. */
-  superseded: boolean;
+  /** Set on the decision that took effect when the step has folded events: `final` when it passed layers that were bypassed. */
+  effect?: "final" | "took effect";
   /** The bypassed, superseded and cancelled events of the step, on the decision that took effect. */
   folded: SentinelNode[];
 }
@@ -83,7 +83,8 @@ const compareKeys = (a: number[], b: number[]): number => {
 /**
  * Builds the rows for one step's events, given in recording order. Only
  * observations and decisions get rows; the rest fold onto the decision that
- * took effect, which the runner records last.
+ * took effect, which the runner records last. A decision a later
+ * `superseded` event names appears only in the fold.
  */
 export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
   const first = nodes[0];
@@ -106,15 +107,19 @@ export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
     }
   }
 
+  const shown = reports.filter((n) => !superseded.has(n));
   const effective =
-    reports.findLast(
-      (n) => n.event.kind === "decision" && !superseded.has(n)
-    ) ?? reports.at(-1);
+    shown.findLast((n) => n.event.kind === "decision") ?? shown.at(-1);
+  const effect: SentinelRow["effect"] = folded.some(
+    (n) => n.event.kind === "bypassed"
+  )
+    ? "final"
+    : "took effect";
 
   const keys = pathOrderKeys(nodes);
   const depthOf = (node: SentinelNode) => pathSegments(node.event.path).length;
-  const minDepth = Math.min(...reports.map(depthOf));
-  const rows = reports
+  const minDepth = Math.min(...shown.map(depthOf));
+  const rows: SentinelRow[] = shown
     .map((node, index) => ({ node, index }))
     .sort(
       (a, b) =>
@@ -123,7 +128,7 @@ export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
     .map(({ node }) => ({
       node,
       depth: depthOf(node) - minDepth,
-      superseded: superseded.has(node),
+      effect: node === effective && folded.length > 0 ? effect : undefined,
       folded: node === effective ? folded : [],
     }));
 

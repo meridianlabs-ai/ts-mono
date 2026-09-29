@@ -93,6 +93,7 @@ describe("SentinelEventView", () => {
     // Bypassed layers have no row of their own.
     expect(screen.queryByText("chain")).toBeNull();
 
+    expect(screen.getByText("final")).toBeTruthy();
     const note = screen.getByRole("button", { name: /overrode 2 layers/ });
     expect(note.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(note);
@@ -204,5 +205,23 @@ describe("SentinelEventView", () => {
     });
     renderWithState(<SentinelEventView eventNode={modify} />);
     expect(screen.getByText('bash(cmd="ls /workspace")')).toBeTruthy();
+  });
+
+  it("clamps a multi-paragraph explanation and expands it on request", () => {
+    const decision = node("d", {
+      explanation: "First paragraph.\n\nSecond paragraph.",
+    });
+    const { container } = renderWithState(
+      <SentinelEventView eventNode={decision} />
+    );
+    expect(container.textContent).toContain(
+      "First paragraph. Second paragraph."
+    );
+    const toggle = screen.getByRole("button", { name: "more" });
+    fireEvent.click(toggle);
+    expect(container.textContent).not.toContain(
+      "First paragraph. Second paragraph."
+    );
+    expect(screen.getByRole("button", { name: "less" })).toBeTruthy();
   });
 });

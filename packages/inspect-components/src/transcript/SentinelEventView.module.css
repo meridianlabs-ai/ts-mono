@@ -104,6 +104,36 @@
   margin-bottom: 0;
 }
 
+.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.moreToggle {
+  display: block;
+  padding: 0;
+  margin-top: 0.1em;
+  border: none;
+  background: none;
+  font-size: inherit;
+  color: var(--bs-link-color);
+  cursor: pointer;
+}
+
+.moreToggle:hover {
+  text-decoration: underline;
+}
+
+.effect {
+  color: var(--bs-success-text-emphasis);
+  background: var(--bs-success-bg-subtle);
+  border-color: var(--bs-success-border-subtle);
+}
+
 .folded {
   margin-left: 1.3em;
   margin-top: 0.1em;

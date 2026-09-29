@@ -1,9 +1,9 @@
 import clsx from "clsx";
-import { FC } from "react";
+import { FC, useState } from "react";
 
 import type { SentinelEvent } from "@tsmono/inspect-common/types";
-import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
-import { useCollapsedState } from "@tsmono/react/hooks";
+import { MarkdownDiv } from "@tsmono/react/components";
+import { useCollapsedState, useResizeObserver } from "@tsmono/react/hooks";
 
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
@@ -118,8 +118,13 @@ const SentinelRowView: FC<{ row: SentinelRow }> = ({ row }) => {
             {event.name}
           </span>
         ) : null}
-        <KindBadge kind={row.superseded ? "superseded" : event.kind} />
+        <KindBadge kind={event.kind} />
         <ReportValue event={event} />
+        {row.effect ? (
+          <span className={clsx(styles.badge, styles.effect)}>
+            {row.effect}
+          </span>
+        ) : null}
         {event.audit ? (
           <span className={clsx(styles.badge, styles.audit)}>audit</span>
         ) : null}
@@ -131,19 +136,58 @@ const SentinelRowView: FC<{ row: SentinelRow }> = ({ row }) => {
         </div>
       ) : null}
       {explanation ? (
-        <div className={styles.explanation} style={indent}>
-          <ExpandablePanel
-            id={`${row.node.id}-sentinel-explanation`}
-            collapse={true}
-            lines={3}
-            togglePosition="block-left"
-          >
-            <MarkdownDiv markdown={explanation} />
-          </ExpandablePanel>
-        </div>
+        <Explanation
+          id={row.node.id}
+          explanation={explanation}
+          depth={row.depth}
+        />
       ) : null}
       {row.folded.length > 0 ? (
         <FoldedNote id={row.node.id} folded={row.folded} depth={row.depth} />
+      ) : null}
+    </div>
+  );
+};
+
+interface ExplanationProps {
+  id: string;
+  explanation: string;
+  depth: number;
+}
+
+/** Clamped to two whole lines of plain text; expanding renders the Markdown. */
+const Explanation: FC<ExplanationProps> = ({ id, explanation, depth }) => {
+  const [collapsed, setCollapsed] = useCollapsedState(
+    `${id}-sentinel-explanation`,
+    true
+  );
+  const [overflows, setOverflows] = useState(false);
+  const clampRef = useResizeObserver((entry) => {
+    const el = entry.target;
+    setOverflows(el.scrollHeight > el.clientHeight + 1);
+  });
+  const expandable = overflows || explanation.includes("\n");
+  return (
+    <div
+      className={styles.explanation}
+      style={{ paddingLeft: `${depth * 1.25}em` }}
+    >
+      {collapsed ? (
+        <div ref={clampRef} className={styles.clamp}>
+          {explanation.replace(/\s+/g, " ")}
+        </div>
+      ) : (
+        <MarkdownDiv markdown={explanation} />
+      )}
+      {expandable ? (
+        <button
+          type="button"
+          className={styles.moreToggle}
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? "more" : "less"}
+        </button>
       ) : null}
     </div>
   );
