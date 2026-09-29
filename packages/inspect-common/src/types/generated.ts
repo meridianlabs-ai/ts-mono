@@ -3521,6 +3521,7 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+            modified?: components["schemas"]["ToolCall"] | null;
             /** Name */
             name: string;
             /** Outcome */
