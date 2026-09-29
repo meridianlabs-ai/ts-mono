@@ -20,6 +20,11 @@
   min-width: 0;
 }
 
+.sentinel {
+  padding: 0.4rem 0.5rem;
+  border-top: 1px solid var(--bs-light-border-subtle);
+}
+
 .approvalWrap {
   margin-top: 0.5rem;
 }

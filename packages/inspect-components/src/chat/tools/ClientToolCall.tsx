@@ -34,6 +34,10 @@ export interface ClientToolCallProps {
   error?: ToolCallError;
   className?: string | string[];
   getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
+  /** Rendered between the input zone and the output. */
+  afterInput?: ReactNode;
+  /** Rendered after the output. */
+  afterOutput?: ReactNode;
 }
 
 /**
@@ -56,6 +60,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   error,
   className,
   getCustomToolView,
+  afterInput,
+  afterOutput,
 }) => {
   const displayMode = useDisplayMode();
 
@@ -78,7 +84,13 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
       : undefined;
   if (customView) {
-    return <div className={clsx(styles.custom, className)}>{customView}</div>;
+    return (
+      <div className={clsx(styles.custom, className)}>
+        {afterInput}
+        {customView}
+        {afterOutput}
+      </div>
+    );
   }
 
   const hasInput =
@@ -121,6 +133,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
           </ExpandablePanel>
         </ToolBlockInput>
       ) : null}
+      {afterInput}
       {showError ? (
         <ToolBlockOutput>
           <ToolCallErrorView error={error} />
@@ -139,6 +152,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
           <ToolCallView {...viewProps} section="output" />
         </ToolBlockOutput>
       ) : null}
+      {afterOutput}
     </ToolBlock>
   );
 };
