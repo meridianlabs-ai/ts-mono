@@ -1953,15 +1953,11 @@ export interface components {
          * @description Ledger entry for one shard, as of the merge that last read it.
          */
         EvalShardEntry: {
-            /** Attempts */
-            attempts: number;
             /** Completed At */
             completed_at: string | "";
             error?: components["schemas"]["EvalError"] | null;
             /** Etag */
             etag?: string | null;
-            /** Eval Id */
-            eval_id: string;
             /** Eval Set Id */
             eval_set_id?: string | null;
             /** Log */
@@ -1993,8 +1989,6 @@ export interface components {
              * @enum {string}
              */
             status: "started" | "success" | "cancelled" | "error";
-            /** Task Id */
-            task_id: string;
         };
         /**
          * EvalShards
@@ -2003,15 +1997,6 @@ export interface components {
         EvalShards: {
             /** Ledger */
             ledger: components["schemas"]["EvalShardEntry"][];
-            /** Location */
-            location: string;
-            /** Merged At */
-            merged_at: string;
-            /**
-             * Metrics Source
-             * @enum {string}
-             */
-            metrics_source: "registry" | "task_file";
             /** Sample Count */
             sample_count?: number | null;
             /**
@@ -2019,8 +2004,6 @@ export interface components {
              * @enum {string}
              */
             selection: "ids" | "count" | "none";
-            /** Template */
-            template: string;
         };
         /**
          * EvalSpec
