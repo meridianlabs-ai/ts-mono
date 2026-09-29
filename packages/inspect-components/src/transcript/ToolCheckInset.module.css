@@ -55,6 +55,20 @@
   overflow-wrap: anywhere;
 }
 
+.reason :global(p),
+.reason > :last-child {
+  margin-bottom: 0;
+}
+
+/* With the checks expandable, the full explanation is in the tree detail. */
+.clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
 .scores {
   font-family: var(--bs-font-monospace);
   font-size: 0.78rem;

@@ -11,6 +11,8 @@ interface ToolBlockProps {
   title: string;
   /** Single-line args summary; ellipsized, never wraps. */
   summary?: string;
+  /** Strikes the summary through, for a call that a check replaced. */
+  summaryStruck?: boolean;
   /** Optional neutral pill after the title (e.g. "server"). */
   pill?: string;
   /** Flush rows (server calls inside the assistant turn) carry no container
@@ -30,6 +32,7 @@ export const ToolBlock: FC<ToolBlockProps> = ({
   icon,
   title,
   summary,
+  summaryStruck,
   pill,
   flush,
   className,
@@ -47,7 +50,13 @@ export const ToolBlock: FC<ToolBlockProps> = ({
       <div className={styles.header}>
         <i className={clsx("bi", icon, styles.icon)} />
         <span className={styles.title}>{title}</span>
-        {summary ? <span className={styles.summary}>{summary}</span> : null}
+        {summary ? (
+          <span
+            className={clsx(styles.summary, summaryStruck && styles.struckText)}
+          >
+            {summary}
+          </span>
+        ) : null}
         {pill ? <span className={styles.pill}>{pill}</span> : null}
       </div>
       {children}

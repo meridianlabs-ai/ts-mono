@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import type { ToolEvent } from "@tsmono/inspect-common/types";
+import type { ApprovalEvent, ToolEvent } from "@tsmono/inspect-common/types";
 import {
   ChatView,
   ClientToolCall,
@@ -23,6 +23,7 @@ import { TranscriptIcons } from "./icons";
 import { SentinelInset } from "./SentinelEventView";
 import { NotRunWell } from "./ToolCheckInset";
 import styles from "./ToolEventView.module.css";
+import type { SentinelStep } from "./transform/toolSentinels";
 import {
   EventNode,
   EventNodeContext,
@@ -30,6 +31,29 @@ import {
   EventPanelCallbacks,
   EventType,
 } from "./types";
+
+interface Blocker {
+  decision: "reject" | "terminate";
+  explanation?: string | null;
+}
+
+/** The check that stopped the call: the final approval, else the sentinel outcome. */
+const blockerOf = (
+  approval: ApprovalEvent | undefined,
+  before: SentinelStep | undefined
+): Blocker | undefined => {
+  if (approval?.decision === "reject" || approval?.decision === "terminate") {
+    return { decision: approval.decision, explanation: approval.explanation };
+  }
+  const verdict = before?.verdict;
+  if (before?.outcome && (verdict === "reject" || verdict === "terminate")) {
+    return { decision: verdict, explanation: before.outcome.event.explanation };
+  }
+  return undefined;
+};
+
+const hasResult = (result: ToolEvent["result"]): boolean =>
+  Array.isArray(result) ? result.length > 0 : result !== "";
 
 interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
@@ -71,30 +95,26 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const sentinels = context?.toolSentinels?.get(event.id);
   const finalApproval = approvals?.at(-1)?.event;
   const before = sentinels?.before;
-  const blocker =
-    finalApproval &&
-    (finalApproval.decision === "reject" ||
-      finalApproval.decision === "terminate")
-      ? {
-          decision: finalApproval.decision,
-          explanation: finalApproval.explanation,
-        }
-      : before?.effective &&
-          (before.verdict === "reject" || before.verdict === "terminate")
-        ? {
-            decision: before.verdict,
-            explanation: before.effective.event.explanation,
-          }
-        : undefined;
-  const modified =
-    finalApproval?.decision === "modify" ||
-    (before?.verdict === "modify" && !!before.effective);
+  const blocker = blockerOf(finalApproval, before);
+  // A blocked call records no result; an approval error is what the model
+  // received in place of one.
+  const ran =
+    event.error?.type !== "approval" && !(blocker && !hasResult(event.result));
+  const sentinelModified = before?.verdict === "modify" && !!before.effective;
+  const modified = finalApproval?.decision === "modify" || sentinelModified;
   const beforeInsets =
     approvals || before ? (
       <ToolBlockInset region="input">
-        {approvals ? <ApprovalInset chain={approvals} /> : null}
+        {approvals ? (
+          <ApprovalInset chain={approvals} ran={ran && !sentinelModified} />
+        ) : null}
         {before ? (
-          <SentinelInset step={before} region="input" context={context} />
+          <SentinelInset
+            step={before}
+            region="input"
+            context={context}
+            ran={ran}
+          />
         ) : null}
       </ToolBlockInset>
     ) : undefined;
@@ -104,17 +124,17 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     </ToolBlockInset>
   ) : undefined;
   // The model received the ToolApprovalError text; prefer the recorded one.
-  const notRun = blocker ? (
+  const notRun = ran ? undefined : (
     <NotRunWell
       message={
         event.error?.type === "approval"
           ? event.error.message
-          : blocker.decision === "reject"
+          : blocker?.decision === "reject"
             ? blocker.explanation?.trim() || "Tool call not approved."
             : undefined
       }
     />
-  ) : undefined;
+  );
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");

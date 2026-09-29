@@ -85,16 +85,17 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     selfAnnotation,
     inputScreenshot,
   };
+  // A call a check replaced or blocked takes the standard block, which can
+  // strike its input and stand in for its result.
   const customView =
-    displayMode === "rendered"
+    displayMode === "rendered" && !inputStruck && !outputReplacement
       ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
       : undefined;
   if (customView) {
     return (
       <div className={clsx(styles.custom, className)}>
-        {afterInput}
         {customView}
-        {outputReplacement}
+        {afterInput}
         {afterOutput}
       </div>
     );
@@ -121,6 +122,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       icon={iconForTool(tool)}
       title={title || tool}
       summary={description ?? (argsInInputZone ? undefined : argsSummary)}
+      summaryStruck={inputStruck}
       className={className}
     >
       {hasInput || argsInInputZone ? (

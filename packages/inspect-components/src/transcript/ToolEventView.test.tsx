@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   testApprovalEvent,
+  testSentinelEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -19,6 +26,7 @@ import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 import { InMemoryStateWrapper } from "./testHelpers";
 import { ToolEventView } from "./ToolEventView";
 import { pairToolApprovals } from "./transform/toolApprovals";
+import { pairToolSentinels } from "./transform/toolSentinels";
 import { EventNode } from "./types";
 
 function makeNode(
@@ -185,26 +193,74 @@ describe("ToolEventView approvals", () => {
         }),
       ],
       {
-        result: "",
         error: {
           type: "approval",
-          message: "Recursive deletion is not permitted.",
+          message: "MODEL_RECEIVED",
         },
       }
     );
     expect(screen.getByText("Rejected")).toBeTruthy();
-    expect(container.textContent).toContain(
-      "Did not run. The model received this as the tool result:"
+    const well = container.querySelector('[class*="notRun"]');
+    expect(well?.textContent).toBe(
+      "Did not run. The model received this as the tool result:errorMODEL_RECEIVED"
     );
-    expect(container.textContent).toContain("error");
+    expect(container.textContent).not.toContain("RESULT_TEXT");
     expect(container.textContent).not.toContain("approval");
   });
 
   it("uses the default message when a reject has no explanation", () => {
-    const { container } = renderApproved([
-      approval("a1", { decision: "reject", explanation: null }),
-    ]);
+    const { container } = renderApproved(
+      [approval("a1", { decision: "reject", explanation: null })],
+      { result: "" }
+    );
     expect(container.textContent).toContain("Tool call not approved.");
+  });
+
+  it("does not say a modify ran when a sentinel then rejected the call", () => {
+    const tool = new EventNode<ToolEvent>(
+      "tool-1",
+      testToolEvent({
+        id: "tool-call-1",
+        function: "bash",
+        arguments: { cmd: "ORIGINAL_CMD" },
+        result: "",
+        error: { type: "approval", message: "SENTINEL_SAID_NO" },
+      }),
+      0
+    );
+    const nodes = [
+      approval("a1", {
+        approver: "gatekeeper",
+        decision: "modify",
+        modified: testToolCall({
+          function: "bash",
+          arguments: { cmd: "PROPOSED_CMD" },
+        }),
+      }),
+      new EventNode(
+        "s1",
+        testSentinelEvent({ step_id: "tool-call-1", decision: "reject" }),
+        0
+      ),
+      tool,
+    ];
+    const { toolApprovals } = pairToolApprovals(nodes);
+    const { toolSentinels } = pairToolSentinels(nodes);
+    const { container } = render(
+      <InMemoryStateWrapper>
+        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+          <ToolEventView
+            eventNode={tool}
+            childNodes={[]}
+            context={{ toolApprovals, toolSentinels }}
+          />
+        </ComponentNavigationProvider>
+      </InMemoryStateWrapper>
+    );
+    expect(screen.queryByText("ran instead")).toBeNull();
+    expect(screen.getByText("modified to")).toBeTruthy();
+    expect(container.textContent).toContain("PROPOSED_CMD");
+    expect(container.textContent).toContain("SENTINEL_SAID_NO");
   });
 
   it("strikes the original call and shows what ran instead for a modify", () => {
@@ -249,5 +305,20 @@ describe("ToolEventView approvals", () => {
       "1gatekeeperescalatePackage installs need a person."
     );
     expect(container.textContent).toContain("2humanapprove");
+  });
+
+  it("renders chain explanations as markdown", async () => {
+    const { container } = renderApproved([
+      approval("a1", {
+        approver: "gatekeeper",
+        decision: "escalate",
+        explanation: "Needs **review**.",
+      }),
+      approval("a2", { approver: "human", decision: "approve" }),
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "2 checks" }));
+    await waitFor(() => {
+      expect(container.querySelector("strong")?.textContent).toBe("review");
+    });
   });
 });

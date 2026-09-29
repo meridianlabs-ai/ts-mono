@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -92,6 +98,9 @@ const renderTool = (
     />
   );
 };
+
+const notRunText = (container: HTMLElement) =>
+  container.querySelector('[class*="notRun"]')?.textContent;
 
 const pill = (count: number) =>
   screen.getByRole("button", { name: `${count} checks` });
@@ -206,7 +215,7 @@ describe("sentinel checks in a tool card", () => {
 
     expect(screen.getByText("exfiltration 0.93")).toBeTruthy();
     expect(screen.getByText("2 more scores")).toBeTruthy();
-    expect(screen.getByLabelText("flagged")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "flagged" })).toBeTruthy();
 
     fireEvent.click(rowButton(/guard\/llm\/monitor/));
     const text = container.textContent;
@@ -220,7 +229,6 @@ describe("sentinel checks in a tool card", () => {
 
   it("replaces the result with what the model received for a reject", () => {
     const { container } = renderTool(rejectEvents(), {
-      result: "",
       error: { type: "approval", message: "MODEL_SAW_THIS" },
     });
     expect(container.textContent).toContain(
@@ -231,10 +239,70 @@ describe("sentinel checks in a tool card", () => {
   });
 
   it("falls back to the explanation, then the default approval message", () => {
-    const { container } = renderTool([decision("root", "", "rule", "reject")], {
+    const { container } = renderTool(
+      [decision("root", "", "rule", "reject", { explanation: "ROOT_REASON" })],
+      { result: "", error: null }
+    );
+    expect(notRunText(container)).toContain("ROOT_REASON");
+    cleanup();
+    const bare = renderTool([decision("root", "", "rule", "reject")], {
+      result: "",
       error: null,
     });
-    expect(container.textContent).toContain("Tool call not approved.");
+    expect(notRunText(bare.container)).toContain("Tool call not approved.");
+  });
+
+  it("keeps the result of a call whose root returned nothing over a child's reject", () => {
+    const { container } = renderTool([
+      decision("rule", "rule", "no_network", "reject", {
+        explanation: "CHILD_REASON",
+      }),
+    ]);
+    expect(screen.getByText("Continued")).toBeTruthy();
+    expect(screen.queryByText("Rejected")).toBeNull();
+    expect(container.textContent).toContain("RESULT_TEXT");
+    expect(container.textContent).not.toContain("Did not run");
+  });
+
+  it("keeps a real result when a reject was recorded but the call ran", () => {
+    const { container } = renderTool([decision("root", "", "rule", "reject")]);
+    expect(container.textContent).toContain("RESULT_TEXT");
+    expect(container.textContent).not.toContain("Did not run");
+  });
+
+  it("says the sample was terminated for a terminate", () => {
+    const { container } = renderTool(
+      [decision("root", "", "rule", "terminate", { explanation: "stop" })],
+      { result: "" }
+    );
+    expect(screen.getByText("Terminated")).toBeTruthy();
+    expect(notRunText(container)).toBe(
+      "Did not run. The sample was terminated."
+    );
+  });
+
+  it("shows an escalation and keeps the result", () => {
+    const { container } = renderTool([
+      decision("root", "", "escalate_on_doubt", "escalate", {
+        explanation: "Needs a person.",
+      }),
+    ]);
+    expect(screen.getByText("Escalated")).toBeTruthy();
+    expect(container.textContent).toContain("RESULT_TEXT");
+  });
+
+  it("renders the summary reason as markdown, clamped when the checks expand", async () => {
+    const { container } = renderTool([
+      decision("rule", "rule", "no_network", "reject"),
+      decision("root", "", "concurrent", "reject", {
+        explanation: "Uses **curl**.",
+      }),
+    ]);
+    await waitFor(() => {
+      expect(container.querySelector("strong")?.textContent).toBe("curl");
+    });
+    const reason = container.querySelector("strong")!.closest("div");
+    expect(reason?.className).toContain("clamped");
   });
 
   it("starts a quiet step collapsed with no row open", () => {
@@ -258,10 +326,23 @@ describe("sentinel checks in a tool card", () => {
         exfiltration: 0.08,
         sabotage: 0.05,
       }),
-      decision("root", "", "concurrent", "continue"),
+      observation("fail", "failures", "failure_count", 0.2),
     ]);
     expect(screen.getByText("Observed")).toBeTruthy();
     expect(screen.getByText("exfiltration 0.08")).toBeTruthy();
+    expect(screen.getByText("failure_count 0.2")).toBeTruthy();
+  });
+
+  it("calls an explicit root continue continued, with the monitors' scores", () => {
+    renderTool([
+      observation("mon", "monitor", "llm_suspicion", {
+        exfiltration: 0.62,
+        sabotage: 0.05,
+      }),
+      decision("root", "", "threshold", "continue"),
+    ]);
+    expect(screen.getByText("Continued")).toBeTruthy();
+    expect(screen.getByText("exfiltration 0.62")).toBeTruthy();
   });
 
   it("does not make a single check expandable", () => {
@@ -306,6 +387,98 @@ describe("sentinel checks in a tool card", () => {
     expect(container.textContent).not.toContain("took effect");
   });
 
+  it("shows the call the root ran, not a child's different proposal", () => {
+    const { container } = renderTool(
+      [
+        decision("net", "guard/network", "no_network", "modify", {
+          modified: testToolCall({
+            function: "bash",
+            arguments: { cmd: "CHILD_CMD" },
+          }),
+        }),
+        decision("root", "", "sequential", "modify", {
+          modified: testToolCall({
+            function: "bash",
+            arguments: { cmd: "ROOT_CMD" },
+          }),
+        }),
+      ],
+      { arguments: { cmd: "curl https://example.com" } }
+    );
+    const ranInstead = screen.getByText("ran instead").parentElement;
+    expect(ranInstead?.textContent).toContain("ROOT_CMD");
+    expect(container.textContent).not.toContain("CHILD_CMD");
+  });
+
+  it("strikes short original args that sit in the header", () => {
+    const tool = new EventNode(
+      "tool-1",
+      testToolEvent({
+        id: "call_1",
+        function: "read_file",
+        arguments: { path: "secret.txt" },
+        result: "RESULT_TEXT",
+      }),
+      0
+    );
+    const { toolSentinels } = pairToolSentinels([
+      decision("root", "", "rule", "modify", {
+        modified: testToolCall({
+          function: "read_file",
+          arguments: { path: "public.txt" },
+        }),
+      }),
+      tool,
+    ]);
+    const { container } = renderWithState(
+      <ToolEventView
+        eventNode={tool}
+        childNodes={[]}
+        context={{ toolSentinels }}
+      />
+    );
+    const struck = container.querySelector('[class*="struckText"]');
+    expect(struck?.textContent).toContain("secret.txt");
+  });
+
+  it("puts the checks of a custom tool view below the view", () => {
+    const { container } = renderTool(
+      [decision("root", "", "rule", "continue", { explanation: "CHECK_TEXT" })],
+      {
+        function: "submit",
+        arguments: { answer: "ANSWER_TEXT" },
+        result: "ANSWER_TEXT",
+      }
+    );
+    expect(container.querySelector('[class*="submitView"]')).not.toBeNull();
+    const text = container.textContent;
+    expect(text.indexOf("ANSWER_TEXT")).toBeGreaterThan(-1);
+    expect(text.indexOf("CHECK_TEXT")).toBeGreaterThan(
+      text.indexOf("ANSWER_TEXT")
+    );
+  });
+
+  it("strikes a replaced call that would take a custom tool view", () => {
+    const { container } = renderTool(
+      [
+        decision("root", "", "rule", "modify", {
+          modified: testToolCall({
+            function: "submit",
+            arguments: { answer: "NEW_ANSWER" },
+          }),
+        }),
+      ],
+      { function: "submit", arguments: { answer: "OLD_ANSWER" } }
+    );
+    expect(container.querySelector('[class*="submitView"]')).toBeNull();
+    const struck = container.querySelector('[class*="struck"]');
+    expect(struck?.textContent).toContain("OLD_ANSWER");
+    const text = container.textContent;
+    expect(text.indexOf("NEW_ANSWER")).toBeGreaterThan(
+      text.indexOf("OLD_ANSWER")
+    );
+  });
+
   it("renders before-call checks in the input region and after-call checks after the result", () => {
     const { container } = renderTool([
       decision("before", "", "before_protocol", "continue", {
@@ -329,6 +502,13 @@ describe("sentinel checks in a tool card", () => {
 
   it("shows bypassed, cancelled and superseded checks as muted rows", () => {
     renderTool([
+      node("byp", {
+        path: "gate",
+        name: "gatekeeper",
+        kind: "bypassed",
+        function: null,
+        decision: null,
+      }),
       decision("esc", "review", "escalate_on_doubt", "escalate"),
       node("sup", {
         path: "review",
@@ -346,9 +526,14 @@ describe("sentinel checks in a tool card", () => {
       }),
       decision("root", "", "concurrent", "continue"),
     ]);
-    fireEvent.click(pill(3));
+    fireEvent.click(pill(4));
     expect(screen.getByText("cancelled")).toBeTruthy();
+    expect(screen.getByText("bypassed")).toBeTruthy();
     expect(rowButton(/review/).textContent).toContain("escalate · superseded");
+    for (const label of [/gate/, /slow/, /review/]) {
+      expect(rowButton(label).className).toContain("inactive");
+    }
+    expect(rowButton(/\(top\)/).className).not.toContain("inactive");
   });
 
   it("folds the step's monitor model calls into a line at the end", () => {
@@ -419,8 +604,24 @@ describe("SentinelEventView", () => {
       />
     );
     expect(container.textContent).toContain("model output");
-    expect(screen.getByText("Observed")).toBeTruthy();
+    expect(screen.getByText("Continued")).toBeTruthy();
     fireEvent.click(pill(2));
     expect(screen.getByText("(top)")).toBeTruthy();
+  });
+
+  it("gives an event shown alone an honest verdict", () => {
+    const { container } = renderWithState(
+      <SentinelEventView
+        eventNode={node("byp", {
+          path: "guard",
+          name: "concurrent",
+          kind: "bypassed",
+          function: null,
+          decision: null,
+        })}
+      />
+    );
+    expect(screen.getByText("Bypassed")).toBeTruthy();
+    expect(container.textContent).not.toContain("Continued");
   });
 });

@@ -3,6 +3,7 @@ import { FC, ReactNode } from "react";
 
 import type { ToolCall } from "@tsmono/inspect-common/types";
 import { resolveToolInput, ToolInput } from "@tsmono/inspect-components/chat";
+import { MarkdownDiv } from "@tsmono/react/components";
 
 import styles from "./ToolCheckInset.module.css";
 
@@ -77,7 +78,14 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
       </span>
     ))}
     {reason ? (
-      <span className={clsx(styles.reason, reasonClassName)}>{reason}</span>
+      <MarkdownDiv
+        markdown={reason}
+        className={clsx(
+          styles.reason,
+          checks !== undefined && checks > 1 && styles.clamped,
+          reasonClassName
+        )}
+      />
     ) : null}
     {flagged || (checks !== undefined && checks > 1) ? (
       <span className={styles.trailing}>
@@ -125,10 +133,18 @@ export const ReplacementCall: FC<{ call: ToolCall }> = ({ call }) => {
   );
 };
 
+interface RanInsteadProps {
+  call: ToolCall;
+  /** Whether the replacement ran; one a later check blocked is only what the modify proposed. */
+  ran?: boolean;
+}
+
 /** The replacement a modify decision ran instead of the original call. */
-export const RanInstead: FC<{ call: ToolCall }> = ({ call }) => (
+export const RanInstead: FC<RanInsteadProps> = ({ call, ran = true }) => (
   <div className={styles.ranInstead}>
-    <span className={clsx(styles.label, styles.modifyText)}>ran instead</span>
+    <span className={clsx(styles.label, styles.modifyText)}>
+      {ran ? "ran instead" : "modified to"}
+    </span>
     <ReplacementCall call={call} />
   </div>
 );

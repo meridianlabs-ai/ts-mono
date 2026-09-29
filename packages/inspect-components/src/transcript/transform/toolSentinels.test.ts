@@ -4,6 +4,7 @@ import {
   testModelEvent,
   testSentinelEvent,
   testSpanBeginEvent,
+  testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { SentinelEvent } from "@tsmono/inspect-common/types";
@@ -11,6 +12,7 @@ import type { SentinelEvent } from "@tsmono/inspect-common/types";
 import { EventNode } from "../types";
 
 import {
+  buildLoneSentinelStep,
   buildSentinelStep,
   formatSuspicion,
   pairToolSentinels,
@@ -143,6 +145,40 @@ describe("buildSentinelStep", () => {
     expect(step.effective?.id).toBe("b");
   });
 
+  it("keeps the effect on a parent whose child explained a different reject", () => {
+    const step = buildSentinelStep([
+      withExplanation(decision("rule", "rule", "rule", "reject"), "child"),
+      withExplanation(decision("root", "", "concurrent", "reject"), "parent"),
+    ]);
+    expect(step.effective?.id).toBe("root");
+    expect(step.reason).toBe("parent");
+  });
+
+  it("follows a passed-up decision through a layer with no explanation", () => {
+    const step = buildSentinelStep([
+      withExplanation(decision("llm", "guard/llm", "threshold", "reject"), "x"),
+      decision("guard", "guard", "sequential", "reject"),
+      withExplanation(decision("root", "", "concurrent", "reject"), "x"),
+    ]);
+    expect(step.effective?.id).toBe("llm");
+  });
+
+  it("keeps the effect on a parent whose child proposed a different modify", () => {
+    const modify = (id: string, path: string, cmd: string) => {
+      const node = decision(id, path, id, "modify");
+      node.event.modified = testToolCall({ arguments: { cmd } });
+      return node;
+    };
+    const step = buildSentinelStep([
+      modify("rule", "rule", "CHILD_CMD"),
+      modify("root", "", "ROOT_CMD"),
+    ]);
+    expect(step.effective?.id).toBe("root");
+    expect(step.outcome?.event.modified?.arguments).toEqual({
+      cmd: "ROOT_CMD",
+    });
+  });
+
   it("falls back to the top decision's explanation", () => {
     const step = buildSentinelStep([
       decision("rule", "rule", "rule", "reject"),
@@ -152,17 +188,61 @@ describe("buildSentinelStep", () => {
     expect(step.reason).toBe("why");
   });
 
-  it("takes the last decision when a final layer bypassed the rest", () => {
+  it("takes the final() decision recorded after the bypassed root", () => {
     const step = buildSentinelStep([
-      decision("net", "guard/network", "no_network", "continue"),
+      decision("net", "guard/network", "no_network", "reject"),
       layer("guard", "guard", "concurrent", "bypassed"),
       layer("audit", "audit", "suspicion", "cancelled"),
       layer("root", "", "concurrent", "bypassed"),
       decision("prot", "guard/protected", "protected", "reject"),
     ]);
     expect(step.rows).toHaveLength(5);
+    expect(step.verdict).toBe("reject");
+    expect(step.outcome?.id).toBe("prot");
     expect(step.effective?.id).toBe("prot");
     expect(rowIds(step)).toEqual(["root", "guard", "net", "prot", "audit"]);
+  });
+
+  it("does not descend past a final() origin into a child that explained otherwise", () => {
+    const step = buildSentinelStep([
+      withExplanation(decision("inner", "guard/inner", "rule", "reject"), "a"),
+      layer("root", "", "concurrent", "bypassed"),
+      withExplanation(decision("guard", "guard", "strict", "reject"), "b"),
+    ]);
+    expect(step.effective?.id).toBe("guard");
+    expect(step.reason).toBe("b");
+  });
+
+  it("reads a step whose root returned nothing as continued, whatever a child decided", () => {
+    const step = buildSentinelStep([
+      withExplanation(decision("rule", "rule", "rule", "reject"), "no"),
+      observation("mon", "monitor", "suspicion", 0.3),
+    ]);
+    expect(step.verdict).toBe("continue");
+    expect(step.outcome).toBeUndefined();
+    expect(step.effective).toBeUndefined();
+    expect(step.reason).toBeUndefined();
+    expect(step.scores).toEqual(["suspicion 0.3"]);
+  });
+
+  it("names the kind of a step whose every check was cancelled", () => {
+    const step = buildSentinelStep([
+      layer("a", "a", "slow", "cancelled"),
+      layer("root", "", "concurrent", "cancelled"),
+    ]);
+    expect(step.verdict).toBe("cancelled");
+  });
+
+  it("gives an event shown alone its own result", () => {
+    expect(
+      buildLoneSentinelStep(layer("guard", "guard", "concurrent", "bypassed"))
+        .verdict
+    ).toBe("bypassed");
+    const lone = buildLoneSentinelStep(
+      decision("rule", "guard/rule", "rule", "reject")
+    );
+    expect(lone.verdict).toBe("reject");
+    expect(lone.effective?.id).toBe("rule");
   });
 
   it("gives a superseded decision one row carried by the superseded event", () => {
@@ -196,29 +276,37 @@ describe("buildSentinelStep", () => {
     expect(step.reason).toBeUndefined();
   });
 
-  it("names the top decision of a quiet step without a root", () => {
-    const step = buildSentinelStep([
-      observation("mon", "guard/monitor", "llm_suspicion", {
-        exfiltration: 0.62,
-        sabotage: 0.1,
-      }),
-      decision("guard", "guard", "threshold", "continue"),
-    ]);
-    expect(step.decider?.id).toBe("guard");
-    expect(step.scores).toEqual(["exfiltration 0.62"]);
-  });
-
-  it("calls a step observed when only the root decides", () => {
+  it("calls a step with no decision observed", () => {
     const step = buildSentinelStep([
       observation("mon", "monitor", "llm_suspicion", {
         sabotage: 0.05,
         exfiltration: 0.08,
       }),
       observation("fail", "failures", "observe/failure_count", 0.2),
-      decision("root", "", "concurrent", "continue"),
     ]);
     expect(step.verdict).toBe("observe");
     expect(step.scores).toEqual(["exfiltration 0.08", "failure_count 0.2"]);
+  });
+
+  it("calls an explicit root continue continued, with the monitors' scores", () => {
+    const step = buildSentinelStep([
+      observation("mon", "monitor", "llm_suspicion", {
+        sabotage: 0.05,
+        exfiltration: 0.62,
+      }),
+      decision("root", "", "threshold", "continue"),
+    ]);
+    expect(step.verdict).toBe("continue");
+    expect(step.decider?.id).toBe("root");
+    expect(step.scores).toEqual(["exfiltration 0.62"]);
+  });
+
+  it("skips an observation with no scores", () => {
+    const step = buildSentinelStep([
+      observation("mon", "monitor", "llm_suspicion", {}),
+      decision("root", "", "threshold", "continue"),
+    ]);
+    expect(step.scores).toEqual([]);
   });
 
   it("summarises a lone observation with its full suspicion and explanation", () => {
@@ -250,6 +338,10 @@ describe("topScore", () => {
       topScore({ sabotage: 0.1, exfiltration: 0.934, other: 0.2 })
     ).toEqual({ dimension: "exfiltration", value: "0.93", more: 2 });
     expect(topScore(0.41)).toEqual({ value: "0.41", more: 0 });
+  });
+
+  it("gives an empty suspicion an empty value", () => {
+    expect(topScore({})).toEqual({ value: "", more: 0 });
   });
 });
 

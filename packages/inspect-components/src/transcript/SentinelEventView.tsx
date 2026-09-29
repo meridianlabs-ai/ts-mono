@@ -19,7 +19,7 @@ import {
   type CheckTone,
 } from "./ToolCheckInset";
 import {
-  buildSentinelStep,
+  buildLoneSentinelStep,
   sortedScores,
   topScore,
   type SentinelRow,
@@ -34,6 +34,8 @@ interface SentinelInsetProps {
   region: CheckRegion;
   /** The host row's context; monitor model calls take only its retry attempts. */
   context?: EventNodeContext;
+  /** Whether the call ran; a modify of a call that never ran shows what it proposed. */
+  ran?: boolean;
 }
 
 /**
@@ -44,6 +46,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   step,
   region,
   context,
+  ran = true,
 }) => {
   const [collapsed, setCollapsed] = useCollapsedState(
     `${step.id}-sentinel-checks`,
@@ -53,7 +56,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   const tone: CheckTone = step.effective ? look.tone : "neutral";
   const single = step.rows.length === 1 ? step.rows[0] : undefined;
   const who = (single?.node ?? step.decider)?.event.path || undefined;
-  const modified = step.effective?.event.modified;
+  const modified = step.effective ? step.outcome?.event.modified : undefined;
   return (
     <CheckInset region={region} tone={tone}>
       <CheckSummary
@@ -71,7 +74,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         onToggle={() => setCollapsed(!collapsed)}
       />
       {step.verdict === "modify" && modified ? (
-        <RanInstead call={modified} />
+        <RanInstead call={modified} ran={ran} />
       ) : null}
       {!collapsed && step.rows.length > 1 ? (
         <CheckTree step={step} tone={tone} />
@@ -178,7 +181,11 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
 const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   const event = row.node.event;
   const flag = event.audit ? (
-    <i className={clsx("bi bi-flag-fill", styles.flag)} aria-label="flagged" />
+    <i
+      className={clsx("bi bi-flag-fill", styles.flag)}
+      role="img"
+      aria-label="flagged"
+    />
   ) : null;
   if (event.kind === "bypassed" || event.kind === "cancelled") {
     return <span>{event.kind}</span>;
@@ -413,7 +420,7 @@ export const SentinelEventView: FC<SentinelEventViewProps> = ({
   className,
 }) => (
   <SentinelStepRow
-    step={step ?? buildSentinelStep([eventNode])}
+    step={step ?? buildLoneSentinelStep(eventNode)}
     eventNodeId={eventNode.id}
     className={className}
   />
@@ -452,6 +459,21 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
   observe: {
     icon: TranscriptIcons.sentinel,
     word: "Observed",
+    tone: "neutral",
+  },
+  bypassed: {
+    icon: TranscriptIcons.sentinel,
+    word: "Bypassed",
+    tone: "neutral",
+  },
+  cancelled: {
+    icon: TranscriptIcons.sentinel,
+    word: "Cancelled",
+    tone: "neutral",
+  },
+  superseded: {
+    icon: TranscriptIcons.sentinel,
+    word: "Superseded",
     tone: "neutral",
   },
   reject: { ...rejectLook, word: "Rejected" },

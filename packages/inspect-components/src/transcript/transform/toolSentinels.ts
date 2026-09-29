@@ -21,8 +21,10 @@ export interface SentinelRow {
   tookEffect: boolean;
 }
 
+type InactiveKind = "bypassed" | "cancelled" | "superseded";
+
 export type SentinelVerdict =
-  "observe" | NonNullable<SentinelEvent["decision"]>;
+  "observe" | InactiveKind | NonNullable<SentinelEvent["decision"]>;
 
 /** The sentinel events recorded for one step, as a tree of checks. */
 export interface SentinelStep {
@@ -33,13 +35,15 @@ export interface SentinelStep {
   /** One row per check in tree order; a superseded event stands in for the decision it names. */
   rows: SentinelRow[];
   verdict: SentinelVerdict;
+  /** The decision the runner returned: the root's, or the one a `final()` made. */
+  outcome?: SentinelNode;
   /** The check the summary names: the decision that took effect, or the top decision of a quiet step. */
   decider?: SentinelNode;
   /** The row that took effect; unset when every check continued. */
   effective?: SentinelNode;
   /** The explanation the summary shows: the deciding layer's, or the lone check's. */
   reason?: string;
-  /** Scores the summary shows for a quiet step: each monitor's first score. */
+  /** Scores the summary shows for a step that did not act: each monitor's top score. */
   scores: string[];
   /** Whether any event of the step asked for an audit. */
   audit: boolean;
@@ -137,31 +141,88 @@ const guidesFor = (entry: TreeNode): string => {
   return prefix;
 };
 
+const explanationOf = (node: SentinelNode | undefined): string | undefined =>
+  node?.event.explanation?.trim() || undefined;
+
+/** Whether a child's decision is the one its parent passed up. */
+const passesUp = (
+  child: SentinelNode,
+  parent: SentinelNode,
+  explanation: string | undefined
+): boolean => {
+  const event = child.event;
+  if (event.kind !== "decision" || event.decision !== parent.event.decision) {
+    return false;
+  }
+  const own = explanationOf(child);
+  if (own && explanation && own !== explanation) return false;
+  const [mine, theirs] = [event.modified, parent.event.modified];
+  return (
+    !mine ||
+    !theirs ||
+    (mine.function === theirs.function &&
+      JSON.stringify(mine.arguments) === JSON.stringify(theirs.arguments))
+  );
+};
+
 /**
- * The decision that took effect, inferred from the recorded decisions: the
- * runner records the deciding layer's decision last, and a parent passes up
- * its children's decision, so descend from it through children that made the
- * same decision. A child whose explanation matches the parent's wins a tie.
+ * The decision that took effect, inferred from the step's outcome: a parent
+ * passes up its children's decision, so descend from the outcome through
+ * children that made the same decision and, where both explain themselves,
+ * gave the same explanation. A child whose explanation matches wins a tie.
  */
 const effectiveDecision = (
   tree: TreeNode[],
-  last: SentinelNode
+  outcome: SentinelNode
 ): SentinelNode => {
-  let current = tree.find((e) => e.node === last)!;
+  let current = tree.find((e) => e.node === outcome)!;
+  let explanation = explanationOf(outcome);
   for (;;) {
-    const matching = current.children.filter(
-      (c) =>
-        c.node.event.kind === "decision" &&
-        c.node.event.decision === current.node.event.decision
+    const matching = current.children.filter((c) =>
+      passesUp(c.node, current.node, explanation)
     );
-    const explanation = current.node.event.explanation?.trim() || null;
     const next =
-      matching.find(
-        (c) => (c.node.event.explanation?.trim() || null) === explanation
-      ) ?? matching[0];
+      (explanation
+        ? matching.find((c) => explanationOf(c.node) === explanation)
+        : undefined) ?? matching[0];
     if (!next) return current.node;
     current = next;
+    explanation ??= explanationOf(next.node);
   }
+};
+
+/**
+ * The decision the runner returned for the step: the root's, or, when a
+ * `final()` bypassed the root, the one recorded after the bypassed layers.
+ */
+const outcomeOf = (nodes: SentinelNode[]): SentinelNode | undefined => {
+  const root = nodes.find(
+    (n) => n.event.path === "" && n.event.kind === "decision"
+  );
+  if (root) return root;
+  const bypassed = nodes.findIndex(
+    (n) => n.event.path === "" && n.event.kind === "bypassed"
+  );
+  if (bypassed === -1) return undefined;
+  return nodes.slice(bypassed + 1).findLast((n) => n.event.kind === "decision");
+};
+
+const isInactiveKind = (kind: SentinelEvent["kind"]): kind is InactiveKind =>
+  kind === "bypassed" || kind === "cancelled" || kind === "superseded";
+
+/**
+ * The verdict of a step the runner returned no decision for: observed when
+ * only monitors reported, continued when a protocol reported but the root
+ * returned nothing, and the recorded kind when the root or every check was
+ * cancelled or bypassed.
+ */
+const quietVerdict = (checks: SentinelNode[]): SentinelVerdict => {
+  const rootKind = checks.find((n) => n.event.path === "")?.event.kind;
+  if (rootKind && isInactiveKind(rootKind)) return rootKind;
+  if (checks.some((n) => n.event.kind === "decision")) return "continue";
+  if (checks.some((n) => n.event.kind === "observation")) return "observe";
+  const firstKind = checks[0]?.event.kind;
+  return firstKind && isInactiveKind(firstKind) ? firstKind : "continue";
 };
 
 /**
@@ -198,18 +259,10 @@ export function buildSentinelStep(
     .map(({ node }) => node);
   const tree = buildTree(ordered);
 
-  const decisions = checks.filter((n) => n.event.kind === "decision");
-  const last = decisions.at(-1);
-  const acted = last && last.event.decision !== "continue";
-  const effective = acted ? effectiveDecision(tree, last) : undefined;
-  const onlyRootDecides = decisions.every((n) => n.event.path === "");
-  const observed =
-    !acted &&
-    onlyRootDecides &&
-    checks.some((n) => n.event.kind === "observation");
+  const outcome = outcomeOf(checks);
+  const acted = !!outcome && outcome.event.decision !== "continue";
+  const effective = acted ? effectiveDecision(tree, outcome) : undefined;
 
-  const explanationOf = (node: SentinelNode | undefined) =>
-    node?.event.explanation?.trim() || undefined;
   const single = checks.length === 1 ? checks[0] : undefined;
   const observations = checks.filter(
     (n) => n.event.kind === "observation" && n.event.suspicion != null
@@ -217,10 +270,13 @@ export function buildSentinelStep(
   const scores = acted
     ? []
     : single?.event.suspicion != null
-      ? [formatSuspicion(single.event.suspicion)]
-      : observations.map((n) => {
+      ? [formatSuspicion(single.event.suspicion)].filter(Boolean)
+      : observations.flatMap((n) => {
           const top = topScore(n.event.suspicion!);
-          return `${top.dimension ?? n.event.name.split("/").at(-1)} ${top.value}`;
+          if (!top.value) return [];
+          return [
+            `${top.dimension ?? n.event.name.split("/").at(-1)} ${top.value}`,
+          ];
         });
 
   return {
@@ -233,15 +289,39 @@ export function buildSentinelStep(
       guides: guidesFor(entry),
       tookEffect: entry.node === effective,
     })),
-    verdict: observed ? "observe" : (last?.event.decision ?? "continue"),
-    decider: effective ?? last,
+    verdict: outcome
+      ? (outcome.event.decision ?? "continue")
+      : quietVerdict(checks),
+    outcome,
+    decider: effective ?? outcome,
     effective,
     reason: acted
-      ? (explanationOf(effective) ?? explanationOf(last))
+      ? (explanationOf(effective) ?? explanationOf(outcome))
       : explanationOf(single),
     scores,
     audit: nodes.some((n) => n.event.audit),
     modelCalls,
+  };
+}
+
+/**
+ * The step of one event shown without the rest of its step (e.g. in the
+ * chunked transcript), whose verdict is the event's own result.
+ */
+export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
+  const step = buildSentinelStep([node]);
+  const event = node.event;
+  if (event.kind !== "decision" || step.outcome) return step;
+  const verdict = event.decision ?? "continue";
+  const acted = verdict !== "continue";
+  return {
+    ...step,
+    verdict,
+    outcome: node,
+    decider: node,
+    effective: acted ? node : undefined,
+    rows: step.rows.map((row) => ({ ...row, tookEffect: acted })),
+    reason: explanationOf(node),
   };
 }
 
@@ -367,14 +447,16 @@ export interface TopScore {
   more: number;
 }
 
-/** The highest score of a suspicion, which stands for it where space is short. */
+/** The highest score of a suspicion, which stands for it where space is short; an empty value for a suspicion with no scores. */
 export const topScore = (
   suspicion: NonNullable<SentinelEvent["suspicion"]>
 ): TopScore => {
   if (typeof suspicion === "number") {
     return { value: formatScore(suspicion), more: 0 };
   }
-  const [dimension, value] = sortedScores(suspicion)[0]!;
+  const top = sortedScores(suspicion)[0];
+  if (!top) return { value: "", more: 0 };
+  const [dimension, value] = top;
   return {
     dimension,
     value: formatScore(value),

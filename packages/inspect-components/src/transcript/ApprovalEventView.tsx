@@ -105,13 +105,18 @@ const decisionIcon = (decision: string): string => {
 interface ApprovalInsetProps {
   /** The call's approval events in recording order; the last one took effect. */
   chain: EventNode<ApprovalEvent>[];
+  /** Whether the modified call ran; a later check can still block it. */
+  ran?: boolean;
 }
 
 /**
  * The approvals of a tool call as an inset in its input region: one summary
  * row for the decision that took effect, expanding to the escalation chain.
  */
-export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
+export const ApprovalInset: FC<ApprovalInsetProps> = ({
+  chain,
+  ran = true,
+}) => {
   const final = chain.at(-1)!;
   const [collapsed, setCollapsed] = useCollapsedState(
     `${chain[0]!.id}-approval-chain`,
@@ -138,12 +143,13 @@ export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
         onToggle={() => setCollapsed(!collapsed)}
       />
       {event.decision === "modify" && event.modified ? (
-        <RanInstead call={event.modified} />
+        <RanInstead call={event.modified} ran={ran} />
       ) : null}
       {chain.length > 1 && !collapsed ? (
         <div className={styles.chain}>
           {chain.map((node, index) => {
             const step = decisionLook(node.event.decision);
+            const explanation = node.event.explanation?.trim();
             return (
               <Fragment key={node.id}>
                 <span className={styles.chainIndex}>{index + 1}</span>
@@ -154,9 +160,14 @@ export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
                   <i className={decisionIcon(node.event.decision)} />
                   {node.event.decision}
                 </span>
-                <span className={styles.chainExplanation}>
-                  {node.event.explanation?.trim()}
-                </span>
+                {explanation ? (
+                  <MarkdownDiv
+                    markdown={explanation}
+                    className={styles.chainExplanation}
+                  />
+                ) : (
+                  <span />
+                )}
               </Fragment>
             );
           })}
