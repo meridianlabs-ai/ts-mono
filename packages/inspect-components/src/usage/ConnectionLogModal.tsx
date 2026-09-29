@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, MouseEvent, useMemo, useState } from "react";
+import { FC, useMemo, useState } from "react";
 
 import type { ConnectionLimitChange } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
@@ -20,7 +20,8 @@ interface ConnectionLogModalProps {
   shared_roles?: string[];
   /** Mid-run config retunes of this pool, interleaved as violet ◆ rows. */
   retunes?: PoolRetune[];
-  onViewTimeline?: (event: MouseEvent<HTMLButtonElement>) => void;
+  onViewTimeline?: () => void;
+  timelineHref?: string;
 }
 
 type RowFilter = "all" | "controller" | "config";
@@ -37,6 +38,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
   shared_roles,
   retunes,
   onViewTimeline,
+  timelineHref,
 }) => {
   const [filter, setFilter] = useState<RowFilter>("all");
 
@@ -89,6 +91,7 @@ export const ConnectionLogModal: FC<ConnectionLogModalProps> = ({
             <TimelineLink
               className={styles.footerLink}
               onClick={onViewTimeline}
+              href={timelineHref}
             />
           )}
           <button
