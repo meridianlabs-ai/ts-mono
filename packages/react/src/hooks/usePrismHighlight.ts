@@ -1,6 +1,9 @@
-import { RefObject, useEffect } from "react";
+import { RefObject, useLayoutEffect } from "react";
 
-import { useIsContentTrusted } from "../components/ContentTrust";
+import {
+  kUntrustedContentSelector,
+  useIsContentTrusted,
+} from "../components/ContentTrust";
 
 import { onDemandModule } from "./onDemandModule";
 
@@ -18,8 +21,12 @@ const highlightCodeBlocks = (
 ) => {
   const codeBlocks = container.querySelectorAll("pre code");
   codeBlocks.forEach((block) => {
-    // Skip already highlighted blocks
-    if (block.hasAttribute("data-highlighted")) {
+    // Skip already highlighted blocks, and never highlight untrusted content
+    // (even if an observer outlives the trust that started it).
+    if (
+      block.hasAttribute("data-highlighted") ||
+      block.closest(kUntrustedContentSelector) !== null
+    ) {
       return;
     }
     if (block.className.includes("language-")) {
@@ -35,7 +42,10 @@ export const usePrismHighlight = (
   contentLength: number
 ) => {
   const trusted = useIsContentTrusted();
-  useEffect(() => {
+  // A layout effect, so revoking trust disconnects the observer in the same
+  // commit that inserts the untrusted content; a passive effect's cleanup can
+  // run after the observer has already seen (and highlighted) it.
+  useLayoutEffect(() => {
     if (
       !trusted ||
       contentLength <= 0 ||

@@ -66,6 +66,12 @@ export const untrustedText = (text: string): string =>
  */
 export const untrustedTextClassName: string = styles.untrustedText;
 
+/**
+ * Matches elements marked as holding untrusted content, which DOM-level
+ * enhancers (syntax highlighting) must leave alone.
+ */
+export const kUntrustedContentSelector = '[data-content-trust="untrusted"]';
+
 const UntrustedText: FC<{ text: string }> = ({ text }) => (
   <span className={untrustedTextClassName}>{untrustedText(text)}</span>
 );
@@ -99,6 +105,7 @@ export const ContentCode: FC<{
       key="untrusted"
       id={id}
       className={clsx(className, untrustedTextClassName)}
+      data-content-trust="untrusted"
     >
       {untrustedText(text)}
     </code>

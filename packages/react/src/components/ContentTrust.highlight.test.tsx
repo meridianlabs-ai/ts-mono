@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import { cleanup, render, waitFor } from "@testing-library/react";
-import { ReactNode } from "react";
+import { FC, ReactNode, startTransition, useRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ContentTrustProvider, type ContentTrust } from "./ContentTrust";
+import { usePrismHighlight } from "../hooks/usePrismHighlight";
+
+import {
+  ContentCode,
+  ContentTrustProvider,
+  useIsContentTrusted,
+  type ContentTrust,
+} from "./ContentTrust";
 import { JSONPanel } from "./JsonPanel";
 import { SourceCodePanel } from "./SourceCodePanel";
 
@@ -15,6 +22,29 @@ afterEach(() => {
 const withTrust = (trust: ContentTrust, children: ReactNode) => (
   <ContentTrustProvider value={trust}>{children}</ContentTrustProvider>
 );
+
+// Renders `view(1, "trusted")`; `show` switches it in a transition, which
+// defers passive effects past the DOM update that a MutationObserver sees.
+const renderSwitchable = (
+  view: (value: number, trust: ContentTrust) => ReactNode
+) => {
+  let show: (value: number, trust: ContentTrust) => void = () => {};
+  const Switcher = () => {
+    const [state, setState] = useState({
+      value: 1,
+      trust: "trusted" as ContentTrust,
+    });
+    show = (value, trust) => {
+      startTransition(() => setState({ value, trust }));
+    };
+    return view(state.value, state.trust);
+  };
+  const { container } = render(<Switcher />);
+  return {
+    container,
+    show: (value: number, trust: ContentTrust) => show(value, trust),
+  };
+};
 
 const panels = {
   JSONPanel: (value: number) => <JSONPanel data={{ value }} />,
@@ -47,6 +77,22 @@ describe.each(Object.entries(panels))("highlighted %s", (_name, panel) => {
     expect(container.querySelector("code")?.textContent).toContain("1");
   });
 
+  it("doesn't highlight content that turns untrusted in a transition", async () => {
+    const { container, show } = renderSwitchable((value, trust) =>
+      withTrust(trust, panel(value))
+    );
+    await waitFor(() => {
+      expect(container.querySelector(".token")).not.toBeNull();
+    });
+
+    show(2, "untrusted");
+    await waitFor(() => {
+      expect(container.querySelector("code")?.textContent).toContain("2");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(container.querySelector(".token")).toBeNull();
+  });
+
   it("drops a highlight queued before trust was revoked", async () => {
     const frames: FrameRequestCallback[] = [];
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -65,5 +111,76 @@ describe.each(Object.entries(panels))("highlighted %s", (_name, panel) => {
     rerender(withTrust("untrusted", panel(1)));
     frames.forEach((frame) => frame(0));
     expect(container.querySelector(".token")).toBeNull();
+  });
+});
+
+// The two defenses on their own: either alone passes the transition test above.
+describe("usePrismHighlight", () => {
+  const Highlighted: FC<{ children: ReactNode; length: number }> = ({
+    children,
+    length,
+  }) => {
+    const ref = useRef<HTMLDivElement | null>(null);
+    usePrismHighlight(ref, length);
+    return <div ref={ref}>{children}</div>;
+  };
+
+  // An unmarked code element, replaced when trust changes.
+  const PlainCode: FC<{ text: string }> = ({ text }) => {
+    const trusted = useIsContentTrusted();
+    return (
+      <Highlighted length={text.length}>
+        <pre>
+          <code key={String(trusted)} className="language-json">
+            {text}
+          </code>
+        </pre>
+      </Highlighted>
+    );
+  };
+
+  it("stops observing in the commit that revokes trust", async () => {
+    const { container, show } = renderSwitchable((value, trust) =>
+      withTrust(trust, <PlainCode text={`{"value": ${value}}`} />)
+    );
+    await waitFor(() => {
+      expect(container.querySelector(".token")).not.toBeNull();
+    });
+
+    show(2, "untrusted");
+    await waitFor(() => {
+      expect(container.querySelector("code")?.textContent).toContain("2");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(container.querySelector(".token")).toBeNull();
+  });
+
+  it("skips code marked untrusted inside a trusted container", async () => {
+    const { container } = render(
+      withTrust(
+        "trusted",
+        <Highlighted length={100}>
+          <pre>
+            <code id="trusted" className="language-json">
+              {'{"a": 1}'}
+            </code>
+          </pre>
+          {withTrust(
+            "untrusted",
+            <pre>
+              <ContentCode
+                id="untrusted"
+                className="language-json"
+                text={'{"b": 2}'}
+              />
+            </pre>
+          )}
+        </Highlighted>
+      )
+    );
+    await waitFor(() => {
+      expect(container.querySelector("#trusted .token")).not.toBeNull();
+    });
+    expect(container.querySelector("#untrusted .token")).toBeNull();
   });
 });
