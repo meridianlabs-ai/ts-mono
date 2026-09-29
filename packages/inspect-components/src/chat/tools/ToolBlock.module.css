@@ -154,7 +154,7 @@
 /* The call a check replaced or blocked: struck through and without syntax
    colors, so the replacement reads as what ran. */
 .struck :global(.tool-call-input),
-.struck :global(.tool-call-input) :global(.token) {
+.struck :global(.tool-call-input) * {
   color: rgba(var(--bs-body-color-rgb), 0.6) !important;
   text-decoration: line-through;
   text-decoration-color: rgba(var(--bs-body-color-rgb), 0.35);

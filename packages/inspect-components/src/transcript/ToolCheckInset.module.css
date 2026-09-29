@@ -174,9 +174,9 @@
 
 /* The replacement renders through the tool input view; flatten the boxed
    surface the readable variant gives it. */
-.code :global(pre.tool-call-input),
-.code :global(div.tool-call-input),
-.code :global(.tool-call-input) :global(pre[class*="language-"]) {
+.ranInstead .code :global(pre.tool-call-input),
+.ranInstead .code :global(div.tool-call-input),
+.ranInstead .code :global(.tool-call-input) :global(pre[class*="language-"]) {
   background-color: transparent !important;
   border: 0 !important;
   border-radius: 0 !important;
