@@ -1976,8 +1976,12 @@ export interface components {
             role_usage: {
                 [key: string]: components["schemas"]["ModelUsage"];
             };
-            /** Sample Keys */
-            sample_keys: components["schemas"]["EvalShardSampleKey"][];
+            /** Samples */
+            samples: number;
+            /** Selected */
+            selected: number;
+            /** Selection Digest */
+            selection_digest: string;
             /** Shard */
             shard: string;
             /** Size */
@@ -1991,16 +1995,6 @@ export interface components {
             status: "started" | "success" | "cancelled" | "error";
             /** Task Id */
             task_id: string;
-        };
-        /**
-         * EvalShardSampleKey
-         * @description One `(id, epoch)` record merged from a shard.
-         */
-        EvalShardSampleKey: {
-            /** Epoch */
-            epoch: number;
-            /** Id */
-            id: string | number;
         };
         /**
          * EvalShards
@@ -2020,8 +2014,11 @@ export interface components {
             metrics_source: "registry" | "task_file";
             /** Sample Count */
             sample_count?: number | null;
-            /** Sample Ids */
-            sample_ids?: string[] | number[] | (string | number)[] | null;
+            /**
+             * Selection
+             * @enum {string}
+             */
+            selection: "ids" | "count" | "none";
             /** Template */
             template: string;
         };
