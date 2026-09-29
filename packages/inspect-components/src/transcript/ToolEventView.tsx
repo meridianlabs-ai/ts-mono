@@ -19,7 +19,7 @@ import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
-import { SentinelStepView } from "./SentinelEventView";
+import { SentinelStepRow } from "./SentinelEventView";
 import styles from "./ToolEventView.module.css";
 import {
   EventNode,
@@ -67,6 +67,9 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
 
   const approvalNode = context?.toolApprovals?.get(event.id);
   const sentinels = context?.toolSentinels?.get(event.id);
+  const sentinelSteps = [sentinels?.before, sentinels?.after].filter(
+    (step) => step !== undefined
+  );
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
@@ -145,12 +148,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>
-        {sentinels?.before ? (
-          <SentinelStepView
-            step={sentinels.before}
-            className={styles.sentinelBefore}
-          />
-        ) : null}
         {toolLabels.show === false ? (
           toolCallView
         ) : (
@@ -173,12 +170,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           />
         ) : undefined}
 
-        {sentinels?.after ? (
-          <SentinelStepView
-            step={sentinels.after}
-            className={styles.sentinelAfter}
-          />
-        ) : null}
         {approvalNode ? (
           <div className={styles.approvalWrap}>
             <ApprovalEventView
@@ -189,6 +180,15 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
         ) : (
           ""
         )}
+        {sentinelSteps.map((step) => (
+          <div key={step.stage} className={styles.approvalWrap}>
+            <SentinelStepRow
+              step={step}
+              showStage={sentinelSteps.length > 1}
+              className={styles.approval}
+            />
+          </div>
+        ))}
         {event.pending ? (
           <div className={clsx(styles.progress)}>
             <GeneratingIndicator label="running" />

@@ -73,7 +73,7 @@ describe("buildSentinelStep", () => {
     ]);
 
     expect(rowIds(step)).toEqual(["internet", "human", "escape"]);
-    expect(step.rows.map((r) => r.depth)).toEqual([2, 2, 1]);
+    expect(step.rows.map((r) => r.depth)).toEqual([1, 1, 0]);
     const human = step.rows.find((r) => r.node.id === "human");
     expect(human?.folded.map((n) => n.id)).toEqual(["chain", "root"]);
     expect(foldedIds(step)).toEqual(["chain", "root"]);

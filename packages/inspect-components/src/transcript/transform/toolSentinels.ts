@@ -7,7 +7,7 @@ export type SentinelNode = EventNode<SentinelEvent>;
 
 export interface SentinelRow {
   node: SentinelNode;
-  /** Nesting depth of the instance path; the root is 0. */
+  /** Nesting depth of the instance path, relative to the step's shallowest row. */
   depth: number;
   /** A decision that a later `superseded` event says did not take effect. */
   superseded: boolean;
@@ -25,9 +25,7 @@ export interface SentinelStep {
 }
 
 export interface ToolSentinels {
-  /** `tool_call` stage, rendered above the call. */
   before?: SentinelStep;
-  /** `tool_result` stage, rendered below the result. */
   after?: SentinelStep;
 }
 
@@ -114,6 +112,8 @@ export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
     ) ?? reports.at(-1);
 
   const keys = pathOrderKeys(nodes);
+  const depthOf = (node: SentinelNode) => pathSegments(node.event.path).length;
+  const minDepth = Math.min(...reports.map(depthOf));
   const rows = reports
     .map((node, index) => ({ node, index }))
     .sort(
@@ -122,7 +122,7 @@ export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
     )
     .map(({ node }) => ({
       node,
-      depth: pathSegments(node.event.path).length,
+      depth: depthOf(node) - minDepth,
       superseded: superseded.has(node),
       folded: node === effective ? folded : [],
     }));

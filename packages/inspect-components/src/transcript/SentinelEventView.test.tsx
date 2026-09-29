@@ -121,7 +121,7 @@ describe("SentinelEventView", () => {
     expect(screen.getByText("suspicion_monitor")).toBeTruthy();
   });
 
-  it("renders a tool's sentinel steps above its call and below its result", () => {
+  it("renders a tool's sentinel steps at the bottom of its card, before-call first", () => {
     const tool = new EventNode(
       "tool-1",
       testToolEvent({ id: "call_1", function: "bash", result: "RESULT_TEXT" }),
@@ -152,11 +152,30 @@ describe("SentinelEventView", () => {
     );
 
     const text = container.textContent;
-    const beforeAt = text.indexOf("before_protocol");
     const resultAt = text.indexOf("RESULT_TEXT");
+    const callStageAt = text.indexOf("tool call");
+    const beforeAt = text.indexOf("before_protocol");
+    const resultStageAt = text.indexOf("tool result");
     const afterAt = text.indexOf("after_monitor");
-    expect(beforeAt).toBeGreaterThan(-1);
-    expect(resultAt).toBeGreaterThan(beforeAt);
-    expect(afterAt).toBeGreaterThan(resultAt);
+    expect(resultAt).toBeGreaterThan(-1);
+    expect(callStageAt).toBeGreaterThan(resultAt);
+    expect(beforeAt).toBeGreaterThan(callStageAt);
+    expect(resultStageAt).toBeGreaterThan(beforeAt);
+    expect(afterAt).toBeGreaterThan(resultStageAt);
+  });
+
+  it("omits the stage label when a tool has only one sentinel step", () => {
+    const tool = new EventNode("tool-1", testToolEvent({ id: "call_1" }), 0);
+    const before = node("before", { name: "before_protocol" });
+    const { toolSentinels } = pairToolSentinels([before, tool]);
+    const { container } = renderWithState(
+      <ToolEventView
+        eventNode={tool}
+        childNodes={[]}
+        context={{ toolSentinels }}
+      />
+    );
+    expect(container.textContent).toContain("before_protocol");
+    expect(container.textContent).not.toContain("tool call");
   });
 });

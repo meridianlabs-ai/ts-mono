@@ -152,7 +152,11 @@ export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 export { AnchorEventView } from "./AnchorEventView";
 export { ApprovalEventView } from "./ApprovalEventView";
 export { ReviewEventView } from "./ReviewEventView";
-export { SentinelEventView, SentinelStepView } from "./SentinelEventView";
+export {
+  SentinelEventView,
+  SentinelStepRow,
+  SentinelStepView,
+} from "./SentinelEventView";
 export { BranchEventView } from "./BranchEventView";
 export {
   BranchPoint,

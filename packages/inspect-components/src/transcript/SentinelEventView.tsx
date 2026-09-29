@@ -43,6 +43,34 @@ export const SentinelStepView: FC<SentinelStepViewProps> = ({
   </div>
 );
 
+interface SentinelStepRowProps {
+  step: SentinelStep;
+  /** Enables the evidence-selection checkbox for a row of its own. */
+  eventNodeId?: string;
+  showStage: boolean;
+  className?: string;
+}
+
+/** A step as an event row, shaped like the approval row it sits beside in a tool card. */
+export const SentinelStepRow: FC<SentinelStepRowProps> = ({
+  step,
+  eventNodeId,
+  showStage,
+  className,
+}) => (
+  <EventRow
+    eventNodeId={eventNodeId}
+    title="Sentinel"
+    icon={TranscriptIcons.sentinel}
+    className={className}
+    below={<SentinelStepView step={step} />}
+  >
+    {showStage ? (
+      <span className="text-style-secondary">{stageLabels[step.stage]}</span>
+    ) : null}
+  </EventRow>
+);
+
 interface SentinelEventViewProps {
   eventNode: EventNode<SentinelEvent>;
   /** The step this event hosts; without one the event renders alone. */
@@ -55,22 +83,14 @@ export const SentinelEventView: FC<SentinelEventViewProps> = ({
   eventNode,
   step,
   className,
-}) => {
-  const resolved = step ?? buildSentinelStep([eventNode]);
-  return (
-    <EventRow
-      eventNodeId={eventNode.id}
-      title="Sentinel"
-      icon={TranscriptIcons.sentinel}
-      className={className}
-      below={<SentinelStepView step={resolved} />}
-    >
-      <span className="text-style-secondary">
-        {stageLabels[resolved.stage]}
-      </span>
-    </EventRow>
-  );
-};
+}) => (
+  <SentinelStepRow
+    step={step ?? buildSentinelStep([eventNode])}
+    eventNodeId={eventNode.id}
+    showStage={true}
+    className={className}
+  />
+);
 
 const SentinelRowView: FC<{ row: SentinelRow }> = ({ row }) => {
   const event = row.node.event;
@@ -109,6 +129,7 @@ const SentinelRowView: FC<{ row: SentinelRow }> = ({ row }) => {
             id={`${row.node.id}-sentinel-explanation`}
             collapse={true}
             lines={3}
+            togglePosition="block-left"
           >
             <MarkdownDiv markdown={explanation} />
           </ExpandablePanel>
