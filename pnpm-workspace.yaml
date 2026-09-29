@@ -51,6 +51,7 @@ overrides:
   "@babel/core": ^7.29.6
   # speech-rule-engine (via mathjax-full) pins this exactly.
   "@xmldom/xmldom": ^0.9.12 # GHSA-6gmq-8vp8-gcm6
+  undici: ^8.10.2 # GHSA-3wwx-pv8p-q78v, via jsdom
 
   # Together these evict brace-expansion 1.x and its ReDoS advisories.
   # eslint-plugin-react, eslint-plugin-jsx-a11y and postcss-url all still ask
