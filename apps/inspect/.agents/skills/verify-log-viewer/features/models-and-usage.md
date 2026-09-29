@@ -31,8 +31,9 @@ links into the evaluation timeline.
   collapse into comma-corrupted labels.
 - Select any segmented/detail controls by visible label and assert the table
   changes to the expected grouping.
-- For connection history, assert a known limit transition and its timestamp,
-  then follow View Timeline and assert the matching lane/filter.
+- For connection history (the usage panel's `Connections` view), assert a
+  known limit transition and its timestamp, then follow the lane's `Timeline`
+  link (title "View on timeline") and assert the matching lane/filter.
 - Running logs intentionally suppress settled usage tables; cover their live
   status through `loading-live-refresh.md`.
 
@@ -41,7 +42,9 @@ links into the evaluation timeline.
 - Log surface: `apps/inspect/src/app/log-view/tabs/ModelsTab.tsx`.
 - Shared usage rendering and derivation:
   `packages/inspect-components/src/usage/`, especially `UsagePanel.tsx`,
-  `ModelTokenTable.tsx`, `configsForUsage.ts`, `cost.ts`, and `roleAliases.ts`.
+  `ModelTokenTable.tsx`, `configsForUsage.ts`, and `roleAliases.ts`; cost
+  totals (sums of recorded `total_cost`) are
+  `packages/inspect-common/src/utils/modelCost.ts`.
 - Model-role normalization: `packages/inspect-common/src/utils/modelRoles.ts`.
 - Timeline handoff: `apps/inspect/src/app/log-view/useTimelineNavigation.ts`.
 - Regression coverage: tests beside the usage utilities and
@@ -56,3 +59,6 @@ links into the evaluation timeline.
   grading). Preserve the list through formatting and grouping.
 - Config changes affect which configuration applies to later events; never
   display one static config as if it covered the whole run.
+- A lane's Timeline link toggles that model's Connections band only on a plain
+  click. A new tab opened from it lands on the timeline without the band;
+  the toggle is per-tab state, not part of the URL.
