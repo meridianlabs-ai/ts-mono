@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import type { QueryClient } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
@@ -401,6 +402,96 @@ test.describe("a trusted log", () => {
     expect(trusted.some((selector) => selector.startsWith("a["))).toBe(true);
     expect(trusted.some((selector) => selector.startsWith("img["))).toBe(true);
     // Nothing from the untrusted log it came from renders richly on the way.
+    expect(await recorded("untrusted")).toEqual([]);
+  });
+
+  test("never shows an untrusted log's summary while its own reloads", async ({
+    page,
+    network,
+  }) => {
+    serveFixtures(network);
+    const recorded = await recordRichContent(page);
+    await openView(page, sampleUrl("trusted", "messages"), /Sample 1:/);
+    await page.evaluate(() => {
+      window.location.hash =
+        "#/logs/untrusted.eval/samples/sample/1/1/messages";
+    });
+    // The header shows the untrusted summary's input as literal text.
+    await expect(page.getByText(/untrusted\/input/).first()).toBeVisible();
+    // Drop the trusted log's sample listing once nothing observes it, as the
+    // query cache's gcTime eventually does, and slow its re-read: going back
+    // then shows the trusted log's header while the listing still holds the
+    // untrusted log's rows, whose sample ids match.
+    const trustedListings = (evict: boolean) =>
+      page.evaluate(async (evictUnobserved) => {
+        const modulePath = "/src/state/queryClient.ts";
+        const module: unknown = await import(modulePath);
+        const queryClient: unknown =
+          typeof module === "object" && module !== null
+            ? Reflect.get(module, "queryClient")
+            : undefined;
+        const isQueryClient = (value: unknown): value is QueryClient =>
+          typeof value === "object" &&
+          value !== null &&
+          "getQueryCache" in value;
+        if (!isQueryClient(queryClient)) {
+          throw new Error(`${modulePath} has no queryClient`);
+        }
+        const listings = queryClient
+          .getQueryCache()
+          .findAll({ queryKey: ["log_data", "samples"] })
+          .filter((query) =>
+            JSON.stringify(query.queryKey).includes('"/logs/trusted.eval"')
+          );
+        if (evictUnobserved) {
+          listings.forEach((query) => {
+            queryClient.removeQueries({
+              queryKey: query.queryKey,
+              exact: true,
+            });
+          });
+        }
+        return listings.map((query) => query.getObserversCount());
+      }, evict);
+    await expect.poll(() => trustedListings(false)).toEqual([0]);
+    await page.evaluate(async () => {
+      interface SampleSummaryReader {
+        readSampleSummaries: (scope: { file?: string }) => Promise<unknown>;
+      }
+      const modulePath = "/src/log_data/databaseServiceInstance.ts";
+      const module: unknown = await import(modulePath);
+      const getDatabaseService: unknown =
+        typeof module === "object" && module !== null
+          ? Reflect.get(module, "getDatabaseService")
+          : undefined;
+      const db: unknown =
+        typeof getDatabaseService === "function"
+          ? Reflect.apply(getDatabaseService, undefined, [])
+          : undefined;
+      const isReader = (value: unknown): value is SampleSummaryReader =>
+        typeof value === "object" &&
+        value !== null &&
+        "readSampleSummaries" in value;
+      if (!isReader(db)) {
+        throw new Error(`${modulePath} has no database service`);
+      }
+      const read = db.readSampleSummaries.bind(db);
+      db.readSampleSummaries = async (scope) => {
+        if (scope.file?.endsWith("/trusted.eval")) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
+        return read(scope);
+      };
+    });
+    expect(await trustedListings(true)).toEqual([0]);
+
+    await page.evaluate(() => {
+      window.location.hash = "#/logs/trusted.eval/samples/sample/1/1/messages";
+    });
+    // Its own summary's input link, once the header shows it.
+    await expect(
+      page.locator('a[href="https://example.com/trusted/input"]').first()
+    ).toBeVisible();
     expect(await recorded("untrusted")).toEqual([]);
   });
 

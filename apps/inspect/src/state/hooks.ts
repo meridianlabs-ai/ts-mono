@@ -15,9 +15,9 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
-import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
 import {
+  findSampleSummary,
   useEvalSampleData,
   useLogHeader,
   usePassiveEvalSampleData,
@@ -409,21 +409,17 @@ export const useFilteredSamples = () => {
 };
 
 // Provides the currently selected sample summary
-export const useSelectedSampleSummary = (): SampleSummary | undefined => {
+export const useSelectedSampleSummary = ():
+  SampleSummaryWithTrust | undefined => {
+  const logDir = useLogDir();
   const sampleSummaries = useSelectedSampleSummariesData();
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
-  return useMemo(() => {
-    const selectedSampleSummary = sampleSummaries.find((sample) => {
-      return (
-        sampleIdsEqual(sample.id, selectedSampleHandle?.id) &&
-        sample.epoch === selectedSampleHandle?.epoch
-      );
-    });
-
-    return selectedSampleSummary;
-  }, [selectedSampleHandle, sampleSummaries]);
+  return useMemo(
+    () => findSampleSummary(sampleSummaries, logDir, selectedSampleHandle),
+    [logDir, selectedSampleHandle, sampleSummaries]
+  );
 };
 
 /**

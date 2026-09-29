@@ -149,6 +149,7 @@ export { useSampleMessages } from "./sampleMessages";
 export type { MessageRowsFeed } from "./messageRowsQuery";
 export { useChunkedSample, type ChunkedSampleData } from "./chunkedSampleQuery";
 export {
+  findSampleSummary,
   type SampleSummaryWithTrust,
   useSampleSummaries,
 } from "./sampleSummaries";

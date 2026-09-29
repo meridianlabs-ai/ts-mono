@@ -26,7 +26,12 @@ import {
   activateFetchEngine,
   deactivateFetchEngine,
 } from "./replicationControl";
-import { mergeSampleSummaries, useSampleSummaries } from "./sampleSummaries";
+import {
+  findSampleSummary,
+  mergeSampleSummaries,
+  useSampleSummaries,
+  type SampleSummaryWithTrust,
+} from "./sampleSummaries";
 import {
   testClientAPI,
   testLogDetails,
@@ -50,6 +55,44 @@ vi.mock("../app_config", () => ({
   },
   getAppConfig: () => ({ singleFileMode: false }),
 }));
+
+describe("findSampleSummary", () => {
+  const summary = (
+    logFile: string,
+    id: number,
+    epoch: number
+  ): SampleSummaryWithTrust => ({
+    ...testSampleSummary({ id, epoch }),
+    logFile,
+    contentTrust: logFile === "/logs/a.eval" ? "trusted" : "untrusted",
+  });
+
+  test("matches the handle's log as well as its id and epoch", () => {
+    const summaries = [
+      summary("/logs/b.eval", 1, 1),
+      summary("/logs/a.eval", 1, 1),
+    ];
+    expect(
+      findSampleSummary(summaries, "/logs", {
+        logFile: "/logs/a.eval",
+        id: 1,
+        epoch: 1,
+      })
+    ).toBe(summaries[1]);
+  });
+
+  test("never takes another log's summary with the same id and epoch", () => {
+    // A log switch keeps the previous log's list until the new one loads.
+    const summaries = [summary("/logs/b.eval", 1, 1)];
+    expect(
+      findSampleSummary(summaries, "/logs", {
+        logFile: "/logs/a.eval",
+        id: 1,
+        epoch: 1,
+      })
+    ).toBeUndefined();
+  });
+});
 
 describe("mergeSampleSummaries", () => {
   test("keeps pending-only completed samples on the streaming path", () => {
