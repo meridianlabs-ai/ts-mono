@@ -240,6 +240,8 @@ const labelForNode = (node: EventNode): string => {
           escalate: "escalated",
           terminate: "terminated",
         }[node.event.decision];
+      case "sentinel":
+        return `sentinel ${node.event.decision ?? node.event.kind}`;
       case "model":
         return `model${node.event.role ? ` (${node.event.role})` : ""}`;
       case "score":

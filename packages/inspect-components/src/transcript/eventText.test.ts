@@ -20,6 +20,7 @@ import {
   testScoreEdit,
   testScoreEditEvent,
   testScoreEvent,
+  testSentinelEvent,
   testSpanBeginEvent,
   testSpanEndEvent,
   testStateEvent,
@@ -152,6 +153,25 @@ describe("eventsToMarkdown", () => {
       testToolEvent({ function: "bash", result: "line\n```\nnested\n```" }),
     ]);
     expect(out).toContain("````\nline\n```\nnested\n```\n````");
+  });
+});
+
+describe("eventsToMarkdown — sentinel", () => {
+  it("titles a sentinel event by kind and instance", () => {
+    const out = eventsToMarkdown([
+      testSentinelEvent({
+        path: "attempt/human",
+        name: "human",
+        decision: "reject",
+        outcome: "reject",
+        explanation: "Not on the allow list.",
+      }),
+      testSentinelEvent({ path: "", name: "concurrent" }),
+    ]);
+    expect(out).toContain("## Sentinel Decision: attempt/human");
+    expect(out).toContain("**Decision:** reject");
+    expect(out).toContain("**Explanation:** Not on the allow list.");
+    expect(out).toContain("## Sentinel Decision: concurrent");
   });
 });
 
@@ -625,6 +645,50 @@ describe("eventSearchText", () => {
     expect(texts).toContain("approve");
     expect(texts).toContain("looks safe");
     expect(texts).toContain("human-in-loop");
+  });
+
+  test("sentinel: includes identity, report and explanation", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testSentinelEvent({
+          path: "attempt/monitor",
+          name: "suspicion_monitor",
+          function: "score_call",
+          kind: "observation",
+          suspicion: { exfiltration: 0.8 },
+          decision: null,
+          outcome: null,
+          audit: true,
+          explanation: "Posts credentials to a paste site.",
+        })
+      )
+    );
+    expect(texts).toEqual([
+      "observation",
+      "attempt/monitor",
+      "suspicion_monitor",
+      "score_call",
+      "tool_call",
+      "exfiltration 0.8",
+      "true",
+      "Posts credentials to a paste site.",
+    ]);
+  });
+
+  test("sentinel: a bypassed layer carries no report", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testSentinelEvent({
+          path: "",
+          name: "concurrent",
+          kind: "bypassed",
+          function: null,
+          decision: null,
+          outcome: null,
+        })
+      )
+    );
+    expect(texts).toEqual(["bypassed", "concurrent", "tool_call"]);
   });
 
   test("sandbox: includes action, cmd, output, and file", () => {

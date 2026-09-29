@@ -2,6 +2,7 @@ import type { Content } from "@tsmono/inspect-common/types";
 import { isRecord, toTitleCase } from "@tsmono/util";
 
 import { eventTitle } from "./event/utils";
+import { formatSuspicion } from "./transform/toolSentinels";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -373,6 +374,38 @@ export const extractEventFields = (event: EventType): [string, string][] => {
         fields.push(["explanation", reviewEvent.explanation]);
       }
       fields.push(["reviewer", reviewEvent.reviewer]);
+      break;
+    }
+
+    case "sentinel": {
+      const sentinelEvent = event;
+      fields.push(["kind", sentinelEvent.kind]);
+      if (sentinelEvent.path) {
+        fields.push(["path", sentinelEvent.path]);
+      }
+      fields.push(["name", sentinelEvent.name]);
+      if (sentinelEvent.function) {
+        fields.push(["function", sentinelEvent.function]);
+      }
+      fields.push(["stage", sentinelEvent.stage]);
+      if (
+        sentinelEvent.suspicion !== undefined &&
+        sentinelEvent.suspicion !== null
+      ) {
+        fields.push(["suspicion", formatSuspicion(sentinelEvent.suspicion)]);
+      }
+      if (sentinelEvent.decision) {
+        fields.push(["decision", sentinelEvent.decision]);
+      }
+      if (sentinelEvent.outcome) {
+        fields.push(["outcome", sentinelEvent.outcome]);
+      }
+      if (sentinelEvent.audit) {
+        fields.push(["audit", "true"]);
+      }
+      if (sentinelEvent.explanation) {
+        fields.push(["explanation", sentinelEvent.explanation]);
+      }
       break;
     }
 
