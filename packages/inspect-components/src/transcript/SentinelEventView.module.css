@@ -1,0 +1,134 @@
+.step {
+  display: flex;
+  flex-direction: column;
+  row-gap: 0.25em;
+  min-width: 0;
+}
+
+.entry {
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5em;
+  row-gap: 0.15em;
+  min-width: 0;
+}
+
+.icon {
+  color: var(--bs-secondary-color);
+}
+
+.label {
+  font-family: var(--bs-font-monospace);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.factory {
+  font-family: var(--bs-font-monospace);
+}
+
+.value {
+  font-family: var(--bs-font-monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0 0.5em;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 999px;
+  font-size: var(--inspect-font-size-smallest);
+  line-height: 1.5;
+  color: var(--bs-secondary-color);
+  background: var(--bs-tertiary-bg);
+}
+
+.observation {
+  color: var(--bs-primary-text-emphasis);
+  background: var(--bs-primary-bg-subtle);
+  border-color: var(--bs-primary-border-subtle);
+}
+
+.decision {
+  color: var(--bs-body-color);
+  background: var(--bs-secondary-bg-subtle);
+  border-color: var(--bs-secondary-border-subtle);
+}
+
+.muted {
+  color: var(--bs-secondary-color);
+  background: transparent;
+}
+
+.audit {
+  color: var(--bs-warning-text-emphasis);
+  background: var(--bs-warning-bg-subtle);
+  border-color: var(--bs-warning-border-subtle);
+}
+
+.alarming {
+  color: var(--bs-danger-text-emphasis);
+}
+
+.cautious {
+  color: var(--bs-warning-text-emphasis);
+}
+
+.explanation {
+  margin-top: 0.15em;
+  margin-left: 1.3em;
+  color: var(--bs-secondary-color);
+}
+
+.explanation :global(.markdown-content) > :last-child {
+  margin-bottom: 0;
+}
+
+.folded {
+  margin-left: 1.3em;
+  margin-top: 0.1em;
+}
+
+.foldedToggle {
+  display: inline-flex;
+  align-items: center;
+  column-gap: 0.35em;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.foldedToggle:hover {
+  color: var(--bs-body-color);
+}
+
+.chevron {
+  font-size: 0.8em;
+}
+
+.foldedList {
+  list-style: none;
+  margin: 0.2em 0 0 1.15em;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.foldedItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5em;
+  padding: 0.1em 0;
+}
+
+.foldedExplanation {
+  color: var(--bs-secondary-color);
+  overflow-wrap: anywhere;
+}

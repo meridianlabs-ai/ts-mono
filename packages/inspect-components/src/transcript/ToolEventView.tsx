@@ -19,6 +19,7 @@ import { ApprovalEventView } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
+import { SentinelStepView } from "./SentinelEventView";
 import styles from "./ToolEventView.module.css";
 import {
   EventNode,
@@ -65,6 +66,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   );
 
   const approvalNode = context?.toolApprovals?.get(event.id);
+  const sentinels = context?.toolSentinels?.get(event.id);
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
@@ -143,6 +145,12 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       eventCallbacks={eventCallbacks}
     >
       <div data-name="Summary" className={styles.summary}>
+        {sentinels?.before ? (
+          <SentinelStepView
+            step={sentinels.before}
+            className={styles.sentinelBefore}
+          />
+        ) : null}
         {toolLabels.show === false ? (
           toolCallView
         ) : (
@@ -165,6 +173,12 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           />
         ) : undefined}
 
+        {sentinels?.after ? (
+          <SentinelStepView
+            step={sentinels.after}
+            className={styles.sentinelAfter}
+          />
+        ) : null}
         {approvalNode ? (
           <div className={styles.approvalWrap}>
             <ApprovalEventView

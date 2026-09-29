@@ -25,6 +25,7 @@ import { SampleLimitEventView } from "./SampleLimitEventView";
 import { SandboxEventView } from "./SandboxEventView";
 import { ScoreEditEventView } from "./ScoreEditEventView";
 import { ScoreEventView } from "./ScoreEventView";
+import { SentinelEventView } from "./SentinelEventView";
 import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
@@ -277,6 +278,15 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
       return (
         <ReviewEventView
           eventNode={eventNodeOf(node, "review")}
+          className={className}
+        />
+      );
+
+    case "sentinel":
+      return (
+        <SentinelEventView
+          eventNode={eventNodeOf(node, "sentinel")}
+          step={context?.standaloneSentinels?.get(node.id)}
           className={className}
         />
       );
