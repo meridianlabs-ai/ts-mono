@@ -14,6 +14,7 @@ import type {
   ContentVideo,
 } from "@tsmono/inspect-common/types";
 import {
+  ContentCode,
   ExpandablePanel,
   RequireTrustedContent,
 } from "@tsmono/react/components";
@@ -441,7 +442,7 @@ const CodePanel: FC<{ code: string; language?: string }> = ({
   return (
     <div ref={codeContainerRef} className={clsx(styles.codePanel)}>
       <pre className={clsx(styles.codePanelPre)}>
-        <code className={clsx(`language-${language}`)}>{code}</code>
+        <ContentCode className={clsx(`language-${language}`)} text={code} />
       </pre>
     </div>
   );

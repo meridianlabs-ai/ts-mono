@@ -75,7 +75,7 @@ const requireTrustedContent = {
     type: "problem",
     docs: {
       description:
-        "Require media elements to be gated by content trust and confine raw HTML to the markdown renderer",
+        "Require media elements to be gated by content trust, highlightable code to use ContentCode, and raw HTML to stay in the markdown renderer",
     },
     schema: [],
     messages: {
@@ -85,6 +85,10 @@ const requireTrustedContent = {
       rawHtml:
         "dangerouslySetInnerHTML can render untrusted log content. Render " +
         "markdown through MarkdownDiv, which checks content trust.",
+      highlightableCode:
+        "A <code> with a language- class is highlighted by Prism in place. " +
+        "Render it with <ContentCode> from @tsmono/react/components, which " +
+        "marks untrusted code and keeps React's text in step with Prism.",
     },
   },
   create(context) {
@@ -103,8 +107,22 @@ const requireTrustedContent = {
       }
       return false;
     };
+    // Prism highlights any `pre code` whose class names a language.
+    const isHighlightableCode = (node) =>
+      node.name.type === "JSXIdentifier" &&
+      node.name.name === "code" &&
+      node.attributes.some(
+        (attribute) =>
+          attribute.type === "JSXAttribute" &&
+          attribute.name.name === "className" &&
+          attribute.value !== null &&
+          context.sourceCode.getText(attribute.value).includes("language-")
+      );
     return {
       JSXOpeningElement(node) {
+        if (isHighlightableCode(node)) {
+          context.report({ node, messageId: "highlightableCode" });
+        }
         if (
           node.name.type === "JSXIdentifier" &&
           MEDIA_ELEMENTS.has(node.name.name) &&

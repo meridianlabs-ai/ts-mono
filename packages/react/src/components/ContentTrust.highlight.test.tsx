@@ -8,7 +8,6 @@ import { usePrismHighlight } from "../hooks/usePrismHighlight";
 import {
   ContentCode,
   ContentTrustProvider,
-  useIsContentTrusted,
   type ContentTrust,
 } from "./ContentTrust";
 import { JSONPanel } from "./JsonPanel";
@@ -114,7 +113,9 @@ describe.each(Object.entries(panels))("highlighted %s", (_name, panel) => {
   });
 });
 
-// The two defenses on their own: either alone passes the transition test above.
+// The marker on its own (the observer's revocation on its own is tested in
+// ContentTrust.revocation.test.tsx): either alone passes the transition test
+// above.
 describe("usePrismHighlight", () => {
   const Highlighted: FC<{ children: ReactNode; length: number }> = ({
     children,
@@ -125,45 +126,17 @@ describe("usePrismHighlight", () => {
     return <div ref={ref}>{children}</div>;
   };
 
-  // An unmarked code element, replaced when trust changes.
-  const PlainCode: FC<{ text: string }> = ({ text }) => {
-    const trusted = useIsContentTrusted();
-    return (
-      <Highlighted length={text.length}>
-        <pre>
-          <code key={String(trusted)} className="language-json">
-            {text}
-          </code>
-        </pre>
-      </Highlighted>
-    );
-  };
-
-  it("stops observing in the commit that revokes trust", async () => {
-    const { container, show } = renderSwitchable((value, trust) =>
-      withTrust(trust, <PlainCode text={`{"value": ${value}}`} />)
-    );
-    await waitFor(() => {
-      expect(container.querySelector(".token")).not.toBeNull();
-    });
-
-    show(2, "untrusted");
-    await waitFor(() => {
-      expect(container.querySelector("code")?.textContent).toContain("2");
-    });
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(container.querySelector(".token")).toBeNull();
-  });
-
   it("skips code marked untrusted inside a trusted container", async () => {
     const { container } = render(
       withTrust(
         "trusted",
         <Highlighted length={100}>
           <pre>
-            <code id="trusted" className="language-json">
-              {'{"a": 1}'}
-            </code>
+            <ContentCode
+              id="trusted"
+              className="language-json"
+              text={'{"a": 1}'}
+            />
           </pre>
           {withTrust(
             "untrusted",

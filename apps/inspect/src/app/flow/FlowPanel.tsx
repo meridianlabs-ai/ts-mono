@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, useRef } from "react";
 import { useLocation } from "react-router";
 
-import { ContentTrustProvider } from "@tsmono/react/components";
+import { ContentCode, ContentTrustProvider } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
@@ -51,7 +51,7 @@ const FlowPanelContent: FC = () => {
       />
       <div ref={codeContainerRef} className={clsx(styles.panel)}>
         <pre className={clsx(styles.code)}>
-          <code className={clsx("language-yml")}>{flow}</code>
+          <ContentCode className={clsx("language-yml")} text={flow ?? ""} />
         </pre>
       </div>
     </div>
