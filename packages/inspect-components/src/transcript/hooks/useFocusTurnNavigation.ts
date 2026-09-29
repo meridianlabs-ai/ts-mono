@@ -158,17 +158,19 @@ export function useFocusTurnNavigation(
     return resolveEventTurnAnchor(flat, eventId) ?? eventId;
   }, [eventId, anchorIds, flat, options?.following]);
 
+  // Paired over the whole lane: the slice drops span markers, and with them
+  // the sentinel spans that tie monitor model calls to their step.
+  const pairing = useMemo(() => pairToolSentinels(flat), [flat]);
   const { slice, sentinels } = useMemo(() => {
     const nodes = resolvedEventId
       ? focusedTurnNodes(flat, resolvedEventId)
       : [];
-    const { toolSentinels, standaloneSentinels, hiddenSentinelIds } =
-      pairToolSentinels(nodes);
+    const { toolSentinels, standaloneSentinels, hiddenSentinelIds } = pairing;
     return {
       slice: nodes.filter((n) => !hiddenSentinelIds.has(n.id)),
       sentinels: { toolSentinels, standaloneSentinels },
     };
-  }, [flat, resolvedEventId]);
+  }, [flat, resolvedEventId, pairing]);
 
   const turnInfo: TurnInfo | undefined = resolvedEventId
     ? turnMap.get(resolvedEventId)

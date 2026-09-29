@@ -177,3 +177,11 @@
   color: var(--bs-secondary-color);
   overflow-wrap: anywhere;
 }
+
+.modelCalls {
+  display: flex;
+  flex-direction: column;
+  row-gap: 0.5em;
+  margin-top: 0.35em;
+  font-size: var(--inspect-font-size-base);
+}

@@ -25,7 +25,7 @@ import { SampleLimitEventView } from "./SampleLimitEventView";
 import { SandboxEventView } from "./SandboxEventView";
 import { ScoreEditEventView } from "./ScoreEditEventView";
 import { ScoreEventView } from "./ScoreEventView";
-import { SentinelEventView } from "./SentinelEventView";
+import { SentinelEventView, SentinelStepRow } from "./SentinelEventView";
 import { SpanEventView } from "./SpanEventView";
 import { StateEventView } from "./state/StateEventView";
 import { SubtaskEventView } from "./SubtaskEventView";
@@ -173,6 +173,18 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
               const rowKey = findRowKeyForLabel(data, label);
               if (rowKey) selectRow?.(rowKey, anchorEl);
             }}
+          />
+        );
+      }
+      const sentinelStep = context?.standaloneSentinels?.get(node.id);
+      if (sentinelStep) {
+        return (
+          <SentinelStepRow
+            step={sentinelStep}
+            eventNodeId={node.id}
+            showStage={true}
+            context={context}
+            className={className}
           />
         );
       }

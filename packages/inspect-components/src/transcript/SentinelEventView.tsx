@@ -7,6 +7,7 @@ import { useCollapsedState, useResizeObserver } from "@tsmono/react/hooks";
 
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
+import { ModelEventView } from "./ModelEventView";
 import styles from "./SentinelEventView.module.css";
 import {
   buildSentinelStep,
@@ -18,10 +19,12 @@ import {
   type SentinelRow,
   type SentinelStep,
 } from "./transform/toolSentinels";
-import type { EventNode } from "./types";
+import type { EventNode, EventNodeContext } from "./types";
 
 interface SentinelStepViewProps {
   step: SentinelStep;
+  /** The host row's context; monitor model calls take only its retry attempts. */
+  context?: EventNodeContext;
   className?: string;
 }
 
@@ -32,6 +35,7 @@ interface SentinelStepViewProps {
  */
 export const SentinelStepView: FC<SentinelStepViewProps> = ({
   step,
+  context,
   className,
 }) => (
   <div className={clsx(styles.step, "text-size-small", className)}>
@@ -41,11 +45,68 @@ export const SentinelStepView: FC<SentinelStepViewProps> = ({
     {step.folded[0] ? (
       <FoldedNote id={step.folded[0].id} folded={step.folded} depth={0} />
     ) : null}
+    {step.modelCalls[0] ? (
+      <ModelCallsNote
+        id={step.modelCalls[0].id}
+        modelCalls={step.modelCalls}
+        context={context}
+      />
+    ) : null}
   </div>
 );
 
+interface ModelCallsNoteProps {
+  id: string;
+  modelCalls: SentinelStep["modelCalls"];
+  context?: EventNodeContext;
+}
+
+/** The step's monitor model calls, collapsed to a count that expands to the model call views. */
+const ModelCallsNote: FC<ModelCallsNoteProps> = ({
+  id,
+  modelCalls,
+  context,
+}) => {
+  const [collapsed, setCollapsed] = useCollapsedState(
+    `${id}-sentinel-model-calls`,
+    true
+  );
+  const callContext = { retryAttempts: context?.retryAttempts };
+  return (
+    <div className={styles.folded}>
+      <button
+        type="button"
+        className={clsx(styles.foldedToggle, "text-style-secondary")}
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed(!collapsed)}
+      >
+        <i
+          className={clsx(
+            collapsed ? "bi bi-chevron-right" : "bi bi-chevron-down",
+            styles.chevron
+          )}
+        />
+        {`${modelCalls.length} monitor model call${modelCalls.length === 1 ? "" : "s"}`}
+      </button>
+      {collapsed ? null : (
+        <div className={styles.modelCalls}>
+          {modelCalls.map((node) => (
+            <ModelEventView
+              key={node.id}
+              eventNode={node}
+              showToolCalls={true}
+              context={callContext}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface SentinelStepRowProps {
   step: SentinelStep;
+  context?: EventNodeContext;
   /** Enables the evidence-selection checkbox for a row of its own. */
   eventNodeId?: string;
   showStage: boolean;
@@ -55,6 +116,7 @@ interface SentinelStepRowProps {
 /** A step as an event row, shaped like the approval row it sits beside in a tool card. */
 export const SentinelStepRow: FC<SentinelStepRowProps> = ({
   step,
+  context,
   eventNodeId,
   showStage,
   className,
@@ -64,7 +126,7 @@ export const SentinelStepRow: FC<SentinelStepRowProps> = ({
     title="Sentinel"
     icon={TranscriptIcons.sentinel}
     className={className}
-    below={<SentinelStepView step={step} />}
+    below={<SentinelStepView step={step} context={context} />}
   >
     {showStage ? (
       <span className="text-style-secondary">{stageLabels[step.stage]}</span>

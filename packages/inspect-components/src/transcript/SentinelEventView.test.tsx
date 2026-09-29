@@ -4,7 +4,10 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  testModelEvent,
+  testModelOutput,
   testSentinelEvent,
+  testSpanBeginEvent,
   testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
@@ -168,6 +171,46 @@ describe("SentinelEventView", () => {
     expect(resultAt).toBeGreaterThan(beforeAt);
     expect(afterAt).toBeGreaterThan(resultAt);
     expect(text).not.toContain("tool call");
+  });
+
+  it("lists the sentinel's model calls collapsed and expands them to model call views", () => {
+    const tool = new EventNode("tool-1", testToolEvent({ id: "call_1" }), 0);
+    const span = new EventNode(
+      "span-1",
+      testSpanBeginEvent({ id: "span-1", type: "sentinel", name: "sentinel" }),
+      0
+    );
+    span.children = ["mc-1", "mc-2"].map(
+      (id) =>
+        new EventNode(
+          id,
+          testModelEvent({
+            role: "monitor",
+            model: "monitor-model",
+            output: testModelOutput({ completion: "0.9" }),
+          }),
+          1
+        )
+    );
+    span.children.push(
+      node("before", { name: "llm_monitor", decision: "continue" })
+    );
+    const { toolSentinels } = pairToolSentinels([span, tool]);
+    renderWithState(
+      <ToolEventView
+        eventNode={tool}
+        childNodes={[]}
+        context={{ toolSentinels }}
+      />
+    );
+
+    const toggle = screen.getByRole("button", {
+      name: "2 monitor model calls",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryAllByText(/monitor-model/)).toHaveLength(0);
+    fireEvent.click(toggle);
+    expect(screen.getAllByText(/monitor-model/i)).toHaveLength(2);
   });
 
   it("renders before-call steps for a call with no output", () => {

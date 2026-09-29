@@ -71,7 +71,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   const sentinelRow = (step: SentinelStep | undefined) =>
     step ? (
       <div className={styles.sentinel}>
-        <SentinelStepRow step={step} showStage={false} />
+        <SentinelStepRow step={step} showStage={false} context={context} />
       </div>
     ) : undefined;
 

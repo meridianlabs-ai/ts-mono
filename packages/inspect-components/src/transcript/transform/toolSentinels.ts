@@ -1,9 +1,15 @@
-import type { SentinelEvent } from "@tsmono/inspect-common/types";
+import type { ModelEvent, SentinelEvent } from "@tsmono/inspect-common/types";
 
 import { eventNodeOf } from "../types";
 import type { EventNode } from "../types";
 
+import { SPAN_BEGIN, TYPE_SENTINEL } from "./utils";
+
 export type SentinelNode = EventNode<SentinelEvent>;
+
+/** The span a sentinel's dispatch runs in; it holds the step's events and the model calls its monitors made. */
+export const isSentinelSpan = (node: EventNode): boolean =>
+  node.event.event === SPAN_BEGIN && node.event.type === TYPE_SENTINEL;
 
 export interface SentinelRow {
   node: SentinelNode;
@@ -22,6 +28,8 @@ export interface SentinelStep {
   rows: SentinelRow[];
   /** Folded events of a step that has no report to attach them to. */
   folded: SentinelNode[];
+  /** Model calls made inside the step's sentinel span, in recording order. */
+  modelCalls: EventNode<ModelEvent>[];
 }
 
 export interface ToolSentinels {
@@ -80,13 +88,44 @@ const compareKeys = (a: number[], b: number[]): number => {
   return a.length - b.length;
 };
 
+const sameDecision = (a: SentinelEvent, b: SentinelEvent): boolean =>
+  a.decision === b.decision &&
+  a.audit === b.audit &&
+  (a.explanation?.trim() || null) === (b.explanation?.trim() || null) &&
+  JSON.stringify(a.modified ?? null) === JSON.stringify(b.modified ?? null);
+
+/**
+ * The root decision when it only repeats its single deciding child, e.g. the
+ * implicit root that wraps a lone protocol, along with that child.
+ */
+const redundantRoot = (
+  shown: SentinelNode[]
+): { root: SentinelNode; child: SentinelNode } | undefined => {
+  const root = shown.find(
+    (n) => n.event.path === "" && n.event.kind === "decision"
+  );
+  const children = shown.filter(
+    (n) =>
+      n.event.kind === "decision" && pathSegments(n.event.path).length === 1
+  );
+  const child = children.length === 1 ? children[0] : undefined;
+  return root && child && sameDecision(root.event, child.event)
+    ? { root, child }
+    : undefined;
+};
+
 /**
  * Builds the rows for one step's events, given in recording order. Only
  * observations and decisions get rows; the rest fold onto the decision that
  * took effect, which the runner records last. A decision a later
- * `superseded` event names appears only in the fold.
+ * `superseded` event names appears only in the fold. A root decision that
+ * repeats its single deciding child is left out, and the child carries the
+ * fold instead.
  */
-export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
+export function buildSentinelStep(
+  nodes: SentinelNode[],
+  modelCalls: EventNode<ModelEvent>[] = []
+): SentinelStep {
   const first = nodes[0];
   const reports = nodes.filter((n) => !isFolded(n.event));
   const folded = nodes.filter((n) => isFolded(n.event));
@@ -107,9 +146,15 @@ export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
     }
   }
 
-  const shown = reports.filter((n) => !superseded.has(n));
+  const reported = reports.filter((n) => !superseded.has(n));
+  const redundant = redundantRoot(reported);
+  const shown = redundant
+    ? reported.filter((n) => n !== redundant.root)
+    : reported;
   const effective =
-    shown.findLast((n) => n.event.kind === "decision") ?? shown.at(-1);
+    redundant?.child ??
+    shown.findLast((n) => n.event.kind === "decision") ??
+    shown.at(-1);
   const effect: SentinelRow["effect"] = folded.some(
     (n) => n.event.kind === "bypassed"
   )
@@ -137,7 +182,17 @@ export function buildSentinelStep(nodes: SentinelNode[]): SentinelStep {
     stepId: first?.event.step_id ?? "",
     rows,
     folded: effective ? [] : folded,
+    modelCalls,
   };
+}
+
+interface SentinelSpan {
+  node: EventNode;
+  /** Every event nested in the span. */
+  members: EventNode[];
+  modelCalls: EventNode<ModelEvent>[];
+  /** The step of the span's first sentinel event. */
+  stepKey?: string;
 }
 
 const kToolStages: ReadonlySet<SentinelEvent["stage"]> = new Set([
@@ -155,12 +210,14 @@ export function pairToolSentinels(
 ): ToolSentinelPairing {
   const toolNodeIdsByCallId = new Map<string, string>();
   const steps = new Map<string, SentinelNode[]>();
+  const spans: SentinelSpan[] = [];
   const seen = new Set<string>();
-  const walk = (nodes: EventNode[]) => {
+  const walk = (nodes: EventNode[], span: SentinelSpan | undefined) => {
     for (const n of nodes) {
       // Flat lists repeat descendants alongside their ancestors.
       if (seen.has(n.id)) continue;
       seen.add(n.id);
+      span?.members.push(n);
       if (n.event.event === "tool" && !toolNodeIdsByCallId.has(n.event.id)) {
         toolNodeIdsByCallId.set(n.event.id, n.id);
       } else if (n.event.event === "sentinel") {
@@ -168,23 +225,41 @@ export function pairToolSentinels(
         const step = steps.get(key) ?? [];
         step.push(eventNodeOf(n, "sentinel"));
         steps.set(key, step);
+        if (span) span.stepKey ??= key;
+      } else if (span && n.event.event === "model") {
+        span.modelCalls.push(eventNodeOf(n, "model"));
       }
-      if (n.children.length) walk(n.children);
+      let inner = span;
+      if (isSentinelSpan(n)) {
+        inner = { node: n, members: [], modelCalls: [] };
+        spans.push(inner);
+      }
+      if (n.children.length) walk(n.children, inner);
     }
   };
-  walk(eventNodes);
+  walk(eventNodes, undefined);
+
+  // A span with no sentinel event (e.g. a monitor raised before reporting)
+  // keeps its rows, since no step renders its contents.
+  const spansByStep = new Map<string, SentinelSpan>();
+  for (const span of spans) {
+    if (span.stepKey !== undefined && !spansByStep.has(span.stepKey)) {
+      spansByStep.set(span.stepKey, span);
+    }
+  }
 
   const toolSentinels = new Map<string, ToolSentinels>();
   const standaloneSentinels = new Map<string, SentinelStep>();
   const hiddenSentinelIds = new Set<string>();
   const sentinelScrollRedirects = new Map<string, string>();
 
-  for (const nodes of steps.values()) {
-    const step = buildSentinelStep(nodes);
+  for (const [key, nodes] of steps) {
+    const span = spansByStep.get(key);
+    const step = buildSentinelStep(nodes, span?.modelCalls);
     const toolNodeId = kToolStages.has(step.stage)
       ? toolNodeIdsByCallId.get(step.stepId)
       : undefined;
-    const hostId = toolNodeId ?? nodes[0]!.id;
+    const hostId = toolNodeId ?? span?.node.id ?? nodes[0]!.id;
     if (toolNodeId) {
       const paired = toolSentinels.get(step.stepId) ?? {};
       if (step.stage === "tool_call") paired.before = step;
@@ -193,7 +268,8 @@ export function pairToolSentinels(
     } else {
       standaloneSentinels.set(hostId, step);
     }
-    for (const node of nodes) {
+    const hidden = span ? [span.node, ...span.members] : nodes;
+    for (const node of hidden) {
       if (node.id === hostId) continue;
       hiddenSentinelIds.add(node.id);
       sentinelScrollRedirects.set(node.id, hostId);

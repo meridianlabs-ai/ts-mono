@@ -576,3 +576,49 @@ describe("TranscriptViewNodes sentinel rows", () => {
     ]);
   });
 });
+
+describe("TranscriptViewNodes sentinel spans", () => {
+  it("hides a sentinel span and its monitor model calls behind the tool", () => {
+    const span = new EventNode(
+      "sen",
+      testSpanBeginEvent({ id: "sen", type: "sentinel", name: "sentinel" }),
+      0
+    );
+    span.children = [
+      new EventNode(
+        "monitor",
+        testModelEvent({ uuid: "monitor", role: "monitor" }),
+        1
+      ),
+      new EventNode(
+        "s-call",
+        testSentinelEvent({ uuid: "s-call", step_id: "call_1" }),
+        1
+      ),
+    ];
+    const eventNodes = [
+      model("m1"),
+      span,
+      new EventNode("t1", testToolEvent({ id: "call_1", uuid: "t1" }), 0),
+    ];
+    const ref = createRef<TranscriptViewNodesHandle>();
+    const scrollRef = createRef<HTMLDivElement>();
+    render(
+      <div ref={scrollRef}>
+        <TranscriptViewNodes
+          ref={ref}
+          id="test"
+          eventNodes={eventNodes}
+          defaultCollapsedIds={{}}
+          scrollRef={scrollRef}
+        />
+      </div>,
+      { wrapper: StateWrapper }
+    );
+
+    expect(ref.current?.getFlattenedNodes().map((n) => n.id)).toEqual([
+      "m1",
+      "t1",
+    ]);
+  });
+});

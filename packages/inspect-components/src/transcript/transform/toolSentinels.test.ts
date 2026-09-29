@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  testModelEvent,
   testSentinelEvent,
+  testSpanBeginEvent,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { SentinelEvent } from "@tsmono/inspect-common/types";
@@ -109,6 +111,83 @@ describe("buildSentinelStep", () => {
 
   it("folds cancelled siblings onto the root decision and lists the root first", () => {
     const step = buildSentinelStep([
+      decision("allow", "allow", "allower", "continue"),
+      decision("stop", "stop", "stopper", "terminate"),
+      layer("slow-a", "slow_a", "slow", "cancelled"),
+      layer("slow-b", "slow_b", "slow", "cancelled"),
+      decision("root", "", "concurrent", "terminate"),
+    ]);
+
+    expect(rowIds(step)).toEqual(["root", "allow", "stop"]);
+    expect(step.rows[0]?.depth).toBe(0);
+    expect(step.rows[0]?.folded.map((n) => n.id)).toEqual(["slow-a", "slow-b"]);
+    expect(foldedSummary(step.rows[0]?.folded ?? [])).toBe("2 cancelled");
+    expect(step.rows.map((r) => r.effect)).toEqual([
+      "took effect",
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("hides a root that repeats its lone protocol's decision", () => {
+    const threshold = sentinel("threshold", {
+      path: "threshold",
+      name: "threshold",
+      kind: "decision",
+      decision: "reject",
+      outcome: "reject",
+      explanation: "suspicion 0.95",
+    });
+    const root = sentinel("root", {
+      path: "",
+      name: "inspect_sentinel/concurrent",
+      kind: "decision",
+      decision: "reject",
+      outcome: "reject",
+      explanation: "suspicion 0.95",
+    });
+    const step = buildSentinelStep([
+      sentinel("suspicion", {
+        path: "threshold/suspicion",
+        name: "suspicion",
+        kind: "observation",
+        suspicion: 0.95,
+        decision: null,
+        outcome: null,
+      }),
+      threshold,
+      root,
+    ]);
+
+    expect(rowIds(step)).toEqual(["threshold", "suspicion"]);
+    expect(step.rows.map((r) => r.depth)).toEqual([0, 1]);
+    expect(step.rows.every((r) => r.effect === undefined)).toBe(true);
+  });
+
+  it("keeps a root whose decision differs from its lone deciding child", () => {
+    const step = buildSentinelStep([
+      decision("stop", "stop", "stopper", "terminate"),
+      decision("root", "", "concurrent", "reject"),
+    ]);
+    expect(rowIds(step)).toEqual(["root", "stop"]);
+  });
+
+  it("keeps a root whose explanation adds to its child's", () => {
+    const step = buildSentinelStep([
+      decision("stop", "stop", "stopper", "reject"),
+      sentinel("root", {
+        path: "",
+        name: "concurrent",
+        decision: "reject",
+        outcome: "reject",
+        explanation: "combined",
+      }),
+    ]);
+    expect(rowIds(step)).toEqual(["root", "stop"]);
+  });
+
+  it("moves the fold of a hidden root onto the child that took effect", () => {
+    const step = buildSentinelStep([
       sentinel("monitor", {
         path: "monitor",
         name: "suspicion_monitor",
@@ -124,15 +203,10 @@ describe("buildSentinelStep", () => {
       decision("root", "", "concurrent", "terminate"),
     ]);
 
-    expect(rowIds(step)).toEqual(["root", "monitor", "stop"]);
-    expect(step.rows[0]?.depth).toBe(0);
-    expect(step.rows[0]?.folded.map((n) => n.id)).toEqual(["slow-a", "slow-b"]);
-    expect(foldedSummary(step.rows[0]?.folded ?? [])).toBe("2 cancelled");
-    expect(step.rows.map((r) => r.effect)).toEqual([
-      "took effect",
-      undefined,
-      undefined,
-    ]);
+    expect(rowIds(step)).toEqual(["monitor", "stop"]);
+    expect(step.rows.map((r) => r.depth)).toEqual([0, 0]);
+    expect(step.rows[1]?.folded.map((n) => n.id)).toEqual(["slow-a", "slow-b"]);
+    expect(step.rows.map((r) => r.effect)).toEqual([undefined, "took effect"]);
   });
 
   it("keeps folded events on the step when no report took effect", () => {
@@ -204,6 +278,69 @@ describe("pairToolSentinels", () => {
     expect(result.toolSentinels.size).toBe(0);
     expect(result.standaloneSentinels.has("orphan")).toBe(true);
     expect(result.hiddenSentinelIds.size).toBe(0);
+  });
+});
+
+describe("pairToolSentinels with sentinel spans", () => {
+  const tool = (id: string, callId: string) =>
+    new EventNode(id, testToolEvent({ id: callId }), 0);
+  const sentinelSpan = (id: string, children: EventNode[]) => {
+    const span = new EventNode(
+      id,
+      testSpanBeginEvent({ id, name: "sentinel", type: "sentinel" }),
+      0
+    );
+    span.children = children;
+    return span;
+  };
+  const monitorCall = (id: string) =>
+    new EventNode(id, testModelEvent({ role: "monitor" }), 1);
+
+  it("gives a step the model calls in its span and hides the span", () => {
+    const calls = [monitorCall("mc-1"), monitorCall("mc-2")];
+    const report = decision("before", "", "protocol", "continue");
+    const span = sentinelSpan("span-1", [...calls, report]);
+    const result = pairToolSentinels([span, tool("tool-1", "call_1")]);
+
+    const before = result.toolSentinels.get("call_1")?.before;
+    expect(before?.modelCalls.map((n) => n.id)).toEqual(["mc-1", "mc-2"]);
+    expect([...result.hiddenSentinelIds].sort()).toEqual(
+      ["before", "mc-1", "mc-2", "span-1"].sort()
+    );
+    expect(result.sentinelScrollRedirects.get("mc-1")).toBe("tool-1");
+  });
+
+  it("finds span members once each in a flat list", () => {
+    const call = monitorCall("mc-1");
+    const report = decision("before", "", "protocol", "continue");
+    const span = sentinelSpan("span-1", [call, report]);
+    const result = pairToolSentinels([
+      span,
+      call,
+      report,
+      tool("tool-1", "call_1"),
+    ]);
+    expect(
+      result.toolSentinels.get("call_1")?.before?.modelCalls.map((n) => n.id)
+    ).toEqual(["mc-1"]);
+  });
+
+  it("hosts a step with no tool at its span", () => {
+    const report = sentinel("m1", { stage: "model_output", step_id: "msg_1" });
+    const span = sentinelSpan("span-1", [monitorCall("mc-1"), report]);
+    const result = pairToolSentinels([span]);
+    expect(result.standaloneSentinels.get("span-1")?.modelCalls).toHaveLength(
+      1
+    );
+    expect(result.hiddenSentinelIds.has("span-1")).toBe(false);
+    expect(result.sentinelScrollRedirects.get("m1")).toBe("span-1");
+  });
+
+  it("leaves a span with no sentinel event visible", () => {
+    const span = sentinelSpan("span-1", [monitorCall("mc-1")]);
+    const result = pairToolSentinels([span, tool("tool-1", "call_1")]);
+    expect(result.hiddenSentinelIds.size).toBe(0);
+    expect(result.toolSentinels.size).toBe(0);
   });
 });
 
