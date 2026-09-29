@@ -32,6 +32,7 @@ import {
   type FilterSpec,
   type FilterType,
 } from "@tsmono/inspect-components/columnFilter";
+import { isNewTabClick } from "@tsmono/react/components";
 import { isRecord, isVscode } from "@tsmono/util";
 
 import { openHrefInNewTab } from "../openInNewTab";
@@ -135,11 +136,6 @@ const kAfterRotatedGap = 24;
 // scrollbar. Rows stretch over the reserve (min-width: 100%), so it's
 // invisible.
 const kFitSlack = 4;
-
-/** A click the browser turns into "open link in a new tab/window". */
-function isNewTabClick(e: MouseEvent<HTMLElement>): boolean {
-  return e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1;
-}
 
 /** Per visible column, in display order: rendered width (including any
  *  after-rotated gap) and, when left-pinned, sticky offset. `byId` is a Map

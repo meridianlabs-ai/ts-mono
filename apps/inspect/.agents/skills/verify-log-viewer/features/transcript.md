@@ -43,7 +43,8 @@ Preconditions:
 - **Turn navigation.** `getByRole("button", { name: "Next turn" })` /
   `{ name: "Previous turn" }`; per-turn anchors are `#turn-<eventUuid>`;
   `getByRole("link", { name: "Open focused turn view" })` enters focus mode,
-  `getByRole("button", { name: "Exit focus mode" })` leaves it.
+  `getByRole("link", { name: "Exit focus mode" })` leaves it (a button
+  inside VS Code).
 - **Proof.** Screenshot the timeline showing the model call and score event;
   assert fixture-specific texts (input, answer, score value).
 
@@ -70,7 +71,9 @@ and Scans rail, read [Transcript search and scans](./transcript-search-and-scans
 ## Gotchas
 
 - Outline rows are only selectable via CSS-module fragments
-  (`[class*="eventRow"]`) — brittle; prefer asserting on outline text.
+  (`[class*="eventRow"]`) — brittle; prefer asserting on outline text. Each
+  row's label is a link to the event; a Cmd/Ctrl-click on it opens a new tab
+  without moving the current transcript.
 - One-turn samples disable turn-nav buttons — use a multi-turn fixture when
   proving `transcript-turns`.
 - Some turn-nav store writes are debounced with no DOM signal; the existing

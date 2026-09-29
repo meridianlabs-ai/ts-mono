@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Fragment, MouseEvent, ReactNode, useMemo, useState } from "react";
+import { Fragment, ReactNode, useMemo, useState } from "react";
 
 import type {
   ConfigUpdate,
@@ -52,10 +52,9 @@ interface UsagePanelProps {
    *  log identity so the modal doesn't leak across logs in a session. */
   state_key?: string;
   /** Deep-link to the Timeline tab with the model's band toggled on. */
-  onViewTimeline?: (
-    model: string,
-    event: MouseEvent<HTMLButtonElement>
-  ) => void;
+  onViewTimeline?: (model: string) => void;
+  /** The Timeline tab's URL, so the timeline actions are links. */
+  timelineHref?: string;
 }
 
 type Mode = "model" | "role" | "connections";
@@ -84,6 +83,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
   main_model,
   state_key,
   onViewTimeline,
+  timelineHref,
 }) => {
   const keysOf = (
     ...maps: (Record<string, unknown> | undefined)[]
@@ -232,6 +232,7 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           retunes_by_model={retunesByModel}
           onShowLog={setLogModel}
           onViewTimeline={onViewTimeline}
+          timelineHref={timelineHref}
         />
       ) : (
         // Roles/Models are token lenses — connection lanes render once, in
@@ -257,15 +258,16 @@ export const UsagePanel: React.FC<UsagePanelProps> = ({
           retunes={retunesByModel[logLane.model]}
           onViewTimeline={
             onViewTimeline
-              ? (event) => {
+              ? () => {
                   // The modal's visibility lives in a property bag that
                   // survives unmount — clear it before navigating away or
                   // it reopens the next time this tab is shown.
                   setLogModel(null);
-                  onViewTimeline(logLane.model, event);
+                  onViewTimeline(logLane.model);
                 }
               : undefined
           }
+          timelineHref={timelineHref}
         />
       )}
     </div>
