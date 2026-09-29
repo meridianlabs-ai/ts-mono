@@ -189,7 +189,12 @@ const renderContent = (
         }
       }
 
-      const openRouterCode = formatOpenRouterReasoning(text);
+      // Reformatting is rendering: raw mode (always, for untrusted content)
+      // shows the reasoning exactly as the model wrote it.
+      const openRouterCode =
+        displayMode === "rendered"
+          ? formatOpenRouterReasoning(text)
+          : undefined;
       const renderReasoningCode = openRouterCode !== undefined;
       const codeFormatted = openRouterCode ?? text;
 

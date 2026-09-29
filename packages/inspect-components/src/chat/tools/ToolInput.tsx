@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
-import { ContentCode } from "@tsmono/react/components";
+import { ContentCode, useIsContentTrusted } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
 import { RenderedText } from "../../content/RenderedText";
@@ -72,7 +72,9 @@ const RenderTool: FC<RenderToolProps> = ({
   parentRef,
   className,
 }) => {
-  if (contentType === kToolTodoContentType) {
+  // The checklist is rendering; untrusted todos show as their serialization.
+  const trusted = useIsContentTrusted();
+  if (contentType === kToolTodoContentType && trusted) {
     return <TodoWriteInput contents={contents} parentRef={parentRef} />;
   }
 
