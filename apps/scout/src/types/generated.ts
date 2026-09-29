@@ -3585,8 +3585,6 @@ export interface components {
             modified?: components["schemas"]["ToolCall"] | null;
             /** Name */
             name: string;
-            /** Outcome */
-            outcome?: ("continue" | "modify" | "reject" | "terminate" | "escalate") | null;
             /** Path */
             path: string;
             /** Pending */

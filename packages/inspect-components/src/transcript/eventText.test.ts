@@ -163,7 +163,6 @@ describe("eventsToMarkdown — sentinel", () => {
         path: "attempt/human",
         name: "human",
         decision: "reject",
-        outcome: "reject",
         explanation: "Not on the allow list.",
       }),
       testSentinelEvent({ path: "", name: "concurrent" }),
@@ -657,7 +656,6 @@ describe("eventSearchText", () => {
           kind: "observation",
           suspicion: { exfiltration: 0.8 },
           decision: null,
-          outcome: null,
           audit: true,
           explanation: "Posts credentials to a paste site.",
         })
@@ -680,7 +678,6 @@ describe("eventSearchText", () => {
       makeNode(
         testSentinelEvent({
           decision: "modify",
-          outcome: "modify",
           modified: testToolCall({
             function: "bash",
             arguments: { cmd: "ls" },
@@ -700,7 +697,6 @@ describe("eventSearchText", () => {
           kind: "bypassed",
           function: null,
           decision: null,
-          outcome: null,
         })
       )
     );

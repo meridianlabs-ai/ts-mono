@@ -420,7 +420,6 @@ export const testSentinelEvent = (
   stage: "tool_call",
   kind: "decision",
   decision: "continue",
-  outcome: "continue",
   audit: false,
   ...overrides,
 });

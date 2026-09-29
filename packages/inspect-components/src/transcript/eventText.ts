@@ -400,9 +400,6 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sentinelEvent.modified) {
         fields.push(["modified", formatModifiedCall(sentinelEvent.modified)]);
       }
-      if (sentinelEvent.outcome) {
-        fields.push(["outcome", sentinelEvent.outcome]);
-      }
       if (sentinelEvent.audit) {
         fields.push(["audit", "true"]);
       }
