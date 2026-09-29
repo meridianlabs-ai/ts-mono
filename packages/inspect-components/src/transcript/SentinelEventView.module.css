@@ -79,6 +79,21 @@
   color: var(--bs-warning-text-emphasis);
 }
 
+.modified {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5em;
+  margin-top: 0.15em;
+  margin-left: 1.3em;
+}
+
+.modified code {
+  color: var(--bs-body-color);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .explanation {
   margin-top: 0.15em;
   margin-left: 1.3em;

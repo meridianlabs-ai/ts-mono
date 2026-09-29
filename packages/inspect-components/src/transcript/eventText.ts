@@ -2,7 +2,7 @@ import type { Content } from "@tsmono/inspect-common/types";
 import { isRecord, toTitleCase } from "@tsmono/util";
 
 import { eventTitle } from "./event/utils";
-import { formatSuspicion } from "./transform/toolSentinels";
+import { formatModifiedCall, formatSuspicion } from "./transform/toolSentinels";
 import type { EventType } from "./types";
 import { EventNode } from "./types";
 
@@ -396,6 +396,9 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       }
       if (sentinelEvent.decision) {
         fields.push(["decision", sentinelEvent.decision]);
+      }
+      if (sentinelEvent.modified) {
+        fields.push(["modified", formatModifiedCall(sentinelEvent.modified)]);
       }
       if (sentinelEvent.outcome) {
         fields.push(["outcome", sentinelEvent.outcome]);

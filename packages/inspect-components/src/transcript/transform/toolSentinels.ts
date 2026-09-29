@@ -235,3 +235,11 @@ export const formatSuspicion = (
     .map(([dimension, value]) => `${dimension} ${format(value)}`)
     .join(", ");
 };
+
+/** A modify decision's replacement call, with every argument spelled out. */
+export const formatModifiedCall = (
+  call: NonNullable<SentinelEvent["modified"]>
+): string =>
+  `${call.function}(${Object.entries(call.arguments)
+    .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
+    .join(", ")})`;

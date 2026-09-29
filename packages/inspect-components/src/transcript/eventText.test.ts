@@ -675,6 +675,22 @@ describe("eventSearchText", () => {
     ]);
   });
 
+  test("sentinel: a modify decision includes its replacement call", () => {
+    const texts = eventSearchText(
+      makeNode(
+        testSentinelEvent({
+          decision: "modify",
+          outcome: "modify",
+          modified: testToolCall({
+            function: "bash",
+            arguments: { cmd: "ls" },
+          }),
+        })
+      )
+    );
+    expect(texts).toContain('bash(cmd="ls")');
+  });
+
   test("sentinel: a bypassed layer carries no report", () => {
     const texts = eventSearchText(
       makeNode(

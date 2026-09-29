@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   testSentinelEvent,
+  testToolCall,
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { SentinelEvent } from "@tsmono/inspect-common/types";
@@ -189,5 +190,19 @@ describe("SentinelEventView", () => {
     );
     expect(container.textContent).toContain("before_protocol");
     expect(container.textContent).toContain("reject");
+  });
+
+  it("shows the replacement call of a modify decision", () => {
+    const modify = node("modify", {
+      name: "defer_to_trusted",
+      decision: "modify",
+      outcome: "modify",
+      modified: testToolCall({
+        function: "bash",
+        arguments: { cmd: "ls /workspace" },
+      }),
+    });
+    renderWithState(<SentinelEventView eventNode={modify} />);
+    expect(screen.getByText('bash(cmd="ls /workspace")')).toBeTruthy();
   });
 });

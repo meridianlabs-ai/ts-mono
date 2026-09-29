@@ -11,6 +11,7 @@ import styles from "./SentinelEventView.module.css";
 import {
   buildSentinelStep,
   foldedSummary,
+  formatModifiedCall,
   formatSuspicion,
   instanceLabel,
   type SentinelNode,
@@ -123,6 +124,12 @@ const SentinelRowView: FC<{ row: SentinelRow }> = ({ row }) => {
           <span className={clsx(styles.badge, styles.audit)}>audit</span>
         ) : null}
       </div>
+      {event.decision === "modify" && event.modified ? (
+        <div className={styles.modified} style={indent}>
+          <span className="text-style-secondary">modified call</span>
+          <code>{formatModifiedCall(event.modified)}</code>
+        </div>
+      ) : null}
       {explanation ? (
         <div className={styles.explanation} style={indent}>
           <ExpandablePanel
