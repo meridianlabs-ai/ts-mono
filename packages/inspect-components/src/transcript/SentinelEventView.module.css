@@ -79,8 +79,14 @@
   color: inherit;
 }
 
-.tookEffect {
-  font-weight: 600;
+.kindIcon {
+  margin-right: 6px;
+  font-size: 0.9em;
+  color: var(--inspect-check-kind-icon);
+}
+
+.inactive .kindIcon {
+  opacity: 0.55;
 }
 
 .rowChevron {

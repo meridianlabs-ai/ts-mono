@@ -101,6 +101,7 @@
   --inspect-check-result-pill-bg: var(--bs-tertiary-bg);
   --inspect-check-result-pill-text: #495057;
   --inspect-check-tree-guide: #ced4da;
+  --inspect-check-kind-icon: rgba(var(--bs-body-color-rgb), 0.5);
   --inspect-check-open-row-bg: #e7f0f9;
   --inspect-check-detail-before-bg: #f8fafc;
   --inspect-check-detail-after-bg: var(--bs-tertiary-bg);

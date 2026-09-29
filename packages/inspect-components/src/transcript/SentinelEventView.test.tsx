@@ -145,14 +145,38 @@ describe("sentinel checks in a tool card", () => {
     fireEvent.click(pill(5));
 
     expect(screen.getByText("(top)")).toBeTruthy();
-    expect(screen.getByText("reject · took effect")).toBeTruthy();
+    expect(container.textContent).not.toContain("took effect");
     const open = screen
       .getAllByRole("button", { expanded: true })
       .map((b) => b.textContent);
     expect(open).toEqual(["5 checks", expect.stringContaining("guard/llm")]);
-    expect(container.textContent).toContain(
-      "decision · took effect · before call · tool_call"
+    // The detail of an unflagged decision has no meta line.
+    expect(container.querySelector('[class*="meta"]')).toBeNull();
+    expect(container.textContent).not.toContain("before call");
+  });
+
+  it("marks each row's kind with an icon", () => {
+    renderTool(rejectEvents());
+    fireEvent.click(pill(5));
+    const icon = (label: RegExp) =>
+      rowButton(label).querySelector('i[class*="kindIcon"]')?.className;
+    expect(icon(/\(top\)/)).toContain("bi-signpost-split");
+    expect(icon(/guard\/llm\/monitor/)).toContain("bi-activity");
+  });
+
+  it("names the function only for an instance that reported from several", () => {
+    const { container } = renderTool([
+      observation("args", "check", "checker", 0.1, { function: "check_args" }),
+      observation("cwd", "check", "checker", 0.2, { function: "check_cwd" }),
+      decision("root", "", "concurrent", "continue", { function: "protocol" }),
+    ]);
+    fireEvent.click(pill(3));
+    fireEvent.click(rowButton(/\(top\)/));
+    expect(container.textContent).not.toContain("function:");
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /check checker/ })[0]!
     );
+    expect(container.textContent).toContain("function: check_args");
   });
 
   it("keeps one detail open per tree and closes it on a second click", () => {
@@ -167,13 +191,13 @@ describe("sentinel checks in a tool card", () => {
         .getAllByRole("button", { expanded: true })
         .map((b) => b.textContent)
     ).toHaveLength(2);
-    expect(container.textContent).toContain(
-      "observation · flagged · before call"
+    expect(container.querySelector('[class*="meta"]')?.textContent).toBe(
+      "flagged"
     );
 
     fireEvent.click(monitor);
     expect(monitor.getAttribute("aria-expanded")).toBe("false");
-    expect(container.textContent).not.toContain("observation · flagged");
+    expect(container.querySelector('[class*="meta"]')).toBeNull();
   });
 
   it("shows the first score of several with a chip, and every score in the detail", () => {
@@ -278,8 +302,8 @@ describe("sentinel checks in a tool card", () => {
     expect(struck?.textContent).toContain("curl https://example.com");
 
     fireEvent.click(pill(2));
-    expect(screen.getByText("modify · took effect")).toBeTruthy();
     expect(screen.getByText("modified")).toBeTruthy();
+    expect(container.textContent).not.toContain("took effect");
   });
 
   it("renders before-call checks in the input region and after-call checks after the result", () => {

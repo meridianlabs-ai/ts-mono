@@ -91,6 +91,7 @@ const CheckTree: FC<{ step: SentinelStep; tone: CheckTone }> = ({
   step,
   tone,
 }) => {
+  const grouped = groupedPaths(step.rows);
   const [openRow, setOpenRow] = useProperty<string | null>(
     step.id,
     "sentinel-open-row",
@@ -113,7 +114,12 @@ const CheckTree: FC<{ step: SentinelStep; tone: CheckTone }> = ({
               open={open}
               onToggle={() => setOpenRow(open ? null : row.node.id)}
             />
-            {open ? <CheckDetail row={row} /> : null}
+            {open ? (
+              <CheckDetail
+                row={row}
+                showFunction={grouped.has(row.node.event.path)}
+              />
+            ) : null}
           </Fragment>
         );
       })}
@@ -144,6 +150,15 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
         {row.guides ? (
           <span className={styles.guides}>{row.guides}</span>
         ) : null}
+        <i
+          className={clsx(
+            event.kind === "observation"
+              ? "bi bi-activity"
+              : "bi bi-signpost-split",
+            styles.kindIcon
+          )}
+          aria-hidden="true"
+        />
         <b>{event.path || "(top)"}</b>{" "}
         <span className={styles.name}>{event.name}</span>
       </span>
@@ -196,29 +211,26 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   return (
     <>
       {flag}
-      <span
-        className={clsx(
-          decisionClass(event.decision),
-          row.tookEffect && styles.tookEffect
-        )}
-      >
-        {row.tookEffect ? `${event.decision} · took effect` : event.decision}
-      </span>
+      <span className={decisionClass(event.decision)}>{event.decision}</span>
     </>
   );
 };
 
-const CheckDetail: FC<{ row: SentinelRow }> = ({ row }) => {
+interface CheckDetailProps {
+  row: SentinelRow;
+  /** Names the reporting function, for an instance that reported from several. */
+  showFunction: boolean;
+}
+
+const CheckDetail: FC<CheckDetailProps> = ({ row, showFunction }) => {
   const event = row.node.event;
   const explanation = event.explanation?.trim();
   const effectTone = row.tookEffect ? toneOfDecision(event.decision) : null;
-  const meta = [
-    event.kind === "superseded" ? "decision" : event.kind,
+  const status = [
     event.audit ? "flagged" : null,
     event.kind === "superseded" ? "superseded" : null,
-    row.tookEffect ? "took effect" : null,
-    stageLabels[event.stage],
   ].filter(Boolean);
+  const reportedBy = showFunction ? event.function : null;
   const scores =
     event.suspicion !== null &&
     typeof event.suspicion === "object" &&
@@ -235,15 +247,18 @@ const CheckDetail: FC<{ row: SentinelRow }> = ({ row }) => {
           !effectTone && event.stage === "tool_result" && styles.afterDetail
         )}
       >
-        <div className={styles.meta}>
-          {meta.join(" · ")}
-          {event.function ? (
-            <>
-              {" · "}
-              <span className={checkClasses.mono}>{event.function}</span>
-            </>
-          ) : null}
-        </div>
+        {status.length || reportedBy ? (
+          <div className={styles.meta}>
+            {status.join(" · ")}
+            {reportedBy ? (
+              <>
+                {status.length ? " · " : null}
+                function:{" "}
+                <span className={checkClasses.mono}>{reportedBy}</span>
+              </>
+            ) : null}
+          </div>
+        ) : null}
         {scores ? (
           <div className={styles.scoreGrid}>
             {scores.map(([dimension, value]) => (
@@ -277,6 +292,20 @@ const CheckDetail: FC<{ row: SentinelRow }> = ({ row }) => {
         ) : null}
       </div>
     </div>
+  );
+};
+
+/** Paths of the instances that reported from more than one function on this step. */
+const groupedPaths = (rows: SentinelRow[]): Set<string> => {
+  const functions = new Map<string, Set<string>>();
+  for (const { node } of rows) {
+    if (!node.event.function) continue;
+    const seen = functions.get(node.event.path) ?? new Set<string>();
+    seen.add(node.event.function);
+    functions.set(node.event.path, seen);
+  }
+  return new Set(
+    [...functions].filter(([, seen]) => seen.size > 1).map(([path]) => path)
   );
 };
 
