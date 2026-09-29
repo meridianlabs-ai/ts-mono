@@ -150,12 +150,12 @@ export type { TimelineSelectByIdFn } from "./TimelineSelectContext";
 
 // Event view components
 export { AnchorEventView } from "./AnchorEventView";
-export { ApprovalEventView } from "./ApprovalEventView";
+export { ApprovalEventView, ApprovalInset } from "./ApprovalEventView";
 export { ReviewEventView } from "./ReviewEventView";
 export {
   SentinelEventView,
+  SentinelInset,
   SentinelStepRow,
-  SentinelStepView,
 } from "./SentinelEventView";
 export { BranchEventView } from "./BranchEventView";
 export {

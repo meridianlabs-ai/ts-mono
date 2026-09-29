@@ -7,6 +7,7 @@ import {
   ClientToolCall,
   resolveToolInput,
   substituteToolCallContent,
+  ToolBlockInset,
   type ChatViewLabelOptions,
 } from "@tsmono/inspect-components/chat";
 import { getOwn } from "@tsmono/util";
@@ -15,13 +16,13 @@ import { computeMaxLabelLength } from "../chat/labelLength";
 import { MessageLabel } from "../chat/MessageLabel";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
-import { ApprovalEventView } from "./ApprovalEventView";
+import { ApprovalInset } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
-import { SentinelStepRow } from "./SentinelEventView";
+import { SentinelInset } from "./SentinelEventView";
+import { NotRunWell } from "./ToolCheckInset";
 import styles from "./ToolEventView.module.css";
-import type { SentinelStep } from "./transform/toolSentinels";
 import {
   EventNode,
   EventNodeContext,
@@ -66,14 +67,54 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     [event.view, event.arguments]
   );
 
-  const approvalNode = context?.toolApprovals?.get(event.id);
+  const approvals = context?.toolApprovals?.get(event.id);
   const sentinels = context?.toolSentinels?.get(event.id);
-  const sentinelRow = (step: SentinelStep | undefined) =>
-    step ? (
-      <div className={styles.sentinel}>
-        <SentinelStepRow step={step} showStage={false} context={context} />
-      </div>
+  const finalApproval = approvals?.at(-1)?.event;
+  const before = sentinels?.before;
+  const blocker =
+    finalApproval &&
+    (finalApproval.decision === "reject" ||
+      finalApproval.decision === "terminate")
+      ? {
+          decision: finalApproval.decision,
+          explanation: finalApproval.explanation,
+        }
+      : before?.effective &&
+          (before.verdict === "reject" || before.verdict === "terminate")
+        ? {
+            decision: before.verdict,
+            explanation: before.effective.event.explanation,
+          }
+        : undefined;
+  const modified =
+    finalApproval?.decision === "modify" ||
+    (before?.verdict === "modify" && !!before.effective);
+  const beforeInsets =
+    approvals || before ? (
+      <ToolBlockInset region="input">
+        {approvals ? <ApprovalInset chain={approvals} /> : null}
+        {before ? (
+          <SentinelInset step={before} region="input" context={context} />
+        ) : null}
+      </ToolBlockInset>
     ) : undefined;
+  const afterInset = sentinels?.after ? (
+    <ToolBlockInset region="output">
+      <SentinelInset step={sentinels.after} region="output" context={context} />
+    </ToolBlockInset>
+  ) : undefined;
+  // The model received the ToolApprovalError text; prefer the recorded one.
+  const notRun = blocker ? (
+    <NotRunWell
+      message={
+        event.error?.type === "approval"
+          ? event.error.message
+          : blocker.decision === "reject"
+            ? blocker.explanation?.trim() || "Tool call not approved."
+            : undefined
+      }
+    />
+  ) : undefined;
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
@@ -130,8 +171,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       inputScreenshot={context?.inputScreenshot}
       error={showError && event.error ? event.error : undefined}
       view={resolvedView}
-      afterInput={sentinelRow(sentinels?.before)}
-      afterOutput={sentinelRow(sentinels?.after)}
+      afterInput={beforeInsets}
+      afterOutput={afterInset}
+      inputStruck={modified}
+      outputReplacement={notRun}
     />
   );
 
@@ -176,16 +219,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           />
         ) : undefined}
 
-        {approvalNode ? (
-          <div className={styles.approvalWrap}>
-            <ApprovalEventView
-              eventNode={approvalNode}
-              className={styles.approval}
-            />
-          </div>
-        ) : (
-          ""
-        )}
         {event.pending ? (
           <div className={clsx(styles.progress)}>
             <GeneratingIndicator label="running" />

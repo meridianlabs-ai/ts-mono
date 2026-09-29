@@ -38,6 +38,10 @@ export interface ClientToolCallProps {
   afterInput?: ReactNode;
   /** Rendered after the output. */
   afterOutput?: ReactNode;
+  /** Strikes the input through, for a call that a check replaced. */
+  inputStruck?: boolean;
+  /** Rendered in place of the output, for a call that never ran. */
+  outputReplacement?: ReactNode;
 }
 
 /**
@@ -62,6 +66,8 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   getCustomToolView,
   afterInput,
   afterOutput,
+  inputStruck,
+  outputReplacement,
 }) => {
   const displayMode = useDisplayMode();
 
@@ -88,6 +94,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       <div className={clsx(styles.custom, className)}>
         {afterInput}
         {customView}
+        {outputReplacement}
         {afterOutput}
       </div>
     );
@@ -117,7 +124,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       className={className}
     >
       {hasInput || argsInInputZone ? (
-        <ToolBlockInput>
+        <ToolBlockInput struck={inputStruck}>
           <ExpandablePanel
             id={`${id}-tool-input`}
             collapse={true}
@@ -134,7 +141,9 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
         </ToolBlockInput>
       ) : null}
       {afterInput}
-      {showError ? (
+      {outputReplacement ? (
+        outputReplacement
+      ) : showError ? (
         <ToolBlockOutput>
           <ToolCallErrorView error={error} />
           {/* A failed action is when seeing where the agent tried to act

@@ -13,21 +13,36 @@ export const isSentinelSpan = (node: EventNode): boolean =>
 
 export interface SentinelRow {
   node: SentinelNode;
-  /** Nesting depth of the instance path, relative to the step's shallowest row. */
+  /** Depth in the check tree: the number of recorded ancestors above the row. */
   depth: number;
-  /** Set on the decision that took effect when the step has folded events: `final` when it passed layers that were bypassed. */
-  effect?: "final" | "took effect";
-  /** The bypassed, superseded and cancelled events of the step, on the decision that took effect. */
-  folded: SentinelNode[];
+  /** Box-drawing prefix that draws the tree guides before the row's path. */
+  guides: string;
+  /** Whether this is the decision that took effect for the step. */
+  tookEffect: boolean;
 }
 
-/** The sentinel events recorded for one step, as rows in path order. */
+export type SentinelVerdict =
+  "observe" | NonNullable<SentinelEvent["decision"]>;
+
+/** The sentinel events recorded for one step, as a tree of checks. */
 export interface SentinelStep {
+  /** The id of the step's first event, which keys the step's view state. */
+  id: string;
   stage: SentinelEvent["stage"];
   stepId: string;
+  /** One row per check in tree order; a superseded event stands in for the decision it names. */
   rows: SentinelRow[];
-  /** Folded events of a step that has no report to attach them to. */
-  folded: SentinelNode[];
+  verdict: SentinelVerdict;
+  /** The check the summary names: the decision that took effect, or the top decision of a quiet step. */
+  decider?: SentinelNode;
+  /** The row that took effect; unset when every check continued. */
+  effective?: SentinelNode;
+  /** The explanation the summary shows: the deciding layer's, or the lone check's. */
+  reason?: string;
+  /** Scores the summary shows for a quiet step: each monitor's first score. */
+  scores: string[];
+  /** Whether any event of the step asked for an audit. */
+  audit: boolean;
   /** Model calls made inside the step's sentinel span, in recording order. */
   modelCalls: EventNode<ModelEvent>[];
 }
@@ -48,13 +63,11 @@ export interface ToolSentinelPairing {
   sentinelScrollRedirects: Map<string, string>;
 }
 
-const isFolded = (event: SentinelEvent): boolean =>
-  event.kind === "bypassed" ||
-  event.kind === "superseded" ||
-  event.kind === "cancelled";
-
 const pathSegments = (path: string): string[] =>
   path === "" ? [] : path.split("/");
+
+const isAncestorPath = (ancestor: string, path: string): boolean =>
+  ancestor === "" ? path !== "" : path.startsWith(`${ancestor}/`);
 
 /**
  * Orders a step's events so a nested configuration reads top to bottom: each
@@ -88,100 +101,146 @@ const compareKeys = (a: number[], b: number[]): number => {
   return a.length - b.length;
 };
 
-const sameDecision = (a: SentinelEvent, b: SentinelEvent): boolean =>
-  a.decision === b.decision &&
-  a.audit === b.audit &&
-  (a.explanation?.trim() || null) === (b.explanation?.trim() || null) &&
-  JSON.stringify(a.modified ?? null) === JSON.stringify(b.modified ?? null);
+interface TreeNode {
+  node: SentinelNode;
+  parent?: TreeNode;
+  children: TreeNode[];
+  depth: number;
+}
 
-/**
- * The root decision when it only repeats its single deciding child, e.g. the
- * implicit root that wraps a lone protocol, along with that child.
- */
-const redundantRoot = (
-  shown: SentinelNode[]
-): { root: SentinelNode; child: SentinelNode } | undefined => {
-  const root = shown.find(
-    (n) => n.event.path === "" && n.event.kind === "decision"
-  );
-  const children = shown.filter(
-    (n) =>
-      n.event.kind === "decision" && pathSegments(n.event.path).length === 1
-  );
-  const child = children.length === 1 ? children[0] : undefined;
-  return root && child && sameDecision(root.event, child.event)
-    ? { root, child }
-    : undefined;
+/** Links each check to the nearest recorded check above it by path. */
+const buildTree = (ordered: SentinelNode[]): TreeNode[] => {
+  const tree: TreeNode[] = [];
+  for (const node of ordered) {
+    const parent = tree.findLast((candidate) =>
+      isAncestorPath(candidate.node.event.path, node.event.path)
+    );
+    const entry: TreeNode = {
+      node,
+      parent,
+      children: [],
+      depth: parent ? parent.depth + 1 : 0,
+    };
+    parent?.children.push(entry);
+    tree.push(entry);
+  }
+  return tree;
+};
+
+const guidesFor = (entry: TreeNode): string => {
+  const isLast = (e: TreeNode) => !e.parent || e.parent.children.at(-1) === e;
+  if (!entry.parent) return "";
+  let prefix = isLast(entry) ? "\u2514\u2500 " : "\u251c\u2500 ";
+  for (let up = entry.parent; up.parent; up = up.parent) {
+    prefix = (isLast(up) ? "   " : "\u2502  ") + prefix;
+  }
+  return prefix;
 };
 
 /**
- * Builds the rows for one step's events, given in recording order. Only
- * observations and decisions get rows; the rest fold onto the decision that
- * took effect, which the runner records last. A decision a later
- * `superseded` event names appears only in the fold. A root decision that
- * repeats its single deciding child is left out, and the child carries the
- * fold instead.
+ * The decision that took effect, inferred from the recorded decisions: the
+ * runner records the deciding layer's decision last, and a parent passes up
+ * its children's decision, so descend from it through children that made the
+ * same decision. A child whose explanation matches the parent's wins a tie.
+ */
+const effectiveDecision = (
+  tree: TreeNode[],
+  last: SentinelNode
+): SentinelNode => {
+  let current = tree.find((e) => e.node === last)!;
+  for (;;) {
+    const matching = current.children.filter(
+      (c) =>
+        c.node.event.kind === "decision" &&
+        c.node.event.decision === current.node.event.decision
+    );
+    const explanation = current.node.event.explanation?.trim() || null;
+    const next =
+      matching.find(
+        (c) => (c.node.event.explanation?.trim() || null) === explanation
+      ) ?? matching[0];
+    if (!next) return current.node;
+    current = next;
+  }
+};
+
+/**
+ * Builds the check tree for one step's events, given in recording order. A
+ * decision that a later `superseded` event names shares that event's row.
  */
 export function buildSentinelStep(
   nodes: SentinelNode[],
   modelCalls: EventNode<ModelEvent>[] = []
 ): SentinelStep {
   const first = nodes[0];
-  const reports = nodes.filter((n) => !isFolded(n.event));
-  const folded = nodes.filter((n) => isFolded(n.event));
-
-  const superseded = new Set<SentinelNode>();
-  for (const loser of folded) {
-    if (loser.event.kind !== "superseded") continue;
-    const at = nodes.indexOf(loser);
-    for (const report of reports) {
+  const replaced = new Set<SentinelNode>();
+  nodes.forEach((loser, at) => {
+    if (loser.event.kind !== "superseded") return;
+    for (const report of nodes.slice(0, at)) {
       if (
         report.event.kind === "decision" &&
         report.event.path === loser.event.path &&
-        report.event.function === loser.event.function &&
-        nodes.indexOf(report) < at
+        report.event.function === loser.event.function
       ) {
-        superseded.add(report);
+        replaced.add(report);
       }
     }
-  }
+  });
+  const checks = nodes.filter((n) => !replaced.has(n));
 
-  const reported = reports.filter((n) => !superseded.has(n));
-  const redundant = redundantRoot(reported);
-  const shown = redundant
-    ? reported.filter((n) => n !== redundant.root)
-    : reported;
-  const effective =
-    redundant?.child ??
-    shown.findLast((n) => n.event.kind === "decision") ??
-    shown.at(-1);
-  const effect: SentinelRow["effect"] = folded.some(
-    (n) => n.event.kind === "bypassed"
-  )
-    ? "final"
-    : "took effect";
-
-  const keys = pathOrderKeys(nodes);
-  const depthOf = (node: SentinelNode) => pathSegments(node.event.path).length;
-  const minDepth = Math.min(...shown.map(depthOf));
-  const rows: SentinelRow[] = shown
+  const keys = pathOrderKeys(checks);
+  const ordered = checks
     .map((node, index) => ({ node, index }))
     .sort(
       (a, b) =>
         compareKeys(keys.get(a.node)!, keys.get(b.node)!) || a.index - b.index
     )
-    .map(({ node }) => ({
-      node,
-      depth: depthOf(node) - minDepth,
-      effect: node === effective && folded.length > 0 ? effect : undefined,
-      folded: node === effective ? folded : [],
-    }));
+    .map(({ node }) => node);
+  const tree = buildTree(ordered);
+
+  const decisions = checks.filter((n) => n.event.kind === "decision");
+  const last = decisions.at(-1);
+  const acted = last && last.event.decision !== "continue";
+  const effective = acted ? effectiveDecision(tree, last) : undefined;
+  const onlyRootDecides = decisions.every((n) => n.event.path === "");
+  const observed =
+    !acted &&
+    onlyRootDecides &&
+    checks.some((n) => n.event.kind === "observation");
+
+  const explanationOf = (node: SentinelNode | undefined) =>
+    node?.event.explanation?.trim() || undefined;
+  const single = checks.length === 1 ? checks[0] : undefined;
+  const observations = checks.filter(
+    (n) => n.event.kind === "observation" && n.event.suspicion != null
+  );
+  const scores = acted
+    ? []
+    : single?.event.suspicion != null
+      ? [formatSuspicion(single.event.suspicion)]
+      : observations.map((n) => {
+          const top = topScore(n.event.suspicion!);
+          return `${top.dimension ?? n.event.name.split("/").at(-1)} ${top.value}`;
+        });
 
   return {
+    id: first?.id ?? "",
     stage: first?.event.stage ?? "tool_call",
     stepId: first?.event.step_id ?? "",
-    rows,
-    folded: effective ? [] : folded,
+    rows: tree.map((entry) => ({
+      node: entry.node,
+      depth: entry.depth,
+      guides: guidesFor(entry),
+      tookEffect: entry.node === effective,
+    })),
+    verdict: observed ? "observe" : (last?.event.decision ?? "continue"),
+    decider: effective ?? last,
+    effective,
+    reason: acted
+      ? (explanationOf(effective) ?? explanationOf(last))
+      : explanationOf(single),
+    scores,
+    audit: nodes.some((n) => n.event.audit),
     modelCalls,
   };
 }
@@ -284,25 +343,6 @@ export function pairToolSentinels(
   };
 }
 
-/** One line naming what the folded events did, e.g. "overrode 2 layers · 1 cancelled". */
-export const foldedSummary = (folded: SentinelNode[]): string => {
-  const count = (kind: SentinelEvent["kind"]) =>
-    folded.filter((n) => n.event.kind === kind).length;
-  const bypassed = count("bypassed");
-  const superseded = count("superseded");
-  const cancelled = count("cancelled");
-  return [
-    bypassed ? `overrode ${plural(bypassed, "layer")}` : "",
-    superseded ? `${plural(superseded, "decision")} superseded` : "",
-    cancelled ? `${cancelled} cancelled` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-};
-
-const plural = (n: number, noun: string): string =>
-  `${n} ${noun}${n === 1 ? "" : "s"}`;
-
 /** The instance path, or the factory's registry name at the root. */
 export const instanceLabel = (event: SentinelEvent): string =>
   event.path || event.name;
@@ -310,12 +350,43 @@ export const instanceLabel = (event: SentinelEvent): string =>
 export const formatSuspicion = (
   suspicion: NonNullable<SentinelEvent["suspicion"]>
 ): string => {
-  const format = (value: number) => String(Math.round(value * 100) / 100);
-  if (typeof suspicion === "number") return format(suspicion);
+  if (typeof suspicion === "number") return formatScore(suspicion);
   return Object.entries(suspicion)
-    .map(([dimension, value]) => `${dimension} ${format(value)}`)
+    .map(([dimension, value]) => `${dimension} ${formatScore(value)}`)
     .join(", ");
 };
+
+const formatScore = (value: number): string =>
+  String(Math.round(value * 100) / 100);
+
+export interface TopScore {
+  /** The score's dimension; unset for a single-number suspicion. */
+  dimension?: string;
+  value: string;
+  /** How many other dimensions the suspicion scored. */
+  more: number;
+}
+
+/** The highest score of a suspicion, which stands for it where space is short. */
+export const topScore = (
+  suspicion: NonNullable<SentinelEvent["suspicion"]>
+): TopScore => {
+  if (typeof suspicion === "number") {
+    return { value: formatScore(suspicion), more: 0 };
+  }
+  const [dimension, value] = sortedScores(suspicion)[0]!;
+  return {
+    dimension,
+    value: formatScore(value),
+    more: Object.keys(suspicion).length - 1,
+  };
+};
+
+/** A suspicion's dimensions, highest score first. */
+export const sortedScores = (
+  suspicion: Record<string, number>
+): [string, number][] =>
+  Object.entries(suspicion).sort(([, a], [, b]) => b - a);
 
 /** A modify decision's replacement call, with every argument spelled out. */
 export const formatModifiedCall = (

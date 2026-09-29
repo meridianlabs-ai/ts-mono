@@ -1,59 +1,299 @@
 import clsx from "clsx";
-import { FC, useState } from "react";
+import { FC, Fragment } from "react";
 
-import type { SentinelEvent } from "@tsmono/inspect-common/types";
+import type { SentinelEvent, ToolCall } from "@tsmono/inspect-common/types";
+import { resolveToolInput } from "@tsmono/inspect-components/chat";
 import { MarkdownDiv } from "@tsmono/react/components";
-import { useCollapsedState, useResizeObserver } from "@tsmono/react/hooks";
+import { useCollapsedState, useProperty } from "@tsmono/react/hooks";
 
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
 import { ModelEventView } from "./ModelEventView";
 import styles from "./SentinelEventView.module.css";
 import {
+  checkClasses,
+  CheckInset,
+  CheckSummary,
+  RanInstead,
+  type CheckRegion,
+  type CheckTone,
+} from "./ToolCheckInset";
+import {
   buildSentinelStep,
-  foldedSummary,
-  formatModifiedCall,
-  formatSuspicion,
-  instanceLabel,
-  type SentinelNode,
+  sortedScores,
+  topScore,
   type SentinelRow,
   type SentinelStep,
+  type SentinelVerdict,
 } from "./transform/toolSentinels";
 import type { EventNode, EventNodeContext } from "./types";
 
-interface SentinelStepViewProps {
+interface SentinelInsetProps {
   step: SentinelStep;
+  /** The tool block region the inset sits in; before-call checks go in the input. */
+  region: CheckRegion;
   /** The host row's context; monitor model calls take only its retry attempts. */
   context?: EventNodeContext;
-  className?: string;
 }
 
 /**
- * Renders the sentinel reports for one step: a compact row per observation or
- * decision, nested by instance path. Bypassed, superseded and cancelled events
- * fold into a note on the decision that took effect.
+ * One step's sentinel checks: a summary row naming the result that took
+ * effect, expanding to the tree of every check with its detail beneath it.
  */
-export const SentinelStepView: FC<SentinelStepViewProps> = ({
+export const SentinelInset: FC<SentinelInsetProps> = ({
   step,
+  region,
   context,
-  className,
-}) => (
-  <div className={clsx(styles.step, "text-size-small", className)}>
-    {step.rows.map((row) => (
-      <SentinelRowView key={row.node.id} row={row} />
-    ))}
-    {step.folded[0] ? (
-      <FoldedNote id={step.folded[0].id} folded={step.folded} depth={0} />
-    ) : null}
-    {step.modelCalls[0] ? (
-      <ModelCallsNote
-        id={step.modelCalls[0].id}
-        modelCalls={step.modelCalls}
-        context={context}
+}) => {
+  const [collapsed, setCollapsed] = useCollapsedState(
+    `${step.id}-sentinel-checks`,
+    true
+  );
+  const look = verdictLooks[step.verdict];
+  const tone: CheckTone = step.effective ? look.tone : "neutral";
+  const single = step.rows.length === 1 ? step.rows[0] : undefined;
+  const who = (single?.node ?? step.decider)?.event.path || undefined;
+  const modified = step.effective?.event.modified;
+  return (
+    <CheckInset region={region} tone={tone}>
+      <CheckSummary
+        icon={look.icon}
+        iconClassName={look.iconClass}
+        verdict={look.word}
+        verdictClassName={look.textClass}
+        who={who}
+        scores={step.scores}
+        reason={step.reason}
+        reasonClassName={look.reasonClass}
+        flagged={step.audit}
+        checks={step.rows.length}
+        open={!collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
       />
-    ) : null}
-  </div>
-);
+      {step.verdict === "modify" && modified ? (
+        <RanInstead call={modified} />
+      ) : null}
+      {!collapsed && step.rows.length > 1 ? (
+        <CheckTree step={step} tone={tone} />
+      ) : null}
+      {step.modelCalls[0] ? (
+        <ModelCallsNote
+          id={step.modelCalls[0].id}
+          modelCalls={step.modelCalls}
+          context={context}
+        />
+      ) : null}
+    </CheckInset>
+  );
+};
+
+const CheckTree: FC<{ step: SentinelStep; tone: CheckTone }> = ({
+  step,
+  tone,
+}) => {
+  const [openRow, setOpenRow] = useProperty<string | null>(
+    step.id,
+    "sentinel-open-row",
+    { defaultValue: step.effective?.id ?? null }
+  );
+  return (
+    <div
+      className={clsx(
+        styles.tree,
+        tone === "reject" && styles.reject,
+        tone === "modify" && styles.modify
+      )}
+    >
+      {step.rows.map((row) => {
+        const open = openRow === row.node.id;
+        return (
+          <Fragment key={row.node.id}>
+            <CheckRowView
+              row={row}
+              open={open}
+              onToggle={() => setOpenRow(open ? null : row.node.id)}
+            />
+            {open ? <CheckDetail row={row} /> : null}
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+interface CheckRowViewProps {
+  row: SentinelRow;
+  open: boolean;
+  onToggle: () => void;
+}
+
+const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
+  const event = row.node.event;
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      className={clsx(
+        styles.row,
+        open && styles.open,
+        isInactive(event) && styles.inactive
+      )}
+      onClick={onToggle}
+    >
+      <span className={styles.rowLabel}>
+        {row.guides ? (
+          <span className={styles.guides}>{row.guides}</span>
+        ) : null}
+        <b>{event.path || "(top)"}</b>{" "}
+        <span className={styles.name}>{event.name}</span>
+      </span>
+      <span className={styles.result}>
+        <CheckResult row={row} />
+        <i
+          className={clsx(
+            open ? "bi bi-chevron-down" : "bi bi-chevron-right",
+            styles.rowChevron
+          )}
+        />
+      </span>
+    </button>
+  );
+};
+
+const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
+  const event = row.node.event;
+  const flag = event.audit ? (
+    <i className={clsx("bi bi-flag-fill", styles.flag)} aria-label="flagged" />
+  ) : null;
+  if (event.kind === "bypassed" || event.kind === "cancelled") {
+    return <span>{event.kind}</span>;
+  }
+  if (event.kind === "superseded") {
+    return (
+      <span>
+        <s>{event.decision}</s> · superseded
+      </span>
+    );
+  }
+  if (event.suspicion !== undefined && event.suspicion !== null) {
+    const top = topScore(event.suspicion);
+    return (
+      <>
+        {flag}
+        <span>
+          {top.dimension ? `${top.dimension} ` : ""}
+          {top.value}
+        </span>
+        {top.more > 0 ? (
+          <span className={styles.moreScores}>
+            {top.more === 1 ? "1 more score" : `${top.more} more scores`}
+          </span>
+        ) : null}
+      </>
+    );
+  }
+  if (!event.decision) return flag;
+  return (
+    <>
+      {flag}
+      <span
+        className={clsx(
+          decisionClass(event.decision),
+          row.tookEffect && styles.tookEffect
+        )}
+      >
+        {row.tookEffect ? `${event.decision} · took effect` : event.decision}
+      </span>
+    </>
+  );
+};
+
+const CheckDetail: FC<{ row: SentinelRow }> = ({ row }) => {
+  const event = row.node.event;
+  const explanation = event.explanation?.trim();
+  const effectTone = row.tookEffect ? toneOfDecision(event.decision) : null;
+  const meta = [
+    event.kind === "superseded" ? "decision" : event.kind,
+    event.audit ? "flagged" : null,
+    event.kind === "superseded" ? "superseded" : null,
+    row.tookEffect ? "took effect" : null,
+    stageLabels[event.stage],
+  ].filter(Boolean);
+  const scores =
+    event.suspicion !== null &&
+    typeof event.suspicion === "object" &&
+    Object.keys(event.suspicion).length > 1
+      ? sortedScores(event.suspicion)
+      : undefined;
+  return (
+    <div className={styles.detailWrap} style={{ paddingLeft: indent(row) }}>
+      <div
+        className={clsx(
+          styles.detail,
+          effectTone === "reject" && styles.rejectDetail,
+          effectTone === "modify" && styles.modifyDetail,
+          !effectTone && event.stage === "tool_result" && styles.afterDetail
+        )}
+      >
+        <div className={styles.meta}>
+          {meta.join(" · ")}
+          {event.function ? (
+            <>
+              {" · "}
+              <span className={checkClasses.mono}>{event.function}</span>
+            </>
+          ) : null}
+        </div>
+        {scores ? (
+          <div className={styles.scoreGrid}>
+            {scores.map(([dimension, value]) => (
+              <Fragment key={dimension}>
+                <span className={styles.scoreName}>{dimension}</span>
+                <span>{Math.round(value * 100) / 100}</span>
+              </Fragment>
+            ))}
+          </div>
+        ) : null}
+        {explanation ? (
+          <MarkdownDiv
+            markdown={explanation}
+            className={clsx(
+              styles.explanation,
+              effectTone === "reject" && checkClasses.rejectReason
+            )}
+          />
+        ) : (
+          <div className={styles.noExplanation}>No explanation recorded.</div>
+        )}
+        {event.modified ? (
+          <div className={styles.modified}>
+            <span className={clsx(checkClasses.label, checkClasses.modifyText)}>
+              modified
+            </span>
+            <span className={checkClasses.mono}>
+              {replacementText(event.modified)}
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+const indent = (row: SentinelRow): string => `calc(8px + ${row.depth * 3}ch)`;
+
+const replacementText = (call: ToolCall): string => {
+  const { input, functionCall } = resolveToolInput(
+    call.function,
+    call.arguments
+  );
+  return typeof input === "string" && input ? input : functionCall;
+};
+
+const isInactive = (event: SentinelEvent): boolean =>
+  event.kind === "superseded" ||
+  event.kind === "bypassed" ||
+  event.kind === "cancelled";
 
 interface ModelCallsNoteProps {
   id: string;
@@ -73,7 +313,7 @@ const ModelCallsNote: FC<ModelCallsNoteProps> = ({
   );
   const callContext = { retryAttempts: context?.retryAttempts };
   return (
-    <div className={styles.folded}>
+    <div>
       <button
         type="button"
         className={clsx(styles.foldedToggle, "text-style-secondary")}
@@ -109,16 +349,14 @@ interface SentinelStepRowProps {
   context?: EventNodeContext;
   /** Enables the evidence-selection checkbox for a row of its own. */
   eventNodeId?: string;
-  showStage: boolean;
   className?: string;
 }
 
-/** A step as an event row, shaped like the approval row it sits beside in a tool card. */
+/** A step outside any tool panel, e.g. a model-stage step, as an event row. */
 export const SentinelStepRow: FC<SentinelStepRowProps> = ({
   step,
   context,
   eventNodeId,
-  showStage,
   className,
 }) => (
   <EventRow
@@ -126,11 +364,9 @@ export const SentinelStepRow: FC<SentinelStepRowProps> = ({
     title="Sentinel"
     icon={TranscriptIcons.sentinel}
     className={className}
-    below={<SentinelStepView step={step} context={context} />}
+    below={<SentinelInset step={step} region="output" context={context} />}
   >
-    {showStage ? (
-      <span className="text-style-secondary">{stageLabels[step.stage]}</span>
-    ) : null}
+    <span className="text-style-secondary">{stageLabels[step.stage]}</span>
   </EventRow>
 );
 
@@ -150,198 +386,76 @@ export const SentinelEventView: FC<SentinelEventViewProps> = ({
   <SentinelStepRow
     step={step ?? buildSentinelStep([eventNode])}
     eventNodeId={eventNode.id}
-    showStage={true}
     className={className}
   />
 );
 
-const SentinelRowView: FC<{ row: SentinelRow }> = ({ row }) => {
-  const event = row.node.event;
-  const explanation = event.explanation?.trim() ?? "";
-  const indent = { paddingLeft: `${row.depth * 1.25}em` };
-  return (
-    <div className={styles.entry}>
-      <div className={styles.row} style={indent}>
-        <i
-          className={clsx(
-            TranscriptIcons.sentinel,
-            styles.icon,
-            event.decision && decisionClass(event.decision)
-          )}
-        />
-        <span
-          className={styles.label}
-          title={event.function ? `${event.name} · ${event.function}` : ""}
-        >
-          {instanceLabel(event)}
-        </span>
-        {event.path ? (
-          <span className={clsx(styles.factory, "text-style-secondary")}>
-            {event.name}
-          </span>
-        ) : null}
-        <KindBadge kind={event.kind} />
-        <ReportValue event={event} />
-        {row.effect ? (
-          <span className={clsx(styles.badge, styles.effect)}>
-            {row.effect}
-          </span>
-        ) : null}
-        {event.audit ? (
-          <span className={clsx(styles.badge, styles.audit)}>audit</span>
-        ) : null}
-      </div>
-      {event.decision === "modify" && event.modified ? (
-        <div className={styles.modified} style={indent}>
-          <span className="text-style-secondary">modified call</span>
-          <code>{formatModifiedCall(event.modified)}</code>
-        </div>
-      ) : null}
-      {explanation ? (
-        <Explanation
-          id={row.node.id}
-          explanation={explanation}
-          depth={row.depth}
-        />
-      ) : null}
-      {row.folded.length > 0 ? (
-        <FoldedNote id={row.node.id} folded={row.folded} depth={row.depth} />
-      ) : null}
-    </div>
-  );
-};
-
-interface ExplanationProps {
-  id: string;
-  explanation: string;
-  depth: number;
-}
-
-/** Clamped to two whole lines of plain text; expanding renders the Markdown. */
-const Explanation: FC<ExplanationProps> = ({ id, explanation, depth }) => {
-  const [collapsed, setCollapsed] = useCollapsedState(
-    `${id}-sentinel-explanation`,
-    true
-  );
-  const [overflows, setOverflows] = useState(false);
-  const clampRef = useResizeObserver((entry) => {
-    const el = entry.target;
-    setOverflows(el.scrollHeight > el.clientHeight + 1);
-  });
-  const expandable = overflows || explanation.includes("\n");
-  return (
-    <div
-      className={styles.explanation}
-      style={{ paddingLeft: `${depth * 1.25}em` }}
-    >
-      {collapsed ? (
-        <div ref={clampRef} className={styles.clamp}>
-          {explanation.replace(/\s+/g, " ")}
-        </div>
-      ) : (
-        <MarkdownDiv markdown={explanation} />
-      )}
-      {expandable ? (
-        <button
-          type="button"
-          className={styles.moreToggle}
-          aria-expanded={!collapsed}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? "more" : "less"}
-        </button>
-      ) : null}
-    </div>
-  );
-};
-
-const ReportValue: FC<{ event: SentinelEvent }> = ({ event }) => {
-  if (event.suspicion !== undefined && event.suspicion !== null) {
-    return (
-      <span className={styles.value}>{formatSuspicion(event.suspicion)}</span>
-    );
-  }
-  if (!event.decision) return null;
-  return (
-    <span className={styles.value}>
-      <span className={decisionClass(event.decision)}>{event.decision}</span>
-      {event.outcome && event.outcome !== event.decision ? (
-        <span className="text-style-secondary">
-          {" "}
-          →{" "}
-          <span className={decisionClass(event.outcome)}>{event.outcome}</span>
-        </span>
-      ) : null}
-    </span>
-  );
-};
-
-const KindBadge: FC<{ kind: SentinelEvent["kind"] }> = ({ kind }) => (
-  <span className={clsx(styles.badge, kindClasses[kind])}>{kind}</span>
-);
-
-interface FoldedNoteProps {
-  id: string;
-  folded: SentinelNode[];
-  depth: number;
-}
-
-const FoldedNote: FC<FoldedNoteProps> = ({ id, folded, depth }) => {
-  const [collapsed, setCollapsed] = useCollapsedState(
-    `${id}-sentinel-folded`,
-    true
-  );
-  return (
-    <div className={styles.folded} style={{ paddingLeft: `${depth * 1.25}em` }}>
-      <button
-        type="button"
-        className={clsx(styles.foldedToggle, "text-style-secondary")}
-        aria-expanded={!collapsed}
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        <i
-          className={clsx(
-            collapsed ? "bi bi-chevron-right" : "bi bi-chevron-down",
-            styles.chevron
-          )}
-        />
-        {foldedSummary(folded)}
-      </button>
-      {collapsed ? null : (
-        <ul className={styles.foldedList}>
-          {folded.map((node) => (
-            <li key={node.id} className={styles.foldedItem}>
-              <KindBadge kind={node.event.kind} />
-              <span className={styles.label}>{instanceLabel(node.event)}</span>
-              {node.event.decision ? (
-                <span className={styles.value}>{node.event.decision}</span>
-              ) : null}
-              {node.event.explanation ? (
-                <span className={styles.foldedExplanation}>
-                  {node.event.explanation}
-                </span>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-};
-
 const stageLabels: Record<SentinelEvent["stage"], string> = {
   model_input: "model input",
   model_output: "model output",
-  tool_call: "tool call",
-  tool_result: "tool result",
+  tool_call: "before call",
+  tool_result: "after call",
 };
 
-const kindClasses: Record<SentinelEvent["kind"], string | undefined> = {
-  observation: styles.observation,
-  decision: styles.decision,
-  superseded: styles.muted,
-  bypassed: styles.muted,
-  cancelled: styles.muted,
+interface VerdictLook {
+  icon: string;
+  word: string;
+  tone: CheckTone;
+  iconClass?: string;
+  textClass?: string;
+  reasonClass?: string;
+}
+
+const rejectLook = {
+  icon: "bi bi-binoculars-fill",
+  tone: "reject",
+  iconClass: checkClasses.rejectIcon,
+  textClass: checkClasses.rejectText,
+  reasonClass: checkClasses.rejectReason,
+} as const;
+
+const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
+  continue: {
+    icon: TranscriptIcons.sentinel,
+    word: "Continued",
+    tone: "neutral",
+  },
+  observe: {
+    icon: TranscriptIcons.sentinel,
+    word: "Observed",
+    tone: "neutral",
+  },
+  reject: { ...rejectLook, word: "Rejected" },
+  terminate: { ...rejectLook, word: "Terminated" },
+  modify: {
+    icon: "bi bi-binoculars-fill",
+    word: "Modified",
+    tone: "modify",
+    iconClass: checkClasses.modifyIcon,
+    textClass: checkClasses.modifyText,
+  },
+  escalate: {
+    icon: TranscriptIcons.approvals.escalate,
+    word: "Escalated",
+    tone: "modify",
+    iconClass: checkClasses.modifyIcon,
+    textClass: checkClasses.modifyText,
+  },
+};
+
+const toneOfDecision = (
+  decision: SentinelEvent["decision"] | undefined
+): CheckTone | null => {
+  switch (decision) {
+    case "reject":
+    case "terminate":
+      return "reject";
+    case "modify":
+    case "escalate":
+      return "modify";
+    default:
+      return null;
+  }
 };
 
 const decisionClass = (
@@ -350,11 +464,11 @@ const decisionClass = (
   switch (decision) {
     case "reject":
     case "terminate":
-      return styles.alarming;
+      return checkClasses.rejectText;
     case "escalate":
     case "modify":
-      return styles.cautious;
+      return checkClasses.modifyText;
     case "continue":
-      return undefined;
+      return styles.continue;
   }
 };

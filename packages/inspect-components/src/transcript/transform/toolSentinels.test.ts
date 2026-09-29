@@ -12,9 +12,9 @@ import { EventNode } from "../types";
 
 import {
   buildSentinelStep,
-  foldedSummary,
   formatSuspicion,
   pairToolSentinels,
+  topScore,
   type SentinelNode,
   type SentinelStep,
 } from "./toolSentinels";
@@ -36,7 +36,6 @@ const decision = (
     function: name,
     kind: "decision",
     decision: action,
-    outcome: action,
   });
 
 const layer = (
@@ -51,168 +50,206 @@ const layer = (
     kind,
     function: null,
     decision: null,
-    outcome: null,
+  });
+
+const observation = (
+  id: string,
+  path: string,
+  name: string,
+  suspicion: NonNullable<SentinelEvent["suspicion"]>
+): SentinelNode =>
+  sentinel(id, {
+    path,
+    name,
+    function: "score",
+    kind: "observation",
+    suspicion,
+    decision: null,
   });
 
 const rowIds = (step: SentinelStep) => step.rows.map((r) => r.node.id);
-const foldedIds = (step: SentinelStep) =>
-  step.rows.flatMap((r) => r.folded.map((n) => n.id));
 
 describe("buildSentinelStep", () => {
-  it("folds the layers a final() bypassed onto the decision that took effect", () => {
-    // The nested configuration from the sentinel design's Transcript section.
+  const withExplanation = (node: SentinelNode, explanation: string) => {
+    node.event.explanation = explanation;
+    return node;
+  };
+
+  it("orders checks as a tree with guides and depth", () => {
     const step = buildSentinelStep([
-      decision(
-        "internet",
-        "attempt/internet_attempt",
-        "internet_attempt",
-        "escalate"
-      ),
-      layer("chain", "attempt", "chain", "bypassed"),
-      decision("escape", "escape", "sandbox_escape", "continue"),
-      layer("root", "", "concurrent", "bypassed"),
-      decision("human", "attempt/human", "human", "reject"),
+      decision("net", "guard/network", "no_network", "continue"),
+      decision("prot", "guard/protected", "protected", "continue"),
+      observation("mon", "guard/llm/monitor", "llm_suspicion", 0.2),
+      decision("llm", "guard/llm", "threshold", "continue"),
+      decision("guard", "guard", "sequential", "continue"),
+      observation("scope", "scope", "suspicion", 0.4),
+      decision("root", "", "concurrent", "continue"),
     ]);
-
-    expect(rowIds(step)).toEqual(["internet", "human", "escape"]);
-    expect(step.rows.map((r) => r.depth)).toEqual([1, 1, 0]);
-    const human = step.rows.find((r) => r.node.id === "human");
-    expect(human?.folded.map((n) => n.id)).toEqual(["chain", "root"]);
-    expect(human?.effect).toBe("final");
-    expect(step.rows.filter((r) => r.effect)).toHaveLength(1);
-    expect(foldedIds(step)).toEqual(["chain", "root"]);
-    expect(foldedSummary(human?.folded ?? [])).toBe("overrode 2 layers");
-  });
-
-  it("shows a terminate that a sibling's final() outran only in the fold", () => {
-    const step = buildSentinelStep([
-      decision("stop", "stop", "stopper", "terminate"),
-      sentinel("stop-superseded", {
-        path: "stop",
-        name: "stopper",
-        function: "stopper",
-        kind: "superseded",
-        decision: "terminate",
-        outcome: null,
-        explanation: "outran by human",
-      }),
-      layer("root", "", "concurrent", "bypassed"),
-      decision("human", "human", "human", "continue"),
+    expect(rowIds(step)).toEqual([
+      "root",
+      "guard",
+      "net",
+      "prot",
+      "llm",
+      "mon",
+      "scope",
     ]);
-
-    expect(rowIds(step)).toEqual(["human"]);
-    const human = step.rows.find((r) => r.node.id === "human");
-    expect(human?.effect).toBe("final");
-    expect(human?.folded.map((n) => n.id)).toEqual(["stop-superseded", "root"]);
-    expect(foldedSummary(human?.folded ?? [])).toBe(
-      "overrode 1 layer · 1 decision superseded"
-    );
-  });
-
-  it("folds cancelled siblings onto the root decision and lists the root first", () => {
-    const step = buildSentinelStep([
-      decision("allow", "allow", "allower", "continue"),
-      decision("stop", "stop", "stopper", "terminate"),
-      layer("slow-a", "slow_a", "slow", "cancelled"),
-      layer("slow-b", "slow_b", "slow", "cancelled"),
-      decision("root", "", "concurrent", "terminate"),
-    ]);
-
-    expect(rowIds(step)).toEqual(["root", "allow", "stop"]);
-    expect(step.rows[0]?.depth).toBe(0);
-    expect(step.rows[0]?.folded.map((n) => n.id)).toEqual(["slow-a", "slow-b"]);
-    expect(foldedSummary(step.rows[0]?.folded ?? [])).toBe("2 cancelled");
-    expect(step.rows.map((r) => r.effect)).toEqual([
-      "took effect",
-      undefined,
-      undefined,
+    expect(step.rows.map((r) => r.depth)).toEqual([0, 1, 2, 2, 2, 3, 1]);
+    expect(step.rows.map((r) => r.guides)).toEqual([
+      "",
+      "├─ ",
+      "│  ├─ ",
+      "│  ├─ ",
+      "│  └─ ",
+      "│     └─ ",
+      "└─ ",
     ]);
   });
 
-  it("hides a root that repeats its lone protocol's decision", () => {
-    const threshold = sentinel("threshold", {
-      path: "threshold",
-      name: "threshold",
-      kind: "decision",
-      decision: "reject",
-      outcome: "reject",
-      explanation: "suspicion 0.95",
-    });
-    const root = sentinel("root", {
-      path: "",
-      name: "inspect_sentinel/concurrent",
-      kind: "decision",
-      decision: "reject",
-      outcome: "reject",
-      explanation: "suspicion 0.95",
-    });
+  it("keeps a top-level row that repeats its single child", () => {
     const step = buildSentinelStep([
-      sentinel("suspicion", {
-        path: "threshold/suspicion",
-        name: "suspicion",
-        kind: "observation",
-        suspicion: 0.95,
-        decision: null,
-        outcome: null,
-      }),
-      threshold,
-      root,
-    ]);
-
-    expect(rowIds(step)).toEqual(["threshold", "suspicion"]);
-    expect(step.rows.map((r) => r.depth)).toEqual([0, 1]);
-    expect(step.rows.every((r) => r.effect === undefined)).toBe(true);
-  });
-
-  it("keeps a root whose decision differs from its lone deciding child", () => {
-    const step = buildSentinelStep([
-      decision("stop", "stop", "stopper", "terminate"),
+      decision("rule", "no_network", "no_network", "reject"),
       decision("root", "", "concurrent", "reject"),
     ]);
-    expect(rowIds(step)).toEqual(["root", "stop"]);
+    expect(rowIds(step)).toEqual(["root", "rule"]);
+    expect(step.rows).toHaveLength(2);
   });
 
-  it("keeps a root whose explanation adds to its child's", () => {
+  it("marks the lowest matching descendant of the top decision as taking effect", () => {
     const step = buildSentinelStep([
-      decision("stop", "stop", "stopper", "reject"),
-      sentinel("root", {
-        path: "",
-        name: "concurrent",
-        decision: "reject",
-        outcome: "reject",
-        explanation: "combined",
-      }),
+      decision("net", "guard/network", "no_network", "continue"),
+      withExplanation(
+        decision("llm", "guard/llm", "threshold", "reject"),
+        "exfiltration 0.93 is over the 0.80 threshold."
+      ),
+      decision("guard", "guard", "sequential", "reject"),
+      decision("root", "", "concurrent", "reject"),
     ]);
-    expect(rowIds(step)).toEqual(["root", "stop"]);
+    expect(step.verdict).toBe("reject");
+    expect(step.effective?.id).toBe("llm");
+    expect(step.decider?.id).toBe("llm");
+    expect(step.rows.filter((r) => r.tookEffect).map((r) => r.node.id)).toEqual(
+      ["llm"]
+    );
+    expect(step.reason).toBe("exfiltration 0.93 is over the 0.80 threshold.");
   });
 
-  it("moves the fold of a hidden root onto the child that took effect", () => {
+  it("prefers the child whose explanation matches its parent's", () => {
     const step = buildSentinelStep([
-      sentinel("monitor", {
-        path: "monitor",
-        name: "suspicion_monitor",
-        function: "suspicion_monitor",
-        kind: "observation",
-        suspicion: 0.91,
-        decision: null,
-        outcome: null,
-      }),
-      decision("stop", "stop", "stopper", "terminate"),
-      layer("slow-a", "slow_a", "slow", "cancelled"),
-      layer("slow-b", "slow_b", "slow", "cancelled"),
-      decision("root", "", "concurrent", "terminate"),
+      withExplanation(decision("a", "a", "rule", "reject"), "first"),
+      withExplanation(decision("b", "b", "rule", "reject"), "second"),
+      withExplanation(decision("root", "", "concurrent", "reject"), "second"),
     ]);
-
-    expect(rowIds(step)).toEqual(["monitor", "stop"]);
-    expect(step.rows.map((r) => r.depth)).toEqual([0, 0]);
-    expect(step.rows[1]?.folded.map((n) => n.id)).toEqual(["slow-a", "slow-b"]);
-    expect(step.rows.map((r) => r.effect)).toEqual([undefined, "took effect"]);
+    expect(step.effective?.id).toBe("b");
   });
 
-  it("keeps folded events on the step when no report took effect", () => {
-    const step = buildSentinelStep([layer("a", "a", "slow", "cancelled")]);
-    expect(step.rows).toEqual([]);
-    expect(step.folded.map((n) => n.id)).toEqual(["a"]);
+  it("falls back to the top decision's explanation", () => {
+    const step = buildSentinelStep([
+      decision("rule", "rule", "rule", "reject"),
+      withExplanation(decision("root", "", "concurrent", "reject"), "why"),
+    ]);
+    expect(step.effective?.id).toBe("rule");
+    expect(step.reason).toBe("why");
+  });
+
+  it("takes the last decision when a final layer bypassed the rest", () => {
+    const step = buildSentinelStep([
+      decision("net", "guard/network", "no_network", "continue"),
+      layer("guard", "guard", "concurrent", "bypassed"),
+      layer("audit", "audit", "suspicion", "cancelled"),
+      layer("root", "", "concurrent", "bypassed"),
+      decision("prot", "guard/protected", "protected", "reject"),
+    ]);
+    expect(step.rows).toHaveLength(5);
+    expect(step.effective?.id).toBe("prot");
+    expect(rowIds(step)).toEqual(["root", "guard", "net", "prot", "audit"]);
+  });
+
+  it("gives a superseded decision one row carried by the superseded event", () => {
+    const step = buildSentinelStep([
+      decision("esc", "review", "escalate_on_doubt", "escalate"),
+      sentinel("sup", {
+        path: "review",
+        name: "escalate_on_doubt",
+        function: "escalate_on_doubt",
+        kind: "superseded",
+        decision: "escalate",
+      }),
+      decision("root", "", "concurrent", "continue"),
+    ]);
+    expect(rowIds(step)).toEqual(["root", "sup"]);
+    expect(step.verdict).toBe("continue");
+    expect(step.effective).toBeUndefined();
+  });
+
+  it("marks nothing as taking effect when every check continued", () => {
+    const step = buildSentinelStep([
+      decision("rule", "guard", "rule", "continue"),
+      observation("mon", "scope", "suspicion", 0.15),
+      decision("root", "", "concurrent", "continue"),
+    ]);
+    expect(step.verdict).toBe("continue");
+    expect(step.effective).toBeUndefined();
+    expect(step.rows.some((r) => r.tookEffect)).toBe(false);
+    expect(step.decider?.id).toBe("root");
+    expect(step.scores).toEqual(["suspicion 0.15"]);
+    expect(step.reason).toBeUndefined();
+  });
+
+  it("names the top decision of a quiet step without a root", () => {
+    const step = buildSentinelStep([
+      observation("mon", "guard/monitor", "llm_suspicion", {
+        exfiltration: 0.62,
+        sabotage: 0.1,
+      }),
+      decision("guard", "guard", "threshold", "continue"),
+    ]);
+    expect(step.decider?.id).toBe("guard");
+    expect(step.scores).toEqual(["exfiltration 0.62"]);
+  });
+
+  it("calls a step observed when only the root decides", () => {
+    const step = buildSentinelStep([
+      observation("mon", "monitor", "llm_suspicion", {
+        sabotage: 0.05,
+        exfiltration: 0.08,
+      }),
+      observation("fail", "failures", "observe/failure_count", 0.2),
+      decision("root", "", "concurrent", "continue"),
+    ]);
+    expect(step.verdict).toBe("observe");
+    expect(step.scores).toEqual(["exfiltration 0.08", "failure_count 0.2"]);
+  });
+
+  it("summarises a lone observation with its full suspicion and explanation", () => {
+    const step = buildSentinelStep([
+      withExplanation(
+        observation("fail", "observe/failure_count", "failure_count", 0.2),
+        "1 earlier calls failed"
+      ),
+    ]);
+    expect(step.verdict).toBe("observe");
+    expect(step.scores).toEqual(["0.2"]);
+    expect(step.reason).toBe("1 earlier calls failed");
+  });
+
+  it("flags a step when any event asks for an audit", () => {
+    const flagged = observation("mon", "monitor", "m", 0.9);
+    flagged.event.audit = true;
+    const step = buildSentinelStep([
+      flagged,
+      decision("root", "", "concurrent", "continue"),
+    ]);
+    expect(step.audit).toBe(true);
+  });
+});
+
+describe("topScore", () => {
+  it("picks the highest score and counts the rest", () => {
+    expect(
+      topScore({ sabotage: 0.1, exfiltration: 0.934, other: 0.2 })
+    ).toEqual({ dimension: "exfiltration", value: "0.93", more: 2 });
+    expect(topScore(0.41)).toEqual({ value: "0.41", more: 0 });
   });
 });
 
@@ -227,7 +264,6 @@ describe("pairToolSentinels", () => {
       kind: "observation",
       suspicion: { exfiltration: 0.2 },
       decision: null,
-      outcome: null,
     });
     const result = pairToolSentinels([before, tool("tool-1", "call_1"), after]);
 
@@ -258,7 +294,6 @@ describe("pairToolSentinels", () => {
       kind: "observation",
       suspicion: 0.4,
       decision: null,
-      outcome: null,
     });
     const second = sentinel("m2", {
       stage: "model_output",

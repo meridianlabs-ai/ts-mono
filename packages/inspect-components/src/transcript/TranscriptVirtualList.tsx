@@ -182,7 +182,6 @@ const RenderedEventNodeInner: FC<RenderedEventNodeProps> = ({
           <SentinelStepRow
             step={sentinelStep}
             eventNodeId={node.id}
-            showStage={true}
             context={context}
             className={className}
           />

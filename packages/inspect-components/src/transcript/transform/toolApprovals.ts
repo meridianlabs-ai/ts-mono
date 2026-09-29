@@ -1,6 +1,6 @@
 /**
  * Pairs ApprovalEvents to their ToolEvents by call id so the tool panel can
- * render the approval inline, and maps hidden approval node ids to their
+ * render the approvals inline (every approver the call escalated through), and maps hidden approval node ids to their
  * host tool node so deep links targeting an approval still scroll somewhere.
  */
 
@@ -10,8 +10,8 @@ import { eventNodeOf } from "../types";
 import type { EventNode } from "../types";
 
 export interface ToolApprovalPairing {
-  /** Tool call id → approval node rendered inline by ToolEventView. */
-  toolApprovals: Map<string, EventNode<ApprovalEvent>>;
+  /** Tool call id → the call's approval nodes in recording order, rendered inline by ToolEventView. */
+  toolApprovals: Map<string, EventNode<ApprovalEvent>[]>;
   /** Approval node ids removed from the flat node list. */
   hiddenApprovalIds: Set<string>;
   /**
@@ -35,25 +35,20 @@ export function pairToolApprovals(
   };
   walkTools(eventNodes);
 
-  const toolApprovals = new Map<string, EventNode<ApprovalEvent>>();
-  const hiddenApprovalIds = new Set<string>();
-  const approvalScrollRedirects = new Map<string, string>();
+  const chains = new Map<string, EventNode<ApprovalEvent>[]>();
+  const unpaired: EventNode<ApprovalEvent>[] = [];
+  const seen = new Set<string>();
   const walkApprovals = (nodes: EventNode[]) => {
     for (const n of nodes) {
-      if (n.event.event === "approval") {
-        const toolNodeId = toolNodeIdsByCallId.get(n.event.call.id);
-        // Auto-approved calls add no information — hide them entirely
-        // (don't pair, don't surface as flat rows). Non-approve auto
-        // decisions (reject/terminate/…) stay visible.
-        const isAutoApprove =
-          n.event.approver === "auto" && n.event.decision === "approve";
-        if (isAutoApprove) {
-          hiddenApprovalIds.add(n.id);
-          if (toolNodeId) approvalScrollRedirects.set(n.id, toolNodeId);
-        } else if (toolNodeId) {
-          toolApprovals.set(n.event.call.id, eventNodeOf(n, "approval"));
-          hiddenApprovalIds.add(n.id);
-          approvalScrollRedirects.set(n.id, toolNodeId);
+      if (n.event.event === "approval" && !seen.has(n.id)) {
+        seen.add(n.id);
+        const node = eventNodeOf(n, "approval");
+        if (toolNodeIdsByCallId.has(n.event.call.id)) {
+          const chain = chains.get(n.event.call.id) ?? [];
+          chain.push(node);
+          chains.set(n.event.call.id, chain);
+        } else {
+          unpaired.push(node);
         }
       }
       if (n.children.length) walkApprovals(n.children);
@@ -61,5 +56,25 @@ export function pairToolApprovals(
   };
   walkApprovals(eventNodes);
 
+  const toolApprovals = new Map<string, EventNode<ApprovalEvent>[]>();
+  const hiddenApprovalIds = new Set<string>();
+  const approvalScrollRedirects = new Map<string, string>();
+  for (const [callId, chain] of chains) {
+    const toolNodeId = toolNodeIdsByCallId.get(callId)!;
+    // An auto-approved call adds no information, so it shows no approval.
+    if (!chain.every(isAutoApprove)) toolApprovals.set(callId, chain);
+    for (const node of chain) {
+      hiddenApprovalIds.add(node.id);
+      approvalScrollRedirects.set(node.id, toolNodeId);
+    }
+  }
+  // Without a tool to render in, only non-approve auto decisions stay visible.
+  for (const node of unpaired) {
+    if (isAutoApprove(node)) hiddenApprovalIds.add(node.id);
+  }
+
   return { toolApprovals, hiddenApprovalIds, approvalScrollRedirects };
 }
+
+const isAutoApprove = (node: EventNode<ApprovalEvent>): boolean =>
+  node.event.approver === "auto" && node.event.decision === "approve";

@@ -54,7 +54,9 @@ describe("pairToolApprovals", () => {
 
     const result = pairToolApprovals([tool, approval]);
 
-    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+    ]);
     expect(result.hiddenApprovalIds.has("appr-1")).toBe(true);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
   });
@@ -102,7 +104,9 @@ describe("pairToolApprovals", () => {
 
     const result = pairToolApprovals([tree]);
 
-    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+    ]);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
   });
 
@@ -116,8 +120,46 @@ describe("pairToolApprovals", () => {
     const result = pairToolApprovals([tool, approval]);
 
     // Auto non-approve decisions carry information: they pair like human ones.
-    expect(result.toolApprovals.get("call-1")?.id).toBe("appr-1");
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+    ]);
     expect(result.hiddenApprovalIds.has("appr-1")).toBe(true);
     expect(result.approvalScrollRedirects.get("appr-1")).toBe("tool-1");
+  });
+
+  it("pairs every approval of an escalation chain in recording order", () => {
+    const tool = toolNode("tool-1", "call-1");
+    const first = approvalNode("appr-1", "call-1", {
+      approver: "gatekeeper",
+      decision: "escalate",
+    });
+    const second = approvalNode("appr-2", "call-1", {
+      approver: "supervisor",
+      decision: "approve",
+    });
+
+    const result = pairToolApprovals([first, second, tool]);
+
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+      "appr-2",
+    ]);
+    expect(result.approvalScrollRedirects.get("appr-2")).toBe("tool-1");
+  });
+
+  it("shows an auto approval that ends an escalation chain", () => {
+    const tool = toolNode("tool-1", "call-1");
+    const first = approvalNode("appr-1", "call-1", { decision: "escalate" });
+    const second = approvalNode("appr-2", "call-1", {
+      approver: "auto",
+      decision: "approve",
+    });
+
+    const result = pairToolApprovals([tool, first, second, second]);
+
+    expect(result.toolApprovals.get("call-1")?.map((n) => n.id)).toEqual([
+      "appr-1",
+      "appr-2",
+    ]);
   });
 });

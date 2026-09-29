@@ -1,12 +1,19 @@
 import clsx from "clsx";
-import { FC } from "react";
+import { FC, Fragment } from "react";
 
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
+import { useCollapsedState } from "@tsmono/react/hooks";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
+import {
+  checkClasses,
+  CheckInset,
+  CheckSummary,
+  RanInstead,
+} from "./ToolCheckInset";
 import { EventNode } from "./types";
 
 interface ApprovalEventViewProps {
@@ -92,5 +99,102 @@ const decisionIcon = (decision: string): string => {
       return TranscriptIcons.approvals.modify;
     default:
       return TranscriptIcons.approve;
+  }
+};
+
+interface ApprovalInsetProps {
+  /** The call's approval events in recording order; the last one took effect. */
+  chain: EventNode<ApprovalEvent>[];
+}
+
+/**
+ * The approvals of a tool call as an inset in its input region: one summary
+ * row for the decision that took effect, expanding to the escalation chain.
+ */
+export const ApprovalInset: FC<ApprovalInsetProps> = ({ chain }) => {
+  const final = chain.at(-1)!;
+  const [collapsed, setCollapsed] = useCollapsedState(
+    `${chain[0]!.id}-approval-chain`,
+    true
+  );
+  const event = final.event;
+  const look = decisionLook(event.decision);
+  const escalated = chain
+    .slice(0, -1)
+    .some((n) => n.event.decision === "escalate");
+  return (
+    <CheckInset region="input" tone={look.tone}>
+      <CheckSummary
+        icon={decisionIcon(event.decision)}
+        iconClassName={look.icon}
+        verdict={decisionLabel(event.decision)}
+        verdictClassName={look.text}
+        who={event.approver}
+        whoSuffix={escalated ? ", after escalation" : undefined}
+        reason={event.explanation?.trim() || undefined}
+        reasonClassName={look.reason}
+        checks={chain.length}
+        open={!collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+      />
+      {event.decision === "modify" && event.modified ? (
+        <RanInstead call={event.modified} />
+      ) : null}
+      {chain.length > 1 && !collapsed ? (
+        <div className={styles.chain}>
+          {chain.map((node, index) => {
+            const step = decisionLook(node.event.decision);
+            return (
+              <Fragment key={node.id}>
+                <span className={styles.chainIndex}>{index + 1}</span>
+                <span className={styles.chainApprover}>
+                  {node.event.approver}
+                </span>
+                <span className={clsx(styles.chainDecision, step.text)}>
+                  <i className={decisionIcon(node.event.decision)} />
+                  {node.event.decision}
+                </span>
+                <span className={styles.chainExplanation}>
+                  {node.event.explanation?.trim()}
+                </span>
+              </Fragment>
+            );
+          })}
+        </div>
+      ) : null}
+    </CheckInset>
+  );
+};
+
+interface DecisionLook {
+  tone: "neutral" | "reject" | "modify";
+  icon?: string;
+  text?: string;
+  reason?: string;
+}
+
+const decisionLook = (decision: ApprovalEvent["decision"]): DecisionLook => {
+  switch (decision) {
+    case "approve":
+      return {
+        tone: "neutral",
+        icon: checkClasses.approveIcon,
+        text: checkClasses.approveText,
+      };
+    case "reject":
+    case "terminate":
+      return {
+        tone: "reject",
+        icon: checkClasses.rejectIcon,
+        text: checkClasses.rejectText,
+        reason: checkClasses.rejectReason,
+      };
+    case "modify":
+    case "escalate":
+      return {
+        tone: decision === "modify" ? "modify" : "neutral",
+        icon: checkClasses.modifyIcon,
+        text: checkClasses.modifyText,
+      };
   }
 };
