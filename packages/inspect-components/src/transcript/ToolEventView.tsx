@@ -34,7 +34,8 @@ import {
 
 interface Blocker {
   decision: "reject" | "terminate";
-  explanation?: string | null;
+  /** What the agent was told. */
+  message?: string | null;
 }
 
 /** The check that stopped the call: the final approval, else the sentinel outcome. */
@@ -43,11 +44,11 @@ const blockerOf = (
   before: SentinelStep | undefined
 ): Blocker | undefined => {
   if (approval?.decision === "reject" || approval?.decision === "terminate") {
-    return { decision: approval.decision, explanation: approval.explanation };
+    return { decision: approval.decision, message: approval.explanation };
   }
   const verdict = before?.verdict;
   if (before?.outcome && (verdict === "reject" || verdict === "terminate")) {
-    return { decision: verdict, explanation: before.outcome.event.explanation };
+    return { decision: verdict, message: before.outcome.event.message };
   }
   return undefined;
 };
@@ -130,7 +131,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
         event.error?.type === "approval"
           ? event.error.message
           : blocker?.decision === "reject"
-            ? blocker.explanation?.trim() || "Tool call not approved."
+            ? blocker.message?.trim() || "Tool call not approved."
             : undefined
       }
     />

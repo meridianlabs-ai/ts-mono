@@ -171,7 +171,7 @@
   color: rgba(var(--bs-body-color-rgb), 0.55);
 }
 
-.modified {
+.labelled {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
   align-items: baseline;
@@ -179,7 +179,7 @@
   font-size: 0.78rem;
 }
 
-.modified > :last-child {
+.labelled > :last-child {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

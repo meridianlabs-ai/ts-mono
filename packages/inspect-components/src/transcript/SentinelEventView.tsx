@@ -163,7 +163,7 @@ const CheckRowView: FC<CheckRowViewProps> = ({ row, open, onToggle }) => {
           aria-hidden="true"
         />
         <b>{event.path || "(top)"}</b>{" "}
-        <span className={styles.name}>{event.name}</span>
+        <span className={styles.name}>{event.factory}</span>
       </span>
       <span className={styles.result}>
         <CheckResult row={row} />
@@ -193,7 +193,7 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   if (event.kind === "superseded") {
     return (
       <span>
-        <s>{event.decision}</s> · superseded
+        <s>{event.action}</s> · superseded
       </span>
     );
   }
@@ -214,11 +214,11 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
       </>
     );
   }
-  if (!event.decision) return flag;
+  if (!event.action) return flag;
   return (
     <>
       {flag}
-      <span className={decisionClass(event.decision)}>{event.decision}</span>
+      <span className={decisionClass(event.action)}>{event.action}</span>
     </>
   );
 };
@@ -232,7 +232,7 @@ interface CheckDetailProps {
 const CheckDetail: FC<CheckDetailProps> = ({ row, showFunction }) => {
   const event = row.node.event;
   const explanation = event.explanation?.trim();
-  const effectTone = row.tookEffect ? toneOfDecision(event.decision) : null;
+  const effectTone = row.tookEffect ? toneOfDecision(event.action) : null;
   const status = [
     event.audit ? "flagged" : null,
     event.kind === "superseded" ? "superseded" : null,
@@ -287,8 +287,16 @@ const CheckDetail: FC<CheckDetailProps> = ({ row, showFunction }) => {
         ) : (
           <div className={styles.noExplanation}>No explanation recorded.</div>
         )}
+        {event.message ? (
+          <div className={styles.labelled}>
+            <span className={clsx(checkClasses.label, checkClasses.rejectText)}>
+              told the agent
+            </span>
+            <span>{event.message}</span>
+          </div>
+        ) : null}
         {event.modified ? (
-          <div className={styles.modified}>
+          <div className={styles.labelled}>
             <span className={clsx(checkClasses.label, checkClasses.modifyText)}>
               modified
             </span>
@@ -495,7 +503,7 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
 };
 
 const toneOfDecision = (
-  decision: SentinelEvent["decision"] | undefined
+  decision: SentinelEvent["action"] | undefined
 ): CheckTone | null => {
   switch (decision) {
     case "reject":
@@ -510,7 +518,7 @@ const toneOfDecision = (
 };
 
 const decisionClass = (
-  decision: NonNullable<SentinelEvent["decision"]>
+  decision: NonNullable<SentinelEvent["action"]>
 ): string | undefined => {
   switch (decision) {
     case "reject":

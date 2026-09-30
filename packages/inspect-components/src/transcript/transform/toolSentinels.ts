@@ -24,7 +24,7 @@ export interface SentinelRow {
 type InactiveKind = "bypassed" | "cancelled" | "superseded";
 
 export type SentinelVerdict =
-  "observe" | InactiveKind | NonNullable<SentinelEvent["decision"]>;
+  "observe" | InactiveKind | NonNullable<SentinelEvent["action"]>;
 
 /** The sentinel events recorded for one step, as a tree of checks. */
 export interface SentinelStep {
@@ -163,7 +163,7 @@ const creditDecision = (tree: TreeNode[], outcome: SentinelNode): Credit => {
     const next = current.children.find(
       (c) =>
         c.node.event.kind === "decision" &&
-        c.node.event.decision === outcome.event.decision
+        c.node.event.action === outcome.event.action
     );
     if (!next) return { node: current.node, reason };
     current = next;
@@ -240,7 +240,7 @@ export function buildSentinelStep(
   const tree = buildTree(ordered);
 
   const outcome = outcomeOf(checks);
-  const acted = !!outcome && outcome.event.decision !== "continue";
+  const acted = !!outcome && outcome.event.action !== "continue";
   const credit = acted ? creditDecision(tree, outcome) : undefined;
   const effective = credit?.node;
 
@@ -256,7 +256,7 @@ export function buildSentinelStep(
           const top = topScore(n.event.suspicion!);
           if (!top.value) return [];
           return [
-            `${top.dimension ?? n.event.name.split("/").at(-1)} ${top.value}`,
+            `${top.dimension ?? n.event.factory.split("/").at(-1)} ${top.value}`,
           ];
         });
 
@@ -271,7 +271,7 @@ export function buildSentinelStep(
       tookEffect: entry.node === effective,
     })),
     verdict: outcome
-      ? (outcome.event.decision ?? "continue")
+      ? (outcome.event.action ?? "continue")
       : quietVerdict(checks),
     outcome,
     decider: effective ?? outcome,
@@ -291,7 +291,7 @@ export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
   const step = buildSentinelStep([node]);
   const event = node.event;
   if (event.kind !== "decision" || step.outcome) return step;
-  const verdict = event.decision ?? "continue";
+  const verdict = event.action ?? "continue";
   const acted = verdict !== "continue";
   return {
     ...step,
@@ -404,7 +404,7 @@ export function pairToolSentinels(
 
 /** The instance path, or the factory's registry name at the root. */
 export const instanceLabel = (event: SentinelEvent): string =>
-  event.path || event.name;
+  event.path || event.factory;
 
 export const formatSuspicion = (
   suspicion: NonNullable<SentinelEvent["suspicion"]>

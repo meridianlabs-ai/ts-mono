@@ -3556,6 +3556,8 @@ export interface components {
          * @description Report from a sentinel monitor or protocol about one step.
          */
         SentinelEvent: {
+            /** Action */
+            action?: ("continue" | "modify" | "reject" | "terminate" | "escalate") | null;
             /**
              * Audit
              * @default false
@@ -3563,8 +3565,6 @@ export interface components {
             audit: boolean;
             /** Conversation */
             conversation: string;
-            /** Decision */
-            decision?: ("continue" | "modify" | "reject" | "terminate" | "escalate") | null;
             /**
              * Event
              * @default sentinel
@@ -3573,6 +3573,8 @@ export interface components {
             event: "sentinel";
             /** Explanation */
             explanation?: string | null;
+            /** Factory */
+            factory: string;
             /** Function */
             function?: string | null;
             /**
@@ -3580,13 +3582,13 @@ export interface components {
              * @enum {string}
              */
             kind: "observation" | "decision" | "cancelled" | "bypassed" | "superseded";
+            /** Message */
+            message?: string | null;
             /** Metadata */
             metadata?: {
                 [key: string]: unknown;
             } | null;
             modified?: components["schemas"]["ToolCall"] | null;
-            /** Name */
-            name: string;
             /** Path */
             path: string;
             /** Pending */

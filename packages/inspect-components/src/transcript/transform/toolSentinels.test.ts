@@ -30,14 +30,14 @@ const decision = (
   id: string,
   path: string,
   name: string,
-  action: NonNullable<SentinelEvent["decision"]>
+  action: NonNullable<SentinelEvent["action"]>
 ): SentinelNode =>
   sentinel(id, {
     path,
-    name,
+    factory: name,
     function: name,
     kind: "decision",
-    decision: action,
+    action,
   });
 
 const layer = (
@@ -48,10 +48,10 @@ const layer = (
 ): SentinelNode =>
   sentinel(id, {
     path,
-    name,
+    factory: name,
     kind,
     function: null,
-    decision: null,
+    action: null,
   });
 
 const observation = (
@@ -62,11 +62,11 @@ const observation = (
 ): SentinelNode =>
   sentinel(id, {
     path,
-    name,
+    factory: name,
     function: "score",
     kind: "observation",
     suspicion,
-    decision: null,
+    action: null,
   });
 
 const rowIds = (step: SentinelStep) => step.rows.map((r) => r.node.id);
@@ -288,10 +288,10 @@ describe("buildSentinelStep", () => {
       decision("esc", "review", "escalate_on_doubt", "escalate"),
       sentinel("sup", {
         path: "review",
-        name: "escalate_on_doubt",
+        factory: "escalate_on_doubt",
         function: "escalate_on_doubt",
         kind: "superseded",
-        decision: "escalate",
+        action: "escalate",
       }),
       decision("root", "", "concurrent", "continue"),
     ]);
@@ -393,7 +393,7 @@ describe("pairToolSentinels", () => {
       stage: "tool_result",
       kind: "observation",
       suspicion: { exfiltration: 0.2 },
-      decision: null,
+      action: null,
     });
     const result = pairToolSentinels([before, tool("tool-1", "call_1"), after]);
 
@@ -423,7 +423,7 @@ describe("pairToolSentinels", () => {
       path: "monitor",
       kind: "observation",
       suspicion: 0.4,
-      decision: null,
+      action: null,
     });
     const second = sentinel("m2", {
       stage: "model_output",

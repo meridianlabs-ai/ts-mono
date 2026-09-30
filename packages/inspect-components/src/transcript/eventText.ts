@@ -383,7 +383,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       if (sentinelEvent.path) {
         fields.push(["path", sentinelEvent.path]);
       }
-      fields.push(["name", sentinelEvent.name]);
+      fields.push(["factory", sentinelEvent.factory]);
       if (sentinelEvent.function) {
         fields.push(["function", sentinelEvent.function]);
       }
@@ -394,14 +394,17 @@ export const extractEventFields = (event: EventType): [string, string][] => {
       ) {
         fields.push(["suspicion", formatSuspicion(sentinelEvent.suspicion)]);
       }
-      if (sentinelEvent.decision) {
-        fields.push(["decision", sentinelEvent.decision]);
+      if (sentinelEvent.action) {
+        fields.push(["action", sentinelEvent.action]);
       }
       if (sentinelEvent.modified) {
         fields.push(["modified", formatModifiedCall(sentinelEvent.modified)]);
       }
       if (sentinelEvent.audit) {
         fields.push(["audit", "true"]);
+      }
+      if (sentinelEvent.message) {
+        fields.push(["message", sentinelEvent.message]);
       }
       if (sentinelEvent.explanation) {
         fields.push(["explanation", sentinelEvent.explanation]);

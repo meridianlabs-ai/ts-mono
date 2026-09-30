@@ -34,14 +34,14 @@ const decision = (
   id: string,
   path: string,
   name: string,
-  action: NonNullable<SentinelEvent["decision"]>,
+  action: NonNullable<SentinelEvent["action"]>,
   overrides: Partial<SentinelEvent> = {}
 ) =>
   node(id, {
     path,
-    name,
+    factory: name,
     function: "tool_call",
-    decision: action,
+    action,
     ...overrides,
   });
 
@@ -54,11 +54,11 @@ const observation = (
 ) =>
   node(id, {
     path,
-    name,
+    factory: name,
     function: "tool_call",
     kind: "observation",
     suspicion,
-    decision: null,
+    action: null,
     ...overrides,
   });
 
@@ -203,6 +203,26 @@ describe("sentinel checks in a tool card", () => {
     ]);
   });
 
+  it("shows what a reject told the agent in the check's detail", () => {
+    const { container } = renderTool(
+      [
+        decision("rule", "rule", "no_network", "reject", {
+          message: "USE_X_INSTEAD",
+          explanation: "INTERNAL_REASON",
+        }),
+        decision("root", "", "inspect_sentinel/concurrent", "reject", {
+          message: "USE_X_INSTEAD",
+        }),
+      ],
+      { result: "", error: { type: "approval", message: "USE_X_INSTEAD" } }
+    );
+    fireEvent.click(pill(2));
+    const detail = container.querySelector('[class*="detail"]');
+    expect(detail?.textContent).toContain("told the agent");
+    expect(detail?.textContent).toContain("USE_X_INSTEAD");
+    expect(detail?.textContent).toContain("INTERNAL_REASON");
+  });
+
   it("marks each row's kind with an icon", () => {
     renderTool(rejectEvents());
     fireEvent.click(pill(5));
@@ -277,12 +297,26 @@ describe("sentinel checks in a tool card", () => {
     expect(container.textContent).not.toContain("RESULT_TEXT");
   });
 
-  it("falls back to the explanation, then the default approval message", () => {
+  it("falls back to the message, then the default approval message", () => {
     const { container } = renderTool(
+      [
+        decision("root", "", "rule", "reject", {
+          message: "ROOT_MESSAGE",
+          explanation: "ROOT_REASON",
+        }),
+      ],
+      { result: "", error: null }
+    );
+    expect(notRunText(container)).toContain("ROOT_MESSAGE");
+    expect(notRunText(container)).not.toContain("ROOT_REASON");
+    cleanup();
+    const unexplained = renderTool(
       [decision("root", "", "rule", "reject", { explanation: "ROOT_REASON" })],
       { result: "", error: null }
     );
-    expect(notRunText(container)).toContain("ROOT_REASON");
+    expect(notRunText(unexplained.container)).toContain(
+      "Tool call not approved."
+    );
     cleanup();
     const bare = renderTool([decision("root", "", "rule", "reject")], {
       result: "",
@@ -543,25 +577,25 @@ describe("sentinel checks in a tool card", () => {
     renderTool([
       node("byp", {
         path: "gate",
-        name: "gatekeeper",
+        factory: "gatekeeper",
         kind: "bypassed",
         function: null,
-        decision: null,
+        action: null,
       }),
       decision("esc", "review", "escalate_on_doubt", "escalate"),
       node("sup", {
         path: "review",
-        name: "escalate_on_doubt",
+        factory: "escalate_on_doubt",
         function: "tool_call",
         kind: "superseded",
-        decision: "escalate",
+        action: "escalate",
       }),
       node("slow", {
         path: "slow",
-        name: "slow_judge",
+        factory: "slow_judge",
         kind: "cancelled",
         function: null,
-        decision: null,
+        action: null,
       }),
       decision("root", "", "concurrent", "continue"),
     ]);
@@ -653,10 +687,10 @@ describe("SentinelEventView", () => {
       <SentinelEventView
         eventNode={node("byp", {
           path: "guard",
-          name: "concurrent",
+          factory: "concurrent",
           kind: "bypassed",
           function: null,
-          decision: null,
+          action: null,
         })}
       />
     );

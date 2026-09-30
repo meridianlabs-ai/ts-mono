@@ -239,7 +239,7 @@ describe("ToolEventView approvals", () => {
       }),
       new EventNode(
         "s1",
-        testSentinelEvent({ step_id: "tool-call-1", decision: "reject" }),
+        testSentinelEvent({ step_id: "tool-call-1", action: "reject" }),
         0
       ),
       tool,

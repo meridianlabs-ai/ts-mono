@@ -161,14 +161,14 @@ describe("eventsToMarkdown — sentinel", () => {
     const out = eventsToMarkdown([
       testSentinelEvent({
         path: "attempt/human",
-        name: "human",
-        decision: "reject",
+        factory: "human",
+        action: "reject",
         explanation: "Not on the allow list.",
       }),
-      testSentinelEvent({ path: "", name: "concurrent" }),
+      testSentinelEvent({ path: "", factory: "concurrent" }),
     ]);
     expect(out).toContain("## Sentinel Decision: attempt/human");
-    expect(out).toContain("**Decision:** reject");
+    expect(out).toContain("**Action:** reject");
     expect(out).toContain("**Explanation:** Not on the allow list.");
     expect(out).toContain("## Sentinel Decision: concurrent");
   });
@@ -651,11 +651,11 @@ describe("eventSearchText", () => {
       makeNode(
         testSentinelEvent({
           path: "attempt/monitor",
-          name: "suspicion_monitor",
+          factory: "suspicion_monitor",
           function: "score_call",
           kind: "observation",
           suspicion: { exfiltration: 0.8 },
-          decision: null,
+          action: null,
           audit: true,
           explanation: "Posts credentials to a paste site.",
         })
@@ -677,7 +677,7 @@ describe("eventSearchText", () => {
     const texts = eventSearchText(
       makeNode(
         testSentinelEvent({
-          decision: "modify",
+          action: "modify",
           modified: testToolCall({
             function: "bash",
             arguments: { cmd: "ls" },
@@ -693,10 +693,10 @@ describe("eventSearchText", () => {
       makeNode(
         testSentinelEvent({
           path: "",
-          name: "concurrent",
+          factory: "concurrent",
           kind: "bypassed",
           function: null,
-          decision: null,
+          action: null,
         })
       )
     );
