@@ -6,9 +6,9 @@ import { dirname } from "@tsmono/util";
 import { AppModeContext } from "../../App";
 import { ApplicationIcons } from "../../icons";
 import { scanRoute, scansRoute } from "../../router/url";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { ThemeToggleControl } from "../../theme/ThemeToggleControl";
-import { useScanRoute } from "../hooks/useScanRoute";
 
 import { EditablePath } from "./EditablePath";
 import { Navbar } from "./Navbar";

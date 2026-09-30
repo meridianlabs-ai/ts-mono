@@ -201,8 +201,6 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
     "outlineCollapsed",
     { defaultValue: !defaultOutlineExpanded }
   );
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const userOutlineCollapsed = outlineCollapsed ?? !defaultOutlineExpanded;
 
   const selectedOutlineId = useStore((state) => state.transcriptOutlineId);
   const setSelectedOutlineId = useStore(
@@ -290,7 +288,7 @@ export const TimelineEventsView: FC<TimelineEventsViewProps> = ({
       bulkCollapse={bulkCollapse}
       collapseState={collapseState}
       outline={{
-        collapsed: userOutlineCollapsed,
+        collapsed: outlineCollapsed,
         onCollapsedChange: setOutlineCollapsed,
         toggleIcon: ApplicationIcons.sidebar,
         onNavigateToEvent: handleOutlineNavigate,

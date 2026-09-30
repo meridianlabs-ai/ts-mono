@@ -9,7 +9,11 @@ reordering, virtualization, keyboard selection, and persisted view state.
 - `grid-sort-filter` sorts by a header and filters from per-column controls.
 - `grid-find` opens the Cmd/Ctrl-F band, counts matches, and steps selection.
 - `grid-columns` shows/hides, resizes, reorders, and auto-sizes columns.
-- `grid-keyboard` moves selection with arrows and activates with Enter.
+- `grid-keyboard` moves selection with arrows and activates with Enter;
+  Cmd/Ctrl/Shift+Enter opens the selected row in a new tab.
+- `grid-row-links` renders rows as links from the grid's `getRowHref` (in
+  `apps/inspect/src/app/shared/data-grid/DataGrid.tsx`), so native new-tab
+  gestures work anywhere on a row.
 - `grid-state` restores sort/filter/order/widths for the same scope without
   leaking them into another folder, route family, or grid kind.
 - `grid-virtualization` renders a window while footer counts describe the full

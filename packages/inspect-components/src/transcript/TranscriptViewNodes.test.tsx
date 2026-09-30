@@ -19,11 +19,8 @@ import {
   testModelEvent,
   testSpanBeginEvent,
 } from "@tsmono/inspect-common/testing";
-import {
-  ComponentStateProvider,
-  type ComponentStateHooks,
-} from "@tsmono/react/state";
-import { makeReactiveStateStore } from "@tsmono/react/testing";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeReactiveStateStore, makeStateHooks } from "@tsmono/react/testing";
 import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import {
@@ -72,16 +69,8 @@ vi.mock("./TranscriptVirtualList", () => ({
   },
 }));
 
-const noopStateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
 const StateWrapper = ({ children }: { children: ReactNode }) => (
-  <ComponentStateProvider hooks={noopStateHooks}>
+  <ComponentStateProvider hooks={makeStateHooks()}>
     {children}
   </ComponentStateProvider>
 );

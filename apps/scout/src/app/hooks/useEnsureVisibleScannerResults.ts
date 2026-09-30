@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 
 import { useScanResultSummaries } from "./useScanResultSummaries";
-import { useScanRoute } from "./useScanRoute";
 import { useSelectedScanDataframe } from "./useSelectedScanDataframe";
 
 /**

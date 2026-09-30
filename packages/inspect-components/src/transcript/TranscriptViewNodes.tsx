@@ -119,8 +119,7 @@ export interface TranscriptViewNodesHandle {
 // =============================================================================
 
 const escapeAttr = (id: string): string =>
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  typeof CSS !== "undefined" && CSS.escape
+  typeof CSS !== "undefined" && typeof CSS.escape === "function"
     ? CSS.escape(id)
     : id.replace(/"/g, '\\"');
 

@@ -19,7 +19,7 @@
  * `colorForValue` API stays the same.
  */
 
-import { valueAsString } from "../../../utils/format";
+import { valueAsString } from "@tsmono/util";
 
 export type ScoreColorPalette =
   "good-high" | "good-low" | "neutral" | "diverging";

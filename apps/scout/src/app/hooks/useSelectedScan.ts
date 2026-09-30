@@ -1,27 +1,22 @@
 import { skipToken } from "@tanstack/react-query";
-import { useEffect } from "react";
 
+import { useMirrorToStore } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { Status } from "../../types/api-types";
 import { useScan } from "../server/useScan";
 
-import { useScanRoute } from "./useScanRoute";
-
 export const useSelectedScan = (): AsyncData<Status> => {
   const { resolvedScansDir, scanPath } = useScanRoute();
 
-  // Set selectedScanLocation for nav restoration
+  // Remember the scan being viewed so the last route can be restored
+  // (see useRestoreLastRoute). Routes without a scan yield "".
   const setSelectedScanLocation = useStore(
     (state) => state.setSelectedScanLocation
   );
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    if (scanPath) {
-      setSelectedScanLocation(scanPath);
-    }
-  }, [scanPath, setSelectedScanLocation]);
+  useMirrorToStore(scanPath || undefined, setSelectedScanLocation);
 
   return useScan(
     resolvedScansDir && scanPath

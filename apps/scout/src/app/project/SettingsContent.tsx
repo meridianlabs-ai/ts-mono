@@ -160,8 +160,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
   // Tags field - use local state to allow typing commas/spaces freely
   // but also update config on input so Ctrl+S saves correctly
   const [tagsText, setTagsText] = useState(() =>
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    Array.isArray(config.tags) ? config.tags.join(", ") : (config.tags ?? "")
+    Array.isArray(config.tags) ? config.tags.join(", ") : ""
   );
 
   // Sync local state when config changes externally (e.g., after save)
@@ -169,8 +168,7 @@ export const SettingsContent: FC<SettingsContentProps> = ({
   useEffect(() => {
     const configValue = Array.isArray(config.tags)
       ? config.tags.join(", ")
-      : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-        (config.tags ?? "");
+      : "";
     // Only sync if the parsed values differ (avoids cursor jump while typing)
     const currentParsed = tagsText
       .split(",")

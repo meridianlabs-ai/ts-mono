@@ -4,10 +4,8 @@ import { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ComponentNavigationProvider } from "@tsmono/react/components";
-import {
-  ComponentStateProvider,
-  type ComponentStateHooks,
-} from "@tsmono/react/state";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 import {
   AnnotatedScreenshot,
@@ -30,19 +28,9 @@ function loadImage(img: HTMLImageElement, width = 1440, height = 900) {
   fireEvent.load(img);
 }
 
-// MessageContent's text rendering reads component state via context.
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
-
 const renderWithState = (ui: ReactNode) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
         {ui}
       </ComponentNavigationProvider>

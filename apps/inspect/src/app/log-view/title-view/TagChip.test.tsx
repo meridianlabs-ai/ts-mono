@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Regression test for a layout bug where a single very long tag pushed
  * the inline Edit button off the right edge of the viewer header,

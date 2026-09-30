@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { formatBytes, formatCurrency, formatMs } from "./format";
+import { formatBytes, formatCurrency, formatMs, valueAsString } from "./format";
 
 // Pin locale so toLocaleString output is deterministic across machines/CI.
 beforeAll(() => {
@@ -87,5 +87,21 @@ describe("formatCurrency", () => {
     [1234.56, "$1,234.56", "thousands separator"],
   ])("formatCurrency(%d) → %s (%s)", (dollars, expected) => {
     expect(formatCurrency(dollars)).toBe(expected);
+  });
+});
+
+describe("valueAsString", () => {
+  it("JSON-encodes objects and arrays instead of collapsing to [object Object]", () => {
+    expect(valueAsString({ a: 1, b: "x" })).toBe('{"a":1,"b":"x"}');
+    expect(valueAsString([1, "two", null])).toBe('[1,"two",null]');
+    expect(valueAsString({})).toBe("{}");
+  });
+
+  it("matches String() for primitives, null and undefined", () => {
+    expect(valueAsString("text")).toBe("text");
+    expect(valueAsString(1.5)).toBe("1.5");
+    expect(valueAsString(true)).toBe("true");
+    expect(valueAsString(null)).toBe("null");
+    expect(valueAsString(undefined)).toBe("undefined");
   });
 });

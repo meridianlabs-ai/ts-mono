@@ -97,8 +97,8 @@ export function setupLogListHandlers(network: NetworkFixture) {
 // Scoped to the navbar so it doesn't collide with the grid's per-column
 // filter funnels (whose aria-labels like "Filter totalSamples" substring-match
 // segment names like "Samples").
-export function segmentButton(page: Page, name: string) {
-  return page.getByRole("navigation").getByRole("button", { name });
+export function segmentLink(page: Page, name: string) {
+  return page.getByRole("navigation").getByRole("link", { name });
 }
 
 export function gridCell(page: Page, text: string) {

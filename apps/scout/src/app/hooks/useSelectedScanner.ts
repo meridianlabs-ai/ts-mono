@@ -26,10 +26,7 @@ export const useSelectedScanner = (): AsyncData<string> => {
 };
 
 const _get_default_scanner = (s: Status): string => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const result = s.summary.scanners
-    ? Object.keys(s.summary.scanners)[0]
-    : undefined;
+  const result = Object.keys(s.summary.scanners)[0];
   if (!result) {
     throw new Error("Scan must have a scanner");
   }

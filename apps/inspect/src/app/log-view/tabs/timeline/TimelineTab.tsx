@@ -1,7 +1,6 @@
 import clsx from "clsx";
 import {
   FC,
-  MouseEvent as ReactMouseEvent,
   RefObject,
   useCallback,
   useEffect,
@@ -10,11 +9,11 @@ import {
   useState,
 } from "react";
 
+import type { NormalizedEvalStats } from "@tsmono/inspect-common/normalize";
 import {
   ConfigUpdate,
   EarlyStoppingSummary,
   EvalSpec,
-  EvalStats,
   LogUpdate,
 } from "@tsmono/inspect-common/types";
 import { isoToEpoch } from "@tsmono/inspect-common/utils";
@@ -24,6 +23,7 @@ import {
   buildConnectionLanes,
   poolRetunes,
 } from "@tsmono/inspect-components/usage";
+import { ErrorPanel } from "@tsmono/react/components";
 import { useProperty } from "@tsmono/react/hooks";
 
 import { EvalLogStatus } from "../../../../@types/extraInspect";
@@ -34,15 +34,17 @@ import {
   useSelectedSampleSummaries,
 } from "../../../../state/hooks";
 import { useSampleNavigationActions } from "../../../routing/sampleNavigation";
-import { openInNewTab } from "../../../shared/openInNewTab";
+import { routeFromFullUrl, toFullUrl } from "../../../routing/url";
 import {
   kTimelineBag,
   timelineBandId,
   useTimelineBandsKey,
   useTimelineLogKey,
-} from "../../useShowTimeline";
+} from "../../useTimelineNavigation";
 
 import { HistoryList } from "./HistoryList";
+import type { SampleOpener } from "./OpenSampleLink";
+import { connectionHistoryError } from "./timelineAxis";
 import { TimelineChart } from "./TimelineChart";
 import {
   activeSamplesSeries,
@@ -64,7 +66,7 @@ import styles from "./TimelineTab.module.css";
 
 export const useTimelineTab = (
   evalSpec: EvalSpec | undefined,
-  evalStats: EvalStats | undefined,
+  evalStats: NormalizedEvalStats | undefined,
   evalStatus?: EvalLogStatus,
   configUpdates?: ConfigUpdate[] | null,
   logUpdates?: LogUpdate[] | null,
@@ -104,7 +106,7 @@ export const useTimelineTab = (
 
 interface TimelineTabProps {
   evalSpec?: EvalSpec;
-  evalStats?: EvalStats;
+  evalStats?: NormalizedEvalStats;
   evalStatus?: EvalLogStatus;
   configUpdates?: ConfigUpdate[] | null;
   logUpdates?: LogUpdate[] | null;
@@ -133,6 +135,17 @@ const kNoCategories: HistoryCategory[] = [];
 // links, chart popovers) when the log in view changes.
 export const TimelineTab: FC<TimelineTabProps> = (props) => {
   const logKey = useTimelineLogKey("tab");
+  const error =
+    props.evalStats?.connectionHistoryError ??
+    connectionHistoryError(props.evalStats?.connection_limit_history ?? []);
+  if (error) {
+    return (
+      <ErrorPanel
+        title="Unable to display timeline"
+        error={{ message: error }}
+      />
+    );
+  }
   return <TimelineTabBody key={logKey} {...props} />;
 };
 
@@ -448,20 +461,13 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
     [markers]
   );
 
-  // Plain click navigates in place; cmd/ctrl/shift click opens a new tab.
-  const openSample = useCallback(
-    (id: string | number, epoch: number, event?: ReactMouseEvent) => {
-      if (event && (event.metaKey || event.ctrlKey || event.shiftKey)) {
-        const url = getSampleUrl(id, epoch);
-        if (url) {
-          openInNewTab(url);
-          return;
-        }
-      }
-      showSample(id, epoch);
+  const sampleOpener: SampleOpener = {
+    href: (id, epoch) => {
+      const url = getSampleUrl(id, epoch);
+      return url ? toFullUrl(routeFromFullUrl(url)) : undefined;
     },
-    [showSample, getSampleUrl]
-  );
+    open: (id, epoch) => showSample(id, epoch),
+  };
 
   const showRateLimitLegend = enabledModels.some(
     (model) => (lanes[model]?.rateLimitCount ?? 0) > 0
@@ -581,7 +587,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
             }
             evalDescriptor={evalDescriptor}
             limitCrossReference={limitCrossReference}
-            onOpenSample={openSample}
+            sampleOpener={sampleOpener}
           />
         )}
         <HistoryList
@@ -600,7 +606,7 @@ const TimelineTabBody: FC<TimelineTabProps> = ({
           onHoverRow={(key) =>
             setHoverLink(key !== null ? { source: "row", keys: [key] } : null)
           }
-          onOpenSample={openSample}
+          sampleOpener={sampleOpener}
         />
       </div>
     </div>

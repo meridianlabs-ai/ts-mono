@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { decodeArrowBase64 } from "./arrow";
+import { castScanValue, decodeArrowBase64 } from "./arrow";
 
 // LZ4_FRAME-compressed Arrow IPC stream containing:
 //   id:                 int32  [1, 2, 3, 4]
@@ -44,5 +44,21 @@ describe("decodeArrowBase64", () => {
       true,
       false,
     ]);
+  });
+});
+
+describe("castScanValue", () => {
+  test.each([
+    { value: "0.5", type: "number", expected: 0.5 },
+    { value: " 3 ", type: "number", expected: 3 },
+    { value: "n/a", type: "number", expected: null },
+    { value: "", type: "number", expected: null },
+    { value: "TRUE", type: "boolean", expected: true },
+    { value: "False", type: "boolean", expected: false },
+    { value: "yes", type: "boolean", expected: null },
+    { value: 3, type: "string", expected: 3 },
+    { value: undefined, type: "string", expected: null },
+  ])("casts $value under $type to $expected", ({ value, type, expected }) => {
+    expect(castScanValue(value, type)).toBe(expected);
   });
 });

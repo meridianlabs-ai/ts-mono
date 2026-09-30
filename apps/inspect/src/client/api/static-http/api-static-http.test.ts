@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import staticHttpApi, { staticLogRoot } from "./api-static-http";
@@ -75,5 +76,65 @@ describe("staticHttpApi identities", () => {
     expect(
       urls.some((url) => url.startsWith("https://example.com/bucket/b/"))
     ).toBe(true);
+  });
+});
+
+describe("staticHttpApi manifest lookup", () => {
+  // Keys chosen so that suffix matching alone would pick the wrong entry:
+  // `a.eval` is a whole-segment suffix of `sub/a.eval`, and `b.eval` is a
+  // plain suffix of `xb.eval`.
+  const listing = {
+    "a.eval": { task: "root-a", task_id: "root-a" },
+    "sub/a.eval": { task: "sub-a", task_id: "sub-a" },
+    "b.eval": { task: "b", task_id: "b" },
+    "xb.eval": { task: "xb", task_id: "xb" },
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(new Response(JSON.stringify(listing), { status: 200 }))
+      )
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("the exact absolute name wins over an earlier suffix match", async () => {
+    const api = staticHttpApi("logs");
+    const preview = await api.get_log_summary?.(
+      "http://localhost:3000/logs/sub/a.eval"
+    );
+    expect(preview?.task_id).toBe("sub-a");
+  });
+
+  test("a shorter key never claims a longer file name", async () => {
+    const api = staticHttpApi("logs");
+    const previews = await api.get_log_summaries([
+      "http://localhost:3000/logs/xb.eval",
+      "http://localhost:3000/logs/b.eval",
+    ]);
+    expect(previews.map((preview) => preview.task_id)).toEqual(["xb", "b"]);
+  });
+
+  test("a non-canonical absolute URL falls back to a whole-segment match", async () => {
+    const api = staticHttpApi("logs");
+    const previews = await api.get_log_summaries([
+      "https://mirror.example.com/copy/logs/sub/a.eval",
+    ]);
+    expect(previews.map((preview) => preview.task_id)).toEqual(["sub-a"]);
+  });
+
+  test("an unknown file is skipped by the batch and rejected singly", async () => {
+    const api = staticHttpApi("logs");
+    await expect(
+      api.get_log_summaries(["http://localhost:3000/logs/missing.eval"])
+    ).resolves.toEqual([]);
+    await expect(
+      api.get_log_summary?.("http://localhost:3000/logs/missing.eval")
+    ).rejects.toThrow(/Unable to load eval log header/);
   });
 });

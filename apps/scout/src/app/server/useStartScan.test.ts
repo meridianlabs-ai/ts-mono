@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@tsmono/util";
 
+import { createStatus } from "../../test/objectFactories";
 import { server } from "../../test/setup-msw";
 import { createTestWrapper } from "../../test/test-utils";
 import type { ScanJobConfig, Status } from "../../types/api-types";
@@ -15,20 +16,7 @@ const mockScanConfig: ScanJobConfig = {
   filter: ["task_id = 'test'"],
 };
 
-const mockStatus: Status = {
-  complete: false,
-  errors: [],
-  location: "/scans/test",
-  spec: {
-    scan_id: "test-scan-id",
-    scan_name: "test-scan",
-    options: { max_transcripts: 25 },
-    packages: {},
-    scanners: {},
-    timestamp: "2024-01-01T00:00:00Z",
-  },
-  summary: { complete: false, scanners: {} },
-};
+const mockStatus = createStatus({ location: "/scans/test" });
 
 describe("useStartScan", () => {
   it("sends scan config and returns status on success", async () => {

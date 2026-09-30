@@ -220,7 +220,14 @@ export const useDeleteValidationCase = (uri: string) => {
     mutationFn: (caseId) => api.deleteValidationCase(uri, caseId),
     // Not optimistic: stay pending until the refetch lands so the deleted
     // row can't linger after the spinner stops.
-    onSuccess: async () => {
+    onSuccess: async (_data, caseId) => {
+      // The server just confirmed there is no case: write that truth rather
+      // than refetching a 404 (see validationCaseQuery), so an open editor
+      // drops straight to the empty state.
+      queryClient.setQueryData(
+        validationCaseQuery(api, { url: uri, caseId }).queryKey,
+        null
+      );
       await queryClient.invalidateQueries({
         queryKey: validationCasesQuery(api, uri).queryKey,
       });
@@ -260,6 +267,68 @@ export const useBulkDeleteValidationCases = (uri: string) => {
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: validationCasesQuery(api, uri).queryKey,
+      });
+    },
+  });
+};
+
+export type CopyValidationCasesRequest = {
+  /** Validation set the cases are written into. */
+  destUri: string;
+  cases: { caseId: string; data: ValidationCaseRequest }[];
+};
+
+/**
+ * Hook to copy validation cases into another validation set (bulk upsert).
+ * Uses Promise.allSettled to handle partial failures gracefully; the result
+ * reports how many copies landed so callers can warn without aborting.
+ */
+export const useCopyValidationCases = () => {
+  const queryClient = useQueryClient();
+  const api = useApi();
+  return useMutation<
+    { succeeded: number; failed: number },
+    Error,
+    CopyValidationCasesRequest
+  >({
+    mutationFn: async ({ destUri, cases }) => {
+      const results = await Promise.allSettled(
+        cases.map(({ caseId, data }) =>
+          api.upsertValidationCase(destUri, caseId, data)
+        )
+      );
+
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+
+      // Throw if all failed
+      if (failed === results.length) {
+        const errors = results
+          .filter((r): r is PromiseRejectedResult => r.status === "rejected")
+          .map((r) => String(r.reason));
+        throw new Error(
+          `All ${failed} copy operations failed: ${errors.join(", ")}`
+        );
+      }
+
+      return { succeeded, failed };
+    },
+    // Reached only when at least one copy succeeded (all-failed throws).
+    // Not optimistic: stay pending until the destination refetch lands so a
+    // move can't show the source rows gone before the copies appear.
+    onSuccess: async (_data, { destUri, cases }) => {
+      // Copied cases may already be cached as "missing" for the destination
+      // set (the editor caches 404s as null), so those entries go stale too.
+      for (const { caseId } of cases) {
+        queryClient
+          .invalidateQueries({
+            queryKey: validationCaseQuery(api, { url: destUri, caseId })
+              .queryKey,
+          })
+          .catch(console.error);
+      }
+      await queryClient.invalidateQueries({
+        queryKey: validationCasesQuery(api, destUri).queryKey,
       });
     },
   });

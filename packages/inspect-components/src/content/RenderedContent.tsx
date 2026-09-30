@@ -18,6 +18,7 @@ import {
 
 import { useContentRenderers } from "./ContentRenderersContext";
 import { ExternalLink } from "./ExternalLink";
+import { isHtmlEscape } from "./htmlEscape";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
@@ -31,6 +32,37 @@ interface RenderedContentProps {
   renderOptions?: RenderOptions;
   renderObject?(entry: any): ReactNode;
 }
+
+interface WebSearchResult {
+  url: string;
+  summary?: string | null;
+}
+
+interface WebSearchValue {
+  query?: string | null;
+  results: WebSearchResult[];
+}
+
+// The Model, Html and web_search renderers are selected by a property or
+// entry name on plain objects, and those objects can come straight from an
+// eval log (sample metadata, store, score values). Each guard checks the
+// exact shape its renderer emits so any other object falls through to the
+// generic record renderer instead of throwing mid-render.
+const isModelValue = (v: unknown): v is { _model: string | number } =>
+  isRecord(v) && (typeof v._model === "string" || typeof v._model === "number");
+
+// Optional fields arrive as `null` from pydantic, not as missing keys.
+const isOptionalString = (v: unknown): v is string | null | undefined =>
+  v == null || typeof v === "string";
+
+const isWebSearchResult = (v: unknown): v is WebSearchResult =>
+  isRecord(v) && typeof v.url === "string" && isOptionalString(v.summary);
+
+const isWebSearchValue = (v: unknown): v is WebSearchValue =>
+  isRecord(v) &&
+  isOptionalString(v.query) &&
+  Array.isArray(v.results) &&
+  v.results.every(isWebSearchResult);
 
 /**
  * Renders content based on its type using registered content renderers.
@@ -147,14 +179,16 @@ const contentRenderers: (
 
     Model: {
       bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return typeof entry.value === "object" && entry.value._model;
-      },
+      canRender: (entry) => isModelValue(entry.value),
       render: (_id, entry, _options) => {
+        const value: unknown = entry.value;
+        if (!isModelValue(value)) {
+          return { rendered: undefined };
+        }
         return {
           rendered: (
             <Fragment>
-              <i className={icons.model} /> {entry.value._model}
+              <i className={icons.model} /> {value._model}
             </Fragment>
           ),
         };
@@ -259,33 +293,34 @@ const contentRenderers: (
     ...externalRenderers,
     web_search: {
       bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return typeof entry.value === "object" && entry.name === "web_search";
-      },
+      canRender: (entry) =>
+        entry.name === "web_search" && isWebSearchValue(entry.value),
       render: (_id, entry, _options) => {
+        const value: unknown = entry.value;
+        if (!isWebSearchValue(value)) {
+          return { rendered: undefined };
+        }
         const results: ReactNode[] = [];
         results.push(
           <div key="query" className={styles.query}>
-            <i className={icons.search}></i> {entry.value.query}
+            <i className={icons.search}></i> {value.query}
           </div>
         );
-        entry.value.results.forEach(
-          (result: { url: string; summary: string }, index: number) => {
-            results.push(
-              <div key={`url-${index}`}>
-                <ExternalLink href={result.url}>{result.url}</ExternalLink>
-              </div>
-            );
-            results.push(
-              <div
-                key={`summary-${index}`}
-                className={clsx("text-size-smaller", styles.summary)}
-              >
-                {result.summary}
-              </div>
-            );
-          }
-        );
+        value.results.forEach((result, index) => {
+          results.push(
+            <div key={`url-${index}`}>
+              <ExternalLink href={result.url}>{result.url}</ExternalLink>
+            </div>
+          );
+          results.push(
+            <div
+              key={`summary-${index}`}
+              className={clsx("text-size-smaller", styles.summary)}
+            >
+              {result.summary}
+            </div>
+          );
+        });
         // The caller keeps only a valid element; a bare array falls through
         // to the JSON fallback.
         return {
@@ -309,9 +344,7 @@ const contentRenderers: (
     },
     Html: {
       bucket: Buckets.intermediate,
-      canRender: (entry) => {
-        return typeof entry.value === "object" && entry.value._html;
-      },
+      canRender: (entry) => isHtmlEscape(entry.value),
       render: (_id, entry, _options) => {
         return {
           rendered: entry.value._html,

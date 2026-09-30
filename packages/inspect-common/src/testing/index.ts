@@ -16,6 +16,7 @@ import type {
   ChatMessageTool,
   ChatMessageUser,
   CompactionEvent,
+  ConnectionLimitChange,
   ErrorEvent,
   EvalError,
   EvalLog,
@@ -515,6 +516,17 @@ export const testEvalPlan = (overrides: Partial<EvalPlan> = {}): EvalPlan => ({
   name: "plan",
   steps: [],
   config: {},
+  ...overrides,
+});
+
+export const testConnectionLimitChange = (
+  overrides?: Partial<ConnectionLimitChange>
+): ConnectionLimitChange => ({
+  model: "test/model",
+  timestamp: Date.parse(TEST_TIMESTAMP) / 1000,
+  old_limit: 1,
+  new_limit: 2,
+  reason: "rate_limit",
   ...overrides,
 });
 

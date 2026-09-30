@@ -18,6 +18,7 @@ import {
   useMountEffect,
 } from "@tsmono/react/hooks";
 import { VirtualList, type VirtualListHandle } from "@tsmono/react/virtual";
+import { valueAsString } from "@tsmono/util";
 
 import {
   emptyDataframeState,
@@ -26,7 +27,6 @@ import {
 } from "../../state/dataframeState";
 import { useStore } from "../../state/store";
 import { useSetDataframeGridApi } from "../scan/scanners/dataframe/DataframeGridApiContext";
-import { valueAsString } from "../utils/format";
 
 import { fitContentStrategy } from "./columnSizing/fitContentStrategy";
 import {

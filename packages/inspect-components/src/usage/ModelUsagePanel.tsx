@@ -1,19 +1,14 @@
 import clsx from "clsx";
 import { FC } from "react";
 
+import type { CostedUsage } from "@tsmono/inspect-common/utils";
 import { formatCurrency, formatNumber } from "@tsmono/util";
 
 import styles from "./ModelUsagePanel.module.css";
 
-export interface ModelUsageData {
-  input_tokens?: number | null;
-  output_tokens?: number | null;
-  total_tokens?: number | null;
-  reasoning_tokens?: number | null;
-  input_tokens_cache_read?: number | null;
-  input_tokens_cache_write?: number | null;
-  total_cost?: number | null;
-}
+// One definition, so a token category added here is also counted by
+// costSummary's partial-cost check.
+export type ModelUsageData = CostedUsage;
 
 export interface ModelUsageTiming {
   timestamp: string;

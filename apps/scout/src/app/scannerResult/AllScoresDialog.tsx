@@ -3,10 +3,9 @@ import { FC, useCallback, useMemo, useState } from "react";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { Modal } from "@tsmono/react/components";
-import { isRecord } from "@tsmono/util";
+import { isRecord, valueAsString } from "@tsmono/util";
 
 import { ApplicationIcons } from "../../icons";
-import { valueAsString } from "../utils/format";
 
 import styles from "./AllScoresDialog.module.css";
 

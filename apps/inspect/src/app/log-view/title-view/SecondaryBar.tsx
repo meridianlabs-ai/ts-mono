@@ -18,7 +18,7 @@ import {
 } from "@tsmono/inspect-common/utils";
 import { ConfigChangesCountChip } from "@tsmono/inspect-components/config";
 import { ExpandablePanel, LabeledValue } from "@tsmono/react/components";
-import { formatDataset } from "@tsmono/util";
+import { formatDataset, valueAsString } from "@tsmono/util";
 
 import { EvalDescriptor } from "../../../app/samples/descriptor/types";
 import { sampleFilterItems } from "../../../app/samples/sample-tools/filters";
@@ -27,12 +27,8 @@ import {
   useEvalDescriptor,
   useSelectedSampleInvalidation,
 } from "../../../state/hooks";
-import {
-  formatDateTime,
-  formatDuration,
-  valueAsString,
-} from "../../../utils/format";
-import { useShowTimeline } from "../useShowTimeline";
+import { formatDateTime, formatDuration } from "../../../utils/format";
+import { useTimelineNavigation } from "../useTimelineNavigation";
 
 import styles from "./SecondaryBar.module.css";
 
@@ -59,7 +55,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
   const evalDescriptor = useEvalDescriptor();
   const sampleInvalidation = useSelectedSampleInvalidation();
   const configUpdates = useConfigUpdates();
-  const showTimeline = useShowTimeline();
+  const { href: timelineHref, show: showTimeline } = useTimelineNavigation();
 
   // The chip string reads what the run actually finished under; the
   // aggregate "N changed" chip carries the affordance for the retunes.
@@ -138,6 +134,7 @@ export const SecondaryBar: FC<SecondaryBarProps> = ({
                 id="secondary-bar-config-changes"
                 changes={configChanges}
                 onViewTimeline={showTimeline}
+                timelineHref={timelineHref}
               />
             ) : null}
           </span>

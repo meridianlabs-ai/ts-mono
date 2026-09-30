@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getVscodeApi } from "@tsmono/util";
@@ -116,6 +117,17 @@ const testVscodeApi = (): NonNullable<ReturnType<typeof getVscodeApi>> => ({
   postMessage: () => {},
   getState: () => null,
   setState: () => {},
+});
+
+describe("resolveBackend transport", () => {
+  it("only the static backend fetches log locations from the browser", () => {
+    setSearch("");
+    expect(resolveBackend(dirSource("logs")).browserDirect).toBe(true);
+    expect(resolveBackend(fileSource("run.eval")).browserDirect).toBe(true);
+    expect(resolveBackend(noneSource).browserDirect).toBe(false);
+    setSearch("?inspect_server=true");
+    expect(resolveBackend(dirSource("logs")).browserDirect).toBe(false);
+  });
 });
 
 describe("resolveBackend selection", () => {

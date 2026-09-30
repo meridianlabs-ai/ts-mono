@@ -1,14 +1,13 @@
 import clsx from "clsx";
 import React, { useEffect } from "react";
-import { useSearchParams } from "react-router";
 
 import { ErrorPanel, LoadingBar } from "@tsmono/react/components";
 import { useDocumentTitle } from "@tsmono/react/hooks";
 
-import { getScannerParam } from "../../router/url";
+import { useScannerParam } from "../../router/useScannerParam";
+import { useScanRoute } from "../../router/useScanRoute";
 import { useStore } from "../../state/store";
 import { ScansNavbar } from "../components/ScansNavbar";
-import { useScanRoute } from "../hooks/useScanRoute";
 import { useSelectedScan } from "../hooks/useSelectedScan";
 import { useAppConfig } from "../server/useAppConfig";
 import { getScanDisplayName } from "../utils/scan";
@@ -41,16 +40,7 @@ export const ScanPanel: React.FC = () => {
     }
   }, [scanPath, selectedScanLocation, clearScanState]);
 
-  // Sync URL query param with store state
-  const [searchParams] = useSearchParams();
-  const setSelectedScanner = useStore((state) => state.setSelectedScanner);
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const scannerParam = getScannerParam(searchParams);
-    if (scannerParam) {
-      setSelectedScanner(scannerParam);
-    }
-  }, [searchParams, setSelectedScanner]);
+  useScannerParam();
   return (
     <div className={clsx(styles.root)}>
       <ScansNavbar

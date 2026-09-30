@@ -1,6 +1,7 @@
+import { valueAsString } from "@tsmono/util";
+
 import { ScoreValue } from "../../../@types/extraInspect";
 import { kScoreTypeBoolean, kScoreTypePassFail } from "../../../constants";
-import { valueAsString } from "../../../utils/format";
 
 export type Tone = "pass" | "fail" | "warn" | "neutral";
 

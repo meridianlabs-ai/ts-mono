@@ -11,10 +11,10 @@ import {
 
 import { useLoggingNavigate } from "../../../../debugging/navigationDebugging";
 import { scanResultRoute } from "../../../../router/url";
+import { useScanRoute } from "../../../../router/useScanRoute";
 import { useStore } from "../../../../state/store";
 import { Error } from "../../../components/Error";
 import { TaskName } from "../../../components/TaskName";
-import { useScanRoute } from "../../../hooks/useScanRoute";
 import { ScanResultSummary } from "../../../types";
 import { useMarkdownRefs } from "../../../utils/refs";
 
@@ -42,8 +42,7 @@ const ScannerResultsRowComponent: FC<ScannerResultsRowProps> = ({
   );
 
   // Generate the route to the scan result using the current scan path and the entry's uuid
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const isNavigable = summary.identifier !== undefined && !!scansDir;
+  const isNavigable = !!scansDir;
   const scanResultUrl = isNavigable
     ? scanResultRoute(scansDir, scanPath, summary.identifier, searchParams)
     : "";

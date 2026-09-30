@@ -1,8 +1,15 @@
 import { isRecord } from "@tsmono/util";
 
-import type { EvalSampleSummary, ModelUsage } from "../types";
+import type {
+  ChatMessage,
+  Content,
+  EvalSampleSummary,
+  ModelFallback,
+  ModelUsage,
+} from "../types";
 
 import { normalizeModelUsage } from "./events";
+import { normalizeSampleScores } from "./scores";
 
 /**
  * Normalize a raw model-usage map (model name → ModelUsage): token defaults
@@ -28,6 +35,118 @@ export const normalizeModelUsageMap = (
   }
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): every entry round-tripped unchanged, so raw already satisfies the type
   return changed ? usage : (raw as Record<string, ModelUsage>);
+};
+
+const isContent = (value: unknown): value is Content =>
+  isRecord(value) && typeof value["type"] === "string";
+
+const kContentPayloadFields = [
+  "text",
+  "reasoning",
+  "image",
+  "audio",
+  "video",
+  "document",
+  "data",
+] as const;
+
+// Every pydantic Content class defaults `type`, and the union resolves an
+// untyped item by its payload field, so an absent tag fills the same way.
+const withContentType = (value: unknown): unknown => {
+  if (!isRecord(value) || value["type"] !== undefined) {
+    return value;
+  }
+  const type =
+    kContentPayloadFields.find((field) => field in value) ??
+    ("tool_type" in value ? "tool_use" : undefined);
+  return type === undefined ? value : { ...value, type };
+};
+
+// `role` is not checked: every pydantic message subclass defaults it, so its
+// absence is legal wire data; only the content shape the readers walk is.
+const hasChatMessageContent = (value: unknown): value is ChatMessage =>
+  isRecord(value) &&
+  (typeof value["content"] === "string" ||
+    (Array.isArray(value["content"]) &&
+      (value["content"] as unknown[]).every(isContent)));
+
+const normalizeInputMessage = (raw: unknown): ChatMessage | undefined => {
+  if (!isRecord(raw)) {
+    return undefined;
+  }
+  const content = raw["content"];
+  if (Array.isArray(content)) {
+    const items = content as unknown[];
+    const kept = items.map(withContentType).filter(isContent);
+    const unchanged =
+      kept.length === items.length &&
+      kept.every((item, i) => item === items[i]);
+    const message = unchanged ? raw : { ...raw, content: kept };
+    return hasChatMessageContent(message) ? message : undefined;
+  }
+  return hasChatMessageContent(raw) ? raw : undefined;
+};
+
+/**
+ * Normalize a raw sample input: a string passes through; a message list
+ * drops entries pydantic would refuse (non-records, content that is neither
+ * a string nor a list of content items) and fills an absent content `type`
+ * from its payload field; anything else becomes "".
+ * Identity-preserving on clean input.
+ */
+export const normalizeSampleInput = (raw: unknown): string | ChatMessage[] => {
+  if (typeof raw === "string") {
+    return raw;
+  }
+  if (!Array.isArray(raw)) {
+    return "";
+  }
+  const entries = raw as unknown[];
+  if (entries.every(hasChatMessageContent)) {
+    return entries;
+  }
+  const messages: ChatMessage[] = [];
+  for (const entry of entries) {
+    const message = normalizeInputMessage(entry);
+    if (message !== undefined) messages.push(message);
+  }
+  return messages;
+};
+
+const isModelFallback = (value: unknown): value is ModelFallback =>
+  isRecord(value) &&
+  typeof value["model"] === "string" &&
+  typeof value["fallback_model"] === "string" &&
+  typeof value["count"] === "number";
+
+/**
+ * Normalize a raw model-fallbacks rollup: `count` defaults to 1 the way
+ * pydantic fills it; entries without both model names are dropped (pydantic
+ * would refuse them); a present non-array becomes null, the "no fallbacks"
+ * value. The field is optional, so absent (and null) stays as it is.
+ * Identity-preserving on clean input.
+ */
+export const normalizeModelFallbacks = (
+  raw: unknown
+): ModelFallback[] | null | undefined => {
+  if (raw === undefined || raw === null) {
+    return raw;
+  }
+  if (!Array.isArray(raw)) {
+    return null;
+  }
+  const entries = raw as unknown[];
+  if (entries.every(isModelFallback)) {
+    return entries;
+  }
+  const fallbacks: ModelFallback[] = [];
+  for (const entry of entries) {
+    if (!isRecord(entry)) continue;
+    const filled =
+      typeof entry["count"] === "number" ? entry : { ...entry, count: 1 };
+    if (isModelFallback(filled)) fallbacks.push(filled);
+  }
+  return fallbacks;
 };
 
 /**
@@ -57,13 +176,13 @@ export const normalizeSampleSummary = (
     fixes[field] = value;
   };
 
-  if (typeof raw["input"] !== "string" && !Array.isArray(raw["input"])) {
-    fix("input", "");
-  }
+  const input = normalizeSampleInput(raw["input"]);
+  if (input !== raw["input"]) fix("input", input);
   if (typeof raw["target"] !== "string" && !Array.isArray(raw["target"])) {
     fix("target", "");
   }
-  if (!isRecord(raw["scores"]) && raw["scores"] !== null) fix("scores", null);
+  const scores = normalizeSampleScores(raw["scores"]);
+  if (scores !== raw["scores"]) fix("scores", scores);
   if (!isRecord(raw["metadata"])) fix("metadata", {});
   // Usage entries carry their own required-with-default token fields, read
   // unguarded by the tokens column — fill inside, not just the map.
@@ -79,19 +198,8 @@ export const normalizeSampleSummary = (
   // current writers) set the field explicitly, so only vintage settled
   // rows hit this fill.
   if (typeof raw["completed"] !== "boolean") fix("completed", true);
-  if (Array.isArray(raw["model_fallbacks"])) {
-    let changed = false;
-    const fallbacks: unknown[] = [];
-    for (const fallback of raw["model_fallbacks"] as unknown[]) {
-      if (isRecord(fallback) && typeof fallback["count"] !== "number") {
-        changed = true;
-        fallbacks.push({ ...fallback, count: 1 });
-      } else {
-        fallbacks.push(fallback);
-      }
-    }
-    if (changed) fix("model_fallbacks", fallbacks);
-  }
+  const fallbacks = normalizeModelFallbacks(raw["model_fallbacks"]);
+  if (fallbacks !== raw["model_fallbacks"]) fix("model_fallbacks", fallbacks);
 
   const summary = fixes ? { ...raw, ...fixes } : raw;
   // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- boundary lift (#555): required fields are filled above; the rest is wire data TypeScript can't verify

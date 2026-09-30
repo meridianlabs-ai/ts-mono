@@ -77,13 +77,11 @@ const Segment: FC<SegmentProps> = ({
   isParent,
   onSelect,
 }) => {
-  const interactive = !!onSelect && !isCurrent;
-  const handleClick = (e: MouseEvent<HTMLButtonElement>): void => {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    if (interactive && onSelect) {
-      onSelect(branch, e.currentTarget);
-    }
-  };
+  const handleClick =
+    onSelect && !isCurrent
+      ? (e: MouseEvent<HTMLButtonElement>): void =>
+          onSelect(branch, e.currentTarget)
+      : undefined;
   return (
     <button
       type="button"
@@ -92,8 +90,8 @@ const Segment: FC<SegmentProps> = ({
       data-testid="bp-segment"
       data-branch={branch}
       aria-checked={isCurrent}
-      onClick={interactive ? handleClick : undefined}
-      disabled={!interactive}
+      onClick={handleClick}
+      disabled={!handleClick}
     >
       {isParent && <ContinuesGlyph />}
       <span>{branch}</span>

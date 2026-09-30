@@ -28,6 +28,7 @@ export * from "./useEventUrlSync";
 export * from "./useEventListener";
 export * from "./useInterval";
 export * from "./useLatestRef";
+export * from "./useMirrorToStore";
 export * from "./useMountEffect";
 export * from "./useOnClickOutside";
 export * from "./useTimeout";

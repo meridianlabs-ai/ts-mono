@@ -8,6 +8,7 @@ import { isRecord } from "@tsmono/util";
 
 import { isChatMessage } from "../../chat/types";
 
+import { indexedItems, resolveAfter } from "./changeDiff";
 import styles from "./StateEventRenderers.module.css";
 
 interface Signature {
@@ -23,11 +24,7 @@ interface ChangeType {
   defaultVisible?: boolean;
   signature?: Signature;
   match?: (changes: JsonChange[]) => boolean;
-  render: (
-    changes: JsonChange[],
-    state: Record<string, unknown>,
-    eventNodeId: string
-  ) => JSX.Element;
+  render: (changes: JsonChange[], eventNodeId: string) => JSX.Element;
 }
 
 const system_msg_added_sig: ChangeType = {
@@ -37,9 +34,8 @@ const system_msg_added_sig: ChangeType = {
     replace: ["/messages/0/role", "/messages/0/content"],
     add: ["/messages/1"],
   },
-  render: (_changes, resolvedState) => {
-    const messages: unknown = resolvedState["messages"];
-    const message: unknown = Array.isArray(messages) ? messages[0] : undefined;
+  render: (changes) => {
+    const message = resolveAfter(changes, "/messages/0");
     if (!isChatMessage(message)) {
       return <></>;
     }
@@ -53,9 +49,9 @@ const system_msg_added_sig: ChangeType = {
   },
 };
 
-// Every value below is read out of a JSON-patch change or a resolved state
-// blob — untyped wire data. These keep what matches and drop what doesn't, so
-// a malformed log renders less rather than rendering wrong.
+// Every value below is read out of a JSON-patch change — untyped wire data.
+// These keep what matches and drop what doesn't, so a malformed log renders
+// less rather than rendering wrong.
 const readNumber = (value: unknown): number | undefined =>
   typeof value === "number" ? value : undefined;
 
@@ -75,8 +71,8 @@ const use_tools: ChangeType = {
     replace: ["/tool_choice"],
     remove: [],
   },
-  render: (changes, resolvedState) => {
-    return renderTools(changes, resolvedState);
+  render: (changes) => {
+    return renderTools(changes);
   },
 };
 
@@ -87,8 +83,8 @@ const add_tools: ChangeType = {
     replace: [],
     remove: [],
   },
-  render: (changes, resolvedState) => {
-    return renderTools(changes, resolvedState);
+  render: (changes) => {
+    return renderTools(changes);
   },
 };
 
@@ -133,14 +129,16 @@ const human_baseline_session: ChangeType = {
     replace: [],
     remove: [],
   },
-  render: (_changes, state: Record<string, unknown>, eventNodeId) => {
+  render: (changes, eventNodeId) => {
+    const read = (key: string) =>
+      resolveAfter(changes, `/${humanAgentKey(key)}`);
     // Read the session values
-    const started = readNumber(state[humanAgentKey("started_running")]);
-    const runtime = readNumber(state[humanAgentKey("accumulated_time")]);
-    const answer = readString(state[humanAgentKey("answer")]);
+    const started = readNumber(read("started_running"));
+    const runtime = readNumber(read("accumulated_time"));
+    const answer = readString(read("answer"));
     const completed = !!answer;
-    const running = state[humanAgentKey("running_state")] === true;
-    const rawSessions = state[humanAgentKey("logs")];
+    const running = read("running_state") === true;
+    const rawSessions = read("logs");
 
     // Tweak the date value
     const startedDate = started ? new Date(started * 1000) : undefined;
@@ -194,10 +192,7 @@ const human_baseline_session: ChangeType = {
   },
 };
 
-const renderTools = (
-  changes: JsonChange[],
-  resolvedState: Record<string, unknown>
-) => {
+const renderTools = (changes: JsonChange[]) => {
   // Find which tools were added in this change
   const toolIndexes: string[] = [];
   for (const change of changes) {
@@ -221,29 +216,25 @@ const renderTools = (
   const hasToolChoice = changes.find((change) => {
     return change.path.startsWith("/tool_choice");
   });
-  if (resolvedState.tool_choice && hasToolChoice) {
+  const toolChoice = resolveAfter(changes, "/tool_choice");
+  if (toolChoice && hasToolChoice) {
     toolsInfo["Tool Choice"] = (
-      <span className={clsx("text-size-smaller")}>
-        {toolName(resolvedState.tool_choice)}
-      </span>
+      <span className={clsx("text-size-smaller")}>{toolName(toolChoice)}</span>
     );
   }
 
   // Show either all tools or just the specific tools
-  const tools: unknown[] = Array.isArray(resolvedState.tools)
-    ? resolvedState.tools
-    : [];
+  const tools = indexedItems(resolveAfter(changes, "/tools"));
   if (tools.length > 0) {
-    if (toolIndexes.length === 0) {
-      toolsInfo["Tools"] = (
-        <Tools toolDefinitions={tools.filter(isToolDefinition)} />
-      );
-    } else {
-      const filtered = tools
-        .filter((_, index) => toolIndexes.includes(index.toString()))
-        .filter(isToolDefinition);
-      toolsInfo["Tools"] = <Tools toolDefinitions={filtered} />;
-    }
+    const shown =
+      toolIndexes.length === 0
+        ? tools
+        : tools.filter(([index]) => toolIndexes.includes(index));
+    toolsInfo["Tools"] = (
+      <Tools
+        toolDefinitions={shown.map(([, tool]) => tool).filter(isToolDefinition)}
+      />
+    );
   }
 
   return (

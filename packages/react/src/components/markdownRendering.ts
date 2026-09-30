@@ -228,27 +228,42 @@ export const restoreBackslashesForLatex = (content: string): string => {
   }
 };
 
-// Fixes dots notation in LaTeX by replacing \dots with \ldots for better compatibility
+// Replaces the first `\dots` inside each delimited math run with `\ldots`
+// (MathJax supports the latter more reliably). Equivalent to the regex
+// /(<delim>[^$]*?)\\dots([^$]*?<delim>)/g, but driven by indexOf: with the
+// regex, an unclosed delimiter rescanned to end-of-input from every `\dots`.
+const replaceDotsBetween = (content: string, delim: "$" | "$$"): string => {
+  let out = "";
+  let emitted = 0;
+  let search = 0;
+  let nextDots = content.indexOf("\\dots");
+  while (nextDots !== -1) {
+    const open = content.indexOf(delim, search);
+    if (open === -1) break;
+    const bodyStart = open + delim.length;
+    const close = content.indexOf("$", bodyStart);
+    if (close === -1) break;
+    if (nextDots < bodyStart) {
+      nextDots = content.indexOf("\\dots", bodyStart);
+      if (nextDots === -1) break;
+    }
+    if (nextDots < close && content.startsWith(delim, close)) {
+      out += `${content.slice(emitted, nextDots)}\\ldots`;
+      emitted = nextDots + "\\dots".length;
+      search = close + delim.length;
+    } else {
+      search = open + 1;
+    }
+  }
+  return emitted === 0 ? content : out + content.slice(emitted);
+};
+
 const fixDotsNotation = (content: string): string => {
   if (!content) return content;
-
-  try {
-    // Handle both inline and block math
-    // First, fix inline math expressions ($...$)
-    let result = content.replace(/(\$[^$]*?)\\dots([^$]*?\$)/g, "$1\\ldots$2");
-
-    // Then, fix block math expressions ($...$)
-    result = result.replace(/(\$\$[^$]*?)\\dots([^$]*?\$\$)/g, "$1\\ldots$2");
-
-    return result;
-  } catch (error) {
-    console.error("Error fixing dots notation:", error);
-    return content;
-  }
+  return replaceDotsBetween(replaceDotsBetween(content, "$"), "$$");
 };
 
 const kLetterListPattern = /^([a-zA-Z][).]\s.*?)$/gm;
-const kCommonmarkReferenceLinkPattern = /\[([^\]]*)\]: (?!http)(.*)/g;
 
 export const preRenderText = (txt: string): string => {
   if (!txt) return txt;
@@ -264,13 +279,40 @@ export const preRenderText = (txt: string): string => {
   );
 };
 
+// Line terminators are the characters an unflagged regex `.` refuses to match.
+const isLineTerminator = (code: number): boolean =>
+  code === 0x0a || code === 0x0d || code === 0x2028 || code === 0x2029;
+
+// Hides `[label]: text` spans from markdown-it's reference-definition rule.
+// Equivalent to replacing /\[([^\]]*)\]: (?!http)(.*)/g with
+// "(open:767A125E)$1(close:767A125E) $2 ", but driven by indexOf: every `[`
+// ahead of a given `]` pairs with that same `]`, so a failed pair skips past
+// it instead of rescanning from each `[` (quadratic on a run of `[`).
 export const protectMarkdown = (txt: string): string => {
   if (!txt) return txt;
 
-  return txt.replaceAll(
-    kCommonmarkReferenceLinkPattern,
-    "(open:767A125E)$1(close:767A125E) $2 "
-  );
+  let out = "";
+  let emitted = 0;
+  let search = 0;
+  for (;;) {
+    const open = txt.indexOf("[", search);
+    if (open === -1) break;
+    const close = txt.indexOf("]", open + 1);
+    if (close === -1) break;
+    if (!txt.startsWith("]: ", close) || txt.startsWith("http", close + 3)) {
+      search = close + 1;
+      continue;
+    }
+    const bodyStart = close + 3;
+    let lineEnd = bodyStart;
+    while (lineEnd < txt.length && !isLineTerminator(txt.charCodeAt(lineEnd))) {
+      lineEnd++;
+    }
+    out += `${txt.slice(emitted, open)}(open:767A125E)${txt.slice(open + 1, close)}(close:767A125E) ${txt.slice(bodyStart, lineEnd)} `;
+    emitted = lineEnd;
+    search = lineEnd;
+  }
+  return emitted === 0 ? txt : out + txt.slice(emitted);
 };
 
 export const unprotectMarkdown = (txt: string): string => {

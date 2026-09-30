@@ -381,6 +381,38 @@ describe("Database Service", () => {
       });
       expect(rows).toHaveLength(1);
     });
+
+    test("point-reads a completed summary across string and numeric ids", async () => {
+      const file = "/test/logs/eval1.json";
+      await writeLogDetails({
+        [file]: createTestLogInfo({
+          sampleSummaries: [
+            createTestSampleSummary({ id: 1, epoch: 2, completed: true }),
+            createTestSampleSummary({
+              id: "other",
+              epoch: 2,
+              completed: false,
+            }),
+          ],
+        }),
+      });
+
+      expect(
+        await databaseService.hasCompletedSampleSummary(file, "1", 2)
+      ).toBe(true);
+      expect(await databaseService.hasCompletedSampleSummary(file, 1, 2)).toBe(
+        true
+      );
+      expect(
+        await databaseService.hasCompletedSampleSummary(file, "other", 2)
+      ).toBe(false);
+      expect(
+        await databaseService.hasCompletedSampleSummary(file, "missing", 2)
+      ).toBe(false);
+      expect(
+        await databaseService.hasCompletedSampleSummary(file, "1", 1)
+      ).toBe(false);
+    });
   });
 
   describe("Cache Statistics and Management", () => {

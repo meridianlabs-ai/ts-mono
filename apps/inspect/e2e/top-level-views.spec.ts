@@ -7,13 +7,17 @@
  * - Each view renders its expected content
  * - Route prefixes are preserved when navigating into a log and back
  */
+import type { BrowserContext, Locator, Page } from "@playwright/test";
+
 import { expect, test } from "./fixtures/app";
 import {
   columnHeader,
   gridCell,
-  segmentButton,
+  segmentLink,
   setupLogListHandlers,
 } from "./fixtures/log-list-scenario";
+import { serveEvalLog } from "./fixtures/serve-log";
+import { createEvalLog, createEvalSample } from "./fixtures/test-data";
 
 test.describe("Top-level views", () => {
   test("default route shows the Tasks view", async ({ page, network }) => {
@@ -21,7 +25,7 @@ test.describe("Top-level views", () => {
     await page.goto("/");
 
     // The Tasks segment should be visible
-    await expect(segmentButton(page, "Tasks")).toBeVisible();
+    await expect(segmentLink(page, "Tasks")).toBeVisible();
 
     // Should show task rows in a grid (flat list, no folder grouping)
     const grid = page.getByRole("grid");
@@ -40,7 +44,7 @@ test.describe("Top-level views", () => {
     await page.goto("/");
 
     // Click the Folders segment
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
 
     // URL should update to /logs
     await expect(page).toHaveURL(/#\/logs/);
@@ -57,10 +61,25 @@ test.describe("Top-level views", () => {
     await page.goto("/");
 
     // Click the Samples segment
-    await segmentButton(page, "Samples").click();
+    await segmentLink(page, "Samples").click();
 
     // URL should update to /samples
     await expect(page).toHaveURL(/#\/samples/);
+  });
+
+  test("Samples view hides the Cost column until it is picked", async ({
+    page,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/#/samples");
+
+    await expect(columnHeader(page, "Tokens")).toBeVisible();
+    await expect(columnHeader(page, "Cost")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Columns" }).click();
+    await page.getByRole("checkbox", { name: "Cost" }).check();
+    await expect(columnHeader(page, "Cost")).toBeVisible();
   });
 
   test("can switch between all three views", async ({ page, network }) => {
@@ -71,15 +90,15 @@ test.describe("Top-level views", () => {
     await expect(gridCell(page, "task-alpha")).toBeVisible();
 
     // Switch to Folders
-    await segmentButton(page, "Folders").click();
+    await segmentLink(page, "Folders").click();
     await expect(page).toHaveURL(/#\/logs/);
 
     // Switch to Samples
-    await segmentButton(page, "Samples").click();
+    await segmentLink(page, "Samples").click();
     await expect(page).toHaveURL(/#\/samples/);
 
     // Switch back to Tasks
-    await segmentButton(page, "Tasks").click();
+    await segmentLink(page, "Tasks").click();
     await expect(page).toHaveURL(/#\/tasks/);
     await expect(gridCell(page, "task-alpha")).toBeVisible();
   });
@@ -259,6 +278,239 @@ test.describe("Keyboard navigation", () => {
     await page.keyboard.press("Enter");
     await page.waitForURL(/#\/tasks\/.+/);
     expect(page.url()).toMatch(/#\/tasks\/.+/);
+  });
+});
+
+test.describe("Open in new tab", () => {
+  // page.url() stays "about:blank" for a background tab opened by a native
+  // link gesture, so read the location from inside the page (retrying while
+  // its initial navigation tears down the execution context).
+  const expectTabUrl = (tab: Page, url: RegExp) =>
+    expect
+      .poll(() => tab.evaluate(() => location.href).catch(() => ""))
+      .toMatch(url);
+
+  // Clicked away from the name cell: the whole row is the link, not just the
+  // task text.
+  const lastCellOf = (page: Page, rowText: string) =>
+    page
+      .getByRole("row")
+      .filter({ hasText: rowText })
+      .getByRole("gridcell")
+      .last();
+
+  test("cmd/ctrl-click on a log row opens it in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    // The host page's query (e.g. ?log_dir=) must survive into the new tab.
+    await page.goto("/?keep=1");
+    await expect(gridCell(page, "task-beta")).toBeVisible();
+    const listUrl = page.url();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      lastCellOf(page, "task-beta").click({ modifiers: ["ControlOrMeta"] }),
+    ]);
+    await expectTabUrl(newPage, /\?keep=1#\/tasks\/.*task-beta/);
+
+    expect(page.url()).toBe(listUrl);
+    await expect(
+      page.locator('[role="row"][aria-selected="true"]')
+    ).toContainText("task-beta");
+    // Focus stays on the grid, so arrow keys keep working.
+    await expect(page.getByRole("grid")).toBeFocused();
+  });
+
+  test("middle-click on a log row opens it in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-beta")).toBeVisible();
+    const listUrl = page.url();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      lastCellOf(page, "task-beta").click({ button: "middle" }),
+    ]);
+    await expectTabUrl(newPage, /#\/tasks\/.*task-beta/);
+    expect(page.url()).toBe(listUrl);
+  });
+
+  test("cmd/ctrl-click on a sample row opens the sample in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    const logFile = "two-samples.json";
+    const sample = (id: number) =>
+      createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      });
+    serveEvalLog(
+      network,
+      createEvalLog({ samples: [sample(1), sample(2)] }),
+      logFile
+    );
+    await page.goto(`/?keep=1#/logs/${logFile}`);
+    const sampleRow = page
+      .getByRole("grid")
+      .getByRole("rowgroup")
+      .last()
+      .getByRole("row")
+      .filter({ hasText: "input 2" });
+    await expect(sampleRow).toBeVisible();
+    const listUrl = page.url();
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      sampleRow.click({ modifiers: ["ControlOrMeta"] }),
+    ]);
+    await expectTabUrl(
+      newPage,
+      /\?keep=1#\/logs\/two-samples\.json\/samples\/sample\/2\/1/
+    );
+    expect(page.url()).toBe(listUrl);
+  });
+
+  // Opens `link` with cmd/ctrl-click and checks the new tab's URL while the
+  // current page stays where it was.
+  const expectOpensInNewTab = async (
+    page: Page,
+    context: BrowserContext,
+    link: Locator,
+    url: RegExp
+  ) => {
+    const before = page.url();
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      link.click({ modifiers: ["ControlOrMeta"] }),
+    ]);
+    await expectTabUrl(newPage, url);
+    expect(page.url()).toBe(before);
+    await newPage.close();
+  };
+
+  const serveTwoSamples = (
+    network: Parameters<typeof setupLogListHandlers>[0]
+  ) => {
+    const sample = (id: number) =>
+      createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      });
+    serveEvalLog(
+      network,
+      createEvalLog({ samples: [sample(1), sample(2)] }),
+      "two-samples.json"
+    );
+  };
+
+  test("the Tasks / Folders / Samples switcher opens views in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    setupLogListHandlers(network);
+    await page.goto("/");
+    await expect(gridCell(page, "task-alpha")).toBeVisible();
+
+    const nav = page.getByRole("navigation");
+    for (const [name, route] of [
+      ["Tasks", /#\/tasks\/$/],
+      ["Folders", /#\/logs\/$/],
+      ["Samples", /#\/samples\/$/],
+    ] as const) {
+      await expect(nav.getByRole("link", { name })).toHaveAttribute(
+        "href",
+        route
+      );
+    }
+    await expectOpensInNewTab(
+      page,
+      context,
+      nav.getByRole("link", { name: "Folders" }),
+      /#\/logs\/$/
+    );
+    // A plain click still switches in place.
+    await nav.getByRole("link", { name: "Samples" }).click();
+    await expect(page).toHaveURL(/#\/samples\//);
+  });
+
+  test("log tabs open in a new tab", async ({ page, context, network }) => {
+    serveTwoSamples(network);
+    await page.goto("/#/logs/two-samples.json");
+    const infoTab = page.getByRole("tab", { name: "Info" });
+    await expect(infoTab).toBeVisible();
+
+    await expectOpensInNewTab(
+      page,
+      context,
+      infoTab,
+      /#\/logs\/two-samples\.json\/info$/
+    );
+    await infoTab.click();
+    await expect(page).toHaveURL(/#\/logs\/two-samples\.json\/info$/);
+  });
+
+  test("sample tabs and prev/next open in a new tab", async ({
+    page,
+    context,
+    network,
+  }) => {
+    serveTwoSamples(network);
+    await page.goto("/#/logs/two-samples.json/samples/sample/1/1/transcript");
+    const next = page.getByRole("link", { name: "Next sample" });
+    await expect(next).toBeVisible();
+
+    await expectOpensInNewTab(
+      page,
+      context,
+      next,
+      /#\/logs\/two-samples\.json\/samples\/sample\/2\/1\/transcript$/
+    );
+    await expectOpensInNewTab(
+      page,
+      context,
+      page.getByRole("tab", { name: "Messages" }),
+      /#\/logs\/two-samples\.json\/samples\/sample\/1\/1\/messages$/
+    );
+    // Plain clicks still navigate in place.
+    await next.click();
+    await expect(page).toHaveURL(/\/samples\/sample\/2\/1\/transcript$/);
+  });
+
+  test("sample links keep the route surface and the current view", async ({
+    page,
+    network,
+  }) => {
+    serveTwoSamples(network);
+    // Under /tasks, links stay under /tasks and keep the sample tab.
+    await page.goto("/#/tasks/two-samples.json/samples/sample/1/1/messages");
+    await expect(
+      page.getByRole("link", { name: "Next sample" })
+    ).toHaveAttribute(
+      "href",
+      /#\/tasks\/two-samples\.json\/samples\/sample\/2\/1\/messages$/
+    );
+    await expect(page.getByRole("tab", { name: "Transcript" })).toHaveAttribute(
+      "href",
+      /#\/tasks\/two-samples\.json\/samples\/sample\/1\/1\/transcript$/
+    );
+    // In focus mode, next-sample stays in focus mode.
+    await page.goto("/#/logs/two-samples.json/samples/sample/1/1/event");
+    await expect(
+      page.getByRole("link", { name: "Next sample" })
+    ).toHaveAttribute(
+      "href",
+      /#\/logs\/two-samples\.json\/samples\/sample\/2\/1\/event$/
+    );
   });
 });
 
