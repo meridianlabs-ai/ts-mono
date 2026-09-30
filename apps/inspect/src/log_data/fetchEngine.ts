@@ -1,6 +1,4 @@
 import { LogHandle } from "@tsmono/inspect-common";
-import { logContentTrust } from "@tsmono/inspect-components/content";
-import type { ContentTrust } from "@tsmono/react/components";
 import { throttle } from "@tsmono/util";
 
 import {
@@ -246,10 +244,6 @@ export class FetchEngine {
   // so its settle must not bump `details_settled_seq`. A later active call
   // joining the same in-flight fetch adds the key too, upgrading it.
   private readonly _activeSettles = new Set<string>();
-  // Each log's content trust as its header was last read from the server this
-  // session. A cached header can outlive its file (rewritten in place, with no
-  // mtime to invalidate the cache), so it can't vouch for freshly read bytes.
-  private readonly _serverTrust = new Map<string, ContentTrust>();
   // Engine generation, bumped on every stop() — a batch claimed under an
   // earlier generation that settles after a stop()/start() (dir switch) is
   // discarded rather than recorded/waited-on/coalesced into the new
@@ -614,7 +608,6 @@ export class FetchEngine {
       }
       const claims = { [name]: stamp?.seq };
       const detail = result.value.value;
-      this._serverTrust.set(name, logContentTrust(detail));
       let preview: LogPreview;
       try {
         preview = toLogPreview(detail);
@@ -760,7 +753,6 @@ export class FetchEngine {
     this._queue.clear();
     this._freshDetails.clear();
     this._activeSettles.clear();
-    this._serverTrust.clear();
     this._latestDetailsClaim.clear();
     this._fetchStates = {};
     this._pendingPreviewWrites = {};
@@ -782,14 +774,6 @@ export class FetchEngine {
    *  listing sync against a `stop()`/`start()` racing its server read. */
   public epoch(): number {
     return this._epoch;
-  }
-
-  /**
-   * A log's content trust as its header was last read from the server this
-   * session, or undefined when it hasn't been (a cached header only).
-   */
-  public serverContentTrust(logFile: string): ContentTrust | undefined {
-    return this._serverTrust.get(this.resolveKey(logFile));
   }
 
   /** The current listing (what the sink last activated). */

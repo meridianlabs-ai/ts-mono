@@ -1,5 +1,4 @@
 import { LogHandle } from "@tsmono/inspect-common";
-import type { ContentTrust } from "@tsmono/react/components";
 
 import { AppConfig, getAppConfig } from "../app_config";
 import { DatabaseService } from "../client/database";
@@ -234,28 +233,6 @@ export const fetchLog = async (
     fresh: opts?.fresh,
     demand: opts?.passive ? "passive" : "active",
   });
-};
-
-/**
- * A log's content trust as its header is read from the server now, bypassing
- * the cached row: the header that decides whether freshly read content is
- * trusted must come from the file as it is now. Resolves "untrusted" if no
- * server read lands.
- */
-export const fetchLogContentTrust = async (
-  logDir: string,
-  logFile: string
-): Promise<ContentTrust> => {
-  // A fresh fetch can join a pending cache-hit read, which settles without
-  // reading the server; the next one can't.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    await fetchLog(logDir, logFile, { fresh: true, passive: true });
-    const trust = fetchEngine.serverContentTrust(logFile);
-    if (trust !== undefined) {
-      return trust;
-    }
-  }
-  return "untrusted";
 };
 
 // Serialize listing syncs with a trailing coalesce: a request arriving

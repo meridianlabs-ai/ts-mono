@@ -8,24 +8,19 @@ import {
 } from "@tsmono/react/components";
 
 import { useLogDir } from "../../app_config";
-import { useLogHeader, useServerLogContentTrust } from "../../log_data";
+import { useLogHeader } from "../../log_data";
 import { useStore } from "../../state/store";
 
 /**
  * The content trust of one log, or `undefined` when no log is given. A log
- * is untrusted until its header has been read from the server this session
- * (a cached header may describe an earlier version of the file), and while
- * either that read or the current header says so.
+ * whose header hasn't loaded is untrusted until it does.
  */
 export const useLogFileContentTrust = (
   logFile: string | undefined
 ): ContentTrust | undefined => {
   const logDir = useLogDir();
   const header = useLogHeader(logDir, logFile, { demand: "passive" });
-  const serverTrust = useServerLogContentTrust(logDir, logFile);
-  return logFile === undefined
-    ? undefined
-    : combineContentTrust([logContentTrust(header.data), serverTrust]);
+  return logFile === undefined ? undefined : logContentTrust(header.data);
 };
 
 /** Trust for the selected log's content (untrusted when none is selected). */
