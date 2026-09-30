@@ -109,6 +109,23 @@ describe("FindBand", () => {
     expect(windowFind.mock.calls.every((call) => call[2] === true)).toBe(true);
   });
 
+  it.each([
+    { shiftKey: false, backwards: false },
+    { shiftKey: true, backwards: true },
+  ])(
+    "Enter on the body (Firefox after window.find) searches with backwards=$backwards",
+    async ({ shiftKey, backwards }) => {
+      renderFindBand();
+
+      fireEvent.keyDown(document.body, { key: "Enter", shiftKey });
+
+      await waitFor(() => expect(windowFind).toHaveBeenCalled());
+      expect(windowFind.mock.calls.every((call) => call[2] === backwards)).toBe(
+        true
+      );
+    }
+  );
+
   it("intercepts Cmd+F with CapsLock (uppercase key) instead of native find", () => {
     const { input } = renderFindBand();
     input.blur();
