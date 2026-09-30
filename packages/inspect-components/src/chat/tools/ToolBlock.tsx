@@ -1,6 +1,8 @@
 import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
+import { ContentText } from "@tsmono/react/components";
+
 import styles from "./ToolBlock.module.css";
 
 interface ToolBlockProps {
@@ -46,8 +48,14 @@ export const ToolBlock: FC<ToolBlockProps> = ({
     >
       <div className={styles.header}>
         <i className={clsx("bi", icon, styles.icon)} />
-        <span className={styles.title}>{title}</span>
-        {summary ? <span className={styles.summary}>{summary}</span> : null}
+        <span className={styles.title}>
+          <ContentText text={title} />
+        </span>
+        {summary ? (
+          <span className={styles.summary}>
+            <ContentText text={summary} />
+          </span>
+        ) : null}
         {pill ? <span className={styles.pill}>{pill}</span> : null}
       </div>
       {children}

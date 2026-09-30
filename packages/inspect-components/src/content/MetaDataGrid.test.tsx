@@ -6,6 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -19,13 +20,19 @@ import { MetaDataGrid } from "./MetaDataGrid";
 
 const renderGrid = (
   entries: Record<string, unknown>,
-  options?: { copyButton?: boolean }
+  options?: { copyButton?: boolean },
+  cells?: ReadonlyMap<string, ReactNode>
 ) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentIconProvider icons={testIcons}>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <MetaDataGrid id="test-grid" entries={entries} options={options} />
+          <MetaDataGrid
+            id="test-grid"
+            entries={entries}
+            options={options}
+            cells={cells}
+          />
         </ComponentNavigationProvider>
       </ComponentIconProvider>
     </ComponentStateProvider>
@@ -84,10 +91,11 @@ describe("MetaDataGrid copy button", () => {
     });
   });
 
-  it("renders no copy button for _html escape rows", () => {
+  it("renders no copy button for application control cells", () => {
     renderGrid(
-      { custom: { _html: <span>bespoke</span> } },
-      { copyButton: true }
+      { custom: "value" },
+      { copyButton: true },
+      new Map([["custom", <span key="custom">bespoke</span>]])
     );
     expect(screen.queryByRole("button", { name: /copy/i })).toBeNull();
   });
@@ -105,10 +113,19 @@ describe("MetaDataGrid log-authored escape-hatch keys", () => {
     expect(container.textContent).toContain("web_search");
   });
 
-  it("still renders a React element under _html as-is", () => {
-    const { container } = renderGrid({
-      tags: { _html: <span data-testid="custom-tags">custom</span> },
-    });
+  it("renders application controls independently of the plain content policy", () => {
+    const { container } = renderGrid(
+      { tags: ["custom"] },
+      undefined,
+      new Map([
+        [
+          "tags",
+          <span key="tags" data-testid="custom-tags">
+            custom
+          </span>,
+        ],
+      ])
+    );
 
     expect(
       container.querySelector('[data-testid="custom-tags"]')

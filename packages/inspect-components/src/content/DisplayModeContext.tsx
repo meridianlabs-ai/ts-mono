@@ -1,6 +1,9 @@
 import { createContext, useContext } from "react";
 
-import { useContentTrust } from "@tsmono/react/components";
+import {
+  isRichContentPolicy,
+  useContentPolicy,
+} from "@tsmono/react/components";
 
 export type DisplayMode = "rendered" | "raw";
 
@@ -14,14 +17,22 @@ export const DisplayModeContext = createContext<DisplayModeContextType | null>(
 
 /**
  * Hook to access display mode. Returns default "rendered" if no provider
- * exists, and always "raw" for content that isn't trusted.
+ * exists. Rendering permission is resolved independently.
  */
 export const useDisplayMode = (): DisplayMode => {
   const context = useContext(DisplayModeContext);
-  const trust = useContentTrust();
-  if (trust !== "trusted") {
-    return "raw";
-  }
   // Graceful fallback: if no provider, default to "rendered"
   return context?.displayMode ?? "rendered";
+};
+
+export const useFormattedContent = (): boolean => {
+  const policy = useContentPolicy();
+  return useDisplayMode() === "rendered" && policy.formattedData;
+};
+
+// Arbitrary application callbacks may emit any rich content. Until they
+// adopt the policy-aware rendering components, they require every permission.
+export const useCustomContent = (): boolean => {
+  const policy = useContentPolicy();
+  return useDisplayMode() === "rendered" && isRichContentPolicy(policy);
 };

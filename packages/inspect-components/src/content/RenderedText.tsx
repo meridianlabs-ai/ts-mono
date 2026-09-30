@@ -9,6 +9,7 @@ import {
   truncationWindow,
   untrustedText,
   untrustedTextClassName,
+  useContentPolicy,
   useIsContentTrusted,
   type MarkdownRenderer,
 } from "@tsmono/react/components";
@@ -50,6 +51,7 @@ export const RenderedText = forwardRef<
   ) => {
     const displayMode = useDisplayMode();
     const trusted = useIsContentTrusted();
+    const policy = useContentPolicy();
     // Truncation reads only this much, so the cap never applies to it.
     const { text, notice } = cappedText(
       truncateAt === undefined
@@ -63,7 +65,7 @@ export const RenderedText = forwardRef<
 
     // forceRender overrides the display mode, never content trust.
     const body =
-      trusted && (forceRender || displayMode === "rendered") ? (
+      policy.markdown && (forceRender || displayMode === "rendered") ? (
         <MarkdownDivWithReferences
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLDivElement>}

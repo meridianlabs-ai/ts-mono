@@ -22,10 +22,7 @@ import type { MarkdownReference } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { isRenderableImageSource, parseJsonRecord } from "@tsmono/util";
 
-import {
-  useDisplayMode,
-  type DisplayMode,
-} from "../content/DisplayModeContext";
+import { useFormattedContent } from "../content/DisplayModeContext";
 import { RenderedText } from "../content/RenderedText";
 import { MediaReference } from "../media/MediaReference";
 import {
@@ -81,8 +78,8 @@ export const MessageContent: FC<MessageContentProps> = ({
   contents,
   references,
 }) => {
-  const displayMode = useDisplayMode();
-  const normalized = normalizeContent(contents, displayMode);
+  const formatContent = useFormattedContent();
+  const normalized = normalizeContent(contents, formatContent);
   if (Array.isArray(normalized)) {
     return normalized.map((content, index) => {
       if (typeof content === "string") {
@@ -96,7 +93,7 @@ export const MessageContent: FC<MessageContentProps> = ({
             citations: null,
           },
           index === normalized.length - 1,
-          displayMode,
+          formatContent,
           references
         );
       } else {
@@ -104,7 +101,7 @@ export const MessageContent: FC<MessageContentProps> = ({
           `text-${content.type}-${index}`,
           content,
           index === normalized.length - 1,
-          displayMode,
+          formatContent,
           references
         );
       }
@@ -122,7 +119,7 @@ export const MessageContent: FC<MessageContentProps> = ({
       "text-message-content",
       contentText,
       true,
-      displayMode,
+      formatContent,
       references
     );
   }
@@ -137,7 +134,7 @@ const renderContent = (
   key: string,
   content: ContentObject,
   isLast: boolean,
-  displayMode: DisplayMode,
+  formatContent: boolean,
   references?: MarkdownReference[]
 ): ReactNode => {
   switch (content.type) {
@@ -149,7 +146,7 @@ const renderContent = (
         return undefined;
       }
 
-      if (displayMode === "rendered") {
+      if (formatContent) {
         const parsed = parseJsonRecord(c.text);
         if (parsed) {
           return <JsonMessageContent id={`${key}-json`} json={parsed} />;
@@ -191,10 +188,9 @@ const renderContent = (
 
       // Reformatting is rendering: raw mode (always, for untrusted content)
       // shows the reasoning exactly as the model wrote it.
-      const openRouterCode =
-        displayMode === "rendered"
-          ? formatOpenRouterReasoning(text)
-          : undefined;
+      const openRouterCode = formatContent
+        ? formatOpenRouterReasoning(text)
+        : undefined;
       const renderReasoningCode = openRouterCode !== undefined;
       const codeFormatted = openRouterCode ?? text;
 
@@ -301,11 +297,11 @@ const renderContent = (
 // they can be rendered separately (with coordinating numbers).
 const normalizeContent = (
   contents: Contents,
-  displayMode: DisplayMode
+  formatContent: boolean
 ): Contents => {
   // Raw mode presents the logged content blocks without citation injection or
   // other rendered-mode normalization.
-  if (displayMode === "raw") {
+  if (!formatContent) {
     return contents;
   }
 

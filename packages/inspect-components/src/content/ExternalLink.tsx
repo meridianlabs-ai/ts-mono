@@ -3,7 +3,7 @@ import { FC, ReactNode } from "react";
 import {
   ContentText,
   untrustedText,
-  useIsContentTrusted,
+  useContentPolicy,
 } from "@tsmono/react/components";
 import { parseAbsoluteHttpUrl } from "@tsmono/util";
 
@@ -28,8 +28,8 @@ export const ExternalLink: FC<ExternalLinkProps> = ({
   title,
   children,
 }) => {
-  const trusted = useIsContentTrusted();
-  if (!trusted) {
+  const policy = useContentPolicy();
+  if (!policy.links) {
     // Inert text, with the destination shown (revealed) so it stays
     // inspectable; tooltips honor bidi overrides, so the title is revealed too.
     return (

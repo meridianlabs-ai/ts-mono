@@ -7,6 +7,7 @@ import {
   RequireTrustedContent,
   untrustedText,
   untrustedTextClassName,
+  useContentPolicy,
   useIsContentTrusted,
 } from "@tsmono/react/components";
 import {
@@ -16,7 +17,10 @@ import {
 } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
-import { useDisplayMode } from "../../content/DisplayModeContext";
+import {
+  useDisplayMode,
+  useFormattedContent,
+} from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
@@ -100,8 +104,10 @@ interface ToolTextOutputProps {
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
   const trusted = useIsContentTrusted();
+  const formatContent = useFormattedContent();
+  const policy = useContentPolicy();
 
-  if (displayMode === "rendered") {
+  if (formatContent) {
     const obj = parseJsonRecord(text);
     if (obj) {
       return <JsonMessageContent id={`1-json`} json={obj} />;
@@ -118,7 +124,7 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   // It could have ANSI codes. Detection is bounded to the capped prefix so
   // log-authored output can never feed the regex an unbounded string; the
   // ANSI renderer still receives the full text as before.
-  if (displayMode === "rendered" && isAnsiOutput(capped)) {
+  if (displayMode === "rendered" && policy.ansi && isAnsiOutput(capped)) {
     return (
       <ANSIDisplay
         output={text}

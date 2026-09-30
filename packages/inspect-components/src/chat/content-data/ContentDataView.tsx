@@ -4,6 +4,7 @@ import { FC, ReactNode } from "react";
 import type { ContentData } from "@tsmono/inspect-common/types";
 import { isRecord } from "@tsmono/util";
 
+import { useFormattedContent } from "../../content/DisplayModeContext";
 import { RecordTree } from "../../content/RecordTree";
 
 import { CompactionData, kCompactionMetadata } from "./CompactionData";
@@ -24,6 +25,16 @@ interface RenderableData {
 }
 
 export const ContentDataView: FC<ContentDataProps> = ({ id, contentData }) => {
+  const formatContent = useFormattedContent();
+  if (!formatContent) {
+    return (
+      <RecordTree
+        id={`${id}-tree`}
+        record={contentData.data}
+        defaultExpandLevel={0}
+      />
+    );
+  }
   const renderableData = contentData.data as RenderableData;
 
   const renderer = contentDataRenderers.find((r) =>

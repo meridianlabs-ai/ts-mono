@@ -37,45 +37,45 @@ export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
 
   const entries = useMemo(() => {
     if (!config) {
-      return {};
+      return { values: {}, cells: new Map<string, React.ReactNode>() };
     }
     const effective = effectiveEvalConfig(config, configUpdates);
     const result: Record<string, unknown> = {};
+    const cells = new Map<string, React.ReactNode>();
     for (const [key, value] of Object.entries(effective)) {
       const change = changes.get(key);
-      result[key] = change
-        ? {
-            _html: (
-              <ConfigValueCell
-                value={value}
-                change={change}
-                onViewTimeline={showTimeline}
-                timelineHref={timelineHref}
-              />
-            ),
-          }
-        : value;
+      result[key] = value;
+      if (change)
+        cells.set(
+          key,
+          <ConfigValueCell
+            value={value}
+            change={change}
+            onViewTimeline={showTimeline}
+            timelineHref={timelineHref}
+          />
+        );
     }
     // Knobs touched mid-run but absent from the effective config (e.g. an
     // override set then cleared on a knob unset at launch) still get a row.
     for (const [key, change] of changes) {
       if (!(key in result)) {
-        result[key] = {
-          _html: (
-            <ConfigValueCell
-              value={undefined}
-              change={change}
-              onViewTimeline={showTimeline}
-              timelineHref={timelineHref}
-            />
-          ),
-        };
+        result[key] = undefined;
+        cells.set(
+          key,
+          <ConfigValueCell
+            value={undefined}
+            change={change}
+            onViewTimeline={showTimeline}
+            timelineHref={timelineHref}
+          />
+        );
       }
     }
-    return result;
+    return { values: result, cells };
   }, [config, configUpdates, changes, showTimeline, timelineHref]);
 
-  if (Object.keys(entries).length === 0) {
+  if (Object.keys(entries.values).length === 0) {
     return null;
   }
 
@@ -101,7 +101,8 @@ export const ConfigCard: FC<ConfigCardProps> = ({ config, configUpdates }) => {
         <MetaDataGrid
           key={`task-md-eval-config`}
           className={clsx("text-size-small")}
-          entries={entries}
+          entries={entries.values}
+          cells={entries.cells}
         />
       </CardBody>
     </Card>

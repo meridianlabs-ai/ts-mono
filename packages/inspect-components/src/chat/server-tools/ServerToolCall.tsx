@@ -2,9 +2,10 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
+import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
+import { useFormattedContent } from "../../content/DisplayModeContext";
 import { ExternalLink } from "../../content/ExternalLink";
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedContent } from "../../content/RenderedContent";
@@ -30,7 +31,68 @@ interface ServerToolCallProps {
  * grammar with a globe icon and a neutral "server" pill as the only server
  * signals.
  */
-export const ServerToolCall: FC<ServerToolCallProps> = ({
+export const ServerToolCall: FC<ServerToolCallProps> = (props) =>
+  useFormattedContent() ? (
+    <FormattedServerToolCall {...props} />
+  ) : (
+    <PlainServerToolCall {...props} />
+  );
+
+const PlainServerToolCall: FC<ServerToolCallProps> = ({
+  id,
+  content,
+  flush = true,
+  className,
+}) => (
+  <ToolBlock
+    id={id}
+    flush={flush}
+    className={className}
+    icon={iconForTool(content.name, { server: true })}
+    title={
+      content.context ? `${content.context} — ${content.name}` : content.name
+    }
+    pill="server"
+  >
+    {content.arguments.length > 0 && (
+      <ToolBlockInput>
+        <ExpandablePanel
+          id={`${id}-input`}
+          collapse={true}
+          border={false}
+          lines={20}
+        >
+          <ToolInput contents={content.arguments} />
+        </ExpandablePanel>
+      </ToolBlockInput>
+    )}
+    {(content.result.length > 0 || content.error) && (
+      <ToolBlockOutput>
+        {content.error && (
+          <ToolCallErrorView
+            error={{ type: "unknown", message: content.error }}
+          />
+        )}
+        {content.result.length > 0 && (
+          <ExpandablePanel
+            id={`${id}-output`}
+            collapse={true}
+            border={false}
+            lines={15}
+          >
+            <RenderedContent
+              id={`${id}-output`}
+              entry={{ name: "Output", value: content.result }}
+              renderOptions={{ renderString: "pre" }}
+            />
+          </ExpandablePanel>
+        )}
+      </ToolBlockOutput>
+    )}
+  </ToolBlock>
+);
+
+const FormattedServerToolCall: FC<ServerToolCallProps> = ({
   id,
   content,
   flush = true,
@@ -192,11 +254,13 @@ const CodeExecutionResult: FC<{
       lines={15}
     >
       {result.stdout ? (
-        <pre className={styles.execOutput}>{result.stdout}</pre>
+        <pre className={styles.execOutput}>
+          <ContentText text={result.stdout} />
+        </pre>
       ) : null}
       {result.stderr ? (
         <pre className={clsx(styles.execOutput, styles.execError)}>
-          {result.stderr}
+          <ContentText text={result.stderr} />
         </pre>
       ) : null}
       {!result.stdout && !result.stderr && result.encrypted ? (

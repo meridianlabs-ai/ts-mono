@@ -19,10 +19,11 @@ import {
 } from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
+import { useCustomContent, useFormattedContent } from "./DisplayModeContext";
 import { ExternalLink } from "./ExternalLink";
-import { isHtmlEscape } from "./htmlEscape";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
+import { PlainValue } from "./PlainValue";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
 import { Buckets, ContentRenderer, RenderOptions } from "./types";
@@ -78,6 +79,18 @@ export const RenderedContent: FC<RenderedContentProps> = ({
 }): JSX.Element => {
   const icons = useContentIcons();
   const externalRenderers = useContentRenderers();
+  const formatContent = useFormattedContent();
+  const customContent = useCustomContent();
+
+  if (!formatContent) {
+    return (
+      <PlainValue
+        id={id}
+        value={entry.value}
+        markdown={renderOptions.renderString === "markdown"}
+      />
+    );
+  }
 
   // Explicitly specify return type
   if (entry.value === null) {
@@ -91,8 +104,8 @@ export const RenderedContent: FC<RenderedContentProps> = ({
   }
   const renderers = contentRenderers(
     icons,
-    renderObject,
-    externalRenderers?.renderers
+    customContent ? renderObject : undefined,
+    customContent ? externalRenderers?.renderers : undefined
   );
   const renderer = Object.keys(renderers)
     .map((key) => {
@@ -349,15 +362,6 @@ const contentRenderers: (
               <ContentText text={String(entry.value)} />
             </pre>
           ),
-        };
-      },
-    },
-    Html: {
-      bucket: Buckets.intermediate,
-      canRender: (entry) => isHtmlEscape(entry.value),
-      render: (_id, entry, _options) => {
-        return {
-          rendered: entry.value._html,
         };
       },
     },

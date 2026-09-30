@@ -4,7 +4,7 @@ import { FC } from "react";
 import {
   untrustedText,
   untrustedTextClassName,
-  useIsContentTrusted,
+  useContentPolicy,
 } from "@tsmono/react/components";
 import { parseAbsoluteHttpUrl, parseDataUri } from "@tsmono/util";
 
@@ -19,7 +19,7 @@ export const MediaReference: FC<MediaReferenceProps> = ({
   source,
   className,
 }) => {
-  const trusted = useIsContentTrusted();
+  const trusted = useContentPolicy().links;
   const href = trusted ? parseAbsoluteHttpUrl(source) : undefined;
   const dataUri = parseDataUri(source);
   const label = dataUri

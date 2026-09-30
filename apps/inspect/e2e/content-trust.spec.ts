@@ -565,3 +565,42 @@ test.describe("a viewer started with --no-trust-content", () => {
     expect(await recorded("trusted")).toEqual([]);
   });
 });
+
+test.describe("Task revision links", () => {
+  for (const viewerTrusted of [true, false]) {
+    for (const label of ["trusted", "untrusted"] as const) {
+      test(`honors viewer=${viewerTrusted} and log=${label}`, async ({
+        page,
+        network,
+      }) => {
+        serveFixtures(network);
+        network.use(
+          http.get("*/api/app-config", () =>
+            HttpResponse.json({
+              inspect_version: "0.0.0-e2e",
+              scout_version: null,
+              trust_content: viewerTrusted,
+            })
+          )
+        );
+        await openView(page, logUrl(label, "task"), /Git Revision/);
+        const link = page.locator(
+          'a[href*="github.com/meridianlabs-ai/ts-mono/commit/"]'
+        );
+        await expect(link).toHaveCount(
+          viewerTrusted && label === "trusted" ? 1 : 0
+        );
+        await expect(page.getByText(/8793029f/).first()).toBeVisible();
+        if (!viewerTrusted || label === "untrusted") {
+          await expect(
+            page
+              .getByText(
+                /https:\/\/github.com\/meridianlabs-ai\/ts-mono\/commit\/8793029f/
+              )
+              .first()
+          ).toBeVisible();
+        }
+      });
+    }
+  }
+});

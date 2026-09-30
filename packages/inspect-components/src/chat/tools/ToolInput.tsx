@@ -2,9 +2,10 @@ import clsx from "clsx";
 import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
-import { ContentCode, useIsContentTrusted } from "@tsmono/react/components";
+import { ContentCode } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
+import { useFormattedContent } from "../../content/DisplayModeContext";
 import { RenderedText } from "../../content/RenderedText";
 
 import { kToolTodoContentType } from "./tool";
@@ -19,9 +20,11 @@ interface ToolInputProps {
 }
 export const ToolInput: FC<ToolInputProps> = (props) => {
   const { contentType, contents, toolCallView, className } = props;
+  const formatContent = useFormattedContent();
 
   const sourceCodeRef = useRef<HTMLDivElement | null>(null);
-  const useToolView = toolCallView && isValidView(toolCallView);
+  const useToolView =
+    formatContent && toolCallView && isValidView(toolCallView);
 
   const sourceCodeLength = useToolView
     ? toolCallView.content.length
@@ -73,8 +76,8 @@ const RenderTool: FC<RenderToolProps> = ({
   className,
 }) => {
   // The checklist is rendering; untrusted todos show as their serialization.
-  const trusted = useIsContentTrusted();
-  if (contentType === kToolTodoContentType && trusted) {
+  const formatContent = useFormattedContent();
+  if (contentType === kToolTodoContentType && formatContent) {
     return <TodoWriteInput contents={contents} parentRef={parentRef} />;
   }
 

@@ -16,3 +16,5 @@ export { resolveStoreKeys } from "./record_processors/store";
 export type { RecordProcessor } from "./record_processors/types";
 export { Buckets } from "./types";
 export type { ContentRenderer, RenderOptions } from "./types";
+
+export { ExternalLink } from "./ExternalLink";

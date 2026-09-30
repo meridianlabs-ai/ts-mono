@@ -14,7 +14,7 @@ import {
   type MarkdownReference,
 } from "@tsmono/react/components";
 
-import { useDisplayMode } from "../content/DisplayModeContext";
+import { useFormattedContent } from "../content/DisplayModeContext";
 import { RecordTree } from "../content/RecordTree";
 
 import styles from "./ChatMessage.module.css";
@@ -56,7 +56,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   const linkingEnabled = linking?.enabled ?? false;
   const getMessageUrl = linking?.getMessageUrl;
   const linkIcon = linking?.icon ?? "bi bi-link-45deg";
-  const displayMode = useDisplayMode();
+  const formatContent = useFormattedContent();
 
   const messageUrl = getMessageUrl?.(message.id || "");
 
@@ -75,7 +75,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // → markdown. Raw mode keeps the original message content.
   let toolSearchNamespaces: ToolSearchNamespaceEntry[] | undefined;
   let toolMarkdown: string | undefined;
-  if (displayMode === "rendered" && isNonSubagentTool && message.function) {
+  if (formatContent && isNonSubagentTool && message.function) {
     if (message.function === "tool_search") {
       toolSearchNamespaces = parseToolSearchCatalog(message.content);
     } else {
@@ -87,7 +87,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // compact status line — the answer itself is shown by the paired wait/close
   // result. Raw mode keeps the original notification.
   const subagentNotifications =
-    displayMode === "rendered" && message.role === "user"
+    formatContent && message.role === "user"
       ? formatSubagentNotifications(message.content)
       : undefined;
 
