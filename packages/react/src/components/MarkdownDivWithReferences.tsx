@@ -50,6 +50,15 @@ export const MarkdownDivWithReferences = forwardRef<
     ref
   ) => {
     const allowPreview = useIsContentTrusted();
+    // Preview state belongs to these references and permissions. A later
+    // scope cannot reopen an old callback or reuse its DOM anchor.
+    const previewScope = useMemo(
+      () => ({ markdown, references, allowPreview }),
+      [markdown, references, allowPreview]
+    );
+    const [currentPreviewScope, setCurrentPreviewScope] = useState<
+      typeof previewScope | null
+    >(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
     const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(
@@ -171,6 +180,7 @@ export const MarkdownDivWithReferences = forwardRef<
         // PopOver handles show/hide logic including hover delays.
         setPositionEl(el);
         setCurrentRef(r);
+        setCurrentPreviewScope(previewScope);
         setVisibleKey(popoverKey(r));
       };
 
@@ -213,6 +223,7 @@ export const MarkdownDivWithReferences = forwardRef<
       };
     }, [
       allowPreview,
+      previewScope,
       refMap,
       options?.previewRefsOnHover,
       setVisibleKey,
@@ -226,28 +237,31 @@ export const MarkdownDivWithReferences = forwardRef<
     return (
       <div className={clsx(className)} ref={containerRef}>
         {memoizedMarkdown}
-        {allowPreview && positionEl && currentRef && (
-          <PopOver
-            id={key}
-            positionEl={positionEl}
-            isOpen={visibleKey === key}
-            setIsOpen={(isOpen) => {
-              if (!isOpen) {
-                clearVisibleKey();
-                setCurrentRef(null);
-                setPositionEl(null);
-              }
-            }}
-            placement="auto"
-            hoverDelay={1000}
-            showArrow={true}
-            styles={{ maxHeight: "70vh", overflowY: "auto" }}
-          >
-            {(currentRef.citePreview && currentRef.citePreview()) || (
-              <NoContentsPanel text="No preview available." />
-            )}
-          </PopOver>
-        )}
+        {allowPreview &&
+          currentPreviewScope === previewScope &&
+          positionEl &&
+          currentRef && (
+            <PopOver
+              id={key}
+              positionEl={positionEl}
+              isOpen={visibleKey === key}
+              setIsOpen={(isOpen) => {
+                if (!isOpen) {
+                  clearVisibleKey();
+                  setCurrentRef(null);
+                  setPositionEl(null);
+                }
+              }}
+              placement="auto"
+              hoverDelay={1000}
+              showArrow={true}
+              styles={{ maxHeight: "70vh", overflowY: "auto" }}
+            >
+              {(currentRef.citePreview && currentRef.citePreview()) || (
+                <NoContentsPanel text="No preview available." />
+              )}
+            </PopOver>
+          )}
       </div>
     );
   }

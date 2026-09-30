@@ -4,6 +4,12 @@ import { http, HttpResponse } from "msw";
 
 import { expect, test } from "./fixtures/app";
 import { serveEvalFiles } from "./fixtures/serve-eval-file";
+import { serveEvalLog } from "./fixtures/serve-log";
+import {
+  createEvalLog,
+  createEvalSample,
+  createEvalSpec,
+} from "./fixtures/test-data";
 
 // Real .eval logs from fixtures/content-trust/generate_logs.py. Their model
 // output exercises every rich-rendering path; untrusted.eval sets
@@ -604,3 +610,52 @@ test.describe("Task revision links", () => {
     }
   }
 });
+
+for (const scope of ["task", "viewer"] as const) {
+  test(`preserves visible citation whitespace under the ${scope} ceiling`, async ({
+    page,
+    network,
+  }) => {
+    const source = "  cited  text\nsecond  line  ";
+    const log = createEvalLog({
+      eval: createEvalSpec({
+        viewer: { scanner_result_view: {}, trust_content: scope !== "task" },
+      }),
+      samples: [
+        createEvalSample({
+          id: 1,
+          epoch: 1,
+          messages: [
+            {
+              role: "assistant",
+              content: [
+                {
+                  type: "text",
+                  text: "citation response",
+                  citations: [{ type: "document", title: source }],
+                },
+              ],
+            },
+          ],
+        }),
+      ],
+    });
+    serveEvalLog(network, log, "whitespace.json");
+    if (scope === "viewer")
+      network.use(
+        http.get("*/api/app-config", () =>
+          HttpResponse.json({
+            inspect_version: "e2e",
+            scout_version: null,
+            trust_content: false,
+          })
+        )
+      );
+    await page.goto("/#/logs/whitespace.json/samples/sample/1/1/messages");
+    const citation = page
+      .locator('[class*="citations"] [class*="untrustedText"]')
+      .first();
+    await expect(citation).toBeVisible();
+    expect(await citation.innerText()).toBe(source);
+  });
+}

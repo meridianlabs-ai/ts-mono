@@ -222,6 +222,7 @@ describe("reference preview permissions", () => {
   const preview = () => <span data-testid="preview">custom preview</span>;
   const viewFor = (citePreview: () => ReactNode) => {
     const hooks = makeStateHooks();
+    const references = [{ id: "ref", cite: "[M1]", citePreview }];
     return function View(restricted: boolean) {
       return (
         <ComponentStateProvider hooks={hooks}>
@@ -231,7 +232,7 @@ describe("reference preview permissions", () => {
             >
               <MarkdownDivWithReferences
                 markdown="See [M1]"
-                references={[{ id: "ref", cite: "[M1]", citePreview }]}
+                references={references}
               />
             </ContentPolicyProvider>
           </ComponentNavigationProvider>
@@ -270,5 +271,18 @@ describe("reference preview permissions", () => {
     rerender(view(true));
     expect(document.querySelector('[data-testid="preview"]')).toBeNull();
     expect(citePreview).toHaveBeenCalledTimes(calls);
+    rerender(view(false));
+    await waitFor(() =>
+      expect(container.querySelector('[data-ref-id="ref"]')).not.toBeNull()
+    );
+    expect(document.querySelector('[data-testid="preview"]')).toBeNull();
+    expect(citePreview).toHaveBeenCalledTimes(calls);
+    const replacement = vi.fn(() => <span>replacement</span>);
+    rerender(viewFor(replacement)(false));
+    await waitFor(() =>
+      expect(container.querySelector('[data-ref-id="ref"]')).not.toBeNull()
+    );
+    expect(document.querySelector('[data-testid="preview"]')).toBeNull();
+    expect(replacement).not.toHaveBeenCalled();
   });
 });

@@ -770,3 +770,20 @@ it("keeps original agent results available before optional Codex formatting", ()
   expect(getSpanToolResult(span, false)).toBe(source);
   expect(getSpanToolResult(span, true)).toBe("second");
 });
+
+it.each([0, false, { type: "text", text: "retain me" }] as const)(
+  "keeps non-string agent result %s in plain mode",
+  (result) => {
+    const timeline = buildTimeline([
+      testToolEvent({
+        function: "agent",
+        agent: "helper",
+        result,
+        events: [testModelEvent()],
+      }),
+    ]);
+    const span = timeline.root.content.find((item) => item.type === "span");
+    if (!span) throw new Error("expected an agent span");
+    expect(getSpanToolResult(span, false)).toBe(JSON.stringify(result));
+  }
+);

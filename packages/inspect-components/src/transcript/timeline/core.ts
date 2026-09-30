@@ -852,13 +852,11 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
         span.toolInvoked = true;
         // Keep the source result for rendering policy to select later.
         const agentResult = extractToolEventResult(event.result);
-        if (agentResult) {
-          span.agentResult = agentResult;
-          span.agentResultSource = {
-            function: event.function,
-            content: event.result,
-          };
-        }
+        span.agentResult = agentResult;
+        span.agentResultSource = {
+          function: event.function,
+          content: event.result,
+        };
         return span;
       }
     }
@@ -1690,7 +1688,7 @@ function extractAgentResults(parent: TimelineSpan): void {
     }
 
     // Skip if already set (e.g. from tool-spawned agent construction)
-    if (item.agentResult) {
+    if (item.agentResultSource || item.agentResult) {
       extractAgentResults(item);
       continue;
     }
@@ -1703,13 +1701,11 @@ function extractAgentResults(parent: TimelineSpan): void {
         sibling.event.agent_span_id === item.id
       ) {
         const resultText = extractToolEventResult(sibling.event.result);
-        if (resultText) {
-          item.agentResult = resultText;
-          item.agentResultSource = {
-            function: sibling.event.function,
-            content: sibling.event.result,
-          };
-        }
+        item.agentResult = resultText;
+        item.agentResultSource = {
+          function: sibling.event.function,
+          content: sibling.event.result,
+        };
         break;
       }
     }
@@ -1718,7 +1714,7 @@ function extractAgentResults(parent: TimelineSpan): void {
     // The span ID follows the pattern "agent-{tool_call_id}" in bridge flow.
     const toolCallId = item.id.startsWith("agent-") ? item.id.slice(6) : null;
 
-    if (!item.agentResult && toolCallId) {
+    if (!item.agentResultSource && !item.agentResult && toolCallId) {
       for (let j = i + 1; j < content.length; j++) {
         const nextItem = content[j]!;
         if (nextItem.type !== "event") continue;
@@ -1727,16 +1723,14 @@ function extractAgentResults(parent: TimelineSpan): void {
           for (const msg of modelEvent.input) {
             if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
               const text = extractToolEventResult(msg.content);
-              if (text) {
-                item.agentResult = text;
-                item.agentResultSource = {
-                  function: msg.function ?? undefined,
-                  content: msg.content,
-                };
-              }
+              item.agentResult = text;
+              item.agentResultSource = {
+                function: msg.function ?? undefined,
+                content: msg.content,
+              };
             }
           }
-          if (item.agentResult) break;
+          if (item.agentResultSource || item.agentResult) break;
         }
       }
     }

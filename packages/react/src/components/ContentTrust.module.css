@@ -3,6 +3,7 @@
    content (as a terminal would) instead of the page's. */
 .untrustedText {
   unicode-bidi: plaintext;
+  white-space: pre-wrap;
 }
 
 .placeholder {
