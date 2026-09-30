@@ -9,7 +9,12 @@ import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
 import { ComponentIconProvider } from "./ComponentIconContext";
 import { ComponentNavigationProvider } from "./ComponentNavigationContext";
-import { ContentTrustProvider, type ContentTrust } from "./ContentTrust";
+import { richContentPolicy } from "./contentRenderingPolicy";
+import {
+  ContentPolicyProvider,
+  ContentTrustProvider,
+  type ContentTrust,
+} from "./ContentTrust";
 import { JSONPanel } from "./JsonPanel";
 import { MarkdownDiv } from "./MarkdownDiv";
 import { MarkdownDivWithReferences } from "./MarkdownDivWithReferences";
@@ -101,6 +106,18 @@ describe("rich-rendering libraries", () => {
     // Give any (wrongly) scheduled lazy load time to start.
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect([...loaded]).toEqual([]);
+  });
+
+  it("renders markdown without loading or invoking MathJax when math is disabled", async () => {
+    const { container } = render(
+      <ContentPolicyProvider value={{ ...richContentPolicy, math: false }}>
+        <MarkdownDiv markdown={"# Heading\nMath $x^2 + \\dots$"} />
+      </ContentPolicyProvider>
+    );
+    await waitFor(() => expect(container.querySelector("h1")).not.toBeNull());
+    expect(container.textContent).toContain("$x^2 + \\dots$");
+    expect(container.querySelector("mjx-container, svg, math")).toBeNull();
+    expect(loaded.has("markdown-it-mathjax3")).toBe(false);
   });
 
   it("load for trusted content", { timeout: 30000 }, async () => {

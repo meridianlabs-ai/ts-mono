@@ -9,7 +9,7 @@ import styles from "./AnsiDisplay.module.css";
 import {
   untrustedText,
   untrustedTextClassName,
-  useIsContentTrusted,
+  useContentPolicy,
 } from "./ContentTrust";
 
 // Loaded on first trusted use, so ansi-output never loads for untrusted content.
@@ -22,8 +22,7 @@ export interface ANSIDisplayProps {
 }
 
 export const ANSIDisplay: FC<ANSIDisplayProps> = (props) => {
-  const trusted = useIsContentTrusted();
-  return trusted ? (
+  return useContentPolicy().ansi ? (
     <TrustedANSIDisplay {...props} />
   ) : (
     <UntrustedANSIDisplay {...props} />

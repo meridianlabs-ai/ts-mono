@@ -2,7 +2,7 @@ import { RefObject, useLayoutEffect } from "react";
 
 import {
   kUntrustedContentSelector,
-  useIsContentTrusted,
+  useContentPolicy,
 } from "../components/ContentTrust";
 
 import { onDemandModule } from "./onDemandModule";
@@ -41,7 +41,7 @@ export const usePrismHighlight = (
   containerRef: RefObject<HTMLDivElement | null>,
   contentLength: number
 ) => {
-  const trusted = useIsContentTrusted();
+  const trusted = useContentPolicy().syntaxHighlighting;
   // A layout effect, so revoking trust disconnects the observer in the same
   // commit that inserts the untrusted content; a passive effect's cleanup can
   // run after the observer has already seen (and highlighted) it.

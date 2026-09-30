@@ -3,16 +3,13 @@ import { FC } from "react";
 import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import type { AsciinemaPlayerProps } from "./AsciinemaPlayerImpl";
-import {
-  UntrustedContentPlaceholder,
-  useIsContentTrusted,
-} from "./ContentTrust";
+import { UntrustedContentPlaceholder, useContentPolicy } from "./ContentTrust";
 
 // Loaded on first trusted use, so the player never loads for untrusted content.
 const player = onDemandModule(() => import("./AsciinemaPlayerImpl"));
 
 export const AsciinemaPlayer: FC<AsciinemaPlayerProps> = (props) =>
-  useIsContentTrusted() ? (
+  useContentPolicy().media ? (
     <TrustedAsciinemaPlayer {...props} />
   ) : (
     <UntrustedContentPlaceholder kind="terminal session" />
