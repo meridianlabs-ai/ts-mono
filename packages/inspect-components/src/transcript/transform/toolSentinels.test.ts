@@ -214,7 +214,7 @@ describe("buildSentinelStep", () => {
     expect(step.reason).toBe("why");
   });
 
-  it("takes the final() decision recorded after the bypassed root", () => {
+  it("takes the decide_final() decision recorded after the bypassed root", () => {
     const step = buildSentinelStep([
       decision("net", "guard/network", "no_network", "reject"),
       layer("guard", "guard", "concurrent", "bypassed"),
@@ -229,7 +229,7 @@ describe("buildSentinelStep", () => {
     expect(rowIds(step)).toEqual(["root", "guard", "net", "prot", "audit"]);
   });
 
-  it("descends below a final() origin into a child that made its decision", () => {
+  it("descends below a decide_final() origin into a child that made its decision", () => {
     const step = buildSentinelStep([
       decision("quiet", "guard/quiet", "rule", "continue"),
       withExplanation(decision("inner", "guard/inner", "rule", "reject"), "a"),

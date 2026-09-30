@@ -35,7 +35,7 @@ export interface SentinelStep {
   /** One row per check in tree order; a superseded event stands in for the decision it names. */
   rows: SentinelRow[];
   verdict: SentinelVerdict;
-  /** The decision the runner returned: the root's, or the one a `final()` made. */
+  /** The decision the runner returned: the root's, or the one a `decide_final()` made. */
   outcome?: SentinelNode;
   /** The check the summary names: the decision that took effect, or the top decision of a quiet step. */
   decider?: SentinelNode;
@@ -173,7 +173,7 @@ const creditDecision = (tree: TreeNode[], outcome: SentinelNode): Credit => {
 
 /**
  * The decision the runner returned for the step: the root's, or, when a
- * `final()` bypassed the root, the one recorded after the bypassed layers.
+ * `decide_final()` bypassed the root, the one recorded after the bypassed layers.
  */
 const outcomeOf = (nodes: SentinelNode[]): SentinelNode | undefined => {
   const root = nodes.find(
