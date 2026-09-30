@@ -7,7 +7,10 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
 
-import { useCustomContent } from "../../content/DisplayModeContext";
+import {
+  useCustomContent,
+  useFormattedContent,
+} from "../../content/DisplayModeContext";
 
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
@@ -58,6 +61,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   getCustomToolView,
 }) => {
   const customContent = useCustomContent();
+  const formatted = useFormattedContent();
 
   // Custom views render the call and its result as one self-contained UI —
   // give them the block frame without the header.
@@ -81,19 +85,29 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   }
 
   const hasInput =
-    (input !== undefined && input !== null && input !== "") || !!view?.content;
+    (input !== undefined && input !== null && input !== "") ||
+    (formatted && !!view?.content);
   // Tools without a dedicated input descriptor carry all their args in the
   // functionCall string; args too long for the one-line header summary get a
   // real input zone instead (mirroring ServerToolCall's multi-line args).
   // Gate on the whitespace-collapsed length, not raw newlines: formatArg
   // pretty-prints every object/array value, so even tiny args like
   // `coordinate: [100, 200]` are multi-line as a formatting artifact.
-  const argsBody = hasInput ? undefined : fullArgs(functionCall, title || tool);
+  const argsBody = hasInput
+    ? undefined
+    : formatted
+      ? fullArgs(functionCall, title || tool)
+      : functionCall !== tool
+        ? functionCall
+        : undefined;
   const argsSummary = argsBody?.replace(/\s+/g, " ").trim();
-  const argsInInputZone = !!argsSummary && argsSummary.length > kMaxSummaryArgs;
+  const argsInInputZone =
+    !!argsBody &&
+    (!formatted || (!!argsSummary && argsSummary.length > kMaxSummaryArgs));
   const showError = !!error;
   const showAnnotation = !!selfAnnotation && !!inputScreenshot;
-  const showOutput = !showError && (hasOutputContent(output) || showAnnotation);
+  const showOutput =
+    !showError && (hasOutputContent(output, formatted) || showAnnotation);
 
   return (
     <ToolBlock
@@ -157,18 +171,21 @@ const fullArgs = (functionCall: string, tool: string): string | undefined => {
 };
 
 /** Whether the tool output has anything worth an output well. */
-const hasOutputContent = (output: ToolCallViewProps["output"]): boolean => {
-  if (typeof output === "string") return output.trim().length > 0;
+const hasOutputContent = (
+  output: ToolCallViewProps["output"],
+  formatted: boolean
+): boolean => {
+  const hasText = (text: string): boolean =>
+    (formatted ? text.trim() : text).length > 0;
+  if (typeof output === "string") return hasText(output);
   if (typeof output === "number" || typeof output === "boolean") return true;
   const items = Array.isArray(output) ? output : [output];
   return items.some((item) => {
     if (item.type === "tool") {
-      return item.content.some(
-        (c) => c.type !== "text" || c.text.trim().length > 0
-      );
+      return item.content.some((c) => c.type !== "text" || hasText(c.text));
     }
     if (item.type === "text") {
-      return item.text.trim().length > 0;
+      return hasText(item.text);
     }
     return true;
   });

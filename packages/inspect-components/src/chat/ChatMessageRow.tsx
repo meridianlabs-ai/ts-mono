@@ -5,6 +5,8 @@ import type { ChatMessageTool } from "@tsmono/inspect-common/types";
 import type { MarkdownReference } from "@tsmono/react/components";
 import { getOwn } from "@tsmono/util";
 
+import { useFormattedContent } from "../content/DisplayModeContext";
+
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
 import { MessageLabel } from "./MessageLabel";
@@ -50,6 +52,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   tools,
   startNumber,
 }: ChatMessageRowProps) {
+  const formatted = useFormattedContent();
   const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
   const labelValues = labels?.messageLabels;
@@ -128,7 +131,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     for (const tool_call of resolvedMessage.message.tool_calls) {
       // Extract tool input
       const { name, input, description, functionCall, contentType, title } =
-        resolveToolInput(tool_call.function, tool_call.arguments);
+        resolveToolInput(tool_call.function, tool_call.arguments, formatted);
 
       let toolMessage: ChatMessageTool | undefined;
       if (tool_call.id) {
@@ -142,14 +145,15 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       // Resolve the tool output
       const resolvedToolOutput = resolveToolMessage(toolMessage);
 
-      const resolvedToolView = tool_call.view
-        ? substituteToolCallContent(tool_call.view, tool_call.arguments)
-        : undefined;
+      const resolvedToolView =
+        formatted && tool_call.view
+          ? substituteToolCallContent(tool_call.view, tool_call.arguments)
+          : undefined;
 
       // Each tool call is one self-contained block: collapsible header with
       // the input zone and output well beneath. Compact mode keeps the
       // single line.
-      if (toolCallStyle === "compact") {
+      if (formatted && toolCallStyle === "compact") {
         views.push(
           <ToolCallViewCompact idx={idx} functionCall={functionCall} />
         );

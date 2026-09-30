@@ -239,3 +239,26 @@ describe("content trust", () => {
     expect(screen.getByText("trusted")).toBeTruthy();
   });
 });
+
+it("retains base64-looking strings and primitive data in plain JSON views", () => {
+  const source = "A".repeat(260);
+  const { container } = render(
+    <ContentTrustProvider value="untrusted">
+      <JSONPanel data={{ source, value: false, zero: 0 }} />
+    </ContentTrustProvider>
+  );
+  expect(container.textContent).toBe(
+    JSON.stringify({ source, value: false, zero: 0 }, undefined, 2)
+  );
+  expect(container.textContent).not.toContain("[base64");
+});
+it("withholds terminal playback when ANSI is denied even if media is allowed", () => {
+  const { container } = render(
+    <ContentPolicyProvider value={{ ...richContentPolicy, ansi: false }}>
+      <AsciinemaPlayer inputUrl="input" outputUrl="output" timingUrl="timing" />
+    </ContentPolicyProvider>
+  );
+  expect(
+    container.querySelector('[data-untrusted-placeholder="terminal session"]')
+  ).not.toBeNull();
+});

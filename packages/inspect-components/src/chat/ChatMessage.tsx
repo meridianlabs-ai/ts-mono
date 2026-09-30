@@ -11,6 +11,7 @@ import {
   ExpandablePanel,
   LabeledValue,
   MarkdownDiv,
+  ContentText as PolicyText,
   type MarkdownReference,
 } from "@tsmono/react/components";
 
@@ -118,11 +119,17 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     >
       <div>
         {message.role}
-        {message.role === "tool"
-          ? message.function
-            ? `: ${message.function}`
-            : ""
-          : ""}
+        {message.role === "tool" ? (
+          message.function ? (
+            <>
+              : <PolicyText text={message.function} />
+            </>
+          ) : (
+            ""
+          )
+        ) : (
+          ""
+        )}
         {linkingEnabled && messageUrl ? (
           <CopyButton
             icon={linkIcon}
@@ -256,7 +263,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                 : 15
           }
         >
-          {isNonSubagentTool ? (
+          {isNonSubagentTool && formatContent ? (
             toolSearchNamespaces ? (
               <ToolSearchView namespaces={toolSearchNamespaces} />
             ) : toolMarkdown !== undefined ? (

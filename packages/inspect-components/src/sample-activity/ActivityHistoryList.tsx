@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, Fragment, MouseEvent as ReactMouseEvent, RefObject } from "react";
 
+import { ContentText } from "@tsmono/react/components";
 import { VirtualList } from "@tsmono/react/virtual";
 
 import { fmtDayClock } from "../usage";
@@ -118,16 +119,21 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
           </span>
         </div>
         <div className={styles.event}>
-          {row.lead}
+          <ContentText text={row.lead} />
           {row.mono !== undefined && (
             <Fragment>
               {" "}
-              <span className={styles.mono}>{row.mono}</span>
+              <span className={styles.mono}>
+                <ContentText text={row.mono} />
+              </span>
             </Fragment>
           )}
-          {row.tail !== undefined && ` ${row.tail}`}
+          {row.tail !== undefined && <ContentText text={` ${row.tail}`} />}
           {row.detail !== undefined && (
-            <span className={styles.muted}> · {row.detail}</span>
+            <span className={styles.muted}>
+              {" "}
+              · <ContentText text={row.detail} />
+            </span>
           )}
           {row.uuid !== undefined && onOpenEvent && (
             <Fragment>
@@ -146,9 +152,12 @@ export const ActivityHistoryList: FC<ActivityHistoryListProps> = ({
           )}
         </div>
         <div className={styles.by}>
-          {row.by}
+          <ContentText text={row.by} />
           {row.byRole !== undefined && (
-            <span className={styles.muted}> {row.byRole}</span>
+            <span className={styles.muted}>
+              {" "}
+              <ContentText text={row.byRole} />
+            </span>
           )}
         </div>
       </div>

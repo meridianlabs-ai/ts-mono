@@ -22,6 +22,7 @@ import {
   testTimeline,
   testTimelineEvent,
   testTimelineSpan,
+  testToolEvent,
   testUserMessage,
 } from "@tsmono/inspect-common/testing";
 import type {
@@ -36,6 +37,7 @@ import {
   convertServerTimeline,
   countUtilitySpans,
   filterEmptyBranches,
+  getSpanToolResult,
   isEmptyBranch,
   spanHasBranches,
   TimelineEvent,
@@ -749,4 +751,22 @@ describe("utility wrapper ids", () => {
       "utility-monitor-1",
     ]);
   });
+});
+
+it("keeps original agent results available before optional Codex formatting", () => {
+  const source =
+    '  {"status":{"agent1":{"completed":"first","completed":"second"}},"extra":"keep this"}\n';
+  const timeline = buildTimeline([
+    testToolEvent({
+      function: "wait_agent",
+      agent: "helper",
+      result: source,
+      events: [testModelEvent()],
+    }),
+  ]);
+  const span = timeline.root.content.find((item) => item.type === "span");
+  expect(span).toBeDefined();
+  if (!span) throw new Error("expected an agent span");
+  expect(getSpanToolResult(span, false)).toBe(source);
+  expect(getSpanToolResult(span, true)).toBe("second");
 });

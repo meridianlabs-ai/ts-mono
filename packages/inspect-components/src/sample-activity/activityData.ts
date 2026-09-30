@@ -509,7 +509,7 @@ const callArgsText = (args: Record<string, unknown>): string => {
     entries.length === 1
       ? valueText(entries[0]![1])
       : entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(", ");
-  return truncate(text.replace(/\s+/g, " ").trim(), 60);
+  return truncate(text, 60);
 };
 
 /** The first argument (url / cmd / path) for the tool tooltip. */
@@ -518,7 +518,7 @@ const firstArg = (
 ): { key: string; value: string } | undefined => {
   const first = Object.entries(args)[0];
   if (!first) return undefined;
-  const text = valueText(first[1]).replace(/\s+/g, " ").trim();
+  const text = valueText(first[1]);
   return text ? { key: first[0], value: truncate(text, 80) } : undefined;
 };
 
@@ -1112,9 +1112,7 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           key,
           uuid,
           lead: "Input provided",
-          detail: event.input
-            ? `“${truncate(event.input.replace(/\s+/g, " ").trim(), 80)}”`
-            : undefined,
+          detail: event.input ? `“${truncate(event.input, 80)}”` : undefined,
           by: "user",
         });
         break;

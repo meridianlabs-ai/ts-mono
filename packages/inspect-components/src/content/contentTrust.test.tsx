@@ -4,6 +4,15 @@ import { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  testApprovalEvent,
+  testAssistantMessage,
+  testReviewEvent,
+  testSandboxEvent,
+  testToolCall,
+  testToolEvent,
+  testToolMessage,
+} from "@tsmono/inspect-common/testing";
+import {
   ComponentIconProvider,
   ComponentNavigationProvider,
   ContentPolicyProvider,
@@ -19,9 +28,20 @@ import {
   testIcons,
 } from "@tsmono/react/testing";
 
+import { ChatMessage } from "../chat/ChatMessage";
+import { ChatMessageRow } from "../chat/ChatMessageRow";
 import { ContentDataView } from "../chat/content-data/ContentDataView";
+import { MessageCitations } from "../chat/MessageCitations";
 import { MessageContent } from "../chat/MessageContent";
 import { ServerToolCall } from "../chat/server-tools/ServerToolCall";
+import { ToolInput } from "../chat/tools/ToolInput";
+import { deriveActivityData } from "../sample-activity/activityData";
+import { ActivityTooltip } from "../sample-activity/ActivityTooltip";
+import { ApprovalEventView } from "../transcript/ApprovalEventView";
+import { ReviewEventView } from "../transcript/ReviewEventView";
+import { SandboxEventView } from "../transcript/SandboxEventView";
+import { ToolEventView } from "../transcript/ToolEventView";
+import { EventNode } from "../transcript/types";
 
 import { ContentRenderersContext } from "./ContentRenderersContext";
 import { DisplayModeContext, useDisplayMode } from "./DisplayModeContext";
@@ -360,4 +380,202 @@ describe("untrusted content rendering", () => {
     ).map((el) => el.getAttribute("data-untrusted-placeholder"));
     expect(kinds).toEqual(["image", "audio", "video"]);
   });
+});
+
+describe("literal payload dispatch", () => {
+  const plain = (scope: "task" | "viewer", ui: ReactNode) =>
+    withTrust(
+      scope === "task" ? "untrusted" : "trusted",
+      <ContentTrustCeilingProvider
+        value={scope === "viewer" ? "untrusted" : "trusted"}
+      >
+        {ui}
+      </ContentTrustCeilingProvider>
+    );
+  it.each(["task", "viewer"] as const)(
+    "preserves citation source under the %s ceiling",
+    (scope) => {
+      const source = "&lt;literal&gt; \u202Egnp.exe";
+      const { container } = render(
+        plain(
+          scope,
+          <MessageCitations citations={[{ type: "document", title: source }]} />
+        )
+      );
+      expect(container.textContent).toBe(
+        "1" + source.replace("\u202E", "⟨U+202E⟩")
+      );
+    }
+  );
+  it.each(["task", "viewer"] as const)(
+    "preserves explanation and file whitespace under the %s ceiling",
+    (scope) => {
+      const source = "  \u202Erationale  ";
+      const { container } = render(
+        plain(
+          scope,
+          <>
+            <ApprovalEventView
+              eventNode={
+                new EventNode(
+                  "approval",
+                  testApprovalEvent({ explanation: source }),
+                  0
+                )
+              }
+            />
+            <ReviewEventView
+              eventNode={
+                new EventNode(
+                  "review",
+                  testReviewEvent({ explanation: source }),
+                  0
+                )
+              }
+            />
+            <SandboxEventView
+              eventNode={
+                new EventNode(
+                  "file",
+                  testSandboxEvent({
+                    action: "read_file",
+                    file: "file\u202E.txt",
+                    output: source,
+                  }),
+                  0
+                )
+              }
+            />
+            <SandboxEventView
+              eventNode={
+                new EventNode(
+                  "exec",
+                  testSandboxEvent({
+                    action: "exec",
+                    cmd: "cmd\u202E",
+                    input: source,
+                    output: source,
+                    result: 0,
+                  }),
+                  0
+                )
+              }
+            />
+          </>
+        )
+      );
+      expect(
+        container.textContent.match(/ {2}⟨U\+202E⟩rationale {2}/g)
+      ).toHaveLength(5);
+      expect(container.textContent).toContain("file⟨U+202E⟩.txt");
+      expect(container.textContent).toContain("cmd⟨U+202E⟩");
+      expect(container.textContent).not.toContain("\u202E");
+    }
+  );
+  it.each(["task", "viewer"] as const)(
+    "retains every client argument in both messages and transcript under the %s ceiling",
+    (scope) => {
+      const args = { cmd: "  first\nsecond  ", timeout: 99, extra: false };
+      const call = testToolCall({
+        function: "bash",
+        arguments: args,
+        view: {
+          title: "formatted",
+          format: "markdown",
+          content: "replacement",
+        },
+      });
+      const { container } = render(
+        plain(
+          scope,
+          <>
+            <ChatMessageRow
+              index={0}
+              parentName="chat"
+              resolvedMessage={{
+                message: testAssistantMessage({
+                  content: "",
+                  tool_calls: [call],
+                }),
+                toolMessages: [],
+              }}
+              tools={{ callStyle: "compact" }}
+            />
+            <ToolEventView
+              eventNode={
+                new EventNode(
+                  "tool",
+                  testToolEvent({
+                    function: "bash",
+                    arguments: args,
+                    view: call.view,
+                  }),
+                  0
+                )
+              }
+              childNodes={[]}
+            />
+          </>
+        )
+      );
+      const inputs = Array.from(container.querySelectorAll(".tool-call-input"));
+      expect(inputs).toHaveLength(2);
+      for (const input of inputs)
+        expect(input.textContent).toBe(JSON.stringify(args));
+      expect(container.textContent).not.toContain("replacement");
+      expect(container.textContent).not.toContain("formatted");
+    }
+  );
+  it.each([0, false, null])("retains scalar tool input %s", (value) => {
+    const { container } = render(
+      withTrust("untrusted", <ToolInput contents={value} />)
+    );
+    expect(container.textContent).toBe(JSON.stringify(value));
+  });
+  it("reveals hidden characters in activity tool details", () => {
+    const data = deriveActivityData({
+      events: [
+        testToolEvent({
+          function: "tool\u202E",
+          arguments: { arg: "  argument\u202E\nnext  " },
+          error: { type: "unknown", message: "error\u202E" },
+          working_time: 1,
+        }),
+      ],
+    });
+    const row = data.agentRows[0]!;
+    const span = row.spans[0]!;
+    const { container } = render(
+      withTrust(
+        "untrusted",
+        <ActivityTooltip target={{ kind: "span", row, span }} />
+      )
+    );
+    expect(container.textContent).toContain("  argument⟨U+202E⟩\nnext  ");
+    expect(container.textContent).toContain("error⟨U+202E⟩");
+    expect(container.textContent).not.toContain("\u202E");
+  });
+});
+
+it("retains known structured and reasoning content in plain tool messages", () => {
+  const { container } = render(
+    withTrust(
+      "untrusted",
+      <ChatMessage
+        id="tool"
+        message={testToolMessage({
+          content: [
+            { type: "data", data: { additional: "keep this data" } },
+            {
+              type: "reasoning",
+              reasoning: "keep this reasoning",
+              redacted: false,
+            },
+          ],
+        })}
+      />
+    )
+  );
+  expect(container.textContent).toContain("keep this data");
+  expect(container.textContent).toContain("keep this reasoning");
 });

@@ -13,6 +13,7 @@ import { isVscode } from "@tsmono/util";
 import { useProperty } from "../hooks/useProperty";
 
 import { useComponentNavigation } from "./ComponentNavigationContext";
+import { useIsContentTrusted } from "./ContentTrust";
 import { isNewTabClick } from "./inAppLink";
 import { MarkdownDiv, type MarkdownRenderer } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
@@ -48,6 +49,7 @@ export const MarkdownDivWithReferences = forwardRef<
     { markdown, references, options, className, style, renderer, truncateAt },
     ref
   ) => {
+    const allowPreview = useIsContentTrusted();
     const containerRef = useRef<HTMLDivElement>(null);
     const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
     const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(
@@ -141,7 +143,7 @@ export const MarkdownDivWithReferences = forwardRef<
       }
 
       // Don't enable popover / preview on hover
-      if (options?.previewRefsOnHover === false) {
+      if (!allowPreview || options?.previewRefsOnHover === false) {
         return;
       }
 
@@ -209,7 +211,13 @@ export const MarkdownDivWithReferences = forwardRef<
         container.removeEventListener("mouseout", handleMouseOut);
         container.removeEventListener("click", handleClick);
       };
-    }, [refMap, options?.previewRefsOnHover, setVisibleKey, clearVisibleKey]);
+    }, [
+      allowPreview,
+      refMap,
+      options?.previewRefsOnHover,
+      setVisibleKey,
+      clearVisibleKey,
+    ]);
 
     const key = currentRef
       ? popoverKey(currentRef)
@@ -218,7 +226,7 @@ export const MarkdownDivWithReferences = forwardRef<
     return (
       <div className={clsx(className)} ref={containerRef}>
         {memoizedMarkdown}
-        {positionEl && currentRef && (
+        {allowPreview && positionEl && currentRef && (
           <PopOver
             id={key}
             positionEl={positionEl}

@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode, useState } from "react";
 
-import { RequireTrustedContent } from "@tsmono/react/components";
+import { ContentText, RequireTrustedContent } from "@tsmono/react/components";
 import { isRenderableImageSource } from "@tsmono/util";
 
 import { MessageContent } from "../MessageContent";
@@ -169,7 +169,7 @@ export function renderHtmlAnnotation(annotation: ToolAnnotation): ReactNode {
     return (
       <div className={clsx(styles.badge, isKey ? styles.key : styles.type)}>
         {"⌨ "}
-        {text || ""}
+        <ContentText text={text || ""} />
       </div>
     );
   }

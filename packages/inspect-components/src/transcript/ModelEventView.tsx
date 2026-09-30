@@ -11,7 +11,7 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
-import { ContentCode } from "@tsmono/react/components";
+import { ContentCode, ContentText } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
@@ -215,11 +215,15 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         {isCancelled ? (
           <div className={styles.cancelled}>
             <i className={TranscriptIcons.cancel} />
-            <span>{event.error}</span>
+            <span>
+              <ContentText text={event.error || "Cancelled"} />
+            </span>
           </div>
         ) : event.error ? (
           <EventSection title="Error">
-            <div className={styles.error}>{event.error}</div>
+            <div className={styles.error}>
+              <ContentText text={event.error || "Cancelled"} />
+            </div>
           </EventSection>
         ) : event.pending ? (
           <div className={clsx(styles.progress)}>

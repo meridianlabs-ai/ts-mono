@@ -176,13 +176,17 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     return section === "output" ? null : customView;
   }
 
-  const contents = mode !== "compact" ? input : input || functionCall;
+  const contents = !formatContent
+    ? (input ?? (functionCall !== tool ? functionCall : undefined))
+    : mode !== "compact"
+      ? input
+      : input || functionCall;
 
   const callSection = (
     <div>
-      {mode !== "compact" && (!view || view.title) ? (
+      {mode !== "compact" && (!formatContent || !view || view.title) ? (
         <ToolTitle
-          title={view?.title || functionCall}
+          title={formatContent ? view?.title || functionCall : functionCall}
           description={description}
         />
       ) : (

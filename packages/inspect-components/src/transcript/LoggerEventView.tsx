@@ -2,8 +2,14 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { LoggerEvent } from "@tsmono/inspect-common/types";
-import { MetaDataGrid } from "@tsmono/inspect-components/content";
+import {
+  MetaDataGrid,
+  RenderedContent,
+} from "@tsmono/inspect-components/content";
+import { ContentText } from "@tsmono/react/components";
 import { parseJsonRecord } from "@tsmono/util";
+
+import { useFormattedContent } from "../content/DisplayModeContext";
 
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
@@ -20,7 +26,8 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const obj = parseJsonRecord(event.message.message);
+  const formatted = useFormattedContent();
+  const obj = formatted ? parseJsonRecord(event.message.message) : undefined;
   return (
     <EventRow
       eventNodeId={eventNode.id}
@@ -33,10 +40,18 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
     >
       <div className={clsx("text-size-base", styles.grid)}>
         <div className={clsx("text-size-smaller")}>
-          {obj ? <MetaDataGrid entries={obj} /> : event.message.message}
+          {obj ? (
+            <MetaDataGrid entries={obj} />
+          ) : (
+            <RenderedContent
+              id={eventNode.id}
+              entry={{ name: "message", value: event.message.message }}
+              renderOptions={{ renderString: "pre" }}
+            />
+          )}
         </div>
         <div className={clsx("text-size-smaller", "text-style-secondary")}>
-          {event.message.filename}:{event.message.lineno}
+          <ContentText text={event.message.filename} />:{event.message.lineno}
         </div>
       </div>
     </EventRow>

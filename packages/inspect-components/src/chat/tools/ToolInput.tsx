@@ -35,7 +35,7 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
       : 0;
   usePrismHighlight(sourceCodeRef, sourceCodeLength || 0);
 
-  if (!contents && !useToolView) return null;
+  if (contents === undefined && !useToolView) return null;
 
   if (useToolView) {
     return (
@@ -52,7 +52,7 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
           typeof contents === "string" ||
           (typeof contents === "object" && contents !== null)
             ? contents
-            : ""
+            : JSON.stringify(contents)
         }
         contentType={contentType || ""}
         parentRef={sourceCodeRef}

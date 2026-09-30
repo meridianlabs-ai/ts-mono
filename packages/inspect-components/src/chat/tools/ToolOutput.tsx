@@ -42,7 +42,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
   onDownloadFile,
 }) => {
   // If there is no output, don't show the tool
-  if (!output) {
+  if (output === "") {
     return null;
   }
 

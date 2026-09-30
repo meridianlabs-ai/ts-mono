@@ -7,6 +7,7 @@ import {
 } from "@tsmono/react/components";
 import { isAnsiOutput, isRecord } from "@tsmono/util";
 
+import { cappedText } from "./cappedText";
 import { useDisplayMode } from "./DisplayModeContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
@@ -21,15 +22,21 @@ export const PlainValue: FC<{
   const policy = useContentPolicy();
   const displayMode = useDisplayMode();
   if (typeof value === "string") {
-    if (policy.ansi && displayMode === "rendered" && isAnsiOutput(value)) {
-      return <ANSIDisplay output={value} />;
-    }
-    return markdown ? (
-      <RenderedText markdown={value} />
-    ) : (
-      <pre className={styles.preWrap}>
-        <ContentText text={value} />
-      </pre>
+    const { text, notice } = cappedText(value);
+    const ansi =
+      policy.ansi && displayMode === "rendered" && isAnsiOutput(text);
+    if (!ansi && markdown) return <RenderedText markdown={value} />;
+    return (
+      <>
+        {ansi ? (
+          <ANSIDisplay output={text} />
+        ) : (
+          <pre className={styles.preWrap}>
+            <ContentText text={text} />
+          </pre>
+        )}
+        {notice}
+      </>
     );
   }
   if (Array.isArray(value) && value.length > 0) {

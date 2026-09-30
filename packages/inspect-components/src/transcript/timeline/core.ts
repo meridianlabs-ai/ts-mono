@@ -134,6 +134,7 @@ export class TimelineSpan {
   // the Python `TimelineSpan.tool_invoked` flag.
   toolInvoked: boolean;
   agentResult?: string;
+  agentResultSource?: { function?: string; content: unknown };
   outline?: Outline;
 
   constructor(props: {
@@ -147,6 +148,7 @@ export class TimelineSpan {
     utility?: boolean;
     toolInvoked?: boolean;
     agentResult?: string;
+    agentResultSource?: { function?: string; content: unknown };
     outline?: Outline;
   }) {
     this.id = props.id;
@@ -159,6 +161,7 @@ export class TimelineSpan {
     this.utility = props.utility ?? false;
     this.toolInvoked = props.toolInvoked ?? false;
     this.agentResult = props.agentResult;
+    this.agentResultSource = props.agentResultSource;
     this.outline = props.outline;
   }
 
@@ -239,6 +242,7 @@ function pruneEmptyBranches(span: TimelineSpan): TimelineSpan {
     utility: span.utility,
     toolInvoked: span.toolInvoked,
     agentResult: span.agentResult,
+    agentResultSource: span.agentResultSource,
     outline: span.outline,
   });
 }
@@ -298,6 +302,7 @@ export function createBranchSpan(
     utility: branch.utility,
     toolInvoked: branch.toolInvoked,
     agentResult: branch.agentResult,
+    agentResultSource: branch.agentResultSource,
     outline: branch.outline,
   });
 }
@@ -845,17 +850,14 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
         );
         // Spawned by a ToolEvent — explicit user-intended subagent.
         span.toolInvoked = true;
-        // Capture agent result from the spawning ToolEvent. (Codex sub-agents
-        // are span-based — they don't reach this ToolEvent path — but apply the
-        // Codex reshape defensively so any tool-spawned Codex result is handled
-        // consistently rather than rendered as raw JSON.)
+        // Keep the source result for rendering policy to select later.
         const agentResult = extractToolEventResult(event.result);
         if (agentResult) {
-          span.agentResult = codexResultText(
-            event.function,
-            event.result,
-            agentResult
-          );
+          span.agentResult = agentResult;
+          span.agentResultSource = {
+            function: event.function,
+            content: event.result,
+          };
         }
         return span;
       }
@@ -1615,12 +1617,22 @@ function classifyUtilityAgents(
 // Span Result Extraction
 // =============================================================================
 
-/**
- * Returns the pre-extracted agent result for a span.
- * Results are extracted during timeline building by `extractAgentResults()`.
- */
-export function getSpanToolResult(span: TimelineSpan): string | undefined {
-  return span.agentResult;
+/** Returns an agent result, applying optional tool formatting only on request. */
+export function getSpanToolResult(
+  span: TimelineSpan,
+  formatted = true
+): string | undefined {
+  const source = span.agentResultSource;
+  if (!source) return span.agentResult;
+  if (!formatted)
+    return typeof source.content === "string"
+      ? source.content
+      : JSON.stringify(source.content);
+  return codexResultText(
+    source.function,
+    source.content,
+    span.agentResult || ""
+  );
 }
 
 /**
@@ -1692,11 +1704,11 @@ function extractAgentResults(parent: TimelineSpan): void {
       ) {
         const resultText = extractToolEventResult(sibling.event.result);
         if (resultText) {
-          item.agentResult = codexResultText(
-            sibling.event.function,
-            sibling.event.result,
-            resultText
-          );
+          item.agentResult = resultText;
+          item.agentResultSource = {
+            function: sibling.event.function,
+            content: sibling.event.result,
+          };
         }
         break;
       }
@@ -1716,11 +1728,11 @@ function extractAgentResults(parent: TimelineSpan): void {
             if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
               const text = extractToolEventResult(msg.content);
               if (text) {
-                item.agentResult = codexResultText(
-                  msg.function ?? undefined,
-                  msg.content,
-                  text
-                );
+                item.agentResult = text;
+                item.agentResultSource = {
+                  function: msg.function ?? undefined,
+                  content: msg.content,
+                };
               }
             }
           }

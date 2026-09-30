@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { ReactNode } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ComponentNavigationProvider,
+  ContentPolicyProvider,
   injectReferenceLinks,
+  MarkdownDivWithReferences,
   MarkdownReference,
+  richContentPolicy,
 } from "@tsmono/react/components";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks } from "@tsmono/react/testing";
 
 const CITE_CLASS = "cite";
 
@@ -206,5 +214,61 @@ describe("injectReferenceLinks on adversarial input", () => {
     expect(injectReferenceLinks("[x] [M1]", refs, CITE_CLASS)).toBe(
       `[x] [${link("M1", "msg-1")}]`
     );
+  });
+});
+
+afterEach(cleanup);
+describe("reference preview permissions", () => {
+  const preview = () => <span data-testid="preview">custom preview</span>;
+  const viewFor = (citePreview: () => ReactNode) => {
+    const hooks = makeStateHooks();
+    return function View(restricted: boolean) {
+      return (
+        <ComponentStateProvider hooks={hooks}>
+          <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+            <ContentPolicyProvider
+              value={{ ...richContentPolicy, media: !restricted }}
+            >
+              <MarkdownDivWithReferences
+                markdown="See [M1]"
+                references={[{ id: "ref", cite: "[M1]", citePreview }]}
+              />
+            </ContentPolicyProvider>
+          </ComponentNavigationProvider>
+        </ComponentStateProvider>
+      );
+    };
+  };
+  it("never invokes arbitrary previews under a partial policy", async () => {
+    const citePreview = vi.fn(preview);
+    const { container } = render(viewFor(citePreview)(true));
+    await waitFor(() =>
+      expect(container.querySelector('[data-ref-id="ref"]')).not.toBeNull()
+    );
+    fireEvent.mouseOver(container.querySelector('[data-ref-id="ref"]')!);
+    expect(citePreview).not.toHaveBeenCalled();
+    expect(document.querySelector('[data-testid="preview"]')).toBeNull();
+  });
+  it("removes an open rich preview immediately when permissions narrow", async () => {
+    const citePreview = vi.fn(preview);
+    const view = viewFor(citePreview);
+    const { container, rerender } = render(view(false));
+    await waitFor(() =>
+      expect(container.querySelector('[data-ref-id="ref"]')).not.toBeNull()
+    );
+    const cite = container.querySelector('[data-ref-id="ref"]')!;
+    fireEvent.mouseOver(cite);
+    fireEvent.mouseMove(cite);
+    await waitFor(
+      () =>
+        expect(
+          document.querySelector('[data-testid="preview"]')
+        ).not.toBeNull(),
+      { timeout: 2500 }
+    );
+    const calls = citePreview.mock.calls.length;
+    rerender(view(true));
+    expect(document.querySelector('[data-testid="preview"]')).toBeNull();
+    expect(citePreview).toHaveBeenCalledTimes(calls);
   });
 });

@@ -4,7 +4,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { testLoggerEvent } from "@tsmono/inspect-common/testing";
 import type { LoggerEvent } from "@tsmono/inspect-common/types";
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  ContentTrustProvider,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
@@ -13,7 +16,10 @@ import { EventNode } from "./types";
 
 vi.stubGlobal("ResizeObserver", ResizeObserverStub);
 
-const renderView = (message: string) => {
+const renderView = (
+  message: string,
+  trust: "trusted" | "untrusted" = "trusted"
+) => {
   const event = testLoggerEvent();
   const node = new EventNode<LoggerEvent>(
     "logger-1",
@@ -23,7 +29,9 @@ const renderView = (message: string) => {
   return render(
     <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        <LoggerEventView eventNode={node} />
+        <ContentTrustProvider value={trust}>
+          <LoggerEventView eventNode={node} />
+        </ContentTrustProvider>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
@@ -56,4 +64,13 @@ describe("LoggerEventView", () => {
 
     expect(container.textContent).toContain("{not json}");
   });
+});
+
+it("keeps an untrusted JSON message literal, including duplicate keys and whitespace", () => {
+  const source =
+    '  {"result":"first","result":"second","label":"\u202Egnp.exe"}\n';
+  const { container } = renderView(source, "untrusted");
+  expect(container.querySelector("pre")?.textContent).toBe(
+    source.replace("\u202E", "⟨U+202E⟩")
+  );
 });
