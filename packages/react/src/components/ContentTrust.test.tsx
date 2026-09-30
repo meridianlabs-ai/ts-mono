@@ -4,12 +4,16 @@ import { describe, expect, it } from "vitest";
 
 import { ANSIDisplay } from "./AnsiDisplay";
 import { AsciinemaPlayer } from "./AsciinemaPlayer";
+import { richContentPolicy } from "./contentRenderingPolicy";
 import {
+  ContentPolicyCeilingProvider,
+  ContentPolicyProvider,
   ContentText,
   ContentTrustCeilingProvider,
   ContentTrustProvider,
   RequireTrustedContent,
   untrustedTextClassName,
+  useContentPolicy,
   useContentTrust,
 } from "./ContentTrust";
 import { JSONPanel } from "./JsonPanel";
@@ -26,8 +30,64 @@ const MARKDOWN = [
 const RICH_MARKDOWN = MARKDOWN.split("\n").slice(0, 3).join("\n");
 
 const TrustValue = () => <span>{useContentTrust()}</span>;
+const Permissions = () => {
+  const policy = useContentPolicy();
+  return <span>{JSON.stringify(policy)}</span>;
+};
 
 describe("content trust", () => {
+  it("intersects individual source and application permissions", () => {
+    const { container } = render(
+      <ContentPolicyCeilingProvider
+        value={{ ...richContentPolicy, math: false }}
+      >
+        <ContentPolicyProvider value={{ ...richContentPolicy, links: false }}>
+          <Permissions />
+        </ContentPolicyProvider>
+      </ContentPolicyCeilingProvider>
+    );
+    expect(JSON.parse(container.textContent)).toEqual({
+      ...richContentPolicy,
+      math: false,
+      links: false,
+    });
+  });
+
+  it("retains an application restriction when switching source scopes", () => {
+    const { container } = render(
+      <ContentPolicyCeilingProvider
+        value={{ ...richContentPolicy, math: false }}
+      >
+        <ContentTrustProvider value="untrusted">
+          <ContentTrustProvider value="trusted">
+            <Permissions />
+          </ContentTrustProvider>
+        </ContentTrustProvider>
+      </ContentPolicyCeilingProvider>
+    );
+    expect(JSON.parse(container.textContent)).toEqual({
+      ...richContentPolicy,
+      math: false,
+    });
+  });
+
+  it("does not let a nested policy ceiling re-enable a denied operation", () => {
+    const { container } = render(
+      <ContentPolicyCeilingProvider
+        value={{ ...richContentPolicy, math: false }}
+      >
+        <ContentPolicyCeilingProvider value={richContentPolicy}>
+          <ContentTrustProvider value="trusted">
+            <Permissions />
+          </ContentTrustProvider>
+        </ContentPolicyCeilingProvider>
+      </ContentPolicyCeilingProvider>
+    );
+    expect(JSON.parse(container.textContent)).toEqual({
+      ...richContentPolicy,
+      math: false,
+    });
+  });
   it("defaults to untrusted outside any provider", () => {
     render(<TrustValue />);
     expect(screen.getByText("untrusted")).toBeTruthy();

@@ -3,6 +3,13 @@ import { createContext, FC, ReactNode, useContext } from "react";
 
 import { revealHiddenCharacters } from "@tsmono/util";
 
+import {
+  ContentRenderingPolicy,
+  intersectContentPolicies,
+  isRichContentPolicy,
+  plainContentPolicy,
+  richContentPolicy,
+} from "./contentRenderingPolicy";
 import styles from "./ContentTrust.module.css";
 
 /**
@@ -14,18 +21,49 @@ export type ContentTrust = "trusted" | "untrusted";
 
 // Untrusted by default: content outside any provider (a new view, a missing
 // wrapper, a log whose trust isn't known yet) must fail safe.
-const ContentTrustContext = createContext<ContentTrust>("untrusted");
+const ContentPolicyContext = createContext(plainContentPolicy);
 
 // The most trust any content below may have (e.g. a viewer-wide setting).
-const ContentTrustCeilingContext = createContext<ContentTrust>("trusted");
+const ContentPolicyCeilingContext = createContext(richContentPolicy);
+
+export const ContentPolicyProvider: FC<{
+  value: ContentRenderingPolicy;
+  children: ReactNode;
+}> = ({ value, children }) => (
+  <ContentPolicyContext.Provider value={value}>
+    {children}
+  </ContentPolicyContext.Provider>
+);
+
+export const ContentPolicyCeilingProvider: FC<{
+  value: ContentRenderingPolicy;
+  children: ReactNode;
+}> = ({ value, children }) => {
+  const parent = useContext(ContentPolicyCeilingContext);
+  return (
+    <ContentPolicyCeilingContext.Provider
+      value={intersectContentPolicies(parent, value)}
+    >
+      {children}
+    </ContentPolicyCeilingContext.Provider>
+  );
+};
+
+export const useContentPolicy = (): ContentRenderingPolicy =>
+  intersectContentPolicies(
+    useContext(ContentPolicyCeilingContext),
+    useContext(ContentPolicyContext)
+  );
 
 export const ContentTrustProvider: FC<{
   value: ContentTrust;
   children: ReactNode;
 }> = ({ value, children }) => (
-  <ContentTrustContext.Provider value={value}>
+  <ContentPolicyProvider
+    value={value === "trusted" ? richContentPolicy : plainContentPolicy}
+  >
     {children}
-  </ContentTrustContext.Provider>
+  </ContentPolicyProvider>
 );
 
 /**
@@ -35,22 +73,16 @@ export const ContentTrustProvider: FC<{
 export const ContentTrustCeilingProvider: FC<{
   value: ContentTrust;
   children: ReactNode;
-}> = ({ value, children }) => {
-  const parent = useContext(ContentTrustCeilingContext);
-  return (
-    <ContentTrustCeilingContext.Provider
-      value={combineContentTrust([parent, value])}
-    >
-      {children}
-    </ContentTrustCeilingContext.Provider>
-  );
-};
+}> = ({ value, children }) => (
+  <ContentPolicyCeilingProvider
+    value={value === "trusted" ? richContentPolicy : plainContentPolicy}
+  >
+    {children}
+  </ContentPolicyCeilingProvider>
+);
 
 export const useContentTrust = (): ContentTrust =>
-  combineContentTrust([
-    useContext(ContentTrustCeilingContext),
-    useContext(ContentTrustContext),
-  ]);
+  isRichContentPolicy(useContentPolicy()) ? "trusted" : "untrusted";
 
 export const useIsContentTrusted = (): boolean =>
   useContentTrust() === "trusted";
@@ -96,7 +128,7 @@ export const ContentCode: FC<{
   id?: string;
   className?: string;
 }> = ({ text, id, className }) =>
-  useIsContentTrusted() ? (
+  useContentPolicy().syntaxHighlighting ? (
     <code key="trusted" id={id} className={className}>
       {text}
     </code>
@@ -120,7 +152,7 @@ export const RequireTrustedContent: FC<{
   detail?: string;
   children: ReactNode;
 }> = ({ kind, detail, children }) =>
-  useIsContentTrusted() ? (
+  useContentPolicy().media ? (
     children
   ) : (
     <UntrustedContentPlaceholder kind={kind} detail={detail} />
