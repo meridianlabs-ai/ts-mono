@@ -17,7 +17,7 @@ export interface SentinelRow {
   depth: number;
   /** Box-drawing prefix that draws the tree guides before the row's path. */
   guides: string;
-  /** Whether this is the decision that took effect for the step. */
+  /** Whether this check made the step's decision. */
   tookEffect: boolean;
 }
 
@@ -39,9 +39,9 @@ export interface SentinelStep {
   outcome?: SentinelNode;
   /** The check the summary names: the decision that took effect, or the top decision of a quiet step. */
   decider?: SentinelNode;
-  /** The row that took effect; unset when every check continued. */
+  /** The check that made the step's decision; unset when every check continued. */
   effective?: SentinelNode;
-  /** The explanation the summary shows: the deciding layer's, or the lone check's. */
+  /** The explanation the summary shows: the deciding check's (or the nearest above it), or the lone check's. */
   reason?: string;
   /** Scores the summary shows for a step that did not act: each monitor's top score. */
   scores: string[];
@@ -144,50 +144,30 @@ const guidesFor = (entry: TreeNode): string => {
 const explanationOf = (node: SentinelNode | undefined): string | undefined =>
   node?.event.explanation?.trim() || undefined;
 
-/** Whether a child's decision is the one its parent passed up. */
-const passesUp = (
-  child: SentinelNode,
-  parent: SentinelNode,
-  explanation: string | undefined
-): boolean => {
-  const event = child.event;
-  if (event.kind !== "decision" || event.decision !== parent.event.decision) {
-    return false;
-  }
-  const own = explanationOf(child);
-  if (own && explanation && own !== explanation) return false;
-  const [mine, theirs] = [event.modified, parent.event.modified];
-  return (
-    !mine ||
-    !theirs ||
-    (mine.function === theirs.function &&
-      JSON.stringify(mine.arguments) === JSON.stringify(theirs.arguments))
-  );
-};
+interface Credit {
+  node: SentinelNode;
+  /** The credited check's explanation, or the nearest one above it on the chain. */
+  reason?: string;
+}
 
 /**
- * The decision that took effect, inferred from the step's outcome: a parent
- * passes up its children's decision, so descend from the outcome through
- * children that made the same decision and, where both explain themselves,
- * gave the same explanation. A child whose explanation matches wins a tie.
+ * The check that made the step's decision: from the outcome, descend to the
+ * first child (in tree order, as `concurrent` picks) that made the same
+ * decision, to the lowest such descendant. Explanations and replacements may
+ * differ, since combinators reword what they pass up.
  */
-const effectiveDecision = (
-  tree: TreeNode[],
-  outcome: SentinelNode
-): SentinelNode => {
+const creditDecision = (tree: TreeNode[], outcome: SentinelNode): Credit => {
   let current = tree.find((e) => e.node === outcome)!;
-  let explanation = explanationOf(outcome);
+  let reason = explanationOf(outcome);
   for (;;) {
-    const matching = current.children.filter((c) =>
-      passesUp(c.node, current.node, explanation)
+    const next = current.children.find(
+      (c) =>
+        c.node.event.kind === "decision" &&
+        c.node.event.decision === outcome.event.decision
     );
-    const next =
-      (explanation
-        ? matching.find((c) => explanationOf(c.node) === explanation)
-        : undefined) ?? matching[0];
-    if (!next) return current.node;
+    if (!next) return { node: current.node, reason };
     current = next;
-    explanation ??= explanationOf(next.node);
+    reason = explanationOf(next.node) ?? reason;
   }
 };
 
@@ -261,7 +241,8 @@ export function buildSentinelStep(
 
   const outcome = outcomeOf(checks);
   const acted = !!outcome && outcome.event.decision !== "continue";
-  const effective = acted ? effectiveDecision(tree, outcome) : undefined;
+  const credit = acted ? creditDecision(tree, outcome) : undefined;
+  const effective = credit?.node;
 
   const single = checks.length === 1 ? checks[0] : undefined;
   const observations = checks.filter(
@@ -295,9 +276,7 @@ export function buildSentinelStep(
     outcome,
     decider: effective ?? outcome,
     effective,
-    reason: acted
-      ? (explanationOf(effective) ?? explanationOf(outcome))
-      : explanationOf(single),
+    reason: credit ? credit.reason : explanationOf(single),
     scores,
     audit: nodes.some((n) => n.event.audit),
     modelCalls,

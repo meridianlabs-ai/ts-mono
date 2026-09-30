@@ -136,22 +136,48 @@ describe("buildSentinelStep", () => {
     expect(step.reason).toBe("exfiltration 0.93 is over the 0.80 threshold.");
   });
 
-  it("prefers the child whose explanation matches its parent's", () => {
+  it("credits the first of several children that made the decision", () => {
     const step = buildSentinelStep([
+      decision("c", "c", "rule", "continue"),
       withExplanation(decision("a", "a", "rule", "reject"), "first"),
       withExplanation(decision("b", "b", "rule", "reject"), "second"),
       withExplanation(decision("root", "", "concurrent", "reject"), "second"),
     ]);
-    expect(step.effective?.id).toBe("b");
+    expect(step.effective?.id).toBe("a");
+    expect(step.reason).toBe("first");
   });
 
-  it("keeps the effect on a parent whose child explained a different reject", () => {
+  it("credits a child whose parent reworded its reject, with the child's reason", () => {
     const step = buildSentinelStep([
       withExplanation(decision("rule", "rule", "rule", "reject"), "child"),
       withExplanation(decision("root", "", "concurrent", "reject"), "parent"),
     ]);
-    expect(step.effective?.id).toBe("root");
-    expect(step.reason).toBe("parent");
+    expect(step.effective?.id).toBe("rule");
+    expect(step.reason).toBe("child");
+  });
+
+  it("credits the lowest check under a rewording concurrent layer", () => {
+    const rewritten =
+      "`curl` needs the network, which this task does not allow. (network: reject; protected: continue)";
+    const step = buildSentinelStep([
+      withExplanation(
+        decision("net", "guard/network", "no_network", "reject"),
+        "`curl` needs the network, which this task does not allow."
+      ),
+      decision("prot", "guard/protected", "protected", "continue"),
+      withExplanation(
+        decision("guard", "guard", "concurrent", "reject"),
+        rewritten
+      ),
+      observation("audit", "audit", "suspicion", 0.2),
+      withExplanation(decision("root", "", "concurrent", "reject"), rewritten),
+    ]);
+    expect(step.outcome?.id).toBe("root");
+    expect(step.effective?.id).toBe("net");
+    expect(step.decider?.event.path).toBe("guard/network");
+    expect(step.reason).toBe(
+      "`curl` needs the network, which this task does not allow."
+    );
   });
 
   it("follows a passed-up decision through a layer with no explanation", () => {
@@ -163,7 +189,7 @@ describe("buildSentinelStep", () => {
     expect(step.effective?.id).toBe("llm");
   });
 
-  it("keeps the effect on a parent whose child proposed a different modify", () => {
+  it("credits a child that proposed a different modify, keeping the call the root ran", () => {
     const modify = (id: string, path: string, cmd: string) => {
       const node = decision(id, path, id, "modify");
       node.event.modified = testToolCall({ arguments: { cmd } });
@@ -173,7 +199,7 @@ describe("buildSentinelStep", () => {
       modify("rule", "rule", "CHILD_CMD"),
       modify("root", "", "ROOT_CMD"),
     ]);
-    expect(step.effective?.id).toBe("root");
+    expect(step.effective?.id).toBe("rule");
     expect(step.outcome?.event.modified?.arguments).toEqual({
       cmd: "ROOT_CMD",
     });
@@ -203,14 +229,26 @@ describe("buildSentinelStep", () => {
     expect(rowIds(step)).toEqual(["root", "guard", "net", "prot", "audit"]);
   });
 
-  it("does not descend past a final() origin into a child that explained otherwise", () => {
+  it("descends below a final() origin into a child that made its decision", () => {
     const step = buildSentinelStep([
+      decision("quiet", "guard/quiet", "rule", "continue"),
       withExplanation(decision("inner", "guard/inner", "rule", "reject"), "a"),
       layer("root", "", "concurrent", "bypassed"),
       withExplanation(decision("guard", "guard", "strict", "reject"), "b"),
     ]);
-    expect(step.effective?.id).toBe("guard");
-    expect(step.reason).toBe("b");
+    expect(step.outcome?.id).toBe("guard");
+    expect(step.effective?.id).toBe("inner");
+    expect(step.reason).toBe("a");
+  });
+
+  it("takes the reason from the nearest explained check above an unexplained one", () => {
+    const step = buildSentinelStep([
+      decision("rule", "guard/rule", "rule", "reject"),
+      withExplanation(decision("guard", "guard", "sequential", "reject"), "g"),
+      withExplanation(decision("root", "", "concurrent", "reject"), "r"),
+    ]);
+    expect(step.effective?.id).toBe("rule");
+    expect(step.reason).toBe("g");
   });
 
   it("reads a step whose root returned nothing as continued, whatever a child decided", () => {

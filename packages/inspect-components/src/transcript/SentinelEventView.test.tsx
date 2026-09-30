@@ -164,6 +164,45 @@ describe("sentinel checks in a tool card", () => {
     expect(container.textContent).not.toContain("before call");
   });
 
+  it("names the check under a rewording combinator and shows what the model received", async () => {
+    const own = "`curl` needs the network, which this task does not allow.";
+    const rewritten = `${own} (network: reject; protected: continue)`;
+    const { container } = renderTool(
+      [
+        decision("net", "guard/network", "no_network", "reject", {
+          explanation: own,
+        }),
+        decision("prot", "guard/protected", "protected", "continue"),
+        decision("guard", "guard", "inspect_sentinel/concurrent", "reject", {
+          explanation: rewritten,
+        }),
+        observation("audit", "audit", "suspicion", 0.2),
+        decision("root", "", "inspect_sentinel/concurrent", "reject", {
+          explanation: rewritten,
+        }),
+      ],
+      { result: "", error: { type: "approval", message: rewritten } }
+    );
+    expect(screen.getByText("Rejected")).toBeTruthy();
+    expect(screen.getByText("guard/network")).toBeTruthy();
+    await waitFor(() => {
+      expect(
+        container.querySelector('[class*="summary"] [class*="reason"]')
+          ?.textContent
+      ).toBe(own);
+    });
+    expect(notRunText(container)).toContain(rewritten);
+
+    fireEvent.click(pill(5));
+    const open = screen
+      .getAllByRole("button", { expanded: true })
+      .map((b) => b.textContent);
+    expect(open).toEqual([
+      "5 checks",
+      expect.stringContaining("guard/network"),
+    ]);
+  });
+
   it("marks each row's kind with an icon", () => {
     renderTool(rejectEvents());
     fireEvent.click(pill(5));
