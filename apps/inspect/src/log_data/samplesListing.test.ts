@@ -239,11 +239,11 @@ describe("useSamplesListing", () => {
     expect(result.current.data ?? []).toHaveLength(0);
 
     // Activation completes: the db is open and the engine seeds the session
-    // (FetchEngine.start → sink.seedRows). A warm no-change boot performs no
-    // writes after this, so seeding itself must refresh the listing.
+    // (FetchEngine.start → sink.replaceRows). A warm no-change boot performs
+    // no writes after this, so seeding itself must refresh the listing.
     holder.service = db;
     const rows = await db.readLogs({ prefix: LOG_DIR });
-    createLogsContentSink(db, LOG_DIR).seedRows(rows ?? []);
+    createLogsContentSink(db, LOG_DIR).replaceRows(rows ?? []);
 
     await waitFor(() => expect(result.current.data).toHaveLength(2));
   });

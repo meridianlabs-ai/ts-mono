@@ -37,7 +37,7 @@ import {
  * write landing in the cache. The `write*` / `clear*` / `reset*` seam below
  * are the only callers of the `DatabaseService` mutators anywhere — each
  * pairs the persistence with its cache update. Cache-only writes (the
- * `set*`/`merge*`/`seed*` primitives) are allowed; the invariant is
+ * `set*`/`merge*`/`replace*` primitives) are allowed; the invariant is
  * one-directional (db ⟹ cache).
  */
 
@@ -138,6 +138,13 @@ const mergePatches = (
     }
   }
 };
+
+/** Upsert `patches` into the collection by name (new names are appended) —
+ *  the single-row-safe counterpart to `setRows`' full replace. */
+export const mergeRows = (
+  logDir: string,
+  patches: Record<string, Partial<Log>>
+): void => mergePatches(logDir, patches);
 
 export const mergePreviews = (
   logDir: string,
@@ -437,6 +444,19 @@ export const clearAll = async (
   invalidateDatabaseLogsListings();
 };
 
+// A warm session coming online must refresh samples listings: a listing
+// query mounted before the db opened settled empty (staleTime: Infinity)
+// and a no-change boot performs none of the writes that would otherwise
+// invalidate it — so /#/samples as the entry route stayed blank. Log
+// listings need the same nudge: one mounted before the db opened read
+// nothing, and a no-change boot never writes. Both row-seeding sink methods
+// (full replace and single-row merge) need this, so it's shared to keep
+// them from drifting apart.
+const invalidateOnRowSeed = (logDir: string): void => {
+  invalidateDatabaseLogsListings();
+  invalidateSamplesListings(logDir);
+};
+
 /**
  * The seam as a fetch-engine sink: the write surface bound to a directory and
  * its database. Built at the composition root so the engine stays
@@ -446,16 +466,13 @@ export const createLogsContentSink = (
   db: DatabaseService | null,
   logDir: string
 ): LogsContentSink => ({
-  seedRows: (rows) => {
+  replaceRows: (rows) => {
     setRows(logDir, rows);
-    // A warm session coming online must refresh samples listings: a listing
-    // query mounted before the db opened settled empty (staleTime: Infinity)
-    // and a no-change boot performs none of the writes that would otherwise
-    // invalidate it — so /#/samples as the entry route stayed blank. Log
-    // listings need the same nudge: one mounted before the db opened read
-    // nothing, and a no-change boot never writes.
-    invalidateDatabaseLogsListings();
-    invalidateSamplesListings(logDir);
+    invalidateOnRowSeed(logDir);
+  },
+  mergeRows: (patches) => {
+    mergeRows(logDir, patches);
+    invalidateOnRowSeed(logDir);
   },
   setListing: (handles) => setListing(logDir, handles),
   mergePreviews: (previews) => mergePreviews(logDir, previews),

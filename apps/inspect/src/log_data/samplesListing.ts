@@ -214,6 +214,9 @@ export const hasCompletedSettledSummary = async (
  * only in the pending buffer never vanishes while an invalidation refetch is
  * in flight. In db-less sessions this push is the only source of settled
  * rows.
+ *
+ * `rows` replaces the entry outright — it must be every row for the file,
+ * not a delta; use `mergeSampleSummaries` for partial/incremental updates.
  */
 export const pushFileSamples = async (
   logDir: string,
