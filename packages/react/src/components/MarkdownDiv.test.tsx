@@ -14,33 +14,43 @@ const render = (ui: ReactElement) =>
   renderUi(ui, { wrapper: TrustedContentWrapper });
 
 describe("MarkdownDiv render coordination", () => {
-  it("isolates cached HTML and pending output when rendering permissions change", async () => {
-    const markdown =
-      "# Policy cache\n$x^2$\n[label](https://example.com/policy)";
-    const view = (restricted: boolean) => (
-      <ContentPolicyProvider
-        value={{ ...richContentPolicy, math: !restricted, links: !restricted }}
-      >
-        <MarkdownDiv markdown={markdown} />
-      </ContentPolicyProvider>
-    );
-    const { container, rerender } = render(view(false));
-    await waitFor(() =>
-      expect(container.querySelector("mjx-container")).not.toBeNull()
-    );
-    expect(container.querySelector("a[href]")).not.toBeNull();
-    rerender(view(true));
-    expect(container.querySelector("mjx-container, a[href]")).toBeNull();
-    await waitFor(() => expect(container.querySelector("h1")).not.toBeNull());
-    expect(container.textContent).toContain("$x^2$");
-    expect(container.textContent).toContain("https://example.com/policy");
-    expect(container.querySelector("mjx-container, a[href]")).toBeNull();
-    rerender(view(false));
-    await waitFor(() =>
-      expect(container.querySelector("mjx-container")).not.toBeNull()
-    );
-    expect(container.querySelector("a[href]")).not.toBeNull();
-  });
+  it(
+    "isolates cached HTML and pending output when rendering permissions change",
+    { timeout: 30000 },
+    async () => {
+      const markdown =
+        "# Policy cache\n$x^2$\n[label](https://example.com/policy)";
+      const view = (restricted: boolean) => (
+        <ContentPolicyProvider
+          value={{
+            ...richContentPolicy,
+            math: !restricted,
+            links: !restricted,
+          }}
+        >
+          <MarkdownDiv markdown={markdown} />
+        </ContentPolicyProvider>
+      );
+      const { container, rerender } = render(view(false));
+      // The first MathJax import can exceed waitFor's default on a cold runner.
+      await waitFor(
+        () => expect(container.querySelector("mjx-container")).not.toBeNull(),
+        { timeout: 20000 }
+      );
+      expect(container.querySelector("a[href]")).not.toBeNull();
+      rerender(view(true));
+      expect(container.querySelector("mjx-container, a[href]")).toBeNull();
+      await waitFor(() => expect(container.querySelector("h1")).not.toBeNull());
+      expect(container.textContent).toContain("$x^2$");
+      expect(container.textContent).toContain("https://example.com/policy");
+      expect(container.querySelector("mjx-container, a[href]")).toBeNull();
+      rerender(view(false));
+      await waitFor(() =>
+        expect(container.querySelector("mjx-container")).not.toBeNull()
+      );
+      expect(container.querySelector("a[href]")).not.toBeNull();
+    }
+  );
 
   it("enforces link and media permissions after HTML post-processing", async () => {
     const { container } = render(
