@@ -1,4 +1,4 @@
-import { RefObject, useEffect } from "react";
+import { RefObject, useLayoutEffect } from "react";
 
 import { useContentPolicy } from "../components/ContentTrust";
 
@@ -35,7 +35,10 @@ export const usePrismHighlight = (
   contentLength: number
 ) => {
   const trusted = useContentPolicy().syntaxHighlighting;
-  useEffect(() => {
+  // A layout effect, so a trust change disconnects the observer in the same
+  // commit that inserts the untrusted content; a passive effect's cleanup can
+  // run after the observer has already seen (and highlighted) it.
+  useLayoutEffect(() => {
     if (
       !trusted ||
       contentLength <= 0 ||
