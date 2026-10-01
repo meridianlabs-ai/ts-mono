@@ -565,14 +565,18 @@ const tokenCount = (value: number | null | undefined): number | undefined =>
     ? value
     : undefined;
 
-/** Input-side tokens for one model call (context occupancy): the shared
- *  total minus the output side. Summing input + cache categories directly
- *  would double-count on providers whose input_tokens already includes
- *  cached reads (OpenAI) — deriving from usageTotal keeps this surface
- *  consistent with the Usage tab. */
+/** Input-side tokens for one model call (context occupancy). Prefers the
+ *  recorded input_context_tokens: usage is billed, and for a call that made
+ *  several requests it sums them. Logs without that field fall back to the
+ *  shared total minus the output side. Summing input + cache categories
+ *  directly would double-count on providers whose input_tokens already
+ *  includes cached reads (OpenAI) — deriving from usageTotal keeps this
+ *  surface consistent with the Usage tab. */
 const inputSideTokens = (event: ModelEvent): number | undefined => {
   const usage = event.output.usage;
   if (!usage) return undefined;
+  const context = event.output.input_context_tokens;
+  if (typeof context === "number") return tokenCount(context);
   const total = tokenCount(usageTotal(usage));
   const output = tokenCount(usage.output_tokens);
   if (total === undefined || output === undefined) return undefined;
