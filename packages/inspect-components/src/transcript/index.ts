@@ -8,6 +8,7 @@ export {
   kTranscriptOutlineCollapseScope,
 } from "./types";
 export { dynamicDefaultExcludeEvents } from "./eventFilter";
+export { citeReferences, type MakeCiteUrl } from "./citeReferences";
 export type {
   EventNodeContext,
   EventNodeSpan,

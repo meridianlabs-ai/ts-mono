@@ -3,9 +3,10 @@ import { FC, Fragment } from "react";
 
 import type { SentinelEvent, ToolCall } from "@tsmono/inspect-common/types";
 import { resolveToolInput } from "@tsmono/inspect-components/chat";
-import { MarkdownDiv } from "@tsmono/react/components";
+import { MarkdownDivWithReferences } from "@tsmono/react/components";
 import { useCollapsedState, useProperty } from "@tsmono/react/hooks";
 
+import { citeReferences, type MakeCiteUrl } from "./citeReferences";
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
 import { ModelEventView } from "./ModelEventView";
@@ -77,7 +78,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         <RanInstead call={modified} ran={ran} />
       ) : null}
       {!collapsed && step.rows.length > 1 ? (
-        <CheckTree step={step} tone={tone} />
+        <CheckTree step={step} tone={tone} makeCiteUrl={context?.makeCiteUrl} />
       ) : null}
       {step.modelCalls[0] ? (
         <ModelCallsNote
@@ -90,10 +91,13 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
   );
 };
 
-const CheckTree: FC<{ step: SentinelStep; tone: CheckTone }> = ({
-  step,
-  tone,
-}) => {
+interface CheckTreeProps {
+  step: SentinelStep;
+  tone: CheckTone;
+  makeCiteUrl?: MakeCiteUrl;
+}
+
+const CheckTree: FC<CheckTreeProps> = ({ step, tone, makeCiteUrl }) => {
   const grouped = groupedPaths(step.rows);
   const [openRow, setOpenRow] = useProperty<string | null>(
     step.id,
@@ -121,6 +125,7 @@ const CheckTree: FC<{ step: SentinelStep; tone: CheckTone }> = ({
               <CheckDetail
                 row={row}
                 showFunction={grouped.has(row.node.event.path)}
+                makeCiteUrl={makeCiteUrl}
               />
             ) : null}
           </Fragment>
@@ -227,9 +232,14 @@ interface CheckDetailProps {
   row: SentinelRow;
   /** Names the reporting function, for an instance that reported from several. */
   showFunction: boolean;
+  makeCiteUrl?: MakeCiteUrl;
 }
 
-const CheckDetail: FC<CheckDetailProps> = ({ row, showFunction }) => {
+const CheckDetail: FC<CheckDetailProps> = ({
+  row,
+  showFunction,
+  makeCiteUrl,
+}) => {
   const event = row.node.event;
   const explanation = event.explanation?.trim();
   const effectTone = row.tookEffect ? toneOfDecision(event.action) : null;
@@ -277,8 +287,9 @@ const CheckDetail: FC<CheckDetailProps> = ({ row, showFunction }) => {
           </div>
         ) : null}
         {explanation ? (
-          <MarkdownDiv
+          <MarkdownDivWithReferences
             markdown={explanation}
+            references={citeReferences(event.references, makeCiteUrl)}
             className={clsx(
               styles.explanation,
               effectTone === "reject" && checkClasses.rejectReason

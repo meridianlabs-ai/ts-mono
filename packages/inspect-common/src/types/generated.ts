@@ -2927,7 +2927,12 @@ export interface components {
         };
         /**
          * Reference
-         * @description Reference to scanned content.
+         * @description Reference from a score to content in the scored transcript.
+         *
+         *     References are stored as a list of dicts under a score's
+         *     `metadata["scanner_references"]` key. Inspect View identifies scanner
+         *     scores by the presence of that key and renders cites in the score's
+         *     explanation (e.g. `[M22]`) as links to the referenced content.
          */
         Reference: {
             /** Cite */
@@ -3532,6 +3537,8 @@ export interface components {
             path: string;
             /** Pending */
             pending?: boolean | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
             /** Span Id */
             span_id?: string | null;
             /**

@@ -421,6 +421,7 @@ export const testSentinelEvent = (
   kind: "decision",
   action: "continue",
   audit: false,
+  references: [],
   ...overrides,
 });
 

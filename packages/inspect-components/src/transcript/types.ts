@@ -32,6 +32,7 @@ import type {
   ToolAnnotation,
 } from "../chat/tools/browserActionUtils";
 
+import type { MakeCiteUrl } from "./citeReferences";
 import type { SentinelStep, ToolSentinels } from "./transform/toolSentinels";
 import { SPAN_BEGIN, STEP, TYPE_SUBTASK, TYPE_TOOL } from "./transform/utils";
 
@@ -286,6 +287,8 @@ export interface EventNodeContext {
   toolApprovals?: Map<string, EventNode<ApprovalEvent>[]>;
   /** Sentinel steps paired to their tool event via `step_id == ToolEvent.id`, rendered as rows at the bottom of the tool panel beside the approval. */
   toolSentinels?: Map<string, ToolSentinels>;
+  /** Links the cites in a sentinel check's explanation (e.g. `[M22]`) to the messages and events its references name. */
+  makeCiteUrl?: MakeCiteUrl;
   /** Sentinel steps with no tool to render in, keyed by the node that hosts the step's row. */
   standaloneSentinels?: Map<string, SentinelStep>;
   /** Retry attempts paired to their successful ModelEvent via `retryAttemptKey(event)`. `ModelEventView` reads from this to render the inline retry chip and swap bodies between attempts. */

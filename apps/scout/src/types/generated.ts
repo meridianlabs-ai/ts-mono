@@ -3593,6 +3593,8 @@ export interface components {
             path: string;
             /** Pending */
             pending?: boolean | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
             /** Span Id */
             span_id?: string | null;
             /**

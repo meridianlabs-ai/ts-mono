@@ -25,7 +25,7 @@ import { SentinelEventView } from "./SentinelEventView";
 import { InMemoryStateWrapper } from "./testHelpers";
 import { ToolEventView } from "./ToolEventView";
 import { pairToolSentinels } from "./transform/toolSentinels";
-import { EventNode } from "./types";
+import { EventNode, type EventNodeContext } from "./types";
 
 const node = (id: string, overrides: Partial<SentinelEvent>) =>
   new EventNode(id, testSentinelEvent(overrides), 0);
@@ -86,7 +86,8 @@ const toolNode = (overrides: Partial<ToolEvent> = {}) =>
 
 const renderTool = (
   sentinels: EventNode[],
-  overrides: Partial<ToolEvent> = {}
+  overrides: Partial<ToolEvent> = {},
+  context: Partial<EventNodeContext> = {}
 ) => {
   const tool = toolNode(overrides);
   const { toolSentinels } = pairToolSentinels([...sentinels, tool]);
@@ -94,7 +95,7 @@ const renderTool = (
     <ToolEventView
       eventNode={tool}
       childNodes={[]}
-      context={{ toolSentinels }}
+      context={{ toolSentinels, ...context }}
     />
   );
 };
@@ -221,6 +222,54 @@ describe("sentinel checks in a tool card", () => {
     expect(detail?.textContent).toContain("told the agent");
     expect(detail?.textContent).toContain("USE_X_INSTEAD");
     expect(detail?.textContent).toContain("INTERNAL_REASON");
+  });
+
+  it("links the cites in a check's explanation to what its references name", async () => {
+    const { container } = renderTool(
+      [
+        observation("mon", "audit", "suspicion", 0.9, {
+          explanation: "edits the tests [M2] after reading [E5]",
+          references: [
+            { type: "message", id: "msg_2", cite: "[M2]" },
+            { type: "event", id: "evt_5", cite: "[E5]" },
+          ],
+        }),
+        decision("root", "", "inspect_sentinel/threshold", "reject", {
+          explanation: "suspicion 0.90 from audit: edits the tests [M2]",
+          references: [{ type: "message", id: "msg_2", cite: "[M2]" }],
+        }),
+      ],
+      { result: "" },
+      { makeCiteUrl: (id, type) => `#/${type}/${id}` }
+    );
+    fireEvent.click(pill(2));
+    fireEvent.click(rowButton(/audit/));
+    await waitFor(() => {
+      const links = [...container.querySelectorAll("[data-ref-id]")].map(
+        (link) => [link.textContent, link.getAttribute("href")]
+      );
+      expect(links).toEqual([
+        ["M2", "#/message/msg_2"],
+        ["E5", "#/event/evt_5"],
+      ]);
+    });
+  });
+
+  it("leaves a cite unlinked without a host to route it", async () => {
+    const { container } = renderTool([
+      observation("mon", "audit", "suspicion", 0.9, {
+        explanation: "edits the tests [M2]",
+        references: [{ type: "message", id: "msg_2", cite: "[M2]" }],
+      }),
+      decision("root", "", "inspect_sentinel/threshold", "continue"),
+    ]);
+    fireEvent.click(pill(2));
+    fireEvent.click(rowButton(/audit/));
+    await waitFor(() => {
+      const cite = container.querySelector("[data-ref-id]");
+      expect(cite?.textContent).toBe("M2");
+      expect(cite?.getAttribute("href")).toBeNull();
+    });
   });
 
   it("marks each row's kind with an icon", () => {
