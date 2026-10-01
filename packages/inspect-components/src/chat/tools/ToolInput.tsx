@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC, Ref, useRef } from "react";
+import { FC, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { ContentCode } from "@tsmono/react/components";
@@ -26,16 +26,15 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
   const useToolView =
     formatContent && toolCallView && isValidView(toolCallView);
 
-  const sourceCodeLength = useToolView
-    ? toolCallView.content.length
-    : contents
-      ? typeof contents === "string"
-        ? contents.length
-        : JSON.stringify(contents).length
-      : 0;
-  usePrismHighlight(sourceCodeRef, sourceCodeLength || 0);
-
-  if (contents === undefined && !useToolView) return null;
+  const serialized = useToolView
+    ? undefined
+    : typeof contents === "string"
+      ? contents
+      : JSON.stringify(contents);
+  usePrismHighlight(
+    sourceCodeRef,
+    useToolView ? toolCallView.content.length : (serialized?.length ?? 0)
+  );
 
   if (useToolView) {
     return (
@@ -45,47 +44,15 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
         className={clsx("tool-call-input", styles.toolView, className)}
       />
     );
-  } else {
-    return (
-      <RenderTool
-        contents={
-          typeof contents === "string" ||
-          (typeof contents === "object" && contents !== null)
-            ? contents
-            : JSON.stringify(contents)
-        }
-        contentType={contentType || ""}
-        parentRef={sourceCodeRef}
-        className={className}
-      />
-    );
   }
-};
+  if (serialized === undefined) return null;
 
-interface RenderToolProps {
-  contents: string | object;
-  contentType: string;
-  parentRef: Ref<HTMLDivElement>;
-  className?: string | string[];
-}
-
-const RenderTool: FC<RenderToolProps> = ({
-  contents,
-  contentType,
-  parentRef,
-  className,
-}) => {
-  // The checklist is rendering; untrusted todos show as their serialization.
-  const formatContent = useFormattedContent();
   if (contentType === kToolTodoContentType && formatContent) {
-    return <TodoWriteInput contents={contents} parentRef={parentRef} />;
+    return <TodoWriteInput contents={contents} parentRef={sourceCodeRef} />;
   }
-
-  const serialized =
-    typeof contents === "object" ? JSON.stringify(contents) : contents;
 
   return (
-    <div ref={parentRef}>
+    <div ref={sourceCodeRef}>
       <pre className={clsx("tool-call-input", styles.outputPre, className)}>
         <ContentCode
           className={clsx(

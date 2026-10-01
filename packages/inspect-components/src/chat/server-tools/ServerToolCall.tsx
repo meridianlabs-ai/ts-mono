@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { FC } from "react";
+import { FC, ReactNode } from "react";
 
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
 import { ContentText, ExpandablePanel } from "@tsmono/react/components";
@@ -31,81 +31,14 @@ interface ServerToolCallProps {
  * grammar with a globe icon and a neutral "server" pill as the only server
  * signals.
  */
-export const ServerToolCall: FC<ServerToolCallProps> = (props) =>
-  useFormattedContent() ? (
-    <FormattedServerToolCall {...props} />
-  ) : (
-    <PlainServerToolCall {...props} />
-  );
-
-const PlainServerToolCall: FC<ServerToolCallProps> = ({
-  id,
-  content,
-  flush = true,
-  className,
-}) => (
-  <ToolBlock
-    id={id}
-    flush={flush}
-    className={className}
-    icon={iconForTool(content.name, { server: true })}
-    title={
-      content.context ? `${content.context} — ${content.name}` : content.name
-    }
-    pill="server"
-  >
-    {content.arguments.length > 0 && (
-      <ToolBlockInput>
-        <ExpandablePanel
-          id={`${id}-input`}
-          collapse={true}
-          border={false}
-          lines={20}
-        >
-          <ToolInput contents={content.arguments} />
-        </ExpandablePanel>
-      </ToolBlockInput>
-    )}
-    {(content.result.length > 0 || content.error) && (
-      <ToolBlockOutput>
-        {content.error && (
-          <ToolCallErrorView
-            error={{ type: "unknown", message: content.error }}
-          />
-        )}
-        {content.result.length > 0 && (
-          <ExpandablePanel
-            id={`${id}-output`}
-            collapse={true}
-            border={false}
-            lines={15}
-          >
-            <RenderedContent
-              id={`${id}-output`}
-              entry={{ name: "Output", value: content.result }}
-              renderOptions={{ renderString: "pre" }}
-            />
-          </ExpandablePanel>
-        )}
-      </ToolBlockOutput>
-    )}
-  </ToolBlock>
-);
-
-const FormattedServerToolCall: FC<ServerToolCallProps> = ({
+export const ServerToolCall: FC<ServerToolCallProps> = ({
   id,
   content,
   flush = true,
   className,
 }) => {
-  const args = resolveArgs(content);
-  const title = content.context
-    ? `${content.context} — ${content.name}`
-    : content.name;
-
-  // Multi-line string args (code bodies) get a real input zone; only short
-  // args (the query for web_search, the URL for web_fetch) summarize on the
-  // header line.
+  const formatted = useFormattedContent();
+  const args = formatted ? resolveArgs(content) : {};
   const summaryArgs: Record<string, unknown> = {};
   const inputArgs: Array<[string, string]> = [];
   for (const [key, value] of Object.entries(args)) {
@@ -115,83 +48,114 @@ const FormattedServerToolCall: FC<ServerToolCallProps> = ({
       summaryArgs[key] = value;
     }
   }
-
-  const listToolsResult = maybeListTools(content);
-  const webSearchResult = maybeWebSearchResult(content);
-  const codeExecutionResult = maybeCodeExecution(content);
-  const execHasOutput =
-    !!codeExecutionResult &&
-    (!!codeExecutionResult.stdout ||
-      !!codeExecutionResult.stderr ||
-      codeExecutionResult.encrypted ||
-      (codeExecutionResult.returnCode ?? 0) !== 0);
-  const hasResult =
-    !!content.error ||
-    !!listToolsResult ||
-    !!webSearchResult ||
-    (codeExecutionResult ? execHasOutput : hasResultContent(content.result));
+  const input = formatted ? (
+    inputArgs.map(([key, value]) => (
+      <ToolInput
+        key={key}
+        contentType={
+          content.tool_type === "code_execution" ? "python" : undefined
+        }
+        contents={value}
+      />
+    ))
+  ) : content.arguments.length > 0 ? (
+    <ToolInput contents={content.arguments} />
+  ) : null;
+  const hasInput = formatted ? inputArgs.length > 0 : input !== null;
+  const output = formatted ? (
+    formattedServerResult(id, content)
+  ) : content.result.length > 0 ? (
+    <ExpandablePanel
+      id={`${id}-output`}
+      collapse={true}
+      border={false}
+      lines={15}
+    >
+      <RenderedContent
+        id={`${id}-output`}
+        entry={{ name: "Output", value: content.result }}
+        renderOptions={{ renderString: "pre" }}
+      />
+    </ExpandablePanel>
+  ) : null;
 
   return (
     <ToolBlock
       id={id}
       flush={flush}
-      icon={iconForTool(content.name, { server: true })}
-      title={title}
-      summary={argsSummary(summaryArgs)}
-      pill="server"
       className={className}
+      icon={iconForTool(content.name, { server: true })}
+      title={
+        content.context ? `${content.context} — ${content.name}` : content.name
+      }
+      summary={formatted ? argsSummary(summaryArgs) : undefined}
+      pill="server"
     >
-      {inputArgs.length > 0 ? (
+      {hasInput && (
         <ToolBlockInput>
           <ExpandablePanel
             id={`${id}-input`}
             collapse={true}
             border={false}
             lines={20}
-            className={"text-size-small"}
+            className={formatted ? "text-size-small" : undefined}
           >
-            {inputArgs.map(([key, value]) => (
-              <ToolInput
-                key={key}
-                contentType={
-                  content.tool_type === "code_execution" ? "python" : undefined
-                }
-                contents={value}
-              />
-            ))}
+            {input}
           </ExpandablePanel>
         </ToolBlockInput>
-      ) : null}
-      {hasResult ? (
+      )}
+      {(content.error || output !== null) && (
         <ToolBlockOutput>
-          {content.error ? (
+          {content.error && (
             <ToolCallErrorView
               error={{ type: "unknown", message: content.error }}
             />
-          ) : webSearchResult ? (
-            <WebSearchResults id={id} results={webSearchResult.result} />
-          ) : listToolsResult ? (
-            <ListToolsResult id={id} tools={listToolsResult.result} />
-          ) : codeExecutionResult ? (
-            <CodeExecutionResult id={id} result={codeExecutionResult} />
-          ) : (
-            <ExpandablePanel
-              id={`${id}-output`}
-              collapse={true}
-              border={false}
-              lines={15}
-            >
-              <RenderedContent
-                id={`${id}-output`}
-                entry={{ name: "Output", value: content.result }}
-                renderOptions={{ renderString: "markdown" }}
-              />
-            </ExpandablePanel>
           )}
+          {output}
         </ToolBlockOutput>
-      ) : null}
+      )}
     </ToolBlock>
   );
+};
+
+const formattedServerResult = (
+  id: string | undefined,
+  content: ContentToolUse
+): ReactNode => {
+  if (content.error) return null;
+  const webSearchResult = maybeWebSearchResult(content);
+  if (webSearchResult) {
+    return <WebSearchResults id={id} results={webSearchResult.result} />;
+  }
+  const listToolsResult = maybeListTools(content);
+  if (listToolsResult) {
+    return <ListToolsResult id={id} tools={listToolsResult.result} />;
+  }
+  const codeExecutionResult = maybeCodeExecution(content);
+  if (codeExecutionResult) {
+    const hasOutput =
+      codeExecutionResult.stdout ||
+      codeExecutionResult.stderr ||
+      codeExecutionResult.encrypted ||
+      (codeExecutionResult.returnCode ?? 0) !== 0;
+    return hasOutput ? (
+      <CodeExecutionResult id={id} result={codeExecutionResult} />
+    ) : null;
+  }
+  return hasResultContent(content.result) ? (
+    <ExpandablePanel
+      id={`${id}-output`}
+      collapse={true}
+      border={false}
+      lines={15}
+    >
+      <RenderedContent
+        id={`${id}-output`}
+        entry={{ name: "Output", value: content.result }}
+        renderOptions={{ renderString: "markdown" }}
+      />
+    </ExpandablePanel>
+  ) : null;
 };
 
 const WebSearchResults: FC<{ id?: string; results: WebResult[] }> = ({

@@ -42,27 +42,7 @@ export interface ToolCallViewProps {
   contentType?: string;
   view?: ToolCallContent;
   output:
-    | string
-    | number
-    | boolean
-    | ContentText
-    | ContentAudio
-    | ContentImage
-    | ContentVideo
-    | ContentTool
-    | ContentReasoning
-    | ContentData
-    | ContentDocument
-    | (
-        | ContentText
-        | ContentAudio
-        | ContentImage
-        | ContentVideo
-        | ContentTool
-        | ContentReasoning
-        | ContentData
-        | ContentDocument
-      )[];
+    string | number | boolean | NormalizedContentItem | NormalizedContentItem[];
   selfAnnotation?: ToolAnnotation;
   inputScreenshot?: ScreenshotContent[];
   mode?: "compact";
@@ -97,18 +77,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
 
   // don't collapse if output includes an image
   function isContentImage(
-    value:
-      | string
-      | number
-      | boolean
-      | ContentText
-      | ContentAudio
-      | ContentImage
-      | ContentVideo
-      | ContentTool
-      | ContentReasoning
-      | ContentData
-      | ContentDocument
+    value: string | number | boolean | NormalizedContentItem
   ) {
     if (value && typeof value === "object") {
       if (value.type === "image") {
@@ -208,30 +177,29 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     </div>
   );
 
-  const outputSection =
-    displayMode === "rendered" && contentType === "markdown" && hasContent ? (
-      <ExpandablePanel
-        id={`${id}-tool-content`}
-        collapse={collapse}
-        border={false}
-        lines={15}
-        className={clsx("text-size-small")}
-      >
-        <MarkdownToolOutput contents={normalizedContent} />
-      </ExpandablePanel>
-    ) : hasContent && collapsible ? (
-      <ExpandablePanel
-        id={`${id}-tool-content`}
-        collapse={collapse}
-        border={false}
-        lines={15}
-        className={clsx("text-size-small")}
-      >
-        <MessageContent contents={normalizedContent} />
-      </ExpandablePanel>
-    ) : hasContent ? (
+  const renderMarkdown =
+    displayMode === "rendered" && contentType === "markdown";
+  const result = hasContent ? (
+    renderMarkdown ? (
+      <MarkdownToolOutput contents={normalizedContent} />
+    ) : (
       <MessageContent contents={normalizedContent} />
-    ) : null;
+    )
+  ) : null;
+  const outputSection =
+    hasContent && (renderMarkdown || collapsible) ? (
+      <ExpandablePanel
+        id={`${id}-tool-content`}
+        collapse={collapse}
+        border={false}
+        lines={15}
+        className={clsx("text-size-small")}
+      >
+        {result}
+      </ExpandablePanel>
+    ) : (
+      result
+    );
 
   const actionElement =
     selfAnnotation && inputScreenshot ? (
@@ -261,9 +229,6 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   );
 };
 
-/**
- * Renders the ToolCallView component.
- */
 type NormalizedContentItem =
   | ContentText
   | ContentImage
@@ -290,50 +255,15 @@ const MarkdownToolOutput: FC<{
         if (item.type === "text" && item.text) {
           return <MarkdownDiv key={`md-${i}`} markdown={item.text} />;
         }
-        return (
-          <MessageContent
-            key={`content-${i}`}
-            contents={[item] as NormalizedContentItem[]}
-          />
-        );
+        return <MessageContent key={`content-${i}`} contents={[item]} />;
       })}
     </>
   );
 };
 
 const normalizeContent = (
-  output:
-    | string
-    | number
-    | boolean
-    | ContentText
-    | ContentImage
-    | ContentAudio
-    | ContentVideo
-    | ContentTool
-    | ContentReasoning
-    | ContentData
-    | ContentDocument
-    | (
-        | ContentText
-        | ContentImage
-        | ContentAudio
-        | ContentVideo
-        | ContentTool
-        | ContentReasoning
-        | ContentData
-        | ContentDocument
-      )[]
-): (
-  | ContentText
-  | ContentImage
-  | ContentAudio
-  | ContentVideo
-  | ContentTool
-  | ContentReasoning
-  | ContentData
-  | ContentDocument
-)[] => {
+  output: ToolCallViewProps["output"]
+): NormalizedContentItem[] => {
   if (Array.isArray(output)) {
     return output;
   } else {
