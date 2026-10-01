@@ -367,39 +367,43 @@ describe("token burn", () => {
     expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(1000);
   });
 
-  it.each([
-    ["absent", undefined],
-    ["null", null],
-  ])(
-    "falls back to usage when input_context_tokens is %s",
-    (_label, inputContextTokens) => {
-      const output = testModelOutput({
-        usage: testModelUsage({
-          input_tokens: 3000,
-          input_tokens_cache_read: 300,
-          output_tokens: 90,
-          total_tokens: 3390,
-        }),
-      });
-      if (inputContextTokens !== undefined) {
-        output.input_context_tokens = inputContextTokens;
-      }
-      const events: Event[] = [
-        testModelEvent({
-          timestamp: iso(0),
-          completed: iso(5),
-          working_start: 0,
-          working_time: 5,
-          output,
-        }),
-      ];
-      const data = deriveActivityData({ events });
+  const billedOnly = (inputContextTokens?: null): Event[] => {
+    const output = testModelOutput({
+      usage: testModelUsage({
+        input_tokens: 3000,
+        input_tokens_cache_read: 300,
+        output_tokens: 90,
+        total_tokens: 3390,
+      }),
+    });
+    if (inputContextTokens === null) output.input_context_tokens = null;
+    return [
+      testModelEvent({
+        timestamp: iso(0),
+        completed: iso(5),
+        working_start: 0,
+        working_time: 5,
+        output,
+      }),
+    ];
+  };
 
-      expect(data.totalTokens).toBe(3390);
-      expect(data.contextSeries[0]?.value).toBe(3300);
-      expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
-    }
-  );
+  it("falls back to usage when input_context_tokens is absent (older logs)", () => {
+    const data = deriveActivityData({ events: billedOnly() });
+
+    expect(data.totalTokens).toBe(3390);
+    expect(data.contextSeries[0]?.value).toBe(3300);
+    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBe(3300);
+  });
+
+  it("shows no context when input_context_tokens is null (unknown)", () => {
+    // e.g. a rejected request whose only usage is a billed capability probe
+    const data = deriveActivityData({ events: billedOnly(null) });
+
+    expect(data.totalTokens).toBe(3390);
+    expect(data.contextSeries).toHaveLength(0);
+    expect(data.agentRows[0]?.spans[0]?.inputTokens).toBeUndefined();
+  });
 
   it("skips model calls without usage (pending, errored)", () => {
     const events: Event[] = [
