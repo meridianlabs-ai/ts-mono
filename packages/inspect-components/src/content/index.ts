@@ -6,6 +6,7 @@ export type { ContentRenderersContextType } from "./ContentRenderersContext";
 export { DisplayModeContext, useDisplayMode } from "./DisplayModeContext";
 export type { DisplayMode, DisplayModeContextType } from "./DisplayModeContext";
 export type { ContentIcons } from "./IconsContext";
+export { ExternalLink } from "./ExternalLink";
 export { IconsContext, useContentIcons } from "./IconsContext";
 export { MetaDataGrid } from "./MetaDataGrid";
 export { RecordTree, kMetadataGridKeyPrefix, toTreeItems } from "./RecordTree";

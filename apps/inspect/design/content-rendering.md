@@ -68,5 +68,7 @@ requested for untrusted content.
 ## Lint
 
 `tsmono/require-media-permission` requires media elements to sit inside
-`RequireMedia`, confines `dangerouslySetInnerHTML` to `MarkdownDiv`, and
-requires highlightable `<code>` to use `ContentCode`.
+`RequireMedia`, confines `dangerouslySetInnerHTML` to `MarkdownDiv`, requires
+highlightable `<code>` to use `ContentCode`, and flags an `<a>` with a
+computed `href` outside the files that build links from application data
+(`DYNAMIC_LINK_FILES`): log-derived destinations go through `ExternalLink`.
