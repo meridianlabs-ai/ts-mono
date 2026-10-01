@@ -104,7 +104,7 @@ describe("SelectionContentTrustProvider", () => {
 });
 
 describe("SelectedSampleContentTrustProvider", () => {
-  it("is trusted when the selected log and sample's log are", () => {
+  it("is trusted when the sample's log is", () => {
     mocks.selectedLogFile = "a.eval";
     mocks.sampleLogFile = "a.eval";
     mocks.headers = { "a.eval": TRUSTED };
@@ -118,10 +118,9 @@ describe("SelectedSampleContentTrustProvider", () => {
     expect(sampleTrust()).toBe("untrusted");
   });
 
-  it("is untrusted when the selected log is untrusted", () => {
+  it("falls back to the selected log without a sample selection", () => {
     mocks.selectedLogFile = "b.eval";
-    mocks.sampleLogFile = "a.eval";
-    mocks.headers = { "a.eval": TRUSTED, "b.eval": UNTRUSTED };
+    mocks.headers = { "b.eval": UNTRUSTED };
     expect(sampleTrust()).toBe("untrusted");
   });
 

@@ -445,7 +445,6 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       const tokens = totalSampleTokens(sample.model_usage);
       return {
         logFile: selectedLogFile,
-        contentTrust: sample.contentTrust,
         sampleId: sample.id,
         epoch: sample.epoch,
         data: sample,

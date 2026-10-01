@@ -11,21 +11,9 @@ import {
   parseDataUri,
 } from "@tsmono/util";
 
-import {
-  contentPolicyKey,
-  richContentPolicy,
-  type ContentRenderingPolicy,
-} from "./contentRenderingPolicy";
-import {
-  defaultMarkdownRenderer,
-  escapeHtmlCharacters,
-  type MarkdownRenderer,
-} from "./markdownText";
-
 type MarkdownItPlugin = (md: MarkdownIt) => void;
 
 let mathjaxPluginPromise: Promise<MarkdownItPlugin> | null = null;
-
 const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
   if (!mathjaxPluginPromise) {
     const loading = import("markdown-it-mathjax3").then(
@@ -51,6 +39,10 @@ export const hasMathContent = (text: string): boolean =>
 // Module-level cache for lazy-initialized markdown-it instances
 const mdInstanceCache: Record<string, MarkdownIt> = {};
 
+export type MarkdownRenderer = "full" | "textOnly" | "fragment";
+
+export const defaultMarkdownRenderer: MarkdownRenderer = "full";
+
 /** Unescape HTML entities within math token content before MathJax processing.
  *  This is safe because MathJax renders TeX to SVG/MathML, not raw HTML. */
 export const unescapeHtmlForMath = (content: string): string => {
@@ -64,14 +56,11 @@ export const unescapeHtmlForMath = (content: string): string => {
 
 export const getMarkdownInstance = async (
   renderer: MarkdownRenderer,
-  contentHasMath?: boolean,
-  policy: ContentRenderingPolicy = richContentPolicy
+  contentHasMath?: boolean
 ): Promise<MarkdownIt> => {
   const useMath =
-    policy.math &&
-    (renderer === "full" || renderer === "fragment") &&
-    !!contentHasMath;
-  const cacheKey = `${contentPolicyKey(policy)}:${renderer}:${useMath ? "1" : "0"}`;
+    (renderer === "full" || renderer === "fragment") && !!contentHasMath;
+  const cacheKey = `${renderer}:${useMath ? "1" : "0"}`;
 
   const cached = mdInstanceCache[cacheKey];
   if (cached) {
@@ -88,11 +77,6 @@ export const getMarkdownInstance = async (
   }
 
   const md = new markdownit({ breaks: true, html: true });
-  if (!policy.links) {
-    md.renderer.rules.link_open = (tokens, idx) =>
-      `<span>${md.utils.escapeHtml(String(tokens[idx]?.attrGet("href") ?? ""))} `;
-    md.renderer.rules.link_close = () => "</span>";
-  }
   md.renderer.rules.image = (tokens, idx) => {
     const token = tokens[idx];
     if (!token) {
@@ -102,10 +86,6 @@ export const getMarkdownInstance = async (
     // attrGet returns string | number as of markdown-it 15
     const source = String(token.attrGet("src") ?? "");
     const alt = token.content.trim();
-    if (!policy.media)
-      return md.utils.escapeHtml(
-        `[image not shown: rendering disabled${alt ? ` (${alt})` : ""}]`
-      );
 
     // Base64 raster data URIs issue no network request, so rendering them
     // inline cannot leak a fetch to an attacker-controlled host. Emit the
@@ -129,7 +109,7 @@ export const getMarkdownInstance = async (
     const label = alt ? `${alt} (${visibleSource})` : visibleSource;
     const escapedLabel = md.utils.escapeHtml(label);
 
-    if (!href || !policy.links) {
+    if (!href) {
       return escapedLabel;
     }
 
@@ -170,6 +150,27 @@ export const getMarkdownInstance = async (
   mdInstanceCache[cacheKey] = md;
 
   return md;
+};
+
+export const escapeHtmlCharacters = (content: string): string => {
+  if (!content) return content;
+
+  return content.replace(/[<>&'"]/g, (c: string): string => {
+    switch (c) {
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case "&":
+        return "&amp;";
+      case "'":
+        return "&apos;";
+      case '"':
+        return "&quot;";
+      default:
+        throw new Error("Matched a value that isn't replaceable");
+    }
+  });
 };
 
 export const protectBackslashesInLatex = (content: string): string => {
@@ -362,20 +363,14 @@ export function unescapeCodeHtmlEntities(str: string): string {
   );
 }
 
-type MarkdownRenderFunction = (
-  markdown: string,
-  policy: ContentRenderingPolicy
-) => Promise<string>;
+type MarkdownRenderFunction = (markdown: string) => Promise<string>;
 
 const renderFullPipelineMarkdown = async (
   markdown: string,
-  renderer: "full" | "fragment",
-  policy: ContentRenderingPolicy
+  renderer: "full" | "fragment"
 ): Promise<string> => {
   // Protect backslashes in LaTeX expressions
-  const protectedContent = policy.math
-    ? protectBackslashesInLatex(markdown)
-    : markdown;
+  const protectedContent = protectBackslashesInLatex(markdown);
 
   // Escape all tags
   const escaped = escapeHtmlCharacters(protectedContent);
@@ -386,17 +381,11 @@ const renderFullPipelineMarkdown = async (
   const protectedText = protectMarkdown(preRendered);
 
   // Restore backslashes for LaTeX processing
-  const preparedForMarkdown = policy.math
-    ? restoreBackslashesForLatex(protectedText)
-    : protectedText;
+  const preparedForMarkdown = restoreBackslashesForLatex(protectedText);
 
   let html = preparedForMarkdown;
   try {
-    const md = await getMarkdownInstance(
-      renderer,
-      hasMathContent(markdown),
-      policy
-    );
+    const md = await getMarkdownInstance(renderer, hasMathContent(markdown));
     html = md.render(preparedForMarkdown);
   } catch (ex) {
     console.log("Unable to markdown render content");
@@ -414,16 +403,9 @@ const renderFullPipelineMarkdown = async (
   return withSup;
 };
 
-// The textOnly instance enables no link, image or HTML rules, so the policy
-// only keys its cache here.
-const renderTextOnlyMarkdown = async (
-  markdown: string,
-  policy: ContentRenderingPolicy
-): Promise<string> => {
+const renderTextOnlyMarkdown = async (markdown: string): Promise<string> => {
   try {
-    return (await getMarkdownInstance("textOnly", false, policy)).render(
-      markdown
-    );
+    return (await getMarkdownInstance("textOnly")).render(markdown);
   } catch (ex) {
     console.log("Unable to markdown render content");
     console.error(ex);
@@ -432,18 +414,12 @@ const renderTextOnlyMarkdown = async (
 };
 
 const markdownRenderers: Record<MarkdownRenderer, MarkdownRenderFunction> = {
-  full: (markdown, policy) =>
-    renderFullPipelineMarkdown(markdown, "full", policy),
-  fragment: (markdown, policy) =>
-    renderFullPipelineMarkdown(markdown, "fragment", policy),
+  full: (markdown) => renderFullPipelineMarkdown(markdown, "full"),
+  fragment: (markdown) => renderFullPipelineMarkdown(markdown, "fragment"),
   textOnly: renderTextOnlyMarkdown,
 };
 
 export const renderMarkdown = (
   markdown: string,
-  renderer: MarkdownRenderer = defaultMarkdownRenderer,
-  policy: ContentRenderingPolicy = richContentPolicy
-): Promise<string> => markdownRenderers[renderer](markdown, policy);
-
-export { defaultMarkdownRenderer, escapeHtmlCharacters };
-export type { MarkdownRenderer };
+  renderer: MarkdownRenderer = defaultMarkdownRenderer
+): Promise<string> => markdownRenderers[renderer](markdown);

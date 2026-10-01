@@ -407,12 +407,12 @@ export const filterExpression = (
   }
 };
 
-export const filterSamples = <T extends SampleSummary>(
+export const filterSamples = (
   samplesDescriptor: SamplesDescriptor,
-  samples: T[],
+  samples: SampleSummary[],
   filterValue: string
 ): {
-  result: T[];
+  result: SampleSummary[];
   error: FilterError | undefined;
   allErrors: boolean;
 } => {

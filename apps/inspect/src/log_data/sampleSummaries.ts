@@ -1,60 +1,19 @@
 import { useMemo } from "react";
 
-import { logContentTrust } from "@tsmono/inspect-components/content";
-import type { ContentTrust } from "@tsmono/react/components";
 import { AsyncData, compose, map as mapAsyncData } from "@tsmono/util";
 
-import { sampleIdsEqual } from "../app/shared/sample";
-import { SampleHandle } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
-import { useLogHeader } from "./log";
 import { resolveLogKey } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
-import {
-  readSettledSummaries,
-  useSamplesListing,
-  type SamplesListingRow,
-} from "./samplesListing";
-
-/**
- * A sample summary with the log it came from (its listed name) and that
- * log's trust, attached where the summary list is assembled so they travel
- * with the summary through filtering and sorting.
- */
-export type SampleSummaryWithTrust = SampleSummary & {
-  readonly logFile: string;
-  readonly contentTrust: ContentTrust;
-};
-
-/**
- * The summary for `handle`, taken only from its own log's summaries: a log
- * switch keeps the previous log's list on screen until the new one loads,
- * and its samples share ids and epochs with the new log's.
- */
-export const findSampleSummary = <T extends SampleSummaryWithTrust>(
-  summaries: readonly T[] | undefined,
-  logDir: string,
-  handle: SampleHandle | undefined
-): T | undefined => {
-  if (handle === undefined) {
-    return undefined;
-  }
-  const logFile = resolveLogKey(logDir, handle.logFile);
-  return summaries?.find(
-    (summary) =>
-      summary.logFile === logFile &&
-      sampleIdsEqual(summary.id, handle.id) &&
-      summary.epoch === handle.epoch
-  );
-};
+import { readSettledSummaries, useSamplesListing } from "./samplesListing";
 
 // Merge a log's completed summaries with its pending-buffer samples
 // (exported for tests; consumers use useSampleSummaries / getSampleSummaries)
-export const mergeSampleSummaries = <T extends SampleSummary>(
-  logSamples: T[],
-  pendingSamples: T[]
-): T[] => {
+export const mergeSampleSummaries = (
+  logSamples: SampleSummary[],
+  pendingSamples: SampleSummary[]
+) => {
   // Create a map of existing sample IDs to avoid duplicates
   const existingSampleIds = new Set(
     logSamples.map((sample) => `${sample.id}-${sample.epoch}`)
@@ -81,63 +40,34 @@ export const mergeSampleSummaries = <T extends SampleSummary>(
   return [...logSamples, ...uniquePendingSamples];
 };
 
-// Listing rows are immutable query data, so each wraps once: a pending-only
-// poll must hand consumers the same settled summary objects.
-const settledSummaries = new WeakMap<
-  SamplesListingRow,
-  SampleSummaryWithTrust
->();
-
-const settledSummary = (row: SamplesListingRow): SampleSummaryWithTrust => {
-  let summary = settledSummaries.get(row);
-  if (!summary) {
-    summary = {
-      ...row.summary,
-      logFile: row.logFile,
-      contentTrust: row.log.contentTrust,
-    };
-    settledSummaries.set(row, summary);
-  }
-  return summary;
-};
-
 /**
  * The live sample-summary list for a log: the settled summaries (the
  * samples store) merged with the pending-buffer samples. How the list is
  * assembled (two sources, dedup, streaming-path normalization) is
  * subsystem-private — consumers just get all of a log's samples, kept
  * current.
- *
- * Each summary carries its content trust. A settled summary takes the trust
- * read with it from its own log, so it never lags the summary (and still
- * describes the previous log's rows while a switch keeps them on screen). A
- * pending-buffer summary, which only `logFile` produces, takes that log's
- * trust (untrusted while its header loads).
  */
 export const useSampleSummaries = (
   logDir: string,
   logFile: string | undefined
-): AsyncData<SampleSummaryWithTrust[]> => {
+): AsyncData<SampleSummary[]> => {
   // "" matches no stored file; the row set stays empty until a log is given.
   const logKey = logFile === undefined ? "" : resolveLogKey(logDir, logFile);
   const rows = useSamplesListing({ logDir, scope: { file: logKey } });
   const pending = usePendingSamples(logDir, logFile);
-  const pendingTrust = logContentTrust(
-    useLogHeader(logDir, logFile, { demand: "passive" }).data
-  );
   return useMemo(
     () =>
       mapAsyncData(compose({ rows, pending }), (settled) =>
-        mergeSampleSummaries<SampleSummaryWithTrust>(
-          settled.rows.map(settledSummary),
-          (settled.pending?.samples ?? []).map((sample) => ({
-            ...sample,
-            logFile: logKey,
-            contentTrust: pendingTrust,
-          }))
+        mergeSampleSummaries(
+          // A log switch keeps the previous log's rows as placeholder data;
+          // they must never be shown as (or with the trust of) this log's.
+          settled.rows
+            .filter((row) => row.logFile === logKey)
+            .map((row) => row.summary),
+          settled.pending?.samples ?? []
         )
       ),
-    [rows, pending, pendingTrust, logKey]
+    [rows, pending, logKey]
   );
 };
 

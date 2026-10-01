@@ -5,6 +5,7 @@ import { useMapAsyncData } from "@tsmono/react/hooks";
 import { AsyncData } from "@tsmono/util";
 
 import { Events } from "../@types/extraInspect";
+import { sampleIdsEqual } from "../app/shared/sample";
 import { SampleHandle, SampleStatus } from "../app/types";
 import { SampleSummary } from "../client/api/types";
 
@@ -12,7 +13,7 @@ import { type ChunkedSample } from "./chunked";
 import { ChunkedSampleData, useChunkedSample } from "./chunkedSampleQuery";
 import { RunningSampleData, useRunningSample } from "./runningSampleQuery";
 import { usePassiveEvalSample, useSample } from "./sampleQuery";
-import { findSampleSummary, useSampleSummaries } from "./sampleSummaries";
+import { useSampleSummaries } from "./sampleSummaries";
 
 const kNoRunningEvents: Events = [];
 
@@ -208,8 +209,13 @@ export const useEvalSampleData = (
 ): EvalSampleData => {
   const summaries = useSampleSummaries(logDir, handle?.logFile);
   const summary = useMemo(
-    () => findSampleSummary(summaries.data, logDir, handle),
-    [summaries, logDir, handle]
+    () =>
+      handle === undefined
+        ? undefined
+        : summaries.data?.find(
+            (s) => sampleIdsEqual(s.id, handle.id) && s.epoch === handle.epoch
+          ),
+    [summaries, handle]
   );
   const runningPath = summary?.completed === false;
   const chunked = useChunkedSample(

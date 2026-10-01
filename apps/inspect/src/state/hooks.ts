@@ -15,16 +15,16 @@ import {
 } from "../app/samples/descriptor/samplesDescriptor";
 import { ScoreView } from "../app/samples/header-v2/ViewToggle";
 import { filterSamples } from "../app/samples/sample-tools/filters";
+import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
 import {
-  findSampleSummary,
+  resolveLogKey,
   useEvalSampleData,
   useLogHeader,
   usePassiveEvalSampleData,
   useRunningMetrics,
   useSampleSummaries,
   type EvalSampleData,
-  type SampleSummaryWithTrust,
 } from "../log_data";
 
 import { refreshLog } from "./actions";
@@ -253,20 +253,18 @@ export const useLogEditAffordance = (): LogEditAffordance => {
  * — the selection binding over the param-driven `useSampleSummaries`
  * acquisition hook.
  */
-export const useSelectedSampleSummaries = (): AsyncData<
-  SampleSummaryWithTrust[]
-> => {
+export const useSelectedSampleSummaries = (): AsyncData<SampleSummary[]> => {
   const logDir = useLogDir();
   const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   return useSampleSummaries(logDir, selectedLogFile);
 };
 
-const kNoSummaries: SampleSummaryWithTrust[] = [];
+const kNoSummaries: SampleSummary[] = [];
 
 // The settled rows for the derivation hooks below — pure computations over
 // whatever has settled (loading/error render in SamplesTab, which reads the
 // AsyncData binding directly).
-const useSelectedSampleSummariesData = (): SampleSummaryWithTrust[] =>
+const useSelectedSampleSummariesData = (): SampleSummary[] =>
   useSelectedSampleSummaries().data ?? kNoSummaries;
 
 // Counts the total number of unfiltered sample summaries (both complete and incomplete)
@@ -409,17 +407,30 @@ export const useFilteredSamples = () => {
 };
 
 // Provides the currently selected sample summary
-export const useSelectedSampleSummary = ():
-  SampleSummaryWithTrust | undefined => {
+export const useSelectedSampleSummary = (): SampleSummary | undefined => {
   const logDir = useLogDir();
   const sampleSummaries = useSelectedSampleSummariesData();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
-  return useMemo(
-    () => findSampleSummary(sampleSummaries, logDir, selectedSampleHandle),
-    [logDir, selectedSampleHandle, sampleSummaries]
-  );
+  return useMemo(() => {
+    // The summaries are the selected log's; a handle from another log (mid-
+    // navigation, or a restored selection) can share its ids and epochs.
+    if (
+      selectedSampleHandle === undefined ||
+      selectedLogFile === undefined ||
+      resolveLogKey(logDir, selectedSampleHandle.logFile) !==
+        resolveLogKey(logDir, selectedLogFile)
+    ) {
+      return undefined;
+    }
+    return sampleSummaries.find(
+      (sample) =>
+        sampleIdsEqual(sample.id, selectedSampleHandle.id) &&
+        sample.epoch === selectedSampleHandle.epoch
+    );
+  }, [logDir, selectedLogFile, selectedSampleHandle, sampleSummaries]);
 };
 
 /**

@@ -6,12 +6,7 @@ import createDOMPurify, {
 
 import { canonicalImageSource } from "@tsmono/util";
 
-import {
-  contentPolicyKey,
-  richContentPolicy,
-  type ContentRenderingPolicy,
-} from "./contentRenderingPolicy";
-import { escapeHtmlCharacters } from "./markdownText";
+import { escapeHtmlCharacters } from "./markdownRendering";
 import { mathJaxStyles } from "./mathjaxStyles";
 
 const FORBIDDEN_TAGS = [
@@ -149,50 +144,41 @@ const PURIFY_CONFIG: Config = {
   USE_PROFILES: { html: true, mathMl: true, svg: true },
 };
 
-const purifiers = new Map<string, DOMPurifyInstance>();
+let purify: DOMPurifyInstance | undefined;
+let hooksInstalled = false;
 
-export const sanitizeRenderedHtml = (
-  html: string,
-  policy: ContentRenderingPolicy = richContentPolicy
-): string => {
+export const sanitizeRenderedHtml = (html: string): string => {
   if (!html) {
     return html;
   }
 
-  const purifier = getPurify(policy);
+  const purifier = getPurify();
   if (!purifier) {
     return escapeHtmlCharacters(html);
   }
 
-  return purifier.sanitize(html, {
-    ...PURIFY_CONFIG,
-    FORBID_TAGS: [
-      ...FORBIDDEN_TAGS,
-      ...(!policy.media ? ["img"] : []),
-      ...(!policy.links ? ["a"] : []),
-      ...(!policy.math ? MATHJAX_TAGS : []),
-    ],
-    USE_PROFILES: { html: true, mathMl: policy.math, svg: policy.math },
-  });
+  return purifier.sanitize(html, PURIFY_CONFIG);
 };
 
-const getPurify = (
-  policy: ContentRenderingPolicy
-): DOMPurifyInstance | undefined => {
-  if (typeof window === "undefined") return undefined;
-  const key = contentPolicyKey(policy);
-  const cached = purifiers.get(key);
-  if (cached) return cached;
-  const purify = createDOMPurify(window);
-  installHooks(purify, policy);
-  purifiers.set(key, purify);
+const getPurify = (): DOMPurifyInstance | undefined => {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  if (!purify) {
+    purify = createDOMPurify(window);
+  }
+
+  installHooks(purify);
   return purify;
 };
 
-const installHooks = (
-  purify: DOMPurifyInstance,
-  policy: ContentRenderingPolicy
-): void => {
+const installHooks = (purify: DOMPurifyInstance): void => {
+  if (hooksInstalled) {
+    return;
+  }
+  hooksInstalled = true;
+
   purify.addHook("uponSanitizeElement", (node, hookEvent) => {
     if (hookEvent.tagName !== "style" || !(node instanceof Element)) {
       return;
@@ -206,20 +192,6 @@ const installHooks = (
   });
 
   purify.addHook("uponSanitizeAttribute", (node, hookEvent) => {
-    if (
-      !policy.links &&
-      (hookEvent.attrName === "href" || hookEvent.attrName === "xlink:href")
-    ) {
-      // SVG glyph references draw math; they cannot navigate or fetch.
-      const glyphReference =
-        node.namespaceURI === "http://www.w3.org/2000/svg" &&
-        node.localName === "use" &&
-        hookEvent.attrValue.startsWith("#");
-      if (!glyphReference) {
-        hookEvent.keepAttr = false;
-        return;
-      }
-    }
     if (hookEvent.attrName === "style") {
       // The accessible copy must stay clipped; inline !important could
       // override even the viewer-owned stylesheet's clipping rule.

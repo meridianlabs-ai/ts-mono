@@ -26,12 +26,7 @@ import {
   activateFetchEngine,
   deactivateFetchEngine,
 } from "./replicationControl";
-import {
-  findSampleSummary,
-  mergeSampleSummaries,
-  useSampleSummaries,
-  type SampleSummaryWithTrust,
-} from "./sampleSummaries";
+import { mergeSampleSummaries, useSampleSummaries } from "./sampleSummaries";
 import {
   testClientAPI,
   testLogDetails,
@@ -55,44 +50,6 @@ vi.mock("../app_config", () => ({
   },
   getAppConfig: () => ({ singleFileMode: false }),
 }));
-
-describe("findSampleSummary", () => {
-  const summary = (
-    logFile: string,
-    id: number,
-    epoch: number
-  ): SampleSummaryWithTrust => ({
-    ...testSampleSummary({ id, epoch }),
-    logFile,
-    contentTrust: logFile === "/logs/a.eval" ? "trusted" : "untrusted",
-  });
-
-  test("matches the handle's log as well as its id and epoch", () => {
-    const summaries = [
-      summary("/logs/b.eval", 1, 1),
-      summary("/logs/a.eval", 1, 1),
-    ];
-    expect(
-      findSampleSummary(summaries, "/logs", {
-        logFile: "/logs/a.eval",
-        id: 1,
-        epoch: 1,
-      })
-    ).toBe(summaries[1]);
-  });
-
-  test("never takes another log's summary with the same id and epoch", () => {
-    // A log switch keeps the previous log's list until the new one loads.
-    const summaries = [summary("/logs/b.eval", 1, 1)];
-    expect(
-      findSampleSummary(summaries, "/logs", {
-        logFile: "/logs/a.eval",
-        id: 1,
-        epoch: 1,
-      })
-    ).toBeUndefined();
-  });
-});
 
 describe("mergeSampleSummaries", () => {
   test("keeps pending-only completed samples on the streaming path", () => {
@@ -165,17 +122,10 @@ describe("useSampleSummaries during a running eval", () => {
   let serverBuffer: { etag: string; samples: SampleSummary[] };
   let serverInfo: { size: number };
 
-  const details = (
-    sampleSummaries: SampleSummary[],
-    trustContent?: boolean
-  ): LogDetails =>
+  const details = (sampleSummaries: SampleSummary[]): LogDetails =>
     testLogDetails({
       status: "started",
       eval: testEvalSpec({
-        viewer:
-          trustContent === undefined
-            ? undefined
-            : { scanner_result_view: {}, trust_content: trustContent },
         eval_id: "eval-run",
         run_id: "run-run",
         created: "2026-01-01T00:00:00Z",
@@ -240,76 +190,29 @@ describe("useSampleSummaries during a running eval", () => {
     vi.clearAllMocks();
   });
 
-  test.each([
-    ["untrusted", false],
-    ["trusted", undefined],
-  ] as const)(
-    "flushed and pending summaries both carry the log's trust (%s)",
-    async (expected, trustContent) => {
-      serverDetails = details(
-        [createSampleSummary({ id: "s1", completed: true })],
-        trustContent
-      );
-      serverBuffer = {
-        etag: "e1",
-        samples: [createSampleSummary({ id: "s2", completed: false })],
-      };
-      serverInfo = { size: 100 };
-
-      const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
-        wrapper,
-      });
-
-      await waitFor(
-        () => {
-          expect(
-            result.current.data?.map((s) => `${s.id}:${s.contentTrust}`).sort()
-          ).toEqual([`s1:${expected}`, `s2:${expected}`]);
-        },
-        { timeout: 3000 }
-      );
-    }
-  );
-
-  test("a pending-only poll tick keeps settled summary objects stable", async () => {
-    serverDetails = details([
-      createSampleSummary({ id: "s1", completed: true }),
-    ]);
-    serverBuffer = {
-      etag: "e1",
-      samples: [createSampleSummary({ id: "s2", completed: false })],
-    };
+  test("a log switch never hands back the previous log's summaries", async () => {
+    serverDetails = details([createSampleSummary({ id: "s1" })]);
+    serverBuffer = { etag: "e1", samples: [] };
     serverInfo = { size: 100 };
+    // The next log's details never arrive, so the listing keeps the previous
+    // log's rows as placeholder data.
+    vi.mocked(api.get_log_details).mockImplementation((file: string) =>
+      file === "other.eval"
+        ? new Promise<LogDetails>(() => {})
+        : Promise.resolve(serverDetails)
+    );
 
-    const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
-      wrapper,
-    });
+    const { result, rerender } = renderHook(
+      ({ file }: { file: string }) => useSampleSummaries(LOG_DIR, file),
+      { wrapper, initialProps: { file: FILE } }
+    );
     await waitFor(
-      () =>
-        expect(result.current.data?.map((s) => s.id).sort()).toEqual([
-          "s1",
-          "s2",
-        ]),
+      () => expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]),
       { timeout: 3000 }
     );
-    const settled = result.current.data?.find((s) => s.id === "s1");
 
-    serverBuffer = {
-      etag: "e2",
-      samples: [
-        createSampleSummary({ id: "s2", completed: false, target: "next" }),
-      ],
-    };
-    await queryClient.refetchQueries({
-      queryKey: pendingSamplesKey(LOG_DIR, FILE),
-    });
-    await waitFor(() =>
-      expect(result.current.data?.find((s) => s.id === "s2")?.target).toBe(
-        "next"
-      )
-    );
-
-    expect(result.current.data?.find((s) => s.id === "s1")).toBe(settled);
+    rerender({ file: "other.eval" });
+    expect(result.current.data ?? []).toEqual([]);
   });
 
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {

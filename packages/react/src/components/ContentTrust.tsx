@@ -170,14 +170,3 @@ export const UntrustedContentPlaceholder: FC<{
     ]
   </span>
 );
-
-/**
- * Trust of content assembled from several sources: trusted only when every
- * source is trusted (and there is at least one).
- */
-export const combineContentTrust = (
-  trusts: readonly ContentTrust[]
-): ContentTrust =>
-  trusts.length > 0 && trusts.every((trust) => trust === "trusted")
-    ? "trusted"
-    : "untrusted";

@@ -55,7 +55,6 @@ import {
   Card,
   CardBody,
   CardHeader,
-  ContentTrustCeilingProvider,
   ErrorPanel,
   LoadingBar,
   NoContentsPanel,
@@ -1023,16 +1022,11 @@ const SampleDisplayContent: FC<SampleDisplayProps> = ({
         {selectedSampleSummary ? (
           <StickyScroll scrollRef={scrollRef} offsetTop={0} zIndex={1002}>
             <div ref={headerWrapperRef}>
-              {/* No more trust than the log the summary was read from. */}
-              <ContentTrustCeilingProvider
-                value={selectedSampleSummary.contentTrust}
-              >
-                <SampleSummaryView
-                  parent_id={id}
-                  sample={selectedSampleSummary}
-                  collapsed={headerCollapsed}
-                />
-              </ContentTrustCeilingProvider>
+              <SampleSummaryView
+                parent_id={id}
+                sample={selectedSampleSummary}
+                collapsed={headerCollapsed}
+              />
             </div>
           </StickyScroll>
         ) : undefined}
