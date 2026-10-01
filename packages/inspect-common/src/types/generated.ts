@@ -3508,9 +3508,13 @@ export interface components {
          * SentinelEntry
          * @description One configured monitor or protocol.
          *
-         *     Any key besides `name`, `params`, and `version` names a parameter of the factory whose value is nested monitors or protocols, such as `monitors` for `threshold` or `children` for `concurrent`; it holds a list or a mapping of entries, and `nested` returns them.
+         *     Any key besides `name`, `params`, `version` and `meta` names a parameter of the factory whose value is nested monitors or protocols, such as `monitors` for `threshold` or `children` for `concurrent`; it holds a list or a mapping of entries, and `nested` returns them.
          */
         SentinelEntry: {
+            /** Meta */
+            meta?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
             /** Name */
             name: string;
             /** Params */
