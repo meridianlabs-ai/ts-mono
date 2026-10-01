@@ -19,9 +19,7 @@ const LogContentTrustProvider: FC<{
   const header = useLogHeader(logDir, logFile, { demand: "passive" });
   return (
     <ContentTrustProvider
-      value={
-        logFile === undefined ? "untrusted" : logContentTrust(header.data)
-      }
+      value={logFile === undefined ? "untrusted" : logContentTrust(header.data)}
     >
       {children}
     </ContentTrustProvider>

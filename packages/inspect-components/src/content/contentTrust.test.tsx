@@ -114,7 +114,9 @@ describe("untrusted content rendering", () => {
         )
       );
       expect(container.textContent).toBe(source.replace("‮", "⟨U+202E⟩"));
-      expect(container.querySelector("a, strong, .markdown-content")).toBeNull();
+      expect(
+        container.querySelector("a, strong, .markdown-content")
+      ).toBeNull();
     }
   );
 

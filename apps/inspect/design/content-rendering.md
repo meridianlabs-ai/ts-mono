@@ -1,85 +1,71 @@
 # Content rendering policy
 
-Inspect treats log structure as application data, but model and tool payloads
-may be hostile. Rendering permission applies to content throughout the viewer,
-including summaries, metadata, provider tools, print views and JSON views.
+Inspect renders model output richly: markdown, math, syntax highlighting,
+ANSI, media and links. When a log's model output isn't trusted, the viewer
+renders it as plain text instead, so a hostile model can't inject content,
+scripts or requests into the page. The concern is model output; log structure
+and application data render as they always have.
 
-## Configuration and source ownership
+## Configuration
 
-The public configuration remains `trust_content: boolean | null` in both the
-application configuration and a task's `ViewerConfig`. Each setting maps to
-`richContentPolicy` or `plainContentPolicy`. The effective policy intersects the
-application ceiling with the policy of the log that owns the displayed content.
-A task cannot raise an application restriction.
+`trust_content: boolean | null` is set by a task's `ViewerConfig` (baked into
+the log) and by `inspect view --no-trust-content` (the app config). Absent,
+null and true trust; false and unrecognized values don't. A log's header that
+hasn't loaded yet is untrusted.
 
-The application ceiling is inherited and nested ceilings only restrict it.
-Source providers identify the current payload's owner and replace an ambient
-source scope. Grid rows can belong to different logs; samples retained during
-navigation must keep their source identity. The selected log alone is not enough
-to identify those payloads. Content without a source policy defaults to plain.
+Both settings are fixed while the viewer runs: a log's trust never changes,
+and neither does the viewer's. Trust only changes in a mounted tree when the
+user moves between logs.
 
-An unloaded header is untrusted. Once loaded, absent, null and true retain the
-legacy rendering default; false and unrecognized values deny rich rendering.
-This feature assumes a log's policy remains stable for its identity. Replacing a
-file in place with different trust is outside this contract; no session header
-verification or fetching mechanism is part of rendering policy.
+## Providers
 
-## Permissions and preferences
+`ContentTrustProvider` maps trust to a `ContentRenderingPolicy`;
+`ContentTrustCeilingProvider` caps everything below it. The app router sets
+the ceiling from the app config and the trust of the selected log. Sample
+views (sample display, event focus, print) use the log the selected sample
+came from. Content outside any provider is untrusted.
 
-`ContentRenderingPolicy` has separate permissions for markdown, math, syntax
-highlighting, ANSI, media, content links and specialized data formatting. These
-are internal permissions; this change does not expose new granular settings.
+Sample summaries are taken only from the log they're requested for: the
+listing keeps the previous log's rows as placeholder data during a switch,
+and those must never be shown under the new log's trust.
 
-Coarse trust providers map configuration to policies; renderers read specific
-permissions. `RequireMedia` checks media, and `useHasAllContentPermissions`
-checks the full policy for arbitrary callbacks.
+Scout renders as trusted until it can tell which log a transcript came from.
 
-Raw/Rendered is a display preference, independent of the permissions. Rendering
-components can request an operation but cannot grant it. `forceRender` overrides
-the preference, never permission. Allowing math alone does not cause markdown to
-run. A markdown-without-math policy uses markdown without loading MathJax or
-rewriting TeX source for MathJax.
+## Permissions
 
-## Payload dispatch and application controls
+`ContentRenderingPolicy` has one permission per rich renderer: markdown,
+syntax highlighting, ANSI, media and links. Only the all-or-nothing policies
+are configurable today, but each renderer checks the permission it needs, so
+finer settings can follow:
 
-Payload dispatchers choose an ordinary value renderer before optional parsing
-or specialization when formatted data is disallowed. Strings remain strings,
-including JSON-shaped strings with duplicate keys and whitespace. Already
-structured records and arrays remain inspectable, with all fields retained.
-Plain text reveals hidden characters and isolates bidi runs. Known media gets a
-placeholder; unknown content types keep the existing console diagnostic.
+- `MarkdownDiv` / `RenderedText` show the source text. Rendered markdown can
+  carry links, media and highlighted code, so until the pipeline enforces
+  those individually it requires every permission.
+- `ANSIDisplay` shows escape sequences instead of interpreting them; the
+  terminal player needs media and ANSI.
+- `RequireMedia` replaces images, audio and video with a placeholder.
+- `ExternalLink` and `MediaReference` render inert text with the destination.
+- `usePrismHighlight` doesn't run; `ContentCode` renders the code as text.
+- Custom tool views and registered content renderers can emit anything, so
+  they require every permission.
 
-`RenderedContent`, message formatting, content-data views, client tool input
-extraction and provider tool dispatch use this decision. Provider tools choose the original arguments and
-result before parsing or selecting stdout, stderr and exit-code fields.
-Arbitrary custom renderers, including their probes, require the full rendering
-policy until they adopt a policy-aware contract. Reference preview callbacks
-follow the same rule, and open previews disappear immediately on restriction.
-Timeline construction retains source results and defers tool formatting until
-the card renders. Terminal recordings require both media and ANSI permissions.
+The Raw/Rendered display mode is a preference, independent of permissions:
+`forceRender` overrides the preference, never the policy.
 
-Metadata grids accept application-owned `cells` separately from their values.
-Controls such as tag editing and timeline navigation remain usable under plain
-policy. Cells rendering log-derived text or destinations must use the shared
-text and link components. `_html` is an ordinary data key, not a renderer escape.
+Plain model output reveals hidden characters (`⟨U+202E⟩`) and isolates bidi
+runs, so text can't disguise what it says. This applies to the plain paths
+of the renderers above and to model-produced text shown directly (tool and
+sandbox output, tool errors).
 
-## Rendering components
+## Library loading
 
-Markdown, links, ANSI, media and syntax highlighting enforce their own specific
-permission. The markdown pipeline receives the same policy: parser instances and
-rendered HTML caches include it in their keys. Changing policy remounts the HTML
-renderer immediately, so narrower permissions cannot inherit previous HTML.
+Prism, markdown-it, DOMPurify, MathJax, ansi-output and the asciinema player
+load on demand, only when trusted content needs them, so an untrusted session
+never fetches or runs them. The e2e suite checks that no such module is
+requested for untrusted content.
 
-All generated HTML, including reference post-processing and MathJax output,
-passes through `sanitizeRenderedHtml`. Sanitizer hooks use immutable policies on
-separate cached instances; no current-policy global is changed during rendering.
-Denied links and media cannot be reintroduced by HTML post-processing. Existing
-URL and style restrictions still apply to permitted rendering.
+## Lint
 
-## Verification
-
-Tests exercise both ceilings, loading and source transitions, duplicate-key
-strings, provider payload preservation, custom renderer exclusion, UI cells,
-library loading, markdown without MathJax, post-processing, and transitions
-between cached rich and restricted output. Browser tests include trusted positive
-controls and observe transient rendering as well as the settled DOM.
+`tsmono/require-media-permission` requires media elements to sit inside
+`RequireMedia`, confines `dangerouslySetInnerHTML` to `MarkdownDiv`, and
+requires highlightable `<code>` to use `ContentCode`.
