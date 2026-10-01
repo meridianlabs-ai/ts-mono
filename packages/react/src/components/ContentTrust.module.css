@@ -6,6 +6,12 @@
   white-space: pre-wrap;
 }
 
+/* Inline untrusted text inherits its container's wrapping, so single-line
+   labels and grid cells still truncate. */
+.untrustedInlineText {
+  unicode-bidi: plaintext;
+}
+
 .placeholder {
   font-style: italic;
   color: var(--bs-secondary-color);

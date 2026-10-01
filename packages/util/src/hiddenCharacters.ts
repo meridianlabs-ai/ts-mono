@@ -60,18 +60,43 @@ const isPurposefulJoiner = (
   return isJoiningScript(prev) && isJoiningScript(next);
 };
 
-const TAB = 0x09;
 const LINE_FEED = 0x0a;
 const CARRIAGE_RETURN = 0x0d;
+
+const hex = (codePoint: number): string => codePoint.toString(16);
+
+// One class of every candidate (tab and newline excluded), so ordinary text
+// is scanned natively and only candidates reach the context checks.
+const kCandidates = new RegExp(
+  `[${HIDDEN_RANGES.flatMap(
+    ([lo, hi]): ReadonlyArray<readonly [number, number]> =>
+      lo <= LINE_FEED && hi >= LINE_FEED
+        ? [
+            [lo, LINE_FEED - 2],
+            [LINE_FEED + 1, hi],
+          ]
+        : [[lo, hi]]
+  )
+    .map(([lo, hi]) => `\\u{${hex(lo)}}-\\u{${hex(hi)}}`)
+    .join("")}]`,
+  "gu"
+);
+
+const codePointBefore = (text: string, index: number): number | undefined => {
+  if (index === 0) return undefined;
+  const low = text.charCodeAt(index - 1);
+  if (index >= 2 && low >= 0xdc00 && low <= 0xdfff) {
+    const high = text.charCodeAt(index - 2);
+    if (high >= 0xd800 && high <= 0xdbff) return text.codePointAt(index - 2);
+  }
+  return low;
+};
 
 const isHidden = (
   codePoint: number,
   prev: number | undefined,
   next: number | undefined
 ): boolean => {
-  if (codePoint === TAB || codePoint === LINE_FEED) {
-    return false;
-  }
   if (codePoint === ZWNJ || codePoint === ZWJ) {
     return !isPurposefulJoiner(codePoint, prev, next);
   }
@@ -79,7 +104,7 @@ const isHidden = (
     // Half of a CRLF is an ordinary line break; a lone CR can overprint.
     return next !== LINE_FEED;
   }
-  return HIDDEN_RANGES.some(([lo, hi]) => codePoint >= lo && codePoint <= hi);
+  return true;
 };
 
 /**
@@ -87,23 +112,14 @@ const isHidden = (
  * shown for inspection can't hide content or disguise itself (e.g. a bidi
  * override making `gnp.exe` display as `exe.png`).
  */
-export const revealHiddenCharacters = (text: string): string => {
-  let out = "";
-  let emitted = 0;
-  let index = 0;
-  let prev: number | undefined;
-  while (index < text.length) {
-    const codePoint = text.codePointAt(index) ?? 0;
-    const width = codePoint > 0xffff ? 2 : 1;
-    if (isHidden(codePoint, prev, text.codePointAt(index + width))) {
-      out += `${text.slice(emitted, index)}⟨U+${codePoint
-        .toString(16)
-        .toUpperCase()
-        .padStart(4, "0")}⟩`;
-      emitted = index + width;
-    }
-    prev = codePoint;
-    index += width;
-  }
-  return emitted === 0 ? text : out + text.slice(emitted);
-};
+export const revealHiddenCharacters = (text: string): string =>
+  text.replace(kCandidates, (match: string, offset: number) => {
+    const codePoint = match.codePointAt(0) ?? 0;
+    return isHidden(
+      codePoint,
+      codePointBefore(text, offset),
+      text.codePointAt(offset + match.length)
+    )
+      ? `⟨U+${hex(codePoint).toUpperCase().padStart(4, "0")}⟩`
+      : match;
+  });

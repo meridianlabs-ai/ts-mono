@@ -270,3 +270,21 @@ describe("custom renderers", () => {
     expect(getCustomToolView).toHaveBeenCalledTimes(calls);
   });
 });
+
+it("reveals hidden characters in the tool call header", () => {
+  const { container } = render(
+    withTrust(
+      "untrusted",
+      <ToolCallView
+        id="tool"
+        tool={"read‮gnp.exe"}
+        functionCall={"read‮gnp.exe"}
+        description={"desc‮"}
+        output=""
+      />
+    )
+  );
+  expect(container.textContent).toContain("read⟨U+202E⟩gnp.exe");
+  expect(container.textContent).toContain("desc⟨U+202E⟩");
+  expect(container.textContent).not.toContain("‮");
+});

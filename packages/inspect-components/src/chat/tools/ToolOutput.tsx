@@ -5,9 +5,7 @@ import type { Content } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
   RequireMedia,
-  untrustedText,
-  untrustedTextClassName,
-  useHasAllContentPermissions,
+  usePlainText,
 } from "@tsmono/react/components";
 import {
   isAnsiOutput,
@@ -99,7 +97,7 @@ interface ToolTextOutputProps {
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
-  const trusted = useHasAllContentPermissions();
+  const plain = usePlainText();
 
   if (displayMode === "rendered") {
     const obj = parseJsonRecord(text);
@@ -129,16 +127,10 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
 
   return (
     <>
-      <pre
-        className={clsx(
-          styles.textOutput,
-          "tool-output",
-          !trusted && untrustedTextClassName
-        )}
-      >
+      <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
         <code className={clsx("sourceCode", styles.textCode)}>
-          {!trusted
-            ? untrustedText(capped)
+          {!plain.trusted
+            ? plain.present(capped)
             : displayMode === "raw"
               ? capped
               : capped.trim()}
