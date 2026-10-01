@@ -13,7 +13,7 @@ import { isVscode } from "@tsmono/util";
 import { useProperty } from "../hooks/useProperty";
 
 import { useComponentNavigation } from "./ComponentNavigationContext";
-import { useIsContentTrusted } from "./ContentTrust";
+import { useHasAllContentPermissions } from "./ContentTrust";
 import { isNewTabClick } from "./inAppLink";
 import { MarkdownDiv, type MarkdownRenderer } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
@@ -49,7 +49,7 @@ export const MarkdownDivWithReferences = forwardRef<
     { markdown, references, options, className, style, renderer, truncateAt },
     ref
   ) => {
-    const allowPreview = useIsContentTrusted();
+    const allowPreview = useHasAllContentPermissions();
     // Preview state belongs to these references and permissions. A later
     // scope cannot reopen an old callback or reuse its DOM anchor.
     const previewScope = useMemo(

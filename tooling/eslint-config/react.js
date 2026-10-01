@@ -58,7 +58,7 @@ const noRawUseEffect = {
 
 // Log content can be untrusted model output (a log may set
 // `trust_content=False`). Media elements render it richly, so each must sit
-// inside <RequireTrustedContent>, which withholds it for untrusted content.
+// inside <RequireMedia>, which withholds it when media is denied.
 // Raw HTML is confined to the markdown renderer, which checks trust itself.
 const MEDIA_ELEMENTS = new Set([
   "audio",
@@ -70,7 +70,7 @@ const MEDIA_ELEMENTS = new Set([
 ]);
 const RAW_HTML_FILES = ["packages/react/src/components/MarkdownDiv.tsx"];
 
-const requireTrustedContent = {
+const requireMediaPermission = {
   meta: {
     type: "problem",
     docs: {
@@ -81,7 +81,7 @@ const requireTrustedContent = {
     messages: {
       media:
         "<{{name}}> can render untrusted log content. Wrap it in " +
-        "<RequireTrustedContent> from @tsmono/react/components.",
+        "<RequireMedia> from @tsmono/react/components.",
       rawHtml:
         "dangerouslySetInnerHTML can render untrusted log content. Render " +
         "markdown through MarkdownDiv, which checks content trust.",
@@ -100,7 +100,7 @@ const requireTrustedContent = {
         if (
           parent.type === "JSXElement" &&
           parent.openingElement.name.type === "JSXIdentifier" &&
-          parent.openingElement.name.name === "RequireTrustedContent"
+          parent.openingElement.name.name === "RequireMedia"
         ) {
           return true;
         }
@@ -160,7 +160,7 @@ export default tseslint.config(...baseConfig, {
     tsmono: {
       rules: {
         "no-raw-use-effect": noRawUseEffect,
-        "require-trusted-content": requireTrustedContent,
+        "require-media-permission": requireMediaPermission,
       },
     },
   },
@@ -175,7 +175,7 @@ export default tseslint.config(...baseConfig, {
     // is still an error.
     "jsx-a11y/no-autofocus": ["error", { ignoreNonDOM: true }],
     "tsmono/no-raw-use-effect": "error",
-    "tsmono/require-trusted-content": "error",
+    "tsmono/require-media-permission": "error",
   },
   settings: {
     react: {

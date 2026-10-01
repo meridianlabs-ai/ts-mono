@@ -13,9 +13,8 @@ import {
 import styles from "./ContentTrust.module.css";
 
 /**
- * Whether content may be rendered richly (markdown, math, syntax
- * highlighting, ANSI colors, media, links). Untrusted content is shown as
- * inert plain text.
+ * Coarse trust from application or log configuration, mapped to rendering
+ * permissions by the source and ceiling providers.
  */
 export type ContentTrust = "trusted" | "untrusted";
 
@@ -81,11 +80,9 @@ export const ContentTrustCeilingProvider: FC<{
   </ContentPolicyCeilingProvider>
 );
 
-export const useContentTrust = (): ContentTrust =>
-  isRichContentPolicy(useContentPolicy()) ? "trusted" : "untrusted";
-
-export const useIsContentTrusted = (): boolean =>
-  useContentTrust() === "trusted";
+/** Arbitrary render callbacks require every rendering permission. */
+export const useHasAllContentPermissions = (): boolean =>
+  isRichContentPolicy(useContentPolicy());
 
 /** The text form untrusted content is shown in, hidden characters revealed. */
 export const untrustedText = (text: string): string =>
@@ -113,7 +110,7 @@ const UntrustedText: FC<{ text: string }> = ({ text }) => (
  * characters revealed and bidi runs isolated when not.
  */
 export const ContentText: FC<{ text: string }> = ({ text }) =>
-  useIsContentTrusted() ? text : <UntrustedText text={text} />;
+  useHasAllContentPermissions() ? text : <UntrustedText text={text} />;
 
 /**
  * A `code` element whose only child is log-derived text, as `ContentText`
@@ -144,10 +141,9 @@ export const ContentCode: FC<{
   );
 
 /**
- * Renders `children` (media, an embedded player, a link) only when content is
- * trusted; otherwise a placeholder naming what was withheld.
+ * Renders media children when media is permitted; otherwise a placeholder.
  */
-export const RequireTrustedContent: FC<{
+export const RequireMedia: FC<{
   kind: string;
   detail?: string;
   children: ReactNode;

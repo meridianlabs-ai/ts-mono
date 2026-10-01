@@ -4,11 +4,11 @@ import { FC, ReactNode } from "react";
 import type { Content } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
-  RequireTrustedContent,
+  isRichContentPolicy,
+  RequireMedia,
   untrustedText,
   untrustedTextClassName,
   useContentPolicy,
-  useIsContentTrusted,
 } from "@tsmono/react/components";
 import {
   isAnsiOutput,
@@ -65,13 +65,13 @@ export const ToolOutput: FC<ToolOutputProps> = ({
       } else if (out.type === "image") {
         if (isRenderableImageSource(out.image)) {
           outputs.push(
-            <RequireTrustedContent kind="image" key={key}>
+            <RequireMedia kind="image" key={key}>
               <img
                 className={clsx(styles.toolImage)}
                 src={out.image}
                 alt="Tool output"
               />
-            </RequireTrustedContent>
+            </RequireMedia>
           );
         } else {
           outputs.push(<MediaReference source={out.image} key={key} />);
@@ -103,9 +103,9 @@ interface ToolTextOutputProps {
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
-  const trusted = useIsContentTrusted();
   const formatContent = useFormattedContent();
   const policy = useContentPolicy();
+  const allPermissions = isRichContentPolicy(policy);
 
   if (formatContent) {
     const obj = parseJsonRecord(text);
@@ -139,11 +139,11 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
         className={clsx(
           styles.textOutput,
           "tool-output",
-          !trusted && untrustedTextClassName
+          !allPermissions && untrustedTextClassName
         )}
       >
         <code className={clsx("sourceCode", styles.textCode)}>
-          {!trusted
+          {!allPermissions
             ? untrustedText(capped)
             : displayMode === "raw"
               ? capped

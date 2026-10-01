@@ -1,7 +1,7 @@
 import clsx from "clsx";
 import { FC, ReactNode, useState } from "react";
 
-import { ContentText, RequireTrustedContent } from "@tsmono/react/components";
+import { ContentText, RequireMedia } from "@tsmono/react/components";
 import { isRenderableImageSource } from "@tsmono/util";
 
 import { MessageContent } from "../MessageContent";
@@ -66,7 +66,7 @@ export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = ({
   }>();
 
   return (
-    <RequireTrustedContent kind="screenshot">
+    <RequireMedia kind="screenshot">
       <div className={styles.container}>
         <img
           src={src}
@@ -90,7 +90,7 @@ export const AnnotatedScreenshot: FC<AnnotatedScreenshotProps> = ({
         )}
         {renderHtmlAnnotation(annotation)}
       </div>
-    </RequireTrustedContent>
+    </RequireMedia>
   );
 };
 

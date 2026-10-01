@@ -30,6 +30,10 @@ verification or fetching mechanism is part of rendering policy.
 highlighting, ANSI, media, content links and specialized data formatting. These
 are internal permissions; this change does not expose new granular settings.
 
+Coarse trust providers map configuration to policies; renderers read specific
+permissions. `RequireMedia` checks media, and `useHasAllContentPermissions`
+checks the full policy for arbitrary callbacks.
+
 Raw/Rendered is a display preference, independent of the permissions. Rendering
 components can request an operation but cannot grant it. `forceRender` overrides
 the preference, never permission. Allowing math alone does not cause markdown to

@@ -11,10 +11,10 @@ import {
   ContentText,
   ContentTrustCeilingProvider,
   ContentTrustProvider,
-  RequireTrustedContent,
+  RequireMedia,
   untrustedTextClassName,
   useContentPolicy,
-  useContentTrust,
+  useHasAllContentPermissions,
 } from "./ContentTrust";
 import { JSONPanel } from "./JsonPanel";
 import { MarkdownDiv } from "./MarkdownDiv";
@@ -29,7 +29,9 @@ const MARKDOWN = [
 // No math: the trusted-path test shouldn't wait on MathJax's lazy chunk load.
 const RICH_MARKDOWN = MARKDOWN.split("\n").slice(0, 3).join("\n");
 
-const TrustValue = () => <span>{useContentTrust()}</span>;
+const TrustValue = () => (
+  <span>{useHasAllContentPermissions() ? "trusted" : "untrusted"}</span>
+);
 const Permissions = () => {
   const policy = useContentPolicy();
   return <span>{JSON.stringify(policy)}</span>;
@@ -136,9 +138,9 @@ describe("content trust", () => {
   it("withholds gated children for untrusted content", () => {
     render(
       <ContentTrustProvider value="untrusted">
-        <RequireTrustedContent kind="image">
+        <RequireMedia kind="image">
           <img alt="payload" src="data:image/png;base64,AAAA" />
-        </RequireTrustedContent>
+        </RequireMedia>
       </ContentTrustProvider>
     );
     expect(screen.queryByAltText("payload")).toBeNull();
@@ -150,9 +152,9 @@ describe("content trust", () => {
   it("renders gated children for trusted content", () => {
     render(
       <ContentTrustProvider value="trusted">
-        <RequireTrustedContent kind="image">
+        <RequireMedia kind="image">
           <img alt="payload" src="data:image/png;base64,AAAA" />
-        </RequireTrustedContent>
+        </RequireMedia>
       </ContentTrustProvider>
     );
     expect(screen.getByAltText("payload")).toBeTruthy();

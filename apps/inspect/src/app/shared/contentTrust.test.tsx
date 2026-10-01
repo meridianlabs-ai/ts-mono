@@ -2,7 +2,7 @@
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useContentTrust } from "@tsmono/react/components";
+import { useHasAllContentPermissions } from "@tsmono/react/components";
 
 import {
   SelectedSampleContentTrustProvider,
@@ -49,7 +49,9 @@ vi.mock("../../log_data", () => ({
 const TRUSTED: Header = { eval: {} };
 const UNTRUSTED: Header = { eval: { viewer: { trust_content: false } } };
 
-const TrustProbe = () => <span>{useContentTrust()}</span>;
+const TrustProbe = () => (
+  <span>{useHasAllContentPermissions() ? "trusted" : "untrusted"}</span>
+);
 const selectionTrust = () =>
   render(
     <SelectionContentTrustProvider>

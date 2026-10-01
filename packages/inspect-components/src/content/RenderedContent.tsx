@@ -9,7 +9,7 @@ import {
   ContentText,
   JSONPanel,
   MarkdownReference,
-  RequireTrustedContent,
+  RequireMedia,
 } from "@tsmono/react/components";
 import {
   formatNumber,
@@ -376,9 +376,9 @@ const contentRenderers: (
       render: (_id, entry, _options) => {
         return {
           rendered: (
-            <RequireTrustedContent kind="image">
+            <RequireMedia kind="image">
               <img src={entry.value} alt="Attachment" />
-            </RequireTrustedContent>
+            </RequireMedia>
           ),
         };
       },
