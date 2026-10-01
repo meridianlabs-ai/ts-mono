@@ -17,11 +17,7 @@ import {
   contentPolicyKey,
   type ContentRenderingPolicy,
 } from "./contentRenderingPolicy";
-import {
-  untrustedText,
-  untrustedTextClassName,
-  useContentPolicy,
-} from "./ContentTrust";
+import { useContentPolicy, usePlainText } from "./ContentTrust";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,
@@ -81,19 +77,22 @@ MarkdownDivComponent.displayName = "MarkdownDivComponent";
  * are no anchors to delegate clicks for, so `onClick` is not wired.
  */
 const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
-  ({ markdown, truncateAt, style, className }, ref) => (
-    <div
-      ref={ref}
-      style={style}
-      className={clsx(className, "untrusted-content", untrustedTextClassName)}
-    >
-      {untrustedText(
-        truncateAt === undefined
-          ? markdown
-          : simpleMarkdownTruncate(markdown, truncateAt)
-      )}
-    </div>
-  )
+  ({ markdown, truncateAt, style, className }, ref) => {
+    const plain = usePlainText();
+    return (
+      <div
+        ref={ref}
+        style={style}
+        className={clsx(className, "untrusted-content", plain.className)}
+      >
+        {plain.present(
+          truncateAt === undefined
+            ? markdown
+            : simpleMarkdownTruncate(markdown, truncateAt)
+        )}
+      </div>
+    );
+  }
 );
 
 UntrustedMarkdownDiv.displayName = "UntrustedMarkdownDiv";

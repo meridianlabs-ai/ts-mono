@@ -501,11 +501,10 @@ const decisionWord = (decision: unknown): string => {
 const valueText = (value: unknown): string =>
   typeof value === "string" ? value : JSON.stringify(value);
 
-/** Collapses layout whitespace for a one-line label. Only ASCII whitespace:
- *  `\s` would also swallow hidden characters (U+FEFF, U+2028) that the
- *  untrusted reveal must still show. */
+/** Collapses whitespace for a one-line label, except U+FEFF: `\s` matches
+ *  that zero-width character, which the untrusted reveal must still show. */
 const singleLine = (text: string): string =>
-  text.replace(/[ \t\n\r\f\v]+/g, " ").trim();
+  text.replace(/[^\S\ufeff]+/g, " ").replace(/^ | $/g, "");
 
 /** The call's arguments as a short mono string: a lone argument shows its
  *  value ("rm -rf build/"), several show `key: value` pairs. */

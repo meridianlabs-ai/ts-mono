@@ -1983,19 +1983,33 @@ describe("single-line labels", () => {
     expect(tool?.firstArg).toBeUndefined();
   });
 
-  it("keep hidden characters for the untrusted reveal", () => {
+  it("collapse Unicode line separators and spaces too", () => {
     const data = deriveActivityData({
       events: [
         modelCall({ start: 0, duration: 2, workingStart: 0 }),
         testInputEvent({
           timestamp: iso(2),
-          input: "a\ufeffb\u2028c",
+          input: "a\u2028b\u3000\u00a0c",
+          uuid: "input-1",
+        }),
+      ],
+    });
+    expect(data.rows.find((r) => r.key === "input-1")?.detail).toBe("“a b c”");
+  });
+
+  it("keep a zero-width no-break space for the untrusted reveal", () => {
+    const data = deriveActivityData({
+      events: [
+        modelCall({ start: 0, duration: 2, workingStart: 0 }),
+        testInputEvent({
+          timestamp: iso(2),
+          input: "a\ufeffb",
           uuid: "input-1",
         }),
       ],
     });
     expect(data.rows.find((r) => r.key === "input-1")?.detail).toBe(
-      "“a\ufeffb\u2028c”"
+      "“a\ufeffb”"
     );
   });
 });

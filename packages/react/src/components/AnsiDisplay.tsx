@@ -6,11 +6,7 @@ import { stripAnsi } from "@tsmono/util";
 import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import styles from "./AnsiDisplay.module.css";
-import {
-  untrustedText,
-  untrustedTextClassName,
-  useContentPolicy,
-} from "./ContentTrust";
+import { useContentPolicy, usePlainText } from "./ContentTrust";
 
 // Loaded on first trusted use, so ansi-output never loads for untrusted content.
 const richRenderer = onDemandModule(() => import("./AnsiDisplayRich"));
@@ -34,19 +30,22 @@ const UntrustedANSIDisplay: FC<ANSIDisplayProps> = ({
   output,
   style,
   className,
-}) => (
-  <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
-    <pre
-      className={clsx(
-        styles.ansiDisplay,
-        styles.ansiDisplayRaw,
-        untrustedTextClassName
-      )}
-    >
-      {untrustedText(output)}
-    </pre>
-  </div>
-);
+}) => {
+  const plain = usePlainText();
+  return (
+    <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
+      <pre
+        className={clsx(
+          styles.ansiDisplay,
+          styles.ansiDisplayRaw,
+          plain.className
+        )}
+      >
+        {plain.present(output)}
+      </pre>
+    </div>
+  );
+};
 
 const TrustedANSIDisplay: FC<ANSIDisplayProps> = (props) => {
   const rich = useOnDemandModule(richRenderer);

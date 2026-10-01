@@ -222,7 +222,7 @@ export const ModelEventView: FC<ModelEventViewProps> = ({
         ) : event.error ? (
           <EventSection title="Error">
             <div className={styles.error}>
-              <ContentText text={event.error || "Cancelled"} />
+              <ContentText text={event.error} />
             </div>
           </EventSection>
         ) : event.pending ? (

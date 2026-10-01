@@ -34,6 +34,7 @@ import { ContentDataView } from "../chat/content-data/ContentDataView";
 import { MessageCitations } from "../chat/MessageCitations";
 import { MessageContent } from "../chat/MessageContent";
 import { ServerToolCall } from "../chat/server-tools/ServerToolCall";
+import { ToolCallView } from "../chat/tools/ToolCallView";
 import { ToolInput } from "../chat/tools/ToolInput";
 import { deriveActivityData } from "../sample-activity/activityData";
 import { ActivityTooltip } from "../sample-activity/ActivityTooltip";
@@ -611,4 +612,22 @@ it("retains known structured and reasoning content in plain tool messages", () =
   );
   expect(container.textContent).toContain("keep this data");
   expect(container.textContent).toContain("keep this reasoning");
+});
+
+it("reveals hidden characters in the tool call header", () => {
+  const { container } = render(
+    withTrust(
+      "untrusted",
+      <ToolCallView
+        id="tool"
+        tool={"read\u202Egnp.exe"}
+        functionCall={"read\u202Egnp.exe"}
+        description={"desc\u202E"}
+        output=""
+      />
+    )
+  );
+  expect(container.textContent).toContain("read⟨U+202E⟩gnp.exe");
+  expect(container.textContent).toContain("desc⟨U+202E⟩");
+  expect(container.textContent).not.toContain("\u202E");
 });

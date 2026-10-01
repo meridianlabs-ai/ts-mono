@@ -101,8 +101,26 @@ export const untrustedTextClassName: string = styles.untrustedText;
  */
 export const kUntrustedContentSelector = '[data-content-trust="untrusted"]';
 
+/**
+ * How a caller-rendered container shows log-derived plain text, decided as
+ * `ContentText` decides: as-is with every permission, otherwise with hidden
+ * characters revealed and the container's bidi runs isolated.
+ */
+export const usePlainText = (): {
+  trusted: boolean;
+  present: (text: string) => string;
+  className: string | undefined;
+} =>
+  useHasAllContentPermissions()
+    ? { trusted: true, present: (text) => text, className: undefined }
+    : {
+        trusted: false,
+        present: untrustedText,
+        className: untrustedTextClassName,
+      };
+
 const UntrustedText: FC<{ text: string }> = ({ text }) => (
-  <span className={untrustedTextClassName}>{untrustedText(text)}</span>
+  <span className={styles.untrustedInlineText}>{untrustedText(text)}</span>
 );
 
 /**

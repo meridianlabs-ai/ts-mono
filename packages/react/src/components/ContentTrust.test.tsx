@@ -182,9 +182,11 @@ describe("content trust", () => {
       </ContentTrustProvider>
     );
     expect(container.textContent).toBe("a⟨U+202E⟩b");
-    expect(
-      container.querySelector(`.${untrustedTextClassName}`)
-    ).not.toBeNull();
+    // An inline bidi isolate; wrapping is left to the surrounding container.
+    const span = container.querySelector("span");
+    expect(span?.textContent).toBe("a⟨U+202E⟩b");
+    expect(span?.className).not.toBe("");
+    expect(span?.className).not.toContain(untrustedTextClassName);
   });
 
   it("leaves trusted plain text as-is", () => {

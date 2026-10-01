@@ -8,6 +8,7 @@ import {
 } from "@tsmono/inspect-common/types";
 import { inputString } from "@tsmono/inspect-common/utils";
 import { RenderedText } from "@tsmono/inspect-components/content";
+import { ContentText } from "@tsmono/react/components";
 import { arrayToString } from "@tsmono/util";
 
 import {
@@ -194,12 +195,16 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   const metaItems: MetaItem[] = [
     {
       key: "id",
-      content: <span className={styles.metaId}>{String(fields.id)}</span>,
+      content: (
+        <span className={styles.metaId}>
+          <ContentText text={String(fields.id)} />
+        </span>
+      ),
     },
     { key: "epoch", content: `Epoch ${fields.epoch}` },
   ];
   if (taskName) {
-    metaItems.push({ key: "task", content: taskName });
+    metaItems.push({ key: "task", content: <ContentText text={taskName} /> });
   }
   const fallbackModels = [
     ...new Set((fields.model_fallbacks ?? []).map((f) => f.fallback_model)),
@@ -209,9 +214,13 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
       key: "model",
       content: (
         <>
-          {modelText}
+          {modelText ? <ContentText text={modelText} /> : null}
           {fallbackModels.length > 0 && (
-            <em>{` (fallback → ${fallbackModels.join(", ")})`}</em>
+            <em>
+              <ContentText
+                text={` (fallback → ${fallbackModels.join(", ")})`}
+              />
+            </em>
           )}
         </>
       ),
@@ -234,7 +243,7 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
   if (fields.limit) {
     metaItems.push({
       key: "limit",
-      content: `Limit: ${fields.limit}`,
+      content: <ContentText text={`Limit: ${fields.limit}`} />,
       title: fields.limit_reason,
     });
   }

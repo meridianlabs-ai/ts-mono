@@ -45,4 +45,17 @@ describe("revealHiddenCharacters", () => {
   ])("reveals a joiner %s", (_name, input, expected) => {
     expect(revealHiddenCharacters(input)).toBe(expected);
   });
+
+  it("reveals hidden characters after astral characters and around CRLF", () => {
+    expect(revealHiddenCharacters("😀\u202E\r\nx\r")).toBe(
+      "😀⟨U+202E⟩\r\nx⟨U+000D⟩"
+    );
+  });
+
+  it("returns ordinary text unchanged on repeated calls", () => {
+    const text = "line one\nline two\ttabbed";
+    expect(revealHiddenCharacters(text)).toBe(text);
+    expect(revealHiddenCharacters(`${text}\u200B`)).toBe(`${text}⟨U+200B⟩`);
+    expect(revealHiddenCharacters(text)).toBe(text);
+  });
 });

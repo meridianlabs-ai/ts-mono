@@ -4,11 +4,9 @@ import { FC, ReactNode } from "react";
 import type { Content } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
-  isRichContentPolicy,
   RequireMedia,
-  untrustedText,
-  untrustedTextClassName,
   useContentPolicy,
+  usePlainText,
 } from "@tsmono/react/components";
 import {
   isAnsiOutput,
@@ -105,7 +103,7 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
   const formatContent = useFormattedContent();
   const policy = useContentPolicy();
-  const allPermissions = isRichContentPolicy(policy);
+  const plain = usePlainText();
 
   if (formatContent) {
     const obj = parseJsonRecord(text);
@@ -135,16 +133,10 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
 
   return (
     <>
-      <pre
-        className={clsx(
-          styles.textOutput,
-          "tool-output",
-          !allPermissions && untrustedTextClassName
-        )}
-      >
+      <pre className={clsx(styles.textOutput, "tool-output", plain.className)}>
         <code className={clsx("sourceCode", styles.textCode)}>
-          {!allPermissions
-            ? untrustedText(capped)
+          {!plain.trusted
+            ? plain.present(capped)
             : displayMode === "raw"
               ? capped
               : capped.trim()}

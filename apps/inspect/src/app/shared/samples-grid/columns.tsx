@@ -524,7 +524,6 @@ export function buildSampleColumns(
   return cols.map(withRowContentTrust);
 }
 
-/** Renders a column's cells within the trust of the log each row came from. */
 const withRowContentTrust = (col: SampleColumn): SampleColumn => {
   const cell = col.cell;
   if (typeof cell !== "function") {
