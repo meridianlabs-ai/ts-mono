@@ -59,8 +59,8 @@ overrides:
   # CJS export they need while depending on brace-expansion 2.x. Scoped
   # per-major because consumers sit on both the 2.x and 5.x lines.
   "minimatch@3": ^5.1.9
-  "brace-expansion@2": ^2.1.4
-  "brace-expansion@5": ^5.0.9
+  "brace-expansion@2": ^2.1.7
+  "brace-expansion@5": ^5.0.12
 
 # All false = same behavior as pnpm 10, which ignored these build scripts (no
 # approvals were configured anywhere). Flip one to true only if something
