@@ -5,7 +5,7 @@ import type { ContentToolUse } from "@tsmono/inspect-common/types";
 import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
-import { useFormattedContent } from "../../content/DisplayModeContext";
+import { useFormattedData } from "../../content/DisplayModeContext";
 import { ExternalLink } from "../../content/ExternalLink";
 import { RecordTree } from "../../content/RecordTree";
 import { RenderedContent } from "../../content/RenderedContent";
@@ -37,7 +37,7 @@ export const ServerToolCall: FC<ServerToolCallProps> = ({
   flush = true,
   className,
 }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const args = formatted ? resolveArgs(content) : {};
   const summaryArgs: Record<string, unknown> = {};
   const inputArgs: Array<[string, string]> = [];

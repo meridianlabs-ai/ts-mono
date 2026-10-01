@@ -5,7 +5,7 @@ import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { ContentCode } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
-import { useFormattedContent } from "../../content/DisplayModeContext";
+import { useFormattedData } from "../../content/DisplayModeContext";
 import { RenderedText } from "../../content/RenderedText";
 
 import { kToolTodoContentType } from "./tool";
@@ -20,17 +20,22 @@ interface ToolInputProps {
 }
 export const ToolInput: FC<ToolInputProps> = (props) => {
   const { contentType, contents, toolCallView, className } = props;
-  const formatContent = useFormattedContent();
+  const formatContent = useFormattedData();
 
   const sourceCodeRef = useRef<HTMLDivElement | null>(null);
   const useToolView =
     formatContent && toolCallView && isValidView(toolCallView);
 
-  const serialized = useToolView
-    ? undefined
-    : typeof contents === "string"
-      ? contents
-      : JSON.stringify(contents);
+  // Plain rendering keeps a literal null; formatted rendering treats it,
+  // like an empty string, as no input.
+  const serialized =
+    useToolView ||
+    contents === undefined ||
+    (formatContent && contents === null)
+      ? undefined
+      : typeof contents === "string"
+        ? contents
+        : JSON.stringify(contents);
   usePrismHighlight(
     sourceCodeRef,
     useToolView ? toolCallView.content.length : (serialized?.length ?? 0)
@@ -45,7 +50,7 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
       />
     );
   }
-  if (serialized === undefined) return null;
+  if (serialized === undefined || serialized === "") return null;
 
   if (contentType === kToolTodoContentType && formatContent) {
     return <TodoWriteInput contents={contents} parentRef={sourceCodeRef} />;

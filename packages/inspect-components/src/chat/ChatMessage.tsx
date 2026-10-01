@@ -15,7 +15,10 @@ import {
   type MarkdownReference,
 } from "@tsmono/react/components";
 
-import { useFormattedContent } from "../content/DisplayModeContext";
+import {
+  useFormattedContent,
+  useFormattedData,
+} from "../content/DisplayModeContext";
 import { RecordTree } from "../content/RecordTree";
 
 import styles from "./ChatMessage.module.css";
@@ -58,6 +61,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   const getMessageUrl = linking?.getMessageUrl;
   const linkIcon = linking?.icon ?? "bi bi-link-45deg";
   const formatContent = useFormattedContent();
+  const formattedData = useFormattedData();
 
   const messageUrl = getMessageUrl?.(message.id || "");
 
@@ -263,7 +267,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                 : 15
           }
         >
-          {isNonSubagentTool && formatContent ? (
+          {isNonSubagentTool && formattedData ? (
             toolSearchNamespaces ? (
               <ToolSearchView namespaces={toolSearchNamespaces} />
             ) : toolMarkdown !== undefined ? (

@@ -9,7 +9,7 @@ import { ExpandablePanel } from "@tsmono/react/components";
 
 import {
   useCustomContent,
-  useFormattedContent,
+  useFormattedData,
 } from "../../content/DisplayModeContext";
 
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
@@ -61,7 +61,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   getCustomToolView,
 }) => {
   const customContent = useCustomContent();
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
 
   // Custom views render the call and its result as one self-contained UI —
   // give them the block frame without the header.

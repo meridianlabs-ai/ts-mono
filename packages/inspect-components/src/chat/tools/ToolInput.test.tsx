@@ -35,3 +35,27 @@ describe("ToolInput todo lists", () => {
     expect(container.textContent).not.toContain("‮");
   });
 });
+
+describe("ToolInput empty contents", () => {
+  const renderInput = (trust: ContentTrust, contents: unknown) =>
+    render(
+      <ContentTrustProvider value={trust}>
+        <ToolInput contentType="bash" contents={contents} />
+      </ContentTrustProvider>
+    ).container;
+
+  it.each([
+    ["an empty string", ""],
+    ["null", null],
+    ["undefined", undefined],
+  ])("renders nothing for %s when trusted", (_label, contents) => {
+    expect(renderInput("trusted", contents).innerHTML).toBe("");
+  });
+
+  it.each([
+    ["an empty string", ""],
+    ["undefined", undefined],
+  ])("renders nothing for %s when untrusted", (_label, contents) => {
+    expect(renderInput("untrusted", contents).innerHTML).toBe("");
+  });
+});

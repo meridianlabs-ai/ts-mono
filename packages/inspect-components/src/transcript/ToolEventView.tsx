@@ -13,7 +13,7 @@ import { getOwn } from "@tsmono/util";
 
 import { computeMaxLabelLength } from "../chat/labelLength";
 import { MessageLabel } from "../chat/MessageLabel";
-import { useFormattedContent } from "../content/DisplayModeContext";
+import { useFormattedData } from "../content/DisplayModeContext";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { ApprovalEventView } from "./ApprovalEventView";
@@ -44,7 +44,7 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   context,
   eventCallbacks,
 }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const event = eventNode.event;
 
   // Extract tool input

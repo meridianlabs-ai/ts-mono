@@ -9,7 +9,7 @@ import {
 import { ContentText } from "@tsmono/react/components";
 import { parseJsonRecord } from "@tsmono/util";
 
-import { useFormattedContent } from "../content/DisplayModeContext";
+import { useFormattedData } from "../content/DisplayModeContext";
 
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
@@ -26,7 +26,7 @@ export const LoggerEventView: FC<LoggerEventViewProps> = ({
   className,
 }) => {
   const event = eventNode.event;
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const obj = formatted ? parseJsonRecord(event.message.message) : undefined;
   return (
     <EventRow

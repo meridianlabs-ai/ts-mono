@@ -21,6 +21,7 @@ import {
   useCustomContent,
   useDisplayMode,
   useFormattedContent,
+  useFormattedData,
 } from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
 import { ContentTool } from "../types";
@@ -73,6 +74,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
 }) => {
   const displayMode = useDisplayMode();
   const formatContent = useFormattedContent();
+  const formatInput = useFormattedData();
   const customContent = useCustomContent();
 
   // don't collapse if output includes an image
@@ -145,7 +147,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     return section === "output" ? null : customView;
   }
 
-  const contents = !formatContent
+  const contents = !formatInput
     ? (input ?? (functionCall !== tool ? functionCall : undefined))
     : mode !== "compact"
       ? input
@@ -153,9 +155,9 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
 
   const callSection = (
     <div>
-      {mode !== "compact" && (!formatContent || !view || view.title) ? (
+      {mode !== "compact" && (!formatInput || !view || view.title) ? (
         <ToolTitle
-          title={formatContent ? view?.title || functionCall : functionCall}
+          title={formatInput ? view?.title || functionCall : functionCall}
           description={description}
         />
       ) : (

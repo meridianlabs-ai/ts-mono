@@ -14,6 +14,8 @@ import {
   TrustedContentWrapper,
 } from "@tsmono/react/testing";
 
+import { ContentRenderersContext } from "./ContentRenderersContext";
+import { DisplayModeContext } from "./DisplayModeContext";
 import { RenderedContent } from "./RenderedContent";
 
 // These tests exercise the rich rendering path, which needs trusted content.
@@ -160,5 +162,42 @@ describe("RenderedContent log-shaped objects", () => {
 
     expect(container.textContent).toContain("nested");
     expect(container.textContent).toContain("text");
+  });
+});
+
+// Raw/Rendered is a display preference: it changes how prose renders, not
+// whether trusted data gets its specialized formatting.
+describe("RenderedContent in raw display mode", () => {
+  const renderRaw = (ui: ReactElement) =>
+    renderContent(
+      <DisplayModeContext.Provider value={{ displayMode: "raw" }}>
+        {ui}
+      </DisplayModeContext.Provider>
+    );
+
+  it("keeps the null marker for trusted content", () => {
+    const { container } = renderRaw(
+      <RenderedContent id="null" entry={{ name: "value", value: null }} />
+    );
+    expect(container.textContent).toBe("[null]");
+  });
+
+  it("keeps app-registered renderers for trusted content", () => {
+    const { container } = renderRaw(
+      <ContentRenderersContext.Provider
+        value={{
+          renderers: {
+            custom: {
+              bucket: -1,
+              canRender: () => true,
+              render: () => ({ rendered: <span>custom view</span> }),
+            },
+          },
+        }}
+      >
+        <RenderedContent id="custom" entry={{ name: "data", value: 42 }} />
+      </ContentRenderersContext.Provider>
+    );
+    expect(container.textContent).toBe("custom view");
   });
 });

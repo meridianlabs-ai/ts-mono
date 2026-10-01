@@ -2,10 +2,10 @@ import clsx from "clsx";
 import { FC, memo, ReactNode } from "react";
 
 import type { ChatMessageTool } from "@tsmono/inspect-common/types";
-import type { MarkdownReference } from "@tsmono/react/components";
+import { ContentText, type MarkdownReference } from "@tsmono/react/components";
 import { getOwn } from "@tsmono/util";
 
-import { useFormattedContent } from "../content/DisplayModeContext";
+import { useFormattedData } from "../content/DisplayModeContext";
 
 import { ChatMessage } from "./ChatMessage";
 import styles from "./ChatMessageRow.module.css";
@@ -52,7 +52,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   tools,
   startNumber,
 }: ChatMessageRowProps) {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const highlightUserMessage = display?.highlightUserMessage ?? true;
   const showLabels = labels?.show ?? true;
   const labelValues = labels?.messageLabels;
@@ -153,9 +153,18 @@ export const ChatMessageRow = memo(function ChatMessageRow({
       // Each tool call is one self-contained block: collapsible header with
       // the input zone and output well beneath. Compact mode keeps the
       // single line.
-      if (formatted && toolCallStyle === "compact") {
+      if (toolCallStyle === "compact") {
+        // The plain call line names only the function, so the compact line
+        // carries the literal arguments instead.
         views.push(
-          <ToolCallViewCompact idx={idx} functionCall={functionCall} />
+          <ToolCallViewCompact
+            idx={idx}
+            functionCall={
+              formatted
+                ? functionCall
+                : `${functionCall}(${JSON.stringify(tool_call.arguments)})`
+            }
+          />
         );
         viewKinds.push("tool");
         viewChips.push(undefined);
@@ -369,7 +378,9 @@ const ToolCallViewCompact: FC<{
 }> = ({ idx, functionCall }) => {
   return (
     <div key={`tool-call-${idx}`}>
-      <code className={clsx(styles.codeCompact)}>tool: {functionCall}</code>
+      <code className={clsx(styles.codeCompact)}>
+        tool: <ContentText text={functionCall} />
+      </code>
     </div>
   );
 };

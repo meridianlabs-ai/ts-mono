@@ -8,7 +8,7 @@ import {
 } from "@tsmono/inspect-components/content";
 import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 
-import { useFormattedContent } from "../content/DisplayModeContext";
+import { useFormattedData } from "../content/DisplayModeContext";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -56,7 +56,7 @@ interface ExecViewProps {
 }
 
 const ExecView: FC<ExecViewProps> = ({ id, event }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   if (event.cmd === null) {
     return undefined;
   }
@@ -113,7 +113,7 @@ interface ReadFileViewProps {
 }
 
 const ReadFileView: FC<ReadFileViewProps> = ({ id, event }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   if (!event.file) {
     return undefined;
   }
@@ -134,7 +134,7 @@ interface WriteFileViewProps {
 }
 
 const WriteFileView: FC<WriteFileViewProps> = ({ id, event }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   if (!event.file) {
     return undefined;
   }

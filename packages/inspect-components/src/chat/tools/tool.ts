@@ -96,7 +96,13 @@ export const resolveToolInput = (
   toolArgs: Record<string, unknown>,
   formatted = true
 ): ToolCallResult => {
-  if (!formatted) return { name: fn, functionCall: fn, input: toolArgs };
+  if (!formatted) {
+    return {
+      name: fn,
+      functionCall: fn,
+      input: Object.keys(toolArgs).length > 0 ? toolArgs : undefined,
+    };
+  }
   const toolName = fn;
 
   const inputDescriptor = extractInputMetadata(toolName, toolArgs);

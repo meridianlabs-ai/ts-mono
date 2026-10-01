@@ -4,7 +4,7 @@ import { FC } from "react";
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
 import { ContentText, MarkdownDiv } from "@tsmono/react/components";
 
-import { useFormattedContent } from "../content/DisplayModeContext";
+import { useFormattedData } from "../content/DisplayModeContext";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
@@ -23,7 +23,7 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
   eventNode,
   className,
 }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const event = eventNode.event;
   const decision = event.decision;
   const explanation =

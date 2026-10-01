@@ -7,9 +7,11 @@ import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 import {
   ANSIDisplay,
   ContentText,
+  isRichContentPolicy,
   JSONPanel,
   MarkdownReference,
   RequireMedia,
+  useContentPolicy,
 } from "@tsmono/react/components";
 import {
   formatNumber,
@@ -19,7 +21,7 @@ import {
 } from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
-import { useCustomContent, useFormattedContent } from "./DisplayModeContext";
+import { useFormattedData } from "./DisplayModeContext";
 import { ExternalLink } from "./ExternalLink";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
@@ -79,8 +81,8 @@ export const RenderedContent: FC<RenderedContentProps> = ({
 }): JSX.Element => {
   const icons = useContentIcons();
   const externalRenderers = useContentRenderers();
-  const formatContent = useFormattedContent();
-  const customContent = useCustomContent();
+  const formatContent = useFormattedData();
+  const customContent = isRichContentPolicy(useContentPolicy());
 
   if (!formatContent) {
     return (

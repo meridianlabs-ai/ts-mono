@@ -337,17 +337,7 @@ function makeTimeline(
     return {
       name: "Default",
       description: "",
-      root: new TimelineSpan({
-        id: root.id,
-        name: root.name,
-        spanType: root.spanType,
-        content: newContent,
-        branches: root.branches,
-        description: root.description,
-        utility: root.utility,
-        agentResult: root.agentResult,
-        outline: root.outline,
-      }),
+      root: root.withContent(newContent),
     };
   }
   return { name: "Default", description: "", root };

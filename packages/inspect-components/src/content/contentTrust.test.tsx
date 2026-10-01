@@ -518,14 +518,47 @@ describe("literal payload dispatch", () => {
           </>
         )
       );
+      // The compact message row keeps its single line, carrying every
+      // argument literally; the transcript event shows them as its input.
+      expect(container.textContent).toContain(
+        `tool: bash(${JSON.stringify(args)})`
+      );
       const inputs = Array.from(container.querySelectorAll(".tool-call-input"));
-      expect(inputs).toHaveLength(2);
-      for (const input of inputs)
-        expect(input.textContent).toBe(JSON.stringify(args));
+      expect(inputs).toHaveLength(1);
+      expect(inputs[0]!.textContent).toBe(JSON.stringify(args));
       expect(container.textContent).not.toContain("replacement");
       expect(container.textContent).not.toContain("formatted");
     }
   );
+  it("keeps the compact tool call style in raw display mode", () => {
+    const { container } = render(
+      <ComponentStateProvider hooks={makeStateHooks()}>
+        <ContentTrustProvider value="trusted">
+          <DisplayModeContext.Provider value={{ displayMode: "raw" }}>
+            <ChatMessageRow
+              index={0}
+              parentName="chat"
+              resolvedMessage={{
+                message: testAssistantMessage({
+                  content: "",
+                  tool_calls: [
+                    testToolCall({
+                      function: "bash",
+                      arguments: { cmd: "ls" },
+                    }),
+                  ],
+                }),
+                toolMessages: [],
+              }}
+              tools={{ callStyle: "compact" }}
+            />
+          </DisplayModeContext.Provider>
+        </ContentTrustProvider>
+      </ComponentStateProvider>
+    );
+    expect(container.textContent).toContain("tool: bash");
+    expect(container.querySelector(".tool-call-input")).toBeNull();
+  });
   it.each([0, false, null])("retains scalar tool input %s", (value) => {
     const { container } = render(
       withTrust("untrusted", <ToolInput contents={value} />)
@@ -551,7 +584,7 @@ describe("literal payload dispatch", () => {
         <ActivityTooltip target={{ kind: "span", row, span }} />
       )
     );
-    expect(container.textContent).toContain("  argument⟨U+202E⟩\nnext  ");
+    expect(container.textContent).toContain("argument⟨U+202E⟩ next");
     expect(container.textContent).toContain("error⟨U+202E⟩");
     expect(container.textContent).not.toContain("\u202E");
   });

@@ -8,7 +8,7 @@ import type {
 import { ContentText } from "@tsmono/react/components";
 import { decodeHtmlEntities } from "@tsmono/util";
 
-import { useFormattedContent } from "../content/DisplayModeContext";
+import { useFormattedData } from "../content/DisplayModeContext";
 import { ExternalLink } from "../content/ExternalLink";
 
 import styles from "./MessageCitations.module.css";
@@ -39,7 +39,7 @@ interface MessageCitationProps {
 }
 
 const MessageCitation: FC<MessageCitationProps> = ({ citation }) => {
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const source =
     citation.title ??
     (typeof citation.cited_text === "string"

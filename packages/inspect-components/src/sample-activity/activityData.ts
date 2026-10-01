@@ -501,6 +501,12 @@ const decisionWord = (decision: unknown): string => {
 const valueText = (value: unknown): string =>
   typeof value === "string" ? value : JSON.stringify(value);
 
+/** Collapses layout whitespace for a one-line label. Only ASCII whitespace:
+ *  `\s` would also swallow hidden characters (U+FEFF, U+2028) that the
+ *  untrusted reveal must still show. */
+const singleLine = (text: string): string =>
+  text.replace(/[ \t\n\r\f\v]+/g, " ").trim();
+
 /** The call's arguments as a short mono string: a lone argument shows its
  *  value ("rm -rf build/"), several show `key: value` pairs. */
 const callArgsText = (args: Record<string, unknown>): string => {
@@ -509,7 +515,7 @@ const callArgsText = (args: Record<string, unknown>): string => {
     entries.length === 1
       ? valueText(entries[0]![1])
       : entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(", ");
-  return truncate(text, 60);
+  return truncate(singleLine(text), 60);
 };
 
 /** The first argument (url / cmd / path) for the tool tooltip. */
@@ -518,7 +524,7 @@ const firstArg = (
 ): { key: string; value: string } | undefined => {
   const first = Object.entries(args)[0];
   if (!first) return undefined;
-  const text = valueText(first[1]);
+  const text = singleLine(valueText(first[1]));
   return text ? { key: first[0], value: truncate(text, 80) } : undefined;
 };
 
@@ -1112,7 +1118,9 @@ export const deriveActivityData = (inputs: ActivityInputs): ActivityData => {
           key,
           uuid,
           lead: "Input provided",
-          detail: event.input ? `“${truncate(event.input, 80)}”` : undefined,
+          detail: event.input
+            ? `“${truncate(singleLine(event.input), 80)}”`
+            : undefined,
           by: "user",
         });
         break;

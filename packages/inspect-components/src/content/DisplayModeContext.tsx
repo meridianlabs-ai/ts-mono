@@ -25,6 +25,13 @@ export const useDisplayMode = (): DisplayMode => {
   return context?.displayMode ?? "rendered";
 };
 
+/**
+ * Whether log data may get specialized formatting (parsing, reshaping,
+ * custom views). Surfaces the Raw preference never applied to use this.
+ */
+export const useFormattedData = (): boolean =>
+  useContentPolicy().formattedData;
+
 export const useFormattedContent = (): boolean => {
   const policy = useContentPolicy();
   return useDisplayMode() === "rendered" && policy.formattedData;

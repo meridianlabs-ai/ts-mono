@@ -8,7 +8,7 @@ import {
 } from "@tsmono/react/components";
 import { formatDurationShort } from "@tsmono/util";
 
-import { useFormattedContent } from "../../../content/DisplayModeContext";
+import { useFormattedData } from "../../../content/DisplayModeContext";
 import { useTimelineSelect } from "../../TimelineSelectContext";
 import {
   getSpanToolResult,
@@ -37,7 +37,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
     e.stopPropagation();
   }, []);
 
-  const formatted = useFormattedContent();
+  const formatted = useFormattedData();
   const resultOutput = useMemo(
     () => getSpanToolResult(span, formatted),
     [span, formatted]
