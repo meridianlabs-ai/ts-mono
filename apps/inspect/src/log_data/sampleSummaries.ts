@@ -11,7 +11,11 @@ import { SampleSummary } from "../client/api/types";
 import { useLogHeader } from "./log";
 import { resolveLogKey } from "./logsContent";
 import { getPendingSamples, usePendingSamples } from "./pendingSamples";
-import { readSettledSummaries, useSamplesListing } from "./samplesListing";
+import {
+  readSettledSummaries,
+  useSamplesListing,
+  type SamplesListingRow,
+} from "./samplesListing";
 
 /**
  * A sample summary with the log it came from (its listed name) and that
@@ -77,6 +81,26 @@ export const mergeSampleSummaries = <T extends SampleSummary>(
   return [...logSamples, ...uniquePendingSamples];
 };
 
+// Listing rows are immutable query data, so each wraps once: a pending-only
+// poll must hand consumers the same settled summary objects.
+const settledSummaries = new WeakMap<
+  SamplesListingRow,
+  SampleSummaryWithTrust
+>();
+
+const settledSummary = (row: SamplesListingRow): SampleSummaryWithTrust => {
+  let summary = settledSummaries.get(row);
+  if (!summary) {
+    summary = {
+      ...row.summary,
+      logFile: row.logFile,
+      contentTrust: row.log.contentTrust,
+    };
+    settledSummaries.set(row, summary);
+  }
+  return summary;
+};
+
 /**
  * The live sample-summary list for a log: the settled summaries (the
  * samples store) merged with the pending-buffer samples. How the list is
@@ -105,11 +129,7 @@ export const useSampleSummaries = (
     () =>
       mapAsyncData(compose({ rows, pending }), (settled) =>
         mergeSampleSummaries<SampleSummaryWithTrust>(
-          settled.rows.map((row) => ({
-            ...row.summary,
-            logFile: row.logFile,
-            contentTrust: row.log.contentTrust,
-          })),
+          settled.rows.map(settledSummary),
           (settled.pending?.samples ?? []).map((sample) => ({
             ...sample,
             logFile: logKey,

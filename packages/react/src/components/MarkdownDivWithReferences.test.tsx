@@ -286,3 +286,47 @@ describe("reference preview permissions", () => {
     expect(replacement).not.toHaveBeenCalled();
   });
 });
+
+describe("reference previews across parent re-renders", () => {
+  it("stay open when the parent passes an equivalent references array", async () => {
+    const hooks = makeStateHooks();
+    const view = (label: string) => (
+      <ComponentStateProvider hooks={hooks}>
+        <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
+          <ContentPolicyProvider value={richContentPolicy}>
+            <MarkdownDivWithReferences
+              markdown="See [M1]"
+              references={[
+                {
+                  id: "ref",
+                  cite: "[M1]",
+                  citePreview: () => <span data-testid="preview">{label}</span>,
+                },
+              ]}
+            />
+          </ContentPolicyProvider>
+        </ComponentNavigationProvider>
+      </ComponentStateProvider>
+    );
+    const { container, rerender } = render(view("first"));
+    await waitFor(() =>
+      expect(container.querySelector('[data-ref-id="ref"]')).not.toBeNull()
+    );
+    const cite = container.querySelector('[data-ref-id="ref"]')!;
+    fireEvent.mouseOver(cite);
+    fireEvent.mouseMove(cite);
+    await waitFor(
+      () =>
+        expect(
+          document.querySelector('[data-testid="preview"]')
+        ).not.toBeNull(),
+      { timeout: 2500 }
+    );
+
+    rerender(view("second"));
+
+    expect(document.querySelector('[data-testid="preview"]')?.textContent).toBe(
+      "second"
+    );
+  });
+});

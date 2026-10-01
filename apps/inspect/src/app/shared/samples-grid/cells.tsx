@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import { RenderedText } from "@tsmono/inspect-components/content";
+import { ContentText } from "@tsmono/react/components";
 
 import styles from "./gridCells.module.css";
 
@@ -44,6 +45,13 @@ export const MarkdownCellDiv: FC<MarkdownCellDivProps> = ({
     </div>
   );
 };
+
+/** A cell of log-derived text, rendered within its row's content trust. */
+export const TextCell: FC<{ text: string }> = ({ text }) => (
+  <div>
+    <ContentText text={text} />
+  </div>
+);
 
 /** Centered single-line cell for score values. */
 export const ScoreCellDiv: FC<{ children?: ReactNode }> = ({ children }) => (

@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
-import { ContentTrustProvider } from "@tsmono/react/components";
+import { ContentText, ContentTrustProvider } from "@tsmono/react/components";
 import {
   arrayToString,
   filename,
@@ -37,7 +37,7 @@ import {
 } from "../../shared/data-grid/columnTypes";
 import { comparators } from "../gridComparators";
 
-import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
+import { MarkdownCellDiv, ScoreCellDiv, TextCell } from "./cells";
 import {
   colorForValue,
   resolveScale,
@@ -191,7 +191,9 @@ export function buildSampleColumns(
         size: 110,
         minSize: 80,
         accessorFn: (row) => row.status,
-        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+        cell: ({ getValue }) => (
+          <TextCell text={valueAsString(getValue() ?? "")} />
+        ),
       },
       {
         id: "task",
@@ -200,7 +202,9 @@ export function buildSampleColumns(
         minSize: 100,
         flex: 1,
         accessorFn: (row) => row.task,
-        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+        cell: ({ getValue }) => (
+          <TextCell text={valueAsString(getValue() ?? "")} />
+        ),
       },
       {
         id: "model",
@@ -209,7 +213,9 @@ export function buildSampleColumns(
         minSize: 100,
         flex: 1,
         accessorFn: (row) => row.model,
-        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+        cell: ({ getValue }) => (
+          <TextCell text={valueAsString(getValue() ?? "")} />
+        ),
       },
       {
         id: "logFile",
@@ -220,7 +226,7 @@ export function buildSampleColumns(
         accessorFn: (row) => row.logFile,
         cell: ({ getValue }) => {
           const value = getValue<string | undefined>();
-          return <div>{value ? filename(value) : ""}</div>;
+          return <TextCell text={value ? filename(value) : ""} />;
         },
       },
       {
@@ -246,7 +252,7 @@ export function buildSampleColumns(
     size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
     accessorFn: (row) => String(row.sampleId),
-    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
+    cell: ({ getValue }) => <TextCell text={getValue<string>()} />,
   });
 
   // sample uuid — opt-in via column selector.
@@ -256,7 +262,7 @@ export function buildSampleColumns(
     size: 280,
     minSize: 80,
     accessorFn: (row) => row.data?.uuid ?? "",
-    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
+    cell: ({ getValue }) => <TextCell text={getValue<string>()} />,
   });
 
   // epoch
@@ -267,7 +273,7 @@ export function buildSampleColumns(
     minSize: 40,
     meta: { align: "center", sortComparator: numberCompare },
     accessorFn: (row) => row.epoch,
-    cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+    cell: ({ getValue }) => <TextCell text={valueAsString(getValue() ?? "")} />,
   });
 
   // input
@@ -285,7 +291,7 @@ export function buildSampleColumns(
             text={inputText(row.original)}
           />
         )
-      : ({ getValue }) => <div>{getValue<string>()}</div>,
+      : ({ getValue }) => <TextCell text={getValue<string>()} />,
   });
 
   // target
@@ -308,7 +314,7 @@ export function buildSampleColumns(
             />
           );
         }
-      : ({ getValue }) => <div>{getValue<string>()}</div>,
+      : ({ getValue }) => <TextCell text={getValue<string>()} />,
   });
 
   // answer (only meaningful when descriptor present)
@@ -328,7 +334,7 @@ export function buildSampleColumns(
               trimRenderedText
             />
           )
-        : ({ getValue }) => <div>{getValue<string>()}</div>,
+        : ({ getValue }) => <TextCell text={getValue<string>()} />,
     });
   }
 
@@ -414,11 +420,11 @@ export function buildSampleColumns(
                   "three-line-clamp"
                 )}
               >
-                {text}
+                <ContentText text={text} />
               </div>
             );
           }
-        : ({ getValue }) => <div>{getValue<string>()}</div>,
+        : ({ getValue }) => <TextCell text={getValue<string>()} />,
     },
     {
       id: "limit",
@@ -434,7 +440,7 @@ export function buildSampleColumns(
             undefined
           }
         >
-          {valueAsString(getValue() ?? "")}
+          <ContentText text={valueAsString(getValue() ?? "")} />
         </div>
       ),
     },
@@ -445,7 +451,9 @@ export function buildSampleColumns(
       minSize: 28,
       meta: { align: "center", sortComparator: numberCompare },
       accessorFn: (row) => row.retries ?? row.data?.retries,
-      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+      cell: ({ getValue }) => (
+        <TextCell text={valueAsString(getValue() ?? "")} />
+      ),
     },
     {
       id: "fallbacks",
@@ -459,7 +467,9 @@ export function buildSampleColumns(
         const lines = modelFallbackLines(row.data?.model_fallbacks);
         return lines.length > 0 ? lines.join("\n") : undefined;
       },
-      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
+      cell: ({ getValue }) => (
+        <TextCell text={valueAsString(getValue() ?? "")} />
+      ),
     }
   );
 
@@ -701,7 +711,11 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
             : typeof v === "number"
               ? v.toFixed(3)
               : String(v);
-        return <ScoreCellDiv>{text}</ScoreCellDiv>;
+        return (
+          <ScoreCellDiv>
+            <ContentText text={text} />
+          </ScoreCellDiv>
+        );
       },
     };
   });

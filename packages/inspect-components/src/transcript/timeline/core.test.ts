@@ -837,9 +837,7 @@ describe("agent result fallbacks", () => {
   it("falls back to the next model input when the sibling result is empty", () => {
     const span = agentSpan(agentSpanEvents(""));
     expect(getSpanToolResult(span, true)).toBe("answer from the tool message");
-    expect(getSpanToolResult(span, false)).toBe(
-      "answer from the tool message"
-    );
+    expect(getSpanToolResult(span, false)).toBe("answer from the tool message");
   });
 });
 

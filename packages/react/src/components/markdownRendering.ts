@@ -414,9 +414,16 @@ const renderFullPipelineMarkdown = async (
   return withSup;
 };
 
-const renderTextOnlyMarkdown = async (markdown: string): Promise<string> => {
+// The textOnly instance enables no link, image or HTML rules, so the policy
+// only keys its cache here.
+const renderTextOnlyMarkdown = async (
+  markdown: string,
+  policy: ContentRenderingPolicy
+): Promise<string> => {
   try {
-    return (await getMarkdownInstance("textOnly")).render(markdown);
+    return (await getMarkdownInstance("textOnly", false, policy)).render(
+      markdown
+    );
   } catch (ex) {
     console.log("Unable to markdown render content");
     console.error(ex);

@@ -28,6 +28,9 @@ const kAnsiEscapePattern =
 export const isAnsiOutput = (text: string): boolean =>
   kAnsiEscapePattern.test(text);
 
+// `replace` resets a global regex's `lastIndex`, so sharing one is safe.
+const kAnsiEscapesGlobal = new RegExp(kAnsiEscapePattern.source, "g");
+
 /** `text` with its ANSI escape sequences removed. */
 export const stripAnsi = (text: string): string =>
-  text.replace(new RegExp(kAnsiEscapePattern.source, "g"), "");
+  text.replace(kAnsiEscapesGlobal, "");

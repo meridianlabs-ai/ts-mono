@@ -271,6 +271,47 @@ describe("useSampleSummaries during a running eval", () => {
     }
   );
 
+  test("a pending-only poll tick keeps settled summary objects stable", async () => {
+    serverDetails = details([
+      createSampleSummary({ id: "s1", completed: true }),
+    ]);
+    serverBuffer = {
+      etag: "e1",
+      samples: [createSampleSummary({ id: "s2", completed: false })],
+    };
+    serverInfo = { size: 100 };
+
+    const { result } = renderHook(() => useSampleSummaries(LOG_DIR, FILE), {
+      wrapper,
+    });
+    await waitFor(
+      () =>
+        expect(result.current.data?.map((s) => s.id).sort()).toEqual([
+          "s1",
+          "s2",
+        ]),
+      { timeout: 3000 }
+    );
+    const settled = result.current.data?.find((s) => s.id === "s1");
+
+    serverBuffer = {
+      etag: "e2",
+      samples: [
+        createSampleSummary({ id: "s2", completed: false, target: "next" }),
+      ],
+    };
+    await queryClient.refetchQueries({
+      queryKey: pendingSamplesKey(LOG_DIR, FILE),
+    });
+    await waitFor(() =>
+      expect(result.current.data?.find((s) => s.id === "s2")?.target).toBe(
+        "next"
+      )
+    );
+
+    expect(result.current.data?.find((s) => s.id === "s1")).toBe(settled);
+  });
+
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {
     // The run begins: nothing flushed to the log yet, sample 1 in the buffer.
     serverDetails = details([]);

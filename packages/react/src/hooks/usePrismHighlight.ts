@@ -60,7 +60,7 @@ export const usePrismHighlight = (
     let frame: number | undefined;
     let observer: MutationObserver | undefined;
 
-    void prism
+    prism
       .load()
       .then(({ highlightElement }) => {
         if (cancelled) {

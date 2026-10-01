@@ -28,4 +28,21 @@ describe("revealHiddenCharacters", () => {
   ])("reveals %s", (_name, input, expected) => {
     expect(revealHiddenCharacters(input)).toBe(expected);
   });
+
+  it.each([
+    ["an emoji ZWJ sequence", "family 👨\u200D👩\u200D👧 and 🏳️\u200D🌈"],
+    ["a skin-toned ZWJ sequence", "👩🏽\u200D💻"],
+    ["a Persian ZWNJ", "می\u200Cخواهم"],
+    ["a Devanagari ZWJ after virama", "क्\u200Dष"],
+  ])("leaves joiners in %s untouched", (_name, text) => {
+    expect(revealHiddenCharacters(text)).toBe(text);
+  });
+
+  it.each([
+    ["between Latin letters", "pass\u200Cword", "pass⟨U+200C⟩word"],
+    ["at the end of an emoji", "👍\u200D", "👍⟨U+200D⟩"],
+    ["between an emoji and a letter", "👍\u200Da", "👍⟨U+200D⟩a"],
+  ])("reveals a joiner %s", (_name, input, expected) => {
+    expect(revealHiddenCharacters(input)).toBe(expected);
+  });
 });

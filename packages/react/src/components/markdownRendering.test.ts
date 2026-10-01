@@ -1,6 +1,7 @@
 import type { MarkdownIt } from "markdown-it";
 import { describe, expect, it, vi } from "vitest";
 
+import { richContentPolicy } from "./contentRenderingPolicy";
 import {
   protectMarkdown,
   renderMarkdown,
@@ -204,5 +205,23 @@ describe("renderMarkdown reference definitions", () => {
       "<p><a href="http://example.com/a">link</a></p>
       "
     `);
+  });
+});
+
+describe("renderMarkdown textOnly", () => {
+  it.each([
+    ["rich", richContentPolicy],
+    [
+      "link- and media-denied",
+      { ...richContentPolicy, links: false, media: false },
+    ],
+  ])("emits no links or media under a %s policy", async (_name, policy) => {
+    const html = await renderMarkdown(
+      "**bold** [link](https://example.test) ![img](https://example.test/a.png) <a href=x>raw</a>",
+      "textOnly",
+      policy
+    );
+    expect(html).toContain("<strong>bold</strong>");
+    expect(html).not.toMatch(/<a\b|<img\b/);
   });
 });

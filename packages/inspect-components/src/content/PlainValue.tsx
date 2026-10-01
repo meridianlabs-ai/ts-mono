@@ -1,14 +1,9 @@
 import { FC } from "react";
 
-import {
-  ANSIDisplay,
-  ContentText,
-  useContentPolicy,
-} from "@tsmono/react/components";
-import { isAnsiOutput, isRecord } from "@tsmono/util";
+import { ContentText } from "@tsmono/react/components";
+import { isRecord } from "@tsmono/util";
 
 import { cappedText } from "./cappedText";
-import { useDisplayMode } from "./DisplayModeContext";
 import { MetaDataGrid } from "./MetaDataGrid";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
@@ -19,22 +14,14 @@ export const PlainValue: FC<{
   value: unknown;
   markdown?: boolean;
 }> = ({ id, value, markdown = false }) => {
-  const policy = useContentPolicy();
-  const displayMode = useDisplayMode();
   if (typeof value === "string") {
+    if (markdown) return <RenderedText markdown={value} />;
     const { text, notice } = cappedText(value);
-    const ansi =
-      policy.ansi && displayMode === "rendered" && isAnsiOutput(text);
-    if (!ansi && markdown) return <RenderedText markdown={value} />;
     return (
       <>
-        {ansi ? (
-          <ANSIDisplay output={text} />
-        ) : (
-          <pre className={styles.preWrap}>
-            <ContentText text={text} />
-          </pre>
-        )}
+        <pre className={styles.preWrap}>
+          <ContentText text={text} />
+        </pre>
         {notice}
       </>
     );
