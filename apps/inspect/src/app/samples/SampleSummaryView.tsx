@@ -26,7 +26,6 @@ import {
 } from "../../state/hooks";
 import { formatModelText } from "../../utils/evalModel";
 import { formatDateTime, formatTime } from "../../utils/format";
-import { truncateMarkdown } from "../../utils/markdown";
 
 import { SamplesDescriptor } from "./descriptor/samplesDescriptor";
 import { SampleErrorView } from "./error/SampleErrorView";
@@ -336,10 +335,8 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
               <FieldLabel>Input</FieldLabel>
               <div className={clsx(styles.fieldValue, styles.clamp)}>
                 <RenderedText
-                  markdown={truncateMarkdown(
-                    fields.input.join(" "),
-                    kBodyTruncate
-                  )}
+                  markdown={fields.input.join(" ")}
+                  truncateAt={kBodyTruncate}
                 />
               </div>
             </div>
@@ -348,10 +345,8 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 <FieldLabel>Target</FieldLabel>
                 <div className={clsx(styles.fieldValue, styles.clamp)}>
                   <RenderedText
-                    markdown={truncateMarkdown(
-                      arrayToString(fields.target || "none"),
-                      kTargetTruncate
-                    )}
+                    markdown={arrayToString(fields.target || "none")}
+                    truncateAt={kTargetTruncate}
                     className={clsx("no-last-para-padding")}
                   />
                 </div>
@@ -362,10 +357,8 @@ export const SampleSummaryView: FC<SampleSummaryViewProps> = ({
                 <FieldLabel>Answer</FieldLabel>
                 <div className={clsx(styles.fieldValue, styles.clamp)}>
                   <RenderedText
-                    markdown={truncateMarkdown(
-                      fields.answer || "",
-                      kBodyTruncate
-                    )}
+                    markdown={fields.answer || ""}
+                    truncateAt={kBodyTruncate}
                     className={clsx("no-last-para-padding")}
                   />
                 </div>

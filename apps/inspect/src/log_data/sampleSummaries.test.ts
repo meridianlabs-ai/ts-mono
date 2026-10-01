@@ -190,6 +190,32 @@ describe("useSampleSummaries during a running eval", () => {
     vi.clearAllMocks();
   });
 
+  test("a log switch never hands back the previous log's summaries", async () => {
+    serverDetails = details([createSampleSummary({ id: "s1" })]);
+    serverBuffer = { etag: "e1", samples: [] };
+    serverInfo = { size: 100 };
+    // The next log's details never arrive, so the listing keeps the previous
+    // log's rows as placeholder data.
+    vi.mocked(api.get_log_details).mockImplementation((file: string) =>
+      file === "other.eval"
+        ? new Promise<LogDetails>(() => {})
+        : Promise.resolve(serverDetails)
+    );
+
+    const { result, rerender } = renderHook(
+      ({ file }: { file: string }) => useSampleSummaries(LOG_DIR, file),
+      { wrapper, initialProps: { file: FILE } }
+    );
+    await waitFor(
+      () => expect(result.current.data?.map((s) => s.id)).toEqual(["s1"]),
+      { timeout: 3000 }
+    );
+
+    rerender({ file: "other.eval" });
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
+  });
+
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {
     // The run begins: nothing flushed to the log yet, sample 1 in the buffer.
     serverDetails = details([]);

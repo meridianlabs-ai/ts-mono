@@ -35,6 +35,7 @@ import {
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../../routing/url";
+import { SelectedSampleContentTrustProvider } from "../../shared/contentTrust";
 import { SampleNavbar } from "../SampleNavbar";
 
 import styles from "./SampleEventView.module.css";
@@ -47,7 +48,13 @@ import styles from "./SampleEventView.module.css";
  * (also mounted under /tasks and /samples so back/home return to the surface
  * the sample was opened from).
  */
-export const SampleEventView: FC = () => {
+export const SampleEventView: FC = () => (
+  <SelectedSampleContentTrustProvider>
+    <SampleEventViewContent />
+  </SelectedSampleContentTrustProvider>
+);
+
+const SampleEventViewContent: FC = () => {
   const { logPath, id: sampleId, epoch } = useLogOrSampleRouteParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const eventId = searchParams.get("event");

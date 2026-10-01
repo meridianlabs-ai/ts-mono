@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { FC, Ref } from "react";
 
+import { ContentText } from "@tsmono/react/components";
 import { isRecord } from "@tsmono/util";
 
 import { useContentIcons } from "../../../content/IconsContext";
@@ -66,7 +67,7 @@ export const TodoWriteInput: FC<{
                 todo.status === "in_progress" ? styles.inProgress : undefined
               )}
             >
-              {todo.content}
+              <ContentText text={todo.content} />
             </span>
           </>
         );

@@ -7,7 +7,7 @@ import type {
 } from "@tsmono/inspect-common/types";
 import { ExpandablePanel } from "@tsmono/react/components";
 
-import { useDisplayMode } from "../../content/DisplayModeContext";
+import { useCustomContent } from "../../content/DisplayModeContext";
 
 import { AnnotatedScreenshotOutput } from "./AnnotatedScreenshot";
 import styles from "./ClientToolCall.module.css";
@@ -69,7 +69,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   inputStruck,
   outputReplacement,
 }) => {
-  const displayMode = useDisplayMode();
+  const customContent = useCustomContent();
 
   // Custom views render the call and its result as one self-contained UI —
   // give them the block frame without the header.
@@ -88,7 +88,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   // A call a check replaced or blocked takes the standard block, which can
   // strike its input and stand in for its result.
   const customView =
-    displayMode === "rendered" && !inputStruck && !outputReplacement
+    customContent && !inputStruck && !outputReplacement
       ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
       : undefined;
   if (customView) {

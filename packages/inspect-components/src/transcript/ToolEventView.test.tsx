@@ -19,7 +19,10 @@ import type {
   JsonValue,
   ToolEvent,
 } from "@tsmono/inspect-common/types";
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  ContentTrustProvider,
+} from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
@@ -51,7 +54,9 @@ const renderView = (fn: string, args: Record<string, JsonValue>) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        <ToolEventView eventNode={makeNode(fn, args)} childNodes={[]} />
+        <ContentTrustProvider value="trusted">
+          <ToolEventView eventNode={makeNode(fn, args)} childNodes={[]} />
+        </ContentTrustProvider>
       </ComponentNavigationProvider>
     </ComponentStateProvider>
   );
@@ -158,11 +163,13 @@ describe("ToolEventView approvals", () => {
     return render(
       <InMemoryStateWrapper>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <ToolEventView
-            eventNode={tool}
-            childNodes={[]}
-            context={{ toolApprovals }}
-          />
+          <ContentTrustProvider value="trusted">
+            <ToolEventView
+              eventNode={tool}
+              childNodes={[]}
+              context={{ toolApprovals }}
+            />
+          </ContentTrustProvider>
         </ComponentNavigationProvider>
       </InMemoryStateWrapper>
     );
@@ -249,11 +256,13 @@ describe("ToolEventView approvals", () => {
     const { container } = render(
       <InMemoryStateWrapper>
         <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-          <ToolEventView
-            eventNode={tool}
-            childNodes={[]}
-            context={{ toolApprovals, toolSentinels }}
-          />
+          <ContentTrustProvider value="trusted">
+            <ToolEventView
+              eventNode={tool}
+              childNodes={[]}
+              context={{ toolApprovals, toolSentinels }}
+            />
+          </ContentTrustProvider>
         </ComponentNavigationProvider>
       </InMemoryStateWrapper>
     );

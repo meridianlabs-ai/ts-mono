@@ -16,7 +16,7 @@ import { useComponentNavigation } from "./ComponentNavigationContext";
 import { isNewTabClick } from "./inAppLink";
 import { MarkdownDiv, type MarkdownRenderer } from "./MarkdownDiv";
 import styles from "./MarkdownDivWithReferences.module.css";
-import { escapeHtmlCharacters } from "./markdownRendering";
+import { escapeHtmlCharacters } from "./markdownText";
 import { NoContentsPanel } from "./NoContentsPanel";
 import { PopOver } from "./PopOver";
 
@@ -36,12 +36,15 @@ interface MarkdownDivWithReferencesProps {
   className?: string | string[];
   style?: React.CSSProperties;
   renderer?: MarkdownRenderer;
+  /** See `MarkdownDiv`'s `truncateAt`. */
+  truncateAt?: number;
 }
 
 export const MarkdownDivWithReferences = forwardRef<
   HTMLDivElement,
   MarkdownDivWithReferencesProps
->(({ markdown, references, options, className, style, renderer }, ref) => {
+>((props, ref) => {
+  const { markdown, references, options, className, style, renderer } = props;
   const containerRef = useRef<HTMLDivElement>(null);
   const [positionEl, setPositionEl] = useState<HTMLElement | null>(null);
   const [currentRef, setCurrentRef] = useState<MarkdownReference | null>(null);
@@ -98,6 +101,7 @@ export const MarkdownDivWithReferences = forwardRef<
         postProcess={hasReferences ? postProcess : undefined}
         style={style}
         renderer={renderer}
+        truncateAt={props.truncateAt}
         onClick={handleLinkClick}
       />
     ),
@@ -108,6 +112,7 @@ export const MarkdownDivWithReferences = forwardRef<
       postProcess,
       style,
       renderer,
+      props.truncateAt,
       handleLinkClick,
     ]
   );

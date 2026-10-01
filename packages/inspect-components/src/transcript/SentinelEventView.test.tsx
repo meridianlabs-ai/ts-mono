@@ -18,7 +18,10 @@ import {
   testToolEvent,
 } from "@tsmono/inspect-common/testing";
 import type { SentinelEvent, ToolEvent } from "@tsmono/inspect-common/types";
-import { ComponentNavigationProvider } from "@tsmono/react/components";
+import {
+  ComponentNavigationProvider,
+  ContentTrustProvider,
+} from "@tsmono/react/components";
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import { SentinelEventView } from "./SentinelEventView";
@@ -66,7 +69,7 @@ const renderWithState = (ui: ReactNode) =>
   render(
     <InMemoryStateWrapper>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        {ui}
+        <ContentTrustProvider value="trusted">{ui}</ContentTrustProvider>
       </ComponentNavigationProvider>
     </InMemoryStateWrapper>
   );

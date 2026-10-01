@@ -1,5 +1,10 @@
 import MarkdownIt, { type Token } from "markdown-it";
 
+import {
+  kTruncationWindowFactor,
+  simpleMarkdownTruncate,
+} from "./markdownText";
+
 /**
  * Truncates markdown text to a target length while preserving markdown syntax
  * and avoiding word breaks.
@@ -32,7 +37,7 @@ export function truncateMarkdown(
   // Sample text arrives unbounded from the log, and only ~maxLength
   // characters can ever be shown, so detection and parsing run over a
   // bounded prefix: the cost of a cell then does not grow with the sample.
-  const prefix = markdown.slice(0, maxLength * kParseWindowFactor);
+  const prefix = markdown.slice(0, maxLength * kTruncationWindowFactor);
 
   // For simple cases without markdown, use simple truncation
   if (!hasMarkdownSyntax(prefix)) {
@@ -98,10 +103,6 @@ export function truncateMarkdown(
 
   return finalText;
 }
-
-// 8x leaves 7 * maxLength of headroom for markup that carries no visible
-// text (URLs, tags, fences) before the cut can change what is shown.
-const kParseWindowFactor = 8;
 
 /**
  * Check if text contains markdown syntax
@@ -256,30 +257,4 @@ function truncateAtWordBoundary(text: string, maxLength: number): string {
 
   // Last resort: return the substring
   return substr;
-}
-
-/**
- * Simple markdown truncation that falls back to basic string slicing
- * This is a faster alternative when markdown parsing isn't critical
- */
-export function simpleMarkdownTruncate(
-  markdown: string,
-  maxLength: number = 250,
-  ellipsis: string = "..."
-): string {
-  if (!markdown || markdown.length <= maxLength) {
-    return markdown;
-  }
-
-  const targetLength = maxLength - ellipsis.length;
-  const truncated = markdown.slice(0, targetLength);
-
-  // Find the last space to avoid cutting words
-  const lastSpace = truncated.lastIndexOf(" ");
-  if (lastSpace > 0) {
-    return truncated.slice(0, lastSpace) + ellipsis;
-  }
-
-  // If no space found, just truncate at target length
-  return truncated + ellipsis;
 }
