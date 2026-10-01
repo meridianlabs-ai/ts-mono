@@ -14,13 +14,9 @@ import "./MarkdownDiv.css";
 import { onDemandModule } from "../hooks/onDemandModule";
 
 import {
-  contentPolicyKey,
-  type ContentRenderingPolicy,
-} from "./contentRenderingPolicy";
-import {
   untrustedText,
   untrustedTextClassName,
-  useContentPolicy,
+  useHasAllContentPermissions,
 } from "./ContentTrust";
 import {
   defaultMarkdownRenderer,
@@ -54,20 +50,17 @@ const sanitizeMarkdown = (md: string): string => {
 
 const MarkdownDivComponent = forwardRef<HTMLDivElement, MarkdownDivProps>(
   (props, ref) => {
-    const policy = useContentPolicy();
+    // Rendered markdown can carry links, media, math and highlighted code.
+    // Until the pipeline enforces those permissions individually, it runs
+    // only when all of them are granted.
+    const trusted = useHasAllContentPermissions();
     // Truncation reads only this much, so it's all that's rendered or cached.
     const markdown =
       props.truncateAt === undefined
         ? props.markdown
         : truncationWindow(props.markdown, props.truncateAt);
-    return policy.markdown ? (
-      <RichMarkdownDiv
-        key={contentPolicyKey(policy)}
-        {...props}
-        policy={policy}
-        markdown={markdown}
-        ref={ref}
-      />
+    return trusted ? (
+      <RichMarkdownDiv {...props} markdown={markdown} ref={ref} />
     ) : (
       <UntrustedMarkdownDiv {...props} markdown={markdown} ref={ref} />
     );
@@ -98,27 +91,15 @@ const UntrustedMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
 
 UntrustedMarkdownDiv.displayName = "UntrustedMarkdownDiv";
 
-const RichMarkdownDiv = forwardRef<
-  HTMLDivElement,
-  MarkdownDivProps & { policy: ContentRenderingPolicy }
->(
+const RichMarkdownDiv = forwardRef<HTMLDivElement, MarkdownDivProps>(
   (
-    {
-      markdown,
-      renderer,
-      truncateAt,
-      style,
-      className,
-      postProcess,
-      onClick,
-      policy,
-    },
+    { markdown, renderer, truncateAt, style, className, postProcess, onClick },
     ref
   ) => {
     const rendererName = renderer ?? defaultMarkdownRenderer;
 
     // Check cache for sanitized rendered content (before post-processing)
-    const cacheKey = `${contentPolicyKey(policy)}:${rendererName}:${truncateAt ?? ""}:${markdown}`;
+    const cacheKey = `${rendererName}:${truncateAt ?? ""}:${markdown}`;
     const cachedHtml = renderCache.get(cacheKey);
 
     // Shown until the pipeline renders: the (plainly truncated) source.
@@ -137,9 +118,9 @@ const RichMarkdownDiv = forwardRef<
         if (!postProcess || !pipeline) {
           return html;
         }
-        return pipeline.sanitizeRenderedHtml(postProcess(html), policy);
+        return pipeline.sanitizeRenderedHtml(postProcess(html));
       },
-      [postProcess, policy]
+      [postProcess]
     );
 
     // Initialize with content (cached or unrendered markdown)
@@ -173,8 +154,7 @@ const RichMarkdownDiv = forwardRef<
             ? markdown
             : loaded.truncateMarkdown(markdown, truncateAt);
         return loaded.sanitizeRenderedHtml(
-          await loaded.renderMarkdown(source, rendererName, policy),
-          policy
+          await loaded.renderMarkdown(source, rendererName)
         );
       });
 
@@ -209,7 +189,6 @@ const RichMarkdownDiv = forwardRef<
       cachedHtml,
       cacheKey,
       applyPostProcess,
-      policy,
     ]);
 
     return (

@@ -2,7 +2,6 @@ import clsx from "clsx";
 import { CSSProperties, ForwardedRef, forwardRef } from "react";
 
 import {
-  isRichContentPolicy,
   MarkdownDivWithReferences,
   MarkdownReference,
   Preformatted,
@@ -10,7 +9,7 @@ import {
   truncationWindow,
   untrustedText,
   untrustedTextClassName,
-  useContentPolicy,
+  useHasAllContentPermissions,
   type MarkdownRenderer,
 } from "@tsmono/react/components";
 
@@ -50,8 +49,7 @@ export const RenderedText = forwardRef<
     ref
   ) => {
     const displayMode = useDisplayMode();
-    const policy = useContentPolicy();
-    const allPermissions = isRichContentPolicy(policy);
+    const trusted = useHasAllContentPermissions();
     // Truncation reads only this much, so the cap never applies to it.
     const { text, notice } = cappedText(
       truncateAt === undefined
@@ -65,7 +63,7 @@ export const RenderedText = forwardRef<
 
     // forceRender overrides the display mode, never content trust.
     const body =
-      policy.markdown && (forceRender || displayMode === "rendered") ? (
+      trusted && (forceRender || displayMode === "rendered") ? (
         <MarkdownDivWithReferences
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLDivElement>}
@@ -81,9 +79,9 @@ export const RenderedText = forwardRef<
         <Preformatted
           // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- ForwardedRef is invariant in its element type, so a ref for the union this component forwards can't be handed to either branch's narrower prop; only one branch renders per call
           ref={ref as ForwardedRef<HTMLPreElement>}
-          text={allPermissions ? plainText : untrustedText(plainText)}
+          text={trusted ? plainText : untrustedText(plainText)}
           style={style}
-          className={clsx(className, !allPermissions && untrustedTextClassName)}
+          className={clsx(className, !trusted && untrustedTextClassName)}
         />
       );
 

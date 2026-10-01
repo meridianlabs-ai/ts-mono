@@ -38,10 +38,10 @@ const Permissions = () => {
 };
 
 describe("content trust", () => {
-  it("intersects individual source and application permissions", () => {
+  it("intersects source permissions with the application ceiling", () => {
     const { container } = render(
       <ContentPolicyCeilingProvider
-        value={{ ...richContentPolicy, math: false }}
+        value={{ ...richContentPolicy, syntaxHighlighting: false }}
       >
         <ContentPolicyProvider value={{ ...richContentPolicy, links: false }}>
           <Permissions />
@@ -50,46 +50,11 @@ describe("content trust", () => {
     );
     expect(JSON.parse(container.textContent)).toEqual({
       ...richContentPolicy,
-      math: false,
+      syntaxHighlighting: false,
       links: false,
     });
   });
 
-  it("retains an application restriction when switching source scopes", () => {
-    const { container } = render(
-      <ContentPolicyCeilingProvider
-        value={{ ...richContentPolicy, math: false }}
-      >
-        <ContentTrustProvider value="untrusted">
-          <ContentTrustProvider value="trusted">
-            <Permissions />
-          </ContentTrustProvider>
-        </ContentTrustProvider>
-      </ContentPolicyCeilingProvider>
-    );
-    expect(JSON.parse(container.textContent)).toEqual({
-      ...richContentPolicy,
-      math: false,
-    });
-  });
-
-  it("does not let a nested policy ceiling re-enable a denied operation", () => {
-    const { container } = render(
-      <ContentPolicyCeilingProvider
-        value={{ ...richContentPolicy, math: false }}
-      >
-        <ContentPolicyCeilingProvider value={richContentPolicy}>
-          <ContentTrustProvider value="trusted">
-            <Permissions />
-          </ContentTrustProvider>
-        </ContentPolicyCeilingProvider>
-      </ContentPolicyCeilingProvider>
-    );
-    expect(JSON.parse(container.textContent)).toEqual({
-      ...richContentPolicy,
-      math: false,
-    });
-  });
   it("defaults to untrusted outside any provider", () => {
     render(<TrustValue />);
     expect(screen.getByText("untrusted")).toBeTruthy();
@@ -242,18 +207,6 @@ describe("content trust", () => {
   });
 });
 
-it("retains base64-looking strings and primitive data in plain JSON views", () => {
-  const source = "A".repeat(260);
-  const { container } = render(
-    <ContentTrustProvider value="untrusted">
-      <JSONPanel data={{ source, value: false, zero: 0 }} />
-    </ContentTrustProvider>
-  );
-  expect(container.textContent).toBe(
-    JSON.stringify({ source, value: false, zero: 0 }, undefined, 2)
-  );
-  expect(container.textContent).not.toContain("[base64");
-});
 it("withholds terminal playback when ANSI is denied even if media is allowed", () => {
   const { container } = render(
     <ContentPolicyProvider value={{ ...richContentPolicy, ansi: false }}>

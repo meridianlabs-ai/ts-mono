@@ -95,12 +95,6 @@ export const untrustedText = (text: string): string =>
  */
 export const untrustedTextClassName: string = styles.untrustedText;
 
-/**
- * Matches elements marked as holding untrusted content, which DOM-level
- * enhancers (syntax highlighting) must leave alone.
- */
-export const kUntrustedContentSelector = '[data-content-trust="untrusted"]';
-
 const UntrustedText: FC<{ text: string }> = ({ text }) => (
   <span className={untrustedTextClassName}>{untrustedText(text)}</span>
 );
@@ -117,8 +111,8 @@ export const ContentText: FC<{ text: string }> = ({ text }) =>
  * would render it. Prism replaces a highlighted element's children, so the
  * text must be the element's own content (React then updates it by resetting
  * `textContent`) rather than a nested text node React would try to patch or
- * remove after Prism has discarded it. Remounts when trust changes, so
- * untrusted content never inherits a trusted highlight.
+ * remove after Prism has discarded it. Remounts when trust changes, so a
+ * trusted highlight never carries over to untrusted text.
  */
 export const ContentCode: FC<{
   text: string;
@@ -134,7 +128,6 @@ export const ContentCode: FC<{
       key="untrusted"
       id={id}
       className={clsx(className, untrustedTextClassName)}
-      data-content-trust="untrusted"
     >
       {untrustedText(text)}
     </code>

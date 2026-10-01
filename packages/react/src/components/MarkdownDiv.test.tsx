@@ -14,91 +14,14 @@ const render = (ui: ReactElement) =>
   renderUi(ui, { wrapper: TrustedContentWrapper });
 
 describe("MarkdownDiv render coordination", () => {
-  it(
-    "isolates cached HTML and pending output when rendering permissions change",
-    { timeout: 30000 },
-    async () => {
-      const markdown =
-        "# Policy cache\n$x^2$\n[label](https://example.com/policy)";
-      const view = (restricted: boolean) => (
-        <ContentPolicyProvider
-          value={{
-            ...richContentPolicy,
-            math: !restricted,
-            links: !restricted,
-          }}
-        >
-          <MarkdownDiv markdown={markdown} />
-        </ContentPolicyProvider>
-      );
-      const { container, rerender } = render(view(false));
-      // The first MathJax import can exceed waitFor's default on a cold runner.
-      await waitFor(
-        () => expect(container.querySelector("mjx-container")).not.toBeNull(),
-        { timeout: 20000 }
-      );
-      expect(container.querySelector("a[href]")).not.toBeNull();
-      rerender(view(true));
-      expect(container.querySelector("mjx-container, a[href]")).toBeNull();
-      await waitFor(() => expect(container.querySelector("h1")).not.toBeNull());
-      expect(container.textContent).toContain("$x^2$");
-      expect(container.textContent).toContain("https://example.com/policy");
-      expect(container.querySelector("mjx-container, a[href]")).toBeNull();
-      rerender(view(false));
-      await waitFor(() =>
-        expect(container.querySelector("mjx-container")).not.toBeNull()
-      );
-      expect(container.querySelector("a[href]")).not.toBeNull();
-    }
-  );
-
-  it("enforces link and media permissions after HTML post-processing", async () => {
-    const { container } = render(
-      <ContentPolicyProvider
-        value={{ ...richContentPolicy, links: false, media: false }}
-      >
-        <MarkdownDiv
-          markdown="# Post-process policy"
-          postProcess={(html) =>
-            `${html}<a href="https://example.com/injected">injected link</a><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==">`
-          }
-        />
-      </ContentPolicyProvider>
-    );
-    await waitFor(() =>
-      expect(container.textContent).toContain("injected link")
-    );
-    expect(
-      container.querySelector("a, img, [href], [xlink\\:href]")
-    ).toBeNull();
-  });
-
-  it("allows math while denying links emitted by MathJax", async () => {
-    const { container } = render(
+  it("renders markdown as source text unless every permission is granted", () => {
+    const { container } = renderUi(
       <ContentPolicyProvider value={{ ...richContentPolicy, links: false }}>
-        <MarkdownDiv markdown={"$\\href{https://example.com/math-link}{x}$"} />
+        <MarkdownDiv markdown="**bold** [link](https://example.com)" />
       </ContentPolicyProvider>
     );
-    await waitFor(() =>
-      expect(container.querySelector("mjx-container")).not.toBeNull()
-    );
-    expect(
-      container.querySelector(
-        'a, [href]:not([href^="#"]), [xlink\\:href]:not([xlink\\:href^="#"])'
-      )
-    ).toBeNull();
-  });
-
-  it("preserves rendered math glyphs when content links are disabled", async () => {
-    const { container } = render(
-      <ContentPolicyProvider value={{ ...richContentPolicy, links: false }}>
-        <MarkdownDiv markdown={"$\\frac{x^2}{y}$"} />
-      </ContentPolicyProvider>
-    );
-    await waitFor(() =>
-      expect(container.querySelector("mjx-container svg path")).not.toBeNull()
-    );
-    expect(container.querySelector("a")).toBeNull();
+    expect(container.textContent).toBe("**bold** [link](https://example.com)");
+    expect(container.querySelector(".markdown-content, strong, a")).toBeNull();
   });
 
   it("keeps callbacks independent for duplicate markdown with different post-processing", async () => {

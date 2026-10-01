@@ -1,9 +1,6 @@
-import { RefObject, useLayoutEffect } from "react";
+import { RefObject, useEffect } from "react";
 
-import {
-  kUntrustedContentSelector,
-  useContentPolicy,
-} from "../components/ContentTrust";
+import { useContentPolicy } from "../components/ContentTrust";
 
 import { onDemandModule } from "./onDemandModule";
 
@@ -21,12 +18,8 @@ const highlightCodeBlocks = (
 ) => {
   const codeBlocks = container.querySelectorAll("pre code");
   codeBlocks.forEach((block) => {
-    // Skip already highlighted blocks, and never highlight untrusted content
-    // (even if an observer outlives the trust that started it).
-    if (
-      block.hasAttribute("data-highlighted") ||
-      block.closest(kUntrustedContentSelector) !== null
-    ) {
+    // Skip already highlighted blocks
+    if (block.hasAttribute("data-highlighted")) {
       return;
     }
     if (block.className.includes("language-")) {
@@ -42,10 +35,7 @@ export const usePrismHighlight = (
   contentLength: number
 ) => {
   const trusted = useContentPolicy().syntaxHighlighting;
-  // A layout effect, so revoking trust disconnects the observer in the same
-  // commit that inserts the untrusted content; a passive effect's cleanup can
-  // run after the observer has already seen (and highlighted) it.
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (
       !trusted ||
       contentLength <= 0 ||
@@ -57,7 +47,6 @@ export const usePrismHighlight = (
 
     const container = containerRef.current;
     let cancelled = false;
-    let frame: number | undefined;
     let observer: MutationObserver | undefined;
 
     prism
@@ -68,7 +57,7 @@ export const usePrismHighlight = (
         }
 
         // Immediate highlight attempt
-        frame = requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
           highlightCodeBlocks(container, highlightElement);
         });
 
@@ -105,10 +94,6 @@ export const usePrismHighlight = (
 
     return () => {
       cancelled = true;
-      // A trust change must stop highlighting already queued while trusted.
-      if (frame !== undefined) {
-        cancelAnimationFrame(frame);
-      }
       observer?.disconnect();
     };
   }, [contentLength, containerRef, trusted]);
