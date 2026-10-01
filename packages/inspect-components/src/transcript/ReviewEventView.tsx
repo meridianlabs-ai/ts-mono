@@ -2,9 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ReviewEvent } from "@tsmono/inspect-common/types";
-import { ContentText, MarkdownDiv } from "@tsmono/react/components";
-
-import { useFormattedData } from "../content/DisplayModeContext";
+import { MarkdownDiv } from "@tsmono/react/components";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
@@ -24,11 +22,9 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
   eventNode,
   className,
 }) => {
-  const formatted = useFormattedData();
   const event = eventNode.event;
   const decision = event.decision;
-  const explanation =
-    (formatted ? event.explanation?.trim() : event.explanation) ?? "";
+  const explanation = event.explanation?.trim() ?? "";
   const reviewer = event.reviewer;
   const alarming = decision === "terminate";
   const explanationIsBlock = explanation.includes("\n");
@@ -53,13 +49,9 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
       }
     >
       <span className={styles.headline}>
-        <span className={clsx("text-style-secondary")}>
-          (<ContentText text={reviewer} />)
-        </span>
+        <span className={clsx("text-style-secondary")}>({reviewer})</span>
         {explanation && !explanationIsBlock ? (
-          <span className={styles.inlineExplanation}>
-            <ContentText text={explanation} />
-          </span>
+          <span className={styles.inlineExplanation}>{explanation}</span>
         ) : null}
       </span>
     </EventRow>

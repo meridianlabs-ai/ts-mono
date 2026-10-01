@@ -7,11 +7,10 @@ import { FC, Fragment, isValidElement, JSX, ReactNode } from "react";
 import {
   ANSIDisplay,
   ContentText,
-  isRichContentPolicy,
   JSONPanel,
   MarkdownReference,
   RequireMedia,
-  useContentPolicy,
+  useHasAllContentPermissions,
 } from "@tsmono/react/components";
 import {
   formatNumber,
@@ -21,11 +20,10 @@ import {
 } from "@tsmono/util";
 
 import { useContentRenderers } from "./ContentRenderersContext";
-import { useFormattedData } from "./DisplayModeContext";
 import { ExternalLink } from "./ExternalLink";
+import { isHtmlEscape } from "./htmlEscape";
 import { useContentIcons } from "./IconsContext";
 import { MetaDataGrid } from "./MetaDataGrid";
-import { PlainValue } from "./PlainValue";
 import styles from "./RenderedContent.module.css";
 import { RenderedText } from "./RenderedText";
 import { Buckets, ContentRenderer, RenderOptions } from "./types";
@@ -81,18 +79,8 @@ export const RenderedContent: FC<RenderedContentProps> = ({
 }): JSX.Element => {
   const icons = useContentIcons();
   const externalRenderers = useContentRenderers();
-  const formatContent = useFormattedData();
-  const customContent = isRichContentPolicy(useContentPolicy());
-
-  if (!formatContent) {
-    return (
-      <PlainValue
-        id={id}
-        value={entry.value}
-        markdown={renderOptions.renderString === "markdown"}
-      />
-    );
-  }
+  // Externally registered renderers can emit any rich content.
+  const customContent = useHasAllContentPermissions();
 
   // Explicitly specify return type
   if (entry.value === null) {
@@ -106,7 +94,7 @@ export const RenderedContent: FC<RenderedContentProps> = ({
   }
   const renderers = contentRenderers(
     icons,
-    customContent ? renderObject : undefined,
+    renderObject,
     customContent ? externalRenderers?.renderers : undefined
   );
   const renderer = Object.keys(renderers)
@@ -364,6 +352,15 @@ const contentRenderers: (
               <ContentText text={String(entry.value)} />
             </pre>
           ),
+        };
+      },
+    },
+    Html: {
+      bucket: Buckets.intermediate,
+      canRender: (entry) => isHtmlEscape(entry.value),
+      render: (_id, entry, _options) => {
+        return {
+          rendered: entry.value._html,
         };
       },
     },

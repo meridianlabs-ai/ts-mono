@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, ReactNode } from "react";
 
 import type { ContentDocument } from "@tsmono/inspect-common/types";
-import { ContentText, RequireMedia } from "@tsmono/react/components";
+import { RequireMedia } from "@tsmono/react/components";
 import { isImage } from "@tsmono/util";
 
 import { useContentIcons } from "../../content/IconsContext";
@@ -89,10 +89,10 @@ const ContentDocumentFrame: FC<ContentDocumentFrameProps> = ({
                 onDownloadFile(document.filename, document.document);
               }}
             >
-              <ContentText text={document.filename} />
+              {document.filename}
             </button>
           ) : (
-            <ContentText text={document.filename} />
+            document.filename
           )}
         </div>
       </div>

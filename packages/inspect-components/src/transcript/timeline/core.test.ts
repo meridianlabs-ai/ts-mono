@@ -22,8 +22,6 @@ import {
   testTimeline,
   testTimelineEvent,
   testTimelineSpan,
-  testToolEvent,
-  testToolMessage,
   testUserMessage,
 } from "@tsmono/inspect-common/testing";
 import type {
@@ -38,7 +36,6 @@ import {
   convertServerTimeline,
   countUtilitySpans,
   filterEmptyBranches,
-  getSpanToolResult,
   isEmptyBranch,
   spanHasBranches,
   TimelineEvent,
@@ -752,107 +749,4 @@ describe("utility wrapper ids", () => {
       "utility-monitor-1",
     ]);
   });
-});
-
-it("keeps original agent results available before optional Codex formatting", () => {
-  const source =
-    '  {"status":{"agent1":{"completed":"first","completed":"second"}},"extra":"keep this"}\n';
-  const timeline = buildTimeline([
-    testToolEvent({
-      function: "wait_agent",
-      agent: "helper",
-      result: source,
-      events: [testModelEvent()],
-    }),
-  ]);
-  const span = timeline.root.content.find((item) => item.type === "span");
-  expect(span).toBeDefined();
-  if (!span) throw new Error("expected an agent span");
-  expect(getSpanToolResult(span, false)).toBe(source);
-  expect(getSpanToolResult(span, true)).toBe("second");
-});
-
-it.each([0, false, { type: "text", text: "retain me" }] as const)(
-  "keeps non-string agent result %s in plain mode",
-  (result) => {
-    const timeline = buildTimeline([
-      testToolEvent({
-        function: "agent",
-        agent: "helper",
-        result,
-        events: [testModelEvent()],
-      }),
-    ]);
-    const span = timeline.root.content.find((item) => item.type === "span");
-    if (!span) throw new Error("expected an agent span");
-    expect(getSpanToolResult(span, false)).toBe(JSON.stringify(result));
-  }
-);
-
-describe("agent result fallbacks", () => {
-  const agentSpanEvents = (siblingResult: string): Event[] => [
-    testSpanBeginEvent({
-      id: "agent-call1",
-      name: "helper",
-      type: "agent",
-      parent_id: null,
-      timestamp: iso(0),
-    }),
-    testModelEvent({ span_id: "agent-call1", timestamp: iso(1) }),
-    testSpanEndEvent({ id: "agent-call1", timestamp: iso(2) }),
-    testToolEvent({
-      id: "call1",
-      function: "helper",
-      agent_span_id: "agent-call1",
-      result: siblingResult,
-      timestamp: iso(3),
-    }),
-    testModelEvent({
-      timestamp: iso(4),
-      input: [
-        testToolMessage({
-          tool_call_id: "call1",
-          function: "helper",
-          content: "answer from the tool message",
-        }),
-      ],
-    }),
-  ];
-
-  const agentSpan = (events: Event[]): TimelineSpan => {
-    const span = buildTimeline(events).root.content.find(
-      (item): item is TimelineSpan =>
-        item.type === "span" && item.id === "agent-call1"
-    );
-    if (!span) throw new Error("expected the agent span");
-    return span;
-  };
-
-  it("uses the sibling tool result when it has text", () => {
-    const span = agentSpan(agentSpanEvents("answer from the sibling"));
-    expect(getSpanToolResult(span, true)).toBe("answer from the sibling");
-    expect(getSpanToolResult(span, false)).toBe("answer from the sibling");
-  });
-
-  it("falls back to the next model input when the sibling result is empty", () => {
-    const span = agentSpan(agentSpanEvents(""));
-    expect(getSpanToolResult(span, true)).toBe("answer from the tool message");
-    expect(getSpanToolResult(span, false)).toBe("answer from the tool message");
-  });
-});
-
-it("keeps the agent result source when a span is rebuilt with new content", () => {
-  const source = '{"status":{"agent1":{"completed":"reshaped"}}}';
-  const span = new TimelineSpan({
-    id: "root",
-    name: "root",
-    spanType: null,
-    agentResult: source,
-    agentResultSource: { function: "wait_agent", content: source },
-  });
-
-  const rebuilt = span.withContent([]);
-
-  expect(getSpanToolResult(rebuilt, true)).toBe("reshaped");
-  expect(getSpanToolResult(rebuilt, false)).toBe(source);
 });

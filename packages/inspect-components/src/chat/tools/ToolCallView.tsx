@@ -20,8 +20,6 @@ import {
 import {
   useCustomContent,
   useDisplayMode,
-  useFormattedContent,
-  useFormattedData,
 } from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
 import { ContentTool } from "../types";
@@ -43,7 +41,27 @@ export interface ToolCallViewProps {
   contentType?: string;
   view?: ToolCallContent;
   output:
-    string | number | boolean | NormalizedContentItem | NormalizedContentItem[];
+    | string
+    | number
+    | boolean
+    | ContentText
+    | ContentAudio
+    | ContentImage
+    | ContentVideo
+    | ContentTool
+    | ContentReasoning
+    | ContentData
+    | ContentDocument
+    | (
+        | ContentText
+        | ContentAudio
+        | ContentImage
+        | ContentVideo
+        | ContentTool
+        | ContentReasoning
+        | ContentData
+        | ContentDocument
+      )[];
   selfAnnotation?: ToolAnnotation;
   inputScreenshot?: ScreenshotContent[];
   mode?: "compact";
@@ -73,13 +91,22 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   getCustomToolView,
 }) => {
   const displayMode = useDisplayMode();
-  const formatContent = useFormattedContent();
-  const formatInput = useFormattedData();
   const customContent = useCustomContent();
 
   // don't collapse if output includes an image
   function isContentImage(
-    value: string | number | boolean | NormalizedContentItem
+    value:
+      | string
+      | number
+      | boolean
+      | ContentText
+      | ContentAudio
+      | ContentImage
+      | ContentVideo
+      | ContentTool
+      | ContentReasoning
+      | ContentData
+      | ContentDocument
   ) {
     if (value && typeof value === "object") {
       if (value.type === "image") {
@@ -102,11 +129,10 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   // Render-time reshape of tool output (e.g. surface Codex sub-agent answers).
   // Raw mode keeps the original output.
   const normalizedContent = useMemo(() => {
-    const markdown = formatContent
-      ? codexToolMarkdown(tool, output)
-      : undefined;
+    const markdown =
+      displayMode === "rendered" ? codexToolMarkdown(tool, output) : undefined;
     return normalizeContent(markdown !== undefined ? markdown : output);
-  }, [formatContent, tool, output]);
+  }, [displayMode, tool, output]);
 
   const hasContent = normalizedContent.find((c) => {
     if (c.type === "tool") {
@@ -147,17 +173,13 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     return section === "output" ? null : customView;
   }
 
-  const contents = !formatInput
-    ? (input ?? (functionCall !== tool ? functionCall : undefined))
-    : mode !== "compact"
-      ? input
-      : input || functionCall;
+  const contents = mode !== "compact" ? input : input || functionCall;
 
   const callSection = (
     <div>
-      {mode !== "compact" && (!formatInput || !view || view.title) ? (
+      {mode !== "compact" && (!view || view.title) ? (
         <ToolTitle
-          title={formatInput ? view?.title || functionCall : functionCall}
+          title={view?.title || functionCall}
           description={description}
         />
       ) : (
@@ -179,17 +201,8 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     </div>
   );
 
-  const renderMarkdown =
-    displayMode === "rendered" && contentType === "markdown";
-  const result = hasContent ? (
-    renderMarkdown ? (
-      <MarkdownToolOutput contents={normalizedContent} />
-    ) : (
-      <MessageContent contents={normalizedContent} />
-    )
-  ) : null;
   const outputSection =
-    hasContent && (renderMarkdown || collapsible) ? (
+    displayMode === "rendered" && contentType === "markdown" && hasContent ? (
       <ExpandablePanel
         id={`${id}-tool-content`}
         collapse={collapse}
@@ -197,11 +210,21 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
         lines={15}
         className={clsx("text-size-small")}
       >
-        {result}
+        <MarkdownToolOutput contents={normalizedContent} />
       </ExpandablePanel>
-    ) : (
-      result
-    );
+    ) : hasContent && collapsible ? (
+      <ExpandablePanel
+        id={`${id}-tool-content`}
+        collapse={collapse}
+        border={false}
+        lines={15}
+        className={clsx("text-size-small")}
+      >
+        <MessageContent contents={normalizedContent} />
+      </ExpandablePanel>
+    ) : hasContent ? (
+      <MessageContent contents={normalizedContent} />
+    ) : null;
 
   const actionElement =
     selfAnnotation && inputScreenshot ? (
@@ -231,6 +254,9 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   );
 };
 
+/**
+ * Renders the ToolCallView component.
+ */
 type NormalizedContentItem =
   | ContentText
   | ContentImage
@@ -257,15 +283,50 @@ const MarkdownToolOutput: FC<{
         if (item.type === "text" && item.text) {
           return <MarkdownDiv key={`md-${i}`} markdown={item.text} />;
         }
-        return <MessageContent key={`content-${i}`} contents={[item]} />;
+        return (
+          <MessageContent
+            key={`content-${i}`}
+            contents={[item] as NormalizedContentItem[]}
+          />
+        );
       })}
     </>
   );
 };
 
 const normalizeContent = (
-  output: ToolCallViewProps["output"]
-): NormalizedContentItem[] => {
+  output:
+    | string
+    | number
+    | boolean
+    | ContentText
+    | ContentImage
+    | ContentAudio
+    | ContentVideo
+    | ContentTool
+    | ContentReasoning
+    | ContentData
+    | ContentDocument
+    | (
+        | ContentText
+        | ContentImage
+        | ContentAudio
+        | ContentVideo
+        | ContentTool
+        | ContentReasoning
+        | ContentData
+        | ContentDocument
+      )[]
+): (
+  | ContentText
+  | ContentImage
+  | ContentAudio
+  | ContentVideo
+  | ContentTool
+  | ContentReasoning
+  | ContentData
+  | ContentDocument
+)[] => {
   if (Array.isArray(output)) {
     return output;
   } else {

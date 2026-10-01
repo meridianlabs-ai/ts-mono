@@ -12,7 +12,6 @@ import type {
 import {
   ComponentIconProvider,
   ComponentNavigationProvider,
-  ContentTrustProvider,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 import {
@@ -255,26 +254,6 @@ describe("MessageContent JSON-looking blocks", () => {
     expect(container.querySelector("code.language-json")?.textContent).toBe(
       JSON.stringify([{ format: "unknown", text: "thinking" }], null, 2)
     );
-  });
-
-  it("shows untrusted OpenRouter-style reasoning exactly as written", () => {
-    // Reparsing would drop the first of the duplicate keys.
-    const written =
-      "[{'format': 'text', 'text': 'first', 'text': 'second\u202E'}]";
-    const { container } = renderUi(
-      <ContentTrustProvider value="untrusted">
-        <ComponentStateProvider hooks={makeStateHooks()}>
-          <ComponentIconProvider icons={testIcons}>
-            <MessageContent contents={[reasoning(written)]} />
-          </ComponentIconProvider>
-        </ComponentStateProvider>
-      </ContentTrustProvider>
-    );
-
-    expect(container.textContent).toContain(
-      "[{'format': 'text', 'text': 'first', 'text': 'second⟨U+202E⟩'}]"
-    );
-    expect(container.querySelector("code")).toBeNull();
   });
 
   it("renders reasoning with an OpenRouter prefix but invalid JSON5 as text", async () => {

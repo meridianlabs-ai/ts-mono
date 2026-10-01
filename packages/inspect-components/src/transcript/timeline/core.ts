@@ -134,7 +134,6 @@ export class TimelineSpan {
   // the Python `TimelineSpan.tool_invoked` flag.
   toolInvoked: boolean;
   agentResult?: string;
-  agentResultSource?: { function?: string; content: unknown };
   outline?: Outline;
 
   constructor(props: {
@@ -148,7 +147,6 @@ export class TimelineSpan {
     utility?: boolean;
     toolInvoked?: boolean;
     agentResult?: string;
-    agentResultSource?: { function?: string; content: unknown };
     outline?: Outline;
   }) {
     this.id = props.id;
@@ -161,13 +159,7 @@ export class TimelineSpan {
     this.utility = props.utility ?? false;
     this.toolInvoked = props.toolInvoked ?? false;
     this.agentResult = props.agentResult;
-    this.agentResultSource = props.agentResultSource;
     this.outline = props.outline;
-  }
-
-  /** A copy of this span with replaced content, keeping every other field. */
-  withContent(content: (TimelineEvent | TimelineSpan)[]): TimelineSpan {
-    return new TimelineSpan({ ...this, content });
   }
 
   startTime(includeBranches = true): Date {
@@ -236,7 +228,19 @@ function pruneEmptyBranches(span: TimelineSpan): TimelineSpan {
   const branches = span.branches
     .map(pruneEmptyBranches)
     .filter((b) => !isEmptyBranch(b));
-  return new TimelineSpan({ ...span, content, branches });
+  return new TimelineSpan({
+    id: span.id,
+    name: span.name,
+    spanType: span.spanType,
+    content,
+    branches,
+    branchedFrom: span.branchedFrom,
+    description: span.description,
+    utility: span.utility,
+    toolInvoked: span.toolInvoked,
+    agentResult: span.agentResult,
+    outline: span.outline,
+  });
 }
 
 /**
@@ -283,7 +287,19 @@ export function createBranchSpan(
   label: string
 ): TimelineSpan {
   const name = deriveBranchLabel(branch, label);
-  return new TimelineSpan({ ...branch, name, spanType: "branch" });
+  return new TimelineSpan({
+    id: branch.id,
+    name,
+    spanType: "branch",
+    content: branch.content,
+    branches: branch.branches,
+    branchedFrom: branch.branchedFrom,
+    description: branch.description,
+    utility: branch.utility,
+    toolInvoked: branch.toolInvoked,
+    agentResult: branch.agentResult,
+    outline: branch.outline,
+  });
 }
 
 const kGenericBranchNames = new Set(["", "branch", "trajectory"]);
@@ -829,7 +845,18 @@ function eventToNode(event: Event): TimelineEvent | TimelineSpan {
         );
         // Spawned by a ToolEvent — explicit user-intended subagent.
         span.toolInvoked = true;
-        recordAgentResult(span, event.function, event.result);
+        // Capture agent result from the spawning ToolEvent. (Codex sub-agents
+        // are span-based — they don't reach this ToolEvent path — but apply the
+        // Codex reshape defensively so any tool-spawned Codex result is handled
+        // consistently rather than rendered as raw JSON.)
+        const agentResult = extractToolEventResult(event.result);
+        if (agentResult) {
+          span.agentResult = codexResultText(
+            event.function,
+            event.result,
+            agentResult
+          );
+        }
         return span;
       }
     }
@@ -1588,22 +1615,12 @@ function classifyUtilityAgents(
 // Span Result Extraction
 // =============================================================================
 
-/** Returns an agent result, applying optional tool formatting only on request. */
-export function getSpanToolResult(
-  span: TimelineSpan,
-  formatted = true
-): string | undefined {
-  const source = span.agentResultSource;
-  if (!source) return span.agentResult;
-  if (!formatted)
-    return typeof source.content === "string"
-      ? source.content
-      : JSON.stringify(source.content);
-  return codexResultText(
-    source.function,
-    source.content,
-    span.agentResult || ""
-  );
+/**
+ * Returns the pre-extracted agent result for a span.
+ * Results are extracted during timeline building by `extractAgentResults()`.
+ */
+export function getSpanToolResult(span: TimelineSpan): string | undefined {
+  return span.agentResult;
 }
 
 /**
@@ -1643,25 +1660,6 @@ function extractToolEventResult(result: unknown): string | undefined {
 }
 
 /**
- * Records a candidate agent result. The source is kept for plain rendering
- * even without extractable text, but only a candidate with text settles the
- * result, so later candidates can still supply one.
- */
-function recordAgentResult(
-  span: TimelineSpan,
-  fn: string | undefined,
-  content: unknown
-): void {
-  const text = extractToolEventResult(content);
-  if (text) {
-    span.agentResult = text;
-    span.agentResultSource = { function: fn, content };
-  } else if (!span.agentResultSource) {
-    span.agentResultSource = { function: fn, content };
-  }
-}
-
-/**
  * Extract agentResult for each agent sub-span.
  *
  * Three sources (checked in order):
@@ -1692,7 +1690,14 @@ function extractAgentResults(parent: TimelineSpan): void {
         sibling.event.event === "tool" &&
         sibling.event.agent_span_id === item.id
       ) {
-        recordAgentResult(item, sibling.event.function, sibling.event.result);
+        const resultText = extractToolEventResult(sibling.event.result);
+        if (resultText) {
+          item.agentResult = codexResultText(
+            sibling.event.function,
+            sibling.event.result,
+            resultText
+          );
+        }
         break;
       }
     }
@@ -1709,7 +1714,14 @@ function extractAgentResults(parent: TimelineSpan): void {
           const modelEvent = nextItem.event;
           for (const msg of modelEvent.input) {
             if (msg.role === "tool" && msg.tool_call_id === toolCallId) {
-              recordAgentResult(item, msg.function ?? undefined, msg.content);
+              const text = extractToolEventResult(msg.content);
+              if (text) {
+                item.agentResult = codexResultText(
+                  msg.function ?? undefined,
+                  msg.content,
+                  text
+                );
+              }
             }
           }
           if (item.agentResult) break;

@@ -13,7 +13,6 @@ import {
 } from "react";
 
 import {
-  ContentText,
   CopyButton,
   isNewTabClick,
   useStickyScroll,
@@ -327,9 +326,7 @@ export const EventPanel: FC<EventPanelProps> = ({
           role="presentation"
           onClick={toggleCollapse}
         >
-          <span>
-            <ContentText text={title || ""} />
-          </span>
+          <span>{title}</span>
           {headerExtra ? (
             <span
               className={styles.titleExtra}

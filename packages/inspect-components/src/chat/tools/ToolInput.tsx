@@ -1,11 +1,10 @@
 import clsx from "clsx";
-import { FC, useRef } from "react";
+import { FC, Ref, useRef } from "react";
 
 import type { ToolCallContent } from "@tsmono/inspect-common/types";
 import { ContentCode } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 
-import { useFormattedData } from "../../content/DisplayModeContext";
 import { RenderedText } from "../../content/RenderedText";
 
 import { kToolTodoContentType } from "./tool";
@@ -20,26 +19,20 @@ interface ToolInputProps {
 }
 export const ToolInput: FC<ToolInputProps> = (props) => {
   const { contentType, contents, toolCallView, className } = props;
-  const formatContent = useFormattedData();
 
   const sourceCodeRef = useRef<HTMLDivElement | null>(null);
-  const useToolView =
-    formatContent && toolCallView && isValidView(toolCallView);
+  const useToolView = toolCallView && isValidView(toolCallView);
 
-  // Plain rendering keeps a literal null; formatted rendering treats it,
-  // like an empty string, as no input.
-  const serialized =
-    useToolView ||
-    contents === undefined ||
-    (formatContent && contents === null)
-      ? undefined
-      : typeof contents === "string"
-        ? contents
-        : JSON.stringify(contents);
-  usePrismHighlight(
-    sourceCodeRef,
-    useToolView ? toolCallView.content.length : (serialized?.length ?? 0)
-  );
+  const sourceCodeLength = useToolView
+    ? toolCallView.content.length
+    : contents
+      ? typeof contents === "string"
+        ? contents.length
+        : JSON.stringify(contents).length
+      : 0;
+  usePrismHighlight(sourceCodeRef, sourceCodeLength || 0);
+
+  if (!contents && !useToolView) return null;
 
   if (useToolView) {
     return (
@@ -49,15 +42,45 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
         className={clsx("tool-call-input", styles.toolView, className)}
       />
     );
+  } else {
+    return (
+      <RenderTool
+        contents={
+          typeof contents === "string" ||
+          (typeof contents === "object" && contents !== null)
+            ? contents
+            : ""
+        }
+        contentType={contentType || ""}
+        parentRef={sourceCodeRef}
+        className={className}
+      />
+    );
   }
-  if (serialized === undefined || serialized === "") return null;
+};
 
-  if (contentType === kToolTodoContentType && formatContent) {
-    return <TodoWriteInput contents={contents} parentRef={sourceCodeRef} />;
+interface RenderToolProps {
+  contents: string | object;
+  contentType: string;
+  parentRef: Ref<HTMLDivElement>;
+  className?: string | string[];
+}
+
+const RenderTool: FC<RenderToolProps> = ({
+  contents,
+  contentType,
+  parentRef,
+  className,
+}) => {
+  if (contentType === kToolTodoContentType) {
+    return <TodoWriteInput contents={contents} parentRef={parentRef} />;
   }
+
+  const formattedContent =
+    typeof contents === "object" ? JSON.stringify(contents) : contents;
 
   return (
-    <div ref={sourceCodeRef}>
+    <div ref={parentRef}>
       <pre className={clsx("tool-call-input", styles.outputPre, className)}>
         <ContentCode
           className={clsx(
@@ -66,7 +89,7 @@ export const ToolInput: FC<ToolInputProps> = (props) => {
             contentType ? `language-${contentType}` : undefined,
             styles.outputCode
           )}
-          text={serialized}
+          text={formattedContent}
         />
       </pre>
     </div>

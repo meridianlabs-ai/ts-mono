@@ -5,10 +5,8 @@ import type {
   Citation,
   UrlCitation as UrlCitationType,
 } from "@tsmono/inspect-common/types";
-import { ContentText } from "@tsmono/react/components";
 import { decodeHtmlEntities } from "@tsmono/util";
 
-import { useFormattedData } from "../content/DisplayModeContext";
 import { ExternalLink } from "../content/ExternalLink";
 
 import styles from "./MessageCitations.module.css";
@@ -39,21 +37,18 @@ interface MessageCitationProps {
 }
 
 const MessageCitation: FC<MessageCitationProps> = ({ citation }) => {
-  const formatted = useFormattedData();
-  const source =
+  const innards = decodeHtmlEntities(
     citation.title ??
-    (typeof citation.cited_text === "string"
-      ? citation.cited_text
-      : citation.type === "url"
-        ? citation.url
-        : "");
-  const innards = formatted ? decodeHtmlEntities(source) : source;
+      (typeof citation.cited_text === "string"
+        ? citation.cited_text
+        : citation.type === "url"
+          ? citation.url
+          : "")
+  );
   return citation.type === "url" ? (
     <UrlCitation citation={citation}>{innards}</UrlCitation>
   ) : (
-    <OtherCitation>
-      <ContentText text={innards} />
-    </OtherCitation>
+    <OtherCitation>{innards}</OtherCitation>
   );
 };
 

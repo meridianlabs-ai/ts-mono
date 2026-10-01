@@ -13,7 +13,6 @@ import { getOwn } from "@tsmono/util";
 
 import { computeMaxLabelLength } from "../chat/labelLength";
 import { MessageLabel } from "../chat/MessageLabel";
-import { useFormattedData } from "../content/DisplayModeContext";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
 import { ApprovalEventView } from "./ApprovalEventView";
@@ -44,26 +43,25 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
   context,
   eventCallbacks,
 }) => {
-  const formatted = useFormattedData();
   const event = eventNode.event;
 
   // Extract tool input
   const { name, input, description, functionCall, contentType, title } =
     useMemo(
-      () => resolveToolInput(event.function, event.arguments, formatted),
-      [event.function, event.arguments, formatted]
+      () => resolveToolInput(event.function, event.arguments),
+      [event.function, event.arguments]
     );
 
   // Resolve {{placeholder}} substitutions in tool call view content
   const resolvedView = useMemo(
     () =>
-      formatted && event.view
+      event.view
         ? substituteToolCallContent(
             event.view,
             event.arguments as Record<string, unknown>
           )
         : undefined,
-    [event.view, event.arguments, formatted]
+    [event.view, event.arguments]
   );
 
   const approvalNode = context?.toolApprovals?.get(event.id);

@@ -2,9 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ApprovalEvent } from "@tsmono/inspect-common/types";
-import { ContentText, MarkdownDiv } from "@tsmono/react/components";
-
-import { useFormattedData } from "../content/DisplayModeContext";
+import { MarkdownDiv } from "@tsmono/react/components";
 
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
@@ -23,11 +21,9 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
   eventNode,
   className,
 }) => {
-  const formatted = useFormattedData();
   const event = eventNode.event;
   const decision = event.decision;
-  const explanation =
-    (formatted ? event.explanation?.trim() : event.explanation) ?? "";
+  const explanation = event.explanation?.trim() ?? "";
   const approver = event.approver;
   const alarming = decision === "reject" || decision === "terminate";
   // Break the explanation out into a markdown block only when it has
@@ -56,13 +52,9 @@ export const ApprovalEventView: FC<ApprovalEventViewProps> = ({
       }
     >
       <span className={styles.headline}>
-        <span className={clsx("text-style-secondary")}>
-          (<ContentText text={approver} />)
-        </span>
+        <span className={clsx("text-style-secondary")}>({approver})</span>
         {explanation && !explanationIsBlock ? (
-          <span className={styles.inlineExplanation}>
-            <ContentText text={explanation} />
-          </span>
+          <span className={styles.inlineExplanation}>{explanation}</span>
         ) : null}
       </span>
     </EventRow>

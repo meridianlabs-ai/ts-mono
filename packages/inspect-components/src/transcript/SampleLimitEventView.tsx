@@ -5,7 +5,6 @@ import type {
   EvalSampleLimit,
   SampleLimitEvent,
 } from "@tsmono/inspect-common/types";
-import { ContentText } from "@tsmono/react/components";
 import { formatDateTime } from "@tsmono/util";
 
 import { EventPanel } from "./event/EventPanel";
@@ -77,9 +76,7 @@ export const SampleLimitEventView: FC<SampleLimitEventViewProps> = ({
       icon={icon}
       className={className}
     >
-      <div className={clsx("text-size-smaller")}>
-        <ContentText text={eventNode.event.message} />
-      </div>
+      <div className={clsx("text-size-smaller")}>{eventNode.event.message}</div>
     </EventPanel>
   );
 };

@@ -5,7 +5,6 @@ import { isRecord, maybeBase64 } from "@tsmono/util";
 
 import { usePrismHighlight } from "../hooks/usePrismHighlight";
 
-import { ContentCode, useContentPolicy } from "./ContentTrust";
 import styles from "./JsonPanel.module.css";
 
 interface JSONPanelProps {
@@ -27,17 +26,11 @@ export const JSONPanel: FC<JSONPanelProps> = ({
   style,
   className,
 }) => {
-  const { formattedData } = useContentPolicy();
   const sourceCode = useMemo(() => {
-    if (json !== undefined) return json;
-    if (data !== undefined)
-      return JSON.stringify(
-        formattedData ? resolveBase64(data) : data,
-        undefined,
-        2
-      );
+    if (json) return json;
+    if (data) return JSON.stringify(resolveBase64(data), undefined, 2);
     return "";
-  }, [json, data, formattedData]);
+  }, [json, data]);
 
   const sourceCodeRef = useRef<HTMLDivElement | null>(null);
   usePrismHighlight(sourceCodeRef, sourceCode.length);
@@ -52,11 +45,9 @@ export const JSONPanel: FC<JSONPanelProps> = ({
         )}
         style={style}
       >
-        <ContentCode
-          id={id}
-          className={clsx("source-code", "language-javascript")}
-          text={sourceCode}
-        />
+        <code id={id} className={clsx("source-code", "language-javascript")}>
+          {sourceCode}
+        </code>
       </pre>
     </div>
   );

@@ -6,9 +6,7 @@ import {
   MetaDataGrid,
   RenderedContent,
 } from "@tsmono/inspect-components/content";
-import { ContentText, ExpandablePanel } from "@tsmono/react/components";
-
-import { useFormattedData } from "../content/DisplayModeContext";
+import { ExpandablePanel } from "@tsmono/react/components";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -56,7 +54,6 @@ interface ExecViewProps {
 }
 
 const ExecView: FC<ExecViewProps> = ({ id, event }) => {
-  const formatted = useFormattedData();
   if (event.cmd === null) {
     return undefined;
   }
@@ -64,19 +61,15 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
   const options = event.options;
   const input = event.input;
   const result = event.result;
-  const output = formatted ? event.output?.trim() : event.output;
+  const output = event.output ? event.output.trim() : undefined;
 
   return (
     <div className={clsx(styles.exec)}>
       <EventSection title={`Command`}>
         <div className={clsx(styles.twoColumn)}>
+          <pre className={clsx(styles.wrapPre)}>{cmd}</pre>
           <pre className={clsx(styles.wrapPre)}>
-            <ContentText text={cmd ?? ""} />
-          </pre>
-          <pre className={clsx(styles.wrapPre)}>
-            {input !== null && input !== undefined ? (
-              <ContentText text={formatted ? input.trim() : input} />
-            ) : undefined}
+            {input !== null ? input?.trim() : undefined}
           </pre>
 
           {options && Object.keys(options).length > 0 ? (
@@ -113,19 +106,12 @@ interface ReadFileViewProps {
 }
 
 const ReadFileView: FC<ReadFileViewProps> = ({ id, event }) => {
-  const formatted = useFormattedData();
   if (!event.file) {
     return undefined;
   }
   const file = event.file;
   const output = event.output;
-  return (
-    <FileView
-      id={id}
-      file={file}
-      contents={(formatted ? output?.trim() : output) ?? undefined}
-    />
-  );
+  return <FileView id={id} file={file} contents={output?.trim()} />;
 };
 
 interface WriteFileViewProps {
@@ -134,20 +120,13 @@ interface WriteFileViewProps {
 }
 
 const WriteFileView: FC<WriteFileViewProps> = ({ id, event }) => {
-  const formatted = useFormattedData();
   if (!event.file) {
     return undefined;
   }
   const file = event.file;
   const input = event.input;
 
-  return (
-    <FileView
-      id={id}
-      file={file}
-      contents={(formatted ? input?.trim() : input) ?? undefined}
-    />
-  );
+  return <FileView id={id} file={file} contents={input?.trim()} />;
 };
 
 interface FileViewProps {
@@ -160,17 +139,13 @@ const FileView: FC<FileViewProps> = ({ id, file, contents }) => {
   return (
     <div>
       <EventSection title="File">
-        <pre className={clsx(styles.fileLabel)}>
-          <ContentText text={file} />
-        </pre>
+        <pre className={clsx(styles.fileLabel)}>{file}</pre>
       </EventSection>
 
       {contents ? (
         <EventSection title="Contents">
           <ExpandablePanel id={`${id}-file`} collapse={false}>
-            <pre>
-              <ContentText text={contents} />
-            </pre>
+            <pre>{contents}</pre>
           </ExpandablePanel>
         </EventSection>
       ) : undefined}

@@ -1,14 +1,9 @@
 import clsx from "clsx";
 import { FC, MouseEvent, useCallback, useMemo } from "react";
 
-import {
-  ContentText,
-  ExpandablePanel,
-  MarkdownDiv,
-} from "@tsmono/react/components";
+import { ExpandablePanel, MarkdownDiv } from "@tsmono/react/components";
 import { formatDurationShort } from "@tsmono/util";
 
-import { useFormattedData } from "../../../content/DisplayModeContext";
 import { useTimelineSelect } from "../../TimelineSelectContext";
 import {
   getSpanToolResult,
@@ -37,11 +32,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
     e.stopPropagation();
   }, []);
 
-  const formatted = useFormattedData();
-  const resultOutput = useMemo(
-    () => getSpanToolResult(span, formatted),
-    [span, formatted]
-  );
+  const resultOutput = useMemo(() => getSpanToolResult(span), [span]);
 
   const isUtility = span.utility;
   const isBranch = span.spanType === "branch";
@@ -75,7 +66,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
             "text-style-label"
           )}
         >
-          {label}: <ContentText text={title} />
+          {label}: {title}
         </div>
         <div />
         <div className={clsx(styles.meta, "text-style-secondary")}>
@@ -94,7 +85,7 @@ export const AgentCardView: FC<AgentCardViewProps> = ({ span, className }) => {
       </div>
       {!isUtility && span.description && (
         <div className={clsx(styles.description, "text-size-small")}>
-          <ContentText text={span.description} />
+          {span.description}
         </div>
       )}
       {resultOutput && (

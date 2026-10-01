@@ -32,15 +32,11 @@ function makeNode(
   );
 }
 
-const renderView = (
-  fn: string,
-  args: Record<string, JsonValue>,
-  trust: "trusted" | "untrusted" = "trusted"
-) =>
+const renderView = (fn: string, args: Record<string, JsonValue>) =>
   render(
     <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
-        <ContentTrustProvider value={trust}>
+        <ContentTrustProvider value="trusted">
           <ToolEventView eventNode={makeNode(fn, args)} childNodes={[]} />
         </ContentTrustProvider>
       </ComponentNavigationProvider>
@@ -81,13 +77,6 @@ describe("ToolEventView", () => {
     expect(input).not.toBeNull();
     expect(input!.textContent).toContain("alpha");
     expect(input!.textContent).toContain("beta");
-  });
-
-  it("shows no input zone for an argument-less call when untrusted", () => {
-    const { container } = renderView("think", {}, "untrusted");
-
-    expect(container.querySelector(".tool-call-input")).toBeNull();
-    expect(container.textContent).not.toContain("{}");
   });
 
   it("keeps a small object arg on the header line only", () => {

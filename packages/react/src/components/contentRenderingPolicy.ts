@@ -6,7 +6,6 @@ export interface ContentRenderingPolicy {
   readonly ansi: boolean;
   readonly media: boolean;
   readonly links: boolean;
-  readonly formattedData: boolean;
 }
 
 export const richContentPolicy: ContentRenderingPolicy = Object.freeze({
@@ -16,7 +15,6 @@ export const richContentPolicy: ContentRenderingPolicy = Object.freeze({
   ansi: true,
   media: true,
   links: true,
-  formattedData: true,
 });
 
 export const plainContentPolicy: ContentRenderingPolicy = Object.freeze({
@@ -26,7 +24,6 @@ export const plainContentPolicy: ContentRenderingPolicy = Object.freeze({
   ansi: false,
   media: false,
   links: false,
-  formattedData: false,
 });
 
 export const contentPolicyKey = (policy: ContentRenderingPolicy): string =>
@@ -37,7 +34,6 @@ export const contentPolicyKey = (policy: ContentRenderingPolicy): string =>
     policy.ansi,
     policy.media,
     policy.links,
-    policy.formattedData,
   ]
     .map(Number)
     .join("");
@@ -56,7 +52,6 @@ export const intersectContentPolicies = (
     ansi: a.ansi && b.ansi,
     media: a.media && b.media,
     links: a.links && b.links,
-    formattedData: a.formattedData && b.formattedData,
   };
   const key = contentPolicyKey(result);
   return key === contentPolicyKey(a)

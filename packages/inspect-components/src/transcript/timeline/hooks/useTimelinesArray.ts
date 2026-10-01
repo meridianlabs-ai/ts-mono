@@ -284,7 +284,18 @@ function attachOrphanedEvents(
     (a, b) => a.startTime().getTime() - b.startTime().getTime()
   );
 
-  const newRoot = host.root.withContent(mergedContent);
+  const newRoot = new TimelineSpan({
+    id: host.root.id,
+    name: host.root.name,
+    spanType: host.root.spanType,
+    content: mergedContent,
+    branches: host.root.branches,
+    branchedFrom: host.root.branchedFrom,
+    description: host.root.description,
+    utility: host.root.utility,
+    agentResult: host.root.agentResult,
+    outline: host.root.outline,
+  });
 
   return timelines.map((tl, i) =>
     i === hostIndex

@@ -88,21 +88,12 @@ export interface ToolCallResult {
 }
 
 /**
- * Resolves a tool call for display, preserving all arguments when formatting
- * is disabled.
+ * Resolves the input and metadata for a given tool call.
  */
 export const resolveToolInput = (
   fn: string,
-  toolArgs: Record<string, unknown>,
-  formatted = true
+  toolArgs: Record<string, unknown>
 ): ToolCallResult => {
-  if (!formatted) {
-    return {
-      name: fn,
-      functionCall: fn,
-      input: Object.keys(toolArgs).length > 0 ? toolArgs : undefined,
-    };
-  }
   const toolName = fn;
 
   const inputDescriptor = extractInputMetadata(toolName, toolArgs);

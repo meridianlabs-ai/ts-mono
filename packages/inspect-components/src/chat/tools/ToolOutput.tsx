@@ -4,11 +4,10 @@ import { FC, ReactNode } from "react";
 import type { Content } from "@tsmono/inspect-common/types";
 import {
   ANSIDisplay,
-  isRichContentPolicy,
   RequireMedia,
   untrustedText,
   untrustedTextClassName,
-  useContentPolicy,
+  useHasAllContentPermissions,
 } from "@tsmono/react/components";
 import {
   isAnsiOutput,
@@ -17,10 +16,7 @@ import {
 } from "@tsmono/util";
 
 import { cappedText } from "../../content/cappedText";
-import {
-  useDisplayMode,
-  useFormattedContent,
-} from "../../content/DisplayModeContext";
+import { useDisplayMode } from "../../content/DisplayModeContext";
 import { MediaReference } from "../../media/MediaReference";
 import { ContentDocumentView } from "../documents/ContentDocumentView";
 import { JsonMessageContent } from "../JsonMessageContent";
@@ -42,7 +38,7 @@ export const ToolOutput: FC<ToolOutputProps> = ({
   onDownloadFile,
 }) => {
   // If there is no output, don't show the tool
-  if (output === "") {
+  if (!output) {
     return null;
   }
 
@@ -103,11 +99,9 @@ interface ToolTextOutputProps {
  */
 const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   const displayMode = useDisplayMode();
-  const formatContent = useFormattedContent();
-  const policy = useContentPolicy();
-  const allPermissions = isRichContentPolicy(policy);
+  const trusted = useHasAllContentPermissions();
 
-  if (formatContent) {
+  if (displayMode === "rendered") {
     const obj = parseJsonRecord(text);
     if (obj) {
       return <JsonMessageContent id={`1-json`} json={obj} />;
@@ -124,7 +118,7 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
   // It could have ANSI codes. Detection is bounded to the capped prefix so
   // log-authored output can never feed the regex an unbounded string; the
   // ANSI renderer still receives the full text as before.
-  if (displayMode === "rendered" && policy.ansi && isAnsiOutput(capped)) {
+  if (displayMode === "rendered" && isAnsiOutput(capped)) {
     return (
       <ANSIDisplay
         output={text}
@@ -139,11 +133,11 @@ const ToolTextOutput: FC<ToolTextOutputProps> = ({ text }) => {
         className={clsx(
           styles.textOutput,
           "tool-output",
-          !allPermissions && untrustedTextClassName
+          !trusted && untrustedTextClassName
         )}
       >
         <code className={clsx("sourceCode", styles.textCode)}>
-          {!allPermissions
+          {!trusted
             ? untrustedText(capped)
             : displayMode === "raw"
               ? capped

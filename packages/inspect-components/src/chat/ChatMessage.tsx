@@ -11,14 +11,10 @@ import {
   ExpandablePanel,
   LabeledValue,
   MarkdownDiv,
-  ContentText as PolicyText,
   type MarkdownReference,
 } from "@tsmono/react/components";
 
-import {
-  useFormattedContent,
-  useFormattedData,
-} from "../content/DisplayModeContext";
+import { useDisplayMode } from "../content/DisplayModeContext";
 import { RecordTree } from "../content/RecordTree";
 
 import styles from "./ChatMessage.module.css";
@@ -60,8 +56,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   const linkingEnabled = linking?.enabled ?? false;
   const getMessageUrl = linking?.getMessageUrl;
   const linkIcon = linking?.icon ?? "bi bi-link-45deg";
-  const formatContent = useFormattedContent();
-  const formattedData = useFormattedData();
+  const displayMode = useDisplayMode();
 
   const messageUrl = getMessageUrl?.(message.id || "");
 
@@ -80,7 +75,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // → markdown. Raw mode keeps the original message content.
   let toolSearchNamespaces: ToolSearchNamespaceEntry[] | undefined;
   let toolMarkdown: string | undefined;
-  if (formatContent && isNonSubagentTool && message.function) {
+  if (displayMode === "rendered" && isNonSubagentTool && message.function) {
     if (message.function === "tool_search") {
       toolSearchNamespaces = parseToolSearchCatalog(message.content);
     } else {
@@ -92,7 +87,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
   // compact status line — the answer itself is shown by the paired wait/close
   // result. Raw mode keeps the original notification.
   const subagentNotifications =
-    formatContent && message.role === "user"
+    displayMode === "rendered" && message.role === "user"
       ? formatSubagentNotifications(message.content)
       : undefined;
 
@@ -123,17 +118,11 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
     >
       <div>
         {message.role}
-        {message.role === "tool" ? (
-          message.function ? (
-            <>
-              : <PolicyText text={message.function} />
-            </>
-          ) : (
-            ""
-          )
-        ) : (
-          ""
-        )}
+        {message.role === "tool"
+          ? message.function
+            ? `: ${message.function}`
+            : ""
+          : ""}
         {linkingEnabled && messageUrl ? (
           <CopyButton
             icon={linkIcon}
@@ -267,7 +256,7 @@ export const ChatMessage: FC<ChatMessageProps> = memo(function ChatMessage({
                 : 15
           }
         >
-          {isNonSubagentTool && formattedData ? (
+          {isNonSubagentTool ? (
             toolSearchNamespaces ? (
               <ToolSearchView namespaces={toolSearchNamespaces} />
             ) : toolMarkdown !== undefined ? (
