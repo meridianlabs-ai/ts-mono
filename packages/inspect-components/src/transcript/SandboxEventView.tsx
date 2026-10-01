@@ -6,7 +6,7 @@ import {
   MetaDataGrid,
   RenderedContent,
 } from "@tsmono/inspect-components/content";
-import { ExpandablePanel } from "@tsmono/react/components";
+import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 
 import { EventPanel } from "./event/EventPanel";
 import { EventSection } from "./event/EventSection";
@@ -67,9 +67,11 @@ const ExecView: FC<ExecViewProps> = ({ id, event }) => {
     <div className={clsx(styles.exec)}>
       <EventSection title={`Command`}>
         <div className={clsx(styles.twoColumn)}>
-          <pre className={clsx(styles.wrapPre)}>{cmd}</pre>
           <pre className={clsx(styles.wrapPre)}>
-            {input !== null ? input?.trim() : undefined}
+            <ContentText text={cmd ?? ""} />
+          </pre>
+          <pre className={clsx(styles.wrapPre)}>
+            {input ? <ContentText text={input.trim()} /> : undefined}
           </pre>
 
           {options && Object.keys(options).length > 0 ? (
@@ -145,7 +147,9 @@ const FileView: FC<FileViewProps> = ({ id, file, contents }) => {
       {contents ? (
         <EventSection title="Contents">
           <ExpandablePanel id={`${id}-file`} collapse={false}>
-            <pre>{contents}</pre>
+            <pre>
+              <ContentText text={contents} />
+            </pre>
           </ExpandablePanel>
         </EventSection>
       ) : undefined}

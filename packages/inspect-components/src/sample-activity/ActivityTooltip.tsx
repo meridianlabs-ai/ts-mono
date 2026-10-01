@@ -7,8 +7,6 @@ import {
   Ref,
 } from "react";
 
-import { ContentText } from "@tsmono/react/components";
-
 import {
   ActivityMarker,
   ActivitySpan,
@@ -186,14 +184,10 @@ const Card: FC<CardProps> = ({
     {who && (
       <div className={styles.who}>
         <span className={styles.swatch} style={{ background: who.hue }} />
-        <span>
-          <ContentText text={who.name} />
-        </span>
+        <span>{who.name}</span>
         {/* The root row is named after its model — don't say it twice. */}
         {who.model && who.model !== who.name && (
-          <span className={styles.muted}>
-            · <ContentText text={who.model} />
-          </span>
+          <span className={styles.muted}>· {who.model}</span>
         )}
         {who.turn !== undefined && (
           <span className={styles.muted}>· turn {who.turn}</span>
@@ -226,15 +220,9 @@ const Grid: FC<{ rows: GridRow[] }> = ({ rows }) => (
   <div className={styles.grid}>
     {rows.slice(0, 4).map((row) => (
       <Fragment key={row.key}>
-        <span className={styles.key}>
-          <ContentText text={row.key} />
-        </span>
+        <span className={styles.key}>{row.key}</span>
         <span className={clsx(styles.value, row.mono && styles.mono)}>
-          {typeof row.value === "string" ? (
-            <ContentText text={row.value} />
-          ) : (
-            row.value
-          )}
+          {row.value}
         </span>
       </Fragment>
     ))}
@@ -325,7 +313,7 @@ const ToolCallBody: FC<{
       mono: true,
       value: (
         <span className={styles.statusFailed}>
-          <ContentText text={span.errorMessage ?? "failed"} />
+          {span.errorMessage ?? "failed"}
         </span>
       ),
     });
@@ -342,21 +330,14 @@ const ToolCallBody: FC<{
     rows.push({
       key: span.firstArgKey ?? "arg",
       mono: true,
-      value: (
-        <span className={styles.ellipsis}>
-          <ContentText text={span.firstArg} />
-        </span>
-      ),
+      value: <span className={styles.ellipsis}>{span.firstArg}</span>,
     });
   }
   return (
     <Card
       subject={
         <Fragment>
-          <span className={styles.mono}>
-            <ContentText text={span.label} />
-          </span>{" "}
-          tool call
+          <span className={styles.mono}>{span.label}</span> tool call
         </Fragment>
       }
       status={span.failed ? { text: "failed", tone: "failed" } : undefined}
@@ -391,10 +372,7 @@ const BurstBody: FC<{
     <Card
       subject={
         <Fragment>
-          <span className={styles.mono}>
-            <ContentText text={burst.label} />
-          </span>{" "}
-          ×{burst.count}
+          <span className={styles.mono}>{burst.label}</span> ×{burst.count}
         </Fragment>
       }
       status={
@@ -422,9 +400,7 @@ const BurstBody: FC<{
               member === hovered && styles.listRowHovered
             )}
           >
-            <span className={styles.mono}>
-              <ContentText text={member.label} />
-            </span>
+            <span className={styles.mono}>{member.label}</span>
             <span className={styles.mono}>
               {fmtSeconds(member.end - member.start)}
             </span>
@@ -584,7 +560,7 @@ const MarkerBody: FC<{
               className={styles.dot}
               style={{ background: kCategoryColor[head.category] }}
             />
-            <ContentText text={head.label} />
+            {head.label}
           </Fragment>
         }
         time={fmtTimeSec(head.time)}
@@ -610,9 +586,7 @@ const MarkerBody: FC<{
               className={styles.dot}
               style={{ background: kCategoryColor[member.category] }}
             />
-            <span className={styles.ellipsis}>
-              <ContentText text={member.label} />
-            </span>
+            <span className={styles.ellipsis}>{member.label}</span>
             <span className={clsx(styles.mono, styles.muted)}>
               {fmtTimeSec(member.time)}
             </span>
@@ -699,9 +673,7 @@ const CurveBody: FC<{
         {values.map(({ row, value, aggregate }) => (
           <div key={row.id} className={styles.listRow}>
             <span className={styles.swatch} style={{ background: row.hue }} />
-            <span className={styles.ellipsis}>
-              <ContentText text={row.name} />
-            </span>
+            <span className={styles.ellipsis}>{row.name}</span>
             <CurveValueText value={value} aggregate={aggregate} />
           </div>
         ))}

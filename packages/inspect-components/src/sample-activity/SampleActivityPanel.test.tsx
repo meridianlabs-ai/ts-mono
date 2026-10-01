@@ -269,8 +269,8 @@ describe("SampleActivityPanel history list", () => {
       },
     ]);
     mountPanel({ events });
-    expect(screen.getAllByText("__proto__").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("future-decision").length).toBeGreaterThan(0);
+    expect(screen.getByText("__proto__")).toBeTruthy();
+    expect(screen.getByText("future-decision")).toBeTruthy();
   });
 
   it("clicks through to the transcript via event uuid", () => {

@@ -7,11 +7,7 @@ import {
   EvalSpec,
   EvalStats,
 } from "@tsmono/inspect-common/types";
-import {
-  ExternalLink,
-  MetaDataGrid,
-  RecordTree,
-} from "@tsmono/inspect-components/content";
+import { MetaDataGrid, RecordTree } from "@tsmono/inspect-components/content";
 import { Card, CardBody, CardHeader } from "@tsmono/react/components";
 import { formatNumber, ghCommitUrl, toTitleCase } from "@tsmono/util";
 
@@ -73,7 +69,6 @@ export const TaskTab: FC<TaskTabProps> = ({
   const revision = evalSpec?.revision;
   const packages = evalSpec?.packages;
 
-  const cells = new Map<string, React.ReactNode>();
   const taskInformation: Record<string, unknown> = {
     ["Task ID"]: evalSpec?.task_id,
     ["Run ID"]: evalSpec?.run_id,
@@ -83,12 +78,9 @@ export const TaskTab: FC<TaskTabProps> = ({
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const revisionKey = `${revision.type ? `${toTitleCase(revision.type)} ` : ""}Revision`;
     const commitUrl = ghCommitUrl(revision.origin, revision.commit);
-    taskInformation[revisionKey] = revision.commit;
-    if (commitUrl)
-      cells.set(
-        revisionKey,
-        <ExternalLink href={commitUrl}>{revision.commit}</ExternalLink>
-      );
+    taskInformation[revisionKey] = commitUrl
+      ? { _html: <a href={commitUrl}>{revision.commit}</a> }
+      : revision.commit;
   }
   if (packages) {
     const names = Object.keys(packages).map((key) => {
@@ -101,12 +93,14 @@ export const TaskTab: FC<TaskTabProps> = ({
       taskInformation["Inspect"] = names;
     }
   }
+  // Mirror the header's chip strip in the Task Info card — saving from
+  // either surface refreshes the log so both views stay in sync.
+  // `MetaDataGrid` renders the `_html` payload as raw JSX, bypassing its
+  // default string formatting.
   if (tagList.length > 0 || canEditTags) {
-    taskInformation["tags"] = tagList;
-    cells.set(
-      "tags",
-      <TagsField tags={tagList} className={styles.tagPillAlign} />
-    );
+    taskInformation["tags"] = {
+      _html: <TagsField tags={tagList} className={styles.tagPillAlign} />,
+    };
   }
 
   if (evalSpec?.sandbox) {
@@ -147,7 +141,6 @@ export const TaskTab: FC<TaskTabProps> = ({
                 key={`plan-md-task`}
                 className={"text-size-small"}
                 entries={taskInformation}
-                cells={cells}
                 options={{ copyButton: true }}
               />
 

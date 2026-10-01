@@ -3,7 +3,6 @@ import type { CSSProperties } from "react";
 
 import { inputString, modelFallbackLines } from "@tsmono/inspect-common/utils";
 import type { FilterType } from "@tsmono/inspect-components/columnFilter";
-import { ContentText, ContentTrustProvider } from "@tsmono/react/components";
 import {
   arrayToString,
   filename,
@@ -37,7 +36,7 @@ import {
 } from "../../shared/data-grid/columnTypes";
 import { comparators } from "../gridComparators";
 
-import { MarkdownCellDiv, ScoreCellDiv, TextCell } from "./cells";
+import { MarkdownCellDiv, ScoreCellDiv } from "./cells";
 import {
   colorForValue,
   resolveScale,
@@ -191,9 +190,7 @@ export function buildSampleColumns(
         size: 110,
         minSize: 80,
         accessorFn: (row) => row.status,
-        cell: ({ getValue }) => (
-          <TextCell text={valueAsString(getValue() ?? "")} />
-        ),
+        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
       {
         id: "task",
@@ -202,9 +199,7 @@ export function buildSampleColumns(
         minSize: 100,
         flex: 1,
         accessorFn: (row) => row.task,
-        cell: ({ getValue }) => (
-          <TextCell text={valueAsString(getValue() ?? "")} />
-        ),
+        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
       {
         id: "model",
@@ -213,9 +208,7 @@ export function buildSampleColumns(
         minSize: 100,
         flex: 1,
         accessorFn: (row) => row.model,
-        cell: ({ getValue }) => (
-          <TextCell text={valueAsString(getValue() ?? "")} />
-        ),
+        cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
       },
       {
         id: "logFile",
@@ -226,7 +219,7 @@ export function buildSampleColumns(
         accessorFn: (row) => row.logFile,
         cell: ({ getValue }) => {
           const value = getValue<string | undefined>();
-          return <TextCell text={value ? filename(value) : ""} />;
+          return <div>{value ? filename(value) : ""}</div>;
         },
       },
       {
@@ -252,7 +245,7 @@ export function buildSampleColumns(
     size: shape ? Math.max(35, shape.idSize * 16) : 120,
     minSize: 35,
     accessorFn: (row) => String(row.sampleId),
-    cell: ({ getValue }) => <TextCell text={getValue<string>()} />,
+    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // sample uuid — opt-in via column selector.
@@ -262,7 +255,7 @@ export function buildSampleColumns(
     size: 280,
     minSize: 80,
     accessorFn: (row) => row.data?.uuid ?? "",
-    cell: ({ getValue }) => <TextCell text={getValue<string>()} />,
+    cell: ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // epoch
@@ -273,7 +266,7 @@ export function buildSampleColumns(
     minSize: 40,
     meta: { align: "center", sortComparator: numberCompare },
     accessorFn: (row) => row.epoch,
-    cell: ({ getValue }) => <TextCell text={valueAsString(getValue() ?? "")} />,
+    cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
   });
 
   // input
@@ -291,7 +284,7 @@ export function buildSampleColumns(
             text={inputText(row.original)}
           />
         )
-      : ({ getValue }) => <TextCell text={getValue<string>()} />,
+      : ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // target
@@ -314,7 +307,7 @@ export function buildSampleColumns(
             />
           );
         }
-      : ({ getValue }) => <TextCell text={getValue<string>()} />,
+      : ({ getValue }) => <div>{getValue<string>()}</div>,
   });
 
   // answer (only meaningful when descriptor present)
@@ -334,7 +327,7 @@ export function buildSampleColumns(
               trimRenderedText
             />
           )
-        : ({ getValue }) => <TextCell text={getValue<string>()} />,
+        : ({ getValue }) => <div>{getValue<string>()}</div>,
     });
   }
 
@@ -420,11 +413,11 @@ export function buildSampleColumns(
                   "three-line-clamp"
                 )}
               >
-                <ContentText text={text} />
+                {text}
               </div>
             );
           }
-        : ({ getValue }) => <TextCell text={getValue<string>()} />,
+        : ({ getValue }) => <div>{getValue<string>()}</div>,
     },
     {
       id: "limit",
@@ -440,7 +433,7 @@ export function buildSampleColumns(
             undefined
           }
         >
-          <ContentText text={valueAsString(getValue() ?? "")} />
+          {valueAsString(getValue() ?? "")}
         </div>
       ),
     },
@@ -451,9 +444,7 @@ export function buildSampleColumns(
       minSize: 28,
       meta: { align: "center", sortComparator: numberCompare },
       accessorFn: (row) => row.retries ?? row.data?.retries,
-      cell: ({ getValue }) => (
-        <TextCell text={valueAsString(getValue() ?? "")} />
-      ),
+      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
     },
     {
       id: "fallbacks",
@@ -467,9 +458,7 @@ export function buildSampleColumns(
         const lines = modelFallbackLines(row.data?.model_fallbacks);
         return lines.length > 0 ? lines.join("\n") : undefined;
       },
-      cell: ({ getValue }) => (
-        <TextCell text={valueAsString(getValue() ?? "")} />
-      ),
+      cell: ({ getValue }) => <div>{valueAsString(getValue() ?? "")}</div>,
     }
   );
 
@@ -521,24 +510,8 @@ export function buildSampleColumns(
     }
   }
 
-  return cols.map(withRowContentTrust);
+  return cols;
 }
-
-/** Renders a column's cells within the trust of the log each row came from. */
-const withRowContentTrust = (col: SampleColumn): SampleColumn => {
-  const cell = col.cell;
-  if (typeof cell !== "function") {
-    return col;
-  }
-  return {
-    ...col,
-    cell: (context) => (
-      <ContentTrustProvider value={context.row.original.contentTrust}>
-        {cell(context)}
-      </ContentTrustProvider>
-    ),
-  };
-};
 
 /** Score columns — emitted in one of two modes. */
 function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
@@ -711,11 +684,7 @@ function buildScoreColumns(ctx: SampleGridContext): SampleColumn[] {
             : typeof v === "number"
               ? v.toFixed(3)
               : String(v);
-        return (
-          <ScoreCellDiv>
-            <ContentText text={text} />
-          </ScoreCellDiv>
-        );
+        return <ScoreCellDiv>{text}</ScoreCellDiv>;
       },
     };
   });

@@ -1,14 +1,11 @@
 import clsx from "clsx";
-import { CSSProperties, FC, ReactNode, useState } from "react";
+import { CSSProperties, FC, useState } from "react";
 
-import {
-  ContentText,
-  CopyButton,
-  MarkdownReference,
-} from "@tsmono/react/components";
+import { CopyButton, MarkdownReference } from "@tsmono/react/components";
 import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
+import { isHtmlEscape } from "./htmlEscape";
 import styles from "./MetaDataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";
 
@@ -18,8 +15,6 @@ interface MetadataGridProps {
   references?: MarkdownReference[];
   style?: CSSProperties;
   entries: Record<string, unknown>;
-  /** Application controls, separate from log-derived values. */
-  cells?: ReadonlyMap<string, ReactNode>;
   maxRows?: number;
   depth?: number;
   options?: {
@@ -44,7 +39,6 @@ const isNonEmptyObject = (v: unknown): v is Record<string, unknown> =>
 export const MetaDataGrid: FC<MetadataGridProps> = ({
   id,
   entries,
-  cells,
   className,
   references,
   style,
@@ -55,11 +49,14 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
   const baseId = id ?? "metadata-grid";
   const allEntries = entryRecords(entries);
 
+  // `{ _html: <ReactElement> }` escape hatches stay scalar rows so they
+  // reach RenderedContent's Html branch instead of recursing into a group
+  // that would dump the element as `$$typeof / type / props / ...`.
   const scalars = allEntries.filter(
-    (e) => !isNonEmptyObject(e.value) || cells?.has(e.name)
+    (e) => !isNonEmptyObject(e.value) || isHtmlEscape(e.value)
   );
   const groups = allEntries.filter(
-    (e) => isNonEmptyObject(e.value) && !cells?.has(e.name)
+    (e) => isNonEmptyObject(e.value) && !isHtmlEscape(e.value)
   );
 
   const [expanded, setExpanded] = useState(false);
@@ -89,34 +86,28 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
             const entryId = `${baseId}-value-${index}`;
             return (
               <div key={entryId} className={styles.row}>
-                <div className={styles.key}>
-                  <ContentText text={entry.name} />
-                </div>
+                <div className={styles.key}>{entry.name}</div>
                 <div className={styles.val}>
-                  {cells?.has(entry.name) ? (
-                    cells.get(entry.name)
-                  ) : (
-                    <RenderedContent
-                      id={entryId}
-                      entry={entry}
-                      references={references}
-                      renderOptions={{
-                        renderString: "markdown",
-                        previewRefsOnHover: options?.previewRefsOnHover,
-                      }}
-                      renderObject={(obj: Record<string, unknown>) => (
-                        <MetaDataGrid
-                          id={entryId}
-                          entries={obj}
-                          options={options}
-                          references={references}
-                          depth={depth + 1}
-                        />
-                      )}
-                    />
-                  )}
+                  <RenderedContent
+                    id={entryId}
+                    entry={entry}
+                    references={references}
+                    renderOptions={{
+                      renderString: "markdown",
+                      previewRefsOnHover: options?.previewRefsOnHover,
+                    }}
+                    renderObject={(obj: Record<string, unknown>) => (
+                      <MetaDataGrid
+                        id={entryId}
+                        entries={obj}
+                        options={options}
+                        references={references}
+                        depth={depth + 1}
+                      />
+                    )}
+                  />
                 </div>
-                {options?.copyButton && !cells?.has(entry.name) ? (
+                {options?.copyButton && !isHtmlEscape(entry.value) ? (
                   <div className={styles.copyCell}>
                     <CopyButton
                       value={copyValueText(entry.value)}
@@ -153,9 +144,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
             className={clsx(styles.group, depth >= 1 && styles.depth1Group)}
           >
             <header className={styles.groupHeader}>
-              <span className={styles.groupKey}>
-                <ContentText text={entry.name} />
-              </span>
+              <span className={styles.groupKey}>{entry.name}</span>
               <span className={styles.groupRule} />
             </header>
             <MetaDataGrid
