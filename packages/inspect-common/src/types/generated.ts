@@ -1461,10 +1461,7 @@ export interface components {
             score_display?: boolean | null;
             /** Score On Error */
             score_on_error?: boolean | null;
-            /** Sentinel */
-            sentinel?: unknown[] | {
-                [key: string]: unknown;
-            } | null;
+            sentinel?: components["schemas"]["SentinelConfig"] | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
@@ -3497,8 +3494,35 @@ export interface components {
             member_name: string;
         };
         /**
+         * SentinelConfig
+         * @description A sentinel configuration: one entry, a list of entries, or a mapping of instance names to entries.
+         *
+         *     The value of the `sentinel:` key in a configuration file, and what the eval log records. A mapping is one entry when its `name` is a string, and a mapping of instance names when every value is an entry, so an instance named `name` still configures a mapping.
+         */
+        SentinelConfig: components["schemas"]["SentinelEntry"] | components["schemas"]["SentinelEntry"][] | {
+            [key: string]: components["schemas"]["SentinelEntry"];
+        };
+        /**
+         * SentinelEntry
+         * @description One configured monitor or protocol.
+         *
+         *     Any key besides `name` and `params` names a parameter of the factory whose value is nested monitors or protocols, such as `monitors` for `threshold` or `children` for `concurrent`; it holds a list or a mapping of entries, and `nested` returns them.
+         */
+        SentinelEntry: {
+            /** Name */
+            name: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+        } & {
+            [key: string]: components["schemas"]["SentinelConfig"];
+        };
+        /**
          * SentinelEvent
          * @description Report from a sentinel monitor or protocol about one step.
+         *
+         *     A report's metadata is recorded in the event's `metadata` field.
          */
         SentinelEvent: {
             /** Action */
@@ -3525,7 +3549,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "observation" | "decision" | "cancelled" | "bypassed" | "superseded";
+            kind: "observation" | "decision";
             /** Message */
             message?: string | null;
             /** Metadata */
@@ -3546,6 +3570,11 @@ export interface components {
              * @enum {string}
              */
             stage: "model_input" | "model_output" | "tool_call" | "tool_result";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reported" | "cancelled" | "bypassed" | "superseded";
             /** Step Id */
             step_id: string;
             /** Suspicion */

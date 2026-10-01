@@ -192,10 +192,10 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
       aria-label="flagged"
     />
   ) : null;
-  if (event.kind === "bypassed" || event.kind === "cancelled") {
-    return <span>{event.kind}</span>;
+  if (event.status === "bypassed" || event.status === "cancelled") {
+    return <span>{event.status}</span>;
   }
-  if (event.kind === "superseded") {
+  if (event.status === "superseded") {
     return (
       <span>
         <s>{event.action}</s> · superseded
@@ -245,7 +245,7 @@ const CheckDetail: FC<CheckDetailProps> = ({
   const effectTone = row.tookEffect ? toneOfDecision(event.action) : null;
   const status = [
     event.audit ? "flagged" : null,
-    event.kind === "superseded" ? "superseded" : null,
+    event.status === "superseded" ? "superseded" : null,
   ].filter(Boolean);
   const reportedBy = showFunction ? event.function : null;
   const scores =
@@ -346,9 +346,7 @@ const replacementText = (call: ToolCall): string => {
 };
 
 const isInactive = (event: SentinelEvent): boolean =>
-  event.kind === "superseded" ||
-  event.kind === "bypassed" ||
-  event.kind === "cancelled";
+  event.status !== "reported";
 
 interface ModelCallsNoteProps {
   id: string;

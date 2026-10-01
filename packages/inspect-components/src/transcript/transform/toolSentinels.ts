@@ -21,10 +21,10 @@ export interface SentinelRow {
   tookEffect: boolean;
 }
 
-type InactiveKind = "bypassed" | "cancelled" | "superseded";
+type InactiveStatus = Exclude<SentinelEvent["status"], "reported">;
 
 export type SentinelVerdict =
-  "observe" | InactiveKind | NonNullable<SentinelEvent["action"]>;
+  "observe" | InactiveStatus | NonNullable<SentinelEvent["action"]>;
 
 /** The sentinel events recorded for one step, as a tree of checks. */
 export interface SentinelStep {
@@ -66,6 +66,9 @@ export interface ToolSentinelPairing {
   /** Hidden sentinel node id → the node that renders it. */
   sentinelScrollRedirects: Map<string, string>;
 }
+
+const reported = (node: SentinelNode, kind: SentinelEvent["kind"]): boolean =>
+  node.event.status === "reported" && node.event.kind === kind;
 
 const pathSegments = (path: string): string[] =>
   path === "" ? [] : path.split("/");
@@ -162,7 +165,7 @@ const creditDecision = (tree: TreeNode[], outcome: SentinelNode): Credit => {
   for (;;) {
     const next = current.children.find(
       (c) =>
-        c.node.event.kind === "decision" &&
+        reported(c.node, "decision") &&
         c.node.event.action === outcome.event.action
     );
     if (!next) return { node: current.node, reason };
@@ -177,32 +180,33 @@ const creditDecision = (tree: TreeNode[], outcome: SentinelNode): Credit => {
  */
 const outcomeOf = (nodes: SentinelNode[]): SentinelNode | undefined => {
   const root = nodes.find(
-    (n) => n.event.path === "" && n.event.kind === "decision"
+    (n) => n.event.path === "" && reported(n, "decision")
   );
   if (root) return root;
   const bypassed = nodes.findIndex(
-    (n) => n.event.path === "" && n.event.kind === "bypassed"
+    (n) => n.event.path === "" && n.event.status === "bypassed"
   );
   if (bypassed === -1) return undefined;
-  return nodes.slice(bypassed + 1).findLast((n) => n.event.kind === "decision");
+  return nodes.slice(bypassed + 1).findLast((n) => reported(n, "decision"));
 };
 
-const isInactiveKind = (kind: SentinelEvent["kind"]): kind is InactiveKind =>
-  kind === "bypassed" || kind === "cancelled" || kind === "superseded";
+const isInactive = (
+  status: SentinelEvent["status"]
+): status is InactiveStatus => status !== "reported";
 
 /**
  * The verdict of a step the runner returned no decision for: observed when
  * only monitors reported, continued when a protocol reported but the root
- * returned nothing, and the recorded kind when the root or every check was
+ * returned nothing, and the recorded status when the root or every check was
  * cancelled or bypassed.
  */
 const quietVerdict = (checks: SentinelNode[]): SentinelVerdict => {
-  const rootKind = checks.find((n) => n.event.path === "")?.event.kind;
-  if (rootKind && isInactiveKind(rootKind)) return rootKind;
-  if (checks.some((n) => n.event.kind === "decision")) return "continue";
-  if (checks.some((n) => n.event.kind === "observation")) return "observe";
-  const firstKind = checks[0]?.event.kind;
-  return firstKind && isInactiveKind(firstKind) ? firstKind : "continue";
+  const rootStatus = checks.find((n) => n.event.path === "")?.event.status;
+  if (rootStatus && isInactive(rootStatus)) return rootStatus;
+  if (checks.some((n) => reported(n, "decision"))) return "continue";
+  if (checks.some((n) => reported(n, "observation"))) return "observe";
+  const firstStatus = checks[0]?.event.status;
+  return firstStatus && isInactive(firstStatus) ? firstStatus : "continue";
 };
 
 /**
@@ -216,10 +220,10 @@ export function buildSentinelStep(
   const first = nodes[0];
   const replaced = new Set<SentinelNode>();
   nodes.forEach((loser, at) => {
-    if (loser.event.kind !== "superseded") return;
+    if (loser.event.status !== "superseded") return;
     for (const report of nodes.slice(0, at)) {
       if (
-        report.event.kind === "decision" &&
+        reported(report, "decision") &&
         report.event.path === loser.event.path &&
         report.event.function === loser.event.function
       ) {
@@ -246,7 +250,7 @@ export function buildSentinelStep(
 
   const single = checks.length === 1 ? checks[0] : undefined;
   const observations = checks.filter(
-    (n) => n.event.kind === "observation" && n.event.suspicion != null
+    (n) => reported(n, "observation") && n.event.suspicion != null
   );
   const scores = acted
     ? []
@@ -290,7 +294,7 @@ export function buildSentinelStep(
 export function buildLoneSentinelStep(node: SentinelNode): SentinelStep {
   const step = buildSentinelStep([node]);
   const event = node.event;
-  if (event.kind !== "decision" || step.outcome) return step;
+  if (!reported(node, "decision") || step.outcome) return step;
   const verdict = event.action ?? "continue";
   const acted = verdict !== "continue";
   return {

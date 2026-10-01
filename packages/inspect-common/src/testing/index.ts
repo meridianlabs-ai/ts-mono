@@ -419,6 +419,7 @@ export const testSentinelEvent = (
   conversation: "conversation_1",
   stage: "tool_call",
   kind: "decision",
+  status: "reported",
   action: "continue",
   audit: false,
   references: [],

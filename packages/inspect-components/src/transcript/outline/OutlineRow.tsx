@@ -241,7 +241,7 @@ const labelForNode = (node: EventNode): string => {
           terminate: "terminated",
         }[node.event.decision];
       case "sentinel":
-        return `sentinel ${node.event.action ?? node.event.kind}`;
+        return `sentinel ${node.event.status === "reported" ? (node.event.action ?? node.event.kind) : node.event.status}`;
       case "model":
         return `model${node.event.role ? ` (${node.event.role})` : ""}`;
       case "score":

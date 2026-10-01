@@ -166,11 +166,20 @@ describe("eventsToMarkdown — sentinel", () => {
         explanation: "Not on the allow list.",
       }),
       testSentinelEvent({ path: "", factory: "concurrent" }),
+      testSentinelEvent({
+        path: "slow",
+        factory: "slow_judge",
+        kind: "observation",
+        status: "cancelled",
+        function: null,
+        action: null,
+      }),
     ]);
     expect(out).toContain("## Sentinel Decision: attempt/human");
     expect(out).toContain("**Action:** reject");
     expect(out).toContain("**Explanation:** Not on the allow list.");
     expect(out).toContain("## Sentinel Decision: concurrent");
+    expect(out).toContain("## Sentinel Observation (cancelled): slow");
   });
 });
 
@@ -663,6 +672,7 @@ describe("eventSearchText", () => {
     );
     expect(texts).toEqual([
       "observation",
+      "reported",
       "attempt/monitor",
       "suspicion_monitor",
       "score_call",
@@ -694,13 +704,13 @@ describe("eventSearchText", () => {
         testSentinelEvent({
           path: "",
           factory: "concurrent",
-          kind: "bypassed",
+          status: "bypassed",
           function: null,
           action: null,
         })
       )
     );
-    expect(texts).toEqual(["bypassed", "concurrent", "tool_call"]);
+    expect(texts).toEqual(["decision", "bypassed", "concurrent", "tool_call"]);
   });
 
   test("sandbox: includes action, cmd, output, and file", () => {

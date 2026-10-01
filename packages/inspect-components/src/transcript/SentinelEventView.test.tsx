@@ -627,7 +627,7 @@ describe("sentinel checks in a tool card", () => {
       node("byp", {
         path: "gate",
         factory: "gatekeeper",
-        kind: "bypassed",
+        status: "bypassed",
         function: null,
         action: null,
       }),
@@ -636,13 +636,14 @@ describe("sentinel checks in a tool card", () => {
         path: "review",
         factory: "escalate_on_doubt",
         function: "tool_call",
-        kind: "superseded",
+        status: "superseded",
         action: "escalate",
       }),
       node("slow", {
         path: "slow",
         factory: "slow_judge",
-        kind: "cancelled",
+        kind: "observation",
+        status: "cancelled",
         function: null,
         action: null,
       }),
@@ -656,6 +657,10 @@ describe("sentinel checks in a tool card", () => {
       expect(rowButton(label).className).toContain("inactive");
     }
     expect(rowButton(/\(top\)/).className).not.toContain("inactive");
+    const icon = (label: RegExp) =>
+      rowButton(label).querySelector('i[class*="kindIcon"]')?.className;
+    expect(icon(/slow/)).toContain("bi-activity");
+    expect(icon(/gate/)).toContain("bi-signpost-split");
   });
 
   it("folds the step's monitor model calls into a line at the end", () => {
@@ -737,7 +742,7 @@ describe("SentinelEventView", () => {
         eventNode={node("byp", {
           path: "guard",
           factory: "concurrent",
-          kind: "bypassed",
+          status: "bypassed",
           function: null,
           action: null,
         })}

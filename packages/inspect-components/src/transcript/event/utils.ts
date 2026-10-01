@@ -112,7 +112,9 @@ export const eventTitle = (event: EventType): string => {
     case "review":
       return reviewDecisionLabels[event.decision] ?? event.decision;
     case "sentinel":
-      return `Sentinel ${toTitleCase(event.kind)}: ${instanceLabel(event)}`;
+      return event.status === "reported"
+        ? `Sentinel ${toTitleCase(event.kind)}: ${instanceLabel(event)}`
+        : `Sentinel ${toTitleCase(event.kind)} (${event.status}): ${instanceLabel(event)}`;
     case "sandbox":
       return `Sandbox: ${event.action}`;
     default:

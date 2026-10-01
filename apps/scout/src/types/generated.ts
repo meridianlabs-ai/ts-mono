@@ -3554,6 +3554,8 @@ export interface components {
         /**
          * SentinelEvent
          * @description Report from a sentinel monitor or protocol about one step.
+         *
+         *     A report's metadata is recorded in the event's `metadata` field.
          */
         SentinelEvent: {
             /** Action */
@@ -3581,7 +3583,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "observation" | "decision" | "cancelled" | "bypassed" | "superseded";
+            kind: "observation" | "decision";
             /** Message */
             message?: string | null;
             /** Metadata */
@@ -3602,6 +3604,11 @@ export interface components {
              * @enum {string}
              */
             stage: "model_input" | "model_output" | "tool_call" | "tool_result";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reported" | "cancelled" | "bypassed" | "superseded";
             /** Step Id */
             step_id: string;
             /** Suspicion */

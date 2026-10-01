@@ -380,6 +380,7 @@ export const extractEventFields = (event: EventType): [string, string][] => {
     case "sentinel": {
       const sentinelEvent = event;
       fields.push(["kind", sentinelEvent.kind]);
+      fields.push(["status", sentinelEvent.status]);
       if (sentinelEvent.path) {
         fields.push(["path", sentinelEvent.path]);
       }

@@ -44,12 +44,12 @@ const layer = (
   id: string,
   path: string,
   name: string,
-  kind: "bypassed" | "cancelled"
+  status: "bypassed" | "cancelled"
 ): SentinelNode =>
   sentinel(id, {
     path,
     factory: name,
-    kind,
+    status,
     function: null,
     action: null,
   });
@@ -290,7 +290,7 @@ describe("buildSentinelStep", () => {
         path: "review",
         factory: "escalate_on_doubt",
         function: "escalate_on_doubt",
-        kind: "superseded",
+        status: "superseded",
         action: "escalate",
       }),
       decision("root", "", "concurrent", "continue"),
