@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC, useRef } from "react";
 import { useLocation } from "react-router";
 
-import { ContentCode } from "@tsmono/react/components";
+import { ContentCode, ContentTrustProvider } from "@tsmono/react/components";
 import { usePrismHighlight } from "@tsmono/react/hooks";
 import { dirname } from "@tsmono/util";
 
@@ -14,7 +14,15 @@ import { logsUrl, samplesUrl, useLogOrSampleRouteParams } from "../routing/url";
 import styles from "./FlowPanel.module.css";
 import { useFlowQuery } from "./hooks";
 
-export const FlowPanel: FC = () => {
+// The flow file belongs to the log directory, not to any log, and isn't model
+// output; the viewer-wide trust setting still caps it.
+export const FlowPanel: FC = () => (
+  <ContentTrustProvider value="trusted">
+    <FlowPanelContent />
+  </ContentTrustProvider>
+);
+
+const FlowPanelContent: FC = () => {
   const location = useLocation();
   const isSamplesRoute = location.pathname.startsWith("/samples/");
 

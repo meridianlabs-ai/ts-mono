@@ -23,7 +23,8 @@ user moves between logs.
 `ContentTrustCeilingProvider` caps everything below it. The app router sets
 the ceiling from the app config and the trust of the selected log. Sample
 views (sample display, event focus, print) use the log the selected sample
-came from. Content outside any provider is untrusted.
+came from. Content outside any provider is untrusted. The flow panel belongs to the
+log directory rather than a log, so it renders as trusted under the ceiling.
 
 Sample summaries are taken only from the log they're requested for: the
 listing keeps the previous log's rows as placeholder data during a switch,

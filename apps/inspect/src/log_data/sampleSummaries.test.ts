@@ -212,7 +212,8 @@ describe("useSampleSummaries during a running eval", () => {
     );
 
     rerender({ file: "other.eval" });
-    expect(result.current.data ?? []).toEqual([]);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.data).toBeUndefined();
   });
 
   test("a poll tick surfaces newly flushed summaries alongside the buffer", async () => {

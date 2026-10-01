@@ -312,7 +312,8 @@ const contentRenderers: (
         const results: ReactNode[] = [];
         results.push(
           <div key="query" className={styles.query}>
-            <i className={icons.search}></i> {value.query}
+            <i className={icons.search}></i>{" "}
+            <ContentText text={value.query ?? ""} />
           </div>
         );
         value.results.forEach((result, index) => {
@@ -326,7 +327,7 @@ const contentRenderers: (
               key={`summary-${index}`}
               className={clsx("text-size-smaller", styles.summary)}
             >
-              {result.summary}
+              <ContentText text={result.summary ?? ""} />
             </div>
           );
         });

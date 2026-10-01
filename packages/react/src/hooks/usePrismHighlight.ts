@@ -58,7 +58,9 @@ export const usePrismHighlight = (
 
         // Immediate highlight attempt
         requestAnimationFrame(() => {
-          highlightCodeBlocks(container, highlightElement);
+          if (!cancelled) {
+            highlightCodeBlocks(container, highlightElement);
+          }
         });
 
         // MutationObserver for async-rendered content (e.g., MarkdownDiv)
