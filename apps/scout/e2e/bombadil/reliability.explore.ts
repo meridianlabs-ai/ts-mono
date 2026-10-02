@@ -101,6 +101,7 @@ for (const rows of [6, 500]) {
       exports: Number(document.body.dataset.exportChecks ?? 0),
       activations: Number(document.body.dataset.activationChecks ?? 0),
       filters: Number(document.body.dataset.filterChecks ?? 0),
+      panelScrolls: Number(document.body.dataset.panelScrollChecks ?? 0),
     }));
     await testInfo.attach("property-check-counts", {
       body: JSON.stringify(checks),
@@ -109,5 +110,6 @@ for (const rows of [6, 500]) {
     expect(checks.exports).toBeGreaterThan(0);
     expect(checks.activations).toBeGreaterThan(0);
     expect(checks.filters).toBeGreaterThan(0);
+    if (rows === 500) expect(checks.panelScrolls).toBeGreaterThan(0);
   });
 }
