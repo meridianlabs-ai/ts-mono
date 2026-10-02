@@ -12,6 +12,7 @@ lib/
 playwright-report/
 test-results/
 coverage/
+.bombadil-results/
 
 # OS
 .DS_Store

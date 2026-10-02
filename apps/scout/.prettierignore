@@ -3,5 +3,6 @@ dist/
 src/types/generated.ts
 playwright-report/
 test-results/
+.bombadil-results/
 *.md
 *.module.css.d.ts
