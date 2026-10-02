@@ -1,0 +1,30 @@
+diff --git a/dist/style-mod.cjs b/dist/style-mod.cjs
+index 572f6b922761004752a8a8f633a3f586e0c26541..558d606f636d66d800ced73a161352fad8cb4894 100644
+--- a/dist/style-mod.cjs
++++ b/dist/style-mod.cjs
+@@ -84,7 +84,9 @@ var adoptedSet = new Map //<Document, StyleSet>
+ 
+ var StyleSet = function StyleSet(root, nonce) {
+   var doc = root.ownerDocument || root, win = doc.defaultView
+-  if (!root.head && root.adoptedStyleSheets && win.CSSStyleSheet) {
++  // ts-mono patch: adopt a constructed sheet in documents too, not only
++  // shadow roots. A <style> tag needs 'unsafe-inline' under the viewer's CSP.
++  if (root.adoptedStyleSheets && win.CSSStyleSheet) {
+     var adopted = adoptedSet.get(doc)
+     if (adopted) { return root[SET] = adopted }
+     this.sheet = new win.CSSStyleSheet
+diff --git a/src/style-mod.js b/src/style-mod.js
+index 009b0bee0075c7e408bf533e23c05dfedc059d67..b668007959da8db4c2ff328c0747949ce96ddf87 100644
+--- a/src/style-mod.js
++++ b/src/style-mod.js
+@@ -91,7 +91,9 @@ let adoptedSet = new Map //<Document, StyleSet>
+ class StyleSet {
+   constructor(root, nonce) {
+     let doc = root.ownerDocument || root, win = doc.defaultView
+-    if (!root.head && root.adoptedStyleSheets && win.CSSStyleSheet) {
++    // ts-mono patch: adopt a constructed sheet in documents too, not only
++    // shadow roots. A <style> tag needs 'unsafe-inline' under the viewer's CSP.
++    if (root.adoptedStyleSheets && win.CSSStyleSheet) {
+       let adopted = adoptedSet.get(doc)
+       if (adopted) return root[SET] = adopted
+       this.sheet = new win.CSSStyleSheet

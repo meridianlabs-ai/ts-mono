@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { asyncJsonParse, asyncJsonParseBytes, jsonParse } from "./json-worker";
 
@@ -180,5 +180,96 @@ describe("asyncJsonParseBytes (main-thread path)", () => {
 
   test("rejects on invalid input", async () => {
     await expect(asyncJsonParseBytes(encode("]["))).rejects.toThrow();
+  });
+});
+
+// The pool's lifecycle, with a stand-in Worker: the parse itself runs in real
+// Chromium (json-worker.browser.test.ts).
+describe("worker pool lifecycle", () => {
+  const largeArray = `[${"1,".repeat(30_000)}1]`;
+  let workers: StubWorker[] = [];
+
+  class StubWorker {
+    onmessage: ((event: { data: unknown }) => void) | null = null;
+    onerror: ((event: { message: string }) => void) | null = null;
+    onmessageerror: (() => void) | null = null;
+    terminated = false;
+    answered = false;
+
+    constructor(
+      readonly answers: boolean,
+      announces: boolean
+    ) {
+      workers.push(this);
+      if (announces) {
+        queueMicrotask(() => this.onmessage?.({ data: { type: "ready" } }));
+      }
+    }
+
+    postMessage(message: { requestId: number }): void {
+      queueMicrotask(() => {
+        if (this.answers) {
+          this.answered = true;
+          this.onmessage?.({
+            data: { requestId: message.requestId, success: true, result: [] },
+          });
+        } else {
+          this.onerror?.({ message: "script blocked" });
+        }
+      });
+    }
+
+    terminate(): void {
+      this.terminated = true;
+    }
+  }
+
+  const loadPool = async (answers: () => boolean, announces = false) => {
+    workers = [];
+    vi.resetModules();
+    vi.stubGlobal("location", new URL("http://viewer.test/"));
+    vi.stubGlobal(
+      "Worker",
+      class extends StubWorker {
+        constructor() {
+          super(answers(), announces);
+        }
+      }
+    );
+    return import("./json-worker");
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("a worker that fails before ever answering is not respawned", async () => {
+    const { asyncJsonParse } = await loadPool(() => false);
+    await expect(asyncJsonParse(largeArray)).rejects.toThrow(
+      "Worker error: script blocked"
+    );
+    // Only the worker the request went to errored; it is dropped, not
+    // replaced, so a worker that can never start can't spin.
+    expect(workers).toHaveLength(4);
+    expect(workers.filter((worker) => worker.terminated)).toHaveLength(1);
+  });
+
+  test("a worker that announced itself but dies on its first job is replaced", async () => {
+    const { asyncJsonParse } = await loadPool(() => false, true);
+    await expect(asyncJsonParse(largeArray)).rejects.toThrow(
+      "Worker error: script blocked"
+    );
+    expect(workers).toHaveLength(5);
+  });
+
+  test("a worker that fails after answering is replaced", async () => {
+    let answering = true;
+    const { asyncJsonParse } = await loadPool(() => answering);
+    await expect(asyncJsonParse(largeArray)).resolves.toEqual([]);
+    const busy = workers.find((worker) => worker.answered);
+    answering = false;
+    busy?.onerror?.({ message: "out of memory" });
+    expect(busy?.terminated).toBe(true);
+    expect(workers).toHaveLength(5);
   });
 });

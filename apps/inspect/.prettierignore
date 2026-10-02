@@ -1,6 +1,7 @@
 # Build outputs
 dist/
 lib/
+e2e-dist/
 
 # Generated
 src/@types/log.d.ts

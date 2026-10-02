@@ -10,6 +10,7 @@ lib/
 # Test output
 playwright-report/
 test-results/
+e2e-dist/
 coverage/
 
 # OS
