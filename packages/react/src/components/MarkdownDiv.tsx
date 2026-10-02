@@ -10,7 +10,6 @@ import {
 } from "react";
 
 import "./MarkdownDiv.css";
-import "./mathjax.css";
 
 import { onDemandModule } from "../hooks/onDemandModule";
 
