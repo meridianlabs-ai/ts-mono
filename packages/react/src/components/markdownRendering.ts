@@ -46,7 +46,7 @@ export const getMathjaxPlugin = (): Promise<MarkdownItPlugin> => {
 const MATHJAX_STYLE =
   /^(\s*<span id="mjx-[a-f0-9]+">\s*)<style>[\s\S]*?<\/style>/i;
 
-export const withoutMathJaxStyle = (html: string): string =>
+const withoutMathJaxStyle = (html: string): string =>
   html.replace(MATHJAX_STYLE, "$1");
 
 export const hasMathContent = (text: string): boolean =>

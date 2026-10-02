@@ -43,9 +43,9 @@ function copyToPythonRepo(): Plugin {
 const viewServerUrl = "http://127.0.0.1:7575";
 
 // The viewer renders untrusted log content; this is the second layer behind
-// the sanitizer (see SECURITY.md). The build writes it, with hashes of the
-// inline scripts, to dist/content-security-policy.json for hosts to deliver
-// (see contentSecurityPolicy). 'wasm-unsafe-eval' is for the asciinema
+// the sanitizer. The build writes it, with hashes of the inline scripts, to
+// dist/content-security-policy.json for hosts to deliver (see
+// contentSecurityPolicy). 'wasm-unsafe-eval' is for the asciinema
 // player's WebAssembly, and inline style attributes carry MathJax's
 // per-glyph layout. Hosts rely on worker-src staying explicit (the VS Code
 // extension adds blob: to it for cross-origin workers) and on an empty list
