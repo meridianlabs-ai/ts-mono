@@ -619,6 +619,47 @@ test("resizes a column by dragging its divider", async ({ page, network }) => {
   expect(after).toBeGreaterThan(before + 60);
 });
 
+test("resizing a column without a filter beside its divider doesn't reorder it", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [1, 2].map((id) =>
+        createEvalSample({
+          id,
+          messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+        })
+      ),
+    }),
+    "resize.json"
+  );
+  await page.goto("/#/logs/resize.json");
+  const id = columnHeader(page, "Id");
+  await expect(id).toBeVisible();
+  const headerOrder = () =>
+    page
+      .getByRole("columnheader")
+      .evaluateAll((cells) => cells.map((c) => c.textContent.trim()));
+  const width = async () => Math.round((await id.boundingBox())?.width ?? 0);
+  const order = await headerOrder();
+  const before = await width();
+
+  // Widening moves the divider off the press point, onto the header's
+  // draggable label — the browser must not start a column drag from there.
+  await dragResize(page, "sampleId", 60);
+  expect(await headerOrder()).toEqual(order);
+  const resized = await width();
+  expect(resized).toBeGreaterThan(before + 40);
+
+  // With the button released, moving the pointer no longer resizes.
+  const box = (await id.boundingBox())!;
+  await page.mouse.move(box.x + 400, box.y + 200, { steps: 10 });
+  await page.mouse.move(box.x + 10, box.y + 200, { steps: 10 });
+  expect(await width()).toBe(resized);
+});
+
 test("keeps a resized width after navigating into a log and back", async ({
   page,
   network,
