@@ -70,6 +70,7 @@ export const SentinelInset: FC<SentinelInsetProps> = ({
         reason={step.reason}
         reasonClassName={look.reasonClass}
         flagged={step.audit}
+        failed={step.rows.length > 1 ? step.failed : 0}
         checks={step.rows.length}
         open={!collapsed}
         onToggle={() => setCollapsed(!collapsed)}
@@ -195,6 +196,9 @@ const CheckResult: FC<{ row: SentinelRow }> = ({ row }) => {
   if (event.status === "bypassed" || event.status === "cancelled") {
     return <span>{event.status}</span>;
   }
+  if (event.status === "error") {
+    return <span className={styles.failed}>failed</span>;
+  }
   if (event.status === "superseded") {
     return (
       <span>
@@ -286,7 +290,11 @@ const CheckDetail: FC<CheckDetailProps> = ({
             ))}
           </div>
         ) : null}
-        {explanation ? (
+        {event.error ? (
+          <div className={clsx(styles.errorText, checkClasses.mono)}>
+            {event.error}
+          </div>
+        ) : explanation ? (
           <MarkdownDivWithReferences
             markdown={explanation}
             references={citeReferences(event.references, makeCiteUrl)}
@@ -492,6 +500,12 @@ const verdictLooks: Record<SentinelVerdict, VerdictLook> = {
     icon: TranscriptIcons.sentinel,
     word: "Superseded",
     tone: "neutral",
+  },
+  error: {
+    icon: "bi bi-exclamation-triangle",
+    word: "Failed",
+    tone: "neutral",
+    textClass: styles.failed,
   },
   reject: { ...rejectLook, word: "Rejected" },
   terminate: { ...rejectLook, word: "Terminated" },

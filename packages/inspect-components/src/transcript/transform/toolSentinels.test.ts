@@ -54,6 +54,17 @@ const layer = (
     action: null,
   });
 
+const failed = (id: string, path: string, name: string): SentinelNode =>
+  sentinel(id, {
+    path,
+    factory: name,
+    function: name,
+    kind: "observation",
+    status: "error",
+    action: null,
+    error: "ValueError: no model",
+  });
+
 const observation = (
   id: string,
   path: string,
@@ -357,6 +368,24 @@ describe("buildSentinelStep", () => {
     expect(step.verdict).toBe("observe");
     expect(step.scores).toEqual(["0.2"]);
     expect(step.reason).toBe("1 earlier calls failed");
+  });
+
+  it("counts failed monitors without letting them decide the verdict", () => {
+    const step = buildSentinelStep([
+      failed("broken", "broken", "llm_suspicion"),
+      observation("mon", "monitor", "m", 0.3),
+      decision("root", "", "concurrent", "continue"),
+    ]);
+    expect(step.verdict).toBe("continue");
+    expect(step.failed).toBe(1);
+    expect(step.rows.map((r) => r.node.id)).toEqual(["root", "broken", "mon"]);
+  });
+
+  it("calls a step whose only check failed failed, explained by its error", () => {
+    const step = buildSentinelStep([failed("broken", "broken", "m")]);
+    expect(step.verdict).toBe("error");
+    expect(step.reason).toBe("ValueError: no model");
+    expect(step.scores).toEqual([]);
   });
 
   it("flags a step when any event asks for an audit", () => {

@@ -79,6 +79,10 @@
   color: inherit;
 }
 
+.failed {
+  color: var(--inspect-check-modify-text);
+}
+
 .kindIcon {
   margin-right: 6px;
   font-size: 0.9em;
@@ -164,6 +168,11 @@
 .explanation :global(.markdown-content) > :last-child,
 .explanation > :last-child {
   margin-bottom: 0;
+}
+
+.errorText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .noExplanation {

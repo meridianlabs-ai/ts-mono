@@ -65,6 +65,17 @@ const observation = (
     ...overrides,
   });
 
+const failure = (id: string, path: string, name: string) =>
+  node(id, {
+    path,
+    factory: name,
+    function: "tool_call",
+    kind: "observation",
+    status: "error",
+    action: null,
+    error: "RuntimeError: model unavailable",
+  });
+
 const renderWithState = (ui: ReactNode) =>
   render(
     <InMemoryStateWrapper>
@@ -664,6 +675,30 @@ describe("sentinel checks in a tool card", () => {
       rowButton(label).querySelector('i[class*="kindIcon"]')?.className;
     expect(icon(/slow/)).toContain("bi-activity");
     expect(icon(/gate/)).toContain("bi-signpost-split");
+  });
+
+  it("shows a failed monitor as a row whose detail is the error", () => {
+    renderTool([
+      failure("broken", "broken", "llm_suspicion"),
+      observation("mon", "steady", "suspicion", 0.15),
+    ]);
+    expect(screen.getByText("Observed")).toBeTruthy();
+    expect(screen.getByText("1 failed")).toBeTruthy();
+    fireEvent.click(pill(2));
+    const row = rowButton(/broken/);
+    expect(row.className).toContain("inactive");
+    expect(row.textContent).toContain("failed");
+    expect(rowButton(/steady/).textContent).not.toContain("failed");
+    fireEvent.click(row);
+    expect(screen.getByText("RuntimeError: model unavailable")).toBeTruthy();
+    expect(screen.queryByText("No explanation recorded.")).toBeNull();
+  });
+
+  it("calls a step whose only check failed failed, with the error as its reason", () => {
+    renderTool([failure("broken", "broken", "llm_suspicion")]);
+    expect(screen.getByText("Failed")).toBeTruthy();
+    expect(screen.getByText("RuntimeError: model unavailable")).toBeTruthy();
+    expect(screen.queryByText(/failed$/)).toBeNull();
   });
 
   it("folds the step's monitor model calls into a line at the end", () => {

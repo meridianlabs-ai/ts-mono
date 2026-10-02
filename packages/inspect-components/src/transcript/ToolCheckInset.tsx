@@ -42,6 +42,8 @@ interface CheckSummaryProps {
   reasonClassName?: string;
   scores?: string[];
   flagged?: boolean;
+  /** How many checks failed. */
+  failed?: number;
   checks?: number;
   open?: boolean;
   onToggle?: () => void;
@@ -59,6 +61,7 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
   reasonClassName,
   scores,
   flagged,
+  failed,
   checks,
   open,
   onToggle,
@@ -87,12 +90,18 @@ export const CheckSummary: FC<CheckSummaryProps> = ({
         )}
       />
     ) : null}
-    {flagged || (checks !== undefined && checks > 1) ? (
+    {flagged || failed || (checks !== undefined && checks > 1) ? (
       <span className={styles.trailing}>
         {flagged ? (
           <span className={styles.chip}>
             <i className="bi bi-flag-fill" />
             flagged
+          </span>
+        ) : null}
+        {failed ? (
+          <span className={styles.chip}>
+            <i className="bi bi-exclamation-triangle" />
+            {`${failed} failed`}
           </span>
         ) : null}
         {checks !== undefined && checks > 1 ? (

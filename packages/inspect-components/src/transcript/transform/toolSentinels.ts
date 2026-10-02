@@ -47,6 +47,8 @@ export interface SentinelStep {
   scores: string[];
   /** Whether any event of the step asked for an audit. */
   audit: boolean;
+  /** How many monitor functions raised instead of reporting. */
+  failed: number;
   /** Model calls made inside the step's sentinel span, in recording order. */
   modelCalls: EventNode<ModelEvent>[];
 }
@@ -280,9 +282,12 @@ export function buildSentinelStep(
     outcome,
     decider: effective ?? outcome,
     effective,
-    reason: credit ? credit.reason : explanationOf(single),
+    reason: credit
+      ? credit.reason
+      : (explanationOf(single) ?? (single?.event.error || undefined)),
     scores,
     audit: nodes.some((n) => n.event.audit),
+    failed: checks.filter((n) => n.event.status === "error").length,
     modelCalls,
   };
 }
