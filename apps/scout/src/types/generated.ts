@@ -3567,6 +3567,8 @@ export interface components {
             audit: boolean;
             /** Conversation */
             conversation: string;
+            /** Error */
+            error?: string | null;
             /**
              * Event
              * @default sentinel
@@ -3608,7 +3610,7 @@ export interface components {
              * Status
              * @enum {string}
              */
-            status: "reported" | "cancelled" | "bypassed" | "superseded";
+            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
             /** Step Id */
             step_id: string;
             /** Suspicion */
