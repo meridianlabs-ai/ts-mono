@@ -11,6 +11,7 @@ import { abcRows, makeAbcColumns, type AbcRow } from "./testFixtures";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 interface Row {
@@ -128,5 +129,53 @@ describe("DataGrid column resizing", () => {
       .getAllByRole("gridcell")
       .map((el) => (el instanceof HTMLElement ? el.style.color : ""));
     expect(colors).toEqual(["red", "red", "red"]);
+  });
+
+  test("an override outside the column's bounds still fits the container", () => {
+    // jsdom has no ResizeObserver or layout; the grid reads the container
+    // width once on mount, so a no-op observer plus clientWidth suffices.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
+    vi.spyOn(Element.prototype, "clientWidth", "get").mockReturnValue(504);
+    const fitColumns: ExtendedColumnDef<AbcRow>[] = [
+      {
+        id: "a",
+        header: "A",
+        size: 96,
+        minSize: 60,
+        maxSize: 120,
+        accessorFn: (r) => r.a,
+      },
+      {
+        id: "b",
+        header: "B",
+        size: 200,
+        minSize: 150,
+        flex: 1,
+        accessorFn: (r) => r.b,
+      },
+    ];
+    render(
+      <DataGrid<AbcRow>
+        data={abcRows}
+        columns={fitColumns}
+        getRowId={(r) => r.id}
+        onRowActivate={() => {}}
+        columnSizing={{ a: 36 }}
+        onColumnSizingChange={() => {}}
+      />
+    );
+    const headerWidths = screen
+      .getAllByRole("columnheader")
+      .map((el) =>
+        el instanceof HTMLElement ? parseFloat(el.style.width) : 0
+      );
+    expect(headerWidths).toEqual([60, 440]);
   });
 });
