@@ -619,7 +619,7 @@ test("resizes a column by dragging its divider", async ({ page, network }) => {
   expect(after).toBeGreaterThan(before + 60);
 });
 
-test("resizing a column without a filter beside its divider doesn't reorder it", async ({
+test("dragging a column divider resizes without reordering columns", async ({
   page,
   network,
 }) => {
@@ -646,12 +646,19 @@ test("resizing a column without a filter beside its divider doesn't reorder it",
   const order = await headerOrder();
   const before = await width();
 
-  // Widening moves the divider off the press point, onto the header's
-  // draggable label — the browser must not start a column drag from there.
+  // Resizing moves the divider off the press point, onto a draggable
+  // header label — the column's own when widening, its neighbour's when
+  // narrowing. The browser must not start a column drag from there.
   await dragResize(page, "sampleId", 60);
   expect(await headerOrder()).toEqual(order);
   const resized = await width();
   expect(resized).toBeGreaterThan(before + 40);
+  await dragResize(page, "input", -80);
+  expect(await headerOrder()).toEqual(order);
+  // The press still moves focus to the grid, so arrow keys keep working.
+  await page.getByRole("textbox").first().focus();
+  await dragResize(page, "input", 20);
+  await expect(page.getByRole("grid")).toBeFocused();
 
   // With the button released, moving the pointer no longer resizes.
   const box = (await id.boundingBox())!;

@@ -85,15 +85,20 @@ function makeSortKeyDownHandler<TRow extends RowData>(
 
 /** Mouse-down handler for a column's resize divider. It cancels the press's
  *  default action: once the resize moves the divider off the press point,
- *  that point is over the header's draggable label, and the browser would
- *  start a column drag from it — reordering the column and swallowing the
- *  mouseup that ends the resize, which then follows the pointer. */
+ *  that point is over a draggable header label (the column's own when
+ *  widening, its neighbour's when narrowing), and the browser would start a
+ *  column drag from it — reordering columns and swallowing the mouseup that
+ *  ends the resize, which then follows the pointer. Cancelling also skips
+ *  the press's default focus, so focus the grid as the press used to (arrow
+ *  keys keep working after a resize). */
 function startColumnResize<TRow extends RowData>(
   header: Header<DataGridFeatures, TRow, unknown>
 ): (e: MouseEvent<HTMLElement>) => void {
   const resize = header.getResizeHandler();
   return (e) => {
     e.preventDefault();
+    const grid = e.currentTarget.closest('[role="grid"]');
+    if (grid instanceof HTMLElement) grid.focus({ preventScroll: true });
     resize(e);
   };
 }
@@ -447,35 +452,6 @@ export function DataGrid<TRow extends RowData>({
     dragGhostRef.current = null;
   }, []);
 
-  const handleHeaderDragStart = useCallback(
-    (e: DragEvent<HTMLElement>, colId: string, label: string) => {
-      e.dataTransfer.effectAllowed = "move";
-      // Firefox won't start a drag with an empty data store.
-      e.dataTransfer.setData("text/plain", colId);
-      // Chromium snapshots the drag image from the source element, which for
-      // the 45°-rotated labels is unusable (transformed paint, huge bounds).
-      // Hand it an unrotated chip with the column name instead — also what
-      // the AG grid's ghost looked like. Guarded: jsdom has no setDragImage.
-      if (typeof e.dataTransfer.setDragImage === "function") {
-        const chip = document.createElement("div");
-        chip.className = styles.dragGhost;
-        chip.textContent = label;
-        document.body.appendChild(chip);
-        e.dataTransfer.setDragImage(chip, 12, 14);
-        dragGhostRef.current = chip;
-      }
-      // Defer the state flip: it re-renders the header (dim the source, flip
-      // rotated-label pointer-events) and mutating the DOM while Chromium is
-      // still establishing the drag session aborts the drag outright. The
-      // session ref voids the deferred set if the drag ends first.
-      dragSessionRef.current = colId;
-      setTimeout(() => {
-        if (dragSessionRef.current === colId) setDraggedColId(colId);
-      }, 0);
-    },
-    []
-  );
-
   const handleHeaderDragOver = useCallback(
     (e: DragEvent<HTMLElement>, colId: string) => {
       // Pinned columns are not drop targets: skipping preventDefault leaves
@@ -686,6 +662,42 @@ export function DataGrid<TRow extends RowData>({
     onSortingChange: handleSortingChange,
     onColumnSizingChange: handleColumnSizingChange,
   });
+
+  const handleHeaderDragStart = useCallback(
+    (e: DragEvent<HTMLElement>, colId: string, label: string) => {
+      // Backstop for `startColumnResize`: a drag that starts mid-resize would
+      // take the mouseup that ends it. Cancelling dragstart is the one
+      // drag-abort every browser honors.
+      if (table.store.state.columnResizing.isResizingColumn !== false) {
+        e.preventDefault();
+        return;
+      }
+      e.dataTransfer.effectAllowed = "move";
+      // Firefox won't start a drag with an empty data store.
+      e.dataTransfer.setData("text/plain", colId);
+      // Chromium snapshots the drag image from the source element, which for
+      // the 45°-rotated labels is unusable (transformed paint, huge bounds).
+      // Hand it an unrotated chip with the column name instead — also what
+      // the AG grid's ghost looked like. Guarded: jsdom has no setDragImage.
+      if (typeof e.dataTransfer.setDragImage === "function") {
+        const chip = document.createElement("div");
+        chip.className = styles.dragGhost;
+        chip.textContent = label;
+        document.body.appendChild(chip);
+        e.dataTransfer.setDragImage(chip, 12, 14);
+        dragGhostRef.current = chip;
+      }
+      // Defer the state flip: it re-renders the header (dim the source, flip
+      // rotated-label pointer-events) and mutating the DOM while Chromium is
+      // still establishing the drag session aborts the drag outright. The
+      // session ref voids the deferred set if the drag ends first.
+      dragSessionRef.current = colId;
+      setTimeout(() => {
+        if (dragSessionRef.current === colId) setDraggedColId(colId);
+      }, 0);
+    },
+    [table]
+  );
 
   const { rows } = table.getRowModel();
   const totalWidth = table.getTotalSize();
