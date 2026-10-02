@@ -33,6 +33,7 @@ export const TranscriptPanel: FC = () => {
   // Transcripts directory (resolved from route, user preference, or config)
   const {
     displayTranscriptsDir,
+    resolvedTranscriptsDir,
     resolvedTranscriptsDirSource,
     setTranscriptsDir,
   } = useTranscriptsDir(true);
@@ -44,8 +45,8 @@ export const TranscriptPanel: FC = () => {
     data: transcript,
     error,
   } = useTranscript(
-    config.transcripts
-      ? { location: config.transcripts.dir, id: transcriptId }
+    resolvedTranscriptsDir
+      ? { location: resolvedTranscriptsDir, id: transcriptId }
       : skipToken
   );
   const filter = Array.isArray(config.filter)
@@ -86,7 +87,7 @@ export const TranscriptPanel: FC = () => {
     forceHidden: onHeadroomSetHidden,
   } = useChromeNavOwnership(scrollRef, {
     ownedForKey: () => !!(initialEventId || initialMessageId),
-    resetKey: transcriptId,
+    resetKey: `${resolvedTranscriptsDir}\u0000${transcriptId}`,
     findActiveRef,
     expandOnlyAtTop: true,
   });

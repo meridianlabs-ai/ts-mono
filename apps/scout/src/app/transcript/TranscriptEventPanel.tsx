@@ -54,6 +54,7 @@ export const TranscriptEventPanel: FC = () => {
   const config = useAppConfig();
   const {
     displayTranscriptsDir,
+    resolvedTranscriptsDir,
     resolvedTranscriptsDirSource,
     setTranscriptsDir,
   } = useTranscriptsDir(true);
@@ -65,8 +66,8 @@ export const TranscriptEventPanel: FC = () => {
     data: transcript,
     error,
   } = useTranscript(
-    config.transcripts
-      ? { location: config.transcripts.dir, id: transcriptId }
+    resolvedTranscriptsDir
+      ? { location: resolvedTranscriptsDir, id: transcriptId }
       : skipToken
   );
 
