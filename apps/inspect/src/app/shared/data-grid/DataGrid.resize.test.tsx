@@ -142,6 +142,7 @@ describe("DataGrid column resizing", () => {
         disconnect() {}
       }
     );
+    // 500px to fit into, after the grid's 4px `kFitSlack` reserve.
     vi.spyOn(Element.prototype, "clientWidth", "get").mockReturnValue(504);
     const fitColumns: ExtendedColumnDef<AbcRow>[] = [
       {

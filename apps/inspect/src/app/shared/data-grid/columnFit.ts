@@ -12,15 +12,14 @@
  *    log list), capped at `maxSize`.
  * A column is never auto-compressed below its declared width; when the
  * declared widths overflow the viewport the grid scrolls horizontally.
- * `minSize` gates user drag-resizes, not the auto layout (it serves as the
- * layout floor only for a flex column with no declared size).
  *
  * User-resized widths (`overrides`) always win and never redistribute.
  *
- * Every width, override or declared, is first clamped exactly as TanStack's
- * `column.getSize()` clamps what renders; otherwise a stored width outside
- * the current def's bounds (e.g. a compact-mode score width after compact
- * scores is turned off) makes the fit disagree with the rendered total.
+ * Every width, override or declared, is first clamped to `[minSize,
+ * maxSize]` exactly as TanStack's `column.getSize()` clamps what renders;
+ * otherwise a stored width outside the current def's bounds (e.g. a
+ * compact-mode score width after compact scores is turned off) makes the
+ * fit disagree with the rendered total.
  */
 
 export interface FitColumn {
