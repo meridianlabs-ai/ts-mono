@@ -30,7 +30,7 @@
     "ansi-output": "^0.0.9",
     "asciinema-player": "^3.17.0",
     "clsx": "^2.1.1",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "lodash-es": "^4.18.1",
     "markdown-it": "^15.0.2",
     "markdown-it-mathjax3": "^5.2.0",
