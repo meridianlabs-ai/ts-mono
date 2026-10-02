@@ -567,3 +567,85 @@ test("keeps a resized width after navigating into a log and back", async ({
   const restored = (await header.boundingBox())!.width;
   expect(Math.abs(restored - resized)).toBeLessThan(3);
 });
+
+test.describe("Compact scores", () => {
+  test("toggling compact scores resets score column widths only", async ({
+    page,
+    network,
+  }) => {
+    const logFile = "compact-widths.json";
+    // Same-length names, so both score columns share a default width.
+    const scorers = ["alpha", "gamma"];
+    const sample = (id: number) => ({
+      ...createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      }),
+      scores: Object.fromEntries(
+        scorers.map((name) => [name, { value: id, history: [] }])
+      ),
+    });
+    serveEvalLog(
+      network,
+      {
+        ...createEvalLog({
+          samples: [sample(1), sample(2)],
+          eval: {
+            viewer: {
+              scanner_result_view: {},
+              task_samples_view: { name: "default", compact_scores: true },
+            },
+          },
+        }),
+        results: {
+          completed_samples: 2,
+          total_samples: 2,
+          scores: scorers.map((name) => ({
+            name,
+            scorer: name,
+            params: {},
+            metrics: {},
+          })),
+        },
+      },
+      logFile
+    );
+    await page.goto(`/#/logs/${logFile}`);
+
+    const resized = columnHeader(page, "alpha");
+    const untouched = columnHeader(page, "gamma");
+    const tokens = columnHeader(page, "Tokens");
+    const width = async (header: Locator) =>
+      Math.round((await header.boundingBox())?.width ?? 0);
+    const setCompact = async (on: boolean) => {
+      const view = page.getByRole("button", { name: /^\W*View\W*$/ });
+      await view.click();
+      await page
+        .getByRole("checkbox", { name: "Compact scores" })
+        .setChecked(on);
+      await view.click();
+    };
+
+    await expect(resized.locator('[class*="rotatedLabel"]')).toHaveCount(1);
+    const compactDefault = await width(untouched);
+    await dragResize(page, "score__alpha__alpha", 50);
+    await expect
+      .poll(() => width(resized))
+      .toBeGreaterThan(compactDefault + 30);
+    await dragResize(page, "tokens", 60);
+    const tokensResized = await width(tokens);
+
+    // A score width set in one mode doesn't carry into the other; other
+    // columns keep theirs.
+    await setCompact(false);
+    await expect(resized.locator('[class*="rotatedLabel"]')).toHaveCount(0);
+    const uprightDefault = await width(untouched);
+    expect(uprightDefault).toBeGreaterThan(compactDefault);
+    await expect.poll(() => width(resized)).toBe(uprightDefault);
+    expect(await width(tokens)).toBe(tokensResized);
+
+    await setCompact(true);
+    await expect.poll(() => width(resized)).toBe(compactDefault);
+    expect(await width(tokens)).toBe(tokensResized);
+  });
+});
