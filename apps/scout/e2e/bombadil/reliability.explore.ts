@@ -85,13 +85,29 @@ test("transcript identity", async ({ page, network }, testInfo) => {
   );
 });
 
-test("dataframe integrity", async ({ page }, testInfo) => {
-  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
-  await page.goto("/e2e/fixtures/dataframe/");
-  await expect(page.getByRole("grid")).toBeVisible();
-  await explore(
-    "http://localhost:5186",
-    "dataframe.ts",
-    testInfo.outputPath("bombadil")
-  );
-});
+for (const rows of [6, 500]) {
+  test(`dataframe integrity (${rows} rows)`, async ({ page }, testInfo) => {
+    await page
+      .context()
+      .grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto(`/e2e/fixtures/dataframe/?rows=${rows}`);
+    await expect(page.getByRole("grid")).toBeVisible();
+    await explore(
+      "http://localhost:5186",
+      "dataframe.ts",
+      testInfo.outputPath("bombadil")
+    );
+    const checks = await page.evaluate(() => ({
+      exports: Number(document.body.dataset.exportChecks ?? 0),
+      activations: Number(document.body.dataset.activationChecks ?? 0),
+      filters: Number(document.body.dataset.filterChecks ?? 0),
+    }));
+    await testInfo.attach("property-check-counts", {
+      body: JSON.stringify(checks),
+      contentType: "application/json",
+    });
+    expect(checks.exports).toBeGreaterThan(0);
+    expect(checks.activations).toBeGreaterThan(0);
+    expect(checks.filters).toBeGreaterThan(0);
+  });
+}

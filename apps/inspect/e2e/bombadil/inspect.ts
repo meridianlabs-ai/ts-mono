@@ -21,8 +21,8 @@ export {
 const state = extract(({ document, window }) => ({
   hash: window.location.hash,
   evidence: Array.from(
-    document.body.innerText.matchAll(/EVIDENCE_(red|blue)_(\d)/g),
-    (match) => `${match[1]}_${match[2]}`
+    document.body.innerText.matchAll(/EVIDENCE_(red|blue)_(\d)_(\d)/g),
+    (match) => `${match[1]}_${match[2]}_${match[3]}`
   ),
   executed: document.documentElement.dataset.bombadilExecuted ?? null,
   unsafeLinks: Array.from(document.querySelectorAll("a[href]"))
@@ -43,8 +43,10 @@ export const noUnsafeLinks = always(
 export const noErrorBoundary = always(() => !state.current.error);
 export const correctSample = always(() => {
   const hash = state.current.hash;
-  const route = /\/logs\/(red|blue)\.json\/samples\/sample\/(\d)\//.exec(hash);
-  const expected = route ? `${route[1]}_${route[2]}` : null;
+  const route = /\/logs\/(red|blue)\.json\/samples\/sample\/(\d)\/(\d)\//.exec(
+    hash
+  );
+  const expected = route ? `${route[1]}_${route[2]}_${route[3]}` : null;
   return eventually(
     () =>
       state.current.hash !== hash ||
@@ -87,16 +89,25 @@ const targets = extract(({ document, window }) =>
 const clickTargets = actions(() => targets.current.map((Click) => ({ Click })));
 const navigate = registerCustomAction(
   "sample",
-  (_document, window, color: string, sample: number, tab: string) => {
-    window.location.hash = `/logs/${color}.json/samples/sample/${sample}/1/${tab}`;
+  (
+    _document,
+    window,
+    color: string,
+    sample: number,
+    epoch: number,
+    tab: string
+  ) => {
+    window.location.hash = `/logs/${color}.json/samples/sample/${sample}/${epoch}/${tab}`;
     return Promise.resolve();
   }
 );
 const hops = actions(() =>
   ["red", "blue"].flatMap((color) =>
     Array.from({ length: 8 }, (_, sample) =>
-      ["messages", "transcript", "scoring", "metadata"].map((tab) =>
-        navigate(color, sample, tab)
+      [1, 2].flatMap((epoch) =>
+        ["messages", "transcript", "scoring", "metadata"].map((tab) =>
+          navigate(color, sample, epoch, tab)
+        )
       )
     ).flat()
   )

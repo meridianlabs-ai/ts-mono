@@ -1,10 +1,16 @@
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 /** @param {import('./run.d.mts').BombadilOptions} options */
 export async function runBombadil(options) {
   await mkdir(options.output, { recursive: true });
+  const specification = resolve(options.specification);
+  await copyFile(specification, resolve(options.output, "specification.ts"));
+  await copyFile(
+    resolve(dirname(specification), "reliability.explore.ts"),
+    resolve(options.output, "fixture.ts")
+  );
   const logs = [];
   const code = await new Promise((resolveExit, reject) => {
     // Spawn the binary directly so a timeout terminates the explorer too.
@@ -31,7 +37,7 @@ export async function runBombadil(options) {
         "--instrument-javascript",
         "",
         options.origin,
-        resolve(options.specification),
+        specification,
       ],
       { timeout: 540_000, killSignal: "SIGKILL" }
     );
