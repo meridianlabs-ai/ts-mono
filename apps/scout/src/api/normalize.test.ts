@@ -31,7 +31,10 @@ describe("normalizeStatus", () => {
 
   it("fills spec defaults: packages, options, scanner params/version", () => {
     expect(status.spec.packages).toEqual({});
-    expect(status.spec.options).toEqual({ max_transcripts: 25 });
+    expect(status.spec.options).toEqual({
+      max_transcripts: 25,
+      record_input: "copy",
+    });
     expect(status.spec.scanners["s1"]).toEqual({
       name: "s1",
       params: {},
@@ -113,7 +116,7 @@ describe("normalizeStatus", () => {
         scan_name: "current",
         timestamp: "2026-01-01T00:00:00Z",
         packages: { inspect_scout: "1.0" },
-        options: { max_transcripts: 5, limit: 10 },
+        options: { max_transcripts: 5, limit: 10, record_input: "copy" },
         scanners: { s1: { name: "s1", params: { k: 1 }, version: 2 } },
         tags: ["a"],
       },

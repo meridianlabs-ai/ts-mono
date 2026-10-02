@@ -183,6 +183,7 @@ const normalizeScanSpec = (raw: WireScanSpec): ScanSpec => ({
   options: {
     ...raw.options,
     max_transcripts: raw.options?.max_transcripts ?? 25,
+    record_input: raw.options?.record_input ?? "copy",
   },
 });
 

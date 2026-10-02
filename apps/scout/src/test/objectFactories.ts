@@ -78,7 +78,7 @@ export function createStatus(overrides: Partial<Status> = {}): Status {
     spec: {
       scan_id: "3oUGqQCpPQ9WSNPV4oy7Fe",
       scan_name: "test-scan",
-      options: { max_transcripts: 25 },
+      options: { max_transcripts: 25, record_input: "copy" },
       packages: {},
       scanners: {},
       timestamp: "2024-01-01T00:00:00Z",
