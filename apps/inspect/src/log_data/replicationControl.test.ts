@@ -85,7 +85,7 @@ describe("fetch engine activation lifecycle", () => {
 
     activateFetchEngine(configFor("dirA"));
     await expect(syncLogs("dirA")).rejects.toThrow(
-      /Database service not available/
+      "This log viewer requires browser storage (IndexedDB) to list a directory. Check this site's storage permissions and reload."
     );
     expect(h.start).not.toHaveBeenCalled();
 
