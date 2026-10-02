@@ -213,6 +213,71 @@ test.describe("Sorting", () => {
     await taskHeader.click();
     await expect.poll(() => firstRowText(page)).toContain("task-gamma");
   });
+
+  test("a compact (rotated) score header shows the sort it toggles", async ({
+    page,
+    network,
+  }) => {
+    const logFile = "compact-scores.json";
+    const score = (value: number) => ({ value, history: [] });
+    const sample = (id: number, accuracy: number, quality: number) => ({
+      ...createEvalSample({
+        id,
+        messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+      }),
+      scores: { accuracy: score(accuracy), quality: score(quality) },
+    });
+    const evalScore = (name: string) => ({
+      name,
+      scorer: name,
+      params: {},
+      metrics: {},
+    });
+    serveEvalLog(
+      network,
+      {
+        ...createEvalLog({
+          samples: [sample(1, 0, 1), sample(2, 1, 0)],
+          eval: {
+            viewer: {
+              scanner_result_view: {},
+              task_samples_view: { name: "default", compact_scores: true },
+            },
+          },
+        }),
+        results: {
+          completed_samples: 2,
+          total_samples: 2,
+          scores: [evalScore("accuracy"), evalScore("quality")],
+        },
+      },
+      logFile
+    );
+    await page.goto(`/#/logs/${logFile}`);
+
+    const accuracy = columnHeader(page, "accuracy");
+    const quality = columnHeader(page, "quality");
+    const arrows = "i.bi-arrow-up, i.bi-arrow-down";
+    // Precondition: these are the rotated headers, not upright ones.
+    await expect(accuracy.locator('[class*="rotatedLabel"]')).toHaveCount(1);
+    await expect(accuracy.locator(arrows)).toHaveCount(0);
+
+    await accuracy.getByText("accuracy", { exact: true }).click();
+    await expect(accuracy).toHaveAttribute("aria-sort", "ascending");
+    await expect(accuracy.locator("i.bi-arrow-up")).toHaveCount(1);
+
+    await accuracy.getByText("accuracy", { exact: true }).click();
+    await expect(accuracy).toHaveAttribute("aria-sort", "descending");
+    await expect(accuracy.locator("i.bi-arrow-down")).toHaveCount(1);
+    await expect(accuracy.locator("i.bi-arrow-up")).toHaveCount(0);
+
+    // Sorting another column moves the arrow off this one.
+    await quality.getByText("quality", { exact: true }).click();
+    await expect(quality).toHaveAttribute("aria-sort", "ascending");
+    await expect(quality.locator("i.bi-arrow-up")).toHaveCount(1);
+    await expect(accuracy).toHaveAttribute("aria-sort", "none");
+    await expect(accuracy.locator(arrows)).toHaveCount(0);
+  });
 });
 
 test.describe("Filtering", () => {
