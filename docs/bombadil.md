@@ -80,6 +80,11 @@ filter actions set the real filter controls and compare the footer with an
 independent count. Activation checks use both row buttons and Enter. Each
 campaign requires at least one completed export, filter, and activation check;
 recovery actions remount the grid and clear filters to keep exploration active.
+Scout campaigns explicitly scroll nested panels to the top, middle, and bottom;
+the 500-row campaign also requires at least one completed panel scroll. Initial
+traces contained no default scroll actions because the document itself did not
+overflow, so relying on that generator alone missed virtualized rows further
+down the grid.
 Directory identity is checked only on explicit-directory detail routes: the
 list route has no selected transcript directory to compare. A follow-up run
 caught that omission in the initial oracle while a detail panel was closing;
@@ -137,6 +142,17 @@ identity/hostile content, and both grid sizes. The successful grid runs
 completed 242 export comparisons, 203 row activations, and 168 numeric-filter
 checks. This round found no additional confirmed application defect.
 `pnpm check` passed, and `pnpm test` passed 5,715 tests with two skipped.
+
+A longer follow-up on the same date ran all four campaigns for eight minutes
+each, plus a second eight-minute Scout transcript run after adding explicit
+nested-panel scrolling. All five runs passed across 7,612 observed states.
+Inspect rendered all 32 log/sample/epoch combinations; the 500-row grid rendered
+every row during exploration. The grid runs completed 565 export comparisons,
+555 row activations, and 365 numeric-filter checks. The scrolling campaigns
+completed 172 panel scrolls. No additional application defect was confirmed;
+the actionable finding was the missing nested-scroll coverage. Traces, source
+snapshots, logs, and a machine-readable summary are preserved locally under
+`.bombadil-results/discoveries/long-campaigns-20261002/`.
 
 ## Extending the campaigns
 

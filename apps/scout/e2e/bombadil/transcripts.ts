@@ -20,6 +20,7 @@ export {
 
 const state = extract(({ document, window }) => ({
   hash: window.location.hash,
+  panelScrollChecks: Number(document.body.dataset.panelScrollChecks ?? 0),
   evidence: Array.from(
     document.body.innerText.matchAll(/EVIDENCE_(alpha|beta|gamma)/g),
     (match) => match[1] ?? ""
@@ -111,7 +112,35 @@ const targets = extract(({ document, window }) =>
   )
 );
 const clickTargets = actions(() => targets.current.map((Click) => ({ Click })));
+const scrollPanel = registerCustomAction(
+  "scrollPanel",
+  async (document, window, ordinal: number, fraction: number) => {
+    const panels = Array.from(document.querySelectorAll("*")).filter(
+      (element) =>
+        element.clientHeight > 0 &&
+        element.scrollHeight > element.clientHeight &&
+        /auto|scroll/.test(window.getComputedStyle(element).overflowY)
+    );
+    const panel = panels[ordinal % panels.length];
+    if (!panel) return;
+    const previous = panel.scrollTop;
+    panel.scrollTo({
+      top: fraction * (panel.scrollHeight - panel.clientHeight),
+    });
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+    if (panel.scrollTop !== previous)
+      document.body.dataset.panelScrollChecks = String(
+        Number(document.body.dataset.panelScrollChecks ?? 0) + 1
+      );
+  }
+);
+const panelScrollActions = actions(() =>
+  [0, 1, 2].flatMap((ordinal) =>
+    [0, 0.5, 1].map((fraction) => scrollPanel(ordinal, fraction))
+  )
+);
 export const interactions = weighted([
+  [2, panelScrollActions],
   [5, hops],
   [4, clickTargets],
   [3, scroll],

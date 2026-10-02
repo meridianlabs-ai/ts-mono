@@ -40,6 +40,7 @@ const state = extract(({ document, window }) => {
     exportChecks: Number(document.body.dataset.exportChecks ?? 0),
     activationChecks: Number(document.body.dataset.activationChecks ?? 0),
     filterChecks: Number(document.body.dataset.filterChecks ?? 0),
+    panelScrollChecks: Number(document.body.dataset.panelScrollChecks ?? 0),
   };
 });
 export const uniqueRows = always(
@@ -265,7 +266,35 @@ const filterActions = actions(() =>
     [0, 2, 10, 100].map((value) => filter(operator, value))
   )
 );
+const scrollPanel = registerCustomAction(
+  "scrollPanel",
+  async (document, window, ordinal: number, fraction: number) => {
+    const panels = Array.from(document.querySelectorAll("*")).filter(
+      (element) =>
+        element.clientHeight > 0 &&
+        element.scrollHeight > element.clientHeight &&
+        /auto|scroll/.test(window.getComputedStyle(element).overflowY)
+    );
+    const panel = panels[ordinal % panels.length];
+    if (!panel) return;
+    const previous = panel.scrollTop;
+    panel.scrollTo({
+      top: fraction * (panel.scrollHeight - panel.clientHeight),
+    });
+    await new Promise((resolve) => window.setTimeout(resolve, 150));
+    if (panel.scrollTop !== previous)
+      document.body.dataset.panelScrollChecks = String(
+        Number(document.body.dataset.panelScrollChecks ?? 0) + 1
+      );
+  }
+);
+const panelScrollActions = actions(() =>
+  [0, 1, 2].flatMap((ordinal) =>
+    [0, 0.5, 1].map((fraction) => scrollPanel(ordinal, fraction))
+  )
+);
 export const interactions = weighted([
+  [2, panelScrollActions],
   [3, exportActions],
   [3, activationActions],
   [6, clicks],
