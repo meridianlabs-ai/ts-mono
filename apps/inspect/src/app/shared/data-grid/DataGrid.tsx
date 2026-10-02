@@ -83,6 +83,21 @@ function makeSortKeyDownHandler<TRow extends RowData>(
   };
 }
 
+/** Mouse-down handler for a column's resize divider. It cancels the press's
+ *  default action: once the resize moves the divider off the press point,
+ *  that point is over the header's draggable label, and the browser would
+ *  start a column drag from it — reordering the column and swallowing the
+ *  mouseup that ends the resize, which then follows the pointer. */
+function startColumnResize<TRow extends RowData>(
+  header: Header<DataGridFeatures, TRow, unknown>
+): (e: MouseEvent<HTMLElement>) => void {
+  const resize = header.getResizeHandler();
+  return (e) => {
+    e.preventDefault();
+    resize(e);
+  };
+}
+
 /** Rendered width of an element's contents, measured with a Range so bare
  *  text nodes count (a cell's clientWidth is the truncated box, not the
  *  content). Guarded: jsdom's Range has no layout — measure as 0 there. */
@@ -1063,7 +1078,7 @@ export function DataGrid<TRow extends RowData>({
                             styles.resizeHandleActive
                         )}
                         onClick={(e) => e.stopPropagation()}
-                        onMouseDown={header.getResizeHandler()}
+                        onMouseDown={startColumnResize(header)}
                         onTouchStart={header.getResizeHandler()}
                         onDoubleClick={() => autoSizeColumn(header.column)}
                       />
@@ -1395,7 +1410,7 @@ function RotatedHeaderCell<TRow extends RowData>({
             styles.resizeHandleRotated,
             header.column.getIsResizing() && styles.resizeHandleActive
           )}
-          onMouseDown={header.getResizeHandler()}
+          onMouseDown={startColumnResize(header)}
           onTouchStart={header.getResizeHandler()}
           onDoubleClick={onAutoSize}
         />
