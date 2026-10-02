@@ -663,12 +663,14 @@ export function DataGrid<TRow extends RowData>({
     onColumnSizingChange: handleColumnSizingChange,
   });
 
+  // `table` is a fresh object every render; its store is the stable handle.
+  const tableStore = table.store;
   const handleHeaderDragStart = useCallback(
     (e: DragEvent<HTMLElement>, colId: string, label: string) => {
       // Backstop for `startColumnResize`: a drag that starts mid-resize would
       // take the mouseup that ends it. Cancelling dragstart is the one
       // drag-abort every browser honors.
-      if (table.store.state.columnResizing.isResizingColumn !== false) {
+      if (tableStore.state.columnResizing.isResizingColumn !== false) {
         e.preventDefault();
         return;
       }
@@ -696,7 +698,7 @@ export function DataGrid<TRow extends RowData>({
         if (dragSessionRef.current === colId) setDraggedColId(colId);
       }, 0);
     },
-    [table]
+    [tableStore]
   );
 
   const { rows } = table.getRowModel();

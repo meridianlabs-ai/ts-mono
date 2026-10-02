@@ -653,8 +653,13 @@ test("dragging a column divider resizes without reordering columns", async ({
   expect(await headerOrder()).toEqual(order);
   const resized = await width();
   expect(resized).toBeGreaterThan(before + 40);
+  const input = columnHeader(page, "Input");
+  const inputBefore = (await input.boundingBox())?.width ?? 0;
   await dragResize(page, "input", -80);
   expect(await headerOrder()).toEqual(order);
+  expect((await input.boundingBox())?.width ?? 0).toBeLessThan(
+    inputBefore - 40
+  );
   // The press still moves focus to the grid, so arrow keys keep working.
   await page.getByRole("textbox").first().focus();
   await dragResize(page, "input", 20);
@@ -665,6 +670,61 @@ test("dragging a column divider resizes without reordering columns", async ({
   await page.mouse.move(box.x + 400, box.y + 200, { steps: 10 });
   await page.mouse.move(box.x + 10, box.y + 200, { steps: 10 });
   expect(await width()).toBe(resized);
+});
+
+test("a header drag that starts mid-resize is cancelled", async ({
+  page,
+  network,
+}) => {
+  serveEvalLog(
+    network,
+    createEvalLog({
+      samples: [1, 2].map((id) =>
+        createEvalSample({
+          id,
+          messages: [{ role: "user", content: `input ${id}`, source: "input" }],
+        })
+      ),
+    }),
+    "resize.json"
+  );
+  await page.goto("/#/logs/resize.json");
+  const label = columnHeader(page, "Id").getByText("Id", { exact: true });
+  await expect(label).toBeVisible();
+  // A browser that ignores the divider's cancelled mousedown would start a
+  // drag from the label under the press point; dispatch that dragstart.
+  const box = (await page
+    .getByLabel("Resize sampleId", { exact: true })
+    .boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 30, box.y + box.height / 2, { steps: 4 });
+  const cancelledMidResize = await label.evaluate(
+    (el) =>
+      !el.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: new DataTransfer(),
+        })
+      )
+  );
+  await page.mouse.up();
+  expect(cancelledMidResize).toBe(true);
+
+  // Once the resize ends, the label drags again.
+  const cancelledAfter = await label.evaluate(
+    (el) =>
+      !el.dispatchEvent(
+        new DragEvent("dragstart", {
+          bubbles: true,
+          cancelable: true,
+          dataTransfer: new DataTransfer(),
+        })
+      )
+  );
+  expect(cancelledAfter).toBe(false);
+  await label.dispatchEvent("dragend");
 });
 
 test("keeps a resized width after navigating into a log and back", async ({
