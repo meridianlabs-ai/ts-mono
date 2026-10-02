@@ -4,14 +4,20 @@ import { FC } from "react";
 import type { ReviewEvent } from "@tsmono/inspect-common/types";
 import { MarkdownDiv } from "@tsmono/react/components";
 
+import { ChainOutcomes } from "./ApprovalEventView";
 import styles from "./ApprovalEventView.module.css";
 import { EventRow } from "./event/EventRow";
 import { TranscriptIcons } from "./icons";
+import { chainOutcomes } from "./transform/chainOutcomes";
 import { EventNode } from "./types";
 
 interface ReviewEventViewProps {
   eventNode: EventNode<ReviewEvent>;
   className?: string;
+  /** Name the chain in the label (off when rendered under a chain heading). */
+  showChain?: boolean;
+  /** Render a summary's per-chain breakdown (off when the chains are rendered as blocks). */
+  showChains?: boolean;
 }
 
 /**
@@ -21,6 +27,8 @@ interface ReviewEventViewProps {
 export const ReviewEventView: FC<ReviewEventViewProps> = ({
   eventNode,
   className,
+  showChain = true,
+  showChains = true,
 }) => {
   const event = eventNode.event;
   const decision = event.decision;
@@ -28,6 +36,11 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
   const reviewer = event.reviewer;
   const alarming = decision === "terminate";
   const explanationIsBlock = explanation.includes("\n");
+  const chains = chainOutcomes(event);
+  const source =
+    event.chain && showChain
+      ? `by reviewer "${reviewer}" (chain "${event.chain}")`
+      : `by reviewer "${reviewer}"`;
 
   return (
     <EventRow
@@ -43,14 +56,26 @@ export const ReviewEventView: FC<ReviewEventViewProps> = ({
       iconClassName={alarming ? styles.rejected : undefined}
       className={className}
       below={
-        explanation && explanationIsBlock ? (
+        chains ? (
+          showChains ? (
+            <ChainOutcomes chains={chains} />
+          ) : undefined
+        ) : explanation && explanationIsBlock ? (
           <MarkdownDiv markdown={explanation} />
         ) : undefined
       }
     >
       <span className={styles.headline}>
-        <span className={clsx("text-style-secondary")}>({reviewer})</span>
-        {explanation && !explanationIsBlock ? (
+        <span className={clsx("text-style-secondary")}>
+          (
+          {chains
+            ? `combined decision of chains ${Object.keys(chains)
+                .map((name) => `"${name}"`)
+                .join(", ")}`
+            : source}
+          )
+        </span>
+        {!chains && explanation && !explanationIsBlock ? (
           <span className={styles.inlineExplanation}>{explanation}</span>
         ) : null}
       </span>
