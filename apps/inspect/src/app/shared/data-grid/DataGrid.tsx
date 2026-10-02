@@ -7,6 +7,7 @@ import {
   OnChangeFn,
   Row,
   RowData,
+  SortDirection,
   SortingState,
   useTable,
 } from "@tanstack/react-table";
@@ -95,23 +96,22 @@ function measureContentWidth(el: Element): number {
   }
 }
 
-/** Header sort indicator: direction arrow plus, when several columns are
- *  sorted, this column's 1-based position in the sort order (the number is
- *  noise for a single sort, so it only appears for multi-sorts — matching
- *  the previous AG grid). */
-function SortIndicator<TRow extends RowData>({
-  header,
+/** Header sort indicator: direction arrow plus, when set, this column's
+ *  1-based position in a multi-column sort. Takes plain values rather than
+ *  the header: `header` keeps its identity across sort changes, so the
+ *  compiled component would reuse an indicator read off it. */
+function SortIndicator({
+  sorted,
+  sortOrder,
 }: {
-  header: Header<DataGridFeatures, TRow, unknown>;
+  sorted: false | SortDirection;
+  sortOrder: number | undefined;
 }): ReactElement | null {
-  const sorted = header.column.getIsSorted();
   if (!sorted) return null;
-  const sortIndex = header.column.getSortIndex();
-  const multiSorted = header.getContext().table.store.state.sorting.length > 1;
   return (
     <span className={styles.sortIndicator}>
-      {multiSorted && sortIndex >= 0 && (
-        <span className={styles.sortOrder}>{sortIndex + 1}</span>
+      {sortOrder !== undefined && (
+        <span className={styles.sortOrder}>{sortOrder}</span>
       )}
       <i
         className={clsx(
@@ -676,6 +676,9 @@ export function DataGrid<TRow extends RowData>({
   const totalWidth = table.getTotalSize();
 
   const visibleColumns = table.getVisibleLeafColumns();
+  // The sort-order number is noise for a single sort, so it only appears for
+  // multi-sorts — matching the previous AG grid.
+  const multiSorted = table.store.state.sorting.length > 1;
 
   // Header and body cells both place themselves from this, and rows must
   // read it rather than `getSize()`: widths can shift between columns at a
@@ -885,6 +888,10 @@ export function DataGrid<TRow extends RowData>({
                   dropTarget?.colId === header.column.id
                     ? dropTarget.side
                     : null;
+                const sorted = header.column.getIsSorted();
+                const sortIndex = header.column.getSortIndex();
+                const sortOrder =
+                  multiSorted && sortIndex >= 0 ? sortIndex + 1 : undefined;
 
                 // Rotated (compact score) header: a 45° label hosting text +
                 // sort caret + filter funnel. Rendered by a subcomponent so
@@ -897,6 +904,8 @@ export function DataGrid<TRow extends RowData>({
                       key={header.id}
                       header={header}
                       width={columnLayout.byId.get(header.column.id)?.width}
+                      sorted={sorted}
+                      sortOrder={sortOrder}
                       ariaColIndex={colIndex + 1}
                       filterSpec={filterSpec}
                       onColumnFilterChange={onColumnFilterChange}
@@ -916,8 +925,9 @@ export function DataGrid<TRow extends RowData>({
                 const align = columnDef.meta?.align;
                 const filterType = columnDef.meta?.filterType;
                 const pinned = header.column.getIsPinned() === "start";
-                const sorted = header.column.getIsSorted();
-                const sortCaret = <SortIndicator header={header} />;
+                const sortCaret = (
+                  <SortIndicator sorted={sorted} sortOrder={sortOrder} />
+                );
                 const headerLabel = header.isPlaceholder
                   ? null
                   : flexRender(
@@ -1234,6 +1244,8 @@ const GridRow = memo(GridRowInner) as typeof GridRowInner;
 function RotatedHeaderCell<TRow extends RowData>({
   header,
   width,
+  sorted,
+  sortOrder,
   ariaColIndex,
   filterSpec,
   onColumnFilterChange,
@@ -1252,6 +1264,10 @@ function RotatedHeaderCell<TRow extends RowData>({
    *  its identity across resizes, so the compiled component would reuse a
    *  width read off it. */
   width: number | undefined;
+  /** From the grid, like `width`: `header` keeps its identity across sort
+   *  changes too. */
+  sorted: false | SortDirection;
+  sortOrder: number | undefined;
   ariaColIndex: number;
   filterSpec: FilterSpec | null;
   onColumnFilterChange?: (
@@ -1276,7 +1292,6 @@ function RotatedHeaderCell<TRow extends RowData>({
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const columnDef = header.column.columnDef as ExtendedColumnDef<TRow>;
   const filterType = columnDef.meta?.filterType;
-  const sorted = header.column.getIsSorted();
   const headerLabel = header.isPlaceholder
     ? null
     : flexRender(header.column.columnDef.header, header.getContext());
@@ -1339,7 +1354,7 @@ function RotatedHeaderCell<TRow extends RowData>({
         onClick={header.column.getToggleSortingHandler()}
       >
         <span className={styles.rotatedText}>{headerLabel}</span>
-        <SortIndicator header={header} />
+        <SortIndicator sorted={sorted} sortOrder={sortOrder} />
         {columnDef.meta?.filterable && filterType && !hideColumnFilters && (
           // The popover is portaled, but React events bubble through the
           // component tree — so clicks inside the filter would reach the

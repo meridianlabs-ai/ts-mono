@@ -277,6 +277,16 @@ test.describe("Sorting", () => {
     await expect(quality.locator("i.bi-arrow-up")).toHaveCount(1);
     await expect(accuracy).toHaveAttribute("aria-sort", "none");
     await expect(accuracy.locator(arrows)).toHaveCount(0);
+
+    // A multi-sort numbers each sorted column by its position.
+    const sortOrder = '[class*="sortOrder"]';
+    await expect(quality.locator(sortOrder)).toHaveCount(0);
+    await accuracy
+      .getByText("accuracy", { exact: true })
+      .click({ modifiers: ["Shift"] });
+    await expect(accuracy.locator("i.bi-arrow-up")).toHaveCount(1);
+    await expect(accuracy.locator(sortOrder)).toHaveText("2");
+    await expect(quality.locator(sortOrder)).toHaveText("1");
   });
 });
 
