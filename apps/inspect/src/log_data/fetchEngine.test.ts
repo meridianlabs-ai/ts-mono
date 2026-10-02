@@ -275,6 +275,7 @@ const createFakeSink = (db?: DatabaseService) => {
   const calls = {
     seedRows: [] as Log[][],
     setListing: [] as LogHandle[][],
+    mergeRows: [] as Log[][],
     mergePreviews: [] as Record<string, LogPreview>[],
     writeListing: [] as LogHandle[][],
     writePreviews: [] as Record<string, LogPreview>[],
@@ -297,6 +298,9 @@ const createFakeSink = (db?: DatabaseService) => {
     },
     setListing: (handles) => {
       calls.setListing.push(handles);
+    },
+    mergeRows: (rows) => {
+      calls.mergeRows.push(rows);
     },
     mergePreviews: (previews) => {
       calls.mergePreviews.push(previews);
@@ -424,9 +428,10 @@ describe("FetchEngine.ensure (detailed)", () => {
     const seedsAtStart = sinkCalls.seedRows.length;
     await engine.ensure("a.eval", { depth: "detailed", priority: "user" });
 
-    // The hit seeds the cached row into the cache (beyond the start() seed).
-    expect(sinkCalls.seedRows.length).toBe(seedsAtStart + 1);
-    expect(sinkCalls.seedRows[seedsAtStart]).toEqual([cached]);
+    // The hit merges the cached row into the cache — never a whole-collection
+    // seed, which would drop every other row from the listing.
+    expect(sinkCalls.mergeRows).toEqual([[cached]]);
+    expect(sinkCalls.seedRows.length).toBe(seedsAtStart);
     // The background refresh still fetches fresh data and writes it through.
     await vi.waitFor(() => {
       expect(fake.detailCalls).toEqual([{ file: "a.eval", cached: false }]);
@@ -450,6 +455,7 @@ describe("FetchEngine.ensure (detailed)", () => {
     // The settle came from the network (fresh, success), not the stale row —
     // no read-through seed happened.
     expect(sinkCalls.seedRows.length).toBe(seedsAtStart);
+    expect(sinkCalls.mergeRows).toEqual([]);
     expect(sinkCalls.writeDetails).toContainEqual({
       "a.eval": makeDetails("a.eval"),
     });
@@ -1466,8 +1472,8 @@ describe("FetchEngine passive vs active demand (F2)", () => {
       demand: "passive",
     });
 
-    expect(sinkCalls.seedRows.length).toBe(seedsAtStart + 1);
-    expect(sinkCalls.seedRows[seedsAtStart]).toEqual([cached]);
+    expect(sinkCalls.mergeRows).toEqual([[cached]]);
+    expect(sinkCalls.seedRows.length).toBe(seedsAtStart);
     expect(sinkCalls.fetchStates["a.eval"]?.details_settled_seq ?? 0).toBe(0);
     await tick();
     expect(fake.detailCalls).toEqual([]);

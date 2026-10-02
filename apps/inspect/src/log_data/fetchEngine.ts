@@ -92,6 +92,7 @@ interface ClaimStamp {
 export interface LogsContentSink {
   seedRows(rows: Log[]): void;
   setListing(handles: LogHandle[]): void;
+  mergeRows(rows: Log[]): void;
   mergePreviews(previews: Record<string, LogPreview>): void;
   writeListing(handles: LogHandle[]): Promise<Log[]>;
   writePreviews(previews: Record<string, LogPreview>): Promise<void>;
@@ -868,7 +869,7 @@ export class FetchEngine {
     }
     if (cached?.header !== undefined && cached.status !== "started") {
       this.ensureListed(key);
-      deps.sink.seedRows([cached]);
+      deps.sink.mergeRows([cached]);
       this._pendingFetches.delete(key);
       // Consult `_activeSettles` live (not a `passive` flag captured at call
       // start) so an active fetch that joined this same pending fetch while
