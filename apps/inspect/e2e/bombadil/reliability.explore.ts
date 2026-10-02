@@ -46,33 +46,35 @@ test("sample identity and hostile content", async ({
         task_id: color,
         model: `model-${color}`,
       },
-      samples: payloads.map((payload, index) => {
-        const content = `EVIDENCE_${color}_${index}\n\n${payload}`;
-        const sample = createEvalSample({
-          id: index,
-          epoch: 1,
-          messages: [{ role: "assistant", id: `message-${index}`, content }],
-          metadata: { explanation: payload },
-          events: [
-            testModelEvent({
-              uuid: `model-${index}`,
-              output: createModelOutput(content),
+      samples: [1, 2].flatMap((epoch) =>
+        payloads.map((payload, index) => {
+          const content = `EVIDENCE_${color}_${index}_${epoch}\n\n${payload}`;
+          const sample = createEvalSample({
+            id: index,
+            epoch,
+            messages: [{ role: "assistant", id: `message-${index}`, content }],
+            metadata: { explanation: payload },
+            events: [
+              testModelEvent({
+                uuid: `model-${index}`,
+                output: createModelOutput(content),
+              }),
+              testToolEvent({
+                uuid: `tool-${index}`,
+                function: "test",
+                result: content,
+              }),
+            ],
+          });
+          sample.scores = {
+            correctness: testScore({
+              value: color === "red" ? 0 : 1,
+              explanation: content,
             }),
-            testToolEvent({
-              uuid: `tool-${index}`,
-              function: "test",
-              result: content,
-            }),
-          ],
-        });
-        sample.scores = {
-          correctness: testScore({
-            value: color === "red" ? 0 : 1,
-            explanation: content,
-          }),
-        };
-        return sample;
-      }),
+          };
+          return sample;
+        })
+      ),
     }),
   }));
   network.use(
@@ -115,7 +117,7 @@ test("sample identity and hostile content", async ({
   );
   await page.goto("/#/logs/red.json/samples/sample/0/1/messages");
   await expect(
-    page.getByText("EVIDENCE_red_0", { exact: true }).first()
+    page.getByText("EVIDENCE_red_0_1", { exact: true }).first()
   ).toBeVisible();
   const { code, log } = await runBombadil({
     origin: "http://localhost:5185",

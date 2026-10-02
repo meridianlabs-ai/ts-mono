@@ -16,7 +16,7 @@ pnpm --filter scout exec playwright install chromium
 pnpm e2e:bombadil
 ```
 
-The default is two minutes per campaign: two Scout campaigns and one Inspect
+The default is two minutes per campaign: three Scout campaigns and one Inspect
 campaign. Turbo runs the apps concurrently; each app uses one browser worker.
 These exploratory runs are separate from deterministic `pnpm test` and `pnpm
 e2e` gates. A property violation fails the command immediately.
@@ -33,9 +33,10 @@ ten-minute deadline. Scout uses HTTP port 5186 and debugger port 9333; Inspect
 uses 5185 and 9334. Do not run two copies of the same app's campaign concurrently.
 
 Results live under each app's ignored `.bombadil-results/` directory, including
-`run.log`, `trace.jsonl`, and screenshots. **Copy a failure's entire `bombadil`
-directory outside `.bombadil-results` before another run:** Playwright clears
-the output directory at startup.
+`run.log`, `trace.jsonl`, screenshots, and copies of the specification and
+campaign source used for the run. **Copy a failure's entire `bombadil`
+directory outside that app's `.bombadil-results` before another run:**
+Playwright clears the output directory at startup.
 
 Replay the preserved action sequence with the same fixture:
 
@@ -63,16 +64,22 @@ the patch is necessary when upgrading.
 | Campaign | Exploration | Properties |
 | --- | --- | --- |
 | Scout transcript identity | Three transcripts of different lengths, two directories with overlapping IDs, delayed responses, tab changes, scrolling, history navigation | Rendered evidence matches the selected transcript and directory after navigation settles; no uncaught exceptions or error boundary |
-| Scout dataframe integrity | Sorting, filters, column visibility, wrapping, grid mounting, clipboard export | Unique rendered row IDs, valid visible-row count, complete long explanations in CSV; no uncaught exceptions or error boundary |
-| Inspect sample identity and hostile content | Two JSON logs with overlapping sample IDs and opposite scores, delayed loads, messages/events/scoring/metadata tabs, hostile HTML/Markdown/MathJax strings | Evidence matches the selected log/sample after navigation settles; no content execution marker, unsafe links, monitored external fetches, monitored log-message writes, or uncaught exceptions |
+| Scout dataframe integrity (6 and 500 rows) | Sorting, numeric filters, column visibility, wrapping, grid mounting, scrolling, clipboard export, click and Enter activation | Unique rows; filter counts agree with the fixture; CSV row count/order, chosen columns, and complete values agree with the grid and original fixture; activating a displayed row opens its own result |
+| Inspect sample identity and hostile content | Two JSON logs with overlapping sample IDs across two epochs and opposite scores, delayed loads, messages/events/scoring/metadata tabs, hostile HTML/Markdown/MathJax strings | Evidence matches the selected log/sample/epoch after navigation settles; no content execution marker, unsafe links, monitored external fetches, monitored log-message writes, or uncaught exceptions |
 
 Identity checks tolerate up to three seconds of stale rendering during navigation
 and cancel an expectation if navigation supersedes it. They compare evidence
 that is visible; an empty or collapsed panel does not establish liveness.
 The deadline exceeds the 1.4-second settle action so a correct render can be
 observed in a new snapshot before a pending expectation expires.
-The dataframe export check runs when the long row and explanation column are
-visible. Ordinary deterministic tests also exercise those conditions directly.
+Dataframe checks operate on the rendered controls and clipboard. CSV is parsed
+independently of the application serializer, including embedded quotes and
+newlines. Every exported cell is checked against the synthetic fixture, and
+rendered row ordinals must point to the same transcript in the export. Numeric
+filter actions set the real filter controls and compare the footer with an
+independent count. Activation checks use both row buttons and Enter. Each
+campaign requires at least one completed export, filter, and activation check;
+recovery actions remount the grid and clear filters to keep exploration active.
 Directory identity is checked only on explicit-directory detail routes: the
 list route has no selected transcript directory to compare. A follow-up run
 caught that omission in the initial oracle while a detail panel was closing;
@@ -85,78 +92,51 @@ synthetic content. This covers the browser and shared client data layer, not
 real server authorization, every transport, or the VS Code host. JavaScript
 coverage instrumentation is disabled; action and property traces remain enabled.
 
-## Findings from the first investigation
+## Branch relationship
 
-Investigated on 2026-09-28, starting at
-`cff263a4f15fadb39e0042fbf412ba3539b07dcf`. All three findings were observed in a
-browser campaign and independently reproduced with deterministic tests that
-failed before the corresponding fix.
+`codex/bombadil-properties` is stacked on `codex/eval-data-integrity`, the branch
+for [PR #728](https://github.com/meridianlabs-ai/ts-mono/pull/728). Its own diff
+contains the optional harness, properties, and documentation. The three
+application fixes and deterministic regressions belong to #728 and are not
+reimplemented here. They remain active in the campaign baseline so exploration
+can move past the already confirmed failures.
 
-### Inspect: concurrent JSON-log loads can substitute another log's evidence
+Review the testing-only changes with:
 
-**High impact for evaluation integrity.** The browser trace showed a
-`blue.json` breadcrumb while the task, transcript evidence, and score belonged
-to `red.json` (score 0 rather than blue's 1). The `correctSample` property failed
-after about 79 seconds.
+```sh
+git diff codex/eval-data-integrity...codex/bombadil-properties
+```
 
-`clientApi` shared one pending JSON-log promise across every filename. Requests
-for different logs could receive the same contents when their loads overlapped.
-The fix deduplicates pending requests by filename and removes each entry on
-success or failure. The existing single-log settled cache stays bounded.
+After #728 merges, rebase the testing commits onto main, dropping the three
+fix commits if the PR was squash-merged. The original failure traces remain
+in the local, ignored root `.bombadil-results/discoveries/` archive.
 
-Regression coverage in `apps/inspect/src/client/api/client-api.test.ts` starts
-overlapping detail and sample reads, controls both completion orders, verifies
-same-file deduplication, and covers a failure in one log followed by a retry
-without failing the other log. The finding concerns the JSON loading path;
-it is not evidence of the same defect in `.eval` range reads.
+## Investigation record
 
-### Scout: selected transcript directory differs from the data source
+The first investigation on 2026-09-28 found cross-file JSON request mixing in
+Inspect, wrong-directory transcript loading in Scout, and truncated CSV values.
+Each finding was reduced to a deterministic regression in #728. The CSV issue
+predated the TanStack migration: that migration preserved the display formatter
+in exports and explicitly tested the truncation behavior.
 
-**High impact for evaluation integrity.** Navigating to the same transcript ID
-in another directory retained evidence from the configured default directory.
-The `correctDirectory` property failed after about 39 seconds. Without a
-configured default directory, an explicit-directory link could fail to load.
+On 2026-10-02, the campaigns were extended with export/grid agreement,
+independent numeric-filter expectations, row-activation identity, 500-row
+virtualization, and cross-epoch sample identity. The original one-off findings
+are tracked in the fixes PR; new failures should get their own deterministic
+reproduction and be triaged separately from harness assumptions.
 
-Both the full transcript panel and focused event panel fetched from
-`config.transcripts.dir`, although the route and breadcrumb used the resolved
-directory. Both now fetch from `resolvedTranscriptsDir`; visit/reset identity
-also includes the directory so reused transcript IDs do not share visit state.
+The first expanded grid runs reported incorrect numeric-filter counts. A
+deterministic browser reproduction traced this to the custom action: a DOM
+`click()` omitted the outside `mousedown` that dismisses another column's
+popover, and a global selector edited that other column instead. Normal
+interaction returned the expected rows. The action now dismisses the previous
+editor and scopes controls to the numeric column; this was a harness error.
 
-Four browser regressions in `apps/scout/e2e/transcript.spec.ts` cover full and
-focused-event views, with and without a configured directory. The configured
-cases warm the primary transcript first, switch directories, and navigate back.
-
-### Scout: CSV export silently truncates long explanations
-
-**Evidence loss in exported results.** The export reused the grid's display
-formatter, which center-truncates long strings to 1,024 characters. A 1,700
-character explanation was shortened in both copied and downloaded CSV.
-`losslessExport` failed on the first export, within a second.
-
-CSV now serializes the full underlying value while cells retain display
-truncation. The dataframe model regression checks both behaviors, and
-`apps/scout/e2e/dataframe.spec.ts` parses copied CSV to check the full
-explanation and verifies that the downloaded CSV matches it.
-
-No new exploitable security issue was confirmed in the hostile-content
-campaign. That is a bounded negative result for these fixtures and actions,
-not a claim that the application is free of security defects.
-
-### Deterministic validation
-
-- `pnpm check`: all 36 tasks passed, including strict type checking and lint.
-- `pnpm test`: the complete workspace unit/integration suite passed.
-- Scout browser tests matching `dataframe.spec.ts` and `transcript.spec.ts`:
-  24 passed, including the scanner dataframe integration test.
-- Inspect `viewer-xss.spec.ts`, `transcript-baseline.spec.ts`, and
-  `message-deeplink.spec.ts`: 6 passed.
-- Post-fix Bombadil campaigns: each of the three campaigns completed a
-  two-minute run without violations. The final two identity runs used the
-  corrected route scope and three-second observation deadline described above.
-
-The new deterministic regressions failed on the original implementations and
-passed with the fixes. The exploratory traces are useful discovery evidence;
-they are not substitutes for these regression gates.
+All four three-minute campaigns then passed: transcript identity, sample
+identity/hostile content, and both grid sizes. The successful grid runs
+completed 242 export comparisons, 203 row activations, and 168 numeric-filter
+checks. This round found no additional confirmed application defect.
+`pnpm check` passed, and `pnpm test` passed 5,715 tests with two skipped.
 
 ## Extending the campaigns
 
