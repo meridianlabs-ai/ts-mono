@@ -18,6 +18,7 @@ import { filterSamples } from "../app/samples/sample-tools/filters";
 import { sampleIdsEqual } from "../app/shared/sample";
 import { LogHeader, RunningMetric, SampleSummary } from "../client/api/types";
 import {
+  resolveLogKey,
   useEvalSampleData,
   useLogHeader,
   usePassiveEvalSampleData,
@@ -407,20 +408,29 @@ export const useFilteredSamples = () => {
 
 // Provides the currently selected sample summary
 export const useSelectedSampleSummary = (): SampleSummary | undefined => {
+  const logDir = useLogDir();
   const sampleSummaries = useSelectedSampleSummariesData();
+  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
   const selectedSampleHandle = useStore(
     (state) => state.log.selectedSampleHandle
   );
   return useMemo(() => {
-    const selectedSampleSummary = sampleSummaries.find((sample) => {
-      return (
-        sampleIdsEqual(sample.id, selectedSampleHandle?.id) &&
-        sample.epoch === selectedSampleHandle?.epoch
-      );
-    });
-
-    return selectedSampleSummary;
-  }, [selectedSampleHandle, sampleSummaries]);
+    // The summaries are the selected log's; a handle from another log (mid-
+    // navigation, or a restored selection) can share its ids and epochs.
+    if (
+      selectedSampleHandle === undefined ||
+      selectedLogFile === undefined ||
+      resolveLogKey(logDir, selectedSampleHandle.logFile) !==
+        resolveLogKey(logDir, selectedLogFile)
+    ) {
+      return undefined;
+    }
+    return sampleSummaries.find(
+      (sample) =>
+        sampleIdsEqual(sample.id, selectedSampleHandle.id) &&
+        sample.epoch === selectedSampleHandle.epoch
+    );
+  }, [logDir, selectedLogFile, selectedSampleHandle, sampleSummaries]);
 };
 
 /**

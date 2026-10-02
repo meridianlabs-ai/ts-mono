@@ -22,12 +22,16 @@ export default defineConfig({
     {
       name: "chromium",
       testIgnore: "csp/**",
-      use: { ...devices["Desktop Chrome"], baseURL },
+      use: { ...devices["Desktop Chrome"], channel: "chromium", baseURL },
     },
     {
       name: "csp",
       testMatch: "csp/**/*.spec.ts",
-      use: { ...devices["Desktop Chrome"], baseURL: cspBaseURL },
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: "chromium",
+        baseURL: cspBaseURL,
+      },
     },
   ],
   webServer: [

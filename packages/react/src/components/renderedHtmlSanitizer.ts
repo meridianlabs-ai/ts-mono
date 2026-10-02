@@ -6,7 +6,7 @@ import createDOMPurify, {
 
 import { canonicalImageSource } from "@tsmono/util";
 
-import { escapeHtmlCharacters } from "./markdownRendering";
+import { escapeHtmlCharacters } from "./markdownText";
 
 const FORBIDDEN_TAGS = [
   "animate",

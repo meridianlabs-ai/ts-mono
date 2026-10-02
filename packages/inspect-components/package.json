@@ -13,6 +13,7 @@
     "./columnFilter": "./src/columnFilter/index.ts",
     "./config": "./src/config/index.ts",
     "./content": "./src/content/index.ts",
+    "./sample-activity": "./src/sample-activity/index.ts",
     "./theme": "./src/theme/index.ts",
     "./transcript": "./src/transcript/index.ts",
     "./transcript/test-helpers": "./src/transcript/timeline/testHelpers.ts",
@@ -41,23 +42,23 @@
     "react": "^19.0.0"
   },
   "devDependencies": {
-    "@tanstack/react-query": "^5.102.8",
+    "@tanstack/react-query": "^5.103.2",
     "@testing-library/react": "^16.3.3",
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
     "@tsmono/vitest-config": "workspace:*",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@vscode-elements/react-elements": "^2.4.0",
     "eslint": "^10.7.0",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.0",
     "json5": "^2.2.3",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.70.0",
-    "vitest": "^5.0.0"
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
   }
 }
