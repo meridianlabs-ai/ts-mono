@@ -12,6 +12,7 @@ export default tseslint.config(
       "scripts/",
       "playwright-report/",
       "test-results/",
+      ".bombadil-results/",
       "*.config.?s",
       "*.config.cjs",
       "src/types/generated.ts",

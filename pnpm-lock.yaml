@@ -18,6 +18,9 @@ overrides:
   brace-expansion@2: ^2.1.7
   brace-expansion@5: ^5.0.12
 
+patchedDependencies:
+  '@antithesishq/bombadil@0.7.6': 06e436767f997c2c59e31b58a482c7c7a3dde6113a930b5939ef3aa9af371d07
+
 importers:
 
   .:
@@ -137,6 +140,9 @@ importers:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.3.0)(immer@11.1.18)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
+      '@antithesishq/bombadil':
+        specifier: 0.7.6
+        version: 0.7.6(patch_hash=06e436767f997c2c59e31b58a482c7c7a3dde6113a930b5939ef3aa9af371d07)
       '@msw/playwright':
         specifier: ^0.6.7
         version: 0.6.7(msw@2.15.0(@types/node@26.6.2)(@typescript/typescript6@6.0.2))
@@ -315,6 +321,9 @@ importers:
         specifier: ^5.0.15
         version: 5.0.15(@types/react@19.3.0)(immer@11.1.18)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
     devDependencies:
+      '@antithesishq/bombadil':
+        specifier: 0.7.6
+        version: 0.7.6(patch_hash=06e436767f997c2c59e31b58a482c7c7a3dde6113a930b5939ef3aa9af371d07)
       '@msw/playwright':
         specifier: ^0.6.7
         version: 0.6.7(msw@2.15.0(@types/node@26.6.2)(@typescript/typescript6@6.0.2))
@@ -942,6 +951,10 @@ packages:
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
+
+  '@antithesishq/bombadil@0.7.6':
+    resolution: {integrity: sha512-XmoYxKgdu/EltrsHahPYxEb5jKqdIoF0Qf59J1ggVSNe1VH28DzKw5m6t2Vg+FVE+EJDDoYZ+ilhbXdTQYzO/A==}
+    hasBin: true
 
   '@asamuzakjp/css-color@7.0.1':
     resolution: {integrity: sha512-C9duntabagkBZ1LebM7FKmphR4Q1pBclLxVbZETQV0akkFjV0ooFxo8FlvAQyKj9F6l8rEnmidgcTlpyxFYizg==}
@@ -5056,6 +5069,8 @@ packages:
 snapshots:
 
   '@adobe/css-tools@4.5.0': {}
+
+  '@antithesishq/bombadil@0.7.6(patch_hash=06e436767f997c2c59e31b58a482c7c7a3dde6113a930b5939ef3aa9af371d07)': {}
 
   '@asamuzakjp/css-color@7.0.1':
     dependencies:

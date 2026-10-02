@@ -18,6 +18,7 @@
     "format:check": "turbo run format:check",
     "dev": "turbo run dev",
     "e2e": "turbo run e2e",
+    "e2e:bombadil": "turbo run e2e:bombadil",
     "suppressions:check": "node scripts/check-suppressions.mjs",
     "suppressions:update": "node scripts/check-suppressions.mjs --update"
   },

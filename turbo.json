@@ -2,6 +2,7 @@
   "$schema": "https://turbo.build/schema.json",
   "//": "Shared tooling is outside every package's own input set, so without this a rule/compiler-option change is a cache hit and CI reports green without re-running lint or typecheck.",
   "globalDependencies": [
+    "tooling/bombadil/**",
     "tooling/eslint-config/**",
     "tooling/tsconfig/**",
     "tooling/prettier-config/**",
@@ -32,6 +33,10 @@
     },
     "e2e": {
       "cache": false
+    },
+    "e2e:bombadil": {
+      "cache": false,
+      "env": ["BOMBADIL_TIME", "BOMBADIL_REPRODUCE"]
     },
     "dev": {
       "cache": false,

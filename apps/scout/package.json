@@ -36,6 +36,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test --config playwright.config.ts",
+    "e2e:bombadil": "playwright test --config bombadil.config.ts",
     "e2e:ui": "playwright test --config playwright.config.ts --ui",
     "e2e:headed": "playwright test --config playwright.config.ts --headed"
   },
@@ -54,6 +55,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@antithesishq/bombadil": "0.7.6",
     "@msw/playwright": "^0.6.7",
     "@playwright/test": "^1.63.0",
     "@swc/core": "^1.16.2",

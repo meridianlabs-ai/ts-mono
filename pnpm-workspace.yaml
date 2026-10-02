@@ -73,3 +73,6 @@ allowBuilds:
   esbuild: false
   msw: false
   unrs-resolver: false
+
+patchedDependencies:
+  "@antithesishq/bombadil@0.7.6": patches/@antithesishq__bombadil@0.7.6.patch
