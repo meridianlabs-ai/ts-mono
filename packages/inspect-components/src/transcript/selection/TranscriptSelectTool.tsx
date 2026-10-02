@@ -8,15 +8,18 @@ import { TranscriptIcons } from "../icons";
 import styles from "./TranscriptSelectTool.module.css";
 
 interface TranscriptSelectToolProps {
-  /** Selection mode is on (event headers show checkboxes). */
+  /** Selection mode is on (headers show checkboxes). */
   active: boolean;
-  /** Number of selected events; with a selection the tool becomes a split
+  /** Number of selected items; with a selection the tool becomes a split
    *  button whose trailing segment clears the selection. */
   count: number;
   /** Toggle the mode. Exiting keeps the selection; re-entering shows it again. */
   onToggle: () => void;
   /** Clear the selection and leave the mode (the × segment). */
   onClear: () => void;
+  /** Noun used in the titles ("events" for the transcript, "messages" for
+   *  the chat). The visible label stays `Select`. */
+  itemName?: string;
   className?: string;
 }
 
@@ -30,13 +33,14 @@ export const TranscriptSelectTool: FC<TranscriptSelectToolProps> = ({
   count,
   onToggle,
   onClear,
+  itemName = "events",
   className,
 }) => {
   const hasSelection = active && count > 0;
   const title = !active
-    ? "Select events"
+    ? `Select ${itemName}`
     : count === 0
-      ? "Click events to select · click again to exit"
+      ? `Click ${itemName} to select · click again to exit`
       : "Exit select mode";
   return (
     <span className={clsx(styles.group, className)}>

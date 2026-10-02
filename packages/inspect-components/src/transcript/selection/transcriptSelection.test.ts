@@ -17,7 +17,7 @@ import {
   resolveSelectedEvents,
   resolveSelectedIds,
   selectedEventNodes,
-  toggleTranscriptSelection,
+  toggleIdSelection,
 } from "./transcriptSelection";
 
 const order = ["a", "b", "c", "d", "e"];
@@ -26,9 +26,9 @@ const toggle = (
   id: string,
   extend = false,
   visible = order
-) => toggleTranscriptSelection(state, visible, id, extend);
+) => toggleIdSelection(state, visible, id, extend);
 
-describe("toggleTranscriptSelection", () => {
+describe("toggleIdSelection", () => {
   it("toggles a single id and records it as the anchor", () => {
     const on = toggle(undefined, "b");
     expect([...on.selectedIds]).toEqual(["b"]);

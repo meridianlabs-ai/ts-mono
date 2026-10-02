@@ -10,6 +10,10 @@ import styles from "./ChatMessageRow.module.css";
 import { MessageLabel } from "./MessageLabel";
 import { hasServerToolUse, ResolvedMessage } from "./messages";
 import { hasVisibleContent } from "./rowsModel";
+import {
+  MessageSelectCheckbox,
+  useMessageRowSelection,
+} from "./selection/MessageSelectCheckbox";
 import { ClientToolCall } from "./tools/ClientToolCall";
 import { resolveToolInput, substituteToolCallContent } from "./tools/tool";
 import {
@@ -56,6 +60,17 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const highlightLabeled = labels?.highlight ?? false;
   const toolCallStyle = tools?.callStyle ?? "complete";
   const getCustomToolView = tools?.renderToolCall;
+
+  // Evidence selection, when the list has selection mode on: the checkbox
+  // renders in the first block's header, the row highlights when selected.
+  // Selection rides context (not props) so a toggle re-renders only the
+  // rows whose state changed; chatMessageRowEqual needs no update.
+  const rowSelection = useMessageRowSelection(
+    resolvedMessage.message.id ?? undefined
+  );
+  const headerLeading = rowSelection ? (
+    <MessageSelectCheckbox selection={rowSelection} />
+  ) : undefined;
 
   const views: ReactNode[] = [];
   const viewKinds: Array<"message" | "tool"> = [];
@@ -107,6 +122,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         linking={linking}
         references={references}
         label={messageChip}
+        headerLeading={headerLeading}
       />
     );
     viewKinds.push("message");
@@ -170,6 +186,11 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             error={toolMessage?.error ?? undefined}
             view={resolvedToolView}
             getCustomToolView={getCustomToolView}
+            // The head chat message is skipped for tool-only turns, so the
+            // row's checkbox lives on the first tool call's header.
+            headerLeading={
+              skipChatMessage && idx === 0 ? headerLeading : undefined
+            }
           />
         );
         viewKinds.push("tool");
@@ -245,13 +266,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     };
 
     return (
-      <div className={clsx(styles.grid, className)}>
+      <div
+        className={clsx(
+          styles.grid,
+          className,
+          rowSelection?.selected && styles.selected
+        )}
+      >
         {views.map((_, idx) => renderPart(idx))}
       </div>
     );
   } else {
     const isTurn = hasServerToolUse(resolvedMessage.message);
-    return views.map((view, idx) => {
+    const parts = views.map((view, idx) => {
       return (
         <div
           key={`chat-message-row-unlabeled-${index}-part-${idx}`}
@@ -274,6 +301,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
         </div>
       );
     });
+    // No single row container here, so the selected frame wraps the parts.
+    return rowSelection?.selected ? (
+      <div className={styles.selected}>{parts}</div>
+    ) : (
+      parts
+    );
   }
 }, chatMessageRowEqual);
 

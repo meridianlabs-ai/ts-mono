@@ -23,7 +23,7 @@ import { GoToTurnBar, type GoToTurnBarHandle } from "./GoToTurnBar";
 import { useTranscriptKeyboardNavigation } from "./hooks/useTranscriptKeyboardNavigation";
 import {
   isSelectableEvent,
-  toggleTranscriptSelection,
+  toggleIdSelection,
   type TranscriptRowSelectionProps,
   type TranscriptSelection,
 } from "./selection/transcriptSelection";
@@ -232,9 +232,7 @@ export const TranscriptViewNodes = forwardRef<
       const visibleIds = rows
         .filter((n) => isSelectableEvent(n.event))
         .map((n) => n.id);
-      current.onChange(
-        toggleTranscriptSelection(current, visibleIds, eventId, extend)
-      );
+      current.onChange(toggleIdSelection(current, visibleIds, eventId, extend));
     },
     [selectionLatest]
   );

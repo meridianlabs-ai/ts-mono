@@ -38,6 +38,12 @@ import {
   type MessageRow,
 } from "./rowsModel";
 import {
+  MessageRowIdContext,
+  MessageRowSelectedContext,
+  MessageRowToggleContext,
+} from "./selection/MessageRowSelectionContext";
+import type { MessageRowSelectionProps } from "./selection/messageSelection";
+import {
   ChatViewDisplayOptions,
   ChatViewLabelOptions,
   ChatViewLinkingOptions,
@@ -98,6 +104,13 @@ export interface ChatViewRowsVirtualListProps {
   labels?: ChatViewLabelOptions;
   linking?: ChatViewLinkingOptions;
   tools?: ChatViewToolOptions;
+  /**
+   * Evidence selection for the Messages tab (issue #631). Present only
+   * while selection mode is on; the host owns the state and passes a
+   * stable `onToggle`. Rows read their slice through context so a toggle
+   * re-renders only the rows whose value changed.
+   */
+  selection?: MessageRowSelectionProps;
 }
 
 /**
@@ -123,6 +136,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
     labels,
     linking,
     tools,
+    selection,
   }: ChatViewRowsVirtualListProps) {
     const listHandle = useRef<VirtualListHandle>(null);
 
@@ -200,7 +214,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             item.resolved.message,
             item.resolved.toolMessages.length
           );
-        return (
+        const row = (
           <>
             <ChatMessageRow
               index={index}
@@ -224,6 +238,23 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
             ) : null}
           </>
         );
+        if (!selection) {
+          return row;
+        }
+        // Selection mode: the row's id and selected flag ride context so a
+        // toggle re-renders only the rows whose value changed.
+        const rowId = item.resolved.message.id ?? undefined;
+        return (
+          <MessageRowToggleContext.Provider value={selection.onToggle}>
+            <MessageRowIdContext.Provider value={rowId}>
+              <MessageRowSelectedContext.Provider
+                value={rowId !== undefined && selection.selectedIds.has(rowId)}
+              >
+                {row}
+              </MessageRowSelectedContext.Provider>
+            </MessageRowIdContext.Provider>
+          </MessageRowToggleContext.Provider>
+        );
       },
       [
         id,
@@ -235,6 +266,7 @@ export const ChatViewRowsVirtualList: FC<ChatViewRowsVirtualListProps> = memo(
         linking,
         tools,
         maxLabelLength,
+        selection,
       ]
     );
 
