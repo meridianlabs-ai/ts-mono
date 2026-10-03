@@ -83,6 +83,18 @@ describe("SequenceReader", () => {
 
   const entries = { "0.json": [0, 1, 2], "3.json": [3, 4, 5], "6.json": [6] };
 
+  it("rejects truncated chunks instead of mapping across missing items", async () => {
+    await expect(
+      reader({ "0.json": [0], "3.json": [3] }, [0, 3], 4).getRange(0, 4)
+    ).rejects.toThrow("length disagrees with its sequence bounds");
+  });
+
+  it("rejects a non-array chunk", async () => {
+    await expect(reader({ "0.json": {} }, [0]).getRange(0, 1)).rejects.toThrow(
+      "must contain an array"
+    );
+  });
+
   it("ranges across chunk boundaries", async () => {
     const numbers = reader(entries, [0, 3, 6], 7);
     expect(await numbers.getRange(1, 5)).toStrictEqual([1, 2, 3, 4]);

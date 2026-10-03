@@ -90,3 +90,32 @@ describe("at", () => {
     expect(at(items, 0)).toBe("own");
   });
 });
+
+describe("untrusted chunk starts", () => {
+  it.each(["9007199254740992", "9".repeat(400), "1"])(
+    "rejects invalid first start %s",
+    (start) => {
+      expect(() =>
+        sequenceChunkStarts(
+          new Set([`samples/x_epoch_1/messages/${start}.json`]),
+          "x",
+          1,
+          "messages"
+        )
+      ).toThrow("Invalid chunked sample");
+    }
+  );
+  it("rejects aliases of the same ordinal", () => {
+    expect(() =>
+      sequenceChunkStarts(
+        new Set([
+          "samples/x_epoch_1/messages/0.json",
+          "samples/x_epoch_1/messages/00.json",
+        ]),
+        "x",
+        1,
+        "messages"
+      )
+    ).toThrow("duplicate");
+  });
+});
