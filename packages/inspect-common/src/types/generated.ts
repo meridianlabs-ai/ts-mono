@@ -2775,6 +2775,8 @@ export interface components {
             output: components["schemas"]["ModelOutput"];
             /** Pending */
             pending?: boolean | null;
+            /** Requested Model */
+            requested_model?: string | null;
             /** Retries */
             retries?: number | null;
             /** Role */
