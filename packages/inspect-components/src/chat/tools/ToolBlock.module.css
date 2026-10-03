@@ -119,3 +119,44 @@
   margin: 0 !important;
   padding: 0 !important;
 }
+
+.inputInsetZone,
+.outputInsetZone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 10px 10px;
+}
+
+.inputInsetZone {
+  background-color: var(--inspect-tool-block-input-bg);
+}
+
+.header + .inputInsetZone {
+  padding-top: 6px;
+}
+
+.inputZone + .inputInsetZone {
+  padding-top: 5px;
+}
+
+.outputInsetZone {
+  border-top: 1px solid var(--bs-light-border-subtle);
+  background-color: var(--inspect-tool-block-output-bg);
+  padding-top: 10px;
+}
+
+.outputWell + .outputInsetZone {
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* The call a check replaced or blocked: struck through and without syntax
+   colors, so the replacement reads as what ran. */
+.struckText,
+.struck :global(.tool-call-input),
+.struck :global(.tool-call-input) * {
+  color: rgba(var(--bs-body-color-rgb), 0.6) !important;
+  text-decoration: line-through;
+  text-decoration-color: rgba(var(--bs-body-color-rgb), 0.35);
+}

@@ -1463,6 +1463,7 @@ export interface components {
             score_display?: boolean | null;
             /** Score On Error */
             score_on_error?: boolean | null;
+            sentinel?: components["schemas"]["SentinelConfig"] | null;
             /** Time Limit */
             time_limit?: number | null;
             /** Token Limit */
@@ -1642,7 +1643,7 @@ export interface components {
          */
         EvalRetryError: {
             /** Events */
-            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
+            events?: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[] | null;
             /** Message */
             message: string;
             /** Traceback */
@@ -1686,7 +1687,7 @@ export interface components {
             /** Error Retries */
             error_retries?: components["schemas"]["EvalRetryError"][] | null;
             /** Events */
-            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
+            events: (components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"])[];
             events_data?: components["schemas"]["EventsData"] | null;
             /** Files */
             files?: string[] | null;
@@ -2059,7 +2060,7 @@ export interface components {
             started_at: string | "";
         };
         /** Event */
-        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
+        Event: components["schemas"]["SampleInitEvent"] | components["schemas"]["SampleLimitEvent"] | components["schemas"]["SandboxEvent"] | components["schemas"]["StateEvent"] | components["schemas"]["StoreEvent"] | components["schemas"]["ModelEvent"] | components["schemas"]["ToolEvent"] | components["schemas"]["AnchorEvent"] | components["schemas"]["ApprovalEvent"] | components["schemas"]["ReviewEvent"] | components["schemas"]["SentinelEvent"] | components["schemas"]["BranchEvent"] | components["schemas"]["CheckpointEvent"] | components["schemas"]["CompactionEvent"] | components["schemas"]["InputEvent"] | components["schemas"]["InterruptEvent"] | components["schemas"]["ScoreEvent"] | components["schemas"]["ScoreEditEvent"] | components["schemas"]["ErrorEvent"] | components["schemas"]["LoggerEvent"] | components["schemas"]["InfoEvent"] | components["schemas"]["SpanBeginEvent"] | components["schemas"]["SpanEndEvent"] | components["schemas"]["StepEvent"] | components["schemas"]["SubtaskEvent"];
         /** EventData */
         EventData: {
             /** Epoch */
@@ -2925,7 +2926,12 @@ export interface components {
         };
         /**
          * Reference
-         * @description Reference to scanned content.
+         * @description Reference from a score to content in the scored transcript.
+         *
+         *     References are stored as a list of dicts under a score's
+         *     `metadata["scanner_references"]` key. Inspect View identifies scanner
+         *     scores by the presence of that key and renders cites in the score's
+         *     explanation (e.g. `[M22]`) as links to the referenced content.
          */
         Reference: {
             /** Cite */
@@ -3488,6 +3494,109 @@ export interface components {
             id: number;
             /** Member Name */
             member_name: string;
+        };
+        /**
+         * SentinelConfig
+         * @description A sentinel configuration: one entry, a list of entries, or a mapping of instance names to entries.
+         *
+         *     The value of the `sentinel:` key in a configuration file, and what the eval log records. A mapping is one entry when its `name` is a string, and a mapping of instance names when every value is an entry, so an instance named `name` still configures a mapping.
+         */
+        SentinelConfig: components["schemas"]["SentinelEntry"] | components["schemas"]["SentinelEntry"][] | {
+            [key: string]: components["schemas"]["SentinelEntry"];
+        };
+        /**
+         * SentinelEntry
+         * @description One configured monitor or protocol.
+         *
+         *     Any key besides `name`, `params`, `version` and `meta` names a parameter of the factory whose value is nested monitors or protocols, such as `monitors` for `threshold` or `children` for `concurrent`; it holds a list or a mapping of entries, and `nested` returns them.
+         */
+        SentinelEntry: {
+            /** Meta */
+            meta?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /** Name */
+            name: string;
+            /** Params */
+            params: {
+                [key: string]: unknown;
+            };
+            /** Version */
+            version?: number | null;
+        } & {
+            [key: string]: components["schemas"]["SentinelConfig"];
+        };
+        /**
+         * SentinelEvent
+         * @description Report from a sentinel monitor or protocol about one step.
+         *
+         *     A report's metadata is recorded in the event's `metadata` field.
+         */
+        SentinelEvent: {
+            /** Action */
+            action?: ("continue" | "modify" | "reject" | "terminate" | "escalate") | null;
+            /**
+             * Audit
+             * @default false
+             */
+            audit: boolean;
+            /** Conversation */
+            conversation: string;
+            /** Error */
+            error?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            event: "sentinel";
+            /** Explanation */
+            explanation?: string | null;
+            /** Factory */
+            factory: string;
+            /** Function */
+            function?: string | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "observation" | "decision";
+            /** Message */
+            message?: string | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
+            modified?: components["schemas"]["ToolCall"] | null;
+            /** Path */
+            path: string;
+            /** Pending */
+            pending?: boolean | null;
+            /** References */
+            references: components["schemas"]["Reference"][];
+            /** Span Id */
+            span_id?: string | null;
+            /**
+             * Stage
+             * @enum {string}
+             */
+            stage: "model_input" | "model_output" | "tool_call" | "tool_result";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "reported" | "cancelled" | "bypassed" | "superseded" | "error";
+            /** Step Id */
+            step_id: string;
+            /** Suspicion */
+            suspicion?: number | {
+                [key: string]: number;
+            } | null;
+            /** Timestamp */
+            timestamp: string;
+            /** Uuid */
+            uuid?: string | null;
+            /** Working Start */
+            working_start: number;
         };
         /**
          * SnapshotDetails

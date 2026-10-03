@@ -19,6 +19,7 @@ import {
   SampleLimitEvent,
   SandboxEvent,
   ScoreEvent,
+  SentinelEvent,
   StateEvent,
   StepEvent,
   StoreEvent,
@@ -192,6 +193,7 @@ export type Event =
   | ToolEvent
   | ApprovalEvent
   | ReviewEvent
+  | SentinelEvent
   | InputEvent
   | ScoreEvent
   | ErrorEvent

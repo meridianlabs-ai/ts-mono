@@ -1,12 +1,13 @@
 import clsx from "clsx";
 import { FC, useMemo } from "react";
 
-import type { ToolEvent } from "@tsmono/inspect-common/types";
+import type { ApprovalEvent, ToolEvent } from "@tsmono/inspect-common/types";
 import {
   ChatView,
   ClientToolCall,
   resolveToolInput,
   substituteToolCallContent,
+  ToolBlockInset,
   type ChatViewLabelOptions,
 } from "@tsmono/inspect-components/chat";
 import { getOwn } from "@tsmono/util";
@@ -15,11 +16,14 @@ import { computeMaxLabelLength } from "../chat/labelLength";
 import { MessageLabel } from "../chat/MessageLabel";
 import { GeneratingIndicator } from "../indicators/GeneratingIndicator";
 
-import { ApprovalEventView } from "./ApprovalEventView";
+import { ApprovalInset } from "./ApprovalEventView";
 import { EventPanel } from "./event/EventPanel";
 import { formatTiming, formatTitle } from "./event/utils";
 import { TranscriptIcons } from "./icons";
+import { SentinelInset } from "./SentinelEventView";
+import { NotRunWell } from "./ToolCheckInset";
 import styles from "./ToolEventView.module.css";
+import type { SentinelStep } from "./transform/toolSentinels";
 import {
   EventNode,
   EventNodeContext,
@@ -27,6 +31,30 @@ import {
   EventPanelCallbacks,
   EventType,
 } from "./types";
+
+interface Blocker {
+  decision: "reject" | "terminate";
+  /** What the agent was told. */
+  message?: string | null;
+}
+
+/** The check that stopped the call: the final approval, else the sentinel outcome. */
+const blockerOf = (
+  approval: ApprovalEvent | undefined,
+  before: SentinelStep | undefined
+): Blocker | undefined => {
+  if (approval?.decision === "reject" || approval?.decision === "terminate") {
+    return { decision: approval.decision, message: approval.explanation };
+  }
+  const verdict = before?.verdict;
+  if (before?.outcome && (verdict === "reject" || verdict === "terminate")) {
+    return { decision: verdict, message: before.outcome.event.message };
+  }
+  return undefined;
+};
+
+const hasResult = (result: ToolEvent["result"]): boolean =>
+  Array.isArray(result) ? result.length > 0 : result !== "";
 
 interface ToolEventViewProps {
   eventNode: EventNode<ToolEvent>;
@@ -64,7 +92,50 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
     [event.view, event.arguments]
   );
 
-  const approvalNode = context?.toolApprovals?.get(event.id);
+  const approvals = context?.toolApprovals?.get(event.id);
+  const sentinels = context?.toolSentinels?.get(event.id);
+  const finalApproval = approvals?.at(-1)?.event;
+  const before = sentinels?.before;
+  const blocker = blockerOf(finalApproval, before);
+  // A blocked call records no result; an approval error is what the model
+  // received in place of one.
+  const ran =
+    event.error?.type !== "approval" && !(blocker && !hasResult(event.result));
+  const sentinelModified = before?.verdict === "modify" && !!before.effective;
+  const modified = finalApproval?.decision === "modify" || sentinelModified;
+  const beforeInsets =
+    approvals || before ? (
+      <ToolBlockInset region="input">
+        {approvals ? (
+          <ApprovalInset chain={approvals} ran={ran && !sentinelModified} />
+        ) : null}
+        {before ? (
+          <SentinelInset
+            step={before}
+            region="input"
+            context={context}
+            ran={ran}
+          />
+        ) : null}
+      </ToolBlockInset>
+    ) : undefined;
+  const afterInset = sentinels?.after ? (
+    <ToolBlockInset region="output">
+      <SentinelInset step={sentinels.after} region="output" context={context} />
+    </ToolBlockInset>
+  ) : undefined;
+  // The model received the ToolApprovalError text; prefer the recorded one.
+  const notRun = ran ? undefined : (
+    <NotRunWell
+      message={
+        event.error?.type === "approval"
+          ? event.error.message
+          : blocker?.decision === "reject"
+            ? blocker.message?.trim() || "Tool call not approved."
+            : undefined
+      }
+    />
+  );
 
   const lastModelNode = useMemo(() => {
     const lastModel = childNodes.findLast((e) => e.event.event === "model");
@@ -121,6 +192,10 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
       inputScreenshot={context?.inputScreenshot}
       error={showError && event.error ? event.error : undefined}
       view={resolvedView}
+      afterInput={beforeInsets}
+      afterOutput={afterInset}
+      inputStruck={modified}
+      outputReplacement={notRun}
     />
   );
 
@@ -165,16 +240,6 @@ export const ToolEventView: FC<ToolEventViewProps> = ({
           />
         ) : undefined}
 
-        {approvalNode ? (
-          <div className={styles.approvalWrap}>
-            <ApprovalEventView
-              eventNode={approvalNode}
-              className={styles.approval}
-            />
-          </div>
-        ) : (
-          ""
-        )}
         {event.pending ? (
           <div className={clsx(styles.progress)}>
             <GeneratingIndicator label="running" />

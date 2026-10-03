@@ -11,6 +11,8 @@ interface ToolBlockProps {
   title: string;
   /** Single-line args summary; ellipsized, never wraps. */
   summary?: string;
+  /** Strikes the summary through, for a call that a check replaced. */
+  summaryStruck?: boolean;
   /** Optional neutral pill after the title (e.g. "server"). */
   pill?: string;
   /** Flush rows (server calls inside the assistant turn) carry no container
@@ -30,6 +32,7 @@ export const ToolBlock: FC<ToolBlockProps> = ({
   icon,
   title,
   summary,
+  summaryStruck,
   pill,
   flush,
   className,
@@ -47,7 +50,13 @@ export const ToolBlock: FC<ToolBlockProps> = ({
       <div className={styles.header}>
         <i className={clsx("bi", icon, styles.icon)} />
         <span className={styles.title}>{title}</span>
-        {summary ? <span className={styles.summary}>{summary}</span> : null}
+        {summary ? (
+          <span
+            className={clsx(styles.summary, summaryStruck && styles.struckText)}
+          >
+            {summary}
+          </span>
+        ) : null}
         {pill ? <span className={styles.pill}>{pill}</span> : null}
       </div>
       {children}
@@ -57,10 +66,16 @@ export const ToolBlock: FC<ToolBlockProps> = ({
 
 /** Input zone (e.g. code) — code fill, hairline top. */
 export const ToolBlockInput: FC<{
+  /** Strikes the input through, for a call that a check replaced. */
+  struck?: boolean;
   className?: string | string[];
   children?: ReactNode;
-}> = ({ className, children }) => {
-  return <div className={clsx(styles.inputZone, className)}>{children}</div>;
+}> = ({ struck, className, children }) => {
+  return (
+    <div className={clsx(styles.inputZone, struck && styles.struck, className)}>
+      {children}
+    </div>
+  );
 };
 
 /** Output well — faint fill, hairline top; content is whatever the tool
@@ -70,4 +85,21 @@ export const ToolBlockOutput: FC<{
   children?: ReactNode;
 }> = ({ className, children }) => {
   return <div className={clsx(styles.outputWell, className)}>{children}</div>;
+};
+
+/** A region that holds tool call checks: tinted like the input zone before
+ * the call, like the output well after it. */
+export const ToolBlockInset: FC<{
+  region: "input" | "output";
+  children?: ReactNode;
+}> = ({ region, children }) => {
+  return (
+    <div
+      className={
+        region === "input" ? styles.inputInsetZone : styles.outputInsetZone
+      }
+    >
+      {children}
+    </div>
+  );
 };

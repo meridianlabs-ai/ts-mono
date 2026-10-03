@@ -34,6 +34,14 @@ export interface ClientToolCallProps {
   error?: ToolCallError;
   className?: string | string[];
   getCustomToolView?: (props: ToolCallViewProps) => ReactNode | undefined;
+  /** Rendered between the input zone and the output. */
+  afterInput?: ReactNode;
+  /** Rendered after the output. */
+  afterOutput?: ReactNode;
+  /** Strikes the input through, for a call that a check replaced. */
+  inputStruck?: boolean;
+  /** Rendered in place of the output, for a call that never ran. */
+  outputReplacement?: ReactNode;
 }
 
 /**
@@ -56,6 +64,10 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
   error,
   className,
   getCustomToolView,
+  afterInput,
+  afterOutput,
+  inputStruck,
+  outputReplacement,
 }) => {
   const customContent = useCustomContent();
 
@@ -73,11 +85,20 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
     selfAnnotation,
     inputScreenshot,
   };
-  const customView = customContent
-    ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
-    : undefined;
+  // A call a check replaced or blocked takes the standard block, which can
+  // strike its input and stand in for its result.
+  const customView =
+    customContent && !inputStruck && !outputReplacement
+      ? (getCustomToolView?.(viewProps) ?? getDefaultCustomToolView(viewProps))
+      : undefined;
   if (customView) {
-    return <div className={clsx(styles.custom, className)}>{customView}</div>;
+    return (
+      <div className={clsx(styles.custom, className)}>
+        {customView}
+        {afterInput}
+        {afterOutput}
+      </div>
+    );
   }
 
   const hasInput =
@@ -101,10 +122,11 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
       icon={iconForTool(tool)}
       title={title || tool}
       summary={description ?? (argsInInputZone ? undefined : argsSummary)}
+      summaryStruck={inputStruck}
       className={className}
     >
       {hasInput || argsInInputZone ? (
-        <ToolBlockInput>
+        <ToolBlockInput struck={inputStruck}>
           <ExpandablePanel
             id={`${id}-tool-input`}
             collapse={true}
@@ -120,7 +142,10 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
           </ExpandablePanel>
         </ToolBlockInput>
       ) : null}
-      {showError ? (
+      {afterInput}
+      {outputReplacement ? (
+        outputReplacement
+      ) : showError ? (
         <ToolBlockOutput>
           <ToolCallErrorView error={error} />
           {/* A failed action is when seeing where the agent tried to act
@@ -138,6 +163,7 @@ export const ClientToolCall: FC<ClientToolCallProps> = ({
           <ToolCallView {...viewProps} section="output" />
         </ToolBlockOutput>
       ) : null}
+      {afterOutput}
     </ToolBlock>
   );
 };

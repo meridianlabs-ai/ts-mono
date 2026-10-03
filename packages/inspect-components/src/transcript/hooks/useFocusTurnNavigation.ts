@@ -4,13 +4,14 @@ import type { VirtualListHandle } from "@tsmono/react/virtual";
 
 import type { TurnInfo } from "../outline/tree-visitors";
 import { flatTree } from "../transform/flatten";
+import { pairToolSentinels } from "../transform/toolSentinels";
 import {
   anchorIndexForTurn,
   computeTranscriptTurns,
   focusedTurnNodes,
   resolveEventTurnAnchor,
 } from "../turnNavigation";
-import type { EventNode } from "../types";
+import type { EventNode, EventNodeContext } from "../types";
 
 import type { FocusLane, FocusLaneScope } from "./useFocusLaneScope";
 import { useTranscriptKeyboardNavigation } from "./useTranscriptKeyboardNavigation";
@@ -73,6 +74,8 @@ export interface FocusTurnNavigation {
   listHandle: RefObject<VirtualListHandle | null>;
   /** The focused turn's events (model + its tools), fully expanded. */
   slice: EventNode[];
+  /** The slice's sentinel steps, which render inside their tools rather than as rows of the slice. */
+  sentinels: Pick<EventNodeContext, "toolSentinels" | "standaloneSentinels">;
   /** The focused event id resolved to its turn anchor (see hook docs). Use for
    *  exit-focus navigation so leaving lands on the turn actually shown. */
   resolvedEventId: string | null;
@@ -155,10 +158,19 @@ export function useFocusTurnNavigation(
     return resolveEventTurnAnchor(flat, eventId) ?? eventId;
   }, [eventId, anchorIds, flat, options?.following]);
 
-  const slice = useMemo(
-    () => (resolvedEventId ? focusedTurnNodes(flat, resolvedEventId) : []),
-    [flat, resolvedEventId]
-  );
+  // Paired over the whole lane: the slice drops span markers, and with them
+  // the sentinel spans that tie monitor model calls to their step.
+  const pairing = useMemo(() => pairToolSentinels(flat), [flat]);
+  const { slice, sentinels } = useMemo(() => {
+    const nodes = resolvedEventId
+      ? focusedTurnNodes(flat, resolvedEventId)
+      : [];
+    const { toolSentinels, standaloneSentinels, hiddenSentinelIds } = pairing;
+    return {
+      slice: nodes.filter((n) => !hiddenSentinelIds.has(n.id)),
+      sentinels: { toolSentinels, standaloneSentinels },
+    };
+  }, [flat, resolvedEventId, pairing]);
 
   const turnInfo: TurnInfo | undefined = resolvedEventId
     ? turnMap.get(resolvedEventId)
@@ -337,6 +349,7 @@ export function useFocusTurnNavigation(
     scrollRef,
     listHandle,
     slice,
+    sentinels,
     resolvedEventId,
     followingLatest,
     turnInfo,
