@@ -13,7 +13,8 @@ import "./MarkdownDiv.css";
 
 import { onDemandModule } from "../hooks/onDemandModule";
 
-import { useHasAllContentPermissions, usePlainText } from "./ContentTrust";
+import { usePlainText } from "./ContentTrust";
+import { useHasAllContentPermissions } from "./ContentTrustContext";
 import {
   defaultMarkdownRenderer,
   escapeHtmlCharacters,

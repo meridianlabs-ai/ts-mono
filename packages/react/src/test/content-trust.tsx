@@ -1,6 +1,6 @@
 import { FC, ReactNode } from "react";
 
-import { ContentTrustProvider } from "../components/ContentTrust";
+import { ContentTrustProvider } from "../components/ContentTrustContext";
 
 /** Test wrapper for components exercised on their trusted (rich) path. */
 export const TrustedContentWrapper: FC<{ children: ReactNode }> = ({

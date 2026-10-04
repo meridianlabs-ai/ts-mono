@@ -1,11 +1,9 @@
 import { http, HttpResponse } from "msw";
 
-// The subpath, not the testing barrel: Playwright loads specs in Node, where
-// the barrel's component helpers pull in CSS modules it can't parse.
 import {
   installWebviewHost,
   withWebviewBootstrap,
-} from "@tsmono/react/testing/webview";
+} from "@tsmono/react/testing";
 import { encodeBase64Url } from "@tsmono/util";
 
 import { expect, test } from "./fixtures/app";
