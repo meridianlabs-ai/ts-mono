@@ -27,7 +27,7 @@ configuration, mid-run changes, early stopping, and task arguments.
   least one config or task-arg value.
 - For a revision fixture, assert both visible commit text and the anchor href.
 - With config updates, assert the effective final value and change badge, then
-  click View Timeline and assert Timeline selection/filter state.
+  click "View on timeline" and assert the Timeline tab is selected.
 - With early stopping, assert manager and skipped count plus a known metadata
   leaf. Report the section unavailable on ordinary fixtures.
 
@@ -37,7 +37,7 @@ configuration, mid-run changes, early stopping, and task arguments.
   `ConfigCard.tsx`.
 - Header summary and timeline handoff:
   `apps/inspect/src/app/log-view/title-view/SecondaryBar.tsx` and
-  `apps/inspect/src/app/log-view/useShowTimeline.ts`.
+  `apps/inspect/src/app/log-view/useTimelineNavigation.ts`.
 - Effective config folding: `packages/inspect-common/src/utils/effectiveConfig.ts`
   and the generated log types in `packages/inspect-common/src/types/`.
 - Generic records/copy: `packages/inspect-components/src/content/`.
@@ -52,5 +52,5 @@ configuration, mid-run changes, early stopping, and task arguments.
   bugs belong to `@tsmono/util`'s git helpers rather than TaskTab JSX.
 - Empty args, early stopping, sandbox config, or change history are valid and
   suppress their sections.
-- Clicking a change chip carries selection through a property bag; verify both
-  route/tab and focused timeline state.
+- A change chip's "View on timeline" only selects the Timeline tab; it
+  carries no focused time or selection.

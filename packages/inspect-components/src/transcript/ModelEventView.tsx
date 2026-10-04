@@ -11,6 +11,7 @@ import type {
 import { ChatView } from "@tsmono/inspect-components/chat";
 import { MetaDataGrid } from "@tsmono/inspect-components/content";
 import { ModelUsagePanel } from "@tsmono/inspect-components/usage";
+import { ContentCode } from "@tsmono/react/components";
 import { usePrismHighlight, useProperty } from "@tsmono/react/hooks";
 import { formatTime } from "@tsmono/util";
 
@@ -339,12 +340,11 @@ export const APICodeCell: FC<APICodeCellProps> = ({ id, sourceCode }) => {
   return (
     <div ref={sourceCodeRef} className={clsx("model-call")}>
       <pre className={clsx(styles.codePre)}>
-        <code
+        <ContentCode
           id={id}
           className={clsx("language-json", styles.code, "text-size-small")}
-        >
-          {sourceCode}
-        </code>
+          text={sourceCode}
+        />
       </pre>
     </div>
   );

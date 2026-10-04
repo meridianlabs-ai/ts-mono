@@ -212,3 +212,10 @@ caught locally. If you changed code, also run `pnpm test`.
   refactors), include before/after screenshots in the PR description —
   both light and dark themes when the change touches themed surfaces.
   A visual diff catches regressions review of the CSS alone won't.
+- Upload the screenshots yourself with `gh` ≥ 2.101 rather than leaving
+  them for a human to attach: pass each file with `--attach` on
+  `gh pr create`, `gh pr edit` or `gh pr comment`, and reference it in
+  the body as `![Before, dark](./before-dark.png)`. gh rewrites each
+  reference whose path matches an `--attach` argument to the uploaded
+  asset's URL, and appends attachments the body does not reference.
+  Keep the images out of the commit.

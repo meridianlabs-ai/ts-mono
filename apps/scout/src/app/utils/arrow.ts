@@ -1,7 +1,7 @@
 import { ColumnTable, from } from "arquero";
 import JSON5 from "json5";
 
-import { asyncJsonParse, isRecord } from "@tsmono/util";
+import { asyncJsonParse, castScanValue, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
 
@@ -138,9 +138,12 @@ export async function expandResultsetRows(
         const valueType = result.type ?? inferType(result.value);
         expandedRow.value_type = valueType;
 
-        // Cast the value based on its type
-        const value = maybeSerializeValue(result.value);
-        expandedRow.value = value;
+        // Expanded rows are built after decodeArrowBytes cast the table, so
+        // they get the same per-value cast here.
+        expandedRow.value = castScanValue(
+          maybeSerializeValue(result.value),
+          valueType
+        );
 
         // Split into message_references and event_references
         const references = result.references ?? [];

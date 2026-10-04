@@ -84,6 +84,11 @@
   z-index: 2;
 }
 
+/* Sticky tracks the *nearest scroll container*. Any ancestor between the
+   panel and the real scroller with `overflow` other than `visible`/`clip`
+   becomes that container and pins the toggle to the panel's bottom edge —
+   off screen for a panel taller than the viewport. Consumers that round a
+   frame's corners must use `overflow: clip`, not `hidden`. */
 .inlineToggleSticky {
   position: sticky;
   bottom: 0.25em;

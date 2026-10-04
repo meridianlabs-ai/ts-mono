@@ -1,4 +1,4 @@
-import { FC, useCallback, useMemo } from "react";
+import { FC, useMemo } from "react";
 import { useNavigate } from "react-router";
 
 import { navigateAndForget, useUnmount } from "@tsmono/react/hooks";
@@ -10,6 +10,7 @@ import { useCurrentLogFile } from "../routing/currentSelection";
 import {
   samplesSampleUrl,
   samplesUrl,
+  toFullUrlMaybe,
   useSamplesRouteParams,
 } from "../routing/url";
 import { SampleDetailComponent } from "../samples/SampleDetailComponent";
@@ -67,42 +68,27 @@ export const SampleDetailView: FC = () => {
     currentIndex >= 0 &&
     currentIndex < displayedSamples.length - 1;
 
-  // Navigation handlers
-  const handlePrevious = useCallback(() => {
-    if (currentIndex > 0 && displayedSamples && routeLogPath && logDir) {
-      const prev = displayedSamples[currentIndex - 1];
-      if (!prev) return;
-      const relativePath = directoryRelativeUrl(prev.logFile, logDir);
-      const url = samplesSampleUrl(
-        relativePath,
-        prev.sampleId,
-        prev.epoch,
-        tabId
-      );
-      navigateAndForget(navigate, url);
-    }
-  }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
-
-  const handleNext = useCallback(() => {
-    if (
-      displayedSamples &&
-      currentIndex >= 0 &&
-      currentIndex < displayedSamples.length - 1 &&
-      routeLogPath &&
-      logDir
-    ) {
-      const next = displayedSamples[currentIndex + 1];
-      if (!next) return;
-      const relativePath = directoryRelativeUrl(next.logFile, logDir);
-      const url = samplesSampleUrl(
-        relativePath,
-        next.sampleId,
-        next.epoch,
-        tabId
-      );
-      navigateAndForget(navigate, url);
-    }
-  }, [currentIndex, displayedSamples, routeLogPath, logDir, tabId, navigate]);
+  // The neighbouring samples' routes, shared by the click handlers and the
+  // chevrons' hrefs so a plain click and a new-tab open land in one place.
+  const siblingRoute = (offset: number) => {
+    if (currentIndex < 0 || !routeLogPath || !logDir) return undefined;
+    const sibling = displayedSamples?.[currentIndex + offset];
+    if (!sibling) return undefined;
+    return samplesSampleUrl(
+      directoryRelativeUrl(sibling.logFile, logDir),
+      sibling.sampleId,
+      sibling.epoch,
+      tabId
+    );
+  };
+  const previousRoute = siblingRoute(-1);
+  const nextRoute = siblingRoute(1);
+  const handlePrevious = () => {
+    if (previousRoute) navigateAndForget(navigate, previousRoute);
+  };
+  const handleNext = () => {
+    if (nextRoute) navigateAndForget(navigate, nextRoute);
+  };
 
   useUnmount(clearSampleTab);
 
@@ -116,6 +102,8 @@ export const SampleDetailView: FC = () => {
         onNext: handleNext,
         hasPrevious: !!hasPrevious,
         hasNext: !!hasNext,
+        previousHref: toFullUrlMaybe(previousRoute),
+        nextHref: toFullUrlMaybe(nextRoute),
       }}
       navbarConfig={{
         currentPath: routeLogPath,

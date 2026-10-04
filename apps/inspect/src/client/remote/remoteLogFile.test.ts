@@ -236,6 +236,21 @@ describe("readLogSummary summary normalization", () => {
     zipEntries.set("header.json", vintageHeader);
   });
 
+  test("keeps malformed history errors on stats when loading a .eval header", async () => {
+    zipEntries.set("header.json", {
+      ...vintageHeader,
+      stats: { connection_limit_history: [null] },
+    });
+    zipEntries.set("summaries.json", []);
+    const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);
+    const details = await remoteLog.readLogSummary();
+    expect(details.stats?.connection_limit_history).toEqual([]);
+    expect(details.stats?.connectionHistoryError).toMatch(
+      "Invalid connection history"
+    );
+    expect(details.eval.task).toBe("demo");
+  });
+
   test("fills read-time defaults on vintage summaries.json rows", async () => {
     zipEntries.set("summaries.json", [vintageRow]);
     const remoteLog = await openRemoteLogFile(fakeApi(), "log.eval", 1);

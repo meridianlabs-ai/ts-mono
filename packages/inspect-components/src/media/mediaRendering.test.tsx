@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render } from "@testing-library/react";
+import { render as renderUi } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type {
@@ -8,10 +8,15 @@ import type {
   ContentImage,
   ContentVideo,
 } from "@tsmono/inspect-common/types";
+import { TrustedContentWrapper } from "@tsmono/react/testing";
 
 import { ContentDocumentView } from "../chat/documents/ContentDocumentView";
 import { MessageContent } from "../chat/MessageContent";
 import { ToolOutput } from "../chat/tools/ToolOutput";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 const remoteUrl = "https://example.com/media";
 const remoteMediaCases: [ContentImage | ContentAudio | ContentVideo, string][] =

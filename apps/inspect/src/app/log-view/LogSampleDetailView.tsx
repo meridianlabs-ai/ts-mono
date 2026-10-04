@@ -38,8 +38,7 @@ export const LogSampleDetailView: FC = () => {
   });
 
   // Get navigation handlers from the hook
-  const { onPrevious, onNext, hasPrevious, hasNext } =
-    useLogSampleNavigationActions();
+  const navigation = useLogSampleNavigationActions();
 
   // Custom navigation URL function for breadcrumbs and back button.
   // We use currentPath = `${logPath}/sample` so the log file becomes clickable.
@@ -81,12 +80,7 @@ export const LogSampleDetailView: FC = () => {
       sampleId={sampleId}
       epoch={epoch}
       tabId={sampleTabId}
-      navigation={{
-        onPrevious,
-        onNext,
-        hasPrevious,
-        hasNext,
-      }}
+      navigation={navigation}
       navbarConfig={{
         // Add sample identifier to path so log file becomes clickable
         // (breadcrumbs don't make the last segment a link)

@@ -12,10 +12,13 @@ export const useLogNavigationAction = () => {
   const logDir = useLogDir();
   const logFile = useCurrentLogFile();
   const prefix = useRoutePrefix();
+  const getTabUrl = (tabId: string) =>
+    logFile ? logsUrl(logFile, logDir, tabId, prefix) : undefined;
   return {
     selectTab: (tabId: string) => {
-      if (logFile)
-        navigateAndForget(navigate, logsUrl(logFile, logDir, tabId, prefix));
+      const url = getTabUrl(tabId);
+      if (url) navigateAndForget(navigate, url);
     },
+    getTabUrl,
   };
 };

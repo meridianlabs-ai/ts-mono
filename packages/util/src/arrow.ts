@@ -70,6 +70,44 @@ function ensureLZ4CodecRegistered(): void {
   }
 }
 
+/**
+ * Cast one scan `value` cell to its `value_type`. Mixed-type value columns
+ * arrive as text; boolean/number text decodes, anything it can't decode is
+ * null, and other types pass through. Also used for resultset rows, which
+ * are expanded after the table-level cast.
+ */
+export const castScanValue = (value: unknown, valueType: string): unknown => {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (valueType === "boolean") {
+    if (typeof value === "boolean") {
+      return value;
+    }
+    const strVal = String(value).toLowerCase();
+    if (strVal === "true") {
+      return true;
+    }
+    if (strVal === "false") {
+      return false;
+    }
+    return null;
+  } else if (valueType === "number") {
+    if (typeof value === "number") {
+      return value;
+    }
+    const strVal = String(value).trim();
+    if (strVal === "") {
+      return null;
+    }
+    const num = Number(strVal);
+    return isNaN(num) ? null : num;
+  } else {
+    return value;
+  }
+};
+
 // When Arrow/Pandas encounters mixed-type columns (e.g., numbers and nulls),
 // it converts everything to strings for safety. This function restores the
 // original types based on the value_type column (or a known type).
@@ -84,47 +122,6 @@ function castColumns(table: ColumnTable): ColumnTable {
     return table;
   }
 
-  // Helper function to cast a single value based on its type
-  // Returns unknown, not a scalar: the string/array/object branch passes the
-  // input straight through.
-  const castValue = (value: unknown, valueType: string): unknown => {
-    if (value === null || value === undefined) {
-      return null;
-    }
-
-    if (valueType === "boolean") {
-      // Already boolean
-      if (typeof value === "boolean") {
-        return value;
-      }
-      // Cast string to boolean
-      const strVal = String(value).toLowerCase();
-      if (strVal === "true") {
-        return true;
-      }
-      if (strVal === "false") {
-        return false;
-      }
-      return null;
-    } else if (valueType === "number") {
-      // Already a number
-      if (typeof value === "number") {
-        return value;
-      }
-
-      const strVal = String(value).trim();
-      if (strVal === "") {
-        // Empty values should be null
-        return null;
-      }
-      const num = Number(strVal);
-      return isNaN(num) ? null : num;
-    } else {
-      // For string, null, array, object - keep as-is
-      return value;
-    }
-  };
-
   // Build derivation object for all columns that need casting
   const derivations: {
     value?: ReturnType<typeof escape>;
@@ -133,7 +130,7 @@ function castColumns(table: ColumnTable): ColumnTable {
 
   if (hasValue) {
     derivations.value = escape((d: { value: unknown; value_type: string }) => {
-      return castValue(d.value, d.value_type);
+      return castScanValue(d.value, d.value_type);
     });
   }
 

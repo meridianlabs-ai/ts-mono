@@ -92,3 +92,27 @@ describe("MetaDataGrid copy button", () => {
     expect(screen.queryByRole("button", { name: /copy/i })).toBeNull();
   });
 });
+
+describe("MetaDataGrid log-authored escape-hatch keys", () => {
+  it("renders _html/_model objects from log metadata as a nested record", () => {
+    const { container } = renderGrid({
+      note: { _html: 1, _model: { a: 1 } },
+      web_search: { _html: 1 },
+    });
+
+    expect(container.textContent).toContain("note");
+    expect(container.textContent).toContain("_model");
+    expect(container.textContent).toContain("web_search");
+  });
+
+  it("still renders a React element under _html as-is", () => {
+    const { container } = renderGrid({
+      tags: { _html: <span data-testid="custom-tags">custom</span> },
+    });
+
+    expect(
+      container.querySelector('[data-testid="custom-tags"]')
+    ).not.toBeNull();
+    expect(container.textContent).not.toContain("$$typeof");
+  });
+});

@@ -19,6 +19,21 @@ const minimalEval = {
 };
 
 describe("normalizeEvalHeader", () => {
+  it.each([normalizeEvalHeader, normalizeEvalLog])(
+    "normalizes stats at both header and whole-log boundaries",
+    (normalize) => {
+      const result = normalize({
+        eval: minimalEval,
+        stats: { connection_limit_history: [null] },
+      });
+      expect(result.stats?.connection_limit_history).toEqual([]);
+      expect(result.stats?.connectionHistoryError).toMatch(
+        "Invalid connection history"
+      );
+      expect(result.eval.task).toBe("demo");
+    }
+  );
+
   it("throws on non-object input", () => {
     expect(() => normalizeEvalHeader("bad")).toThrow();
     expect(() => normalizeEvalHeader(null)).toThrow();
@@ -49,6 +64,24 @@ describe("normalizeEvalHeader", () => {
     });
     expect(header.tags).toEqual(["log"]);
     expect(header.metadata).toEqual({ from: "log" });
+  });
+
+  it("fills stats usage defaults and drops malformed usage entries", () => {
+    const header = normalizeEvalHeader({
+      eval: minimalEval,
+      stats: {
+        model_usage: {
+          "openai/gpt-4": { input_tokens: 1, output_tokens: 2 },
+          "openai/gpt-3.5": null,
+        },
+      },
+    });
+    expect(header.stats?.model_usage).toEqual({
+      "openai/gpt-4": { input_tokens: 1, output_tokens: 2, total_tokens: 0 },
+    });
+    expect(header.stats?.role_usage).toEqual({});
+    expect(header.stats?.started_at).toBe("");
+    expect(normalizeEvalHeader({ eval: minimalEval }).stats).toBeUndefined();
   });
 
   it("preserves fields it doesn't model (future schema growth)", () => {

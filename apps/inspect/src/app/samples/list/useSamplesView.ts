@@ -7,6 +7,7 @@ import { useStore } from "../../../state/store";
 import { useCurrentLogFile } from "../../routing/currentSelection";
 import { getFieldKey, type PickerColumn } from "../../shared/gridUtils";
 import { type WireScoreColorScale } from "../../shared/samples-grid/colorScale";
+import { SCORE_FIELD_RAW_PREFIX } from "../../shared/samples-grid/columns";
 
 import { type SamplesViewState } from "./samplesView";
 import {
@@ -201,13 +202,23 @@ export function useSamplesView(
     [patchView, view.userOverrides]
   );
 
+  // Score columns are sized per mode (narrow and rotated vs. wide), so a
+  // width set in one mode would be wrong in the other: the toggle drops
+  // score-column widths and keeps every other column's.
   const setCompactScores = useCallback(
     (compactScores: boolean) =>
       patchView({
         compactScores,
         userOverrides: { ...view.userOverrides, compactScores },
+        columnWidths:
+          view.columnWidths &&
+          Object.fromEntries(
+            Object.entries(view.columnWidths).filter(
+              ([id]) => !id.startsWith(SCORE_FIELD_RAW_PREFIX)
+            )
+          ),
       }),
-    [patchView, view.userOverrides]
+    [patchView, view.userOverrides, view.columnWidths]
   );
 
   const setColorScalesEnabled = useCallback(

@@ -20,7 +20,7 @@ describe("openInNewTab", () => {
       openInNewTab(route);
 
       expect(open).toHaveBeenCalledWith(
-        `${window.location.pathname}#/logs/example.eval`,
+        `${window.location.origin}${window.location.pathname}#/logs/example.eval`,
         "_blank",
         "noopener,noreferrer"
       );
@@ -28,4 +28,27 @@ describe("openInNewTab", () => {
       expect(focus).toHaveBeenCalledOnce();
     }
   );
+
+  it("keeps the host page's path and query (e.g. ?log_dir=)", () => {
+    const initial = window.location.href;
+    window.history.replaceState(
+      null,
+      "",
+      "/viewer?log_dir=s3%3A%2F%2Fb%2Flogs"
+    );
+    try {
+      vi.spyOn(window, "focus").mockImplementation(() => {});
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+
+      openInNewTab("/logs/example.eval");
+
+      expect(open).toHaveBeenCalledWith(
+        `${window.location.origin}/viewer?log_dir=s3%3A%2F%2Fb%2Flogs#/logs/example.eval`,
+        "_blank",
+        "noopener,noreferrer"
+      );
+    } finally {
+      window.history.replaceState(null, "", initial);
+    }
+  });
 });

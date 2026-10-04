@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { DataGrid } from "./DataGrid";
 import type { SimpleRow as Row } from "./testFixtures";
@@ -71,5 +71,89 @@ describe("DataGrid row selection", () => {
     fireEvent.keyDown(grid(), { key: "ArrowDown" });
     fireEvent.keyDown(grid(), { key: "Enter" });
     expect(onRowActivate).toHaveBeenCalledWith(rows[2]);
+  });
+});
+
+describe("DataGrid open in new tab", () => {
+  const hrefFor = (r: Row) => `/#/rows/${r.id}`;
+
+  // jsdom doesn't implement window.focus (called to keep focus on the opener).
+  beforeEach(() => {
+    vi.spyOn(window, "focus").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test.each(["metaKey", "ctrlKey", "shiftKey"] as const)(
+    "%s+Enter opens the selected row's href in a new tab",
+    (modifier) => {
+      const onRowActivate = vi.fn();
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+      render(
+        <DataGrid<Row>
+          data={rows}
+          columns={columns}
+          getRowId={(r) => r.id}
+          selectedRowId="r2"
+          onSelectedRowChange={() => {}}
+          onRowActivate={onRowActivate}
+          getRowHref={hrefFor}
+        />
+      );
+
+      fireEvent.keyDown(grid(), { key: "Enter", [modifier]: true });
+      expect(open).toHaveBeenCalledWith(
+        "/#/rows/r2",
+        "_blank",
+        expect.any(String)
+      );
+      expect(onRowActivate).not.toHaveBeenCalled();
+    }
+  );
+
+  test("inside VS Code, cmd+Enter activates instead of opening a tab", () => {
+    document.body.setAttribute("data-vscode-theme-kind", "vscode-dark");
+    try {
+      const onRowActivate = vi.fn();
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+      render(
+        <DataGrid<Row>
+          data={rows}
+          columns={columns}
+          getRowId={(r) => r.id}
+          selectedRowId="r2"
+          onSelectedRowChange={() => {}}
+          onRowActivate={onRowActivate}
+          getRowHref={hrefFor}
+        />
+      );
+
+      fireEvent.keyDown(grid(), { key: "Enter", metaKey: true });
+      expect(open).not.toHaveBeenCalled();
+      expect(onRowActivate).toHaveBeenCalledWith(rows[1]);
+    } finally {
+      document.body.removeAttribute("data-vscode-theme-kind");
+    }
+  });
+
+  test("cmd+Enter falls back to activating a row with no href", () => {
+    const onRowActivate = vi.fn();
+    const open = vi.spyOn(window, "open").mockReturnValue(null);
+    render(
+      <DataGrid<Row>
+        data={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        selectedRowId="r2"
+        onSelectedRowChange={() => {}}
+        onRowActivate={onRowActivate}
+        getRowHref={() => undefined}
+      />
+    );
+
+    fireEvent.keyDown(grid(), { key: "Enter", metaKey: true });
+    expect(open).not.toHaveBeenCalled();
+    expect(onRowActivate).toHaveBeenCalledWith(rows[1]);
   });
 });

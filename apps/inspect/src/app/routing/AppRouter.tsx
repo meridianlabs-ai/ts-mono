@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { Navigate, Outlet, useNavigate } from "react-router";
 
+import { trustContentSetting } from "@tsmono/inspect-components/content";
 import {
   AppErrorBoundary,
   ComponentNavigationProvider,
+  ContentTrustCeilingProvider,
 } from "@tsmono/react/components";
 import { createRestorableHashRouter } from "@tsmono/react/routing";
 import { basename, isUri } from "@tsmono/util";
@@ -19,6 +21,7 @@ import { LogsPanel } from "../log-list/LogsPanel";
 import { LogSampleDetailView } from "../log-view/LogSampleDetailView";
 import { LogViewContainer } from "../log-view/LogViewContainer";
 import { SampleEventView } from "../samples/event/SampleEventView";
+import { SelectionContentTrustProvider } from "../shared/contentTrust";
 
 import { CurrentSelectionProvider } from "./currentSelection";
 import { hostDestinationRoute } from "./hostNavigation";
@@ -58,7 +61,8 @@ const AppLayout = () => {
   // bypasses the Outlet and its child route table.
   const isFocus = sampleId && epoch && sampleTabId === kSampleEventTabId;
   const isSampleDetail = (sampleId && epoch) || sampleUuid;
-  const content = useAppConfig().singleFileMode ? (
+  const appConfig = useAppConfig();
+  const content = appConfig.singleFileMode ? (
     isFocus ? (
       <SampleEventView />
     ) : isSampleDetail ? (
@@ -74,7 +78,15 @@ const AppLayout = () => {
     <ComponentNavigationProvider navigation={componentNavigation}>
       <AppErrorBoundary>
         <CurrentSelectionProvider>
-          <LoaderMounts>{content}</LoaderMounts>
+          <LoaderMounts>
+            <ContentTrustCeilingProvider
+              value={trustContentSetting(appConfig.trust_content)}
+            >
+              <SelectionContentTrustProvider>
+                {content}
+              </SelectionContentTrustProvider>
+            </ContentTrustCeilingProvider>
+          </LoaderMounts>
         </CurrentSelectionProvider>
       </AppErrorBoundary>
     </ComponentNavigationProvider>

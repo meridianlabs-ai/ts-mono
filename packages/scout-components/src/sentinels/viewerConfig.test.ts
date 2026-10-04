@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import type {
   MetadataField,
   ScannerResultField,
+  ScannerResultView,
   ViewerConfig,
 } from "@tsmono/inspect-common/types";
 
+import { scannerGlobCompatibility } from "./scannerGlobCompatibility.fixture";
 import {
   kDefaultFields,
   kDefaultResolvedView,
@@ -51,6 +53,215 @@ const withAppendedDefaults = (
 };
 
 describe("resolveScannerResultView", () => {
+  it("resolves hostile wildcard patterns without blocking the viewer", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: {
+        ["*a".repeat(24)]: { fields: [builtin("value")], exclude_fields: [] },
+      },
+    };
+    expect(resolveScannerResultView(viewer, "a".repeat(40) + "b")).toEqual(
+      kDefaultResolvedView
+    );
+  });
+
+  it.each([
+    ["audit_?", "audit_a", true],
+    ["audit_?", "audit_ab", false],
+    ["audit_[a-c]", "audit_b", true],
+    ["audit_[a-c]", "audit_z", false],
+    ["audit_[!a-c]", "audit_z", false],
+    ["audit_[^a-c]", "audit_b", false],
+    ["audit_[]a]", "audit_]", true],
+    ["audit_[a-]", "audit_-", true],
+    ["audit_[\\]]", "audit_]", true],
+    ["[ab]", "[ab]", true],
+    ["*", "", false],
+    ["?", "", false],
+    ["audit_[z-a]", "audit_a", false],
+    ["audit_[ab", "audit_[ab", true],
+    ["audit_\\*", "audit_*", true],
+    ["audit_\\*", "audit_other", false],
+    ["audit_\\?", "audit_?", true],
+    ["audit_\\[x]", "audit_[x]", true],
+    ["audit_[a\\-c]", "audit_b", false],
+    ["audit_[a\\-c]", "audit_-", true],
+    ["audit_\\", "audit_\\", true],
+    ["audit_?", "audit_😀", false],
+    ["audit_??", "audit_😀", true],
+    ["*", ".hidden", false],
+    ["*", "package/scanner", false],
+    ["audit_**", "audit_nested/scanner", false],
+    ["audit_(a|b)", "audit_(a|b)", true],
+    ["audit_(a|b)", "audit_a", false],
+    ["audit_{a,b}", "audit_{a,b}", true],
+    ["!audit", "!audit", true],
+  ])("matches pattern %s against %s: %s", (pattern, scannerName, matches) => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: {
+        [pattern]: { fields: [builtin("value")], exclude_fields: [] },
+      },
+    };
+    expect(resolveScannerResultView(viewer, scannerName).fields).toEqual(
+      matches ? withAppendedDefaults([builtin("value")]) : kDefaultFields
+    );
+  });
+
+  it("preserves picomatch display rules for ordinary scanner names and paths", () => {
+    for (const { pattern, matchingNames } of scannerGlobCompatibility.cases) {
+      const viewer: ViewerConfig = {
+        scanner_result_view: {
+          [pattern]: {
+            fields: [builtin("value")],
+            exclude_fields: [builtin("answer"), meta("internal")],
+          },
+        },
+      };
+      for (const name of scannerGlobCompatibility.names) {
+        const matches = matchingNames.includes(name);
+        const resolved = resolveScannerResultView(viewer, name);
+        expect(resolved, `${pattern} against ${name}`).toEqual(
+          matches
+            ? {
+                fields: withAppendedDefaults([builtin("value")]).filter(
+                  (field) => field.kind !== "builtin" || field.name !== "answer"
+                ),
+                excludedMetadataKeys: ["internal"],
+              }
+            : kDefaultResolvedView
+        );
+      }
+    }
+  });
+
+  it.each(["package/scanner", ".hidden", "package/.hidden"])(
+    "keeps bare display rules from hiding fields for %s",
+    (name) => {
+      expect(
+        resolveScannerResultView(
+          {
+            scanner_result_view: {
+              fields: [builtin("value")],
+              exclude_fields: [builtin("answer")],
+            },
+          },
+          name
+        )
+      ).toEqual(kDefaultResolvedView);
+    }
+  );
+
+  it("rejects empty patterns", () => {
+    expect(() =>
+      resolveScannerResultView(
+        {
+          scanner_result_view: { "": { fields: null, exclude_fields: [] } },
+        },
+        "scanner"
+      )
+    ).toThrow("glob patterns must not be empty");
+  });
+
+  it("bounds work across multiple globstar segments", () => {
+    expect(() =>
+      resolveScannerResultView(
+        {
+          scanner_result_view: {
+            ["**/a/".repeat(800) + "b"]: { fields: null, exclude_fields: [] },
+          },
+        },
+        "a/".repeat(2047) + "c"
+      )
+    ).toThrow("glob matching work limit");
+  });
+
+  it("handles hundreds of hostile patterns while preserving the matching view", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: Object.fromEntries<ScannerResultView>([
+        ...Array.from(
+          { length: 512 },
+          (_, index): [string, ScannerResultView] => [
+            "*a".repeat(24) + index,
+            { fields: [builtin("answer")], exclude_fields: [] },
+          ]
+        ),
+        ["*", { fields: [builtin("value")], exclude_fields: [] }],
+      ]),
+    };
+    expect(
+      resolveScannerResultView(viewer, "a".repeat(60) + "b").fields
+    ).toEqual(withAppendedDefaults([builtin("value")]));
+  });
+
+  it("rejects excessive pattern counts instead of applying a partial configuration", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: Object.fromEntries<ScannerResultView>(
+        Array.from(
+          { length: 1025 },
+          (_, index): [string, ScannerResultView] => [
+            `scanner_${index}`,
+            { fields: null, exclude_fields: [] },
+          ]
+        )
+      ),
+    };
+    expect(() => resolveScannerResultView(viewer, "scanner_0")).toThrow(
+      "at most 1024 glob patterns"
+    );
+  });
+
+  it.each([
+    ["a".repeat(4097), "a"],
+    ["*", "a".repeat(4097)],
+  ])(
+    "rejects excessive pattern or scanner-name lengths",
+    (pattern, scannerName) => {
+      const viewer: ViewerConfig = {
+        scanner_result_view: {
+          [pattern]: { fields: null, exclude_fields: [] },
+        },
+      };
+      expect(() => resolveScannerResultView(viewer, scannerName)).toThrow(
+        "at most 4096 characters"
+      );
+    }
+  );
+
+  it("bounds quadratic wildcard rescanning", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: {
+        ["*" + "a".repeat(2048) + "b"]: { fields: null, exclude_fields: [] },
+      },
+    };
+    expect(() => resolveScannerResultView(viewer, "a".repeat(4096))).toThrow(
+      "glob matching work limit"
+    );
+  });
+
+  it("shares the matching work limit across the whole configuration", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: Object.fromEntries<ScannerResultView>(
+        Array.from({ length: 128 }, (_, index): [string, ScannerResultView] => [
+          "*" + "a".repeat(127) + index,
+          { fields: null, exclude_fields: [] },
+        ])
+      ),
+    };
+    expect(() => resolveScannerResultView(viewer, "a".repeat(4096))).toThrow(
+      "glob matching work limit"
+    );
+  });
+
+  it("bounds repeated unclosed character classes during pattern parsing", () => {
+    const viewer: ViewerConfig = {
+      scanner_result_view: {
+        ["[".repeat(4096)]: { fields: null, exclude_fields: [] },
+      },
+    };
+    expect(() => resolveScannerResultView(viewer, "scanner")).toThrow(
+      "glob matching work limit"
+    );
+  });
+
   it("returns the built-in default when viewer is null/undefined", () => {
     expect(resolveScannerResultView(null, "any")).toEqual(kDefaultResolvedView);
     expect(resolveScannerResultView(undefined, "any")).toEqual(

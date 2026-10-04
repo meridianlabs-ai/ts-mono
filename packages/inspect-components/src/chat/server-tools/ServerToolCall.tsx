@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
+import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
 import { ExternalLink } from "../../content/ExternalLink";
@@ -192,11 +192,13 @@ const CodeExecutionResult: FC<{
       lines={15}
     >
       {result.stdout ? (
-        <pre className={styles.execOutput}>{result.stdout}</pre>
+        <pre className={styles.execOutput}>
+          <ContentText text={result.stdout} />
+        </pre>
       ) : null}
       {result.stderr ? (
         <pre className={clsx(styles.execOutput, styles.execError)}>
-          {result.stderr}
+          <ContentText text={result.stderr} />
         </pre>
       ) : null}
       {!result.stdout && !result.stderr && result.encrypted ? (

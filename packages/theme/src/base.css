@@ -193,7 +193,10 @@
   background-color: var(--inspect-readable-thinking-bg);
 }
 
-body:not([class^="vscode-"]) button {
+/* Tabs that navigate render as links (TabSet's href); style them like the
+   button tabs. */
+body:not([class^="vscode-"]) button,
+body:not([class^="vscode-"]) a[role="tab"] {
   --bs-nav-pills-link-active-bg: #e3eaf1;
   --bs-nav-pills-link-active-color: black;
   --bs-nav-link-color: black;

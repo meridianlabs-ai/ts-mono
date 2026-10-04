@@ -17,7 +17,10 @@ import {
   NavPills,
 } from "@tsmono/react/components";
 
-import { useDisplayMode } from "../../content/DisplayModeContext";
+import {
+  useCustomContent,
+  useDisplayMode,
+} from "../../content/DisplayModeContext";
 import { MessageContent } from "../MessageContent";
 import { ContentTool } from "../types";
 
@@ -88,6 +91,7 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
   getCustomToolView,
 }) => {
   const displayMode = useDisplayMode();
+  const customContent = useCustomContent();
 
   // don't collapse if output includes an image
   function isContentImage(
@@ -160,10 +164,9 @@ export const ToolCallView: FC<ToolCallViewProps> = ({
     inputScreenshot,
     mode,
   };
-  const customView =
-    displayMode === "rendered"
-      ? (getCustomToolView?.(props) ?? getDefaultCustomToolView(props))
-      : undefined;
+  const customView = customContent
+    ? (getCustomToolView?.(props) ?? getDefaultCustomToolView(props))
+    : undefined;
   if (customView) {
     // A custom view renders the call and its result together, so it belongs to
     // the call section; the output section then contributes nothing.

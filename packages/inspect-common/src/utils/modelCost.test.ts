@@ -1,14 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { costSummary } from "./cost";
-import type { ModelUsageData } from "./ModelUsagePanel";
+import { costSummary, type CostedUsage } from "./modelCost";
 
-const priced = (tokens: number, cost: number): ModelUsageData => ({
+const priced = (tokens: number, cost: number): CostedUsage => ({
   total_tokens: tokens,
   total_cost: cost,
 });
 
-const unpriced = (tokens: number): ModelUsageData => ({
+const unpriced = (tokens: number): CostedUsage => ({
   total_tokens: tokens,
 });
 

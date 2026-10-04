@@ -30,7 +30,7 @@ import { ApplicationNavbar } from "../navbar/ApplicationNavbar";
 import { NavbarButton } from "../navbar/NavbarButton";
 import { ViewSegmentedControl } from "../navbar/ViewSegmentedControl";
 import { useSamplesGridNavigationAction } from "../routing/sampleNavigation";
-import { samplesUrl, useSamplesRouteParams } from "../routing/url";
+import { samplesUrl, toFullUrl, useSamplesRouteParams } from "../routing/url";
 import { useEvalSet } from "../server/useEvalSet";
 import { ColumnSelectorPopover } from "../shared/ColumnSelectorPopover";
 import { ExtendedColumnDef } from "../shared/data-grid/columnTypes";
@@ -209,6 +209,7 @@ export const SamplesPanel: FC = () => {
       // `created` defaults off — many users won't care.
       if (id === "created") return false;
       if (id === "sampleUuid") return false;
+      if (id === "cost") return false;
       return true;
     },
     [optionalHasData]
@@ -342,6 +343,7 @@ export const SamplesPanel: FC = () => {
           fallbacks: derived.fallbacks,
           completed: sample.completed,
           tokens: derived.tokens,
+          cost: derived.cost,
           duration: sample.total_time ?? undefined,
         };
         if (derived.scores) {
@@ -368,13 +370,16 @@ export const SamplesPanel: FC = () => {
     return [_sampleRows, _hasRetriedLogs];
   }, [scopedSamples, currentDirLogFiles]);
 
-  const { navigateToSampleDetail } = useSamplesGridNavigationAction();
+  const { getSampleDetailUrl, navigateToSampleDetail } =
+    useSamplesGridNavigationAction();
   const handleRowOpen = useCallback(
     (row: SampleRow) => {
       navigateToSampleDetail(row.logFile, row.sampleId, row.epoch);
     },
     [navigateToSampleDetail]
   );
+  const getRowHref = (row: SampleRow) =>
+    toFullUrl(getSampleDetailUrl(row.logFile, row.sampleId, row.epoch));
 
   // Reflect the grid's post-filter/post-sort rows into store-backed
   // displayed-samples state (drives the footer count + cross-tab prev/next
@@ -501,6 +506,7 @@ export const SamplesPanel: FC = () => {
             selectedRowId={selectedRowId}
             onRowSelect={handleRowSelect}
             onRowOpen={handleRowOpen}
+            getRowHref={getRowHref}
             loading={isEmptyAndLoading}
           />
         )}

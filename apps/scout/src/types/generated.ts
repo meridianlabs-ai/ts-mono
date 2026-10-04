@@ -1377,6 +1377,8 @@ export interface components {
          * @description Text content.
          */
         ContentText: {
+            /** Cache Breakpoint */
+            cache_breakpoint?: boolean | null;
             /** Citations */
             citations?: (components["schemas"]["ContentCitation"] | components["schemas"]["DocumentCitation"] | components["schemas"]["UrlCitation"])[] | null;
             internal?: components["schemas"]["JsonValue"] | null;
