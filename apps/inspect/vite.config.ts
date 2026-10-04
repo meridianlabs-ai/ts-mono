@@ -88,6 +88,7 @@ const declarationBarrels: Record<string, string> = {
   "/packages/inspect-components/src/index.d.ts": [
     "export { DisplayModeContext } from './content/DisplayModeContext';",
     "export type { DisplayMode } from './content/DisplayModeContext';",
+    "export { logContentTrust } from './content/logContentTrust';",
     "",
   ].join("\n"),
   "/packages/inspect-components/src/chat/index.d.ts": [
@@ -125,6 +126,7 @@ const declarationBarrels: Record<string, string> = {
   ].join("\n"),
   "/packages/react/src/components/index.d.ts": [
     "export type { ComponentNavigation } from './ComponentNavigationContext';",
+    "export type { ContentTrust } from './ContentTrust';",
     "export type { MarkdownReference } from './MarkdownDivWithReferences';",
     "export type { MarkdownRenderer } from './MarkdownDiv';",
     "",

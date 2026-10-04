@@ -32,8 +32,10 @@ import { rawEventBuilders } from "@tsmono/inspect-components/transcript/test-hel
 import { ResizeObserverStub } from "@tsmono/react/testing";
 
 import {
+  ChatView,
   initializeStore,
   InspectComponentProvider,
+  logContentTrust,
   TranscriptLayout,
 } from "./index";
 
@@ -141,7 +143,7 @@ function CollapseHarness() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>();
 
   return (
-    <InspectComponentProvider navigate={() => {}}>
+    <InspectComponentProvider contentTrust="trusted" navigate={() => {}}>
       <div ref={scrollRef}>
         <TranscriptLayout
           embedded
@@ -168,7 +170,7 @@ function TimelineHarness() {
   const [eventId, setEventId] = useState<string | null>(null);
 
   return (
-    <InspectComponentProvider navigate={() => {}}>
+    <InspectComponentProvider contentTrust="trusted" navigate={() => {}}>
       <output aria-label="Selected timeline row">{selected ?? "root"}</output>
       <div ref={scrollRef}>
         <TranscriptLayout
@@ -271,5 +273,42 @@ describe("InspectComponentProvider", () => {
     });
     expect(document.getElementById("agent-a")).toBeNull();
     expect(document.getElementById("agent-b")).toBeNull();
+  });
+});
+
+describe("content trust", () => {
+  const markdown = testAssistantMessage({
+    id: "markdown-message",
+    content: "Plain text with **emphasis** inside.",
+  });
+
+  function renderMessage(header: Parameters<typeof logContentTrust>[0]) {
+    return render(
+      <InspectComponentProvider
+        contentTrust={logContentTrust(header)}
+        navigate={() => {}}
+      >
+        <ChatView id="trust-chat" messages={[markdown]} />
+      </InspectComponentProvider>
+    );
+  }
+
+  it("renders a log's markdown when the log does not opt out", async () => {
+    const { container } = renderMessage({ eval: {} });
+
+    await waitFor(() => {
+      expect(container.querySelector("strong")).toHaveTextContent("emphasis");
+    });
+  });
+
+  it("shows a trust_content=False log's markdown as its literal text", async () => {
+    const { container } = renderMessage({
+      eval: { viewer: { trust_content: false } },
+    });
+
+    await waitFor(() => {
+      expect(container).toHaveTextContent("**emphasis**");
+    });
+    expect(container.querySelector("strong")).toBeNull();
   });
 });

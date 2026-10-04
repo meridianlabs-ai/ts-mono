@@ -7,10 +7,12 @@ import {
 import {
   ComponentIconProvider,
   ComponentNavigationProvider,
+  ContentTrustProvider,
   ExtendedFindProvider,
   FindTargetProvider,
   type ComponentIcons,
   type ComponentNavigation,
+  type ContentTrust,
 } from "@tsmono/react/components";
 import { ComponentStateProvider } from "@tsmono/react/state";
 
@@ -48,12 +50,20 @@ export const InspectStateAndIconProvider: FC<{ children: ReactNode }> = ({
 
 export interface InspectComponentProviderProps {
   children: ReactNode;
+  /**
+   * Whether the rendered log's content may render richly (markdown, ANSI,
+   * syntax highlighting, media, links). Untrusted content is shown as plain
+   * text. Derive it from the log header with `logContentTrust` so a log
+   * written with `trust_content=False` stays plain, as it does in `<App />`.
+   */
+  contentTrust: ContentTrust;
   displayMode?: DisplayMode;
   navigate: ComponentNavigation["navigate"];
 }
 
 export const InspectComponentProvider: FC<InspectComponentProviderProps> = ({
   children,
+  contentTrust,
   displayMode = "rendered",
   navigate,
 }) => (
@@ -61,9 +71,11 @@ export const InspectComponentProvider: FC<InspectComponentProviderProps> = ({
     <FindTargetProvider>
       <InspectStateAndIconProvider>
         <ComponentNavigationProvider navigation={{ navigate }}>
-          <DisplayModeContext.Provider value={{ displayMode }}>
-            {children}
-          </DisplayModeContext.Provider>
+          <ContentTrustProvider value={contentTrust}>
+            <DisplayModeContext.Provider value={{ displayMode }}>
+              {children}
+            </DisplayModeContext.Provider>
+          </ContentTrustProvider>
         </ComponentNavigationProvider>
       </InspectStateAndIconProvider>
     </FindTargetProvider>

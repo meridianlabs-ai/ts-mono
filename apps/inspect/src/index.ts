@@ -92,6 +92,7 @@ export {
   InspectComponentProvider,
   type InspectComponentProviderProps,
 } from "./componentProviders";
+export { logContentTrust } from "@tsmono/inspect-components";
 export {
   ChatView,
   ChatViewRowsVirtualList,

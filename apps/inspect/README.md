@@ -112,9 +112,11 @@ import {
     initializeStore,
     InspectComponentProvider,
     InspectDataProvider,
+    logContentTrust,
     TranscriptLayout,
     useEvalSampleData,
     useSampleMessages,
+    type EvalLog,
     type Event,
     type SampleHandle,
     type Timeline,
@@ -133,9 +135,11 @@ initializeStore({
 });
 
 export function Transcript({
+    header,
     events,
     timelines,
 }: {
+    header: Pick<EvalLog, "eval">;
     events: Event[];
     timelines?: Timeline[];
 }) {
@@ -154,7 +158,10 @@ export function Transcript({
     return (
         // `navigate` receives `#/…` routes from citation links in rendered
         // markdown (ChatView `references`); ignore or map to your router.
-        <InspectComponentProvider navigate={() => {}}>
+        <InspectComponentProvider
+            contentTrust={logContentTrust(header)}
+            navigate={() => {}}
+        >
             <div ref={scrollRef}>
                 <TranscriptLayout
                     embedded
@@ -201,6 +208,12 @@ Build `events` once where you load the sample, with `normalizeEvents(json)`
 from the same package: it fills fields older inspect_ai versions omitted.
 Never hand the layout raw JSON.
 
+Rich rendering is opt-in, as it is inside `<App />`: `InspectComponentProvider`
+requires `contentTrust`, and untrusted content is shown as plain text with
+hidden characters revealed. Pass `logContentTrust(header)` for the log the
+sample came from (the `eval` field of `readLogSummary()` is enough) rather
+than a constant, so a log written with `trust_content=False` stays plain.
+
 For a messages surface backed by the viewer's sample data hooks, install the
 API factory and initialize the store as in the full-app example, then mount
 one `InspectDataProvider`. It waits for resolved config and owns the fetch
@@ -236,7 +249,10 @@ function Messages({
 }
 
 <InspectDataProvider>
-    <InspectComponentProvider navigate={() => {}}>
+    <InspectComponentProvider
+        contentTrust={logContentTrust(header)}
+        navigate={() => {}}
+    >
         <Messages logDir={logDir} handle={handle} />
     </InspectComponentProvider>
 </InspectDataProvider>;
