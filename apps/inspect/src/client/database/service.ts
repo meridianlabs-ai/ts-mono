@@ -12,6 +12,7 @@ import {
   deleteLegacyDatabases,
   fromLogRecord,
   LogRecord,
+  SampleSummaryKey,
   SampleSummaryRecord,
   scopePrefix,
   SyncScopeRecord,
@@ -36,6 +37,19 @@ const newRow = (handle: LogHandle): Log => ({
   details_attempts: 0,
   details_settled_seq: 0,
 });
+
+/** IndexedDB distinguishes numeric and string keys, while sample identity
+ *  compares their string forms. Probe both equivalent key forms. */
+const sampleIdsForLookup = (id: string | number): (string | number)[] => {
+  const text = String(id);
+  if (typeof id === "number") {
+    return Number.isNaN(id) ? [text] : [id, text];
+  }
+  const numeric = Number(id);
+  return !Number.isNaN(numeric) && String(numeric) === id
+    ? [id, numeric]
+    : [id];
+};
 
 /**
  * The read/write surface over the (single, per-origin) database. Constructed
@@ -266,6 +280,23 @@ export class OpenDatabase {
             .where("file_path")
             .startsWith(scopePrefix(scope.prefix));
     return collection.toArray();
+  }
+
+  async hasCompletedSampleSummary(
+    filePath: string,
+    id: string | number,
+    epoch: number
+  ): Promise<boolean> {
+    const db = this.db;
+    const keys = sampleIdsForLookup(id).map((sampleId): SampleSummaryKey => [
+      filePath,
+      sampleId,
+      epoch,
+    ]);
+    const records = await db.sample_summaries.bulkGet(keys);
+    return records.some(
+      (record) => record !== undefined && record.summary.completed !== false
+    );
   }
 
   // === RETRIEVAL FACTS ===

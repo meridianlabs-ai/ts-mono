@@ -25,6 +25,7 @@ export {
   normalizeEvalSpec,
 } from "./log";
 export { normalizeEvalSample } from "./sample";
+export { normalizeEvalStats, type NormalizedEvalStats } from "./stats";
 export {
   normalizeModelUsageMap,
   normalizeSampleSummaries,

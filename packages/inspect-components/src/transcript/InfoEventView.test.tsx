@@ -5,23 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { testInfoEvent } from "@tsmono/inspect-common/testing";
 import type { InfoEvent, JsonValue } from "@tsmono/inspect-common/types";
 import { ComponentNavigationProvider } from "@tsmono/react/components";
-import {
-  ComponentStateHooks,
-  ComponentStateProvider,
-} from "@tsmono/react/state";
-import { ResizeObserverStub } from "@tsmono/react/testing";
+import { ComponentStateProvider } from "@tsmono/react/state";
+import { makeStateHooks, ResizeObserverStub } from "@tsmono/react/testing";
 
 import { InfoEventView } from "./InfoEventView";
 import { EventNode } from "./types";
-
-const stateHooks: ComponentStateHooks = {
-  useValue: (_id, _prop, defaultValue) => defaultValue,
-  useSetValue: () => () => {},
-  useRemoveValue: () => () => {},
-  useEntries: () => undefined,
-  useRemoveAll: () => () => {},
-  useRemoveByPrefix: () => () => {},
-};
 
 function makeNode(data: JsonValue): EventNode<InfoEvent> {
   return new EventNode<InfoEvent>(
@@ -38,7 +26,7 @@ function makeNode(data: JsonValue): EventNode<InfoEvent> {
 
 const renderView = (data: JsonValue) =>
   render(
-    <ComponentStateProvider hooks={stateHooks}>
+    <ComponentStateProvider hooks={makeStateHooks()}>
       <ComponentNavigationProvider navigation={{ navigate: () => {} }}>
         <InfoEventView eventNode={makeNode(data)} />
       </ComponentNavigationProvider>

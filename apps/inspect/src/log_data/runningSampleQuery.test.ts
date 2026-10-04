@@ -18,6 +18,7 @@ import {
 import { deriveSampleFields } from "../client/utils/derive";
 import { queryClient } from "../state/queryClient";
 
+import { setListing } from "./logsContent";
 import { pendingSamplesKey } from "./pendingSamples";
 import {
   computeBackfilling,
@@ -247,6 +248,24 @@ describe("streamRunningSampleTick", () => {
 
     const result = await streamRunningSampleTick(api, LOG_DIR, handle);
     expect(result.finalized).toBe(true);
+    expect(queryClient.getQueryData(sampleQueryKey(handle))).toBeDefined();
+  });
+
+  it("re-resolves the listed name of a log that appears after streaming starts", async () => {
+    const handle = makeHandle("late.eval");
+    mockApi.get_log_sample_data.mockResolvedValue({ status: "NotModified" });
+
+    const first = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(first.finalized).toBe(false);
+
+    setListing(LOG_DIR, [{ name: "/logs/late.eval" }]);
+    seedLogDetails("/logs/late.eval", [
+      testSampleSummary({ id: "sample-1", completed: true }),
+    ]);
+    mockApi.get_log_sample.mockResolvedValueOnce(rawSample());
+
+    const second = await streamRunningSampleTick(api, LOG_DIR, handle);
+    expect(second.finalized).toBe(true);
     expect(queryClient.getQueryData(sampleQueryKey(handle))).toBeDefined();
   });
 

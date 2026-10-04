@@ -1,4 +1,5 @@
 export { ModelTokenTable } from "./ModelTokenTable";
+export { compositionTotal, usageTotal } from "./tokenTotals";
 export { ModelUsagePanel } from "./ModelUsagePanel";
 export type { ModelUsageData, ModelUsageTiming } from "./ModelUsagePanel";
 export { UsagePanel } from "./UsagePanel";

@@ -7,6 +7,8 @@ import {
 } from "@codemirror/autocomplete";
 import { EditorView } from "codemirror";
 
+import { valueAsString } from "@tsmono/util";
+
 import { SampleSummary } from "../../../../client/api/types";
 import {
   kScoreTypeBoolean,
@@ -15,7 +17,6 @@ import {
   kScoreTypeOther,
   kScoreTypePassFail,
 } from "../../../../constants";
-import { valueAsString } from "../../../../utils/format";
 import { SampleFilterItem } from "../filters";
 
 import {

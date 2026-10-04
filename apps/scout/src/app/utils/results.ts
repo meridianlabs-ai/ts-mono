@@ -1,3 +1,5 @@
+import { valueAsString } from "@tsmono/util";
+
 import {
   isArrayValue,
   isBooleanValue,
@@ -7,8 +9,6 @@ import {
   ScanResultSummary,
   SortColumn,
 } from "../types";
-
-import { valueAsString } from "./format";
 
 export interface IdentifierInfo {
   taskSet?: string;

@@ -260,8 +260,7 @@ export const ValidationPanel: FC = () => {
           </div>
         ) : (
           <ValidationSetSelector
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            validationSets={validationSets ?? []}
+            validationSets={validationSets}
             selectedUri={selectedUri}
             onSelect={handleSelectSet}
             autoSize={true}
@@ -342,8 +341,7 @@ export const ValidationPanel: FC = () => {
               <div className={styles.error}>
                 Error loading cases: {casesError.message}
               </div>
-            ) : // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            cases ? (
+            ) : (
               <ValidationCasesList
                 cases={cases}
                 transcriptsDir={transcriptsDir}
@@ -355,12 +353,11 @@ export const ValidationPanel: FC = () => {
                 isUpdating={updateMutation.isPending}
                 isDeleting={deleteCasesMutation.isPending}
               />
-            ) : null}
+            )}
           </>
         )}
 
-        {/* eslint-disable-next-line @typescript-eslint/no-unnecessary-condition */}
-        {!selectedUri && !setsLoading && (
+        {!selectedUri && (
           <div className={styles.emptyState}>
             Select a validation set to view its cases.
           </div>

@@ -12,7 +12,7 @@ import {
   SearchResponse,
 } from "@tsmono/inspect-common/types";
 import { modelRoleNames } from "@tsmono/inspect-common/utils";
-import { asyncJsonParse, encodeBase64Url } from "@tsmono/util";
+import { ApiError, asyncJsonParse, encodeBase64Url } from "@tsmono/util";
 
 import { headlineMetric } from "../../../scoring/headline";
 import { fetchPendingSampleDataDirect } from "../../remote/remotePendingSampleData";
@@ -36,7 +36,6 @@ import {
 } from "../types";
 
 import {
-  ApiError,
   HeaderProvider,
   Request,
   serverRequestApi,

@@ -3,9 +3,7 @@ import { FC } from "react";
 
 import type { JsonValue } from "@tsmono/inspect-common/types";
 import { ScoreValue } from "@tsmono/inspect-components/transcript";
-import { isRecord } from "@tsmono/util";
-
-import { valueAsString } from "../utils/format";
+import { isRecord, valueAsString } from "@tsmono/util";
 
 import styles from "./ScoreColumn.module.css";
 

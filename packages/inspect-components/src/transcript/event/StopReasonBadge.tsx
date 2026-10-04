@@ -11,16 +11,6 @@ import styles from "./StopReasonBadge.module.css";
 
 type StopReason = ChatCompletionChoice["stop_reason"];
 
-// Tone is a design call (kept subtle); unmapped reasons fall back to gray.
-const STOP_TONE: Record<StopReason, keyof typeof TONE_CLASS> = {
-  stop: "neutral",
-  max_tokens: "amber",
-  model_length: "amber",
-  tool_calls: "blue",
-  content_filter: "rose",
-  unknown: "gray",
-};
-
 const TONE_CLASS = {
   neutral: styles.neutral,
   amber: styles.amber,
@@ -28,6 +18,20 @@ const TONE_CLASS = {
   rose: styles.rose,
   gray: styles.gray,
 } as const;
+type Tone = keyof typeof TONE_CLASS;
+
+// Tone is a design call (kept subtle). Exhaustive over the generated union,
+// but read through a string-keyed view: a log written by a newer inspect_ai
+// can carry a stop reason this build doesn't know, and that falls back to gray.
+const STOP_TONE = {
+  stop: "neutral",
+  max_tokens: "amber",
+  model_length: "amber",
+  tool_calls: "blue",
+  content_filter: "rose",
+  unknown: "gray",
+} satisfies Record<StopReason, Tone>;
+const stopTone: Partial<Record<string, Tone>> = STOP_TONE;
 
 interface StopReasonBadgeProps {
   reason: StopReason;
@@ -62,8 +66,7 @@ export const StopReasonBadge: FC<StopReasonBadgeProps> = ({
   reason,
   details,
 }) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const toneClass = TONE_CLASS[STOP_TONE[reason] ?? "gray"];
+  const toneClass = TONE_CLASS[stopTone[reason] ?? "gray"];
   const entries = detailEntries(details);
 
   return (

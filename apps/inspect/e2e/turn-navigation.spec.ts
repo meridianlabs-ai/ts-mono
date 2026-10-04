@@ -572,7 +572,7 @@ test.describe("transcript turn navigation", () => {
     // The j/Escape bindings live on the focus page — wait for a control
     // unique to ITS chrome so the first press can't race the mount.
     await expect(
-      page.getByRole("button", { name: "Exit focus mode" })
+      page.getByRole("link", { name: "Exit focus mode" })
     ).toBeVisible();
     // Step several turns inside focus so the exit target is far from the
     // saved pre-focus position — a restore win is then clearly visible.
@@ -819,7 +819,7 @@ test.describe("transcript turn navigation", () => {
     await page.mouse.wheel(0, 3000);
     await page.waitForTimeout(TAB_RECORDER_ARM_MS);
 
-    await page.getByRole("button", { name: "Next sample" }).click();
+    await page.getByRole("link", { name: "Next sample" }).click();
     await expect(page.getByText("Sample 2")).toBeVisible();
     // ArrowLeft / ArrowRight step samples from the keyboard (same actions).
     await page.keyboard.press("ArrowLeft");

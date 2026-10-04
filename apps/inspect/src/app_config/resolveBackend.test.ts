@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getVscodeApi } from "@tsmono/util";
@@ -118,6 +119,17 @@ const testVscodeApi = (): NonNullable<ReturnType<typeof getVscodeApi>> => ({
   setState: () => {},
 });
 
+describe("resolveBackend transport", () => {
+  it("only the static backend fetches log locations from the browser", () => {
+    setSearch("");
+    expect(resolveBackend(dirSource("logs")).browserDirect).toBe(true);
+    expect(resolveBackend(fileSource("run.eval")).browserDirect).toBe(true);
+    expect(resolveBackend(noneSource).browserDirect).toBe(false);
+    setSearch("?inspect_server=true");
+    expect(resolveBackend(dirSource("logs")).browserDirect).toBe(false);
+  });
+});
+
 describe("resolveBackend selection", () => {
   it("vscode host with http_request capability → vscode backend (wins over source)", async () => {
     const vscode = testVscodeApi();
@@ -173,6 +185,18 @@ describe("resolveBackend selection", () => {
     const api = backend.createApi("/embedded/logs");
     expect(api).toEqual({ __backend: "static-http" });
     expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", undefined);
+  });
+
+  it("#log_dir_context with trust_content → passes it in the static app config", () => {
+    addLogDirContext({ log_dir: "/embedded/logs", trust_content: false });
+    const backend = resolveBackend(noneSource);
+
+    backend.createApi("/embedded/logs");
+    expect(mockStaticHttpApi).toHaveBeenCalledWith("/embedded/logs", {
+      inspect_version: "unknown",
+      scout_version: null,
+      trust_content: false,
+    });
   });
 
   it("#log_dir_context with log_file → static-http single-file with derived dir", () => {

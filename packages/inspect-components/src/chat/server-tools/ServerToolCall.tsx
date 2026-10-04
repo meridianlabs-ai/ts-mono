@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { FC } from "react";
 
 import type { ContentToolUse } from "@tsmono/inspect-common/types";
-import { ExpandablePanel } from "@tsmono/react/components";
+import { ContentText, ExpandablePanel } from "@tsmono/react/components";
 import { asJsonObjArray, isJson, isRecord } from "@tsmono/util";
 
 import { ExternalLink } from "../../content/ExternalLink";
@@ -192,11 +192,13 @@ const CodeExecutionResult: FC<{
       lines={15}
     >
       {result.stdout ? (
-        <pre className={styles.execOutput}>{result.stdout}</pre>
+        <pre className={styles.execOutput}>
+          <ContentText text={result.stdout} />
+        </pre>
       ) : null}
       {result.stderr ? (
         <pre className={clsx(styles.execOutput, styles.execError)}>
-          {result.stderr}
+          <ContentText text={result.stderr} />
         </pre>
       ) : null}
       {!result.stdout && !result.stderr && result.encrypted ? (
@@ -254,28 +256,16 @@ const maybeCodeExecution = (
 };
 
 const resolveArgs = (content: ContentToolUse): Record<string, unknown> => {
-  if (typeof content.arguments === "string") {
-    // See if this looks like a JSON object
-    if (isJson(content.arguments)) {
-      try {
-        const parsed: unknown = JSON.parse(content.arguments);
-        if (isRecord(parsed)) return parsed;
-      } catch (e) {
-        console.warn("Failed to parse arguments as JSON", e);
-      }
+  // See if this looks like a JSON object
+  if (isJson(content.arguments)) {
+    try {
+      const parsed: unknown = JSON.parse(content.arguments);
+      if (isRecord(parsed)) return parsed;
+    } catch (e) {
+      console.warn("Failed to parse arguments as JSON", e);
     }
-    if (content.arguments) {
-      return { arguments: content.arguments };
-    }
-    return {};
-  } else if (typeof content.arguments === "object") {
-    return content.arguments;
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  } else if (content.arguments) {
-    return { arguments: content.arguments };
-  } else {
-    return {};
   }
+  return content.arguments ? { arguments: content.arguments } : {};
 };
 
 /** Single-line header summary: the lone arg's value (the query for
@@ -294,12 +284,8 @@ const argsSummary = (args: Record<string, unknown>): string => {
     .join(", ");
 };
 
-const hasResultContent = (result: ContentToolUse["result"]): boolean => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (result === null || result === undefined) return false;
-  if (typeof result === "string") return result.trim().length > 0;
-  return true;
-};
+const hasResultContent = (result: ContentToolUse["result"]): boolean =>
+  result.trim().length > 0;
 
 const maybeWebSearchResult = (
   content: ContentToolUse

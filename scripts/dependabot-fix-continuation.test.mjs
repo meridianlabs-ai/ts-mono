@@ -12,7 +12,11 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { selectContinuation } from "./dependabot-fix-continuation.mjs";
+import {
+  newBatchBranch,
+  requireSha,
+  selectContinuation,
+} from "./dependabot-fix-continuation.mjs";
 
 const pr = (number, overrides = {}) => ({
   number,
@@ -91,6 +95,49 @@ test("with several eligible PRs, picks the oldest and reports the rest as skippe
     },
   ]);
 });
+
+test("a new batch branch is named after the run date", () => {
+  const date = new Date("2026-09-16T10:00:00Z");
+  assert.equal(newBatchBranch([], date), "dependabot-fix/2026-09-16");
+  assert.equal(
+    newBatchBranch(["dependabot-fix/2026-09-15"], date),
+    "dependabot-fix/2026-09-16"
+  );
+});
+
+test("a new batch branch never reuses a name that exists in origin", () => {
+  const date = new Date("2026-09-16T10:00:00Z");
+  assert.equal(
+    newBatchBranch(["dependabot-fix/2026-09-16"], date),
+    "dependabot-fix/2026-09-16-2"
+  );
+  assert.equal(
+    newBatchBranch(
+      ["dependabot-fix/2026-09-16", "dependabot-fix/2026-09-16-2"],
+      date
+    ),
+    "dependabot-fix/2026-09-16-3"
+  );
+});
+
+test("the run's start must be a full lowercase commit SHA", () => {
+  const sha = "0123456789abcdef0123456789abcdef01234567";
+  assert.equal(requireSha(sha, "x"), sha);
+  for (const bad of [
+    undefined,
+    "",
+    sha.slice(1),
+    sha.toUpperCase(),
+    `${sha}\n`,
+  ]) {
+    assert.throws(
+      () => requireSha(bad, "tip of b"),
+      /run's start \(tip of b\)/
+    );
+  }
+});
+
+const NEW_BRANCH = /^dependabot-fix\/\d{4}-\d{2}-\d{2}$/;
 
 // End-to-end: real git against a local bare origin, `gh` replaced by a shim
 // that serves canned JSON. Exercises the ls-remote parsing, the
@@ -172,12 +219,12 @@ const fixture = (branches, mainChange) => {
   return { root, work, bin };
 };
 
-const runScript = ({ root, work, bin }, prs) => {
+const runScript = ({ root, work, bin }, prs, args = []) => {
   const prsFile = join(root, "prs.json");
   writeFileSync(prsFile, JSON.stringify(prs));
   const output = join(root, "output.txt");
   writeFileSync(output, "");
-  const r = spawnSync(process.execPath, [SCRIPT], {
+  const r = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: work,
     encoding: "utf8",
     env: {
@@ -208,7 +255,8 @@ test("e2e: fork PR named dependabot-fix/* is skipped and nothing is checked out"
     pr(3, { headRefName: "dependabot-fix/evil", isCrossRepository: true }),
   ]);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.outputs.branch, "");
+  assert.match(r.outputs.branch, NEW_BRANCH);
+  assert.equal(r.outputs.continuing, "false");
   assert.equal(r.outputs.pr_url, "");
   assert.equal(r.outputs.merge_conflicts, "false");
   assert.match(
@@ -219,13 +267,13 @@ test("e2e: fork PR named dependabot-fix/* is skipped and nothing is checked out"
   assert.equal(readFileSync(join(fx.work, "other.txt"), "utf8"), "base\n");
 });
 
-test("e2e: no dependabot-fix branches in origin needs no gh at all", (t) => {
+test("e2e: no dependabot-fix branches in origin still names a fresh branch (one gh call, for its head name)", (t) => {
   const fx = fixture([]);
   t.after(() => rmSync(fx.root, { recursive: true, force: true }));
-  rmSync(join(fx.bin, "gh"));
   const r = runScript(fx, []);
   assert.equal(r.status, 0, r.stderr);
-  assert.equal(r.outputs.branch, "");
+  assert.match(r.outputs.branch, NEW_BRANCH);
+  assert.equal(r.outputs.continuing, "false");
   assert.equal(r.outputs.merge_conflicts, "false");
   assert.match(r.stdout, /none: no `dependabot-fix\/\*` branch in origin/);
 });
@@ -233,14 +281,19 @@ test("e2e: no dependabot-fix branches in origin needs no gh at all", (t) => {
 test("e2e: same-repo PR is checked out with main merged cleanly", (t) => {
   const fx = fixture([BATCH_BRANCH], { file: "other.txt", content: "main\n" });
   t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  const tip = git(fx.work, "rev-parse", `origin/${BATCH_BRANCH.name}`);
   const r = runScript(fx, [BATCH_PR]);
   assert.equal(r.status, 0, r.stderr);
+  // The start is the branch's tip before the merge, not the merge commit.
   assert.deepEqual(r.outputs, {
     branch: BATCH_BRANCH.name,
+    continuing: "true",
     pr_number: "4",
     pr_url: BATCH_PR.url,
+    start: tip,
     merge_conflicts: "false",
   });
+  assert.notEqual(git(fx.work, "rev-parse", "HEAD"), tip);
   assert.equal(
     git(fx.work, "rev-parse", "--abbrev-ref", "HEAD"),
     BATCH_BRANCH.name
@@ -274,6 +327,68 @@ test("e2e: merge conflicts are reported and left in the worktree", (t) => {
   );
 });
 
+test("e2e: --select-only names the branch and PR but checks nothing out", (t) => {
+  const fx = fixture([BATCH_BRANCH], { file: "other.txt", content: "main\n" });
+  t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  const r = runScript(fx, [BATCH_PR], ["--select-only"]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(r.outputs, {
+    branch: BATCH_BRANCH.name,
+    continuing: "true",
+    pr_number: "4",
+    pr_url: BATCH_PR.url,
+    start: git(fx.work, "rev-parse", `origin/${BATCH_BRANCH.name}`),
+  });
+  assert.match(r.stdout, /checkout deferred/);
+  assert.equal(git(fx.work, "rev-parse", "--abbrev-ref", "HEAD"), "main");
+  assert.equal(
+    readFileSync(join(fx.work, "pnpm-workspace.yaml"), "utf8"),
+    "overrides:\n  a: ^1\n"
+  );
+  assert.equal(git(fx.work, "branch", "--list", BATCH_BRANCH.name), "");
+});
+
+test("e2e: a new batch branch skips a head name an open fork PR uses", (t) => {
+  const fx = fixture([]);
+  t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  const today = `dependabot-fix/${new Date().toISOString().slice(0, 10)}`;
+  const r = runScript(
+    fx,
+    [pr(3, { headRefName: today, isCrossRepository: true })],
+    ["--select-only"]
+  );
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.outputs.branch, `${today}-2`);
+  assert.equal(r.outputs.continuing, "false");
+  assert.match(r.stdout, /an open PR already uses that head name/);
+});
+
+test("e2e: --select-only with nothing to continue names a branch that is not in origin", (t) => {
+  const fx = fixture([
+    { name: "dependabot-fix/stale", file: "other.txt", content: "old\n" },
+  ]);
+  t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  const r = runScript(fx, [], ["--select-only"]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.outputs.branch, NEW_BRANCH);
+  assert.equal(r.outputs.continuing, "false");
+  assert.equal(r.outputs.pr_number, "");
+  assert.equal(r.outputs.merge_conflicts, undefined);
+  assert.equal(git(fx.work, "rev-parse", "--abbrev-ref", "HEAD"), "main");
+  // A new batch starts from the checkout it is cut from, not a branch tip.
+  assert.equal(r.outputs.start, git(fx.work, "rev-parse", "HEAD"));
+});
+
+test("e2e: a failed read of origin's branches fails the script with no outputs", (t) => {
+  const fx = fixture([BATCH_BRANCH]);
+  t.after(() => rmSync(fx.root, { recursive: true, force: true }));
+  git(fx.work, "remote", "set-url", "origin", join(fx.root, "missing.git"));
+  const r = runScript(fx, [BATCH_PR], ["--select-only"]);
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /git ls-remote/);
+  assert.deepEqual(r.outputs, {});
+});
+
 test("e2e: a gh failure fails the script rather than falling back to a fresh branch", (t) => {
   const fx = fixture([BATCH_BRANCH]);
   t.after(() => rmSync(fx.root, { recursive: true, force: true }));
@@ -281,4 +396,103 @@ test("e2e: a gh failure fails the script rather than falling back to a fresh bra
   const r = runScript(fx, []);
   assert.notEqual(r.status, 0);
   assert.equal(r.outputs.branch, undefined);
+});
+
+// A dispatch on an agent's branch must not run that branch's selection script
+// in the gate, which holds an App token.
+test("the workflow's gate checks out only the default branch", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const gate = workflow.match(/^ {2}gate:\n(?: {4}.*\n| *#.*\n|\n)*/m)?.[0];
+  assert.ok(gate, "no gate job in dependabot-fix.yml");
+  const checkouts = [
+    ...gate.matchAll(/^ {6}- uses: actions\/checkout@.*\n(?: {8}.*\n)*/gm),
+  ].map((m) => m[0]);
+  assert.equal(checkouts.length, 1);
+  assert.match(
+    checkouts[0],
+    /^ {10}ref: \$\{\{ github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch \|\| 'main'\) && github\.sha \|\| github\.event\.repository\.default_branch \|\| 'main' \}\}$/m
+  );
+  assert.ok(
+    gate.indexOf(checkouts[0]) <
+      gate.indexOf("run: node scripts/dependabot-fix-continuation.mjs"),
+    "the selection script runs before the pinned checkout"
+  );
+});
+
+// land applies pr.labels as the machine account, whose `auto` the loop gates
+// trust; the composer opens the PR with none, so the Land step must allow none.
+test("the workflow's Land step allows no PR labels", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const land = workflow.match(
+    /^ {6}- name: Land\n(?: {8}.*\n| *#.*\n|\n)*/m
+  )?.[0];
+  assert.ok(land, "no Land step in dependabot-fix.yml");
+  assert.match(land, /uses: meridianlabs-ai\/agents\/\.github\/actions\/land@/);
+  assert.match(land, /^ {10}allowed-pr-labels: "\[\]"$/m);
+});
+
+// The tier-2 opt-in is sound only while nothing from the batch branch runs as
+// the runner: provisioning and the CLI both run as claude-agent.
+test("the workflow's Land step opts into build config only behind the agent user boundary", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const land = workflow.match(
+    /^ {6}- name: Land\n(?: {8}.*\n| *#.*\n|\n)*/m
+  )?.[0];
+  assert.ok(land, "no Land step in dependabot-fix.yml");
+  assert.match(land, /^ {10}allow-build-config: "true"$/m);
+  const agent = workflow.match(/^ {2}agent:\n(?: {4}.*\n| *#.*\n|\n)*/m)?.[0];
+  assert.ok(agent, "no agent job in dependabot-fix.yml");
+  const step = (name) =>
+    agent.match(
+      new RegExp(`^ {6}- name: ${name}\\n(?: {8}.*\\n| *#.*\\n|\\n)*`, "m")
+    )?.[0] ?? assert.fail(`no "${name}" step in the agent job`);
+  const provision = step(
+    String.raw`Provision the checkout \(as the agent user\)`
+  );
+  assert.match(
+    provision,
+    /uses: meridianlabs-ai\/agents\/\.github\/actions\/provision-fallback@/
+  );
+  assert.match(provision, /^ {10}user: claude-agent$/m);
+  assert.match(step("Create agent user"), /^ {10}user: claude-agent$/m);
+  assert.match(
+    step("Reclaim workspace before the agent"),
+    /^ {10}user: claude-agent$/m
+  );
+  assert.match(step("Prepare the agent launch"), /claude-agent-launcher@/);
+  assert.match(
+    agent,
+    /^ {10}path_to_claude_code_executable: \$\{\{ steps\.launcher\.outputs\.executable \}\}$/m
+  );
+  assert.doesNotMatch(agent, /uses: (pnpm\/action-setup|actions\/setup-node)@/);
+});
+
+// The agent job's pnpm store and .turbo saves would land in default-branch
+// scope, which ci.yaml and npm-publish.yml restore (Claude Security 4629157).
+test("the workflow's agent job cannot save the Actions cache", () => {
+  const workflow = readFileSync(
+    fileURLToPath(
+      new URL("../.github/workflows/dependabot-fix.yml", import.meta.url)
+    ),
+    "utf8"
+  );
+  const agent = workflow.match(/^ {2}agent:\n(?: {4}.*\n| *#.*\n|\n)*/m)?.[0];
+  assert.ok(agent, "no agent job in dependabot-fix.yml");
+  assert.match(agent, /^ {4}cache-mode: read$/m);
+  assert.doesNotMatch(workflow, /^\s*cache-mode: (?!read$)/m);
 });

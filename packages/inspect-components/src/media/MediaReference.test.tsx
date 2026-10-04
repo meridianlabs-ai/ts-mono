@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render as renderUi, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { TrustedContentWrapper } from "@tsmono/react/testing";
+
 import { MediaReference } from "./MediaReference";
+
+// These tests exercise the rich rendering path, which needs trusted content.
+const render = (ui: Parameters<typeof renderUi>[0]) =>
+  renderUi(ui, { wrapper: TrustedContentWrapper });
 
 describe("MediaReference", () => {
   it("renders absolute HTTP URLs as external links", () => {

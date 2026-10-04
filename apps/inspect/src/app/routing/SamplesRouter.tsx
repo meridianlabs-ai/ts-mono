@@ -6,7 +6,6 @@ import { SampleDetailView } from "../samples-panel/SampleDetailView";
 import { SamplesPanel } from "../samples-panel/SamplesPanel";
 import { SampleEventView } from "../samples/event/SampleEventView";
 
-import { SampleRouteSelectionController } from "./loaders/SampleRouteSelectionController";
 import { useSamplesRouteParams } from "./url";
 
 /**
@@ -32,12 +31,7 @@ export const SamplesRouter: FC = () => {
     if (tabId === kSampleEventTabId) {
       return <SampleEventView />;
     }
-    return (
-      <>
-        <SampleRouteSelectionController />
-        <SampleDetailView />
-      </>
-    );
+    return <SampleDetailView />;
   }
 
   // Otherwise show the samples grid

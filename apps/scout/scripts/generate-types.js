@@ -51,7 +51,7 @@ const importDecl = ts.factory.createImportDeclaration(
       ),
     ])
   ),
-  ts.factory.createStringLiteral("./json-value")
+  ts.factory.createStringLiteral("@tsmono/util")
 );
 
 const HEADER = `/**

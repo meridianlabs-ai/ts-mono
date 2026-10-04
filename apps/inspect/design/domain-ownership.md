@@ -40,9 +40,13 @@ dir change rebuilds the config — new instance, new dir, published together —
 rather than mutating either in place.
 
 **Surface** — `app_config/useAppConfig.ts` (`useAppConfig`, `AppConfigGate`,
-`useApi` passthrough), `app_config/useLogDir.ts` (logDir accessors over the
-config cache entry; the one post-resolution mutation is embedded VS Code
-live-nav via `setLogRoot`), and the sanctioned non-React escape hatches on
+`useApi` passthrough), `app_config/LogLocationGate.tsx` (mounted above the
+config gate: holds resolution while a link-named location on another origin
+awaits the user's approval, #615), `resolveRouteLogFile` (route names are
+untrusted input; browser-direct backends keep them inside the resolved dir),
+`app_config/useLogDir.ts` (logDir accessors over the config cache entry; the
+one post-resolution mutation is embedded VS Code live-nav via `setLogRoot`),
+and the sanctioned non-React escape hatches on
 `app_config/appConfig.ts` (`getAppConfig` asserting, `peekAppConfig` non-asserting).
 Priority order for reading config: `useAppConfig` (or a passthrough like
 `useApi`) → `useAppConfigAsync` → `resolveAppConfig` → `getAppConfig` /
@@ -55,6 +59,7 @@ Priority order for reading config: `useAppConfig` (or a passthrough like
 | Invocation log source | The log source named at invocation time (`?log_dir=`, `?log_file=`, `#logview-state`, none). Pure input; parsed exactly once by `resolveBootstrap()`, never consulted after config resolution.                                                                                                                         | `app_config/urlLogSource.ts`               |
 | Backend selection     | Choosing the view-server / static-http / vscode backend from the invocation. Pure function, invoked once during bootstrap; yields a `BackendBootstrap` — dir discovery (`resolveLogRoot` / `resolveConfiguredDir`) plus per-dir construction (`createApi(logDir)`) — because no api can exist before the dir is known. | `app_config/resolveBackend.ts`             |
 | Single-file detection | Whether the invocation names a single log file. Exposed downstream only as the `singleFileMode` flag on resolved config.                                                                                                                                                                                               | `app_config/singleFileMode.ts`             |
+| Log location trust    | Who may _set_ the log location (embedded config, the VS Code host) versus merely _propose_ one (`?log_dir=` / `?log_file=`, hash routes). A proposal on another origin that the browser would fetch directly is surfaced on the bootstrap for `LogLocationGate`; same-origin proposals are the page's own scope.       | `app_config/logLocationTrust.ts`           |
 | Bootstrap config      | The sync-knowable prefix of the config: `backend`, `singleFileMode`, `loader`, `logFile`. Exists so the pre-gate boot path has something honest to read — its only consumer outside resolution is the composition root (`main.tsx`), which is exempt (see below).                                                      | `app_config/appConfig.ts` (`getBootstrap`) |
 
 ### Log-data acquisition
@@ -151,7 +156,8 @@ data and it stays current.
 ### Selected-log lifecycle
 
 Everything that follows from "the user is viewing this log" — thin
-_selection bindings_: read the UI selection from zustand, delegate to a
+_selection bindings_: read the current identity from the route-derived
+`CurrentSelectionProvider`, delegate to a
 param-driven log_data hook. No polling mechanics, no API calls, no cache
 writes; a binding that grows a queryFn has sunk too low.
 
@@ -165,10 +171,10 @@ writes; a binding that grows a queryFn has sunk too low.
 - **Sample-summaries binding** — `useSelectedSampleSummaries()` delegates to
   `useSampleSummaries(logDir, selectedLogFile)`. (`state/hooks.ts`)
 - **Sample-data binding** — `useSelectedEvalSampleData()` delegates to
-  `useEvalSampleData(logDir, selectedSampleHandle)`; likewise
+  `useEvalSampleData(logDir, currentSampleHandle)`; likewise
   `useSelectedSampleInvalidation()`. (`state/hooks.ts`)
 - **Reaction controller** — the residual non-derivable side effects of the
-  details query settling: recording `loadedLog`, per-log score resets,
+  details query settling: per-log score resets,
   workspace-tab default for empty logs. No fetching. (`LogLoadController`)
 - **Sample reaction controller** — resets per-sample UI state that isn't
   derivable from the new sample (scroll/list positions, collapsed events,
@@ -182,13 +188,20 @@ params and this layer binds them.
 
 ### UI state (leaf)
 
-Which log the user is viewing, filters, tabs, sample selection, grid state,
-`loadedLog`, rehydration — zustand slices, and nothing else. Known only by
-components/handlers; knows nothing below it; nothing writes into it from below
-(engine status flows out through its own external store; the leaf rule has no
-exceptions). Absolutizing a relative log name against the log dir is a
-config-aware derivation and lives at the event-handler seam (`useSelectLogFile`
-in `state/hooks.ts`), not in the slice.
+Filters, tab preferences, highlighted rows, and grid state belong in zustand.
+The current log/sample belongs to the router; `CurrentSelectionProvider`
+resolves the route through the configuration trust boundary and derives the
+single-sample inline case from summaries. Its context contains no writable
+selection. Data consumers bind to that context rather than a store mirror.
+
+`highlightedSample` remembers list selection across detail navigation; it is
+never an active data source. `loadedLog` is no longer stored. The public embed
+hooks subscribe to the actual router outside RouterProvider and derive loaded
+status from the data cache. See [route ownership](../../../design/route-state-ownership.md)
+for VS Code restoration, compatibility, and remaining tab mirrors.
+
+The store remains known only by components/handlers; nothing writes into it
+from acquisition (engine status flows through its own external store).
 
 ## Media & derivations
 
@@ -220,11 +233,11 @@ Arrows point at what a layer is allowed to know.
 
 ```
 Components / handlers ──→ hooks only (useAppConfig/useApi/useLogDir/useEvalSet/
-       │                  useSelectLogFile/useDatabaseStats/useStore)
+       │                  useCurrentLogFile/useDatabaseStats/useStore)
        │                  zustand (UI-state leaf) lives here; knows nothing below
        ▼
 Lifecycle controllers     AppConfigGate, FetchEngineController, LogLoadController,
-       │                  SampleLoadController, SampleRouteSelectionController,
+       │                  SampleLoadController,
        │                  ThemePreferenceSyncController (reactions / irreducible
        │                  effects; no fetching)
        ▼
@@ -292,5 +305,5 @@ App configuration         surface: useAppConfig / useLogDir / getAppConfig
   collections and filters/sorts client-side. Serving the listing from a
   server-side query (and retiring the collections as the read path) is a
   possible future step; the sink is the only coupling that would move.
-- **`loadedLog`** — recorded by the reaction controller as zustand UI state
-  (navigation reads it), not derived from the query.
+- **Active selection** — derived from the router at the UI boundary; acquisition
+  receives explicit log/sample parameters and never reads routing or zustand.

@@ -1,8 +1,12 @@
 import { ClientAPI, LogRoot } from "../client/api/types";
-import { selectLogFile } from "../state/actions";
 import { queryClient } from "../state/queryClient";
 
 import { APP_CONFIG_KEY } from "./hooks";
+import {
+  LogLocationProposal,
+  proposeLogLocation,
+  scopeRouteLogFile,
+} from "./logLocationTrust";
 import { BackendBootstrap, resolveBackend } from "./resolveBackend";
 import {
   detectInitialSingleFileMode,
@@ -10,7 +14,7 @@ import {
   resolveEmbeddedLogDir,
   resolveSingleFileLogDir,
 } from "./singleFileMode";
-import { parseUrlLogSource } from "./urlLogSource";
+import { parseUrlLogSource, UrlLogSource } from "./urlLogSource";
 
 /**
  * The application configuration — the one currency. Everything the viewer needs
@@ -34,6 +38,9 @@ export interface AppConfig {
   logFile?: string;
   inspect_version: string;
   scout_version: string | null;
+  /** The viewer-wide trust setting (`inspect view --no-trust-content`); see
+   *  `trustContentSetting` for how it's read. */
+  trust_content?: boolean | null;
   logDir: string;
   absLogDir?: string;
 }
@@ -51,6 +58,10 @@ export interface AppConfigBootstrap {
   singleFileMode: boolean;
   loader: "direct" | "replicator";
   logFile?: string;
+  /** A link-named location on another origin that the browser would fetch
+   *  directly. Present only until the user approves it (`LogLocationGate`),
+   *  which is the precondition for resolving the config at all. */
+  logLocationProposal?: LogLocationProposal;
 }
 
 /**
@@ -60,11 +71,21 @@ export interface AppConfigBootstrap {
 export const resolveBootstrap = (): AppConfigBootstrap => {
   const source = parseUrlLogSource(window.location.search);
   const singleFileMode = detectInitialSingleFileMode(source, document);
+  const backend = resolveBackend(source);
+  // A `?log_file=` is always selected, but a `?log_dir=` the backend didn't
+  // take (embedded config fixed the dir) is never read: nothing to approve.
+  const honored: UrlLogSource =
+    source.kind === "dir" && !backend.dirFromUrl ? { kind: "none" } : source;
   return {
-    backend: resolveBackend(source),
+    backend,
     singleFileMode,
     loader: singleFileMode ? "direct" : "replicator",
     logFile: source.kind === "file" ? source.logFile : undefined,
+    // A proxied backend (view server, VS Code, embedder) applies its own
+    // policy to the named location; only browser-direct fetching needs ours.
+    logLocationProposal: backend.browserDirect
+      ? proposeLogLocation(honored)
+      : undefined,
   };
 };
 
@@ -147,6 +168,7 @@ export const loadResolvedAppConfig = async (
     logFile: bs.logFile,
     inspect_version: versions.inspect_version,
     scout_version: versions.scout_version ?? null,
+    trust_content: versions.trust_content,
     logDir,
     absLogDir: logRoot.abs_log_dir,
   };
@@ -162,12 +184,6 @@ let appConfig: AppConfig | undefined;
 export const resolveAppConfig = async (): Promise<AppConfig> => {
   if (!appConfig) {
     appConfig = await loadResolvedAppConfig(getBootstrap());
-    // The `?log_file=` deep-link selection is a once-per-session startup fact,
-    // so it lives here rather than in a mounted component. After the singleton
-    // assignment: selectLogFile absolutizes against the resolved logDir.
-    if (appConfig.logFile !== undefined) {
-      selectLogFile(appConfig.logFile);
-    }
   }
   return appConfig;
 };
@@ -184,6 +200,18 @@ export const getAppConfig = (): AppConfig => {
 
 /** The resolved config if present, without asserting (for optional reads). */
 export const peekAppConfig = (): AppConfig | undefined => appConfig;
+
+/**
+ * Absolutize a route-supplied log name against the resolved log dir. Routes
+ * are untrusted input, so where the browser fetches directly the name must
+ * also fall inside that dir (see `scopeRouteLogFile`).
+ */
+export const resolveRouteLogFile = (logFile: string): string =>
+  scopeRouteLogFile(
+    logFile,
+    getAppConfig().logDir,
+    getBootstrap().backend.browserDirect
+  );
 
 /** Seed the resolved singleton directly. For tests. */
 export const initAppConfig = (config: AppConfig): AppConfig =>

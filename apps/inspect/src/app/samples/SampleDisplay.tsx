@@ -24,6 +24,10 @@ import {
   RecordTree,
 } from "@tsmono/inspect-components/content";
 import {
+  hasEventTimestamps,
+  SampleActivityPanel,
+} from "@tsmono/inspect-components/sample-activity";
+import {
   buildSelectableEventIndex,
   dynamicDefaultExcludeEvents,
   eventsToMarkdown,
@@ -63,6 +67,7 @@ import {
   type ActivityRailItem,
 } from "@tsmono/react/components";
 import {
+  navigateAndForget,
   useChromeNavOwnership,
   useCopyToClipboard,
   useElementHeight,
@@ -74,6 +79,7 @@ import { Events } from "../../@types/extraInspect";
 import { getApi } from "../../app_config";
 import { SampleSummary } from "../../client/api/types";
 import {
+  kSampleActivityTabId,
   kSampleErrorTabId,
   kSampleJsonTabId,
   kSampleMessagesTabId,
@@ -99,14 +105,18 @@ import { useStore } from "../../state/store";
 import { cssVars } from "../../utils/cssVars";
 import { formatDateTime } from "../../utils/format";
 import { ApplicationIcons } from "../appearance/icons";
+import { useCurrentSampleHandle } from "../routing/currentSelection";
 import { useSampleDetailNavigation } from "../routing/sampleNavigation";
 import {
   printSampleUrl,
+  sampleEventUrl,
+  toFullUrl,
   useFullSampleMessageUrlBuilder,
   useLogOrSampleRouteParams,
   useRoutePrefix,
   useSampleUrlBuilder,
 } from "../routing/url";
+import { SelectedSampleContentTrustProvider } from "../shared/contentTrust";
 import { openInNewTab } from "../shared/openInNewTab";
 import type { EventSelectionState } from "../types";
 
@@ -154,7 +164,13 @@ const withStoredFallback = (ids: string[], stored: ReadonlySet<string>) =>
 /**
  * Component to display a sample with relevant context and visibility control.
  */
-export const SampleDisplay: FC<SampleDisplayProps> = ({
+export const SampleDisplay: FC<SampleDisplayProps> = (props) => (
+  <SelectedSampleContentTrustProvider>
+    <SampleDisplayContent {...props} />
+  </SelectedSampleContentTrustProvider>
+);
+
+const SampleDisplayContent: FC<SampleDisplayProps> = ({
   id,
   scrollRef,
   showActivity,
@@ -197,7 +213,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // sample: each tab's VirtualList snapshot is keyed by the visit, so a
   // later return to the same sample (or a hop to a sibling) can never
   // restore this visit's offsets — a fresh visit starts at the top.
-  const visitHandle = useStore((state) => state.log.selectedSampleHandle);
+  const visitHandle = useCurrentSampleHandle();
   const visitId = useVisitId(
     `${visitHandle?.logFile}-${visitHandle?.id}-${visitHandle?.epoch}`
   );
@@ -264,9 +280,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   // the conversation (monolith fetch, chunked hydration, live stream) is
   // subsystem-private; the tab-open gate keeps chunked hydration from ever
   // being paid at sample open.
-  const selectedSampleHandle = useStore(
-    (state) => state.log.selectedSampleHandle
-  );
+  const sampleHandle = useCurrentSampleHandle();
 
   // Dynamic Default event-filter exclusions: store events with rich renderers
   // (e.g. human-baseline terminal sessions) are visible by default. Chunked
@@ -278,7 +292,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
   const messagesTabOpen = effectiveSelectedTab === kSampleMessagesTabId;
   const sampleDetailNavigation = useSampleDetailNavigation();
   const sampleMessages = useSampleMessages(
-    selectedSampleHandle,
+    sampleHandle,
     sampleData,
     messagesTabOpen,
     running,
@@ -299,6 +313,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   // Tab selection
   const sampleUrlBuilder = useSampleUrlBuilder();
+  const sampleTabHref = (tabId: string) =>
+    urlLogPath
+      ? toFullUrl(sampleUrlBuilder(urlLogPath, urlSampleId, urlEpoch, tabId))
+      : undefined;
   const onSelectedTab = useCallback(
     (e: MouseEvent<HTMLElement>) => {
       const el = e.currentTarget;
@@ -368,13 +386,10 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     useState<HTMLButtonElement | null>(null);
   const optionsRef = useRef<HTMLButtonElement | null>(null);
 
-  // Fall back to store state for single-file mode where URL doesn't contain sample ID/epoch
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
-  const printLogPath = urlLogPath || selectedLogFile;
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const printSampleId = urlSampleId || selectedSampleHandle?.id?.toString();
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); restored handles may omit type-required fields
-  const printEpoch = urlEpoch || selectedSampleHandle?.epoch?.toString();
+  // Inline single-sample routes omit id/epoch; the current handle derives them.
+  const printLogPath = urlLogPath;
+  const printSampleId = urlSampleId ?? sampleHandle?.id.toString();
+  const printEpoch = urlEpoch ?? sampleHandle?.epoch.toString();
 
   // Evidence selection: with events selected, Copy/Download/Print act on them.
   const isTranscriptTab = effectiveSelectedTab === kSampleTranscriptTabId;
@@ -485,6 +500,40 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
 
   const { isDebugFilter, isDefaultFilter, isNoneFilter } =
     useTranscriptFilter(defaultExcludeEvents);
+
+  // ── Activity tab ──────────────────────────────────────────────────────
+  // Hidden entirely for old logs whose events lack timestamps (design spec);
+  // chunked samples carry an empty shell events array, so they hide it too.
+  const hasActivityTab = hasEventTimestamps(sampleEvents);
+  // Durable Activity UI state (band toggles, filters, selection) is keyed
+  // per log + sample so it survives tab switches without leaking across
+  // samples.
+  const activityPersistScope = `${sampleHandle?.logFile ?? ""}:${String(
+    sampleHandle?.id ?? id
+  )}:${sampleHandle?.epoch ?? 1}`;
+  // Click-through target for every Activity span, glyph, and history row:
+  // the Transcript tab scrolled to the event (?event=<uuid>). Modifier
+  // clicks open the same route in a new browser tab.
+  const openEventInTranscript = (uuid: string, event: MouseEvent) => {
+    const sampleId = urlSampleId ?? sampleHandle?.id;
+    const sampleEpoch = urlEpoch ?? sampleHandle?.epoch;
+    if (!urlLogPath || sampleId === undefined || sampleEpoch === undefined) {
+      return;
+    }
+    const url = sampleEventUrl(
+      sampleUrlBuilder,
+      uuid,
+      urlLogPath,
+      sampleId,
+      sampleEpoch
+    );
+    if (event.metaKey || event.ctrlKey || event.shiftKey) {
+      openInNewTab(`#${url}`);
+      return;
+    }
+    setSelectedTab(kSampleTranscriptTabId);
+    navigateAndForget(navigate, url);
+  };
 
   const api = getApi();
   const downloadFiles = useStore((state) => state.capabilities.downloadFiles);
@@ -845,6 +894,8 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
     navOwnsRef: chromeNavOwnsRef,
   } = useChromeNavOwnership(scrollRef, {
     ownedForKey: () => mountsAtDeepLink,
+    // The header survives sibling navigation; its collapse belongs to this visit.
+    resetKey: visitId,
     scrollDirection: { threshold: 80, stayHiddenOnUpScroll: true },
   });
 
@@ -988,8 +1039,14 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               className={clsx("sample-tab", styles.overflowVisible)}
               title="Transcript"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleTranscriptTabId)}
               selected={
                 effectiveSelectedTab === kSampleTranscriptTabId ||
+                // A shared /activity URL on a log whose events lack
+                // timestamps hides that tab — fall back here rather than
+                // leaving no panel selected.
+                (effectiveSelectedTab === kSampleActivityTabId &&
+                  !hasActivityTab) ||
                 // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- intentional: persisted webview/store state isn't validated (#555); a restored store may omit the tab selection
                 effectiveSelectedTab === undefined
               }
@@ -1060,6 +1117,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               )}
               title="Messages"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleMessagesTabId)}
               selected={effectiveSelectedTab === kSampleMessagesTabId}
               scrollable={false}
             >
@@ -1109,6 +1167,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               className="sample-tab"
               title="Scoring"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleScoringTabId)}
               selected={effectiveSelectedTab === kSampleScoringTabId}
             >
               <SampleScoresView
@@ -1117,12 +1176,38 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 scrollRef={scrollRef}
               />
             </TabPanel>
+            {hasActivityTab ? (
+              <TabPanel
+                key={kSampleActivityTabId}
+                id={kSampleActivityTabId}
+                className={clsx("sample-tab", styles.fullWidth)}
+                title="Activity"
+                onSelected={onSelectedTab}
+                selected={effectiveSelectedTab === kSampleActivityTabId}
+                scrollable={false}
+              >
+                <div className={styles.tabContent}>
+                  <SampleActivityPanel
+                    events={sampleEvents}
+                    startedAt={sample?.started_at}
+                    completedAt={sample?.completed_at}
+                    workingTime={sample?.working_time}
+                    totalTime={sample?.total_time}
+                    running={running}
+                    scrollRef={scrollRef}
+                    persistScope={activityPersistScope}
+                    onOpenEvent={openEventInTranscript}
+                  />
+                </div>
+              </TabPanel>
+            ) : null}
             {sampleUsages.length > 0 ? (
               <TabPanel
                 id={kSampleUsageTabId}
                 className={clsx("sample-tab")}
                 title="Usage"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleUsageTabId)}
                 selected={effectiveSelectedTab === kSampleUsageTabId}
               >
                 <div
@@ -1141,6 +1226,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               className={clsx("sample-tab")}
               title="Metadata"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleMetdataTabId)}
               selected={effectiveSelectedTab === kSampleMetdataTabId}
             >
               {sampleMetadatas.length > 0 ? (
@@ -1163,6 +1249,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 className="sample-tab"
                 title="Error"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleErrorTabId)}
                 selected={effectiveSelectedTab === kSampleErrorTabId}
               >
                 <div className={clsx(styles.error)}>
@@ -1189,6 +1276,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
                 className="sample-tab"
                 title="Retries"
                 onSelected={onSelectedTab}
+                href={sampleTabHref(kSampleRetriesTabId)}
                 selected={effectiveSelectedTab === kSampleRetriesTabId}
               >
                 <div className={styles.retriedErrors}>
@@ -1209,6 +1297,7 @@ export const SampleDisplay: FC<SampleDisplayProps> = ({
               className={"sample-tab"}
               title="JSON"
               onSelected={onSelectedTab}
+              href={sampleTabHref(kSampleJsonTabId)}
               selected={effectiveSelectedTab === kSampleJsonTabId}
             >
               {!sample ? (

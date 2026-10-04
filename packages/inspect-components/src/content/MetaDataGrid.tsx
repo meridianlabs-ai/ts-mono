@@ -5,6 +5,7 @@ import { CopyButton, MarkdownReference } from "@tsmono/react/components";
 import { isRecord } from "@tsmono/util";
 
 import { copyValueText } from "./copyText";
+import { isHtmlEscape } from "./htmlEscape";
 import styles from "./MetaDataGrid.module.css";
 import { RenderedContent } from "./RenderedContent";
 
@@ -25,20 +26,8 @@ interface MetadataGridProps {
   };
 }
 
-const isPlainObject = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === "object" && !Array.isArray(v);
-
 const isNonEmptyObject = (v: unknown): v is Record<string, unknown> =>
-  isPlainObject(v) && Object.keys(v).length > 0;
-
-// Values shaped like `{ _html: <ReactElement> }` are an escape hatch
-// callers use to render bespoke JSX inside an otherwise scalar row.
-// They must not be treated as nested groups (which would recurse into
-// MetaDataGrid and dump the element as `$$typeof / type / props / ...`
-// pseudo-properties); they should reach RenderedContent's Html branch
-// instead.
-const hasHtmlEscape = (v: unknown): v is { _html: unknown } =>
-  isPlainObject(v) && "_html" in v && v._html != null;
+  isRecord(v) && Object.keys(v).length > 0;
 
 /**
  * Renders structured metadata as a grid with section cards.
@@ -60,11 +49,14 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
   const baseId = id ?? "metadata-grid";
   const allEntries = entryRecords(entries);
 
+  // `{ _html: <ReactElement> }` escape hatches stay scalar rows so they
+  // reach RenderedContent's Html branch instead of recursing into a group
+  // that would dump the element as `$$typeof / type / props / ...`.
   const scalars = allEntries.filter(
-    (e) => !isNonEmptyObject(e.value) || hasHtmlEscape(e.value)
+    (e) => !isNonEmptyObject(e.value) || isHtmlEscape(e.value)
   );
   const groups = allEntries.filter(
-    (e) => isNonEmptyObject(e.value) && !hasHtmlEscape(e.value)
+    (e) => isNonEmptyObject(e.value) && !isHtmlEscape(e.value)
   );
 
   const [expanded, setExpanded] = useState(false);
@@ -115,7 +107,7 @@ export const MetaDataGrid: FC<MetadataGridProps> = ({
                     )}
                   />
                 </div>
-                {options?.copyButton && !hasHtmlEscape(entry.value) ? (
+                {options?.copyButton && !isHtmlEscape(entry.value) ? (
                   <div className={styles.copyCell}>
                     <CopyButton
                       value={copyValueText(entry.value)}

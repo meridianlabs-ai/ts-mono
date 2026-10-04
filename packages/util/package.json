@@ -25,6 +25,7 @@
   "devDependencies": {
     "@tsmono/eslint-config": "workspace:*",
     "@tsmono/tsconfig": "workspace:*",
+    "@tsmono/vitest-config": "workspace:*",
     "@types/lz4js": "^0.2.2",
     "@typescript/native": "npm:typescript@^7.0.2",
     "@uwdata/flechette": "^2.5.0",
@@ -35,7 +36,7 @@
     "lz4js": "^0.2.0",
     "playwright-core": "^1.63.0",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.70.0",
-    "vitest": "^5.0.0"
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.1"
   }
 }

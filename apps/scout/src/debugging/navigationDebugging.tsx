@@ -14,7 +14,7 @@ const NAVIGATION_LOGGING_ENABLED = false;
 const timestamp = () => new Date().toISOString().slice(11, 23);
 
 export const navigationLog = (description: string) => {
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- hand-flipped debug switch: TS narrows the literal initializer, so this reads as dead only while the switch is off
   if (NAVIGATION_LOGGING_ENABLED) {
     console.log(`[${timestamp()}] ${description}`);
   }

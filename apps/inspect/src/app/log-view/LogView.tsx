@@ -1,14 +1,5 @@
 import clsx from "clsx";
-import {
-  createElement,
-  FC,
-  Fragment,
-  MouseEvent,
-  RefObject,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { createElement, FC, Fragment, MouseEvent, useRef } from "react";
 
 import {
   EmptyPanel,
@@ -26,7 +17,9 @@ import {
 } from "../../state/hooks";
 import { useSelectedLogLoading } from "../../state/selectedLogDetails";
 import { useStore } from "../../state/store";
+import { useCurrentLogFile } from "../routing/currentSelection";
 import { useLogNavigationAction } from "../routing/logNavigation";
+import { toFullUrlMaybe } from "../routing/url";
 
 import styles from "./LogView.module.css";
 import { useErrorTabConfig } from "./tabs/ErrorTab";
@@ -43,6 +36,7 @@ export const LogView: FC = () => {
   const divRef = useRef<HTMLDivElement>(null);
 
   const navigation = useLogNavigationAction();
+  const logFile = useCurrentLogFile();
 
   const selectedLogDetails = useSelectedLogDetails();
   const logLoading = useSelectedLogLoading();
@@ -52,9 +46,8 @@ export const LogView: FC = () => {
   const runningMetrics = useSelectedRunningMetrics().data;
 
   // Use individual tab config hooks
-  const samplesTabConfig = useSamplesTabConfig(
-    selectedLogDetails?.status,
-    refreshLog
+  const samplesTabConfig = useSamplesTabConfig(selectedLogDetails?.status, () =>
+    refreshLog(logFile)
   );
 
   const intoTabConfig = useInfoTabConfig(
@@ -109,18 +102,9 @@ export const LogView: FC = () => {
     json: jsonTabConfig,
   };
 
-  const tabKeys = Object.keys(tabs).join(",");
-  const scrollRefs = useMemo(() => {
-    const refs: RefObject<HTMLElement | null>[] = [];
-    for (const key of Object.keys(tabs)) {
-      const ref = tabs[key]?.scrollRef;
-      if (ref) refs.push(ref);
-    }
-    return refs;
-    // The set of tab refs is stable within a session — recompute only when
-    // the tab keys change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tabKeys]);
+  const scrollRefs = Object.values(tabs).flatMap((tab) =>
+    tab.scrollRef ? [tab.scrollRef] : []
+  );
 
   const { hidden: titleCollapsed } = useScrollDirection(scrollRefs, {
     stayHiddenOnUpScroll: true,
@@ -129,16 +113,13 @@ export const LogView: FC = () => {
   const selectedTab = useStore((state) => state.app.tabs.workspace);
   const setSelectedTab = useStore((state) => state.appActions.setWorkspaceTab);
 
-  const onSelected = useCallback(
-    (e: MouseEvent<HTMLElement>) => {
-      const id = e.currentTarget.id;
-      if (id) {
-        setSelectedTab(id);
-        navigation.selectTab(id);
-      }
-    },
-    [setSelectedTab, navigation]
-  );
+  const onSelected = (e: MouseEvent<HTMLElement>) => {
+    const id = e.currentTarget.id;
+    if (id) {
+      setSelectedTab(id);
+      navigation.selectTab(id);
+    }
+  };
 
   if (evalSpec === undefined) {
     return (
@@ -193,6 +174,7 @@ export const LogView: FC = () => {
                     id={tab.id}
                     title={tab.label}
                     onSelected={onSelected}
+                    href={toFullUrlMaybe(navigation.getTabUrl(tab.id))}
                     selected={selectedTab === tab.id}
                     scrollable={!!tab.scrollable}
                     scrollRef={tab.scrollable ? tab.scrollRef : undefined}

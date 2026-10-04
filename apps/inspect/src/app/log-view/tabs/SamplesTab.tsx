@@ -4,7 +4,6 @@ import {
   Fragment,
   RefObject,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -32,9 +31,11 @@ import {
   SampleTools,
   ScoreFilterTools,
 } from "../../../app/samples/SamplesTools.tsx";
-import { totalSampleTokens } from "../../../client/utils/derive.ts";
+import {
+  totalSampleCost,
+  totalSampleTokens,
+} from "../../../client/utils/derive.ts";
 import { kLogViewSamplesTabId } from "../../../constants.ts";
-import { selectSample } from "../../../state/actions.ts";
 import {
   useEffectiveEvalConfig,
   useFilteredSamples,
@@ -48,6 +49,7 @@ import {
 import { useStore } from "../../../state/store.ts";
 import { ApplicationIcons } from "../../appearance/icons.ts";
 import { NavbarButton } from "../../navbar/NavbarButton.tsx";
+import { useCurrentLogFile } from "../../routing/currentSelection";
 import {
   sortingToViewSort,
   viewSortToSorting,
@@ -202,7 +204,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
   // compute over the settled rows this AsyncData carries.
   const summariesState = useSelectedSampleSummaries();
   const selectedLogDetails = useSelectedLogDetails();
-  const selectedLogFile = useStore((state) => state.logs.selectedLogFile);
+  const selectedLogFile = useCurrentLogFile();
 
   // Effective (folded) config — limit/epochs are launch-shaped, but routing
   // every config read through the fold makes that assumption enforced.
@@ -326,6 +328,7 @@ export const SamplesTab: FC<SamplesTabProps> = ({
       if (id === "fallbacks") return !!shape?.fallbacksSize;
       if (id === "error") return !!shape?.errorSize;
       if (id === "sampleUuid") return false;
+      if (id === "cost") return false;
       return true;
     },
     [shape, epochs]
@@ -457,19 +460,11 @@ export const SamplesTab: FC<SamplesTabProps> = ({
         retries: sample.retries,
         fallbacks: totalModelFallbacks(sample.model_fallbacks) || undefined,
         tokens,
+        cost: totalSampleCost(sample.model_usage),
         duration: sample.total_time ?? undefined,
       };
     });
   }, [sampleSummaries, samplesDescriptor, selectedLogFile]);
-
-  // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
-  useEffect(() => {
-    const sample =
-      sampleSummaries.length === 1 ? sampleSummaries[0] : undefined;
-    if (sample && selectedLogFile) {
-      selectSample(sample.id, sample.epoch, selectedLogFile);
-    }
-  }, [sampleSummaries, selectedLogFile]);
 
   if (summariesState.error) {
     return (

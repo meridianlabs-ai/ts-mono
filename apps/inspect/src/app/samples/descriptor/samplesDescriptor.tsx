@@ -1,12 +1,11 @@
 import { ReactNode } from "react";
 
 import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
-import { arrayToString, isRecord } from "@tsmono/util";
+import { arrayToString, isRecord, valueAsString } from "@tsmono/util";
 
 import { ScoreValue } from "../../../@types/extraInspect";
 import { ScoreLabel } from "../../../app/types";
 import { BasicSampleData, SampleSummary } from "../../../client/api/types";
-import { valueAsString } from "../../../utils/format";
 import { errorType } from "../error/error";
 
 import { getScoreDescriptorForValues } from "./score/ScoreDescriptor";
@@ -51,28 +50,15 @@ export const createEvalDescriptor = (
       return undefined;
     }
 
-    if (
-      scoreLabel.scorer !== scoreLabel.name &&
-      sample.scores[scoreLabel.scorer] &&
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      sample.scores[scoreLabel.scorer].value
-    ) {
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      if (typeof sample.scores[scoreLabel.scorer].value === "object") {
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        const temp = sample.scores[scoreLabel.scorer].value;
-        // The dict form of Score.value; the typeof check above is what
-        // distinguishes it from the scalar forms.
-        return isRecord(temp) ? temp[scoreLabel.name] : undefined;
+    const entry = sample.scores[scoreLabel.scorer];
+    if (scoreLabel.scorer !== scoreLabel.name && entry?.value) {
+      if (typeof entry.value === "object") {
+        return isRecord(entry.value) ? entry.value[scoreLabel.name] : undefined;
       } else {
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-        return sample.scores[scoreLabel.scorer].value;
+        return entry.value;
       }
-    } else if (sample.scores[scoreLabel.name]) {
-      // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-      return sample.scores[scoreLabel.name].value;
     } else {
-      return undefined;
+      return sample.scores[scoreLabel.name]?.value;
     }
   };
 
@@ -129,12 +115,9 @@ export const createEvalDescriptor = (
             }
 
             if (scoreLabel.scorer !== scoreLabel.name) {
+              const value = sample.scores[scoreLabel.scorer]?.value;
               return (
-                Object.keys(sample.scores).includes(scoreLabel.scorer) &&
-                // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-                Object.keys(sample.scores[scoreLabel.scorer].value).includes(
-                  scoreLabel.name
-                )
+                isRecord(value) && Object.keys(value).includes(scoreLabel.name)
               );
             } else {
               return Object.keys(sample.scores).includes(scoreLabel.name);
@@ -226,10 +209,12 @@ export const createEvalDescriptor = (
           return score.name;
         });
         const sampleScorer = sample.scores[scoreLabel.scorer];
-        // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
+        if (!sampleScorer) {
+          return [];
+        }
         const scoreVal = sampleScorer.value;
 
-        if (typeof scoreVal === "object") {
+        if (isRecord(scoreVal)) {
           const names = Object.keys(scoreVal);
 
           // See if this is a dictionary of score names

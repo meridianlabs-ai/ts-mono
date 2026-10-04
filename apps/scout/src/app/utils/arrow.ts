@@ -1,7 +1,7 @@
 import { ColumnTable, from } from "arquero";
 import JSON5 from "json5";
 
-import { asyncJsonParse, isRecord } from "@tsmono/util";
+import { asyncJsonParse, castScanValue, isRecord } from "@tsmono/util";
 
 import { ScanResultReference, ScanResultValueType } from "../types";
 
@@ -98,7 +98,7 @@ export async function expandResultsetRows(
 
       // If the row has an empty result set, just leave it
       // intact
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- untyped boundary: JSON5.parse<T> asserts the element shape but a cell holding "null" parses to null
       if (!results || results.length === 0) {
         const expandedRow = { ...row };
         expandedRow.value = null;
@@ -138,9 +138,12 @@ export async function expandResultsetRows(
         const valueType = result.type ?? inferType(result.value);
         expandedRow.value_type = valueType;
 
-        // Cast the value based on its type
-        const value = maybeSerializeValue(result.value);
-        expandedRow.value = value;
+        // Expanded rows are built after decodeArrowBytes cast the table, so
+        // they get the same per-value cast here.
+        expandedRow.value = castScanValue(
+          maybeSerializeValue(result.value),
+          valueType
+        );
 
         // Split into message_references and event_references
         const references = result.references ?? [];

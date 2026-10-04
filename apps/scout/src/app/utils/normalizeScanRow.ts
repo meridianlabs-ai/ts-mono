@@ -24,11 +24,46 @@ import type {
  * ScanResultData can trust the declared types.
  */
 
+// JSON.parse is iterative but JSON(5).stringify recurses, so a deeply nested
+// cell parses and then overflows the stack when the viewer serializes it.
+const kMaxJsonDepth = 256;
+
+const pruneDeepJson = <T>(root: T, source: string): T => {
+  // Every nesting level costs at least two source characters, so a cell this
+  // short cannot exceed the cap and the walk is skipped for ordinary rows.
+  if (source.length <= 2 * kMaxJsonDepth) {
+    return root;
+  }
+  if (!isRecord(root) && !Array.isArray(root)) {
+    return root;
+  }
+  const stack: { node: Record<string, unknown> | unknown[]; depth: number }[] =
+    [{ node: root, depth: 1 }];
+  for (let frame = stack.pop(); frame !== undefined; frame = stack.pop()) {
+    const { node, depth } = frame;
+    for (const [key, child] of Object.entries(node)) {
+      if (!isRecord(child) && !Array.isArray(child)) {
+        continue;
+      }
+      if (depth >= kMaxJsonDepth) {
+        if (Array.isArray(node)) {
+          node[Number(key)] = null;
+        } else {
+          node[key] = null;
+        }
+      } else {
+        stack.push({ node: child, depth: depth + 1 });
+      }
+    }
+  }
+  return root;
+};
+
 const parseJsonLenient = async (
   text: string
 ): Promise<JsonValue | undefined> => {
   try {
-    return await asyncJsonParse<JsonValue>(text);
+    return pruneDeepJson(await asyncJsonParse<JsonValue>(text), text);
   } catch {
     return undefined;
   }
@@ -154,23 +189,37 @@ export const normalizeInputType = (
 ): ScannerInputType | undefined =>
   typeof raw === "string" && isInputType(raw) ? raw : undefined;
 
+type ScanValue = Pick<ScanResultSummary, "value" | "valueType">;
+
+const kNullScanValue: ScanValue = { value: null, valueType: "null" };
+
 /**
- * The `value` cell: JSON-encoded for object/array results, the raw scalar
- * otherwise.
+ * The `value` cell: JSON-encoded for object/array results, a scalar
+ * otherwise (text under a number/boolean tag was already cast by
+ * `castScanValue`). The value_type tag is authored independently of the cell
+ * and every consumer narrows on the tag alone, so the returned tag always
+ * matches the value's runtime shape: an array/object tag over an absent,
+ * malformed, or other-shaped cell becomes null, and a scalar keeps its value
+ * under the tag of its own type.
  */
 export const normalizeScanValue = async (
   raw: unknown,
   valueType: ScanResultValueType
-): Promise<ScanResultSummary["value"]> => {
-  if (valueType === "object" || valueType === "array") {
+): Promise<ScanValue> => {
+  if (valueType === "array") {
     const parsed = await parseJsonCell(raw);
-    return typeof parsed === "object" ? parsed : null;
+    return Array.isArray(parsed)
+      ? { value: parsed, valueType }
+      : kNullScanValue;
   }
-  return typeof raw === "string" ||
-    typeof raw === "number" ||
-    typeof raw === "boolean"
-    ? raw
-    : null;
+  if (valueType === "object") {
+    const parsed = await parseJsonCell(raw);
+    return isRecord(parsed) ? { value: parsed, valueType } : kNullScanValue;
+  }
+  if (typeof raw === "string") return { value: raw, valueType: "string" };
+  if (typeof raw === "number") return { value: raw, valueType: "number" };
+  if (typeof raw === "boolean") return { value: raw, valueType: "boolean" };
+  return kNullScanValue;
 };
 
 /**
@@ -210,7 +259,7 @@ export const normalizeValidationTarget = async (
 ): Promise<JsonValue | undefined> => {
   if (typeof raw === "string") {
     try {
-      return await asyncJsonParse<JsonValue>(raw);
+      return pruneDeepJson(await asyncJsonParse<JsonValue>(raw), raw);
     } catch {
       // Legacy targets could be plain (non-JSON) strings; keep them verbatim.
       return raw;

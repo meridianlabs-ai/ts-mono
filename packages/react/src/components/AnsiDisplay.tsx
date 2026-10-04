@@ -1,283 +1,65 @@
-import { ANSIColor, ANSIOutput, ANSIOutputRun, ANSIStyle } from "ansi-output";
 import clsx from "clsx";
-import { CSSProperties, FC, useState } from "react";
+import { CSSProperties, FC } from "react";
+
+import { stripAnsi } from "@tsmono/util";
+
+import { onDemandModule, useOnDemandModule } from "../hooks/onDemandModule";
 
 import styles from "./AnsiDisplay.module.css";
-import { useComponentIcons } from "./ComponentIconContext";
-import { ToolButton } from "./ToolButton";
+import { usePlainText } from "./ContentTrust";
+import { useContentPolicy } from "./ContentTrustContext";
 
-interface ANSIDisplayProps {
+// Loaded on first trusted use, so ansi-output never loads for untrusted content.
+const richRenderer = onDemandModule(() => import("./AnsiDisplayRich"));
+
+export interface ANSIDisplayProps {
   output: string;
   style?: CSSProperties;
   className?: string[] | string;
 }
 
-export const ANSIDisplay: FC<ANSIDisplayProps> = ({
+export const ANSIDisplay: FC<ANSIDisplayProps> = (props) => {
+  return useContentPolicy().ansi ? (
+    <TrustedANSIDisplay {...props} />
+  ) : (
+    <UntrustedANSIDisplay {...props} />
+  );
+};
+
+/** Untrusted terminal output: escape sequences shown, never interpreted. */
+const UntrustedANSIDisplay: FC<ANSIDisplayProps> = ({
   output,
   style,
   className,
 }) => {
-  const icons = useComponentIcons();
-  const [showRaw, setShowRaw] = useState(false);
-  const ansiOutput = new ANSIOutput();
-  ansiOutput.processOutput(output);
-
-  // Check if more than 80% of lines share the same background color
-  const getUniformBackgroundColor = (): string | undefined => {
-    const backgroundColorCounts = new Map<string, number>();
-    let totalLinesWithBackground = 0;
-
-    // Count background colors across all lines
-    for (const line of ansiOutput.outputLines) {
-      let lineBackgroundColor: string | undefined = undefined;
-
-      // Get the background color for this line (from any run that has one)
-      for (const run of line.outputRuns) {
-        if (run.format?.backgroundColor) {
-          lineBackgroundColor = run.format.backgroundColor;
-          break;
-        }
-      }
-
-      if (lineBackgroundColor) {
-        totalLinesWithBackground++;
-        backgroundColorCounts.set(
-          lineBackgroundColor,
-          (backgroundColorCounts.get(lineBackgroundColor) || 0) + 1
-        );
-      }
-    }
-
-    // Return undefined if no lines have backgrounds
-    if (totalLinesWithBackground === 0) {
-      return undefined;
-    }
-
-    // Compute percentages for each background color
-    const backgroundColorPercentages = new Map<string, number>();
-    for (const [color, count] of backgroundColorCounts.entries()) {
-      backgroundColorPercentages.set(color, count / totalLinesWithBackground);
-    }
-
-    // Find the color with the highest percentage
-    let dominantColor: string | undefined = undefined;
-    let maxPercentage = 0;
-
-    for (const [color, percentage] of backgroundColorPercentages.entries()) {
-      if (percentage > maxPercentage) {
-        maxPercentage = percentage;
-        dominantColor = color;
-      }
-    }
-
-    // Return the color if it appears in more than 80% of lines
-    return maxPercentage > 0.8 ? dominantColor : undefined;
-  };
-
-  const uniformBackgroundColor = getUniformBackgroundColor();
-  const backgroundStyle = uniformBackgroundColor
-    ? computeForegroundBackgroundColor(kBackground, uniformBackgroundColor)
-    : {};
-
-  let firstOutput = false;
+  const plain = usePlainText();
   return (
-    <div
-      className={clsx(styles.ansiDisplayContainer, className)}
-      style={{ ...style }}
-    >
-      <ToolButton
-        className={clsx(styles.ansiDisplayToggle, "text-size-smallest")}
-        icon={icons.code}
-        label=""
-        latched={showRaw}
-        onClick={() => setShowRaw(!showRaw)}
-        title={showRaw ? "Show rendered output" : "Show raw output"}
-      />
-      {showRaw ? (
-        <pre className={clsx(styles.ansiDisplay, styles.ansiDisplayRaw)}>
-          {output}
-        </pre>
-      ) : (
-        <div className={clsx(styles.ansiDisplay)} style={backgroundStyle}>
-          {ansiOutput.outputLines.map((line, index) => {
-            // TODO: lint react-hooks/immutability - the mutation of firstOutput is funky. Render functions are supposed to be pure.
-            // eslint-disable-next-line react-hooks/immutability
-            firstOutput = firstOutput || !!line.outputRuns.length;
-            return (
-              <div key={index}>
-                {!line.outputRuns.length ? (
-                  firstOutput ? (
-                    <br />
-                  ) : null
-                ) : (
-                  line.outputRuns.map((outputRun) => (
-                    <OutputRun key={outputRun.id} run={outputRun} />
-                  ))
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+    <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
+      <pre
+        className={clsx(
+          styles.ansiDisplay,
+          styles.ansiDisplayRaw,
+          plain.className
+        )}
+      >
+        {plain.present(output)}
+      </pre>
     </div>
   );
 };
 
-const kForeground = 0;
-const kBackground = 1;
-
-interface OutputRunProps {
-  run: ANSIOutputRun;
-}
-
-const OutputRun: FC<OutputRunProps> = ({ run }) => {
-  // Render.
-  return <span style={computeCSSProperties(run)}>{run.text}</span>;
+const TrustedANSIDisplay: FC<ANSIDisplayProps> = (props) => {
+  const rich = useOnDemandModule(richRenderer);
+  return rich ? <rich.default {...props} /> : <LoadingANSIDisplay {...props} />;
 };
 
-const computeCSSProperties = (outputRun: ANSIOutputRun) => {
-  return !outputRun.format
-    ? {}
-    : {
-        ...computeStyles(outputRun.format.styles || []),
-        ...computeForegroundBackgroundColor(
-          kForeground,
-          outputRun.format.foregroundColor
-        ),
-        ...computeForegroundBackgroundColor(
-          kBackground,
-          outputRun.format.backgroundColor
-        ),
-      };
-};
-
-const computeStyles = (styles: ANSIStyle[]) => {
-  let cssProperties = {};
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  if (styles) {
-    styles.forEach((style) => {
-      switch (style) {
-        // Bold.
-        case ANSIStyle.Bold:
-          cssProperties = { ...cssProperties, ...{ fontWeight: "bold" } };
-          break;
-
-        // Dim.
-        case ANSIStyle.Dim:
-          cssProperties = { ...cssProperties, ...{ fontWeight: "lighter" } };
-          break;
-
-        // Italic.
-        case ANSIStyle.Italic:
-          cssProperties = { ...cssProperties, ...{ fontStyle: "italic" } };
-          break;
-
-        // Underlined.
-        case ANSIStyle.Underlined:
-          cssProperties = {
-            ...cssProperties,
-            ...{
-              textDecorationLine: "underline",
-              textDecorationStyle: "solid",
-            },
-          };
-          break;
-
-        // Slow blink.
-        case ANSIStyle.SlowBlink:
-          cssProperties = {
-            ...cssProperties,
-            ...{ animation: "ansi-display-run-blink 1s linear infinite" },
-          };
-          break;
-
-        // Rapid blink.
-        case ANSIStyle.RapidBlink:
-          cssProperties = {
-            ...cssProperties,
-            ...{ animation: "ansi-display-run-blink 0.5s linear infinite" },
-          };
-          break;
-
-        // Hidden.
-        case ANSIStyle.Hidden:
-          cssProperties = { ...cssProperties, ...{ visibility: "hidden" } };
-          break;
-
-        // CrossedOut.
-        case ANSIStyle.CrossedOut:
-          cssProperties = {
-            ...cssProperties,
-            ...{
-              textDecorationLine: "line-through",
-              textDecorationStyle: "solid",
-            },
-          };
-          break;
-
-        // TODO Fraktur
-
-        // DoubleUnderlined.
-        case ANSIStyle.DoubleUnderlined:
-          cssProperties = {
-            ...cssProperties,
-            ...{
-              textDecorationLine: "underline",
-              textDecorationStyle: "double",
-            },
-          };
-          break;
-
-        // TODO Framed
-        // TODO Encircled
-        // TODO Overlined
-        // TODO Superscript
-        // TODO Subscript
-      }
-    });
-  }
-
-  return cssProperties;
-};
-
-const computeForegroundBackgroundColor = (
-  colorType: number,
-  color?: string
-) => {
-  switch (color) {
-    // Undefined.
-    case undefined:
-      return {};
-
-    // One of the standard colors.
-    case ANSIColor.Black:
-    case ANSIColor.Red:
-    case ANSIColor.Green:
-    case ANSIColor.Yellow:
-    case ANSIColor.Blue:
-    case ANSIColor.Magenta:
-    case ANSIColor.Cyan:
-    case ANSIColor.White:
-    case ANSIColor.BrightBlack:
-    case ANSIColor.BrightRed:
-    case ANSIColor.BrightGreen:
-    case ANSIColor.BrightYellow:
-    case ANSIColor.BrightBlue:
-    case ANSIColor.BrightMagenta:
-    case ANSIColor.BrightCyan:
-    case ANSIColor.BrightWhite:
-      if (colorType === kForeground) {
-        return { color: `var(--${color})` };
-      } else {
-        return { background: `var(--${color})` };
-      }
-
-    // TODO@softwarenerd - This isn't hooked up.
-    default:
-      if (colorType === kForeground) {
-        return { color: color };
-      } else {
-        return { background: color };
-      }
-  }
-};
+/** Trusted output while the rich renderer loads: its text, escapes removed. */
+const LoadingANSIDisplay: FC<ANSIDisplayProps> = ({
+  output,
+  style,
+  className,
+}) => (
+  <div className={clsx(styles.ansiDisplayContainer, className)} style={style}>
+    <pre className={styles.ansiDisplay}>{stripAnsi(output)}</pre>
+  </div>
+);

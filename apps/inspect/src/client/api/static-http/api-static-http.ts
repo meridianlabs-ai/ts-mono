@@ -77,6 +77,10 @@ function staticHttpApiForLog(logInfo: {
   const canonical_log_dir = canonicalDirUrl(log_dir);
   const app_config = logInfo.app_config ?? kFallbackAppConfig;
   let manifest: Record<string, LogPreview> | undefined = undefined;
+  // The same entries keyed by absolute log name, built once with the manifest
+  // so per-file lookups during listing hydration are O(1) instead of a
+  // joinURI per key per file.
+  let manifestByName: Map<string, LogPreview> | undefined = undefined;
   let manifestPromise: Promise<Record<string, LogPreview>> | undefined =
     undefined;
 
@@ -85,12 +89,42 @@ function staticHttpApiForLog(logInfo: {
       if (!manifestPromise) {
         manifestPromise = fetchManifest(log_dir).then((manifestRaw) => {
           manifest = manifestRaw?.parsed || {};
+          manifestByName = new Map(
+            Object.entries(manifest).map(([key, preview]) => [
+              joinURI(canonical_log_dir, key),
+              preview,
+            ])
+          );
           return manifest;
         });
       }
       await manifestPromise;
     }
     return manifest || {};
+  };
+
+  // Manifest keys are log-dir-relative. The absolute name wins outright; the
+  // fallback for a non-canonical absolute URL is the longest key that is a
+  // whole trailing path, so `b.eval` never claims `.../xb.eval` and `a.eval`
+  // never shadows `sub/a.eval`.
+  const findPreview = (
+    manifest: Record<string, LogPreview>,
+    file: string
+  ): LogPreview | undefined => {
+    const exact = manifestByName?.get(file);
+    if (exact) {
+      return exact;
+    }
+    let key: string | undefined;
+    for (const candidate of Object.keys(manifest)) {
+      if (
+        file.endsWith(`/${candidate}`) &&
+        (key === undefined || candidate.length > key.length)
+      ) {
+        key = candidate;
+      }
+    }
+    return key === undefined ? undefined : manifest[key];
   };
 
   async function open_log_file() {
@@ -180,17 +214,9 @@ function staticHttpApiForLog(logInfo: {
       return await fetchRange(log_file, start, end);
     },
     get_log_summary: async (log_file: string) => {
-      const manifest = await getManifest();
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (manifest) {
-        const manifestAbs: Record<string, LogPreview> = {};
-        Object.entries(manifest).forEach(([key, preview]) => {
-          manifestAbs[joinURI(canonical_log_dir, key)] = preview;
-        });
-        const header = manifestAbs[log_file];
-        if (header) {
-          return header;
-        }
+      const preview = findPreview(await getManifest(), log_file);
+      if (preview) {
+        return preview;
       }
       throw new Error(`Unable to load eval log header for ${log_file}`);
     },
@@ -200,26 +226,14 @@ function staticHttpApiForLog(logInfo: {
       }
 
       const manifest = await getManifest();
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (manifest) {
-        const keys = Object.keys(manifest);
-        const result: LogPreview[] = [];
-        files.forEach((file) => {
-          const fileKey = keys.find((key) => {
-            return file.endsWith(key);
-          });
-          if (fileKey) {
-            // @ts-expect-error pre-existing noUncheckedIndexedAccess violation (TODO: narrow when touched)
-            result.push(manifest[fileKey]);
-          }
-        });
-        return result;
-      }
-
-      // No log.json could be found, and there isn't a log file,
-      throw new Error(
-        `Failed to load a listing file using the directory: ${log_dir}. Please be sure you have deployed a manifest file (listing.json).`
-      );
+      const result: LogPreview[] = [];
+      files.forEach((file) => {
+        const preview = findPreview(manifest, file);
+        if (preview) {
+          result.push(preview);
+        }
+      });
+      return result;
     },
     get_app_config: () => Promise.resolve(app_config),
     download_file,

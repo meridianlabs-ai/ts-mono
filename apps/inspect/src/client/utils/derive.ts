@@ -1,4 +1,8 @@
-import { inputString, totalModelFallbacks } from "@tsmono/inspect-common/utils";
+import {
+  costSummary,
+  inputString,
+  totalModelFallbacks,
+} from "@tsmono/inspect-common/utils";
 import { arrayToString } from "@tsmono/util";
 
 import {
@@ -38,7 +42,7 @@ type DeriveVersion = LessThan<100>;
  * only recomputed via the recreate-on-mismatch wipe. Must stay below 100
  * (enforced by `DeriveVersion`; schema.ts asserts it again at runtime).
  */
-export const DERIVE_VERSION: number = 1 satisfies DeriveVersion;
+export const DERIVE_VERSION: number = 2 satisfies DeriveVersion;
 
 export const deriveLogFields = (header: LogHeader): LogDerived => {
   let total_tokens: number | undefined;
@@ -132,6 +136,15 @@ export const totalSampleTokens = (
     : undefined;
 };
 
+/** A sample's total cost across models — undefined unless every model that
+ *  used tokens was priced, so a partial sum never reads as the full cost. */
+export const totalSampleCost = (
+  modelUsage: SampleSummary["model_usage"]
+): number | undefined => {
+  const cost = costSummary(modelUsage);
+  return cost && !cost.partial ? cost.total : undefined;
+};
+
 export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
   let scores: Record<string, unknown> | undefined;
   if (summary.scores) {
@@ -143,6 +156,7 @@ export const deriveSampleFields = (summary: SampleSummary): SampleDerived => {
 
   return {
     tokens: totalSampleTokens(summary.model_usage),
+    cost: totalSampleCost(summary.model_usage),
     input: inputString(summary.input).join("\n"),
     target: arrayToString(summary.target),
     // 0 fallbacks stores as undefined so the column renders empty

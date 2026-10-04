@@ -71,7 +71,6 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedBackUrl, singleFileMode]);
 
-  const editable = false;
   const filterText =
     filter && !filter.startsWith("(")
       ? `(${filter})`
@@ -99,14 +98,9 @@ export const TranscriptsNavbar: FC<TranscriptsNavbarProps> = ({
               : undefined
           }
           onPathChanged={setTranscriptsDir}
-          placeholder={
-            // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-            editable
-              ? "Select Transcripts Folder"
-              : "No transcripts directory configured."
-          }
+          placeholder="No transcripts directory configured."
           className="text-size-smallest"
-          editable={editable}
+          editable={false}
         />
       }
       right={children}

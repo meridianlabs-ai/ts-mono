@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import {
   afterAll,
   afterEach,
@@ -81,6 +82,55 @@ describe("resolveBootstrap", () => {
     const config = resolveBootstrap();
     expect(config.singleFileMode).toBe(true);
     expect(config.loader).toBe("direct");
+  });
+});
+
+// Only a location the browser would fetch itself, from an origin other than
+// the page's, is a proposal; everything else resolves without a gate.
+describe("resolveBootstrap log location trust", () => {
+  const addLogDirContext = (json: object) => {
+    const el = document.createElement("script");
+    el.id = "log_dir_context";
+    el.type = "application/json";
+    el.textContent = JSON.stringify(json);
+    document.body.appendChild(el);
+  };
+  afterEach(() => document.getElementById("log_dir_context")?.remove());
+
+  it("a same-origin ?log_dir= is trusted", () => {
+    setSearch("?log_dir=logs");
+    expect(resolveBootstrap().logLocationProposal).toBeUndefined();
+  });
+
+  it("a cross-origin ?log_dir= is a proposal", () => {
+    setSearch("?log_dir=https://bucket.example/logs");
+    expect(resolveBootstrap().logLocationProposal).toEqual({
+      kind: "dir",
+      location: "https://bucket.example/logs",
+      origin: "https://bucket.example",
+    });
+  });
+
+  it("a cross-origin ?log_file= is a proposal even with an embedded log dir", () => {
+    // #log_dir_context fixes the dir, but the file param would still be
+    // selected and fetched — it's the link's choice, not the publisher's.
+    addLogDirContext({ log_dir: "logs" });
+    setSearch("?log_file=https://bucket.example/run.eval");
+    expect(resolveBootstrap().logLocationProposal).toMatchObject({
+      kind: "file",
+      origin: "https://bucket.example",
+    });
+  });
+
+  it("a cross-origin ?log_dir= the embedded context overrides is never read, so not proposed", () => {
+    addLogDirContext({ log_dir: "logs" });
+    setSearch("?log_dir=https://bucket.example/logs");
+    expect(resolveBootstrap().logLocationProposal).toBeUndefined();
+  });
+
+  it("a server-proxied location is the server's call, not a proposal", () => {
+    setSearch("?log_dir=https://bucket.example/logs&inspect_server=true");
+    expect(resolveBootstrap().logLocationProposal).toBeUndefined();
   });
 });
 

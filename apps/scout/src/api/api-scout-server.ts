@@ -237,13 +237,12 @@ export const apiScoutServer = (
     getTranscriptsColumnValues: async (
       transcriptsDir: string,
       column: string,
-      filter: Condition
+      filter: Condition | undefined
     ): Promise<ScalarValue[]> => {
       const result = await requestApi.fetchString(
         "POST",
         `/transcripts/${encodeBase64Url(transcriptsDir)}/distinct`,
         {},
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
         JSON.stringify({ column, filter: filter ?? null })
       );
       return asyncJsonParse<ScalarValue[]>(result.raw);
