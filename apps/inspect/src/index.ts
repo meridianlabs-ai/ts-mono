@@ -1,7 +1,6 @@
 /**
- * Public entry point for embedding the Inspect log viewer into an external application
- * by consuming this package's **source** directly — the `<App />` component, client
- * APIs, store initializer, and selection hooks needed to host the viewer in-process.
+ * Public entry point for embedding the Inspect log viewer into an external application: the full
+ * `<App />` surface and props-pure transcript components for consumers that own their own chrome.
  *
  * Disclaimer: semantic versioning is NOT used. This surface evolves with the host
  * application's needs. Consumers pinning to a revision must expect breaking changes
@@ -15,6 +14,10 @@ export { App } from "./app/App";
 export { clientApi } from "./client/api/client-api";
 export { default as simpleHttpApi } from "./client/api/static-http/api-static-http.ts";
 export { viewServerApi as createViewServerApi } from "./client/api/view-server/api-view-server.ts";
+export { openRemoteLogFile } from "./client/remote/remoteLogFile";
+export type { RemoteLogFile } from "./client/remote/remoteLogFile";
+export { createSampleStreamSession, resolveSample } from "./log_data";
+export type { SampleStreamSession, SampleStreamTick } from "./log_data";
 
 // Embedder api injection — install a per-dir api factory before initializing
 // the store and rendering <App/>; setLogRoot re-points the viewer at a
@@ -41,6 +44,8 @@ export type {
 
 // Log types
 export type {
+  EvalLog,
+  EvalSample,
   EvalSet,
   LogHandle,
   LogFilesResponse,
@@ -67,3 +72,20 @@ export {
   type UseScrollDirectionOptions,
   type UseScrollDirectionResult,
 } from "@tsmono/react/hooks";
+
+export {
+  InspectComponentProvider,
+  type InspectComponentProviderProps,
+} from "./componentProviders";
+export { logContentTrust } from "@tsmono/inspect-components";
+export { ChatView } from "@tsmono/inspect-components/chat";
+export type { ChatViewProps } from "@tsmono/inspect-components/chat";
+
+export { normalizeEvents } from "@tsmono/inspect-common/normalize";
+export type {
+  ChatMessage,
+  Event,
+  Timeline,
+} from "@tsmono/inspect-common/types";
+export { TranscriptLayout } from "@tsmono/inspect-components/transcript";
+export type { TranscriptLayoutProps } from "@tsmono/inspect-components/transcript";

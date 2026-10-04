@@ -12,12 +12,7 @@ import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { FC, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { RouterProvider } from "react-router/dom";
 
-import {
-  ComponentIconProvider,
-  ComponentIcons,
-} from "@tsmono/react/components";
 import { useEventListener } from "@tsmono/react/hooks";
-import { ComponentStateProvider } from "@tsmono/react/state";
 import { basename, getVscodeApi, isUri } from "@tsmono/util";
 import { ZustandDevtoolsPanel } from "@tsmono/zustand-devtools";
 
@@ -29,8 +24,8 @@ import {
   setLogRoot,
 } from "../app_config";
 import { HostMessage } from "../client/api/types.ts";
+import { InspectStateAndIconProvider } from "../componentProviders";
 import { FetchEngineController, imperativeLogData } from "../log_data";
-import { inspectStateHooks } from "../state/componentStateAdapter";
 import { queryClient } from "../state/queryClient.ts";
 import { storeImplementation, useStore } from "../state/store.ts";
 import {
@@ -38,27 +33,7 @@ import {
   useUserSettings,
 } from "../state/userSettings.ts";
 
-import { ApplicationIcons } from "./appearance/icons.ts";
 import { AppRouter } from "./routing/AppRouter.tsx";
-
-const componentIcons: ComponentIcons = {
-  arrowDown: ApplicationIcons.arrows.down,
-  arrowUp: ApplicationIcons.arrows.up,
-  chevronDown: ApplicationIcons.chevron.down,
-  chevronUp: ApplicationIcons.collapse.up,
-  clearText: ApplicationIcons["clear-text"],
-  close: ApplicationIcons.close,
-  code: ApplicationIcons.code,
-  confirm: ApplicationIcons.confirm,
-  copy: ApplicationIcons.copy,
-  error: ApplicationIcons.error,
-  menu: ApplicationIcons.threeDots,
-  next: ApplicationIcons.next,
-  noSamples: ApplicationIcons.noSamples,
-  play: ApplicationIcons.play,
-  previous: ApplicationIcons.previous,
-  toggleRight: ApplicationIcons["toggle-right"],
-};
 
 /**
  * Keep the applied theme in lockstep with the persisted preference. The inline
@@ -164,11 +139,9 @@ export const AppContent: FC = () => {
     <>
       <ThemePreferenceSyncController />
       <FetchEngineController />
-      <ComponentIconProvider icons={componentIcons}>
-        <ComponentStateProvider hooks={inspectStateHooks}>
-          <RouterProvider router={AppRouter} />
-        </ComponentStateProvider>
-      </ComponentIconProvider>
+      <InspectStateAndIconProvider>
+        <RouterProvider router={AppRouter} />
+      </InspectStateAndIconProvider>
     </>
   );
 };

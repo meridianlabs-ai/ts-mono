@@ -8,9 +8,7 @@
   "module": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "files": [
-    "lib",
-    "lib/styles",
-    "lib/assets"
+    "lib"
   ],
   "repository": {
     "type": "git",
@@ -28,7 +26,7 @@
     "dev": "vite",
     "dev:lib": "NODE_ENV=development vite build --mode library --watch",
     "check:publishable": "node scripts/check-publishable.mjs",
-    "prepublishOnly": "pnpm run check:publishable && pnpm run build:lib",
+    "prepack": "pnpm run build:lib && pnpm run check:publishable",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -43,8 +41,8 @@
   },
   "exports": {
     ".": {
-      "import": "./lib/index.js",
-      "types": "./lib/index.d.ts"
+      "types": "./lib/index.d.ts",
+      "import": "./lib/index.js"
     },
     "./styles/index.css": "./lib/styles/index.css"
   },

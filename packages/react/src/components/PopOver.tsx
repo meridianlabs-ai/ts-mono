@@ -32,6 +32,18 @@ interface PopOverProps {
   styles?: CSSProperties;
 }
 
+const eventOccurredWithin = (
+  event: MouseEvent,
+  element: Node | null
+): boolean => {
+  if (element === null) return false;
+  const target = event.target instanceof Node ? event.target : null;
+  return (
+    event.composedPath().includes(element) ||
+    (target !== null && element.contains(target))
+  );
+};
+
 /**
  * A controlled Popper component for displaying content relative to a reference element
  */
@@ -56,6 +68,13 @@ export const PopOver: React.FC<PopOverProps> = ({
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(
     null
   );
+  const triggerRoot = positionEl?.getRootNode();
+  const ownerDocument = positionEl?.ownerDocument ?? document;
+  const portalParent =
+    typeof ShadowRoot !== "undefined" && triggerRoot instanceof ShadowRoot
+      ? triggerRoot
+      : ownerDocument.body;
+  const shouldUsePortal = usePortal;
 
   // For delayed hover functionality
   const [shouldShowPopover, setShouldShowPopover] = useState(false);
@@ -108,9 +127,9 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
 
     const handleMouseDown = (event: MouseEvent) => {
-      // Only cancel popover on mouse down outside the popover content
-      const target = event.target instanceof Node ? event.target : null;
-      if (popperRef.current && !popperRef.current.contains(target)) {
+      // Shadow DOM retargets event.target to the host at document listeners;
+      // composedPath retains the actual popover nodes.
+      if (popperRef.current && !eventOccurredWithin(event, popperRef.current)) {
         if (hoverTimerRef.current !== null) {
           window.clearTimeout(hoverTimerRef.current);
         }
@@ -130,12 +149,11 @@ export const PopOver: React.FC<PopOverProps> = ({
       let mouseDownOnTrigger = false;
 
       const captureListener = (event: MouseEvent) => {
-        const target = event.target instanceof Node ? event.target : null;
-        mouseDownInsidePopover = popperRef.current?.contains(target) ?? false;
+        mouseDownInsidePopover = eventOccurredWithin(event, popperRef.current);
         // A click on the trigger element should NOT close via this handler —
         // the trigger's own onClick will toggle the popover. Closing here
         // then reopening in the trigger handler would net to no change.
-        mouseDownOnTrigger = positionEl?.contains(target) ?? false;
+        mouseDownOnTrigger = eventOccurredWithin(event, positionEl);
       };
 
       const bubbleListener = () => {
@@ -191,15 +209,20 @@ export const PopOver: React.FC<PopOverProps> = ({
     };
   }, [isOpen, positionEl, hoverDelay]);
 
-  // Effect to create portal container when needed
+  // Portal to the trigger's own composed root. A ShadowRoot-local portal keeps
+  // its styles and coordinate system while escaping component scroll/overflow
+  // ancestors; document triggers keep the existing body portal.
   // eslint-disable-next-line tsmono/no-raw-use-effect -- baselined at rule introduction; migrate to a named hook or derived state
   useEffect(() => {
-    // Only create portal when the popover is open
-    if (usePortal && isOpen && shouldShowPopover) {
-      let container = document.getElementById(id);
+    if (shouldUsePortal && isOpen && shouldShowPopover) {
+      let container =
+        portalParent instanceof ShadowRoot
+          ? portalParent.getElementById(id)
+          : ownerDocument.getElementById(id);
+      let ownsContainer = false;
 
       if (!container) {
-        container = document.createElement("div");
+        container = ownerDocument.createElement("div");
         container.id = id;
         container.style.position = "absolute";
         container.style.top = "0";
@@ -208,24 +231,32 @@ export const PopOver: React.FC<PopOverProps> = ({
         container.style.width = "0";
         container.style.height = "0";
         container.style.overflow = "visible";
-
-        document.body.appendChild(container);
+        portalParent.appendChild(container);
+        ownsContainer = true;
       }
 
       // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing React with externally-created DOM node
       setPortalContainer(container);
 
       return () => {
-        // Clean up only when unmounting or when the popover closes
-        if (document.body.contains(container)) {
-          document.body.removeChild(container);
-          setPortalContainer(null);
+        if (ownsContainer && container.parentNode === portalParent) {
+          portalParent.removeChild(container);
         }
+        setPortalContainer((current) =>
+          current === container ? null : current
+        );
       };
     }
 
     return undefined;
-  }, [usePortal, isOpen, shouldShowPopover, id]);
+  }, [
+    shouldUsePortal,
+    isOpen,
+    shouldShowPopover,
+    id,
+    ownerDocument,
+    portalParent,
+  ]);
 
   // Popper modifier pair that caps the popover to the full viewport
   // (minus padding), not to whatever the popover currently happens to be.
@@ -344,7 +375,7 @@ export const PopOver: React.FC<PopOverProps> = ({
     // eslint-disable-next-line react-hooks/refs
   } = usePopper(positionEl, popperRef.current, {
     placement,
-    strategy: "fixed",
+    strategy: shouldUsePortal ? "fixed" : "absolute",
     modifiers,
   });
 
@@ -493,11 +524,11 @@ export const PopOver: React.FC<PopOverProps> = ({
 
   // Popper container styles
   const defaultPopperStyles: CSSProperties = {
-    backgroundColor: "var(--bs-body-bg)",
+    backgroundColor: "var(--bs-body-bg, #fff)",
     padding: "12px",
-    borderRadius: "var(--bs-border-radius)",
+    borderRadius: "var(--bs-border-radius, 0.375rem)",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    border: "solid 1px var(--bs-border-color)",
+    border: "solid 1px var(--bs-border-color, #dee2e6)",
     zIndex: 1200,
     position: "relative",
     // Apply opacity transition to smooth the appearance
@@ -696,7 +727,7 @@ export const PopOver: React.FC<PopOverProps> = ({
   );
 
   // If using portal and the container exists, render through the portal
-  if (usePortal && portalContainer) {
+  if (shouldUsePortal && portalContainer) {
     return createPortal(popperContent, portalContainer);
   }
 
