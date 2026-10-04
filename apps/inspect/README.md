@@ -108,17 +108,12 @@ cross-timeline navigation without the `eventId` loop below.
 
 ```tsx
 import {
-    ChatViewRowsVirtualList,
     initializeStore,
     InspectComponentProvider,
-    InspectDataProvider,
     logContentTrust,
     TranscriptLayout,
-    useEvalSampleData,
-    useSampleMessages,
     type EvalLog,
     type Event,
-    type SampleHandle,
     type Timeline,
 } from "@meridianlabs/log-viewer";
 import { useRef, useState } from "react";
@@ -214,55 +209,36 @@ hidden characters revealed. Pass `logContentTrust(header)` for the log the
 sample came from (the `eval` field of `readLogSummary()` is enough) rather
 than a constant, so a log written with `trust_content=False` stays plain.
 
-For a messages surface backed by the viewer's sample data hooks, install the
-API factory and initialize the store as in the full-app example, then mount
-one `InspectDataProvider`. It waits for resolved config and owns the fetch
-engine that supplies `useEvalSampleData`; `InspectQueryClientProvider` alone
-does not start that engine.
-
-Pass the `MessageRowsFeed` from `useSampleMessages` directly to
-`ChatViewRowsVirtualList`. This preserves chunked-sample paging, in-flight
-rows, and the live-to-finished handoff owned by the data layer:
+For the messages view, read the sample through the same range reader the
+viewer uses and pass its messages to `ChatView`. `resolveSample` expands the
+attachment and message-pool references a stored sample carries:
 
 ```tsx
-function Messages({
-    logDir,
-    handle,
-}: {
-    logDir: string;
-    handle: SampleHandle;
-}) {
-    const sampleData = useEvalSampleData(logDir, handle);
-    const running = sampleData.status === "streaming";
-    const messageFeed = useSampleMessages(handle, sampleData, true, running);
+import {
+    ChatView,
+    createViewServerApi,
+    openRemoteLogFile,
+    resolveSample,
+} from "@meridianlabs/log-viewer";
 
-    return (
-        <ChatViewRowsVirtualList
-            id="sample-messages"
-            rows={messageFeed.rows.data ?? []}
-            hasMoreRows={messageFeed.hasMore}
-            onLoadMoreRows={messageFeed.loadMore}
-            running={running}
-            backfilling={sampleData.backfilling || messageFeed.rows.loading}
-        />
-    );
-}
+const api = createViewServerApi({ logDir, apiBaseUrl });
+const log = await openRemoteLogFile(api, logFile, 4);
+const summary = await log.readLogSummary();
+const sample = resolveSample(await log.readSample(sampleId, epoch));
 
-<InspectDataProvider>
-    <InspectComponentProvider
-        contentTrust={logContentTrust(header)}
-        navigate={() => {}}
-    >
-        <Messages logDir={logDir} handle={handle} />
-    </InspectComponentProvider>
-</InspectDataProvider>;
+<InspectComponentProvider
+    contentTrust={logContentTrust(summary)}
+    navigate={() => {}}
+>
+    <ChatView id="sample-messages" messages={sample.messages} />
+</InspectComponentProvider>;
 ```
 
-Hosts that own polling instead of mounting the data-hook provider can wrap a
-`createViewServerApi` with `clientApi` and pass it to
-`createSampleStreamSession`. Its `tick()` method retains cursors and resolves
-attachments plus message/call-pool references before returning events. Reuse
-that reducer rather than rendering `pending-sample-data` wire rows directly.
+For a sample that is still running, wrap the same `createViewServerApi` with
+`clientApi` and pass it to `createSampleStreamSession`. Its `tick()` method
+retains cursors and resolves attachments plus message/call-pool references
+before returning events. Reuse that reducer rather than rendering
+`pending-sample-data` wire rows directly.
 
 Keep both collapse setters: the layout uses `onSetTranscriptCollapsed` to seed
 defaults on the first toggle and for bulk expand of deep-link targets, and
